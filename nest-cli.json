@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json.schemastore.org/nest-cli",
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "apps/openpra/src",
+  "compilerOptions": {
+    "deleteOutDir": true,
+    "webpack": true,
+    "tsConfigPath": "apps/openpra/tsconfig.app.json"
+  },
+  "monorepo": true,
+  "root": "apps/openpra",
+  "projects": {
+    "openpra": {
+      "type": "application",
+      "root": "apps/openpra",
+      "entryFile": "main",
+      "sourceRoot": "apps/openpra/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/openpra/tsconfig.app.json"
+      }
+    },
+    "web-backend": {
+      "type": "application",
+      "root": "apps/web-backend",
+      "entryFile": "main",
+      "sourceRoot": "apps/web-backend/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/web-backend/tsconfig.app.json"
+      }
+    }
+  }
+}

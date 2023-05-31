@@ -1,4 +1,4 @@
 packages:
   # all packages in direct subdirs of apps/
-  - 'apps/*'
-  - 'libs/*'
+  - 'packages/*'
+#  - 'libs/*'

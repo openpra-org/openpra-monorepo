@@ -1,7 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
+import { Action, ActionSchema } from '../../hcl/schemas/action.schema';
 
-@Schema()
+@Schema({ _id: false, versionKey: false })
 class User_Credentials {
     @Prop({ required: false })
     id: number;
@@ -10,125 +11,137 @@ class User_Credentials {
     username: string;
 }
 
-@Schema()
-class Actions {
-    @Prop({ required: false })
-    tree_id: number;
-    
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
-    user: User_Credentials;
+const UserCredentialsSchema = SchemaFactory.createForClass(User_Credentials);
 
-    @Prop({ type: mongoose.Schema.Types.Date, required: false })
-    date;
-
-    @Prop({ required: false })
-    type: string;
-}
-
-@Schema()
-class Type {
-    @Prop({ required: false })
-    'Hybrid Causal Logic': string;
-}
-
-@Schema()
+@Schema({ minimize: false, _id: false, versionKey: false })
 class Instances {}
 
-@Schema()
+const InstancesSchema = SchemaFactory.createForClass(Instances);
+
+@Schema({ minimize: false, _id: false, versionKey: false })
 class Models {
     @Prop({ required: false })
     id: number;
-
-    @Prop({ required: false })
-    title: string;
-
-    @Prop({ type: mongoose.Schema.Types.Date, required: false })
-    date_created;
-
-    @Prop({ type: mongoose.Schema.Types.Date, required: false })
-    date_modified;
-
+    
     @Prop({ required: false })
     creator: number;
 
     @Prop({ required: false })
-    assigned_users: number[];
+    title: string;
 
     @Prop({ required: false })
     description: string;
 
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
-    actions: Actions[];
+    @Prop({ required: false })
+    assigned_users: number[];
+
+    @Prop({ type: mongoose.Schema.Types.Date, required: false })
+    date_created: Date;
+
+    @Prop({ type: mongoose.Schema.Types.Date, required: false })
+    date_modified: Date;
+
+    @Prop({ required: false })
+    type: string;
 
     @Prop({ required: false })
     path: string;
 
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
-    type: Type;
+    @Prop({ type: [{ type: ActionSchema }], required: false })
+    actions: Action[];
 
-    @Prop({ type: mongoose.Schema.Types.Map ,required: false })
+    @Prop({ type: [{ type: InstancesSchema }], required: false })
     instances: Instances[];
 }
 
-@Schema()
+const ModelsSchema = SchemaFactory.createForClass(Models);
+
+@Schema({ minimize: false, _id: false, versionKey: false })
 class Subsystems {}
 
-@Schema()
+const SubsystemsSchema = SchemaFactory.createForClass(Subsystems);
+
+@Schema({ minimize: false, _id: false, versionKey: false })
 class Projects {}
 
-@Schema()
+const ProjectsSchema = SchemaFactory.createForClass(Projects);
+
+@Schema({ minimize: false, _id: false, versionKey: false })
 class Recently_Accessed {
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
+    @Prop({ type: [{ type: ModelsSchema }], required: false })
     models: Models[];
 
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
+    @Prop({ type: [{ type: SubsystemsSchema }], required: false })
     subsystems: Subsystems[];
     
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
+    @Prop({ type: [{ type: ProjectsSchema }], required: false })
     projects: Projects[];
 }
 
-@Schema()
+const RecentlyAccessedSchema = SchemaFactory.createForClass(Recently_Accessed);
+
+@Schema({ minimize: false, _id: false, versionKey: false })
 class Configurations {}
 
-@Schema()
+const ConfigurationsSchema = SchemaFactory.createForClass(Configurations);
+
+@Schema({ minimize: false, _id: false, versionKey: false })
 class QuantificationConfigurations {
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
+    @Prop({ type: ConfigurationsSchema, required: false })
     configurations: Configurations;
 
     @Prop({ required: false })
     currentlySelected: string;
 }
 
-@Schema()
+const QuantificationConfigurationsSchema = SchemaFactory.createForClass(QuantificationConfigurations);
+
+@Schema({ minimize: false, _id: false, versionKey: false })
 class Preferences {
     @Prop({ required: false })
     theme: string;
 
     @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-    nodeIdsVisible;
+    nodeIdsVisible: boolean | string;
 
     @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-    outlineVisible;
+    outlineVisible: boolean | string;
 
     @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-    node_value_visible;
+    node_value_visible: boolean | string;
 
     @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-    nodeDescriptionEnabled;
+    nodeDescriptionEnabled: boolean | string;
 
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
+    @Prop({ type: mongoose.Schema.Types.Mixed, required:false })
+    pageBreaksVisible: boolean | string;
+
+    @Prop({ type: QuantificationConfigurationsSchema, required: false })
     quantificationConfigurations: QuantificationConfigurations;
 }
 
-@Schema()
+const PreferencesSchema = SchemaFactory.createForClass(Preferences);
+
+@Schema({ minimize: false, _id: false, versionKey: false })
 class Permissions {}
 
+const PermissionsSchema = SchemaFactory.createForClass(Permissions);
+
 @Schema({
+    minimize: false,
     timestamps: {
         createdAt: 'account_created',
         updatedAt: 'last_login'
-    }
+    },
+    toJSON: {
+        transform: function(doc, ret) {
+            delete ret._id;
+            delete ret.password;
+            delete ret.first_name;
+            delete ret.last_name;
+        }
+    },
+    versionKey: false
 })
 export class User {
     @Prop({ required: false })
@@ -152,13 +165,13 @@ export class User {
     @Prop()
     password: string;
 
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
+    @Prop({ type: RecentlyAccessedSchema, required: false })
     recently_accessed: Recently_Accessed;
 
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
+    @Prop({ type: PreferencesSchema, required: false })
     preferences: Preferences;
 
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
+    @Prop({ type: PermissionsSchema, default: {}, required: false })
     permissions: Permissions;
 }
 

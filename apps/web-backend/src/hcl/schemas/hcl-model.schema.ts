@@ -1,27 +1,43 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document } from 'mongoose';
+import { Document } from 'mongoose';
+import { Action, ActionSchema } from './action.schema';
 
-@Schema()
+@Schema({ _id: false, versionKey: false })
 class Model_Data {
-    @Prop()
+    @Prop({ required: false })
     bayesian_networks: number[];
 
-    @Prop()
+    @Prop({ required: false })
     event_trees: number[];
 
-    @Prop()
+    @Prop({ required: false })
     fault_trees: number[];
 
-    @Prop()
+    @Prop({ required: false })
     init_events: number[];
 }
 
-@Schema({ timestamps: {
+const ModelDataSchema = SchemaFactory.createForClass(Model_Data);
+
+@Schema({ minimize: false, _id: false, versionKey: false })
+class Instances {}
+
+const InstancesSchema = SchemaFactory.createForClass(Instances);
+
+@Schema({ 
+    timestamps: {
         createdAt: 'date_created',
         updatedAt: 'date_modified'
-}})
+    },
+    toJSON: {
+        transform: function(doc, ret) {
+            delete ret._id;
+        }
+    },
+    versionKey: false
+})
 export class HclModel {
-    @Prop({ required: false, unique: true })
+    @Prop({ required: false })
     id: number;
 
     @Prop({ required: false })
@@ -37,25 +53,28 @@ export class HclModel {
     assigned_users: number[];
 
     @Prop({ required: false })
-    type: string;
-
-    @Prop({ required: false })
     overview_tree: number;
 
-    @Prop({ required: false })
+    @Prop({ default: 'CO', required: false })
     tag: string;
 
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
+    @Prop({ required: false })
+    path: string;
+
+    @Prop({ default: 'hcl', required: false })
+    type: string;
+
+    @Prop({ type: ModelDataSchema, required: false })
     model_data: Model_Data;
 
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
-    actions;
+    @Prop({ type: [{ type: ActionSchema }], required: false })
+    actions: Action[];
 
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
-    results;
+    @Prop({ default: [], required: false })
+    results: string[];
 
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
-    instances;
+    @Prop({ type: [{ type: InstancesSchema }], default: [], required: false })
+    instances: Instances[];
 };
 
 export type HclModelDocument = HclModel & Document;

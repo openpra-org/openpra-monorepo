@@ -18,7 +18,15 @@
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
     "paths": {
-      "apps/*": ["./apps/*"],
+      "apps/*": [
+        "./apps/*"
+      ],
+      "@lib/branding-asset-primitives": [
+        "libs/branding-asset-primitives/src"
+      ],
+      "@lib/branding-asset-primitives/*": [
+        "libs/branding-asset-primitives/src/*"
+      ]
     }
   }
 }

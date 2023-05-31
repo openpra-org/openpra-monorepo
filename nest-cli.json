@@ -27,6 +27,25 @@
       "compilerOptions": {
         "tsConfigPath": "apps/web-backend/tsconfig.app.json"
       }
+    },
+    "web-editor": {
+      "type": "application",
+      "root": "apps/web-editor",
+      "entryFile": "main",
+      "sourceRoot": "apps/web-editor/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/web-editor/tsconfig.app.json"
+      }
+    },
+    "branding-asset-primitives": {
+      "type": "library",
+      "root": "libs/branding-asset-primitives",
+      "entryFile": "index",
+      "sourceRoot": "libs/branding-asset-primitives/src",
+      "compilerOptions": {
+        "tsConfigPath": "libs/branding-asset-primitives/tsconfig.lib.json",
+        "assets": ["**/*.css", "**/*.woff2", "**/*.svg", "**/*.png"]
+      }
     }
   }
 }

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="112px" height="27px" viewBox="0 0 112 27" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 51.2 (57519) - http://www.bohemiancoding.com/sketch -->
+    <title>hcla</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="hcla" transform="translate(1.000000, 0.000000)">
+            <g id="transfer-gate" fill-rule="evenodd" transform="translate(87.000000, 0.000000)" fill="#C96A7C">
+                <polygon id="Triangle" points="12 0 24 24 0 24"></polygon>
+            </g>
+            <g id="or-gate" fill-rule="evenodd" transform="translate(41.000000, 13.000000) rotate(-90.000000) translate(-41.000000, -13.000000) translate(29.000000, 1.000000)" fill="#C96A7C">
+                <path d="M0.00572739164,24 C1.27307534,17.3762052 11.1435016,17.3762052 12,17.3762052 C12.8564984,17.3762052 22.4787565,17.3762052 23.972616,24 C24.3732069,11.6905335 20.3787254,3.69053354 11.9891717,0 C3.82169504,3.71049472 -0.172786391,11.7104947 0.00572739164,24 Z" id="Path"></path>
+            </g>
+            <g id="success-branch" fill-rule="evenodd" transform="translate(0.000000, 1.000000)" fill="#C96A7C">
+                <path id="Line" d="M24.02,12 L15.02,7.5 L15.02,16.5 L24.02,12 Z M0.48,12.5 L15.52,12.5 L16.02,12.5 L16.02,11.5 L15.52,11.5 L0.48,11.5 L-0.02,11.5 L-0.02,12.5 L0.48,12.5 Z" fill-rule="nonzero"></path>
+            </g>
+            <g id="failure-branch" fill-rule="evenodd" transform="translate(60.000000, 0.000000)">
+                <g id="success-branch" transform="translate(1.960000, 19.764706)" fill="#C96A7C" fill-rule="nonzero">
+                    <path id="Line" d="M23.0792,2.11764706 L14.0792,-2.38235294 L14.0792,6.61764706 L23.0792,2.11764706 Z M0.4608,2.61764706 L14.5792,2.61764706 L15.0792,2.61764706 L15.0792,1.61764706 L14.5792,1.61764706 L0.4608,1.61764706 L-0.0392,1.61764706 L-0.0392,2.61764706 L0.4608,2.61764706 Z"></path>
+                </g>
+                <path d="M1.48,21.8823529 L1.48,0.658875701" id="Line-2" stroke="#C96A7C" stroke-linecap="square"></path>
+            </g>
+            <path d="M0.25,23.5 L0.25,2.46670362" id="Line-2" stroke="#C96A7C" stroke-linecap="square"></path>
+            <path d="M24.25,23.5 L24.25,2.46670362" id="Line-2" stroke="#C96A7C" stroke-linecap="square"></path>
+        </g>
+    </g>
+</svg>

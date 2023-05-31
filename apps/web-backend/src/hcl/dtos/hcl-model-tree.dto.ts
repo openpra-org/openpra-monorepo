@@ -1,11 +1,16 @@
-import { z } from 'nestjs-zod/z';
-import { createZodDto } from 'nestjs-zod';
+import { IsObject, IsOptional, IsString } from 'class-validator';
 
-const hclModelTreeSchema = z.object({
-    description: z.string(),
-    title: z.string(),
-    tree_data: z.object({}),
-    tree_type: z.string()
-});
+export class HclModelTreeDto {
+    @IsString()
+    title: string;
 
-export class HclModelTreeDto extends createZodDto(hclModelTreeSchema) {}
+    @IsString()
+    description: string;
+
+    @IsString()
+    tree_type: string;
+
+    @IsOptional()
+    @IsObject()
+    tree_data: object;
+}

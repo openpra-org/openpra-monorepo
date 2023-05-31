@@ -1,43 +1,48 @@
 import { Module } from '@nestjs/common';
-import { getConnectionToken, MongooseModule } from '@nestjs/mongoose';
-import { Connection } from 'mongoose';
-import * as AutoIncrementFactory from 'mongoose-sequence';
+import { MongooseModule } from '@nestjs/mongoose';
 import { HclController } from './hcl.controller';
 import { HclService } from './hcl.service';
-import { GlobalParameter, GlobalParameterSchema } from './schemas/global-parameter.schema';
+import { ModelCounter, ModelCounterSchema } from './schemas/model-counter.schema';
 import { HclModel, HclModelSchema } from './schemas/hcl-model.schema';
+import { GlobalParameterCounter, GlobalParameterCounterSchema } from './schemas/global-parameter-counter.schema';
+import { GlobalParameter, GlobalParameterSchema } from './schemas/global-parameter.schema';
+import { TreeCounter, TreeCounterSchema } from './schemas/tree-counter.schema';
 import { HclModelTree, HclModelTreeSchema } from './schemas/hcl-model-tree.schema';
+import { FaultTree, FaultTreeSchema } from './schemas/fault-tree.schema';
+import { EventSequenceDiagram, EventSequenceDiagramSchema } from './schemas/event-sequence-diagram.schema';
+import { BayesianNetworks, BayesianNetworksSchema } from './schemas/bayesian-networks.schema';
+import { Action, ActionSchema } from './schemas/action.schema';
+import { OverviewTree, OverviewTreeSchema } from './schemas/overview-tree.schema';
+import { User, UserSchema } from '../collab/schemas/user.schema';
+import { QuantificationResultCounter, QuantificationResultCounterSchema } from './schemas/quantification-result-counter.schema';
+import { HclModelQuantificationResult, HclModelQuantificationResultSchema } from './schemas/hcl-model-quantification-result.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeatureAsync([
-      {
-        name: HclModel.name,
-        useFactory: async(connection: Connection) => {
-            const hclModelSchema = HclModelSchema;
-            const AutoIncrement = AutoIncrementFactory(connection);
-            hclModelSchema.plugin(AutoIncrement, {inc_field: 'model_id'});
-            return hclModelSchema;
-        },
-        inject: [getConnectionToken()]
-      }
-    ]),
-    MongooseModule.forFeatureAsync([
-      {
-        name: GlobalParameter.name,
-        useFactory: async(connection: Connection) => {
-            const globalParameterSchema = GlobalParameterSchema;
-            const AutoIncrement = AutoIncrementFactory(connection);
-            globalParameterSchema.plugin(AutoIncrement, {inc_field: 'pk'});
-            return globalParameterSchema;
-        },
-        inject: [getConnectionToken()]
-      }
-    ]),
-    MongooseModule.forFeature([{ name: HclModelTree.name, schema: HclModelTreeSchema }])
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: ModelCounter.name, schema: ModelCounterSchema },
+      { name: HclModel.name, schema: HclModelSchema },
+      { name: GlobalParameterCounter.name, schema: GlobalParameterCounterSchema },
+      { name: GlobalParameter.name, schema: GlobalParameterSchema },
+      { name: TreeCounter.name, schema: TreeCounterSchema },
+      { name: Action.name, schema: ActionSchema },
+      { 
+        name: HclModelTree.name, schema: HclModelTreeSchema,
+        discriminators: [
+          { name: FaultTree.name, schema: FaultTreeSchema },
+          { name: EventSequenceDiagram.name, schema: EventSequenceDiagramSchema },
+          { name: BayesianNetworks.name, schema: BayesianNetworksSchema }
+        ]
+      },
+      { name: OverviewTree.name, schema: OverviewTreeSchema },
+      { name: QuantificationResultCounter.name, schema: QuantificationResultCounterSchema },
+      { name: HclModelQuantificationResult.name, schema: HclModelQuantificationResultSchema }
+    ])
   ],
   controllers: [HclController],
-  providers: [HclService]
+  providers: [HclService],
+  exports: [HclService]
 })
 
 export class HclModule {}

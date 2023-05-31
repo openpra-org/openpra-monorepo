@@ -1,26 +1,48 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
+import { FaultTree } from './fault-tree.schema';
+import { EventSequenceDiagram } from './event-sequence-diagram.schema';
+import { BayesianNetworks } from './bayesian-networks.schema';
 
-@Schema()
-export class Model {
-    @Prop()
+@Schema({ _id: false, versionKey: false })
+class Model {
+    @Prop({ required: false })
     id: number;
 
-    @Prop()
+    @Prop({ required: false })
     type: string;
 
-    @Prop()
+    @Prop({ required: false })
     model_tag: string;
 }
 
+const ModelSchema = SchemaFactory.createForClass(Model);
 
-@Schema({ timestamps: {
+@Schema({
+    timestamps: {
         createdAt: 'date_created',
         updatedAt: 'date_modified'
-}})
+    },
+    toJSON: {
+        transform: function(doc, ret) {
+            delete ret._id;
+            delete ret.__v;
+            delete ret.tree_name;
+            delete ret.model_id;
+        }
+    },
+    discriminatorKey: 'tree_name'
+})
 export class HclModelTree {
+    @Prop({
+        type: String,
+        required: false,
+        enum: [FaultTree.name, EventSequenceDiagram.name, BayesianNetworks.name]
+    })
+    tree_name: string;
+
     @Prop({ required: false })
-    model_id: string;
+    model_id: number;
 
     @Prop({ required: false, unique: true })
     id: number;
@@ -34,13 +56,13 @@ export class HclModelTree {
     @Prop()
     description:string;
 
-    @Prop({ type: mongoose.Schema.Types.Map, required: false })
+    @Prop({ type: ModelSchema, required: false })
     model: Model;
 
     @Prop()
     tree_type:string;
 
-    @Prop({ required: false })
+    @Prop({ default: false, required: false })
     valid: boolean;
 
     @Prop({ type: mongoose.Schema.Types.Map })

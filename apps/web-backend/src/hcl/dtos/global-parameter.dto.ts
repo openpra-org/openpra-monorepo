@@ -1,10 +1,15 @@
-import { z } from 'nestjs-zod/z';
-import { createZodDto } from 'nestjs-zod';
+import { IsOptional, IsString, ValidateIf } from 'class-validator';
 
-const globalParameterSchema = z.object({
-    parameter_name: z.string(),
-    double_value: z.string().or(z.number()).optional(),
-    string_value: z.string().optional()
-})
+export class GlobalParameterDto {
+    @IsString()
+    parameter_name: string;
 
-export class GlobalParameterDto extends createZodDto(globalParameterSchema) {}
+    @IsOptional()
+    @IsString()
+    @ValidateIf((object, value) => typeof value !== 'number')
+    double_value: number;
+
+    @IsOptional()
+    @IsString()
+    string_value: string;
+}

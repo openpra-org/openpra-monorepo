@@ -1,11 +1,15 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-@Schema()
+@Schema({ 
+    toJSON: {
+        transform: function(doc, ret) {
+            delete ret._id;
+            delete ret.model_id;
+        }
+    },
+    versionKey: false })
 export class GlobalParameter {
-    @Prop({ unique: false })
-    user_id: number;
-    
     @Prop({ unique: false })
     model_id: number;
 

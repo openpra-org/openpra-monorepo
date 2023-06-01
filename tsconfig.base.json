@@ -15,8 +15,8 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "frontend/assets": ["packages/frontend/assets/src/index.ts"],
-    },
+      "frontend/assets": ["packages/frontend/assets/src/index.ts"]
+    }
   },
   "exclude": ["node_modules", "tmp"]
 }

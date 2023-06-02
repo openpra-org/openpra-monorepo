@@ -1,1 +1,12 @@
 /* You can add global styles to this file, and also import other style files */
+
+@import url("assets/fonts/cereal/Cereal.css");
+
+html {
+    font-synthesis: weight style small-caps;
+    font-optical-sizing: auto;
+    -moz-osx-font-smoothing: auto;
+    -webkit-font-smoothing: subpixel-antialiased;
+    font-smooth: always;
+}
+

@@ -7,7 +7,7 @@ export default function LandingPage() {
         <EuiPage restrictWidth>
             <EuiPageBody>
                 <EuiFlexGroup justifyContent="spaceAround" alignItems="center">
-                    <EuiFlexItem grow={6}>
+                    <EuiFlexItem grow={7}>
                         <EuiText grow={true}>
                             <h1>This is Heading One</h1>
                             <p>
@@ -18,7 +18,7 @@ export default function LandingPage() {
                             </p>
                         </EuiText>
                     </EuiFlexItem>
-                    <EuiFlexItem grow={4}>
+                    <EuiFlexItem grow={3} style={{ alignItems: "center"}}>
                         <AuthCard />
                     </EuiFlexItem>
                 </EuiFlexGroup>

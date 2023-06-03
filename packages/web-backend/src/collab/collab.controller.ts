@@ -1,13 +1,11 @@
 import { HttpStatus, Controller, Options, Get, Post, Put, Delete, Request, Param, Query, Body, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-// import { ApiTags } from '@nestjs/swagger';
 import { CollabService } from './collab.service';
 import { CreateNewUserDto } from './dtos/create-new-user.dto';
 import { PaginationDto } from './dtos/pagination.dto';
 import { UserPreferencesDto } from './dtos/user-preferences.dto';
 import { User } from './schemas/user.schema';
 
-// @ApiTags('Collab Endpoints')
 @Controller()
 export class CollabController {
     constructor(private collabService: CollabService) {}

@@ -1,32 +1,15 @@
-import { IsBoolean, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { z } from 'nestjs-zod/z';
+import { createZodDto } from 'nestjs-zod';
 
-export class UserPreferencesDto {
-    @IsOptional()
-    @IsString()
-    theme: string;
+const userPreferencesSchema = z.object({
+    preferences: z.object({
+        theme: z.string().optional(),
+        nodeIdsVisible: z.string().or(z.boolean()).optional(),
+        outlineVisible: z.string().or(z.boolean()).optional(),
+        nodeDescriptionEnabled: z.string().or(z.boolean()).optional(),
+        node_value_visible: z.string().or(z.boolean()).optional(),
+        pageBreaksVisible: z.string().or(z.boolean()).optional()
+    })
+})
 
-    @IsOptional()
-    @IsBoolean()
-    @ValidateIf((object, value) => typeof value !== 'string')
-    nodeIdsVisible: boolean;
-
-    @IsOptional()
-    @IsBoolean()
-    @ValidateIf((object, value) => typeof value !== 'string')
-    outlineVisible: boolean;
-
-    @IsOptional()
-    @IsBoolean()
-    @ValidateIf((object, value) => typeof value !== 'string')
-    nodeDescriptionEnabled: boolean;
-
-    @IsOptional()
-    @IsBoolean()
-    @ValidateIf((object, value) => typeof value !== 'string')
-    node_value_visible: boolean;
-
-    @IsOptional()
-    @IsBoolean()
-    @ValidateIf((object, value) => typeof value !== 'string')
-    pageBreaksVisible: boolean;
-}
+export class UserPreferencesDto extends createZodDto(userPreferencesSchema) {}

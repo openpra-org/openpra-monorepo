@@ -1,6 +1,5 @@
 import { Controller, Options, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-// import { ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 
 /*
@@ -11,7 +10,6 @@ import { AuthService } from './auth.service';
     3.  'JWT Strategy' (AuthGuard('jwt')) extracts this token, verifies the expiration date, decrypts the token and retrieves the User data.
         After retrieval, the User data is attached with the request as an object called 'user'.
 */
-// @ApiTags('Sign-in / Obtain Token')
 @Controller()
 export class AuthController {
     constructor(private authService: AuthService) {}

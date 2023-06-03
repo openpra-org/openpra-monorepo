@@ -1,17 +1,11 @@
-import { IsArray, IsNumber, IsString, ValidateIf } from 'class-validator';
+import { z } from 'nestjs-zod/z';
+import { createZodDto } from 'nestjs-zod';
 
-export class PaginationDto {
-    @IsNumber()
-    count: number;
+const paginationSchema = z.object({
+    count: z.number(),
+    next: z.string().or(z.null()),
+    previous: z.string().or(z.null()),
+    results: z.array(z.any())
+})
 
-    @IsString()
-    @ValidateIf((object, value) => value !== null)
-    next: string | null;
-
-    @IsString()
-    @ValidateIf((object, value) => value !== null)
-    previous: string | null;
-
-    @IsArray()
-    results: any[];
-}
+export class PaginationDto extends createZodDto(paginationSchema) {}

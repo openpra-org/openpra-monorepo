@@ -1,6 +1,19 @@
 ## Getting Started
 
-You need `pnpm` installed.
+You need `node` installed. To install pnpm using npm:
+```shell
+npm install --global pnpm
+```
+
+To install dependencies:
+```shell
+pnpm install
+```
+
+If you are facing dependency issues then use --shamefully-hoist flag:
+```shell
+pnpm install --shamefully-hoist=true
+```
 
 ```shell
 pnpm setup

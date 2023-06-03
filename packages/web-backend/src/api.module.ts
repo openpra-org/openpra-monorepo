@@ -2,6 +2,7 @@ import { APP_PIPE, RouterModule } from '@nestjs/core';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { ZodValidationPipe } from 'nestjs-zod';
 import { ApiService } from './api.service';
 import { ApiController } from './api.controller';
 import { AuthModule } from './auth/auth.module';
@@ -59,7 +60,11 @@ import { HclModule } from './hcl/hcl.module';
   ],
   controllers: [ApiController],
   providers: [
-    ApiService
+    ApiService,
+    {
+      provide: APP_PIPE,
+      useClass: ZodValidationPipe
+    }
   ]
 })
 

@@ -1,24 +1,83 @@
 import React from "react";
+import { useState, useEffect } from "react";
 import {EuiTabbedContent, EuiFieldText, EuiForm, EuiText, EuiLink, EuiButton, EuiBottomBar, EuiSelect, EuiFormRow, EuiFieldPassword, EuiCard} from "@elastic/eui";
 
 import OpenPRALogo from '../../../assets/images/logos/OpenPRA_vs_0.1x.png';
 
+
+
 function LoginForm() {
+
+    const [login, setLogin] =
+        useState({user: '', pass: ''});
+    const [error, setError] =
+        useState({user: false, pass: false});
+
+    function handleLogin() {
+        console.log('Login');
+    }
+
+    //Corrects the isInvalid when a user types something in the input field
+    useEffect(() => {
+        if(login.user && error.user == true) {
+            setError({
+                ...error,
+                user: false
+            })
+        }
+        if(login.pass && error.pass == true) {
+            setError({
+                ...error,
+                pass: false
+            })
+        }
+    }, [login])
+
+    function validateLogin(e: React.FormEvent<HTMLFormElement>): void {
+        e.preventDefault()
+
+        //need errorCheck in the later if statement due to how states and renders work
+        let errorCheck = error;
+        errorCheck = {
+            user: (!login.user ? true: false),
+            pass: (!login.pass ? true: false)
+        }
+
+        setError({
+            user: (!login.user ? true: false),
+            pass: (!login.pass ? true: false)
+        })
+
+        //makes sure all input fields are not empty
+        if(!errorCheck.user && !errorCheck.pass) {
+            handleLogin()
+        }
+    }
+
     return (
-        <EuiForm component="form">
+        <EuiForm component="form" onSubmit={validateLogin}>
             <br/>
             <EuiFormRow>
                 <EuiFieldText
-                    id="name"
-                    name="username"
                     placeholder="Username"
+                    isInvalid={error.user}
+                    value={login.user}
+                    onChange={(e) => setLogin({
+                        ...login,
+                        user: e.target.value
+                    })}
                 />
             </EuiFormRow>
             <EuiFormRow>
                 <EuiFieldPassword
-                    name="password"
                     placeholder="Password"
+                    isInvalid={error.pass}
                     type="dual"
+                    value={login.pass}
+                    onChange={(e) => setLogin({
+                        ...login,
+                        pass: e.target.value
+                    })}
                 />
             </EuiFormRow>
             <EuiFormRow>
@@ -54,20 +113,20 @@ function SignupForm() {
             </EuiFormRow>
             <EuiFormRow>
                 <EuiFieldText
-                    name="username"
+                    name="signUsername"
                     placeholder="Username"
                 />
             </EuiFormRow>
             <EuiFormRow>
                 <EuiFieldPassword
-                    name="password"
+                    name="signPassword"
                     placeholder="Password"
                     type="dual"
                 />
             </EuiFormRow>
             <EuiFormRow>
                 <EuiFieldPassword
-                    name="passwordConfirm"
+                    name="signPasswordConfirm"
                     placeholder="Confirm Password"
                     type="dual"
                 />

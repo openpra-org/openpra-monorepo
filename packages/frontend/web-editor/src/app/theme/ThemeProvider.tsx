@@ -128,9 +128,9 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
         const themePreference = ThemeProvider.getThemePreference();
         const colorMode: EuiThemeColorMode = (themePreference.mode === PreferenceModes.DARK) ? 'dark' : 'light';
         if (colorMode === 'dark') {
-            import('@elastic/eui/dist/eui_theme_dark.css');
+            import('../../assets/css/eui_theme_dark.css');
         } else {
-            import('@elastic/eui/dist/eui_theme_light.css');
+            import('../../assets/css/eui_theme_light.css');
         }
         return (
             <ThemeSettingsContext.Provider

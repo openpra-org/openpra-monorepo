@@ -1,37 +1,81 @@
 import React from "react";
-import {EuiTabbedContent, EuiFieldText, EuiForm, EuiText, EuiLink, EuiSelect, EuiFormRow, EuiCard} from "@elastic/eui";
+import {EuiTabbedContent, EuiFieldText, EuiForm, EuiText, EuiLink, EuiButton, EuiBottomBar, EuiSelect, EuiFormRow, EuiFieldPassword, EuiCard} from "@elastic/eui";
 
 import OpenPRALogo from '../../../assets/images/logos/OpenPRA_vs_0.1x.png';
 
 function LoginForm() {
-    return (<div />);
+    return (
+        <EuiForm component="form">
+            <br/>
+            <EuiFormRow>
+                <EuiFieldText
+                    id="name"
+                    name="username"
+                    placeholder="Username"
+                />
+            </EuiFormRow>
+            <EuiFormRow>
+                <EuiFieldPassword
+                    name="password"
+                    placeholder="Password"
+                    type="dual"
+                />
+            </EuiFormRow>
+            <EuiFormRow>
+                <EuiButton type="submit">
+                    Login
+                </EuiButton>
+            </EuiFormRow>
+        </EuiForm>
+    );
 }
 
 function SignupForm() {
     return (
         <EuiForm component="form">
-            <EuiFormRow label="Text field" helpText="I am some friendly help text.">
-                <EuiFieldText name="first" />
-            </EuiFormRow>
-            <EuiFormRow label="Disabled through form row">
-                <EuiFieldText name="last" />
-            </EuiFormRow>
-            <EuiFormRow
-                label="Select (with no initial selection)"
-                labelAppend={
-                    <EuiText size="xs">
-                        <EuiLink>Link to some help</EuiLink>
-                    </EuiText>
-                }
-            >
-                <EuiSelect
-                    hasNoInitialSelection
-                    options={[
-                        { value: 'option_one', text: 'Option one' },
-                        { value: 'option_two', text: 'Option two' },
-                        { value: 'option_three', text: 'Option three' },
-                    ]}
+            <br/>
+            <EuiFormRow>
+                <EuiFieldText
+                    name="firstName"
+                    placeholder="First name"
                 />
+            </EuiFormRow>
+            <EuiFormRow>
+                <EuiFieldText
+                    name="lastName"
+                    placeholder="Last name"
+                />
+            </EuiFormRow>
+            <EuiFormRow>
+                <EuiFieldText
+                    name="email"
+                    placeholder="Email"
+                />
+            </EuiFormRow>
+            <EuiFormRow>
+                <EuiFieldText
+                    name="username"
+                    placeholder="Username"
+                />
+            </EuiFormRow>
+            <EuiFormRow>
+                <EuiFieldPassword
+                    name="password"
+                    placeholder="Password"
+                    type="dual"
+                />
+            </EuiFormRow>
+            <EuiFormRow>
+                <EuiFieldPassword
+                    name="passwordConfirm"
+                    placeholder="Confirm Password"
+                    type="dual"
+                />
+            </EuiFormRow>
+            <EuiFormRow>
+                <EuiButton type="submit">
+                    Sign Up
+                </EuiButton>
             </EuiFormRow>
         </EuiForm>
     );

@@ -15,14 +15,14 @@ export class HclController {
   constructor(private hclService: HclService) {}
 
   /*
-    'Preflighted' requests are sent to the server via OPTIONS request method to find out:
-        1. Which 'origin' is permitted to make request to these URLs.
-        2. What kind of 'request methods' (e.g. GET, POST, PATCH, PUT, DELETE request methods) are permitted on these URLs.
-        3. Which 'request headers' are permitted.
-        4. How long these permissions can be cached.
-    To find out more about OPTIONS request methods, visit:
-        https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/OPTIONS and go through the 'Preflighted requests in CORS' section.
-    All the configurations for the Preflighted requests for this project are available in 'src/main.ts' file under app.enableCors() method.
+  'Preflighted' requests are sent to the server via OPTIONS request method to find out:
+      1. Which 'origin' is permitted to make request to these URLs.
+      2. What kind of 'request methods' (e.g. GET, POST, PATCH, PUT, DELETE request methods) are permitted on these URLs.
+      3. Which 'request headers' are permitted.
+      4. How long these permissions can be cached.
+  To find out more about OPTIONS request methods, visit:
+      https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/OPTIONS and go through the 'Preflighted requests in CORS' section.
+  All the configurations for the Preflighted requests for this project are available in 'src/main.ts' file under app.enableCors() method.
   */
 
   @Options('/data/')
@@ -65,8 +65,8 @@ export class HclController {
   async copyHclTreeById_Options() {}
 
   /*
-    GET Request -> https://staging.app.openpra.org/api/hcl/data/?model_id=1&basic_events=true&house_events=true
-    Retrieves a list of fault trees of a certain HCL Model (that matches the provided model ID) with only their basic events' and house events' data.
+  GET Request -> https://staging.app.openpra.org/api/hcl/data/?model_id=1&basic_events=true&house_events=true
+  Retrieves a list of fault trees of a certain HCL Model (that matches the provided model ID) with only their basic events' and house events' data.
   */
   @UseGuards(AuthGuard('jwt'))
   @Get('/data/')
@@ -75,8 +75,8 @@ export class HclController {
   }
 
   /*
-    GET Request -> https://staging.app.openpra.org/api/hcl/data/gates/?model_id=1
-    Retrieves a list of fault trees of a certain HCL Model with only their gates' data.
+  GET Request -> https://staging.app.openpra.org/api/hcl/data/gates/?model_id=1
+  Retrieves a list of fault trees of a certain HCL Model with only their gates' data.
   */
   @UseGuards(AuthGuard('jwt'))
   @Get('/data/gates/')
@@ -86,12 +86,12 @@ export class HclController {
 
 
   /*
-    GET Request -> https://staging.app.openpra.org/api/hcl/model/
-    Retrieves a list of all the HCL Models assigned to the current user. The web-app can perform risk assessment for 3 types of programs:
-      1. Projects ('PR')
-      2. Components ('CO')
-      3. Subsystems ('SU')
-    By default, the web-app treats a newly created HCL Model as a component ('CO').
+  GET Request -> https://staging.app.openpra.org/api/hcl/model/
+  Retrieves a list of all the HCL Models assigned to the current user. The web-app can perform risk assessment for 3 types of programs:
+    1. Projects ('PR')
+    2. Components ('CO')
+    3. Subsystems ('SU')
+  By default, the web-app treats a newly created HCL Model as a component ('CO').
   */
   @UseGuards(AuthGuard('jwt'))
   @Get('/model/')
@@ -106,14 +106,14 @@ export class HclController {
   }
 
   /*
-    POST Request -> https://staging.app.openpra.org/api/hcl/model/
-    Creates a new HCL Model with the provided data and later adds some hard-coded data with this newly created Model.
-    An example of the request body for creating a new HCL Model:
-      {
-        "title":"Supply Chain Risk Assessment",
-        "description":"Assessing risk in different types of supply chains with a dynamic fault tree",
-        "assigned_users":[1,2]
-      }
+  POST Request -> https://staging.app.openpra.org/api/hcl/model/
+  Creates a new HCL Model with the provided data and later adds some hard-coded data with this newly created Model.
+  An example of the request body for creating a new HCL Model:
+  {
+    "title":"Supply Chain Risk Assessment",
+    "description":"Assessing risk in different types of supply chains with a dynamic fault tree",
+    "assigned_users":[1,2]
+  }
   */
   @UseGuards(AuthGuard('jwt'))
   @Post('/model/')
@@ -122,8 +122,8 @@ export class HclController {
   }
 
   /*
-    GET Request -> https://staging.app.openpra.org/api/hcl/model/1/
-    Retrieves an HCL Model with the help of the provided Model ID.
+  GET Request -> https://staging.app.openpra.org/api/hcl/model/1/
+  Retrieves an HCL Model with the help of the provided Model ID.
   */
   @UseGuards(AuthGuard('jwt'))
   @Get('/model/:model_id/')
@@ -132,15 +132,15 @@ export class HclController {
   }
 
   /*
-    PATCH Request -> https://staging.app.openpra.org/api/hcl/model/1/
-    Updates an HCL Model with the provided data. Examples of the request body for updating an HCL Model:
-      {
-        "title":"Changing the title",
-        "description":"Fixed the description",
-        "assigned_users":[3,4]
-      }
-      or, { "tag":"PR" }
-      or, { "overview_tree": 2 }
+  PATCH Request -> https://staging.app.openpra.org/api/hcl/model/1/
+  Updates an HCL Model with the provided data. Examples of the request body for updating an HCL Model:
+  {
+    "title":"Changing the title",
+    "description":"Fixed the description",
+    "assigned_users":[3,4]
+  }
+  or, { "tag":"PR" }
+  or, { "overview_tree": 2 }
   */
   @UseGuards(AuthGuard('jwt'))
   @Patch('/model/:model_id/')
@@ -149,8 +149,8 @@ export class HclController {
   }
 
   /*
-    DELETE Request -> https://staging.app.openpra.org/api/hcl/model/1/
-    Deletes an HCL Model with the help of the provided Model ID.
+  DELETE Request -> https://staging.app.openpra.org/api/hcl/model/1/
+  Deletes an HCL Model with the help of the provided Model ID.
   */
   @UseGuards(AuthGuard('jwt'))
   @Delete('/model/:model_id/')
@@ -159,9 +159,9 @@ export class HclController {
   }
 
   /*
-    POST Request -> https://staging.app.openpra.org/api/hcl/model/1/copy/
-    Creates a copy of an existing HCL Model but with different title, description, and assigned_users. Aside from these 3 fields all the other underlying information
-    of the existing Model will be copied to the new Model such as the HCL trees, the overview tree, global parameters, quantification history etc.
+  POST Request -> https://staging.app.openpra.org/api/hcl/model/1/copy/
+  Creates a copy of an existing HCL Model but with different title, description, and assigned_users. Aside from these 3 fields all the other underlying information
+  of the existing Model will be copied to the new Model such as the HCL trees, the overview tree, global parameters, quantification history etc.
   */
   @UseGuards(AuthGuard('jwt'))
   @Post('/model/:model_id/copy/')
@@ -170,8 +170,8 @@ export class HclController {
   }
 
   /*
-    GET Request -> https://staging.app.openpra.org/api/hcl/model/1/overview_tree/
-    Retrieves the information about the overview tree of a certain model.
+  GET Request -> https://staging.app.openpra.org/api/hcl/model/1/overview_tree/
+  Retrieves the information about the overview tree of a certain model.
   */
   @UseGuards(AuthGuard('jwt'))
   @Get('/model/:model_id/overview_tree/')
@@ -180,8 +180,8 @@ export class HclController {
   }
 
   /*
-    GET Request -> https://staging.app.openpra.org/api/hcl/model/1/parameter/
-    Retrieves a list of all the global parameters of a certain HCL Model.
+  GET Request -> https://staging.app.openpra.org/api/hcl/model/1/parameter/
+  Retrieves a list of all the global parameters of a certain HCL Model.
   */
   @UseGuards(AuthGuard('jwt'))
   @Get('/model/:model_id/parameter/')
@@ -194,12 +194,12 @@ export class HclController {
   }
 
   /*
-    POST Request -> https://staging.app.openpra.org/api/hcl/model/1/parameter/
-    Creates a new global parameter inside a certain HCL Model. An example of the request body for creating a global parameter:
-      {
-        "parameter_name":"g",
-        "double_value": "9.8"
-      }
+  POST Request -> https://staging.app.openpra.org/api/hcl/model/1/parameter/
+  Creates a new global parameter inside a certain HCL Model. An example of the request body for creating a global parameter:
+  {
+    "parameter_name":"g",
+    "double_value": "9.8"
+  }
   */
   @UseGuards(AuthGuard('jwt'))
   @Post('/model/:model_id/parameter/')
@@ -208,8 +208,8 @@ export class HclController {
   }
 
   /*
-    PATCH Request -> https://staging.app.openpra.org/api/hcl/model/1/parameter/1/
-    Updates a certain global parameter using the provided 'pk' (or ID) and Model ID.
+  PATCH Request -> https://staging.app.openpra.org/api/hcl/model/1/parameter/1/
+  Updates a certain global parameter using the provided 'pk' (or ID) and Model ID.
   */
   @UseGuards(AuthGuard('jwt'))
   @Patch('/model/:model_id/parameter/:parameter_id/')
@@ -218,8 +218,8 @@ export class HclController {
   }
 
   /*
-    DELETE Request -> https://staging.app.openpra.org/api/hcl/model/1/parameter/1/
-    Deletes a global parameter with the help of the provided 'pk' (or ID) and Model ID.
+  DELETE Request -> https://staging.app.openpra.org/api/hcl/model/1/parameter/1/
+  Deletes a global parameter with the help of the provided 'pk' (or ID) and Model ID.
   */
   @UseGuards(AuthGuard('jwt'))
   @Delete('/model/:model_id/parameter/:parameter_id/')
@@ -228,18 +228,27 @@ export class HclController {
   }
 
   @UseGuards(AuthGuard('jwt'))
+  @Get('/model/:model_id/quantification/')
+  async getHclModelQuantificationListById(@Request() req, @Param('model_id') model_id: string, @Query() query: { limit?: string, offset?: string }) {
+    if(query.limit && query.offset) {
+      return this.hclService.getHclModelQuantificationListById(model_id, req.originalUrl, query.limit, query.offset);
+    }
+    return this.hclService.getHclModelQuantificationListById(model_id, req.originalUrl);
+  }
+  
+  @UseGuards(AuthGuard('jwt'))
   @Post('/model/:model_id/quantification/')
   async hclModelQuantificationById(@Request() req, @Param('model_id') model_id: string, @Body() body) {
     return this.hclService.hclModelQuantificationById(req.user.user_id, model_id, body, req.originalUrl);
   }
 
   /*
-    GET Request -> https://staging.app.openpra.org/api/hcl/model/1/tree/
-    GET Request -> https://staging.app.openpra.org/api/hcl/model/1/tree/?limit=10&offset=0
-    GET Request -> https://staging.app.openpra.org/api/hcl/model/1/tree/?type=f
-    GET Request -> https://staging.app.openpra.org/api/hcl/model/1/tree/?type=f&limit=10&offset=0
-    Either retrieves a list of all the HCL trees under a certain Model or retrieves a list of trees under a certain model by their type
-    (fault tree: 'f', event sequence diagram: 'e' or bayesian networks: 'b').
+  GET Request -> https://staging.app.openpra.org/api/hcl/model/1/tree/
+  GET Request -> https://staging.app.openpra.org/api/hcl/model/1/tree/?limit=10&offset=0
+  GET Request -> https://staging.app.openpra.org/api/hcl/model/1/tree/?type=f
+  GET Request -> https://staging.app.openpra.org/api/hcl/model/1/tree/?type=f&limit=10&offset=0
+  Either retrieves a list of all the HCL trees under a certain Model or retrieves a list of trees under a certain model by their type
+  (fault tree: 'f', event sequence diagram: 'e' or bayesian networks: 'b').
   */
   @UseGuards(AuthGuard('jwt'))
   @Get('/model/:model_id/tree/')
@@ -260,12 +269,12 @@ export class HclController {
   POST Request -> https://staging.app.openpra.org/api/hcl/model/1/tree/
   Creates an HCL tree inside a certain HCL Model. HCL trees can be of 3 types: Fault Trees (FT), Event Sequence Diagrams (ESD), and Bayesian Networks (BN).
   An example of the request body for creating an HCL tree:
-    {
-      "title":"Scenarios resulting from hydrogen gas releases",
-      "description":"QRA for vehicular hydrogen applications",
-      "tree_type":"e",
-      "tree_data": {}
-    }
+  {
+    "title":"Scenarios resulting from hydrogen gas releases",
+    "description":"QRA for vehicular hydrogen applications",
+    "tree_type":"e",
+    "tree_data": {}
+  }
   */
   @UseGuards(AuthGuard('jwt'))
   @Post('/model/:model_id/tree/')
@@ -309,16 +318,24 @@ export class HclController {
     }
   }
 
+  /*
+  PATCH Request -> https://staging.app.openpra.org/api/hcl/tree/1/
+  Updates a certain HCL tree with the help of the provided id.
+  */
   @UseGuards(AuthGuard('jwt'))
   @Patch('/tree/:tree_id/')
   async updateHclTreeById(@Request() req, @Param('tree_id') tree_id: string, @Body() body) {
     return this.hclService.updateHclTreeById(req.user.user_id, tree_id, body);
   }
 
+  /*
+  DELETE Request -> https://staging.app.openpra.org/api/hcl/tree/1/
+  Deletes an HCL tree with the help of the provided id.
+  */
   @UseGuards(AuthGuard('jwt'))
   @Delete('/tree/:tree_id/')
-  async deleteHclTreeById(@Request() req, @Param('tree_id') tree_id: string): Promise<HttpStatus> {
-    return this.hclService.deleteHclTreeById(req.user.user_id, tree_id);
+  async deleteHclTreeById(@Param('tree_id') tree_id: string): Promise<HttpStatus> {
+    return this.hclService.deleteHclTreeById(tree_id);
   }
 
   @UseGuards(AuthGuard('jwt'))

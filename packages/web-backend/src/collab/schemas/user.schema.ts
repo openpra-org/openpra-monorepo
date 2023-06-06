@@ -2,17 +2,6 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 import { Action, ActionSchema } from '../../hcl/schemas/action.schema';
 
-@Schema({ _id: false, versionKey: false })
-class User_Credentials {
-    @Prop({ required: false })
-    id: number;
-
-    @Prop({ required: false })
-    username: string;
-}
-
-const UserCredentialsSchema = SchemaFactory.createForClass(User_Credentials);
-
 @Schema({ minimize: false, _id: false, versionKey: false })
 class Instances {}
 

@@ -4,9 +4,9 @@ import { Strategy } from 'passport-local';
 import { AuthService } from '../auth.service';
 
 /* 
-    1.  The Local Strategy (AuthGuard('local')) gets the User credentials (username and password) from the request body.
-        The credentials are then sent to the validate() method.
-    2.  The validate() method checks whether the user is in the database using the AuthService.loginUser() method.
+1.  The Local Strategy (AuthGuard('local')) gets the User credentials (username and password) from the request body.
+    The credentials are then sent to the validate() method.
+2.  The validate() method checks whether the user is in the database using the AuthService.loginUser() method.
 */
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy) {

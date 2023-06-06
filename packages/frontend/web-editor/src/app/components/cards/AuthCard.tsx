@@ -1,6 +1,6 @@
 import React from "react";
 import { useState, useEffect } from "react";
-import {EuiTabbedContent, EuiFieldText, EuiForm, EuiText, EuiLink, EuiButton, EuiBottomBar, EuiSelect, EuiFormRow, EuiFieldPassword, EuiCard} from "@elastic/eui";
+import {EuiTabbedContent, EuiFieldText, EuiForm, EuiText, EuiLink, EuiButton, EuiBottomBar, EuiSelect, EuiFormRow, EuiFieldPassword, EuiCard, EuiSpacer} from "@elastic/eui";
 
 import OpenPRALogo from '../../../assets/images/logos/OpenPRA_vs_0.1x.png';
 
@@ -17,15 +17,15 @@ function LoginForm() {
         console.log('Login');
     }
 
-    //Corrects the isInvalid when a user types something in the input field
+    //Corrects the isInvalid when a user types something in a blank input field
     useEffect(() => {
-        if(login.user && error.user == true) {
+        if(login.user && error.user) {
             setError({
                 ...error,
                 user: false
             })
         }
-        if(login.pass && error.pass == true) {
+        if(login.pass && error.pass) {
             setError({
                 ...error,
                 pass: false
@@ -39,13 +39,13 @@ function LoginForm() {
         //need errorCheck in the later if statement due to how states and renders work
         let errorCheck = error;
         errorCheck = {
-            user: (!login.user ? true: false),
-            pass: (!login.pass ? true: false)
+            user: (!login.user),
+            pass: (!login.pass)
         }
 
         setError({
-            user: (!login.user ? true: false),
-            pass: (!login.pass ? true: false)
+            user: (!login.user),
+            pass: (!login.pass)
         })
 
         //makes sure all input fields are not empty
@@ -70,9 +70,9 @@ function LoginForm() {
             </EuiFormRow>
             <EuiFormRow>
                 <EuiFieldPassword
+                    type="dual"
                     placeholder="Password"
                     isInvalid={error.pass}
-                    type="dual"
                     value={login.pass}
                     onChange={(e) => setLogin({
                         ...login,
@@ -90,45 +90,165 @@ function LoginForm() {
 }
 
 function SignupForm() {
+
+    const [signup, setSignup] =
+        useState({first: '', last: '', email: '', user: '', pass: '', passConfirm: ''})
+    const [error, setError] =
+        useState({first: false, last: false, email: false, user: false, pass: false, passConfirm: false})
+    let passError = '';
+
+
+    function handleSignup() {
+        console.log('signup')
+    }
+
+    //Corrects the isInvalid when a user types something in a blank input field
+    useEffect(() => {
+        if(signup.first && error.first) {
+            setError({
+                ...error,
+                first: false
+            })
+        }
+        if(signup.last && error.last) {
+            setError({
+                ...error,
+                last: false
+            })
+        }
+        if(signup.email && error.email) {
+            setError({
+                ...error,
+                email: false
+            })
+        }
+        if(signup.user && error.user) {
+            setError({
+                ...error,
+                user: false
+            })
+        }
+        if(signup.pass && error.pass) {
+            setError({
+                ...error,
+                pass: false
+            })
+        }
+        if(signup.passConfirm && error.passConfirm) {
+            setError({
+                ...error,
+                passConfirm: false
+            })
+        }
+    }, [signup])
+
+    function validateSignup(e: React.FormEvent<HTMLFormElement>): void {
+        e.preventDefault()
+
+        const confirmPasswords = (signup.pass === signup.passConfirm);
+        console.log(confirmPasswords);
+
+        //need errorCheck in the later if statement due to how states and renders work
+        let errorCheck = error;
+        errorCheck = {
+            first: (!signup.first),
+            last: (!signup.last),
+            email: (!signup.email),
+            user: (!signup.user),
+            pass: (!signup.pass),
+            passConfirm: (!signup.passConfirm || !confirmPasswords)
+        }
+
+        setError({
+            first: (!signup.first),
+            last: (!signup.last),
+            email: (!signup.email),
+            user: (!signup.user),
+            pass: (!signup.pass),
+            passConfirm: (!signup.passConfirm || !confirmPasswords)
+        })
+
+        passError = (!confirmPasswords ? 'Passwords do not match' : '');
+        console.log(passError);
+
+        //makes sure all input fields are not empty and that both passwords match
+        if(
+            !errorCheck.first && !errorCheck.last && !errorCheck.email && !errorCheck.user &&
+            !errorCheck.pass && !errorCheck.passConfirm && confirmPasswords
+        ) {
+            handleSignup()
+        }
+    }
+
     return (
-        <EuiForm component="form">
+        <EuiForm component="form" onSubmit={validateSignup} error={passError}>
             <br/>
             <EuiFormRow>
                 <EuiFieldText
-                    name="firstName"
                     placeholder="First name"
+                    isInvalid={error.first}
+                    value={signup.first}
+                    onChange={(e) => setSignup({
+                        ...signup,
+                        first: e.target.value
+                    })}
                 />
             </EuiFormRow>
             <EuiFormRow>
                 <EuiFieldText
-                    name="lastName"
                     placeholder="Last name"
+                    isInvalid={error.last}
+                    value={signup.last}
+                    onChange={(e) => setSignup({
+                        ...signup,
+                        last: e.target.value
+                    })}
                 />
             </EuiFormRow>
             <EuiFormRow>
                 <EuiFieldText
-                    name="email"
                     placeholder="Email"
+                    isInvalid={error.email}
+                    value={signup.email}
+                    onChange={(e) => setSignup({
+                        ...signup,
+                        email: e.target.value
+                    })}
                 />
             </EuiFormRow>
             <EuiFormRow>
                 <EuiFieldText
-                    name="signUsername"
                     placeholder="Username"
+                    isInvalid={error.user}
+                    value={signup.user}
+                    onChange={(e) => setSignup({
+                        ...signup,
+                        user: e.target.value
+                    })}
                 />
             </EuiFormRow>
             <EuiFormRow>
                 <EuiFieldPassword
-                    name="signPassword"
+                    type="dual"
                     placeholder="Password"
-                    type="dual"
+                    isInvalid={error.pass}
+                    value={signup.pass}
+                    onChange={(e) => setSignup({
+                        ...signup,
+                        pass: e.target.value
+                    })}
                 />
             </EuiFormRow>
-            <EuiFormRow>
+            <EuiFormRow isInvalid={error.passConfirm} error={passError}>
                 <EuiFieldPassword
-                    name="signPasswordConfirm"
-                    placeholder="Confirm Password"
                     type="dual"
+                    placeholder="Confirm Password"
+                    isInvalid={error.passConfirm}
+                    value={signup.passConfirm}
+                    onChange={(e) => setSignup({
+                        ...signup,
+                        passConfirm: e.target.value
+                    })}
                 />
             </EuiFormRow>
             <EuiFormRow>

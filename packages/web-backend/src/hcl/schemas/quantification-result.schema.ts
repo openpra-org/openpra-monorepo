@@ -102,7 +102,7 @@ const ResultDataSchema = SchemaFactory.createForClass(ResultData);
     },
     versionKey: false
 })
-export class HclModelQuantificationResult {
+export class QuantificationResult {
     @Prop({ required: false })
     id: number;
 
@@ -122,5 +122,5 @@ export class HclModelQuantificationResult {
     result_data: ResultData;
 }
 
-export type HclModelQuantificationResultDocument = HclModelQuantificationResult & Document;
-export const HclModelQuantificationResultSchema = SchemaFactory.createForClass(HclModelQuantificationResult);
+export type QuantificationResultDocument = QuantificationResult & Document;
+export const QuantificationResultSchema = SchemaFactory.createForClass(QuantificationResult);

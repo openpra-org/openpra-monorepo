@@ -51,6 +51,6 @@
     "typescript": "^5.0.4"
   },
   "scripts": {
-    "compodoc": "npx compodoc -p tsconfig.doc.json --serve"
+    "compodoc": "npx compodoc --config .compodocrc.json --serve"
   }
 }

@@ -1,0 +1,13 @@
+{
+    "$schema": "./node_modules/@compodoc/compodoc/src/config/schema.json",
+    "tsconfig": "./tsconfig.doc.json",
+    "name": "Web-Backend Documentation",
+    "customFavicon": "./assets/favicon.ico",
+    "customLogo": "./assets/logo.png",
+    "disablePrivate": true,
+    "disableProtected": true,
+    "disableDependencies": true,
+    "disableSourceCode": true,
+    "theme": "material",
+    "port": 9000
+}

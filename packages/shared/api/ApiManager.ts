@@ -3,7 +3,7 @@ import Axios, {AxiosResponse} from "axios";
 import AuthService, {AuthToken} from './AuthService';
 import Accounts from "./Accounts";
 import Admin from "./Admin";
-import {SignUpProps} from "../../frontend/web-editor/src/types/AuthTypes";
+import {SignUpCredentials, SignUpProps} from "../../frontend/web-editor/src/types/AuthTypes";
 
 const API_ENDPOINT = process.env.API_ENDPOINT;
 
@@ -180,7 +180,7 @@ export default class ApiManager {
   }
 
 
-  static signup(data: SignUpProps, override: any = null, onSuccessCallback: any = ApiManager.defaultSuccessCallback, onFailCallback: any = ApiManager.defaultFailCallback) {
+  static signup(data: SignUpCredentials, override: any = null, onSuccessCallback: any = ApiManager.defaultSuccessCallback, onFailCallback: any = ApiManager.defaultFailCallback) {
     return ApiManager.post(`${userPreferencesEndpoint}/`, JSON.stringify(data), override, onSuccessCallback, onFailCallback)
       .then((response) => {
         if (response.ok) {
@@ -197,7 +197,14 @@ export default class ApiManager {
   }
 
   signup(username: string, email: string, firstName: string, lastName: string, password: string, override: any = null, onSuccessCallback: any = ApiManager.defaultSuccessCallback, onFailCallback: any = ApiManager.defaultFailCallback) {
-    return ApiManager.signup(username, email, firstName, lastName, password, override, onSuccessCallback, onFailCallback);
+    const data: SignUpCredentials = {
+      username,
+      email,
+      firstName,
+      lastName,
+      password
+    }
+    return ApiManager.signup(data, override, onSuccessCallback, onFailCallback);
   }
 
   static checkStatus(response: any) {

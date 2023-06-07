@@ -1,7 +1,7 @@
 import ApiManager from './ApiManager';
-// import TreeProps from '@openpra/hcla-web-frontend-primitives/app/Props/TreeProps';
+ import TreeProps from '../Props/TreeProps';
 import { AxiosResponse } from 'axios';
-// import { TreeTypes } from '../components/Model/ModelView/TreeView/Tools/TreeDictionaries';
+ import { TreeTypes } from '../Types/TreeTypes';
 // import { EventTreeMxGraphJSON } from '../mxGraph/HCLTreeMxGraph/ESDMxGraph';
 // import { FaultTreeMxGraphJSON } from '../mxGraph/HCLTreeMxGraph/FaultTreeMxGraph';
 // import { BayesianNetworkMxGraphJSON } from '../mxGraph/HCLTreeMxGraph/BayesianNetworkMxGraph';

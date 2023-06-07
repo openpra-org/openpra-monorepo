@@ -1,10 +1,28 @@
 import React from "react";
 import { useState, useEffect } from "react";
-import {EuiTabbedContent, EuiFieldText, EuiForm, EuiText, EuiLink, EuiButton, EuiBottomBar, EuiSelect, EuiFormRow, EuiFieldPassword, EuiCard, EuiSpacer} from "@elastic/eui";
+import {
+    EuiTabbedContent,
+    EuiFieldText,
+    EuiForm,
+    EuiText,
+    EuiLink,
+    EuiButton,
+    EuiBottomBar,
+    EuiSelect,
+    EuiFormRow,
+    EuiFieldPassword,
+    EuiCard,
+    EuiSpacer
+} from "@elastic/eui";
 
 import OpenPRALogo from '../../../assets/images/logos/OpenPRA_vs_0.1x.png';
-import ApiManager from "../../api/ApiManager";
-import {SignUpErrorProps, SignUpProps, LoginErrorProps, LoginProps} from "../../../types/AuthTypes";
+import ApiManager from "../../../../../../shared/api/ApiManager";
+import {
+    SignUpErrorProps,
+    SignUpProps,
+    LoginErrorProps,
+    LoginProps
+} from "../../../types/AuthTypes";
 
 
 
@@ -123,7 +141,7 @@ function SignupForm() {
 
 
     function handleSignup() {
-        ApiManager.signup(signup);
+        //ApiManager.signup(signup);
         console.log('signup')
     }
 

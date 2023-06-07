@@ -3,7 +3,7 @@ import Axios, {AxiosResponse} from "axios";
 import AuthService, {AuthToken} from './AuthService';
 import Accounts from "./Accounts";
 import Admin from "./Admin";
-import {SignUpProps} from "../../types/AuthTypes";
+import {SignUpProps} from "../../frontend/web-editor/src/types/AuthTypes";
 
 const API_ENDPOINT = process.env.API_ENDPOINT;
 
@@ -69,7 +69,8 @@ export default class ApiManager {
 
   public get accountsApi(): Accounts { return new Accounts(collabEndpoint); }
 
-  public get adminApi(): Admin { return new Admin(API_ENDPOINT); }
+  public get adminApi(): Admin { // @ts-ignore
+    return new Admin(API_ENDPOINT); }
 
   /**
    * @param {Response} res - response object from API call
@@ -195,7 +196,7 @@ export default class ApiManager {
       });
   }
 
-  signup(username: any, email: any, firstName: any, lastName: any, password: any, override: any = null, onSuccessCallback: any = ApiManager.defaultSuccessCallback, onFailCallback: any = ApiManager.defaultFailCallback) {
+  signup(username: string, email: string, firstName: string, lastName: string, password: string, override: any = null, onSuccessCallback: any = ApiManager.defaultSuccessCallback, onFailCallback: any = ApiManager.defaultFailCallback) {
     return ApiManager.signup(username, email, firstName, lastName, password, override, onSuccessCallback, onFailCallback);
   }
 

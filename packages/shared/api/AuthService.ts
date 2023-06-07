@@ -1,11 +1,11 @@
 import decode from 'jwt-decode';
 
 export interface AuthToken {
-  user_id: number,
-  username: string,
-  exp: number,
-  email: string,
-  orig_iat: number,
+  user_id: number | null,
+  username: string | null,
+  exp: number | null,
+  email: string | null,
+  orig_iat: number | null,
 }
 
 const EMPTY_TOKEN: AuthToken = {

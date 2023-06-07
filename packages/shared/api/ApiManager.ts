@@ -1,9 +1,10 @@
 import Axios, {AxiosResponse} from "axios";
 
-import AuthService, {AuthToken} from './AuthService';
+import AuthService from './AuthService';
 import Accounts from "./Accounts";
 import Admin from "./Admin";
-import {SignUpCredentials, SignUpProps} from "../../frontend/web-editor/src/types/AuthTypes";
+import {SignUpCredentials} from "../../frontend/web-editor/src/types/AuthTypes";
+import AuthToken from "../Types/AuthToken";
 
 const API_ENDPOINT = process.env.API_ENDPOINT;
 
@@ -36,7 +37,7 @@ export default class ApiManager {
   get(url: string, onSuccess: (response: AxiosResponse) => void, onFailure: (e: any) => void = (e: any) => {}) {
     Axios.get(url, {
       headers: {
-        Authorization: `JWT ${AuthService.getToken()}`
+        Authorization: `JWT ${AuthService.getEncodedToken()}`
       }
     }).then(onSuccess).catch(onFailure);
   }
@@ -86,7 +87,7 @@ export default class ApiManager {
    *    showFailure: bool (default: true) - enable failure snackbar messages,
    */
   static callSnackbar(status: any, res: any, override: any) {
-    ApiManager.SNACKBAR_PROVIDER.openSnackbar(status, res, override);
+    //TODO::
   }
 
   static defaultSuccessCallback(res: any, override: any) {
@@ -118,7 +119,7 @@ export default class ApiManager {
     return fetch(url, {
       method: 'GET', // *GET, POST, PUT, DELETE, etc.
       headers: {
-        Authorization: `JWT ${AuthService.getToken()}`,
+        Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
     }).then(res => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
       .catch(err => onFailCallback(err, override));
@@ -137,7 +138,7 @@ export default class ApiManager {
       },
       body: JSON.stringify(creds),
     }).then(res => res.json())
-      .then((data) => { AuthService.setToken(data.token); });
+      .then((data) => { AuthService.setEncodedToken(data.token); });
   }
 
   /**
@@ -165,13 +166,9 @@ export default class ApiManager {
       if (response.ok) {
         return response;
       }
-      const error = new Error();
-
-      error.code = response.status;
-      error.message = response.statusText;
-      throw error;
+      throw new Error(response.statusText);
     }).then(res => res.json())
-      .then((data) => { AuthService.setToken(data.token); })
+      .then((data) => { AuthService.setEncodedToken(data.token); })
       .catch(onFailCallback);
   }
 
@@ -186,13 +183,7 @@ export default class ApiManager {
         if (response.ok) {
           return ApiManager.signInWithUsernameAndPassword(data.username, data.password, onFailCallback);
         }
-        const error = new Error();
-
-        error.code = response.status;
-        error.message = response.statusText;
-
-        error.response = response;
-        throw error;
+        throw new Error(response.statusText);
       });
   }
 
@@ -212,15 +203,12 @@ export default class ApiManager {
     if (response.status >= 200 && response.status < 300) { // Success status lies between 200 to 300
       return response;
     }
-    const error = new Error(response.statusText);
-
-    error.response = response;
-    throw error;
+    throw new Error(response.statusText);
   }
 
   static isLoggedIn() {
     // Checks if there is a saved token and it's still valid
-    const token = AuthService.getToken(); // Getting token from localstorage
+    const token = AuthService.getEncodedToken(); // Getting token from localstorage
     if (AuthService.hasTokenExpired(token)) this.logout();
     return (token != null) && !AuthService.hasTokenExpired(token);
   }
@@ -233,7 +221,7 @@ export default class ApiManager {
     return AuthService.getProfile();
   }
 
-  static get(endpoint: any, override: any, onSuccessCallback: any, onFailCallback: any) {
+  static get(endpoint: any, override?: any, onSuccessCallback?: any, onFailCallback?: any) {
     return ApiManager.getWithOptions(API_ENDPOINT + endpoint, override, onSuccessCallback, onFailCallback);
   }
 
@@ -420,7 +408,7 @@ export default class ApiManager {
       cache: OPTION_CACHE,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `JWT ${AuthService.getToken()}`,
+        Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
       body: data, // body data type must match "Content-Type" header
     }).then(res => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
@@ -433,7 +421,7 @@ export default class ApiManager {
       cache: OPTION_CACHE,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `JWT ${AuthService.getToken()}`,
+        Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
       body: data, // body data type must match "Content-Type" header
       // @ts-ignore
@@ -447,7 +435,7 @@ export default class ApiManager {
       cache: OPTION_CACHE,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `JWT ${AuthService.getToken()}`,
+        Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
     }).then(res => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
       .catch(err => onFailCallback(err, override));
@@ -459,7 +447,7 @@ export default class ApiManager {
       cache: OPTION_CACHE,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `JWT ${AuthService.getToken()}`,
+        Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
       body: data, // body data type must match "Content-Type" header
       // @ts-ignore
@@ -474,7 +462,7 @@ export default class ApiManager {
       cache: OPTION_CACHE,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `JWT ${AuthService.getToken()}`,
+        Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
       body: data, // body data type must match "Content-Type" header
     }).then(res => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
@@ -487,7 +475,7 @@ export default class ApiManager {
       cache: OPTION_CACHE,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `JWT ${AuthService.getToken()}`,
+        Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
       // @ts-ignore
     }).then(res => (res.ok ? onSuccessCallback(res) : onFailCallback(res)))
@@ -624,7 +612,7 @@ export default class ApiManager {
       headers: {
         Accept: 'application/xml',
         'Content-Type': 'application/json',
-        Authorization: `JWT ${AuthService.getToken()}`,
+        Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
     }).then(response => response.text())
       // @ts-ignore
@@ -641,7 +629,7 @@ export default class ApiManager {
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
-        Authorization: `JWT ${AuthService.getToken()}`,
+        Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
       // @ts-ignore
     }).then(res => (res.ok ? onSuccessCallback(res) : onFailCallback(res)))

@@ -1,48 +1,46 @@
-import decode from 'jwt-decode';
-
-export interface AuthToken {
-  user_id: number | null,
-  username: string | null,
-  exp: number | null,
-  email: string | null,
-  orig_iat: number | null,
-}
-
-const EMPTY_TOKEN: AuthToken = {
-  email: null, exp: null, orig_iat: null, username: null,
-  user_id: null
-};
+import jwtDecode from 'jwt-decode';
+import AuthToken, { EMPTY_TOKEN } from "../Types/AuthToken";
 
 class AuthService {
-  static hasTokenExpired(token: any) {
+  static hasTokenExpired(token: string | null) {
     // if token is null, it has certainly expired
-    if (token === null || token === 'undefined') {
+    if (!token || token === 'undefined') {
       return true;
     }
     try {
-      return (Date.now() / 1000) > decode(token).exp;
+      const payload: AuthToken = jwtDecode<AuthToken>(token);
+      if (!payload || !payload.exp) {
+        return true;
+      }
+      return (Date.now() / 1000) > payload.exp;
     } catch (err) {
       return true;
     }
   }
 
-  static setToken(idToken: any) {
-    localStorage.setItem('id_token', idToken);
+  static setEncodedToken(idToken: string | null) {
+    if (idToken) {
+      localStorage.setItem('id_token', idToken);
+    }
   }
 
-  static getToken() {
+  static getEncodedToken() {
     const idToken = localStorage.getItem('id_token');
     return (idToken === 'undefined') ? null : idToken;
   }
 
   static logout() {
     localStorage.removeItem('id_token');
-    return AuthService.getToken() === null;
+    return AuthService.getEncodedToken() === null;
   }
 
   static getProfile(): AuthToken {
     try {
-      return decode(AuthService.getToken());
+      const encodedToken = AuthService.getEncodedToken();
+      if (!encodedToken) {
+        return EMPTY_TOKEN;
+      }
+      return jwtDecode<AuthToken>(encodedToken);
     } catch (e) {
       return EMPTY_TOKEN;
     }

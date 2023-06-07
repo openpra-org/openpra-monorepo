@@ -2,9 +2,9 @@ import ApiManager from './ApiManager';
  import TreeProps from '../Props/TreeProps';
 import { AxiosResponse } from 'axios';
  import { TreeTypes } from '../Types/TreeTypes';
-// import { EventTreeMxGraphJSON } from '../mxGraph/HCLTreeMxGraph/ESDMxGraph';
-// import { FaultTreeMxGraphJSON } from '../mxGraph/HCLTreeMxGraph/FaultTreeMxGraph';
-// import { BayesianNetworkMxGraphJSON } from '../mxGraph/HCLTreeMxGraph/BayesianNetworkMxGraph';
+import { FaultTreeMxGraphJSON } from "../Types/MxGraph/FaultTreeMxGraphJSON";
+import EventTreeMxGraphJSON from "../Types/MxGraph/EventTreeMxGraphJSON";
+import { BayesianNetworkMxGraphJSON } from "../Types/MxGraph/BayesianNetworkMxGraphJSON";
 
 // request interface
 export interface PaginationQueryOptions {
@@ -128,11 +128,6 @@ class HclApiManager extends ApiManager {
   public static getHouseEvents(queryOptions?: Partial<PaginationQueryOptions>) {
     const query = queryOptions ? `?limit=${queryOptions?.limit}&offset=${queryOptions?.offset}/` : '';
     return ApiManager.getWithOptions(`${HclApiManager.ENDPOINT}/house-event/${query}`);
-  }
-
-  public static getGates(queryOptions?: Partial<PaginationQueryOptions>) {
-    const query = queryOptions ? `?limit=${queryOptions?.limit}&offset=${queryOptions?.offset}/` : '';
-    return ApiManager.getWithOptions(`${HclApiManager.ENDPOINT}/gate/${query}`);
   }
 
   public static getGates(queryOptions?: Partial<PaginationQueryOptions>) {

@@ -4,14 +4,23 @@ import {EuiTabbedContent, EuiFieldText, EuiForm, EuiText, EuiLink, EuiButton, Eu
 
 import OpenPRALogo from '../../../assets/images/logos/OpenPRA_vs_0.1x.png';
 import ApiManager from "../../api/ApiManager";
-import {SignUpErrorProps, SignUpProps} from "../../../types/AuthTypes";
+import {SignUpErrorProps, SignUpProps, LoginErrorProps, LoginProps} from "../../../types/AuthTypes";
 
 
 
 function LoginForm() {
 
-    const [login, setLogin] = useState({user: '', pass: ''});
-    const [error, setError] = useState({user: false, pass: false});
+    const DefaultProps: LoginProps = {
+        username: '',
+        password: '',
+    }
+    const DefaultErrorProps: LoginErrorProps = {
+        username: false,
+        password: false,
+    }
+
+    const [login, setLogin] = useState(DefaultProps);
+    const [error, setError] = useState(DefaultErrorProps);
 
     function handleLogin() {
         console.log('Login');
@@ -22,13 +31,13 @@ function LoginForm() {
         if(login.username && error.username) {
             setError({
                 ...error,
-                user: false
+                username: false
             })
         }
         if(login.password && error.password) {
             setError({
                 ...error,
-                pass: false
+                password: false
             })
         }
     }, [login])
@@ -39,13 +48,13 @@ function LoginForm() {
         //need errorCheck in the later if statement due to how states and renders work
         let errorCheck = error;
         errorCheck = {
-            user: (!login.username),
-            pass: (!login.password)
+            username: (!login.username),
+            password: (!login.password)
         }
 
         setError({
-            user: (!login.username),
-            pass: (!login.password)
+            username: (!login.username),
+            password: (!login.password)
         })
 
         //makes sure all input fields are not empty
@@ -64,7 +73,7 @@ function LoginForm() {
                     value={login.username}
                     onChange={(e) => setLogin({
                         ...login,
-                        user: e.target.value
+                        username: e.target.value
                     })}
                 />
             </EuiFormRow>
@@ -76,7 +85,7 @@ function LoginForm() {
                     value={login.password}
                     onChange={(e) => setLogin({
                         ...login,
-                        pass: e.target.value
+                        password: e.target.value
                     })}
                 />
             </EuiFormRow>
@@ -206,7 +215,7 @@ function SignupForm() {
                     value={signup.firstName}
                     onChange={(e) => setSignup({
                         ...signup,
-                        first: e.target.value
+                        firstName: e.target.value
                     })}
                 />
             </EuiFormRow>
@@ -217,7 +226,7 @@ function SignupForm() {
                     value={signup.lastName}
                     onChange={(e) => setSignup({
                         ...signup,
-                        last: e.target.value
+                        lastName: e.target.value
                     })}
                 />
             </EuiFormRow>
@@ -239,7 +248,7 @@ function SignupForm() {
                     value={signup.username}
                     onChange={(e) => setSignup({
                         ...signup,
-                        user: e.target.value
+                        username: e.target.value
                     })}
                 />
             </EuiFormRow>
@@ -251,7 +260,7 @@ function SignupForm() {
                     value={signup.password}
                     onChange={(e) => setSignup({
                         ...signup,
-                        pass: e.target.value
+                        password: e.target.value
                     })}
                 />
             </EuiFormRow>

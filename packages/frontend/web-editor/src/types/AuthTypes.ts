@@ -15,3 +15,6 @@ export interface SignUpPropsGeneric<Type> extends SignUpCredentials<Type>{
 
 export type SignUpProps = SignUpPropsGeneric<string>;
 export type SignUpErrorProps = SignUpPropsGeneric<boolean>;
+
+export type LoginProps = LoginCredentials<string>
+export type LoginErrorProps = LoginCredentials<boolean>

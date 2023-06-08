@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import pbkdf2 from 'pbkdf2-passworder';
+import * as argon2 from 'argon2';
 import * as dot from 'dot-object';
 import { HclService } from '../hcl/hcl.service';
 import { CreateNewUserDto } from './dtos/create-new-user.dto';
@@ -167,7 +167,7 @@ export class CollabService {
            one of the two roles - either the role of an administrator (with special access - such as deleting a user from the database) or the role of a general user.
     */
     async createNewUser(body: CreateNewUserDto): Promise<User> {
-        body.password = await pbkdf2.hash(body.password);
+        body.password = await argon2.hash(body.password);
         const newUser = new this.userModel(body);
         newUser.id = await this.getNextUserValue('UserCounter');
         newUser.name = `${body.first_name} ${body.last_name}`;

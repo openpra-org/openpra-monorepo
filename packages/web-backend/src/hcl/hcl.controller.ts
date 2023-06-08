@@ -1,6 +1,5 @@
 import { Controller, Options, Get, Post, Patch, Delete, Request, Param, Query, Body, UseGuards, HttpStatus, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-// import { ApiTags } from '@nestjs/swagger';
 import { HclService } from './hcl.service';
 import { GlobalParameterDto } from './dtos/global-parameter.dto';
 import { HclModelDto } from './dtos/hcl-model.dto';
@@ -11,8 +10,6 @@ import { HclModel } from './schemas/hcl-model.schema';
 import { HclModelTree } from './schemas/hcl-model-tree.schema';
 import { OverviewTree } from './schemas/overview-tree.schema';
 
-
-// @ApiTags('HCL Endpoints')
 @Controller()
 export class HclController {
   constructor(private hclService: HclService) {}

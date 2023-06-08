@@ -1,5 +1,4 @@
 import { NestFactory } from '@nestjs/core';
-// import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ApiModule } from './api.module';
 
 /*
@@ -24,17 +23,6 @@ async function bootstrap() {
     preflightContinue: true,
     optionsSuccessStatus: 200
   });
-
-  // const config = new DocumentBuilder()
-  //   .setTitle('Web Backend Documentation')
-  //   .setDescription('Automated Documentation for NestJS based Web-Backend')
-  //   .setVersion('1.0')
-  //   .build();
-  // const document = SwaggerModule.createDocument(app, config);
-  // SwaggerModule.setup('/api/docs', app, document, {
-  //   swaggerOptions: { defaultModelsExpandDepth: -1 }
-  // });
-
   await app.listen(8000);
 }
 

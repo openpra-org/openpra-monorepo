@@ -1,12 +1,10 @@
-import { IsNumber, IsString } from 'class-validator';
+import { z } from 'nestjs-zod/z';
+import { createZodDto } from 'nestjs-zod';
 
-export class HclModelDto {
-    @IsString()
-    title: string;
+const hclModelSchema = z.object({
+    title: z.string(),
+    description: z.string(),
+    assigned_users: z.array(z.number())
+});
 
-    @IsString()
-    description: string;
-
-    @IsNumber({}, { each: true })
-    assigned_users: number[];
-}
+export class HclModelDto extends createZodDto(hclModelSchema) {}

@@ -34,7 +34,7 @@ nvm use 20.2.0
 ### Setup
 ```shell
 pnpm setup
-pnpm install
+pnpm install --shamefully-hoist=true
 pnpm install --global nx@16.3.1 #you could also try nx@latest but ymmv
 ```
 * On Windows, if you're unable to run `nx` post-install, set the following script execution policy in PowerShell. 

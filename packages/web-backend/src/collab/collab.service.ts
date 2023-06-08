@@ -170,7 +170,6 @@ export class CollabService {
         body.password = await argon2.hash(body.password);
         const newUser = new this.userModel(body);
         newUser.id = await this.getNextUserValue('UserCounter');
-        newUser.name = `${body.first_name} ${body.last_name}`;
         newUser.recently_accessed = {
             models: [],
             subsystems: [],

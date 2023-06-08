@@ -5,8 +5,9 @@ import Accounts from "./Accounts";
 import Admin from "./Admin";
 import {SignUpCredentials} from "../../frontend/web-editor/src/types/AuthTypes";
 import AuthToken from "../Types/AuthToken";
+import { Preferences } from "./User/Preferences";
 
-const API_ENDPOINT = process.env.API_ENDPOINT;
+const API_ENDPOINT = process.env.API_ENDPOINT || 'http://localhost:8000';
 console.log(API_ENDPOINT);
 
 const collabEndpoint = `${API_ENDPOINT}/collab`;
@@ -757,7 +758,7 @@ export default class ApiManager {
     return this.getUserPreferences(user_id, override, onSuccessCallback, onFailCallback);
   }
 
-  static updateUserPreferences(userId: any, data: any, override: any, onSuccessCallback: any, onFailCallback: any) {
+  static updateUserPreferences(userId: any, data: Preferences, override: any, onSuccessCallback: any, onFailCallback: any) {
     return ApiManager.put(`${userPreferencesEndpoint}/${userId}/preferences/`, data, override, onSuccessCallback, onFailCallback);
   }
 

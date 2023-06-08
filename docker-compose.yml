@@ -1,0 +1,12 @@
+version: '3.6'
+
+volumes:
+  data_db:
+
+services:
+  mongo:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - data_db:/data/db

@@ -4,25 +4,21 @@ import {
     EuiTabbedContent,
     EuiFieldText,
     EuiForm,
-    EuiText,
-    EuiLink,
     EuiButton,
-    EuiBottomBar,
-    EuiSelect,
     EuiFormRow,
     EuiFieldPassword,
     EuiCard,
-    EuiSpacer
 } from "@elastic/eui";
 
 import OpenPRALogo from '../../../assets/images/logos/OpenPRA_vs_0.1x.png';
-import ApiManager from "../../../../../../shared/api/ApiManager";
+
 import {
     SignUpErrorProps,
     SignUpProps,
     LoginErrorProps,
-    LoginProps
+    LoginProps, SignUpCredentials
 } from "../../../types/AuthTypes";
+import ApiManager from "../../../../../../shared/api/ApiManager";
 
 
 
@@ -141,7 +137,9 @@ function SignupForm() {
 
 
     function handleSignup() {
-        //ApiManager.signup(signup);
+        const { passConfirm, ...others} = signup;
+        ApiManager.signup(others)
+          .then((response) => { console.log(response) ;})
         console.log('signup')
     }
 

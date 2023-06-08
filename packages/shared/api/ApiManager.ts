@@ -7,7 +7,7 @@ import {SignUpCredentials} from "../../frontend/web-editor/src/types/AuthTypes";
 import AuthToken from "../Types/AuthToken";
 
 const API_ENDPOINT = process.env.API_ENDPOINT;
-
+console.log(API_ENDPOINT);
 
 const collabEndpoint = `${API_ENDPOINT}/collab`;
 const instanceEndPoint = `${collabEndpoint}/instance`;

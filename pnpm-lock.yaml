@@ -195,6 +195,9 @@ importers:
       react-router-dom:
         specifier: 6.11.2
         version: 6.11.2(react-dom@17.0.2)(react@17.0.2)
+      shared-types:
+        specifier: 0.0.1
+        version: link:../../shared-types
     devDependencies:
       '@types/react':
         specifier: 17.0.60
@@ -203,56 +206,61 @@ importers:
         specifier: 17.0.20
         version: 17.0.20
 
+  packages/shared-types: {}
+
   packages/web-backend:
     dependencies:
       '@nestjs/common':
-        specifier: ^9.4.2
+        specifier: 9.4.2
         version: 9.4.2(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@nestjs/config':
-        specifier: ^2.3.2
+        specifier: 2.3.2
         version: 2.3.2(@nestjs/common@9.4.2)(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@nestjs/core':
-        specifier: ^9.4.2
+        specifier: 9.4.2
         version: 9.4.2(@nestjs/common@9.4.2)(@nestjs/platform-express@9.4.2)(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@nestjs/jwt':
-        specifier: ^10.0.3
+        specifier: 10.0.3
         version: 10.0.3(@nestjs/common@9.4.2)
       '@nestjs/mongoose':
-        specifier: ^9.2.2
+        specifier: 9.2.2
         version: 9.2.2(@nestjs/common@9.4.2)(@nestjs/core@9.4.2)(mongoose@7.2.2)(reflect-metadata@0.1.13)(rxjs@7.8.1)
       '@nestjs/passport':
-        specifier: ^9.0.3
+        specifier: 9.0.3
         version: 9.0.3(@nestjs/common@9.4.2)(passport@0.6.0)
       '@nestjs/platform-express':
-        specifier: ^9.4.2
+        specifier: 9.4.2
         version: 9.4.2(@nestjs/common@9.4.2)(@nestjs/core@9.4.2)
       argon2:
-        specifier: ^0.30.3
+        specifier: 0.30.3
         version: 0.30.3
       dot-object:
-        specifier: ^2.1.4
+        specifier: 2.1.4
         version: 2.1.4
       mongoose:
-        specifier: ^7.2.2
+        specifier: 7.2.2
         version: 7.2.2
       nestjs-zod:
-        specifier: ^2.3.2
+        specifier: 2.3.2
         version: 2.3.2(@nestjs/common@9.4.2)(@nestjs/core@9.4.2)(zod@3.21.4)
       passport:
-        specifier: ^0.6.0
+        specifier: 0.6.0
         version: 0.6.0
       passport-jwt:
-        specifier: ^4.0.1
+        specifier: 4.0.1
         version: 4.0.1
       passport-local:
-        specifier: ^1.0.0
+        specifier: 1.0.0
         version: 1.0.0
       reflect-metadata:
-        specifier: ^0.1.13
+        specifier: 0.1.13
         version: 0.1.13
       rxjs:
-        specifier: ^7.8.1
+        specifier: 7.8.1
         version: 7.8.1
+      shared-types:
+        specifier: 0.0.1
+        version: link:../shared-types
     devDependencies:
       '@nestjs/cli':
         specifier: ^9.5.0
@@ -7710,7 +7718,7 @@ packages:
       fs.realpath: 1.0.0
       inflight: 1.0.6
       inherits: 2.0.4
-      minimatch: 3.0.5
+      minimatch: 3.1.2
       once: 1.4.0
       path-is-absolute: 1.0.1
     dev: true

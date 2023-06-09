@@ -1,4 +1,4 @@
-import {TrackableProps} from "./Collab/TrackableProps";
+import {TrackableProps} from "./collab/TrackableProps";
 
 export enum TreeTypes {
     EVENT_TREE = "e",

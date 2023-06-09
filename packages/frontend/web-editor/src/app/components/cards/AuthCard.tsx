@@ -16,9 +16,10 @@ import {
     SignUpErrorProps,
     SignUpProps,
     LoginErrorProps,
-    LoginProps, SignUpCredentials
-} from "../../../types/AuthTypes";
-import ApiManager from "../../../../../../shared/api/ApiManager";
+    LoginProps
+} from "shared-types/src/lib/api/AuthTypes";
+
+import ApiManager from "shared-types/src/lib/api/ApiManager";
 
 
 

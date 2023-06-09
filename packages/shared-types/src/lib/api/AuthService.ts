@@ -1,5 +1,5 @@
 import jwtDecode from 'jwt-decode';
-import AuthToken, { EMPTY_TOKEN } from "../Types/AuthToken";
+import AuthToken, { EMPTY_TOKEN } from "../types/AuthToken";
 
 class AuthService {
   static hasTokenExpired(token: string | null) {

@@ -1,10 +1,10 @@
 import ApiManager from './ApiManager';
- import TreeProps from '../Props/TreeProps';
+ import TreeProps from '../props/TreeProps';
 import { AxiosResponse } from 'axios';
- import { TreeTypes } from '../Types/TreeTypes';
-import { FaultTreeMxGraphJSON } from "../Types/MxGraph/FaultTreeMxGraphJSON";
-import EventTreeMxGraphJSON from "../Types/MxGraph/EventTreeMxGraphJSON";
-import { BayesianNetworkMxGraphJSON } from "../Types/MxGraph/BayesianNetworkMxGraphJSON";
+ import { TreeTypes } from '../types/TreeTypes';
+import { FaultTreeMxGraphJSON } from "../types/mxGraph/FaultTreeMxGraphJSON";
+import EventTreeMxGraphJSON from "../types/mxGraph/EventTreeMxGraphJSON";
+import { BayesianNetworkMxGraphJSON } from "../types/mxGraph/BayesianNetworkMxGraphJSON";
 
 // request interface
 export interface PaginationQueryOptions {

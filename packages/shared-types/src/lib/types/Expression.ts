@@ -3,13 +3,13 @@ import { NormalParams, NormalParamsMap, NormalParamsReverseMap } from "./NormalP
 import { DistributionTimeDependence, ReversedDistributionDictionary } from "./AbstractDistribution/AbstractDistribution";
 import Outcome, { OutcomeJSON } from "./Outcome";
 import GateTypes from "./GateTypes";
-import Normal from "./Distributions/Normal";
-import LogNormal from "./Distributions/Lognormal";
-import Weibull from "./Distributions/Weibull";
-import Uniform from "./Distributions/Uniform";
-import NonParametric from "./Distributions/NonParametric";
-import { DistributionSummary } from "./Distributions/AbstractDistribution";
-import Exponential from "./Distributions/Exponential";
+import Normal from "./distributions/Normal";
+import LogNormal from "./distributions/Lognormal";
+import Weibull from "./distributions/Weibull";
+import Uniform from "./distributions/Uniform";
+import NonParametric from "./distributions/NonParametric";
+import { DistributionSummary } from "./distributions/AbstractDistribution";
+import Exponential from "./distributions/Exponential";
 
 export interface ExpressionJSON {
   _proxy: ProxyTypes;

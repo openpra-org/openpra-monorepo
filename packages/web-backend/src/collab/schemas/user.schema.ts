@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 import { Action, ActionSchema } from '../../hcl/schemas/action.schema';
-import { Preferences, PreferencesType } from "../../../../shared/api/User/Preferences";
+import Preferences from "shared-types/src/lib/api/User/Preferences";
 
 @Schema({ _id: false, versionKey: false })
 class User_Credentials {

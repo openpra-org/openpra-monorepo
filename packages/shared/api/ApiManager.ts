@@ -5,7 +5,7 @@ import Accounts from "./Accounts";
 import Admin from "./Admin";
 import {SignUpCredentials} from "../../frontend/web-editor/src/types/AuthTypes";
 import AuthToken from "../Types/AuthToken";
-import { Preferences } from "./User/Preferences";
+import Preferences from "./User/Preferences";
 
 const API_ENDPOINT = process.env.API_ENDPOINT || 'http://localhost:8000';
 console.log(API_ENDPOINT);

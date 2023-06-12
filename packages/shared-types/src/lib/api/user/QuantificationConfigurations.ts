@@ -1,7 +1,7 @@
 class Engine {
-    BBNSolver: number;
-    orderingRule: number;
-    BDDConstructor: number;
+    BBNSolver?: number;
+    orderingRule?: number;
+    BDDConstructor?: number;
 }
 
 class Sampling {
@@ -16,21 +16,21 @@ class Importance {
 }
 
 class Quantify {
-    treeId: number;
+    treeId?: number;
     replaceTransferGatesWithBasicEvents?: boolean;
-    type: string;
-    missionTestInterval: number | null;
-    userDefinedMaxCutset: number;
-    targets: string;
-    sampling: Sampling;
-    importance: Importance;
+    type?: string;
+    missionTestInterval?: number | null;
+    userDefinedMaxCutset?: number;
+    targets?: string;
+    sampling?: Sampling;
+    importance?: Importance;
 }
 
 class Configuration {
-    engine: Engine;
-    quantify: Quantify;
+    engine?: Engine;
+    quantify?: Quantify;
 }
 
 export default class QuantificationConfigurations {
-    configuration: Configuration;
+    configuration?: Configuration;
 }

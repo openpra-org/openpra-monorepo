@@ -3,6 +3,8 @@ import ThemeProvider from "./theme/ThemeProvider";
 import LandingPage from "./pages/landingPage";
 import RootContainer from "./pages/rootContainer";
 import ErrorPage from "./pages/errorPage";
+import ModelsPage from "./pages/modelsPage"
+import React from "react";
 
 const routes: RouteObject[] = [
     {
@@ -19,6 +21,10 @@ const routes: RouteObject[] = [
                     {
                         path: "about",
                         element: <>about</>,
+                    },
+                    {
+                        path: "models",
+                        element: <ModelsPage />,
                     },
                 ]
             }

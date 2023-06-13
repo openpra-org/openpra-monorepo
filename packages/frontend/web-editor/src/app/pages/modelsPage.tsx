@@ -1,11 +1,13 @@
-import {PageHeader, Models, Filter} from '../components/headers'
+import {PageHeader, ModelsBar, Filter} from '../components/headers'
+import {Models} from '../components/models'
 
 export default function ModelsPage() {
     return (
         <>
             <PageHeader />
-            <Models />
+            <ModelsBar />
             <Filter />
+            <Models />
         </>
     )
 }

@@ -1,5 +1,6 @@
 import React from 'react'
 import {useState} from 'react'
+import '../app.module.css'
 import {
     EuiPageHeader,
     EuiHeader,
@@ -8,18 +9,21 @@ import {
     EuiFieldText,
     EuiHeaderSection,
     EuiHeaderLogo,
+    useEuiTheme,
+    EuiTextColor,
     EuiPopover,
     EuiContextMenuItem,
     EuiContextMenuPanel,
     EuiFieldSearch,
     useGeneratedHtmlId,
-    EuiIcon
 } from "@elastic/eui"
+import {euiBackgroundColor} from "@elastic/eui/src/global_styling/mixins/_color";
 
 export function PageHeader() {
+    const {euiTheme} = useEuiTheme();
     return (
-        <div>
-            <EuiPageHeader>
+
+            <EuiPageHeader id='mainHeader' css={{background: euiTheme.colors.primary}}>
                 <EuiHeaderSection>
                     <EuiButton
                         size="s"
@@ -29,18 +33,17 @@ export function PageHeader() {
                     </EuiButton>
                 </EuiHeaderSection>
                 <EuiHeaderSection side="right">
-                    <p>v0.0.1</p>
-                    <EuiFieldSearch/>
-                    <EuiButtonEmpty iconType="gear"/>
-                    <EuiButtonEmpty iconType="globe"/>
-                    <EuiButtonEmpty iconType="user"/>
+                    <EuiTextColor css={{color: euiTheme.colors.ghost}}>v0.0.1</EuiTextColor>
+                    <EuiFieldSearch compressed={true}/>
+                    <EuiButtonEmpty iconType="gear" css={{color: euiTheme.colors.ghost}}/>
+                    <EuiButtonEmpty iconType="globe" css={{color: euiTheme.colors.ghost}}/>
+                    <EuiButtonEmpty iconType="user" css={{color: euiTheme.colors.ghost}}/>
                 </EuiHeaderSection>
             </EuiPageHeader>
-        </div>
     )
 }
 
-export function Models() {
+export function ModelsBar() {
     return (
         <EuiHeader>
             <EuiHeaderLogo>Models</EuiHeaderLogo>

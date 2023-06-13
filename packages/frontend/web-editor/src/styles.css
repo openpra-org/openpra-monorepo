@@ -10,3 +10,7 @@ html {
     font-smooth: always;
 }
 
+#model {
+    margin: 8px;
+    background-color: #343741;
+}

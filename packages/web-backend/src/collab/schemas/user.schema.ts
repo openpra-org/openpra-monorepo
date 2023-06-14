@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 import { Action, ActionSchema } from '../../hcl/schemas/action.schema';
-import Preferences from "shared-types/src/lib/api/User/Preferences";
 
 @Schema({ minimize: false, _id: false, versionKey: false })
 class Instances {}
@@ -85,6 +84,30 @@ class QuantificationConfigurations {
 }
 
 const QuantificationConfigurationsSchema = SchemaFactory.createForClass(QuantificationConfigurations);
+
+@Schema({ minimize: false, _id: false, versionKey: false })
+class Preferences {
+    @Prop({ required: false })
+    theme: string;
+
+    @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
+    nodeIdsVisible: boolean | string;
+
+    @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
+    outlineVisible: boolean | string;
+
+    @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
+    node_value_visible: boolean | string;
+
+    @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
+    nodeDescriptionEnabled: boolean | string;
+
+    @Prop({ type: mongoose.Schema.Types.Mixed, required:false })
+    pageBreaksVisible: boolean | string;
+
+    @Prop({ type: QuantificationConfigurationsSchema, required: false })
+    quantificationConfigurations: QuantificationConfigurations;
+}
 
 const PreferencesSchema = SchemaFactory.createForClass(Preferences);
 

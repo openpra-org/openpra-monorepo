@@ -16,7 +16,12 @@
     "baseUrl": ".",
     "paths": {
       "frontend/assets": ["packages/frontend/assets/src/index.ts"],
-    },
+      "frontend/mxgraph-js-types": [
+        "packages/frontend/mxgraph-js-types/src/index.ts"
+      ],
+      "shared-types": ["packages/shared-types/src/index.ts"],
+      "types/mxgraph-js": ["packages/types/mxgraph-js/src/index.ts"]
+    }
   },
   "exclude": ["node_modules", "tmp"]
 }

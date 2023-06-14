@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 import { Action, ActionSchema } from '../../hcl/schemas/action.schema';
+import Preferences from "shared-types/src/lib/api/User/Preferences";
 
 @Schema({ minimize: false, _id: false, versionKey: false })
 class Instances {}
@@ -11,7 +12,7 @@ const InstancesSchema = SchemaFactory.createForClass(Instances);
 class Models {
     @Prop({ required: false })
     id: number;
-    
+
     @Prop({ required: false })
     creator: number;
 
@@ -62,7 +63,7 @@ class Recently_Accessed {
 
     @Prop({ type: [{ type: SubsystemsSchema }], required: false })
     subsystems: Subsystems[];
-    
+
     @Prop({ type: [{ type: ProjectsSchema }], required: false })
     projects: Projects[];
 }
@@ -84,30 +85,6 @@ class QuantificationConfigurations {
 }
 
 const QuantificationConfigurationsSchema = SchemaFactory.createForClass(QuantificationConfigurations);
-
-@Schema({ minimize: false, _id: false, versionKey: false })
-class Preferences {
-    @Prop({ required: false })
-    theme: string;
-
-    @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-    nodeIdsVisible: boolean | string;
-
-    @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-    outlineVisible: boolean | string;
-
-    @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-    node_value_visible: boolean | string;
-
-    @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-    nodeDescriptionEnabled: boolean | string;
-
-    @Prop({ type: mongoose.Schema.Types.Mixed, required:false })
-    pageBreaksVisible: boolean | string;
-
-    @Prop({ type: QuantificationConfigurationsSchema, required: false })
-    quantificationConfigurations: QuantificationConfigurations;
-}
 
 const PreferencesSchema = SchemaFactory.createForClass(Preferences);
 
@@ -137,13 +114,10 @@ export class User {
     id: number;
 
     @Prop()
-    first_name: string;
+    firstName: string;
 
     @Prop()
-    last_name: string;
-
-    @Prop({ required: false })
-    name: string;
+    lastName: string;
 
     @Prop()
     username: string;

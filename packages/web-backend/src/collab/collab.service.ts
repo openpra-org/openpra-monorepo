@@ -183,8 +183,8 @@ export class CollabService {
             nodeDescriptionEnabled: true,
             pageBreaksVisible: true,
             quantificationConfigurations: {
-                configurations: {},
-                currentlySelected: ' '
+                // configurations: {},
+                // currentlySelected: ' '
             }
         };
         return newUser.save();

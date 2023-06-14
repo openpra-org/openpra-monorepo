@@ -1,5 +1,3 @@
-import '../../styles.css'
-import '../app.module.css'
 import ModelItem from "./listitems/ModelItem";
 
 export function Models(): JSX.Element {

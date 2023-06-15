@@ -42,7 +42,7 @@ export function PageHeader() {
         setThemePopover(false);
     }
     const theme = (
-        <EuiButtonEmpty iconType="gear" onClick={themeClick} css={{color: euiTheme.colors.ghost}}/>
+        <EuiButtonEmpty iconType="gear" onClick={themeClick} color="ghost"/>
     )
     const themeItems = [
         /*<EuiContextMenuItem key="cherry" onClick={closeTheme}>Cherry Blueberry</EuiContextMenuItem>,
@@ -69,7 +69,7 @@ export function PageHeader() {
         setLangPopover(false);
     }
     const lang = (
-        <EuiButtonEmpty iconType="globe" onClick={langClick} css={{color: euiTheme.colors.ghost}}/>
+        <EuiButtonEmpty iconType="globe" onClick={langClick} color="ghost"/>
     )
     const langItems = [
         //<EuiContextMenuItem key="english" onClick={closeLang}>English</EuiContextMenuItem>,
@@ -86,7 +86,7 @@ export function PageHeader() {
         setAccountPopover(false);
     }
     const account = (
-        <EuiButtonEmpty iconType="user" onClick={accountClick} css={{color: euiTheme.colors.ghost}}/>
+        <EuiButtonEmpty iconType="user" onClick={accountClick} color="ghost"/>
     )
     const accountItems = [
         /*<EuiContextMenuItem key="profile" onClick={closeAccount}>Profile</EuiContextMenuItem>,
@@ -106,7 +106,7 @@ export function PageHeader() {
                     <EuiHeaderLogo href='/models'>Models</EuiHeaderLogo>
                 </EuiHeaderSection>
                 <EuiHeaderSection side="right">
-                    <EuiTextColor css={{color: euiTheme.colors.ghost}}>v0.0.1</EuiTextColor>
+                    <EuiTextColor color="ghost">v0.0.1 </EuiTextColor>
                     <EuiFieldSearch compressed={true}/>
                     <EuiPopover //Theme context menu
                         id={themeContextMenuPopoverId}

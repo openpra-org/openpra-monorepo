@@ -1,4 +1,3 @@
-import React from 'react'
 import {useState} from 'react'
 import '../app.module.css'
 import {
@@ -12,13 +11,11 @@ import {
     useEuiTheme,
     EuiTextColor,
     EuiPopover,
-    EuiContextMenuItem,
     EuiContextMenuPanel,
     EuiFieldSearch,
     useGeneratedHtmlId,
     EuiSpacer,
 } from "@elastic/eui"
-import {euiBackgroundColor} from "@elastic/eui/src/global_styling/mixins/_color";
 import ListOption from './listitems/ListOption';
 
 export function PageHeader() {
@@ -188,12 +185,6 @@ export function Filter() {
         <EuiButtonEmpty iconType="filter" iconSide="left" onClick={sortClick}>Sort By</EuiButtonEmpty>
     )
     const sortItems = [
-        /**<EuiContextMenuItem key="lastMod" onClick={closeSort}>Last Modified</EuiContextMenuItem>,
-        <EuiContextMenuItem key="oldMod" onClick={closeSort}>Oldest Modified</EuiContextMenuItem>,
-        <EuiContextMenuItem key="lastCreate" onClick={closeSort}>Last Created</EuiContextMenuItem>,
-        <EuiContextMenuItem key="oldCreate" onClick={closeSort}>Oldest Created</EuiContextMenuItem>,
-        <EuiContextMenuItem key="a-z" onClick={closeSort}>Title (A-Z)</EuiContextMenuItem>,
-        <EuiContextMenuItem key="z-a" onClick={closeSort}>Title (Z-A)</EuiContextMenuItem>,*/
         <>
             <ListOption key="lastMod" action={closeSort} label="Last Modified" />
             <ListOption key="oldMod" action={closeSort} label="Oldest Modified" />
@@ -201,8 +192,7 @@ export function Filter() {
             <ListOption key="oldCreate" action={closeSort} label="Oldest Created" />
             <ListOption key="a-z" action={closeSort} label="Title (A-Z)" />
             <ListOption key="z-a" action={closeSort} label="Title (Z-A)" />
-        </>
-        
+        </> 
     ]
 
     return (

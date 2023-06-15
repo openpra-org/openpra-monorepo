@@ -45,8 +45,12 @@ export function PageHeader() {
         <EuiButtonEmpty iconType="gear" onClick={themeClick} css={{color: euiTheme.colors.ghost}}/>
     )
     const themeItems = [
-        <EuiContextMenuItem key="cherry" onClick={closeTheme}>Cherry Blueberry</EuiContextMenuItem>,
-        <EuiContextMenuItem key="oxide" onClick={closeTheme}>Oxide</EuiContextMenuItem>,
+        /*<EuiContextMenuItem key="cherry" onClick={closeTheme}>Cherry Blueberry</EuiContextMenuItem>,
+        <EuiContextMenuItem key="oxide" onClick={closeTheme}>Oxide</EuiContextMenuItem>,*/
+        <>
+            <ListOption key='cherry' action={closeTheme} label='Cherry Blueberry'/>
+            <ListOption key='oxide' action={closeTheme} label='Oxide'/>
+        </>
     ]
     const modeItems = [
         <EuiPageHeader>
@@ -68,7 +72,9 @@ export function PageHeader() {
         <EuiButtonEmpty iconType="globe" onClick={langClick} css={{color: euiTheme.colors.ghost}}/>
     )
     const langItems = [
-        <EuiContextMenuItem key="english" onClick={closeLang}>English</EuiContextMenuItem>,
+        //<EuiContextMenuItem key="english" onClick={closeLang}>English</EuiContextMenuItem>,
+        <ListOption key='english' action={closeLang} label='English'/>
+
     ]
 
     //
@@ -83,9 +89,14 @@ export function PageHeader() {
         <EuiButtonEmpty iconType="user" onClick={accountClick} css={{color: euiTheme.colors.ghost}}/>
     )
     const accountItems = [
-        <EuiContextMenuItem key="profile" onClick={closeAccount}>Profile</EuiContextMenuItem>,
+        /*<EuiContextMenuItem key="profile" onClick={closeAccount}>Profile</EuiContextMenuItem>,
         <EuiContextMenuItem key="admin" onClick={closeAccount}>Admin</EuiContextMenuItem>,
-        <EuiContextMenuItem key="logout" onClick={closeAccount}>Logout</EuiContextMenuItem>,
+        <EuiContextMenuItem key="logout" onClick={closeAccount}>Logout</EuiContextMenuItem>,*/
+        <>
+            <ListOption key='profile' action={closeAccount} label='Profile'/>
+            <ListOption key='admin' action={closeAccount} label='Admin'/>
+            <ListOption key='logout' action={closeAccount} label='Logout'/>
+        </>
     ]
 
     return (
@@ -157,8 +168,12 @@ export function Filter() {
         <EuiButtonEmpty iconType="boxesVertical" onClick={selectClick}/>
     )
     const selectItems = [
-        <EuiContextMenuItem key="select" onClick={closeSelect}>Select All</EuiContextMenuItem>,
-        <EuiContextMenuItem key="deselect" onClick={closeSelect}>Deselect All</EuiContextMenuItem>
+        /*<EuiContextMenuItem key="select" onClick={closeSelect}>Select All</EuiContextMenuItem>,
+        <EuiContextMenuItem key="deselect" onClick={closeSelect}>Deselect All</EuiContextMenuItem>*/
+        <>
+            <ListOption key='select' action={closeSelect} label='Select All'/>
+            <ListOption key='deselect' action={closeSelect} label='Deselect All'/>
+        </>
     ]
 
     //

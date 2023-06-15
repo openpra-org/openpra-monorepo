@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { EuiFlexGrid, EuiFlexItem, EuiPagination} from "@elastic/eui";
+import { EuiFlexGrid, EuiFlexGroup, EuiFlexItem, EuiPagination} from "@elastic/eui";
 import ModelItem from "../listitems/ModelItem";
 
 
@@ -76,11 +76,12 @@ export default function() {
       {/** pagination tool that appears at the bottom of the page, does a page change on click
        * active page is current page + 1 because of array offset, unsure if there is a fix
        */}
-      <EuiPagination
-        pageCount={totalPages}
-        activePage={currentPage + 1}
-        onPageClick={onPageChange}
-      />
+        <EuiPagination
+          pageCount={totalPages}
+          activePage={currentPage + 1}
+          onPageClick={onPageChange}
+        />
+        {/** If we want to add the ability to make a certain amount of rows but that around here */}
     </>
   );
 }

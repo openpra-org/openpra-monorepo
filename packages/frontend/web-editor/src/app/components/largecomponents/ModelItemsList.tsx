@@ -54,6 +54,11 @@ export default function() {
   const onPageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber - 1);
   };
+ 
+  //change items per page
+  //const changeItemsPerPage = (pageSize: number) => {
+  //  itemsPerPage = number;
+  //};
 
   //what is actually output
   return (

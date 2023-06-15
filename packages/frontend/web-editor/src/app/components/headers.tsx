@@ -35,12 +35,18 @@ export function PageHeader() {
     function themeClick() {
         setThemePopover(!themePopover);
     }
+
+    //closes the theme menu
     function closeTheme() {
         setThemePopover(false);
     }
+
+    //this is the button that opens up the theme menu
     const theme = (
         <EuiButtonEmpty iconType="gear" onClick={themeClick} color="ghost"/>
     )
+
+    //this is a list of ListOptions for the different themes
     const themeItems = [
         /*<EuiContextMenuItem key="cherry" onClick={closeTheme}>Cherry Blueberry</EuiContextMenuItem>,
         <EuiContextMenuItem key="oxide" onClick={closeTheme}>Oxide</EuiContextMenuItem>,*/
@@ -49,6 +55,8 @@ export function PageHeader() {
             <ListOption key='oxide' action={closeTheme} label='Oxide'/>
         </>
     ]
+
+    //this is a list of the different items for dark/light code
     const modeItems = [
         <EuiPageHeader>
             <EuiButton>Auto</EuiButton>
@@ -62,12 +70,18 @@ export function PageHeader() {
     function langClick() {
         setLangPopover(!langPopover);
     }
+
+    //closes the language menu
     function closeLang() {
         setLangPopover(false);
     }
+
+    //language button defined up here
     const lang = (
         <EuiButtonEmpty iconType="globe" onClick={langClick} color="ghost"/>
     )
+
+    //ListOptions of languages, laregly empty for now
     const langItems = [
         //<EuiContextMenuItem key="english" onClick={closeLang}>English</EuiContextMenuItem>,
         <ListOption key='english' action={closeLang} label='English'/>
@@ -79,12 +93,18 @@ export function PageHeader() {
     function accountClick() {
         setAccountPopover(!accountPopover);
     }
+
+    //closes the acount submenu
     function closeAccount() {
         setAccountPopover(false);
     }
+
+    //this is the account button
     const account = (
         <EuiButtonEmpty iconType="user" onClick={accountClick} color="ghost"/>
     )
+
+    //ListOption of account items, such as admin, logout, and profile
     const accountItems = [
         /*<EuiContextMenuItem key="profile" onClick={closeAccount}>Profile</EuiContextMenuItem>,
         <EuiContextMenuItem key="admin" onClick={closeAccount}>Admin</EuiContextMenuItem>,
@@ -97,40 +117,41 @@ export function PageHeader() {
     ]
 
     return (
-
-            <EuiPageHeader id='mainHeader' css={{background: euiTheme.colors.primary}}>
-                <EuiHeaderSection>
-                    <EuiHeaderLogo href='/models'>Models</EuiHeaderLogo>
-                </EuiHeaderSection>
-                <EuiHeaderSection side="right">
-                    <EuiTextColor color="ghost">v0.0.1 </EuiTextColor>
-                    <EuiFieldSearch compressed={true}/>
-                    <EuiPopover //Theme context menu
-                        id={themeContextMenuPopoverId}
-                        button={theme}
-                        isOpen={themePopover}
-                        closePopover={closeTheme}
-                    >
-                        <EuiContextMenuPanel items={themeItems}/>
-                    </EuiPopover>
-                    <EuiPopover //Language context menu
-                        id={langContextMenuPopoverId}
-                        button={lang}
-                        isOpen={langPopover}
-                        closePopover={closeLang}
-                    >
-                        <EuiContextMenuPanel items={langItems}/>
-                    </EuiPopover>
-                    <EuiPopover //Account context menu
-                        id={accountContextMenuPopoverId}
-                        button={account}
-                        isOpen={accountPopover}
-                        closePopover={closeAccount}
-                    >
-                        <EuiContextMenuPanel items={accountItems}/>
-                    </EuiPopover>
-                </EuiHeaderSection>
-            </EuiPageHeader>
+        
+        //gener main header, not the filter header
+        <EuiPageHeader id='mainHeader' css={{background: euiTheme.colors.primary}}>
+            <EuiHeaderSection>
+                <EuiHeaderLogo href='/models'>Models</EuiHeaderLogo>
+            </EuiHeaderSection>
+            <EuiHeaderSection side="right">
+                <EuiTextColor color="ghost">v0.0.1</EuiTextColor>
+                <EuiFieldSearch compressed={true}/>
+                <EuiPopover //Theme context menu
+                    id={themeContextMenuPopoverId}
+                    button={theme}
+                    isOpen={themePopover}
+                    closePopover={closeTheme}
+                >
+                    <EuiContextMenuPanel items={themeItems}/>
+                </EuiPopover>
+                <EuiPopover //Language context menu
+                    id={langContextMenuPopoverId}
+                    button={lang}
+                    isOpen={langPopover}
+                    closePopover={closeLang}
+                >
+                    <EuiContextMenuPanel items={langItems}/>
+                </EuiPopover>
+                <EuiPopover //Account context menu
+                    id={accountContextMenuPopoverId}
+                    button={account}
+                    isOpen={accountPopover}
+                    closePopover={closeAccount}
+                >
+                    <EuiContextMenuPanel items={accountItems}/>
+                </EuiPopover>
+            </EuiHeaderSection>
+        </EuiPageHeader>
     )
 }
 
@@ -148,6 +169,7 @@ export function Filter() {
     //Allows the use of the css prop in Eui tags
     const {euiTheme} = useEuiTheme();
 
+    //different states that are being used in filter for the popover menus
     const [selectPopover, setSelectPopover] = useState(false);
     const selectContextMenuPopoverId = useGeneratedHtmlId({prefix: 'smallContextMenuPopover'})
     const [sortPopover, setSortPopover] = useState(false);
@@ -158,9 +180,13 @@ export function Filter() {
     function selectClick() {
         setSelectPopover(!selectPopover);
     }
+
+    //closes select context
     function closeSelect() {
         setSelectPopover(false);
     }
+
+    //selects?
     const select = (
         <EuiButtonEmpty iconType="boxesVertical" onClick={selectClick}/>
     )
@@ -178,12 +204,17 @@ export function Filter() {
     function sortClick() {
         setSortPopover(!sortPopover);
     }
+
+    //closes the sort function that is currently being used
     function closeSort() {
         setSortPopover(false);
     }
     const sort = (
         <EuiButtonEmpty iconType="filter" iconSide="left" onClick={sortClick}>Sort By</EuiButtonEmpty>
     )
+
+    //list of sort items, they are made as list options because they are immutable, the action 
+    //should eventually call different sorts of data in ModelItemsList
     const sortItems = [
         <>
             <ListOption key="lastMod" action={closeSort} label="Last Modified" />

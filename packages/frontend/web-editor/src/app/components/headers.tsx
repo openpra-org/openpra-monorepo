@@ -180,6 +180,7 @@ export function Filter() {
     ]
 
     return (
+        <>
         <EuiPageHeader css={{backgroundColor: euiTheme.colors.lightestShade}}>
             <EuiHeaderSection>
                 <EuiPopover //Multiple select/deselect context menu
@@ -206,5 +207,7 @@ export function Filter() {
                 <EuiButton iconType="plus" size="s">NEW</EuiButton>
             </EuiHeaderSection>
         </EuiPageHeader>
+        <hr/>
+            </>
     )
 }

@@ -31,7 +31,6 @@ export default function(props: ModelItemProps) {
           key={title}
         />
       </EuiFlexItem>
-      <EuiSpacer size="xs" />
     </>
   );
 }

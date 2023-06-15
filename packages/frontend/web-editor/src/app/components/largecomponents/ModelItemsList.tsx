@@ -4,7 +4,7 @@ import ModelItem from "../listitems/ModelItem";
 
 
 export default function() {
-  const [currentPage, setCurrentPage] = useState(0);
+  const [currentPage, setCurrentPage] = useState(-1);
   const itemsPerPage = 5;
 
   // temporary item data that is prepulated
@@ -16,17 +16,26 @@ export default function() {
     { title: 'Item 5', description: 'Description 3' },
     { title: 'Item 6', description: 'Description 2' },
     { title: 'Item 7', description: 'Description 3' },
+    { title: 'Item 8', description: 'Description 3' },
+    { title: 'Item 9', description: 'Description 3' },
+    { title: 'Item 10', description: 'Description 3' },
+    { title: 'Item 11', description: 'Description 3' },
+    { title: 'Item 12', description: 'Description 3' },
+    { title: 'Item 13', description: 'Description 3' },
+    { title: 'Item 14', description: 'Description 3' },
+    { title: 'Item 15', description: 'Description 3' },
   ];
 
-  // Calculate pagination indices
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = itemData.slice(indexOfFirstItem, indexOfLastItem);
+  const totalItems = itemData.length;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
-  // Handle page change
-const onPageChange = (pageNumber: number) => {
-  setCurrentPage(pageNumber);
-};
+  const startIndex = currentPage * itemsPerPage + 5;
+  const endIndex = startIndex + itemsPerPage;
+  const currentItems = itemData.slice(startIndex, endIndex);
+
+  const onPageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber - 1);
+  };
 
   return (
     <>
@@ -41,10 +50,9 @@ const onPageChange = (pageNumber: number) => {
           </EuiFlexItem>
         ))}
       </EuiFlexGrid>
-
       <EuiPagination
-        pageCount={Math.ceil(itemData.length / itemsPerPage)}
-        activePage={currentPage}
+        pageCount={totalPages}
+        activePage={currentPage + 1}
         onPageClick={onPageChange}
       />
     </>

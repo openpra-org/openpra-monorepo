@@ -16,6 +16,7 @@ import {
     EuiContextMenuPanel,
     EuiFieldSearch,
     useGeneratedHtmlId,
+    EuiSpacer,
 } from "@elastic/eui"
 import {euiBackgroundColor} from "@elastic/eui/src/global_styling/mixins/_color";
 
@@ -181,6 +182,7 @@ export function Filter() {
 
     return (
         <>
+        <EuiSpacer size="xs" />
         <EuiPageHeader css={{backgroundColor: euiTheme.colors.lightestShade}}>
             <EuiHeaderSection>
                 <EuiPopover //Multiple select/deselect context menu
@@ -207,6 +209,7 @@ export function Filter() {
                 <EuiButton iconType="plus" size="s">NEW</EuiButton>
             </EuiHeaderSection>
         </EuiPageHeader>
+        <EuiSpacer size="xs" />
         <hr/>
             </>
     )

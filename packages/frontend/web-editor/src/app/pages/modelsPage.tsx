@@ -5,7 +5,6 @@ export default function ModelsPage() {
     return (
         <>
             <PageHeader />
-            <ModelsBar />
             <Filter />
             <Models />
         </>

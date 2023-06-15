@@ -1,4 +1,4 @@
-import { EuiCard, EuiIcon, EuiSpacer, EuiFlexItem, EuiFlexGroup } from "@elastic/eui";
+import { EuiCard, EuiIcon, EuiSpacer, EuiFlexItem, EuiFlexGroup, EuiAvatar } from "@elastic/eui";
 
 export interface ModelItemProps {
   title: string,
@@ -18,7 +18,17 @@ export default function(props: ModelItemProps) {
           {/** cards are the easiest, each option should eb self explanitory, the icon is a placeholder for the Letter in a circle i */}
           <EuiCard
             layout="horizontal"
-            icon={<EuiIcon size="l" type={'logoBeats'} />}
+
+            //here we are making the icon property a flexgroup with a few extra settings all the encompass
+            //a EuiAvatar which is a circle with a letter in it
+            icon={<EuiFlexGroup alignItems="center" gutterSize="s">
+            <EuiFlexItem grow={false}>
+              <EuiAvatar name={title} size="l" />
+            </EuiFlexItem>
+            <EuiFlexItem>
+              <span>Card Title</span>
+            </EuiFlexItem>
+          </EuiFlexGroup>}
             title={title}
             description={description}
             key={title}

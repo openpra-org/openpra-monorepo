@@ -9,6 +9,7 @@ import {
     EuiHeaderSection,
     EuiHeaderLogo,
     useEuiTheme,
+    EuiIcon,
     EuiTextColor,
     EuiPopover,
     EuiContextMenuPanel,
@@ -42,8 +43,9 @@ export function PageHeader() {
     }
 
     //this is the button that opens up the theme menu
+    //css was the only way to have adaptable colors based on dark/light mode
     const theme = (
-        <EuiButtonEmpty iconType="gear" onClick={themeClick} color="ghost"/>
+        <EuiButtonEmpty iconType="gear" onClick={themeClick} css={{color: euiTheme.colors.darkestShade}}/>
     )
 
     //this is a list of ListOptions for the different themes
@@ -78,7 +80,7 @@ export function PageHeader() {
 
     //language button defined up here
     const lang = (
-        <EuiButtonEmpty iconType="globe" onClick={langClick} color="ghost"/>
+        <EuiButtonEmpty iconType="globe" onClick={langClick} css={{color: euiTheme.colors.darkestShade}}/>
     )
 
     //ListOptions of languages, laregly empty for now
@@ -101,7 +103,7 @@ export function PageHeader() {
 
     //this is the account button
     const account = (
-        <EuiButtonEmpty iconType="user" onClick={accountClick} color="ghost"/>
+        <EuiButtonEmpty iconType="user" onClick={accountClick} css={{color: euiTheme.colors.darkestShade}}/>
     )
 
     //ListOption of account items, such as admin, logout, and profile
@@ -116,16 +118,30 @@ export function PageHeader() {
         </>
     ]
 
+    const currentPath = window.location.pathname;
+
+
+
     return (
         
         //gener main header, not the filter header
-        <EuiPageHeader id='mainHeader' css={{background: euiTheme.colors.primary}}>
+        <EuiPageHeader id='mainHeader' css={{background: euiTheme.colors.lightShade}}>
             <EuiHeaderSection>
-                <EuiHeaderLogo href='/models'>Models</EuiHeaderLogo>
+                <EuiButton href='/models'
+                           css={{backgroundColor: currentPath == '/models' ? euiTheme.colors.mediumShade: euiTheme.colors.lightShade, color: euiTheme.colors.darkestShade}}
+                >
+                    Models
+                </EuiButton>
+                <EuiButton href='/models'
+                           css={{backgroundColor: currentPath == '/data' ? euiTheme.colors.mediumShade: euiTheme.colors.lightShade, color: euiTheme.colors.darkestShade}}
+                >
+                    Data
+                </EuiButton>
             </EuiHeaderSection>
             {/** Style here is to largely center the text */}
             <EuiHeaderSection side="right" style={{display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
-                <EuiTextColor color="ghost" style={{ marginRight: '8px' }}>v0.0.1</EuiTextColor>
+                <EuiTextColor color="darkestShade" style={{ marginRight: '8px' }}>v0.0.1</EuiTextColor>
+                <EuiIcon href='/models' type='visBarVertical' size='xl' style={{ marginRight: '6px'}}/>
                 <EuiFieldSearch compressed={true}/>
                 <EuiPopover //Theme context menu
                     id={themeContextMenuPopoverId}
@@ -189,7 +205,7 @@ export function Filter() {
 
     //selects?
     const select = (
-        <EuiButtonEmpty iconType="boxesVertical" onClick={selectClick}/>
+        <EuiButtonEmpty iconType="boxesVertical" onClick={selectClick} css={{color: euiTheme.colors.darkShade}}/>
     )
     const selectItems = [
         /*<EuiContextMenuItem key="select" onClick={closeSelect}>Select All</EuiContextMenuItem>,
@@ -211,7 +227,7 @@ export function Filter() {
         setSortPopover(false);
     }
     const sort = (
-        <EuiButtonEmpty iconType="filter" iconSide="left" onClick={sortClick}>Sort By</EuiButtonEmpty>
+        <EuiButtonEmpty iconType="filter" iconSide="left" onClick={sortClick} css={{color: euiTheme.colors.darkShade}}>Sort By</EuiButtonEmpty>
     )
 
     //list of sort items, they are made as list options because they are immutable, the action 
@@ -230,7 +246,7 @@ export function Filter() {
     return (
         <>
         <EuiSpacer size="xs" />
-        <EuiPageHeader css={{backgroundColor: euiTheme.colors.lightestShade}}>
+        <EuiPageHeader>
             <EuiHeaderSection>
                 <EuiPopover //Multiple select/deselect context menu
                     id={selectContextMenuPopoverId}
@@ -249,11 +265,11 @@ export function Filter() {
                     <EuiContextMenuPanel items={sortItems}/>
                 </EuiPopover>
                 <EuiFieldText placeholder="Filter by name..."/>
-                <EuiButtonEmpty iconType="documents"/>
-                <EuiButtonEmpty iconType="trash"/>
+                {/*<EuiButtonEmpty iconType="documents"/>*/}
+                    {/*<EuiButtonEmpty iconType="trash"/>*/}
             </EuiHeaderSection>
             <EuiHeaderSection side="right">
-                <EuiButton iconType="plus" size="s">NEW</EuiButton>
+                <EuiButton iconType="plus" size="s" color='text' style={{opacity: '2'}}>NEW</EuiButton>
             </EuiHeaderSection>
         </EuiPageHeader>
         <EuiSpacer size="xs" />

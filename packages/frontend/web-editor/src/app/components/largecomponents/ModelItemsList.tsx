@@ -84,24 +84,25 @@ export default function() {
             />
           </EuiFlexItem>
         ))}
-      </EuiFlexGrid>
-
-      {/** pagination tool that appears at the bottom of the page, does a page change on click
-       * active page is current page + 1 because of array offset, unsure if there is a fix
-       */}
-      <EuiFlexGroup justifyContent='flexEnd'>
-        <EuiFlexItem grow={false}>
-          <EuiTablePagination
-            pageCount={totalPages}
-            activePage={currentPage + 1}
-            onChangePage={onPageChange}
-            itemsPerPage={rowSize}
-            onChangeItemsPerPage={changeItemsPerPage}
-            itemsPerPageOptions={[5, 10, 20]}
-          />
+        <EuiFlexItem>
+              {/** pagination tool that appears at the bottom of the page, does a page change on click
+           * active page is current page + 1 because of array offset, unsure if there is a fix
+           */}
+          <EuiFlexGroup justifyContent='flexEnd'>
+            <EuiFlexItem grow={false}>
+              <EuiTablePagination
+                pageCount={totalPages}
+                activePage={currentPage + 1}
+                onChangePage={onPageChange}
+                itemsPerPage={rowSize}
+                onChangeItemsPerPage={changeItemsPerPage}
+                itemsPerPageOptions={[5, 10, 20]}
+              />
+            </EuiFlexItem>
+          </EuiFlexGroup>
+            {/** If we want to add the ability to make a certain amount of rows but that around here */}
         </EuiFlexItem>
-      </EuiFlexGroup>
-        {/** If we want to add the ability to make a certain amount of rows but that around here */}
+      </EuiFlexGrid>
     </>
   );
 }

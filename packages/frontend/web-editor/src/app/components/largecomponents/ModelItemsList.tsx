@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { EuiFlexGrid, EuiFlexGroup, EuiFlexItem, EuiPagination} from "@elastic/eui";
+import { EuiFlexGrid, EuiFlexGroup, EuiFlexItem, EuiPagination, EuiTablePagination} from "@elastic/eui";
 import ModelItem from "../listitems/ModelItem";
+import React from 'react';
 
 
 export default function() {
@@ -11,7 +12,7 @@ export default function() {
 
   //Amount of items per page, this will be able to be changed later with a drop down ideally
   //but that seems low priority
-  const itemsPerPage = 5;
+  const [rowSize, setRowSize] = useState(5);
 
   // temporary item data that is prepulated
   const itemData = [
@@ -39,13 +40,13 @@ export default function() {
   const totalItems = itemData.length;
 
   //gets the total amount of pages
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const [totalPages, setTotalPages] = useState(Math.ceil(totalItems / rowSize));
 
   //gets the start index of the items, itemsPerPage is added because arrays start at 0
-  const startIndex = currentPage * itemsPerPage + itemsPerPage;
+  const startIndex = currentPage * rowSize + rowSize;
 
   //end index of the current span of items
-  const endIndex = startIndex + itemsPerPage;
+  const endIndex = startIndex + rowSize;
 
   //slices the objects in the array we want, or the data rather to be displayed
   const currentItems = itemData.slice(startIndex, endIndex);
@@ -54,6 +55,13 @@ export default function() {
   const onPageChange = (pageNumber: number) => {
     setCurrentPage(pageNumber - 1);
   };
+
+  //used to change the items in each page
+  const changeItemsPerPage = (pageSize: number) => {
+    setTotalPages(Math.ceil(totalItems/pageSize));
+    setRowSize(pageSize);
+    setCurrentPage(-1)
+  }
  
   //change items per page
   //const changeItemsPerPage = (pageSize: number) => {
@@ -81,11 +89,18 @@ export default function() {
       {/** pagination tool that appears at the bottom of the page, does a page change on click
        * active page is current page + 1 because of array offset, unsure if there is a fix
        */}
-        <EuiPagination
-          pageCount={totalPages}
-          activePage={currentPage + 1}
-          onPageClick={onPageChange}
-        />
+      <EuiFlexGroup justifyContent='flexEnd'>
+        <EuiFlexItem grow={false}>
+          <EuiTablePagination
+            pageCount={totalPages}
+            activePage={currentPage + 1}
+            onChangePage={onPageChange}
+            itemsPerPage={rowSize}
+            onChangeItemsPerPage={changeItemsPerPage}
+            itemsPerPageOptions={[5, 10, 20]}
+          />
+        </EuiFlexItem>
+      </EuiFlexGroup>
         {/** If we want to add the ability to make a certain amount of rows but that around here */}
     </>
   );

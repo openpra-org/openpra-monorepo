@@ -38,7 +38,8 @@ export default function(props: ModelItemProps) {
         > {/* Card Content */}
         </EuiCard>
       </EuiFlexItem>
-        <EuiFlexGroup justifyContent="flexEnd" style={{position: 'relative', top:'-60px', right:'20px'}}>
+        {/** Rational for styling: These couldn't be in the card object themselves because they  */}
+        <EuiFlexGroup justifyContent="flexEnd" style={{marginTop: "-25px", position: 'relative', top:'-35px', right:'20px'}}>
             <EuiFlexItem grow={false}>
               <EuiText>Last Modified:</EuiText>
             </EuiFlexItem>

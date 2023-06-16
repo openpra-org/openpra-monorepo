@@ -1,4 +1,4 @@
-import { EuiFlexGroup, EuiSpacer } from '@elastic/eui'
+import { EuiFlexGroup, EuiFlexItem, EuiSpacer } from '@elastic/eui'
 import {PageHeader, ModelsBar, Filter} from '../components/headers'
 import {Models} from '../components/models'
 
@@ -7,7 +7,13 @@ export default function ModelsPage() {
     return (
         <>
             <PageHeader />
-            <Filter />
+            <EuiFlexGroup gutterSize="s">
+                <EuiSpacer size="s" />
+                <EuiFlexItem grow={true}>
+                    <Filter/>
+                </EuiFlexItem>
+                <EuiSpacer size="s" />
+            </EuiFlexGroup>
             <Models />
         </>
     )

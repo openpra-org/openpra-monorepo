@@ -12,11 +12,8 @@ export function Models(): JSX.Element {
       <EuiFlexGroup gutterSize="s">
         <EuiSpacer size="s" />
           <EuiFlexItem grow={true}>
-            <EuiSpacer size="xs" />
+            <EuiSpacer size="s" />
             <ModelItemsList/>
-            {/**<ModelItem title="title1" description="desc1"/>
-            <ModelItem title="title1" description="desc1"/>
-            <ModelItem title="title1" description="desc1"/>*/}
           </EuiFlexItem>
         <EuiSpacer size="s" />
       </EuiFlexGroup>

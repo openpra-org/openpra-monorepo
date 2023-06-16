@@ -1,4 +1,4 @@
-import { EuiCard, EuiSpacer, EuiFlexItem, EuiFlexGroup, EuiAvatar} from "@elastic/eui";
+import { EuiCard, EuiSpacer, EuiFlexItem, EuiFlexGroup, EuiAvatar, EuiIcon, EuiButton} from "@elastic/eui";
 
 //title is required, description isnt required but is typically present
 export interface ModelItemProps {
@@ -33,7 +33,14 @@ export default function(props: ModelItemProps) {
           title={title}
           description={description}
           key={title}
-        />
+        > {/* Card Content */}
+          <EuiFlexGroup justifyContent="flexEnd">
+            <EuiFlexItem grow={false}>
+              {/* Content on the right side */}
+              <EuiButton>Right Button</EuiButton>
+            </EuiFlexItem>
+          </EuiFlexGroup>
+        </EuiCard>
       </EuiFlexItem>
     </>
   );

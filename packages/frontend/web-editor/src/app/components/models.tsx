@@ -12,6 +12,7 @@ export function Models(): JSX.Element {
       <EuiFlexGroup gutterSize="s">
         <EuiSpacer size="s" />
           <EuiFlexItem grow={true}>
+            {/**this is the spacer that divides filter from the cards for items*/}
             <EuiSpacer size="s" />
             <ModelItemsList/>
           </EuiFlexItem>

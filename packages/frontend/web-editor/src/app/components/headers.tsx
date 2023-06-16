@@ -148,6 +148,8 @@ export function PageHeader() {
                     button={theme}
                     isOpen={themePopover}
                     closePopover={closeTheme}
+                    //Added an extra margin here to make the top page look more spaced out and clean
+                    style={{ marginLeft: '8px'}}
                 >
                     <EuiContextMenuPanel items={themeItems}/>
                 </EuiPopover>

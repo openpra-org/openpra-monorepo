@@ -123,8 +123,9 @@ export function PageHeader() {
             <EuiHeaderSection>
                 <EuiHeaderLogo href='/models'>Models</EuiHeaderLogo>
             </EuiHeaderSection>
-            <EuiHeaderSection side="right">
-                <EuiTextColor color="ghost">v0.0.1</EuiTextColor>
+            {/** Style here is to largely center the text */}
+            <EuiHeaderSection side="right" style={{display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
+                <EuiTextColor color="ghost" style={{ marginRight: '8px' }}>v0.0.1</EuiTextColor>
                 <EuiFieldSearch compressed={true}/>
                 <EuiPopover //Theme context menu
                     id={themeContextMenuPopoverId}

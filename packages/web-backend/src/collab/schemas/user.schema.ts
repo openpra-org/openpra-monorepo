@@ -126,8 +126,6 @@ const PermissionsSchema = SchemaFactory.createForClass(Permissions);
         transform: function(doc, ret) {
             delete ret._id;
             delete ret.password;
-            delete ret.first_name;
-            delete ret.last_name;
         }
     },
     versionKey: false

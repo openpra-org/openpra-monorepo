@@ -1,17 +1,17 @@
 import { Controller, Options } from '@nestjs/common';
 
+/**
+* 'Preflighted' requests are sent to the server via OPTIONS request method to find out:
+*   1. Which 'origin' is permitted to make request to these URLs.
+*   2. What kind of 'request methods' (e.g. GET, POST, PATCH, PUT, DELETE request methods) are permitted on these URLs.
+*   3. Which 'request headers' are permitted.
+*   4. How long these permissions can be cached.
+* To find out more about OPTIONS request methods, visit: {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/OPTIONS}
+* and go through the 'Preflighted requests in CORS' section.
+* All the configurations for the Preflighted requests for this project are available in 'src/main.ts' file under app.enableCors() method.
+*/
 @Controller()
 export class OptionsController {
-    /**
-    * 'Preflighted' requests are sent to the server via OPTIONS request method to find out:
-    *   1. Which 'origin' is permitted to make request to these URLs.
-    *   2. What kind of 'request methods' (e.g. GET, POST, PATCH, PUT, DELETE request methods) are permitted on these URLs.
-    *   3. Which 'request headers' are permitted.
-    *   4. How long these permissions can be cached.
-    * To find out more about OPTIONS request methods, visit: {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/OPTIONS}
-    * and go through the 'Preflighted requests in CORS' section.
-    * All the configurations for the Preflighted requests for this project are available in 'src/main.ts' file under app.enableCors() method.
-    */
     @Options('/auth/token-obtain/')
     async loginUser_Options() {}
 

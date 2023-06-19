@@ -3,20 +3,22 @@ import {NewModelProps} from 'packages/shared-types/src/lib/props/collab/modelPro
 import {
     EuiForm,
     EuiFieldText,
-    EuiIcon,
     EuiTextColor,
     EuiFlexGroup,
     EuiFlexItem
 } from '@elastic/eui'
 
-export default function NewModel() {
-    const DefaultProps: NewModelProps<string> = {
-        title: '',
-        description: '',
-        assigned: []
-    }
+  export interface ModelOptionProps {
+    users: string[]
+  }
+  
 
-    const [modelInfo, setModelInfo] = useState(DefaultProps);
+
+export default function NewModel(props: ModelOptionProps) {
+    
+    const { users } = props;
+
+    const [modelInfo, setModelInfo] = useState(props);
 
     return (
         <EuiFlexGroup justifyContent='center'>
@@ -24,18 +26,18 @@ export default function NewModel() {
                 <EuiTextColor>Bruh</EuiTextColor>
                 <EuiFieldText
                     placeholder="Title"
-                    value={modelInfo.title}
+                    //value={modelInfo.title}
                     onChange={(e) => setModelInfo({
                         ...modelInfo,
-                        title: e.target.value
+                       //title: e.target.value
                     })}
                 />
                 <EuiFieldText
                     placeholder="Description"
-                    value={modelInfo.description}
+                    //value={modelInfo.description}
                     onChange={(e) => setModelInfo({
                         ...modelInfo,
-                        description: e.target.value
+                       //description: e.target.value
                     })}
                 />
                 <EuiFlexItem>

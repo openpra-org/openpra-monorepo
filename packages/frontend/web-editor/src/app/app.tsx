@@ -3,8 +3,8 @@ import ThemeProvider from "./theme/ThemeProvider";
 import LandingPage from "./pages/landingPage";
 import RootContainer from "./pages/rootContainer";
 import ErrorPage from "./pages/errorPage";
-import ModelsPage from "./pages/modelsPage"
-import NewModel from './components/newModel'
+import ModelsPage from "./pages/modelsPage";
+import NewModelsPage from "./pages/newModelsPage"
 import React from "react";
 
 const routes: RouteObject[] = [
@@ -29,7 +29,7 @@ const routes: RouteObject[] = [
                     },
                     {
                         path: "model/new",
-                        element: <NewModel />
+                        element: <NewModelsPage />
                     }
                 ]
             }

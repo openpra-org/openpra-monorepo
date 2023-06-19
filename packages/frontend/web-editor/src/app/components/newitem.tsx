@@ -34,9 +34,9 @@ export default function NewItem(props: NewItemProps) {
     //this is what is in the newItem strucutre, will eventually be used to actually make things
     //this is also subject tyo change, propbably needs a type passed in from props eventually
     const newItem = {
-        itemTitle: '',
-        itemDescription: '',
-        itemUsers: [] as string[]
+        title: '',
+        description: '',
+        users: [] as string[]
     }
 
     //use states that change things, called by functions later
@@ -56,14 +56,34 @@ export default function NewItem(props: NewItemProps) {
         }
     }, [users]);
 
+    useEffect(() => {
+        const filterOptionsElement = document.querySelector(
+          '.euiSelectableList__searchMessage'
+        );
+        if (filterOptionsElement) {
+          filterOptionsElement.textContent = 'Search users';
+        }
+      }, []);
+
     //this does something if users exist, it will map the users in the new item to the selected users
     const handleOptionChange = (newOptions: EuiSelectableOption[]) => {
         const selectedUsers = newOptions.map((option) => option.label);
         setItemInfo({
           ...itemInfo,
-          itemUsers: selectedUsers,
+          users: selectedUsers,
         });
       };
+
+    //this in theory adds an item to the item list, in practice it doesnt work
+    function addItemDataToList(newItem: {title:string, description: string, users?: string[]}){
+        addItemDataToList(newItem)
+    }
+
+    // Event handler that handles the result
+    const handleClick = () => {
+        const newItemData = addItemDataToList(newItem);
+        // Handle the newItemData or perform any other actions
+    };
 
     return (
             //this styling is so its in a nice looking box, it scales if the users tab is there or not
@@ -75,10 +95,10 @@ export default function NewItem(props: NewItemProps) {
                     <EuiFieldText
                         fullWidth={true}
                         placeholder="Title"
-                        value={itemInfo.itemTitle}
+                        value={itemInfo.title}
                         onChange={(e) => setItemInfo({
                             ...itemInfo,
-                           itemTitle: e.target.value
+                           title: e.target.value
                         })}
                     />
                 </EuiFormRow>
@@ -88,10 +108,10 @@ export default function NewItem(props: NewItemProps) {
                         fullWidth={true}
                         placeholder="Description"
                         resize='none'
-                        value={itemInfo.itemDescription}
+                        value={itemInfo.description}
                         onChange={(e) => setItemInfo({
                             ...itemInfo,
-                           itemDescription: e.target.value
+                           description: e.target.value
                         })}
                     />
                 </EuiFormRow>
@@ -124,7 +144,7 @@ export default function NewItem(props: NewItemProps) {
                             <EuiButton href={page} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
-                            <EuiButton href={page} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Submit</EuiButton>
+                            <EuiButton href={page} onClick={handleClick} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Submit</EuiButton>
                         </EuiFlexItem>
                     </EuiFlexGroup>
                 </EuiFormRow>

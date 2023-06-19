@@ -4,6 +4,30 @@ import ModelItem from "../listitems/ModelItem";
 import React from 'react';
 
 
+// temporary item data that is prepulated
+const itemData = [
+  { title: 'Item 1', description: 'Description 1' },
+  { title: 'Item 2', description: 'Description 2' },
+  { title: 'Item 3', description: 'Description 3' },
+  { title: 'Item 4', description: 'Description 2' },
+  { title: 'Item 5', description: 'Description 3' },
+  { title: 'Item 6', description: 'Description 2' },
+  { title: 'Item 7', description: 'Description 3' },
+  { title: 'Item 8', description: 'Description 3' },
+  { title: 'Item 9', description: 'Description 3' },
+  { title: 'Item 10', description: 'Description 3' },
+  { title: 'Item 11', description: 'Description 3' },
+  { title: 'Item 12', description: 'Description 3' },
+  { title: 'Item 13', description: 'Description 3' },
+  { title: 'Item 14', description: 'Description 3' },
+  { title: 'Item 15', description: 'Description 3' },
+];
+
+//function to add an item to the list, will eventually be done with databases(tm)
+export const addItemDataToList = (object: {title:string, description: string, users?: string[]}) => {
+  itemData.push(object)
+};
+
 export default function() {
 
   //used to set the current page, starts at negative one so things start on the first page
@@ -13,25 +37,6 @@ export default function() {
   //Amount of items per page, this will be able to be changed later with a drop down ideally
   //but that seems low priority
   const [rowSize, setRowSize] = useState(5);
-
-  // temporary item data that is prepulated
-  const itemData = [
-    { title: 'Item 1', description: 'Description 1' },
-    { title: 'Item 2', description: 'Description 2' },
-    { title: 'Item 3', description: 'Description 3' },
-    { title: 'Item 4', description: 'Description 2' },
-    { title: 'Item 5', description: 'Description 3' },
-    { title: 'Item 6', description: 'Description 2' },
-    { title: 'Item 7', description: 'Description 3' },
-    { title: 'Item 8', description: 'Description 3' },
-    { title: 'Item 9', description: 'Description 3' },
-    { title: 'Item 10', description: 'Description 3' },
-    { title: 'Item 11', description: 'Description 3' },
-    { title: 'Item 12', description: 'Description 3' },
-    { title: 'Item 13', description: 'Description 3' },
-    { title: 'Item 14', description: 'Description 3' },
-    { title: 'Item 15', description: 'Description 3' },
-  ];
 
   //this whole section uses some math to be able to use pagination through cards rather than a table, 
   //additional functionality is needed later perhaps, but right now everything looks crisp

@@ -4,6 +4,7 @@ import {
     EuiFormRow,
     EuiFieldText,
     EuiTextArea,
+    EuiButton,
     EuiTextColor,
     EuiFlexGroup,
     EuiFlexItem,
@@ -81,28 +82,37 @@ export default function NewItem(props: NewItemProps) {
                         })}
                     />
                 </EuiFormRow>
-                {users &&( 
-                <EuiFormRow fullWidth={true} style={{margin: '10px'}}>
-                   <EuiSelectable
-                        options={options}
-                        onChange={(newOptions) => {
-                            console.log(setOptions(newOptions));
-                        }}
-                        searchable
-                        singleSelection={false}
-                        >
-                        {(list, search) => (
-                            <div>
-                            {search}
-                            {list}
-                            </div>
-                        )}
-                    </EuiSelectable>
-                </EuiFormRow>
+                {users &&(
+                    <>
+                        <EuiFormRow fullWidth={true} style={{margin: '10px'}}>
+                           <EuiSelectable
+                                options={options}
+                                onChange={(newOptions) => {
+                                    console.log(setOptions(newOptions));
+                                }}
+                                searchable
+                                singleSelection={false}
+                                >
+                                {(list, search) => (
+                                    <div>
+                                    {search}
+                                    {list}
+                                    </div>
+                                )}
+                            </EuiSelectable>
+                        </EuiFormRow>
+                    </>
                 )}
-                <EuiFlexItem>
-                    {}
-                </EuiFlexItem>
+                <EuiFormRow fullWidth={true}>
+                    <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px'}}>
+                        <EuiFlexItem>
+                            <EuiButton href='models' style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
+                        </EuiFlexItem>
+                        <EuiFlexItem>
+                            <EuiButton href='models' style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Submit</EuiButton>
+                        </EuiFlexItem>
+                    </EuiFlexGroup>
+                </EuiFormRow>
             </EuiForm>
     )
 }

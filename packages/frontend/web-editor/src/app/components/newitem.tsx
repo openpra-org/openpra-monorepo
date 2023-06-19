@@ -13,6 +13,7 @@ import {
 
   export interface NewItemProps {
     title: string
+    users?: string[]
   }
   
 
@@ -21,12 +22,12 @@ export default function NewItem(props: NewItemProps) {
 
     const {euiTheme} = useEuiTheme();
 
-    const { title } = props;
+    const { title, users } = props;
 
     const [modelInfo, setModelInfo] = useState(props);
 
     return (
-            <EuiForm style={{backgroundColor: euiTheme.colors.lightShade, alignSelf: 'center', width: '500px', margin: '20px', borderRadius: '10px'}}>
+            <EuiForm style={{backgroundColor: euiTheme.colors.lightShade, alignSelf: 'center', width: '500px', borderRadius: '10px'}}>
                 <EuiSpacer size='s'/>
                 <EuiTextColor style={{margin: '10px', fontSize: '30px'}}><strong>{title}</strong></EuiTextColor>
                 <EuiFormRow fullWidth={true} style={{margin: '10px'}}>

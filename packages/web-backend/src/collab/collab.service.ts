@@ -103,7 +103,7 @@ export class CollabService {
     /**
     * @param {number} user_id Current user's ID
     * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
-    * @param {string} type Model type
+    * @param {string} type Model type (bayesian, circsim, expert, gsn, hcl, omf, phoenix, and pf)
     * @param limit How many results can be seen at once
     * @param offset How many initial results will be skipped
     * @description

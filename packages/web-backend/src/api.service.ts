@@ -19,7 +19,7 @@ export class ApiService {
     * @param {string} name Name of the counter
     * @description
     * Generates an ID for the newly created user in an incremental order of 1. Initially if no user exists, the serial ID starts from 1.
-    * @returns {number} ID number 
+    * @returns {number} ID number
     */
     async getNextUserValue(name: string) {
         let record = await this.userCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
@@ -34,7 +34,7 @@ export class ApiService {
     /**
     * @param {number} user_id Current user's ID
     * @param {string} key Keyword provided in the search bar
-    * @param {string} type Model type
+    * @param {string} type Model type (bayesian, circsim, expert, gsn, hcl, omf, phoenix, and pf)
     * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
     * @param {string} limit How many results can be seen at once
     * @param {string} offset How many initial results will be skipped

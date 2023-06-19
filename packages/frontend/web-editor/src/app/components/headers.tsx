@@ -271,7 +271,7 @@ export function Filter() {
                     {/*<EuiButtonEmpty iconType="trash"/>*/}
             </EuiHeaderSection>
             <EuiHeaderSection side="right">
-                <EuiButton iconType="plus" size="s" color='text' style={{opacity: '2'}}>NEW</EuiButton>
+                <EuiButton iconType="plus" href = 'model/new' size="s" color='text' style={{opacity: '2'}}>NEW</EuiButton>
             </EuiHeaderSection>
         </EuiPageHeader>
         <EuiSpacer size="xs" />

@@ -17,6 +17,7 @@ import {
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
   export interface NewItemProps {
     title: string
+    page: string
     users?: string[]
   }
   
@@ -28,7 +29,7 @@ export default function NewItem(props: NewItemProps) {
     const {euiTheme} = useEuiTheme();
 
     //grabbing the props
-    const { title, users } = props;
+    const { title, page, users } = props;
 
     //this is what is in the newItem strucutre, will eventually be used to actually make things
     //this is also subject tyo change, propbably needs a type passed in from props eventually
@@ -120,10 +121,10 @@ export default function NewItem(props: NewItemProps) {
                 <EuiFormRow fullWidth={true}>
                     <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px'}}>
                         <EuiFlexItem>
-                            <EuiButton href='models' style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
+                            <EuiButton href={page} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
-                            <EuiButton href='models' style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Submit</EuiButton>
+                            <EuiButton href={page} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Submit</EuiButton>
                         </EuiFlexItem>
                     </EuiFlexGroup>
                 </EuiFormRow>

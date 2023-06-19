@@ -50,11 +50,15 @@ export default function(props: ModelItemProps) {
               <EuiText>Last Modified:</EuiText>
             </EuiFlexItem>
             {/** This is the settings/gear icon, moved 4 pixels as to line up a bit better */}
-            <EuiFlexItem style={{ position: 'relative', top:'4px' }} grow={false} >
+            <EuiFlexItem style={{ position: 'relative', top:'3px' }} grow={false} >
               <EuiIcon type={'gear'}/>
             </EuiFlexItem>
+            {/** This is the Copy icon, moved 4 pixels as to line up a bit better */}
+            <EuiFlexItem style={{ position: 'relative', top:'3px' }} grow={false} >
+              <EuiIcon type={'copy'}/>
+            </EuiFlexItem>
             {/** This is the delete icon, moved 4 pixels as to line up a bit better, eventually this will lead to a pop up menu */}
-            <EuiFlexItem style={{ position: 'relative', top:'4px' }} grow={false}>
+            <EuiFlexItem style={{ position: 'relative', top:'3px' }} grow={false}>
               <EuiIcon type={'trash'}/>
             </EuiFlexItem>
           </EuiFlexGroup>

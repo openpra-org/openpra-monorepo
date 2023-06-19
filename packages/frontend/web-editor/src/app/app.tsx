@@ -4,6 +4,7 @@ import LandingPage from "./pages/landingPage";
 import RootContainer from "./pages/rootContainer";
 import ErrorPage from "./pages/errorPage";
 import ModelsPage from "./pages/modelsPage"
+import NewModel from './components/newModel'
 import React from "react";
 
 const routes: RouteObject[] = [
@@ -26,6 +27,10 @@ const routes: RouteObject[] = [
                         path: "models",
                         element: <ModelsPage />,
                     },
+                    {
+                        path: "model/new",
+                        element: <NewModel />
+                    }
                 ]
             }
         ],

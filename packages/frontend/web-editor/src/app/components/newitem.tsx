@@ -29,11 +29,13 @@ export default function NewItem(props: NewItemProps) {
     const newItem = {
         itemTitle: '',
         itemDescription: '',
-        itemUsers: ['']
+        itemUsers: [] as string[]
     }
     const [itemInfo, setItemInfo] =useState(newItem)
 
     const [options, setOptions] = useState<EuiSelectableOption[]>([]);
+
+    const [selectedOptions, setSelectedOptions] = useState<EuiSelectableOption[]>([]);
 
     useEffect(() => {
         if(users){
@@ -43,6 +45,14 @@ export default function NewItem(props: NewItemProps) {
         setOptions(selectableOptions);
         }
     }, [users]);
+
+    const handleOptionChange = (newOptions: EuiSelectableOption[]) => {
+        const selectedUsers = newOptions.map((option) => option.label);
+        setItemInfo({
+          ...itemInfo,
+          itemUsers: selectedUsers,
+        });
+      };
 
     return (
             <EuiForm style={{backgroundColor: euiTheme.colors.lightShade, alignSelf: 'center', width: '500px', borderRadius: '5px'}}>

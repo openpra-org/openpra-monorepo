@@ -10,7 +10,7 @@ export default function ModelsPage() {
     return (
         <>
             <PageHeader />
-            <EuiSpacer size = "m"/>
+            <EuiSpacer size = "s"/>
             <NewItem title = "New Model" users = {userStrings} />
         </>
     )

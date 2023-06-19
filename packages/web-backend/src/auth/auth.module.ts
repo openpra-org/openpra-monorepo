@@ -7,10 +7,6 @@ import { CollabModule } from '../collab/collab.module';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 
-/**
-* 1. The JWT Secret Key is extracted from the .env file.
-* 2. The JWT Token expiration time is set at 24 hours.
-*/
 @Module({
   imports: [
     CollabModule,

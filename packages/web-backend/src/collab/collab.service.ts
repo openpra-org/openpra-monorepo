@@ -14,17 +14,32 @@ export class CollabService {
         @InjectModel(User.name) private userModel: Model<UserDocument>
     ) {}
 
-    /** Assists the Local Strategy method to ensure whether a user exists in the database or not. */
+    /**
+    * @param {string} username
+    * @description
+    * Assists the Local Strategy method to ensure whether a user exists in the database or not.
+    * @returns A mongoose document of the user | undefined
+    */
     async loginUser(username: string): Promise<User | undefined> {
         return this.userModel.findOne({ username }).lean();
     }
 
-    /** After each login, the last login time of the user is recorded. */
+    /**
+    * @param {number} user_id Current user's ID
+    * @description
+    * After each login, the last login time of the user is updated.
+    * @returns void
+    */
     async updateLastLogin(user_id: number) {
-        return this.userModel.updateOne({ id: user_id }, { 'last_login': Date.now() });
+        await this.userModel.updateOne({ id: user_id }, { 'last_login': Date.now() });
     }
 
     /**
+    * @param {number} count Total number of results
+    * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl} 
+    * @param limit How many results can be seen at once
+    * @param offset How many initial results will be skipped
+    * @description
     * The pagination() method follows a very simple mechanism:
     *   1. It determines the number of pages its going to take to show all the queried results.
     *   2. It determines on which page the user is currently on.
@@ -41,6 +56,7 @@ export class CollabService {
     *   4. There's more than 1 page in total and the user is somewhere between the first and last page; in that case links for both previous and next page will be available.
     * The 4th condition suits the above example. The user is in the 3rd page which is between the first page and the last (7 number) page. The pagination() method
     * will provide the links to the 2nd (previous) and 4th (next) pages to the user.
+    * @returns 1. The links to previous and next result pages, 2. limit and offset values
     */
     pagination(count: number, url: string, limit?: any, offset?: any) {
         let previous = null;
@@ -84,9 +100,16 @@ export class CollabService {
         }
     }
 
-    /** 
+    /**
+    * @param {number} user_id Current user's ID
+    * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+    * @param {string} type Model type
+    * @param limit How many results can be seen at once
+    * @param offset How many initial results will be skipped
+    * @description
     * Since only HCL Models are supported, the Model list will be retrieved using HclService.getHclModelList() method.
     * HclService.getHclModelList() takes in 6 parameters. Since the 'tag' parameter cannot be provided here, it has been replaced with 'undefined' type.
+    * @returns List of models assigned to the user that match with the provided type
     */
     async getHclModelList(user_id: number, url: string, type: string, limit?: any, offset?: any): Promise<PaginationDto> {
         if(type && !limit && !offset) {
@@ -96,17 +119,33 @@ export class CollabService {
         }
     }
 
-    /** Since only HCL Models are supported, the HCL Model will be retrieved using the Model ID through the HclService.getHclModelById() method. */
+    /**
+    * @param {number} user_id Current user's ID
+    * @param {string} model_id ID of the model
+    * @description
+    * Since only HCL Models are supported, the HCL Model will be retrieved using the Model ID through the HclService.getHclModelById() method.
+    * @returns A certain HCL model
+    */
     async getCollabModelById(user_id: number, model_id: string) {
         return this.hclService.getHclModelById(user_id, model_id);
     }
 
-    /** Since only HCL Models are available now, one of the HCL Models is going to be deleted based on the provided Model ID. */
+    /**
+    * @param {number} user_id Current user's ID
+    * @param {string} model_id ID of the model 
+    * @description
+    * Since only HCL Models are available now, one of the HCL Models is going to be deleted based on the provided Model ID.
+    * @returns 204 HTTP status @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204}
+    */
     async deleteCollabModelById(user_id: number, model_id: string): Promise<HttpStatus> {
         return this.hclService.deleteHclModelById(user_id, model_id);
     }
 
     /**
+    * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+    * @param limit How many results can be seen at once
+    * @param offset How many initial results will be skipped 
+    * @description
     * No parameter is needed to retrieve the User list. The retrieved data is presented in a 'paginated' format:
     *   1. Count: the number of users found.
     *   2. Next: if there are additional users that couldn't be shown in the current page, then the link to the next page is shown.
@@ -117,6 +156,7 @@ export class CollabService {
     *                   an ID of 6 to 10 and skip the first 5 users. The 'previous' property in this case will provide the link for the 1st page that can show
     *                   the first 5 users.
     *   4. Result: provides the users list. The 'result' property follows the limit and offset values to decide which users are going to be showed.
+    * @returns List of all users
     */
     async getUsersList(url: string, limit?: any, offset?: any): Promise<PaginationDto> {
         let paths = undefined;
@@ -138,14 +178,20 @@ export class CollabService {
     }
 
     /**
+    * @param {string} user_id Current user's ID
+    * @description
     * UserID is provided as the Query filter. To show only the preferences, inside the projection option the 'preferences' is set to 1
     * (1 for true, 0 for false).
+    * @returns Preferences of the current user
     */
     async getUserPreferences(user_id: string) {
         return this.userModel.findOne({ id: Number(user_id) }, { 'preferences': 1 });
     }
 
     /**
+    * @param {string} user_id Current user's ID
+    * @param body Request body
+    * @description
     * 1. The lean() method returns a Plain Old JS Object (POJO) instead of a Mongoose document which makes the query much faster.
     * 2. Since the 'preferences' is a nested object, 2 things are needed to be done to ensure that its properties are updated properly:
     *    a. Use the objectID (_id) of the User document instead of using normal UserID(id) inside the findByIdAndUpdate() query method.
@@ -163,6 +209,7 @@ export class CollabService {
     * 4. 'new' is set to true to ensure that the document that is returned after saving the preferences is always the updated one.
     * 5. 'upsert' is a combined action of 'Update and insert'. If a user is not found while updating the preferences with the given UserID,
     *    the upsert operation will create a new user document with the given preferences which is not desired. So the upsert is set to false.
+    * @returns Updated preferences of the user
     */
     async updateUserPreferences(user_id: string, body: UserPreferencesDto) {
         let user = await this.userModel.findOne({ id: Number(user_id) }).lean();

@@ -15,7 +15,12 @@ export class ApiService {
         @InjectModel(User.name) private userModel: Model<UserDocument>
     ) {}
 
-    /** Generates an ID for the newly created user in an incremental order of 1. Initially if no user exists, the serial ID starts from 1. */
+    /** 
+    * @param {string} name Name of the counter
+    * @description
+    * Generates an ID for the newly created user in an incremental order of 1. Initially if no user exists, the serial ID starts from 1.
+    * @returns {number} ID number 
+    */
     async getNextUserValue(name: string) {
         let record = await this.userCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
         if(!record) {
@@ -26,8 +31,18 @@ export class ApiService {
         return record.seq;
     }
 
-    /** Since right now only the HCL Model is supported, the app is going to look for HCL models that match with the provided keywords. */
-    async searchCollabModel(user_id: number, key: string, type: string, url: string, limit?:any, offset?:any) {
+    /**
+    * @param {number} user_id Current user's ID
+    * @param {string} key Keyword provided in the search bar
+    * @param {string} type Model type
+    * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+    * @param {string} limit How many results can be seen at once
+    * @param {string} offset How many initial results will be skipped
+    * @description
+    * Since right now only the HCL Model is supported, the app is going to look for HCL models that match with the provided keywords.
+    * @returns List of models that match with the provided keyword in the search bar  
+    */
+    async searchCollabModel(user_id: number, key: string, type: string, url: string, limit?:string, offset?:string) {
         if(limit && offset) {
             return this.hclService.searchHclModel(user_id, key, type, url, limit, offset);
         } else {
@@ -36,6 +51,8 @@ export class ApiService {
     }
 
     /**
+    * @param body Request body
+    * @description
     * There are some hard-coded data provided alongside the request body for creating a 'user' document:
     *   1. The password is encrypted using the 'argon2id' method.
     *   2. The UserID is generated in an incremental order using getNextUserValue() function.
@@ -48,6 +65,7 @@ export class ApiService {
     *      are saved in the 'preferences' object. By default all the settings inside the 'preferences' are set to 'enabled' when a user is created.
     *   6. The permissions feature has not been implemented yet - so it is kept empty by default. Once implemented, a user will be able to assume
     *      one of the two roles - either the role of an administrator (with special access - such as deleting a user from the database) or the role of a general user.
+    * @returns A mongoose document of the new user
     */
     async createNewUser(body: CreateNewUserDto): Promise<User> {
         body.password = await argon2.hash(body.password);

@@ -1,4 +1,4 @@
-import { EuiCard, EuiSpacer, EuiFlexItem, EuiFlexGroup, EuiAvatar, EuiIcon, EuiButton, EuiText} from "@elastic/eui";
+import { EuiCard, EuiFlexItem, EuiFlexGroup, EuiAvatar, EuiIcon, EuiButton, EuiText, EuiButtonIcon} from "@elastic/eui";
 
 //title is required, description isnt required but is typically present
 export interface ModelItemProps {
@@ -45,6 +45,7 @@ export default function(props: ModelItemProps) {
          * the position is to move it from underneath the card to on in in the middle on the right
          * flex end puts it to the right of the page/flex group
          * MarginLeft is so that it doesnt interfere with the href on the card itself
+         * Made to be iconbuttons so they can have hover over text
          */}
         <EuiFlexGroup justifyContent="flexEnd" style={{marginTop: "-25px", marginLeft: window.innerWidth - 320, position: 'relative', top:'-35px', right:'20px'}}>
             {/** This is where the text for last modified goes, eventually this should be updated accordingly */}
@@ -52,20 +53,20 @@ export default function(props: ModelItemProps) {
               <EuiText>Last Modified:</EuiText>
             </EuiFlexItem>
             {/** This is the settings/gear icon, moved 3 pixels as to line up a bit better */}
-            <EuiFlexItem style={{ position: 'relative', top:'3px' }} grow={false} >
-              <EuiIcon type={'gear'}/>
+            <EuiFlexItem grow={false} >
+              <EuiButtonIcon color='text' iconType='gear' title='settings'/>
             </EuiFlexItem>
             {/** This is the more info chart icon, moved 3 pixels as to line up a bit better */}
-            <EuiFlexItem style={{ position: 'relative', top:'3px' }} grow={false} >
-              <EuiIcon type={'visArea'}/>
+            <EuiFlexItem grow={false} >
+              <EuiButtonIcon color='text' iconType='visArea' title='info'/>
             </EuiFlexItem>
             {/** This is the Copy icon, moved 3 pixels as to line up a bit better */}
-            <EuiFlexItem style={{ position: 'relative', top:'3px' }} grow={false} >
-              <EuiIcon type={'copy'}/>
+            <EuiFlexItem grow={false} >
+                <EuiButtonIcon color='text' iconType='copy' title='clone'/>
             </EuiFlexItem>
             {/** This is the delete icon, moved 3 pixels as to line up a bit better, eventually this will lead to a pop up menu */}
-            <EuiFlexItem style={{ position: 'relative', top:'3px' }} grow={false}>
-              <EuiIcon type={'trash'}/>
+            <EuiFlexItem grow={false}>
+              <EuiButtonIcon color='text' iconType='trash' title='delete'/>
             </EuiFlexItem>
           </EuiFlexGroup>
     </>

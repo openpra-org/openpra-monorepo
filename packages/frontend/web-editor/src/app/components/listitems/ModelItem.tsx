@@ -3,7 +3,7 @@ import { EuiCard, EuiSpacer, EuiFlexItem, EuiFlexGroup, EuiAvatar, EuiIcon, EuiB
 //title is required, description isnt required but is typically present
 export interface ModelItemProps {
   title: string,
-  description?: string;
+  description?: string,
 }
 
 /**
@@ -17,6 +17,7 @@ export default function(props: ModelItemProps) {
       {/** Is all set up as flex items so that spacing and such works correctly */}
       <EuiFlexItem grow={false}>
         <EuiCard
+          href={'model/1'}
           layout="horizontal"
           icon={
             <EuiFlexGroup alignItems="center" gutterSize="s">
@@ -44,7 +45,7 @@ export default function(props: ModelItemProps) {
          * the position is to move it from underneath the card to on in in the middle on the right
          * flex end puts it to the right of the page/flex group
          */}
-        <EuiFlexGroup justifyContent="flexEnd" style={{marginTop: "-25px", position: 'relative', top:'-35px', right:'20px'}}>
+        <EuiFlexGroup justifyContent="flexEnd" style={{marginTop: "-25px", marginLeft: "1640px", position: 'relative', top:'-35px', right:'20px'}}>
             {/** This is where the text for last modified goes, eventually this should be updated accordingly */}
             <EuiFlexItem grow={false}>
               <EuiText>Last Modified:</EuiText>

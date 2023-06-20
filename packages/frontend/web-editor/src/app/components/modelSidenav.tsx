@@ -16,7 +16,7 @@ export default function Sidenav() {
     };
 
     //sets the collapsed state, and toggles the nav bar
-    const [isCollapsed, setIsCollapsed] = useState(true);
+    const [isCollapsed, setIsCollapsed] = useState(false);
     const toggleNav= () => {
         setIsCollapsed(!isCollapsed);
     }
@@ -37,36 +37,43 @@ export default function Sidenav() {
                     name: <span style={color}>Overview</span>,
                     id: htmlIdGenerator('modelNav')(),
                     icon: <EuiIcon style={color} type="grid" />,
+                    href: '/model/1/overview'
                 },
                 {
                     name: <span style={color}>Event Sequence</span>,
                     id: htmlIdGenerator('modelNav')(),
                     icon: <EuiIcon style={color} type="cluster" />,
+                    href: '/model/1/eventSequence'
                 },
                 {
                     name: <span style={color}>Fault Trees</span>,
                     id: htmlIdGenerator('modelNav')(),
                     icon: <EuiIcon style={color} type="logstashIf" />,
+                    href: '/model/1/faultTrees'
                 },
                 {
                     name: <span style={color}>Bayesian Network</span>,
                     id: htmlIdGenerator('modelNav')(),
                     icon: <EuiIcon style={color} type="cluster" />,
+                    href: '/model/1/bayesianNetworks'
                 },
                 {
                     name: <span style={color}>Global Parameters</span>,
                     id: htmlIdGenerator('modelNav')(),
                     icon: <EuiIcon style={color} type="tableDensityExpanded" />,
+                    href: '/model/1/globalParameters'
                 },
                 {
                     name: <span style={color}>Quantification History</span>,
                     id: htmlIdGenerator('modelNav')(),
                     icon: <EuiIcon style={color} type="visBarVertical" />,
+                    href: '/model/1/quantificationHistory'
                 },
                 {
                     name: <span style={color}>Settings</span>,
                     id: htmlIdGenerator('modelNav')(),
                     icon: <EuiIcon style={color} type="gear" />,
+                    href: '/model/1/settings'
                 }
             ],
         },

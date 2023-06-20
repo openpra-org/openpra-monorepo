@@ -64,7 +64,7 @@ const routes: RouteObject[] = [
                         element: <BayesianNetworks />
                     },
                     {
-                        path: 'model/1/globalparameters',
+                        path: 'model/1/globalParameters',
                         element: <ModelGlobalParameters />
                     },
                     {

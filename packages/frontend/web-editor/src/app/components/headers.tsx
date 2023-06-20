@@ -132,7 +132,7 @@ export function PageHeader() {
                 >
                     Models
                 </EuiButton>
-                <EuiButton href='/models'
+                <EuiButton href='/data'
                            css={{backgroundColor: currentPath == '/data' ? euiTheme.colors.mediumShade: euiTheme.colors.lightShade, color: euiTheme.colors.darkestShade}}
                 >
                     Data

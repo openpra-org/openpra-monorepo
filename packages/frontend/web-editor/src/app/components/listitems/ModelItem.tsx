@@ -58,7 +58,7 @@ export default function(props: ModelItemProps) {
             </EuiFlexItem>
             {/** This is the more info chart icon, moved 3 pixels as to line up a bit better */}
             <EuiFlexItem grow={false} >
-              <EuiButtonIcon color='text' iconType='visArea' title='info'/>
+              <EuiButtonIcon color='text' iconType='visArea' title='results'/>
             </EuiFlexItem>
             {/** This is the Copy icon, moved 3 pixels as to line up a bit better */}
             <EuiFlexItem grow={false} >

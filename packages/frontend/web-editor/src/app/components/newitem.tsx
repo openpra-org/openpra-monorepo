@@ -13,6 +13,7 @@ import {
     EuiSelectable,
     EuiSelectableOption
 } from '@elastic/eui'
+import {addItemDataToList} from './largecomponents/ModelItemsList'
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
   export interface NewItemProps {
@@ -74,14 +75,9 @@ export default function NewItem(props: NewItemProps) {
         });
       };
 
-    //this in theory adds an item to the item list, in practice it doesnt work
-    function addItemDataToList(newItem: {title:string, description: string, users?: string[]}){
-        addItemDataToList(newItem)
-    }
-
     // Event handler that handles the result
     const handleClick = () => {
-        const newItemData = addItemDataToList(newItem);
+        addItemDataToList(newItem);
         // Handle the newItemData or perform any other actions
     };
 

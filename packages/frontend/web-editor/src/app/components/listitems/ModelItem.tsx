@@ -44,8 +44,9 @@ export default function(props: ModelItemProps) {
          * the negative top margin is to make it so there isnt a ton of space between the cards
          * the position is to move it from underneath the card to on in in the middle on the right
          * flex end puts it to the right of the page/flex group
+         * MarginLeft is so that it doesnt interfere with the href on the card itself
          */}
-        <EuiFlexGroup justifyContent="flexEnd" style={{marginTop: "-25px", marginLeft: "1640px", position: 'relative', top:'-35px', right:'20px'}}>
+        <EuiFlexGroup justifyContent="flexEnd" style={{marginTop: "-25px", marginLeft: window.innerWidth - 320, position: 'relative', top:'-35px', right:'20px'}}>
             {/** This is where the text for last modified goes, eventually this should be updated accordingly */}
             <EuiFlexItem grow={false}>
               <EuiText>Last Modified:</EuiText>

@@ -86,7 +86,7 @@ export default function NewItem(props: NewItemProps) {
             <EuiForm style={{backgroundColor: euiTheme.colors.lightShade, alignSelf: 'center', width: '500px', borderRadius: '5px'}}>
                 <EuiSpacer size='s'/>
                 {/** this gives the text, and then importantly sets the title of the item */}
-                <EuiTextColor style={{margin: '10px', fontSize: '30px'}}><strong>{title}</strong></EuiTextColor>
+                <EuiTextColor style={{margin: '10px', fontSize: '2rem'}}><strong>{title}</strong></EuiTextColor>
                 <EuiFormRow fullWidth={true} style={{margin: '10px'}}>
                     <EuiFieldText
                         fullWidth={true}

@@ -22,8 +22,10 @@ export default function(props: ModelItemProps) {
           icon={
             <EuiFlexGroup alignItems="center" gutterSize="s">
               <EuiFlexItem grow={false}>
-                {/** avatar is there to give the circle with the title, does all initials, but I believe can be changed if needed */}
-                <EuiAvatar name={title} size="l" />
+                {/** avatar is there to give the circle with the title, does all initials, but I believe can be changed if needed 
+                 * Added a margin to just line everything up much better
+                */}
+                <EuiAvatar color="#2C041D" name={title} size="l" style={{marginTop: '5px'}} />
               </EuiFlexItem>
               <EuiFlexItem>
                 <span>Card Title</span>

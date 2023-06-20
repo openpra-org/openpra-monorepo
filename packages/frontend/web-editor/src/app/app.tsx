@@ -8,12 +8,12 @@ import ModelPage from './pages/modelPage';
 import NewModelsPage from "./pages/newModelsPage"
 import DataPage from "./pages/newModelsPage"
 import OverviewPage from './pages/overveiwPage';
-import EventSequence from './pages/eventSequences';
 import FaultTrees from './pages/faultTrees';
 import BayesianNetworks from './pages/bayesianNetworks';
 import ModelGlobalParameters from './pages/modelGlobalParameters';
 import QuantificationHistory from './pages/quantificationHistory';
 import ModelSettings from './pages/modelSettings';
+import EventSequenceDiagrams from './pages/eventSequenceDiagrams';
 
 const routes: RouteObject[] = [
     {
@@ -52,8 +52,8 @@ const routes: RouteObject[] = [
                         element: <OverviewPage />
                     },
                     {
-                        path: 'model/1/eventsequence',
-                        element: <EventSequence />
+                        path: 'model/1/eventsequencediagrams',
+                        element: <EventSequenceDiagrams />
                     },
                     {
                         path: 'model/1/faulttrees',

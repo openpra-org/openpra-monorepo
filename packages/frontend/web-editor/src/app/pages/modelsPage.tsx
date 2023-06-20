@@ -1,6 +1,6 @@
-import { EuiFlexGrid, EuiFlexGroup, EuiFlexItem, EuiSpacer } from '@elastic/eui'
-import {PageHeader, ModelsBar, Filter} from '../components/headers'
-import {Models} from '../components/models'
+import { EuiFlexGrid, EuiFlexItem} from '@elastic/eui'
+import {PageHeader, Filter} from '../components/smallcomponents/headers'
+import {Models} from '../components/smallcomponents/models'
 
 export default function ModelsPage() {
     //this page is used to display all of our big components on a main page.

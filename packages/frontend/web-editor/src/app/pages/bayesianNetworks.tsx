@@ -1,7 +1,7 @@
 //this is all placeholder so that I can test hrefs and stuff
 
-import {PageHeader} from '../components/headers'
-import Sidenav from '../components/modelSidenav'
+import {PageHeader} from '../components/smallcomponents/headers'
+import Sidenav from '../components/smallcomponents/modelSidenav'
 
 export default function BayesianNetworks() {
     return (

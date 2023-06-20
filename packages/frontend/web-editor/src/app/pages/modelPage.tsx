@@ -1,5 +1,5 @@
-import {PageHeader} from '../components/headers'
-import Sidenav from '../components/modelSidenav'
+import {PageHeader} from '../components/smallcomponents/headers'
+import Sidenav from '../components/smallcomponents/modelSidenav'
 
 export default function ModelPage() {
     return (

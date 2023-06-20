@@ -1,4 +1,3 @@
-import React from 'react';
 import { EuiPage, EuiText, EuiPageBody, EuiFlexGroup, EuiFlexItem } from '@elastic/eui';
 import AuthCard from "../components/cards/AuthCard";
 

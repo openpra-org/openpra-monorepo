@@ -13,12 +13,14 @@ import {
     EuiSelectable,
     EuiSelectableOption
 } from '@elastic/eui'
-import {addItemDataToList} from './largecomponents/ModelItemsList'
+import { addItemDataToList } from '../largecomponents/ModelItemsList'
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
   export interface NewItemProps {
     title: string
     page: string
+    itemTitle?: string
+    itemDescription?: string
     users?: string[]
   }
   
@@ -30,13 +32,13 @@ export default function NewItem(props: NewItemProps) {
     const {euiTheme} = useEuiTheme();
 
     //grabbing the props
-    const { title, page, users } = props;
+    const { title, page, itemTitle, itemDescription, users } = props;
 
     //this is what is in the newItem strucutre, will eventually be used to actually make things
     //this is also subject tyo change, propbably needs a type passed in from props eventually
     const newItem = {
-        title: '',
-        description: '',
+        title: props.itemTitle || '',
+        description: props.itemDescription || '',
         users: [] as string[]
     }
 

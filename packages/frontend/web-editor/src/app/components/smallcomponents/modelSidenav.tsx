@@ -1,4 +1,4 @@
-import {EuiFlexGroup, EuiIcon, EuiSideNav, EuiButton, htmlIdGenerator, useEuiTheme} from "@elastic/eui";
+import {EuiFlexGroup, EuiIcon, EuiSideNav, htmlIdGenerator, useEuiTheme} from "@elastic/eui";
 import {useState} from 'react'
 
 export default function Sidenav() {

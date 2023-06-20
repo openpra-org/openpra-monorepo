@@ -1,5 +1,4 @@
 import {useState} from 'react'
-import '../app.module.css'
 import {
     EuiPageHeader,
     EuiHeader,
@@ -17,7 +16,7 @@ import {
     useGeneratedHtmlId,
     EuiSpacer,
 } from "@elastic/eui"
-import ListOption from './listitems/ListOption';
+import ListOption from '../listitems/ListOption';
 
 export function PageHeader() {
     //Allows the use of the css prop in Eui tags

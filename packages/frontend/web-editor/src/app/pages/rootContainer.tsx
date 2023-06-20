@@ -1,4 +1,3 @@
-import React from 'react';
 import { EuiPageTemplate } from '@elastic/eui';
 import {Outlet} from "react-router-dom";
 

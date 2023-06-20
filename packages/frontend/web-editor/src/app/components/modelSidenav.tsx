@@ -1,17 +1,32 @@
-import {EuiFlexGroup, EuiIcon, EuiSideNav, htmlIdGenerator, useEuiTheme} from "@elastic/eui";
+import {EuiFlexGroup, EuiIcon, EuiSideNav, EuiButton, htmlIdGenerator, useEuiTheme} from "@elastic/eui";
+import {useState} from 'react'
 
 export default function Sidenav() {
     const {euiTheme} = useEuiTheme();
 
     const color = {
         color: euiTheme.colors.darkestShade,
+        marginTop: '10px',
+        marginBottom: '10px',
+        marginLeft: '10px'
     };
+
+    const [isCollapsed, setIsCollapsed] = useState(true);
+    const toggleNav= () => {
+        setIsCollapsed(!isCollapsed);
+    }
 
     const navItems = [
         {
             name: '',
             id: htmlIdGenerator('modelNav')(),
             items: [
+                {
+                    name:  <span style={color}>Collapse</span>,
+                    id: htmlIdGenerator('modelNav')(),
+                    icon: <EuiIcon style={color} type="arrowDown" />,
+                    onClick: toggleNav
+                },
                 {
                     name: <span style={color}>Overview</span>,
                     id: htmlIdGenerator('modelNav')(),
@@ -51,11 +66,26 @@ export default function Sidenav() {
         },
     ];
     return (
-        <EuiFlexGroup>
+        <>
+        {!isCollapsed && (
+        <EuiFlexGroup direction='column' style={{backgroundColor: euiTheme.colors.mediumShade, maxWidth: '220px'}}>
             <EuiSideNav
                 items={navItems}
-                style={{backgroundColor: euiTheme.colors.mediumShade, width: '220px', paddingLeft: '20px'}}
+                style={{width: '220px', paddingLeft: '10px'}}
+                isOpenOnMobile={!isCollapsed}
             />
         </EuiFlexGroup>
-    )
+        )}
+            {isCollapsed && (
+                //<EuiButton iconType='arrowRight' style={{backgroundColor: euiTheme.colors.lightShade, width: '50px'}} onClick={toggleNav} />
+                <EuiFlexGroup direction='column' style={{backgroundColor: euiTheme.colors.mediumShade, maxWidth: '54px'}}>
+                    <EuiSideNav
+                        items={navItems}
+                        style={{width: '54px', paddingLeft: '10px'}}
+                        isOpenOnMobile={!isCollapsed}
+                    />
+                </EuiFlexGroup>
+            )}
+        </>
+)
 }

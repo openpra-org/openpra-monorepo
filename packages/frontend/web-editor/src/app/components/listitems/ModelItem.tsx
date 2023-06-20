@@ -1,4 +1,4 @@
-import { EuiCard, EuiFlexItem, EuiFlexGroup, EuiAvatar, EuiIcon, EuiButton, EuiText, EuiButtonIcon} from "@elastic/eui";
+import { EuiCard, EuiFlexItem, EuiFlexGroup, EuiAvatar, EuiText, EuiButtonIcon} from "@elastic/eui";
 
 //title is required, description isnt required but is typically present
 export interface ModelItemProps {

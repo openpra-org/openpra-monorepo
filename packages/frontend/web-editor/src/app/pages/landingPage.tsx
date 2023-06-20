@@ -1,5 +1,5 @@
 import { EuiPage, EuiText, EuiPageBody, EuiFlexGroup, EuiFlexItem } from '@elastic/eui';
-import AuthCard from "../components/cards/AuthCard";
+import AuthCard from '../components/cards/authCard';
 
 export default function LandingPage() {
     return (

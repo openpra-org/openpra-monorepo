@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EuiFlexGrid, EuiFlexGroup, EuiFlexItem, EuiTablePagination} from "@elastic/eui";
-import ModelItem from "../listitems/ModelItem";
+import ModelItem from "../listitems/modelItem";
 
 
 // temporary item data that is prepulated

@@ -1,5 +1,5 @@
 import {EuiFlexGroup, EuiFlexItem, EuiSpacer } from "@elastic/eui";
-import ModelItemsList from "../largecomponents/ModelItemsList";
+import ModelItemsList from "../largecomponents/modelItemsList";
 
 
 export function Models(): JSX.Element {

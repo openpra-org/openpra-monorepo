@@ -17,7 +17,7 @@ export default function(props: ModelItemProps) {
       {/** Is all set up as flex items so that spacing and such works correctly */}
       <EuiFlexItem grow={false}>
         <EuiCard
-          href={'model/1'}
+          href={'model/1/overview'}
           layout="horizontal"
           icon={
             <EuiFlexGroup alignItems="center" gutterSize="s">

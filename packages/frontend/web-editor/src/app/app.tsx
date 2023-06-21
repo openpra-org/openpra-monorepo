@@ -4,16 +4,25 @@ import LandingPage from "./pages/landingPage";
 import RootContainer from "./pages/rootContainer";
 import ErrorPage from "./pages/errorPage";
 import ModelsPage from "./pages/modelsPage";
-import ModelPage from './pages/modelPage';
 import NewModelsPage from "./pages/newModelsPage"
 import DataPage from "./pages/dataPage"
-import OverviewPage from './pages/overveiwPage';
-import FaultTrees from './pages/faultTrees';
-import BayesianNetworks from './pages/bayesianNetworks';
-import ModelGlobalParameters from './pages/modelGlobalParameters';
-import QuantificationHistory from './pages/quantificationHistory';
-import ModelSettings from './pages/modelSettings';
-import EventSequenceDiagrams from './pages/eventSequenceDiagrams';
+import OverviewPage from './pages/modelPages/overveiwPage';
+import FaultTrees from './pages/modelPages/faultTrees';
+import BayesianNetworks from './pages/modelPages/bayesianNetworks';
+import ModelGlobalParameters from './pages/modelPages/modelGlobalParameters';
+import QuantificationHistory from './pages/modelPages/quantificationHistory';
+import ModelSettings from './pages/modelPages/modelSettings';
+import EventSequenceDiagrams from './pages/modelPages/eventSequenceDiagrams';
+import InitiatingEvents from './pages/modelPages/initiatingEvents';
+import EventTrees from './pages/modelPages/eventTrees';
+import CcfGroups from './pages/modelPages/ccfGroups';
+import BasicEvents from './pages/modelPages/basicEvents';
+import ModelGates from './pages/modelPages/modelGates';
+import DataInitiatingEvents from './pages/dataPages/dataInitiatingEvents';
+import ComponentReliability from './pages/dataPages/componentReliability';
+import SpecialEvents from './pages/dataPages/specialEvents';
+import Ccf from './pages/dataPages/ccf';
+import TrainUA from './pages/dataPages/trainUA';
 
 const routes: RouteObject[] = [
     {
@@ -38,10 +47,6 @@ const routes: RouteObject[] = [
                     {
                         path: "model/new",
                         element: <NewModelsPage />
-                    },
-                    {
-                        path: 'model/1',
-                        element: <ModelPage />
                     },
                     {
                         path: 'data',
@@ -74,6 +79,46 @@ const routes: RouteObject[] = [
                     {
                         path: 'model/1/settings',
                         element: <ModelSettings />
+                    },
+                    {
+                        path: 'model/1/initiatingevents',
+                        element: <InitiatingEvents />
+                    },
+                    {
+                        path: 'model/1/eventtrees',
+                        element: <EventTrees />
+                    },
+                    {
+                        path: 'model/1/gates',
+                        element: <ModelGates />
+                    },
+                    {
+                        path: 'model/1/basicevents',
+                        element: <BasicEvents />
+                    },
+                    {
+                        path: 'model/1/ccfgroups',
+                        element: <CcfGroups />
+                    },
+                    {
+                        path: 'data/specialevents',
+                        element: <SpecialEvents />
+                    },
+                    {
+                        path: 'data/componentreliability',
+                        element: <ComponentReliability />
+                    },
+                    {
+                        path: 'data/initiatingevents',
+                        element: <DataInitiatingEvents />
+                    },
+                    {
+                        path: 'data/trainua',
+                        element: <TrainUA />
+                    },
+                    {
+                        path: 'data/ccf',
+                        element: <Ccf />
                     },
                 ]
             }

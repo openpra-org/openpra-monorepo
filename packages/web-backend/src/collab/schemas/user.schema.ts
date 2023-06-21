@@ -2,17 +2,6 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 import { Action, ActionSchema } from '../../hcl/schemas/action.schema';
 
-@Schema({ _id: false, versionKey: false })
-class User_Credentials {
-    @Prop({ required: false })
-    id: number;
-
-    @Prop({ required: false })
-    username: string;
-}
-
-const UserCredentialsSchema = SchemaFactory.createForClass(User_Credentials);
-
 @Schema({ minimize: false, _id: false, versionKey: false })
 class Instances {}
 
@@ -22,7 +11,7 @@ const InstancesSchema = SchemaFactory.createForClass(Instances);
 class Models {
     @Prop({ required: false })
     id: number;
-    
+
     @Prop({ required: false })
     creator: number;
 
@@ -73,7 +62,7 @@ class Recently_Accessed {
 
     @Prop({ type: [{ type: SubsystemsSchema }], required: false })
     subsystems: Subsystems[];
-    
+
     @Prop({ type: [{ type: ProjectsSchema }], required: false })
     projects: Projects[];
 }
@@ -137,8 +126,6 @@ const PermissionsSchema = SchemaFactory.createForClass(Permissions);
         transform: function(doc, ret) {
             delete ret._id;
             delete ret.password;
-            delete ret.first_name;
-            delete ret.last_name;
         }
     },
     versionKey: false
@@ -148,13 +135,10 @@ export class User {
     id: number;
 
     @Prop()
-    first_name: string;
+    firstName: string;
 
     @Prop()
-    last_name: string;
-
-    @Prop({ required: false })
-    name: string;
+    lastName: string;
 
     @Prop()
     username: string;

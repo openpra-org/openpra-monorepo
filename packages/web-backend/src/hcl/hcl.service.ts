@@ -1,7 +1,7 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-var dot = require('dot-object');
+import * as dot from 'dot-object';
 import { HclModelDto } from './dtos/hcl-model.dto';
 import { GlobalParameterDto } from './dtos/global-parameter.dto';
 import { HclModelTreeDto } from './dtos/hcl-model-tree.dto';
@@ -18,7 +18,7 @@ import { EventSequenceDiagram, EventSequenceDiagramDocument } from './schemas/ev
 import { BayesianNetworks, BayesianNetworksDocument } from './schemas/bayesian-networks.schema';
 import { OverviewTree, OverviewTreeDocument } from './schemas/overview-tree.schema';
 import { QuantificationResultCounter, QuantificationResultCounterDocument } from './schemas/quantification-result-counter.schema';
-import { HclModelQuantificationResult, HclModelQuantificationResultDocument } from './schemas/hcl-model-quantification-result.schema';
+import { QuantificationResult, QuantificationResultDocument } from './schemas/quantification-result.schema';
 import { User, UserDocument } from '../collab/schemas/user.schema';
 
 @Injectable()
@@ -37,9 +37,15 @@ export class HclService {
     @InjectModel(BayesianNetworks.name) private bayesianNetworksModel: Model<BayesianNetworksDocument>,
     @InjectModel(OverviewTree.name) private overviewTreeModel: Model<OverviewTreeDocument>,
     @InjectModel(QuantificationResultCounter.name) private quantificationResultCounterModel: Model<QuantificationResultCounterDocument>,
-    @InjectModel(HclModelQuantificationResult.name) private hclModelQuantificationResultModel: Model<HclModelQuantificationResultDocument>
+    @InjectModel(QuantificationResult.name) private quantificationResultModel: Model<QuantificationResultDocument>
   ) {}
 
+  /** 
+  * @param {string} name Name of the counter
+  * @description
+  * Generates an ID for the newly created model in an incremental order of 1. Initially if no model exists, the serial ID starts from 1.
+  * @returns {number} ID number
+  */
   async getNextModelValue(name: string) {
     var record = await this.modelCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
     if(!record) {
@@ -50,6 +56,12 @@ export class HclService {
     return record.seq;
   }
 
+  /** 
+  * @param {string} name Name of the counter
+  * @description
+  * Generates an ID for the newly created global parameter in an incremental order of 1. Initially if no global parameter exists, the serial ID starts from 1.
+  * @returns {number} ID number
+  */
   async getNextGlobalParameterValue(name: string) {
     var record = await this.globalParameterCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
     if(!record) {
@@ -60,6 +72,12 @@ export class HclService {
     return record.seq;
   }
 
+  /** 
+  * @param {string} name Name of the counter
+  * @description
+  * Generates an ID for the newly created tree in an incremental order of 1. Initially if no tree exists, the serial ID starts from 1.
+  * @returns {number} ID number
+  */
   async getNextTreeValue(name: string) {
     var record = await this.treeCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
     if(!record) {
@@ -70,6 +88,12 @@ export class HclService {
     return record.seq;
   }
 
+  /** 
+  * @param {string} name Name of the counter
+  * @description
+  * Generates an ID for the recent quantified result in an incremental order of 1. Initially if no quantified result exists, the serial ID starts from 1.
+  * @returns {number} ID number 
+  */
   async getNextQuantificationResultValue(name: string) {
     var record = await this.quantificationResultCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
     if(!record) {
@@ -80,6 +104,30 @@ export class HclService {
     return record.seq;
   }
 
+  /**
+    * @param {number} count Total number of results
+    * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl} 
+    * @param limit How many results can be seen at once
+    * @param offset How many initial results will be skipped
+    * @description
+    * The pagination() method follows a very simple mechanism:
+    *   1. It determines the number of pages its going to take to show all the queried results.
+    *   2. It determines on which page the user is currently on.
+    * These 2 parameters are calculated using 3 information: limit, offset and total number of results (count).
+    * By default the limit = 10 and offset = 0. But if the user provides different values for these parameters, then the provided values replace the default ones.
+    * Let's look at an example: let's say there are 35 users in the database. The current user is trying to see the list of users. The user set the
+    * limit to 5 and offset to 10.
+    * So, the number of pages its going to take to show all the users = (number of users / users per page) = (35 / 5) = 7 pages
+    * And the page on which the user will be on = (skipped users / users per page) + 1 = (10 / 5) + 1 = 3
+    * After determining these 2 data, the method will 4 situations:
+    *   1. There's only 1 page in total where all the results fit; in that case there will be no previous or next page link.
+    *   2. There's more than 1 page in total but the user is on the first result page; in that case - link for the next page will be available only.
+    *   3. There's more than 1 page in total but the user is on the last result page; in that case - link for the previous page will be available only.
+    *   4. There's more than 1 page in total and the user is somewhere between the first and last page; in that case links for both previous and next page will be available.
+    * The 4th condition suits the above example. The user is in the 3rd page which is between the first page and the last (7 number) page. The pagination() method
+    * will provide the links to the 2nd (previous) and 4th (next) pages to the user.
+    * @returns 1. The links to previous and next result pages, 2. limit and offset values
+    */
   pagination(count: number, url: string, limit?: any, offset?: any) {
     let previous = null;
     let next = null;
@@ -122,15 +170,20 @@ export class HclService {
     }
   }
 
-  /*
-    Since we are only looking for fault trees, the tree_type is going to be 'f'. Event sequence diagrams and bayesian networks have their own tree_types
-    ('e' and 'b' respectively). The data are retrieved based on 4 scenarios:
-      1. basic events and house events both are queried.
-      2. only basic events is queried.
-      3. only house events is queried.
-      4. none of the events are queried.
-    Generally speaking, this URL is only used when case 1 is applicable. So, both the basic events and house events are always going to be true. The rest
-    of the 3 scenarios are there as 'edge cases'.
+  /**
+  * @param {string} model_id ID of the model
+  * @param basic_events Whether basic events' data will be added with the results or not
+  * @param house_events Whether house events' data will be added with the results or not
+  * @description
+  * Since we are only looking for fault trees, the tree_type is going to be 'f'. Event sequence diagrams and bayesian networks have their own tree_types
+  * ('e' and 'b' respectively). The data are retrieved based on 4 scenarios:
+  * 1. basic events and house events both are queried.
+  * 2. only basic events is queried.
+  * 3. only house events is queried.
+  * 4. none of the events are queried.
+  * Generally speaking, this URL is only used when case 1 is applicable. So, both the basic events and house events are always going to be true. The rest
+  * of the 3 scenarios are there as 'edge cases'.
+  * @returns List of basic events' and house events' data of all fault trees of an HCL model
   */
   async getHclModelData(model_id: string, basic_events: string, house_events: string) {
     const queryOptions = {
@@ -148,9 +201,12 @@ export class HclService {
     }
   }
 
-  /* 
-    To show the gates' data only, inside the projection parameter of hclModelTree.find() method the desired field is set to 1 (or true). 
-    Since the tree_data is a nested object, to show an object of tree_data (e.g. gates object) that object has to be added after the dot operator.
+  /**
+  * @param {string} model_id ID of the model
+  * @description
+  * To show the gates' data only, inside the projection parameter of hclModelTree.find() method the desired field is set to 1 (or true). 
+  * Since the tree_data is a nested object, to show an object of tree_data (e.g. gates object) that object has to be added after the dot operator.
+  * @returns List of gates' data of all the fault trees of an HCL model
   */
   async getHclModelGatesData(model_id: string) {
     const queryOptions = {
@@ -160,15 +216,22 @@ export class HclService {
     return this.hclModelTree.find(queryOptions, { 'tree_data.gates': 1 });
   }
   
-  /* 
-    The HCL Model list is retrieved considering 5 scenarios:
-      1. tag, type, limit, and offset - all the 4 Query parameters are missing.
-      2. Only the tag is provided.
-      3. tag is provided along with limit and offset.
-      4. Only the type is provided.
-      5. type is provided along with limit and offset.
+  /** 
+  * @param {number} user_id Current user's ID
+  * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+  * @param {string} tag Model tag ('CO' - components, 'SU' - subsystems, 'PR' - projects)
+  * @param {string} type Model type (bayesian, circsim, expert, gsn, hcl, omf, phoenix, and pf)
+  * @param limit How many results can be seen at once
+  * @param offset How many initial results will be skipped
+  * @description
+  * The HCL Model list is retrieved considering 5 scenarios:
+  *  1. tag, type, limit, and offset - all the 4 Query parameters are missing.
+  *  2. Only the tag is provided.
+  *  3. tag is provided along with limit and offset.
+  *  4. Only the type is provided.
+  *  5. type is provided along with limit and offset.
+  * @returns List of models assigned to the current user that match with the provided tag and type
   */
- 
   async getHclModelList(user_id: number, url: string, tag?: string, type?: string, limit?: any, offset?: any): Promise<PaginationDto> {
     let count = undefined;
     let paths = undefined;
@@ -224,20 +287,26 @@ export class HclService {
     }
   }
 
-  /* 
-    Aside from the provided data, a number of hard coded data are added with the newly created HCL Model before it is saved in the database:
-      1. A unique Model ID is generated using the getNextModelValue() method.
-      2. The current user is assigned as the 'creator' of the Model.
-      3. Path is simply a URL through which the Model can be accessed. By joining the current URL ('https://staging.app.openpra.org/api/hcl/model/')
-         with the Model ID, the path is created.
-      4. Whenever a new HCL Model is created, a fault tree is created inside of it as well with some fixed data (title, description, tree_type, and tree_data).
-      5. By default, this fault tree is set as the overview tree of this HCL Model. Whenever a user opens an HCL Model, the first thing they are going to
-         see is the overview tree. Overview tree is the highlighted part of an HCL Model. If a user is currently working on a HCL Tree, they can set
-         it as the overview tree so that whenever they open the HCL Model again they can quickly remember on which tree they were recently working on.
-      6. The model_data contains the IDs of all the created fault trees, event sequence diagrams, bayesian networks, and initiating events inside that HCL Model.
-      7. Since a fault tree is created, its actions (or activities) need to be tracked as well. By default the actions is set to 'v' (the user 'viewed' the tree).
-         Other actions are available as well - for example: 'e' and 'q', meaning the user 'edited' the tree and 'quantified' the tree respectively.
-      8. A whole copy of this complete HCL Model is saved inside the User document. After that the Model gets saved inside the database.
+  /**
+  * @param {number} user_id Current user's ID
+  * @param {string} username
+  * @param body Request body
+  * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+  * @description
+  * Aside from the provided data, a number of hard coded data are added with the newly created HCL Model before it is saved in the database:
+  *  1. A unique Model ID is generated using the getNextModelValue() method.
+  *  2. The current user is assigned as the 'creator' of the Model.
+  *  3. Path is simply a URL through which the Model can be accessed. By joining the current URL ('https://staging.app.openpra.org/api/hcl/model/')
+  *      with the Model ID, the path is created.
+  *  4. Whenever a new HCL Model is created, a fault tree is created inside of it as well with some fixed data (title, description, tree_type, and tree_data).
+  *  5. By default, this fault tree is set as the overview tree of this HCL Model. Whenever a user opens an HCL Model, the first thing they are going to
+  *      see is the overview tree. Overview tree is the highlighted part of an HCL Model. If a user is currently working on a HCL Tree, they can set
+  *      it as the overview tree so that whenever they open the HCL Model again they can quickly remember on which tree they were recently working on.
+  *  6. The model_data contains the IDs of all the created fault trees, event sequence diagrams, bayesian networks, and initiating events inside that HCL Model.
+  *  7. Since a fault tree is created, its actions (or activities) need to be tracked as well. By default the actions is set to 'v' (the user 'viewed' the tree).
+  *      Other actions are available as well - for example: 'e' and 'q', meaning the user 'edited' the tree and 'quantified' the tree respectively.
+  *  8. A whole copy of this complete HCL Model is saved inside the User document. After that the Model gets saved inside the database.
+  * @returns A mongoose document of the new model
   */
   async createHclModel(user_id: number, username: string, body: HclModelDto, url: string): Promise<HclModel> {
     const newHclModel = new this.hclModel(body);
@@ -282,6 +351,12 @@ export class HclService {
     return savedHclModel;
   }
 
+  /**
+  * @param {number} user_id Current user's ID
+  * @param {number} model_id ID of the model
+  * @param body Request body
+  * @returns A mongoose document of the fault tree that has been set as overview tree
+  */
   async createDefaultOverviewTree(user_id: number, model_id: number, body: HclModelTreeDto): Promise<HclModelTree> {
     let newHclModelTree = new this.faultTreeModel(body);
     newHclModelTree.model_id = model_id;
@@ -313,6 +388,11 @@ export class HclService {
     return this.faultTreeModel.findByIdAndUpdate(tree_id, { $set: updateBody }, { new: true, upsert: false });
   }
 
+  /**
+  * @param {number} model_id ID of the model
+  * @param {number} tree_id ID of the tree
+  * @returns void
+  */
   async setOverviewTree(model_id: number, tree_id: number) {
     const queryOptions = {
       'id': tree_id,
@@ -330,23 +410,32 @@ export class HclService {
     await newOverviewTree.save();
   }
 
-  /*
-    The Model ID is provided as a Query filter. The current UserID is provided as a Query filter as well to check if the HclModel was assigned to the User.
-    It doesn't matter if the current user is the 'creator' of the HCL Model or not, what matters is whether the UserID is present in the assigned_users list.
+  /**
+  * @param {number} user_id ID of the current user
+  * @param {string} model_id ID of the model
+  * @description
+  * The Model ID is provided as a Query filter. The current UserID is provided as a Query filter as well to check if the HclModel was assigned to the User.
+  * It doesn't matter if the current user is the 'creator' of the HCL Model or not, what matters is whether the UserID is present in the assigned_users list.
+  * @returns A mongoose document of the HCL model
   */
   async getHclModelById(user_id: number, model_id: string): Promise<HclModel> {
     return this.hclModel.findOne({ 'id': Number(model_id), 'assigned_users': user_id });
   }
 
-  /*
-    Only 5 fields of the HCL Model can be updated:
-      a) either the title, description, and assigned_users
-      b) or else the tag
-      c) or else the overview_tree
-    Since a copy of the HCL Model is kept inside the User document, each time we update the HCL Model we have to update the User document as well. The HCL
-    Model is saved as a nested object inside the User document. Nested objects should always be updated using the dot operator. In case of scenario (a),
-    instead of updating the 3 properties manually inside the User document, the map() method is used to iterate over the request body and update the User 
-    document accordingly.
+  /**
+  * @param {number} user_id ID of the current user
+  * @param {string} model_id ID of the model
+  * @param body Request body
+  * @description
+  * Only 5 fields of the HCL Model can be updated:
+  *  a) either the title, description, and assigned_users
+  *  b) or else the tag
+  *  c) or else the overview_tree
+  * Since a copy of the HCL Model is kept inside the User document, each time we update the HCL Model we have to update the User document as well. The HCL
+  * Model is saved as a nested object inside the User document. Nested objects should always be updated using the dot operator. In case of scenario (a),
+  * instead of updating the 3 properties manually inside the User document, the map() method is used to iterate over the request body and update the User 
+  * document accordingly.
+  * @returns The updated HCL model
   */
   async updateHclModelById(user_id: number, model_id: string, body) {
     let userModelUpdateBody = {'recently_accessed.models.$.date_modified': Date.now()};
@@ -373,14 +462,18 @@ export class HclService {
     return this.hclModel.findByIdAndUpdate(id, { $set: body }, { new: true, upsert: false });
   }
 
-  /*
-    1. An HCL Model contains:
-        a. Fault trees, Event sequence diagrams, and Bayesian networks.
-        b. Global parameters.
-        c. Quantification history.
-        The HCL Model and all of these associated data are removed from the database.
-    2. Besides that, the 'OverviewTree' and 'Action' documents that are carrying the data of the HCL trees related to this HCL Model are deleted.
-    3. Finally, some of the data related to the HCL Model still persists in the 'User' document, so that portion of data needs to be removed as well.
+  /**
+  * @param {number} user_id ID of the current user
+  * @param {string} model_id ID of the model
+  * @description
+  * 1. An HCL Model contains:
+  *   a. Fault trees, Event sequence diagrams, and Bayesian networks.
+  *   b. Global parameters.
+  *   c. Quantification history.
+  * The HCL Model and all of these associated data are removed from the database.
+  * 2. Besides that, the 'OverviewTree' and 'Action' documents that are carrying the data of the HCL trees related to this HCL Model are deleted.
+  * 3. Finally, some of the data related to the HCL Model still persists in the 'User' document, so that portion of data needs to be removed as well.
+  * @returns 204 HTTP status @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204} 
   */
   async deleteHclModelById(user_id: number, model_id: string): Promise<HttpStatus> {
     let hclModelTrees = await this.hclModelTree.find({ model_id: Number(model_id) }).lean();
@@ -394,13 +487,20 @@ export class HclService {
     }
     
     await this.globalParameterModel.deleteMany({ model_id: Number(model_id) });
-    await this.hclModelQuantificationResultModel.deleteMany({ model: Number(model_id) });
+    await this.quantificationResultModel.deleteMany({ model: Number(model_id) });
     await this.userModel.updateOne({ 'recently_accessed.models.id': Number(model_id) }, { $pull: { 'recently_accessed.models': { 'id': Number(model_id) } } });
     
     await this.hclModel.findOneAndDelete({ 'id': Number(model_id), 'assigned_users': user_id });
     return HttpStatus.NO_CONTENT;
   }
 
+  /**
+  * @param {number} user_id ID of the current user
+  * @param {number} overviewTreeId ID of the overview tree of the model
+  * @param body Request body
+  * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl} 
+  * @returns A mongoose document of the newly created HCL model copy
+  */
   async createCopyHclModel(user_id: number, overviewTreeId: number, body: HclModelDto, url: string): Promise<HclModel> {
     const newHclModel = new this.hclModel(body);
     newHclModel.id = await this.getNextModelValue('ModelCounter');
@@ -415,11 +515,17 @@ export class HclService {
     return savedHclModel;
   }
   
-  /*
-    1. Creating a new HCL Model is a bit complex since there are a number of hard-coded data involved with the process. So instead of creating the new copied HCL
-       Model from scratch, the data related to the new Model is passed to the already existing createHclModel() method. The current url contains the 'copy' keyword
-       which is undesirable, so using Regex the 'copy' keyword is replaced by an empty string.
-    2. 
+  /**
+  * @param {number} user_id ID of the current user
+  * @param {string|number} model_id ID of the model
+  * @param {string} username
+  * @param body Request body
+  * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+  * @description
+  * 1. Creating a new HCL Model is a bit complex since there are a number of hard-coded data involved with the process. So instead of creating the new copied HCL
+  *    Model from scratch, the data related to the new Model is passed to the already existing createHclModel() method. The current url contains the 'copy' keyword
+  *    which is undesirable, so using Regex the 'copy' keyword is replaced by an empty string.
+  * @returns The copied HCL model
   */
   async copyHclModelById(user_id: number, model_id: string | number, username: string, body: HclModelDto, url: string) {
     let regex = /[0-9]+\/copy\//i;
@@ -495,7 +601,13 @@ export class HclService {
     return hclModelCopy;
   }
 
-  /* The information is extracted from the OverviewTree document using the 'overview_tree' property of the HCL Model document. */
+  /**
+  * @param {number} user_id ID of the current user
+  * @param {string} model_id ID of the model
+  * @description
+  * The information is extracted from the OverviewTree document using the 'overview_tree' property of the HCL Model document.
+  * @returns The overview tree of the HCL model
+  */
   async getHclModelOverviewTreeByModelId(user_id: number, model_id: string): Promise<OverviewTree> {
     const queryOptions = {
       'id': Number(model_id),
@@ -506,10 +618,16 @@ export class HclService {
     return this.overviewTreeModel.findOne({ overview_tree_id: OverviewTreeId }).lean();
   }
 
-  /*
-    The list of global parameters is extracted from the GlobalParameter document using the provided Model ID.
-    If the current user sets a limit and offset then the results are shown within these bounds. However, even if the user doesn't set any limit or offset,
-    the default limit (10) is always going to be applied to the results meaning the user will see 10 results at max.
+  /**
+  * @param {string} model_id ID of the model
+  * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+  * @param limit How many results can be seen at once
+  * @param offset How many initial results will be skipped
+  * @description
+  * The list of global parameters is extracted from the GlobalParameter document using the provided Model ID.
+  * If the current user sets a limit and offset then the results are shown within these bounds. However, even if the user doesn't set any limit or offset,
+  * the default limit (10) is always going to be applied to the results meaning the user will see 10 results at max.
+  * @returns List of global parameters of an HCL model
   */
   async getGlobalParameterListByModelId(model_id: string, url: string, limit?: any, offset?: any): Promise<PaginationDto> {
     let paths = undefined;
@@ -533,10 +651,14 @@ export class HclService {
     }
   }
   
-  /*
-    Right now the global parameters are only able to store double data types; although string values can be saved as global parameters as well.
-    But in reality string values are not going to be stored for the time being. The 'double_value' is stored as a string so it needs to be converted to number.
-    Global parameters have 'pk' instead of an 'ID'. The 'model_id' is an additional property of GlobalParameter document that makes performing queries a bit easier.
+  /** 
+  * @param {string} model_id ID of the model
+  * @param body Request body
+  * @description
+  * Right now the global parameters are only able to store double data types; although string values can be saved as global parameters as well.
+  * But in reality string values are not going to be stored for the time being. The 'double_value' is stored as a string so it needs to be converted to number.
+  * Global parameters have 'pk' instead of an 'ID'. The 'model_id' is an additional property of GlobalParameter document that makes performing queries a bit easier.
+  * @returns A mongoose document of the new global parameter
   */
   async createGlobalParameterByModelId(model_id: string, body: GlobalParameterDto): Promise<GlobalParameter> {
     if(body.double_value) {
@@ -555,9 +677,14 @@ export class HclService {
     return newGlobalParameter.save();
   }
 
-  /* 
-    Normally either the parameter name or the double value is updated. The 'Partial' type indicates that all the properties of GlobalParameter schema is optional.
-    The user might update all the properties of the global parameter or they might update none. Either way the web-app is not going to show any error.
+  /**
+  * @param {string} model_id ID of the model
+  * @param {string} parameter_id ID of the global parameter
+  * @param body Request body
+  * @description
+  * Normally either the parameter name or the double value is updated. The 'Partial' type indicates that all the properties of GlobalParameter schema is optional.
+  * The user might update all the properties of the global parameter or they might update none. Either way the web-app is not going to show any error.
+  * @returns The updated global parameter
   */
   async partialUpdateGlobalParameterByModelAndParameterId(model_id: string, parameter_id: string, body: Partial<GlobalParameter>): Promise<GlobalParameter> {
     const queryOptions = {
@@ -569,7 +696,13 @@ export class HclService {
     return this.globalParameterModel.findByIdAndUpdate(globalParameterId, body, { new: true });
   }
 
-  /* After the global parameter is deleted from the database, a 204 status is thrown which translates to: there is 'no content' to send in the response body. */
+  /**
+  * @param {string} model_id ID of the model
+  * @param {string} parameter_id ID of the global parameter
+  * @description
+  * After the global parameter is deleted from the database, a 204 status is thrown which translates to: there is 'no content' to send in the response body.
+  * @returns 204 HTTP status @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204}
+  */
   async deleteGlobalParameterByModelAndParameterId(model_id: string, parameter_id: string): Promise<HttpStatus> {
     const queryOptions = {
       'pk': Number(parameter_id),
@@ -579,12 +712,48 @@ export class HclService {
     return HttpStatus.NO_CONTENT;
   }
 
+  /**
+  * @param {string} model_id ID of the model
+  * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+  * @param {string} limit How many results can be seen at once
+  * @param {string} offset How many initial results will be skipped
+  * @returns List of quantification results of an HCL model
+   */
+  async getHclModelQuantificationListById(model_id: string, url: string, limit?: string, offset?: string) {
+    let paths = undefined;
+    let result = undefined;
+    const queryOptions = {
+      'model': Number(model_id)
+    };
+    const count = await this.quantificationResultModel.countDocuments(queryOptions);
+    if(limit && offset) {
+      paths = this.pagination(count, url, limit, offset);
+      result = await this.quantificationResultModel.find(queryOptions).lean().skip(paths.default_offset).limit(paths.default_limit);
+    } else {
+      paths = this.pagination(count, url);
+      result = await this.quantificationResultModel.find(queryOptions).lean().limit(paths.default_limit);
+    }
+    return {
+      count: count,
+      next: paths.next,
+      previous: paths.previous,
+      results: result
+    }
+  }
+  
+  /**
+  * @param {number} user_id ID of the current user
+  * @param {string} model_id ID of the model
+  * @param body Request body
+  * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+  * @returns A mongoose document of the new quantification result
+  */
   async hclModelQuantificationById(user_id: number, model_id: string, body, url: string) {
     if(!body.configuration.constructor.replace_transfer_gates_with_basic_events) {
       body.configuration.constructor.replace_transfer_gates_with_basic_events = false;
     }
     let hclModel = await this.hclModel.findOne({ 'creator': user_id, 'id': Number(model_id) }).lean();
-    let newHclModelQuantificationResult = new this.hclModelQuantificationResultModel(body);
+    let newHclModelQuantificationResult = new this.quantificationResultModel(body);
     newHclModelQuantificationResult.id = await this.getNextQuantificationResultValue('QuantificationResultCounter');
     newHclModelQuantificationResult.creator = user_id;
     newHclModelQuantificationResult.model = Number(model_id);
@@ -610,12 +779,19 @@ export class HclService {
     return newHclModelQuantificationResult.save();
   }
 
-  /*
-    The results are queried based on 4 scenarios:
-      1. if the type of the trees is provided but there's no user defined limit or offset
-      2. if the type of the trees is not provided but there are user defined limit and offset
-      3. if the type of the trees is provided along with user defined limit and offset
-      4. if neither the type of the trees nor any limit or offset have been provided
+  /**
+  * @param {string} model_id ID of the model
+  * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+  * @param type Tree type ('f' - fault trees, 'e' - event sequence diagram, and 'b' - bayesian networks)
+  * @param limit How many results can be seen at once
+  * @param offset How many initial results will be skipped
+  * @description
+  * The results are queried based on 4 scenarios:
+  *  1. if the type of the trees is provided but there's no user defined limit or offset
+  *  2. if the type of the trees is not provided but there are user defined limit and offset
+  *  3. if the type of the trees is provided along with user defined limit and offset
+  *  4. if neither the type of the trees nor any limit or offset have been provided
+  * @returns List of trees of an HCL model that matches with the provided tree type
   */
   async getHclModelTreeListByModelId(model_id: string, url: string, type?: any, limit?: any, offset?: any): Promise<PaginationDto> {
     let count = null;
@@ -662,15 +838,21 @@ export class HclService {
     }
   }
 
-  /*
-  Additional hard-coded data are added with the newly created FaultTree entity before it is saved inside the database:
-    1. Data related to the Model under which the tree is created are saved inside the 'Model' object. By default the type and tag are set to 'HCL' and 'CO' (component).
-    2. After saving the tree in the database, an Action document has to be created for recording the activities of the user and their interactions with the tree.
-    3. This action object has to be added in the HCL Model and the User document as well. While saving the action inside the HCL Model the newly created tree's ID is also added.
-    4. Later, the tree is updated with some pre-set data. These pre-set data are not added at the beginning of this whole process is because it is much more easier
-       to add nested objects as updates in the document rather than adding them while creating the tree.
-    5. While adding these pre-set data the 'tree_name' property has to be passed. 'tree_name' is not an original property of HCL Model trees - rather this property
-       is used as 'discriminator' key. To see examples about discriminators visit: https://docs.nestjs.com/techniques/mongodb#discriminators
+  /**
+  * @param {number} user_id ID of the current user
+  * @param {string} username
+  * @param {string|number} model_id ID of the model
+  * @param body Request body
+  * @description
+  * Additional hard-coded data are added with the newly created FaultTree entity before it is saved inside the database:
+  *  1. Data related to the Model under which the tree is created are saved inside the 'Model' object. By default the type and tag are set to 'HCL' and 'CO' (component).
+  *  2. After saving the tree in the database, an Action document has to be created for recording the activities of the user and their interactions with the tree.
+  *  3. This action object has to be added in the HCL Model and the User document as well. While saving the action inside the HCL Model the newly created tree's ID is also added.
+  *  4. Later, the tree is updated with some pre-set data. These pre-set data are not added at the beginning of this whole process is because it is much more easier
+  *     to add nested objects as updates in the document rather than adding them while creating the tree.
+  *  5. While adding these pre-set data the 'tree_name' property has to be passed. 'tree_name' is not an original property of HCL Model trees - rather this property
+  *     is used as 'discriminator' key. To see examples about discriminators visit: https://docs.nestjs.com/techniques/mongodb#discriminators
+  * @returns A mongoose document of the new fault tree
   */
   async createFaultTreeByModelId(user_id: number, username: string, model_id: string | number, body: HclModelTreeDto) {
     let newFaultTree = new this.faultTreeModel(body);
@@ -723,15 +905,20 @@ export class HclService {
     return this.faultTreeModel.findByIdAndUpdate(tree_id, { $set: updateBody }, { new: true, upsert: false });
   }
 
-  /*
-  Additional hard-coded data are added with the newly created EventSequenceDiagram entity before it is saved inside the database:
-    1. Data related to the Model under which the tree is created are saved inside the 'Model' object. By default the type and tag are set to 'HCL' and 'CO' (component).
-    2. After saving the tree in the database, an Action document has to be created for recording the activities of the user and their interactions with the tree.
-    3. This action object has to be added in the HCL Model and the User document as well. While saving the action inside the HCL Model the newly created tree's ID is also added.
-    4. Later, the tree is updated with some pre-set data. These pre-set data are not added at the beginning of this whole process is because it is much more easier
-       to add nested objects as updates in the document rather than adding them while creating the tree.
-    5. While adding these pre-set data the 'tree_name' property has to be passed. 'tree_name' is not an original property of HCL Model trees - rather this property
-       is used as 'discriminator' key. To see examples about discriminators visit: https://docs.nestjs.com/techniques/mongodb#discriminators
+  /** 
+  * @param {number} user_id ID of the current user
+  * @param {string} username
+  * @param {string|number} model_id ID of the model
+  * @param body Request body
+  * Additional hard-coded data are added with the newly created EventSequenceDiagram entity before it is saved inside the database:
+  *  1. Data related to the Model under which the tree is created are saved inside the 'Model' object. By default the type and tag are set to 'HCL' and 'CO' (component).
+  *  2. After saving the tree in the database, an Action document has to be created for recording the activities of the user and their interactions with the tree.
+  *  3. This action object has to be added in the HCL Model and the User document as well. While saving the action inside the HCL Model the newly created tree's ID is also added.
+  *  4. Later, the tree is updated with some pre-set data. These pre-set data are not added at the beginning of this whole process is because it is much more easier
+  *     to add nested objects as updates in the document rather than adding them while creating the tree.
+  *  5. While adding these pre-set data the 'tree_name' property has to be passed. 'tree_name' is not an original property of HCL Model trees - rather this property
+  *     is used as 'discriminator' key. To see examples about discriminators visit: https://docs.nestjs.com/techniques/mongodb#discriminators
+  * @returns A mongoose document of the new event sequence diagram
   */
   async createEventSequenceDiagramByModelId(user_id: number, username: string, model_id: string | number, body: HclModelTreeDto) {
     let newEventSequenceDiagram = new this.eventSequenceDiagramModel(body);
@@ -795,15 +982,21 @@ export class HclService {
     return this.eventSequenceDiagramModel.findByIdAndUpdate(tree_id, { $set: updateBody }, { new: true, upsert: false });
   }
 
-  /*
-  Additional hard-coded data are added with the newly created BayesianNetworks entity before it is saved inside the database:
-    1. Data related to the Model under which the tree is created are saved inside the 'Model' object. By default the type and tag are set to 'HCL' and 'CO' (component).
-    2. After saving the tree in the database, an Action document has to be created for recording the activities of the user and their interactions with the tree.
-    3. This action object has to be added in the HCL Model and the User document as well. While saving the action inside the HCL Model the newly created tree's ID is also added.
-    4. Later, the tree is updated with some pre-set data. These pre-set data are not added at the beginning of this whole process is because it is much more easier
-       to add nested objects as updates in the document rather than adding them while creating the tree.
-    5. While adding these pre-set data the 'tree_name' property has to be passed. 'tree_name' is not an original property of HCL Model trees - rather this property
-       is used as 'discriminator' key. To see examples about discriminators visit: https://docs.nestjs.com/techniques/mongodb#discriminators
+  /**
+  * @param {number} user_id ID of the current user
+  * @param {string} username
+  * @param {string|number} model_id ID of the model
+  * @param body Request body
+  * @description
+  * Additional hard-coded data are added with the newly created BayesianNetworks entity before it is saved inside the database:
+  *  1. Data related to the Model under which the tree is created are saved inside the 'Model' object. By default the type and tag are set to 'HCL' and 'CO' (component).
+  *  2. After saving the tree in the database, an Action document has to be created for recording the activities of the user and their interactions with the tree.
+  *  3. This action object has to be added in the HCL Model and the User document as well. While saving the action inside the HCL Model the newly created tree's ID is also added.
+  *  4. Later, the tree is updated with some pre-set data. These pre-set data are not added at the beginning of this whole process is because it is much more easier
+  *     to add nested objects as updates in the document rather than adding them while creating the tree.
+  *  5. While adding these pre-set data the 'tree_name' property has to be passed. 'tree_name' is not an original property of HCL Model trees - rather this property
+  *     is used as 'discriminator' key. To see examples about discriminators visit: https://docs.nestjs.com/techniques/mongodb#discriminators
+  * @returns A mongoose document of the new bayesian network
   */
   async createBayesianNetworksByModelId(user_id: number, username: string, model_id: string | number, body: HclModelTreeDto) {
     let newBayesianNetworks = new this.bayesianNetworksModel(body);
@@ -853,10 +1046,15 @@ export class HclService {
     return this.bayesianNetworksModel.findByIdAndUpdate(tree_id, { $set: updateBody }, { new: true, upsert: false });
   }
 
-  /*
-  2 scenarios are considered while retrieving the data:
-    1. no limit or offset are set
-    2. limit and offset are set
+  /**
+  * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+  * @param limit How many results can be seen at once
+  * @param offset How many initial results will be skipped
+  * @description
+  * 2 scenarios are considered while retrieving the data:
+  *  1. no limit or offset are set
+  *  2. limit and offset are set
+  * @returns List of all trees
   */
   async getHclTreeList(url: string, limit?: any, offset?: any) {
     let paths = null;
@@ -879,8 +1077,11 @@ export class HclService {
     }
   }
 
-  /*
-  1. By default the 
+  /**
+  * @param {number} user_id Current user's ID
+  * @param {string} tree_id ID of the tree
+  * @param include_tree_data Whether additional data will be added with the result or not 
+  * @returns A mongoose document of the tree
   */
   async getHclTreeById(user_id: number, tree_id: string, include_tree_data?: string): Promise<HclModelTree> {
     let hclModelTreeAction = await this.actionModel.findOne({ tree_id: Number(tree_id) }).lean();
@@ -916,19 +1117,20 @@ export class HclService {
     }
   }
 
+  /**
+  * @param {number} user_id Current user's ID
+  * @param {string} tree_id ID of the tree
+  * @param body Request body
+  * @description
+  * After an HCL tree is updated, 4 other associated documents are updated as well:
+  *  1. the Action document which contains the activity history of the tree.
+  *  2. if the tree was set as an overview tree, then its associated info inside the OverviewTree document is updated.
+  *  3. HCL Model document is updated since it has the 'actions' object that carries the interaction history of the tree.
+  *  4. the User document is updated since it also carries information about the tree.
+  * @returns The updated tree
+  */
   async updateHclTreeById(user_id: number, tree_id: string, body) {
-    let hclTreeQueryOptions = {
-      'creator': user_id,
-      'id': Number(tree_id)
-    };
-    let overviewTreeQueryOptions = {
-      'overview_tree_id': Number(tree_id)
-    };
-    let hclTree = await this.hclModelTree.findOne(hclTreeQueryOptions).lean();
-    let hclTreeId = hclTree._id;
-    let hclModelTreeAction = await this.actionModel.findOne({ tree_id: Number(tree_id) }).lean();
-    let hclModelTreeActionId = hclModelTreeAction._id;
-    let overviewTree = await this.overviewTreeModel.findOne(overviewTreeQueryOptions).lean();
+    let overviewTree = await this.overviewTreeModel.findOne({ 'overview_tree_id': Number(tree_id) }).lean();
     if(overviewTree) {
       let overviewTreeId = overviewTree._id;
       let { tree_data } = body;
@@ -938,6 +1140,10 @@ export class HclService {
       await this.overviewTreeModel.findByIdAndUpdate(overviewTreeId, { $set: dot.dot(updateBody) }, { new: true, upsert: false });
     }
 
+    let hclTree = await this.hclModelTree.findOne({ 'id': Number(tree_id) }).lean();
+    let hclTreeId = hclTree._id;
+    let hclModelTreeAction = await this.actionModel.findOne({ tree_id: Number(tree_id) }).lean();
+    let hclModelTreeActionId = hclModelTreeAction._id;
     if(body.tree_type === 'f') {
       body.tree_name = 'FaultTree';
       body = dot.dot(body);
@@ -989,17 +1195,24 @@ export class HclService {
     }
   }
 
-  async deleteHclTreeById(user_id: number, tree_id: string): Promise<HttpStatus> {
-    const queryOptions = {
-      'creator': user_id,
-      'id': Number(tree_id)
-    };
-
-    let hclTreeType = (await this.hclModelTree.findOne(queryOptions).lean()).tree_type;
+  /**
+  * @param {string} tree_id ID of the tree
+  * @description
+  * After an HCL tree is deleted:
+  *  1. its associated action and overview tree need to be deleted from Action document and OverviewTree document as well.
+  *  2. its associated quantification history needs to be deleted from the QuantificationResult document.
+  *  3. its activity record from the HclModel document needs to removed.
+  *  4. its activity record from the User document needs to removed.
+  * After everything related to the HCL tree are deleted, a 204 response status will be sent back to the user.
+  * @returns 204 HTTP status @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204}
+  */
+  async deleteHclTreeById(tree_id: string): Promise<HttpStatus> {
+    let hclTreeType = (await this.hclModelTree.findOne({ 'id': Number(tree_id) }).lean()).tree_type;
     
-    await this.hclModelTree.findOneAndDelete(queryOptions);
+    await this.hclModelTree.findOneAndDelete({ 'id': Number(tree_id) });
     await this.actionModel.findOneAndDelete({ 'tree_id': Number(tree_id) });
     await this.overviewTreeModel.findOneAndDelete({ 'overview_tree_id': Number(tree_id) });
+    await this.quantificationResultModel.deleteMany({ 'configuration.constructor.tree_id': Number(tree_id) });
 
     if(hclTreeType === 'f') {
       await this.hclModel.updateOne({ 'actions.tree_id': Number(tree_id) }, { $pull: { 'actions': { 'tree_id': Number(tree_id) }, 'model_data.fault_trees': Number(tree_id) } }, { upsert: false });
@@ -1013,6 +1226,12 @@ export class HclService {
     return HttpStatus.NO_CONTENT;
   }
 
+  /**
+  * @param {number} user_id Current user's ID
+  * @param {string} username
+  * @param {string|number} tree_id ID of the tree 
+  * @returns A mongoose document of the tree copy
+  */
   async copyHclTreeById(user_id: number, username: string, tree_id: string | number) {
     const queryOptions = {
       'creator': user_id,
@@ -1056,6 +1275,12 @@ export class HclService {
     }
   }
 
+  /**
+  * @param {number} user_id Current user's ID
+  * @param {string} username
+  * @param {string} tree_id ID of the tree 
+  * @returns A mongoose document of the tree copy
+  */
   async copyHclTreeByIdWithLinkedTrees(user_id: number, username: string, tree_id: string) {
     const queryOptions = {
       'creator': user_id,
@@ -1094,12 +1319,20 @@ export class HclService {
     }
   }
 
-  /*
-    1. The current user has to be on the assigned_users list of the HCL Models that are being searched.
-    2. The Models must match the provided type (in this case the Model type is HCL).
-    3. The provided keyword is matched with the 'title' of the Models. To match this keyword the MongoDB database does a Regex (regular expression) search.
-        The 'i' in the options stands for 'case insensitive'; meaning that both the provided keyword and the title of the Model will be converted to lowercase
-        letter.
+  /**
+  * @param {number} user_id Current user's ID
+  * @param {string} key Keyword provided in the search bar
+  * @param {string} type Model type (bayesian, circsim, expert, gsn, hcl, omf, phoenix, and pf)
+  * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+  * @param limit How many results can be seen at once
+  * @param offset How many initial results will be skipped
+  * @description
+  * 1. The current user has to be on the assigned_users list of the HCL Models that are being searched.
+  * 2. The Models must match the provided type (in this case the Model type is HCL).
+  * 3. The provided keyword is matched with the 'title' of the Models. To match this keyword the MongoDB database does a Regex (regular expression) search.
+  *    The 'i' in the options stands for 'case insensitive'; meaning that both the provided keyword and the title of the Model will be converted to lowercase
+  *    letter.
+  * @returns List of models that matches with the provided keyword and type
   */
   async searchHclModel(user_id: number, key: string, type: string, url: string, limit?:any, offset?:any) {
     let paths = undefined;

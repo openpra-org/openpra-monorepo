@@ -28,6 +28,6 @@
       "frontend/assets": ["packages/frontend/assets/src/index.ts"],
     }
   },
-  "exclude": ["node_modules","jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"],
-  "include": ["src/**/*.ts"]
+  "exclude": ["node_modules","jest.config.ts", "src/**/test/*.spec.ts", "src/**/test/*.test.ts"],
+  "include": ["src/*.ts", "src/**/strategies/*.ts", "src/**/dtos/*ts", "src/**/schemas/*.ts", "src/**/*.ts"],
 }

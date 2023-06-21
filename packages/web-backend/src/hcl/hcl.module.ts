@@ -15,7 +15,7 @@ import { Action, ActionSchema } from './schemas/action.schema';
 import { OverviewTree, OverviewTreeSchema } from './schemas/overview-tree.schema';
 import { User, UserSchema } from '../collab/schemas/user.schema';
 import { QuantificationResultCounter, QuantificationResultCounterSchema } from './schemas/quantification-result-counter.schema';
-import { HclModelQuantificationResult, HclModelQuantificationResultSchema } from './schemas/hcl-model-quantification-result.schema';
+import { QuantificationResult, QuantificationResultSchema } from './schemas/quantification-result.schema';
 
 @Module({
   imports: [
@@ -37,7 +37,7 @@ import { HclModelQuantificationResult, HclModelQuantificationResultSchema } from
       },
       { name: OverviewTree.name, schema: OverviewTreeSchema },
       { name: QuantificationResultCounter.name, schema: QuantificationResultCounterSchema },
-      { name: HclModelQuantificationResult.name, schema: HclModelQuantificationResultSchema }
+      { name: QuantificationResult.name, schema: QuantificationResultSchema }
     ])
   ],
   controllers: [HclController],

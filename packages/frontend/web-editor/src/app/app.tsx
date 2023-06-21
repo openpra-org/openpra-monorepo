@@ -6,7 +6,7 @@ import ErrorPage from "./pages/errorPage";
 import ModelsPage from "./pages/modelsPage";
 import ModelPage from './pages/modelPage';
 import NewModelsPage from "./pages/newModelsPage"
-import DataPage from "./pages/newModelsPage"
+import DataPage from "./pages/dataPage"
 import OverviewPage from './pages/overveiwPage';
 import FaultTrees from './pages/faultTrees';
 import BayesianNetworks from './pages/bayesianNetworks';

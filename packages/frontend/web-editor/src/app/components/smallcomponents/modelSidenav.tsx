@@ -165,14 +165,14 @@ export default function Sidenav() {
         //they used css to adjust the width in the documentation
         <>
         {!isCollapsed && (
-        <EuiFlexGroup direction='column' style={{backgroundColor: euiTheme.colors.mediumShade, maxWidth: '250px'}}>
+        <EuiFlexGroup direction='column' style={{backgroundColor: euiTheme.colors.lightShade, maxWidth: '250px'}}>
             <EuiSideNav
                 items={navItems}
             />
         </EuiFlexGroup>
         )}
         {isCollapsed && (
-                <EuiFlexGroup direction='column' style={{backgroundColor: euiTheme.colors.mediumShade, maxWidth: '50px'}}>
+                <EuiFlexGroup direction='column' style={{backgroundColor: euiTheme.colors.lightShade, maxWidth: '50px'}}>
                     <EuiSideNav
                         items={navItems}
                         style={{width: '50px'}}

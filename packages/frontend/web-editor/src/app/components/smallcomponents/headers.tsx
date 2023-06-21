@@ -124,15 +124,15 @@ export function PageHeader() {
     return (
         
         //gener main header, not the filter header
-        <EuiPageHeader id='mainHeader' css={{background: euiTheme.colors.lightShade}}>
+        <EuiPageHeader id='mainHeader' css={{background: euiTheme.colors.lightestShade}}>
             <EuiHeaderSection>
                 <EuiButton href='models'
-                           css={{backgroundColor: currentPath == '/models' ? euiTheme.colors.mediumShade: euiTheme.colors.lightShade, color: euiTheme.colors.darkestShade}}
+                           css={{backgroundColor: currentPath.includes('/models') || currentPath.includes('/model') ? euiTheme.colors.mediumShade: euiTheme.colors.lightestShade, color: euiTheme.colors.darkestShade}}
                 >
                     Models
                 </EuiButton>
                 <EuiButton href='data'
-                           css={{backgroundColor: currentPath == '/data' ? euiTheme.colors.mediumShade: euiTheme.colors.lightShade, color: euiTheme.colors.darkestShade}}
+                           css={{backgroundColor: currentPath == '/data' ? euiTheme.colors.mediumShade: euiTheme.colors.lightestShade, color: euiTheme.colors.darkestShade}}
                 >
                     Data
                 </EuiButton>

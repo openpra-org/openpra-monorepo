@@ -89,3 +89,7 @@ nx run-many -t build
 npm i -g npm-check-updates
 ncu -u
 ```
+
+### Fix for dependency errors
+
+if files are already on file, make sure the files within frontend components have camelcasing on the file, rename them if they don't and it should fix

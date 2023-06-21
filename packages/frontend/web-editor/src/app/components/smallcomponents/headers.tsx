@@ -123,16 +123,17 @@ export function PageHeader() {
 
     return (
         
-        //gener main header, not the filter header
+        //general main header, not the filter header
         <EuiPageHeader id='mainHeader' css={{background: euiTheme.colors.lightestShade}}>
             <EuiHeaderSection>
+                {/** these are the major tabs at the top, the .incldues it so make it so they stay filled when on a page that is under that tab */}
                 <EuiButton href='models'
                            css={{backgroundColor: currentPath.includes('/models') || currentPath.includes('/model') ? euiTheme.colors.mediumShade: euiTheme.colors.lightestShade, color: euiTheme.colors.darkestShade}}
                 >
                     Models
                 </EuiButton>
                 <EuiButton href='data'
-                           css={{backgroundColor: currentPath == '/data' ? euiTheme.colors.mediumShade: euiTheme.colors.lightestShade, color: euiTheme.colors.darkestShade}}
+                           css={{backgroundColor: currentPath.includes('/data') ? euiTheme.colors.mediumShade: euiTheme.colors.lightestShade, color: euiTheme.colors.darkestShade}}
                 >
                     Data
                 </EuiButton>
@@ -140,7 +141,6 @@ export function PageHeader() {
             {/** Style here is to largely center the text */}
             <EuiHeaderSection side="right" style={{display: 'flex', justifyContent: 'center', alignItems: 'center'}}>
                 <EuiTextColor color="darkestShade" style={{ marginRight: '8px' }}>v0.0.1</EuiTextColor>
-                <EuiIcon href='/models' type='visBarVertical' size='xl' style={{ marginRight: '6px'}}/>
                 <EuiFieldSearch compressed={true}/>
                 <EuiPopover //Theme context menu
                     id={themeContextMenuPopoverId}

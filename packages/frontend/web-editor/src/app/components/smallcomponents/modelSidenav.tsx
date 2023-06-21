@@ -1,65 +1,92 @@
-import { EuiCollapsibleNav, EuiCollapsibleNavGroup, EuiIcon, EuiListGroup } from '@elastic/eui';
+import {EuiCollapsibleNav, EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, useEuiTheme} from '@elastic/eui';
 
 export default function Sidenav() {
-  const navItems = [
-    {
-      id: 'analysisNavGroup',
-      title: 'Analysis',
-      items: [
-        {
-            id: 'analysisNavGroup',
-          label: 'Open State Analysis',
-        },
-        {
-            id: 'analysisNavGroup',
-          label: 'Initiating Event Analysis',
-          icon: <EuiIcon type="folderClosed" />,
-          items: [
-            {
-                id: 'analysisNavGroup',
-              label: 'Initiating Events',
-              href: '/model/1/bayesianNetworks',
-            },
-          ],
-        },
-        // Add more items as needed
-      ],
-    },
-    // Add more groups and items as needed
-  ];
+  const {euiTheme} = useEuiTheme();
 
+  const navItems =
+      {
+        id: 'mainNavGroup',
+        title: 'Side Nav',
+        items: [
+          {
+            id: 'initEventAnalysisNavGroup',
+            title: 'Initiating Event Analysis',
+            items: [
+              {
+                id: 'initEventNavGroup',
+                label: 'Initiating Events',
+                icon: <EuiIcon type='branch'/>
+              },
+            ]
+          },
+          {
+            id: 'eventSeqAnalysisNavGroup',
+            label: 'Event Sequence Analysis',
+            items: [
+              {
+                id: 'eventSeqDiaNavGroup',
+                label: 'Event Sequence Diagrams',
+                icon: <EuiIcon type='branch'/>
+              },
+              {
+                id: 'eventTreesNavGroup',
+                label: 'Event Trees',
+                icon: <EuiIcon type='branch' />
+              }
+            ]
+          },
+          {
+            id: 'sysAnalysisNavGroup',
+            label: 'Systems Analysis',
+            items: [
+              {
+                id: 'faultTreesNavGroup',
+                label: 'Fault Trees',
+                icon: <EuiIcon type='logstashIf' />
+              },
+              {
+                id: 'bayeNetNavGroup',
+                label: 'Bayesian Networks',
+                icon: <EuiIcon type='branch' />
+              }
+            ]
+          },
+          {
+            id: 'dataAnalysisNavGroup',
+            label: 'Data Analysis',
+            items: [
+              {
+                id: 'gatesNavItem',
+                label: 'Gates'
+              }
+            ]
+          }
+
+          // Add more items as needed
+        ],
+      }
+  // Add more groups and items as needed
   return (
-    <EuiCollapsibleNav
-      id="collapsibleNav"
-      isOpen={true}
-      onClose={() => {}}
-      aria-label="Collapsible navigation"
-      style={{maxWidth: "250px"}}
-    >
-      {navItems.map((navGroup) => (
-        <EuiCollapsibleNavGroup
-          key={navGroup.id}
-          title={navGroup.title}
+      <EuiCollapsibleNavGroup
+          key={navItems.id}
+          title={navItems.title}
+          style={{maxWidth: '250px', backgroundColor: euiTheme.colors.mediumShade}}
           isCollapsible={true}
           initialIsOpen={true}
-        >
-          <EuiListGroup listItems={navGroup.items} />
-
-          {/* Render sub-items */}
-          {navGroup.items.map((item) =>
-            item.items ? (
-              <EuiCollapsibleNavGroup
-                key={item.id}
-                title={item.label}
+      >
+        {navItems.items.map((navGroup) => (
+            <EuiCollapsibleNavGroup
+                key={navGroup.id}
+                title={navGroup.title}
                 isCollapsible={true}
                 initialIsOpen={true}
-              >
-                <EuiListGroup listItems={item.items} />
-              </EuiCollapsibleNavGroup>
-            ) : null
-          )}
-        </EuiCollapsibleNavGroup>
-      ))}
-    </EuiCollapsibleNav>
-  );
+            >
+              <EuiListGroup listItems={navGroup.items} />
+
+              {/* Render sub-items */}
+
+            </EuiCollapsibleNavGroup>
+        ))}
+      </EuiCollapsibleNavGroup>
+  )
 }

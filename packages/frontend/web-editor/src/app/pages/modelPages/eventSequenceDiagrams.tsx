@@ -8,7 +8,6 @@ export default function EventSequenceDiagrams() {
         <> 
             <PageHeader />
             <Sidenav />
-            EventSequence
         </>
     )
 }

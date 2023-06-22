@@ -16,7 +16,7 @@ export default function DataSidenav() {
     const navItems =
         {
             id: 'mainNavGroup',
-            title: 'Side Nav',
+            title: 'Options Menu',
             items: [
                 {
                     id: 'parameterNavGroup',

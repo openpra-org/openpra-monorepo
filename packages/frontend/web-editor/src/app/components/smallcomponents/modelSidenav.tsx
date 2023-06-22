@@ -14,7 +14,7 @@ export default function ModelSidenav() {
    */
   const navItems = {
     id: 'mainNavGroup',
-    title: 'Side Nav',
+    title: 'Options Menu', 
     items: [
       {
         id: 'OperatingStateNavGroup',
@@ -186,10 +186,11 @@ export default function ModelSidenav() {
   return (
     //loops through 1 layer, then the second, then finally displays the items with data in them
     //this has to be done right now because we couldn't find a fix to have it optionally display data in the second layer if there was no 3rd layer present
+    //overflow is so things scroll correctly, the maxhieght is to adjust the nav height, 40 is the height of the header
     <EuiCollapsibleNavGroup
       key={navItems.id}
       title={navItems.title}
-      style={{ maxWidth: '250px', backgroundColor: euiTheme.colors.lightShade }}
+      style={{overflowY: 'auto', maxHeight: innerHeight - 40, maxWidth: '250px', backgroundColor: euiTheme.colors.lightShade }}
       isCollapsible={true}
       initialIsOpen={true}
     >

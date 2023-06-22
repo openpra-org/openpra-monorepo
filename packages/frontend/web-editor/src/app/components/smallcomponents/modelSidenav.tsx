@@ -1,6 +1,6 @@
 import { EuiCollapsibleNav, EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, useEuiTheme } from '@elastic/eui';
 
-export default function Sidenav() {
+export default function ModelSidenav() {
   const { euiTheme } = useEuiTheme();
 
   /**

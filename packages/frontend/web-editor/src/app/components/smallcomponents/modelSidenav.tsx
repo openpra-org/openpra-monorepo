@@ -1,4 +1,5 @@
 import { EuiCollapsibleNav, EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, useEuiTheme } from '@elastic/eui';
+import {euiScrollBarStyles} from "@elastic/eui/src/global_styling/mixins/_helpers";
 
 export default function ModelSidenav() {
   const { euiTheme } = useEuiTheme();
@@ -188,12 +189,15 @@ export default function ModelSidenav() {
     //this has to be done right now because we couldn't find a fix to have it optionally display data in the second layer if there was no 3rd layer present
     //overflow is so things scroll correctly, the maxhieght is to adjust the nav height, 40 is the height of the header
     <EuiCollapsibleNavGroup
+      className="eui-scrollBar"
       key={navItems.id}
       title={navItems.title}
-      style={{overflowY: 'auto', maxHeight: innerHeight - 40, maxWidth: '250px', backgroundColor: euiTheme.colors.lightShade }}
+      style={{overflowY: 'auto', maxHeight: window.innerHeight - 40, maxWidth: '350px', backgroundColor: euiTheme.colors.lightShade}}
       isCollapsible={true}
       initialIsOpen={true}
+
     >
+
       {navItems.items.map((navGroup) => (
         <EuiCollapsibleNavGroup
           key={navGroup.id}
@@ -202,7 +206,7 @@ export default function ModelSidenav() {
           initialIsOpen={true}
         >
           {navGroup.items ? (
-            <EuiListGroup listItems={navGroup.items} />
+            <EuiListGroup listItems={navGroup.items}/>
           ) : (
             <EuiListGroup listItems={[{ label: navGroup.label }]} />
           )}
@@ -211,5 +215,6 @@ export default function ModelSidenav() {
         </EuiCollapsibleNavGroup>
       ))}
     </EuiCollapsibleNavGroup>
+
   );
 }

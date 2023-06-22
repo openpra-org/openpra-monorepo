@@ -62,9 +62,10 @@ export default function DataSidenav() {
     return (
         //iterates through the parent, then the children, then the grandchildren where the clickables with icons and hrefs are.
         <EuiCollapsibleNavGroup
+            className="eui-scrollBar"
             key={navItems.id}
             title={navItems.title}
-            style={{maxWidth: '250px', backgroundColor: euiTheme.colors.lightShade}}
+            style={{overflowY: 'auto', maxHeight: window.innerHeight - 40, maxWidth: '350px', backgroundColor: euiTheme.colors.lightShade}}
             isCollapsible={true}
             initialIsOpen={true}
         >

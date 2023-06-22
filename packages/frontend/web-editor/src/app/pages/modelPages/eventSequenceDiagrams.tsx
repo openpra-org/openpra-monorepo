@@ -13,7 +13,6 @@ export default function EventSequenceDiagrams() {
                 <EuiFlexItem>
                     <ModelSubHeader pageName='Event Sequence Diagrams'/>
                 </EuiFlexItem>
-                {/**  the negative 56 is to move it up enough to have the same height as its other bar, while still looking good*/}
                 <EuiFlexItem grow={10} >
                     <ModelPageFilter/>
                 </EuiFlexItem>

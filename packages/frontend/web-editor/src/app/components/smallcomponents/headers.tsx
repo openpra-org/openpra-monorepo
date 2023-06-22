@@ -337,7 +337,8 @@ export function ModelPageFilter() {
     return (
         <>
             <EuiSpacer size="xs" />
-            <EuiPageHeader>
+            {/** the pixel margin here is to make it appear where we want it, at least for right now*/}
+            <EuiPageHeader style={{marginTop: '-50px'}}>
                 <EuiHeaderSection>
                     <EuiPopover //Sort by context menu
                         id={sortContextMenuPopoverId}

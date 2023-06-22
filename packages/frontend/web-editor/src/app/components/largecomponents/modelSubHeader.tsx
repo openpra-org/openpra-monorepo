@@ -15,7 +15,8 @@ export function ModelSubHeader(props: PageNameProps) {
         
         //Header for one of the types of pages
         //56 pixels is to match the nav bar so it looks seamless and doesnt move down
-        <EuiPageHeader id='mainHeader' style={{maxHeight: "56px", background: euiTheme.colors.lightShade}}>
+        //z index makes it pop over other items!
+        <EuiPageHeader id='mainHeader' style={{zIndex: 1, maxHeight: "56px", background: euiTheme.colors.lightShade}}>
             <EuiHeaderSection>
                 <ModelSidenav></ModelSidenav>
                 {/**

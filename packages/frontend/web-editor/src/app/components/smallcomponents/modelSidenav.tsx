@@ -192,7 +192,7 @@ export default function ModelSidenav() {
       className="eui-scrollBar"
       key={navItems.id}
       title={navItems.title}
-      style={{overflowY: 'auto', maxHeight: window.innerHeight - 40, maxWidth: '350px', backgroundColor: euiTheme.colors.lightShade}}
+      style={{overflowY: 'hidden', overflow: "overlay", maxHeight: window.innerHeight - 40, maxWidth: '350px', backgroundColor: euiTheme.colors.lightShade}}
       isCollapsible={true}
       initialIsOpen={true}
 

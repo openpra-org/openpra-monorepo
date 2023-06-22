@@ -9,7 +9,8 @@ export function DataSubHeader() {
         
         //Header for one of the types of pages
         //56 pixels is to match the nav bar so it looks seamless and doesnt move down
-        <EuiPageHeader id='mainHeader' style={{maxHeight: "56px", background: euiTheme.colors.lightShade}}>
+        //z index moves it to the front over pages
+        <EuiPageHeader id='mainHeader' style={{zIndex: 1, maxHeight: "56px", background: euiTheme.colors.lightShade}}>
             <EuiHeaderSection>
                 <DataSidenav></DataSidenav>
                 {/**

@@ -7,6 +7,8 @@ import {
     EuiFieldText,
     EuiHeaderSection,
     EuiHeaderLogo,
+    EuiFlexGroup,
+    EuiFlexItem,
     useEuiTheme,
     EuiIcon,
     EuiTextColor,
@@ -249,14 +251,6 @@ export function Filter() {
         <EuiSpacer size="xs" />
         <EuiPageHeader>
             <EuiHeaderSection>
-                <EuiPopover //Multiple select/deselect context menu
-                    id={selectContextMenuPopoverId}
-                    button={select}
-                    isOpen={selectPopover}
-                    closePopover={closeSelect}
-                >
-                    <EuiContextMenuPanel items={selectItems}/>
-                </EuiPopover>
                 <EuiPopover //Sort by context menu
                     id={sortContextMenuPopoverId}
                     button={sort}
@@ -276,5 +270,93 @@ export function Filter() {
         <EuiSpacer size="xs" />
         <hr/>
             </>
+    )
+}
+
+export function ModelPageFilter() {
+    //Allows the use of the css prop in Eui tags
+    const {euiTheme} = useEuiTheme();
+
+    //different states that are being used in filter for the popover menus
+    const [selectPopover, setSelectPopover] = useState(false);
+    const selectContextMenuPopoverId = useGeneratedHtmlId({prefix: 'smallContextMenuPopover'})
+    const [sortPopover, setSortPopover] = useState(false);
+    const sortContextMenuPopoverId = useGeneratedHtmlId({prefix: 'smallContextMenuPopover'})
+
+    //
+    //Context menu info for multiple selections/deselections (3 dots top left)
+    function selectClick() {
+        setSelectPopover(!selectPopover);
+    }
+
+    //closes select context
+    function closeSelect() {
+        setSelectPopover(false);
+    }
+
+    //selects?
+    const select = (
+        <EuiButtonEmpty iconType="boxesVertical" onClick={selectClick} css={{color: euiTheme.colors.darkShade}}/>
+    )
+    const selectItems = [
+        /*<EuiContextMenuItem key="select" onClick={closeSelect}>Select All</EuiContextMenuItem>,
+        <EuiContextMenuItem key="deselect" onClick={closeSelect}>Deselect All</EuiContextMenuItem>*/
+        <>
+            <ListOption key='select' action={closeSelect} label='Select All'/>
+            <ListOption key='deselect' action={closeSelect} label='Deselect All'/>
+        </>
+    ]
+
+    //
+    //Context menu info for sorting ("sort by" button top left
+    function sortClick() {
+        setSortPopover(!sortPopover);
+    }
+
+    //closes the sort function that is currently being used
+    function closeSort() {
+        setSortPopover(false);
+    }
+    const sort = (
+        <EuiButtonEmpty iconType="filter" iconSide="left" onClick={sortClick} css={{color: euiTheme.colors.darkShade}}>Sort By</EuiButtonEmpty>
+    )
+
+    //list of sort items, they are made as list options because they are immutable, the action
+    //should eventually call different sorts of data in ModelItemsList
+    const sortItems = [
+        <>
+            <ListOption key="lastMod" action={closeSort} label="Last Modified" />
+            <ListOption key="oldMod" action={closeSort} label="Oldest Modified" />
+            <ListOption key="lastCreate" action={closeSort} label="Last Created" />
+            <ListOption key="oldCreate" action={closeSort} label="Oldest Created" />
+            <ListOption key="a-z" action={closeSort} label="Title (A-Z)" />
+            <ListOption key="z-a" action={closeSort} label="Title (Z-A)" />
+        </>
+    ]
+
+    return (
+        <>
+            <EuiSpacer size="xs" />
+            <EuiPageHeader>
+                <EuiHeaderSection>
+                    <EuiPopover //Sort by context menu
+                        id={sortContextMenuPopoverId}
+                        button={sort}
+                        isOpen={sortPopover}
+                        closePopover={closeSort}
+                    >
+                        <EuiContextMenuPanel items={sortItems}/>
+                    </EuiPopover>
+                    <EuiFieldText placeholder="Filter by name..."/>
+                    {/*<EuiButtonEmpty iconType="documents"/>*/}
+                    {/*<EuiButtonEmpty iconType="trash"/>*/}
+                </EuiHeaderSection>
+                <EuiHeaderSection side="right">
+                    <EuiButton iconType="plus" href = 'model/new' size="s" color='text' style={{opacity: '2'}}>NEW</EuiButton>
+                </EuiHeaderSection>
+            </EuiPageHeader>
+            <EuiSpacer size="xs" />
+            <hr/>
+        </>
     )
 }

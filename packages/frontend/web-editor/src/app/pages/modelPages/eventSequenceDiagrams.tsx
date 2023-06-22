@@ -7,7 +7,7 @@ export default function EventSequenceDiagrams() {
     return (
         <> 
             <PageHeader />
-            <ModelSubHeader />
+            <ModelSubHeader pageName='Event Sequence Diagrams'/>
         </>
     )
 }

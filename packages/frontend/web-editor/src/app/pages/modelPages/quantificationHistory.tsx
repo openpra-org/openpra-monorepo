@@ -7,7 +7,7 @@ export default function QuantificationHistory() {
     return (
         <> 
             <PageHeader />
-            <ModelSubHeader />
+            <ModelSubHeader pageName='Quantification History'/>
         </>
     )
 }

@@ -7,7 +7,7 @@ export default function BayesianNetworks() {
     return (
         <> 
             <PageHeader />
-            <ModelSubHeader />
+            <ModelSubHeader pageName='Bayesian Networks'/>
         </>
     )
 }

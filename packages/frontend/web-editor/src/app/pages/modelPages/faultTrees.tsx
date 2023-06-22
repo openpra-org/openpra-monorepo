@@ -8,7 +8,7 @@ export default function FaultTrees() {
     return (
         <> 
             <PageHeader />
-            <ModelSubHeader />
+            <ModelSubHeader pageName='Fault Trees'/>
         </>
     )
 }

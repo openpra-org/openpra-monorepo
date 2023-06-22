@@ -7,7 +7,7 @@ export default function ModelSettings() {
     return (
         <> 
             <PageHeader />
-            <ModelSubHeader />
+            <ModelSubHeader pageName='Settings'/>
         </>
     )
 }

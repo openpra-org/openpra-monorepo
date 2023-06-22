@@ -1,10 +1,10 @@
 import { EuiFlexGroup, EuiFlexItem, EuiHeaderSection, EuiPageHeader, EuiText, EuiTitle, useEuiTheme } from "@elastic/eui";
 import DataSidenav from "../smallcomponents/dataSidenav";
 
-const {euiTheme} = useEuiTheme();
 
 //different from the data subheader because it uses different text and sideNav, and I am unsure how to pass it a different type of nav bar
 export function DataSubHeader() {
+    const {euiTheme} = useEuiTheme();
     return (
         
         //Header for one of the types of pages

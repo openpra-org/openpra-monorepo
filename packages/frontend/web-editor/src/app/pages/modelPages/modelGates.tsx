@@ -7,7 +7,7 @@ export default function ModelGates() {
     return (
         <> 
             <PageHeader />
-            <ModelSubHeader />
+            <ModelSubHeader pageName='Gates'/>
         </>
     )
 }

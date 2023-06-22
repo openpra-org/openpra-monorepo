@@ -7,7 +7,7 @@ export default function CcfGroups() {
     return (
         <> 
             <PageHeader />
-            <ModelSubHeader />
+            <ModelSubHeader pageName='CCF Groups'/>
         </>
     )
 }

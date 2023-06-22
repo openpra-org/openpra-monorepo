@@ -6,7 +6,7 @@ export default function OverviewPage() {
     return (
         <> 
             <PageHeader />
-            <ModelSubHeader />
+            <ModelSubHeader pageName='Overview'/>
         </>
     )
 }

@@ -7,7 +7,7 @@ export default function EventTrees() {
     return (
         <> 
             <PageHeader />
-            <ModelSubHeader />
+            <ModelSubHeader pageName='Event Trees'/>
         </>
     )
 }

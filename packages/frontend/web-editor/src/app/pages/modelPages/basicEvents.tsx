@@ -8,7 +8,7 @@ export default function BasicEvents() {
     return (
         <> 
             <PageHeader />
-            <ModelSubHeader />
+            <ModelSubHeader pageName='Basic Events'/>
         </>
     )
 }

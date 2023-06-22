@@ -1,8 +1,13 @@
 import {useEuiTheme, EuiHeaderSection, EuiPageHeader, EuiFlexGroup, EuiFlexItem, EuiText, EuiTitle } from "@elastic/eui";
 import ModelSidenav from "../smallcomponents/modelSidenav";
+import {ModelItemProps} from "../listitems/modelItem";
 
+export interface PageNameProps {
+    pageName: string
+}
 
-export function ModelSubHeader() {
+export function ModelSubHeader(props: PageNameProps) {
+    const { pageName } = props;
     
     const {euiTheme} = useEuiTheme();
 
@@ -20,7 +25,7 @@ export function ModelSubHeader() {
                 <EuiFlexGroup style={{marginTop: "12px", marginLeft: "10px", flexShrink: 0}} gutterSize="l">
                     <EuiFlexItem grow={false}>
                         <EuiTitle size="m" >
-                            <EuiText>Model Name: </EuiText>
+                            <EuiText>[Model Name]: {pageName}</EuiText>
                         </EuiTitle>
                     </EuiFlexItem>
                 </EuiFlexGroup>

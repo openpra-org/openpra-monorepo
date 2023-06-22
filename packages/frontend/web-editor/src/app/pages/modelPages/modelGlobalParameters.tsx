@@ -7,7 +7,7 @@ export default function ModelGlobalParameters() {
     return (
         <>
             <PageHeader />
-            <ModelSubHeader />
+            <ModelSubHeader pageName='Global Parameters'/>
         </>
     )
 }

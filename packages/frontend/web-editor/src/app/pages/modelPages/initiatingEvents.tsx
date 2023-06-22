@@ -7,7 +7,7 @@ export default function InitiatingEvents() {
     return (
         <> 
             <PageHeader />
-            <ModelSubHeader />
+            <ModelSubHeader pageName='Initiating Events'/>
         </>
     )
 }

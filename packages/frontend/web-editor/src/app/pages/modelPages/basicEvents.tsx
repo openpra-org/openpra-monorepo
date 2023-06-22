@@ -9,7 +9,6 @@ export default function BasicEvents() {
         <> 
             <PageHeader />
             <ModelSubHeader />
-            Basic Events
         </>
     )
 }

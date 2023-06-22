@@ -1,13 +1,12 @@
 //also placeholder
+import { ModelSubHeader } from '../../components/largecomponents/modelSubHeader'
 import {PageHeader} from '../../components/smallcomponents/headers'
-import Sidenav from '../../components/smallcomponents/modelSidenav'
 
 export default function OverviewPage() {
     return (
         <> 
             <PageHeader />
-            <Sidenav />
-            Overview
+            <ModelSubHeader />
         </>
     )
 }

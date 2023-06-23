@@ -1,8 +1,27 @@
 import { EuiCollapsibleNav, EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, useEuiTheme } from '@elastic/eui';
 import {euiScrollBarStyles} from "@elastic/eui/src/global_styling/mixins/_helpers";
+import {useState, useEffect} from 'react'
 
 export default function ModelSidenav() {
   const { euiTheme } = useEuiTheme();
+
+  const [pageHeight, setPageHeight] = useState(window.innerHeight - 40);
+
+  const [isNavOpen, setIsNavOpen] = useState(false);
+
+  useEffect(() => {
+    // Update the window size whenever the window is resized
+    const handleResize = () => {
+      setPageHeight(window.innerHeight - 40)
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Clean up the event listener on component unmount
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   /**
    * This is the list of nav items, I will do a small write up so in case I am not the one who is adding new items to it
@@ -15,7 +34,7 @@ export default function ModelSidenav() {
    */
   const navItems = {
     id: 'mainNavGroup',
-    title: 'Options Menu', 
+    title: 'Options Menu',
     items: [
       {
         id: 'OperatingStateNavGroup',
@@ -83,7 +102,7 @@ export default function ModelSidenav() {
           {
             id: 'humanReliabilityAnalysisNavItem',
             label: 'Human Reliability Analysis',
-            icon: <EuiIcon type="eyeClosed" />,          
+            icon: <EuiIcon type="eyeClosed" />,
           },
         ]
       },
@@ -192,10 +211,10 @@ export default function ModelSidenav() {
       className="eui-scrollBar"
       key={navItems.id}
       title={navItems.title}
-      style={{overflowY: 'hidden', overflow: "overlay", maxHeight: window.innerHeight - 40, maxWidth: '350px', backgroundColor: euiTheme.colors.lightShade}}
+      style={{overflowY: 'hidden', overflow: "overlay", maxHeight: pageHeight, maxWidth: '350px', backgroundColor: euiTheme.colors.lightShade}}
       isCollapsible={true}
       initialIsOpen={true}
-
+      onToggle={() => setIsNavOpen(!isNavOpen)}
     >
 
       {navItems.items.map((navGroup) => (

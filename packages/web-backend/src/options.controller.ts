@@ -18,11 +18,11 @@ export class OptionsController {
     @Options('/collab/model/')
     async getCollabModelList_Options() {}
 
-    @Options('/collab/model/:model_id/')
-    async getCollabModelById_deleteCollabModelById_Options() {}
-
     @Options('/collab/model/search/')
     async searchCollabModel_Options() {}
+
+    @Options('/collab/model/:model_id/')
+    async getCollabModelById_deleteCollabModelById_Options() {}
 
     @Options('/collab/user/')
     async getUsersList_createNewUser_Options() {}

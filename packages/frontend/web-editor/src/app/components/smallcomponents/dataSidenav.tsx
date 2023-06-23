@@ -1,14 +1,47 @@
-import {
-    EuiCollapsibleNavGroup,
-    EuiIcon,
-    EuiListGroup,
-    useEuiTheme
-} from "@elastic/eui";
+import {EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, useEuiTheme } from '@elastic/eui';
+import {useState, useEffect} from 'react'
 
-export default function DataSidenav() {
-    const {euiTheme} = useEuiTheme();
+interface DataSidenavProps {
+  isNavOpen: boolean;
+  onNavToggle: (isOpen: boolean) => void;
+}
 
-    //This one is much more simple and parsable than modelSidenav, 
+export default function DataSidenav({ isNavOpen, onNavToggle }: DataSidenavProps) {
+  const { euiTheme } = useEuiTheme();
+
+  const [pageHeight, setPageHeight] = useState(window.innerHeight - 40);
+
+  const [navHeight, setNavHeight] = useState('initial');
+
+  const handleNavToggle = () => {
+    const newNavOpenState = !isNavOpen;
+    onNavToggle(newNavOpenState);
+  };
+
+  useEffect(() => {
+    // Update the window size whenever the window is resized
+    const handleResize = () => {
+      setPageHeight(window.innerHeight - 40)
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    // Clean up the event listener on component unmount
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  //this effect makes the bar fully extend all the way down yay!
+  useEffect(() => {
+    if (!isNavOpen) {
+      setNavHeight(pageHeight !== null ? `${pageHeight}px` : 'initial');
+    } else {
+      setNavHeight('initial');
+    }
+  }, [pageHeight, isNavOpen]);
+
+  //This one is much more simple and parsable than modelSidenav, 
     //The documentation for how this structure works will be in modelSideNav, if this ends up being complicated I will copy paste it
     //They function the same and look the same, just have different datasets mostly, and there is an additional change to modelSidenav in the implementation
     //of mapping through items. 
@@ -54,34 +87,42 @@ export default function DataSidenav() {
                         },
                     ]
                 }
-
                 // Add more items as needed
             ],
         }
         // Add more groups and items as needed
-    return (
-        //iterates through the parent, then the children, then the grandchildren where the clickables with icons and hrefs are.
+
+  return (
+    //loops through 1 layer, then the second, then finally displays the items with data in them
+    //this has to be done right now because we couldn't find a fix to have it optionally display data in the second layer if there was no 3rd layer present
+    //overflow is so things scroll correctly, the maxhieght is to adjust the nav height, 40 is the height of the header
+    <EuiCollapsibleNavGroup
+      className="eui-scrollBar"
+      key={navItems.id}
+      title={navItems.title}
+      style={{overflowY: 'hidden', overflow: "overlay", height: navHeight, maxHeight: pageHeight, maxWidth: '350px', backgroundColor: euiTheme.colors.lightShade}}
+      isCollapsible={true}
+      initialIsOpen={true}
+      onToggle={handleNavToggle}
+    >
+
+      {navItems.items.map((navGroup) => (
         <EuiCollapsibleNavGroup
-            className="eui-scrollBar"
-            key={navItems.id}
-            title={navItems.title}
-            style={{overflowY: 'auto', maxHeight: window.innerHeight - 40, maxWidth: '350px', backgroundColor: euiTheme.colors.lightShade}}
-            isCollapsible={true}
-            initialIsOpen={true}
+          key={navGroup.id}
+          title={navGroup.title}
+          isCollapsible={true}
+          initialIsOpen={true}
         >
-            {navItems.items.map((navGroup) => (
-                <EuiCollapsibleNavGroup
-                    key={navGroup.id}
-                    title={navGroup.title}
-                    isCollapsible={true}
-                    initialIsOpen={true}
-                >
-                    <EuiListGroup listItems={navGroup.items} />
+          {navGroup.items ? (
+            <EuiListGroup listItems={navGroup.items}/>
+          ) : (
+            <EuiListGroup listItems={[{ label: navGroup.title }]} />
+          )}
 
-                    {/* Render sub-items */}
-
-                </EuiCollapsibleNavGroup>
-            ))}
+          {/* Render sub-items */}
         </EuiCollapsibleNavGroup>
-    )
+      ))}
+    </EuiCollapsibleNavGroup>
+
+  );
 }

@@ -5,7 +5,7 @@ import { ModelPageFilter } from '../../components/smallcomponents/headers';
 export default function BayesianNetworks() {
     return (
         <> 
-            <PageLayout pageName='Bayesian Networks' contentType={
+            <PageLayout isModel={true} pageName='Bayesian Networks' contentType={
                 <>
                     <ModelPageFilter/>
                     <div/>

@@ -1,18 +1,23 @@
 import { EuiFlexGroup, EuiFlexItem, EuiHeaderSection, EuiPageHeader, EuiText, EuiTitle, useEuiTheme } from "@elastic/eui";
 import DataSidenav from "../smallcomponents/dataSidenav";
 
+interface IntermediateComponentProps {
+    isNavOpen: boolean;
+    pageName: string;
+    onNavToggle: (isOpen: boolean) => void;
+}
 
 //different from the data subheader because it uses different text and sideNav, and I am unsure how to pass it a different type of nav bar
-export function DataSubHeader() {
+export function DataSubHeader({ pageName, isNavOpen, onNavToggle }: IntermediateComponentProps) {
     const {euiTheme} = useEuiTheme();
     return (
         
         //Header for one of the types of pages
         //56 pixels is to match the nav bar so it looks seamless and doesnt move down
         //z index moves it to the front over pages
-        <EuiPageHeader id='mainHeader' style={{zIndex: 1, maxHeight: "56px", background: euiTheme.colors.lightShade}}>
+        <EuiPageHeader id='mainHeader' style={{maxHeight: "56px", background: euiTheme.colors.lightShade}}>
             <EuiHeaderSection>
-                <DataSidenav></DataSidenav>
+                <DataSidenav isNavOpen={isNavOpen} onNavToggle={onNavToggle}></DataSidenav>
                 {/**
                  * Margin top needed to have the message be in the center of the header while not randomly moving
                  * which was happening when using alignItems center

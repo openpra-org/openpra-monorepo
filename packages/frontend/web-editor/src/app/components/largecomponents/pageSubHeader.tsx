@@ -2,14 +2,16 @@ import {useEuiTheme, EuiHeaderSection, EuiPageHeader, EuiFlexGroup, EuiFlexItem,
 import ModelSidenav from "../smallcomponents/modelSidenav";
 import {ModelItemProps} from "../listitems/modelItem";
 import { useState } from "react";
+import DataSidenav from "../smallcomponents/dataSidenav";
 
 interface IntermediateComponentProps {
+    isModel: boolean;
     isNavOpen: boolean;
     pageName: string;
     onNavToggle: (isOpen: boolean) => void;
   }
 
-export function ModelSubHeader({ pageName, isNavOpen, onNavToggle }: IntermediateComponentProps) {
+export function PageSubHeader({ isModel, pageName, isNavOpen, onNavToggle }: IntermediateComponentProps) {
     
     const {euiTheme} = useEuiTheme();
 
@@ -20,7 +22,11 @@ export function ModelSubHeader({ pageName, isNavOpen, onNavToggle }: Intermediat
         //z index makes it pop over other items!
         <EuiPageHeader id='mainHeader' style={{maxHeight: "56px", background: euiTheme.colors.lightShade}}>
             <EuiHeaderSection>
-                <ModelSidenav isNavOpen={isNavOpen} onNavToggle={onNavToggle} ></ModelSidenav>
+                {isModel ? (
+                    <ModelSidenav isNavOpen={isNavOpen} onNavToggle={onNavToggle} ></ModelSidenav>
+                ) : (
+                    <DataSidenav isNavOpen={isNavOpen} onNavToggle={onNavToggle} ></DataSidenav>
+                )}
                 {/**
                  * Margin top needed to have the message be in the center of the header while not randomly moving
                  * which was happening when using alignItems center
@@ -28,7 +34,12 @@ export function ModelSubHeader({ pageName, isNavOpen, onNavToggle }: Intermediat
                 <EuiFlexGroup style={{marginTop: "12px", marginLeft: "10px", flexShrink: 0}} gutterSize="none">
                     <EuiFlexItem grow={false}>
                         <EuiTitle size="m" >
-                            <EuiText>[Model Name]: {pageName}</EuiText>
+                            {isModel ? (
+                                <EuiText>[Model Name]: {pageName}</EuiText>
+                            ) : (
+                                <EuiText> Data: {pageName}</EuiText>
+                            )}
+                            
                         </EuiTitle>
                     </EuiFlexItem>
                 </EuiFlexGroup>

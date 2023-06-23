@@ -4,7 +4,7 @@ import { ModelPageFilter } from '../../components/smallcomponents/headers';
 export default function EventSequenceDiagrams() {
     return (
         <> 
-            <PageLayout pageName='Event Sequence Diagrams' contentType={
+            <PageLayout isModel={true} pageName='Event Sequence Diagrams' contentType={
                 <>
                     <ModelPageFilter/>
                     <div/>

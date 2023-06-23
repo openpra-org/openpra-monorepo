@@ -4,7 +4,7 @@ import { ModelPageFilter } from '../../components/smallcomponents/headers';
 export default function InitiatingEvents() {
     return (
         <> 
-            <PageLayout pageName='Initiating Events' contentType={
+            <PageLayout isModel={true} pageName='Initiating Events' contentType={
                 <>
                 <ModelPageFilter/>
                 <div/>

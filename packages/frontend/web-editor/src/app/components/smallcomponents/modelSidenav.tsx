@@ -11,6 +11,8 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
 
   const [pageHeight, setPageHeight] = useState(window.innerHeight - 40);
 
+  const [navHeight, setNavHeight] = useState('initial');
+
   const handleNavToggle = () => {
     const newNavOpenState = !isNavOpen;
     onNavToggle(newNavOpenState);
@@ -29,6 +31,15 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
       window.removeEventListener('resize', handleResize);
     };
   }, []);
+
+  //this effect makes the bar fully extend all the way down
+  useEffect(() => {
+    if (!isNavOpen) {
+      setNavHeight(pageHeight !== null ? `${pageHeight}px` : 'initial');
+    } else {
+      setNavHeight('initial');
+    }
+  }, [pageHeight, isNavOpen]);
 
   /**
    * This is the list of nav items, I will do a small write up so in case I am not the one who is adding new items to it
@@ -218,7 +229,7 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
       className="eui-scrollBar"
       key={navItems.id}
       title={navItems.title}
-      style={{overflowY: 'hidden', overflow: "overlay", maxHeight: pageHeight, maxWidth: '350px', backgroundColor: euiTheme.colors.lightShade}}
+      style={{overflowY: 'hidden', overflow: "overlay", height: navHeight, maxHeight: pageHeight, maxWidth: '350px', backgroundColor: euiTheme.colors.lightShade}}
       isCollapsible={true}
       initialIsOpen={true}
       onToggle={handleNavToggle}
@@ -229,7 +240,7 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
           key={navGroup.id}
           title={navGroup.title}
           isCollapsible={true}
-          initialIsOpen={true}
+          initialIsOpen={false}
         >
           {navGroup.items ? (
             <EuiListGroup listItems={navGroup.items}/>

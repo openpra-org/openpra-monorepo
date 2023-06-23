@@ -1,13 +1,18 @@
 //this is all placeholder so that I can test hrefs and stuff
 
-import { DataSubHeader } from '../../components/largecomponents/dataSubHeader'
-import {PageHeader} from '../../components/smallcomponents/headers'
+import PageLayout from "../../components/largecomponents/pageLayout";
+import { ModelPageFilter } from "../../components/smallcomponents/headers";
 
-export default function ComponentReliability() {
+
+export default function Ccf() {
     return (
         <> 
-            <PageHeader />
-            <DataSubHeader />
+            <PageLayout isModel={false} pageName='CCF' contentType={
+                <>
+                    <ModelPageFilter/>
+                    <div/>
+                </>
+            }/>
         </>
     )
 }

@@ -1,13 +1,15 @@
-import { EuiCollapsibleNav, EuiCollapsibleNavGroup, EuiIcon, EuiListGroup } from '@elastic/eui';
-import {PageHeader} from "../components/smallcomponents/headers";
-import DataSidenav from "../components/smallcomponents/dataSidenav";
-import { DataSubHeader } from '../components/largecomponents/dataSubHeader';
+import {ModelPageFilter} from "../components/smallcomponents/headers";
+import PageLayout from '../components/largecomponents/pageLayout';
 
 export default function DataPage() {
   return (
-      <>
-        <PageHeader />
-        <DataSubHeader />
-      </>
+        <> 
+            <PageLayout isModel={false} pageName='Data' contentType={
+                <>
+                    <ModelPageFilter/>
+                    <div/>
+                </>
+            }/>
+        </>
   )
 }

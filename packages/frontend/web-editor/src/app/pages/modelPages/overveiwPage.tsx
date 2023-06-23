@@ -3,7 +3,7 @@ import PageLayout from '../../components/largecomponents/pageLayout';
 export default function OverviewPage() {
     return (
         <> 
-            <PageLayout pageName='Overview Page' contentType={<div/>}/>
+            <PageLayout isModel={true} pageName='Overview Page' contentType={<div/>}/>
         </>
     )
 }

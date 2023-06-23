@@ -4,7 +4,7 @@ import { ModelPageFilter } from '../../components/smallcomponents/headers';
 export default function QuantificationHistory() {
     return (
         <> 
-            <PageLayout pageName='Quantification History' contentType={
+            <PageLayout isModel={true} pageName='Quantification History' contentType={
                 <>
                     <ModelPageFilter/>
                     <div/>

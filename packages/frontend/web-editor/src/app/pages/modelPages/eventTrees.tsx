@@ -4,7 +4,7 @@ import { ModelPageFilter } from '../../components/smallcomponents/headers';
 export default function EventTrees() {
     return (
         <> 
-            <PageLayout pageName='Event Trees' contentType={
+            <PageLayout isModel={true} pageName='Event Trees' contentType={
                 <>
                     <ModelPageFilter/>
                     <div/>

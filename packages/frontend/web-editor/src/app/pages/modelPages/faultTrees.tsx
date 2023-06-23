@@ -4,7 +4,7 @@ import { ModelPageFilter } from '../../components/smallcomponents/headers';
 export default function FaultTrees() {
     return (
         <> 
-            <PageLayout pageName='Fault Trees' contentType={
+            <PageLayout isModel={true} pageName='Fault Trees' contentType={
                 <>
                     <ModelPageFilter/>
                     <div/>

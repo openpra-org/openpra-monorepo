@@ -1,16 +1,17 @@
 import {useEuiTheme, EuiHeaderSection, EuiPageHeader, EuiFlexGroup, EuiFlexItem, EuiText, EuiTitle } from "@elastic/eui";
 import ModelSidenav from "../smallcomponents/modelSidenav";
 import {ModelItemProps} from "../listitems/modelItem";
+import { useState } from "react";
 
-export interface PageNameProps {
-    pageName: string
-}
+interface IntermediateComponentProps {
+    isNavOpen: boolean;
+    pageName: string;
+    onNavToggle: (isOpen: boolean) => void;
+  }
 
-export function ModelSubHeader(props: PageNameProps) {
-    const { pageName } = props;
+export function ModelSubHeader({ pageName, isNavOpen, onNavToggle }: IntermediateComponentProps) {
     
     const {euiTheme} = useEuiTheme();
-
 
     return (
         
@@ -19,7 +20,7 @@ export function ModelSubHeader(props: PageNameProps) {
         //z index makes it pop over other items!
         <EuiPageHeader id='mainHeader' style={{zIndex: 1, maxHeight: "56px", background: euiTheme.colors.lightShade}}>
             <EuiHeaderSection>
-                <ModelSidenav></ModelSidenav>
+                <ModelSidenav isNavOpen={isNavOpen} onNavToggle={onNavToggle} ></ModelSidenav>
                 {/**
                  * Margin top needed to have the message be in the center of the header while not randomly moving
                  * which was happening when using alignItems center

@@ -5,6 +5,11 @@ import { ModelSubHeader } from '../../components/largecomponents/modelSubHeader'
 import {PageHeader, ModelPageFilter} from '../../components/smallcomponents/headers'
 import {EuiFlexGroup, EuiFlexItem} from '@elastic/eui'
 
+interface ModelSidenavProps {
+    isNavOpen: boolean;
+    onNavToggle: (isOpen: boolean) => void;
+  }  
+
 export default function EventSequenceDiagrams() {
     const [isNavOpen, setIsNavOpen] = useState(false);
 

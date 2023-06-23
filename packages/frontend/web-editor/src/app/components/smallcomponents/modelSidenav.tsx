@@ -1,13 +1,20 @@
-import { EuiCollapsibleNav, EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, useEuiTheme } from '@elastic/eui';
-import {euiScrollBarStyles} from "@elastic/eui/src/global_styling/mixins/_helpers";
+import {EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, useEuiTheme } from '@elastic/eui';
 import {useState, useEffect} from 'react'
 
-export default function ModelSidenav() {
+interface ModelSidenavProps {
+  isNavOpen: boolean;
+  onNavToggle: (isOpen: boolean) => void;
+}
+
+export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavProps) {
   const { euiTheme } = useEuiTheme();
 
   const [pageHeight, setPageHeight] = useState(window.innerHeight - 40);
 
-  const [isNavOpen, setIsNavOpen] = useState(false);
+  const handleNavToggle = () => {
+    const newNavOpenState = !isNavOpen;
+    onNavToggle(newNavOpenState);
+  };
 
   useEffect(() => {
     // Update the window size whenever the window is resized
@@ -214,7 +221,7 @@ export default function ModelSidenav() {
       style={{overflowY: 'hidden', overflow: "overlay", maxHeight: pageHeight, maxWidth: '350px', backgroundColor: euiTheme.colors.lightShade}}
       isCollapsible={true}
       initialIsOpen={true}
-      onToggle={() => setIsNavOpen(!isNavOpen)}
+      onToggle={handleNavToggle}
     >
 
       {navItems.items.map((navGroup) => (

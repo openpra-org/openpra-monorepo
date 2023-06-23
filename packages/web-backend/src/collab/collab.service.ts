@@ -1,37 +1,37 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import * as argon2 from 'argon2';
 import * as dot from 'dot-object';
 import { HclService } from '../hcl/hcl.service';
+import { CreateNewUserDto } from './dtos/create-new-user.dto';
 import { PaginationDto } from './dtos/pagination.dto';
 import { UserPreferencesDto } from './dtos/user-preferences.dto';
+import { UserCounter, UserCounterDocument } from './schemas/user-counter.schema';
 import { User, UserDocument } from './schemas/user.schema';
 
 @Injectable()
 export class CollabService {
     constructor(
         private hclService: HclService,
+        @InjectModel(UserCounter.name) private userCounterModel: Model<UserCounterDocument>,
         @InjectModel(User.name) private userModel: Model<UserDocument>
     ) {}
 
-    /**
-    * @param {string} username
+    /** 
+    * @param {string} name Name of the counter
     * @description
-    * Assists the Local Strategy method to ensure whether a user exists in the database or not.
-    * @returns A mongoose document of the user | undefined
+    * Generates an ID for the newly created user in an incremental order of 1. Initially if no user exists, the serial ID starts from 1.
+    * @returns {number} ID number
     */
-    async loginUser(username: string): Promise<User | undefined> {
-        return this.userModel.findOne({ username }).lean();
-    }
-
-    /**
-    * @param {number} user_id Current user's ID
-    * @description
-    * After each login, the last login time of the user is updated.
-    * @returns void
-    */
-    async updateLastLogin(user_id: number) {
-        await this.userModel.updateOne({ id: user_id }, { 'last_login': Date.now() });
+    async getNextUserValue(name: string) {
+        let record = await this.userCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
+        if(!record) {
+            let newCounter = new this.userCounterModel({ _id: name, seq: 1 });
+            await newCounter.save();
+            return newCounter.seq;
+        }
+        return record.seq;
     }
 
     /**
@@ -101,6 +101,26 @@ export class CollabService {
     }
 
     /**
+    * @param {string} username
+    * @description
+    * Assists the Local Strategy method to ensure whether a user exists in the database or not.
+    * @returns A mongoose document of the user | undefined
+    */
+    async loginUser(username: string): Promise<User | undefined> {
+        return this.userModel.findOne({ username }).lean();
+    }
+
+    /**
+    * @param {number} user_id Current user's ID
+    * @description
+    * After each login, the last login time of the user is updated.
+    * @returns void
+    */
+    async updateLastLogin(user_id: number) {
+        await this.userModel.updateOne({ id: user_id }, { 'last_login': Date.now() });
+    }
+
+    /**
     * @param {number} user_id Current user's ID
     * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
     * @param {string} type Model type (bayesian, circsim, expert, gsn, hcl, omf, phoenix, and pf)
@@ -119,6 +139,25 @@ export class CollabService {
         }
     }
 
+    /**
+    * @param {number} user_id Current user's ID
+    * @param {string} key Keyword provided in the search bar
+    * @param {string} type Model type (bayesian, circsim, expert, gsn, hcl, omf, phoenix, and pf)
+    * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+    * @param {string} limit How many results can be seen at once
+    * @param {string} offset How many initial results will be skipped
+    * @description
+    * Since right now only the HCL Model is supported, the app is going to look for HCL models that match with the provided keywords.
+    * @returns List of models that match with the provided keyword in the search bar  
+    */
+    async searchCollabModel(user_id: number, key: string, type: string, url: string, limit?:string, offset?:string) {
+        if(limit && offset) {
+            return this.hclService.searchHclModel(user_id, key, type, url, limit, offset);
+        } else {
+            return this.hclService.searchHclModel(user_id, key, type, url, undefined, undefined);
+        }
+    }
+    
     /**
     * @param {number} user_id Current user's ID
     * @param {string} model_id ID of the model
@@ -177,6 +216,47 @@ export class CollabService {
         }
     }
 
+    /**
+    * @param body Request body
+    * @description
+    * There are some hard-coded data provided alongside the request body for creating a 'user' document:
+    *   1. The password is encrypted using the 'argon2id' method.
+    *   2. The UserID is generated in an incremental order using getNextUserValue() function.
+    *   3. The name of the user is saved by simply joining the first and last names of the user.
+    *   4. The 'recently_accessed' object contains a list of all the Models created by the user. By default its kept empty at first.
+    *      The Projects and Subsystems have not been implemented yet. Whenever the user creates any new HCL tree inside a Model,
+    *      the tree's info gets saved inside this Model list. After creating a tree, if it is viewed, edited or quantified - those
+    *      information get saved as well - to get an idea about the activity of the user.
+    *   5. Whenever a user is interacting with the tree editor, the user can enable or disable certain settings of the editor. Those settings
+    *      are saved in the 'preferences' object. By default all the settings inside the 'preferences' are set to 'enabled' when a user is created.
+    *   6. The permissions feature has not been implemented yet - so it is kept empty by default. Once implemented, a user will be able to assume
+    *      one of the two roles - either the role of an administrator (with special access - such as deleting a user from the database) or the role of a general user.
+    * @returns A mongoose document of the new user
+    */
+    async createNewUser(body: CreateNewUserDto): Promise<User> {
+        body.password = await argon2.hash(body.password);
+        const newUser = new this.userModel(body);
+        newUser.id = await this.getNextUserValue('UserCounter');
+        newUser.recently_accessed = {
+            models: [],
+            subsystems: [],
+            projects: []
+        };
+        newUser.preferences = {
+            theme: 'Light',
+            nodeIdsVisible: true,
+            outlineVisible: true,
+            node_value_visible: true,
+            nodeDescriptionEnabled: true,
+            pageBreaksVisible: true,
+            quantificationConfigurations: {
+                configurations: {},
+                currentlySelected: ' '
+            }
+        };
+        return newUser.save();
+    }
+    
     /**
     * @param {string} user_id Current user's ID
     * @description

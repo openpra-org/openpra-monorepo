@@ -9,8 +9,6 @@ import { ApiService } from './api.service';
 import { AuthModule } from './auth/auth.module';
 import { CollabModule } from './collab/collab.module';
 import { HclModule } from './hcl/hcl.module';
-import { UserCounter, UserCounterSchema } from './collab/schemas/user-counter.schema';
-import { User, UserSchema } from './collab/schemas/user.schema';
 
 @Module({
   imports: [
@@ -22,10 +20,6 @@ import { User, UserSchema } from './collab/schemas/user.schema';
       isGlobal: true,
       cache: true,
     }),
-    MongooseModule.forFeature([
-      { name: UserCounter.name, schema: UserCounterSchema },
-      { name: User.name, schema: UserSchema }
-    ]),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

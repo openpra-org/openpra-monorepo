@@ -1,7 +1,5 @@
 import {useEuiTheme, EuiHeaderSection, EuiPageHeader, EuiFlexGroup, EuiFlexItem, EuiText, EuiTitle } from "@elastic/eui";
 import ModelSidenav from "../smallcomponents/modelSidenav";
-import {ModelItemProps} from "../listitems/modelItem";
-import { useState } from "react";
 import DataSidenav from "../smallcomponents/dataSidenav";
 
 interface IntermediateComponentProps {

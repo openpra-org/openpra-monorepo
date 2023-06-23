@@ -100,7 +100,7 @@ export default function DataSidenav({ isNavOpen, onNavToggle }: DataSidenavProps
       className="eui-scrollBar"
       key={navItems.id}
       title={navItems.title}
-      style={{overflowY: 'hidden', overflow: "overlay", height: navHeight, maxHeight: pageHeight, maxWidth: '350px', backgroundColor: euiTheme.colors.lightShade}}
+      style={{overflowY: 'hidden', overflow: "overlay", height: navHeight, maxHeight: pageHeight, width: '335px', backgroundColor: euiTheme.colors.lightShade}}
       isCollapsible={true}
       initialIsOpen={true}
       onToggle={handleNavToggle}

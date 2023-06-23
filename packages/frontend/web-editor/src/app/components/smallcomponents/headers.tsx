@@ -334,10 +334,13 @@ export function ModelPageFilter() {
         </>
     ]
 
+    //the padding here is to give it a nice borderwithout messing up how any of the other page elements will look when implemented
     return (
-        <>
+        <div style={{ padding: '0 8px' }}>
             <EuiSpacer size="xs" />
-            {/** the pixel margin here is to make it appear where we want it, at least for right now*/}
+            {/** the pixel margin here is to make it appear where we want it, at least for right now
+             * I couldnt figure out how to pass it to the other page
+            */}
             <EuiPageHeader style={{marginTop: '-50px'}}>
                 <EuiHeaderSection>
                     <EuiPopover //Sort by context menu
@@ -358,6 +361,6 @@ export function ModelPageFilter() {
             </EuiPageHeader>
             <EuiSpacer size="xs" />
             <hr/>
-        </>
+        </div>
     )
 }

@@ -1,6 +1,6 @@
 //this is all placeholder so that I can test hrefs and stuff
 
-import { useState } from 'react';
+import {useEffect, useState} from 'react';
 import { ModelSubHeader } from '../../components/largecomponents/modelSubHeader'
 import {PageHeader, ModelPageFilter} from '../../components/smallcomponents/headers'
 import {EuiFlexGroup, EuiFlexItem} from '@elastic/eui'
@@ -12,6 +12,22 @@ interface ModelSidenavProps {
 
 export default function QuantificationHistory() {
     const [isNavOpen, setIsNavOpen] = useState(false);
+
+    const [pageWidth, setPageWidth] = useState(window.innerWidth);
+
+    useEffect(() => {
+        // Update the window size whenever the window is resized
+        const handleResize = () => {
+            setPageWidth(window.innerWidth)
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        // Clean up the event listener on component unmount
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, []);
 
     const handleNavToggle = (isOpen: boolean) => {
         setIsNavOpen(isOpen);

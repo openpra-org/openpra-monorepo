@@ -46,7 +46,6 @@ export default function PageLayout({pageName, contentType}: PageLayoutProps) {
                  * 
                  */}
                 <EuiFlexItem grow={10} style={{ marginLeft: "auto", width: isNavOpen ? window.innerWidth : window.innerWidth - 335 }} >
-                    <ModelPageFilter/>
                     {contentType}
                 </EuiFlexItem>
             </EuiFlexGroup>

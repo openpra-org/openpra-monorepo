@@ -2,6 +2,8 @@
 
 import PageLayout from "../../components/largecomponents/pageLayout";
 import { ModelPageFilter } from "../../components/smallcomponents/headers";
+import {EuiSpacer} from "@elastic/eui";
+import ComponentReliabilityTable from "../../components/largecomponents/componentReliabilityTable";
 
 
 export default function Ccf() {
@@ -10,6 +12,8 @@ export default function Ccf() {
             <PageLayout isModel={false} pageName='CCF' contentType={
                 <>
                     <ModelPageFilter/>
+                    <EuiSpacer size="m"/>
+                    <ComponentReliabilityTable/>
                     <div/>
                 </>
             }/>

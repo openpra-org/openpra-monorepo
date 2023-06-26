@@ -2,7 +2,7 @@
 import { EuiSpacer } from '@elastic/eui'
 import PageLayout from '../../components/largecomponents/pageLayout'
 import { ModelPageFilter } from '../../components/smallcomponents/headers'
-import CcfTable from '../../components/smallcomponents/ccfTable'
+import CcfTable from '../../components/largecomponents/ccfTable'
 
 export default function Ccf() {
     return (

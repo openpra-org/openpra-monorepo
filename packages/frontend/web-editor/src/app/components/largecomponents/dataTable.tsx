@@ -1,4 +1,4 @@
-import { EuiBasicTable, EuiBasicTableColumn } from '@elastic/eui';
+import {EuiBasicTable, EuiBasicTableColumn, EuiFlexGroup, EuiFlexItem, EuiThemeProvider, useEuiTheme} from '@elastic/eui';
 
 interface DataTableProps {
   rows: any[];
@@ -6,12 +6,18 @@ interface DataTableProps {
 }
 
 export default function DataTable({rows, columns}: DataTableProps) {
+  const {euiTheme} = useEuiTheme();
+
 
   return (
-    <EuiBasicTable
-      tableCaption="Silly Little Table"
-      items={rows}
-      columns={columns}
-    />
+      <EuiFlexGroup style={{margin: '9px', height: '100%'}}>
+        <EuiThemeProvider>
+          <EuiBasicTable
+            tableCaption="Silly Little Table"
+            items={rows}
+            columns={columns}
+          />
+        </EuiThemeProvider>
+      </EuiFlexGroup>
   );
 }

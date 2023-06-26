@@ -1,8 +1,11 @@
-import { EuiBasicTableColumn } from "@elastic/eui";
-import DataTable from "../largecomponents/dataTable";
+import {EuiBasicTableColumn, useEuiTheme} from "@elastic/eui";
+import DataTable from "./dataTable";
 
 
-export default function CcfTable(){ 
+export default function CcfTable(){
+
+    const {euiTheme} = useEuiTheme();
+
     const rows = [
         {
         id: '1',

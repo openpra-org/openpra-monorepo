@@ -16,6 +16,7 @@ export default function DataTable({rows, columns}: DataTableProps) {
             tableCaption="Table"
             items={rows}
             columns={columns}
+            responsive={false}
           />
         </EuiThemeProvider>
       </EuiFlexGroup>

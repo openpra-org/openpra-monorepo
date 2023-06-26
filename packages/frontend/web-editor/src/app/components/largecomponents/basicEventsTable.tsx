@@ -2,7 +2,7 @@ import {useEuiTheme} from "@elastic/eui";
 import DataTable from "./dataTable";
 
 
-export default function BasicEventTable(){
+export default function BasicEventsTable(){
 
     const {euiTheme} = useEuiTheme();
 

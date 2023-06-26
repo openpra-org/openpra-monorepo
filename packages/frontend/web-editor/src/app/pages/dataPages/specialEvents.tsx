@@ -7,7 +7,7 @@ import SpecialEventsTable from "../../components/largecomponents/specialEventsTa
 export default function SpecialEvents() {
     return (
         <> 
-            <PageLayout isModel={false} pageName='CCF' contentType={
+            <PageLayout isModel={false} pageName='Special Events' contentType={
                 <>
                     <ModelPageFilter/>
                     <EuiSpacer size="m"/>

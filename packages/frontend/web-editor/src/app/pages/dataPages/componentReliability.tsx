@@ -9,7 +9,7 @@ import ComponentReliabilityTable from "../../components/largecomponents/componen
 export default function Ccf() {
     return (
         <> 
-            <PageLayout isModel={false} pageName='CCF' contentType={
+            <PageLayout isModel={false} pageName='Component Reliability' contentType={
                 <>
                     <ModelPageFilter/>
                     <EuiSpacer size="m"/>

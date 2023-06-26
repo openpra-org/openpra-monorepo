@@ -8,7 +8,7 @@ import TrainUaTable from "../../components/largecomponents/trainUaTable";
 export default function TrainUA() {
     return (
         <> 
-            <PageLayout isModel={false} pageName='CCF' contentType={
+            <PageLayout isModel={false} pageName='Train UA' contentType={
                 <>
                     <ModelPageFilter/>
                     <EuiSpacer size="m"/>

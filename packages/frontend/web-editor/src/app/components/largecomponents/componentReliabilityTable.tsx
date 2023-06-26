@@ -14,47 +14,78 @@ export default function ComponentReliabilityTable(){
             dateOfBirth: '3/4/03',
             location: 'raleigh',
         },
-        {
-            id: '2',
-            firstName: 'Nick',
-            lastName: 'Trachtman',
-            github: 'nick_trachtman',
-            dateOfBirth: '3/4/03',
-            location: 'raleigh',
-        },
-        {
-            id: '3',
-            firstName: 'Sophie',
-            lastName: 'Soleil',
-            github: 'sgsoleil',
-            dateOfBirth: '4/20/2001',
-            location: 'raleigh',
-        },
     ];
 
+    //has the following column headers
+    // Grouping, Component Type, Component Failure Mode, Description, Data Source, Failures, Units, D/H Type, D/H Value,
+    // Component Count, Distribution, Analysis Type, 5th Percentile, Median, 95th Percentile, alpha, beta, Mean, Error Factor, Date Range, Effective Date
     const columns = [
         {
-            field: 'firstName',
-            name: 'First Name',
+            field: 'grouping',
+            name: 'Grouping',
             truncateText: true,
         },
         {
-            field: 'lastName',
-            name: 'Last Name',
+            field: 'componentType',
+            name: 'Component Type',
             truncateText: true,
         },
         {
-            field: 'github',
-            name: 'Github',
+            field: 'componentFailureMode',
+            name: 'Component Failure Mode',
         },
         {
-            field: 'dateOfBirth',
-            name: 'Date of Birth',
-            dataType: 'date',
+            field: 'description',
+            name: 'Description',
         },
         {
-            field: 'location',
-            name: 'Location',
+            field: 'dataSource',
+            name: 'Data Source',
+            truncateText: true,
+        },
+        {
+            field: 'dataSource',
+            name: 'Data Source',
+            truncateText: true,
+        },
+        {
+            field: 'failures',
+            name: 'Failure',
+            dataType: 'number',
+        },
+        {
+            field: 'units',
+            name: 'Units',
+            truncateText: true,
+            textOnly: true,
+        },
+        {
+            field: 'dhType',
+            name: 'D/H Unit',
+            truncateText: true,
+            textOnly: true,
+        },
+        {
+            field: 'dhUnit',
+            name: 'D/H Value',
+            dataType: 'number',
+            formatter: 'scientificFormatter',
+        },
+        {
+            field: 'componentCount',
+            name: 'Component Count',
+            dataType: 'number',
+            formatter: 'scientificFormatter',
+        },
+        {
+            field: 'distribution',
+            name: 'Distribution',
+            truncateText: true,
+            textOnly: true,
+        },
+        {
+            field: 'Analysis Type',
+            name: 'D/H Unit',
             truncateText: true,
             textOnly: true,
         },

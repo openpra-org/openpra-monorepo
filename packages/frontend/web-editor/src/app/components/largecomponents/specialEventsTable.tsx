@@ -7,56 +7,15 @@ export default function SpecialEventsTable(){
 
     const rows = [
         {
-            id: '1',
-            firstName: 'Nick',
-            lastName: 'Trachtman',
-            github: 'nick_trachtman',
-            dateOfBirth: '3/4/03',
-            location: 'raleigh',
-        },
-        {
-            id: '2',
-            firstName: 'Nick',
-            lastName: 'Trachtman',
-            github: 'nick_trachtman',
-            dateOfBirth: '3/4/03',
-            location: 'raleigh',
-        },
-        {
-            id: '3',
-            firstName: 'Sophie',
-            lastName: 'Soleil',
-            github: 'sgsoleil',
-            dateOfBirth: '4/20/2001',
-            location: 'raleigh',
+            name: 'TDP-PRST(RCIC)'
         },
     ];
 
     const columns = [
         {
-            field: 'firstName',
-            name: 'First Name',
+            field: 'name',
+            name: 'Name',
             truncateText: true,
-        },
-        {
-            field: 'lastName',
-            name: 'Last Name',
-            truncateText: true,
-        },
-        {
-            field: 'github',
-            name: 'Github',
-        },
-        {
-            field: 'dateOfBirth',
-            name: 'Date of Birth',
-            dataType: 'date',
-        },
-        {
-            field: 'location',
-            name: 'Location',
-            truncateText: true,
-            textOnly: true,
         },
     ];
 

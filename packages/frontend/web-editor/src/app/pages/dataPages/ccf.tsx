@@ -1,6 +1,8 @@
 //this is all placeholder so that I can test hrefs and stuff
+import { EuiSpacer } from '@elastic/eui'
 import PageLayout from '../../components/largecomponents/pageLayout'
 import { ModelPageFilter } from '../../components/smallcomponents/headers'
+import CcfTable from '../../components/smallcomponents/ccfTable'
 
 export default function Ccf() {
     return (
@@ -8,7 +10,8 @@ export default function Ccf() {
             <PageLayout isModel={false} pageName='CCF' contentType={
                 <>
                     <ModelPageFilter/>
-                    <div/>
+                    <EuiSpacer size="m"/>
+                    <CcfTable/>
                 </>
             }/>
         </>

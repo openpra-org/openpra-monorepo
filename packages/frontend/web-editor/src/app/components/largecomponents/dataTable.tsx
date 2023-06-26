@@ -1,4 +1,4 @@
-import {EuiBasicTable, EuiBasicTableColumn, EuiFlexGroup, EuiFlexItem, EuiThemeProvider, useEuiTheme} from '@elastic/eui';
+import {EuiBasicTable, EuiFlexGroup, EuiThemeProvider, useEuiTheme} from '@elastic/eui';
 
 interface DataTableProps {
   rows: any[];
@@ -13,7 +13,7 @@ export default function DataTable({rows, columns}: DataTableProps) {
       <EuiFlexGroup style={{margin: '9px', height: '100%'}}>
         <EuiThemeProvider>
           <EuiBasicTable
-            tableCaption="Silly Little Table"
+            tableCaption="Table"
             items={rows}
             columns={columns}
           />

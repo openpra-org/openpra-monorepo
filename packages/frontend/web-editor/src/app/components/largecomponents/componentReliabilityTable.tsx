@@ -5,20 +5,39 @@ export default function ComponentReliabilityTable(){
 
     const {euiTheme} = useEuiTheme();
 
+    //data has fields for every label
+    //fth is 5th, nfth is 95th
     const rows = [
         {
-            id: '1',
-            firstName: 'Nick',
-            lastName: 'Trachtman',
-            github: 'nick_trachtman',
-            dateOfBirth: '3/4/03',
-            location: 'raleigh',
-        },
+            grouping: 'Values',
+            componentType: 'Air-Operated Valve (AOV)',
+            componentFailureMode: 'AOV_FTO',
+            description: 'Air-Operated Valve Fails To Open',
+            dataSource: 'EPIX/RADS',
+            failures: 50,
+            Units: '',
+            dhUnit: 'd',
+            dhValue: 0.0003040,
+            componentCount: 0.0003040,
+            distribution: 'Beta',
+            analysisType: 'JNID/IL',
+            fth: 0.0003040,
+            median: 0.0003040,
+            nfth: 0.0003040,
+            alpha: 0.0003040,
+            beta: 0.0003040,
+            mean: 0.0003040,
+            errorFactor: 0.0003040,
+            dateRange: '2006-2020',
+            effectiveDate: '2021-11-01'
+
+        }
     ];
 
     //has the following column headers
     // Grouping, Component Type, Component Failure Mode, Description, Data Source, Failures, Units, D/H Type, D/H Value,
     // Component Count, Distribution, Analysis Type, 5th Percentile, Median, 95th Percentile, alpha, beta, Mean, Error Factor, Date Range, Effective Date
+    // It may be worth going back and making some of these enums instead for limited options
     const columns = [
         {
             field: 'grouping',
@@ -60,7 +79,7 @@ export default function ComponentReliabilityTable(){
             textOnly: true,
         },
         {
-            field: 'dhType',
+            field: 'dhUnit',
             name: 'D/H Unit',
             truncateText: true,
             textOnly: true,
@@ -84,10 +103,60 @@ export default function ComponentReliabilityTable(){
             textOnly: true,
         },
         {
-            field: 'Analysis Type',
-            name: 'D/H Unit',
+            field: 'analysisType',
+            name: 'Analysis Type',
             truncateText: true,
             textOnly: true,
+        },
+        {
+            field: 'fth',
+            name: '5th',
+            dataType: 'number',
+            formatter: 'scientificFormatter',
+        },
+        {
+            field: 'median',
+            name: 'Median',
+            dataType: 'number',
+            formatter: 'scientificFormatter',
+        },
+        {
+            field: 'nfth',
+            name: '95th',
+            dataType: 'number',
+            formatter: 'scientificFormatter',
+        },
+        {
+            field: 'alpha',
+            name: '\u03B1',
+            dataType: 'number',
+            formatter: 'scientificFormatter',
+        },
+        {
+            field: 'beta',
+            name: '\u03B2',
+            dataType: 'number',
+            formatter: 'scientificFormatter',
+        },
+        {
+            field: 'mean',
+            name: 'Mean',
+            dataType: 'number',
+            formatter: 'scientificFormatter',
+        },
+        {
+            field: 'errorFactor',
+            name: 'Error Factor',
+            dataType: 'number',
+            formatter: 'scientificFormatter',
+        },
+        {
+            field: 'dateRange',
+            name: 'Date Range',
+        },
+        {
+            field: 'effectiveDate',
+            name: 'Effective Date',
         },
     ];
 

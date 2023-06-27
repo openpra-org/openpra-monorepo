@@ -29,22 +29,15 @@ export default function DeleteItemBox(props: NewItemProps) {
     //use the theme
     const {euiTheme} = useEuiTheme();
 
+    const [confirmDelete, setConfirmDelete] = useState('');
+
     //grabbing the props
     const { title, page } = props;
-
-    const [confirmText, setConfirmText] = useState('');
-
-    const [isConfirmed, setIsConfirmed] = useState(false);
 
     function handleClick(): void {
         throw new Error('Function not implemented.');
     }
 
-    function handleConfirm() {
-        if (confirmText === 'yes') {
-          setIsConfirmed(true);
-        }
-      }
 
     return (
         <EuiOverlayMask>
@@ -54,10 +47,17 @@ export default function DeleteItemBox(props: NewItemProps) {
                 {/** this gives the text, and then importantly sets the title of the item */}
                 <EuiTextColor style={{margin: '10px', fontSize: '2rem'}}><strong>Delete {title}</strong></EuiTextColor>
             {/** the submit and also the go back buttons are right here*/}
-            <EuiFormRow fullWidth ={true}>
-                <EuiTextArea>
-                    Howdy Partnder
-                </EuiTextArea>
+                <EuiFormRow style={{margin: '10px'}}>
+                    <EuiTextColor>
+                        Are you sure you want to delete this model?
+                    </EuiTextColor>
+                </EuiFormRow>
+            <EuiFormRow fullWidth ={true} style={{margin: '10px'}}>
+                <EuiFieldText
+                    placeholder='Please type Yes to proceed'
+                    value={confirmDelete}
+                    onChange={(e) => setConfirmDelete(e.target.value)}
+                />
             </EuiFormRow>
             <EuiFormRow fullWidth={true}>
                     <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px'}}>
@@ -65,7 +65,11 @@ export default function DeleteItemBox(props: NewItemProps) {
                             <EuiButton href={page} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
-                            <EuiButton href={page} onClick={handleClick} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Submit</EuiButton>
+                            <EuiButton isDisabled={!(confirmDelete.toLowerCase() === 'yes')} href={page} onClick={handleClick}
+                                       style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}
+                            >
+                                Submit
+                            </EuiButton>
                         </EuiFlexItem>
                     </EuiFlexGroup>
                 </EuiFormRow>

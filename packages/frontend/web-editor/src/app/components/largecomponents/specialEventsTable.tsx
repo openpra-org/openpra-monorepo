@@ -19,6 +19,7 @@ export default function SpecialEventsTable(){
         },
     ];
 
+
     return(
         <DataTable rows={rows} columns={columns} />
     )

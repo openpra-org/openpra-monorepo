@@ -41,6 +41,7 @@ export default function InitiatingEventsTable(){
             field: 'section',
             name: 'Section',
             truncateText: true,
+            width: '200px'
         },
         {
             field: 'subSection',
@@ -142,6 +143,6 @@ export default function InitiatingEventsTable(){
     ];
 
     return(
-        <DataTable rows={rows} columns={columns} />
+        <DataTable rows={rows} columns={columns}/>
     )
 }

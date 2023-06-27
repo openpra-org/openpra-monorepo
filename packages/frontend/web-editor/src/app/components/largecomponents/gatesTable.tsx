@@ -46,6 +46,7 @@ export default function GatesTable(){
         },
     ];
 
+
     return(
         <DataTable rows={rows} columns={columns} />
     )

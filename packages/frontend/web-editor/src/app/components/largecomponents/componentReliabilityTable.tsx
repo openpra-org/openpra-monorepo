@@ -160,6 +160,7 @@ export default function ComponentReliabilityTable(){
         },
     ];
 
+
     return(
         <DataTable rows={rows} columns={columns} />
     )

@@ -132,6 +132,7 @@ export default function TrainUaTable(){
         },
     ];
 
+
     return(
         <DataTable rows={rows} columns={columns} />
     )

@@ -82,6 +82,7 @@ export default function CcfTable(){
         },
     ];
 
+
     return(
         <DataTable rows={rows} columns={columns} />
     )

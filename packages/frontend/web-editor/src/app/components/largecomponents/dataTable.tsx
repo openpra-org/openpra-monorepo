@@ -7,15 +7,19 @@ interface DataTableProps {
 
 export default function DataTable({rows, columns}: DataTableProps) {
   const {euiTheme} = useEuiTheme();
+    const newColumns = columns.map((item) => ({
+        ...item,
+        width: '200px'
+    }))
 
 
   return (
-      <EuiFlexGroup style={{margin: '9px', height: '100%'}}>
+      <EuiFlexGroup style={{margin: '9px', height: '100%'}}  className="eui-xScroll">
         <EuiThemeProvider>
           <EuiBasicTable
             tableCaption="Table"
             items={rows}
-            columns={columns}
+            columns={newColumns}
             responsive={false}
           />
         </EuiThemeProvider>

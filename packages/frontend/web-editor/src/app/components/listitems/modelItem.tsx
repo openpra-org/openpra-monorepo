@@ -1,4 +1,6 @@
 import { EuiCard, EuiFlexItem, EuiFlexGroup, EuiAvatar, EuiText, EuiButtonIcon} from "@elastic/eui";
+import { useState } from "react";
+import DeleteItemBox from "../smallcomponents/deleteItemBox";
 
 //title is required, description isnt required but is typically present
 export interface ModelItemProps {
@@ -12,6 +14,13 @@ export interface ModelItemProps {
  */
 export default function(props: ModelItemProps) {
   const { title, description } = props;
+
+  const [deleteVisible, setDeleteVisible] = useState(false);
+
+  function onDeleteClick(){
+    setDeleteVisible(!deleteVisible)
+  }
+
   return (
     <>
       {/** Is all set up as flex items so that spacing and such works correctly */}
@@ -68,9 +77,13 @@ export default function(props: ModelItemProps) {
             </EuiFlexItem>
             {/** This is the delete icon, moved 3 pixels as to line up a bit better, eventually this will lead to a pop up menu */}
             <EuiFlexItem grow={false}>
-              <EuiButtonIcon color='text' iconType='trash' title='delete'/>
+              <EuiButtonIcon color='text' onClick={onDeleteClick} iconType='trash' title='delete'/>
             </EuiFlexItem>
           </EuiFlexGroup>
+        {/** this is where the delete overlay mask will go for confiring a delete */}
+        {deleteVisible && (
+          <DeleteItemBox title='Model(s)' page='models'></DeleteItemBox>
+        )}
     </>
   );
 }

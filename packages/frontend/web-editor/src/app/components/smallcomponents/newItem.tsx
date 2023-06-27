@@ -70,20 +70,19 @@ export default function NewItem(props: NewItemProps) {
 
     //this does something if users exist, it will map the users in the new item to the selected users
     const handleOptionChange = (newOptions: EuiSelectableOption[]) => {
-        const selectedUsers = newOptions.map((option) => option.label);
+        const selectedUsers = newOptions
+          .filter((option) => option.checked)
+          .map((option) => option.label);
         setItemInfo({
           ...itemInfo,
           users: selectedUsers,
         });
       };
-
     // Event handler that handles the result
     const handleClick = () => {
         addItemDataToList(newItem);
         // Handle the newItemData or perform any other actions
     };
-
-    const isSubmitDisabled = itemInfo.users.length === 0 || itemInfo.title.length === 0;
 
     return (
             //this styling is so its in a nice looking box, it scales if the users tab is there or not
@@ -119,20 +118,21 @@ export default function NewItem(props: NewItemProps) {
                 {users &&(
                     <>
                         <EuiFormRow fullWidth={true} style={{margin: '10px'}}>
-                           <EuiSelectable
-                                options={options}
-                                onChange={(newOptions) => {
-                                    console.log(setOptions(newOptions));
-                                }}
-                                searchable
-                                singleSelection={false}
-                                >
-                                {(list, search) => (
-                                    <div>
-                                    {search}
-                                    {list}
-                                    </div>
-                                )}
+                        <EuiSelectable
+                            options={options}
+                            onChange={(newOptions) => {
+                                setOptions(newOptions);
+                                handleOptionChange(newOptions); // call handleOptionChange with newOptions
+                            }}
+                            searchable
+                            singleSelection={false}
+                            >
+                            {(list, search) => (
+                                <div>
+                                {search}
+                                {list}
+                                </div>
+                            )}
                             </EuiSelectable>
                         </EuiFormRow>
                     </>
@@ -144,7 +144,7 @@ export default function NewItem(props: NewItemProps) {
                             <EuiButton href={page} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
-                            <EuiButton isDisabled={(itemInfo.title.length === 0)} 
+                            <EuiButton isDisabled={(itemInfo.users.length === 0 || itemInfo.title.length === 0)} 
                             href={page} 
                             onClick={handleClick}
                             style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}

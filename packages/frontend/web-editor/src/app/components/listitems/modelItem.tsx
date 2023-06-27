@@ -58,10 +58,10 @@ export default function(props: ModelItemProps) {
          * MarginLeft is so that it doesnt interfere with the href on the card itself
          * Made to be iconbuttons so they can have hover over text
          */}
-        <EuiFlexGroup justifyContent="flexEnd" style={{marginTop: "-25px", marginLeft: window.innerWidth - 320, position: 'relative', top:'-35px', right:'20px'}}>
+        <EuiFlexGroup justifyContent="flexEnd" style={{marginTop: "-25px", position: 'relative', top:'-35px', right:'20px'}}>
             {/** This is where the text for last modified goes, eventually this should be updated accordingly */}
             <EuiFlexItem grow={false}>
-              <EuiText>Last Modified:</EuiText>
+              <EuiText style={{ whiteSpace: 'nowrap'}}>Last Modified: 24124124124123</EuiText>
             </EuiFlexItem>
             {/** This is the settings/gear icon, moved 3 pixels as to line up a bit better */}
             <EuiFlexItem grow={false} >

@@ -83,6 +83,8 @@ export default function NewItem(props: NewItemProps) {
         // Handle the newItemData or perform any other actions
     };
 
+    const isSubmitDisabled = itemInfo.users.length === 0 || itemInfo.title.length === 0;
+
     return (
             //this styling is so its in a nice looking box, it scales if the users tab is there or not
             <EuiForm style={{backgroundColor: euiTheme.colors.lightShade, alignSelf: 'center', width: '500px', borderRadius: '5px'}}>
@@ -142,7 +144,11 @@ export default function NewItem(props: NewItemProps) {
                             <EuiButton href={page} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
-                            <EuiButton href={page} onClick={handleClick} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Submit</EuiButton>
+                            <EuiButton isDisabled={(itemInfo.title.length === 0)} 
+                            href={page} 
+                            onClick={handleClick}
+                            style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}
+                            >Submit</EuiButton>
                         </EuiFlexItem>
                     </EuiFlexGroup>
                 </EuiFormRow>

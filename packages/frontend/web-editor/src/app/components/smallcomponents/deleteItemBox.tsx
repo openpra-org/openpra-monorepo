@@ -52,6 +52,7 @@ export default function DeleteItemBox(props: NewItemProps) {
                         Are you sure you want to delete this model?
                     </EuiTextColor>
                 </EuiFormRow>
+            {/** confirmation text */}
             <EuiFormRow fullWidth ={true} style={{margin: '10px'}}>
                 <EuiFieldText
                     placeholder='Please type Yes to proceed'
@@ -59,6 +60,8 @@ export default function DeleteItemBox(props: NewItemProps) {
                     onChange={(e) => setConfirmDelete(e.target.value)}
                 />
             </EuiFormRow>
+
+            {/** butto to submit is equiped with the ability to  */}
             <EuiFormRow fullWidth={true}>
                     <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px'}}>
                         <EuiFlexItem>

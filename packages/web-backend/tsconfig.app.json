@@ -3,7 +3,7 @@
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
     "module": "commonjs",
-    "types": ["node"],
+    "types": ["jest", "node"],
     "emitDecoratorMetadata": true,
     "declaration": true,
     "removeComments": true,

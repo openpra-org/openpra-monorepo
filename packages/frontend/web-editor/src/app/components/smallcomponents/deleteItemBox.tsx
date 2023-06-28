@@ -29,6 +29,7 @@ export default function DeleteItemBox(props: NewItemProps) {
     //use the theme
     const {euiTheme} = useEuiTheme();
 
+    //State used to hold value within text box. User types 'yes' to unlock the submit button
     const [confirmDelete, setConfirmDelete] = useState('');
 
     //grabbing the props
@@ -54,6 +55,7 @@ export default function DeleteItemBox(props: NewItemProps) {
                 </EuiFormRow>
             {/** confirmation text */}
             <EuiFormRow fullWidth ={true} style={{margin: '10px'}}>
+                {/** User will enable the submit button by typing yes in this text box */}
                 <EuiFieldText
                     placeholder='Please type Yes to proceed'
                     value={confirmDelete}
@@ -61,13 +63,14 @@ export default function DeleteItemBox(props: NewItemProps) {
                 />
             </EuiFormRow>
 
-            {/** butto to submit is equiped with the ability to  */}
+            {/** button to submit is equipped with the ability to  */}
             <EuiFormRow fullWidth={true}>
                     <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px'}}>
                         <EuiFlexItem>
                             <EuiButton href={page} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
+                            {/** This button will only be clickable when user types yes/Yes/YES/etc */}
                             <EuiButton isDisabled={!(confirmDelete.toLowerCase() === 'yes')} href={page} onClick={handleClick}
                                        style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}
                             >

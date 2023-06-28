@@ -6,6 +6,9 @@ interface DataTableProps {
 }
 
 export default function DataTable({rows, columns}: DataTableProps) {
+
+  //Forces all table columns to have a width of 200px
+  //Applies to all data tables
   const {euiTheme} = useEuiTheme();
     const newColumns = columns.map((item) => ({
         ...item,

@@ -6,7 +6,7 @@ export default function EventSequenceDiagrams() {
         <> 
             <PageLayout isModel={true} pageName='Event Sequence Diagrams' contentType={
                 <>
-                    <ModelPageFilter/>
+                    <ModelPageFilter title="Event Sequence Diagram" page="model/1/eventsequencediagrams"/>
                     <div/>
                 </>
             }/>

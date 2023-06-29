@@ -6,7 +6,6 @@ export default function DataPage() {
         <> 
             <PageLayout isModel={false} pageName='Data' contentType={
                 <>
-                    <ModelPageFilter/>
                     <div/>
                 </>
             }/>

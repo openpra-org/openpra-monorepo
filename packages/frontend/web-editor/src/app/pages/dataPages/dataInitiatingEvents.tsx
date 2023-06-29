@@ -9,7 +9,6 @@ export default function DataInitiatingEvents() {
         <> 
             <PageLayout isModel={false} pageName='Data Initiating Events' contentType={
                 <>
-                    <ModelPageFilter/>
                     <EuiSpacer size="m"/>
                     <InitiatingEventsTable/>
                     <div/>

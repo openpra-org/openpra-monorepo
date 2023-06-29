@@ -9,7 +9,6 @@ export default function SpecialEvents() {
         <> 
             <PageLayout isModel={false} pageName='Special Events' contentType={
                 <>
-                    <ModelPageFilter/>
                     <EuiSpacer size="m"/>
                     <SpecialEventsTable/>
                     <div/>

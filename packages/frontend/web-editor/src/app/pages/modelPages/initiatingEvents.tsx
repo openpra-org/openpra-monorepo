@@ -6,7 +6,7 @@ export default function InitiatingEvents() {
         <> 
             <PageLayout isModel={true} pageName='Initiating Events' contentType={
                 <>
-                <ModelPageFilter/>
+                <ModelPageFilter title="Initiating Event" page="model/1/initiatingevents" />
                 <div/>
                 </>
             }/>

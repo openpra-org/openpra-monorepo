@@ -6,7 +6,6 @@ export default function QuantificationHistory() {
         <> 
             <PageLayout isModel={true} pageName='Quantification History' contentType={
                 <>
-                    <ModelPageFilter/>
                     <div/>
                 </>
             }/>

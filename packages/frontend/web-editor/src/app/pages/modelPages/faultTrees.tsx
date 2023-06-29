@@ -6,7 +6,7 @@ export default function FaultTrees() {
         <> 
             <PageLayout isModel={true} pageName='Fault Trees' contentType={
                 <>
-                    <ModelPageFilter/>
+                    <ModelPageFilter title="Fault Tree" page="model/1/faulttrees"/>
                     <div/>
                 </>
             }/>

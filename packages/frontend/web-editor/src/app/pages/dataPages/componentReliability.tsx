@@ -11,7 +11,6 @@ export default function Ccf() {
         <> 
             <PageLayout isModel={false} pageName='Component Reliability' contentType={
                 <>
-                    <ModelPageFilter/>
                     <EuiSpacer size="m"/>
                     <ComponentReliabilityTable/>
                     <div/>

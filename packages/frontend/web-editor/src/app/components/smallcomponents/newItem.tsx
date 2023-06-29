@@ -18,7 +18,7 @@ import {addItemDataToList} from "../largecomponents/modelItemsList";
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
   export interface NewItemProps {
     title: string
-    page: string
+    page?: string
     itemTitle?: string
     itemDescription?: string
     users?: string[]
@@ -89,7 +89,7 @@ export default function NewItem(props: NewItemProps) {
             <EuiForm style={{backgroundColor: euiTheme.colors.lightShade, alignSelf: 'center', width: '500px', borderRadius: '5px'}}>
                 <EuiSpacer size='s'/>
                 {/** this gives the text, and then importantly sets the title of the item */}
-                <EuiTextColor style={{margin: '10px', fontSize: '2rem'}}><strong>{title}</strong></EuiTextColor>
+                <EuiTextColor style={{margin: '10px', fontSize: '2rem'}}><strong>New {title}</strong></EuiTextColor>
                 <EuiFormRow fullWidth={true} style={{margin: '10px'}}>
                     <EuiFieldText
                         fullWidth={true}
@@ -144,7 +144,7 @@ export default function NewItem(props: NewItemProps) {
                             <EuiButton href={page} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
-                            <EuiButton isDisabled={(itemInfo.users.length === 0 || itemInfo.title.length === 0)} 
+                            <EuiButton isDisabled={(users && (itemInfo.users.length === 0 )|| itemInfo.title.length === 0)} 
                             href={page} 
                             onClick={handleClick}
                             style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}

@@ -9,7 +9,6 @@ export default function Ccf() {
         <> 
             <PageLayout isModel={false} pageName='CCF' contentType={
                 <>
-                    <ModelPageFilter/>
                     <EuiSpacer size="m"/>
                     <CcfTable/>
                 </>

@@ -7,7 +7,7 @@ export default function BayesianNetworks() {
         <> 
             <PageLayout isModel={true} pageName='Bayesian Networks' contentType={
                 <>
-                    <ModelPageFilter/>
+                    <ModelPageFilter title="Bayesian Network" page="model/1/bayesiannetworks" />
                     <div/>
                 </>
             }/>

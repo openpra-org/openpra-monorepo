@@ -6,7 +6,7 @@ export default function EventTrees() {
         <> 
             <PageLayout isModel={true} pageName='Event Trees' contentType={
                 <>
-                    <ModelPageFilter/>
+                    <ModelPageFilter title="Event Tree" page="model/1/eventtrees"/>
                     <div/>
                 </>
             }/>

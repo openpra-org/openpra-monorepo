@@ -14,8 +14,10 @@ import {
     EuiFieldSearch,
     useGeneratedHtmlId,
     EuiSpacer,
+    EuiOverlayMask,
 } from "@elastic/eui"
 import ListOption from "../listitems/listOption";
+import NewItem from './newItem';
 
 export function PageHeader() {
     //Allows the use of the css prop in Eui tags
@@ -270,9 +272,27 @@ export function Filter() {
     )
 }
 
-export function ModelPageFilter() {
+
+//list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
+export interface NewItemProps {
+    title: string
+    page: string
+}
+
+export function ModelPageFilter(props: NewItemProps) {
+
+    //this is to make sure the new thing gets set
+    const [addNewVisible, setAddNewVisible] = useState(false);
+
+    function onNewClick(){
+        setAddNewVisible(!addNewVisible)
+    }
+
     //Allows the use of the css prop in Eui tags
     const {euiTheme} = useEuiTheme();
+
+    //
+    const { title, page } = props;
 
     //different states that are being used in filter for the popover menus
     const [selectPopover, setSelectPopover] = useState(false);
@@ -333,31 +353,38 @@ export function ModelPageFilter() {
 
     //the padding here is to give it a nice borderwithout messing up how any of the other page elements will look when implemented
     return (
-        <div style={{ padding: '0 8px' }}>
+        <>
+            <div style={{ padding: '0 8px' }}>
 
-            {/** the pixel margin here is to make it appear where we want it, at least for right now
-             * I couldnt figure out how to pass it to the other page
-            */}
-            <EuiPageHeader style={{marginTop: '-20px'}}>
-                <EuiHeaderSection>
-                    <EuiPopover //Sort by context menu
-                        id={sortContextMenuPopoverId}
-                        button={sort}
-                        isOpen={sortPopover}
-                        closePopover={closeSort}
-                    >
-                        <EuiContextMenuPanel items={sortItems}/>
-                    </EuiPopover>
-                    <EuiFieldText placeholder="Filter by name..."/>
-                    {/*<EuiButtonEmpty iconType="documents"/>*/}
-                    {/*<EuiButtonEmpty iconType="trash"/>*/}
-                </EuiHeaderSection>
-                <EuiHeaderSection side="right">
-                    <EuiButton iconType="plus" href = 'model/new' size="s" color='text' style={{opacity: '2'}}>NEW</EuiButton>
-                </EuiHeaderSection>
-            </EuiPageHeader>
-            <EuiSpacer size="xs" />
-            <hr/>
-        </div>
+                {/** the pixel margin here is to make it appear where we want it, at least for right now
+                 * I couldnt figure out how to pass it to the other page
+                */}
+                <EuiPageHeader style={{marginTop: '-20px'}}>
+                    <EuiHeaderSection>
+                        <EuiPopover //Sort by context menu
+                            id={sortContextMenuPopoverId}
+                            button={sort}
+                            isOpen={sortPopover}
+                            closePopover={closeSort}
+                        >
+                            <EuiContextMenuPanel items={sortItems}/>
+                        </EuiPopover>
+                        <EuiFieldText placeholder="Filter by name..."/>
+                        {/*<EuiButtonEmpty iconType="documents"/>*/}
+                        {/*<EuiButtonEmpty iconType="trash"/>*/}
+                    </EuiHeaderSection>
+                    <EuiHeaderSection side="right">
+                        <EuiButton iconType="plus" onClick={onNewClick} size="s" color='text' style={{opacity: '2'}}>NEW</EuiButton>
+                    </EuiHeaderSection>
+                </EuiPageHeader>
+                <EuiSpacer size="xs" />
+                <hr/>
+            </div>
+            {addNewVisible && (
+                <EuiOverlayMask>
+                    <NewItem title={title} page={page}/>
+                </EuiOverlayMask>
+            )}
+        </>
     )
 }

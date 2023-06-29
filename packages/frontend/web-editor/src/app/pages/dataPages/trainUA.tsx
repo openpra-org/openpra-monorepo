@@ -10,7 +10,6 @@ export default function TrainUA() {
         <> 
             <PageLayout isModel={false} pageName='Train UA' contentType={
                 <>
-                    <ModelPageFilter/>
                     <EuiSpacer size="m"/>
                     <TrainUaTable/>
                     <div/>

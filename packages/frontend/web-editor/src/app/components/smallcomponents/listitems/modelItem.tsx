@@ -1,6 +1,6 @@
 import { EuiCard, EuiFlexItem, EuiFlexGroup, EuiAvatar, EuiText, EuiButtonIcon} from "@elastic/eui";
 import { useState } from "react";
-import DeleteItemBox from "../smallcomponents/deleteItemBox";
+import DeleteItemBox from "../listchanging/deleteItemBox";
 
 //title is required, description isnt required but is typically present
 export interface ModelItemProps {

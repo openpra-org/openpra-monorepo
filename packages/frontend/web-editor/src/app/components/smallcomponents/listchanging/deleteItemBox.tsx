@@ -1,20 +1,16 @@
-import {useEffect, useState} from 'react'
+import {useState} from 'react'
 import {
     EuiForm,
     EuiFormRow,
     EuiFieldText,
-    EuiTextArea,
     EuiButton,
     EuiTextColor,
     EuiFlexGroup,
     EuiFlexItem,
     EuiSpacer,
     useEuiTheme,
-    EuiSelectable,
-    EuiSelectableOption,
     EuiOverlayMask
 } from '@elastic/eui'
-import {addItemDataToList} from "../largecomponents/modelItemsList";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
   export interface NewItemProps {

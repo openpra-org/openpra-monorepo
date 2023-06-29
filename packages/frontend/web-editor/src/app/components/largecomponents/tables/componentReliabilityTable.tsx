@@ -1,7 +1,7 @@
 import {useEuiTheme} from "@elastic/eui";
-import DataTable from "./dataTable";
+import DataTable from "./tabletemplate/dataTable";
 
-export default function InitiatingEventsTable(){
+export default function ComponentReliabilityTable(){
 
     const {euiTheme} = useEuiTheme();
 
@@ -9,14 +9,17 @@ export default function InitiatingEventsTable(){
     //fth is 5th, nfth is 95th
     const rows = [
         {
-            section: 'Primary/Secondary Inventory',
-            subSection: 'High Energy Line Breaks',
-            initiatingEvent: 'FWLB BWR FI',
-            description: 'Feedwater Line Break (BWR)',
-            source: 'RADS',
-            numberOfEvents: 0,
-            reactorCriticalYears: 0.0005050,
-            distribution: 'Gamma',
+            grouping: 'Values',
+            componentType: 'Air-Operated Valve (AOV)',
+            componentFailureMode: 'AOV_FTO',
+            description: 'Air-Operated Valve Fails To Open',
+            dataSource: 'EPIX/RADS',
+            failures: 50,
+            Units: '',
+            dhUnit: 'd',
+            dhValue: 0.0003040,
+            componentCount: 0.0003040,
+            distribution: 'Beta',
             analysisType: 'JNID/IL',
             fth: 0.0003040,
             median: 0.0003040,
@@ -24,51 +27,72 @@ export default function InitiatingEventsTable(){
             alpha: 0.0003040,
             beta: 0.0003040,
             mean: 0.0003040,
-            stdDev: 0.0003040,
             errorFactor: 0.0003040,
-            baselinePeriod: '2006-2020',
+            dateRange: '2006-2020',
             effectiveDate: '2021-11-01'
 
         }
     ];
 
     //has the following column headers
-    // Section, Sub Section, Initiating Event, Description, Source, Number of Events, Reactor Critical Years
-    // Distribution, Analysis Type, 5th Percentile, Median, 95th Percentile, alpha, beta, Mean, std dev, Error Factor, Baseline Period, Effective Date
+    // Grouping, Component Type, Component Failure Mode, Description, Data Source, Failures, Units, D/H Type, D/H Value,
+    // Component Count, Distribution, Analysis Type, 5th Percentile, Median, 95th Percentile, alpha, beta, Mean, Error Factor, Date Range, Effective Date
     // It may be worth going back and making some of these enums instead for limited options
     const columns = [
         {
-            field: 'section',
-            name: 'Section',
-            truncateText: true,
-            width: '200px'
-        },
-        {
-            field: 'subSection',
-            name: 'Sub Section',
+            field: 'grouping',
+            name: 'Grouping',
             truncateText: true,
         },
         {
-            field: 'initiatingEvent',
-            name: 'Initiating Event',
+            field: 'componentType',
+            name: 'Component Type',
+            truncateText: true,
+        },
+        {
+            field: 'componentFailureMode',
+            name: 'Component Failure Mode',
         },
         {
             field: 'description',
             name: 'Description',
+        },
+        {
+            field: 'dataSource',
+            name: 'Data Source',
             truncateText: true,
         },
         {
-            field: 'source',
-            name: 'Source',
+            field: 'dataSource',
+            name: 'Data Source',
+            truncateText: true,
         },
         {
-            field: 'numberOfEvents',
-            name: 'Number Of Events',
+            field: 'failures',
+            name: 'Failure',
             dataType: 'number',
         },
         {
-            field: 'reactorCriticalYears',
-            name: 'Reactor Critical Years',
+            field: 'units',
+            name: 'Units',
+            truncateText: true,
+            textOnly: true,
+        },
+        {
+            field: 'dhUnit',
+            name: 'D/H Unit',
+            truncateText: true,
+            textOnly: true,
+        },
+        {
+            field: 'dhUnit',
+            name: 'D/H Value',
+            dataType: 'number',
+            formatter: 'scientificFormatter',
+        },
+        {
+            field: 'componentCount',
+            name: 'Component Count',
             dataType: 'number',
             formatter: 'scientificFormatter',
         },
@@ -121,20 +145,14 @@ export default function InitiatingEventsTable(){
             formatter: 'scientificFormatter',
         },
         {
-            field: 'stdDeviation',
-            name: 'Std Dev',
-            dataType: 'number',
-            formatter: 'scientificFormatter',
-        },
-        {
             field: 'errorFactor',
             name: 'Error Factor',
             dataType: 'number',
             formatter: 'scientificFormatter',
         },
         {
-            field: 'baselinePeriod',
-            name: 'Vaseline Period',
+            field: 'dateRange',
+            name: 'Date Range',
         },
         {
             field: 'effectiveDate',
@@ -142,7 +160,8 @@ export default function InitiatingEventsTable(){
         },
     ];
 
+
     return(
-        <DataTable rows={rows} columns={columns}/>
+        <DataTable rows={rows} columns={columns} />
     )
 }

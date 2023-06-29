@@ -1,4 +1,4 @@
-import PageLayout from '../../components/largecomponents/pageLayout';
+import PageLayout from '../../components/largecomponents/stylingaids/pageLayout';
 
 export default function CcfGroups() {
     return (

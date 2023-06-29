@@ -1,8 +1,8 @@
 import {useEuiTheme} from "@elastic/eui";
-import DataTable from "./dataTable";
+import DataTable from "./tabletemplate/dataTable";
 
 
-export default function BasicEventsTable(){
+export default function GatesTable(){
 
     const {euiTheme} = useEuiTheme();
 
@@ -13,15 +13,13 @@ export default function BasicEventsTable(){
             id: 'Id',
             type: 'type',
             name: 'name',
-            value: 'value',
-            proxy: 'proxy',
-            source: 'source',
             description: 'description',
+            probability: '.002',
         }
     ];
 
-    // has the following column headers
-    // id, type, name, value, proxy, source, description
+    //has the following column headers
+    // id, type, name, description, probability
     const columns = [
         {
             field: 'id',
@@ -36,22 +34,18 @@ export default function BasicEventsTable(){
             name: 'Name',
         },
         {
-            field: 'value',
-            name: 'Value',
-        },
-        {
-            field: 'proxy',
-            name: 'Proxy',
-        },
-        {
-            field: 'source',
-            name: 'Source',
-        },
-        {
             field: 'description',
             name: 'Description',
+            truncateText: true,
+        },
+        {
+            field: 'probability',
+            name: 'Probability',
+            dataType: 'number',
+            formatter: 'scientificFormatter',
         },
     ];
+
 
     return(
         <DataTable rows={rows} columns={columns} />

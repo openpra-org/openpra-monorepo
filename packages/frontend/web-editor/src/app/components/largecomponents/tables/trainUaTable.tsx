@@ -1,7 +1,7 @@
 import {useEuiTheme} from "@elastic/eui";
-import DataTable from "./dataTable";
+import DataTable from "./tabletemplate/dataTable";
 
-export default function ComponentReliabilityTable(){
+export default function TrainUaTable(){
 
     const {euiTheme} = useEuiTheme();
 
@@ -9,24 +9,20 @@ export default function ComponentReliabilityTable(){
     //fth is 5th, nfth is 95th
     const rows = [
         {
-            grouping: 'Values',
-            componentType: 'Air-Operated Valve (AOV)',
-            componentFailureMode: 'AOV_FTO',
-            description: 'Air-Operated Valve Fails To Open',
-            dataSource: 'EPIX/RADS',
-            failures: 50,
-            Units: '',
-            dhUnit: 'd',
-            dhValue: 0.0003040,
-            componentCount: 0.0003040,
-            distribution: 'Beta',
-            analysisType: 'JNID/IL',
+            section: 'Generators',
+            subSection: '1E EDG',
+            trainUnavailabilityEvent: 'EDG-EPS',
+            trainDescription: 'Disel Generator Test or Maintenence',
+            Analysis: 'CurveFit/Train',
+            mspiTrains: 0.0005050,
+            distribution: 'Normal',
             fth: 0.0003040,
             median: 0.0003040,
             nfth: 0.0003040,
             alpha: 0.0003040,
             beta: 0.0003040,
             mean: 0.0003040,
+            stdDev: 0.0003040,
             errorFactor: 0.0003040,
             dateRange: '2006-2020',
             effectiveDate: '2021-11-01'
@@ -35,76 +31,46 @@ export default function ComponentReliabilityTable(){
     ];
 
     //has the following column headers
-    // Grouping, Component Type, Component Failure Mode, Description, Data Source, Failures, Units, D/H Type, D/H Value,
-    // Component Count, Distribution, Analysis Type, 5th Percentile, Median, 95th Percentile, alpha, beta, Mean, Error Factor, Date Range, Effective Date
+    // Section, Sub Section, Train Unavailability Event, Train Description, Data Source, Analysis, MSPI Trains, 
+    // Distribution, 5th Percentile, Median, 95th Percentile, alpha, beta, Mean, std dev, Error Factor, Baseline Period, Effective Date
     // It may be worth going back and making some of these enums instead for limited options
     const columns = [
         {
-            field: 'grouping',
-            name: 'Grouping',
+            field: 'section',
+            name: 'Section',
             truncateText: true,
         },
         {
-            field: 'componentType',
-            name: 'Component Type',
+            field: 'subSection',
+            name: 'Sub Section',
             truncateText: true,
         },
         {
-            field: 'componentFailureMode',
-            name: 'Component Failure Mode',
+            field: 'trainUnavailabilityEvent',
+            name: 'Train Unavailability Event',
         },
         {
-            field: 'description',
-            name: 'Description',
-        },
-        {
-            field: 'dataSource',
-            name: 'Data Source',
+            field: 'trainDescription',
+            name: 'Train Description',
             truncateText: true,
         },
         {
             field: 'dataSource',
             name: 'Data Source',
-            truncateText: true,
         },
         {
-            field: 'failures',
-            name: 'Failure',
-            dataType: 'number',
+            field: 'analysis',
+            name: 'Analysis',
         },
         {
-            field: 'units',
-            name: 'Units',
-            truncateText: true,
-            textOnly: true,
-        },
-        {
-            field: 'dhUnit',
-            name: 'D/H Unit',
-            truncateText: true,
-            textOnly: true,
-        },
-        {
-            field: 'dhUnit',
-            name: 'D/H Value',
-            dataType: 'number',
-            formatter: 'scientificFormatter',
-        },
-        {
-            field: 'componentCount',
-            name: 'Component Count',
+            field: 'mspiTrains',
+            name: 'MSPI Trains',
             dataType: 'number',
             formatter: 'scientificFormatter',
         },
         {
             field: 'distribution',
             name: 'Distribution',
-            truncateText: true,
-            textOnly: true,
-        },
-        {
-            field: 'analysisType',
-            name: 'Analysis Type',
             truncateText: true,
             textOnly: true,
         },
@@ -141,6 +107,12 @@ export default function ComponentReliabilityTable(){
         {
             field: 'mean',
             name: 'Mean',
+            dataType: 'number',
+            formatter: 'scientificFormatter',
+        },
+        {
+            field: 'stdDeviation',
+            name: 'Std Dev',
             dataType: 'number',
             formatter: 'scientificFormatter',
         },

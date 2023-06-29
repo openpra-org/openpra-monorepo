@@ -1,5 +1,5 @@
 import {useEuiTheme} from "@elastic/eui";
-import DataTable from "./dataTable";
+import DataTable from "./tabletemplate/dataTable";
 
 
 export default function CcfTable(){

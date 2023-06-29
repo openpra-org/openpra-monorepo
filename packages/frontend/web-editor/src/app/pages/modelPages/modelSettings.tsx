@@ -1,5 +1,5 @@
-import ModelOptionsMenu from '../../components/largecomponents/modelOptionsMenu';
-import PageLayout from '../../components/largecomponents/pageLayout';
+import ModelOptionsMenu from '../../components/largecomponents/stylingaids/modelOptionsMenu';
+import PageLayout from '../../components/largecomponents/stylingaids/pageLayout';
 
 export default function ModelSettings() {
     return (

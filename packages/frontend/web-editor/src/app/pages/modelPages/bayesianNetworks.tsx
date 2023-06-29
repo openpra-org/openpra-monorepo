@@ -1,5 +1,5 @@
-import PageLayout from '../../components/largecomponents/pageLayout';
-import { ModelPageFilter } from '../../components/smallcomponents/headers';
+import PageLayout from '../../components/largecomponents/stylingaids/pageLayout';
+import { ModelPageFilter } from '../../components/largecomponents/headers/headers';
 
 //passes in the model page filer and then the list of the objects to display
 export default function BayesianNetworks() {

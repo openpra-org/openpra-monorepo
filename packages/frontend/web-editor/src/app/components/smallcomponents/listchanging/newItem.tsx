@@ -13,7 +13,7 @@ import {
     EuiSelectable,
     EuiSelectableOption
 } from '@elastic/eui'
-import {addItemDataToList} from "../largecomponents/modelItemsList";
+import {addItemDataToList} from "../../largecomponents/lists/modelItemsList";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
   export interface NewItemProps {

@@ -1,5 +1,5 @@
-import {ModelPageFilter} from "../components/smallcomponents/headers";
-import PageLayout from '../components/largecomponents/pageLayout';
+import {ModelPageFilter} from "../components/largecomponents/headers/headers";
+import PageLayout from '../components/largecomponents/stylingaids/pageLayout';
 
 export default function DataPage() {
   return (

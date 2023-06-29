@@ -16,8 +16,8 @@ import {
     EuiSpacer,
     EuiOverlayMask,
 } from "@elastic/eui"
-import ListOption from "../listitems/listOption";
-import NewItem from './newItem';
+import ListOption from "../../smallcomponents/listitems/listOption";
+import NewItem from '../../smallcomponents/listchanging/newItem';
 
 export function PageHeader() {
     //Allows the use of the css prop in Eui tags

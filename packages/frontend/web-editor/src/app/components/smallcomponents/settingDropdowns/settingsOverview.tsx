@@ -1,5 +1,5 @@
-import {EuiForm, EuiFormRow, EuiSelect, EuiButton, EuiFlexGroup, EuiFlexItem, EuiTextColor, useGeneratedHtmlId, useEuiTheme, EuiText } from '@elastic/eui'
-import React, {useState } from 'react'
+import {EuiForm, EuiFormRow, EuiSelect, EuiButton, EuiFlexGroup, useGeneratedHtmlId, useEuiTheme, EuiText } from '@elastic/eui'
+import {useState } from 'react'
 
 export default function SettingsOverview() {
 

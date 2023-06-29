@@ -15,7 +15,7 @@ import {
 } from '@elastic/eui'
   
 
-  //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
+//a change of new item that lets you edit an item, though right now functionality for that isnt available because it requires database
 export default function (){
 
     //use the theme

@@ -1,6 +1,7 @@
 import { EuiAccordion, EuiFlexGroup, EuiFlexItem, EuiSpacer, EuiText } from "@elastic/eui";
 import ModelItemsList from "./modelItemsList";
 import SettingsOverview from '../smallcomponents/settingDropdowns/settingsOverview'
+import EditCurrentModel from "../smallcomponents/settingDropdowns/editCurrentModel";
 
 export default function(){
 
@@ -11,13 +12,11 @@ export default function(){
 
 
     return(
-        < div style={{marginLeft: "10px", marginRight: "10px", marginTop: "-20px"}}>
+        < EuiFlexGroup direction="column" style={{ alignItems: "center", width: "700px", marginLeft: "10px", marginRight: "10px", marginTop: "-20px"}}>
 
+                <EditCurrentModel/>
+                <EuiSpacer size='l'/>   
                 <SettingsOverview/>
-                <EuiSpacer size='l'/>
-                <EuiText>
-                    General
-                </EuiText>
             <EuiAccordion
             id="accordion11"
             arrowDisplay="right"
@@ -29,6 +28,6 @@ export default function(){
                     </p>
                 </EuiText>
             </EuiAccordion>
-        </div>
+        </EuiFlexGroup>
     )
 }

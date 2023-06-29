@@ -20,9 +20,9 @@ export default function SettingsOverview() {
     };
 
     return(
-        <EuiForm fullWidth={true}>
+        <EuiForm fullWidth={true} style={{marginTop: "20px"}}>
             <EuiFormRow>
-                <EuiText> Select the model to be displayed on the overview page</EuiText>
+                <EuiText style={{fontSize: '2rem'}}> <strong>Select the diagram to be displayed on the overview page </strong></EuiText>
             </EuiFormRow>
             <EuiFormRow fullWidth={true}>
                 <EuiFlexGroup>

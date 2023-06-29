@@ -1,7 +1,7 @@
-import { EuiAccordion, EuiFlexGroup, EuiFlexItem, EuiSpacer, EuiText } from "@elastic/eui";
-import ModelItemsList from "./modelItemsList";
+import { EuiAccordion, EuiFlexGroup, EuiText } from "@elastic/eui";
 import SettingsOverview from '../smallcomponents/settingDropdowns/settingsOverview'
 import EditCurrentModel from "../smallcomponents/settingDropdowns/editCurrentModel";
+import AdvancedSettings from "../smallcomponents/settingDropdowns/advancedSettings";
 
 export default function(){
 
@@ -16,17 +16,7 @@ export default function(){
 
                 <EditCurrentModel/>
                 <SettingsOverview/>
-            <EuiAccordion
-            id="accordion11"
-            arrowDisplay="right"
-            buttonContent="Advanced Settings"
-            paddingSize="s">
-                <EuiText>
-                    <p>
-                    Any content inside of <strong>EuiAccordion</strong> will appear here.
-                    </p>
-                </EuiText>
-            </EuiAccordion>
+                <AdvancedSettings/>
         </EuiFlexGroup>
     )
 }

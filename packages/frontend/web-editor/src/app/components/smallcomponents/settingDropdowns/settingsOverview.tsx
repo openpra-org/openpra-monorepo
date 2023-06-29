@@ -22,7 +22,7 @@ export default function SettingsOverview() {
     return(
         <EuiForm fullWidth={true} style={{backgroundColor: euiTheme.colors.lightestShade, padding: '10px'}}>
             <EuiFormRow>
-                <EuiText style={{fontSize: '2rem'}}> <strong>Select the diagram to be displayed on the overview page </strong></EuiText>
+                <EuiText style={{fontSize: '2rem'}}>Select the diagram to be displayed on the overview page</EuiText>
             </EuiFormRow>
             <EuiFormRow fullWidth={true}>
                 <EuiFlexGroup>

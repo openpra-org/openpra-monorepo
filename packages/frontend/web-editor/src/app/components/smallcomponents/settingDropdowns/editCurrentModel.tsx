@@ -42,7 +42,7 @@ export default function (){
             <EuiForm style={{backgroundColor: euiTheme.colors.lightestShade, padding: '10px', marginTop: '10px'}}>
                 <EuiSpacer size='s'/>
                 {/** this gives the text, and then importantly sets the title of the item */}
-                <EuiTextColor style={{fontSize: '2rem'}}><strong>Update model information</strong></EuiTextColor>
+                <EuiTextColor style={{fontSize: '2rem'}}>Update model information</EuiTextColor>
                 <EuiFormRow fullWidth={true} style={{marginTop: "20px"}}>
                     <EuiFieldText
                         fullWidth={true}

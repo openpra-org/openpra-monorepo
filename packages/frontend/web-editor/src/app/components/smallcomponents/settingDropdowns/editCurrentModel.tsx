@@ -39,7 +39,7 @@ export default function (){
     return (
             //This is similar to adding a new model, but instead updates it a bit
             // eventually the text in the fields will be autofilled with what is already in the model
-            <EuiForm >
+            <EuiForm style={{backgroundColor: euiTheme.colors.lightestShade, padding: '10px', marginTop: '10px'}}>
                 <EuiSpacer size='s'/>
                 {/** this gives the text, and then importantly sets the title of the item */}
                 <EuiTextColor style={{fontSize: '2rem'}}><strong>Update model information</strong></EuiTextColor>
@@ -90,14 +90,11 @@ export default function (){
                         </EuiFormRow>
                     </>
                 {/** the submit and also the go back buttons are right here*/}
-                <EuiFormRow fullWidth={true}>
-                    <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px'}}>
-                        <EuiFlexItem>
-                            <EuiButton style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
-                        </EuiFlexItem>
-                        <EuiFlexItem>
-                            <EuiButton isDisabled={(itemInfo.users.length === 0 || itemInfo.title.length === 0)}  
-                            style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}
+                <EuiFormRow fullWidth={true} style={{alignItems: 'center'}}>
+                    <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px', width: '200px'}}>
+                        <EuiFlexItem grow={true}>
+                            <EuiButton isDisabled={(itemInfo.users.length === 0 || itemInfo.title.length === 0)}
+                            style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade, borderRadius: '5px'}}
                             >Submit</EuiButton>
                         </EuiFlexItem>
                     </EuiFlexGroup>

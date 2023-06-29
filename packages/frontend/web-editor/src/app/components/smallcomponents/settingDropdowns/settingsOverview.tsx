@@ -20,7 +20,7 @@ export default function SettingsOverview() {
     };
 
     return(
-        <EuiForm fullWidth={true} style={{marginTop: "20px"}}>
+        <EuiForm fullWidth={true} style={{backgroundColor: euiTheme.colors.lightestShade, padding: '10px'}}>
             <EuiFormRow>
                 <EuiText style={{fontSize: '2rem'}}> <strong>Select the diagram to be displayed on the overview page </strong></EuiText>
             </EuiFormRow>
@@ -34,7 +34,7 @@ export default function SettingsOverview() {
                         aria-label="Use aria labels when no actual label is in use"
                         fullWidth={true}
                     />
-                    <EuiButton color='text'>
+                    <EuiButton color='text' style={{borderRadius: '5px', backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>
                         Save
                     </EuiButton>
                 </EuiFlexGroup>

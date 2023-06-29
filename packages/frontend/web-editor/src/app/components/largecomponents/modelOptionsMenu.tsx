@@ -12,10 +12,9 @@ export default function(){
 
 
     return(
-        < EuiFlexGroup direction="column" style={{ alignItems: "center", width: "700px", marginLeft: "10px", marginRight: "10px", marginTop: "-20px"}}>
+        < EuiFlexGroup direction='column' style={{marginLeft: "10px", marginRight: "10px", marginTop: "-20px"}}>
 
                 <EditCurrentModel/>
-                <EuiSpacer size='l'/>   
                 <SettingsOverview/>
             <EuiAccordion
             id="accordion11"

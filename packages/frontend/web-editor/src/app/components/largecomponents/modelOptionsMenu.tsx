@@ -12,7 +12,7 @@ export default function(){
 
 
     return(
-        < EuiFlexGroup direction='column' style={{marginLeft: "10px", marginRight: "10px", marginTop: "-20px"}}>
+        < EuiFlexGroup direction='column' className='eui-scrollBar' style={{marginLeft: "10px", marginRight: "10px", marginTop: "-20px", overflow: 'auto', maxHeight: (window.innerHeight-100)}}>
 
                 <EditCurrentModel/>
                 <SettingsOverview/>

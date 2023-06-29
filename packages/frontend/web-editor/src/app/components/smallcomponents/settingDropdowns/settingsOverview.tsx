@@ -1,4 +1,4 @@
-import {EuiForm, EuiFormRow, EuiSelect, EuiButton, EuiFlexGroup, EuiFlexItem, EuiTextColor, useGeneratedHtmlId, useEuiTheme } from '@elastic/eui'
+import {EuiForm, EuiFormRow, EuiSelect, EuiButton, EuiFlexGroup, EuiFlexItem, EuiTextColor, useGeneratedHtmlId, useEuiTheme, EuiText } from '@elastic/eui'
 import React, {useState } from 'react'
 
 export default function SettingsOverview() {
@@ -10,10 +10,9 @@ export default function SettingsOverview() {
     const basicSelectId = useGeneratedHtmlId({ prefix: 'basicSelect' });
 
     const options = [
-        {value: '', text: 'Choose One'},
-        {value: 'newEventTree', text: 'New Event Tree'},
-        {value: 'newFaultTree', text: 'New Fault Tree'},
-        {value: 'newBayesianNetwork', text: 'New Bayesian Network'},
+        {value: 'eventTree', text: 'Event Tree'},
+        {value: 'faultTree', text: 'Fault Tree'},
+        {value: 'bayesianNetwork', text: 'Bayesian Network'},
     ]
 
     const onChange = (e: any) => {
@@ -22,11 +21,11 @@ export default function SettingsOverview() {
 
     return(
         <EuiForm fullWidth={true}>
-            <EuiFormRow fullWidth={true} style={{margin: '10px'}}>
+            <EuiFormRow>
+                <EuiText> Select the model to be displayed on the overview page</EuiText>
+            </EuiFormRow>
+            <EuiFormRow fullWidth={true}>
                 <EuiFlexGroup>
-                    <EuiFlexItem>
-                        <EuiTextColor>Diagram Name</EuiTextColor>
-                    </EuiFlexItem>
                     <EuiSelect
                         id={basicSelectId}
                         options={options}
@@ -35,7 +34,7 @@ export default function SettingsOverview() {
                         aria-label="Use aria labels when no actual label is in use"
                         fullWidth={true}
                     />
-                    <EuiButton>
+                    <EuiButton color='text'>
                         Save
                     </EuiButton>
                 </EuiFlexGroup>

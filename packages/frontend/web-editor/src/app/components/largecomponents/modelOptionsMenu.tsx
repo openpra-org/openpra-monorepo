@@ -1,4 +1,4 @@
-import { EuiAccordion, EuiFlexGroup, EuiFlexItem, EuiText } from "@elastic/eui";
+import { EuiAccordion, EuiFlexGroup, EuiFlexItem, EuiSpacer, EuiText } from "@elastic/eui";
 import ModelItemsList from "./modelItemsList";
 import SettingsOverview from '../smallcomponents/settingDropdowns/settingsOverview'
 
@@ -14,22 +14,14 @@ export default function(){
         < div style={{marginLeft: "10px", marginRight: "10px", marginTop: "-20px"}}>
 
                 <SettingsOverview/>
-
+                <EuiSpacer size='l'/>
                 <EuiText>
-                    <p>
                     General
-                    </p>
-                </EuiText>
-
-                <EuiText>
-                    <p>
-                    Permissions
-                    </p>
                 </EuiText>
             <EuiAccordion
             id="accordion11"
             arrowDisplay="right"
-            buttonContent="Advanced"
+            buttonContent="Advanced Settings"
             paddingSize="s">
                 <EuiText>
                     <p>

@@ -14,7 +14,7 @@ export default function(){
             <EuiAccordion
             id="accordion11"
             arrowDisplay="right"
-            buttonContent="Overview"
+            buttonContent=<h1>Overview</h1>
             paddingSize="s">
                 <ModelItemsList/>
             </EuiAccordion>

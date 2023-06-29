@@ -50,7 +50,7 @@ export default function DeleteItemBox(props: NewItemProps) {
             {/** the submit and also the go back buttons are right here*/}
                 <EuiFormRow style={{margin: '10px'}}>
                     <EuiTextColor>
-                        Are you sure you want to delete this model?
+                        Are you sure you want to delete this model? This action is permanent
                     </EuiTextColor>
                 </EuiFormRow>
             {/** confirmation text */}

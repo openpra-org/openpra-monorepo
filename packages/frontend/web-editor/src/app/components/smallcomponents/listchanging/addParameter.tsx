@@ -24,11 +24,15 @@ export default function () {
     //use the theme
     const {euiTheme} = useEuiTheme();
 
+    interface item {
+        name: string;
+        value?: number;
+    }
+
     //this is what is in the newItem strucutre, will eventually be used to actually make things
     //this is also subject tyo change, propbably needs a type passed in from props eventually
-    const newItem = {
+    const newItem : item = {
         name: '',
-        value: 0
     }
 
     //use states that change things, called by functions later
@@ -46,6 +50,10 @@ export default function () {
           filterOptionsElement.textContent = 'Search users';
         }
       }, []);
+
+    useEffect(() => {
+        console.log(itemInfo.value)
+    }, [itemInfo])
 
     // Event handler that handles the result
     const handleClick = () => {
@@ -76,7 +84,7 @@ export default function () {
                         value={itemInfo.value}
                         onChange={(e) => setItemInfo({
                             ...itemInfo,
-                           name: e.target.value
+                           value: parseInt(e.target.value)
                         })}
                     />
                 </EuiFormRow>
@@ -88,7 +96,7 @@ export default function () {
                             <EuiButton href="model/1/globalparameters" style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
-                            <EuiButton isDisabled={(itemInfo.value > 0 || itemInfo.name.length === 0)} 
+                            <EuiButton isDisabled={(typeof itemInfo.value !== 'number' || (typeof itemInfo.value === undefined || itemInfo.name.length === 0))}
                             href="model/1/globalparameters"
                             onClick={handleClick}
                             style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}

@@ -18,6 +18,7 @@ import {
 } from "@elastic/eui"
 import ListOption from "../../smallcomponents/listitems/listOption";
 import NewItem from '../../smallcomponents/listchanging/newItem';
+import AddParameter from '../../smallcomponents/listchanging/addParameter';
 
 export function PageHeader() {
     //Allows the use of the css prop in Eui tags
@@ -361,6 +362,8 @@ export function ModelPageFilter(props: NewItemProps) {
                 */}
                 <EuiPageHeader style={{marginTop: '-20px'}}>
                     <EuiHeaderSection>
+                        {/** to make this a multipurpose component, this part wont display on the global parameters page */}
+                        {title !== "Global Parameters" && (
                         <EuiPopover //Sort by context menu
                             id={sortContextMenuPopoverId}
                             button={sort}
@@ -369,6 +372,7 @@ export function ModelPageFilter(props: NewItemProps) {
                         >
                             <EuiContextMenuPanel items={sortItems}/>
                         </EuiPopover>
+                        )}
                         <EuiFieldText placeholder="Filter by name..."/>
                         {/*<EuiButtonEmpty iconType="documents"/>*/}
                         {/*<EuiButtonEmpty iconType="trash"/>*/}
@@ -380,9 +384,18 @@ export function ModelPageFilter(props: NewItemProps) {
                 <EuiSpacer size="xs" />
                 <hr/>
             </div>
-            {addNewVisible && (
+
+            {/** these seek to have the pop up to add something be different when its on global parameters
+             * otherwise this handles the adding new things pop up!
+             */}
+            {addNewVisible && title !== "Global Parameters" && (
                 <EuiOverlayMask>
                     <NewItem title={title} page={page}/>
+                </EuiOverlayMask>
+            )}
+            {addNewVisible && title === "Global Parameters" && (
+                <EuiOverlayMask>
+                    <AddParameter/>
                 </EuiOverlayMask>
             )}
         </>

@@ -59,6 +59,8 @@ export default function () {
     const handleClick = () => {
     };
 
+    const isValueValidNumber = typeof itemInfo.value === 'number' && !isNaN(itemInfo.value);
+
     return (
             //this styling is so its in a nice looking box, it scales if the users tab is there or not
             <EuiForm style={{backgroundColor: euiTheme.colors.lightShade, alignSelf: 'center', width: '500px', borderRadius: '5px'}}>
@@ -96,7 +98,7 @@ export default function () {
                             <EuiButton href="model/1/globalparameters" style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
-                            <EuiButton isDisabled={(typeof itemInfo.value !== 'number' || (typeof itemInfo.value === undefined || itemInfo.name.length === 0))}
+                            <EuiButton isDisabled={(!isValueValidNumber || itemInfo.name.length === 0)}
                             href="model/1/globalparameters"
                             onClick={handleClick}
                             style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}

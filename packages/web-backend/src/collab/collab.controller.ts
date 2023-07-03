@@ -97,8 +97,8 @@ export class CollabController {
         POST Request -> https://staging.app.openpra.org/api/collab/user/
         No authentication is required for creating a user. An example of the request body for creating a user:
         {
-            "first_name":"Edward",
-            "last_name":"Elric",
+            "firstName":"Edward",
+            "lastName":"Elric",
             "email":"fullmetal_alchemist@gmail.com",
             "username":"Ed",
             "password":"WinryRockbell"

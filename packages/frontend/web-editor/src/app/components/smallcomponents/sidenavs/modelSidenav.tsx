@@ -241,6 +241,7 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
           title={navGroup.title}
           isCollapsible={true}
           initialIsOpen={false}
+          style={{borderBottom: 'solid', borderColor: euiTheme.colors.mediumShade}}
         >
           {navGroup.items ? (
             <EuiListGroup listItems={navGroup.items}/>

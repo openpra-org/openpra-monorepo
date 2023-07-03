@@ -1,7 +1,7 @@
 import {EuiFlexGroup} from "@elastic/eui";
-import EditCurrentModel from "../../smallcomponents/settingDropdowns/editCurrentModel";
-import SettingsOverview from "../../smallcomponents/settingDropdowns/settingsOverview";
-import AdvancedSettings from "../../smallcomponents/settingDropdowns/advancedSettings";
+import EditCurrentModel from "../../smallcomponents/settingdropdowns/editCurrentModel";
+import AdvancedSettings from "../../smallcomponents/settingdropdowns/advancedSettings";
+import SettingsOverview from "../../smallcomponents/settingdropdowns/settingsOverview";
 
 
 

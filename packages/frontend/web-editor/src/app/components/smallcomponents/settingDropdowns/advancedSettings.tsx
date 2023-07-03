@@ -3,7 +3,7 @@ import {useState } from 'react'
 import DeleteItemBox from '../listchanging/deleteItemBox';
 
 //eports as AdvancedSettings by default
-export default function() {
+export default function AdvancedSettings() {
 
     //use eui theme
     const {euiTheme} = useEuiTheme();

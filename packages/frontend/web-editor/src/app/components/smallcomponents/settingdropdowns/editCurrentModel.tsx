@@ -16,7 +16,7 @@ import {
   
 
 //a change of new item that lets you edit an item, though right now functionality for that isnt available because it requires database
-export default function (){
+export default function EditCurrentModel(){
 
     //use the theme
     const {euiTheme} = useEuiTheme();

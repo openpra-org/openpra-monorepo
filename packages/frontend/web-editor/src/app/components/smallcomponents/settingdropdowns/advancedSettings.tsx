@@ -1,6 +1,7 @@
 import {EuiForm, useGeneratedHtmlId, useEuiTheme, EuiText, EuiAccordion, EuiFormRow, EuiFlexGroup, EuiButton, EuiSelect, EuiHorizontalRule } from '@elastic/eui'
 import {useState } from 'react'
 import DeleteItemBox from '../listchanging/deleteItemBox';
+import SettingsButton from '../buttons/settingsButton';
 
 //exports as AdvancedSettings by default
 export default function AdvancedSettings() {
@@ -61,9 +62,7 @@ export default function AdvancedSettings() {
                                 aria-label="Use aria labels when no actual label is in use"
                                 fullWidth={true}
                             />
-                            <EuiButton color='text' style={{borderRadius: '5px', backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>
-                                Save
-                            </EuiButton>
+                            <SettingsButton content = {'save'}/>
                         </EuiFlexGroup>
                     </EuiFormRow>
                     <EuiHorizontalRule/>
@@ -72,9 +71,7 @@ export default function AdvancedSettings() {
                         <EuiText style={{fontSize: '2rem'}}>Transfer </EuiText>
                     </EuiFormRow>
                     <EuiFormRow fullWidth={true}>
-                        <EuiButton color='text' style={{borderRadius: '5px', backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>
-                                Transfer
-                        </EuiButton>
+                        <SettingsButton content = {'Transfer'}/>
                     </EuiFormRow>
                     <EuiHorizontalRule/>
                     {/** third thing */}
@@ -82,9 +79,7 @@ export default function AdvancedSettings() {
                         <EuiText style={{fontSize: '2rem'}}>Delete Model</EuiText>
                     </EuiFormRow>
                     <EuiFormRow fullWidth={true}>
-                        <EuiButton onClick={onDeleteClick} color='text' style={{borderRadius: '5px', backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>
-                                Remove
-                        </EuiButton>
+                        <SettingsButton content = {'Remove'}/>
                     </EuiFormRow>
                 </EuiAccordion>
             </EuiForm>

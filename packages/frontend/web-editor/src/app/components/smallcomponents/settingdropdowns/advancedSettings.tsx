@@ -2,7 +2,7 @@ import {EuiForm, useGeneratedHtmlId, useEuiTheme, EuiText, EuiAccordion, EuiForm
 import {useState } from 'react'
 import DeleteItemBox from '../listchanging/deleteItemBox';
 
-//eports as AdvancedSettings by default
+//exports as AdvancedSettings by default
 export default function AdvancedSettings() {
 
     //use eui theme
@@ -21,7 +21,7 @@ export default function AdvancedSettings() {
         {value: 'component', text: 'Component'},
     ]
 
-    //part of changing the value in the drop down menu
+    //part of changing the value in the dropdown menu
     const onChange = (e: any) => {
         setOverviewValue(e.target.value);
     };
@@ -44,7 +44,7 @@ export default function AdvancedSettings() {
                 <EuiAccordion
                 id="accordion11"
                 arrowDisplay="right"
-                buttonContent= <EuiText style={{fontSize: '2rem'}}>Advanced Settings</EuiText>
+                buttonContent={<EuiText style={{fontSize: '2rem'}}>Advanced Settings</EuiText>}
                 paddingSize="s">
                     <EuiHorizontalRule/>
                     {/** line underneath the title, then the first option */}

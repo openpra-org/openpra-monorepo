@@ -14,7 +14,6 @@ import {
     EuiSelectableOption,
     EuiFieldNumber
 } from '@elastic/eui'
-import {addItemDataToList} from "../../largecomponents/lists/modelItemsList";
 
   
 

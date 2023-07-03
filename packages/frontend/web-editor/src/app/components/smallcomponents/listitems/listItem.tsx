@@ -1,10 +1,12 @@
 import { EuiCard, EuiFlexItem, EuiFlexGroup, EuiAvatar, EuiText, EuiButtonIcon} from "@elastic/eui";
 import { useState } from "react";
+import { Link } from 'react-router-dom';
 import DeleteItemBox from "../listchanging/deleteItemBox";
 
 //title is required, description isnt required but is typically present
 export interface ModelItemProps {
   title: string,
+  typeString: string,
   description?: string,
 }
 
@@ -13,7 +15,7 @@ export interface ModelItemProps {
  * @param props
  */
 export default function(props: ModelItemProps) {
-  const { title, description } = props;
+  const { title, description, typeString } = props;
 
   const [deleteVisible, setDeleteVisible] = useState(false);
 
@@ -21,12 +23,32 @@ export default function(props: ModelItemProps) {
     setDeleteVisible(!deleteVisible)
   }
 
+  const getPageType = (type: string) => {
+    // Logic to determine the href based on the typeString
+    // Example logic:
+    if (type === "Model") {
+      return "model/1/overview";
+    } else if (type === "Event Tree") {
+      return "model/1/eventtrees/1";
+    } else if (type === "Initiating Event"){
+      return "mode/1/initiatingevents/1";
+    } else if (type === "Fault Tree"){
+      return "model/1/faulttrees/1";
+    } else if (type === "Bayesian Network"){
+      return "model/1/bayesiannetworks/1";
+    } else {
+      return "model/1/eventsequencediagrams/1";
+    }
+  };
+
+  const page = getPageType(typeString);
+
   return (
     <>
       {/** Is all set up as flex items so that spacing and such works correctly */}
       <EuiFlexItem grow={false}>
         <EuiCard
-          href={'model/1/overview'}
+          href={page}
           layout="horizontal"
           icon={
             <EuiFlexGroup alignItems="center" gutterSize="s">

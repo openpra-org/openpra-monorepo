@@ -26,6 +26,6 @@ export const addFaultTreeDataToList = (object: {title:string, description: strin
 
 export default function FaultTreeList(){
   return (
-    <StyleLists itemData={itemData}/>
+    <StyleLists itemData={itemData} typeString="Fault Tree" />
   );
 }

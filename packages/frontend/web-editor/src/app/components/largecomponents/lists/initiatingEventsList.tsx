@@ -26,6 +26,6 @@ export const addInitiatingEventDataToList = (object: {title:string, description:
 
 export default function InitiatingEventsList(){
   return (
-    <StyleLists itemData={itemData}/>
+    <StyleLists itemData={itemData} typeString="Intiating Events" />
   );
 }

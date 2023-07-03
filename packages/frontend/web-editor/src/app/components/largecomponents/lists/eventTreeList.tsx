@@ -26,6 +26,6 @@ export const addEventTreeDataToList = (object: {title:string, description: strin
 
 export default function EventTreeList(){
   return (
-    <StyleLists itemData={itemData}/>
+    <StyleLists itemData={itemData} typeString="Event Tree" />
   );
 }

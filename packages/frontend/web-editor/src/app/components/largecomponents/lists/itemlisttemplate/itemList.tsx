@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EuiFlexGrid, EuiFlexGroup, EuiFlexItem, EuiTablePagination} from "@elastic/eui";
-import ModelItem from "../../../smallcomponents/listitems/modelItem";
+import ModelItem from "../../../smallcomponents/listitems/listItem";
 
 type Item = {
     title: string;
@@ -9,9 +9,12 @@ type Item = {
   
   type ItemListProps = {
     itemData: Item[];
+    typeString: string;
 };
 
-const ItemList: React.FC<ItemListProps> = ({ itemData }) => {
+//formerly modelItemList, now it is a template in which all item lists will use, I will probably need to pass it another
+//parameter to get the type of object grabbed
+const ItemList: React.FC<ItemListProps> = ({ itemData, typeString }) => {
 
   //used to set the current page, starts at negative one so things start on the first page
   //gonna be honest I dont really get why this is, I tried to change logic elsewhere to no avail
@@ -69,6 +72,7 @@ const ItemList: React.FC<ItemListProps> = ({ itemData }) => {
               title={item.title}
               description={item.description}
               key={index}
+              typeString={typeString}
             />
           </EuiFlexItem>
         ))}

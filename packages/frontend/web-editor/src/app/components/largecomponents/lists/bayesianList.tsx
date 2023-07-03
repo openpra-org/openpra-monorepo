@@ -26,6 +26,6 @@ export const addBayesianDataToList = (object: {title:string, description: string
 
 export default function BayesianList(){
   return (
-    <StyleLists itemData={itemData}/>
+    <StyleLists itemData={itemData} typeString="Bayesian Network"/>
   );
 }

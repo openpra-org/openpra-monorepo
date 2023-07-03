@@ -26,6 +26,6 @@ export const addModelDataToList = (object: {title:string, description: string, u
 
 export default function ModelItemList(){
   return (
-    <StyleLists itemData={itemData}/>
+    <StyleLists itemData={itemData} typeString="Model"/>
   );
 }

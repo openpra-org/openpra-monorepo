@@ -36,7 +36,7 @@ export default function SideNavBase({ navItems }: SideNavProps) {
   return (
     <EuiSideNav
       items={sideNavItems}
-      style={{height: "100%", width: '335px' }}
+      style={{eight: "100%", width: '335px' }}
       mobileTitle="Navigation"
       toggleOpenOnMobileText="Toggle navigation"
       isOpenOnMobile={true}

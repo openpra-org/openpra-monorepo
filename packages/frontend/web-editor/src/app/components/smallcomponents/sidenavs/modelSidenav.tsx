@@ -1,19 +1,9 @@
 import {EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, useEuiTheme } from '@elastic/eui';
 import {useState, useEffect} from 'react'
-import SideNavBase from './sidenavtemplate/sideNavBase';
 
 interface ModelSidenavProps {
   isNavOpen: boolean;
   onNavToggle: (isOpen: boolean) => void;
-}
-
-interface NavItem {
-  id: string;
-  title?: string;
-  items?: NavItem[];
-  label?: string;
-  icon?: JSX.Element;
-  href?: string;
 }
 
 export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavProps) {
@@ -60,8 +50,7 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
    * the third later is where everything clickable is, note that it is aligned with nested items, and I can't think of a fix for this as of the tiem of writing this
    * currently the nested options are automcatically set to be out, but this can be changed easily if we decide we hate it
    */
-  const navItems: NavItem[] = [
-    {
+  const navItems = {
     id: 'mainNavGroup',
     title: 'Options Menu',
     items: [
@@ -230,10 +219,40 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
       },
       // Add more items as needed
     ],
-  }
-  ];
+  };
 
   return (
-    <SideNavBase navItems={navItems}/>
+    //loops through 1 layer, then the second, then finally displays the items with data in them
+    //this has to be done right now because we couldn't find a fix to have it optionally display data in the second layer if there was no 3rd layer present
+    //overflow is so things scroll correctly, the maxhieght is to adjust the nav height, 40 is the height of the header
+    <EuiCollapsibleNavGroup
+      className="eui-scrollBar"
+      key={navItems.id}
+      title={navItems.title}
+      style={{overflowY: 'hidden', overflow: "overlay", height: navHeight, maxHeight: pageHeight, width: '335px', backgroundColor: euiTheme.colors.lightShade}}
+      isCollapsible={true}
+      initialIsOpen={true}
+      onToggle={handleNavToggle}
+    >
+
+      {navItems.items.map((navGroup) => (
+        <EuiCollapsibleNavGroup
+          key={navGroup.id}
+          title={navGroup.title}
+          isCollapsible={true}
+          initialIsOpen={false}
+          style={{borderBottom: 'solid', borderColor: euiTheme.colors.mediumShade}}
+        >
+          {navGroup.items ? (
+            <EuiListGroup listItems={navGroup.items}/>
+          ) : (
+            <EuiListGroup listItems={[{ label: navGroup.label }]} />
+          )}
+
+          {/* Render sub-items */}
+        </EuiCollapsibleNavGroup>
+      ))}
+    </EuiCollapsibleNavGroup>
+
   );
 }

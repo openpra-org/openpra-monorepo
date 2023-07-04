@@ -43,12 +43,14 @@ export default function(props: ModelItemProps) {
 
   const page = getPageType(typeString);
 
+  
+
   return (
     <>
       {/** Is all set up as flex items so that spacing and such works correctly */}
       <EuiFlexItem grow={false}>
+      <Link to={page} replace>
         <EuiCard
-          href={page}
           layout="horizontal"
           icon={
             <EuiFlexGroup alignItems="center" gutterSize="s">
@@ -71,6 +73,7 @@ export default function(props: ModelItemProps) {
           //onClick={}
         > 
         </EuiCard>
+        </Link>
       </EuiFlexItem>
         {/** Rational for styling: These couldn't be in the card object themselves because they cannot support than many compenents
          * in addition the card really likes to align vertically instead of horizontally

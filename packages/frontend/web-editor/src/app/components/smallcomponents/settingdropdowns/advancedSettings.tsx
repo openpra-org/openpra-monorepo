@@ -62,7 +62,9 @@ export default function AdvancedSettings() {
                                 aria-label="Use aria labels when no actual label is in use"
                                 fullWidth={true}
                             />
-                            <SettingsButton content = {'save'}/>
+                            <SettingsButton>
+                                Save
+                            </SettingsButton>
                         </EuiFlexGroup>
                     </EuiFormRow>
                     <EuiHorizontalRule/>
@@ -71,7 +73,9 @@ export default function AdvancedSettings() {
                         <EuiText style={{fontSize: '2rem'}}>Transfer </EuiText>
                     </EuiFormRow>
                     <EuiFormRow fullWidth={true}>
-                        <SettingsButton content = {'Transfer'}/>
+                        <SettingsButton>
+                            Transfer
+                        </SettingsButton>
                     </EuiFormRow>
                     <EuiHorizontalRule/>
                     {/** third thing */}
@@ -79,7 +83,9 @@ export default function AdvancedSettings() {
                         <EuiText style={{fontSize: '2rem'}}>Delete Model</EuiText>
                     </EuiFormRow>
                     <EuiFormRow fullWidth={true}>
-                        <SettingsButton content = {'Remove'}/>
+                        <SettingsButton onClick={onDeleteClick}>
+                            Remove
+                        </SettingsButton>
                     </EuiFormRow>
                 </EuiAccordion>
             </EuiForm>

@@ -1,18 +1,22 @@
-import {useEuiTheme, EuiButton} from '@elastic/eui'
+import {useEuiTheme, EuiButton, EuiButtonProps} from '@elastic/eui'
 
-interface NewItemProps {
-    content: string
-}
+interface SettingsButtonProps extends EuiButtonProps {
+    onClick?: React.MouseEventHandler
+};
 
-export default function SettingsButton(props: NewItemProps) {
+export default function SettingsButton(props: SettingsButtonProps) {
 
-    const {content} = props;
+    const { onClick, ...buttonProps} = props;
 
     const {euiTheme} = useEuiTheme();
 
+    const settingsButtonStyle = {
+        borderRadius: '5px', 
+        backgroundColor: euiTheme.colors.mediumShade, 
+        color: euiTheme.colors.darkestShade,
+    }
+
     return(
-        <EuiButton color='text' style={{borderRadius: '5px', backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>
-            {content}
-        </EuiButton>
+        <EuiButton color='text' onClick={onClick} style={settingsButtonStyle} {...buttonProps}/>
     )
 }

@@ -10,13 +10,13 @@ export default function BasicEventsTable(){
     //fth is 5th, nfth is 95th
     const rows = [
         {
-            id: 'Id',
-            type: 'type',
-            name: 'name',
-            value: 'value',
-            proxy: 'proxy',
-            source: 'source',
-            description: 'description',
+            ID: 'Id',
+            Type: 'type',
+            Name: 'name',
+            Value: 'value',
+            Proxy: 'proxy',
+            Source: 'source',
+            Description: 'description',
         }
     ];
 
@@ -24,30 +24,37 @@ export default function BasicEventsTable(){
     // id, type, name, value, proxy, source, description
     const columns = [
         {
+            id: 'ID',
             field: 'id',
             name: 'ID',
         },
         {
+            id: 'Type',
             field: 'type',
             name: 'Type',
         },
         {
+            id: 'Name',
             field: 'name',
             name: 'Name',
         },
         {
+            id: 'Value',
             field: 'value',
             name: 'Value',
         },
         {
+            id: 'Proxy',
             field: 'proxy',
             name: 'Proxy',
         },
         {
+            id: 'Source',
             field: 'source',
             name: 'Source',
         },
         {
+            id: 'Description',
             field: 'description',
             name: 'Description',
         },

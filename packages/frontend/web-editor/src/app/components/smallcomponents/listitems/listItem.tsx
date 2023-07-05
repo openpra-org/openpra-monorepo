@@ -1,10 +1,12 @@
 import { EuiCard, EuiFlexItem, EuiFlexGroup, EuiAvatar, EuiText, EuiButtonIcon} from "@elastic/eui";
 import { useState } from "react";
+import { Link } from 'react-router-dom';
 import DeleteItemBox from "../listchanging/deleteItemBox";
 
 //title is required, description isnt required but is typically present
-export interface ModelItemProps {
+export interface ItemProps {
   title: string,
+  typeString: string,
   description?: string,
 }
 
@@ -12,8 +14,8 @@ export interface ModelItemProps {
  *
  * @param props
  */
-export default function(props: ModelItemProps) {
-  const { title, description } = props;
+export default function ListItem(props: ItemProps) {
+  const { title, description, typeString } = props;
 
   const [deleteVisible, setDeleteVisible] = useState(false);
 
@@ -21,12 +23,32 @@ export default function(props: ModelItemProps) {
     setDeleteVisible(!deleteVisible)
   }
 
+  const getPageType = (type: string) => {
+    // Logic to determine the href based on the typeString
+    // Example logic:
+    if (type === "Model") {
+      return "/model/1/overview";
+    } else if (type === "Event Tree") {
+      return "1";
+    } else if (type === "Initiating Event"){
+      return "1";
+    } else if (type === "Fault Tree"){
+      return "1";
+    } else if (type === "Bayesian Network"){
+      return "1";
+    } else {
+      return "1";
+    }
+  };
+
+  const page = getPageType(typeString);
+
   return (
     <>
       {/** Is all set up as flex items so that spacing and such works correctly */}
       <EuiFlexItem grow={false}>
+      <Link to={page} replace>
         <EuiCard
-          href={'model/1/overview'}
           layout="horizontal"
           icon={
             <EuiFlexGroup alignItems="center" gutterSize="s">
@@ -49,6 +71,7 @@ export default function(props: ModelItemProps) {
           //onClick={}
         > 
         </EuiCard>
+        </Link>
       </EuiFlexItem>
         {/** Rational for styling: These couldn't be in the card object themselves because they cannot support than many compenents
          * in addition the card really likes to align vertically instead of horizontally

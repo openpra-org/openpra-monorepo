@@ -2,7 +2,7 @@ import StyleLists from "../stylingaids/styleLists";
 
 // temporary item data that is prepulated
 const itemData = [
-  { title: 'Model Item 1', description: 'Description 1' },
+  { title: 'Event Tree Item 1', description: 'Description 1' },
   { title: 'Item 2', description: 'Description 2' },
   { title: 'Item 3', description: 'Description 3' },
   { title: 'Item 4', description: 'Description 2' },
@@ -20,12 +20,12 @@ const itemData = [
 ];
 
 //function to add an item to the list, will eventually be done with databases(tm)
-export const addModelDataToList = (object: {title:string, description: string, users?: string[]}) => {
+export const addEventTreeDataToList = (object: {title:string, description: string, users?: string[]}) => {
   itemData.push(object)
 };
 
-export default function ModelItemList(){
+export default function EventTreeList(){
   return (
-    <StyleLists itemData={itemData} typeString="Model"/>
+    <StyleLists itemData={itemData} typeString="Event Tree" />
   );
 }

@@ -2,7 +2,7 @@ import StyleLists from "../stylingaids/styleLists";
 
 // temporary item data that is prepulated
 const itemData = [
-  { title: 'Model Item 1', description: 'Description 1' },
+  { title: 'Event Sequence Item 1', description: 'Description 1' },
   { title: 'Item 2', description: 'Description 2' },
   { title: 'Item 3', description: 'Description 3' },
   { title: 'Item 4', description: 'Description 2' },
@@ -24,8 +24,8 @@ export const addModelDataToList = (object: {title:string, description: string, u
   itemData.push(object)
 };
 
-export default function ModelItemList(){
+export default function EventSequenceList(){
   return (
-    <StyleLists itemData={itemData} typeString="Model"/>
+      <StyleLists itemData={itemData} typeString="Event Sequence Diagram" />
   );
 }

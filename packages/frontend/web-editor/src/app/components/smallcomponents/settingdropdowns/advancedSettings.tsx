@@ -1,10 +1,9 @@
 import {EuiForm, useGeneratedHtmlId, useEuiTheme, EuiText, EuiAccordion, EuiFormRow, EuiFlexGroup, EuiButton, EuiSelect, EuiHorizontalRule } from '@elastic/eui'
 import {useState } from 'react'
 import DeleteItemBox from '../listchanging/deleteItemBox';
-import SettingsButton from "../buttons/settingsButton";
+import SettingsButton from '../buttons/settingsButton';
 
-
-//eports as AdvancedSettings by default
+//exports as AdvancedSettings by default
 export default function AdvancedSettings() {
 
     //use eui theme
@@ -23,7 +22,7 @@ export default function AdvancedSettings() {
         {value: 'component', text: 'Component'},
     ]
 
-    //part of changing the value in the drop down menu
+    //part of changing the value in the dropdown menu
     const onChange = (e: any) => {
         setOverviewValue(e.target.value);
     };
@@ -46,7 +45,7 @@ export default function AdvancedSettings() {
                 <EuiAccordion
                 id="accordion11"
                 arrowDisplay="right"
-                buttonContent= {<EuiText style={{fontSize: '2rem'}}>Advanced Settings</EuiText>}
+                buttonContent={<EuiText style={{fontSize: '2rem'}}>Advanced Settings</EuiText>}
                 paddingSize="s">
                     <EuiHorizontalRule/>
                     {/** line underneath the title, then the first option */}
@@ -63,7 +62,9 @@ export default function AdvancedSettings() {
                                 aria-label="Use aria labels when no actual label is in use"
                                 fullWidth={true}
                             />
-                            <SettingsButton content='Save'/>
+                            <SettingsButton>
+                                Save
+                            </SettingsButton>
                         </EuiFlexGroup>
                     </EuiFormRow>
                     <EuiHorizontalRule/>
@@ -72,7 +73,9 @@ export default function AdvancedSettings() {
                         <EuiText style={{fontSize: '2rem'}}>Transfer </EuiText>
                     </EuiFormRow>
                     <EuiFormRow fullWidth={true}>
-                        <SettingsButton content='Transfer'/>
+                        <SettingsButton>
+                            Transfer
+                        </SettingsButton>
                     </EuiFormRow>
                     <EuiHorizontalRule/>
                     {/** third thing */}
@@ -80,7 +83,9 @@ export default function AdvancedSettings() {
                         <EuiText style={{fontSize: '2rem'}}>Delete Model</EuiText>
                     </EuiFormRow>
                     <EuiFormRow fullWidth={true}>
-                        <SettingsButton content='Remove'/>
+                        <SettingsButton onClick={onDeleteClick}>
+                            Remove
+                        </SettingsButton>
                     </EuiFormRow>
                 </EuiAccordion>
             </EuiForm>

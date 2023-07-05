@@ -22,24 +22,24 @@ export default function GatesTable(){
     // id, type, name, description, probability
     const columns = [
         {
-            field: 'id',
-            name: 'ID',
+            id: 'id',
+            displayAsText: 'ID',
         },
         {
-            field: 'type',
-            name: 'Type',
+            id: 'type',
+            displayAsText: 'Type',
         },
         {
-            field: 'name',
-            name: 'Name',
+            id: 'name',
+            displayAsText: 'Name',
         },
         {
-            field: 'description',
-            name: 'Description',
+            id: 'description',
+            displayAsText: 'Description',
             truncateText: true,
         },
         {
-            field: 'probability',
+            id: 'probability',
             name: 'Probability',
             dataType: 'number',
             formatter: 'scientificFormatter',

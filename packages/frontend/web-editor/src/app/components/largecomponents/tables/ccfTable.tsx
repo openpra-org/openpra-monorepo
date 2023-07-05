@@ -10,6 +10,7 @@ export default function CcfTable(){
     //fth is 5th, nfth is 95th
     const rows = [
         {
+            id: 'id1',
             rule: 'ALL-MDP-FS',
             templateName: 'ALL-MDP-FS-02A01',
             cccg: 2,
@@ -27,56 +28,61 @@ export default function CcfTable(){
     // rule, template name, cccg, alpha factor, 5th, median, mean, 95th, alpha, and beta
     const columns = [
         {
-            field: 'rule',
-            name: 'Rule',
-        },
-        {
-            field: 'templateName',
-            name: 'Template Name',
-        },
-        {
-            field: 'cccg',
-            name: 'CCCG',
-            dataType: 'number',
-        },
-        {
-            field: 'alphaFactor',
-            name: 'Alpha Factor',
+            id: 'section',
+            displayAsText: 'Section',
             truncateText: true,
         },
         {
-            field: 'fth',
-            name: '5th',
+            id: 'rule',
+            displayAsText: 'Rule',
+        },
+        {
+            id: 'templateName',
+            displayAsText: 'Template Name',
+        },
+        {
+            id: 'cccg',
+            displayAsText: 'CCCG',
+            dataType: 'number',
+        },
+        {
+            id: 'alphaFactor',
+            displayAsText: 'Alpha Factor',
+            truncateText: true,
+        },
+        {
+            id: 'fth',
+            displayAsText: '5th',
             dataType: 'number',
             formatter: 'scientificFormatter',
         },
         {
-            field: 'median',
-            name: 'Median',
+            id: 'median',
+            displayAsText: 'Median',
             dataType: 'number',
             formatter: 'scientificFormatter',
         },
         {
-            field: 'nfth',
-            name: '95th',
+            id: 'nfth',
+            displayAsText: '95th',
             dataType: 'number',
             formatter: 'scientificFormatter',
         },
         {
-            field: 'alpha',
-            name: '\u03B1',
+            id: 'alpha',
+            displayAsText: '\u03B1',
             dataType: 'number',
             formatter: 'scientificFormatter',
         },
         {
-            field: 'beta',
-            name: '\u03B2',
+            id: 'beta',
+            displayAsText: '\u03B2',
             dataType: 'number',
             formatter: 'scientificFormatter',
         },
         {
-            field: 'mean',
-            name: 'Mean',
+            id: 'mean',
+            displayAsText: 'Mean',
             dataType: 'number',
             formatter: 'scientificFormatter',
         },

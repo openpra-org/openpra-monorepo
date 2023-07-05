@@ -7,14 +7,20 @@ export default function SpecialEventsTable(){
 
     const rows = [
         {
+            id: 'id1',
             name: 'TDP-PRST(RCIC)'
         },
     ];
 
     const columns = [
         {
-            field: 'name',
-            name: 'Name',
+            id: 'id',
+            displayAsText: 'ID',
+            truncateText: true,
+        },
+        {
+            id: 'name',
+            displayAsText: 'Name',
             truncateText: true,
         },
     ];

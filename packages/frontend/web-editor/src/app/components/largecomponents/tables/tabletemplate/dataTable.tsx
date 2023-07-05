@@ -37,7 +37,7 @@ export default function DataTable({ rows, columns }: DataTableProps) {
 
   return (
     <EuiFlexGroup style={{ margin: '9px' }} className="eui-xScroll">
-      <EuiFlexItem grow={true}>
+      <EuiFlexItem >
         <EuiDataGrid
           columns={columns}
           columnVisibility={{ visibleColumns, setVisibleColumns }}

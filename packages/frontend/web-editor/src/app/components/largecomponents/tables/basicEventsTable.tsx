@@ -35,37 +35,30 @@ export default function BasicEventsTable(){
         {
             id: 'id',
             displayAsText: 'ID',
-            initialWidth: 200,
         },
         {
             id: 'type',
             displayAsText: 'Type',
-            initialWidth: 200,
         },
         {
             id: 'name',
             displayAsText: 'Name',
-            initialWidth: 200,
         },
         {
             id: 'value',
             displayAsText: 'Value',
-            initialWidth: 200,
         },
         {
             id: 'proxy',
             displayAsText: 'Proxy',
-            initialWidth: 200,
         },
         {
             id: 'source',
             displayAsText: 'Source',
-            initialWidth: 200,
         },
         {
             id: 'description',
             displayAsText: 'Description',
-            initialWidth: 200,
         },
     ];
 

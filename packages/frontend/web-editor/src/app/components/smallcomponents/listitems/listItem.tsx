@@ -43,8 +43,6 @@ export default function(props: ModelItemProps) {
 
   const page = getPageType(typeString);
 
-  
-
   return (
     <>
       {/** Is all set up as flex items so that spacing and such works correctly */}

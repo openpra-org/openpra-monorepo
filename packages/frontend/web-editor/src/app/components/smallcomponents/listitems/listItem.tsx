@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import DeleteItemBox from "../listchanging/deleteItemBox";
 
 //title is required, description isnt required but is typically present
-export interface ModelItemProps {
+export interface ItemProps {
   title: string,
   typeString: string,
   description?: string,
@@ -14,7 +14,7 @@ export interface ModelItemProps {
  *
  * @param props
  */
-export default function(props: ModelItemProps) {
+export default function ListItem(props: ItemProps) {
   const { title, description, typeString } = props;
 
   const [deleteVisible, setDeleteVisible] = useState(false);
@@ -27,17 +27,17 @@ export default function(props: ModelItemProps) {
     // Logic to determine the href based on the typeString
     // Example logic:
     if (type === "Model") {
-      return "model/1/overview";
+      return "/model/1/overview";
     } else if (type === "Event Tree") {
-      return "model/1/eventtrees/1";
+      return "1";
     } else if (type === "Initiating Event"){
-      return "mode/1/initiatingevents/1";
+      return "1";
     } else if (type === "Fault Tree"){
-      return "model/1/faulttrees/1";
+      return "1";
     } else if (type === "Bayesian Network"){
-      return "model/1/bayesiannetworks/1";
+      return "1";
     } else {
-      return "model/1/eventsequencediagrams/1";
+      return "1";
     }
   };
 

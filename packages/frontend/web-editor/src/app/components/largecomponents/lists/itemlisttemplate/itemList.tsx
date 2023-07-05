@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EuiFlexGrid, EuiFlexGroup, EuiFlexItem, EuiTablePagination} from "@elastic/eui";
-import ModelItem from "../../../smallcomponents/listitems/listItem";
+import ListItem from "../../../smallcomponents/listitems/listItem";
 
 type Item = {
     title: string;
@@ -68,7 +68,7 @@ const ItemList: React.FC<ItemListProps> = ({ itemData, typeString }) => {
         {currentItems.map((item, index) => (
           //flex items are just what are in flex grids to exist there
           <EuiFlexItem key={index}>
-            <ModelItem
+            <ListItem
               title={item.title}
               description={item.description}
               key={index}

@@ -1,5 +1,5 @@
 import { EuiBasicTable, EuiDataGrid, EuiFlexGroup, EuiFlexItem, EuiThemeProvider, useEuiTheme } from '@elastic/eui';
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 
 interface DataTableProps {
   rows: any[];
@@ -14,6 +14,8 @@ interface CellValueProps {
 export default function DataTable({ rows, columns }: DataTableProps) {
   const { euiTheme } = useEuiTheme();
 
+  const ids = columns.map((items) => items.id);
+
   const renderCellValue = ({ rowIndex, colIndex }: CellValueProps) => {
     const columnId = columns[colIndex].id;
     const row = rows[rowIndex];
@@ -21,25 +23,23 @@ export default function DataTable({ rows, columns }: DataTableProps) {
     return value;
   };
 
-  const [visibleColumns, setVisibleColumns] = useState(() => columns.map((item) => item.id));
-
-  const hideColumn = (columnId: string) => {
-    setVisibleColumns((prevVisibleColumns) =>
-      prevVisibleColumns.filter((id) => id !== columnId)
-    );
-  };
+  const [visibleColumns, setVisibleColumns] = useState(ids);
 
   useEffect(() => {
+    const hideColumn = (columnId: string) => {
+      setVisibleColumns((prevVisibleColumns) =>
+        prevVisibleColumns.filter((id) => id !== columnId)
+      );
+    };
+
     hideColumn('id');
   }, []);
-
-  const visibleColumnsWithDefinition = columns.filter((column) => visibleColumns.includes(column.id));
 
   return (
     <EuiFlexGroup style={{ margin: '9px' }} className="eui-xScroll">
       <EuiFlexItem grow={true}>
         <EuiDataGrid
-          columns={visibleColumnsWithDefinition}
+          columns={columns}
           columnVisibility={{ visibleColumns, setVisibleColumns }}
           rowCount={rows.length}
           renderCellValue={renderCellValue}

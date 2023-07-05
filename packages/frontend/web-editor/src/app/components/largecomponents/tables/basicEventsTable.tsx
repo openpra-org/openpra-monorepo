@@ -10,13 +10,22 @@ export default function BasicEventsTable(){
     //fth is 5th, nfth is 95th
     const rows = [
         {
-            ID: 'Id',
-            Type: 'type',
-            Name: 'name',
-            Value: 'value',
-            Proxy: 'proxy',
-            Source: 'source',
-            Description: 'description',
+            id: 'Id',
+            type: 'type',
+            name: 'name',
+            value: 'value',
+            proxy: 'proxy',
+            source: 'source',
+            description: 'description',
+        },
+        {
+            id: 'Id2',
+            type: 'type2',
+            name: 'name2',
+            value: 'value2',
+            proxy: 'proxy2',
+            source: 'source2',
+            description: 'description2',
         }
     ];
 
@@ -24,39 +33,39 @@ export default function BasicEventsTable(){
     // id, type, name, value, proxy, source, description
     const columns = [
         {
-            id: 'ID',
-            field: 'id',
-            name: 'ID',
+            id: 'id',
+            displayAsText: 'ID',
+            initialWidth: 200,
         },
         {
-            id: 'Type',
-            field: 'type',
-            name: 'Type',
+            id: 'type',
+            displayAsText: 'Type',
+            initialWidth: 200,
         },
         {
-            id: 'Name',
-            field: 'name',
-            name: 'Name',
+            id: 'name',
+            displayAsText: 'Name',
+            initialWidth: 200,
         },
         {
-            id: 'Value',
-            field: 'value',
-            name: 'Value',
+            id: 'value',
+            displayAsText: 'Value',
+            initialWidth: 200,
         },
         {
-            id: 'Proxy',
-            field: 'proxy',
-            name: 'Proxy',
+            id: 'proxy',
+            displayAsText: 'Proxy',
+            initialWidth: 200,
         },
         {
-            id: 'Source',
-            field: 'source',
-            name: 'Source',
+            id: 'source',
+            displayAsText: 'Source',
+            initialWidth: 200,
         },
         {
-            id: 'Description',
-            field: 'description',
-            name: 'Description',
+            id: 'description',
+            displayAsText: 'Description',
+            initialWidth: 200,
         },
     ];
 

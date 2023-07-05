@@ -1,5 +1,5 @@
-import {EuiBasicTable, EuiDataGrid, EuiFlexGroup, EuiFlexItem, EuiThemeProvider, useEuiTheme} from '@elastic/eui';
-import {useState} from "react";
+import { EuiBasicTable, EuiDataGrid, EuiFlexGroup, EuiFlexItem, EuiThemeProvider, useEuiTheme } from '@elastic/eui';
+import { useEffect, useState } from "react";
 
 interface DataTableProps {
   rows: any[];
@@ -7,43 +7,45 @@ interface DataTableProps {
 }
 
 interface CellValueProps {
-    rowIndex: number;
-    colIndex: number;
+  rowIndex: number;
+  colIndex: number;
 }
 
-export default function DataTable({rows, columns}: DataTableProps) {
+export default function DataTable({ rows, columns }: DataTableProps) {
+  const { euiTheme } = useEuiTheme();
 
-  //Forces all table columns to have a width of 200px
-  //Applies to all data tables
-  const {euiTheme} = useEuiTheme();
-    const newColumns = columns.map((item) => ({
-        ...item,
-        width: '200px'
-    }))
-    const ids = columns.map((item) => (
-        item.id
-    ))
+  const renderCellValue = ({ rowIndex, colIndex }: CellValueProps) => {
+    const columnId = columns[colIndex].id;
+    const row = rows[rowIndex];
+    const value = row[columnId];
+    return value;
+  };
 
-    const renderCellValue = ({ rowIndex, colIndex }: CellValueProps) => {
-        const columnId = columns[colIndex].id;
-        const row = rows[rowIndex];
-        const value = row[columnId];
-        return value;
-    };
-    console.log(renderCellValue);
-    const [visibleColumns, setVisibleColumns] = useState(ids);
+  const [visibleColumns, setVisibleColumns] = useState(() => columns.map((item) => item.id));
 
-    return (
-      <EuiFlexGroup style={{margin: '9px', height: '100%'}}  className="eui-xScroll">
-          <EuiFlexItem grow={true}>
-            <EuiDataGrid
-                columns={columns}
-                columnVisibility={{ visibleColumns, setVisibleColumns }}
-                rowCount={10}
-                renderCellValue={({ rowIndex, colIndex }) => `${rowIndex},${colIndex}`}
-                aria-labelledby="dataGridLabel" // Add the 'aria-labelledby' property
-            />
-          </EuiFlexItem>
-      </EuiFlexGroup>
+  const hideColumn = (columnId: string) => {
+    setVisibleColumns((prevVisibleColumns) =>
+      prevVisibleColumns.filter((id) => id !== columnId)
+    );
+  };
+
+  useEffect(() => {
+    hideColumn('id');
+  }, []);
+
+  const visibleColumnsWithDefinition = columns.filter((column) => visibleColumns.includes(column.id));
+
+  return (
+    <EuiFlexGroup style={{ margin: '9px' }} className="eui-xScroll">
+      <EuiFlexItem grow={true}>
+        <EuiDataGrid
+          columns={visibleColumnsWithDefinition}
+          columnVisibility={{ visibleColumns, setVisibleColumns }}
+          rowCount={rows.length}
+          renderCellValue={renderCellValue}
+          aria-labelledby="dataGridLabel" // Add the 'aria-labelledby' property
+        />
+      </EuiFlexItem>
+    </EuiFlexGroup>
   );
 }

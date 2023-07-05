@@ -1,5 +1,5 @@
-import { EuiBasicTable, EuiDataGrid, EuiFlexGroup, EuiFlexItem, EuiThemeProvider, useEuiTheme } from '@elastic/eui';
-import { useState, useEffect } from "react";
+import { EuiDataGrid, EuiFlexGroup, EuiFlexItem, EuiThemeProvider, useEuiTheme } from '@elastic/eui';
+import { useState } from 'react';
 
 interface DataTableProps {
   rows: any[];
@@ -14,8 +14,6 @@ interface CellValueProps {
 export default function DataTable({ rows, columns }: DataTableProps) {
   const { euiTheme } = useEuiTheme();
 
-  const ids = columns.map((items) => items.id);
-
   const renderCellValue = ({ rowIndex, colIndex }: CellValueProps) => {
     const columnId = columns[colIndex].id;
     const row = rows[rowIndex];
@@ -23,29 +21,23 @@ export default function DataTable({ rows, columns }: DataTableProps) {
     return value;
   };
 
-  const [visibleColumns, setVisibleColumns] = useState(ids);
+  const [visibleColumns, setVisibleColumns] = useState(() => [...columns]);
 
-  useEffect(() => {
-    const hideColumn = (columnId: string) => {
-      setVisibleColumns((prevVisibleColumns) =>
-        prevVisibleColumns.filter((id) => id !== columnId)
-      );
-    };
-
-    hideColumn('id');
-  }, []);
+  const onColumnSort = (columns: any[]) => {
+    setVisibleColumns(columns.map((column) => column.id));
+  };
 
   return (
-    <EuiFlexGroup style={{ margin: '9px' }} className="eui-xScroll">
-      <EuiFlexItem >
-        <EuiDataGrid
-          columns={columns}
-          columnVisibility={{ visibleColumns, setVisibleColumns }}
-          rowCount={rows.length}
-          renderCellValue={renderCellValue}
-          aria-labelledby="dataGridLabel" // Add the 'aria-labelledby' property
-        />
-      </EuiFlexItem>
-    </EuiFlexGroup>
+      <EuiFlexGroup style={{ margin: '9px' }} className="eui-xScroll">
+        <EuiFlexItem grow={true}>
+          <EuiDataGrid
+            columns={columns}
+            columnVisibility={{ visibleColumns, setVisibleColumns }}
+            rowCount={rows.length}
+            renderCellValue={renderCellValue}
+            aria-labelledby="dataGridLabel"
+          />
+        </EuiFlexItem>
+      </EuiFlexGroup>
   );
 }

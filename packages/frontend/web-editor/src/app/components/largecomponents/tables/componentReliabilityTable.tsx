@@ -16,7 +16,7 @@ export default function ComponentReliabilityTable(){
             description: 'Air-Operated Valve Fails To Open',
             dataSource: 'EPIX/RADS',
             failures: 50,
-            Units: '',
+            units: '',
             dhUnit: 'd',
             dhValue: 0.0003040,
             componentCount: 0.0003040,
@@ -41,7 +41,7 @@ export default function ComponentReliabilityTable(){
     // It may be worth going back and making some of these enums instead for limited options
     const columns = [
         {
-            id: 'ID',
+            id: 'id',
             displayAsText: 'ID',
         },
         {

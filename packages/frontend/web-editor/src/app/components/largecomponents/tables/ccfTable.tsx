@@ -28,8 +28,8 @@ export default function CcfTable(){
     // rule, template name, cccg, alpha factor, 5th, median, mean, 95th, alpha, and beta
     const columns = [
         {
-            id: 'section',
-            displayAsText: 'Section',
+            id: 'id',
+            displayAsText: 'ID',
             truncateText: true,
         },
         {

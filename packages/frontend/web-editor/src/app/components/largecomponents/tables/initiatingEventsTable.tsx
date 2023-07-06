@@ -25,7 +25,7 @@ export default function InitiatingEventsTable(){
             alpha: 0.0003040,
             beta: 0.0003040,
             mean: 0.0003040,
-            stdDev: 0.0003040,
+            stdDeviation: 0.0003040,
             errorFactor: 0.0003040,
             baselinePeriod: '2006-2020',
             effectiveDate: '2021-11-01'
@@ -39,8 +39,8 @@ export default function InitiatingEventsTable(){
     // It may be worth going back and making some of these enums instead for limited options
     const columns = [
         {
-            id: 'section',
-            displayAsText: 'Section',
+            id: 'id',
+            displayAsText: 'ID',
             truncateText: true,
         },
         {

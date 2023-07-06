@@ -14,7 +14,8 @@ export default function TrainUaTable(){
             subSection: '1E EDG',
             trainUnavailabilityEvent: 'EDG-EPS',
             trainDescription: 'Disel Generator Test or Maintenence',
-            Analysis: 'CurveFit/Train',
+            dataSource: 'dataSource',
+            analysis: 'CurveFit/Train',
             mspiTrains: 0.0005050,
             distribution: 'Normal',
             fth: 0.0003040,
@@ -23,11 +24,10 @@ export default function TrainUaTable(){
             alpha: 0.0003040,
             beta: 0.0003040,
             mean: 0.0003040,
-            stdDev: 0.0003040,
+            stdDeviation: 0.0003040,
             errorFactor: 0.0003040,
             dateRange: '2006-2020',
             effectiveDate: '2021-11-01'
-
         }
     ];
 
@@ -37,7 +37,7 @@ export default function TrainUaTable(){
     // It may be worth going back and making some of these enums instead for limited options
     const columns = [
         {
-            id: 'section',
+            id: 'id',
             displayAsText: 'Section',
             truncateText: true,
         },
@@ -71,62 +71,43 @@ export default function TrainUaTable(){
         {
             id: 'mspiTrains',
             displayAsText: 'MSPI Trains',
-            dataType: 'number',
-            formatter: 'scientificFormatter',
         },
         {
             id: 'distribution',
             displayAsText: 'Distribution',
             truncateText: true,
-            textOnly: true,
         },
         {
             id: 'fth',
             displayAsText: '5th',
-            dataType: 'number',
-            formatter: 'scientificFormatter',
         },
         {
             id: 'median',
             displayAsText: 'Median',
-            dataType: 'number',
-            formatter: 'scientificFormatter',
         },
         {
             id: 'nfth',
             displayAsText: '95th',
-            dataType: 'number',
-            formatter: 'scientificFormatter',
         },
         {
             id: 'alpha',
             displayAsText: '\u03B1',
-            dataType: 'number',
-            formatter: 'scientificFormatter',
         },
         {
             id: 'beta',
             displayAsText: '\u03B2',
-            dataType: 'number',
-            formatter: 'scientificFormatter',
         },
         {
             id: 'mean',
             displayAsText: 'Mean',
-            dataType: 'number',
-            formatter: 'scientificFormatter',
         },
         {
             id: 'stdDeviation',
             displayAsText: 'Std Dev',
-            dataType: 'number',
-            formatter: 'scientificFormatter',
         },
         {
             id: 'errorFactor',
             displayAsText: 'Error Factor',
-            dataType: 'number',
-            formatter: 'scientificFormatter',
         },
         {
             id: 'dateRange',

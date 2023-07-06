@@ -50,8 +50,8 @@ export default function DataTable({ rows, columns }: DataTableProps) {
   );
 
   return (
-    <EuiFlexGroup style={{ margin: '8px' }}>
-      <EuiFlexItem grow={true} className='eui-scrollBar'>
+    <EuiFlexGroup style={{marginLeft: '10px'}} className='eui-xScroll'>
+      <EuiFlexItem grow={true}>
         <EuiDataGrid
           columns={columns}
           columnVisibility={{ visibleColumns, setVisibleColumns }}

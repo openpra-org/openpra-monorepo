@@ -48,49 +48,42 @@ export default function DataSidenav({ isNavOpen, onNavToggle }: DataSidenavProps
     //of mapping through items. 
     //we didnt use an item to import because elastic ui doesnt love when a very complicated structure such as this is passed.
     const navItems = [
-        {
-            id: 'mainNavGroup',
-            name: 'Options Menu',
-            items: [
+
                 {
                     id: 'parameterNavGroup',
                     name: 'Parameter Estimates',
+                    icon: <EuiIcon type='branch'/>,
                     items: [
                         {
                             id: 'specialEventsNavGroup',
                             name: 'Special Events',
-                            icon: <EuiIcon type='branch'/>,
                             href: 'data/specialevents'
                         },
                         {
                             id: 'componentReliabilityNavGroup',
                             name: 'Component Reliability',
-                            icon: <EuiIcon type='branch'/>,
                             href: 'data/componentreliability'
                         },
                         {
                             id: 'initiatingEventsNavGroup',
                             name: 'Initiating Events',
-                            icon: <EuiIcon type='branch'/>,
                             href: 'data/initiatingevents'
                         },
                         {
                             id: 'trainUA',
                             name: 'Train UA',
-                            icon: <EuiIcon type='branch'/>,
                             href: 'data/trainua'
                         },
                         {
                             id: 'ccfNavGroup',
                             name: 'CCF',
-                            icon: <EuiIcon type='branch'/>,
                             href: 'data/ccf'
                         },
                     ]
                 }
                 // Add more items as needed
-            ],
-        }]
+            ]
+
         // Add more groups and items as needed
     /*
   return (
@@ -130,7 +123,7 @@ export default function DataSidenav({ isNavOpen, onNavToggle }: DataSidenavProps
     return(
         <EuiSideNav
             items={navItems}
-            style={{backgroundColor: euiTheme.colors.lightShade}}
+            style={{backgroundColor: euiTheme.colors.lightShade, padding: "10px", height: window.innerHeight - 40, width: '260px'}}
         />
     )
 }

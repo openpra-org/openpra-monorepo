@@ -58,7 +58,7 @@ export default function PageLayout({isModel, pageName, contentType}: PageLayoutP
                  * this is uniform it should stay steady throughout. This section is where page specific content should go
                  * uses the content type
                  */}
-                <EuiFlexItem grow={10} style={{ marginLeft: "auto", width: isNavOpen ? window.innerWidth : window.innerWidth - 335}}>
+                <EuiFlexItem grow={10} style={{ marginLeft: "auto", width: window.innerWidth - 260}}>
                     {contentType}
                 </EuiFlexItem>
             </EuiFlexGroup>

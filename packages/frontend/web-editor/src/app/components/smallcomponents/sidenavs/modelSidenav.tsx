@@ -207,7 +207,7 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
   return(
       <EuiSideNav
         items={navItems}
-        style={{backgroundColor: euiTheme.colors.lightShade, padding: "10px", height: window.innerHeight - 40}}
+        style={{backgroundColor: euiTheme.colors.lightShade, padding: "10px", height: window.innerHeight - 40, width: '260px'}}
       />
   )
 }

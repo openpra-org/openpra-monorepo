@@ -1,5 +1,5 @@
 import { EuiDataGrid, EuiFlexGroup, EuiFlexItem, useEuiTheme, EuiDataGridColumn } from '@elastic/eui';
-import { useState } from 'react';
+import {useState, useRef, useCallback, useContext, useEffect, createContext} from 'react';
 
 interface DataTableProps {
   rows: any[];
@@ -12,7 +12,8 @@ interface CellValueProps {
 }
 
 export default function DataTable({ rows, columns }: DataTableProps) {
-  const { euiTheme } = useEuiTheme();
+
+  const [visibleColumns, setVisibleColumns] = useState(columns.map((column) => column.id));
 
   const cellValue = ({ rowIndex, colIndex }: CellValueProps) => {
     const visibleColumnId = visibleColumns[colIndex];
@@ -22,6 +23,10 @@ export default function DataTable({ rows, columns }: DataTableProps) {
   };
 
   const [gridRows, setGridRows] = useState(rows);
+
+
+
+
 
   // const handleColumnSort = (sortedColumns: { id: string; direction: Direction }[]) => {
   //   const sortedColumn = sortedColumns[0];
@@ -46,7 +51,15 @@ export default function DataTable({ rows, columns }: DataTableProps) {
   //   setGridRows(sortedRows);
   // };
 
-  const [visibleColumns, setVisibleColumns] = useState(columns.map((column) => column.id));
+  const [sortingColumns, setSortingColumns] = useState([]);
+  const onSort = useCallback(
+      (sortingColumns) => {
+        setSortingColumns(sortingColumns);
+      },
+      [setSortingColumns]
+  );
+
+  const columns2 = visibleColumns
 
   return (
     <EuiFlexGroup style={{ margin: '9px' }}>
@@ -56,7 +69,8 @@ export default function DataTable({ rows, columns }: DataTableProps) {
           columnVisibility={{ visibleColumns, setVisibleColumns }}
           rowCount={rows.length}
           renderCellValue={cellValue}
-          //sorting={{ columns: visibleColumns.map((id) => ({ id, direction: 'asc' })), onSort: handleColumnSort }}
+          sorting={{ columns: sortingColumns, onSort }}
+            //sorting={{ columns: visibleColumns.map((id) => ({ id, direction: 'asc' })), onSort: handleColumnSort }}
           aria-label="dataGridLabel"
         />
       </EuiFlexItem>

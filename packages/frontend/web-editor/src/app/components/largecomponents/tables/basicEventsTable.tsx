@@ -19,7 +19,7 @@ export default function BasicEventsTable(){
         {
             id: 'Id2',
             type: 'type2',
-            name: 'name2',
+            name: 'zname2',
             value: 'value2',
             proxy: 'proxy2',
             source: 'source2',

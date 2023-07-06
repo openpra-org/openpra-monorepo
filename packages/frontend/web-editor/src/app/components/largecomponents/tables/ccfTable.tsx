@@ -10,7 +10,7 @@ export default function CcfTable(){
     //fth is 5th, nfth is 95th
     const rows = [
         {
-            id: 'id1',
+            id: '\n id1',
             rule: 'ALL-MDP-FS',
             templateName: 'ALL-MDP-FS-02A01',
             cccg: 2,

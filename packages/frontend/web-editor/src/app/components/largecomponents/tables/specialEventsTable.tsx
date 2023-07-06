@@ -7,7 +7,7 @@ export default function SpecialEventsTable(){
 
     const rows = [
         {
-            id: 'id1',
+            id: '1',
             name: 'TDP-PRST(RCIC)'
         },
     ];
@@ -22,6 +22,9 @@ export default function SpecialEventsTable(){
             id: 'name',
             displayAsText: 'Name',
             truncateText: true,
+        },
+        {
+            id: 'value',
         },
     ];
 

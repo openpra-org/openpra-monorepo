@@ -1,5 +1,5 @@
 import { EuiDataGrid, EuiFlexGroup, EuiFlexItem, useEuiTheme, EuiDataGridColumn, Direction } from '@elastic/eui';
-import { useCallback, useState } from 'react';
+import { createRef, useCallback, useState } from 'react';
 
 interface DataTableProps {
   rows: any[];
@@ -13,8 +13,11 @@ interface CellValueProps {
 
 
 export default function DataTable({ rows, columns }: DataTableProps) {
+
+  //sets the visibile columns in a state
   const [visibleColumns, setVisibleColumns] = useState(columns.map((column) => column.id));
 
+  //this sets all the values in the cells
   const cellValue = ({ rowIndex, colIndex }: CellValueProps) => {
     const visibleColumnId = visibleColumns[colIndex];
     const row = rows[rowIndex];
@@ -22,7 +25,7 @@ export default function DataTable({ rows, columns }: DataTableProps) {
     return value;
   };
 
-  // Pagination
+  // Pagination, basic taken from official place
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 });
   const onChangeItemsPerPage = useCallback(
       (pageSize) =>
@@ -33,15 +36,18 @@ export default function DataTable({ rows, columns }: DataTableProps) {
           })),
       [setPagination]
   );
+
+  //updates pagination stuff
   const onChangePage = useCallback(
       (pageIndex) =>
           setPagination((pagination) => ({ ...pagination, pageIndex })),
       [setPagination]
   );
 
-  // Sorting
+  // Sorting the columns
   const [sortingColumns, setSortingColumns] = useState([]);
 
+  //this jsut sorts the columns, works as the example does
   const onSort = useCallback(
     (sortingColumns) => {
       setSortingColumns(sortingColumns);
@@ -59,7 +65,7 @@ export default function DataTable({ rows, columns }: DataTableProps) {
           renderCellValue={cellValue}
           sorting={{ columns: sortingColumns, onSort}}
           inMemory={{ level: 'sorting' }}
-          aria-label="dataGridLabel"
+          aria-label="dataTable"
           pagination={{
             ...pagination,
             pageSizeOptions: [20, 50, 100],

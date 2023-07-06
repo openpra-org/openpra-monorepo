@@ -1,6 +1,6 @@
 import { EuiCard, EuiFlexItem, EuiFlexGroup, EuiAvatar, EuiText, EuiButtonIcon} from "@elastic/eui";
 import { useState } from "react";
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import DeleteItemBox from "../listchanging/deleteItemBox";
 
 //title is required, description isnt required but is typically present
@@ -43,11 +43,16 @@ export default function ListItem(props: ItemProps) {
 
   const page = getPageType(typeString);
 
+  const navigate = useNavigate();
+
+  const handleCardClick = () => {
+    navigate(page);
+  };
+
   return (
     <>
       {/** Is all set up as flex items so that spacing and such works correctly */}
       <EuiFlexItem grow={false}>
-      <Link to={page} replace>
         <EuiCard
           layout="horizontal"
           icon={
@@ -67,11 +72,11 @@ export default function ListItem(props: ItemProps) {
           title={title}
           description={description}
           key={title}
+          onClick={handleCardClick}
           //On click function that will eventually navigate to the proper page
           //onClick={}
         > 
         </EuiCard>
-        </Link>
       </EuiFlexItem>
         {/** Rational for styling: These couldn't be in the card object themselves because they cannot support than many compenents
          * in addition the card really likes to align vertically instead of horizontally

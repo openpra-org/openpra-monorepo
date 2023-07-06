@@ -1,4 +1,4 @@
-import {EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, useEuiTheme } from '@elastic/eui';
+import {EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, EuiSideNav, useEuiTheme} from '@elastic/eui';
 import {useState, useEffect} from 'react'
 
 interface ModelSidenavProps {
@@ -52,26 +52,26 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
    */
   const navItems = {
     id: 'mainNavGroup',
-    title: 'Options Menu',
+    name: 'Options Menu',
     items: [
       {
         id: 'OperatingStateNavGroup',
-        label: 'Operating State Analysis',
+        name: 'Operating State Analysis',
         items: [
           {
             id: 'OperatingStateNavItem',
-            label: 'Operating State Analysis',
+            name: 'Operating State Analysis',
             icon: <EuiIcon type="eyeClosed" />,
           },
         ]
       },
       {
         id: 'initEventAnalysisNavGroup',
-        title: 'Initiating Event Analysis',
+        name: 'Initiating Event Analysis',
         items: [
           {
             id: 'initEventNavGroup',
-            label: 'Initiating Events',
+            name: 'Initiating Events',
             icon: <EuiIcon type="branch" />,
             href: '/model/1/initiatingevents'
           },
@@ -79,17 +79,17 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
       },
       {
         id: 'eventSeqAnalysisNavGroup',
-        title: 'Event Sequence Analysis',
+        name: 'Event Sequence Analysis',
         items: [
           {
             id: 'eventSeqDiaNavGroup',
-            label: 'Event Sequence Diagrams',
+            name: 'Event Sequence Diagrams',
             icon: <EuiIcon type="branch" />,
             href: 'model/1/eventsequencediagrams',
           },
           {
             id: 'eventTreesNavGroup',
-            label: 'Event Trees',
+            name: 'Event Trees',
             icon: <EuiIcon type="branch" />,
             href: 'model/1/eventtrees'
           },
@@ -97,17 +97,17 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
       },
       {
         id: 'sysAnalysisNavGroup',
-        title: 'Systems Analysis',
+        name: 'Systems Analysis',
         items: [
           {
             id: 'faultTreesNavGroup',
-            label: 'Fault Trees',
+            name: 'Fault Trees',
             icon: <EuiIcon type="logstashIf" />,
             href: '/model/1/faulttrees',
           },
           {
             id: 'bayeNetNavGroup',
-            label: 'Bayesian Networks',
+            name: 'Bayesian Networks',
             icon: <EuiIcon type="branch" />,
             href: 'model/1/bayesiannetworks',
           },
@@ -115,34 +115,34 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
       },
       {
         id: 'humanReliabilityAnalysisNavGroup',
-        label: 'Human Reliability Analysis',
+        name: 'Human Reliability Analysis',
         items: [
           {
             id: 'humanReliabilityAnalysisNavItem',
-            label: 'Human Reliability Analysis',
+            name: 'Human Reliability Analysis',
             icon: <EuiIcon type="eyeClosed" />,
           },
         ]
       },
       {
         id: 'dataAnalysisNavGroup',
-        title: 'Data Analysis',
+        name: 'Data Analysis',
         items: [
           {
             id: 'gatesNavItem',
-            label: 'Gates',
+            name: 'Gates',
             icon: <EuiIcon type="visBarVertical" />,
             href: 'model/1/gates'
           },
           {
             id: 'basicEventNavItem',
-            label: 'Basic Events',
+            name: 'Basic Events',
             icon: <EuiIcon type="visBarVertical" />,
             href: 'model/1/basicevents'
           },
           {
             id: 'ccfGroupsNavItem',
-            label: 'CCF Groups',
+            name: 'CCF Groups',
             icon: <EuiIcon type="apps" />,
             href: 'model/1/ccfgroups'
           },
@@ -150,56 +150,56 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
       },
       {
         id: 'eventSequenceQuantificationNavGroup',
-        label: 'Event Sequence Quantification',
+        name: 'Event Sequence Quantification',
         items: [
           {
             id: 'eventSequenceQuantificationNavItem',
-            label: 'Event Sequence Quantification',
+            name: 'Event Sequence Quantification',
             icon: <EuiIcon type="eyeClosed" />,
           }
         ]
       },
       {
         id: 'consequenceAnalysisNavGroup',
-        label: 'Consequence Analysis',
+        name: 'Consequence Analysis',
         items: [
           {
             id: 'consequenceAnalysisNavItem',
-            label: 'Consequence Analysis',
+            name: 'Consequence Analysis',
             icon: <EuiIcon type="eyeClosed" />,
           }
         ]
       },
       {
         id: 'riskIntegrationNavGroup',
-        label: 'Risk Integration',
+        name: 'Risk Integration',
         items: [
           {
           id: 'riskIntegrationNavItem',
-          label: 'Risk Integration',
+          name: 'Risk Integration',
           icon: <EuiIcon type="eyeClosed" />,
           }
         ]
       },
       {
         id: 'commonOptionsNavGroup',
-        label: 'commonOptions',
+        name: 'commonOptions',
         items: [
           {
             id: 'overviewNavItem',
-            label: 'Overview',
+            name: 'Overview',
             icon: <EuiIcon type="apps" />,
             href: 'model/1/overview',
           },
           {
             id: 'globalParametersNavItem',
-            label: 'Global Parameters',
+            name: 'Global Parameters',
             icon: <EuiIcon type="database" />,
             href: 'model/1/globalParameters',
           },
           {
             id: 'quantificationHistoryNavItem',
-            label: 'Quantification History',
+            name: 'Quantification History',
             icon: <EuiIcon type="visBarVertical" />,
             href: 'model/1/quantificationhistory',
           },
@@ -207,11 +207,11 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
       },
       {
         id: 'settingsNavGroup',
-        label: 'Settings',
+        name: 'Settings',
         items: [
           {
             id: 'settingsNavItem',
-            label: 'Settings',
+            name: 'Settings',
             icon: <EuiIcon type="gear" />,
             href: 'model/1/settings'
           }
@@ -220,7 +220,7 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
       // Add more items as needed
     ],
   };
-
+/*
   return (
     //loops through 1 layer, then the second, then finally displays the items with data in them
     //this has to be done right now because we couldn't find a fix to have it optionally display data in the second layer if there was no 3rd layer present
@@ -249,10 +249,15 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
             <EuiListGroup listItems={[{ label: navGroup.label }]} />
           )}
 
-          {/* Render sub-items */}
+          {/* Render sub-items }
         </EuiCollapsibleNavGroup>
       ))}
     </EuiCollapsibleNavGroup>
 
-  );
+  );*/
+  return(
+      <EuiSideNav
+        items={navItems}
+      />
+  )
 }

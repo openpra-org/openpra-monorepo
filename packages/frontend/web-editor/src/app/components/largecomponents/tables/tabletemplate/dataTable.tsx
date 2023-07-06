@@ -22,6 +22,23 @@ export default function DataTable({ rows, columns }: DataTableProps) {
     return value;
   };
 
+  // Pagination
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 });
+  const onChangeItemsPerPage = useCallback(
+      (pageSize) =>
+          setPagination((pagination) => ({
+            ...pagination,
+            pageSize,
+            pageIndex: 0,
+          })),
+      [setPagination]
+  );
+  const onChangePage = useCallback(
+      (pageIndex) =>
+          setPagination((pagination) => ({ ...pagination, pageIndex })),
+      [setPagination]
+  );
+
   // Sorting
   const [sortingColumns, setSortingColumns] = useState([]);
 
@@ -33,15 +50,22 @@ export default function DataTable({ rows, columns }: DataTableProps) {
   );
 
   return (
-    <EuiFlexGroup style={{ margin: '9px' }}>
-      <EuiFlexItem grow={true}>
+    <EuiFlexGroup style={{ margin: '8px' }}>
+      <EuiFlexItem grow={true} className='eui-scrollBar'>
         <EuiDataGrid
           columns={columns}
           columnVisibility={{ visibleColumns, setVisibleColumns }}
           rowCount={rows.length}
           renderCellValue={cellValue}
           sorting={{ columns: sortingColumns, onSort}}
+          inMemory={{ level: 'sorting' }}
           aria-label="dataGridLabel"
+          pagination={{
+            ...pagination,
+            pageSizeOptions: [20, 50, 100],
+            onChangeItemsPerPage: onChangeItemsPerPage,
+            onChangePage: onChangePage,
+          }}
         />
       </EuiFlexItem>
     </EuiFlexGroup>

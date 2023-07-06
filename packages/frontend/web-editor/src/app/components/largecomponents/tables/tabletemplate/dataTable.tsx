@@ -1,9 +1,9 @@
-import { EuiDataGrid, EuiFlexGroup, EuiFlexItem, useEuiTheme, EuiDataGridColumn } from '@elastic/eui';
-import {useState, useRef, useCallback, useContext, useEffect, createContext} from 'react';
+import { EuiDataGrid, EuiFlexGroup, EuiFlexItem, useEuiTheme, EuiDataGridColumn, Direction } from '@elastic/eui';
+import { useCallback, useState } from 'react';
 
 interface DataTableProps {
   rows: any[];
-  columns: EuiDataGridColumn[];
+  columns: any[];
 }
 
 interface CellValueProps {
@@ -11,8 +11,8 @@ interface CellValueProps {
   colIndex: number;
 }
 
-export default function DataTable({ rows, columns }: DataTableProps) {
 
+export default function DataTable({ rows, columns }: DataTableProps) {
   const [visibleColumns, setVisibleColumns] = useState(columns.map((column) => column.id));
 
   const cellValue = ({ rowIndex, colIndex }: CellValueProps) => {
@@ -22,44 +22,15 @@ export default function DataTable({ rows, columns }: DataTableProps) {
     return value;
   };
 
-  const [gridRows, setGridRows] = useState(rows);
-
-
-
-
-
-  // const handleColumnSort = (sortedColumns: { id: string; direction: Direction }[]) => {
-  //   const sortedColumn = sortedColumns[0];
-  //   const { id, direction } = sortedColumn;
-
-  //   let sortedRows: any[];
-
-  //   if (direction === 'asc') {
-  //     sortedRows = [...gridRows].sort((a, b) => {
-  //       if (a[id] < b[id]) return -1;
-  //       if (a[id] > b[id]) return 1;
-  //       return 0;
-  //     });
-  //   } else {
-  //     sortedRows = [...gridRows].sort((a, b) => {
-  //       if (a[id] < b[id]) return 1;
-  //       if (a[id] > b[id]) return -1;
-  //       return 0;
-  //     });
-  //   }
-
-  //   setGridRows(sortedRows);
-  // };
-
+  // Sorting
   const [sortingColumns, setSortingColumns] = useState([]);
-  const onSort = useCallback(
-      (sortingColumns) => {
-        setSortingColumns(sortingColumns);
-      },
-      [setSortingColumns]
-  );
 
-  const columns2 = visibleColumns
+  const onSort = useCallback(
+    (sortingColumns) => {
+      setSortingColumns(sortingColumns);
+    },
+    [setSortingColumns]
+  );
 
   return (
     <EuiFlexGroup style={{ margin: '9px' }}>
@@ -69,8 +40,7 @@ export default function DataTable({ rows, columns }: DataTableProps) {
           columnVisibility={{ visibleColumns, setVisibleColumns }}
           rowCount={rows.length}
           renderCellValue={cellValue}
-          sorting={{ columns: sortingColumns, onSort }}
-            //sorting={{ columns: visibleColumns.map((id) => ({ id, direction: 'asc' })), onSort: handleColumnSort }}
+          sorting={{ columns: sortingColumns, onSort}}
           aria-label="dataGridLabel"
         />
       </EuiFlexItem>

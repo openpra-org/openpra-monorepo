@@ -20,7 +20,16 @@ export default function BasicEventsTable(){
             id: 'Id2',
             type: 'type2',
             name: 'zname2',
-            value: 'value2',
+            value: 'balue',
+            proxy: 'proxy2',
+            source: 'source2',
+            description: 'description2',
+        },
+        {
+            id: 'Id2',
+            type: 'type2',
+            name: 'zname2',
+            value: 'ralue',
             proxy: 'proxy2',
             source: 'source2',
             description: 'description2',
@@ -45,6 +54,7 @@ export default function BasicEventsTable(){
         {
             id: 'value',
             displayAsText: 'Value',
+            defaultSortDirection: 'asc',
         },
         {
             id: 'proxy',

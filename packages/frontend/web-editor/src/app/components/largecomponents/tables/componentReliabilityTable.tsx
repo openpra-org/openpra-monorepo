@@ -68,11 +68,6 @@ export default function ComponentReliabilityTable(){
             truncateText: true,
         },
         {
-            id: 'dataSource',
-            displayAsText: 'Data Source',
-            truncateText: true,
-        },
-        {
             id: 'failures',
             displayAsText: 'Failure',
             dataType: 'number',
@@ -90,7 +85,7 @@ export default function ComponentReliabilityTable(){
             textOnly: true,
         },
         {
-            id: 'dhUnit',
+            id: 'dhValue',
             displayAsText: 'D/H Value',
             dataType: 'number',
             formatter: 'scientificFormatter',

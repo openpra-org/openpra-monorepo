@@ -1,6 +1,5 @@
-import { EuiDataGrid, EuiFlexGroup, EuiFlexItem, EuiThemeProvider, useEuiTheme, EuiDataGridColumn } from '@elastic/eui';
-import { useEffect, useState } from 'react';
-import { Direction } from '@elastic/eui';
+import { EuiDataGrid, EuiFlexGroup, EuiFlexItem, useEuiTheme, EuiDataGridColumn } from '@elastic/eui';
+import { useState } from 'react';
 
 interface DataTableProps {
   rows: any[];

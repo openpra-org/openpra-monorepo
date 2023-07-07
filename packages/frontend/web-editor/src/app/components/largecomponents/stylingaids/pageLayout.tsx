@@ -3,7 +3,7 @@
 import {useEffect, useState} from 'react';
 import { PageSubHeader } from '../headers/pageSubHeader'
 import {PageHeader} from '../headers/headers'
-import {EuiFlexGroup, EuiFlexItem} from '@elastic/eui'
+import {EuiFlexGroup, EuiFlexItem, EuiPageTemplate, useEuiTheme} from '@elastic/eui'
 
 //props that are passed, it takes both a string for the name of the page, and then an amount of content of react nodes
 interface PageLayoutProps {
@@ -13,6 +13,8 @@ interface PageLayoutProps {
 }
 
 export default function PageLayout({isModel, pageName, contentType}: PageLayoutProps) {
+
+    const { euiTheme } = useEuiTheme();
 
     //checks if the nav is open so we can dynamically change how much space is taken up by content when the nav bar is clicked
     const [isNavOpen, setIsNavOpen] = useState(false);
@@ -43,7 +45,7 @@ export default function PageLayout({isModel, pageName, contentType}: PageLayoutP
     //this outputs a flexgroup in column style with the page header, then the modelSubHeader, then it takes
     //a group of content and puts it in another flex item that scales with wheteher the nav from the model sub header is open or not, so it all looks clean
     return (
-        <> 
+        /*<>
             <PageHeader />
 
             <EuiFlexGroup direction='column'>
@@ -57,11 +59,37 @@ export default function PageLayout({isModel, pageName, contentType}: PageLayoutP
                 {/** This is here to make its width toggle based on whether the menu is down or not, the 335 roughly deals with the amount of space with the menu, and because
                  * this is uniform it should stay steady throughout. This section is where page specific content should go
                  * uses the content type
-                 */}
+                 }
                 <EuiFlexItem grow={10} style={{ marginLeft: "auto", width: window.innerWidth - 260}}>
                     {contentType}
                 </EuiFlexItem>
             </EuiFlexGroup>
-        </>
+        </>*/
+        <EuiPageTemplate>
+            <EuiPageTemplate.Section
+            restrictWidth={false}
+            paddingSize='s'
+            grow={false}
+            >
+                <PageHeader />
+            </EuiPageTemplate.Section>
+            <EuiPageTemplate.Sidebar
+            paddingSize='s'
+            style={{backgroundColor: euiTheme.colors.lightShade, height: window.innerHeight}}
+            >
+                {isModel ? (
+                    <PageSubHeader isModel={true} isNavOpen={isNavOpen} onNavToggle={handleNavToggle} pageName={pageName} />
+                ) : (
+                    <PageSubHeader isModel={false} isNavOpen={isNavOpen} onNavToggle={handleNavToggle} pageName={pageName} />
+                )}
+            </EuiPageTemplate.Sidebar>
+            <EuiPageTemplate.Section
+            paddingSize='s'
+            restrictWidth={false}
+            alignment='top'
+            >
+                {contentType}
+            </EuiPageTemplate.Section>
+        </EuiPageTemplate>
     )
 }

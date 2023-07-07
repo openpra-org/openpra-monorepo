@@ -32,15 +32,15 @@ export default function ListItem(props: ItemProps) {
     if (type === "Model") {
       return "/model/1/overview";
     } else if (type === "Event Tree") {
-      return "1";
+      return "/model/1/eventtrees/1";
     } else if (type === "Initiating Event"){
-      return "1";
+      return "/model/1/initiatingevents/1";
     } else if (type === "Fault Tree"){
-      return "1";
+      return "/model/1/faulttrees/1";
     } else if (type === "Bayesian Network"){
-      return "1";
+      return "/model/1/bayesiannetworks/1";
     } else {
-      return "1";
+      return "/model/1/eventsequencediagrams/1";
     }
   };
 
@@ -92,7 +92,7 @@ export default function ListItem(props: ItemProps) {
          * MarginLeft is so that it doesnt interfere with the href on the card itself
          * Made to be iconbuttons so they can have hover over text
          */}
-        <EuiFlexGroup justifyContent="flexEnd" style={{marginTop: "-25px", position: 'relative', top:'-35px', right:'20px'}}>
+        <EuiFlexGroup justifyContent="flexEnd" style={{ marginTop: "-25px", position: 'relative', top:'-35px', right:'20px'}}>
             {/** This is where the text for last modified goes, eventually this should be updated accordingly */}
             <EuiFlexItem grow={false}>
               <EuiText style={{ whiteSpace: 'nowrap'}}>Last Modified: 24124124124123</EuiText>

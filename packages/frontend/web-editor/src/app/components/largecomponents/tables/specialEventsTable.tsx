@@ -23,9 +23,6 @@ export default function SpecialEventsTable(){
             displayAsText: 'Name',
             truncateText: true,
         },
-        {
-            id: 'value',
-        },
     ];
 
 

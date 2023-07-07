@@ -19,6 +19,7 @@ import {
 import ListOption from "../../smallcomponents/listitems/listOption";
 import NewItem from '../../smallcomponents/listchanging/newItem';
 import AddParameter from '../../smallcomponents/listchanging/addParameter';
+import { useNavigate } from 'react-router-dom';
 
 export function PageHeader() {
     //Allows the use of the css prop in Eui tags
@@ -121,7 +122,14 @@ export function PageHeader() {
 
     const currentPath = window.location.pathname;
 
+    //uses navigate
+    const navigate = useNavigate();
 
+    //on clicking the card automatically sets the page this thing is on in the history
+    //so it can be navigated to
+    const handleNavigation= (page: string) => {
+        navigate(page);
+    };
 
     return (
         
@@ -129,12 +137,12 @@ export function PageHeader() {
         <EuiPageHeader id='mainHeader' css={{background: euiTheme.colors.lightestShade}}>
             <EuiHeaderSection>
                 {/** these are the major tabs at the top, the .incldues it so make it so they stay filled when on a page that is under that tab */}
-                <EuiButton href='models'
+                <EuiButton onClick={() => handleNavigation('/models')}
                            css={{backgroundColor: currentPath.includes('/models') || currentPath.includes('/model') ? euiTheme.colors.mediumShade: euiTheme.colors.lightestShade, color: euiTheme.colors.darkestShade}}
                 >
                     Models
                 </EuiButton>
-                <EuiButton href='data'
+                <EuiButton onClick={() => handleNavigation('/data')}
                            css={{backgroundColor: currentPath.includes('/data') ? euiTheme.colors.mediumShade: euiTheme.colors.lightestShade, color: euiTheme.colors.darkestShade}}
                 >
                     Data

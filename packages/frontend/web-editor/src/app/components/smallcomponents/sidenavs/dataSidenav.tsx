@@ -1,6 +1,7 @@
 import {EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, EuiSideNav, useEuiTheme} from '@elastic/eui';
 import {useState, useEffect} from 'react'
 import SideNavBase from "./sidenavtemplate/sideNavBase";
+import { useNavigate } from 'react-router-dom';
 
 interface DataSidenavProps {
   isNavOpen: boolean;
@@ -42,6 +43,15 @@ export default function DataSidenav({ isNavOpen, onNavToggle }: DataSidenavProps
     }
   }, [pageHeight, isNavOpen]);
 
+  //uses navigate
+  const navigate = useNavigate();
+
+  //on clicking the card automatically sets the page this thing is on in the history
+  //so it can be navigated to
+  const handleNavItemClick = (page: string) => {
+    navigate(page);
+  };
+
   //This one is much more simple and parsable than modelSidenav, 
     //The documentation for how this structure works will be in modelSideNav, if this ends up being complicated I will copy paste it
     //They function the same and look the same, just have different datasets mostly, and there is an additional change to modelSidenav in the implementation
@@ -57,27 +67,27 @@ export default function DataSidenav({ isNavOpen, onNavToggle }: DataSidenavProps
                         {
                             id: 'specialEventsNavGroup',
                             name: 'Special Events',
-                            href: 'data/specialevents'
+                            onClick: () => handleNavItemClick('/data/specialevents'),
                         },
                         {
                             id: 'componentReliabilityNavGroup',
                             name: 'Component Reliability',
-                            href: 'data/componentreliability'
+                            onClick: () => handleNavItemClick('/data/componentreliability'),
                         },
                         {
                             id: 'initiatingEventsNavGroup',
                             name: 'Initiating Events',
-                            href: 'data/initiatingevents'
+                            onClick: () => handleNavItemClick('/data/initiatingevents'),
                         },
                         {
                             id: 'trainUA',
                             name: 'Train UA',
-                            href: 'data/trainua'
+                            onClick: () => handleNavItemClick('/data/trainua'),
                         },
                         {
                             id: 'ccfNavGroup',
                             name: 'CCF',
-                            href: 'data/ccf'
+                            onClick: () => handleNavItemClick('/data/ccf'),
                         },
                     ]
                 }

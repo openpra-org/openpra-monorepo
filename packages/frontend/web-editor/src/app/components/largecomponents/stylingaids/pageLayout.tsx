@@ -3,7 +3,7 @@
 import {useEffect, useState} from 'react';
 import { PageSubHeader } from '../headers/pageSubHeader'
 import {PageHeader} from '../headers/headers'
-import {EuiFlexGroup, EuiFlexItem, EuiHorizontalRule, EuiPageTemplate, EuiSpacer, EuiTitle, useEuiTheme} from '@elastic/eui'
+import {EuiPageTemplate, EuiSpacer, EuiTitle, useEuiTheme} from '@elastic/eui'
 
 //props that are passed, it takes both a string for the name of the page, and then an amount of content of react nodes
 interface PageLayoutProps {
@@ -42,29 +42,8 @@ export default function PageLayout({isModel, pageName, contentType}: PageLayoutP
         setIsNavOpen(isOpen);
       };
 
-    //this outputs a flexgroup in column style with the page header, then the modelSubHeader, then it takes
-    //a group of content and puts it in another flex item that scales with wheteher the nav from the model sub header is open or not, so it all looks clean
+    //Now we use a page template in eui to help make things cleaner and give the sidebar the much needed dropshadow
     return (
-        /*<>
-            <PageHeader />
-
-            <EuiFlexGroup direction='column'>
-                <EuiFlexItem grow={false}>
-                {isModel ? (
-                    <PageSubHeader isModel={true} isNavOpen={isNavOpen} onNavToggle={handleNavToggle} pageName={pageName} />
-                ) : (
-                    <PageSubHeader isModel={false} isNavOpen={isNavOpen} onNavToggle={handleNavToggle} pageName={pageName} />
-                )}
-                </EuiFlexItem>
-                {/** This is here to make its width toggle based on whether the menu is down or not, the 335 roughly deals with the amount of space with the menu, and because
-                 * this is uniform it should stay steady throughout. This section is where page specific content should go
-                 * uses the content type
-                 }
-                <EuiFlexItem grow={10} style={{ marginLeft: "auto", width: window.innerWidth - 260}}>
-                    {contentType}
-                </EuiFlexItem>
-            </EuiFlexGroup>
-        </>*/
         <>
         {/** putting the page header at top to keep it on the top */}
         <PageHeader />
@@ -80,6 +59,8 @@ export default function PageLayout({isModel, pageName, contentType}: PageLayoutP
                     <PageSubHeader isModel={false} isNavOpen={isNavOpen} onNavToggle={handleNavToggle} pageName={pageName} />
                 )}
             </EuiPageTemplate.Sidebar>
+
+            {/** section for displaying the pagename */}
             <EuiPageTemplate.Section
             restrictWidth={false}
             alignment='top'
@@ -91,6 +72,7 @@ export default function PageLayout({isModel, pageName, contentType}: PageLayoutP
                     <h1>{pageName}</h1>
                 </EuiTitle>
             </EuiPageTemplate.Section>
+            {/** spacer to improve the flow */}
             <EuiSpacer></EuiSpacer>
             <EuiPageTemplate.Section
             restrictWidth={false}

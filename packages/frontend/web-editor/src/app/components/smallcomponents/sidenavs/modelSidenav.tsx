@@ -1,5 +1,6 @@
 import {EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, EuiSideNav, useEuiTheme} from '@elastic/eui';
 import {useState, useEffect} from 'react'
+import { useNavigate } from 'react-router-dom';
 
 interface ModelSidenavProps {
   isNavOpen: boolean;
@@ -42,8 +43,13 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
     }
   }, [pageHeight, isNavOpen]);
 
-  const selectItem = (name: string) => {
-    setSelectedItem(name);
+  //uses navigate
+  const navigate = useNavigate();
+
+  //on clicking the card automatically sets the page this thing is on in the history
+  //so it can be navigated to
+  const handleNavItemClick = (page: string) => {
+    navigate(page);
   };
 
   /**
@@ -65,7 +71,7 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
             id: 'initEventNavGroup',
             name: 'Initiating Events',
             icon: <EuiIcon type="branch" />,
-            href: '/model/1/initiatingevents'
+            onClick: () => handleNavItemClick('/model/1/initiatingevents'),
       },
       {
         id: 'eventSeqAnalysisNavGroup',
@@ -75,12 +81,12 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
           {
             id: 'eventSeqDiaNavGroup',
             name: 'Event Sequence Diagrams',
-            href: 'model/1/eventsequencediagrams',
+            onClick: () => handleNavItemClick('/model/1/eventsequencediagrams'),
           },
           {
             id: 'eventTreesNavGroup',
             name: 'Event Trees',
-            href: 'model/1/eventtrees'
+            onClick: () => handleNavItemClick('/model/1/eventtrees'),
           },
         ],
       },
@@ -88,17 +94,16 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
         id: 'sysAnalysisNavGroup',
         name: 'Systems Analysis',
         icon: <EuiIcon type="logstashIf" />,
-        onClick: () => selectItem('Advanced settings'),
         items: [
           {
             id: 'faultTreesNavGroup',
             name: 'Fault Trees',
-            href: '/model/1/faulttrees',
+            onClick: () => handleNavItemClick('/model/1/faulttrees'),
           },
           {
             id: 'bayeNetNavGroup',
             name: 'Bayesian Networks',
-            href: 'model/1/bayesiannetworks',
+            onClick: () => handleNavItemClick('/model/1/bayesiannetworks'),
           },
         ],
       },
@@ -115,17 +120,17 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
           {
             id: 'gatesNavItem',
             name: 'Gates',
-            href: 'model/1/gates'
+            onClick: () => handleNavItemClick('/model/1/gates'),
           },
           {
             id: 'basicEventNavItem',
             name: 'Basic Events',
-            href: 'model/1/basicevents'
+            onClick: () => handleNavItemClick('/model/1/basicevents'),
           },
           {
             id: 'ccfGroupsNavItem',
             name: 'CCF Groups',
-            href: 'model/1/ccfgroups'
+            onClick: () => handleNavItemClick('/model/1/ccfgroups'),
           },
         ],
       },
@@ -148,25 +153,25 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
             id: 'overviewNavItem',
             name: 'Overview',
             icon: <EuiIcon type="apps" />,
-            href: 'model/1/overview',
+            onClick: () => handleNavItemClick('/model/1/overview'),
           },
           {
             id: 'globalParametersNavItem',
             name: 'Global Parameters',
             icon: <EuiIcon type="database" />,
-            href: 'model/1/globalParameters',
+            onClick: () => handleNavItemClick('/model/1/globalParameters'),
           },
           {
             id: 'quantificationHistoryNavItem',
             name: 'Quantification History',
             icon: <EuiIcon type="visBarVertical" />,
-            href: 'model/1/quantificationhistory',
+            onClick: () => handleNavItemClick('/model/1/quantificationhistory'),
           },
           {
             id: 'settingsNavItem',
             name: 'Settings',
             icon: <EuiIcon type="gear" />,
-            href: 'model/1/settings'
+            onClick: () => handleNavItemClick('/model/1/settings'),
           },
   ];
 /*

@@ -15,17 +15,20 @@ export interface ItemProps {
  * @param props
  */
 export default function ListItem(props: ItemProps) {
+
+  //grabs the props
   const { title, description, typeString } = props;
 
+  //hook state thing for the deletebox
   const [deleteVisible, setDeleteVisible] = useState(false);
 
+  //sets the delete button visible on click
   function onDeleteClick(){
     setDeleteVisible(!deleteVisible)
   }
 
   const getPageType = (type: string) => {
-    // Logic to determine the href based on the typeString
-    // Example logic:
+    // sets the string for naviagte
     if (type === "Model") {
       return "/model/1/overview";
     } else if (type === "Event Tree") {
@@ -43,8 +46,11 @@ export default function ListItem(props: ItemProps) {
 
   const page = getPageType(typeString);
 
+  //uses navigate
   const navigate = useNavigate();
 
+  //on clicking the card automatically sets the page this thing is on in the history
+  //so it can be navigated to
   const handleCardClick = () => {
     navigate(page);
   };

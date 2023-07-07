@@ -1,4 +1,6 @@
 import {useEuiTheme, EuiHeaderSection, EuiPageHeader, EuiFlexGroup, EuiFlexItem, EuiText, EuiTitle } from "@elastic/eui";
+import ModelSidenav from "../../smallcomponents/sidenavs/modelSidenav";
+import DataSidenav from "../../smallcomponents/sidenavs/dataSidenav";
 
 interface IntermediateComponentProps {
     isModel: boolean;
@@ -16,13 +18,18 @@ export function PageSubHeader({ isModel, pageName, isNavOpen, onNavToggle }: Int
         //Header for one of the types of pages
         //56 pixels is to match the nav bar so it looks seamless and doesnt move down
         //z index makes it pop over other items!
-        <EuiPageHeader id='mainHeader'>
+        <EuiPageHeader id='mainHeader' style={{maxHeight: "56px"}}>
             <EuiHeaderSection>
+                {isModel ? (
+                    <ModelSidenav isNavOpen={isNavOpen} onNavToggle={onNavToggle} ></ModelSidenav>
+                ) : (
+                    <DataSidenav isNavOpen={isNavOpen} onNavToggle={onNavToggle} ></DataSidenav>
+                )}
                 {/**
                  * Margin top needed to have the message be in the center of the header while not randomly moving
                  * which was happening when using alignItems center
                  */}
-                <EuiFlexGroup gutterSize="none">
+                <EuiFlexGroup style={{marginTop: "12px", marginLeft: "10px", flexShrink: 0}} gutterSize="none">
                     <EuiFlexItem grow={false}>
                         <EuiTitle size="m" >
                             {isModel ? (

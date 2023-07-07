@@ -6,6 +6,7 @@
     "@elastic/eui": "81.2.0",
     "@emotion/css": "11.11.0",
     "@emotion/react": "11.11.0",
+    "@sentry/react": "^7.57.0",
     "moment": "^2.29.4",
     "prop-types": "^15.8.1",
     "react": "17.0.2",

@@ -23,7 +23,7 @@ export interface Theme {
     mode: PreferenceModes;
 }
 
-const DEFAULT_THEME_OPTION: Readonly<Theme> = {
+const DEFAULT_THEME_OPTION: Theme = {
     name: DEFAULT_THEME_KEY,
     mode: DEFAULT_MODE_KEY,
 };
@@ -31,7 +31,7 @@ const DEFAULT_THEME_OPTION: Readonly<Theme> = {
 const DEFAULT_LOCALSTORAGE_PREFERENCES = DEFAULT_THEME_OPTION;
 
 export interface ThemeProviderProps {
-    themeOptions: Readonly<NonEmptyArray<Readonly<Theme>>>;
+    themeOptions: Readonly<NonEmptyArray<Theme>>;
     children?: ReactElement;
 }
 
@@ -76,7 +76,6 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
     }
 
     componentDidMount = () => {
-
         if (!this.listener) {
             this.listener = window.matchMedia('(prefers-color-scheme: dark)');
             this.listener.addEventListener('change', this.onMediaPreferenceChange, false);
@@ -91,17 +90,31 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
     }
 
 
+    private getCurrentColorMode = (): PreferenceModes.LIGHT | PreferenceModes.DARK => {
+        try {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                return PreferenceModes.DARK;
+            }
+        } catch (e) {
+            // should log this error if needed
+        }
+        return PreferenceModes.LIGHT;
+    }
     private getThemeToApply(): Theme {
         const { themeOptions } = this.props;
         const preference: Theme = ThemeProvider.getThemePreference();
+        const currentColorMode = this.getCurrentColorMode();
         const themeToApply = themeOptions.find((option: Readonly<Theme>) => option.name === preference.name);
-        if (themeToApply) {
-            return themeToApply;
-        } else if (themeOptions.length > 0) {
-            return themeOptions[0];
-        } else {
-            return DEFAULT_THEME_OPTION;
+        if (!themeToApply) {
+            const defaultTheme = DEFAULT_THEME_OPTION;
+            defaultTheme.mode = currentColorMode;
+            return defaultTheme;
         }
+        // if theme preference is auto, get current color mode and apply that
+        if (preference.mode === PreferenceModes.AUTO) {
+            themeToApply.mode = currentColorMode;
+        }
+       return themeToApply;
     }
 
 
@@ -152,23 +165,23 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
 
 export const ThemeSettingsConsumer = ThemeSettingsContext.Consumer;
 
-export const withThemeSettings = (WrappedComponent: any) => {
-    return class extends React.Component<any, any> {
-        render() {
-            return (
-                <ThemeSettingsConsumer>
-                    {({ themeOptions, changeTheme, getStoredThemePreferences }) => (
-                        <WrappedComponent
-                            {...this.props}
-                            themeOptions={themeOptions}
-                            changeTheme={changeTheme}
-                            getStoredThemePreferences={getStoredThemePreferences}
-                        />
-                    )}
-                </ThemeSettingsConsumer>
-            );
-        }
-    };
-};
+// export const withThemeSettings = (WrappedComponent: any) => {
+//     return class extends React.Component<any, any> {
+//         render() {
+//             return (
+//                 <ThemeSettingsConsumer>
+//                     {({ themeOptions, changeTheme, getStoredThemePreferences }) => (
+//                         <WrappedComponent
+//                             {...this.props}
+//                             themeOptions={themeOptions}
+//                             changeTheme={changeTheme}
+//                             getStoredThemePreferences={getStoredThemePreferences}
+//                         />
+//                     )}
+//                 </ThemeSettingsConsumer>
+//             );
+//         }
+//     };
+// };
 
 export default ThemeProvider;

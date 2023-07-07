@@ -3,19 +3,16 @@ import {
     EuiForm,
     EuiFormRow,
     EuiFieldText,
-    EuiTextArea,
     EuiButton,
     EuiTextColor,
     EuiFlexGroup,
     EuiFlexItem,
     EuiSpacer,
     useEuiTheme,
-    EuiSelectable,
-    EuiSelectableOption,
     EuiFieldNumber
 } from '@elastic/eui'
 
-  
+
 
   //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
 export default function () {
@@ -37,10 +34,6 @@ export default function () {
     //use states that change things, called by functions later
     const [itemInfo, setItemInfo] =useState(newItem)
 
-    const [options, setOptions] = useState<EuiSelectableOption[]>([]);
-
-    const [selectedOptions, setSelectedOptions] = useState<EuiSelectableOption[]>([]);
-
     useEffect(() => {
         const filterOptionsElement = document.querySelector(
           '.euiSelectableList__searchMessage'
@@ -51,11 +44,12 @@ export default function () {
       }, []);
 
     useEffect(() => {
-        console.log(itemInfo.value)
+        // console.log(itemInfo.value)
     }, [itemInfo])
 
     // Event handler that handles the result
     const handleClick = () => {
+      //
     };
 
     const isValueValidNumber = typeof itemInfo.value === 'number' && !isNaN(itemInfo.value);

@@ -12,7 +12,6 @@ import { SignUpErrorProps, SignUpProps } from "shared-types/src/lib/api/AuthType
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 
 export default function SignupForm() {
-    console.log("signupForm(), 4");
     const defaultProps: SignUpProps = {
         username: '',
         email: '',
@@ -37,7 +36,6 @@ export default function SignupForm() {
 
 
     function handleSignup() {
-        console.log("handleSignup(), 5");
         const { passConfirm, ...signupData } = signup;
         ApiManager.signup(signupData)
           .then(() => {
@@ -88,11 +86,9 @@ export default function SignupForm() {
     }, [signup])
 
     function validateSignup(e: React.FormEvent<HTMLFormElement>): void {
-        console.log("validateSignup, 6");
         e.preventDefault()
 
         const confirmPasswords = (signup.password === signup.passConfirm);
-        console.log(confirmPasswords);
 
         //need errorCheck in the later if statement due to how states and renders work
         const errorCheck = {
@@ -114,7 +110,6 @@ export default function SignupForm() {
         })
 
         passError = (!confirmPasswords ? 'Passwords do not match' : '');
-        console.log(passError);
 
         //makes sure all input fields are not empty and that both passwords match
         if(

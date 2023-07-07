@@ -12,7 +12,6 @@ import { LoginProps, LoginErrorProps } from "shared-types/src/lib/api/AuthTypes"
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 
 export default function LoginForm() {
-    console.log("LoginForm(), 1");
     const DefaultProps: LoginProps = {
         username: '',
         password: '',
@@ -27,7 +26,6 @@ export default function LoginForm() {
     const [ redirectToHomepage, setRedirectToHomepage ] = useState(false);
 
     function handleLogin() {
-        console.log("handleLogin(), 9");
         const { username, password } = login;
         ApiManager.signInWithUsernameAndPassword(username, password)
             .then(() => {

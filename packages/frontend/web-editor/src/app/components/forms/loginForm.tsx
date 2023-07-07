@@ -54,7 +54,6 @@ export default function LoginForm() {
     }, [login])
 
     function validateLogin(e: React.FormEvent<HTMLFormElement>): void {
-        console.log("validateLogin(), 3");
         e.preventDefault()
 
         //need errorCheck in the later if statement due to how states and renders work

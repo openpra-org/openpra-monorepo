@@ -1,15 +1,17 @@
 import { EuiPage, EuiText, EuiHideFor, EuiPageBody, EuiFlexGroup, EuiFlexItem, useEuiPaddingCSS} from '@elastic/eui';
 import AuthCard from "../components/cards/authCard";
 export default function LandingPage() {
-    const paddingStyles = useEuiPaddingCSS();
-    const cssStyles = [paddingStyles["xl"]];
+    const textPadding = useEuiPaddingCSS("horizontal");
+    const containerPadding = useEuiPaddingCSS("horizontal");
+    const textCss = [textPadding["m"]];
+    const containterCss = [containerPadding["m"]];
     return (
         <EuiPage restrictWidth>
             <EuiPageBody>
                 <EuiFlexGroup justifyContent="spaceAround" alignItems="center" gutterSize="none">
-                    <EuiHideFor sizes={['xs', 's']}>
-                        <EuiFlexItem grow={7} css={cssStyles}>
-                            <EuiText grow={true}>
+                    <EuiHideFor sizes={['xs', 's', 'm']}>
+                        <EuiFlexItem css={textCss}>
+                            <EuiText>
                                 <h1>Welcome to OpenPRA</h1>
                                 <p>
                                     Far out in the uncharted backwaters of the unfashionable {' '}
@@ -48,7 +50,7 @@ export default function LandingPage() {
                             </EuiText>
                         </EuiFlexItem>
                     </EuiHideFor>
-                    <EuiFlexItem grow={false}>
+                    <EuiFlexItem css={containterCss}>
                         <AuthCard />
                     </EuiFlexItem>
                 </EuiFlexGroup>

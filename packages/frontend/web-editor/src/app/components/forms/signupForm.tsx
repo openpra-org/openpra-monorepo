@@ -8,8 +8,8 @@ import {
     EuiFormRow,
     EuiFieldPassword
 } from "@elastic/eui";
-import { SignUpErrorProps, SignUpProps } from "../../../../../../shared-types/src/lib/api/AuthTypes";
-import ApiManager from "../../../../../../shared-types/src/lib/api/ApiManager";
+import { SignUpErrorProps, SignUpProps } from "shared-types/src/lib/api/AuthTypes";
+import ApiManager from "shared-types/src/lib/api/ApiManager";
 
 export default function SignupForm() {
     console.log("signupForm(), 4");
@@ -95,8 +95,7 @@ export default function SignupForm() {
         console.log(confirmPasswords);
 
         //need errorCheck in the later if statement due to how states and renders work
-        let errorCheck = error;
-        errorCheck = {
+        const errorCheck = {
             firstName: (!signup.firstName),
             lastName: (!signup.lastName),
             email: (!signup.email),
@@ -203,7 +202,10 @@ export default function SignupForm() {
                     />
                 </EuiFormRow>
                 <EuiFormRow>
-                    <EuiButton type="submit">
+                    <EuiButton
+                      fullWidth
+                      type="submit"
+                    >
                         Sign Up
                     </EuiButton>
                 </EuiFormRow>

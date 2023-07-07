@@ -8,8 +8,8 @@ import {
     EuiFormRow,
     EuiFieldPassword
 } from "@elastic/eui";
-import { LoginProps, LoginErrorProps } from "../../../../../../shared-types/src/lib/api/AuthTypes";
-import ApiManager from "../../../../../../shared-types/src/lib/api/ApiManager";
+import { LoginProps, LoginErrorProps } from "shared-types/src/lib/api/AuthTypes";
+import ApiManager from "shared-types/src/lib/api/ApiManager";
 
 export default function LoginForm() {
     console.log("LoginForm(), 1");
@@ -58,8 +58,7 @@ export default function LoginForm() {
         e.preventDefault()
 
         //need errorCheck in the later if statement due to how states and renders work
-        let errorCheck = error;
-        errorCheck = {
+        const errorCheck = {
             username: (!login.username),
             password: (!login.password)
         }
@@ -107,7 +106,9 @@ export default function LoginForm() {
                     />
                 </EuiFormRow>
                 <EuiFormRow>
-                    <EuiButton type="submit">
+                    <EuiButton
+                      fullWidth
+                      type="submit">
                         Login
                     </EuiButton>
                 </EuiFormRow>

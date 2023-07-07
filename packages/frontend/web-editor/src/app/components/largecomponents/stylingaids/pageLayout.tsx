@@ -3,7 +3,7 @@
 import {useEffect, useState} from 'react';
 import { PageSubHeader } from '../headers/pageSubHeader'
 import {PageHeader} from '../headers/headers'
-import {EuiFlexGroup, EuiFlexItem, EuiPageTemplate, useEuiTheme} from '@elastic/eui'
+import {EuiFlexGroup, EuiFlexItem, EuiHorizontalRule, EuiPageTemplate, EuiSpacer, EuiTitle, useEuiTheme} from '@elastic/eui'
 
 //props that are passed, it takes both a string for the name of the page, and then an amount of content of react nodes
 interface PageLayoutProps {
@@ -65,17 +65,14 @@ export default function PageLayout({isModel, pageName, contentType}: PageLayoutP
                 </EuiFlexItem>
             </EuiFlexGroup>
         </>*/
+        <>
+        {/** putting the page header at top to keep it on the top */}
+        <PageHeader />
+        {/** using a page template to help things */}
         <EuiPageTemplate>
-            <EuiPageTemplate.Section
-            restrictWidth={false}
-            paddingSize='s'
-            grow={false}
-            >
-                <PageHeader />
-            </EuiPageTemplate.Section>
+            {/** sidebar that goes on the edge of the pagelayout, uses our custom sidebar */}
             <EuiPageTemplate.Sidebar
             paddingSize='s'
-            style={{backgroundColor: euiTheme.colors.lightShade, height: window.innerHeight}}
             >
                 {isModel ? (
                     <PageSubHeader isModel={true} isNavOpen={isNavOpen} onNavToggle={handleNavToggle} pageName={pageName} />
@@ -84,12 +81,25 @@ export default function PageLayout({isModel, pageName, contentType}: PageLayoutP
                 )}
             </EuiPageTemplate.Sidebar>
             <EuiPageTemplate.Section
-            paddingSize='s'
             restrictWidth={false}
             alignment='top'
+            paddingSize='xs'
+            grow={false}
+            bottomBorder={true}
+            >
+                <EuiTitle size="l">
+                    <h1>{pageName}</h1>
+                </EuiTitle>
+            </EuiPageTemplate.Section>
+            <EuiSpacer></EuiSpacer>
+            <EuiPageTemplate.Section
+            restrictWidth={false}
+            alignment='top'
+            paddingSize='none'
             >
                 {contentType}
             </EuiPageTemplate.Section>
         </EuiPageTemplate>
+        </>
     )
 }

@@ -58,7 +58,6 @@ export default function ListItem(props: ItemProps) {
   return (
     <>
       {/** Is all set up as flex items so that spacing and such works correctly */}
-      <EuiFlexItem grow={false}>
         <EuiCard
           layout="horizontal"
           icon={
@@ -67,7 +66,7 @@ export default function ListItem(props: ItemProps) {
                 {/** avatar is there to give the circle with the title, does all initials, but I believe can be changed if needed 
                  * Added a margin to just line everything up much better
                 */}
-                <EuiAvatar color="#2C041D" name={title} size="l" style={{marginTop: '5px'}} />
+                <EuiAvatar color="#2C041D" name={title} size="l"/>
               </EuiFlexItem>
               <EuiFlexItem>
                 <span>Card Title</span>
@@ -83,7 +82,6 @@ export default function ListItem(props: ItemProps) {
           //onClick={}
         > 
         </EuiCard>
-      </EuiFlexItem>
         {/** Rational for styling: These couldn't be in the card object themselves because they cannot support than many compenents
          * in addition the card really likes to align vertically instead of horizontally
          * the negative top margin is to make it so there isnt a ton of space between the cards

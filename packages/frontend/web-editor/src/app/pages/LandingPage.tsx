@@ -1,8 +1,18 @@
-import { EuiPage, EuiText, EuiHideFor, EuiPageBody, EuiFlexGroup, EuiFlexItem, useEuiPaddingCSS} from '@elastic/eui';
+import {
+    EuiPage,
+    EuiText,
+    EuiHideFor,
+    EuiShowFor,
+    EuiPageBody,
+    EuiFlexGroup,
+    EuiFlexItem,
+    useEuiPaddingCSS,
+    EuiSpacer
+} from "@elastic/eui";
 import AuthCard from "../components/cards/authCard";
 export default function LandingPage() {
     const textPadding = useEuiPaddingCSS("horizontal");
-    const containerPadding = useEuiPaddingCSS("horizontal");
+    const containerPadding = useEuiPaddingCSS();
     const textCss = [textPadding["m"]];
     const containterCss = [containerPadding["m"]];
     return (

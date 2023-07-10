@@ -13,7 +13,7 @@ import {
     EuiSelectable,
     EuiSelectableOption
 } from '@elastic/eui'
-import {addModelDataToList} from "../../largecomponents/lists/modelItemsList";
+// import {addModelDataToList} from "../../largecomponents/lists/modelItemsList";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
   export interface NewItemProps {
@@ -23,7 +23,7 @@ import {addModelDataToList} from "../../largecomponents/lists/modelItemsList";
     itemDescription?: string
     users?: string[]
   }
-  
+
 
   //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
 export default function NewItem(props: NewItemProps) {
@@ -80,7 +80,7 @@ export default function NewItem(props: NewItemProps) {
       };
     // Event handler that handles the result
     const handleClick = () => {
-        addModelDataToList(newItem);
+        //addModelDataToList(newItem);
         // Handle the newItemData or perform any other actions
     };
 
@@ -144,8 +144,8 @@ export default function NewItem(props: NewItemProps) {
                             <EuiButton href={page} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
-                            <EuiButton isDisabled={(users && (itemInfo.users.length === 0 )|| itemInfo.title.length === 0)} 
-                            href={page} 
+                            <EuiButton isDisabled={(users && (itemInfo.users.length === 0 )|| itemInfo.title.length === 0)}
+                            href={page}
                             onClick={handleClick}
                             style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}
                             >Submit</EuiButton>

@@ -25,7 +25,7 @@ export const addModelDataToList = (object: {title:string, description: string, u
 };
 
 export default function EventSequenceList(){
-  return (
-      <StyleLists itemData={itemData} typeString="Event Sequence Diagram" />
+  return ({}
+      // <StyleLists itemData={itemData} typeString="Event Sequence Diagram" />
   );
 }

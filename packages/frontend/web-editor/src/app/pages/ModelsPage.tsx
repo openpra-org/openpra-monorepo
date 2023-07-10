@@ -1,53 +1,85 @@
-import {
-  EuiButton,
-  EuiPageHeader,
-  EuiPageHeaderSection,
-  EuiTitle,
-  EuiPageTemplate,
-  useEuiPaddingCSS,
-  EuiSpacer, logicalStyle
-} from "@elastic/eui";
-import ModelList from "../components/lists/ModelList";
-import { Link } from "react-router-dom";
-import { logicalCSS } from "@elastic/eui/src/global_styling/functions/logicals";
+import { , Route, RouteObject, RouterProvider, Routes } from "react-router-dom";
+import { LabelJSON } from "shared-types/src/lib/types/Label";
+
+import NewModelsPage from './newModelsPage';
+import Model from './Model';
+import ModelList from '../components/lists/ModelList';
+
+//   children: [
+//     { path: "overview", element: <OverviewPage /> },
+//     { path: "event_sequence_diagrams", element: <EventSequenceDiagrams /> },
+//     { path: "fault_trees", element: <FaultTrees /> },
+//     { path: "bayesian_networks", element: <BayesianNetworks /> },
+//     { path: "global_parameters", element: <ModelGlobalParameters /> },
+//     { path: "quantification_history", element: <QuantificationHistory /> },
+//     { path: "settings", element: <ModelSettings /> },
+//     { path: "initiating_events", element: <InitiatingEvents /> },
+//     { path: "event_trees", element: <EventTrees /> },
+//     { path: "gates", element: <ModelGates /> },
+//     { path: "basic_events", element: <BasicEvents /> },
+//     { path: "ccf_groups", element: <CcfGroups /> },
+//   ]
+// }
+
+// const router = createBrowserRouter(routes, {
+//   future: {
+//     // Normalize `useNavigation()`/`useFetcher()` `formMethod` to uppercase
+//     v7_normalizeFormMethod: true,
+//   },
+// });
+
+const getModelFixture = (): ModelProps => {
+  return ({
+    label: {
+      name: "Model ABC",
+      description: "I am model ABC",
+    },
+    id: 402,
+    faultTrees: [
+      {
+        label: {
+          name: "Fault Tree 123",
+          description: "I am ft 123",
+        },
+        id: 123
+      },
+      {
+        label: {
+          name: "Fault Tree 456",
+          description: "I am ft 456",
+        },
+        id: 456
+      }
+    ]
+  });
+}
+
+export type FaultTreeProps = {
+  id: string | number;
+  label: LabelJSON;
+}
+
+export type ModelProps = {
+  id: string | number;
+  label: LabelJSON;
+  faultTrees: FaultTreeProps[];
+}
+export async function loadModel() {
+  return getModelFixture();
+}
+
 export default function ModelsPage() {
-  const horizontalPadding = useEuiPaddingCSS("horizontal");
-  const verticalPadding = useEuiPaddingCSS("vertical");
-  // const verticalMargin = logicalCSS("margin-vertical", "-32px");
-  const verticalMargin = logicalStyle("margin-vertical", "0px");
-  const headerCss = [horizontalPadding["xl"]];
-  const titleCss = [verticalPadding["none"]];
   return (
-      <>
-          <EuiPageTemplate.Header
-            restrictWidth
-            // style={{paddingBottom: "-12px"}}
-            alignItems="bottom"
-            // paddingSize="none"
-            css={headerCss}
-            // pageTitleProps={{
-            //   css: {headerCss}
-            // }}
-            pageTitle="Models"
-            pageTitleProps={{
-              css: titleCss,
-            }}
-            iconProps={{
-              size: "xxl",
-              color: "accent"
-            }}
-            responsive={false}
-            bottomBorder={true}
-            // iconType="submodule"
-            rightSideItems={[
-              <Link to="/models/new">
-                <EuiButton fill>Create</EuiButton>
-              </Link>
-            ]}
-          />
-          <EuiPageTemplate.Section restrictWidth style={verticalMargin}>
-            <ModelList/>
-          </EuiPageTemplate.Section>
-     </>
-  )
+    <>
+    <Routes>
+      <Route path="" element=<ModelList/> />
+      <Route path="new" element=<NewModelsPage/> />
+      <Route
+        path=":modelId"
+        element=<Model/>
+        loader={loadModel}
+      />
+    </Routes>
+    </>
+  );
 }

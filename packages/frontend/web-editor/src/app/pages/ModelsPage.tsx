@@ -91,54 +91,56 @@ export default function ModelsPage() {
         path=":modelId"
         element=<Model/>
         loader={loadModel}
-      />
-      {/** everthing below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested
-       * else a problem happens where the parent takes presedence and loads its content over everything else
-       */}
-      <Route
-          path=":modelId/event-sequence-diagrams"
+      >
+        <Route
+          path="event-sequence-diagrams"
           element= {<EventSequenceDiagrams />}
         />
         <Route
-            path= ":modelId/fault-trees"
+            path= "fault-trees"
             element= {<FaultTrees />}
         />
         <Route
-            path= ":modelId/bayesian-networks"
+            path= "bayesian-networks"
             element= {<BayesianNetworks />}
         />
         <Route
-            path= ":modelId/global-parameters"
+            path= "global-parameters"
             element= {<ModelGlobalParameters />}
         />
         <Route
-            path= ":modelId/quantification-history"
+            path= "quantification-history"
             element= {<QuantificationHistory />}
         />
         <Route
-            path= ":modelId/settings"
+            path= "settings"
             element= {<ModelSettings />}
         />
         <Route
-            path= ":modelId/initiating-events"
+            path= "initiating-events"
             element= {<InitiatingEvents />}
         />
         <Route
-            path= ":modelId/event-trees"
+            path= "event-trees"
             element= {<EventTrees />}
         />
         <Route
-            path= ":modelId/gates"
+            path= "gates"
             element= {<ModelGates />}
         />
         <Route
-            path= ":modelId/basic-events"
+            path= "basic-events"
             element= {<BasicEvents />}
         />
         <Route
-            path= ":modelId/ccf-groups"
+            path= "ccf-groups"
             element= {<CcfGroups />}
         />
+      </Route>
+      {/** everthing below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested
+       * else a problem happens where the parent takes presedence and loads its content over everything else
+       */}
+
     </Routes>
     </>
   );

@@ -46,19 +46,6 @@ export default function PageLayout({isModel, pageName, contentType}: PageLayoutP
     return (
         <>
         {/** putting the page header at top to keep it on the top */}
-        <PageHeader />
-        {/** using a page template to help things */}
-        <EuiPageTemplate>
-            {/** sidebar that goes on the edge of the pagelayout, uses our custom sidebar */}
-            <EuiPageTemplate.Sidebar
-            paddingSize='s'
-            >
-                {isModel ? (
-                    <PageSubHeader isModel={true} isNavOpen={isNavOpen} onNavToggle={handleNavToggle} pageName={pageName} />
-                ) : (
-                    <PageSubHeader isModel={false} isNavOpen={isNavOpen} onNavToggle={handleNavToggle} pageName={pageName} />
-                )}
-            </EuiPageTemplate.Sidebar>
 
             {/** section for displaying the pagename */}
             <EuiPageTemplate.Section
@@ -81,7 +68,6 @@ export default function PageLayout({isModel, pageName, contentType}: PageLayoutP
             >
                 {contentType}
             </EuiPageTemplate.Section>
-        </EuiPageTemplate>
         </>
     )
 }

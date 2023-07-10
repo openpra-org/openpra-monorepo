@@ -1,31 +1,19 @@
-import { Outlet, useLoaderData, useRouteLoaderData } from "react-router-dom";
-import { ModelProps } from "./ModelsPage";
-
-import React, { ReactElement } from 'react';
+import { Outlet } from "react-router-dom";
 import {
   EuiText,
   EuiPageTemplate,
-  EuiPageTemplateProps,
-  EuiPageHeaderProps,
-  EuiPageSidebarProps,
 } from '@elastic/eui';
+import ModelSidenav from "../components/smallcomponents/sidenavs/modelSidenav";
 
 export default () => {
   return (
-    <EuiPageTemplate
-    >
+    <EuiPageTemplate>
       <EuiPageTemplate.Sidebar>
-        sidebar stuff
+        <ModelSidenav isNavOpen={false} onNavToggle={function (isOpen: boolean): void {
+          throw new Error("Function not implemented.");
+        } }/>
       </EuiPageTemplate.Sidebar>
-      <EuiPageTemplate.Section grow={false} bottomBorder>
-        <EuiText textAlign="center">
-          <strong>
-            Stack EuiPageTemplate sections and headers to create your custom
-            content order.
-          </strong>
-        </EuiText>
-        <Outlet />
-      </EuiPageTemplate.Section>
+      <Outlet />
     </EuiPageTemplate>
   );
 };

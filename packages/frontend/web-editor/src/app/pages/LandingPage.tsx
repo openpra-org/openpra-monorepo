@@ -2,12 +2,10 @@ import {
     EuiPage,
     EuiText,
     EuiHideFor,
-    EuiShowFor,
     EuiPageBody,
     EuiFlexGroup,
     EuiFlexItem,
     useEuiPaddingCSS,
-    EuiSpacer
 } from "@elastic/eui";
 import AuthCard from "../components/cards/authCard";
 export default function LandingPage() {

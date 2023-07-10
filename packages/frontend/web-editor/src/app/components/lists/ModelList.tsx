@@ -11,7 +11,7 @@ const getFixtures = (count = 100): JSX.Element[] => {
       name: `Model #${i}`,
       description: `This is model number ${i}`,
     }}
-    path={`/model/${i}`}
+    path={`/models/${i}`}
   />)});
 }
 

@@ -1,8 +1,7 @@
-import { Route, RouteObject, RouterProvider, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 
 import NewModelsPage from './newModelsPage';
-import Model from './Model';
 import ModelList from '../components/lists/ModelList';
 import EventSequenceDiagrams from './modelPages/eventSequenceDiagrams';
 import CcfGroups from "./modelPages/ccfGroups";
@@ -15,6 +14,7 @@ import InitiatingEvents from "./modelPages/initiatingEvents";
 import EventTrees from "./modelPages/eventTrees";
 import ModelGates from "./modelPages/modelGates";
 import BasicEvents from "./modelPages/basicEvents";
+import OverviewPage from "./modelPages/overviewPage";
 
 
 //   children: [
@@ -88,9 +88,8 @@ export default function ModelsPage() {
       <Route path="new" element=<NewModelsPage/> />
       <Route
         path=":modelId"
-        element=<Model/>
+        element=<OverviewPage/>
         loader={loadModel}
-
       />
       <Route
         path=":modelId/event_sequence_diagrama"
@@ -121,19 +120,19 @@ export default function ModelsPage() {
           element={ <InitiatingEvents />}
       />
       <Route
-          path= "event_trees"
+          path= ":modelId/event_trees"
           element={ <EventTrees />}
       />
       <Route
-          path= "gates"
+          path= ":modelId/gates"
           element={ <ModelGates />}
       />
       <Route
-          path= "basic_events"
+          path= ":modelId/basic_events"
           element={ <BasicEvents />}
       />
       <Route
-          path= "ccf_groups"
+          path= ":modelId/ccf_groups"
           element={ <CcfGroups />}
       />
     </Routes>

@@ -33,72 +33,16 @@ const routes: RouteObject[] = [
             {
                 children: [
                     {
-                        path: "",
-                        element: <LandingPage />,
+                        index: true,
+                        element: <LandingPage />
+                    },
+                    {
+                        path: "models/*",
+                        element: <ModelsPage />,
                     },
                     {
                         path: "about",
                         element: <>about</>,
-                    },
-                    {
-                        path: "models",
-                        element: <ModelsPage />,
-                    },
-                    {
-                        path: "model/new",
-                        element: <NewModelsPage />
-                    },
-                    {
-                        path: 'data',
-                        element: <DataPage />
-                    },
-                    {
-                        path: 'model/1/overview',
-                        element: <OverviewPage />
-                    },
-                    {
-                        path: 'model/1/eventsequencediagrams',
-                        element: <EventSequenceDiagrams />
-                    },
-                    {
-                        path: 'model/1/faulttrees',
-                        element: <FaultTrees />
-                    },
-                    {
-                        path: 'model/1/bayesiannetworks',
-                        element: <BayesianNetworks />
-                    },
-                    {
-                        path: 'model/1/globalParameters',
-                        element: <ModelGlobalParameters />
-                    },
-                    {
-                        path: 'model/1/quantificationhistory',
-                        element: <QuantificationHistory />
-                    },
-                    {
-                        path: 'model/1/settings',
-                        element: <ModelSettings />
-                    },
-                    {
-                        path: 'model/1/initiatingevents',
-                        element: <InitiatingEvents />
-                    },
-                    {
-                        path: 'model/1/eventtrees',
-                        element: <EventTrees />
-                    },
-                    {
-                        path: 'model/1/gates',
-                        element: <ModelGates />
-                    },
-                    {
-                        path: 'model/1/basicevents',
-                        element: <BasicEvents />
-                    },
-                    {
-                        path: 'model/1/ccfgroups',
-                        element: <CcfGroups />
                     },
                     {
                         path: 'data/specialevents',

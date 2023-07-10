@@ -75,7 +75,7 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
             id: 'initEventNavGroup',
             name: 'Initiating Events',
             icon: <EuiIcon type="branch" />,
-            onClick: () => handleNavItemClick('/models/1/initiatingevents'),
+            onClick: () => handleNavItemClick('/models/1/initiating-events'),
       },
       {
         id: 'eventSeqAnalysisNavGroup',
@@ -85,12 +85,12 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
           {
             id: 'eventSeqDiaNavGroup',
             name: 'Event Sequence Diagrams',
-            onClick: () => handleNavItemClick('/models/1/eventsequencediagrams'),
+            onClick: () => handleNavItemClick('/models/1/event-sequence-diagrams'),
           },
           {
             id: 'eventTreesNavGroup',
             name: 'Event Trees',
-            onClick: () => handleNavItemClick('/models/1/eventtrees'),
+            onClick: () => handleNavItemClick('/models/1/event-trees'),
           },
         ],
       },
@@ -102,12 +102,12 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
           {
             id: 'faultTreesNavGroup',
             name: 'Fault Trees',
-            onClick: () => handleNavItemClick('/models/1/faulttrees'),
+            onClick: () => handleNavItemClick('/models/1/fault-trees'),
           },
           {
             id: 'bayeNetNavGroup',
             name: 'Bayesian Networks',
-            onClick: () => handleNavItemClick('/models/1/bayesiannetworks'),
+            onClick: () => handleNavItemClick('/models/1/bayesian-networks'),
           },
         ],
       },
@@ -129,12 +129,12 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
           {
             id: 'basicEventNavItem',
             name: 'Basic Events',
-            onClick: () => handleNavItemClick('/models/1/basicevents'),
+            onClick: () => handleNavItemClick('/models/1/basic-events'),
           },
           {
             id: 'ccfGroupsNavItem',
             name: 'CCF Groups',
-            onClick: () => handleNavItemClick('/models/1/ccfgroups'),
+            onClick: () => handleNavItemClick('/models/1/ccf-groups'),
           },
         ],
       },
@@ -157,19 +157,19 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
             id: 'overviewNavItem',
             name: 'Overview',
             icon: <EuiIcon type="apps" />,
-            onClick: () => handleNavItemClick('/models/1/overview'),
+            onClick: () => handleNavItemClick('/models/1'),
           },
           {
             id: 'globalParametersNavItem',
             name: 'Global Parameters',
             icon: <EuiIcon type="database" />,
-            onClick: () => handleNavItemClick('/models/1/globalParameters'),
+            onClick: () => handleNavItemClick('/models/1/global-Parameters'),
           },
           {
             id: 'quantificationHistoryNavItem',
             name: 'Quantification History',
             icon: <EuiIcon type="visBarVertical" />,
-            onClick: () => handleNavItemClick('/models/1/quantificationhistory'),
+            onClick: () => handleNavItemClick('/models/1/quantification-history'),
           },
           {
             id: 'settingsNavItem',

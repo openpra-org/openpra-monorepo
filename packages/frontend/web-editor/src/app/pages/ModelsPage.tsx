@@ -90,52 +90,54 @@ export default function ModelsPage() {
         path=":modelId"
         element=<OverviewPage/>
         loader={loadModel}
-      >
-        <Route
-          path="event-sequence-diagrams"
-          element= <EventSequenceDiagrams />
+      />
+      {/** everthing below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested
+       * else a problem happens where the parent takes presedence and loads its content over everything else
+       */}
+      <Route
+          path=":modelId/event-sequence-diagrams"
+          element= {<EventSequenceDiagrams />}
         />
         <Route
-            path= "fault-trees"
-            element= <FaultTrees />
+            path= ":modelId/fault-trees"
+            element= {<FaultTrees />}
         />
         <Route
-            path= "bayesian-networks"
-            element= <BayesianNetworks />
+            path= ":modelId/bayesian-networks"
+            element= {<BayesianNetworks />}
         />
         <Route
-            path= "global-parameters"
-            element= <ModelGlobalParameters />
+            path= ":modelId/global-parameters"
+            element= {<ModelGlobalParameters />}
         />
         <Route
-            path= "quantification-history"
-            element= <QuantificationHistory />
+            path= ":modelId/quantification-history"
+            element= {<QuantificationHistory />}
         />
         <Route
-            path= "settings"
-            element= <ModelSettings />
+            path= ":modelId/settings"
+            element= {<ModelSettings />}
         />
         <Route
-            path= "initiating-events"
-            element= <InitiatingEvents />
+            path= ":modelId/initiating-events"
+            element= {<InitiatingEvents />}
         />
         <Route
-            path= "event-trees"
-            element= <EventTrees />
+            path= ":modelId/event-trees"
+            element= {<EventTrees />}
         />
         <Route
-            path= "gates"
-            element= <ModelGates />
+            path= ":modelId/gates"
+            element= {<ModelGates />}
         />
         <Route
-            path= "basic-events"
-            element= <BasicEvents />
+            path= ":modelId/basic-events"
+            element= {<BasicEvents />}
         />
         <Route
-            path= "ccf-groups"
-            element= <CcfGroups />
+            path= ":modelId/ccf-groups"
+            element= {<CcfGroups />}
         />
-      </Route>
     </Routes>
     </>
   );

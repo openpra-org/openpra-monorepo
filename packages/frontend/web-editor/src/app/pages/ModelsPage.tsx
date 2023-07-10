@@ -15,6 +15,7 @@ import EventTrees from "./modelPages/eventTrees";
 import ModelGates from "./modelPages/modelGates";
 import BasicEvents from "./modelPages/basicEvents";
 import OverviewPage from "./modelPages/overviewPage";
+import Model from "./Model";
 
 
 //   children: [
@@ -88,7 +89,7 @@ export default function ModelsPage() {
       <Route path="new" element=<NewModelsPage/> />
       <Route
         path=":modelId"
-        element=<OverviewPage/>
+        element=<Model/>
         loader={loadModel}
       />
       {/** everthing below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested

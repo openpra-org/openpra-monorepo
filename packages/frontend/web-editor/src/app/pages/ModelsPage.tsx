@@ -90,51 +90,52 @@ export default function ModelsPage() {
         path=":modelId"
         element=<OverviewPage/>
         loader={loadModel}
-      />
-      <Route
-        path=":modelId/event_sequence_diagrama"
-        element={<EventSequenceDiagrams />}
-      />
-      <Route
-          path= ":modelId/fault_trees"
-          element= {<FaultTrees />}
-      />
-      <Route
-          path= ":modelId/bayesian_networks"
-          element={ <BayesianNetworks />}
-      />
-      <Route
-          path= ":modelId/global_parameters"
-          element={ <ModelGlobalParameters />}
-      />
-      <Route
-          path= ":modelId/quantification_history"
-          element={ <QuantificationHistory />}
-      />
-      <Route
-          path= ":modelId/settings"
-          element={ <ModelSettings />}
-      />
-      <Route
-          path= ":modelId/initiating_events"
-          element={ <InitiatingEvents />}
-      />
-      <Route
-          path= ":modelId/event_trees"
-          element={ <EventTrees />}
-      />
-      <Route
-          path= ":modelId/gates"
-          element={ <ModelGates />}
-      />
-      <Route
-          path= ":modelId/basic_events"
-          element={ <BasicEvents />}
-      />
-      <Route
-          path= ":modelId/ccf_groups"
-          element={ <CcfGroups />}
-      />
+      >
+        <Route
+          path="event-sequence-diagrams"
+          element= <EventSequenceDiagrams />
+        />
+        <Route
+            path= "fault-trees"
+            element= <FaultTrees />
+        />
+        <Route
+            path= "bayesian-networks"
+            element= <BayesianNetworks />
+        />
+        <Route
+            path= "global-parameters"
+            element= <ModelGlobalParameters />
+        />
+        <Route
+            path= "quantification-history"
+            element= <QuantificationHistory />
+        />
+        <Route
+            path= "settings"
+            element= <ModelSettings />
+        />
+        <Route
+            path= "initiating-events"
+            element= <InitiatingEvents />
+        />
+        <Route
+            path= "event-trees"
+            element= <EventTrees />
+        />
+        <Route
+            path= "gates"
+            element= <ModelGates />
+        />
+        <Route
+            path= "basic-events"
+            element= <BasicEvents />
+        />
+        <Route
+            path= "ccf-groups"
+            element= <CcfGroups />
+        />
+      </Route>
     </Routes>
     </>
   );

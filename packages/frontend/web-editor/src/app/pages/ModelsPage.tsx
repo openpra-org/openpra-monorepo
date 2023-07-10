@@ -1,4 +1,4 @@
-import { , Route, RouteObject, RouterProvider, Routes } from "react-router-dom";
+import { Route, RouteObject, RouterProvider, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 
 import NewModelsPage from './newModelsPage';

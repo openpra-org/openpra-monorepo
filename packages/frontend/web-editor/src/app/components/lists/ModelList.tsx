@@ -3,15 +3,9 @@
 import GenericItemList from "./GenericItemList";
 import GenericListItem from "./GenericListItem";
 
-export type ModelMetadata = {
-  title: string,
-  description: string,
-  id: number,
-  lastModified: string,
-}
-
 const getFixtures = (count = 100): JSX.Element[] => {
-  return Array.from(Array(count).keys()).map((e, i) => {return (<GenericListItem
+  return Array.from(Array(count).keys()).map((e, i) => {
+    return (<GenericListItem
     key={i}
     label={{
       name: `Model #${i}`,
@@ -22,7 +16,6 @@ const getFixtures = (count = 100): JSX.Element[] => {
 }
 
 export default function ModelList(){
-  console.log(getFixtures());
   return (
     <GenericItemList>
       {getFixtures()}

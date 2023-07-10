@@ -1,11 +1,12 @@
 import { EuiFlexGroup, EuiFlexItem, EuiSpacer } from "@elastic/eui";
-import ItemList from "../lists/itemlisttemplate/itemList";
+import GenericItemList from "../../lists/GenericItemList";
 
 type Item = {
+  id: number;
     title: string;
     description: string;
   };
-  
+
   type ItemListProps = {
     itemData: Item[];
     typeString: string;
@@ -17,14 +18,10 @@ type Item = {
 const StyleLists: React.FC<ItemListProps> = ({ itemData, typeString }) => {
     return (
         <div>
-        <EuiFlexGroup gutterSize="s">
-            <EuiSpacer size="s" />
+        <EuiFlexGroup gutterSize="none">
             <EuiFlexItem grow={true}>
-                {/**this is the spacer that divides filter from the cards for items*/}
-                <EuiSpacer size="s" />
-                <ItemList itemData={itemData} typeString={typeString} />
+                {/*<GenericItemList itemData={itemData} typeString={typeString} />*/}
             </EuiFlexItem>
-            <EuiSpacer size="s" />
         </EuiFlexGroup>
         </div>
     );

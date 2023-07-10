@@ -31,7 +31,7 @@ import { Link } from 'react-router-dom';
 export default () => {
   const renderLogo = () => (
     <EuiHeaderLogo
-      iconType="logoElastic"
+      iconType="home"
       href="#"
       onClick={(e) => e.preventDefault()}
       aria-label="Go to home page"
@@ -105,7 +105,7 @@ export default () => {
     />
   );
   return (
-    <EuiHeader>
+    <EuiHeader position="fixed">
       <EuiHeaderSection grow={false}>
         <EuiHeaderSectionItem border="right">
           {renderLogo()}

@@ -4,11 +4,11 @@ import InitiatingEventsList from '../../components/largecomponents/lists/initiat
 
 export default function InitiatingEvents() {
     return (
-        <> 
+        <>
             <PageLayout isModel={true} pageName='Initiating Events' contentType={
                 <>
                 <ModelPageFilter title="Initiating Event" page="model/1/initiatingevents" />
-                <InitiatingEventsList/>
+                {/*<InitiatingEventsList/>*/}
                 </>
             }/>
         </>

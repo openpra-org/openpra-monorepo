@@ -1,9 +1,8 @@
 import {createBrowserRouter, RouteObject, RouterProvider} from 'react-router-dom';
 import ThemeProvider from "./theme/ThemeProvider";
-import LandingPage from "./pages/landingPage";
-import RootContainer from "./pages/rootContainer";
+import LandingPage from "./pages/LandingPage";
 import ErrorPage from "./pages/errorPage";
-import ModelsPage from "./pages/modelsPage";
+import ModelsPage from "./pages/ModelsPage";
 import NewModelsPage from "./pages/newModelsPage"
 import DataPage from "./pages/dataPage"
 import OverviewPage from './pages/modelPages/overviewPage';
@@ -23,6 +22,7 @@ import ComponentReliability from './pages/dataPages/componentReliability';
 import SpecialEvents from './pages/dataPages/specialEvents';
 import Ccf from './pages/dataPages/ccf';
 import TrainUA from './pages/dataPages/trainUA';
+import RootContainer from "./pages/rootContainer";
 
 const routes: RouteObject[] = [
     {

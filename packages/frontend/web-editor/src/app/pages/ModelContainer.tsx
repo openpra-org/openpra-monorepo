@@ -25,7 +25,6 @@ export default () => {
         />
       </EuiPageSidebar>
       <EuiPageBody
-        grow={true}
         paddingSize="none"
         panelled={false}
       >

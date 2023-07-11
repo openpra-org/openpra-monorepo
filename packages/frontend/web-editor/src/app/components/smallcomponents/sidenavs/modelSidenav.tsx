@@ -146,8 +146,10 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
         color = "primary";
         break;
     }
+    const slug = slugify(label);
     return {
-      id: slugify(label),
+      id: slug,
+      key: slug,
       label: <EuiText size={size} color={color} title={label}>{text}</EuiText>,
       ...data,
     };
@@ -284,10 +286,11 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
     }),
   ];
 
-  const createTreeView = (items: any[]) => {
+  const createTreeView = (items: any[], i: number) => {
     return (
       <EuiTreeView
         items={items}
+        key={i}
         aria-label="Model Sidebar"
         expandByDefault={false}
         showExpansionArrows
@@ -314,10 +317,10 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
   const createTreeViews = (items = treeItems) => {
     const viewItems: JSX.Element[] = [];
 
-    items.forEach((item) => {
+    items.forEach((item, i) => {
       viewItems.push(...[
-        createTreeView(item),
-        <EuiHorizontalRule margin="xs" />,
+        createTreeView(item, i),
+        <EuiHorizontalRule margin="xs" key={items.length + i} />,
       ]);
     });
     return (viewItems);

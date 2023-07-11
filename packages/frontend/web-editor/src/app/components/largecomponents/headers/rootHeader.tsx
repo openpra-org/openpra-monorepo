@@ -28,7 +28,25 @@ import {
   useGeneratedHtmlId,
 } from '@elastic/eui';
 import {Link, useLocation, useNavigate} from 'react-router-dom';
+
+const tokenizePath = (path: string, stripTrailingSlash = true): string[] => {
+  const str = stripTrailingSlash ? path.replace(/\/+$/, '') : path;
+  return str.split("/").filter((value) => (value !== ""));
+}
+
+const toTitleCase = (str: string) => {
+  return str.replace(
+    /\w\S*/g,
+    function(txt) {
+      return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+    }
+  );
+}
+
 export default () => {
+  //uses navigate
+  const navigate = useNavigate();
+
   const renderLogo = () => (
     <EuiHeaderLogo
       iconType="home"
@@ -43,63 +61,31 @@ export default () => {
     />
   );
 
-  //uses navigate
-  const navigate = useNavigate();
-
-  function getNavigatePath(index : number)  {
-    let hrefString = ''
-    for (let i = 0; i <= index; i++){
-      hrefString = hrefString.concat('/')
-      hrefString = hrefString.concat(breadcrumbArray[i])
-    }
-    navigate(hrefString)
-    return hrefString
+  const createBreadcrumbs = (path: string) => {
+    const tokens = tokenizePath(path);
+    return tokens.map((item, i) => {
+      return (
+        {
+          text: toTitleCase(item),
+          onClick: (e: any) => {
+            e.preventDefault();
+            navigate(tokens.slice(0, i+1).join("/"));
+          },
+        }
+      )
+    });
   }
 
   const location = useLocation();
-  const [breadcrumbArray, setBreadcrumbArray] = useState(window.location.pathname.split('/'));
-  const [breadcrumbs, setBreadcrumbs] = useState(breadcrumbArray.map((item, i) => {
-    return (
-        {
-          text: item,
-          onClick: (e: any) => {
-            e.preventDefault();
-            getNavigatePath(i)
-          },
-        }
-    )
-  }))
-
-  useEffect(() => {
-    // runs on location, i.e. route, change
-    // updates the array of breadcrumbs without having to refresh page
-    setBreadcrumbArray(window.location.pathname.split('/').slice(1))
-
-    // this useEffect triggers when the user navigates the website
-    // and after triggering itself when it changes the breadcrumbArray
-  }, [location])
-  useEffect(() => {
-    // updates the actual breadcrumbs
-    setBreadcrumbs(() => breadcrumbArray.map((item,i) => {
-      return (
-          {
-            text: item,
-            onClick: (e: any) => {
-              e.preventDefault();
-              getNavigatePath(i)
-            },
-          }
-      )
-
-    }))
-  }, [breadcrumbArray])
-
   const renderBreadcrumbs = () => {
-
     return (
       <EuiHeaderBreadcrumbs
-        aria-label="Header breadcrumbs example"
-        breadcrumbs={breadcrumbs}
+        aria-label="Navigation Breadcrumbs"
+        breadcrumbs={createBreadcrumbs(location.pathname)}
+        max={5}
+        truncate={true}
+        type="application"
+        lastBreadcrumbIsCurrentPage={true}
       />
     );
   };
@@ -256,7 +242,7 @@ const HeaderSpacesMenu = () => {
   );
   const [isOpen, setIsOpen] = useState(false);
   const isListExtended = () => {
-    return spaces.length > 4 ? true : false;
+    return spaces.length > 4;
   };
   const onMenuButtonClick = () => {
     setIsOpen(!isOpen);

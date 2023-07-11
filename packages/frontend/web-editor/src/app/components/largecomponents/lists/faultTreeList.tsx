@@ -1,31 +1,58 @@
-import StyleLists from "../stylingaids/styleLists";
+import { EuiPageTemplate, logicalStyle, useEuiPaddingCSS } from "@elastic/eui";
+import GenericListItem from "../../lists/GenericListItem";
+import GenericItemList from "../../lists/GenericItemList";
+import { NewItemButton } from "../../smallcomponents/buttons/newItemButton";
 
-// temporary item data that is prepulated
-const itemData = [
-  { title: 'Fault Item 1', description: 'Description 1' },
-  { title: 'Item 2', description: 'Description 2' },
-  { title: 'Item 3', description: 'Description 3' },
-  { title: 'Item 4', description: 'Description 2' },
-  { title: 'Item 5', description: 'Description 3' },
-  { title: 'Item 6', description: 'Description 2' },
-  { title: 'Item 7', description: 'Description 3' },
-  { title: 'Item 8', description: 'Description 3' },
-  { title: 'Item 9', description: 'Description 3' },
-  { title: 'Item 10', description: 'Description 3' },
-  { title: 'Item 11', description: 'Description 3' },
-  { title: 'Item 12', description: 'Description 3' },
-  { title: 'Item 13', description: 'Description 3' },
-  { title: 'Item 14', description: 'Description 3' },
-  { title: 'Item 15', description: 'Description 3' },
-];
+const getFixtures = (count = 100): JSX.Element[] => {
+  {/** grabs the models/id part, then appends the new part to get the total overall path */}
+  return Array.from(Array(count).keys()).map((e, i) => {
+    return (<GenericListItem
+    key={i}
+    label={{
+      name: `Fault Tree #${i}`,
+      description: `This is fault tree number ${i}`,
+    }}
+    path={window.location.pathname + `/${i}`}
+  />)});
+}
 
-//function to add an item to the list, will eventually be done with databases(tm)
-export const addFaultTreeDataToList = (object: {title:string, description: string, users?: string[]}) => {
-  itemData.push(object)
-};
-
-export default function FaultTreeList(){
-  return ({}
-    // <StyleLists itemData={itemData} typeString="Fault Tree" />
+export default function ModelList(){
+  const horizontalPadding = useEuiPaddingCSS("horizontal");
+  const verticalPadding = useEuiPaddingCSS("vertical");
+  const verticalMargin = logicalStyle("margin-vertical", "0px");
+  const headerCss = [horizontalPadding["xl"]];
+  const titleCss = [verticalPadding["none"]];
+  return (
+    <>
+      <EuiPageTemplate.Header
+        restrictWidth
+        // style={{paddingBottom: "-12px"}}
+        alignItems="bottom"
+        // paddingSize="none"
+        css={headerCss}
+        // pageTitleProps={{
+        //   css: {headerCss}
+        // }}
+        pageTitle="Fault Trees"
+        pageTitleProps={{
+          css: titleCss,
+        }}
+        iconProps={{
+          size: "xxl",
+          color: "accent"
+        }}
+        responsive={false}
+        bottomBorder={true}
+        // iconType="submodule"
+        rightSideItems={[
+          <NewItemButton title="Fault Tree" page = ""/>
+        ]}
+      />
+    <EuiPageTemplate.Section restrictWidth style={verticalMargin}>
+      <GenericItemList>
+        {getFixtures()}
+      </GenericItemList>
+    </EuiPageTemplate.Section>
+  </>
   );
 }

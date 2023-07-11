@@ -1,8 +1,6 @@
-import { EuiButton, EuiPageTemplate, logicalStyle, useEuiPaddingCSS } from "@elastic/eui";
-import { Link } from "react-router-dom";
+import { EuiPageTemplate, logicalStyle, useEuiPaddingCSS } from "@elastic/eui";
 import GenericListItem from "../../lists/GenericListItem";
 import GenericItemList from "../../lists/GenericItemList";
-import NewItem from "../../smallcomponents/listchanging/newItem";
 import { NewItemButton } from "../../smallcomponents/buttons/newItemButton";
 
 const getFixtures = (count = 100): JSX.Element[] => {

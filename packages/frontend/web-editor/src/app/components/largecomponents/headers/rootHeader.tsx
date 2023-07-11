@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   EuiAvatar,
   EuiBreadcrumb,
@@ -27,52 +27,75 @@ import {
   EuiText,
   useGeneratedHtmlId,
 } from '@elastic/eui';
-import { Link } from 'react-router-dom';
+import {Link, useLocation, useNavigate} from 'react-router-dom';
 export default () => {
   const renderLogo = () => (
     <EuiHeaderLogo
       iconType="home"
       href="#"
-      onClick={(e) => e.preventDefault()}
+      onClick={
+        (e) => {
+          e.preventDefault()
+          navigate("/models")
+        }
+    }
       aria-label="Go to home page"
     />
   );
+
+  //uses navigate
+  const navigate = useNavigate();
+
+  function getNavigatePath(index : number)  {
+    let hrefString = ''
+    for (let i = 0; i <= index; i++){
+      hrefString = hrefString.concat('/')
+      hrefString = hrefString.concat(breadcrumbArray[i])
+    }
+    navigate(hrefString)
+    return hrefString
+  }
+
+  const location = useLocation();
+  const [breadcrumbArray, setBreadcrumbArray] = useState(window.location.pathname.split('/'));
+  const [breadcrumbs, setBreadcrumbs] = useState(breadcrumbArray.map((item, i) => {
+    return (
+        {
+          text: item,
+          onClick: (e: any) => {
+            e.preventDefault();
+            getNavigatePath(i)
+          },
+        }
+    )
+  }))
+
+  useEffect(() => {
+    // runs on location, i.e. route, change
+    // updates the array of breadcrumbs without having to refresh page
+    setBreadcrumbArray(window.location.pathname.split('/').slice(1))
+
+    // this useEffect triggers when the user navigates the website
+    // and after triggering itself when it changes the breadcrumbArray
+  }, [location])
+  useEffect(() => {
+    // updates the actual breadcrumbs
+    setBreadcrumbs(() => breadcrumbArray.map((item,i) => {
+      return (
+          {
+            text: item,
+            onClick: (e: any) => {
+              e.preventDefault();
+              getNavigatePath(i)
+            },
+          }
+      )
+
+    }))
+  }, [breadcrumbArray])
+
   const renderBreadcrumbs = () => {
-    const breadcrumbs: EuiBreadcrumb[] = [
-      {
-        text: 'Management',
-        href: '#',
-        onClick: (e) => {
-          e.preventDefault();
-        },
-        'data-test-subj': 'breadcrumbsAnimals',
-        className: 'customClass',
-      },
-      {
-        text: 'Truncation test is here for a really long item',
-        href: '#',
-        onClick: (e) => {
-          e.preventDefault();
-        },
-      },
-      {
-        text: 'Hidden',
-        href: '#',
-        onClick: (e) => {
-          e.preventDefault();
-        },
-      },
-      {
-        text: 'Users',
-        href: '#',
-        onClick: (e) => {
-          e.preventDefault();
-        },
-      },
-      {
-        text: 'Create',
-      },
-    ];
+
     return (
       <EuiHeaderBreadcrumbs
         aria-label="Header breadcrumbs example"

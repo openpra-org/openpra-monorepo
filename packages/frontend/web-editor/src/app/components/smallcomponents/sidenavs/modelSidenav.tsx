@@ -1,5 +1,13 @@
-import {EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, EuiSideNav, useEuiTheme} from '@elastic/eui';
-import {useState, useEffect} from 'react'
+import {
+  EuiIcon,
+  EuiTreeView,
+  slugify,
+  EuiToken,
+  useEuiTheme,
+  EuiText,
+  EuiHorizontalRule, logicalStyle
+} from "@elastic/eui";
+import React, {useState, useEffect} from 'react'
 import { useNavigate } from 'react-router-dom';
 
 interface ModelSidenavProps {
@@ -8,6 +16,23 @@ interface ModelSidenavProps {
 }
 
 export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavProps) {
+
+  const selectItem = (name: string) => {
+    setSelectedItem(name);
+  };
+
+  const createItem = (name: string, data = {}) => {
+    // NOTE: Duplicate `name` values will cause `id` collisions.
+    return {
+      id: slugify(name),
+      name,
+      isSelected: selectedItemName === name,
+      onClick: () => selectItem(name),
+      emphasize: true,
+      ...data,
+    };
+  };
+
   const { euiTheme } = useEuiTheme();
 
   const [pageHeight, setPageHeight] = useState(window.innerHeight - 40);
@@ -65,119 +90,6 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
    * the third later is where everything clickable is, note that it is aligned with nested items, and I can't think of a fix for this as of the tiem of writing this
    * currently the nested options are automcatically set to be out, but this can be changed easily if we decide we hate it
    */
-  const navItems = [
-      {
-            id: 'OperatingStateNavItem',
-            name: 'Operating State Analysis',
-            icon: <EuiIcon type="eyeClosed" />,
-      },
-      {
-            id: 'initEventNavGroup',
-            name: 'Initiating Events',
-            icon: <EuiIcon type="branch" />,
-            onClick: () => handleNavItemClick('/models/1/initiating-events'),
-      },
-      {
-        id: 'eventSeqAnalysisNavGroup',
-        name: 'Event Sequence Analysis',
-        icon: <EuiIcon type="branch" />,
-        items: [
-          {
-            id: 'eventSeqDiaNavGroup',
-            name: 'Event Sequence Diagrams',
-            onClick: () => handleNavItemClick('/models/1/event-sequence-diagrams'),
-          },
-          {
-            id: 'eventTreesNavGroup',
-            name: 'Event Trees',
-            onClick: () => handleNavItemClick('/models/1/event-trees'),
-          },
-        ],
-      },
-      {
-        id: 'sysAnalysisNavGroup',
-        name: 'Systems Analysis',
-        icon: <EuiIcon type="logstashIf" />,
-        items: [
-          {
-            id: 'faultTreesNavGroup',
-            name: 'Fault Trees',
-            onClick: () => handleNavItemClick('/models/1/fault-trees'),
-          },
-          {
-            id: 'bayeNetNavGroup',
-            name: 'Bayesian Networks',
-            onClick: () => handleNavItemClick('/models/1/bayesian-networks'),
-          },
-        ],
-      },
-      {
-        id: 'humanReliabilityAnalysisNavItem',
-        name: 'Human Reliability Analysis',
-        icon: <EuiIcon type="eyeClosed" />,
-      },
-      {
-        id: 'dataAnalysisNavGroup',
-        name: 'Data Analysis',
-        icon: <EuiIcon type="visBarVertical" />,
-        items: [
-          {
-            id: 'gatesNavItem',
-            name: 'Gates',
-            onClick: () => handleNavItemClick('/models/1/gates'),
-          },
-          {
-            id: 'basicEventNavItem',
-            name: 'Basic Events',
-            onClick: () => handleNavItemClick('/models/1/basic-events'),
-          },
-          {
-            id: 'ccfGroupsNavItem',
-            name: 'CCF Groups',
-            onClick: () => handleNavItemClick('/models/1/ccf-groups'),
-          },
-        ],
-      },
-          {
-            id: 'eventSequenceQuantificationNavItem',
-            name: 'Event Sequence Quantification',
-            icon: <EuiIcon type="eyeClosed" />,
-          },
-          {
-            id: 'consequenceAnalysisNavItem',
-            name: 'Consequence Analysis',
-            icon: <EuiIcon type="eyeClosed" />,
-          },
-          {
-          id: 'riskIntegrationNavItem',
-          name: 'Risk Integration',
-          icon: <EuiIcon type="eyeClosed" />,
-          },
-          {
-            id: 'overviewNavItem',
-            name: 'Overview',
-            icon: <EuiIcon type="apps" />,
-            onClick: () => handleNavItemClick('/models/1'),
-          },
-          {
-            id: 'globalParametersNavItem',
-            name: 'Global Parameters',
-            icon: <EuiIcon type="database" />,
-            onClick: () => handleNavItemClick('/models/1/global-Parameters'),
-          },
-          {
-            id: 'quantificationHistoryNavItem',
-            name: 'Quantification History',
-            icon: <EuiIcon type="visBarVertical" />,
-            onClick: () => handleNavItemClick('/models/1/quantification-history'),
-          },
-          {
-            id: 'settingsNavItem',
-            name: 'Settings',
-            icon: <EuiIcon type="gear" />,
-            onClick: () => handleNavItemClick('/models/1/settings'),
-          },
-  ];
 /*
   return (
     //loops through 1 layer, then the second, then finally displays the items with data in them
@@ -213,9 +125,203 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
     </EuiCollapsibleNavGroup>
 
   );*/
-  return(
-      <EuiSideNav
-        items={navItems}
+
+  const createTreeItem = (label: string, data = {}, depth = 0) => {
+    let size : "xs" | "s" | "m" | "relative" = "relative";
+    let text;
+    let color: string;
+    switch (depth) {
+      case 0:
+        text = <h5 style={{textTransform: "uppercase"}}>{label}</h5>;
+        color = "primary";
+        break;
+      case 1:
+        size = "s";
+        text = <h6>{label}</h6>;
+        color = euiTheme.colors.darkestShade;
+        break;
+      default:
+        size = "xs";
+        text = label;
+        color = "primary";
+        break;
+    }
+    return {
+      id: slugify(label),
+      label: <EuiText size={size} color={color} title={label}>{text}</EuiText>,
+      ...data,
+    };
+  }
+
+  const operatingStates = [
+    createTreeItem("Operating States",  {}),
+  ];
+
+  const initiatingEvents = [
+    createTreeItem("Initiating Event Analysis",  {
+      isExpanded: true,
+      children: [
+        createTreeItem("Initiating Events",  {
+          isExpanded: true,
+          children: [
+            createTreeItem("Initiating Event 1", {
+              icon: <EuiToken iconType="tokenInterface" />,
+            }, 2),
+          ],
+        }, 1),
+      ],
+    }),
+  ];
+
+  const eventSequenceAnalysis = [
+    createTreeItem("Event Sequence Analysis",  {
+      isExpanded: true,
+      children: [
+        createTreeItem("Event Sequence Diagrams", {
+          isExpanded: true,
+          children: [
+            createTreeItem("Event Sequence 1", {
+              icon: <EuiToken iconType="tokenEnumMember" />,
+            }, 2),
+            createTreeItem("Event Sequence 2", {
+              icon: <EuiToken iconType="tokenEnumMember" />,
+            }, 2),
+          ],
+        }, 1),
+        createTreeItem("Event Trees", {
+          isExpanded: true,
+          children: [
+            createTreeItem("Event Tree 1", {
+              icon: <EuiToken iconType="tokenEnum" />,
+            }, 2),
+          ],
+        }, 1),
+      ],
+    }),
+  ];
+
+  const systemsAnalysis = [
+    createTreeItem("Systems Analysis",  {
+      isExpanded: true,
+      children: [
+        createTreeItem("Fault Trees", {
+          isExpanded: true,
+          children: [
+            createTreeItem("Fault Tree 1", {
+              icon: <EuiToken iconType="tokenField" />,
+            }, 2),
+            createTreeItem("Fault Tree 2", {
+              icon: <EuiToken iconType="tokenField" />,
+            }, 2),
+            createTreeItem("Fault Tree 3", {
+              icon: <EuiToken iconType="tokenField" />,
+            }, 2),
+          ],
+        }, 1),
+        createTreeItem("Bayesian Networks", {
+          isExpanded: true,
+          children: [
+            createTreeItem("Bayesian Network 1", {
+              icon: <EuiToken iconType="tokenPercolator" />,
+            }, 2),
+            createTreeItem("Bayesian Network 2", {
+              icon: <EuiToken iconType="tokenPercolator" />,
+            }, 2),
+          ],
+        }, 1),
+      ],
+    }),
+  ];
+
+  const HRA = [
+    createTreeItem("Human Reliability Analysis",  {}),
+  ];
+
+  const dataAnalysis = [
+    createTreeItem("Data Analysis",  {
+      isExpanded: true,
+      children: [
+        createTreeItem("Gates", {
+          icon: <EuiToken iconType="tokenRepo"/>,
+        }, 1),
+        createTreeItem("Basic Events", {
+          icon: <EuiToken iconType="editorBold" shape="square"/>,
+        }, 1),
+        createTreeItem("CCF Groups", {
+          icon: <EuiToken iconType="tokenShape" shape="square"/>,
+        }, 1),
+      ],
+    }),
+  ];
+
+  const eventSequenceQuantification = [
+    createTreeItem("Event Sequence Quantification",  {}),
+  ];
+
+  const consequence = [
+    createTreeItem("Consequence Analysis",  {}),
+  ];
+
+  const riskIntegration = [
+    createTreeItem("Risk Integration",  {}),
+  ];
+
+  const quantificationHistory = [
+    createTreeItem("Quantification History",  {
+      icon: <EuiIcon type="visAreaStacked" />,
+    }),
+  ];
+
+  const globalParams = [
+    createTreeItem("Global Parameters",  {
+      icon: <EuiIcon type="beta" />,
+    }),
+  ];
+
+  const settings = [
+    createTreeItem("Settings",  {
+      icon: <EuiIcon type="gear" />,
+    }),
+  ];
+
+  const createTreeView = (items: any[]) => {
+    return (
+      <EuiTreeView
+        items={items}
+        aria-label="Model Sidebar"
+        expandByDefault={false}
+        showExpansionArrows
+        display="compressed"
       />
-  )
+    );
+  }
+
+  const treeItems = [
+    operatingStates,
+    initiatingEvents,
+    eventSequenceAnalysis,
+    systemsAnalysis,
+    HRA,
+    dataAnalysis,
+    eventSequenceQuantification,
+    consequence,
+    riskIntegration,
+    quantificationHistory,
+    globalParams,
+    settings,
+  ];
+
+  const createTreeViews = (items = treeItems) => {
+    const viewItems: JSX.Element[] = [];
+
+    items.forEach((item) => {
+      viewItems.push(...[
+        createTreeView(item),
+        <EuiHorizontalRule margin="xs" />,
+      ]);
+    });
+    return (viewItems);
+  }
+
+  return(<>{createTreeViews(treeItems)}</>);
 }

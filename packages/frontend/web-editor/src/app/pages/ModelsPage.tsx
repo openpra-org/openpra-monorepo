@@ -14,8 +14,7 @@ import InitiatingEvents from "./modelPages/initiatingEvents";
 import EventTrees from "./modelPages/eventTrees";
 import ModelGates from "./modelPages/modelGates";
 import BasicEvents from "./modelPages/basicEvents";
-import OverviewPage from "./modelPages/overviewPage";
-import Model from "./Model";
+import ModelContainer from "./ModelContainer";
 
 
 //   children: [
@@ -83,13 +82,12 @@ export async function loadModel() {
 
 export default function ModelsPage() {
   return (
-    <>
     <Routes>
       <Route path="" element=<ModelList/> />
       <Route path="new" element=<NewModelsPage/> />
       <Route
         path=":modelId"
-        element=<Model/>
+        element=<ModelContainer/>
         loader={loadModel}
       >
         <Route
@@ -97,51 +95,50 @@ export default function ModelsPage() {
           element= {<EventSequenceDiagrams />}
         />
         <Route
-            path= "fault-trees"
-            element= {<FaultTrees />}
+          path= "fault-trees"
+          element= {<FaultTrees />}
         />
         <Route
-            path= "bayesian-networks"
-            element= {<BayesianNetworks />}
+          path= "bayesian-networks"
+          element= {<BayesianNetworks />}
         />
         <Route
-            path= "global-parameters"
-            element= {<ModelGlobalParameters />}
+          path= "global-parameters"
+          element= {<ModelGlobalParameters />}
         />
         <Route
-            path= "quantification-history"
-            element= {<QuantificationHistory />}
+          path= "quantification-history"
+          element= {<QuantificationHistory />}
         />
         <Route
-            path= "settings"
-            element= {<ModelSettings />}
+          path= "settings"
+          element= {<ModelSettings />}
         />
         <Route
-            path= "initiating-events"
-            element= {<InitiatingEvents />}
+          path= "initiating-events"
+          element= {<InitiatingEvents />}
         />
         <Route
-            path= "event-trees"
-            element= {<EventTrees />}
+          path= "event-trees"
+          element= {<EventTrees />}
         />
         <Route
-            path= "gates"
-            element= {<ModelGates />}
+          path= "gates"
+          element= {<ModelGates />}
         />
         <Route
-            path= "basic-events"
-            element= {<BasicEvents />}
+          path= "basic-events"
+          element= {<BasicEvents />}
         />
         <Route
-            path= "ccf-groups"
-            element= {<CcfGroups />}
+          path= "ccf-groups"
+          element= {<CcfGroups />}
         />
       </Route>
-      {/** everthing below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested
+      {/** everything below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested
        * else a problem happens where the parent takes presedence and loads its content over everything else
        */}
 
     </Routes>
-    </>
   );
 }

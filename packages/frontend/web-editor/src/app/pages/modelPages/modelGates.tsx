@@ -1,5 +1,5 @@
-import GatesTable from '../../components/largecomponents/tables/gatesTable';
-import PageLayout from '../../components/largecomponents/stylingaids/pageLayout';
+import GatesTable from '../../components/tables/gatesTable';
+import PageLayout from '../../components/stylingaids/pageLayout';
 
 export default function ModelGates() {
     return (

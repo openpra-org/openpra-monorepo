@@ -1,4 +1,4 @@
-import InitiatingEventsList from '../../components/largecomponents/lists/initiatingEventsList';
+import InitiatingEventsList from '../../components/lists/initiatingEventsList';
 
 export default function InitiatingEvents() {
     return (

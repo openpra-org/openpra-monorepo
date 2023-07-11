@@ -1,7 +1,7 @@
 import { EuiPageTemplate, logicalStyle, useEuiPaddingCSS } from "@elastic/eui";
-import GenericListItem from "../../lists/GenericListItem";
-import GenericItemList from "../../lists/GenericItemList";
-import { NewItemButton } from "../../smallcomponents/buttons/newItemButton";
+import GenericListItem from "./GenericListItem";
+import GenericItemList from "./GenericItemList";
+import { NewItemButton } from "../buttons/newItemButton";
 
 const getFixtures = (count = 100): JSX.Element[] => {
   {/** grabs the models/id part, then appends the new part to get the total overall path */}
@@ -9,8 +9,8 @@ const getFixtures = (count = 100): JSX.Element[] => {
     return (<GenericListItem
     key={i}
     label={{
-      name: `Initiating Event #${i}`,
-      description: `This is inititating event number ${i}`,
+      name: `Event Sequence #${i}`,
+      description: `This is event sequence number ${i}`,
     }}
     path={window.location.pathname + `/${i}`}
   />)});
@@ -33,7 +33,7 @@ export default function ModelList(){
         // pageTitleProps={{
         //   css: {headerCss}
         // }}
-        pageTitle="Initiating Events"
+        pageTitle="Event Sequence Diagrams"
         pageTitleProps={{
           css: titleCss,
         }}
@@ -45,7 +45,7 @@ export default function ModelList(){
         bottomBorder={true}
         // iconType="submodule"
         rightSideItems={[
-          <NewItemButton title="Initiating Event" page = ""/>
+          <NewItemButton title="Event Sequence Network" page = ""/>
         ]}
       />
     <EuiPageTemplate.Section restrictWidth style={verticalMargin}>

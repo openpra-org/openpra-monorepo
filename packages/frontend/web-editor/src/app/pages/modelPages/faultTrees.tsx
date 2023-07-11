@@ -1,4 +1,4 @@
-import FaultTreeList from '../../components/largecomponents/lists/faultTreeList';
+import FaultTreeList from '../../components/lists/faultTreeList';
 
 export default function FaultTrees() {
     return (

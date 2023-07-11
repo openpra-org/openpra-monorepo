@@ -14,7 +14,7 @@ import {
 import { Fragment, useState } from "react";
 import { Link, PathRouteProps, useNavigate } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
-import DeleteItemBox from "../smallcomponents/listchanging/deleteItemBox";
+import DeleteItemBox from "../listchanging/deleteItemBox";
 
 
 //title is required, description isnt required but is typically present

@@ -1,6 +1,6 @@
-import GlobalParametersList from '../../components/largecomponents/lists/globalParametersList';
-import PageLayout from '../../components/largecomponents/stylingaids/pageLayout';
-import {ModelPageFilter} from "../../components/largecomponents/headers/headers";
+import {ModelPageFilter} from "../../components/headers/headers";
+import GlobalParametersList from "../../components/lists/globalParametersList";
+import PageLayout from "../../components/stylingaids/pageLayout";
 
 export default function BasicEvents() {
     return (

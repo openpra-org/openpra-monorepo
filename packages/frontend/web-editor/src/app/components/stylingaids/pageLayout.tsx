@@ -1,8 +1,6 @@
 //this is all placeholder so that I can test hrefs and stuff
 
 import {useEffect, useState} from 'react';
-import { PageSubHeader } from '../headers/pageSubHeader'
-import {PageHeader} from '../headers/headers'
 import {EuiPageTemplate, EuiSpacer, EuiTitle, useEuiTheme} from '@elastic/eui'
 
 //props that are passed, it takes both a string for the name of the page, and then an amount of content of react nodes

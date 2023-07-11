@@ -1,6 +1,6 @@
 import {useEuiTheme, EuiHeaderSection, EuiPageHeader, EuiFlexGroup, EuiFlexItem, EuiText, EuiTitle } from "@elastic/eui";
-import ModelSidenav from "../../smallcomponents/sidenavs/modelSidenav";
-import DataSidenav from "../../smallcomponents/sidenavs/dataSidenav";
+import ModelSidenav from "../sidenavs/modelSidenav";
+import DataSidenav from "../sidenavs/dataSidenav";
 
 interface IntermediateComponentProps {
     isModel: boolean;

@@ -1,5 +1,4 @@
 import { EuiFlexGroup, EuiFlexItem, EuiSpacer } from "@elastic/eui";
-import GenericItemList from "../../lists/GenericItemList";
 
 type Item = {
   id: number;

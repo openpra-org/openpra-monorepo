@@ -1,4 +1,4 @@
-import EventSequenceList from '../../components/largecomponents/lists/eventSequenceList';
+import EventSequenceList from '../../components/lists/eventSequenceList';
 
 export default function EventSequenceDiagrams() {
     return (

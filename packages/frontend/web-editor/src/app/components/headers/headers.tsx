@@ -16,9 +16,9 @@ import {
     EuiSpacer,
     EuiOverlayMask,
 } from "@elastic/eui"
-import ListOption from "../../smallcomponents/listitems/listOption";
-import NewItem from '../../smallcomponents/listchanging/newItem';
-import AddParameter from '../../smallcomponents/listchanging/addParameter';
+import ListOption from "../listitems/listOption";
+import NewItem from '../listchanging/newItem';
+import AddParameter from '../listchanging/addParameter';
 import { useNavigate } from 'react-router-dom';
 
 export function PageHeader() {

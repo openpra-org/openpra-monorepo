@@ -1,6 +1,5 @@
-import {EuiCollapsibleNavGroup, EuiIcon, EuiListGroup, EuiSideNav, useEuiTheme} from '@elastic/eui';
+import { EuiIcon, EuiSideNav, useEuiTheme} from '@elastic/eui';
 import {useState, useEffect} from 'react'
-import SideNavBase from "./sidenavtemplate/sideNavBase";
 import { useNavigate } from 'react-router-dom';
 
 interface DataSidenavProps {

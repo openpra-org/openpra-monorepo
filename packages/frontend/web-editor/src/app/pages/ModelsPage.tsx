@@ -17,29 +17,6 @@ import BasicEvents from "./modelPages/basicEvents";
 import ModelContainer from "./ModelContainer";
 
 
-//   children: [
-//     { path: "overview", element: <OverviewPage /> },
-//     { path: "event_sequence_diagrams", element: <EventSequenceDiagrams /> },
-//     { path: "fault_trees", element: <FaultTrees /> },
-//     { path: "bayesian_networks", element: <BayesianNetworks /> },
-//     { path: "global_parameters", element: <ModelGlobalParameters /> },
-//     { path: "quantification_history", element: <QuantificationHistory /> },
-//     { path: "settings", element: <ModelSettings /> },
-//     { path: "initiating_events", element: <InitiatingEvents /> },
-//     { path: "event_trees", element: <EventTrees /> },
-//     { path: "gates", element: <ModelGates /> },
-//     { path: "basic_events", element: <BasicEvents /> },
-//     { path: "ccf_groups", element: <CcfGroups /> },
-//   ]
-// }
-
-// const router = createBrowserRouter(routes, {
-//   future: {
-//     // Normalize `useNavigation()`/`useFetcher()` `formMethod` to uppercase
-//     v7_normalizeFormMethod: true,
-//   },
-// });
-
 const getModelFixture = (): ModelProps => {
   return ({
     label: {
@@ -91,47 +68,47 @@ export default function ModelsPage() {
         loader={loadModel}
       >
         <Route
-          path="event-sequence-diagrams"
+          path="event-sequence-diagrams/*"
           element= {<EventSequenceDiagrams />}
         />
         <Route
-          path= "fault-trees"
+          path= "fault-trees/*"
           element= {<FaultTrees />}
         />
         <Route
-          path= "bayesian-networks"
+          path= "bayesian-networks/*"
           element= {<BayesianNetworks />}
         />
         <Route
-          path= "global-parameters"
+          path= "global-parameters/*"
           element= {<ModelGlobalParameters />}
         />
         <Route
-          path= "quantification-history"
+          path= "quantification-history/*"
           element= {<QuantificationHistory />}
         />
         <Route
-          path= "settings"
+          path= "settings/*"
           element= {<ModelSettings />}
         />
         <Route
-          path= "initiating-events"
+          path= "initiating-events/*"
           element= {<InitiatingEvents />}
         />
         <Route
-          path= "event-trees"
+          path= "event-trees/*"
           element= {<EventTrees />}
         />
         <Route
-          path= "gates"
+          path= "data-analysis/gates/*"
           element= {<ModelGates />}
         />
         <Route
-          path= "basic-events"
+          path= "data-analysis/basic-events/*"
           element= {<BasicEvents />}
         />
         <Route
-          path= "ccf-groups"
+          path= "data-analysis/ccf-groups/*"
           element= {<CcfGroups />}
         />
       </Route>

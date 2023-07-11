@@ -19,10 +19,7 @@ export default () => {
         minWidth={300}
         responsive={["xs"]}
       >
-        <ModelSidenav
-          isNavOpen={false}
-          onNavToggle={function (isOpen: boolean): void {throw new Error("Function not implemented.");}}
-        />
+        <ModelSidenav />
       </EuiPageSidebar>
       <EuiPageBody
         paddingSize="none"

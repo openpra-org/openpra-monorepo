@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useState} from 'react';
 import {
   EuiAvatar,
   EuiButton,
@@ -33,8 +33,8 @@ const tokenizePath = (path: string, stripTrailingSlash = true): string[] => {
   return str.split("/").filter((value) => (value !== ""));
 }
 
-const toTitleCase = (str: string) => {
-  return str.replace(
+const toTitleCase = (str: string, stripDashes = true) => {
+  return str.replace(/-/g, stripDashes ? " " : "-").replace(
     /\w\S*/g,
     function(txt) {
       return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
@@ -43,9 +43,8 @@ const toTitleCase = (str: string) => {
 }
 
 export default () => {
-  //uses navigate
-  const navigate = useNavigate();
 
+  const navigate = useNavigate();
   const renderLogo = () => (
     <EuiHeaderLogo
       iconType="home"

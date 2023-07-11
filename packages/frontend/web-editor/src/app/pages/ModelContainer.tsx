@@ -4,7 +4,7 @@ import {
   EuiPage,
   EuiPageSidebar,
 } from '@elastic/eui';
-import ModelSidenav from "../components/smallcomponents/sidenavs/modelSidenav";
+import ModelSidenav from "../components/sidenavs/modelSidenav";
 
 export default () => {
   return (

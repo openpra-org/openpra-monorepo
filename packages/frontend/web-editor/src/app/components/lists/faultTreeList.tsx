@@ -1,23 +1,22 @@
-import { NewItemButton } from "../buttons/newItemButton";
-import GenericItemList from "./GenericItemList";
+import { EuiPageTemplate, logicalStyle, useEuiPaddingCSS } from "@elastic/eui";
 import GenericListItem from "./GenericListItem";
-import { EuiButton, EuiPageTemplate, logicalStyle, useEuiPaddingCSS } from "@elastic/eui";
-import { Link } from "react-router-dom";
+import GenericItemList from "./GenericItemList";
+import { NewItemButton } from "../buttons/newItemButton";
 
 const getFixtures = (count = 100): JSX.Element[] => {
+  {/** grabs the models/id part, then appends the new part to get the total overall path */}
   return Array.from(Array(count).keys()).map((e, i) => {
     return (<GenericListItem
     key={i}
     label={{
-      name: `Model #${i}`,
-      description: `This is model number ${i}`,
+      name: `Fault Tree #${i}`,
+      description: `This is fault tree number ${i}`,
     }}
-    path={`/models/${i}`}
+    path={window.location.pathname + `/${i}`}
   />)});
 }
 
 export default function ModelList(){
-
   const horizontalPadding = useEuiPaddingCSS("horizontal");
   const verticalPadding = useEuiPaddingCSS("vertical");
   const verticalMargin = logicalStyle("margin-vertical", "0px");
@@ -34,7 +33,7 @@ export default function ModelList(){
         // pageTitleProps={{
         //   css: {headerCss}
         // }}
-        pageTitle="Models"
+        pageTitle="Fault Trees"
         pageTitleProps={{
           css: titleCss,
         }}
@@ -46,7 +45,7 @@ export default function ModelList(){
         bottomBorder={true}
         // iconType="submodule"
         rightSideItems={[
-          <NewItemButton title="Model" page = "models"/>
+          <NewItemButton title="Fault Tree" page = ""/>
         ]}
       />
     <EuiPageTemplate.Section restrictWidth style={verticalMargin}>

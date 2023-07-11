@@ -1,6 +1,6 @@
 import { EuiSpacer } from '@elastic/eui';
-import {PageHeader} from '../components/largecomponents/headers/headers'
-import NewItem from "../components/smallcomponents/listchanging/newItem";
+import {PageHeader} from '../components/headers/headers'
+import NewItem from "../components/listchanging/newItem";
 
 export default function ModelsPage() {
     //this page is used to display all of our big components on a main page.

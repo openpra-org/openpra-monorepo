@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useEffect, useState} from 'react';
 import {
   EuiAvatar,
   EuiBreadcrumb,
@@ -27,7 +27,7 @@ import {
   EuiText,
   useGeneratedHtmlId,
 } from '@elastic/eui';
-import { Link } from 'react-router-dom';
+import {Link, useLocation} from 'react-router-dom';
 export default () => {
   const renderLogo = () => (
     <EuiHeaderLogo
@@ -37,42 +37,47 @@ export default () => {
       aria-label="Go to home page"
     />
   );
+
+  const location = useLocation();
+  const [breadcrumbArray, setBreadcrumbArray] = useState(window.location.pathname.split('/'));
+  const [breadcrumbs, setBreadcrumbs] = useState(breadcrumbArray.map((item) => {
+    return (
+        {
+          text: item,
+          href: '#',
+          onClick: (e: any) => {
+            e.preventDefault();
+          },
+        }
+    )
+  }))
+
+  useEffect(() => {
+    // runs on location, i.e. route, change
+    // updates the array of breadcrumbs without having to refresh page
+    setBreadcrumbArray(window.location.pathname.split('/'))
+
+    // this useEffect triggers when the user navigates the website
+    // and after triggering itself when it changes the breadcrumbArray
+  }, [location])
+  useEffect(() => {
+    // updates the actual breadcrumbs
+    setBreadcrumbs(() => breadcrumbArray.map((item) => {
+      return (
+          {
+            text: item,
+            href: '#',
+            onClick: (e: any) => {
+              e.preventDefault();
+            },
+          }
+      )
+
+    }))
+  }, [breadcrumbArray])
+
   const renderBreadcrumbs = () => {
-    const breadcrumbs: EuiBreadcrumb[] = [
-      {
-        text: 'Management',
-        href: '#',
-        onClick: (e) => {
-          e.preventDefault();
-        },
-        'data-test-subj': 'breadcrumbsAnimals',
-        className: 'customClass',
-      },
-      {
-        text: 'Truncation test is here for a really long item',
-        href: '#',
-        onClick: (e) => {
-          e.preventDefault();
-        },
-      },
-      {
-        text: 'Hidden',
-        href: '#',
-        onClick: (e) => {
-          e.preventDefault();
-        },
-      },
-      {
-        text: 'Users',
-        href: '#',
-        onClick: (e) => {
-          e.preventDefault();
-        },
-      },
-      {
-        text: 'Create',
-      },
-    ];
+
     return (
       <EuiHeaderBreadcrumbs
         aria-label="Header breadcrumbs example"

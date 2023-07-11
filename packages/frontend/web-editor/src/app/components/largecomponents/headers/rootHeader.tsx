@@ -33,7 +33,12 @@ export default () => {
     <EuiHeaderLogo
       iconType="home"
       href="#"
-      onClick={(e) => e.preventDefault()}
+      onClick={
+        (e) => {
+          e.preventDefault()
+          navigate("/models")
+        }
+    }
       aria-label="Go to home page"
     />
   );

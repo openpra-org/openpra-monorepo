@@ -172,16 +172,12 @@ const HeaderUserMenu = () => {
               <p>John Username</p>
             </EuiText>
             <EuiSpacer size="m" />
-            <EuiFlexGroup>
-              <EuiFlexItem>
-                <EuiFlexGroup justifyContent="spaceBetween">
-                  <EuiFlexItem grow={false}>
-                    <EuiLink>Edit profile</EuiLink>
-                  </EuiFlexItem>
-                  <EuiFlexItem grow={false}>
-                    <EuiLink>Log out</EuiLink>
-                  </EuiFlexItem>
-                </EuiFlexGroup>
+              <EuiFlexGroup justifyContent="spaceBetween">
+                <EuiFlexItem grow={false}>
+                  <EuiLink>Edit profile</EuiLink>
+                </EuiFlexItem>
+                <EuiFlexItem grow={false}>
+                  <EuiLink>Log out</EuiLink>
               </EuiFlexItem>
             </EuiFlexGroup>
           </EuiFlexItem>

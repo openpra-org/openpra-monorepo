@@ -1,6 +1,5 @@
 import { Outlet } from "react-router-dom";
 import {
-  EuiText,
   EuiPageTemplate,
 } from '@elastic/eui';
 import ModelSidenav from "../components/smallcomponents/sidenavs/modelSidenav";

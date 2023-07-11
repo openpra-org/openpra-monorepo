@@ -41,23 +41,26 @@ export default () => {
   //uses navigate
   const navigate = useNavigate();
 
-  const getNavigatePath = (index : number) => {
-    var hrefString : string = ''
+  function getNavigatePath(index : number)  {
+    let hrefString = ''
     for (let i = 0; i <= index; i++){
       hrefString = hrefString.concat('/')
       hrefString = hrefString.concat(breadcrumbArray[i])
     }
-    console.log(hrefString)
-    return hrefString;
+    navigate(hrefString)
+    return hrefString
   }
 
   const location = useLocation();
   const [breadcrumbArray, setBreadcrumbArray] = useState(window.location.pathname.split('/'));
-  const [breadcrumbs, setBreadcrumbs] = useState(breadcrumbArray.map((item) => {
+  const [breadcrumbs, setBreadcrumbs] = useState(breadcrumbArray.map((item, i) => {
     return (
         {
           text: item,
-          href: '#',
+          onClick: (e: any) => {
+            e.preventDefault();
+            getNavigatePath(i)
+          },
         }
     )
   }))
@@ -66,7 +69,6 @@ export default () => {
     // runs on location, i.e. route, change
     // updates the array of breadcrumbs without having to refresh page
     setBreadcrumbArray(window.location.pathname.split('/').slice(1))
-    console.log(getNavigatePath(2))
 
     // this useEffect triggers when the user navigates the website
     // and after triggering itself when it changes the breadcrumbArray
@@ -77,7 +79,10 @@ export default () => {
       return (
           {
             text: item,
-            href: getNavigatePath(i),
+            onClick: (e: any) => {
+              e.preventDefault();
+              getNavigatePath(i)
+            },
           }
       )
 

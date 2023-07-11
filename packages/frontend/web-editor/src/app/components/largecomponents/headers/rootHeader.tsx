@@ -27,7 +27,7 @@ import {
   EuiText,
   useGeneratedHtmlId,
 } from '@elastic/eui';
-import {Link, useLocation} from 'react-router-dom';
+import {Link, useLocation, useNavigate} from 'react-router-dom';
 export default () => {
   const renderLogo = () => (
     <EuiHeaderLogo
@@ -38,6 +38,19 @@ export default () => {
     />
   );
 
+  //uses navigate
+  const navigate = useNavigate();
+
+  const getNavigatePath = (index : number) => {
+    var hrefString : string = ''
+    for (let i = 0; i <= index; i++){
+      hrefString = hrefString.concat('/')
+      hrefString = hrefString.concat(breadcrumbArray[i])
+    }
+    console.log(hrefString)
+    return hrefString;
+  }
+
   const location = useLocation();
   const [breadcrumbArray, setBreadcrumbArray] = useState(window.location.pathname.split('/'));
   const [breadcrumbs, setBreadcrumbs] = useState(breadcrumbArray.map((item) => {
@@ -45,9 +58,6 @@ export default () => {
         {
           text: item,
           href: '#',
-          onClick: (e: any) => {
-            e.preventDefault();
-          },
         }
     )
   }))
@@ -55,21 +65,19 @@ export default () => {
   useEffect(() => {
     // runs on location, i.e. route, change
     // updates the array of breadcrumbs without having to refresh page
-    setBreadcrumbArray(window.location.pathname.split('/'))
+    setBreadcrumbArray(window.location.pathname.split('/').slice(1))
+    console.log(getNavigatePath(2))
 
     // this useEffect triggers when the user navigates the website
     // and after triggering itself when it changes the breadcrumbArray
   }, [location])
   useEffect(() => {
     // updates the actual breadcrumbs
-    setBreadcrumbs(() => breadcrumbArray.map((item) => {
+    setBreadcrumbs(() => breadcrumbArray.map((item,i) => {
       return (
           {
             text: item,
-            href: '#',
-            onClick: (e: any) => {
-              e.preventDefault();
-            },
+            href: getNavigatePath(i),
           }
       )
 

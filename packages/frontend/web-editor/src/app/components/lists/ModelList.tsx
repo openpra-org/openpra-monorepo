@@ -1,3 +1,4 @@
+import { NewItemButton } from "../buttons/newItemButton";
 import GenericItemList from "./GenericItemList";
 import GenericListItem from "./GenericListItem";
 import { EuiButton, EuiPageTemplate, logicalStyle, useEuiPaddingCSS } from "@elastic/eui";
@@ -16,6 +17,7 @@ const getFixtures = (count = 100): JSX.Element[] => {
 }
 
 export default function ModelList(){
+
   const horizontalPadding = useEuiPaddingCSS("horizontal");
   const verticalPadding = useEuiPaddingCSS("vertical");
   const verticalMargin = logicalStyle("margin-vertical", "0px");
@@ -44,9 +46,7 @@ export default function ModelList(){
         bottomBorder={true}
         // iconType="submodule"
         rightSideItems={[
-          <Link to="/models/new">
-            <EuiButton fill>Create</EuiButton>
-          </Link>
+          <NewItemButton title="Model" page = "models"/>
         ]}
       />
     <EuiPageTemplate.Section restrictWidth style={verticalMargin}>

@@ -13,6 +13,10 @@ export function NewItemButton(props: NewItemProps) {
     //this is to make sure the new thing gets set
     const [addNewVisible, setAddNewVisible] = useState(false);
 
+      
+    //dummy data for new model page for users
+    const userStrings = ["ifrit", "bahamut", "pheonix", "ramuh", "shiva", "odin", "titan", "garuda" ];
+
     //grab the props
     const { title, page } = props;
 
@@ -30,9 +34,9 @@ export function NewItemButton(props: NewItemProps) {
                     <NewItem title={title} page={page}/>
                 </EuiOverlayMask>
             )}
-            {addNewVisible && title === "Models" && (
+            {addNewVisible && title === "Model" && (
                 <EuiOverlayMask>
-                    <NewItem title={title} page={page} users={[]}/>
+                    <NewItem title={title} page={page} users={userStrings}/>
                 </EuiOverlayMask>
             )}
             {addNewVisible && title === "Global Parameters" && (

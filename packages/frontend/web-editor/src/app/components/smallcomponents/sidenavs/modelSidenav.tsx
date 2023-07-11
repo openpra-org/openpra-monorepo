@@ -128,7 +128,7 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
     switch (depth) {
       case 0:
         text = <h5 style={{textTransform: "uppercase"}}>{label}</h5>;
-        color = "primary";
+        color = euiTheme.colors.darkestShade;
         linkPath = path;
         break;
       case 1:
@@ -140,14 +140,21 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
       default:
         size = "xs";
         text = label;
-        color = "primary";
+        color = euiTheme.colors.darkestShade;
         linkPath = path;
         break;
     }
+
+    const linkText = (
+      <span style={{ color }}>
+        {text}
+      </span>
+    );
+    
     return {
       id: slugify(label),
       label: <EuiText size={size} color={color} title={label}>
-        {linkPath ? <Link to={linkPath}>{text}</Link> : text}
+        {linkPath ? <Link to={linkPath}>{linkText}</Link> : text}
       </EuiText>,
       ...data,
     };

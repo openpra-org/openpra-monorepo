@@ -5,7 +5,7 @@ import {ModelPageFilter} from "../../components/largecomponents/headers/headers"
 export default function BasicEvents() {
     return (
         <> 
-            <PageLayout isModel={true} pageName='Basic Events' contentType={
+            <PageLayout isModel={true} pageName='Global Parameters' contentType={
                 <>
                     <ModelPageFilter title="Global Parameters" page="model/1/globalParameters" />
                     <GlobalParametersList/>

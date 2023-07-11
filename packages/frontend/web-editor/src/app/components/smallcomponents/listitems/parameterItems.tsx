@@ -3,7 +3,7 @@ import DeleteItemBox from "../listchanging/deleteItemBox";
 import { useState } from "react";
 
 
-export default function (){
+export default function parameterItems(){
 
     //state to toggle the delete menu
     const [deleteVisible, setDeleteVisible] = useState(false);

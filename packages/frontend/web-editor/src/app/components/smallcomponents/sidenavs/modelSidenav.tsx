@@ -5,10 +5,10 @@ import {
   EuiToken,
   useEuiTheme,
   EuiText,
-  EuiHorizontalRule, logicalStyle
+  EuiHorizontalRule
 } from "@elastic/eui";
-import React, {useState, useEffect} from 'react'
-import { useNavigate } from 'react-router-dom';
+import {useState, useEffect} from 'react'
+import { Link, useNavigate } from 'react-router-dom';
 
 interface ModelSidenavProps {
   isNavOpen: boolean;
@@ -75,12 +75,6 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
   //uses navigate
   const navigate = useNavigate();
 
-  //on clicking the card automatically sets the page this thing is on in the history
-  //so it can be navigated to
-  const handleNavItemClick = (page: string) => {
-    navigate(page);
-  };
-
   /**
    * This is the list of nav items, I will do a small write up so in case I am not the one who is adding new items to it
    * the first nested layer is where the entire list of options resides, and probably shouldn't be messed with ever, except to change the name
@@ -126,29 +120,35 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
 
   );*/
 
-  const createTreeItem = (label: string, data = {}, depth = 0) => {
+  const createTreeItem = (label: string, data = {}, depth = 0, path = '') => {
     let size : "xs" | "s" | "m" | "relative" = "relative";
     let text;
     let color: string;
+    let linkPath: string | undefined;
     switch (depth) {
       case 0:
         text = <h5 style={{textTransform: "uppercase"}}>{label}</h5>;
         color = "primary";
+        linkPath = path;
         break;
       case 1:
         size = "s";
         text = <h6>{label}</h6>;
         color = euiTheme.colors.darkestShade;
+        linkPath = path;
         break;
       default:
         size = "xs";
         text = label;
         color = "primary";
+        linkPath = path;
         break;
     }
     return {
       id: slugify(label),
-      label: <EuiText size={size} color={color} title={label}>{text}</EuiText>,
+      label: <EuiText size={size} color={color} title={label}>
+        {linkPath ? <Link to={linkPath}>{text}</Link> : text}
+      </EuiText>,
       ...data,
     };
   }
@@ -166,7 +166,7 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
           children: [
             createTreeItem("Initiating Event 1", {
               icon: <EuiToken iconType="tokenInterface" />,
-            }, 2),
+            }, 2, 'initiating-events')
           ],
         }, 1),
       ],
@@ -182,10 +182,10 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
           children: [
             createTreeItem("Event Sequence 1", {
               icon: <EuiToken iconType="tokenEnumMember" />,
-            }, 2),
+            }, 2, 'event-sequence-diagrams'),
             createTreeItem("Event Sequence 2", {
               icon: <EuiToken iconType="tokenEnumMember" />,
-            }, 2),
+            }, 2, 'event-sequence-diagrams'),
           ],
         }, 1),
         createTreeItem("Event Trees", {
@@ -193,7 +193,7 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
           children: [
             createTreeItem("Event Tree 1", {
               icon: <EuiToken iconType="tokenEnum" />,
-            }, 2),
+            }, 2, 'event-trees'),
           ],
         }, 1),
       ],
@@ -209,13 +209,13 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
           children: [
             createTreeItem("Fault Tree 1", {
               icon: <EuiToken iconType="tokenField" />,
-            }, 2),
+            }, 2, 'fault-trees'),
             createTreeItem("Fault Tree 2", {
               icon: <EuiToken iconType="tokenField" />,
-            }, 2),
+            }, 2, 'fault-trees'),
             createTreeItem("Fault Tree 3", {
               icon: <EuiToken iconType="tokenField" />,
-            }, 2),
+            }, 2, 'fault-trees'),
           ],
         }, 1),
         createTreeItem("Bayesian Networks", {
@@ -223,10 +223,10 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
           children: [
             createTreeItem("Bayesian Network 1", {
               icon: <EuiToken iconType="tokenPercolator" />,
-            }, 2),
+            }, 2, 'bayesian-networks'),
             createTreeItem("Bayesian Network 2", {
               icon: <EuiToken iconType="tokenPercolator" />,
-            }, 2),
+            }, 2, 'bayesian-networks'),
           ],
         }, 1),
       ],
@@ -243,13 +243,13 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
       children: [
         createTreeItem("Gates", {
           icon: <EuiToken iconType="tokenRepo"/>,
-        }, 1),
+        }, 1, 'gates'),
         createTreeItem("Basic Events", {
           icon: <EuiToken iconType="editorBold" shape="square"/>,
-        }, 1),
+        }, 1, 'basic-events'),
         createTreeItem("CCF Groups", {
           icon: <EuiToken iconType="tokenShape" shape="square"/>,
-        }, 1),
+        }, 1, 'ccf-groups'),
       ],
     }),
   ];
@@ -269,19 +269,19 @@ export default function ModelSidenav({ isNavOpen, onNavToggle }: ModelSidenavPro
   const quantificationHistory = [
     createTreeItem("Quantification History",  {
       icon: <EuiIcon type="visAreaStacked" />,
-    }),
+    }, 0,  'quantification-history'),
   ];
 
   const globalParams = [
     createTreeItem("Global Parameters",  {
       icon: <EuiIcon type="beta" />,
-    }),
+    }, 0,  'global-parameters'),
   ];
 
   const settings = [
     createTreeItem("Settings",  {
       icon: <EuiIcon type="gear" />,
-    }),
+    }, 0,  'settings'),
   ];
 
   const createTreeView = (items: any[]) => {

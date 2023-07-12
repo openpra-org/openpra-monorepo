@@ -3,19 +3,21 @@ import {
     EuiHideFor,
     EuiFlexGroup,
     EuiFlexItem,
-    useEuiPaddingCSS, EuiPageTemplate
+    useIsWithinBreakpoints,
+    useEuiPaddingCSS, useEuiTheme
+
 } from "@elastic/eui";
 import AuthCard from "../components/cards/authCard";
 export default function LandingPage() {
-    const textPadding = useEuiPaddingCSS("horizontal");
-    const containerPadding = useEuiPaddingCSS();
-    const textCss = [textPadding["m"]];
-    const containterCss = [containerPadding["m"]];
+    const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
+    const textCss = [useEuiPaddingCSS("horizontal")["m"]];
+    const containterCss = [useEuiPaddingCSS()["m"]];
+    const smallSizes = ['xs', 's'];
+    const smallScreen = useIsWithinBreakpoints(smallSizes);
+    const flexGroupStyles = {height: '100vh', paddingBlockStart: 48, margin: 'auto', maxWidth: largeScreenBreakpoint};
     return (
-      <EuiPageTemplate panelled={false} offset={48} grow={true} paddingSize="none" restrictWidth={true}>
-            <EuiPageTemplate.Section paddingSize="none">
-                <EuiFlexGroup justifyContent="spaceAround" alignItems="center" gutterSize="none">
-                    <EuiHideFor sizes={['xs', 's']}>
+                <EuiFlexGroup style={flexGroupStyles} alignItems="center" gutterSize="none">
+                    <EuiHideFor sizes={smallSizes}>
                         <EuiFlexItem css={textCss}>
                             <EuiText>
                                 <h1>Welcome to OpenPRA</h1>
@@ -56,11 +58,9 @@ export default function LandingPage() {
                             </EuiText>
                         </EuiFlexItem>
                     </EuiHideFor>
-                    <EuiFlexItem css={containterCss}>
+                    <EuiFlexItem css={smallScreen ? undefined : containterCss}>
                         <AuthCard />
                     </EuiFlexItem>
                 </EuiFlexGroup>
-            </EuiPageTemplate.Section>
-      </EuiPageTemplate>
     );
 }

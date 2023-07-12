@@ -14,6 +14,7 @@ export default ({id, children, buttonContent, initial = false} : {id: string, ch
       color="accent"
       aria-label="Expand"
       onClick={onToggle}
+      fill={isOpen}
     >
       {isOpen ? 'Collapse' : 'Expand'}
     </EuiButton>

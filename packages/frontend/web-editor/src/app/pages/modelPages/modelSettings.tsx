@@ -1,11 +1,14 @@
-
-import { EuiPageTemplate, EuiFlexItem, EuiFlexGrid, EuiFlexGroup, logicalStyle, EuiHorizontalRule } from "@elastic/eui";
+import {
+  EuiPageTemplate,
+  EuiHorizontalRule,
+  useEuiTheme
+} from "@elastic/eui";
 import EditCurrentModel from "../../components/settingsdropdowns/editCurrentModel";
 import SettingsOverview from "../../components/settingsdropdowns/settingsOverview";
 import AdvancedSettings from "../../components/settingsdropdowns/advancedSettings";
 
 export default function ModelSettings() {
-  const verticalMargin = logicalStyle("margin-vertical", "0px");
+  const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
   return (
     <>
     <EuiPageTemplate.Header
@@ -16,11 +19,11 @@ export default function ModelSettings() {
         color: "accent",
         size: "l"
       }}
-      restrictWidth={990}
+      restrictWidth={largeScreenBreakpoint}
       bottomBorder={true}
     />
     <EuiPageTemplate.Section
-      restrictWidth={990}
+      restrictWidth={largeScreenBreakpoint}
     >
       <EditCurrentModel/>
       <EuiHorizontalRule />

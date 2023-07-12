@@ -32,9 +32,10 @@ function AuthCardContent() {
 }
 
 export default function AuthCard() {
+    const cardStyle = {...logicalStyle('width', 300), ...logicalStyle('margin-horizontal', 'auto')};
     return (
         <EuiCard
-            style={logicalStyle('width', 295)}
+            style={cardStyle}
             title={`OpenPRA App`}
             icon={<img src={OpenPRALogo} alt="OpenPRA Logo" />}
             isDisabled={false}

@@ -44,7 +44,7 @@ export default function parameterItems(){
             ))}
             {/** this is where the delete overlay mask will go for confiring a delete */}
         {deleteVisible && (
-          <DeleteItemBox title='Global Parameter' page='model/1/globalparameters'></DeleteItemBox>
+          <DeleteItemBox title='Global Parameter' page='model/1/globalparameters' toggleBox={setDeleteVisible}></DeleteItemBox>
         )}
         </EuiFlexGroup>
         

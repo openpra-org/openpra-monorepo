@@ -104,7 +104,7 @@ export default function AdvancedSettings() {
                           <EuiText size="s" color="subdued">Once deleted, a model cannot be recovered.</EuiText>
                           <EuiSpacer />
                       {deleteVisible && (
-                        <DeleteItemBox title='Model' page='models/'></DeleteItemBox>
+                        <DeleteItemBox title='Model' page='models/' toggleBox={setDeleteVisible}></DeleteItemBox>
                       )}
                           <EuiFormRow fullWidth>
                               <EuiButton fullWidth onClick={onDeleteClick} isDisabled={false} color="danger" fill>Delete</EuiButton>

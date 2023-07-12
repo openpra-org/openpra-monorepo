@@ -11,7 +11,8 @@ import {
   useEuiTheme,
   useEuiPaddingSize,
   EuiButton,
-  EuiPopover
+  EuiPopover,
+  EuiOverlayMask
 } from "@elastic/eui";
 import { Fragment, useState } from "react";
 import { Link, PathRouteProps, useNavigate } from "react-router-dom";
@@ -93,7 +94,9 @@ export default function GenericListItem(props: GenericListItemProps) {
       
     </EuiListGroupItem>
       {deleteVisible && (
-            <DeleteItemBox title={path} page='models'></DeleteItemBox>
+        <EuiOverlayMask>
+          <DeleteItemBox title={label?.name} page='models' toggleBox={setDeleteVisible}></DeleteItemBox>
+        </EuiOverlayMask>
       )}
     </>
     

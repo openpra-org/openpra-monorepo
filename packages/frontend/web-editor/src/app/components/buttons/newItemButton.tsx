@@ -1,12 +1,11 @@
 import { EuiOverlayMask, EuiButton } from "@elastic/eui";
 import { useState } from "react";
 import NewItem from "../listchanging/newItem";
-import AddParameter from "../listchanging/addParameter";
+import NewParameter from "../listchanging/newParameter";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
 export interface NewItemProps {
     title: string
-    page: string
 }
 
 export function NewItemButton(props: NewItemProps) {
@@ -18,30 +17,30 @@ export function NewItemButton(props: NewItemProps) {
     const userStrings = ["ifrit", "bahamut", "pheonix", "ramuh", "shiva", "odin", "titan", "garuda" ];
 
     //grab the props
-    const { title, page } = props;
+    const { title } = props;
 
     //called when button is clicked to add a new thing
     function onNewClick(){
-        setAddNewVisible(!addNewVisible)
+        setAddNewVisible(!addNewVisible);
     }
 
     return (
         <>
-            <EuiButton iconType="plus" onClick={onNewClick} size="s" color='text'>NEW</EuiButton>
+            <EuiButton iconType="plus" onClick={onNewClick} color= "text" size="s">NEW</EuiButton>
 
-            {addNewVisible && title !== "Global Parameters" && (
+            {addNewVisible && title !== "Global Parameter" && (
                 <EuiOverlayMask>
-                    <NewItem title={title} page={page}/>
+                    <NewItem title={title} toggleBox={setAddNewVisible}/>
                 </EuiOverlayMask>
             )}
             {addNewVisible && title === "Model" && (
                 <EuiOverlayMask>
-                    <NewItem title={title} page={page} users={userStrings}/>
+                    <NewItem title={title} toggleBox={setAddNewVisible}/>
                 </EuiOverlayMask>
             )}
-            {addNewVisible && title === "Global Parameters" && (
+            {addNewVisible && title === "Global Parameter" && (
                 <EuiOverlayMask>
-                    <AddParameter/>
+                    <NewParameter toggleBox={setAddNewVisible}/>
                 </EuiOverlayMask>
             )}
         </>

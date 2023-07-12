@@ -23,7 +23,7 @@ export default function ModelList(){
         responsive={false}
         bottomBorder="extended"
         rightSideItems={[
-          <NewItemButton title="Model" page = "models"/>
+          <NewItemButton title="Model"/>
         ]}
       />
     <EuiPageTemplate.Section>

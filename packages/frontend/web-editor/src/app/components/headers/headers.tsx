@@ -18,7 +18,7 @@ import {
 } from "@elastic/eui"
 import ListOption from "../listitems/listOption";
 import NewItem from '../listchanging/newItem';
-import AddParameter from '../listchanging/addParameter';
+import AddParameter from '../listchanging/newParameter';
 import { useNavigate } from 'react-router-dom';
 
 export function PageHeader() {
@@ -392,20 +392,6 @@ export function ModelPageFilter(props: NewItemProps) {
                 <EuiSpacer size="xs" />
                 <hr/>
             </div>
-
-            {/** these seek to have the pop up to add something be different when its on global parameters
-             * otherwise this handles the adding new things pop up!
-             */}
-            {addNewVisible && title !== "Global Parameters" && (
-                <EuiOverlayMask>
-                    <NewItem title={title} page={page}/>
-                </EuiOverlayMask>
-            )}
-            {addNewVisible && title === "Global Parameters" && (
-                <EuiOverlayMask>
-                    <AddParameter/>
-                </EuiOverlayMask>
-            )}
         </>
     )
 }

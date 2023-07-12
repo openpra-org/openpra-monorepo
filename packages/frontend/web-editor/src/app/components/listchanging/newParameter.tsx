@@ -12,10 +12,19 @@ import {
     EuiFieldNumber
 } from '@elastic/eui'
 
+export interface NewParameterProps {
+    toggleBox: (isVisible: boolean) => void;
+}
 
 
   //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
-export default function () {
+export default function NewParameter(props: NewParameterProps) {
+
+    //this is to make sure the new thing gets set
+    const [addNewVisible, setAddNewVisible] = useState(false);
+
+    //grabbing the props
+    const { toggleBox } = props;
 
     //use the theme
     const {euiTheme} = useEuiTheme();
@@ -47,10 +56,15 @@ export default function () {
         // console.log(itemInfo.value)
     }, [itemInfo])
 
-    // Event handler that handles the result
-    const handleClick = () => {
-      //
-    };
+    //sets the data, then closes overlay
+    const setData = () => {
+        closeOverlay();
+    }      
+
+    //just closes the overlay for adding items
+    const closeOverlay = () => {
+        toggleBox(false);
+    }
 
     const isValueValidNumber = typeof itemInfo.value === 'number' && !isNaN(itemInfo.value);
 
@@ -88,12 +102,17 @@ export default function () {
                 <EuiFormRow fullWidth={true}>
                     <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px'}}>
                         <EuiFlexItem>
-                            <EuiButton href="model/1/globalparameters" style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
+                            <EuiButton
+                                style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}
+                                onClick={closeOverlay}
+                            >
+                                Cancel
+                            </EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
                             <EuiButton isDisabled={(!isValueValidNumber || itemInfo.name.length === 0)}
                             href="model/1/globalparameters"
-                            onClick={handleClick}
+                            onClick={setData}
                             style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}
                             >Submit</EuiButton>
                         </EuiFlexItem>

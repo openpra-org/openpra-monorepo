@@ -1,7 +1,7 @@
 import { EuiOverlayMask, EuiButton } from "@elastic/eui";
 import { useState } from "react";
 import NewItem from "../listchanging/newItem";
-import AddParameter from "../listchanging/addParameter";
+import NewParameter from "../listchanging/newParameter";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
 export interface NewItemProps {
@@ -28,19 +28,19 @@ export function NewItemButton(props: NewItemProps) {
         <>
             <EuiButton iconType="plus" onClick={onNewClick} size="s" color='text'>NEW</EuiButton>
 
-            {addNewVisible && title !== "Global Parameters" && (
+            {addNewVisible && title !== "Global Parameter" && (
                 <EuiOverlayMask>
-                    <NewItem title={title}/>
+                    <NewItem title={title} toggleBox={setAddNewVisible}/>
                 </EuiOverlayMask>
             )}
             {addNewVisible && title === "Model" && (
                 <EuiOverlayMask>
-                    <NewItem title={title} users={userStrings}/>
+                    <NewItem title={title} toggleBox={setAddNewVisible}/>
                 </EuiOverlayMask>
             )}
-            {addNewVisible && title === "Global Parameters" && (
+            {addNewVisible && title === "Global Parameter" && (
                 <EuiOverlayMask>
-                    <AddParameter onCancel={onNewClick}/>
+                    <NewParameter toggleBox={setAddNewVisible}/>
                 </EuiOverlayMask>
             )}
         </>

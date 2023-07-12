@@ -22,6 +22,7 @@ import {
     itemTitle?: string
     itemDescription?: string
     users?: string[]
+    toggleBox: (isVisible: boolean) => void;
   }
 
 
@@ -32,7 +33,7 @@ export default function NewItem(props: NewItemProps) {
     const {euiTheme} = useEuiTheme();
 
     //grabbing the props
-    const { title, page, itemTitle, itemDescription, users } = props;
+    const { title, page, itemTitle, itemDescription, users, toggleBox } = props;
 
     //this is what is in the newItem strucutre, will eventually be used to actually make things
     //this is also subject tyo change, propbably needs a type passed in from props eventually
@@ -78,11 +79,16 @@ export default function NewItem(props: NewItemProps) {
           users: selectedUsers,
         });
       };
-    // Event handler that handles the result
-    const handleClick = () => {
-        //addModelDataToList(newItem);
-        // Handle the newItemData or perform any other actions
-    };
+      
+    //sets the data, then closes overlay
+    const setData = () => {
+        closeOverlay();
+    }      
+
+    //just closes the overlay for adding items
+    const closeOverlay = () => {
+        toggleBox(false);
+    }
 
     return (
             //this styling is so its in a nice looking box, it scales if the users tab is there or not
@@ -141,12 +147,11 @@ export default function NewItem(props: NewItemProps) {
                 <EuiFormRow fullWidth={true}>
                     <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px'}}>
                         <EuiFlexItem>
-                            <EuiButton href={page}>Cancel</EuiButton>
+                            <EuiButton onClick={closeOverlay}>Cancel</EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
                             <EuiButton isDisabled={(users && (itemInfo.users.length === 0 )|| itemInfo.title.length === 0)}
-                            href={page}
-                            onClick={handleClick}
+                            onClick={setData}
                             >Submit</EuiButton>
                         </EuiFlexItem>
                     </EuiFlexGroup>

@@ -1,4 +1,4 @@
-import { EuiPageTemplate, logicalStyle, useEuiPaddingCSS } from "@elastic/eui";
+import { EuiPageTemplate } from "@elastic/eui";
 import { NewItemButton } from "../buttons/newItemButton";
 
 interface PageTitleHeaderProps {
@@ -6,24 +6,13 @@ interface PageTitleHeaderProps {
     icon: string;
 }
 
+//page header to be used on items with a list, differentiated by having the New Item button
+//they are seperate because we could add a boolean or something to toggle it, but might be an issue if setting a prop
 export default function ListPageTitleHeader({title, icon}: PageTitleHeaderProps){
-    //const horizontalPadding = useEuiPaddingCSS("horizontal");
-    //const verticalPadding = useEuiPaddingCSS("vertical");
-    //const headerCss = [horizontalPadding["xl"]];
-    //const titleCss = [verticalPadding["none"]];
     return (
         <EuiPageTemplate.Header
-          // style={{paddingBottom: "-12px"}}
           alignItems="center"
-          // paddingSize="none"
-          // css={headerCss}
-          // pageTitleProps={{
-          //   css: {headerCss}
-          // }}
           pageTitle={title.concat('s')}
-          pageTitleProps={{
-            //css: titleCss,
-          }}
           iconProps={{
             size: "xxl",
             color: "accent"

@@ -14,15 +14,15 @@ export default function PageTitleHeader({title, icon}: PageTitleHeaderProps){
     return (
         <EuiPageTemplate.Header
           // style={{paddingBottom: "-12px"}}
-          alignItems="bottom"
+          alignItems="center"
           // paddingSize="none"
-          css={headerCss}
+          // css={headerCss}
           // pageTitleProps={{
           //   css: {headerCss}
           // }}
           pageTitle={title.concat('s')}
           pageTitleProps={{
-            css: titleCss,
+            //css: titleCss,
           }}
           iconProps={{
             size: "xxl",

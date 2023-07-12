@@ -22,7 +22,7 @@ export default function ModelList(){
 
     return(
     <>
-      <PageTitleHeader title="Event Sequence Diagrams" icon="tokenEnumMember"/>
+      <PageTitleHeader title="Event Sequence Diagram" icon="tokenEnumMember"/>
       <EuiPageTemplate.Section style={verticalMargin}>
         <GenericItemList>
           {getFixtures()}

@@ -2,31 +2,24 @@ import { Outlet } from "react-router-dom";
 import {
   EuiPageBody,
   EuiPage,
-  EuiPageSidebar,
-} from '@elastic/eui';
+  EuiPageSidebar, EuiPageTemplate
+} from "@elastic/eui";
 import ModelSidenav from "../components/sidenavs/modelSidenav";
 
 export default () => {
   return (
-    <EuiPage
-      grow={true}
-      paddingSize="none"
-      direction="row"
-    >
-      <EuiPageSidebar
+    <>
+    <EuiPageTemplate panelled={false} offset={48} grow={true} restrictWidth={false}>
+      <EuiPageTemplate.Sidebar
         paddingSize="s"
         sticky
-        minWidth={300}
-        responsive={["xs"]}
+        minWidth={320}
+        responsive={[]}
       >
         <ModelSidenav />
-      </EuiPageSidebar>
-      <EuiPageBody
-        paddingSize="none"
-        panelled={false}
-      >
-        <Outlet />
-      </EuiPageBody>
-    </EuiPage>
+      </EuiPageTemplate.Sidebar>
+      <Outlet />
+    </EuiPageTemplate>
+    </>
   );
 };

@@ -5,7 +5,7 @@ import {useEuiTheme, EuiButton, EuiButtonProps} from '@elastic/eui'
 interface SettingsButtonProps extends EuiButtonProps {
     onClick?: React.MouseEventHandler
     styleOverrides?: React.CSSProperties
-};
+}
 
 export default function SettingsButton(props: SettingsButtonProps) {
 
@@ -17,9 +17,6 @@ export default function SettingsButton(props: SettingsButtonProps) {
 
     //sets the settings button style to what we want when we reuse it, this could even be used as a standard button to be honest
     const settingsButtonStyle = {
-        borderRadius: '5px', 
-        backgroundColor: euiTheme.colors.mediumShade, 
-        color: euiTheme.colors.darkestShade,
         ...styleOverrides
     }
 

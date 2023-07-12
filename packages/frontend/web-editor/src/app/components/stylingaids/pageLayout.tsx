@@ -47,7 +47,7 @@ export default function PageLayout({isModel, pageName, contentType}: PageLayoutP
 
             {/** section for displaying the pagename */}
             <EuiPageTemplate.Section
-            restrictWidth={false}
+            restrictWidth={true}
             alignment='top'
             paddingSize='xs'
             grow={false}
@@ -60,7 +60,7 @@ export default function PageLayout({isModel, pageName, contentType}: PageLayoutP
             {/** spacer to improve the flow */}
             <EuiSpacer></EuiSpacer>
             <EuiPageTemplate.Section
-            restrictWidth={false}
+            restrictWidth={true}
             alignment='top'
             paddingSize='none'
             >

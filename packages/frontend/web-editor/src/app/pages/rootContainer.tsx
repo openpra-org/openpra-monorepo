@@ -4,11 +4,9 @@ import RootHeader from "../components/headers/rootHeader";
 
 export default function RootContainer() {
     return (
-        <EuiPageTemplate panelled={false} offset={0} grow={true} restrictWidth={false}>
-          <RootHeader/>
-          <EuiSpacer size="xxl"/>
-          <EuiSpacer size="s"/>
-          <Outlet />
-        </EuiPageTemplate>
+          <>
+            <RootHeader/>
+            <Outlet />
+          </>
     );
 }

@@ -1,9 +1,7 @@
 import { NewItemButton } from "../buttons/newItemButton";
 import GenericItemList from "./GenericItemList";
 import GenericListItem from "./GenericListItem";
-import { EuiButton, EuiPageTemplate, logicalStyle, useEuiPaddingCSS } from "@elastic/eui";
-import { Link } from "react-router-dom";
-
+import { EuiPageTemplate } from "@elastic/eui";
 const getFixtures = (count = 100): JSX.Element[] => {
   return Array.from(Array(count).keys()).map((e, i) => {
     return (<GenericListItem
@@ -17,43 +15,22 @@ const getFixtures = (count = 100): JSX.Element[] => {
 }
 
 export default function ModelList(){
-
-  const horizontalPadding = useEuiPaddingCSS("horizontal");
-  const verticalPadding = useEuiPaddingCSS("vertical");
-  const verticalMargin = logicalStyle("margin-vertical", "0px");
-  const headerCss = [horizontalPadding["xl"]];
-  const titleCss = [verticalPadding["none"]];
   return (
-    <>
+    <EuiPageTemplate panelled={false} offset={48} grow={true} restrictWidth={true}>
       <EuiPageTemplate.Header
-        restrictWidth
-        // style={{paddingBottom: "-12px"}}
-        alignItems="bottom"
-        // paddingSize="none"
-        css={headerCss}
-        // pageTitleProps={{
-        //   css: {headerCss}
-        // }}
+        alignItems="center"
         pageTitle="Models"
-        pageTitleProps={{
-          css: titleCss,
-        }}
-        iconProps={{
-          size: "xxl",
-          color: "accent"
-        }}
         responsive={false}
-        bottomBorder={true}
-        // iconType="submodule"
+        bottomBorder="extended"
         rightSideItems={[
           <NewItemButton title="Model" page = "models"/>
         ]}
       />
-    <EuiPageTemplate.Section restrictWidth style={verticalMargin}>
+    <EuiPageTemplate.Section>
       <GenericItemList>
         {getFixtures()}
       </GenericItemList>
     </EuiPageTemplate.Section>
-  </>
+    </EuiPageTemplate>
   );
 }

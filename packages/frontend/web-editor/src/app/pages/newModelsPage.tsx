@@ -1,17 +1,17 @@
-import { EuiSpacer } from '@elastic/eui';
+import { EuiSpacer, EuiPageTemplate } from '@elastic/eui';
 import {PageHeader} from '../components/headers/headers'
 import NewItem from "../components/listchanging/newItem";
 
-export default function ModelsPage() {
+export default function NewModelsPage() {
     //this page is used to display all of our big components on a main page.
     const userStrings = ["ifrit", "bahamut", "pheonix", "ramuh", "shiva", "odin", "titan", "garuda" ];
 
 
     return (
-        <>
-            <PageHeader />
-            <EuiSpacer size = "s"/>
-            <NewItem title = "New Model" page = 'models' users = {userStrings} />
-        </>
+      <EuiPageTemplate panelled={true} offset={64} grow={false} restrictWidth={true}>
+        <EuiPageTemplate.EmptyPrompt paddingSize="none">
+            <NewItem title = "Model" page = 'models' users = {userStrings} />
+        </EuiPageTemplate.EmptyPrompt>
+      </EuiPageTemplate>
     )
 }

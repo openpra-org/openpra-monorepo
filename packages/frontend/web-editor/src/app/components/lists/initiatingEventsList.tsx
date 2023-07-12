@@ -26,13 +26,8 @@ export default function ModelList(){
     <>
       <EuiPageTemplate.Header
         restrictWidth
-        // style={{paddingBottom: "-12px"}}
         alignItems="bottom"
-        // paddingSize="none"
         css={headerCss}
-        // pageTitleProps={{
-        //   css: {headerCss}
-        // }}
         pageTitle="Initiating Events"
         pageTitleProps={{
           css: titleCss,

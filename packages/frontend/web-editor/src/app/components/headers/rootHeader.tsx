@@ -27,7 +27,6 @@ import {
   useGeneratedHtmlId,
 } from '@elastic/eui';
 import {Link, useLocation, useNavigate} from 'react-router-dom';
-
 const tokenizePath = (path: string, stripTrailingSlash = true): string[] => {
   const str = stripTrailingSlash ? path.replace(/\/+$/, '') : path;
   return str.split("/").filter((value) => (value !== ""));
@@ -65,6 +64,7 @@ export default () => {
       return (
         {
           text: toTitleCase(item),
+          style: {fontWeight: 500},
           onClick: (e: any) => {
             e.preventDefault();
             navigate(tokens.slice(0, i+1).join("/"));

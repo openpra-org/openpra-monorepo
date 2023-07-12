@@ -86,7 +86,7 @@ export default function NewItem(props: NewItemProps) {
 
     return (
             //this styling is so its in a nice looking box, it scales if the users tab is there or not
-            <EuiForm style={{backgroundColor: euiTheme.colors.lightShade, alignSelf: 'center', width: '500px', borderRadius: '5px'}}>
+            <EuiForm style={{alignSelf: 'center', width: '500px', borderRadius: '5px'}}>
                 <EuiSpacer size='s'/>
                 {/** this gives the text, and then importantly sets the title of the item */}
                 <EuiTextColor style={{margin: '10px', fontSize: '2rem'}}><strong>New {title}</strong></EuiTextColor>
@@ -141,13 +141,12 @@ export default function NewItem(props: NewItemProps) {
                 <EuiFormRow fullWidth={true}>
                     <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px'}}>
                         <EuiFlexItem>
-                            <EuiButton href={page} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
+                            <EuiButton href={page}>Cancel</EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
                             <EuiButton isDisabled={(users && (itemInfo.users.length === 0 )|| itemInfo.title.length === 0)}
                             href={page}
                             onClick={handleClick}
-                            style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}
                             >Submit</EuiButton>
                         </EuiFlexItem>
                     </EuiFlexGroup>

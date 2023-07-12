@@ -25,7 +25,6 @@ export default function ModelList(){
   return (
     <>
       <EuiPageTemplate.Header
-        restrictWidth
         // style={{paddingBottom: "-12px"}}
         alignItems="bottom"
         // paddingSize="none"
@@ -39,16 +38,16 @@ export default function ModelList(){
         }}
         iconProps={{
           size: "xxl",
-          color: "accent"
+          //color: "accent"
         }}
         responsive={false}
         bottomBorder={true}
-        // iconType="submodule"
+        iconType="tokenField"
         rightSideItems={[
           <NewItemButton title="Fault Tree" page = ""/>
         ]}
       />
-    <EuiPageTemplate.Section restrictWidth style={verticalMargin}>
+    <EuiPageTemplate.Section style={verticalMargin}>
       <GenericItemList>
         {getFixtures()}
       </GenericItemList>

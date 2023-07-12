@@ -25,7 +25,6 @@ export default function ModelList(){
   return (
     <>
       <EuiPageTemplate.Header
-        restrictWidth
         alignItems="bottom"
         css={headerCss}
         pageTitle="Initiating Events"
@@ -38,12 +37,12 @@ export default function ModelList(){
         }}
         responsive={false}
         bottomBorder={true}
-        // iconType="submodule"
+        iconType="tokenInterface"
         rightSideItems={[
           <NewItemButton title="Initiating Event" page = ""/>
         ]}
       />
-    <EuiPageTemplate.Section restrictWidth style={verticalMargin}>
+    <EuiPageTemplate.Section style={verticalMargin}>
       <GenericItemList>
         {getFixtures()}
       </GenericItemList>

@@ -25,11 +25,11 @@ export default function ModelList(){
   return (
     <>
       <EuiPageTemplate.Header
-        restrictWidth
+        //restrictWidth
         // style={{paddingBottom: "-12px"}}
         alignItems="bottom"
         // paddingSize="none"
-        css={headerCss}
+        //css={headerCss}
         // pageTitleProps={{
         //   css: {headerCss}
         // }}
@@ -39,16 +39,16 @@ export default function ModelList(){
         }}
         iconProps={{
           size: "xxl",
-          color: "accent"
+          //color: "accent"
         }}
         responsive={false}
         bottomBorder={true}
-        // iconType="submodule"
+        iconType="tokenEnum"
         rightSideItems={[
           <NewItemButton title="Event Tree" page = ""/>
         ]}
       />
-    <EuiPageTemplate.Section restrictWidth style={verticalMargin}>
+    <EuiPageTemplate.Section style={verticalMargin}>
       <GenericItemList>
         {getFixtures()}
       </GenericItemList>

@@ -25,7 +25,6 @@ export default function ModelList(){
   return (
     <>
       <EuiPageTemplate.Header
-        restrictWidth
         // style={{paddingBottom: "-12px"}}
         alignItems="bottom"
         // paddingSize="none"
@@ -43,12 +42,12 @@ export default function ModelList(){
         }}
         responsive={false}
         bottomBorder={true}
-        // iconType="submodule"
+        iconType="tokenPercolator"
         rightSideItems={[
           <NewItemButton title="Bayesian Network" page = "bayesian-networks"/>
         ]}
       />
-    <EuiPageTemplate.Section restrictWidth style={verticalMargin}>
+    <EuiPageTemplate.Section style={verticalMargin}>
       <GenericItemList>
         {getFixtures()}
       </GenericItemList>

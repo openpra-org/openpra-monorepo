@@ -9,7 +9,9 @@ import {
   EuiListGroupItem,
   logicalStyle,
   useEuiTheme,
-  useEuiPaddingSize
+  useEuiPaddingSize,
+  EuiButton,
+  EuiPopover
 } from "@elastic/eui";
 import { Fragment, useState } from "react";
 import { Link, PathRouteProps, useNavigate } from "react-router-dom";
@@ -36,8 +38,15 @@ export default function GenericListItem(props: GenericListItemProps) {
   //hook state thing for the deletebox
   const [deleteVisible, setDeleteVisible] = useState(false);
 
+  //for popover
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+
+  const onButtonClick = () =>
+    setIsPopoverOpen((isPopoverOpen) => !isPopoverOpen);
+  const closePopover = () => setIsPopoverOpen(false);
+
   //sets the delete button visible on click
-  function onDeleteClick(){
+  const onDeleteClick = () =>{
     setDeleteVisible(!deleteVisible)
   }
 
@@ -46,15 +55,16 @@ export default function GenericListItem(props: GenericListItemProps) {
   const paddingLine = logicalStyle("padding-vertical", `${useEuiPaddingSize("s")}`);
   const customStyles = {...borderLine, ...paddingLine};
   return (
+    <>
     <EuiListGroupItem
       style={customStyles}
       icon={
-      <Link to={path}>
-        <EuiAvatar name={label?.name ? label.name : ""} size="l" type="space" />
-      </Link>
+        <Link to={path}>
+          <EuiAvatar name={label?.name ? label.name : ""} size="l" type="space" />
+        </Link>
       }
       label={
-        <div>
+        <Link to={path}>
           {/*<EuiTitle size="xs">*/}
             <Link to={path}>
               <EuiText size="m" color="default" grow={false}>
@@ -65,23 +75,28 @@ export default function GenericListItem(props: GenericListItemProps) {
           <EuiText size="s" color="subdued" grow={false}>
             {label?.description}
           </EuiText>
-        </div>
+        </Link>
       }
       key={key}
       size="l"
       extraAction={{
-        color: "text",
-        onClick: () => {},
-        iconType: "starEmpty",
-        iconSize: "l",
+        color: "danger",
+        onClick: onDeleteClick,
+        iconType: "trash",
+        iconSize: "m",
         alwaysShow: true,
         "aria-label": "Favorite link4"
       }}
       wrapText
       // onClick={handleCardClick}
     >
+      
     </EuiListGroupItem>
-    // <>
+      {deleteVisible && (
+            <DeleteItemBox title='Model(s)' page='models'></DeleteItemBox>
+      )}
+    </>
+    
     //   {/** Is all set up as flex items so that spacing and such works correctly */}
     //   <EuiFlexItem grow={false}>
     //     <EuiCard
@@ -140,9 +155,6 @@ export default function GenericListItem(props: GenericListItemProps) {
     //         </EuiFlexItem>
     //       </EuiFlexGroup>
     //     {/** this is where the delete overlay mask will go for confiring a delete */}
-    //     {deleteVisible && (
-    //       <DeleteItemBox title='Model(s)' page='models'></DeleteItemBox>
-    //     )}
-    // </>
+        
   );
 }

@@ -7,10 +7,10 @@ interface PageTitleHeaderProps {
 }
 
 export default function PageTitleHeader({title, icon}: PageTitleHeaderProps){
-    const horizontalPadding = useEuiPaddingCSS("horizontal");
-    const verticalPadding = useEuiPaddingCSS("vertical");
-    const headerCss = [horizontalPadding["xl"]];
-    const titleCss = [verticalPadding["none"]];
+    //const horizontalPadding = useEuiPaddingCSS("horizontal");
+    //const verticalPadding = useEuiPaddingCSS("vertical");
+    //const headerCss = [horizontalPadding["xl"]];
+    //const titleCss = [verticalPadding["none"]];
     return (
         <EuiPageTemplate.Header
           // style={{paddingBottom: "-12px"}}

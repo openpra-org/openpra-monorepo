@@ -26,7 +26,7 @@ export function NewItemButton(props: NewItemProps) {
 
     return (
         <>
-            <EuiButton iconType="plus" onClick={onNewClick} color= "text" size="s">NEW</EuiButton>
+            <EuiButton iconType="plus" fill={true} onClick={onNewClick} size="s">Create</EuiButton>
 
             {addNewVisible && title !== "Global Parameter" && (
                 <EuiOverlayMask>

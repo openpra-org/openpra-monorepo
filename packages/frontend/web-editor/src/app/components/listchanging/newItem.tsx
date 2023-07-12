@@ -11,7 +11,10 @@ import {
     EuiSpacer,
     useEuiTheme,
     EuiSelectable,
-    EuiSelectableOption
+    EuiSelectableOption,
+    EuiText,
+    EuiTitle,
+    EuiButtonEmpty
 } from '@elastic/eui'
 // import {addModelDataToList} from "../../largecomponents/lists/modelItemsList";
 
@@ -92,11 +95,13 @@ export default function NewItem(props: NewItemProps) {
 
     return (
             //this styling is so its in a nice looking box, it scales if the users tab is there or not
-            <EuiForm style={{alignSelf: 'center', width: '500px', borderRadius: '5px'}}>
-                <EuiSpacer size='s'/>
+            <EuiForm style={{width: '300px'}}>
                 {/** this gives the text, and then importantly sets the title of the item */}
-                <EuiTextColor style={{margin: '10px', fontSize: '2rem'}}><strong>New {title}</strong></EuiTextColor>
-                <EuiFormRow fullWidth={true} style={{margin: '10px'}}>
+                <EuiFormRow fullWidth={true}>
+                    <EuiTitle size='m'><strong>New {title}</strong></EuiTitle>
+                </EuiFormRow>
+                <EuiSpacer size="s"></EuiSpacer>
+                <EuiFormRow fullWidth={true}>
                     <EuiFieldText
                         fullWidth={true}
                         placeholder="Title"
@@ -108,7 +113,7 @@ export default function NewItem(props: NewItemProps) {
                     />
                 </EuiFormRow>
                 {/** this form row is for the description */}
-                <EuiFormRow fullWidth={true} style={{margin: '10px'}}>
+                <EuiFormRow fullWidth={true}>
                     <EuiTextArea
                         fullWidth={true}
                         placeholder="Description"
@@ -123,7 +128,7 @@ export default function NewItem(props: NewItemProps) {
                 {/** toggles if users exists and is passed, and it shows the selectable menu of users */}
                 {users &&(
                     <>
-                        <EuiFormRow fullWidth={true} style={{margin: '10px'}}>
+                        <EuiFormRow fullWidth={true}>
                         <EuiSelectable
                             options={options}
                             onChange={(newOptions) => {
@@ -145,12 +150,12 @@ export default function NewItem(props: NewItemProps) {
                 )}
                 {/** the submit and also the go back buttons are right here*/}
                 <EuiFormRow fullWidth={true}>
-                    <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px'}}>
+                    <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs'>
                         <EuiFlexItem>
-                            <EuiButton onClick={closeOverlay}>Cancel</EuiButton>
+                            <EuiButtonEmpty onClick={closeOverlay}>Cancel</EuiButtonEmpty>
                         </EuiFlexItem>
                         <EuiFlexItem>
-                            <EuiButton isDisabled={(users && (itemInfo.users.length === 0 )|| itemInfo.title.length === 0)}
+                            <EuiButton fill={true} isDisabled={(users && (itemInfo.users.length === 0 )|| itemInfo.title.length === 0)}
                             onClick={setData}
                             >Submit</EuiButton>
                         </EuiFlexItem>

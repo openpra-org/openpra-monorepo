@@ -93,7 +93,7 @@ export default function GenericListItem(props: GenericListItemProps) {
       
     </EuiListGroupItem>
       {deleteVisible && (
-            <DeleteItemBox title='Model(s)' page='models'></DeleteItemBox>
+            <DeleteItemBox title={path} page='models'></DeleteItemBox>
       )}
     </>
     

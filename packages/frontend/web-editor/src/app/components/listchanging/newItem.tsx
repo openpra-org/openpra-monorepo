@@ -94,7 +94,7 @@ export default function NewItem(props: NewItemProps) {
     }
 
     return (
-            //this styling is so its in a nice looking box, it scales if the users tab is there or not
+            //Setting form width seems to be the only real way to make this look a little bigger
             <EuiForm style={{width: '300px'}}>
                 {/** this gives the text, and then importantly sets the title of the item */}
                 <EuiFormRow fullWidth={true}>

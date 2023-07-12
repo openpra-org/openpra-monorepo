@@ -9,7 +9,9 @@ import {
     EuiFlexItem,
     EuiSpacer,
     useEuiTheme,
-    EuiOverlayMask
+    EuiOverlayMask,
+    EuiTitle,
+    EuiButtonEmpty
 } from '@elastic/eui'
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
@@ -39,18 +41,20 @@ export default function DeleteItemBox(props: NewItemProps) {
     return (
         <EuiOverlayMask>
             {/** this styling is so its in a nice looking box, it scales if the users tab is there or not */}            
-            <EuiForm style={{backgroundColor: euiTheme.colors.lightShade, alignSelf: 'center', width: '400px', borderRadius: '5px'}}>
+            <EuiForm>
                 <EuiSpacer size='s'/>
                 {/** this gives the text, and then importantly sets the title of the item */}
-                <EuiTextColor style={{margin: '10px', fontSize: '2rem'}}><strong>Delete {title}</strong></EuiTextColor>
+                <EuiFormRow fullWidth={true}>
+                    <EuiTitle size='m'><strong>Delete {title}</strong></EuiTitle>
+                </EuiFormRow>
             {/** the submit and also the go back buttons are right here*/}
-                <EuiFormRow style={{margin: '10px'}}>
+                <EuiFormRow>
                     <EuiTextColor>
                         Are you sure you want to delete this model? This action is permanent
                     </EuiTextColor>
                 </EuiFormRow>
             {/** confirmation text */}
-            <EuiFormRow fullWidth ={true} style={{margin: '10px'}}>
+            <EuiFormRow fullWidth ={true}>
                 {/** User will enable the submit button by typing yes in this text box */}
                 <EuiFieldText
                     placeholder='Please type Yes to proceed'
@@ -61,16 +65,14 @@ export default function DeleteItemBox(props: NewItemProps) {
 
             {/** button to submit is equipped with the ability to  */}
             <EuiFormRow fullWidth={true}>
-                    <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px'}}>
+                    <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs'>
                         <EuiFlexItem>
-                            <EuiButton href={page} style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
+                            <EuiButtonEmpty href={page}>Cancel</EuiButtonEmpty>
                         </EuiFlexItem>
                         <EuiFlexItem>
                             {/** This button will only be clickable when user types yes/Yes/YES/etc */}
-                            <EuiButton isDisabled={!(confirmDelete.toLowerCase() === 'yes')} href={page} onClick={handleClick}
-                                       style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}
-                            >
-                                Submit
+                            <EuiButton fill={true} color="danger" isDisabled={!(confirmDelete.toLowerCase() === 'yes')} href={page} onClick={handleClick}>
+                                Delete
                             </EuiButton>
                         </EuiFlexItem>
                     </EuiFlexGroup>

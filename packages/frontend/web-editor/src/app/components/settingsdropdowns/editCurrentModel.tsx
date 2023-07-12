@@ -12,6 +12,7 @@ import {
   EuiFlexGrid,
   EuiPanel,
   EuiTitle,
+  useIsWithinBreakpoints,
   EuiText, EuiIcon, EuiFieldNumber
 } from "@elastic/eui";
 import SettingsAccordian from "./SettingsAccordian";
@@ -56,15 +57,15 @@ export default function EditCurrentModel(){
       </EuiText>
     </div>
   );
-
+  const smallScreen = useIsWithinBreakpoints(['xs', 's', 'm']);
     return (
       <SettingsAccordian
         id="model_settings"
         buttonContent={buttonContent}
         initial={true}
       >
-        <EuiFlexGrid direction="row" responsive={true} columns={2}>
-          <EuiFlexItem grow={false}>
+        <EuiFlexGrid direction="row" responsive={false} columns={smallScreen ? 1 : 2}>
+          <EuiFlexItem grow={true}>
             <EuiPanel paddingSize="xl">
               <EuiTitle size="s" ><h6>Basic Information</h6></EuiTitle>
               <EuiSpacer size="s"/>
@@ -117,7 +118,7 @@ export default function EditCurrentModel(){
                 </EuiFormRow>
                 <EuiSpacer size="m" />
                 <EuiFormRow>
-                  <EuiButton isDisabled={false} color="primary">Submit</EuiButton>
+                  <EuiButton isDisabled={false} color="primary">Save</EuiButton>
                 </EuiFormRow>
               </EuiForm>
             </EuiPanel>
@@ -126,22 +127,3 @@ export default function EditCurrentModel(){
       </SettingsAccordian>
     )
 }
-
-
-// <EuiFormRow>
-//   <EuiSelectable
-//     options={options}
-//     onChange={(newOptions) => {
-//       setOptions(newOptions);// call handleOptionChange with newOptions
-//     }}
-//     searchable
-//     singleSelection={false}
-//   >
-//     {(list, search) => (
-//       <div>
-//         {search}
-//         {list}
-//       </div>
-//     )}
-//   </EuiSelectable>
-// </EuiFormRow>

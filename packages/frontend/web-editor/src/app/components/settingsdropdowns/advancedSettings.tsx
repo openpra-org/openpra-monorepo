@@ -7,7 +7,7 @@ import {
     EuiPanel,
     EuiSelect,
     EuiFlexGrid,
-    EuiFlexItem, EuiIcon, EuiTitle, EuiTextColor, EuiSpacer
+    EuiFlexItem, EuiIcon, EuiTitle, EuiTextColor, EuiSpacer, useIsWithinBreakpoints
 } from "@elastic/eui";
 import React, {useState } from 'react'
 import DeleteItemBox from '../listchanging/deleteItemBox';
@@ -64,6 +64,7 @@ export default function AdvancedSettings() {
         setDeleteVisible(!deleteVisible)
     }
 
+    const smallScreen = useIsWithinBreakpoints(['xs', 's', 'm']);
     //returns the three current advanced settings of changing type, deleting (which may be removed seems redundant), and then the third options which changes contorl
     // between each option there is a horizontal rule that proivides a line
     return(
@@ -71,7 +72,7 @@ export default function AdvancedSettings() {
         id="model_advanced_settings"
         buttonContent={buttonContent}
       >
-          <EuiFlexGrid direction="row" responsive={true} columns={3}>
+          <EuiFlexGrid direction="row" responsive={false} columns={smallScreen ? 1 : 2}>
               <EuiFlexItem grow={false}>
                   <EuiPanel paddingSize="xl">
                       <EuiTitle size="s" ><h6>Model Grouping</h6></EuiTitle>

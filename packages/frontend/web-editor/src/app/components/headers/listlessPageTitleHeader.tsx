@@ -1,4 +1,4 @@
-import { EuiPageTemplate, logicalStyle, useEuiPaddingCSS } from "@elastic/eui";
+import { EuiPageTemplate, logicalStyle, useEuiPaddingCSS, useEuiTheme } from "@elastic/eui";
 import { NewItemButton } from "../buttons/newItemButton";
 
 interface PageTitleHeaderProps {
@@ -6,11 +6,13 @@ interface PageTitleHeaderProps {
     icon: string;
 }
 
-export default function ListPageTitleHeader({title, icon}: PageTitleHeaderProps){
+export default function ListlessPageTitleHeader({title, icon}: PageTitleHeaderProps){
     //const horizontalPadding = useEuiPaddingCSS("horizontal");
     //const verticalPadding = useEuiPaddingCSS("vertical");
     //const headerCss = [horizontalPadding["xl"]];
     //const titleCss = [verticalPadding["none"]];
+    const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
+    
     return (
         <EuiPageTemplate.Header
           // style={{paddingBottom: "-12px"}}
@@ -20,20 +22,18 @@ export default function ListPageTitleHeader({title, icon}: PageTitleHeaderProps)
           // pageTitleProps={{
           //   css: {headerCss}
           // }}
-          pageTitle={title.concat('s')}
+          pageTitle={title}
           pageTitleProps={{
             //css: titleCss,
           }}
           iconProps={{
-            size: "xxl",
+            size: "l",
             color: "accent"
           }}
           responsive={false}
           bottomBorder={true}
           iconType={icon}
-          rightSideItems={[
-            <NewItemButton title={title}/>
-          ]}
+          restrictWidth={largeScreenBreakpoint}
         />
     );
 }

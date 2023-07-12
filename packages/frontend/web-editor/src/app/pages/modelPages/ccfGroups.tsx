@@ -1,9 +1,9 @@
-import PageLayout from "../../components/stylingaids/pageLayout";
+import ListlessPageTitleHeader from "../../components/headers/listlessPageTitleHeader";
 
 export default function CcfGroups() {
     return (
         <> 
-            <PageLayout isModel={true} pageName='CCF Groups' contentType={<div/>}/>
+            <ListlessPageTitleHeader title="CCF Groups" icon="tokenShape"/>
         </>
     )
 }

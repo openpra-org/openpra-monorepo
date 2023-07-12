@@ -1,15 +1,11 @@
 import GatesTable from '../../components/tables/gatesTable';
-import PageLayout from '../../components/stylingaids/pageLayout';
+import ListlessPageTitleHeader from '../../components/headers/listlessPageTitleHeader';
 
 export default function ModelGates() {
     return (
         <> 
-            <PageLayout isModel={true} pageName='Model Gates' contentType={
-                <>
-                    <GatesTable/>
-                    <div/>
-                </>
-            }/>
+            <ListlessPageTitleHeader title="Gates" icon="tokenRepo"/>
+            <GatesTable/>
         </>
     )
 }

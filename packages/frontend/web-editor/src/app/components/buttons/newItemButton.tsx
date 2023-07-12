@@ -21,7 +21,7 @@ export function NewItemButton(props: NewItemProps) {
 
     //called when button is clicked to add a new thing
     function onNewClick(){
-        setAddNewVisible(!addNewVisible)
+        setAddNewVisible(!addNewVisible);
     }
 
     return (
@@ -40,7 +40,7 @@ export function NewItemButton(props: NewItemProps) {
             )}
             {addNewVisible && title === "Global Parameters" && (
                 <EuiOverlayMask>
-                    <AddParameter/>
+                    <AddParameter onCancel={onNewClick}/>
                 </EuiOverlayMask>
             )}
         </>

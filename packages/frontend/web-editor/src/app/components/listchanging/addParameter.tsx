@@ -15,7 +15,7 @@ import {
 
 
   //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
-export default function () {
+export default function ({onCancel }: any) {
 
     //use the theme
     const {euiTheme} = useEuiTheme();
@@ -88,7 +88,12 @@ export default function () {
                 <EuiFormRow fullWidth={true}>
                     <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs' style={{margin: '5px'}}>
                         <EuiFlexItem>
-                            <EuiButton href="model/1/globalparameters" style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}>Cancel</EuiButton>
+                            <EuiButton
+                                style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}
+                                onClick={onCancel}
+                            >
+                                Cancel
+                            </EuiButton>
                         </EuiFlexItem>
                         <EuiFlexItem>
                             <EuiButton isDisabled={(!isValueValidNumber || itemInfo.name.length === 0)}

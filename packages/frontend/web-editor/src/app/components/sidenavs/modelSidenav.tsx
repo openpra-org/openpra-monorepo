@@ -10,11 +10,6 @@ import {
 import React from 'react'
 import { Link, useNavigate } from "react-router-dom";
 
-interface ModelSidenavProps {
-  isNavOpen: boolean;
-  onNavToggle: (isOpen: boolean) => void;
-}
-
 export default function ModelSidenav() {
 
   const { euiTheme } = useEuiTheme();

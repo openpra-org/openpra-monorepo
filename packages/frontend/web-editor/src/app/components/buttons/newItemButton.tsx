@@ -6,7 +6,6 @@ import AddParameter from "../listchanging/addParameter";
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
 export interface NewItemProps {
     title: string
-    page: string
 }
 
 export function NewItemButton(props: NewItemProps) {
@@ -18,7 +17,7 @@ export function NewItemButton(props: NewItemProps) {
     const userStrings = ["ifrit", "bahamut", "pheonix", "ramuh", "shiva", "odin", "titan", "garuda" ];
 
     //grab the props
-    const { title, page } = props;
+    const { title } = props;
 
     //called when button is clicked to add a new thing
     function onNewClick(){
@@ -31,12 +30,12 @@ export function NewItemButton(props: NewItemProps) {
 
             {addNewVisible && title !== "Global Parameters" && (
                 <EuiOverlayMask>
-                    <NewItem title={title} page={page}/>
+                    <NewItem title={title}/>
                 </EuiOverlayMask>
             )}
             {addNewVisible && title === "Model" && (
                 <EuiOverlayMask>
-                    <NewItem title={title} page={page} users={userStrings}/>
+                    <NewItem title={title} users={userStrings}/>
                 </EuiOverlayMask>
             )}
             {addNewVisible && title === "Global Parameters" && (

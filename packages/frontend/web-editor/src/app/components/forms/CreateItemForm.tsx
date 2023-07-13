@@ -6,7 +6,7 @@ import {
   EuiSpacer,
   EuiTextArea
 } from "@elastic/eui";
-import React, { FormEventHandler, useState } from "react";
+import { useState } from "react";
 
 import { DEFAULT_LABEL_JSON } from "shared-types/src/lib/types/Label";
 import { toTitleCase } from "../../../utils/StringUtils";

@@ -1,6 +1,6 @@
 import ButtonWithPopover from "./ButtonWithPopover";
 import CreateItemForm, { CreateItemFormProps } from "../forms/CreateItemForm";
-import { EuiFlexGroup, EuiFlexItem, EuiPopoverTitle, logicalStyle } from "@elastic/eui";
+import { EuiFlexGroup, EuiFlexItem, logicalStyle } from "@elastic/eui";
 import { toTitleCase } from "../../../utils/StringUtils";
 
 export type CreateItemButtonProps = {

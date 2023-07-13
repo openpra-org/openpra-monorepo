@@ -1,4 +1,4 @@
-import {EuiFlexGroup, EuiFlexItem, EuiText, EuiIcon, useEuiTheme, EuiHorizontalRule, EuiButtonIcon, EuiSpacer} from "@elastic/eui";
+import {EuiFlexGroup, EuiFlexItem, EuiText, useEuiTheme, EuiHorizontalRule, EuiButtonIcon} from "@elastic/eui";
 import DeleteItemBox from "../listchanging/deleteItemBox";
 import { useState } from "react";
 

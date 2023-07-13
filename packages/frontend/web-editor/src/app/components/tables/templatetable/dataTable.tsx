@@ -1,5 +1,5 @@
-import { EuiDataGrid, EuiFlexGroup, EuiFlexItem, useEuiTheme, EuiDataGridColumn, Direction } from '@elastic/eui';
-import { createRef, useCallback, useState } from 'react';
+import { EuiDataGrid, EuiFlexGroup, EuiFlexItem } from '@elastic/eui';
+import { useCallback, useState } from 'react';
 
 interface DataTableProps {
   rows: any[];

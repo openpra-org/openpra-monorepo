@@ -8,7 +8,6 @@ import {
     EuiFlexGroup,
     EuiFlexItem,
     EuiSpacer,
-    useEuiTheme,
     EuiTitle,
     EuiButtonEmpty,
 } from '@elastic/eui'

@@ -1,7 +1,12 @@
 import { EuiPageTemplate, EuiPageHeaderProps, useEuiTheme } from "@elastic/eui";
 
-//page header to be used on items with a list, differentiated by having the New Item button
-//they are separate because we could add a boolean or something to toggle it, but might be an issue if setting a prop
+/**
+ * 
+ * @param pageTitle optional title for the page
+ * @param iconType optional icon to the left of the title
+ * @param restrictWidth restricts the width if needed
+ * @returns 
+ */
 export default function TemplatedPageHeader({pageTitle, iconType, restrictWidth, ...rest}: EuiPageHeaderProps){
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
   const restrictedWidth = restrictWidth === undefined ? largeScreenBreakpoint : restrictWidth;

@@ -1,9 +1,9 @@
-import PageLayout from "../../components/stylingaids/pageLayout";
+import TemplatedPageHeader from "../../components/headers/TemplatedPageHeader";
 
 export default function OverviewPage() {
     return (
         <> 
-            <PageLayout isModel={true} pageName='Overview Page' contentType={<div/>}/>
+            <TemplatedPageHeader/>
         </>
     )
 }

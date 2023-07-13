@@ -1,13 +1,13 @@
-import { EuiPageTemplate, logicalStyle, useEuiPaddingCSS } from "@elastic/eui";
 import GenericListItem from "./GenericListItem";
 import GenericItemList from "./GenericItemList";
-import { NewItemButton } from "../buttons/newItemButton";
-import PageTitleHeader from "../headers/listPageTitleHeader";
+import { CreateInitiatingEventButton } from "../buttons/CreateItemButton";
+import TemplatedPageBody from "../headers/TemplatedPageBody";
 
 const getFixtures = (count = 100): JSX.Element[] => {
   {/** grabs the models/id part, then appends the new part to get the total overall path */}
   return Array.from(Array(count).keys()).map((e, i) => {
     return (<GenericListItem
+    id={i}
     key={i}
     label={{
       name: `Initiating Event #${i}`,
@@ -17,18 +17,17 @@ const getFixtures = (count = 100): JSX.Element[] => {
   />)});
 }
 
-export default function ModelList(){
-
-  const verticalMargin = logicalStyle("margin-vertical", "0px");
-  
+export default function InitiatingEventsList(){
   return(
-    <>
-      <PageTitleHeader title="Initiating Event" icon="tokenInterface"/>
-      <EuiPageTemplate.Section style={verticalMargin}>
-        <GenericItemList>
-          {getFixtures()}
-        </GenericItemList>
-      </EuiPageTemplate.Section>
-    </>
+    <TemplatedPageBody
+      headerProps={{
+        pageTitle: "Initiating Events",
+        iconType: "tokenInterface",
+        rightSideItems: [<CreateInitiatingEventButton />]
+      }}>
+      <GenericItemList>
+        {getFixtures()}
+      </GenericItemList>
+    </TemplatedPageBody>
   );
 }

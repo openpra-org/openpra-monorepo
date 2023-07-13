@@ -8,13 +8,9 @@ export interface NewItemProps {
     title: string
 }
 
-export function NewItemButton(props: NewItemProps) {
+export function CreateButton(props: NewItemProps) {
     //this is to make sure the new thing gets set
     const [addNewVisible, setAddNewVisible] = useState(false);
-
-      
-    //dummy data for new model page for users
-    const userStrings = ["ifrit", "bahamut", "pheonix", "ramuh", "shiva", "odin", "titan", "garuda" ];
 
     //grab the props
     const { title } = props;

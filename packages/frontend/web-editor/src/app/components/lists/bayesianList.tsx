@@ -1,13 +1,13 @@
-import { EuiPageTemplate, logicalStyle, useEuiPaddingCSS } from "@elastic/eui";
 import GenericListItem from "./GenericListItem";
 import GenericItemList from "./GenericItemList";
-import { NewItemButton } from "../buttons/newItemButton";
-import PageTitleHeader from "../headers/listPageTitleHeader";
+import { CreateBayesianNetworkButton } from "../buttons/CreateItemButton";
+import TemplatedPageBody from "../headers/TemplatedPageBody";
 
 const getFixtures = (count = 100): JSX.Element[] => {
   {/** grabs the models/id part, then appends the new part to get the total overall path */}
   return Array.from(Array(count).keys()).map((e, i) => {
     return (<GenericListItem
+    id={i}
     key={i}
     label={{
       name: `Bayesian #${i}`,
@@ -17,18 +17,17 @@ const getFixtures = (count = 100): JSX.Element[] => {
   />)});
 }
 
-export default function ModelList(){
-
-  const verticalMargin = logicalStyle("margin-vertical", "0px");
-
+export default function BayesianNetworkList(){
   return(
-  <>
-    <PageTitleHeader title="Bayesian Network" icon="tokenPercolator"/>
-    <EuiPageTemplate.Section style={verticalMargin}>
+    <TemplatedPageBody
+      headerProps={{
+        pageTitle: "Bayesian Networks",
+        iconType: "tokenPercolator",
+        rightSideItems: [<CreateBayesianNetworkButton />]
+      }}>
       <GenericItemList>
         {getFixtures()}
       </GenericItemList>
-    </EuiPageTemplate.Section>
-  </>
+    </TemplatedPageBody>
   );
 }

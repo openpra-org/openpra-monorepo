@@ -5,16 +5,28 @@ import {
   EuiToken,
   useEuiTheme,
   EuiText,
-  EuiHorizontalRule
+  EuiCollapsibleNavGroup,
+  useEuiPaddingSize,
+  useEuiBackgroundColor
 } from "@elastic/eui";
 import React from 'react'
+import { Node } from "@elastic/eui/src/components/tree_view/tree_view"
 import { Link, useNavigate } from "react-router-dom";
 
+type TreeItem = {
+  id: string;
+  key: string;
+  isExpanded?: boolean;
+  label: JSX.Element;
+  children?: TreeItem[];
+  icon?: JSX.Element;
+  callback?: () => {};
+}
 export default function ModelSidenav() {
 
   const { euiTheme } = useEuiTheme();
 
-  const createTreeItem = (label: string, data = {}, depth = 0) => {
+  const createTreeItem = (label: string, data = {}, depth = 0): TreeItem => {
     let size : "xs" | "s" | "m" | "relative" = "relative";
     let text;
     let color: string;
@@ -199,16 +211,61 @@ export default function ModelSidenav() {
     }, 0),
   ];
 
-  const createTreeView = (items: any[], i: number) => {
-    return (
-      <EuiTreeView
-        items={items}
-        key={i}
-        aria-label="Model Sidebar"
-        expandByDefault={false}
-        showExpansionArrows
-        display="compressed"
+  const backgroundColor =  useEuiBackgroundColor("plain");
+  const padding = useEuiPaddingSize("s") || '0px';
+
+  const createTreeView = (items: TreeItem[], i: number, forceTreeView = false) => {
+//TODO
+    if (forceTreeView) {
+      const style = {
+        background: backgroundColor,
+        borderWidth: euiTheme.border.width["thin"],
+        borderRadius: euiTheme.border.radius["medium"],
+        borderColor: euiTheme.border.color,
+        padding: padding,
+      };
+      return (
+        <div style={style}>
+        <EuiTreeView
+          items={items as unknown as Node[]}
+          key={i}
+          aria-label="Model Sidebar"
+          expandByDefault={false}
+          showExpansionArrows
+          // display="compressed"
+        />
+        </div>
+      );
+    }
+
+    //single node
+    if (!items[0].children) {
+      return (
+      <EuiCollapsibleNavGroup
+        title={items[0].label}
+        iconType={items[0].icon?.props.type}
+        iconSize="m"
+        titleSize="xs"
+        isCollapsible={true}
+        isDisabled={false}
+        arrowDisplay="none"
+        onClick={items[0].callback}
       />
+      );
+    }
+
+    return (
+      <EuiCollapsibleNavGroup
+        title={items[0].label}
+        iconType={items[0].icon?.props.type}
+        iconSize="m"
+        titleSize="xs"
+        isCollapsible={true}
+        buttonElement="button"
+        initialIsOpen={items[0].isExpanded}
+      >
+        {createTreeView(items[0].children, i+100, true)}
+      </EuiCollapsibleNavGroup>
     );
   }
 
@@ -232,7 +289,7 @@ export default function ModelSidenav() {
     items.forEach((item, i) => {
       viewItems.push(...[
         createTreeView(item, i),
-        <EuiHorizontalRule margin="xs" key={items.length + i} />,
+        // <EuiHorizontalRule margin="xs" key={items.length + i} />,
       ]);
     });
     return (viewItems);

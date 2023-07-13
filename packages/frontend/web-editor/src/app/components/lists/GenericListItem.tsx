@@ -1,28 +1,21 @@
 import {
-  EuiCard,
-  EuiTitle,
-  EuiFlexItem,
-  EuiFlexGroup,
   EuiAvatar,
   EuiText,
-  EuiButtonIcon,
   EuiListGroupItem,
   logicalStyle,
   useEuiTheme,
   useEuiPaddingSize,
-  EuiButton,
-  EuiPopover,
   EuiOverlayMask
 } from "@elastic/eui";
-import { Fragment, useState } from "react";
-import { Link, PathRouteProps, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 import DeleteItemBox from "../listchanging/deleteItemBox";
 
 
 //title is required, description isnt required but is typically present
 export interface GenericListItemProps {
-  key: number,
+  id: number,
   label?: LabelJSON,
   path: string,
 }
@@ -34,7 +27,7 @@ export interface GenericListItemProps {
 export default function GenericListItem(props: GenericListItemProps) {
 
   //grabs the props
-  const { label, key, path} = props;
+  const { label, id, path} = props;
 
   //hook state thing for the deletebox
   const [deleteVisible, setDeleteVisible] = useState(false);
@@ -43,7 +36,7 @@ export default function GenericListItem(props: GenericListItemProps) {
   const onDeleteClick = () =>{
     setDeleteVisible(!deleteVisible)
   }
-
+  // TODO
   //setting themeing constants to be used later
   const border = useEuiTheme().euiTheme.border;
   const borderLine = logicalStyle("border-bottom", `${border.width.thin} solid ${border.color}`);
@@ -59,7 +52,7 @@ export default function GenericListItem(props: GenericListItemProps) {
         </Link>
       }
       label={
-        <Link to={path}>
+        <div>
           {/*<EuiTitle size="xs">*/}
             <Link to={path}>
               <EuiText size="m" color="default" grow={false}>
@@ -70,9 +63,9 @@ export default function GenericListItem(props: GenericListItemProps) {
           <EuiText size="s" color="subdued" grow={false}>
             {label?.description}
           </EuiText>
-        </Link>
+        </div>
       }
-      key={key}
+      key={id}
       size="l"
       extraAction={{
         color: "danger",
@@ -85,12 +78,13 @@ export default function GenericListItem(props: GenericListItemProps) {
       wrapText
       // onClick={handleCardClick}
     >
-      
+
     </EuiListGroupItem>
-      {/** toggles the delete overlay, is out side of the list group */}
+      {/** toggles the delete overlay, is outside of the list group */}
       {deleteVisible && (
         <EuiOverlayMask>
-          <DeleteItemBox title={label?.name} page='models' toggleBox={setDeleteVisible}></DeleteItemBox>
+          {/*TODO*/}
+          {/*<DeleteItemBox title={label?.name} page='models' toggleBox={setDeleteVisible}></DeleteItemBox>*/}
         </EuiOverlayMask>
       )}
     </>

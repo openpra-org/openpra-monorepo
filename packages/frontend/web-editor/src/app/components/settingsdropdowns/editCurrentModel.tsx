@@ -21,8 +21,8 @@ import SettingsAccordian from "./SettingsAccordian";
 //a change of new item that lets you edit an item, though right now functionality for that isnt available because it requires database
 export default function EditCurrentModel(){
 
-    //this is what is in the newItem strucutre, will eventually be used to actually make things
-    //this is also subject tyo change, propbably needs a type passed in from props eventually
+    //this is what is in the newItem structure, will eventually be used to actually make things
+    //this is also subject tyo change, probably needs a type passed in from props eventually
     const newItem = {
         title:  '',
         id: 1,

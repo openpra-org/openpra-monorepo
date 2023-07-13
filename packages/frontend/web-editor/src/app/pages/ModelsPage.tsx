@@ -65,7 +65,7 @@ export default function ModelsPage() {
       <Route
         path=":modelId"
         element=<ModelContainer/>
-        loader={loadModel}
+        // loader={loadModel}
       >
         <Route
           path="event-sequence-diagrams/*"

@@ -1,27 +1,24 @@
 import {
-  EuiPageTemplate,
   EuiHorizontalRule,
-  useEuiTheme
 } from "@elastic/eui";
 import EditCurrentModel from "../../components/settingsdropdowns/editCurrentModel";
 import SettingsOverview from "../../components/settingsdropdowns/settingsOverview";
 import AdvancedSettings from "../../components/settingsdropdowns/advancedSettings";
-import ListlessPageTitleHeader from "../../components/headers/listlessPageTitleHeader";
+import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
 
 export default function ModelSettings() {
-  const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
   return (
-    <>
-    <ListlessPageTitleHeader title="Settings" icon="gear"/>
-    <EuiPageTemplate.Section
-      restrictWidth={largeScreenBreakpoint}
-    >
+    <TemplatedPageBody
+      panelled={false}
+      headerProps={{
+        pageTitle: "Settings",
+        iconType: "gear",
+      }}>
       <EditCurrentModel/>
       <EuiHorizontalRule />
       <SettingsOverview/>
       <EuiHorizontalRule />
       <AdvancedSettings/>
-    </EuiPageTemplate.Section>
-    </>
+    </TemplatedPageBody>
   );
 }

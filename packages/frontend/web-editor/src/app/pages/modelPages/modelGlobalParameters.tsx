@@ -1,13 +1,16 @@
-import {ModelPageFilter} from "../../components/headers/headers";
-import ListlessPageTitleHeader from "../../components/headers/listlessPageTitleHeader";
 import GlobalParametersList from "../../components/lists/globalParametersList";
-import PageLayout from "../../components/stylingaids/pageLayout";
-
+import TemplatedPageHeader from "../../components/headers/TemplatedPageHeader";
+import { CreateBayesianNetworkButton } from "../../components/buttons/CreateItemButton";
+import GenericItemList from "../../components/lists/GenericItemList";
+import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
 export default function BasicEvents() {
     return (
-        <> 
-            <ListlessPageTitleHeader title="Global Parameters" icon="beta"/>
-            <GlobalParametersList/>
-        </>
+      <TemplatedPageBody
+        headerProps={{
+          pageTitle: "Global Parameters",
+          iconType: "beta",
+        }}>
+        <GlobalParametersList/>
+      </TemplatedPageBody>
     )
 }

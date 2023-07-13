@@ -27,19 +27,7 @@ import {
   useGeneratedHtmlId,
 } from '@elastic/eui';
 import {Link, useLocation, useNavigate} from 'react-router-dom';
-const tokenizePath = (path: string, stripTrailingSlash = true): string[] => {
-  const str = stripTrailingSlash ? path.replace(/\/+$/, '') : path;
-  return str.split("/").filter((value) => (value !== ""));
-}
-
-const toTitleCase = (str: string, stripDashes = true) => {
-  return str.replace(/-/g, stripDashes ? " " : "-").replace(
-    /\w\S*/g,
-    function(txt) {
-      return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-    }
-  );
-}
+import { toTitleCase, tokenizePath } from "../../../utils/StringUtils";
 
 export default () => {
 
@@ -80,8 +68,8 @@ export default () => {
       <EuiHeaderBreadcrumbs
         aria-label="Navigation Breadcrumbs"
         breadcrumbs={createBreadcrumbs(location.pathname)}
-        max={5}
-        truncate={true}
+        max={10}
+        truncate={false}
         type="application"
         lastBreadcrumbIsCurrentPage={true}
       />

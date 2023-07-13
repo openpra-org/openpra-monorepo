@@ -1,10 +1,11 @@
-import ListlessPageTitleHeader from "../../components/headers/listlessPageTitleHeader";
-import PageLayout from "../../components/stylingaids/pageLayout";
-
+import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
 export default function QuantificationHistory() {
     return (
-        <> 
-            <ListlessPageTitleHeader title="Quantification History" icon="visAreaStacked"/>
-        </>
+      <TemplatedPageBody
+        headerProps={{
+          pageTitle: "Quantification History",
+          iconType: "visAreaStacked",
+        }}>
+      </TemplatedPageBody>
     )
 }

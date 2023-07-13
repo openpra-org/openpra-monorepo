@@ -1,11 +1,17 @@
 import GatesTable from '../../components/tables/gatesTable';
-import ListlessPageTitleHeader from '../../components/headers/listlessPageTitleHeader';
+import TemplatedPageHeader from "../../components/headers/TemplatedPageHeader";
+import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
+import GlobalParametersList from "../../components/lists/globalParametersList";
 
 export default function ModelGates() {
+
     return (
-        <> 
-            <ListlessPageTitleHeader title="Gates" icon="tokenRepo"/>
-            <GatesTable/>
-        </>
+      <TemplatedPageBody
+        headerProps={{
+          pageTitle: "Gates",
+          iconType: "tokenRepo",
+        }}>
+        <GatesTable/>
+      </TemplatedPageBody>
     )
 }

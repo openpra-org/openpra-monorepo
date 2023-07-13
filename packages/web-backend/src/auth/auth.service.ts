@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
 import { CollabService } from '../collab/collab.service';
+import { User } from "../collab/schemas/user.schema";
 
 @Injectable()
 export class AuthService {
@@ -10,12 +11,12 @@ export class AuthService {
         private jwtService: JwtService
     ) {}
 
-    /* 
-        1. The Local Strategy (AuthGuard('local')) sends the User credentials to loginUser() method.    
+    /*
+        1. The Local Strategy (AuthGuard('local')) sends the User credentials to loginUser() method.
         2. The loginUser() method checks if the User exists in the database using the CollabService.loginUser() method.
         3. If the User exists, then the password is verified as well.
     */
-    async loginUser(username: string, password: string): Promise<any> {
+    async loginUser(username: string, password: string): Promise<User> {
         const user = await this.collabService.loginUser(username);
         if(user) {
             const validUser = await argon2.verify(user.password,password);

@@ -52,21 +52,22 @@ export default function GenericListItem(props: GenericListItemProps) {
       style={customStyles}
       icon={
         <Link to={path}>
+          {/** avatar with the abbreviation for the item, it is in a  link as is the other part so that clicks are seamless */}
           <EuiAvatar name={label?.name ? label.name : ""} size="l" type="space" />
         </Link>
       }
       label={
         <div>
-          {/*<EuiTitle size="xs">*/}
-            <Link to={path}>
-              <EuiText size="m" color="default" grow={false}>
-                <strong>{label?.name}</strong>
-              </EuiText>
-            </Link>
-            {/*</EuiTitle>*/}
-          <EuiText size="s" color="subdued" grow={false}>
-            {label?.description}
-          </EuiText>
+          <Link to={path}>
+            {/** this is the title for the item */}
+            <EuiText size="m" color="default" grow={false}>
+              <strong>{label?.name}</strong>
+            </EuiText>
+            {/** this is the description for the item */}
+            <EuiText size="s" color="subdued" grow={false}>
+              {label?.description}
+            </EuiText>
+          </Link>
         </div>
       }
       key={id}
@@ -81,14 +82,12 @@ export default function GenericListItem(props: GenericListItemProps) {
       }}
       wrapText
       // onClick={handleCardClick}
-    >
-
-    </EuiListGroupItem>
+    />
       {/** toggles the delete overlay, is outside of the list group */}
       {deleteVisible && (
         <EuiOverlayMask>
           {/*TODO*/}
-          <DeleteItemBox title={label?.name} page='models' id={id} toggleBox={setDeleteVisible}></DeleteItemBox>
+          <DeleteItemBox title={label?.name} id={id} toggleBox={setDeleteVisible}></DeleteItemBox>
         </EuiOverlayMask>
       )}
     </>

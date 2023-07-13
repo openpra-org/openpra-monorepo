@@ -8,6 +8,7 @@ import DataContainer from "../components/pageContainers/dataContainer";
 
 export default function DataPage() {
   return (
+    //routes
       <Routes>
         <Route
         path=""

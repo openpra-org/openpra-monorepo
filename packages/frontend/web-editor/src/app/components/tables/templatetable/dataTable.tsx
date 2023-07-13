@@ -56,7 +56,7 @@ export default function DataTable({ rows, columns }: DataTableProps) {
   );
 
   return (
-    <EuiFlexGroup style={{marginLeft: '10px'}} className='eui-xScroll'>
+    <EuiFlexGroup className='eui-xScroll'>
       <EuiFlexItem grow={true}>
         <EuiDataGrid
           columns={columns}

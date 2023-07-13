@@ -1,7 +1,5 @@
 import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
-
-import NewModelsPage from './newModelsPage';
 import ModelList from '../components/lists/ModelList';
 import EventSequenceDiagrams from './modelPages/eventSequenceDiagrams';
 import CcfGroups from "./modelPages/ccfGroups";
@@ -14,7 +12,7 @@ import InitiatingEvents from "./modelPages/initiatingEvents";
 import EventTrees from "./modelPages/eventTrees";
 import ModelGates from "./modelPages/modelGates";
 import BasicEvents from "./modelPages/basicEvents";
-import ModelContainer from "./ModelContainer";
+import ModelContainer from "../components/pageContainers/ModelContainer";
 
 
 const getModelFixture = (): ModelProps => {
@@ -61,7 +59,6 @@ export default function ModelsPage() {
   return (
     <Routes>
       <Route path="" element=<ModelList/> />
-      <Route path="new" element=<NewModelsPage/> />
       <Route
         path=":modelId"
         element=<ModelContainer/>

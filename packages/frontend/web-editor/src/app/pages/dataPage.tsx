@@ -1,38 +1,39 @@
-import PageLayout from "../components/stylingaids/pageLayout";
 import { Route, Routes } from "react-router-dom";
-import ModelList from "../components/lists/ModelList";
-import NewModelsPage from "./newModelsPage";
-import ModelContainer from "./ModelContainer";
-import EventSequenceDiagrams from "./modelPages/eventSequenceDiagrams";
 import SpecialEvents from "./dataPages/specialEvents";
 import ComponentReliability from "./dataPages/componentReliability";
 import DataInitiatingEvents from "./dataPages/dataInitiatingEvents";
 import TrainUA from "./dataPages/trainUA";
 import Ccf from "./dataPages/ccf";
+import DataContainer from "../components/pageContainers/dataContainer";
 
 export default function DataPage() {
   return (
       <Routes>
+        <Route
+        path=""
+        element=<DataContainer/>
+        >
           <Route
-              path="specialevents"
+              path="special-events/*"
               element={<SpecialEvents />}
           />
           <Route
-              path="componentreliability"
+              path="component-reliability/*"
               element= {<ComponentReliability />}
           />
           <Route
-            path="initiatingevents"
+            path="initiating-events/*"
             element={<DataInitiatingEvents />}
           />
           <Route
-              path="trainua"
+              path="train-ua/*"
               element={<TrainUA />}
           />
           <Route
-              path="ccf"
+              path="ccf/*"
               element={<Ccf />}
           />
-      </Routes>
+        </Route>
+    </Routes>
   )
 }

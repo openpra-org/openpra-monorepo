@@ -210,6 +210,7 @@ export default function ModelSidenav() {
       callback: () => {navigate('settings')},
     }, 0),
   ];
+  
 
   const backgroundColor =  useEuiBackgroundColor("plain");
   const padding = useEuiPaddingSize("s") || '0px';

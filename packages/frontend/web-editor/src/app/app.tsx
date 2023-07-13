@@ -9,6 +9,7 @@ import SpecialEvents from './pages/dataPages/specialEvents';
 import Ccf from './pages/dataPages/ccf';
 import TrainUA from './pages/dataPages/trainUA';
 import RootContainer from "./pages/rootContainer";
+import DataPage from "./pages/dataPage";
 
 const routes: RouteObject[] = [
     {
@@ -31,25 +32,9 @@ const routes: RouteObject[] = [
                         element: <>about</>,
                     },
                     {
-                        path: 'data/specialevents',
-                        element: <SpecialEvents />
-                    },
-                    {
-                        path: 'data/componentreliability',
-                        element: <ComponentReliability />
-                    },
-                    {
-                        path: 'data/initiatingevents',
-                        element: <DataInitiatingEvents />
-                    },
-                    {
-                        path: 'data/trainua',
-                        element: <TrainUA />
-                    },
-                    {
-                        path: 'data/ccf',
-                        element: <Ccf />
-                    },
+                        path: 'data/*',
+                        element: <DataPage />
+                    }
                 ]
             }
         ],

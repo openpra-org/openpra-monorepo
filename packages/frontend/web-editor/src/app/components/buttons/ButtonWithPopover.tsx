@@ -3,6 +3,7 @@ import { useState } from "react";
 import { EuiButton, EuiConfirmModal, EuiPopover } from "@elastic/eui";
 import { EuiPopoverProps } from "@elastic/eui/src/components/popover/popover";
 
+//props for button with popover
 type ButtonWithPopoverPropsPartials = {
   popoverProps?: Partial<Omit<EuiPopoverProps, "button" | "focusTrapProps" | "closePopover" | "isOpen">>;
   popoverContent?: JSX.Element;
@@ -10,6 +11,15 @@ type ButtonWithPopoverPropsPartials = {
 }
 
 export type ButtonWithPopoverProps = EuiButtonPropsForButton & ButtonWithPopoverPropsPartials;
+
+/**
+ * 
+ * @param onClick, an onClick function if desired
+ * @param popoverContent optionally able to pass over an element to be in the popover
+ * @param popoverProps optionally able to pass all the props for the popover 
+ * @param confirmDiscard optionally boolean to allow for confirming discarding changes
+ * @returns 
+ */
 export default function({ onClick, popoverProps, popoverContent, confirmDiscard, ...rest }: ButtonWithPopoverProps) {
 
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);

@@ -13,6 +13,7 @@ import React, {useState } from 'react'
 import DeleteItemBox from '../listchanging/deleteItemBox';
 import SettingsAccordian from "./SettingsAccordian";
 
+//this is the content within the 
 const buttonContent = (
   <div>
       <EuiFlexGroup gutterSize="s" alignItems="center" responsive={false}>
@@ -35,7 +36,7 @@ const buttonContent = (
   </div>
 );
 
-//exports as AdvancedSettings by default
+//returns the advanced settings menu, which is a drop down with a few settings
 export default function AdvancedSettings() {
 
     //setting the value of the overview

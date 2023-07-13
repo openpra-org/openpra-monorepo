@@ -18,7 +18,7 @@ export type ButtonWithPopoverProps = EuiButtonPropsForButton & ButtonWithPopover
  * @param popoverContent optionally able to pass over an element to be in the popover
  * @param popoverProps optionally able to pass all the props for the popover 
  * @param confirmDiscard optionally boolean to allow for confirming discarding changes
- * @returns 
+ * @returns a button with a popover that displays
  */
 export default function({ onClick, popoverProps, popoverContent, confirmDiscard, ...rest }: ButtonWithPopoverProps) {
 

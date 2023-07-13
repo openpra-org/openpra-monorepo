@@ -22,7 +22,9 @@ export interface GenericListItemProps {
 
 /**
  *
- * @param props
+ * @param id takes in the id number of the objecty
+ * @param path the path that the list item will send the user to after clicked
+ * @param label this is an optional prop that passes a labelJSON
  */
 export default function GenericListItem(props: GenericListItemProps) {
 

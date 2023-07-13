@@ -63,7 +63,9 @@ export default () => {
     });
   }
 
+  //Initiates using location
   const location = useLocation();
+
   const renderBreadcrumbs = () => {
     return (
       <EuiHeaderBreadcrumbs
@@ -100,6 +102,8 @@ export default () => {
       }
     />
   );
+
+  //group of buttons that work to toggle between the data and model sections of the app, easy to add other buttons to this tab as well
   const navButtons = (
       <>
         <EuiButtonGroup
@@ -132,8 +136,8 @@ export default () => {
       </EuiHeaderSection>
       {renderBreadcrumbs()}
       <EuiHeaderSection side="right">
-        <EuiHeaderSectionItem>{navButtons}</EuiHeaderSectionItem>
         <EuiHeaderSectionItem>{search}</EuiHeaderSectionItem>
+        <EuiHeaderSectionItem>{navButtons}</EuiHeaderSectionItem>
         <EuiHeaderSectionItem>
           <HeaderUserMenu />
         </EuiHeaderSectionItem>

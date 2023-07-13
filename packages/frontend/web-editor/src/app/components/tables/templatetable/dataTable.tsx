@@ -11,7 +11,12 @@ interface CellValueProps {
   colIndex: number;
 }
 
-
+/**
+ * 
+ * @param columns needs to take in columns to define each data section
+ * @param rows the row of data matching the columns
+ * @returns a formated data grid with the information that is passed in
+ */
 export default function DataTable({ rows, columns }: DataTableProps) {
 
   //sets the visibile columns in a state

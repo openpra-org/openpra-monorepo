@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {
   EuiAvatar,
   EuiButton,
+  EuiButtonGroup,
   EuiFlexGroup,
   EuiFlexItem,
   EuiHeader,
@@ -99,6 +100,26 @@ export default () => {
       }
     />
   );
+  const navButtons = (
+      <>
+        <EuiButtonGroup
+            options={[
+              {
+                id: 'models',
+                label: 'Models',
+              },
+              {
+                id: 'data',
+                label: 'Data',
+              },
+            ]}
+            onChange={((id: string, value?: any) => navigate("/" + id))}
+            idSelected={window.location.pathname.split('/')[1]}
+            color="primary"
+            legend="Button group"
+        />
+      </>
+  )
   return (
     <EuiHeader position="fixed">
       <EuiHeaderSection grow={false}>
@@ -111,6 +132,7 @@ export default () => {
       </EuiHeaderSection>
       {renderBreadcrumbs()}
       <EuiHeaderSection side="right">
+        <EuiHeaderSectionItem>{navButtons}</EuiHeaderSectionItem>
         <EuiHeaderSectionItem>{search}</EuiHeaderSectionItem>
         <EuiHeaderSectionItem>
           <HeaderUserMenu />

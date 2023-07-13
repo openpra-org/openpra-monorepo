@@ -11,13 +11,14 @@ import {
     useEuiTheme,
     EuiOverlayMask,
     EuiTitle,
-    EuiButtonEmpty
+    EuiButtonEmpty, useEuiPaddingCSS
 } from '@elastic/eui'
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
   export interface NewItemProps {
     title?: string, 
     page: string,
+      id?: number,
     toggleBox: (isVisible: boolean) => void,
   }
   
@@ -32,7 +33,8 @@ export default function DeleteItemBox(props: NewItemProps) {
     const [confirmDelete, setConfirmDelete] = useState('');
 
     //grabbing the props
-    const { title, page, toggleBox} = props;
+    const { title, page, id, toggleBox} = props;
+
 
     function handleClick(): void {
         throw new Error('Function not implemented.');
@@ -51,7 +53,7 @@ export default function DeleteItemBox(props: NewItemProps) {
     return (
         <>
             {/** this styling is so its in a nice looking box, it scales if the users tab is there or not */}            
-            <EuiForm>
+            <EuiForm style={{backgroundColor: euiTheme.colors.lightShade}}>
                 <EuiSpacer size='s'/>
                 {/** this gives the text, and then importantly sets the title of the item */}
                 <EuiFormRow fullWidth={true}>

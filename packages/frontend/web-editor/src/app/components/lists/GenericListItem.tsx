@@ -26,6 +26,8 @@ export interface GenericListItemProps {
  */
 export default function GenericListItem(props: GenericListItemProps) {
 
+  const {euiTheme} = useEuiTheme();
+
   //grabs the props
   const { label, id, path} = props;
 
@@ -84,7 +86,7 @@ export default function GenericListItem(props: GenericListItemProps) {
       {deleteVisible && (
         <EuiOverlayMask>
           {/*TODO*/}
-          {/*<DeleteItemBox title={label?.name} page='models' toggleBox={setDeleteVisible}></DeleteItemBox>*/}
+          <DeleteItemBox title={label?.name} page='models' id={id} toggleBox={setDeleteVisible}></DeleteItemBox>
         </EuiOverlayMask>
       )}
     </>

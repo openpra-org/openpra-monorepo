@@ -26,3 +26,7 @@ html {
 .euiTreeView--withArrows.euiTreeView .euiTreeView__iconWrapper {
     margin-left: 0 !important;
 }
+
+.euiListGroupItem__label {
+    flex-grow: 1 !important;
+}

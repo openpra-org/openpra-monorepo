@@ -9,11 +9,13 @@ const getFixtures = (count = 100): JSX.Element[] => {
     return (<GenericListItem
     id={i}
     key={i}
+    itemName="event tree"
     label={{
       name: `Event Tree #${i}`,
       description: `This is event tree number ${i}`,
     }}
     path={window.location.pathname + `/${i}`}
+    endpoint="/api/event-tree/:id"
   />)});
 }
 

@@ -1,16 +1,19 @@
 import { EuiButtonPropsForButton } from "@elastic/eui/src/components/button/button";
-import { useState } from "react";
-import { EuiButton, EuiConfirmModal, EuiPopover } from "@elastic/eui";
+import React, { ReactElement, useEffect, useState } from "react";
+import { EuiButton, EuiButtonIcon, EuiConfirmModal, EuiPopover } from "@elastic/eui";
 import { EuiPopoverProps } from "@elastic/eui/src/components/popover/popover";
 
 type ButtonWithPopoverPropsPartials = {
   popoverProps?: Partial<Omit<EuiPopoverProps, "button" | "focusTrapProps" | "closePopover" | "isOpen">>;
-  popoverContent?: JSX.Element;
-  confirmDiscard?: boolean
+  buttonText?: JSX.Element | string;
+  confirmDiscard?: boolean;
+  isIcon?: boolean;
+  iconType?: string;
+  onRequestClose?: boolean;
 }
 
 export type ButtonWithPopoverProps = EuiButtonPropsForButton & ButtonWithPopoverPropsPartials;
-export default function({ onClick, popoverProps, popoverContent, confirmDiscard, ...rest }: ButtonWithPopoverProps) {
+export default function ButtonWithPopover({ iconType, children, buttonText, onRequestClose, isIcon, onClick, popoverProps, confirmDiscard, ...rest }: ButtonWithPopoverProps) {
 
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const togglePopover = () => setIsPopoverOpen((isPopoverOpen) => !isPopoverOpen);
@@ -21,13 +24,14 @@ export default function({ onClick, popoverProps, popoverContent, confirmDiscard,
       onClick(event)
     }
   }
-  const button = <EuiButton {...rest} onClick={onButtonClick} />
+
+  const button = isIcon ? <EuiButtonIcon {...rest} children={buttonText} iconType={iconType || "none"} onClick={onButtonClick} /> : <EuiButton {...rest} children={buttonText} iconType={iconType} onClick={onButtonClick} />;
 
   let modal: JSX.Element | null = null;
+  const [isModalVisible, setIsModalVisible] = useState(false);
   let showModal = () => (setIsPopoverOpen(false));
   if(confirmDiscard) {
     /** Discard Confirmation Modal **/
-    const [isModalVisible, setIsModalVisible] = useState(false);
     const closeModal = () => setIsModalVisible(false);
     showModal = () => setIsModalVisible(true);
     modal = isModalVisible ? (
@@ -48,21 +52,68 @@ export default function({ onClick, popoverProps, popoverContent, confirmDiscard,
     ) : null;
   }
 
+  if(onRequestClose && isPopoverOpen) {
+    setIsPopoverOpen(false);
+  }
+  const popoverStatus = onRequestClose ? false : isPopoverOpen;
   return (
     <>
       <EuiPopover
+        panelPaddingSize="m"
         {...popoverProps}
         button={button}
-        isOpen={isPopoverOpen}
+        isOpen={popoverStatus}
         closePopover={() => setIsPopoverOpen(false)}
         focusTrapProps={{
           clickOutsideDisables: false,
           onClickOutside: showModal,
         }}
       >
-        {popoverContent}
+        {children}
       </EuiPopover>
       {confirmDiscard && modal}
     </>
+  );
+}
+
+export type ButtonWithClosablePopoverProps = {
+  closeProp: string;
+  popoverExtra?: (child: JSX.Element) => JSX.Element;
+} & ButtonWithPopoverProps;
+export function ButtonWithClosablePopover(props: ButtonWithClosablePopoverProps) {
+
+  const [forceClose, setForceClose] = useState(false);
+
+  const {children, closeProp, popoverExtra,...rest} = props;
+  useEffect(() => {
+    if (forceClose) {
+      setForceClose(false);
+    }
+  }, [forceClose]);
+
+  const modifiedPopoverContent = () => {
+    return (
+      <>
+        {React.Children.map(children, (child) => {
+      if (!child) {
+        return undefined;
+      }
+      return React.cloneElement(child as ReactElement, {
+        [closeProp]: () => {setForceClose(true)},
+      });
+    })}
+      </>
+    );
+  }
+
+  const content = popoverExtra ? popoverExtra(modifiedPopoverContent()) : modifiedPopoverContent();
+
+  return (
+    <ButtonWithPopover
+      {...rest}
+      onRequestClose={forceClose}
+    >
+      {content}
+    </ButtonWithPopover>
   );
 }

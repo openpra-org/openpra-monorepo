@@ -1,28 +1,27 @@
-import ButtonWithPopover from "./ButtonWithPopover";
-import CreateItemForm, { CreateItemFormProps } from "../forms/CreateItemForm";
-import { EuiFlexGroup, EuiFlexItem, EuiPopoverTitle, logicalStyle } from "@elastic/eui";
+import ButtonWithPopover, { ButtonWithClosablePopover } from "./ButtonWithPopover";
+import { EuiFlexGroup, EuiFlexItem, logicalStyle } from "@elastic/eui";
 import { toTitleCase } from "../../../utils/StringUtils";
+import ItemFormAction, { ItemFormProps } from "../forms/ItemFormAction";
+import { useEffect, useState } from "react";
 
 export type CreateItemButtonProps = {
 
-} & CreateItemFormProps;
+} & Omit<ItemFormProps, "action">;
 
 export default function CreateItemButton({ itemName, endpoint }: CreateItemButtonProps) {
 
-  const label = toTitleCase(itemName);
 
-  const popoverContent = (
-    <div style={logicalStyle('width', 260)}>
-      <EuiFlexGroup gutterSize="xl">
-      <EuiFlexItem>
-        <CreateItemForm itemName={label} endpoint="/api/model" />
-      </EuiFlexItem>
-      </EuiFlexGroup>
+  const popoverExtra = (child: JSX.Element) => (
+    <div style={logicalStyle('max-width', 240)}>
+      {child}
     </div>
   );
+
   return (
-    <ButtonWithPopover
-      popoverContent={popoverContent}
+    <ButtonWithClosablePopover
+      popoverExtra={popoverExtra}
+      closeProp="onCancel"
+      buttonText="Create"
       confirmDiscard={true}
       popoverProps={{
         initialFocus: "#name"
@@ -31,8 +30,8 @@ export default function CreateItemButton({ itemName, endpoint }: CreateItemButto
       iconSize="m"
       size="s"
     >
-      Create
-    </ButtonWithPopover>
+      <ItemFormAction compressed action="create" itemName={itemName} endpoint={endpoint} />
+    </ButtonWithClosablePopover>
   );
 }
 

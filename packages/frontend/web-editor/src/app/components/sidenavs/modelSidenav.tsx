@@ -210,7 +210,7 @@ export default function ModelSidenav() {
       callback: () => {navigate('settings')},
     }, 0),
   ];
-  
+
 
   const backgroundColor =  useEuiBackgroundColor("plain");
   const padding = useEuiPaddingSize("s") || '0px';
@@ -247,6 +247,7 @@ export default function ModelSidenav() {
         iconType={items[0].icon?.props.type}
         iconSize="m"
         titleSize="xs"
+        key={i}
         isCollapsible={true}
         isDisabled={false}
         arrowDisplay="none"
@@ -261,6 +262,7 @@ export default function ModelSidenav() {
         iconType={items[0].icon?.props.type}
         iconSize="m"
         titleSize="xs"
+        key={i}
         isCollapsible={true}
         buttonElement="button"
         initialIsOpen={items[0].isExpanded}

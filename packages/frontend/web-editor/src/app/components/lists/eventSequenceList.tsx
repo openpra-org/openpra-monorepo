@@ -11,11 +11,13 @@ const getFixtures = (count = 100): JSX.Element[] => {
     return (<GenericListItem
     id={i}
     key={i}
+    itemName="event sequence diagram"
     label={{
       name: `Event Sequence #${i}`,
       description: `This is event sequence number ${i}`,
     }}
     path={window.location.pathname + `/${i}`}
+    endpoint="/api/event-sequence-diagram/:id"
   />)});
 }
 

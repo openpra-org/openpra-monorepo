@@ -9,11 +9,13 @@ const getFixtures = (count = 100): JSX.Element[] => {
     return (<GenericListItem
     id={i}
     key={i}
+    itemName="bayesian network"
     label={{
       name: `Bayesian #${i}`,
       description: `This is Bayesian number ${i}`,
     }}
     path={window.location.pathname + `/${i}`}
+    endpoint="/api/bayesian-network/:id"
   />)});
 }
 

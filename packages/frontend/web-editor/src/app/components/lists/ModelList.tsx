@@ -6,13 +6,15 @@ import { CreateModelButton } from "../buttons/CreateItemButton";
 const getFixtures = (count = 100): JSX.Element[] => {
   return Array.from(Array(count).keys()).map((e, i) => {
     return (<GenericListItem
-    id={i}
-    key={i}
-    label={{
-      name: `Model #${i}`,
-      description: `This is model number ${i}`,
-    }}
-    path={`/models/${i}`}
+      itemName="model"
+      id={i}
+      key={i}
+      label={{
+        name: `Model #${i}`,
+        description: `This is model number ${i}`,
+      }}
+      path={`/models/${i}`}
+      endpoint="/api/model/:id"
   />)});
 }
 

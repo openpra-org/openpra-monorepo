@@ -16,6 +16,7 @@ import {
   EuiText, EuiIcon, EuiFieldNumber
 } from "@elastic/eui";
 import SettingsAccordian from "./SettingsAccordian";
+import ItemFormAction from "../forms/ItemFormAction";
 
 
 //a change of new item that lets you edit an item, though right now functionality for that isnt available because it requires database
@@ -67,63 +68,19 @@ export default function EditCurrentModel(){
         <EuiFlexGrid direction="row" responsive={false} columns={smallScreen ? 1 : 2}>
           <EuiFlexItem grow={true}>
             <EuiPanel paddingSize="xl">
-              <EuiTitle size="s" ><h6>Basic Information</h6></EuiTitle>
-              <EuiSpacer size="s"/>
-              <EuiText size="s" color="subdued">Basic model information including title, description, and ID.</EuiText>
-              <EuiSpacer />
-              <EuiForm component="form">
-                <EuiFlexGroup>
-                  <EuiFlexItem grow={true}>
-                    <EuiFormRow fullWidth label="Model name">
-                      <EuiFieldText
-                        fullWidth
-                        placeholder="Change name"
-                        value={itemInfo.title}
-                        onChange={(e) => setItemInfo({
-                          ...itemInfo,
-                          title: e.target.value
-                        })}
-                      />
-                    </EuiFormRow>
-                  </EuiFlexItem>
-                  <EuiFlexItem grow={false}>
-                    <EuiFormRow label="Model ID">
-                      <EuiFieldNumber
-                        min={1}
-                        disabled={true}
-                        style={{width: 60}}
-                        value={itemInfo.id}
-                        onChange={(e) => setItemInfo({
-                          ...itemInfo,
-                          id: Number(e.target.value),
-                        })}
-                      />
-                    </EuiFormRow>
-                  </EuiFlexItem>
-                </EuiFlexGroup>
-                <EuiSpacer size="m" />
-                <EuiFormRow fullWidth label="Model description">
-                  <EuiTextArea
-                    resize='none'
-                    fullWidth
-                    value={itemInfo.label.description}
-                    onChange={(e) => setItemInfo({
-                      ...itemInfo,
-                      label: {
-                        ...itemInfo.label,
-                        description: e.target.value
-                      }
-                    })}
-                  />
-                </EuiFormRow>
-                <EuiSpacer size="m" />
-                <EuiFormRow>
-                  <EuiButton isDisabled={false} color="primary">Save</EuiButton>
-                </EuiFormRow>
-              </EuiForm>
+              <ItemFormAction
+                action="edit"
+                itemName="model"
+                endpoint="/model/:id"
+                initialFormValues={{
+                  name: "Current model name",
+                  description: "Current model description"
+                }}
+              />
             </EuiPanel>
           </EuiFlexItem>
         </EuiFlexGrid>
       </SettingsAccordian>
     )
 }
+

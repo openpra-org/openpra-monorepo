@@ -8,12 +8,14 @@ const getFixtures = (count = 100): JSX.Element[] => {
   return Array.from(Array(count).keys()).map((e, i) => {
     return (<GenericListItem
     id={i}
+    itemName="fault tree"
     key={i}
     label={{
       name: `Fault Tree #${i}`,
       description: `This is fault tree number ${i}`,
     }}
     path={window.location.pathname + `/${i}`}
+    endpoint="/api/fault-tree/:id"
   />)});
 }
 

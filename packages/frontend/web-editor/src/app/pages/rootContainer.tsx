@@ -1,11 +1,12 @@
-import React from 'react';
-import { EuiPageTemplate } from '@elastic/eui';
+import { EuiPageTemplate, EuiSpacer } from "@elastic/eui";
 import {Outlet} from "react-router-dom";
+import RootHeader from "../components/headers/rootHeader";
 
 export default function RootContainer() {
     return (
-        <EuiPageTemplate panelled={true} offset={0} grow={true}>
+          <>
+            <RootHeader/>
             <Outlet />
-        </EuiPageTemplate>
+          </>
     );
 }

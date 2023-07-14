@@ -1,4 +1,5 @@
 import {Parsable} from "./Parsable";
+import { Defaults } from "./ObjectTypes";
 
 export interface LabelJSON {
   name: string;
@@ -94,5 +95,19 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
 
   clone(): Label {
     return Label.build(this.toJSON());
+  }
+
+  getDefaultMappedJSON(): Defaults<LabelJSONMap> {
+    return {
+      "label": DEFAULT_LABEL_JSON,
+    }
+  }
+
+  toPartialMappedJSON(): Partial<LabelJSONMap> {
+    return {
+      "label": {
+        ...this.toJSON(),
+      }
+    }
   }
 }

@@ -1,0 +1,63 @@
+version: '3.3'
+
+services:
+  frontend:
+    image: ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG}
+    networks:
+      - traefik-public
+      - backend
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        - traefik.constraint-label=traefik-public
+        # gitlab server
+        - traefik.http.routers.${APP_NAME}-http.rule=Host(`${HOST_URL?Variable not set}`)
+        - traefik.http.routers.${APP_NAME}-http.entrypoints=http
+        - traefik.http.routers.${APP_NAME}-http.middlewares=https-redirect,gzip
+        - traefik.http.routers.${APP_NAME}-http.service=${APP_NAME}
+        - traefik.http.routers.${APP_NAME}-https.rule=Host(`${HOST_URL?Variable not set}`)
+        - traefik.http.routers.${APP_NAME}-https.entrypoints=https
+        - traefik.http.routers.${APP_NAME}-https.tls=true
+        - traefik.http.routers.${APP_NAME}-https.tls.certresolver=le
+        - traefik.http.routers.${APP_NAME}-https.middlewares=gzip
+        - traefik.http.routers.${APP_NAME}-https.service=${APP_NAME}
+        - traefik.http.services.${APP_NAME}.loadbalancer.server.port=80
+
+#  backend:
+#    image: ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG}
+#    networks:
+#      - backend
+#      - db_net
+#    command: ["run", "start:prod"]
+#    environment:
+#      MONGO_URL: mongodb://mongodb:27017
+#      JWT_SECRET_KEY: $BAD_ENV_SECRET_KEY
+#    depends_on:
+#      - mongodb
+
+  mongodb:
+    image: mongo:latest
+    networks:
+      - db_net
+    deploy:
+      placement:
+        constraints:
+          - node.labels.persistent == ${PERSIST_VOLUME?Variable not set}
+    volumes:
+      - mongo-data:/data/db
+
+
+volumes:
+  mongo-data:
+    driver: local
+
+networks:
+  db_net:
+    driver: overlay
+    attachable: true
+  backend:
+    driver: overlay
+    attachable: true
+  traefik-public:
+    external: true

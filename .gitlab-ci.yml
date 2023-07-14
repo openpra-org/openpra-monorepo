@@ -9,6 +9,7 @@ before_script:
 
 variables:
   COMPOSE_FILE: stack.yml
+  DOMAIN: v2.openpra.org
 
 stages:
   - build

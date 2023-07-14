@@ -4,6 +4,9 @@ include:
   - project: 'Templates/ci-configs'
     file: '/deploy-stack.gitlab-ci.yml'
 
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
 variables:
   COMPOSE_FILE: stack.yml
 
@@ -13,8 +16,6 @@ stages:
 
 frontend:
   stage: build
-  before_script:
-    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   script:
     - docker build --target frontend -t ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG} .
     - docker push ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG}
@@ -22,8 +23,6 @@ frontend:
 backend:
   allow_failure: true
   stage: build
-  before_script:
-    - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
   script:
     - docker build --target backend -t ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG} .
     - docker push ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG}

@@ -11,8 +11,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 import DeleteItemBox from "../listchanging/deleteItemBox";
-import LastActionText from "../listitems/LastActionText";
-import { ListItemContextMenuButton, ListItemEditAction } from "../listitems/ListItemAction";
+import LastActionText from "./LastActionText";
+import { ListItemContextMenuButton, ListItemEditAction } from "./ListItemAction";
 
 
 //title is required, description isnt required but is typically present
@@ -37,13 +37,6 @@ export default function GenericListItem(props: GenericListItemProps) {
   //grabs the props
   const { itemName, label, id, path} = props;
 
-  //hook state thing for the deletebox
-  const [deleteVisible, setDeleteVisible] = useState(false);
-
-  //sets the delete button visible on click
-  const onDeleteClick = () =>{
-    setDeleteVisible(!deleteVisible)
-  }
   // TODO
   //setting themeing constants to be used later
   const border = useEuiTheme().euiTheme.border;
@@ -51,7 +44,6 @@ export default function GenericListItem(props: GenericListItemProps) {
   const paddingLine = logicalStyle("padding-vertical", `${useEuiPaddingSize("s")}`);
   const customStyles = {...borderLine, ...paddingLine};
   return (
-    <>
     <EuiListGroupItem
       style={customStyles}
       icon={
@@ -94,13 +86,5 @@ export default function GenericListItem(props: GenericListItemProps) {
       wrapText={false}
     >
     </EuiListGroupItem>
-      {/** toggles the delete overlay, is outside of the list group */}
-      {deleteVisible && (
-        <EuiOverlayMask>
-          {/*TODO*/}
-          <DeleteItemBox title={label?.name} id={id} toggleBox={setDeleteVisible}></DeleteItemBox>
-        </EuiOverlayMask>
-      )}
-    </>
   );
 }

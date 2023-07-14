@@ -3,7 +3,7 @@ import DeleteItemBox from "../listchanging/deleteItemBox";
 import { useState } from "react";
 
 
-export default function parameterItems(){
+export default function parameterItemsList(){
 
     //state to toggle the delete menu
     const [deleteVisible, setDeleteVisible] = useState(false);
@@ -43,9 +43,9 @@ export default function parameterItems(){
                 </EuiFlexItem>
             ))}
             {/** this is where the delete overlay mask will go for confiring a delete */}
-        {deleteVisible && (
-          <DeleteItemBox title='Global Parameter' toggleBox={setDeleteVisible}></DeleteItemBox>
-        )}
+        {/*{deleteVisible && (*/}
+        {/*  <DeleteItemBox title='Global Parameter' toggleBox={setDeleteVisible}></DeleteItemBox>*/}
+        {/*)}*/}
         </EuiFlexGroup>
 
     )

@@ -56,14 +56,6 @@ export default function AdvancedSettings() {
         setOverviewValue(e.target.value);
     };
 
-    //constant used to make the delete button visible or not
-    const [deleteVisible, setDeleteVisible] = useState(false);
-
-    //function used for the delete part of the page
-    function onDeleteClick(){
-        setDeleteVisible(!deleteVisible)
-    }
-
     const smallScreen = useIsWithinBreakpoints(['xs', 's', 'm']);
     //returns the three current advanced settings of changing type, deleting (which may be removed seems redundant), and then the third options which changes contorl
     // between each option there is a horizontal rule that proivides a line
@@ -99,15 +91,12 @@ export default function AdvancedSettings() {
                 <EuiFlexItem>
                   <EuiPanel paddingSize="xl">
                       <EuiFlexGroup direction="column">
-                          <EuiTitle size="s"><h6>Delete Model</h6></EuiTitle>
+                          <EuiTitle size="s"><h6>Trash Model</h6></EuiTitle>
                           <EuiSpacer size="s"/>
                           <EuiText size="s" color="subdued">Once deleted, a model cannot be recovered.</EuiText>
                           <EuiSpacer />
-                      {deleteVisible && (
-                        <DeleteItemBox title='Model' inSettings={true} toggleBox={setDeleteVisible}></DeleteItemBox>
-                      )}
                           <EuiFormRow fullWidth>
-                              <EuiButton fullWidth onClick={onDeleteClick} isDisabled={false} color="danger" fill>Delete</EuiButton>
+                              <EuiButton fullWidth isDisabled={false} color="danger" fill>Trash</EuiButton>
                           </EuiFormRow>
                       </EuiFlexGroup>
                   </EuiPanel>

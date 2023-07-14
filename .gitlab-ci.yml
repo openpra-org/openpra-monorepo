@@ -112,6 +112,8 @@ stop_production:
 
 review:
   stage: deploy
+  extends:
+    - .deploy_generic
   variables:
     HUMAN_READABLE_NAME: review-$CI_COMMIT_REF_SLUG
     HOST_URL: https://review-${CI_COMMIT_REF_SLUG}.v2.openpra.org

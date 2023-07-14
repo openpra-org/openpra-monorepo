@@ -1,10 +1,10 @@
 import {createBrowserRouter, RouteObject, RouterProvider} from 'react-router-dom';
 import ThemeProvider from "./theme/ThemeProvider";
-import LandingPage from "./pages/landingPage";
-import RootContainer from "./pages/rootContainer";
+import LandingPage from "./pages/LandingPage";
 import ErrorPage from "./pages/errorPage";
-import ModelsPage from "./pages/modelsPage"
-import React from "react";
+import ModelsPage from "./pages/ModelsPage";
+import RootContainer from "./pages/rootContainer";
+import DataPage from "./pages/dataPage";
 
 const routes: RouteObject[] = [
     {
@@ -15,17 +15,21 @@ const routes: RouteObject[] = [
             {
                 children: [
                     {
-                        path: "",
-                        element: <LandingPage />,
+                        index: true,
+                        element: <LandingPage />
+                    },
+                    {
+                        path: "models/*",
+                        element: <ModelsPage />,
                     },
                     {
                         path: "about",
                         element: <>about</>,
                     },
                     {
-                        path: "models",
-                        element: <ModelsPage />,
-                    },
+                        path: 'data-analysis/*',
+                        element: <DataPage />
+                    }
                 ]
             }
         ],

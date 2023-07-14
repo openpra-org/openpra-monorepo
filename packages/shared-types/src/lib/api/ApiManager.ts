@@ -7,8 +7,7 @@ import {SignUpCredentials} from "./AuthTypes";
 import AuthToken from "../types/AuthToken";
 import Preferences from "./user/Preferences";
 
-const API_ENDPOINT = process.env.API_ENDPOINT || 'http://localhost:8000';
-console.log(API_ENDPOINT);
+const API_ENDPOINT = '/api';
 
 const collabEndpoint = `${API_ENDPOINT}/collab`;
 const instanceEndPoint = `${collabEndpoint}/instance`;
@@ -152,7 +151,7 @@ export default class ApiManager {
    * @return {Promise} Promise of a non-null User object (newly signed in)
    * @throws {Error} - A possible authentication error
    */
-  static signInWithUsernameAndPassword(username: any, password: any, onFailCallback: any) {
+  static signInWithUsernameAndPassword(username: any, password: any, onFailCallback: any = ApiManager.defaultFailCallback) {
     return fetch(ApiManager.LOGIN_URL, {
       method: 'POST',
       headers: {

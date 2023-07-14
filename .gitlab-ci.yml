@@ -111,7 +111,7 @@ stop_production:
   - echo $HTTPS_HOST_URL
   - echo $API_ENDPOINT
 
-review:
+deploy_review:
   stage: deploy
   extends:
     - .deploy_generic

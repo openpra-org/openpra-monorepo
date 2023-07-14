@@ -1,12 +1,11 @@
 import {
   EuiTreeView,
   slugify,
-  EuiToken,
   useEuiTheme,
   EuiText,
   EuiCollapsibleNavGroup,
   useEuiPaddingSize,
-  useEuiBackgroundColor
+  useEuiBackgroundColor, EuiIcon, EuiAvatar
 } from "@elastic/eui";
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view"
 import { useNavigate } from "react-router-dom";
@@ -59,25 +58,26 @@ export default function DataSidenav() {
     createTreeItem("Parameter Estimates",  {
       isExpanded: true,
       callback: () => {navigate('data-analysis')},
+      icon: <EuiIcon type="tableDensityNormal"/>,
       children: [
         createTreeItem("Special Events", {
-          icon: <EuiToken iconType="tableDensityNormal"/>,
+          icon: <EuiAvatar size="s" color="subdued" type="space" name="Special Events" />,
           callback: () => {navigate('special-events')},
         }, 1),
         createTreeItem("Component Reliability", {
-          icon: <EuiToken iconType="tableDensityNormal" shape="square"/>,
+          icon: <EuiAvatar size="s" color="subdued" type="space" name="Component Reliability" />,
           callback: () => {navigate('component-reliability')},
         }, 1),
         createTreeItem("Initiating Events", {
-          icon: <EuiToken iconType="tableDensityNormal" shape="square"/>,
+          icon: <EuiAvatar size="s" color="subdued" type="space" name="Initiating Events" />,
           callback: () => {navigate('initiating-events')},
         }, 1),
         createTreeItem("Train UA", {
-          icon: <EuiToken iconType="tableDensityNormal" shape="square"/>,
+          icon: <EuiAvatar size="s" color="subdued" type="space" name="U A" />,
           callback: () => {navigate('train-ua')},
         }, 1),
         createTreeItem("CCF", {
-          icon: <EuiToken iconType="tableDensityNormal" shape="square"/>,
+          icon: <EuiAvatar size="s" color="subdued" type="space" name="CCF" />,
           callback: () => {navigate('ccf')},
         }, 1),
       ],

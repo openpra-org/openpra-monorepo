@@ -113,7 +113,7 @@ export default () => {
                 label: 'Models',
               },
               {
-                id: 'data',
+                id: 'data-analysis',
                 label: 'Data',
               },
             ]}
@@ -213,12 +213,12 @@ const HeaderSpacesMenu = () => {
   });
   const spacesValues: EuiSelectableOption[] = [
     {
-      label: 'Sales team',
+      label: 'Risk Models',
       prepend: <EuiAvatar type="space" name="Sales Team" size="s" />,
       checked: 'on',
     },
     {
-      label: 'Engineering',
+      label: 'Data Analysis',
       prepend: <EuiAvatar type="space" name="Engineering" size="s" />,
     },
     {

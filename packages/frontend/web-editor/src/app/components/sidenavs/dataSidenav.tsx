@@ -20,7 +20,7 @@ type TreeItem = {
   icon?: JSX.Element;
   callback?: () => {};
 }
-export default function ModelSidenav() {
+export default function DataSidenav() {
 
   const { euiTheme } = useEuiTheme();
 
@@ -52,10 +52,6 @@ export default function ModelSidenav() {
       ...data,
     };
   }
-
-  const operatingStates = [
-    createTreeItem("Operating States",  {}),
-  ];
 
   const navigate = useNavigate();
 

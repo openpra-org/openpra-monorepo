@@ -4,7 +4,7 @@ import TemplatedPageBody from '../../components/headers/TemplatedPageBody'
 
 export default function Ccf() {
     return (
-        <> 
+        <>
             <TemplatedPageBody
                 headerProps={{
                 pageTitle: "Common Cause Failure",

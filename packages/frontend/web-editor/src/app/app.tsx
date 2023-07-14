@@ -3,11 +3,6 @@ import ThemeProvider from "./theme/ThemeProvider";
 import LandingPage from "./pages/LandingPage";
 import ErrorPage from "./pages/errorPage";
 import ModelsPage from "./pages/ModelsPage";
-import DataInitiatingEvents from './pages/dataPages/dataInitiatingEvents';
-import ComponentReliability from './pages/dataPages/componentReliability';
-import SpecialEvents from './pages/dataPages/specialEvents';
-import Ccf from './pages/dataPages/ccf';
-import TrainUA from './pages/dataPages/trainUA';
 import RootContainer from "./pages/rootContainer";
 import DataPage from "./pages/dataPage";
 
@@ -32,7 +27,7 @@ const routes: RouteObject[] = [
                         element: <>about</>,
                     },
                     {
-                        path: 'data/*',
+                        path: 'data-analysis/*',
                         element: <DataPage />
                     }
                 ]

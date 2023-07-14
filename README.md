@@ -73,7 +73,7 @@ nx run-many -t serve
 ### For Deployment: Build frontend & backend
 
 ```shell
-nx build web-editor
+nx build frontend-web-editor
 nx build web-backend
 ```
 

@@ -4,6 +4,9 @@ include:
   - project: 'Templates/ci-configs'
     file: '/deploy-stack.gitlab-ci.yml'
 
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
 variables:
   COMPOSE_FILE: stack.yml
 

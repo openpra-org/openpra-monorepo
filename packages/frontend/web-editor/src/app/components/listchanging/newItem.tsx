@@ -5,14 +5,12 @@ import {
     EuiFieldText,
     EuiTextArea,
     EuiButton,
-    EuiTextColor,
     EuiFlexGroup,
     EuiFlexItem,
     EuiSpacer,
     useEuiTheme,
     EuiSelectable,
     EuiSelectableOption,
-    EuiText,
     EuiTitle,
     EuiButtonEmpty
 } from '@elastic/eui'

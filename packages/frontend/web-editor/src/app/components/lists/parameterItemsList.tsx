@@ -1,4 +1,4 @@
-import {EuiFlexGroup, EuiFlexItem, EuiText, EuiIcon, useEuiTheme, EuiHorizontalRule, EuiButtonIcon, EuiSpacer} from "@elastic/eui";
+import {EuiFlexGroup, EuiFlexItem, EuiText, useEuiTheme, EuiHorizontalRule, EuiButtonIcon} from "@elastic/eui";
 import DeleteItemBox from "../listchanging/deleteItemBox";
 import { useState } from "react";
 
@@ -43,9 +43,9 @@ export default function parameterItems(){
                 </EuiFlexItem>
             ))}
             {/** this is where the delete overlay mask will go for confiring a delete */}
-        {/*{deleteVisible && (*/}
-        {/*  <DeleteItemBox title='Global Parameter' page='model/1/globalparameters' toggleBox={setDeleteVisible}></DeleteItemBox>*/}
-        {/*)}*/}
+        {deleteVisible && (
+          <DeleteItemBox title='Global Parameter' toggleBox={setDeleteVisible}></DeleteItemBox>
+        )}
         </EuiFlexGroup>
 
     )

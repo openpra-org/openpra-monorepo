@@ -1,5 +1,4 @@
 import {
-  EuiIcon,
   EuiTreeView,
   slugify,
   EuiToken,
@@ -9,9 +8,8 @@ import {
   useEuiPaddingSize,
   useEuiBackgroundColor
 } from "@elastic/eui";
-import React from 'react'
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view"
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 type TreeItem = {
   id: string;

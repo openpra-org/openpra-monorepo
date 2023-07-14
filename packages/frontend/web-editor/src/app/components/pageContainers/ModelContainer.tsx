@@ -1,9 +1,5 @@
 import { Outlet } from "react-router-dom";
-import {
-  EuiPageBody,
-  EuiPage,
-  EuiPageSidebar, EuiPageTemplate
-} from "@elastic/eui";
+import { EuiPageTemplate } from "@elastic/eui";
 import ModelSidenav from "../sidenavs/modelSidenav";
 
 export default () => {

@@ -1,8 +1,6 @@
-import { EuiPageBody, EuiPageTemplate, useEuiTheme } from "@elastic/eui";
 import GenericListItem from "./GenericListItem";
 import GenericItemList from "./GenericItemList";
-import TemplatedPageHeader from "../headers/TemplatedPageHeader";
-import { CreateBayesianNetworkButton, CreateESDButton } from "../buttons/CreateItemButton";
+import { CreateESDButton } from "../buttons/CreateItemButton";
 import TemplatedPageBody from "../headers/TemplatedPageBody";
 
 const getFixtures = (count = 100): JSX.Element[] => {

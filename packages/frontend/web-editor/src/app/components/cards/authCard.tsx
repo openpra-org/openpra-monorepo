@@ -1,4 +1,3 @@
-import React from "react";
 import { EuiCard, logicalStyle, EuiTabbedContent } from "@elastic/eui";
 import LoginForm from "../forms/loginForm";
 import SignupForm from "../forms/signupForm";

@@ -11,7 +11,7 @@ import {
     EuiFlexGrid,
     EuiFlexItem, EuiIcon, EuiTitle, EuiTextColor, EuiFieldNumber, EuiSpacer
 } from "@elastic/eui";
-import React, {useState } from 'react'
+import { useState } from 'react'
 import SettingsAccordian from "./SettingsAccordian";
 
 const buttonContent = (

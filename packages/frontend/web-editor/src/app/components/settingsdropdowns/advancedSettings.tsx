@@ -35,7 +35,7 @@ const buttonContent = (
   </div>
 );
 
-//exports as AdvancedSettings by default
+//returns the advanced settings menu, which is a drop down with a few settings
 export default function AdvancedSettings() {
 
     //setting the value of the overview
@@ -103,9 +103,9 @@ export default function AdvancedSettings() {
                           <EuiSpacer size="s"/>
                           <EuiText size="s" color="subdued">Once deleted, a model cannot be recovered.</EuiText>
                           <EuiSpacer />
-                      {/*{deleteVisible && (*/}
-                      {/*  <DeleteItemBox title='Model' page='models/' toggleBox={setDeleteVisible}></DeleteItemBox>*/}
-                      {/*)}*/}
+                      {deleteVisible && (
+                        <DeleteItemBox title='Model' inSettings={true} toggleBox={setDeleteVisible}></DeleteItemBox>
+                      )}
                           <EuiFormRow fullWidth>
                               <EuiButton fullWidth onClick={onDeleteClick} isDisabled={false} color="danger" fill>Delete</EuiButton>
                           </EuiFormRow>

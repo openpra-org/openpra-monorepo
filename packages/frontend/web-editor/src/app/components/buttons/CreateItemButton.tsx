@@ -8,6 +8,12 @@ export type CreateItemButtonProps = {
 
 } & Omit<ItemFormProps, "action">;
 
+/**
+ *
+ * @param itemName the type of item that is being passed
+ * @param endpoint endpoint that will be used to add the item
+ * @returns the create item button
+ */
 export default function CreateItemButton({ itemName, endpoint }: CreateItemButtonProps) {
 
 

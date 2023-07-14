@@ -26,7 +26,9 @@ export type GenericListItemProps = {
 
 /**
  *
- * @param props
+ * @param id takes in the id number of the objecty
+ * @param path the path that the list item will send the user to after clicked
+ * @param label this is an optional prop that passes a labelJSON
  */
 export default function GenericListItem(props: GenericListItemProps) {
 
@@ -54,6 +56,7 @@ export default function GenericListItem(props: GenericListItemProps) {
       style={customStyles}
       icon={
         <Link to={path}>
+          {/** avatar with the abbreviation for the item, it is in a  link as is the other part so that clicks are seamless */}
           <EuiAvatar name={label?.name ? label.name : ""} size="l" type="space" />
         </Link>
       }
@@ -61,13 +64,15 @@ export default function GenericListItem(props: GenericListItemProps) {
         <EuiFlexGroup direction="row" alignItems="center" responsive={false}>
           <EuiFlexItem grow={3}>
             <Link to={path}>
+              {/** this is the title for the item */}
               <EuiText size="m" color="default" grow={false}>
                 <strong>{label?.name}</strong>
               </EuiText>
             </Link>
-          <EuiText size="s" color="subdued" grow={false}>
-            {label?.description}
-          </EuiText>
+            {/** this is the description for the item */}
+              <EuiText size="s" color="subdued" grow={false}>
+                {label?.description}
+              </EuiText>
           </EuiFlexItem>
           <EuiFlexItem grow={1}>
             <EuiFlexGroup direction="row" gutterSize="s">
@@ -86,23 +91,14 @@ export default function GenericListItem(props: GenericListItemProps) {
       }
       key={id}
       size="l"
-      // extraAction={{
-      //   color: "danger",
-      //   onClick: onDeleteClick,
-      //   iconType: "trash",
-      //   iconSize: "m",
-      //   alwaysShow: true,
-      //   "aria-label": "Favorite link4"
-      // }}
       wrapText={false}
-      // onClick={handleCardClick}
     >
     </EuiListGroupItem>
       {/** toggles the delete overlay, is outside of the list group */}
       {deleteVisible && (
         <EuiOverlayMask>
           {/*TODO*/}
-          {/*<DeleteItemBox title={label?.name} page='models' id={id} toggleBox={setDeleteVisible}></DeleteItemBox>*/}
+          <DeleteItemBox title={label?.name} id={id} toggleBox={setDeleteVisible}></DeleteItemBox>
         </EuiOverlayMask>
       )}
     </>

@@ -20,8 +20,8 @@ RUN source /root/.bashrc \
     && nx build frontend-web-editor
 
 FROM nginx:latest as frontend
-WORKDIR /usr/share/nginx/html
-COPY ./docker/default.conf /etc/nginx/default.conf
+WORKDIR /usr/share/nginx/html/web-editor
+COPY ./docker/default.conf /etc/nginx/nginx.conf
 COPY --from=frontend_builder /app/dist/packages/frontend/web-editor/ ./
 
 FROM base as backend_builder

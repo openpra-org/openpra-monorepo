@@ -2,7 +2,9 @@
   "name": "openpra-monorepo",
   "version": "0.0.1",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "cypress:open": "cypress open"
+  },
   "private": true,
   "devDependencies": {
     "@babel/preset-react": "^7.22.3",

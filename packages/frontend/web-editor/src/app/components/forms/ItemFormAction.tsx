@@ -6,10 +6,11 @@ import {
   EuiSpacer, EuiText,
   EuiTextArea, EuiTitle
 } from "@elastic/eui";
-import React, { useState } from "react";
-
-import { DEFAULT_LABEL_JSON, LabelJSON } from "shared-types/src/lib/types/Label";
+import React, {useState} from "react";
 import { toTitleCase } from "../../../utils/StringUtils";
+import { DEFAULT_TYPED_MODEL_JSON, TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+import InternalEventsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
+import TestApiManager from "shared-types/src/lib/api/TestApiManager";
 
 export type ItemFormProps = {
   itemName: string;
@@ -18,17 +19,25 @@ export type ItemFormProps = {
   onFail?: () => {};
   onCancel?: (func: any) => void;
   action: "create" | "edit";
-  initialFormValues?: LabelJSON;
+  initialFormValues?: TypedModelJSON;
   compressed?: boolean;
   noHeader?: boolean;
 }
 
 export default function({ itemName, onCancel, noHeader, compressed, initialFormValues, action, endpoint, onSuccess, onFail }: ItemFormProps) {
-  const formInitials = initialFormValues ? initialFormValues : DEFAULT_LABEL_JSON;
-  const [label, setLabel] = useState(formInitials);
+  const formInitials = initialFormValues ? initialFormValues : DEFAULT_TYPED_MODEL_JSON;
+  const [typedModel, setTypedModel] = useState(formInitials);
 
-  const handleAction = () => {
-    alert(`Performed action ${itemName.toLowerCase()} at endpoint ${endpoint}`);
+  const handleAction = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (typedModel.name != '' && typedModel.description != '') {
+      //this is is
+      const model = new InternalEventsModel(typedModel.name, typedModel.description, [1,2])
+      TestApiManager.postInternalEvent(model)
+      alert(`Performed action ${itemName.toLowerCase()} at endpoint ${endpoint}`);
+    } else {
+      alert('Please enter a valid name and description')
+    }
     onSuccess && onSuccess();
     onFail && onFail();
   }
@@ -40,9 +49,9 @@ export default function({ itemName, onCancel, noHeader, compressed, initialFormV
     <>
       {!noHeader &&
         <>
-          <EuiTitle size="s" ><h6>Basic Information</h6></EuiTitle>
+          <EuiTitle size="s" ><h6> Create {itemLabel} </h6></EuiTitle>
           <EuiSpacer size="s"/>
-          <EuiText size="s" color="subdued">Basic {itemLabel} information including title, description, and ID.</EuiText>
+          <EuiText size="s" color="subdued"> Enter the title, description, and ID.</EuiText>
           <EuiSpacer />
         </>
       }
@@ -54,9 +63,9 @@ export default function({ itemName, onCancel, noHeader, compressed, initialFormV
                 fullWidth
                 compressed
                 placeholder={initialFormValues?.name}
-                value={label.name}
-                onChange={(e) => setLabel({
-                  ...label,
+                value={typedModel.name}
+                onChange={(e) => setTypedModel({
+                  ...typedModel,
                   name: e.target.value
                 })}
               />
@@ -81,9 +90,9 @@ export default function({ itemName, onCancel, noHeader, compressed, initialFormV
             fullWidth
             compressed
             placeholder={initialFormValues?.description}
-            value={label.description}
-            onChange={(e) => setLabel({
-              ...label,
+            value={typedModel.description}
+            onChange={(e) => setTypedModel({
+              ...typedModel,
               description: e.target.value,
             })}
           />

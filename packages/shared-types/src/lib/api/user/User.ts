@@ -8,37 +8,37 @@ import { Prop, Schema } from "@nestjs/mongoose";
   },
   toJSON: {
     transform: function(doc, ret) {
-      delete ret._id;
-      delete ret.password;
+      delete ret['_id'];
+      delete ret['.password'];
     }
   },
   versionKey: false
 })
 export default class User {
   @Prop({ required: false })
-  id: number;
+  id!: number;
 
   @Prop()
-  firstName: string;
+  firstName!: string;
 
   @Prop()
-  lastName: string;
+  lastName!: string;
 
   @Prop()
-  username: string;
+  username!: string;
 
   @Prop()
-  email: string;
+  email!: string;
 
   @Prop()
-  password: string;
+  password!: string;
 
-  @Prop({ type: RecentlyAccessedSchema, required: false })
-  recently_accessed: Recently_Accessed;
+  // @Prop({ type: RecentlyAccessedSchema, required: false })
+  // recently_accessed: Recently_Accessed;
 
-  @Prop({ type: PreferencesSchema, required: false })
-  preferences: Preferences;
+  // @Prop({ type: PreferencesSchema, required: false })
+  // preferences: Preferences;
 
-  @Prop({ type: PermissionsSchema, default: {}, required: false })
-  permissions: Permissions;
+  // @Prop({ type: PermissionsSchema, default: {}, required: false })
+  // permissions: Permissions;
 }

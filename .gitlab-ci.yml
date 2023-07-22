@@ -22,7 +22,6 @@ frontend:
     - docker push ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG}
 
 backend:
-  allow_failure: true
   stage: build
   script:
     - docker build --target backend -t ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG} .
@@ -118,7 +117,7 @@ deploy_review:
   variables:
     HUMAN_READABLE_NAME: review/$CI_COMMIT_REF_SLUG
     HOST_URL: https://review-${CI_COMMIT_REF_SLUG}.v2.openpra.org
-    PERSIST_VOLUME: "false"
+    PERSIST_VOLUME: "true"
   script:
     - *review_set_vars
     - docker stack deploy -c stack.yml --with-registry-auth $APP_NAME

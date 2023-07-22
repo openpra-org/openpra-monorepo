@@ -54,7 +54,7 @@ export default function GenericListItem(props: GenericListItemProps) {
       }
       label={
         <EuiFlexGroup direction="row" alignItems="center" responsive={false}>
-          <EuiFlexItem grow={3}>
+          <EuiFlexItem grow={5}>
             <Link to={path}>
               {/** this is the title for the item */}
               <EuiText size="m" color="default" grow={false}>
@@ -66,18 +66,18 @@ export default function GenericListItem(props: GenericListItemProps) {
                 {label?.description}
               </EuiText>
           </EuiFlexItem>
-          <EuiFlexItem grow={1}>
-            <EuiFlexGroup direction="row" gutterSize="s">
-              <ListItemEditAction action="edit" itemName={itemName} endpoint={path}/>
-              <ListItemContextMenuButton {...props} />
-            </EuiFlexGroup>
-          </EuiFlexItem>
-          <EuiFlexItem grow={1}>
+
+          <EuiFlexItem grow={false}>
             <EuiText color="subdued" textAlign="right">
               <small>
                 <LastActionText action="viewed" timestamp={Date.now()}/>
               </small>
             </EuiText>
+          </EuiFlexItem>
+          <EuiFlexItem grow={false}>
+            <EuiFlexGroup direction="row" gutterSize="s">
+              <ListItemContextMenuButton {...props} />
+            </EuiFlexGroup>
           </EuiFlexItem>
         </EuiFlexGroup>
       }

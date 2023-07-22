@@ -35,7 +35,7 @@ import { User, UserSchema } from './collab/schemas/user.schema';
     }),
     RouterModule.register([
       {
-        path: 'api',
+        path: '',
         module: ApiModule,
         children: [
           {

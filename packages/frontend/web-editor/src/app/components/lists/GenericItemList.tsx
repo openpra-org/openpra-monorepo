@@ -20,7 +20,7 @@ const GenericItemList: React.FC<ItemListProps> = ({ children }) => {
 
   //Amount of items per page, this will be able to be changed later with a drop down ideally
   //but that seems low priority
-  const [rowSize, setRowSize] = useState(5);
+  const [rowSize, setRowSize] = useState(10);
 
   //this whole section uses some math to be able to use pagination through cards rather than a table,
   //additional functionality is needed later perhaps, but right now everything looks crisp

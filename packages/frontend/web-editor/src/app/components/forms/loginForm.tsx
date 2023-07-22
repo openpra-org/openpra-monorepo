@@ -23,16 +23,35 @@ export default function LoginForm() {
 
     const [login, setLogin] = useState(DefaultProps);
     const [error, setError] = useState(DefaultErrorProps);
+    const [invalid, setInvalid] = useState(false);
     const [ redirectToHomepage, setRedirectToHomepage ] = useState(false);
 
+
+    //if (error.username == true || error.password == true) {
+    const    errors = [
+            'invalid username or password',
+        ]
+    //}
+
     function handleLogin() {
+        setInvalid(false)
         const { username, password } = login;
-        ApiManager.signInWithUsernameAndPassword(username, password)
+        ApiManager.signInWithUsernameAndPassword(username, password, handleLoginError)
             .then(() => {
                 if(ApiManager.isLoggedIn()) {
                     setRedirectToHomepage(true)
+                } else {
+                    setInvalid(true)
                 }
             })
+    }
+
+    //Used as a callback to print errors hooray
+    function handleLoginError() {
+        setError({
+            ...error,
+            password: true
+        })
     }
 
     //Corrects the isInvalid when a user types something in a blank input field
@@ -73,13 +92,13 @@ export default function LoginForm() {
 
     if(redirectToHomepage) {
         return (
-            <Navigate to="models" replace={true} />
+            <Navigate to="internal-events" replace={true} />
         );
     } else {
         return (
             <EuiForm component="form" onSubmit={validateLogin}>
                 <br/>
-                <EuiFormRow>
+                <EuiFormRow isInvalid={error.username} error='Invalid Username'>
                     <EuiFieldText
                         placeholder="Username"
                         isInvalid={error.username}
@@ -90,19 +109,19 @@ export default function LoginForm() {
                         })}
                     />
                 </EuiFormRow>
-                <EuiFormRow>
+                <EuiFormRow isInvalid={error.password} error='Invalid Password'>
                     <EuiFieldPassword
                         type="dual"
                         placeholder="Password"
-                        isInvalid={error.password}
                         value={login.password}
+                        isInvalid={error.password}
                         onChange={(e) => setLogin({
                             ...login,
                             password: e.target.value
                         })}
                     />
                 </EuiFormRow>
-                <EuiFormRow>
+                <EuiFormRow isInvalid={invalid} error="Invalid username or password">
                     <EuiButton
                       fullWidth
                       type="submit">

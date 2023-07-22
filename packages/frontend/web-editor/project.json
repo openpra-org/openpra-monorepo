@@ -53,7 +53,7 @@
       "options": {
         "buildTarget": "frontend-web-editor:build",
         "hmr": true,
-        "proxyConfig": "packages/frontend/web-editor/proxy.conf.json" 
+        "proxyConfig": "packages/frontend/web-editor/proxy.conf.json"
       },
       "configurations": {
         "development": {

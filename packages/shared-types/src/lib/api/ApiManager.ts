@@ -176,7 +176,6 @@ export default class ApiManager {
     return ApiManager.signInWithUsernameAndPassword(username, password, onFailCallback);
   }
 
-
   static signup(data: SignUpCredentials, override: any = null, onSuccessCallback: any = ApiManager.defaultSuccessCallback, onFailCallback: any = ApiManager.defaultFailCallback) {
     return ApiManager.post(`${userPreferencesEndpoint}/`, JSON.stringify(data), override, onSuccessCallback, onFailCallback)
       .then((response) => {
@@ -403,6 +402,7 @@ export default class ApiManager {
   }
 
   static post(url: any, data: any, override: any = null, onSuccessCallback = ApiManager.defaultSuccessCallback, onFailCallback = ApiManager.defaultFailCallback) {
+    console.log(url, data)
     return fetch(url, {
       method: 'POST',
       cache: OPTION_CACHE,
@@ -486,8 +486,30 @@ export default class ApiManager {
     return ApiManager.post(`${collabEndpoint}${ApiManager.PROJECT_PATH}/`, data, override, onSuccessCallback, onFailCallback);
   }
 
-  static postNewModel(type: any, data: any, override: any, onSuccessCallback: any, onFailCallback: any) {
-    return ApiManager.post(`${API_ENDPOINT}/${type}${ApiManager.MODEL_PATH}/`, data, override, onSuccessCallback, onFailCallback);
+  // static postGenericModel(url: string, title: string, description: string, override: any = null, onSuccessCallback = ApiManager.defaultSuccessCallback, onFailCallback = ApiManager.defaultFailCallback) {
+  //   console.log(url, title, description)
+  //   return fetch(url, {
+  //     method: 'POST',
+  //     cache: OPTION_CACHE,
+  //     headers: {
+  //       'Content-Type': 'application/json',
+  //       Authorization: `JWT ${AuthService.getEncodedToken()}`,
+  //     },
+  //     body: JSON.stringify({
+  //       title,
+  //       description,
+  //     }), // body data type must match "Content-Type" header
+  //   }).then(res => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
+  //     .catch(err => onFailCallback(err, override));
+  // }
+
+  static postNewModel(type: string, title: string, description: string, override?: any, onSuccessCallback?: any, onFailCallback?: any) {
+    //const modelLabel = new Label(title, description)
+    const modelInfo = {
+      title,
+      description
+    }
+    return ApiManager.post(`${collabEndpoint}${ApiManager.MODEL_PATH}/`, JSON.stringify(modelInfo), override, onSuccessCallback, onFailCallback);
   }
 
   static postNewComponent(data: any, override: any, onSuccessCallback: any, onFailCallback: any) {
@@ -638,8 +660,12 @@ export default class ApiManager {
       .catch(onFailCallback, override);
   }
 
-  static getUser(id: any, override: any, onSuccessCallback: any, onFailCallback: any) {
+  static getUser(id: any, override?: any, onSuccessCallback?: any, onFailCallback?: any) {
     return ApiManager.getWithOptions(`${collabEndpoint}/user/${id}/`, override, onSuccessCallback, onFailCallback);
+  }
+
+  static getUserByEmail(email: string, override?: any, onSuccessCallback?: any, onFailCallback?: any) {
+    return ApiManager.getWithOptions(`${collabEndpoint}/user/${email}/`, override, onSuccessCallback, onFailCallback);
   }
 
   //change pass

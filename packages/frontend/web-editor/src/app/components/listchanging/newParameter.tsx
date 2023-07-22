@@ -111,7 +111,7 @@ export default function NewParameter(props: NewParameterProps) {
                         </EuiFlexItem>
                         <EuiFlexItem>
                             <EuiButton isDisabled={(!isValueValidNumber || itemInfo.name.length === 0)}
-                            href="model/1/globalparameters"
+                            href="internal-events/1/globalparameters"
                             onClick={setData}
                             style={{backgroundColor: euiTheme.colors.mediumShade, color: euiTheme.colors.darkestShade}}
                             >Submit</EuiButton>

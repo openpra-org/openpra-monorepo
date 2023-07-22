@@ -2,7 +2,6 @@
 import GenericItemList from "./GenericItemList";
 import GenericListItem from "./GenericListItem";
 import { EuiPageTemplate } from "@elastic/eui";
-import { CreateModelButton } from "../buttons/CreateItemButton";
 const getFixtures = (count = 100): JSX.Element[] => {
   return Array.from(Array(count).keys()).map((e, i) => {
     return (<GenericListItem
@@ -13,7 +12,7 @@ const getFixtures = (count = 100): JSX.Element[] => {
         name: `Model #${i}`,
         description: `This is model number ${i}`,
       }}
-      path={`/models/${i}`}
+      path={`/internal-events/${i}`}
       endpoint="/api/model/:id"
   />)});
 }
@@ -27,7 +26,7 @@ export default function ModelList(){
         responsive={false}
         bottomBorder="extended"
         rightSideItems={[
-          <CreateModelButton />
+          //<CreateModelButton />
         ]}
       />
     <EuiPageTemplate.Section>

@@ -1,37 +1,29 @@
-FROM node:lts-slim AS base
+FROM node:20.2.0-slim AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /app
 
 SHELL ["/bin/bash", "-c"]
-RUN npm install --global pnpm \
-    && SHELL=bash pnpm setup \
-    && source /root/.bashrc \
-    && pnpm install --global nx@16.3.1
+RUN npm install --global pnpm nx@16.5.4 \
+    && SHELL=bash pnpm setup
 
 COPY . .
 RUN source /root/.bashrc \
     && pnpm install --shamefully-hoist=true
 
 FROM base as frontend_builder
+ARG BUILD_TYPE=development
 WORKDIR /app
 SHELL ["/bin/bash", "-c"]
 RUN source /root/.bashrc \
-    && nx build frontend-web-editor
+    && nx run frontend-web-editor:build:$BUILD_TYPE
 
 FROM nginx:latest as frontend
 WORKDIR /usr/share/nginx/html/web-editor
 COPY ./docker/default.conf /etc/nginx/nginx.conf
 COPY --from=frontend_builder /app/dist/packages/frontend/web-editor/ ./
 
-FROM base as backend_builder
+FROM base as backend
 WORKDIR /app
 SHELL ["/bin/bash", "-c"]
-RUN source /root/.bashrc \
-    && nx build web-backend
-
-FROM backend_builder as backend
-WORKDIR /app/dist/packages/web-backend
-SHELL ["/bin/bash", "-c"]
-RUN source /root/.bashrc \
-    && node serve
+CMD source /root/.bashrc && nx run web-backend:serve:$BUILD_TYPE

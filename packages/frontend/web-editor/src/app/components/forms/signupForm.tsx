@@ -30,7 +30,7 @@ export default function SignupForm() {
     }
     const [signup, setSignup] = useState(defaultProps)
     const [error, setError] = useState(defaultErrorProps)
-    const [redirectToHomepage, setRedirectToHomepage] = useState(false)
+    const [redirectToHomepage, setRedirectToHomepage] = useState(ApiManager.isLoggedIn())
 
     let passError = '';
 
@@ -122,7 +122,7 @@ export default function SignupForm() {
 
     if(redirectToHomepage) {
         return (
-            <Navigate to="models" replace={true} />
+            <Navigate to="internal-events" replace={true} />
         );
     } else {
         return (
@@ -184,7 +184,7 @@ export default function SignupForm() {
                         })}
                     />
                 </EuiFormRow>
-                <EuiFormRow isInvalid={error.passConfirm} error={passError}>
+                <EuiFormRow isInvalid={error.passConfirm} error='Passwords do not match'>
                     <EuiFieldPassword
                         type="dual"
                         placeholder="Confirm Password"

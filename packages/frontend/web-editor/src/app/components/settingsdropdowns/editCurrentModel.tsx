@@ -60,27 +60,28 @@ export default function EditCurrentModel(){
   );
   const smallScreen = useIsWithinBreakpoints(['xs', 's', 'm']);
     return (
-      <SettingsAccordian
-        id="model_settings"
-        buttonContent={buttonContent}
-        initial={true}
-      >
-        <EuiFlexGrid direction="row" responsive={false} columns={smallScreen ? 1 : 2}>
-          <EuiFlexItem grow={true}>
-            <EuiPanel paddingSize="xl">
-              <ItemFormAction
-                action="edit"
-                itemName="model"
-                endpoint="/model/:id"
-                initialFormValues={{
-                  name: "Current model name",
-                  description: "Current model description"
-                }}
-              />
-            </EuiPanel>
-          </EuiFlexItem>
-        </EuiFlexGrid>
-      </SettingsAccordian>
+      // <SettingsAccordian
+      //   id="model_settings"
+      //   buttonContent={buttonContent}
+      //   initial={true}
+      // >
+      //   <EuiFlexGrid direction="row" responsive={false} columns={smallScreen ? 1 : 2}>
+      //     <EuiFlexItem grow={true}>
+      //       <EuiPanel paddingSize="xl">
+      //         <ItemFormAction
+      //           action="edit"
+      //           itemName="model"
+      //           endpoint="/model/:id"
+      //           initialFormValues={{
+      //             name: "Current model name",
+      //             description: "Current model description"
+      //           }}
+      //         />
+      //       </EuiPanel>
+      //     </EuiFlexItem>
+      //   </EuiFlexGrid>
+      // </SettingsAccordian>
+      <></>
     )
 }
 

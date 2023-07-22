@@ -2,7 +2,7 @@
 
 ## Getting Started
 
-You need `pnpm`, `nvm`, and `node` installed.
+You need `pnpm`, `nvm`, `node`, and `mongodb` installed.
 
 ### Installing PNPM
 
@@ -47,7 +47,7 @@ nvm use 20.2.0
 ```shell
 pnpm setup #if this isnt working try and run "npm install -g pnpm", and then try again
 pnpm install --shamefully-hoist=true
-pnpm install --global nx@16.3.1 #you could also try nx@latest but ymmv
+pnpm install --global nx@16.5.4 #you could also try nx@latest but ymmv
 ```
 
 - On Windows, if you're unable to run `nx` post-install, set the following script execution policy in PowerShell.
@@ -89,6 +89,12 @@ nx run-many -t build
 npm i -g npm-check-updates
 ncu -u
 ```
+
+### Docker/Database
+
+download docker here: https://www.docker.com/products/docker-desktop/
+docker-compose up -d to spin up the database
+
 
 ### Fix for dependency errors
 

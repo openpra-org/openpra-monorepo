@@ -1,6 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { EuiPageTemplate } from "@elastic/eui";
-import ModelSidenav from "../sidenavs/modelSidenav";
+import ScopedNav from "../sidenavs/scopedNav";
 
 export default () => {
   return (
@@ -12,7 +12,7 @@ export default () => {
         minWidth={320}
         responsive={[]}
       >
-        <ModelSidenav />
+        <ScopedNav type="InternalEvents"/>
       </EuiPageTemplate.Sidebar>
       <Outlet />
     </EuiPageTemplate>

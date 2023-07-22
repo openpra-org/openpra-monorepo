@@ -12,6 +12,7 @@ import {
 import { GenericListItemProps } from "../lists/GenericListItem";
 import { ListItemEditAction } from "./ListItemAction";
 import ItemFormAction, { ItemFormProps } from "../forms/ItemFormAction";
+import DeleteItemBox from "../listchanging/deleteItemBox";
 import { euiPaddingSize } from "@elastic/eui/src/global_styling/mixins/_padding";
 import { logicalStyles } from "@elastic/eui/src/global_styling/functions/logicals";
 
@@ -29,6 +30,7 @@ export default (props: ListItemContextMenuProps) => {
     prefix: 'embeddedCodeSwitch',
     suffix: 'second',
   });
+
 
 
   const { itemName, endpoint} = props;
@@ -62,6 +64,7 @@ export default (props: ListItemContextMenuProps) => {
           name: 'Trash',
           toolTipContent: 'For reasons, this item is disabled',
           icon: <EuiIcon type="trash" size="m" color="danger" />,
+          panel: 3,
         },
       ],
     },
@@ -73,6 +76,16 @@ export default (props: ListItemContextMenuProps) => {
         <div style={{padding: useEuiPaddingSize("s") || '35px'}}>
             <ItemFormAction noHeader compressed action="edit" itemName={itemName} endpoint={endpoint} />
         </div>
+      )
+    },
+    {
+      id: 3,
+      initialFocusedItemIndex: 3,
+      title: 'Delete',
+      content: (
+          <div style={{padding: useEuiPaddingSize("s") || '35px'}}>
+            <DeleteItemBox />
+          </div>
       )
     },
     {
@@ -110,6 +123,6 @@ export default (props: ListItemContextMenuProps) => {
 
 
   return (
-    <EuiContextMenu size="m" initialPanelId={0} panels={panels} />
+      <EuiContextMenu size="m" initialPanelId={0} panels={panels} />
   );
 };

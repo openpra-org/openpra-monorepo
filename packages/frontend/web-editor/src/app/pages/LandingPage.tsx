@@ -8,7 +8,7 @@ import {
 
 } from "@elastic/eui";
 import AuthCard from "../components/cards/authCard";
-export default function LandingPage() {
+export default function LoginPage() {
     const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
     const textCss = [useEuiPaddingCSS("horizontal")["m"]];
     const containterCss = [useEuiPaddingCSS()["m"]];

@@ -16,7 +16,7 @@ export function ListItemContextMenuButton(props: GenericListItemProps) {
 
   return (
     <ButtonWithPopover
-      iconType="gear"
+      iconType="boxesHorizontal"
       isIcon={true}
       aria-label="Edit Item"
       confirmDiscard={false}

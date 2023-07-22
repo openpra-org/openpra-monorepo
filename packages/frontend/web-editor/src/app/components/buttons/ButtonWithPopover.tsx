@@ -35,7 +35,9 @@ export default function ButtonWithPopover({ iconType, children, buttonText, onRe
     }
   }
 
-  const button = isIcon ? <EuiButtonIcon {...rest} children={buttonText} iconType={iconType || "none"} onClick={onButtonClick} /> : <EuiButton {...rest} children={buttonText} iconType={iconType} onClick={onButtonClick} />;
+  //color changed by setting fill
+  const button = isIcon ? <EuiButtonIcon {...rest} children={buttonText} iconType={iconType || "none"} onClick={onButtonClick} /> : 
+    <EuiButton {...rest} children={buttonText} iconType={iconType} fill={true} onClick={onButtonClick} />;
 
   let modal: JSX.Element | null = null;
   const [isModalVisible, setIsModalVisible] = useState(false);

@@ -18,7 +18,7 @@ import { useNavigate } from 'react-router-dom';
     title?: string, 
     id?: number,
     inSettings?: boolean
-    toggleBox: (isVisible: boolean) => void,
+    toggleBox?: (isVisible: boolean) => void,
   }
   
 
@@ -42,15 +42,18 @@ export default function DeleteItemBox(props: NewItemProps) {
     //sets the data, then closes overlay
     const deleteData = () => {
         //put the other api call type stuff in this
+        navigate('')
         closeOverlay();
         if(inSettings){
-            navigate("/models")
+            navigate("/internal-events")
         }
-    }      
+    }
 
     //just closes the overlay for adding items
     const closeOverlay = () => {
-        toggleBox(false);
+        if (toggleBox) {
+            toggleBox(false);
+        }
     }
 
     return (
@@ -81,9 +84,6 @@ export default function DeleteItemBox(props: NewItemProps) {
             {/** button to submit is equipped with the ability to  */}
                 <EuiFormRow fullWidth={true}>
                     <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs'>
-                        <EuiFlexItem>
-                            <EuiButtonEmpty onClick={closeOverlay}>Cancel</EuiButtonEmpty>
-                        </EuiFlexItem>
                         <EuiFlexItem>
                             {/** This button will only be clickable when user types yes/Yes/YES/etc */}
                             <EuiButton fill={true} color="danger" isDisabled={!(confirmDelete.toLowerCase() === 'yes')} onClick={deleteData}>

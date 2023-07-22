@@ -17,7 +17,7 @@ export default function TemplatedPageBody({ panelled, children, restrictWidth, s
       panelled={isPanelled}
       restrictWidth={false}
     >
-      <TemplatedPageHeader {...headerProps} restrictWidth={width}/>
+      {/** <TemplatedPageHeader {...headerProps} restrictWidth={width}/> */}
       <EuiPageTemplate.Section {...sectionProps} restrictWidth={width}>
         {children}
       </EuiPageTemplate.Section>

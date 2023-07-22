@@ -111,27 +111,29 @@ stop_production:
   - echo $HTTPS_HOST_URL
   - echo $API_ENDPOINT
 
-review:
+deploy_review:
   stage: deploy
   extends:
     - .deploy_generic
   variables:
-    HUMAN_READABLE_NAME: review-$CI_COMMIT_REF_SLUG
+    HUMAN_READABLE_NAME: review/$CI_COMMIT_REF_SLUG
     HOST_URL: https://review-${CI_COMMIT_REF_SLUG}.v2.openpra.org
     PERSIST_VOLUME: "false"
   script:
     - *review_set_vars
     - docker stack deploy -c stack.yml --with-registry-auth $APP_NAME
-  except:
-    - main
+  only:
+    - branches
   environment:
     name: $HUMAN_READABLE_NAME
     url: $HOST_URL
     on_stop: stop_review
 stop_review:
   variables:
-    HUMAN_READABLE_NAME: review-$CI_COMMIT_REF_SLUG
+    HUMAN_READABLE_NAME: review/$CI_COMMIT_REF_SLUG
     HOST_URL: https://review-$CI_COMMIT_REF_SLUG.v2.openpra.org
+  only:
+    - branches
   extends:
     - .stop_generic
   environment:

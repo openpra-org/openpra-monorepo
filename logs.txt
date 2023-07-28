@@ -1,3 +1,10 @@
 username:test2
 
 notice: port 27017 cannot be used in the current branch
+
+28/7/2023
+testing on web-backend(8000) and only:
+nx serve for development instead of deployment
+1. test the 'Obtain Token' and 'Get Model List' endpoints
+in user login, turns out OK
+2. the sign up function seems to have problems in the real web-app

@@ -20,6 +20,8 @@ export type GenericListItemProps = {
   id: number,
   label?: LabelJSON,
   endpoint: string,
+  deleteTypedEndpoint?: (id: number) => {};
+  deleteNestedEndpoint?: (id: number) => {};
   path: string,
   itemName: string;
 };
@@ -35,7 +37,7 @@ export default function GenericListItem(props: GenericListItemProps) {
   const {euiTheme} = useEuiTheme();
 
   //grabs the props
-  const { itemName, label, id, path} = props;
+  const { itemName, label, id, path, deleteTypedEndpoint, deleteNestedEndpoint} = props;
 
   // TODO
   //setting themeing constants to be used later

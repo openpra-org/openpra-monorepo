@@ -11,10 +11,11 @@ import {
 } from "@elastic/eui";
 import { GenericListItemProps } from "../lists/GenericListItem";
 import { ListItemEditAction } from "./ListItemAction";
-import ItemFormAction, { ItemFormProps } from "../forms/ItemFormAction";
+import ItemFormAction, { ItemFormProps } from "../forms/typedModelActionForm";
 import DeleteItemBox from "../listchanging/deleteItemBox";
 import { euiPaddingSize } from "@elastic/eui/src/global_styling/mixins/_padding";
 import { logicalStyles } from "@elastic/eui/src/global_styling/functions/logicals";
+import TypedModelApiManager from 'packages/shared-types/src/lib/api/TypedModelApiManager';
 
 export type ListItemContextMenuProps = {
 
@@ -32,8 +33,8 @@ export default (props: ListItemContextMenuProps) => {
   });
 
 
-
-  const { itemName, endpoint} = props;
+  //TODO: Make this work correctly, the prop is bad
+  const { id, itemName, endpoint, deleteNestedEndpoint, deleteTypedEndpoint} = props;
 
   const panels = [
     {
@@ -62,7 +63,6 @@ export default (props: ListItemContextMenuProps) => {
         },
         {
           name: 'Trash',
-          toolTipContent: 'For reasons, this item is disabled',
           icon: <EuiIcon type="trash" size="m" color="danger" />,
           panel: 3,
         },
@@ -74,7 +74,7 @@ export default (props: ListItemContextMenuProps) => {
       title: 'Rename',
       content: (
         <div style={{padding: useEuiPaddingSize("s") || '35px'}}>
-            <ItemFormAction noHeader compressed action="edit" itemName={itemName} endpoint={endpoint} />
+            <ItemFormAction noHeader compressed action="edit" itemName={itemName} postEndpoint={TypedModelApiManager.postInternalEvent} />
         </div>
       )
     },
@@ -84,7 +84,7 @@ export default (props: ListItemContextMenuProps) => {
       title: 'Delete',
       content: (
           <div style={{padding: useEuiPaddingSize("s") || '35px'}}>
-            <DeleteItemBox />
+            <DeleteItemBox id={id} itemName={itemName} typeOfModel={endpoint} deleteTypedEndpoint={deleteTypedEndpoint} deleteNestedEndpoint={deleteNestedEndpoint}/>
           </div>
       )
     },

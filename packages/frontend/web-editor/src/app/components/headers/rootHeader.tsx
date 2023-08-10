@@ -54,9 +54,6 @@ export default () => {
       navigate('/')
     }
   }, []);
-  if (!ApiManager.isLoggedIn() && location.pathname != '/') {
-      navigate('/')
-  }
 
   const renderBreadcrumbs = () => {
     return (

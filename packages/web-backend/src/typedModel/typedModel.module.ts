@@ -1,43 +1,21 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Action } from 'rxjs/internal/scheduler/Action';
-import { User, UserSchema } from 'src/collab/schemas/user.schema';
-import { ActionSchema } from 'src/hcl/schemas/action.schema';
-import { BayesianNetworks, BayesianNetworksSchema } from 'src/hcl/schemas/bayesian-networks.schema';
-import { EventSequenceDiagram, EventSequenceDiagramSchema } from 'src/hcl/schemas/event-sequence-diagram.schema';
-import { FaultTree, FaultTreeSchema } from 'src/hcl/schemas/fault-tree.schema';
-import { GlobalParameterCounter, GlobalParameterCounterSchema } from 'src/hcl/schemas/global-parameter-counter.schema';
-import { GlobalParameter, GlobalParameterSchema } from 'src/hcl/schemas/global-parameter.schema';
-import { HclModelTree, HclModelTreeSchema } from 'src/hcl/schemas/hcl-model-tree.schema';
-import { HclModel, HclModelSchema } from 'src/hcl/schemas/hcl-model.schema';
-import { ModelCounter, ModelCounterSchema } from 'src/hcl/schemas/model-counter.schema';
-import { OverviewTree, OverviewTreeSchema } from 'src/hcl/schemas/overview-tree.schema';
-import { QuantificationResultCounter, QuantificationResultCounterSchema } from 'src/hcl/schemas/quantification-result-counter.schema';
-import { QuantificationResult, QuantificationResultSchema } from 'src/hcl/schemas/quantification-result.schema';
-import { TreeCounter, TreeCounterSchema } from 'src/hcl/schemas/tree-counter.schema';
 import { TypedModelController } from './typedModel.controller';
 import { TypedModelService } from './typedModel.service';
+import { InternalEvents, InternalEventsSchema } from './schemas/internal-events.schema';
+import { InternalHazards, InternalHazardsSchema } from './schemas/internal-hazards.schema';
+import { ExternalHazards, ExternalHazardsSchema } from './schemas/external-hazards.schema';
+import { FullScope, FullScopeSchema } from './schemas/full-scope.schema';
+import { ModelCounter, ModelCounterSchema } from 'src/schemas/model-counter.schema';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: User.name, schema: UserSchema },
-      { name: ModelCounter.name, schema: ModelCounterSchema },
-      { name: HclModel.name, schema: HclModelSchema },
-      { name: GlobalParameterCounter.name, schema: GlobalParameterCounterSchema },
-      { name: GlobalParameter.name, schema: GlobalParameterSchema },
-      { name: TreeCounter.name, schema: TreeCounterSchema },
-      { name: Action.name, schema: ActionSchema },
-      { 
-        name: HclModelTree.name, schema: HclModelTreeSchema,
-        discriminators: [
-          { name: FaultTree.name, schema: FaultTreeSchema },
-          { name: EventSequenceDiagram.name, schema: EventSequenceDiagramSchema },
-          { name: BayesianNetworks.name, schema: BayesianNetworksSchema }
-        ]
-      },
-      { name: OverviewTree.name, schema: OverviewTreeSchema },
-      { name: QuantificationResultCounter.name, schema: QuantificationResultCounterSchema },
-      { name: QuantificationResult.name, schema: QuantificationResultSchema }
+      { name: InternalEvents.name, schema: InternalEventsSchema },
+      { name: InternalHazards.name, schema: InternalHazardsSchema },
+      { name: ExternalHazards.name, schema: ExternalHazardsSchema },
+      { name: FullScope.name, schema: FullScopeSchema },
+      { name: ModelCounter.name, schema: ModelCounterSchema}
     ])
   ],
   controllers: [TypedModelController],
@@ -45,4 +23,4 @@ import { TypedModelService } from './typedModel.service';
   exports: [TypedModelService]
 })
 
-export class HclModule {}
+export class TypedModelModule {}

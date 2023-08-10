@@ -172,6 +172,27 @@ export default class ApiManager {
       .catch(onFailCallback);
   }
 
+  static refreshToken( onFailCallBack: any = ApiManager.defaultFailCallback) {
+    const token = localStorage.getItem('id_token')
+    return fetch(ApiManager.LOGIN_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        token
+      }),
+    }).then((response) => {
+      if (response.ok) {
+        return response;
+      }
+      throw new Error(response.statusText);
+    }).then(res => res.json())
+      .then((data) => { AuthService.setEncodedToken(data.token); })
+      .catch(onFailCallBack);
+  }
+
   signInWithUsernameAndPassword(username: any, password: any, onFailCallback: any) {
     return ApiManager.signInWithUsernameAndPassword(username, password, onFailCallback);
   }
@@ -210,6 +231,12 @@ export default class ApiManager {
     const token = AuthService.getEncodedToken(); // Getting token from localstorage
     if (AuthService.hasTokenExpired(token)) this.logout();
     return (token != null) && !AuthService.hasTokenExpired(token);
+  }
+
+  static getTokenTimer(): number {
+    // Checks if there is a saved token and it's still valid
+    const token = AuthService.getEncodedToken(); // Getting token from localstorage
+    return AuthService.getTokenTimer(token)
   }
 
   isLoggedIn() {
@@ -307,11 +334,14 @@ export default class ApiManager {
     return ApiManager.emptyPut(`${componentEndpoint}${ApiManager.MODEL_PATH}/${id}/quantification/`, override, onSuccessCallback, onFailCallback);
   }
 
-  static getUsers(limit: any, offset: any, override?: any, onSuccessCallback?: any, onFailCallback?: any) {
+  static getUsers(limit?: any, offset?: any, override?: any, onSuccessCallback?: any, onFailCallback?: any) {
     if (limit) {
       return ApiManager.getWithOptions(`${collabEndpoint}/user/?limit=${limit}&offset=${offset}`, override, onSuccessCallback, onFailCallback);
     }
-    return ApiManager.getWithOptions(`${collabEndpoint}/user/`, override, onSuccessCallback, onFailCallback);
+    return ApiManager.getWithOptions(`${collabEndpoint}/user/`, override, onSuccessCallback, onFailCallback)
+      .then(
+        res => {return res.json()}
+      )
   }
 
   static getProjects(limit: any, offset: any, override?: any, onSuccessCallback?: any, onFailCallback?: any) {

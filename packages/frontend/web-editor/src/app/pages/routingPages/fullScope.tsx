@@ -86,7 +86,7 @@ export default function FullScopePage() {
           element= {<PlantOperationState />}
         />
         <Route
-          path= "initiating-event-analysis/*"
+          path= "initiating-events/*"
           element= {<InitiatingEvents />}
         />
         <Route
@@ -102,8 +102,8 @@ export default function FullScopePage() {
           element= {<FunctionalEvents/>}
         />
         <Route
-          path= "logical-models/*"
-          element= {<LogicalModels />}
+          path= "fault-trees/*"
+          element= {<FaultTrees />}
         />
         <Route
           path= "bayesian-networks/*"

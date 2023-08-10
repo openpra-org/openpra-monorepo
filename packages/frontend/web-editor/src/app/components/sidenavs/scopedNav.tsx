@@ -74,8 +74,14 @@ export default function ScopedNav(props: scopedNavProps) {
 
   const IE = [
     createTreeItem("Initiating Event Analysis",  {
-      icon: <EuiToken iconType="sparkles"/>,
+      isExpanded: true, 
       callback: () => {navigate('initiating-event-analysis')},
+      children: [
+        createTreeItem("Initiating Events", {
+          icon: <EuiToken iconType="shard"/>,
+          callback: () => {navigate('initiating-events')},
+        }, 1),
+      ],
     }),
   ];
 
@@ -113,9 +119,9 @@ export default function ScopedNav(props: scopedNavProps) {
       isExpanded: true,
       callback: () => {navigate('systems-analysis')},
       children: [
-        createTreeItem("Logical Models", {
+        createTreeItem("Fault Trees", {
           icon: <EuiToken iconType="tokenRepo"/>,
-          callback: () => {navigate('logical-models')},
+          callback: () => {navigate('fault-trees')},
         }, 1),
         createTreeItem("Bayesian Networks", {
           icon: <EuiToken iconType="editorBold" shape="square"/>,

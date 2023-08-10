@@ -12,13 +12,15 @@ import {
     EuiButtonEmpty,
 } from '@elastic/eui'
 import { useNavigate } from 'react-router-dom';
+import TypedModelApiManager from 'packages/shared-types/src/lib/api/TypedModelApiManager';
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
-  export interface NewItemProps {
-    title?: string, 
-    id?: number,
-    inSettings?: boolean
-    toggleBox?: (isVisible: boolean) => void,
+  export interface DeleteItemProps {
+    id: number
+    itemName: string
+    typeOfModel: string
+    deleteTypedEndpoint?: (id: number) => {};
+    deleteNestedEndpoint?: (id: number) => {};
   }
   
 
@@ -29,31 +31,27 @@ import { useNavigate } from 'react-router-dom';
  * @param toggleBox this needs to be there to toggle the deltebox on and off accross components, a state to set the delete box being visible
  * @returns 
  */
-export default function DeleteItemBox(props: NewItemProps) {
+export default function DeleteItemBox(props: DeleteItemProps) {
 
     //State used to hold value within text box. User types 'yes' to unlock the submit button
     const [confirmDelete, setConfirmDelete] = useState('');
 
     //grabbing the props
-    const { title, id, toggleBox, inSettings} = props;
+    const {id, itemName, typeOfModel, deleteNestedEndpoint, deleteTypedEndpoint} = props;
 
     const navigate = useNavigate()
 
     //sets the data, then closes overlay
     const deleteData = () => {
-        //put the other api call type stuff in this
-        navigate('')
-        closeOverlay();
-        if(inSettings){
-            navigate("/internal-events")
+        if(deleteTypedEndpoint){
+            deleteTypedEndpoint(id)
+        } else if (deleteNestedEndpoint) {
+            deleteNestedEndpoint(id)
         }
-    }
-
-    //just closes the overlay for adding items
-    const closeOverlay = () => {
-        if (toggleBox) {
-            toggleBox(false);
+        if(window.location.pathname.endsWith('settings')){
+            navigate('')
         }
+        location.reload()
     }
 
     return (
@@ -63,7 +61,7 @@ export default function DeleteItemBox(props: NewItemProps) {
                 <EuiSpacer size='s'/>
                 {/** this gives the text, and then importantly sets the title of the item */}
                 <EuiFormRow fullWidth={true}>
-                    <EuiTitle size='m'><strong>Delete {title}</strong></EuiTitle>
+                    <EuiTitle size='m'><strong>Delete {itemName}</strong></EuiTitle>
                 </EuiFormRow>
                  {/** the submit and also the go back buttons are right here*/}
                 <EuiFormRow>

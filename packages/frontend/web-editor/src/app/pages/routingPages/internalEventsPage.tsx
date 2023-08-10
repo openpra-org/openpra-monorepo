@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, json } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 import InternalEventsList from '../../components/lists/workspaceLists/internalEventsList';
 import EventSequenceDiagrams from '../fullScopePages/eventSequenceDiagrams';
@@ -18,6 +18,10 @@ import RiskIntegration from "../fullScopePages/riskIntegration";
 import WeibullAnalysis from "../fullScopePages/weibullAnalysis";
 import MarkovChains from "../fullScopePages/markovChains";
 import HRA from "../fullScopePages/humanReliabilityAnalysis";
+import TypedModelApiManager from "packages/shared-types/src/lib/api/TypedModelApiManager";
+import ApiManager from "packages/shared-types/src/lib/api/ApiManager";
+import ModelList from "../../components/lists/ModelList";
+import FaultTrees from "../fullScopePages/faultTrees";
 
 
 const getModelFixture = (): ModelProps => {
@@ -60,10 +64,18 @@ export async function loadModel() {
   return getModelFixture();
 }
 
+// const internalEventsLoader = async () => {
+//   return TypedModelApiManager.getInternalEvents(ApiManager.getCurrentUser().user_id)
+// }
+
 export default function InternalEventsPage() {
   return (
     <Routes>
-      <Route path="" element=<InternalEventsList/> />
+      <Route 
+        path="" 
+        //loader={internalEventsLoader}
+        element=<InternalEventsList/> 
+      />
       <Route
         path=":modelId"
         element=<InternalEventsContainer/>
@@ -74,7 +86,7 @@ export default function InternalEventsPage() {
           element= {<PlantOperationState />}
         />
         <Route
-          path= "initiating-event-analysis/*"
+          path= "initiating-events/*"
           element= {<InitiatingEvents />}
         />
         <Route
@@ -90,8 +102,8 @@ export default function InternalEventsPage() {
           element= {<FunctionalEvents/>}
         />
         <Route
-          path= "logical-models/*"
-          element= {<LogicalModels />}
+          path= "fault-trees/*"
+          element= {<FaultTrees />}
         />
         <Route
           path= "bayesian-networks/*"

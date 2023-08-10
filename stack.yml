@@ -31,7 +31,12 @@ services:
       - db_net
     environment:
       MONGO_URL: mongodb://mongodb:27017
-      JWT_SECRET_KEY: testtestest123
+      JWT_SECRET_KEY: ${CI_JWT_SECRET_KEY}
+      SENTRY_DSN: ${CI_SENTRY_DSN}
+      SENTRY_ENV: ${CI_SENTRY_ENV}
+      DEBUG: ${CI_DEBUG}
+    secrets:
+      - CI_JWT_SECRET_KEY
     depends_on:
       - mongodb
     deploy:
@@ -104,3 +109,7 @@ networks:
     attachable: true
   traefik-public:
     external: true
+
+secrets:
+  CI_JWT_SECRET_KEY:
+    file: $CI_DSF_JWT_SECRET_KEY

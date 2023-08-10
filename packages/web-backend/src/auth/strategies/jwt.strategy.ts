@@ -12,12 +12,12 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 * 2. After decrypting the User object, it is sent to the validate function where the User data (userID, username, email) is separated.
 */
 @Injectable()
-export class JwtStrategy extends PassportStrategy(Strategy) {
+export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     constructor(private configService: ConfigService) {
         super({
-           jwtFromRequest: ExtractJwt.fromAuthHeaderWithScheme('JWT'),
-           ignoreExpiration: false,
-           secretOrKey: configService.get<string>('JWT_SECRET_KEY')
+            jwtFromRequest: ExtractJwt.fromAuthHeaderWithScheme('JWT'),
+            ignoreExpiration: false,
+            secretOrKey: configService.get<string>('JWT_SECRET_KEY')
         });
     }
 

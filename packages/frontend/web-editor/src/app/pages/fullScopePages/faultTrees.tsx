@@ -1,4 +1,4 @@
-import FaultTreeList from '../../components/lists/faultTreeList';
+import FaultTreeList from '../../components/lists/nestedLists/faultTreeList';
 
 export default function FaultTrees() {
     return (

@@ -1,8 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
-import { FaultTree } from './fault-tree.schema';
-import { EventSequenceDiagram } from './event-sequence-diagram.schema';
-import { BayesianNetworks } from './bayesian-networks.schema';
+import { FaultTree } from '../../nestedModels/schemas/fault-tree.schema';
+import { EventSequenceDiagram } from '../../nestedModels/schemas/event-sequence-diagram.schema';
+import { BayesianNetwork } from '../../nestedModels/schemas/bayesian-network.schema';
 
 @Schema({ _id: false, versionKey: false })
 class Model {
@@ -37,7 +37,7 @@ export class HclModelTree {
     @Prop({
         type: String,
         required: false,
-        enum: [FaultTree.name, EventSequenceDiagram.name, BayesianNetworks.name]
+        enum: [FaultTree.name, EventSequenceDiagram.name, BayesianNetwork.name]
     })
     tree_name: string;
 

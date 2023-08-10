@@ -18,13 +18,13 @@ stages:
 frontend:
   stage: build
   script:
-    - docker build --target frontend -t ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG} .
+    - docker build --target frontend --build-arg BUILD_TYPE=${CI_BUILD_TYPE} -t ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG} .
     - docker push ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG}
 
 backend:
   stage: build
   script:
-    - docker build --target backend -t ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG} .
+    - docker build --target backend --build-arg BUILD_TYPE=${CI_BUILD_TYPE} -t ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG} .
     - docker push ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG}
 
 .named_deployment: &named_deployment

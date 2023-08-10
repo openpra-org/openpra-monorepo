@@ -1,26 +1,31 @@
 import { ButtonWithClosablePopover } from "./ButtonWithPopover";
 import { logicalStyle } from "@elastic/eui";
-import ItemFormAction, { ItemFormProps } from "../forms/ItemFormAction";
+import TypedModelApiManager from "packages/shared-types/src/lib/api/TypedModelApiManager";
+import { ItemFormProps } from "../forms/typedModelActionForm";
+import NestedModelActionForm, { NestedItemFormProps } from "../forms/nestedModelActionForm";
+import TypedModelActionForm from "../forms/typedModelActionForm";
+import NestedModelApiManager from "packages/shared-types/src/lib/api/NestedModelApiManager";
 
 export type CreateItemButtonProps = {
-
 } & Omit<ItemFormProps, "action">;
 
+export type CreateNestedItemButtonProps = {
+} & Omit<NestedItemFormProps, "action">;
+
 /**
- *
+ * for typed models
  * @param itemName the type of item that is being passed
  * @param endpoint endpoint that will be used to add the item
  * @returns the create item button
  */
-export default function CreateItemButton({ itemName, endpoint }: CreateItemButtonProps) {
-
+export default function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps) {
 
   const popoverExtra = (child: JSX.Element) => (
     <div style={logicalStyle('max-width', 240)}>
       {child}
     </div>
   );
-
+  //this now checks what type of thing is being added, as adding a typed model has a extra field that isnt needed
   return (
     <ButtonWithClosablePopover
       popoverExtra={popoverExtra}
@@ -34,47 +39,94 @@ export default function CreateItemButton({ itemName, endpoint }: CreateItemButto
       iconSize="m"
       size="s"
     >
-      <ItemFormAction compressed action="create" itemName={itemName} endpoint={endpoint} />
+      {/*TODO:: replace endpoint string with TypedModelApiManager method */}
+      <TypedModelActionForm compressed action="create" itemName={itemName} postEndpoint={postEndpoint} />
     </ButtonWithClosablePopover>
   );
 }
 
+/**
+ * for nested models
+ * @param itemName the type of item that is being passed
+ * @param endpoint endpoint that will be used to add the item
+ * @returns the create item button
+ */
+export function CreateNestedItemButton({ itemName, postEndpoint }: CreateNestedItemButtonProps) {
+
+  const popoverExtra = (child: JSX.Element) => (
+    <div style={logicalStyle('max-width', 240)}>
+      {child}
+    </div>
+  );
+  //this now checks what type of thing is being added, as adding a typed model has a extra field that isnt needed
+  return (
+    <ButtonWithClosablePopover
+      popoverExtra={popoverExtra}
+      closeProp="onCancel"
+      buttonText="Create"
+      confirmDiscard={true}
+      popoverProps={{
+        initialFocus: "#name"
+      }}
+      //iconType="plusInCircleFilled"
+      iconSize="m"
+      size="s"
+    >
+      {/*TODO:: replace endpoint string with TypedModelApiManager method */}
+      <NestedModelActionForm compressed action="create" itemName={itemName} postEndpoint={postEndpoint} />
+    </ButtonWithClosablePopover>
+  );
+}
+
+//TODO: Fucntions are dummied out for the creates that don't exist
 export function CreateInternalEventsButton() {
-  return <CreateItemButton itemName="internal-event" endpoint="/api/internal-events" />
+  return <CreateItemButton itemName="internal-events" postEndpoint={TypedModelApiManager.postInternalEvent} />
 }
 
 export function CreateInternalHazardsButton() {
-  return <CreateItemButton itemName="internal-hazard" endpoint="/api/internal-hazards" />
+  return <CreateItemButton itemName="internal-hazards" postEndpoint={TypedModelApiManager.postInternalHazard} />
 }
 
 export function CreateExternalHazardsButton() {
-  return <CreateItemButton itemName="external-hazard" endpoint="/api/external-hazards" />
+  return <CreateItemButton itemName="external-hazards" postEndpoint={TypedModelApiManager.postExternalHazard} />
 }
 
 export function CreateFullScopeButton() {
-  return <CreateItemButton itemName="full-scope" endpoint="/api/full-scope" />
+  return <CreateItemButton itemName="full-scope" postEndpoint={TypedModelApiManager.postFullScope} />
 }
 
 export function CreateFaultTreeButton() {
-  return <CreateItemButton itemName="fault tree" endpoint="/api/model/:id/fault_tree" />
+  return <CreateNestedItemButton itemName="fault-tree" postEndpoint={NestedModelApiManager.postFaultTree} />
 }
 
 export function CreateBayesianNetworkButton() {
-  return <CreateItemButton itemName="bayesian network" endpoint="/api/model/:id/bayesian_network" />
+  return <CreateNestedItemButton itemName="bayesian-network" postEndpoint={NestedModelApiManager.postBayesianNetwork} />
 }
 
-export function CreateESDButton() {
-  return <CreateItemButton itemName="event sequence diagram" endpoint="/api/model/:id/esd" />
+export function CreateBayesianEstimationButton() {
+  return <CreateNestedItemButton itemName="bayesian-estimation" postEndpoint={NestedModelApiManager.postBayesianEstimation} />
 }
 
 export function CreateEventSequenceDiagramButton() {
-  return <CreateItemButton itemName="event-sequence-diagram" endpoint="/api/event-sequence-diagram" />
+  return <CreateNestedItemButton itemName="event-sequence-diagram" postEndpoint={NestedModelApiManager.postEventSequenceDiagram} />
 }
 
 export function CreateEventTreeButton() {
-  return <CreateItemButton itemName="event tree" endpoint="/api/model/:id/event_tree" />
+  return <CreateNestedItemButton itemName="event-tree" postEndpoint={NestedModelApiManager.postEventTree} />
 }
 
 export function CreateInitiatingEventButton() {
-  return <CreateItemButton itemName="initiating event" endpoint="/api/model/:id/initiating_event" />
+  return <CreateNestedItemButton itemName="initiating-event" postEndpoint={NestedModelApiManager.postInitiatingEvent} />
+}
+
+export function CreateFunctionalEventButton() {
+  return <CreateNestedItemButton itemName="functional-event" postEndpoint={NestedModelApiManager.postFunctionalEvent} />
+}
+
+export function CreateMarkovChainButton() {
+  return <CreateNestedItemButton itemName="markov-chain" postEndpoint={NestedModelApiManager.postMarkovChain} />
+}
+
+export function CreateWeibullAnalysisButton() {
+  return <CreateNestedItemButton itemName="weibull-analysis" postEndpoint={NestedModelApiManager.postWeibullAnalysis} />
 }

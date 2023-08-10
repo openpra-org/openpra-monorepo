@@ -2,9 +2,10 @@ import { logicalStyle } from "@elastic/eui";
 import { EuiButtonIconPropsForButton } from "@elastic/eui/src/components/button/button_icon/button_icon";
 import ButtonWithPopover, { ButtonWithClosablePopover, ButtonWithPopoverProps } from "../buttons/ButtonWithPopover";
 import { toTitleCase } from "../../../utils/StringUtils";
-import ItemFormAction, { ItemFormProps } from "../forms/ItemFormAction";
+import ItemFormAction, { ItemFormProps } from "../forms/typedModelActionForm";
 import ListItemActionContextMenu from "./ListItemContextMenu";
 import { GenericListItemProps } from "../lists/GenericListItem";
+import TypedModelApiManager from "packages/shared-types/src/lib/api/TypedModelApiManager";
 
 export type ListItemActionProps = {
 
@@ -35,7 +36,8 @@ export default function ListItemAction() {
 
 }
 
-export function ListItemEditAction({ itemName, endpoint, ...rest }: ListItemActionProps) {
+//TODO 
+export function ListItemEditAction({ itemName, patchEndpoint, ...rest }: ListItemActionProps) {
   const label = toTitleCase(itemName);
 
   const scaffolding = (child: JSX.Element) => {
@@ -59,7 +61,7 @@ export function ListItemEditAction({ itemName, endpoint, ...rest }: ListItemActi
       }}
       color="text"
     >
-      <ItemFormAction compressed noHeader action="edit" itemName={label} endpoint={endpoint} />
+      <ItemFormAction compressed noHeader action="edit" itemName={label} patchEndpoint={TypedModelApiManager.patchInternalEvent} />
     </ButtonWithClosablePopover>
   );
 }

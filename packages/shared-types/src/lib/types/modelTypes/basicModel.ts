@@ -1,13 +1,14 @@
+import Label from "../Label";
 
 /**
  * basic model class to be implemented by all other models in the future, any functionality we want within all models
  * should be contained here
  */
-export abstract class BasicModel {
+export abstract class BasicModel{
 
   //state for a basic model
-  private name: string;
-  private description?: string;
+  private id: number;
+  private label: Label
 
   //TODO attach a wiki object here in the basic model if desired.
 
@@ -16,38 +17,26 @@ export abstract class BasicModel {
    * @param {string} name
    * @param {string} description
    */
-  constructor(name = '', description = '') {
-    this.name = name || '';
-    this.description = description || '';
+  constructor(label: Label, id = -1) {
+    this.label = label
+    this.id = id || -1
+  }
+
+  getLabel(): Label{
+    return this.label
+  }
+
+   /**
+   * @return {number} id number
+   */
+   getId():number {
+    return this.id
   }
 
   /**
-   * @return {string} name
+   * @param {number} id takes the id number
    */
-  getName(): string {
-    return this.name;
-  }
-
-  /**
-   * @param {string} name
-   */
-  setName(name: string) {
-    this.name = name;
-  }
-
-  /**
-   * @return {string} description
-   */
-  getDescription(): string {
-    if(this.description)
-      return this.description;
-    return ""
-  }
-
-  /**
-   * @param {string} description
-   */
-  setDescription(description: string) {
-    this.description = description;
+  setId(id: number) {
+    this.id = id;
   }
 }

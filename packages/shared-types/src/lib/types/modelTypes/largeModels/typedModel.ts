@@ -1,29 +1,39 @@
-import { Defaults } from "../../ObjectTypes";
-import { Parsable } from "../../Parsable";
+import Label from "../../Label";
 import { BasicModel } from "../basicModel";
+import ExternalHazardsModel from "./externalHazardsModel";
+import FullScopeModel from "./fullScopeModel";
+import InternalEventsModel from "./internalEventsModel";
+import InternalHazardsModel from "./internalHazardsModel";
 
 export interface TypedModelJSON {
-  name: string;
-  description: string;
+  id: number;
+  label:{
+    name: string;
+    description: string;
+  }
   users: number[];
 }
 
 export type TypedModelJSONMap = { [key: string]: TypedModelJSON };
 
 export const DEFAULT_TYPED_MODEL_JSON: TypedModelJSON = {
-  name: '',
-  description: '',
+  id: -1,
+  label:{
+    name: '',
+    description: ''
+  },
   users: []
 };
 
 export default class TypedModel extends BasicModel /** implements Parsable<TypedModelJSONMap, TypedModelJSON> */ {
+
   private users: number[];
 
   /**
    * @param {TypedModelJSON} obj - dictionary object to parse
    */
   static build(obj: TypedModelJSON): TypedModel {
-    return new TypedModel(obj.name, obj.description);
+    return new TypedModel(obj.id, obj.label.name, obj.label.description, obj.users);
   }
 
   /**
@@ -31,8 +41,8 @@ export default class TypedModel extends BasicModel /** implements Parsable<Typed
    * @param {string} description
    * @param {number []} users a list of users represented by their id numbers
    */
-  constructor(name = '', description = '', users: number[] = []) {
-    super(name, description);
+  constructor(id = -1, name = '', description = '', users: number[] = []) {
+    super(new Label(name, description), id);
     this.users = users;
   }
 
@@ -47,6 +57,20 @@ export default class TypedModel extends BasicModel /** implements Parsable<Typed
   setUsers(users: number[]): void {
     this.users = users;
   }
+
+  // getTypeString(): string {
+  //   if (this instanceof ExternalHazardsModel) {
+  //     return "external-hazards";
+  //   } else if (this instanceof InternalEventsModel) {
+  //     return 'internal-events';
+  //   } else if (this instanceof FullScopeModel) {
+  //     return 'full-scope';
+  //   } else if (this instanceof InternalHazardsModel) {
+  //     return 'internal-hazards'
+  //   } else {
+  //     return "No Type";
+  //   }
+  // }
 
   // toJSON(): TypedModelJSON {
   //   return {

@@ -25,6 +25,7 @@ import RadiologicalAnalysis from "../fullScopePages/radiologicalAnalysis";
 import RiskIntegration from "../fullScopePages/riskIntegration";
 import Seismic from "../fullScopePages/seismic";
 import WeibullAnalysis from "../fullScopePages/weibullAnalysis";
+import FaultTrees from "../fullScopePages/faultTrees";
 
 
 const getModelFixture = (): ModelProps => {
@@ -81,7 +82,7 @@ export default function ExternalHazardsPage() {
                   element= {<PlantOperationState />}
                 />
                 <Route
-                  path= "initiating-event-analysis/*"
+                  path= "initiating-events/*"
                   element= {<InitiatingEvents />}
                 />
                 <Route
@@ -97,8 +98,8 @@ export default function ExternalHazardsPage() {
                   element= {<FunctionalEvents/>}
                 />
                 <Route
-                  path= "logical-models/*"
-                  element= {<LogicalModels />}
+                  path= "fault-trees/*"
+                  element= {<FaultTrees />}
                 />
                 <Route
                   path= "bayesian-networks/*"

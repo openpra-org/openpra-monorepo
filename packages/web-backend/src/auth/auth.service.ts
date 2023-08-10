@@ -27,10 +27,10 @@ export class AuthService {
             if(validUser) {
                 return user;
             } else {
-                throw new UnauthorizedException('Password does not match!');
+                throw new UnauthorizedException('Password does not match');
             }
         } else {
-            throw new UnauthorizedException('User not found!');
+            throw new UnauthorizedException('User does not exist');
         }
     }
 
@@ -47,5 +47,31 @@ export class AuthService {
         return {
             token: this.jwtService.sign(payload)
         };
+    }
+
+    async updateJwtToken(refreshToken: string) {
+        try {
+            // Verify the refresh token
+            const decodedToken = this.jwtService.verify(refreshToken);
+            // Check if the token is valid and not expired
+            if (decodedToken && decodedToken.user_id) {
+                // Create a new access token with a new expiration time (e.g., 15 minutes)
+                const payload = { user_id: decodedToken.user_id, username: decodedToken.username, email: decodedToken.email };
+                const accessToken = this.jwtService.sign(payload, { expiresIn: '24h' });
+
+                // You can also update the last login here if needed
+                await this.collabService.updateLastLogin(decodedToken.user_id);
+    
+                return {
+                    token: accessToken
+                };
+            } else {
+                // Token is not valid or expired, handle the error
+                throw new Error('Invalid or expired refresh token');
+            }
+        } catch (err) {
+            // Handle verification or any other errors that may occur
+            throw new Error('Error verifying the refresh token');
+        }
     }
 }

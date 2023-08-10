@@ -19,7 +19,7 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
-    "rootDir": ".",
+    // "rootDir": ".",
     "moduleResolution": "node",
     "importHelpers": true,
     "lib": ["es2020", "dom"],

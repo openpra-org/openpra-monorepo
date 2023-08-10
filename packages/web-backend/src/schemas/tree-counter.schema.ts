@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
 @Schema({ versionKey: false })
-export class TreeCounter {
+export class NestedCounter {
     @Prop()
     _id: string;
 
@@ -10,5 +10,5 @@ export class TreeCounter {
     seq: number;
 }
 
-export type TreeCounterDocument = TreeCounter & Document;
-export const TreeCounterSchema = SchemaFactory.createForClass(TreeCounter);
+export type NestedCounterDocument = NestedCounter & Document;
+export const NestedCounterSchema = SchemaFactory.createForClass(NestedCounter);

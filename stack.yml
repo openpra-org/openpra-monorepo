@@ -31,10 +31,11 @@ services:
       - db_net
     environment:
       MONGO_URL: mongodb://mongodb:27017
-      JWT_SECRET_KEY: ${CI_JWT_SECRET_KEY}
+      JWT_SECRET_KEY: /run/secrets/CI_JWT_SECRET_KEY
       SENTRY_DSN: ${CI_SENTRY_DSN}
       SENTRY_ENV: ${CI_SENTRY_ENV}
       DEBUG: ${CI_DEBUG}
+      DEPLOYMENT: 'true'
     secrets:
       - CI_JWT_SECRET_KEY
     depends_on:

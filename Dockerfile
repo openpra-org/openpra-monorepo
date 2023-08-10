@@ -27,3 +27,18 @@ FROM base as backend
 WORKDIR /app
 SHELL ["/bin/bash", "-c"]
 CMD source /root/.bashrc && nx run web-backend:serve:$BUILD_TYPE
+
+FROM base as builder
+WORKDIR /app
+SHELL ["/bin/bash", "-c"]
+ENV DEBIAN_FRONTEND=noninteractive
+ENV BUILD_PACKAGES \
+    make cmake g++ python3
+
+RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
+    --mount=target=/var/cache/apt,type=cache,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean && \
+    apt update && \
+    apt install -y --no-install-recommends $BUILD_PACKAGES
+
+

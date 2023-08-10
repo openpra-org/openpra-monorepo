@@ -15,6 +15,7 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
+      "engine/scram-node": ["packages/engine/scram-node/src/index.ts"],
       "frontend/assets": ["packages/frontend/assets/src/index.ts"],
       "frontend/mxgraph-js-types": [
         "packages/frontend/mxgraph-js-types/src/index.ts"

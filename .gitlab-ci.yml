@@ -12,8 +12,17 @@ variables:
   DOMAIN: v2.openpra.org
 
 stages:
+  - test
   - build
   - deploy
+
+engine-scram-node:
+  stage: test
+  script:
+    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} .
+    - docker run --rm ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} /bin/bash -c "nx test engine-scram-node"
+  after_script:
+    - docker rmi ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} || true
 
 frontend:
   stage: build

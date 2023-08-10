@@ -6,12 +6,8 @@ import { SentryModule } from '@ntegral/nestjs-sentry';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AuthModule } from './auth/auth.module';
 import { CollabModule } from './collab/collab.module';
-import { UserCounter, UserCounterSchema } from './collab/schemas/user-counter.schema';
-import { User, UserSchema } from './collab/schemas/user.schema';
 import { TypedModelModule } from './typedModel/typedModel.module';
-import { ModelCounter, ModelCounterSchema } from './schemas/model-counter.schema';
 import { NestedModelModule } from './nestedModels/nestedModel.module';
-import { NestedCounter, NestedCounterSchema } from './schemas/tree-counter.schema';
 import { ApiController } from './api.controller';
 import { ApiService } from './api.service';
 
@@ -22,9 +18,10 @@ import { ApiService } from './api.service';
     TypedModelModule,
     NestedModelModule,
     ConfigModule.forRoot({
-      envFilePath: '.env',
+      envFilePath: '.development.env',
       isGlobal: true,
       cache: true,
+      ignoreEnvFile: !!process.env.DEPLOYMENT,
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],

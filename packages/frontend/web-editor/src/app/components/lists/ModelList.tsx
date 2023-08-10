@@ -25,9 +25,7 @@ export default function ModelList(){
         pageTitle="Models"
         responsive={false}
         bottomBorder="extended"
-        rightSideItems={[
-          //<CreateModelButton />
-        ]}
+        rightSideItems={[]}
       />
     <EuiPageTemplate.Section>
       <GenericItemList>

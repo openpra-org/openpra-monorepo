@@ -130,7 +130,7 @@ import { DEFAULT_NESTED_MODEL_JSON, NestedModelJSON } from "packages/shared-type
             {
               onCancel && <EuiFlexItem grow={false}>
                 <EuiFormRow display={compressed ? "rowCompressed" : undefined}>
-                  <EuiButton size={compressed ? "s" : "m"} onClick={onCancel} color="danger">Cancel</EuiButton>
+                  <EuiButton size={compressed ? "s" : "m"} onClick={onCancel} color="primary">Cancel</EuiButton>
                 </EuiFormRow>
               </EuiFlexItem>
             }

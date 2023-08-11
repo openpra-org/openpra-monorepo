@@ -203,13 +203,13 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
         <EuiFlexGroup direction="row" justifyContent="spaceBetween" gutterSize="m">
           <EuiFlexItem grow={false}>
             <EuiFormRow display={compressed ? "rowCompressed" : undefined}>
-              <EuiButton size={compressed ? "s" : "m"} type="submit" fill color="primary">{actionLabel}</EuiButton>
+              <EuiButton size={compressed ? "s" : "m"} type="submit" fill>{actionLabel}</EuiButton>
             </EuiFormRow>
           </EuiFlexItem>
           {
             onCancel && <EuiFlexItem grow={false}>
               <EuiFormRow display={compressed ? "rowCompressed" : undefined}>
-                <EuiButton size={compressed ? "s" : "m"} onClick={onCancel} color="danger">Cancel</EuiButton>
+                <EuiButton size={compressed ? "s" : "m"} onClick={onCancel} iconSide='right'>Cancel</EuiButton>
               </EuiFormRow>
             </EuiFlexItem>
           }

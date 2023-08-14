@@ -33,10 +33,11 @@ export default function LoginForm() {
         ]
     //}
 
-    function handleLogin() {
+    async function handleLogin() {
         setInvalid(false)
         const { username, password } = login;
-        ApiManager.signInWithUsernameAndPassword(username, password, handleLoginError)
+        try {
+        await ApiManager.signInWithUsernameAndPassword(username, password)
             .then(() => {
                 if(ApiManager.isLoggedIn()) {
                     setRedirectToHomepage(true)
@@ -44,6 +45,9 @@ export default function LoginForm() {
                     setInvalid(true)
                 }
             })
+        } catch (error){
+            console.log(error)
+        }
     }
 
     //Used as a callback to print errors hooray

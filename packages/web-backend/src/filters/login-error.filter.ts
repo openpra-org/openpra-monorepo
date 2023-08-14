@@ -10,15 +10,16 @@ export class LoginErrorFilter implements ExceptionFilter {
         const errorStatus = exception.getStatus();
         const errorMessage = exception.getResponse();
 
-        if(errorStatus === 401) {
-            throw new UnauthorizedException('Failed to log-in')
-        } else {
-            response.status(errorStatus)
-                .json({
-                    issue: errorMessage,
-                    timestamp: new Date().toISOString(),
-                    path: request.url
-                })
-        }
+        // if(errorStatus === 401) {
+        //     throw new UnauthorizedException('Failed to log-in')
+        // } else {
+        response
+            .status(errorStatus)
+            .json({
+                issue: errorMessage,
+                timestamp: new Date().toISOString(),
+                path: request.url
+            })
+        //}
     }
 }

@@ -40,6 +40,8 @@ const getFixtures = async (): Promise<JSX.Element[]> => {
           path={`/external-hazards/${modelItem.getId()}`}
           endpoint={`external-hazard`} // Adjust this based on your model's structure
           deleteTypedEndpoint={TypedModelApiManager.deleteExternalHazard}
+          patchTypedEndpoint={TypedModelApiManager.patchExternalHazard}
+          users={modelItem.getUsers()}
         />
       ));
   

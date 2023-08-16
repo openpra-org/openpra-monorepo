@@ -60,7 +60,7 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
   //list of the user ids which we add to the api calls
   const [usersListId, setUsersListId] = useState([0])
 
-  console.log(patchEndpoint)
+  console.log(initialFormValues, patchEndpoint)
 
   //
   useEffect(() => {
@@ -81,8 +81,8 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
           //console.log(initUsers)
           if (initUsers.includes(item.key)) {
             return {
-              label: item.firstName + ' ' + item.lastName,
-              key: item.id,
+              label: item.label,
+              key: item.key,
             };
           }
         })

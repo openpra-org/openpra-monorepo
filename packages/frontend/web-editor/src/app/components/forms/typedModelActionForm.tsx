@@ -1,5 +1,5 @@
 import {
-  EuiButton, EuiButtonEmpty, EuiFieldNumber,
+  EuiButton, 
   EuiFieldText, EuiFlexGroup, EuiFlexItem,
   EuiForm,
   EuiFormRow, EuiComboBox, EuiComboBoxOptionOption,
@@ -9,14 +9,8 @@ import {
 import React, {useEffect, useState} from "react";
 import { toTitleCase } from "../../../utils/StringUtils";
 import { DEFAULT_TYPED_MODEL_JSON, TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
-import InternalEventsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
-import TestApiManager from "shared-types/src/lib/api/TypedModelApiManager";
 import ApiManager from "packages/shared-types/src/lib/api/ApiManager";
-import InternalHazardsModel from "packages/shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
-import ExternalHazardsModel from "packages/shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
-import FullScopeModel from "packages/shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
 import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
-import { NestedModelJSON } from "packages/shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 
 export type ItemFormProps = {
   itemName: string;
@@ -60,8 +54,6 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
   //list of the user ids which we add to the api calls
   const [usersListId, setUsersListId] = useState([0])
 
-  console.log(initialFormValues, patchEndpoint)
-
   //
   useEffect(() => {
     const logFetchedData = async () => {
@@ -78,7 +70,6 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
           };
         })
         let selectedList = listWithoutCurrentUser.map((item: any) => {
-          //console.log(initUsers)
           if (initUsers.includes(item.key)) {
             return {
               label: item.label,
@@ -113,7 +104,6 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
 
       //this creates the finalIdList that is added when updated or added to the model
       const finalIdList = usersListId
-      console.log(finalIdList)
       finalIdList.push(userId)
 
       //creating a partial model to pass for update, may update to work for adding later aswell

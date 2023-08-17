@@ -24,6 +24,7 @@ export type GenericListItemProps = {
   deleteTypedEndpoint?: (id: number) => {};
   deleteNestedEndpoint?: (id: number) => {};
   patchTypedEndpoint?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => {}
+  patchNestedEndpoint?: (id: number, data: LabelJSON) => {}
   users?: number[]
   path: string,
   itemName: string;

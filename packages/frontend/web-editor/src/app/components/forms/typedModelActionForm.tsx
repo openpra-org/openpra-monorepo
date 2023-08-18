@@ -68,8 +68,8 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
           // Creates the objects that will go in the EuiSelectable
           listWithoutCurrentUser = listWithoutCurrentUser.map((item: any) => {
             return {
-              label: item.label,
-              key: item.key,
+              label: item.firstName + ' ' + item.lastName,
+              key: item.id,
             };
           })
           let selectedList = listWithoutCurrentUser.map((item: any) => {
@@ -143,7 +143,7 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
         <>
           <EuiTitle size="xs" ><h6> Create {itemLabel} Model </h6></EuiTitle>
           <EuiSpacer size="s"/>
-          <EuiText size="s" color="subdued"> A valid {itemLabel.toLowerCase()} model must have a name </EuiText>
+          <EuiText size="s" color="subdued"> A valid {itemLabel} model must have a name </EuiText>
           <EuiSpacer />
         </>
       }

@@ -77,7 +77,7 @@ import {
           <>
             <EuiTitle size="xs" ><h6> Create {itemLabel} </h6></EuiTitle>
             <EuiSpacer size="s"/>
-            <EuiText size="s" color="subdued"> A valid {itemLabel.toLowerCase()} must have a name </EuiText>
+            <EuiText size="s" color="subdued"> A valid {itemLabel} must have a name </EuiText>
             <EuiSpacer />
           </>
         }

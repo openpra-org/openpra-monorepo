@@ -151,7 +151,7 @@ export default class ApiManager {
    * @return {Promise} Promise of a non-null User object (newly signed in)
    * @throws {Error} - A possible authentication error
    */
-  static signInWithUsernameAndPassword(username: any, password: any, onFailCallback: any = ApiManager.defaultFailCallback) {
+  static async signInWithUsernameAndPassword(username: string, password: string, onFailCallback: any = ApiManager.defaultFailCallback) {
     return fetch(ApiManager.LOGIN_URL, {
       method: 'POST',
       headers: {
@@ -432,7 +432,6 @@ export default class ApiManager {
   }
 
   static post(url: any, data: any, override: any = null, onSuccessCallback = ApiManager.defaultSuccessCallback, onFailCallback = ApiManager.defaultFailCallback) {
-    console.log(url, data)
     return fetch(url, {
       method: 'POST',
       cache: OPTION_CACHE,

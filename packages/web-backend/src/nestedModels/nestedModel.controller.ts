@@ -401,4 +401,14 @@ export class NestedModelController {
   async deleteWeibullAnalysis(@Query('id') id: number): Promise<WeibullAnalysis> {
     return this.nestedModelService.deleteWeibullAnalysis(id);
   }
+
+  /**
+   * removes parentId from all nested models. If the model has no parentIds it is removed
+   * @param id the parent id to be removed
+   * @returns a promise with the number of totally deleted nested models
+   */
+  @Delete()
+  async removeParentIds(@Query('modelId') modelId: number): Promise<Number> {
+    return this.nestedModelService.removeParentModels(modelId);
+  }
 }

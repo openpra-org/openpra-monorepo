@@ -10,7 +10,6 @@ import {
 import { GenericListItemProps } from "../lists/GenericListItem";
 import { ItemFormProps } from "../forms/typedModelActionForm";
 import DeleteItemBox from "../listchanging/deleteItemBox";
-import TypedModelApiManager from 'packages/shared-types/src/lib/api/TypedModelApiManager';
 import TypedModelActionForm from '../forms/typedModelActionForm';
 import { TypedModelJSON } from 'packages/shared-types/src/lib/types/modelTypes/largeModels/typedModel';
 import NestedModelActionForm from '../forms/nestedModelActionForm';
@@ -80,11 +79,11 @@ export default (props: ListItemContextMenuProps) => {
       title: 'Quick Edit',
       content: (
         <div style={{padding: useEuiPaddingSize("s") || '35px'}}>
-            {patchTypedEndpoint ? (
-              <TypedModelActionForm noHeader compressed action="edit" itemName={endpoint} patchEndpoint={patchTypedEndpoint} initialFormValues={modelInfo}/>
-            ) : (
-              <NestedModelActionForm noHeader compressed action="edit" id={Number(id)} itemName={endpoint} patchEndpoint={patchNestedEndpoint} initialFormValues={nestedInfo}/>
-            )}
+          {patchTypedEndpoint ? (
+            <TypedModelActionForm noHeader compressed action="edit" itemName={endpoint} patchEndpoint={patchTypedEndpoint} initialFormValues={modelInfo}/>
+          ) : (
+            <NestedModelActionForm noHeader compressed action="edit" id={Number(id)} itemName={endpoint} patchEndpoint={patchNestedEndpoint} initialFormValues={nestedInfo}/>
+          )}
         </div>
       )
     },
@@ -93,9 +92,9 @@ export default (props: ListItemContextMenuProps) => {
       initialFocusedItemIndex: 3,
       title: 'Delete',
       content: (
-          <div style={{padding: useEuiPaddingSize("s") || '35px'}}>
-            <DeleteItemBox id={id} itemName={itemName} typeOfModel={endpoint} deleteTypedEndpoint={deleteTypedEndpoint} deleteNestedEndpoint={deleteNestedEndpoint}/>
-          </div>
+        <div style={{padding: useEuiPaddingSize("s") || '35px'}}>
+          <DeleteItemBox id={id} itemName={itemName} typeOfModel={endpoint} deleteTypedEndpoint={deleteTypedEndpoint} deleteNestedEndpoint={deleteNestedEndpoint}/>
+        </div>
       )
     },
     {
@@ -131,8 +130,8 @@ export default (props: ListItemContextMenuProps) => {
     },
   ];
 
-
   return (
       <EuiContextMenu size="m" initialPanelId={0} panels={panels} />
   );
+
 };

@@ -1,7 +1,6 @@
 
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
 import TypedModelApiManager from "packages/shared-types/src/lib/api/TypedModelApiManager";
-import NestedModelApiManager from "packages/shared-types/src/lib/api/NestedModelApiManager";
 import { useEffect, useState } from "react";
 import NestedModel from "packages/shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import GenericListItem from "../../GenericListItem";

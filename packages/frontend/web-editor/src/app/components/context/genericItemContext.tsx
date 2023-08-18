@@ -31,9 +31,10 @@ export const ListItemProvider: React.FC = ({ children }) => {
   const [items, setItems] = useState<Item[]>([]);
 
   const updateItems = (newItems: Item[]): boolean => {
-    // Implement your update logic here
+
+    //updates items here
     setItems(newItems);
-    return true; // Return true or false based on your implementation
+    return true; 
   };
 
   const removeItems = (itemIds_or_Keys: (number | string)[]): boolean => {

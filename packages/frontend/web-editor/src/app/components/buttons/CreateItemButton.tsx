@@ -6,6 +6,7 @@ import NestedModelActionForm, { NestedItemFormProps } from "../forms/nestedModel
 import TypedModelActionForm from "../forms/typedModelActionForm";
 import NestedModelApiManager from "packages/shared-types/src/lib/api/NestedModelApiManager";
 
+//different props depending on different type of objects we are using for the add button
 export type CreateItemButtonProps = {
 } & Omit<ItemFormProps, "action">;
 
@@ -72,7 +73,6 @@ export function CreateNestedItemButton({ itemName, postEndpoint }: CreateNestedI
       iconSize="m"
       size="s"
     >
-      {/*TODO:: replace endpoint string with TypedModelApiManager method */}
       <NestedModelActionForm compressed action="create" itemName={itemName} postEndpoint={postEndpoint} />
     </ButtonWithClosablePopover>
   );

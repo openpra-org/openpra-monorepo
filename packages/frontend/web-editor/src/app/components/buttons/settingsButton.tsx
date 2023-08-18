@@ -12,9 +12,6 @@ export default function SettingsButton(props: SettingsButtonProps) {
     //list of props passed
     const { onClick, styleOverrides, ...buttonProps} = props;
 
-    //uses theme to grab the color we want
-    const {euiTheme} = useEuiTheme();
-
     //sets the settings button style to what we want when we reuse it, this could even be used as a standard button to be honest
     const settingsButtonStyle = {
         ...styleOverrides

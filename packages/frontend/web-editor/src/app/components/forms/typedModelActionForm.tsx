@@ -143,7 +143,7 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
         <>
           <EuiTitle size="xs" ><h6> Create {itemLabel} Model </h6></EuiTitle>
           <EuiSpacer size="s"/>
-          <EuiText size="s" color="subdued"> A valid {itemLabel.toLowerCase()} model must have a name </EuiText>
+          <EuiText size="s" color="subdued"> A valid {itemLabel} model must have a name </EuiText>
           <EuiSpacer />
         </>
       }

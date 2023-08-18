@@ -5,6 +5,7 @@ import { ItemFormProps } from "../forms/typedModelActionForm";
 import NestedModelActionForm, { NestedItemFormProps } from "../forms/nestedModelActionForm";
 import TypedModelActionForm from "../forms/typedModelActionForm";
 import NestedModelApiManager from "packages/shared-types/src/lib/api/NestedModelApiManager";
+import { toTitleCase } from "../../../utils/StringUtils";
 
 export type CreateItemButtonProps = {
 } & Omit<ItemFormProps, "action">;
@@ -30,7 +31,7 @@ export default function CreateItemButton({ itemName, postEndpoint }: CreateItemB
     <ButtonWithClosablePopover
       popoverExtra={popoverExtra}
       closeProp="onCancel"
-      buttonText="Create"
+      buttonText={"Create " + toTitleCase(itemName) + " Model"}
       confirmDiscard={true}
       popoverProps={{
         initialFocus: "#name"
@@ -63,7 +64,7 @@ export function CreateNestedItemButton({ itemName, postEndpoint }: CreateNestedI
     <ButtonWithClosablePopover
       popoverExtra={popoverExtra}
       closeProp="onCancel"
-      buttonText="Create"
+      buttonText={"Create " + toTitleCase(itemName) + " Model"}
       confirmDiscard={true}
       popoverProps={{
         initialFocus: "#name"

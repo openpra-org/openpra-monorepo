@@ -7,6 +7,7 @@ export default function EventTreeList(){
         <NestedModelList 
           getNestedEndpoint={NestedModelApiManager.getEventTrees} 
           deleteNestedEndpoint={NestedModelApiManager.deleteEventTree} 
+          patchNestedEndpoint={NestedModelApiManager.patchEventTreeLabel} 
           name='event-tree'
         />
     );

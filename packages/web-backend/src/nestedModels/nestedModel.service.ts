@@ -13,6 +13,7 @@ import { WeibullAnalysis, WeibullAnalysisDocument } from './schemas/weibull-anal
 import { FunctionalEvent, FunctionalEventDocument } from './schemas/functional-event.schema';
 import { BayesianNetwork, BayesianNetworkDocument } from './schemas/bayesian-network.schema';
 import { Init } from 'v8';
+import { Label } from 'src/schemas/label.schema';
 import { number } from 'nestjs-zod/z';
 
 @Injectable()
@@ -568,6 +569,131 @@ export class NestedModelService {
     }
   }
 
+  /**
+   * updates the label in the nested model
+   * @param id the id of the nested model to be udpated
+   * @param body a label with a name and description
+   * @returns a promise with the updated model with an updated label
+   */
+  async updateBayesianEstimationLabel(id: number, body: Label): Promise<NestedModel> {
+    try {
+      return this.bayesianEstimationModel.findOneAndUpdate({'id': Number(id)}, {'label': body}, { new: true })
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * updates the label in the nested model
+   * @param id the id of the nested model to be udpated
+   * @param body a label with a name and description
+   * @returns a promise with the updated model with an updated label
+   */
+  async updateFunctionalEventLabel(id: number, body: Label): Promise<NestedModel> {
+    try {
+      return this.functionalEventsModel.findOneAndUpdate({'id': Number(id)}, {'label': body}, { new: true })
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * updates the label in the nested model
+   * @param id the id of the nested model to be udpated
+   * @param body a label with a name and description
+   * @returns a promise with the updated model with an updated label
+   */
+  async updateInitiatingEventLabel(id: number, body: Label): Promise<NestedModel> {
+    try {
+      return this.initiatingEventModel.findOneAndUpdate({'id': Number(id)}, {'label': body}, { new: true })
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * updates the label in the nested model
+   * @param id the id of the nested model to be udpated
+   * @param body a label with a name and description
+   * @returns a promise with the updated model with an updated label
+   */
+  async updateMarkovChainLabel(id: number, body: Label): Promise<NestedModel> {
+    try {
+      return this.markovChainModel.findOneAndUpdate({'id': Number(id)}, {'label': body}, { new: true })
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * updates the label in the nested model
+   * @param id the id of the nested model to be udpated
+   * @param body a label with a name and description
+   * @returns a promise with the updated model with an updated label
+   */
+  async updateBayesianNetworkLabel(id: number, body: Label): Promise<NestedModel> {
+    try {
+      return this.bayesianNetworkModel.findOneAndUpdate({'id': Number(id)}, {'label': body}, { new: true })
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * updates the label in the nested model
+   * @param id the id of the nested model to be udpated
+   * @param body a label with a name and description
+   * @returns a promise with the updated model with an updated label
+   */
+  async updateEventSqeuenceDiagramLabel(id: number, body: Label): Promise<NestedModel> {
+    try {
+      return this.eventSequenceDiagramModel.findOneAndUpdate({'id': Number(id)}, {'label': body}, { new: true })
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * updates the label in the nested model
+   * @param id the id of the nested model to be udpated
+   * @param body a label with a name and description
+   * @returns a promise with the updated model with an updated label
+   */
+  async updateEventTreeLabel(id: number, body: Label): Promise<NestedModel> {
+    try {
+      return this.eventTreeModel.findOneAndUpdate({'id': Number(id)}, {'label': body}, { new: true })
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * updates the label in the nested model
+   * @param id the id of the nested model to be udpated
+   * @param body a label with a name and description
+   * @returns a promise with the updated model with an updated label
+   */
+  async updateFaultTreeLabel(id: number, body: Label): Promise<NestedModel> {
+    try {
+      return this.faultTreeModel.findOneAndUpdate({'id': Number(id)}, {'label': body}, { new: true })
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * updates the label in the nested model
+   * @param id the id of the nested model to be udpated
+   * @param body a label with a name and description
+   * @returns a promise with the updated model with an updated label
+   */
+  async updateWeibullAnalysisLabel(id: number, body: Label): Promise<NestedModel> {
+    try {
+      return this.weibullAnalysisModel.findOneAndUpdate({'id': Number(id)}, {'label': body}, { new: true })
+    } catch(error) {
+      throw new Error(error);
+    }
+  } 
   //method to remove something a single parent from a child given just the parent id
 
   /**

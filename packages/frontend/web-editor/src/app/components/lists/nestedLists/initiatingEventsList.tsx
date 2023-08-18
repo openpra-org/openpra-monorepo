@@ -7,6 +7,7 @@ export default function InitiatingEventsList(){
         <NestedModelList 
           getNestedEndpoint={NestedModelApiManager.getInitiatingEvents} 
           deleteNestedEndpoint={NestedModelApiManager.deleteInitiatingEvent} 
+          patchNestedEndpoint={NestedModelApiManager.patchInitiatingEventLabel} 
           name='initiating-event'
         />
     );

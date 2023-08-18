@@ -7,6 +7,7 @@ export default function FaultTreeList(){
         <NestedModelList 
           getNestedEndpoint={NestedModelApiManager.getFaultTrees} 
           deleteNestedEndpoint={NestedModelApiManager.deleteFaultTree} 
+          patchNestedEndpoint={NestedModelApiManager.patchFaultTreeLabel} 
           name='fault-tree'
         />
     );

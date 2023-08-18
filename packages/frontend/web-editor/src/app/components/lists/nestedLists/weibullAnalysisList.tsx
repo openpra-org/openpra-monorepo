@@ -7,6 +7,7 @@ export default function WeibullAnalysisList(){
         <NestedModelList 
           getNestedEndpoint={NestedModelApiManager.getWeibullAnalysis} 
           deleteNestedEndpoint={NestedModelApiManager.deleteWeibullAnalysis} 
+          patchNestedEndpoint={NestedModelApiManager.patchWeibullAnalysisLabel} 
           name='weibull-analysis'
         />
     );

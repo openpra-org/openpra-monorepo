@@ -1,28 +1,23 @@
 import {
-    EuiButton, EuiButtonEmpty, EuiFieldNumber,
+    EuiButton,
     EuiFieldText, EuiFlexGroup, EuiFlexItem,
     EuiForm,
-    EuiFormRow, EuiComboBox, EuiComboBoxOptionOption,
+    EuiFormRow, 
     EuiSpacer, EuiText,
     EuiTextArea, EuiTitle
   } from "@elastic/eui";
-  import React, {useEffect, useState} from "react";
+  import React, { useState } from "react";
   import { toTitleCase } from "../../../utils/StringUtils";
-  import { DEFAULT_TYPED_MODEL_JSON, TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
-  import InternalEventsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
-  import TestApiManager from "shared-types/src/lib/api/TypedModelApiManager";
-  import ApiManager from "packages/shared-types/src/lib/api/ApiManager";
-  import InternalHazardsModel from "packages/shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
-  import ExternalHazardsModel from "packages/shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
-  import FullScopeModel from "packages/shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
   import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
-import { DEFAULT_NESTED_MODEL_JSON, NestedModelJSON } from "packages/shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+  import { DEFAULT_NESTED_MODEL_JSON, NestedModelJSON } from "packages/shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+  import { LabelJSON } from "packages/shared-types/src/lib/types/Label";
   
   export type NestedItemFormProps = {
     itemName: string;
     // TODO:: TODO :: replace endpoint string with TypedApiManager method
+    id?: number
     postEndpoint?: (data: NestedModelJSON) => {};
-    patchEndpoint?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => {}
+    patchEndpoint?: (id: number, data: LabelJSON) => {}
     onSuccess?: () => {};
     onFail?: () => {};
     onCancel?: (func: any) => void;
@@ -32,11 +27,10 @@ import { DEFAULT_NESTED_MODEL_JSON, NestedModelJSON } from "packages/shared-type
     noHeader?: boolean;
   }
   
-  export default function NestedModelActionForm({ itemName, onCancel, noHeader, compressed, initialFormValues, action, patchEndpoint, postEndpoint, onSuccess, onFail}: NestedItemFormProps) {
+  export default function NestedModelActionForm({ itemName, onCancel, noHeader, compressed, initialFormValues, action, patchEndpoint, postEndpoint, onSuccess, onFail, id}: NestedItemFormProps) {
 
     //setting up initial values depending on what has been send, if init form values are passed its assumed to be updating instead of adding
     const formInitials = initialFormValues ? initialFormValues : DEFAULT_NESTED_MODEL_JSON
-  
   
     //sets the current typed model using our formIntials, in a react state so we can pass it around
     const [typedModel, setTypedModel] = useState(formInitials);
@@ -61,6 +55,10 @@ import { DEFAULT_NESTED_MODEL_JSON, NestedModelJSON } from "packages/shared-type
         //does postEndpoint if it has been passed
         if(postEndpoint){
           postEndpoint(partialModel)
+        } else if(patchEndpoint){
+          if(id){
+            patchEndpoint(id, typedModel.label)
+          }
         }
       } else {
         alert('Please enter a valid name')

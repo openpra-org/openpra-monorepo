@@ -7,6 +7,7 @@ export default function BayesianEstimationList(){
         <NestedModelList 
           getNestedEndpoint={NestedModelApiManager.getBayesianEstimations} 
           deleteNestedEndpoint={NestedModelApiManager.deleteBayesianEstimation} 
+          patchNestedEndpoint={NestedModelApiManager.patchBayesianEstimationLabel} 
           name='bayesian-estimation'
         />
     );

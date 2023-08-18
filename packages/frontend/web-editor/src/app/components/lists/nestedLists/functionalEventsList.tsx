@@ -7,6 +7,7 @@ export default function FunctionalEventsList(){
         <NestedModelList 
           getNestedEndpoint={NestedModelApiManager.getFunctionalEvents} 
           deleteNestedEndpoint={NestedModelApiManager.deleteFunctionalEvent} 
+          patchNestedEndpoint={NestedModelApiManager.patchFunctionalEventLabel} 
           name='functional-event'
         />
     );

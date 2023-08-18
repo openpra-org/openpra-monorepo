@@ -1,5 +1,5 @@
 import {
-  EuiButton, EuiButtonEmpty, EuiFieldNumber,
+  EuiButton, 
   EuiFieldText, EuiFlexGroup, EuiFlexItem,
   EuiForm,
   EuiFormRow, EuiComboBox, EuiComboBoxOptionOption,
@@ -68,8 +68,8 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
           // Creates the objects that will go in the EuiSelectable
           listWithoutCurrentUser = listWithoutCurrentUser.map((item: any) => {
             return {
-              label: item.firstName + ' ' + item.lastName,
-              key: item.id,
+              label: item.label,
+              key: item.key,
             };
           })
           let selectedList = listWithoutCurrentUser.map((item: any) => {
@@ -109,7 +109,6 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
 
       //this creates the finalIdList that is added when updated or added to the model
       const finalIdList = usersListId
-      console.log(finalIdList)
       finalIdList.push(userId)
 
       //creating a partial model to pass for update, may update to work for adding later aswell

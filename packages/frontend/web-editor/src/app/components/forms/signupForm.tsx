@@ -10,6 +10,9 @@ import {
 } from "@elastic/eui";
 import { SignUpErrorProps, SignUpProps } from "shared-types/src/lib/api/AuthTypes";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
+//import { DuplicateUserException } from 'shared-types/src/lib/errors/duplicateUserException';
+import { InvalidTokenError } from "jwt-decode";
+import { sign } from "crypto";
 
 export default function SignupForm() {
     const defaultProps: SignUpProps = {
@@ -38,11 +41,26 @@ export default function SignupForm() {
     function handleSignup() {
         const { passConfirm, ...signupData } = signup;
         ApiManager.signup(signupData)
-          .then(() => {
-            if(ApiManager.isLoggedIn()) {
-                setRedirectToHomepage(true)
-            }
-          })
+            .then(() => {
+                if(ApiManager.isLoggedIn()) {
+                    setRedirectToHomepage(true)
+                }
+            })
+            .catch((signInError) => {
+                if(signInError.message.includes('Internal Server Error')){
+                    setError({
+                        ...error,
+                        username: true
+                    })
+                }
+                else {
+                    setError({
+                        ...error,
+                        email: true
+                    })
+                }
+                
+            })
     }
 
     //Corrects the isInvalid when a user types something in a blank input field
@@ -150,7 +168,7 @@ export default function SignupForm() {
                         })}
                     />
                 </EuiFormRow>
-                <EuiFormRow>
+                <EuiFormRow isInvalid={error.email} error='Invalid Email'>
                     <EuiFieldText
                         placeholder="Email"
                         isInvalid={error.email}
@@ -161,7 +179,7 @@ export default function SignupForm() {
                         })}
                     />
                 </EuiFormRow>
-                <EuiFormRow>
+                <EuiFormRow isInvalid={error.username} error='Invalid Username'>
                     <EuiFieldText
                         placeholder="Username"
                         isInvalid={error.username}

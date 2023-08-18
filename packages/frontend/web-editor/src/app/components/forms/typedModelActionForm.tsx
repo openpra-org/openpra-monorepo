@@ -26,7 +26,7 @@ export type ItemFormProps = {
   noHeader?: boolean;
 }
 
-export default function TypedModelActionForm({ itemName, onCancel, noHeader, compressed, initialFormValues, action, patchEndpoint, postEndpoint, onSuccess, onFail}: ItemFormProps) {
+export default function TypedModelActionForm({ itemName, onCancel, noHeader, compressed, initialFormValues, action, patchEndpoint, postEndpoint, onSuccess, onFail, }: ItemFormProps) {
 
   const userId = (ApiManager.getCurrentUser()?.user_id ?? -1)
 
@@ -54,47 +54,52 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
   //list of the user ids which we add to the api calls
   const [usersListId, setUsersListId] = useState([0])
 
-  //
-  useEffect(() => {
-    const logFetchedData = async () => {
-      try {
-        const usersData = await ApiManager.getUsers();
-        const resultList = usersData.results;
-        // Filters out the current user from the list since it's implied that they want to see their own model
-        let listWithoutCurrentUser = resultList.filter((x: any) => x.id != ApiManager.getCurrentUser().user_id)
-        // Creates the objects that will go in the EuiSelectable
-        listWithoutCurrentUser = listWithoutCurrentUser.map((item: any) => {
-          return {
-            label: item.firstName + ' ' + item.lastName,
-            key: item.id,
-          };
-        })
-        let selectedList = listWithoutCurrentUser.map((item: any) => {
-          if (initUsers.includes(item.key)) {
+  console.log(patchEndpoint)
+
+  //use effect to set up users, only runs if init form values is passed which is only passed on edit!
+  if(initialFormValues){
+    useEffect(() => {
+      const logFetchedData = async () => {
+        try {
+          const usersData = await ApiManager.getUsers();
+          const resultList = usersData.results;
+          // Filters out the current user from the list since it's implied that they want to see their own model
+          let listWithoutCurrentUser = resultList.filter((x: any) => x.id != ApiManager.getCurrentUser().user_id)
+          // Creates the objects that will go in the EuiSelectable
+          listWithoutCurrentUser = listWithoutCurrentUser.map((item: any) => {
             return {
               label: item.label,
               key: item.key,
             };
-          }
-        })
-        selectedList = selectedList.filter((item: any) => item !== undefined)
-        setSelectedUsersList(selectedList)
-        setUsersList(listWithoutCurrentUser)
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
-    };
-    logFetchedData();
-  }, []);
+          })
+          let selectedList = listWithoutCurrentUser.map((item: any) => {
+            //console.log(initUsers)
+            if (initUsers.includes(item.key)) {
+              return {
+                label: item.label,
+                key: item.key,
+              };
+            }
+          })
+          selectedList = selectedList.filter((item: any) => item !== undefined)
+          setSelectedUsersList(selectedList)
+          setUsersList(listWithoutCurrentUser)
+        } catch (error) {
+          console.error('Error fetching data:', error);
+        }
+      };
+      logFetchedData();
+    }, []);
 
-  //use effect hook that updates the list of users we are setting
-  useEffect(() => {
-    const idList : number[] = selectedUsersList.map((item: any) => {
-      return item.key
-    })
-    //sets certain data
-    setUsersListId(idList)
-  }, [selectedUsersList])
+    //use effect hook that updates the list of users we are setting
+    useEffect(() => {
+      const idList : number[] = selectedUsersList.map((item: any) => {
+        return item.key
+      })
+      //sets certain data
+      setUsersListId(idList)
+    }, [selectedUsersList])
+  }
 
   //Handles the click for the submit button, functionality depends on whether initform values are passed, indicating an update
   const handleAction = (e: React.FormEvent<HTMLFormElement>) => {
@@ -115,7 +120,6 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
       //calls the 2 functions depending on what is passed to patch
       if(initialFormValues){
         if(patchEndpoint){
-          TypedModelApiManager.patchInternalEvent(initialFormValues.id, userId, partialModel)
           patchEndpoint(initialFormValues.id, userId, partialModel)
         }
       }
@@ -181,27 +185,30 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
           />
         </EuiFormRow>
         <EuiSpacer size="m" />
-        <EuiFlexGroup>
-          <EuiFormRow fullWidth label='Allow access to other users' display={compressed ? "rowCompressed" : undefined} style={{width: '100%'}}>
-            <EuiComboBox
-                fullWidth
-                options={usersList}
-                selectedOptions={selectedUsersList}
-                onChange={(newOptions) => setSelectedUsersList(newOptions)}
-            />
-          </EuiFormRow>
-        </EuiFlexGroup>
-        <EuiSpacer size="m" />
+        {initialFormValues ? (<>
+          <EuiFlexGroup>
+            <EuiFormRow fullWidth label='Allow access to other users' display={compressed ? "rowCompressed" : undefined} style={{width: '100%'}}>
+              <EuiComboBox
+                  fullWidth
+                  options={usersList}
+                  selectedOptions={selectedUsersList}
+                  onChange={(newOptions) => setSelectedUsersList(newOptions)}
+              />
+            </EuiFormRow>
+          </EuiFlexGroup>
+          <EuiSpacer size="m" />
+          </>
+        ) : null}
         <EuiFlexGroup direction="row" justifyContent="spaceBetween" gutterSize="m">
           <EuiFlexItem grow={false}>
             <EuiFormRow display={compressed ? "rowCompressed" : undefined}>
-              <EuiButton size={compressed ? "s" : "m"} type="submit" fill color="primary">{actionLabel}</EuiButton>
+              <EuiButton size={compressed ? "s" : "m"} type="submit" fill>{actionLabel}</EuiButton>
             </EuiFormRow>
           </EuiFlexItem>
           {
             onCancel && <EuiFlexItem grow={false}>
               <EuiFormRow display={compressed ? "rowCompressed" : undefined}>
-                <EuiButton size={compressed ? "s" : "m"} onClick={onCancel} color="danger">Cancel</EuiButton>
+                <EuiButton size={compressed ? "s" : "m"} onClick={onCancel} iconSide='right'>Cancel</EuiButton>
               </EuiFormRow>
             </EuiFlexItem>
           }

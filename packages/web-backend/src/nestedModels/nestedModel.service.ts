@@ -14,6 +14,7 @@ import { FunctionalEvent, FunctionalEventDocument } from './schemas/functional-e
 import { BayesianNetwork, BayesianNetworkDocument } from './schemas/bayesian-network.schema';
 import { Init } from 'v8';
 import { Label } from 'src/schemas/label.schema';
+import { number } from 'nestjs-zod/z';
 
 @Injectable()
 export class NestedModelService {
@@ -692,5 +693,115 @@ export class NestedModelService {
     } catch(error) {
       throw new Error(error);
     }
+  } 
+  //method to remove something a single parent from a child given just the parent id
+
+  /**
+   * this goes through all the nested models and removes the given parent id from them, and if something is idless, it is removed
+   * @param modelId id of the parent model
+   */
+  async removeParentModels (modelId: number): Promise<number>{
+    
+    //number of completely removed models which is what will be returned
+    let numberRemoved = 0
+
+    //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
+    let result
+
+    //query to search based on this field
+    const query = {'parentIds': Number(modelId)}
+
+    //to remove the id from the list
+    const updateData = {
+      $pull: {
+        parentIds: Number(modelId)
+      }
+    }
+
+    //goes through each model type, checks if the id is on any of those
+    //then checks if its the *only* one, and either updates and removes or delete it accordingly
+    //when a model is permanently removed from thdatabased the removed value does up
+    while(result = await this.bayesianEstimationModel.findOne(query)){
+      if(result.parentIds.length == 1){
+        await this.bayesianEstimationModel.findOneAndDelete(query)
+        numberRemoved++
+      } else {
+        await this.bayesianEstimationModel.findOneAndUpdate(query, updateData)
+      }
+    }
+
+    while(result = await this.bayesianNetworkModel.findOne(query)){
+      if(result.parentIds.length == 1){
+        await this.bayesianNetworkModel.findOneAndDelete(query)
+        numberRemoved++
+      } else {
+        await this.bayesianNetworkModel.findOneAndUpdate(query, updateData)
+      }
+    }
+
+    while(result = await this.initiatingEventModel.findOne(query)){
+      if(result.parentIds.length == 1){
+        await this.initiatingEventModel.findOneAndDelete(query)
+        numberRemoved++
+      } else {
+        await this.initiatingEventModel.findOneAndUpdate(query, updateData)
+      }
+    }
+
+    while(result = await this.eventSequenceDiagramModel.findOne(query)){
+      if(result.parentIds.length == 1){
+        await this.eventSequenceDiagramModel.findOneAndDelete(query)
+        numberRemoved++
+      } else {
+        await this.eventSequenceDiagramModel.findOneAndUpdate(query, updateData)
+      }
+    }
+
+    while(result = await this.eventTreeModel.findOne(query)){
+      if(result.parentIds.length == 1){
+        await this.eventTreeModel.findOneAndDelete(query)
+        numberRemoved++
+      } else {
+        await this.eventTreeModel.findOneAndUpdate(query, updateData)
+      }
+    }
+
+    while(result = await this.faultTreeModel.findOne(query)){
+      if(result.parentIds.length == 1){
+        await this.faultTreeModel.findOneAndDelete(query)
+        numberRemoved++
+      } else {
+        await this.faultTreeModel.findOneAndUpdate(query, updateData)
+      }
+    }
+
+    while(result = await this.functionalEventsModel.findOne(query)){
+      if(result.parentIds.length == 1){
+        await this.functionalEventsModel.findOneAndDelete(query)
+        numberRemoved++
+      } else {
+        await this.functionalEventsModel.findOneAndUpdate(query, updateData)
+      }
+    }
+
+    while(result = await this.markovChainModel.findOne(query)){
+      if(result.parentIds.length == 1){
+        await this.markovChainModel.findOneAndDelete(query)
+        numberRemoved++
+      } else {
+        await this.markovChainModel.findOneAndUpdate(query, updateData)
+      }
+    }
+
+    while(result = await this.weibullAnalysisModel.findOne(query)){
+      if(result.parentIds.length == 1){
+        await this.weibullAnalysisModel.findOneAndDelete(query)
+        numberRemoved++
+      } else {
+        await this.weibullAnalysisModel.findOneAndUpdate(query, updateData)
+      }
+    }
+
+    return numberRemoved
   }
 }

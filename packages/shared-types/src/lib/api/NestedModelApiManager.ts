@@ -191,7 +191,6 @@ export default class NestedModelApiManager {
       nestedType: 'faultTrees'
     }
     const currentModelType = await TypedModelApiManager.getCurrentModelType()
-    console.log(currentModelType)
     if(currentModelType === 'internal-events')
       await TypedModelApiManager.addNestedToInternalEvent(body)
     if(currentModelType === 'internal-hazards')
@@ -938,6 +937,19 @@ export default class NestedModelApiManager {
     if(currentModelType == 'full-scope')
       TypedModelApiManager.deleteNestedFromFullScope(modelId, body)
     return response
+  }
+
+  //delete for parent ids
+  /**
+   * removes all instanced of the parent ids, and deleted the models with nothing left
+   * @param parentId parent id to be removed from nested models
+   * @param override overrides the function
+   * @param onSuccessCallback does something on success
+   * @param onFailCallback does something on fail
+   */
+  static async removeParentIds(parentId = -1, override: any = null, onSuccessCallback = NestedModelApiManager.defaultSuccessCallback, onFailCallback = NestedModelApiManager.defaultFailCallback): Promise<number> {
+    console.log('in api')
+    return await NestedModelApiManager.delete(`${NESTED_ENDPOINT}/?modelId=${Number(parentId)}`, override, onSuccessCallback, onFailCallback)
   }
 
 

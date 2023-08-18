@@ -119,7 +119,7 @@ export default function EditCurrentModel(){
                   label: currentModel.getLabel(),
                   users: currentModel.getUsers()
                 }}
-            />
+              />
             </EuiSkeletonRectangle>
           </EuiPanel>
         </EuiFlexItem>

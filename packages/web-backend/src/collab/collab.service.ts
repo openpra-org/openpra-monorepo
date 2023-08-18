@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, MongooseError } from 'mongoose';
 import * as argon2 from 'argon2';
 import * as dot from 'dot-object';
 import { PaginationDto } from './dtos/pagination.dto';
@@ -8,6 +8,8 @@ import { CreateNewUserDto } from './dtos/create-new-user.dto';
 import { UserPreferencesDto } from './dtos/user-preferences.dto';
 import { UserCounter, UserCounterDocument } from './schemas/user-counter.schema';
 import { User, UserDocument } from './schemas/user.schema';
+import { InvalidTokenError } from 'jwt-decode';
+//import { DuplicateUserException } from '../../../shared-types/src/lib/errors/duplicateUserException';
 
 @Injectable()
 export class CollabService {
@@ -214,6 +216,11 @@ export class CollabService {
     * @returns A mongoose document of the new user
     */
     async createNewUser(body: CreateNewUserDto): Promise<User> {
+        const username = body.username
+        const response = await this.userModel.findOne({'username': username})
+        if(response){
+            throw new Error("Duplicate Username")
+        }
         body.password = await argon2.hash(body.password);
         const newUser = new this.userModel(body);
         newUser.id = await this.getNextUserValue('UserCounter');

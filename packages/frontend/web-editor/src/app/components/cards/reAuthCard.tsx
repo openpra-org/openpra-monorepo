@@ -1,6 +1,6 @@
-import { EuiButton, EuiFieldPassword, EuiFlexGroup, EuiFlexItem, EuiForm, EuiFormRow, EuiOverlayMask, EuiText } from "@elastic/eui";
+import { EuiButton, EuiFlexGroup, EuiFlexItem, EuiOverlayMask, EuiText } from "@elastic/eui";
 import ApiManager from "packages/shared-types/src/lib/api/ApiManager";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export default function ReAuthCard() {
   const [password, setPassword] = useState("");

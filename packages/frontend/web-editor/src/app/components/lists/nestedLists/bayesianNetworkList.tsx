@@ -6,7 +6,8 @@ export default function BayesianNetworkList(){
     return (
         <NestedModelList 
           getNestedEndpoint={NestedModelApiManager.getBayesianNetworks} 
-          deleteNestedEndpoint={NestedModelApiManager.deleteBayesianNetwork} 
+          deleteNestedEndpoint={NestedModelApiManager.deleteBayesianNetwork}
+          patchNestedEndpoint={NestedModelApiManager.patchBayesianNetworkLabel} 
           name='bayesian-network'
         />
     );

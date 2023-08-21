@@ -42,6 +42,8 @@ export default function ButtonWithPopover({ iconType, children, buttonText, onRe
   let modal: JSX.Element | null = null;
   const [isModalVisible, setIsModalVisible] = useState(false);
   let showModal = () => (setIsPopoverOpen(false));
+
+  //TODO: Make this look better, it seems to confirm modal in EUI can't make the cofirm and discard buttons look good
   if(confirmDiscard) {
     /** Discard Confirmation Modal **/
     const closeModal = () => setIsModalVisible(false);
@@ -57,7 +59,7 @@ export default function ButtonWithPopover({ iconType, children, buttonText, onRe
         cancelButtonText="Keep editing"
         confirmButtonText="Discard changes"
         defaultFocusedButton="cancel"
-        buttonColor="danger"
+        buttonColor="primary"
       >
         <p>Unsaved changes will be lost.</p>
       </EuiConfirmModal>

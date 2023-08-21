@@ -9,10 +9,8 @@ import {
     EuiFlexItem,
     EuiSpacer,
     EuiTitle,
-    EuiButtonEmpty,
 } from '@elastic/eui'
 import { useNavigate } from 'react-router-dom';
-import TypedModelApiManager from 'packages/shared-types/src/lib/api/TypedModelApiManager';
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
   export interface DeleteItemProps {

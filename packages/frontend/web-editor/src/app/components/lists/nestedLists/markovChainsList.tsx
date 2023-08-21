@@ -7,6 +7,7 @@ export default function MarkovChainsList(){
         <NestedModelList 
           getNestedEndpoint={NestedModelApiManager.getMarkovChains} 
           deleteNestedEndpoint={NestedModelApiManager.deleteMarkovChain} 
+          patchNestedEndpoint={NestedModelApiManager.patchMakovChaionLabel} 
           name='markov-chain'
         />
     );

@@ -13,15 +13,19 @@ import { LabelJSON } from "shared-types/src/lib/types/Label";
 import DeleteItemBox from "../listchanging/deleteItemBox";
 import LastActionText from "./LastActionText";
 import { ListItemContextMenuButton, ListItemEditAction } from "./ListItemAction";
+import { TypedModelJSON } from "packages/shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 
 
 //title is required, description isnt required but is typically present
 export type GenericListItemProps = {
   id: number,
-  label?: LabelJSON,
+  label: LabelJSON,
   endpoint: string,
   deleteTypedEndpoint?: (id: number) => {};
   deleteNestedEndpoint?: (id: number) => {};
+  patchTypedEndpoint?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => {}
+  patchNestedEndpoint?: (id: number, data: LabelJSON) => {}
+  users?: number[]
   path: string,
   itemName: string;
 };

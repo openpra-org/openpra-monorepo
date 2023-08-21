@@ -1,3 +1,4 @@
+import { LabelJSON } from "../types/Label";
 import NestedModel, { NestedModelJSON } from "../types/modelTypes/innerModels/nestedModel";
 import AuthService from "./AuthService";
 import TypedModelApiManager from "./TypedModelApiManager";
@@ -190,7 +191,6 @@ export default class NestedModelApiManager {
       nestedType: 'faultTrees'
     }
     const currentModelType = await TypedModelApiManager.getCurrentModelType()
-    console.log(currentModelType)
     if(currentModelType === 'internal-events')
       await TypedModelApiManager.addNestedToInternalEvent(body)
     if(currentModelType === 'internal-hazards')
@@ -527,6 +527,174 @@ export default class NestedModelApiManager {
           .catch(err => onFailCallback(err, override));
   }
 
+  //patch methods
+
+  /**
+   * updates the label for the type of nested model
+   * @param id the id of the nested model
+   * @param data a labelJSON with a name and optional description
+   * @param override overrides the funciton
+   * @param onSuccessCallback does something of success
+   * @param onFailCallback does something on fail
+   * @returns a promise with the new updated model, with its label
+   */
+  static patchBayesianEstimationLabel(id: number, data: LabelJSON, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback) : Promise<NestedModel> {
+    return TypedModelApiManager.patch(`${BAYESIAN_ESTIMATION_ENDPOINT}/${id}`, JSON.stringify(data), override, onSuccessCallback, onFailCallback)
+        .then((response) => {
+            return response.json()
+        });
+  }
+
+  /**
+   * updates the label for the type of nested model
+   * @param id the id of the nested model
+   * @param data a labelJSON with a name and optional description
+   * @param override overrides the funciton
+   * @param onSuccessCallback does something of success
+   * @param onFailCallback does something on fail
+   * @returns a promise with the new updated model, with its label
+   */
+  static patchBayesianNetworkLabel(id: number, data: LabelJSON, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback) : Promise<NestedModel> {
+    return TypedModelApiManager.patch(`${BAYESIAN_NETWORKS_ENDPOINT}/${id}`, JSON.stringify(data), override, onSuccessCallback, onFailCallback)
+        .then((response) => {
+            return response.json()
+        });
+  }
+
+  /**
+   * updates the label for the type of nested model
+   * @param id the id of the nested model
+   * @param data a labelJSON with a name and optional description
+   * @param override overrides the funciton
+   * @param onSuccessCallback does something of success
+   * @param onFailCallback does something on fail
+   * @returns a promise with the new updated model, with its label
+   */
+  static patchEventSequenceDiagramLabel(id: number, data: LabelJSON, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback) : Promise<NestedModel> {
+    return TypedModelApiManager.patch(`${EVENT_SEQUENCE_DIAGRAMS_ENDPOINT}/${id}`, JSON.stringify(data), override, onSuccessCallback, onFailCallback)
+        .then((response) => {
+            return response.json()
+        });
+  }
+
+  /**
+   * updates the label for the type of nested model
+   * @param id the id of the nested model
+   * @param data a labelJSON with a name and optional description
+   * @param override overrides the funciton
+   * @param onSuccessCallback does something of success
+   * @param onFailCallback does something on fail
+   * @returns a promise with the new updated model, with its label
+   */
+  static patchEventTreeLabel(id: number, data: LabelJSON, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback) : Promise<NestedModel> {
+    return TypedModelApiManager.patch(`${EVENT_TREES_ENDPOINT}/${id}`, JSON.stringify(data), override, onSuccessCallback, onFailCallback)
+        .then((response) => {
+            return response.json()
+        });
+  }
+
+  /**
+   * updates the label for the type of nested model
+   * @param id the id of the nested model
+   * @param data a labelJSON with a name and optional description
+   * @param override overrides the funciton
+   * @param onSuccessCallback does something of success
+   * @param onFailCallback does something on fail
+   * @returns a promise with the new updated model, with its label
+   */
+  static patchFaultTreeLabel(id: number, data: LabelJSON, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback) : Promise<NestedModel> {
+    return TypedModelApiManager.patch(`${FAULT_TREES_ENDPOINT}/${id}`, JSON.stringify(data), override, onSuccessCallback, onFailCallback)
+        .then((response) => {
+            return response.json()
+        });
+  }
+
+  /**
+   * updates the label for the type of nested model
+   * @param id the id of the nested model
+   * @param data a labelJSON with a name and optional description
+   * @param override overrides the funciton
+   * @param onSuccessCallback does something of success
+   * @param onFailCallback does something on fail
+   * @returns a promise with the new updated model, with its label
+   */
+  static patchFunctionalEventLabel(id: number, data: LabelJSON, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback) : Promise<NestedModel> {
+    return TypedModelApiManager.patch(`${FUNCTIONAL_EVENTS_ENDPOINT}/${id}`, JSON.stringify(data), override, onSuccessCallback, onFailCallback)
+        .then((response) => {
+            return response.json()
+        });
+  }
+
+  /**
+   * updates the label for the type of nested model
+   * @param id the id of the nested model
+   * @param data a labelJSON with a name and optional description
+   * @param override overrides the funciton
+   * @param onSuccessCallback does something of success
+   * @param onFailCallback does something on fail
+   * @returns a promise with the new updated model, with its label
+   */
+  static patchInitiatingEventLabel(id: number, data: LabelJSON, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback) : Promise<NestedModel> {
+    return TypedModelApiManager.patch(`${INITIATING_EVENTS_ENDPOINT}/${id}`, JSON.stringify(data), override, onSuccessCallback, onFailCallback)
+        .then((response) => {
+            return response.json()
+        });
+  }
+
+  /**
+   * updates the label for the type of nested model
+   * @param id the id of the nested model
+   * @param data a labelJSON with a name and optional description
+   * @param override overrides the funciton
+   * @param onSuccessCallback does something of success
+   * @param onFailCallback does something on fail
+   * @returns a promise with the new updated model, with its label
+   */
+  static patchMakovChaionLabel(id: number, data: LabelJSON, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback) : Promise<NestedModel> {
+    return TypedModelApiManager.patch(`${MARKOV_CHAINS_ENDPOINT}/${id}`, JSON.stringify(data), override, onSuccessCallback, onFailCallback)
+        .then((response) => {
+            return response.json()
+        });
+  }
+
+  /**
+   * updates the label for the type of nested model
+   * @param id the id of the nested model
+   * @param data a labelJSON with a name and optional description
+   * @param override overrides the funciton
+   * @param onSuccessCallback does something of success
+   * @param onFailCallback does something on fail
+   * @returns a promise with the new updated model, with its label
+   */
+  static patchWeibullAnalysisLabel(id: number, data: LabelJSON, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback) : Promise<NestedModel> {
+    return TypedModelApiManager.patch(`${WEIBULL_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data), override, onSuccessCallback, onFailCallback)
+        .then((response) => {
+            return response.json()
+        });
+  }
+
+  /**
+     * Patches a nested model
+     * @param url the url we grab the data from, passed by the other methods
+     * @param data the a prtial of a model that at least contains a label and users list
+     * @param override overrides the function
+     * @param onSuccessCallback preforms this on success
+     * @param onFailCallback preforms this on failure
+     * @returns the newly patched model in a promise
+     */
+  static patch(url: any, data: any, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback) {
+    return fetch(url, {
+        method: 'PATCH',
+        cache: OPTION_CACHE,
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `JWT ${AuthService.getEncodedToken()}`,
+        },
+        body: data, // body data type must match "Content-Type" header
+    }).then(res => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
+        .catch(err => onFailCallback(err, override));
+}
+
   //delete methods
 
   /**
@@ -769,6 +937,19 @@ export default class NestedModelApiManager {
     if(currentModelType == 'full-scope')
       TypedModelApiManager.deleteNestedFromFullScope(modelId, body)
     return response
+  }
+
+  //delete for parent ids
+  /**
+   * removes all instanced of the parent ids, and deleted the models with nothing left
+   * @param parentId parent id to be removed from nested models
+   * @param override overrides the function
+   * @param onSuccessCallback does something on success
+   * @param onFailCallback does something on fail
+   */
+  static async removeParentIds(parentId = -1, override: any = null, onSuccessCallback = NestedModelApiManager.defaultSuccessCallback, onFailCallback = NestedModelApiManager.defaultFailCallback): Promise<number> {
+    console.log('in api')
+    return await NestedModelApiManager.delete(`${NESTED_ENDPOINT}/?modelId=${Number(parentId)}`, override, onSuccessCallback, onFailCallback)
   }
 
 

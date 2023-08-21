@@ -39,6 +39,8 @@ const getFixtures = async (): Promise<JSX.Element[]> => {
           path={`${modelItem.getId()}`}
           endpoint={`internal-event`} // Adjust this based on your model's structure
           deleteTypedEndpoint={TypedModelApiManager.deleteInternalEvent}
+          patchTypedEndpoint={TypedModelApiManager.patchInternalEvent}
+          users={modelItem.getUsers()}
         />
       ));
   

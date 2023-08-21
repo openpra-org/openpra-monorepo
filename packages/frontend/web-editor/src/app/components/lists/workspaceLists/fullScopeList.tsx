@@ -40,6 +40,8 @@ const getFixtures = async (): Promise<JSX.Element[]> => {
           path={`/full-scope/${modelItem.getId()}`}
           endpoint={`full-scope`} // Adjust this based on your model's structure
           deleteTypedEndpoint={TypedModelApiManager.deleteFullScope}
+          patchTypedEndpoint={TypedModelApiManager.patchFullScope}
+          users={modelItem.getUsers()}
         />
       ));
   

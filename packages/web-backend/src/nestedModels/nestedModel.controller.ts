@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { NestedModel } from './schemas/templateSchema/nested-model.schema';
 import { NestedModelService } from './nestedModel.service';
 import { BayesianEstimation } from './schemas/bayesian-estimation.schema';
@@ -10,6 +10,7 @@ import { FunctionalEvent } from './schemas/functional-event.schema';
 import { InitiatingEvent } from './schemas/initiating-event.schema';
 import { MarkovChain } from './schemas/markov-chain.schema';
 import { WeibullAnalysis } from './schemas/weibull-analysis.schema';
+import { Label } from 'src/schemas/label.schema';
 
 @Controller()
 export class NestedModelController {
@@ -400,5 +401,113 @@ export class NestedModelController {
   @Delete('/weibull-analysis/')
   async deleteWeibullAnalysis(@Query('id') id: number): Promise<WeibullAnalysis> {
     return this.nestedModelService.deleteWeibullAnalysis(id);
+  }
+
+  /**
+   * updates a label for the nested model type
+   * @param id the id of the nested model to be updated
+   * @param data the new label, with a name and descrption string
+   * @returns the updated moel
+   */
+  @Patch('/bayesian-estimations/:id')
+  async updateBayesianEstimationLabel(@Param('id') id: number, @Body() data: Label): Promise<NestedModel> {
+    return this.nestedModelService.updateBayesianEstimationLabel(id, data);
+  }
+
+  /**
+   * updates a label for the nested model type
+   * @param id the id of the nested model to be updated
+   * @param data the new label, with a name and descrption string
+   * @returns the updated moel
+   */
+  @Patch('/bayesian-networks/:id')
+  async updateBayesianNetworkLabel(@Param('id') id: number, @Body() data: Label): Promise<NestedModel> {
+    return this.nestedModelService.updateBayesianNetworkLabel(id, data);
+  }
+
+  /**
+   * updates a label for the nested model type
+   * @param id the id of the nested model to be updated
+   * @param data the new label, with a name and descrption string
+   * @returns the updated moel
+   */
+  @Patch('/event-sequence-diagrams/:id')
+  async updateEventSequenceDiagramLabel(@Param('id') id: number, @Body() data: Label): Promise<NestedModel> {
+    return this.nestedModelService.updateEventSqeuenceDiagramLabel(id, data);
+  }
+
+  /**
+   * updates a label for the nested model type
+   * @param id the id of the nested model to be updated
+   * @param data the new label, with a name and descrption string
+   * @returns the updated moel
+   */
+  @Patch('/event-trees/:id')
+  async updateEventTreeLabel(@Param('id') id: number, @Body() data: Label): Promise<NestedModel> {
+    return this.nestedModelService.updateEventTreeLabel(id, data);
+  }
+
+  /**
+   * updates a label for the nested model type
+   * @param id the id of the nested model to be updated
+   * @param data the new label, with a name and descrption string
+   * @returns the updated moel
+   */
+  @Patch('/fault-trees/:id')
+  async updateFaultTreeLabel(@Param('id') id: number, @Body() data: Label): Promise<NestedModel> {
+    return this.nestedModelService.updateFaultTreeLabel(id, data);
+  }
+
+  /**
+   * updates a label for the nested model type
+   * @param id the id of the nested model to be updated
+   * @param data the new label, with a name and descrption string
+   * @returns the updated moel
+   */
+  @Patch('/functional-events/:id')
+  async updateFunctionalEventLabel(@Param('id') id: number, @Body() data: Label): Promise<NestedModel> {
+    return this.nestedModelService.updateFunctionalEventLabel(id, data);
+  }
+
+  /**
+   * updates a label for the nested model type
+   * @param id the id of the nested model to be updated
+   * @param data the new label, with a name and descrption string
+   * @returns the updated moel
+   */
+  @Patch('/initiating-events/:id')
+  async updateInitiatingEventLabel(@Param('id') id: number, @Body() data: Label): Promise<NestedModel> {
+    return this.nestedModelService.updateInitiatingEventLabel(id, data);
+  }
+
+  /**
+   * updates a label for the nested model type
+   * @param id the id of the nested model to be updated
+   * @param data the new label, with a name and descrption string
+   * @returns the updated moel
+   */
+  @Patch('/markov-chains/:id')
+  async updateMarkovChainLabel(@Param('id') id: number, @Body() data: Label): Promise<NestedModel> {
+    return this.nestedModelService.updateMarkovChainLabel(id, data);
+  }
+
+  /**
+   * updates a label for the nested model type
+   * @param id the id of the nested model to be updated
+   * @param data the new label, with a name and descrption string
+   * @returns the updated moel
+   */
+  @Patch('/weibull-analysis/:id')
+  async updateWeibullAnalysisLabel(@Param('id') id: number, @Body() data: Label): Promise<NestedModel> {
+    return this.nestedModelService.updateWeibullAnalysisLabel(id, data);
+  }
+  /**
+   * removes parentId from all nested models. If the model has no parentIds it is removed
+   * @param id the parent id to be removed
+   * @returns a promise with the number of totally deleted nested models
+   */
+  @Delete()
+  async removeParentIds(@Query('modelId') modelId: number): Promise<Number> {
+    return this.nestedModelService.removeParentModels(modelId);
   }
 }

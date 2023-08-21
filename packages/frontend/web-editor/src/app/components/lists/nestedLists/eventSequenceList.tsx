@@ -7,6 +7,7 @@ export default function EventSequenceList(){
         <NestedModelList 
           getNestedEndpoint={NestedModelApiManager.getEventSequenceDiagrams} 
           deleteNestedEndpoint={NestedModelApiManager.deleteEventSequenceDiagram} 
+          patchNestedEndpoint={NestedModelApiManager.patchEventSequenceDiagramLabel} 
           name='event-sequence-diagram'
         />
     );

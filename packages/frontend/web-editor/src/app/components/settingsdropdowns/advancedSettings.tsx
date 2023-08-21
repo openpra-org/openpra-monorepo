@@ -9,8 +9,7 @@ import {
     EuiFlexGrid,
     EuiFlexItem, EuiIcon, EuiTitle, EuiTextColor, EuiSpacer, useIsWithinBreakpoints
 } from "@elastic/eui";
-import React, {useState } from 'react'
-import DeleteItemBox from '../listchanging/deleteItemBox';
+import {useState } from 'react'
 import SettingsAccordian from "./SettingsAccordian";
 
 const buttonContent = (

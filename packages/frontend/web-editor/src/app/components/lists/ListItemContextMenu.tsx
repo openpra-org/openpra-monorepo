@@ -1,27 +1,36 @@
-import React, { useState } from 'react';
 import {
   EuiButton,
   EuiContextMenu,
   EuiFormRow,
   EuiIcon,
-  EuiPopover,
   EuiSwitch,
   EuiSpacer,
-  useGeneratedHtmlId, EuiFlexGroup, EuiFlexItem, useEuiTheme, logicalStyle, useEuiPaddingSize
+  useGeneratedHtmlId, useEuiPaddingSize, 
 } from "@elastic/eui";
 import { GenericListItemProps } from "../lists/GenericListItem";
-import { ListItemEditAction } from "./ListItemAction";
-import ItemFormAction, { ItemFormProps } from "../forms/typedModelActionForm";
+import { ItemFormProps } from "../forms/typedModelActionForm";
 import DeleteItemBox from "../listchanging/deleteItemBox";
-import { euiPaddingSize } from "@elastic/eui/src/global_styling/mixins/_padding";
-import { logicalStyles } from "@elastic/eui/src/global_styling/functions/logicals";
-import TypedModelApiManager from 'packages/shared-types/src/lib/api/TypedModelApiManager';
+import TypedModelActionForm from '../forms/typedModelActionForm';
+import { TypedModelJSON } from 'packages/shared-types/src/lib/types/modelTypes/largeModels/typedModel';
+import NestedModelActionForm from '../forms/nestedModelActionForm';
+import { NestedModelJSON } from 'packages/shared-types/src/lib/types/modelTypes/innerModels/nestedModel';
 
 export type ListItemContextMenuProps = {
 
 } & GenericListItemProps & Omit<ItemFormProps, "action">;
 
 export default (props: ListItemContextMenuProps) => {
+
+  //TODO: Make this work correctly, the prop is bad
+  const { id, itemName, endpoint, deleteNestedEndpoint, deleteTypedEndpoint, label, patchTypedEndpoint, patchNestedEndpoint, users} = props;
+
+  const itemUsers = users ? users : [];
+
+  //premade model info we are sending to update
+  const modelInfo: TypedModelJSON = {id: Number(id), label: label, users: itemUsers}
+
+  //premade model info we are sending to update
+  const nestedInfo: NestedModelJSON = {label: label, parentIds: []}
 
   const embeddedCodeSwitchId__1 = useGeneratedHtmlId({
     prefix: 'embeddedCodeSwitch',
@@ -31,10 +40,6 @@ export default (props: ListItemContextMenuProps) => {
     prefix: 'embeddedCodeSwitch',
     suffix: 'second',
   });
-
-
-  //TODO: Make this work correctly, the prop is bad
-  const { id, itemName, endpoint, deleteNestedEndpoint, deleteTypedEndpoint} = props;
 
   const panels = [
     {
@@ -49,7 +54,7 @@ export default (props: ListItemContextMenuProps) => {
           icon: 'indexFlush',
         },
         {
-          name: 'Rename',
+          name: 'Quick Edit',
           icon: 'pencil',
           panel: 1,
         },
@@ -71,10 +76,14 @@ export default (props: ListItemContextMenuProps) => {
     {
       id: 1,
       initialFocusedItemIndex: 1,
-      title: 'Rename',
+      title: 'Quick Edit',
       content: (
         <div style={{padding: useEuiPaddingSize("s") || '35px'}}>
-            <ItemFormAction noHeader compressed action="edit" itemName={itemName} postEndpoint={TypedModelApiManager.postInternalEvent} />
+          {patchTypedEndpoint ? (
+            <TypedModelActionForm noHeader compressed action="edit" itemName={endpoint} patchEndpoint={patchTypedEndpoint} initialFormValues={modelInfo}/>
+          ) : (
+            <NestedModelActionForm noHeader compressed action="edit" id={Number(id)} itemName={endpoint} patchEndpoint={patchNestedEndpoint} initialFormValues={nestedInfo}/>
+          )}
         </div>
       )
     },
@@ -83,9 +92,9 @@ export default (props: ListItemContextMenuProps) => {
       initialFocusedItemIndex: 3,
       title: 'Delete',
       content: (
-          <div style={{padding: useEuiPaddingSize("s") || '35px'}}>
-            <DeleteItemBox id={id} itemName={itemName} typeOfModel={endpoint} deleteTypedEndpoint={deleteTypedEndpoint} deleteNestedEndpoint={deleteNestedEndpoint}/>
-          </div>
+        <div style={{padding: useEuiPaddingSize("s") || '35px'}}>
+          <DeleteItemBox id={id} itemName={itemName} typeOfModel={endpoint} deleteTypedEndpoint={deleteTypedEndpoint} deleteNestedEndpoint={deleteNestedEndpoint}/>
+        </div>
       )
     },
     {
@@ -121,8 +130,8 @@ export default (props: ListItemContextMenuProps) => {
     },
   ];
 
-
   return (
       <EuiContextMenu size="m" initialPanelId={0} panels={panels} />
   );
+
 };

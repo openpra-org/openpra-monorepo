@@ -1,6 +1,5 @@
-import { Controller, Get, Options, Query, UseGuards } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 import { ApiService } from './api.service';
-import { AuthGuard } from '@nestjs/passport';
 
 @Controller()
 export class ApiController {

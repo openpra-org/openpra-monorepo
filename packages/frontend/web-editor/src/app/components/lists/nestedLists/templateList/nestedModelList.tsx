@@ -91,13 +91,14 @@ export default function NestedModelList(props: NestedModelListProps){
                 <EuiSkeletonRectangle
                     width="100%"
                     height={490}
+                    borderRadius='m'                    
                     isLoading={isLoading}
                     contentAriaLabel="Example description"
                 >
                     <GenericItemList>
                         {genericListItems}
                     </GenericItemList>
-                </EuiSkeletonRectangle><EuiSpacer size='s'/>
+                </EuiSkeletonRectangle>
             </EuiPageTemplate.Section>
         </EuiPageTemplate>
     );

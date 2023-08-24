@@ -80,7 +80,7 @@ export default function FullScopeList(){
             <EuiPageTemplate.Section>
                 <EuiSkeletonRectangle
                     width="100%"
-                    height={70}
+                    height={490}
                     borderRadius="m"
                     isLoading={isLoading}
                     contentAriaLabel="Example description"
@@ -89,14 +89,6 @@ export default function FullScopeList(){
                         {genericListItems}
                     </GenericItemList>
                 </EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
             </EuiPageTemplate.Section>
         </EuiPageTemplate>
     );

@@ -1,10 +1,10 @@
 import { ButtonWithClosablePopover } from "./ButtonWithPopover";
 import { logicalStyle } from "@elastic/eui";
-import TypedModelApiManager from "packages/shared-types/src/lib/api/TypedModelApiManager";
+import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
 import { ItemFormProps } from "../forms/typedModelActionForm";
 import NestedModelActionForm, { NestedItemFormProps } from "../forms/nestedModelActionForm";
 import TypedModelActionForm from "../forms/typedModelActionForm";
-import NestedModelApiManager from "packages/shared-types/src/lib/api/NestedModelApiManager";
+import NestedModelApiManager from "shared-types/src/lib/api/NestedModelApiManager";
 import { toTitleCase } from "../../../utils/StringUtils";
 
 //different props depending on different type of objects we are using for the add button
@@ -32,7 +32,7 @@ export default function CreateItemButton({ itemName, postEndpoint }: CreateItemB
     <ButtonWithClosablePopover
       popoverExtra={popoverExtra}
       closeProp="onCancel"
-      buttonText={"Create " + toTitleCase(itemName) + " Model"}
+      buttonText={"Create " + toTitleCase(itemName)}
       confirmDiscard={true}
       popoverProps={{
         initialFocus: "#name"
@@ -65,7 +65,7 @@ export function CreateNestedItemButton({ itemName, postEndpoint }: CreateNestedI
     <ButtonWithClosablePopover
       popoverExtra={popoverExtra}
       closeProp="onCancel"
-      buttonText={"Create " + toTitleCase(itemName) + " Model"}
+      buttonText={"Create " + toTitleCase(itemName)}
       confirmDiscard={true}
       popoverProps={{
         initialFocus: "#name"

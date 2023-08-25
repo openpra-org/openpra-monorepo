@@ -5,7 +5,7 @@ import { toTitleCase } from "../../../utils/StringUtils";
 import ItemFormAction, { ItemFormProps } from "../forms/typedModelActionForm";
 import ListItemActionContextMenu from "./ListItemContextMenu";
 import { GenericListItemProps } from "../lists/GenericListItem";
-import TypedModelApiManager from "packages/shared-types/src/lib/api/TypedModelApiManager";
+import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
 
 export type ListItemActionProps = {
 

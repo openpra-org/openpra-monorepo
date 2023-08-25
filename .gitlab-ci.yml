@@ -16,7 +16,15 @@ stages:
   - build
   - deploy
 
-engine-scram-node:
+test-shared-types:
+  stage: test
+  script:
+    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} .
+    - docker run --rm ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} /bin/bash -c "nx test shared-types"
+  after_script:
+    - docker rmi ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} || true
+
+test-scram-node:
   stage: test
   script:
     - docker build -t ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} .
@@ -24,14 +32,32 @@ engine-scram-node:
   after_script:
     - docker rmi ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} || true
 
+test-frontend:
+  stage: test
+  script:
+    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} .
+    - docker run --rm ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} /bin/bash -c "nx test frontend-web-editor"
+  after_script:
+    - docker rmi ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} || true
+
+test-backend:
+  stage: test
+  script:
+    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} .
+    - docker run --rm ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} /bin/bash -c "nx test web-backend"
+  after_script:
+    - docker rmi ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} || true
+
 frontend:
   stage: build
+  needs: ["test-frontend", "test-shared-types"]
   script:
     - docker build --target frontend --build-arg BUILD_TYPE=${CI_BUILD_TYPE} -t ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG} .
     - docker push ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG}
 
 backend:
   stage: build
+  needs: ["test-backend", "test-scram-node", "test-shared-types"]
   script:
     - docker build --target backend --build-arg BUILD_TYPE=${CI_BUILD_TYPE} -t ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG} .
     - docker push ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG}

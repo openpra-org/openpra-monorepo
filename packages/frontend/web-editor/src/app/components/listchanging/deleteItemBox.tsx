@@ -20,14 +20,14 @@ import { useNavigate } from 'react-router-dom';
     deleteTypedEndpoint?: (id: number) => {};
     deleteNestedEndpoint?: (id: number) => {};
   }
-  
+
 
 /**
- * 
+ *
  * @param title takes in an optional title string
  * @param id takes in an optional id which later be used to interacti with the database
  * @param toggleBox this needs to be there to toggle the deltebox on and off accross components, a state to set the delete box being visible
- * @returns 
+ * @returns
  */
 export default function DeleteItemBox(props: DeleteItemProps) {
 
@@ -54,7 +54,7 @@ export default function DeleteItemBox(props: DeleteItemProps) {
 
     return (
         <>
-            {/** this styling is so its in a nice looking box, it scales if the users tab is there or not */}            
+            {/** this styling is so its in a nice looking box, it scales if the users tab is there or not */}
             <EuiForm>
                 <EuiSpacer size='s'/>
                 {/** this gives the text, and then importantly sets the title of the item */}

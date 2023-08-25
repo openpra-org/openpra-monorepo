@@ -7,5 +7,5 @@ export default {
     '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
-  coverageDirectory: '../../coverage/packages/web-backend',
+  snapshotFormat: { escapeString: true, printBasicPrototype: true }
 };

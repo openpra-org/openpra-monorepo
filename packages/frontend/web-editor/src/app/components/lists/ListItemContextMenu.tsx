@@ -5,15 +5,18 @@ import {
   EuiIcon,
   EuiSwitch,
   EuiSpacer,
-  useGeneratedHtmlId, useEuiPaddingSize, 
+  useGeneratedHtmlId, useEuiPaddingSize,
 } from "@elastic/eui";
+
+import { TypedModelJSON } from 'shared-types/src/lib/types/modelTypes/largeModels/typedModel';
+import { NestedModelJSON } from 'shared-types/src/lib/types/modelTypes/innerModels/nestedModel';
+
 import { GenericListItemProps } from "../lists/GenericListItem";
-import { ItemFormProps } from "../forms/typedModelActionForm";
+import { ListItemEditAction } from "./ListItemAction";
+import ItemFormAction, { ItemFormProps } from "../forms/typedModelActionForm";
 import DeleteItemBox from "../listchanging/deleteItemBox";
 import TypedModelActionForm from '../forms/typedModelActionForm';
-import { TypedModelJSON } from 'packages/shared-types/src/lib/types/modelTypes/largeModels/typedModel';
 import NestedModelActionForm from '../forms/nestedModelActionForm';
-import { NestedModelJSON } from 'packages/shared-types/src/lib/types/modelTypes/innerModels/nestedModel';
 
 export type ListItemContextMenuProps = {
 

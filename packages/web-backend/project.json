@@ -58,6 +58,12 @@
           "codeCoverage": true
         }
       }
+    },
+    "e2e": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "packages/web-backend/test/jest-e2e.json"
+      }
     }
   },
   "tags": []

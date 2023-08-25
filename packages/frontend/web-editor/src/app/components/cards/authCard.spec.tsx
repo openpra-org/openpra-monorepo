@@ -1,9 +1,11 @@
+import * as React from 'react';
 import { render, screen } from '@testing-library/react';
 
-import App from './app';
+import App from "../../app";
 
 describe('App', () => {
-  it('builds and renders', () => {
+  it('renders App component', () => {
     render(<App />);
+
   });
 });

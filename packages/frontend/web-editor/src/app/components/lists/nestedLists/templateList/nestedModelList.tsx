@@ -1,11 +1,14 @@
 
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
-import TypedModelApiManager from "packages/shared-types/src/lib/api/TypedModelApiManager";
 import { useEffect, useState } from "react";
-import NestedModel from "packages/shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+
+import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
+import NestedModel from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+import { LabelJSON } from "shared-types/src/lib/types/Label";
+
 import GenericListItem from "../../GenericListItem";
 import GenericItemList from "../../GenericItemList";
-import { LabelJSON } from "packages/shared-types/src/lib/types/Label";
+
 
 export interface NestedModelListProps {
     name: string
@@ -28,10 +31,10 @@ async function fetchModelList(getNestedEndpoint: (id: number) => Promise<NestedM
 //this doesnt work right now, it returns a typedModelJSon I think instead of internaleventsmdoel
 //this works but poorly, need to fix how ids are done
 //I also cant really get the items to know what type they are, I'm assuming typedmodeljson
-const getFixtures = async (getNestedEndpoint: (id: number) => Promise<NestedModel[]>, deleteNestedEndpoint: (id: number) => {}, patchNestedEndpoint: (id: number, data: LabelJSON) => {}, 
+const getFixtures = async (getNestedEndpoint: (id: number) => Promise<NestedModel[]>, deleteNestedEndpoint: (id: number) => {}, patchNestedEndpoint: (id: number, data: LabelJSON) => {},
   name: string): Promise<JSX.Element[]> => {
     try {
-      const modelList = await fetchModelList(getNestedEndpoint); 
+      const modelList = await fetchModelList(getNestedEndpoint);
 
       const nestedModelList: NestedModel[] = modelList.map((item: any) => {
         return new NestedModel(item.label.name, item.label.description, item.id, item.parentIds);
@@ -53,7 +56,7 @@ const getFixtures = async (getNestedEndpoint: (id: number) => Promise<NestedMode
           patchNestedEndpoint={patchNestedEndpoint}
         />
       ));
-  
+
       return genericListItems;
     } catch (error) {
       console.error('Error fetching internal events:', error);
@@ -91,7 +94,7 @@ export default function NestedModelList(props: NestedModelListProps){
                 <EuiSkeletonRectangle
                     width="100%"
                     height={490}
-                    borderRadius='m'                    
+                    borderRadius='m'
                     isLoading={isLoading}
                     contentAriaLabel="Example description"
                 >

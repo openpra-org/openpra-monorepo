@@ -22,7 +22,7 @@ import {
 import {Link, useLocation, useNavigate} from 'react-router-dom';
 import { toTitleCase, tokenizePath } from "../../../utils/StringUtils";
 import WorkspaceSelectorMenu from "./WorkspaceSelectorMenu";
-import ApiManager from 'packages/shared-types/src/lib/api/ApiManager';
+import ApiManager from 'shared-types/src/lib/api/ApiManager';
 import ContextAddButton from '../buttons/contextAddButton';
 
 export default () => {
@@ -133,7 +133,7 @@ const HeaderUserMenu = () => {
   //thewse two lines grab the username so that it can be used throughout the page. Needs this because for some reason user can be undefined
   const currentUser = ApiManager.getCurrentUser();
   const nameString = currentUser && currentUser.username ? currentUser.username : "Unknown User";
-  
+
   const closeMenu = () => {
     setIsOpen(false);
   };

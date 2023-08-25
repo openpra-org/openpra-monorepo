@@ -5,5 +5,8 @@
     {
       "path": "./tsconfig.app.json"
     }
-  ]
+  ],
+  "compilerOptions": {
+    //"types": []
+  }
 }

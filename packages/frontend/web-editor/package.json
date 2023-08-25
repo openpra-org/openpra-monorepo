@@ -15,6 +15,7 @@
     "shared-types": "0.0.1"
   },
   "devDependencies": {
+    "@testing-library/react": "12.1.5",
     "@types/react": "17.0.60",
     "@types/react-dom": "17.0.20"
   }

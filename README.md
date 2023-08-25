@@ -47,7 +47,7 @@ nvm use 20.2.0
 ### Setup
 
 ```shell
-pnpm setup #if this isnt working try and run "npm install -g pnpm", and then try again
+pnpm setup #if this isn't working try and run "npm install -g pnpm", and then try again
 pnpm install --shamefully-hoist=true
 pnpm install --global nx@16.5.4 #you could also try nx@latest but ymmv
 ```

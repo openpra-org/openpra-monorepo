@@ -1,9 +1,9 @@
 import {Parsable} from "./Parsable";
+import { Defaults } from "./ObjectTypes";
 
 export interface LabelJSON {
   name: string;
   description: string;
-  frequency? : string;
 }
 
 export type LabelJSONMap = {[key: string]: LabelJSON};
@@ -15,7 +15,6 @@ export const DEFAULT_LABEL_JSON: LabelJSON = {
 
 export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
   public name: string;
-  public frequency?: string;
   public description: string;
 
   /**
@@ -67,24 +66,12 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
   }
 
   /**
-   * @param {string} description
-   */
-  setFrequency(frequency: string) {
-    this.frequency = frequency;
-  }
-
-  getFrequency(frequency: string) {
-    return this.frequency;
-  }
-
-  /**
    * @return {LabelJSON} - dictionary object that represents this
    */
   toJSON(): LabelJSON {
     return ({
       name: this.name,
       description: this.description,
-      frequency: this.frequency
     });
   }
 
@@ -94,5 +81,19 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
 
   clone(): Label {
     return Label.build(this.toJSON());
+  }
+
+  getDefaultMappedJSON(): Defaults<LabelJSONMap> {
+    return {
+      "label": DEFAULT_LABEL_JSON,
+    }
+  }
+
+  toPartialMappedJSON(): Partial<LabelJSONMap> {
+    return {
+      "label": {
+        ...this.toJSON(),
+      }
+    }
   }
 }

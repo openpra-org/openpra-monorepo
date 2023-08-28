@@ -1,0 +1,16 @@
+{
+  "name": "engine-scram-node",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/engine/scram-node/src",
+  "projectType": "library",
+  "targets": {
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["packages/engine/scram-node/**/*.ts"]
+      }
+    }
+  },
+  "tags": []
+}

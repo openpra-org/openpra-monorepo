@@ -10,6 +10,7 @@ node_modules
 
 #documentation
 packages/web-backend/documentation
+packages/wrapper
 
 # IDEs and editors
 /.idea

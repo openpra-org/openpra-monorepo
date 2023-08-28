@@ -1,0 +1,116 @@
+version: '3.3'
+
+services:
+  frontend:
+    image: ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG}
+    networks:
+      - traefik-public
+      - backend
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.${APP_NAME}-frontend-http.rule=Host(`${HOST_URL?Variable not set}`)
+        - traefik.http.routers.${APP_NAME}-frontend-http.entrypoints=http
+        - traefik.http.routers.${APP_NAME}-frontend-http.middlewares=https-redirect,gzip
+        - traefik.http.routers.${APP_NAME}-frontend-http.service=${APP_NAME}-frontend
+        - traefik.http.routers.${APP_NAME}-frontend-https.rule=Host(`${HOST_URL?Variable not set}`)
+        - traefik.http.routers.${APP_NAME}-frontend-https.entrypoints=https
+        - traefik.http.routers.${APP_NAME}-frontend-https.tls=true
+        - traefik.http.routers.${APP_NAME}-frontend-https.tls.certresolver=le
+        - traefik.http.routers.${APP_NAME}-frontend-https.middlewares=gzip
+        - traefik.http.routers.${APP_NAME}-frontend-https.service=${APP_NAME}-frontend
+        - traefik.http.services.${APP_NAME}-frontend.loadbalancer.server.port=80
+
+  backend:
+    image: ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG}
+    networks:
+      - traefik-public
+      - backend
+      - db_net
+    environment:
+      MONGO_URL: mongodb://mongodb:27017
+      JWT_SECRET_KEY: /run/secrets/CI_JWT_SECRET_KEY
+      SENTRY_DSN: ${CI_SENTRY_DSN}
+      SENTRY_ENV: ${CI_SENTRY_ENV}
+      DEBUG: ${CI_DEBUG}
+      DEPLOYMENT: 'true'
+    secrets:
+      - CI_JWT_SECRET_KEY
+    depends_on:
+      - mongodb
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.${APP_NAME}-backend-http.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/api`)
+        - traefik.http.routers.${APP_NAME}-backend-http.entrypoints=http
+        - traefik.http.routers.${APP_NAME}-backend-http.middlewares=https-redirect,gzip
+        - traefik.http.routers.${APP_NAME}-backend-http.service=${APP_NAME}-backend
+        - traefik.http.routers.${APP_NAME}-backend-https.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/api`)
+        - traefik.http.routers.${APP_NAME}-backend-https.entrypoints=https
+        - traefik.http.routers.${APP_NAME}-backend-https.tls=true
+        - traefik.http.routers.${APP_NAME}-backend-https.tls.certresolver=le
+        - traefik.http.routers.${APP_NAME}-backend-https.middlewares=gzip
+        - traefik.http.routers.${APP_NAME}-backend-https.service=${APP_NAME}-backend
+        - traefik.http.services.${APP_NAME}-backend.loadbalancer.server.port=8000
+
+  mongodb-express:
+    image: mongo-express:latest
+    networks:
+      - traefik-public
+      - db_net
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: 'true'
+      ME_CONFIG_SITE_BASEURL: /mongo/
+    depends_on:
+      - mongodb
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.${APP_NAME}-express-http.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/mongo`)
+        - traefik.http.routers.${APP_NAME}-express-http.entrypoints=http
+        - traefik.http.routers.${APP_NAME}-express-http.middlewares=https-redirect,gzip
+        - traefik.http.routers.${APP_NAME}-express-http.service=${APP_NAME}-express
+        - traefik.http.routers.${APP_NAME}-express-https.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/mongo`)
+        - traefik.http.routers.${APP_NAME}-express-https.entrypoints=https
+        - traefik.http.routers.${APP_NAME}-express-https.tls=true
+        - traefik.http.routers.${APP_NAME}-express-https.tls.certresolver=le
+        - traefik.http.routers.${APP_NAME}-express-https.middlewares=gzip
+        - traefik.http.routers.${APP_NAME}-express-https.service=${APP_NAME}-express
+        - traefik.http.services.${APP_NAME}-express.loadbalancer.server.port=8081
+
+  mongodb:
+    image: mongo:latest
+    networks:
+      - db_net
+    deploy:
+      placement:
+        constraints:
+          - node.labels.persistent == ${PERSIST_VOLUME?Variable not set}
+    volumes:
+      - mongo-data:/data/db
+
+
+volumes:
+  mongo-data:
+    driver: local
+
+networks:
+  db_net:
+    driver: overlay
+    attachable: true
+  backend:
+    driver: overlay
+    attachable: true
+  traefik-public:
+    external: true
+
+secrets:
+  CI_JWT_SECRET_KEY:
+    file: $CI_DSF_JWT_SECRET_KEY

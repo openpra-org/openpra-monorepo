@@ -1,0 +1,178 @@
+image: docker:stable
+
+include:
+  - project: 'Templates/ci-configs'
+    file: '/deploy-stack.gitlab-ci.yml'
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+
+variables:
+  COMPOSE_FILE: stack.yml
+  DOMAIN: v2.openpra.org
+
+stages:
+  - test
+  - build
+  - deploy
+
+test-shared-types:
+  stage: test
+  script:
+    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} .
+    - docker run --rm ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} /bin/bash -c "nx test shared-types"
+  after_script:
+    - docker rmi ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} || true
+
+test-scram-node:
+  stage: test
+  script:
+    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} .
+    - docker run --rm ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} /bin/bash -c "nx test engine-scram-node"
+  after_script:
+    - docker rmi ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} || true
+
+test-frontend:
+  stage: test
+  script:
+    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} .
+    - docker run --rm ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} /bin/bash -c "nx test frontend-web-editor"
+  after_script:
+    - docker rmi ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} || true
+
+test-backend:
+  stage: test
+  script:
+    - docker build -t ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} .
+    - docker run --rm ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} /bin/bash -c "nx test web-backend"
+  after_script:
+    - docker rmi ${CI_REGISTRY_IMAGE}:${CI_JOB_ID}-${CI_COMMIT_REF_SLUG} || true
+
+frontend:
+  stage: build
+  needs: ["test-frontend", "test-shared-types"]
+  script:
+    - docker build --target frontend --build-arg BUILD_TYPE=${CI_BUILD_TYPE} -t ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG} .
+    - docker push ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG}
+
+backend:
+  stage: build
+  needs: ["test-backend", "test-scram-node", "test-shared-types"]
+  script:
+    - docker build --target backend --build-arg BUILD_TYPE=${CI_BUILD_TYPE} -t ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG} .
+    - docker push ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG}
+
+.named_deployment: &named_deployment
+  extends:
+    - .deploy_generic
+  when: manual
+
+.named_stop: &named_stop
+  extends:
+    - .stop_generic
+  environment:
+    name: $HUMAN_READABLE_NAME
+    url: $HOST_URL
+    action: stop
+
+demo:
+  variables:
+    HUMAN_READABLE_NAME: "Demo"
+    APP_NAME: monorepo-demo
+    PERSIST_VOLUME: "true"
+    HOST_URL: https://demo.v2.openpra.org
+  <<: *named_deployment
+  environment:
+    name: $HUMAN_READABLE_NAME
+    url: $HOST_URL
+    on_stop: stop_demo
+stop_demo:
+  variables:
+    HUMAN_READABLE_NAME: "Demo"
+    APP_NAME: monorepo-demo
+    PERSIST_VOLUME: "true"
+    HOST_URL: https://demo.v2.openpra.org
+  <<: *named_stop
+
+staging:
+  variables:
+    HUMAN_READABLE_NAME: "Staging"
+    APP_NAME: monorepo-staging
+    PERSIST_VOLUME: "true"
+    HOST_URL: https://staging.v2.openpra.org
+  <<: *named_deployment
+  environment:
+    name: $HUMAN_READABLE_NAME
+    url: $HOST_URL
+    on_stop: stop_staging
+stop_staging:
+  variables:
+    HUMAN_READABLE_NAME: "Staging"
+    APP_NAME: monorepo-staging
+    PERSIST_VOLUME: "true"
+    HOST_URL: https://demo.v2.openpra.org
+  <<: *named_stop
+
+production:
+  variables:
+    HUMAN_READABLE_NAME: "Production"
+    APP_NAME: monorepo-production
+    PERSIST_VOLUME: "true"
+    HOST_URL: https://v2.openpra.org
+  <<: *named_deployment
+  environment:
+    name: $HUMAN_READABLE_NAME
+    url: $HOST_URL
+    on_stop: stop_production
+stop_production:
+  variables:
+    HUMAN_READABLE_NAME: "Production"
+    APP_NAME: monorepo-production
+    PERSIST_VOLUME: "true"
+    HOST_URL: https://v2.openpra.org
+  <<: *named_stop
+
+
+.review_set_vars: &review_set_vars
+  - export APP_NAME=$(echo "monorepo-$CI_COMMIT_REF_SLUG" | cut -c 1-40)
+  - export TRUNCATED_SLUG=$(echo "$CI_COMMIT_REF_SLUG" | cut -c 1-40)
+  - export HOST_URL=$(echo "review-$TRUNCATED_SLUG.$DOMAIN")
+  - export HTTPS_HOST_URL=$(echo "https://$HOST_URL")
+  - export API_ENDPOINT=$(echo "$HTTPS_HOST_URL/api")
+  - echo $APP_NAME
+  - echo $TRUNCATED_SLUG
+  - echo $HOST_URL
+  - echo $HTTPS_HOST_URL
+  - echo $API_ENDPOINT
+
+deploy_review:
+  stage: deploy
+  extends:
+    - .deploy_generic
+  variables:
+    HUMAN_READABLE_NAME: review/$CI_COMMIT_REF_SLUG
+    HOST_URL: https://review-${CI_COMMIT_REF_SLUG}.v2.openpra.org
+    PERSIST_VOLUME: "true"
+  script:
+    - *review_set_vars
+    - docker stack deploy -c stack.yml --with-registry-auth $APP_NAME
+  only:
+    - branches
+  environment:
+    name: $HUMAN_READABLE_NAME
+    url: $HOST_URL
+    on_stop: stop_review
+stop_review:
+  variables:
+    HUMAN_READABLE_NAME: review/$CI_COMMIT_REF_SLUG
+    HOST_URL: https://review-$CI_COMMIT_REF_SLUG.v2.openpra.org
+  only:
+    - branches
+  extends:
+    - .stop_generic
+  environment:
+    name: $HUMAN_READABLE_NAME
+    url: $HOST_URL
+    action: stop
+
+

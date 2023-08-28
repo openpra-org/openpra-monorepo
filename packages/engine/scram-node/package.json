@@ -1,0 +1,73 @@
+{
+  "name": "scram-node",
+  "version": "0.0.1",
+  "description": "",
+  "main": "./lib/index.js",
+  "scripts": {
+    "test": "tape test/*.test.js",
+    "install": "node-pre-gyp install --fallback-to-build",
+    "docs": "documentation build ./lib/index.js -f md > API.md",
+    "clean": "make clean",
+    "distclean": "make distclean",
+    "build-deps": "make build-deps",
+    "tidy": "make tidy",
+    "format": "make format",
+    "sanitize": "make sanitize",
+    "debug": "make debug",
+    "release": "make release",
+    "make": "make",
+    "coverage": "make coverage",
+    "build": "make"
+  },
+  "nx": {
+    "namedInputs": {
+      "default": [
+        "{projectRoot}/**/*"
+      ],
+      "production": [
+        "!{projectRoot}/**/*.spec.tsx"
+      ]
+    },
+    "targets": {
+      "build": {},
+      "clean": {},
+      "distclean": {},
+      "build-deps": {},
+      "tidy": {},
+      "format": {},
+      "coverage": {},
+      "debug": {},
+      "release": {},
+      "sanitize": {},
+      "test": {
+        "inputs": [
+          "default",
+          "^production"
+        ],
+        "outputs": [],
+        "dependsOn": [
+          "build"
+        ]
+      }
+    }
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@mapbox/node-pre-gyp": "^1.0.8",
+    "node-addon-api": "^4.3.0"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.840.0",
+    "bytes": "^3.1.0",
+    "d3-queue": "^3.0.7",
+    "minimist": "^1.2.5",
+    "tape": "^5.1.1"
+  },
+  "binary": {
+    "module_name": "module",
+    "module_path": "./lib/binding/",
+    "host": "https://mapbox-node-binary.s3.amazonaws.com",
+    "remote_path": "./{name}/v{version}/{configuration}/{toolset}/",
+    "package_name": "{platform}-{arch}.tar.gz"
+  }
+}

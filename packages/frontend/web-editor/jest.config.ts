@@ -1,11 +1,16 @@
 /* eslint-disable */
 export default {
   displayName: 'frontend-web-editor',
-  preset: '../../../jest.preset.js',
+  // preset: '../../../jest.preset.js',
+  preset: 'ts-jest',
+  testEnvironment: 'jest-environment-jsdom',
   transform: {
-    '^(?!.*\\.(js|jsx|ts|tsx|css|json)$)': '@nx/react/plugins/jest',
+    '^(?!.*\\.(js|jsx|ts|tsx|json)$)': '@nx/react/plugins/jest',
     '^.+\\.[tj]sx?$': ['babel-jest', { presets: ['@nx/react/babel'] }],
   },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
-  coverageDirectory: '../../../coverage/packages/frontend/web-editor',
+  moduleNameMapper: {
+    "^uuid$": require.resolve("uuid"),
+  },
+  setupFiles: [ '<rootDir>/src/tests/mocks.js' ]
 };

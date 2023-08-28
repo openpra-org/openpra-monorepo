@@ -7,8 +7,7 @@ import {SignUpCredentials} from "./AuthTypes";
 import AuthToken from "../types/AuthToken";
 import Preferences from "./user/Preferences";
 
-const API_ENDPOINT = process.env.API_ENDPOINT || 'http://localhost:8000';
-console.log(API_ENDPOINT);
+const API_ENDPOINT = '/api';
 
 const collabEndpoint = `${API_ENDPOINT}/collab`;
 const instanceEndPoint = `${collabEndpoint}/instance`;
@@ -152,7 +151,7 @@ export default class ApiManager {
    * @return {Promise} Promise of a non-null User object (newly signed in)
    * @throws {Error} - A possible authentication error
    */
-  static signInWithUsernameAndPassword(username: any, password: any, onFailCallback: any) {
+  static async signInWithUsernameAndPassword(username: string, password: string, onFailCallback: any = ApiManager.defaultFailCallback) {
     return fetch(ApiManager.LOGIN_URL, {
       method: 'POST',
       headers: {
@@ -173,10 +172,30 @@ export default class ApiManager {
       .catch(onFailCallback);
   }
 
+  static refreshToken( onFailCallBack: any = ApiManager.defaultFailCallback) {
+    const token = localStorage.getItem('id_token')
+    return fetch(ApiManager.LOGIN_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        token
+      }),
+    }).then((response) => {
+      if (response.ok) {
+        return response;
+      }
+      throw new Error(response.statusText);
+    }).then(res => res.json())
+      .then((data) => { AuthService.setEncodedToken(data.token); })
+      .catch(onFailCallBack);
+  }
+
   signInWithUsernameAndPassword(username: any, password: any, onFailCallback: any) {
     return ApiManager.signInWithUsernameAndPassword(username, password, onFailCallback);
   }
-
 
   static signup(data: SignUpCredentials, override: any = null, onSuccessCallback: any = ApiManager.defaultSuccessCallback, onFailCallback: any = ApiManager.defaultFailCallback) {
     return ApiManager.post(`${userPreferencesEndpoint}/`, JSON.stringify(data), override, onSuccessCallback, onFailCallback)
@@ -212,6 +231,12 @@ export default class ApiManager {
     const token = AuthService.getEncodedToken(); // Getting token from localstorage
     if (AuthService.hasTokenExpired(token)) this.logout();
     return (token != null) && !AuthService.hasTokenExpired(token);
+  }
+
+  static getTokenTimer(): number {
+    // Checks if there is a saved token and it's still valid
+    const token = AuthService.getEncodedToken(); // Getting token from localstorage
+    return AuthService.getTokenTimer(token)
   }
 
   isLoggedIn() {
@@ -309,11 +334,14 @@ export default class ApiManager {
     return ApiManager.emptyPut(`${componentEndpoint}${ApiManager.MODEL_PATH}/${id}/quantification/`, override, onSuccessCallback, onFailCallback);
   }
 
-  static getUsers(limit: any, offset: any, override?: any, onSuccessCallback?: any, onFailCallback?: any) {
+  static getUsers(limit?: any, offset?: any, override?: any, onSuccessCallback?: any, onFailCallback?: any) {
     if (limit) {
       return ApiManager.getWithOptions(`${collabEndpoint}/user/?limit=${limit}&offset=${offset}`, override, onSuccessCallback, onFailCallback);
     }
-    return ApiManager.getWithOptions(`${collabEndpoint}/user/`, override, onSuccessCallback, onFailCallback);
+    return ApiManager.getWithOptions(`${collabEndpoint}/user/`, override, onSuccessCallback, onFailCallback)
+      .then(
+        res => {return res.json()}
+      )
   }
 
   static getProjects(limit: any, offset: any, override?: any, onSuccessCallback?: any, onFailCallback?: any) {
@@ -487,8 +515,30 @@ export default class ApiManager {
     return ApiManager.post(`${collabEndpoint}${ApiManager.PROJECT_PATH}/`, data, override, onSuccessCallback, onFailCallback);
   }
 
-  static postNewModel(type: any, data: any, override: any, onSuccessCallback: any, onFailCallback: any) {
-    return ApiManager.post(`${API_ENDPOINT}/${type}${ApiManager.MODEL_PATH}/`, data, override, onSuccessCallback, onFailCallback);
+  // static postGenericModel(url: string, title: string, description: string, override: any = null, onSuccessCallback = ApiManager.defaultSuccessCallback, onFailCallback = ApiManager.defaultFailCallback) {
+  //   console.log(url, title, description)
+  //   return fetch(url, {
+  //     method: 'POST',
+  //     cache: OPTION_CACHE,
+  //     headers: {
+  //       'Content-Type': 'application/json',
+  //       Authorization: `JWT ${AuthService.getEncodedToken()}`,
+  //     },
+  //     body: JSON.stringify({
+  //       title,
+  //       description,
+  //     }), // body data type must match "Content-Type" header
+  //   }).then(res => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
+  //     .catch(err => onFailCallback(err, override));
+  // }
+
+  static postNewModel(type: string, title: string, description: string, override?: any, onSuccessCallback?: any, onFailCallback?: any) {
+    //const modelLabel = new Label(title, description)
+    const modelInfo = {
+      title,
+      description
+    }
+    return ApiManager.post(`${collabEndpoint}${ApiManager.MODEL_PATH}/`, JSON.stringify(modelInfo), override, onSuccessCallback, onFailCallback);
   }
 
   static postNewComponent(data: any, override: any, onSuccessCallback: any, onFailCallback: any) {
@@ -639,8 +689,12 @@ export default class ApiManager {
       .catch(onFailCallback, override);
   }
 
-  static getUser(id: any, override: any, onSuccessCallback: any, onFailCallback: any) {
+  static getUser(id: any, override?: any, onSuccessCallback?: any, onFailCallback?: any) {
     return ApiManager.getWithOptions(`${collabEndpoint}/user/${id}/`, override, onSuccessCallback, onFailCallback);
+  }
+
+  static getUserByEmail(email: string, override?: any, onSuccessCallback?: any, onFailCallback?: any) {
+    return ApiManager.getWithOptions(`${collabEndpoint}/user/${email}/`, override, onSuccessCallback, onFailCallback);
   }
 
   //change pass

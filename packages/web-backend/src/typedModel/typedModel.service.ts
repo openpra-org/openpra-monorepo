@@ -10,7 +10,7 @@ import { InternalHazards, InternalHazardsDocument } from './schemas/internal-haz
 import { ExternalHazards, ExternalHazardsDocument } from './schemas/external-hazards.schema';
 import { FullScope, FullScopeDocument } from './schemas/full-scope.schema';
 import { TypedModel, TypedModelJSON } from './schemas/templateSchema/typed-model.schema';
-import { ModelCounter, ModelCounterDocument } from 'src/schemas/model-counter.schema';
+import { ModelCounter, ModelCounterDocument } from '../schemas/model-counter.schema';
 
 @Injectable()
 export class TypedModelService {
@@ -46,7 +46,7 @@ export class TypedModelService {
    * @param body takes in the model type that is requested in the name
    * @returns promise with the model type
    */
-  async createInternalEventsModel(body: Partial<InternalEventsModel>): Promise<TypedModel> {
+  async createInternalEventModel(body: Partial<InternalEvents>): Promise<TypedModel> {
     try {
       const newInternalEvent = new this.internalEventsModel(body);
       newInternalEvent.id = await this.getNextModelValue('ModelCounter');
@@ -61,7 +61,7 @@ export class TypedModelService {
    * @param body takes in the model type that is requested in the name
    * @returns promise with the model type
    */
-  async createInternalHazardsModel(body: Partial<InternalHazardsModel>): Promise<TypedModel> {
+  async createInternalHazardModel(body: Partial<InternalHazards>): Promise<TypedModel> {
     try {
       const newInternalHazard = new this.internalHazardsModel(body);
       newInternalHazard.id = await this.getNextModelValue('ModelCounter');
@@ -76,7 +76,7 @@ export class TypedModelService {
    * @param body takes in the model type that is requested in the name
    * @returns promise with the model type
    */
-  async createExternalHazardsModel(body: Partial<ExternalHazardsModel>): Promise<TypedModel> {
+  async createExternalHazardModel(body: Partial<ExternalHazardsModel>): Promise<TypedModel> {
     try {
       const newExternalHazard = new this.externalHazardsModel(body);
       newExternalHazard.id = await this.getNextModelValue('ModelCounter');
@@ -270,7 +270,7 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getFullScope(userId: number): Promise<FullScopeModel[]> {
+  async getFullScopes(userId: number): Promise<FullScopeModel[]> {
     try {
       return this.fullScopeModel.find({'users': Number(userId)})
     } catch (error) {
@@ -286,7 +286,7 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getSingleInternalEvent(modelId: number, userId: number): Promise<InternalEventsModel> {
+  async getInternalEvent(modelId: number, userId: number): Promise<InternalEventsModel> {
     //typecast to a number because for some reason, it isnt a number????
     try {
       return this.internalEventsModel.findOne({ id: modelId, 'users': Number(userId)},{_id:0})
@@ -300,7 +300,7 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getSingleExternalHazard(modelId: number, userId: number): Promise<ExternalHazardsModel> {
+  async getExternalHazard(modelId: number, userId: number): Promise<ExternalHazardsModel> {
     try {
       return this.externalHazardsModel.findOne({ id: modelId, 'users': Number(userId) },{_id:0})
     } catch (error) {
@@ -313,7 +313,7 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getSingleInternalHazard(modelId: number, userId: number): Promise<InternalHazardsModel> {
+  async getInternalHazard(modelId: number, userId: number): Promise<InternalHazardsModel> {
     try {
       return this.internalHazardsModel.findOne({ id: modelId, 'users': Number(userId) },{_id:0})
     } catch (error) {
@@ -326,7 +326,7 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getSingleFullScope(modelId: number, userId: number): Promise<FullScopeModel> {
+  async getFullScope(modelId: number, userId: number): Promise<FullScopeModel> {
     try {
       return this.fullScopeModel.findOne({ id: modelId, 'users': Number(userId) },{_id:0})
     } catch (error) {

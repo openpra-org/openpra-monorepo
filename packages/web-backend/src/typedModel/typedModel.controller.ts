@@ -4,6 +4,8 @@ import InternalEventsModel from '../../../shared-types/src/lib/types/modelTypes/
 import InternalHazardsModel from '../../../shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel';
 import ExternalHazardsModel from '../../../shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel';
 import FullScopeModel from '../../../shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel';
+import { InternalEvents } from './schemas/internal-events.schema';
+import { InternalHazards } from './schemas/internal-hazards.schema';
 import { TypedModel, TypedModelJSON } from './schemas/templateSchema/typed-model.schema';
 
 @Controller()
@@ -18,8 +20,8 @@ export class TypedModelController {
    * @returns a promise of internalEventsModel
    */
   @Post('/internal-events/')
-  async createInternalEvent(@Body() internalEventsModel: Partial<InternalEventsModel>): Promise<TypedModel> {
-    return this.typedModelService.createInternalEventsModel(internalEventsModel);
+  async createInternalEvent(@Body() internalEventsModel: Partial<InternalEvents>): Promise<TypedModel> {
+    return this.typedModelService.createInternalEventModel(internalEventsModel);
   }
 
   /**
@@ -28,8 +30,8 @@ export class TypedModelController {
    * @returns a promise with an internalHazardsModel
    */
   @Post('/internal-hazards/')
-  async createInternalHazard( @Body() internalHazardsModel: Partial<InternalHazardsModel>): Promise<TypedModel> {
-    return this.typedModelService.createInternalHazardsModel(internalHazardsModel);
+  async createInternalHazard( @Body() internalHazardsModel: Partial<InternalHazards>): Promise<TypedModel> {
+    return this.typedModelService.createInternalHazardModel(internalHazardsModel);
   }
 
   /**
@@ -39,7 +41,7 @@ export class TypedModelController {
    */
   @Post('/external-hazards/')
   async createExternalHazard( @Body() externalHazardsModel: Partial<ExternalHazardsModel>): Promise<TypedModel> {
-    return this.typedModelService.createExternalHazardsModel(externalHazardsModel);
+    return this.typedModelService.createExternalHazardModel(externalHazardsModel);
   }
 
   /**
@@ -66,17 +68,6 @@ export class TypedModelController {
   }
 
   /**
-   * updates and replaces a single
-   * @param modelId id of the model to be returned
-   * @param userId id of the user getting the model
-   * @returns the external hazard the user has with the modelId
-   */
-  @Patch('/external-hazards/:id')
-  async patchExternalHazard(@Param('id') modelId: number, @Query('userId') userId: number, @Body() model: Partial<ExternalHazardsModel>): Promise<ExternalHazardsModel> {
-    return this.typedModelService.patchExternalHazard(modelId, userId, model);
-  }
-
-  /**
    * gets a single internal hazard
    * @param modelId id of the model to be returned
    * @param userId id of the user getting the model
@@ -85,6 +76,17 @@ export class TypedModelController {
   @Patch('/internal-hazards/:id')
   async patchInternalHazard(@Param('id') modelId: number, @Query('userId') userId: number, @Body() model: Partial<InternalHazardsModel>): Promise<InternalHazardsModel> {
     return this.typedModelService.patchInternalHazard(modelId, userId, model);
+  }
+
+  /**
+   * updates and replaces a single
+   * @param modelId id of the model to be returned
+   * @param userId id of the user getting the model
+   * @returns the external hazard the user has with the modelId
+   */
+  @Patch('/external-hazards/:id')
+  async patchExternalHazard(@Param('id') modelId: number, @Query('userId') userId: number, @Body() model: Partial<ExternalHazardsModel>): Promise<ExternalHazardsModel> {
+    return this.typedModelService.patchExternalHazard(modelId, userId, model);
   }
 
   /**
@@ -115,16 +117,6 @@ export class TypedModelController {
    * @param id the id of the user whose models you want to retrieve
    * @returns a list of the internal hazards moodels the user is on
    */
-  @Get('/external-hazards/')
-  async getExternalHazards(@Query('id') id: number): Promise<ExternalHazardsModel[]> {
-    return this.typedModelService.getExternalHazards(id);
-  }
-
-  /**
-   * 
-   * @param id the id of the user whose models you want to retrieve
-   * @returns a list of the internal hazards moodels the user is on
-   */
   @Get('/internal-hazards/')
   async getInternalHazards(@Query('id') id: number): Promise<InternalHazardsModel[]> {
     return this.typedModelService.getInternalHazards(id);
@@ -133,11 +125,21 @@ export class TypedModelController {
   /**
    * 
    * @param id the id of the user whose models you want to retrieve
+   * @returns a list of the internal hazards moodels the user is on
+   */
+  @Get('/external-hazards/')
+  async getExternalHazards(@Query('id') id: number): Promise<ExternalHazardsModel[]> {
+    return this.typedModelService.getExternalHazards(id);
+  }
+
+  /**
+   * 
+   * @param id the id of the user whose models you want to retrieve
    * @returns a list of the full scope models the user is on
    */
   @Get('/full-scope/')
-  async getFullScope(@Query('id') id: number): Promise<FullScopeModel[]> {
-    return this.typedModelService.getFullScope(id);
+  async getFullScopes(@Query('id') id: number): Promise<FullScopeModel[]> {
+    return this.typedModelService.getFullScopes(id);
   }
 
   //get methods for singles
@@ -150,18 +152,7 @@ export class TypedModelController {
    */
   @Get('/internal-events/:id')
   async getInternalEvent(@Param('id') modelId: number, @Query('userId') userId: number): Promise<InternalEventsModel> {
-    return this.typedModelService.getSingleInternalEvent(modelId, userId);
-  }
-
-  /**
-   * gets a single external hazard
-   * @param modelId id of the model to be returned
-   * @param userId id of the user getting the model
-   * @returns the external hazard the user has with the modelId
-   */
-  @Get('/external-hazards/:id')
-  async getSingleExternalHazard(@Param('id') modelId: number, @Query('userId') userId: number): Promise<ExternalHazardsModel> {
-    return this.typedModelService.getSingleExternalHazard(modelId, userId);
+    return this.typedModelService.getInternalEvent(modelId, userId);
   }
 
   /**
@@ -171,8 +162,19 @@ export class TypedModelController {
    * @returns the internal hazard the user has with the modelId
    */
   @Get('/internal-hazards/:id')
-  async getSingleInternalHazard(@Param('id') modelId: number, @Query('userId') userId: number): Promise<InternalHazardsModel> {
-    return this.typedModelService.getSingleInternalHazard(modelId, userId);
+  async getInternalHazard(@Param('id') modelId: number, @Query('userId') userId: number): Promise<InternalHazardsModel> {
+    return this.typedModelService.getInternalHazard(modelId, userId);
+  }
+
+  /**
+   * gets a single external hazard
+   * @param modelId id of the model to be returned
+   * @param userId id of the user getting the model
+   * @returns the external hazard the user has with the modelId
+   */
+  @Get('/external-hazards/:id')
+  async getExternalHazard(@Param('id') modelId: number, @Query('userId') userId: number): Promise<ExternalHazardsModel> {
+    return this.typedModelService.getExternalHazard(modelId, userId);
   }
 
   /**
@@ -182,8 +184,8 @@ export class TypedModelController {
    * @returns the full scope the user has with the modelId
    */
   @Get('/full-scope/:id')
-  async getSingleFullScope(@Param('id') modelId: number, @Query('userId') userId: number): Promise<FullScopeModel> {
-    return this.typedModelService.getSingleFullScope(modelId, userId);
+  async getFullScope(@Param('id') modelId: number, @Query('userId') userId: number): Promise<FullScopeModel> {
+    return this.typedModelService.getFullScope(modelId, userId);
   }
 
   //delete methods
@@ -203,9 +205,9 @@ export class TypedModelController {
    * @param modelId id of the model to be deleted
    * @returns the deleted model in a promise
    */
-  @Delete('/external-hazards/')
-  async deleteEternalHazard(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
-    return this.typedModelService.deleteExternalHazard(modelId);
+  @Delete('/internal-hazards/')
+  async deleteInternalHazard(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
+    return this.typedModelService.deleteInternalHazard(modelId);
   }
 
   /**
@@ -213,9 +215,9 @@ export class TypedModelController {
    * @param modelId id of the model to be deleted
    * @returns the deleted model in a promise
    */
-  @Delete('/internal-hazards/')
-  async deleteInternalHazard(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
-    return this.typedModelService.deleteInternalHazard(modelId);
+  @Delete('/external-hazards/')
+  async deleteExternalHazard(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
+    return this.typedModelService.deleteExternalHazard(modelId);
   }
 
   /**

@@ -19,23 +19,27 @@ export class CollabService {
         @InjectModel(User.name) private userModel: Model<UserDocument>
     ) {}
 
-    /** 
-    * @param {string} name Name of the counter
+    /**
+    * @param {string} username
     * @description
-    * Generates an ID for the newly created user in an incremental order of 1. Initially if no user exists, the serial ID starts from 1.
-    * @returns {number} ID number
+    * Assists the Local Strategy method to ensure whether a user exists in the database or not.
+    * @returns A mongoose document of the user | undefined
     */
-    async getNextUserValue(name: string) {
-        let record = await this.userCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
-        if(!record) {
-            let newCounter = new this.userCounterModel({ _id: name, seq: 1 });
-            await newCounter.save();
-            return newCounter.seq;
-        }
-        return record.seq;
+    async loginUser(username: string): Promise<User | undefined> {
+        return this.userModel.findOne({ username }).lean();
     }
 
     /**
+    * @param {number} user_id Current user's ID
+    * @description
+    * After each login, the last login time of the user is updated.
+    * @returns void
+    */
+    async updateLastLogin(user_id: number) {
+        await this.userModel.updateOne({ id: user_id }, { 'last_login': Date.now() });
+    }
+    
+    /** 
     * @param {string} name Name of the counter
     * @description
     * Generates an ID for the newly created user in an incremental order of 1. Initially if no user exists, the serial ID starts from 1.

@@ -5,9 +5,7 @@ import { InvalidTokenFilter } from '../filters/invalid-token.filter';
 import { CollabService } from './collab.service';
 import { CreateNewUserDto } from './dtos/create-new-user.dto';
 import { PaginationDto } from './dtos/pagination.dto';
-import { CreateNewUserDto } from '../collab/dtos/create-new-user.dto';
 import { UserPreferencesDto } from './dtos/user-preferences.dto';
-import { User } from '../collab/schemas/user.schema';
 import { HclModel } from '../hcl/schemas/hcl-model.schema';
 import { User } from './schemas/user.schema';
 

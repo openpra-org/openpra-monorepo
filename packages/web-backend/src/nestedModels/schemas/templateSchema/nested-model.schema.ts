@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Label, LabelSchema } from "src/schemas/label.schema";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Label, LabelSchema } from '../../../schemas/label.schema';
 
 @Schema({ _id: false, versionKey: false })
 export class NestedModel {

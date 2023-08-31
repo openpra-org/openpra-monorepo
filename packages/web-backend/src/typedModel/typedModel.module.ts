@@ -6,7 +6,7 @@ import { InternalEvents, InternalEventsSchema } from './schemas/internal-events.
 import { InternalHazards, InternalHazardsSchema } from './schemas/internal-hazards.schema';
 import { ExternalHazards, ExternalHazardsSchema } from './schemas/external-hazards.schema';
 import { FullScope, FullScopeSchema } from './schemas/full-scope.schema';
-import { ModelCounter, ModelCounterSchema } from 'src/schemas/model-counter.schema';
+import { ModelCounter, ModelCounterSchema } from '../schemas/model-counter.schema';
 
 @Module({
   imports: [

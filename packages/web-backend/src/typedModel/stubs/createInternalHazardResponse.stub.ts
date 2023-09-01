@@ -1,6 +1,6 @@
 export const createInternalHazardResponse = {
     _id: 'an ObjectID',
-    id: 1,
+    id: 2,
     label: {
         name: 'Internal Hazard Model',
         description: 'Description for Internal Hazard Model'

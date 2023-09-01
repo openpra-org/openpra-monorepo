@@ -1,9 +1,9 @@
-export const createExternalHazardResponse = {
-    _id: 'an ObjectID',
-    id: 3,
+export const getInternalHazard = {
+    _id: 'another ObjectID',
+    id: 6,
     label: {
-        name: 'External Hazard Model',
-        description: 'Description for External Hazard Model'
+        name: 'Another Internal Hazard Model',
+        description: 'Description for another Internal Hazard Model'
     },
     users: [1],
     initiatingEvents: [],

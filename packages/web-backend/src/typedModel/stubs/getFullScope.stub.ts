@@ -1,9 +1,9 @@
-export const createExternalHazardResponse = {
-    _id: 'an ObjectID',
-    id: 3,
+export const getFullScope = {
+    _id: 'another ObjectID',
+    id: 8,
     label: {
-        name: 'External Hazard Model',
-        description: 'Description for External Hazard Model'
+        name: 'Another Full Scope Model',
+        description: 'Description for another Full Scope Model'
     },
     users: [1],
     initiatingEvents: [],

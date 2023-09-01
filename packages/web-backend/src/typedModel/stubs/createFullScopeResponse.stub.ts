@@ -1,6 +1,6 @@
 export const createFullScopeResponse = {
     _id: 'an ObjectID',
-    id: 1,
+    id: 4,
     label: {
         name: 'Full Scope Model',
         description: 'Description for Full Scope Model'

@@ -1,10 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import InternalEventsModel from '../../../shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel';
-import InternalHazardsModel from '../../../shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel';
-import ExternalHazardsModel from '../../../shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel';
-import FullScopeModel from '../../../shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel';
 import { InternalEvents, InternalEventsDocument } from './schemas/internal-events.schema';
 import { InternalHazards, InternalHazardsDocument } from './schemas/internal-hazards.schema';
 import { ExternalHazards, ExternalHazardsDocument } from './schemas/external-hazards.schema';
@@ -76,7 +72,7 @@ export class TypedModelService {
    * @param body takes in the model type that is requested in the name
    * @returns promise with the model type
    */
-  async createExternalHazardModel(body: Partial<ExternalHazardsModel>): Promise<TypedModel> {
+  async createExternalHazardModel(body: Partial<ExternalHazards>): Promise<TypedModel> {
     try {
       const newExternalHazard = new this.externalHazardsModel(body);
       newExternalHazard.id = await this.getNextModelValue('ModelCounter');
@@ -91,7 +87,7 @@ export class TypedModelService {
    * @param body takes in the model type that is requested in the name
    * @returns promise with the model type
    */
-  async createFullScopeModel(body: Partial<FullScopeModel>): Promise<TypedModel> {
+  async createFullScopeModel(body: Partial<FullScope>): Promise<TypedModel> {
     try {
       const newFullScope = new this.fullScopeModel(body);
       newFullScope.id = await this.getNextModelValue('ModelCounter');
@@ -110,10 +106,10 @@ export class TypedModelService {
    * @param model the new model we want to put at the id
    * @returns the new InternalEventsModel
    */
-  async patchInternalEvent(modelId: number, userId: number, model: Partial<InternalEventsModel>): Promise<InternalEventsModel> {
+  async patchInternalEvent(modelId: string, userId: number, model: Partial<InternalEvents>): Promise<InternalEvents> {
     try {
       // Find the document that matches the provided modelId and userId
-      const query = { 'id': Number(modelId), 'users': Number(userId)};
+      const query = { 'id': Number(modelId), 'users': userId};
 
       const newInternalEvent = new this.internalEventsModel(model);
 
@@ -138,42 +134,12 @@ export class TypedModelService {
    * @param modelId the id of the model to be updated
    * @param userId the user who must be on the model
    * @param model the new model we want to put at the id
-   * @returns the new ExternalHazardsModel
-   */
-  async patchExternalHazard(modelId: number, userId: number, model: Partial<ExternalHazardsModel>): Promise<ExternalHazardsModel> {
-    try {
-      // Find the document that matches the provided modelId and userId
-      const query = { 'id': Number(modelId), 'users': Number(userId)};
-
-      const newExternalHazard = new this.externalHazardsModel(model);
-
-      const updateData = {
-        users: newExternalHazard.users,
-        label: newExternalHazard.label
-      }
-
-      // The `new` option returns the updated document instead of the original one
-      const options = { new: true };
-
-      // Update the document with the provided model data
-      return await this.externalHazardsModel.findOneAndUpdate(query, updateData, options);
-
-    } catch (error) {
-      throw new Error(error);
-    }
-  }
-
-  /**
-   * updates a single model at the given id, replacing it with a new one
-   * @param modelId the id of the model to be updated
-   * @param userId the user who must be on the model
-   * @param model the new model we want to put at the id
    * @returns the new InternalHazardsModel
    */
-  async patchInternalHazard(modelId: number, userId: number, model: Partial<InternalHazardsModel>): Promise<InternalHazardsModel> {
+  async patchInternalHazard(modelId: string, userId: number, model: Partial<InternalHazards>): Promise<InternalHazards> {
     try {
       // Find the document that matches the provided modelId and userId
-      const query = { 'id': Number(modelId), 'users': Number(userId)};
+      const query = { 'id': Number(modelId), 'users': userId};
 
       const newInternalHazard = new this.internalHazardsModel(model);
 
@@ -198,12 +164,42 @@ export class TypedModelService {
    * @param modelId the id of the model to be updated
    * @param userId the user who must be on the model
    * @param model the new model we want to put at the id
-   * @returns the new FulLScopeModel
+   * @returns the new ExternalHazardsModel
    */
-  async patchFullScope(modelId: number, userId: number, model: Partial<FullScopeModel>): Promise<FullScopeModel> {
+  async patchExternalHazard(modelId: string, userId: number, model: Partial<ExternalHazards>): Promise<ExternalHazards> {
     try {
       // Find the document that matches the provided modelId and userId
-      const query = { 'id': Number(modelId), 'users': Number(userId)};
+      const query = { 'id': Number(modelId), 'users': userId};
+
+      const newExternalHazard = new this.externalHazardsModel(model);
+
+      const updateData = {
+        users: newExternalHazard.users,
+        label: newExternalHazard.label
+      }
+
+      // The `new` option returns the updated document instead of the original one
+      const options = { new: true };
+
+      // Update the document with the provided model data
+      return await this.externalHazardsModel.findOneAndUpdate(query, updateData, options);
+
+    } catch (error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * updates a single model at the given id, replacing it with a new one
+   * @param modelId the id of the model to be updated
+   * @param userId the user who must be on the model
+   * @param model the new model we want to put at the id
+   * @returns the new FulLScopeModel
+   */
+  async patchFullScope(modelId: string, userId: number, model: Partial<FullScope>): Promise<FullScope> {
+    try {
+      // Find the document that matches the provided modelId and userId
+      const query = { 'id': Number(modelId), 'users': userId};
 
       const newFullScope = new this.fullScopeModel(model);
 
@@ -230,10 +226,10 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getInternalEvents(userId: number): Promise<InternalEventsModel[]> {
-    //typecast to a number because for some reason, it isnt a number????
+  async getInternalEvents(userId: number): Promise<InternalEvents[]> {
+    //typecast to a number because for some reason, it isn't a number????
     try {
-      return this.internalEventsModel.find({'users': Number(userId)})
+      return this.internalEventsModel.find({'users': userId})
     } catch (error) {
       throw new Error(error);
     }
@@ -244,9 +240,9 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getExternalHazards(userId: number): Promise<ExternalHazardsModel[]> {
+  async getInternalHazards(userId: number): Promise<InternalHazards[]> {
     try {
-      return this.externalHazardsModel.find({'users': Number(userId)})
+      return this.internalHazardsModel.find({'users': userId})
     } catch (error) {
       throw new Error(error);
     }
@@ -257,9 +253,9 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getInternalHazards(userId: number): Promise<InternalHazardsModel[]> {
+  async getExternalHazards(userId: number): Promise<ExternalHazards[]> {
     try {
-      return this.internalHazardsModel.find({'users': Number(userId)})
+      return this.externalHazardsModel.find({'users': userId})
     } catch (error) {
       throw new Error(error);
     }
@@ -270,9 +266,9 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getFullScopes(userId: number): Promise<FullScopeModel[]> {
+  async getFullScopes(userId: number): Promise<FullScope[]> {
     try {
-      return this.fullScopeModel.find({'users': Number(userId)})
+      return this.fullScopeModel.find({'users': userId})
     } catch (error) {
       throw new Error(error);
     }
@@ -286,10 +282,10 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getInternalEvent(modelId: number, userId: number): Promise<InternalEventsModel> {
+  async getInternalEvent(modelId: string, userId: number): Promise<InternalEvents> {
     //typecast to a number because for some reason, it isnt a number????
     try {
-      return this.internalEventsModel.findOne({ id: modelId, 'users': Number(userId)},{_id:0})
+      return this.internalEventsModel.findOne({ id: modelId, 'users': userId})
     } catch (error) {
       throw new Error(error);
     }
@@ -300,9 +296,9 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getExternalHazard(modelId: number, userId: number): Promise<ExternalHazardsModel> {
+  async getInternalHazard(modelId: string, userId: number): Promise<InternalHazards> {
     try {
-      return this.externalHazardsModel.findOne({ id: modelId, 'users': Number(userId) },{_id:0})
+      return this.internalHazardsModel.findOne({ id: modelId, 'users': userId})
     } catch (error) {
       throw new Error(error);
     }
@@ -313,9 +309,9 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getInternalHazard(modelId: number, userId: number): Promise<InternalHazardsModel> {
+  async getExternalHazard(modelId: string, userId: number): Promise<ExternalHazards> {
     try {
-      return this.internalHazardsModel.findOne({ id: modelId, 'users': Number(userId) },{_id:0})
+      return this.externalHazardsModel.findOne({ id: modelId, 'users': userId})
     } catch (error) {
       throw new Error(error);
     }
@@ -326,24 +322,25 @@ export class TypedModelService {
    * @param userId the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getFullScope(modelId: number, userId: number): Promise<FullScopeModel> {
+  async getFullScope(modelId: string, userId: number): Promise<FullScope> {
     try {
-      return this.fullScopeModel.findOne({ id: modelId, 'users': Number(userId) },{_id:0})
+      return this.fullScopeModel.findOne({ id: modelId, 'users': userId})
     } catch (error) {
       throw new Error(error);
     }
   }
 
-  //delete fucntions
+  //delete functions
 
   /**
    * deletes an internal event with the given id
    * @param modelId the id of the internal event to be deleted
    * @returns the deleted model
    */
-  async deleteInternalEvent (modelId: number): Promise<InternalEventsModel> {
+  async deleteInternalEvent(modelId: string): Promise<HttpStatus> {
     try {
-      return this.internalEventsModel.findOneAndDelete({'id': Number(modelId)})
+      await this.internalEventsModel.findOneAndDelete({'id': Number(modelId)});
+      return HttpStatus.NO_CONTENT;
     } catch (error) {
       throw new Error(error);
     }
@@ -354,9 +351,10 @@ export class TypedModelService {
    * @param modelId the id of the internal hazard to be deleted
    * @returns the deleted model
    */
-  async deleteInternalHazard (modelId: number): Promise<InternalHazardsModel> {
+  async deleteInternalHazard(modelId: string): Promise<HttpStatus> {
     try {
-      return this.internalHazardsModel.findOneAndDelete({'id': Number(modelId)})
+      await this.internalHazardsModel.findOneAndDelete({'id': Number(modelId)});
+      return HttpStatus.NO_CONTENT;
     } catch (error) {
       throw new Error(error);
     }
@@ -367,9 +365,10 @@ export class TypedModelService {
    * @param modelId the id of the external hazard to be deleted
    * @returns the deleted model
    */
-  async deleteExternalHazard (modelId: number): Promise<ExternalHazardsModel> {
+  async deleteExternalHazard(modelId: string): Promise<HttpStatus> {
     try {
-      return this.externalHazardsModel.findOneAndDelete({'id': Number(modelId)})
+      await this.externalHazardsModel.findOneAndDelete({'id': Number(modelId)});
+      return HttpStatus.NO_CONTENT;
     } catch (error) {
       throw new Error(error);
     }
@@ -380,9 +379,10 @@ export class TypedModelService {
    * @param modelId the id of the full scope to be deleted
    * @returns the deleted model
    */
-  async deleteFullScope (modelId: number): Promise<FullScopeModel> {
+  async deleteFullScope(modelId: string): Promise<HttpStatus> {
     try {
-      return this.fullScopeModel.findOneAndDelete({'id': Number(modelId)})
+      await this.fullScopeModel.findOneAndDelete({'id': Number(modelId)});
+      return HttpStatus.NO_CONTENT;
     } catch (error) {
       throw new Error(error);
     }

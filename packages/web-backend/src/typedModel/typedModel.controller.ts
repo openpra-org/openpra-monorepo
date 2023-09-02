@@ -277,22 +277,22 @@ export class TypedModelController {
   //for deleting nested model ids
 
   @Patch('/internal-events/:id/delete-nested')
-  async deleteNestedFromInternalEvent(@Param ('id') id: number, @Body() body: { nestedId: number, nestedType: string } ): Promise<TypedModelJSON> {
+  async deleteNestedFromInternalEvent(@Param ('id') id: string, @Body() body: { nestedId: number, nestedType: string } ): Promise<TypedModelJSON> {
     return this.typedModelService.deleteNestedFromInternalEvent(id, body.nestedId, body.nestedType);
   }
 
   @Patch('/internal-hazards/:id/delete-nested')
-  async deleteNestedFromInternalHazard(@Param ('id') id: number, @Body() body: { nestedId: number, nestedType: string } ): Promise<TypedModelJSON> {
+  async deleteNestedFromInternalHazard(@Param ('id') id: string, @Body() body: { nestedId: number, nestedType: string } ): Promise<TypedModelJSON> {
     return this.typedModelService.deleteNestedFromInternalHazard(id, body.nestedId, body.nestedType);
   }
 
   @Patch('/external-hazards/:id/delete-nested')
-  async deleteNestedFromExternalHazard(@Param ('id') id: number, @Body() body: { nestedId: number, nestedType: string } ): Promise<TypedModelJSON> {
+  async deleteNestedFromExternalHazard(@Param ('id') id: string, @Body() body: { nestedId: number, nestedType: string } ): Promise<TypedModelJSON> {
     return this.typedModelService.deleteNestedFromExternalHazard(id, body.nestedId, body.nestedType);
   }
 
   @Patch('/full-scope/:id/delete-nested')
-  async deleteNestedFromFullScope(@Param ('id') id: number, @Body() body: { nestedId: number, nestedType: string } ): Promise<TypedModelJSON> {
+  async deleteNestedFromFullScope(@Param ('id') id: string, @Body() body: { nestedId: number, nestedType: string } ): Promise<TypedModelJSON> {
     return this.typedModelService.deleteNestedFromFullScope(id, body.nestedId, body.nestedType);
   }
 }

@@ -3,22 +3,6 @@ import { Test } from '@nestjs/testing';
 import { TypedModelController } from './typedModel.controller';
 import { TypedModelService } from './typedModel.service';
 import { request } from './stubs/request.stub';
-import { createInternalEventRequest } from './stubs/createInternalEventRequest.stub';
-import { createInternalHazardRequest } from './stubs/createInternalHazardRequest.stub';
-import { createExternalHazardRequest } from './stubs/createExternalHazardRequest.stub';
-import { createFullScopeRequest } from './stubs/createFullScopeRequest.stub';
-import { updateInternalEventRequest } from './stubs/updateInternalEventRequest.stub';
-import { updateInternalHazardRequest } from './stubs/updateInternalHazardRequest.stub';
-import { updateExternalHazardRequest } from './stubs/updateExternalHazardRequest.stub';
-import { updateFullScopeRequest } from './stubs/updateFullScopeRequest.stub';
-import { createInternalEventResponse } from './stubs/createInternalEventResponse.stub';
-import { createInternalHazardResponse } from './stubs/createInternalHazardResponse.stub';
-import { createExternalHazardResponse } from './stubs/createExternalHazardResponse.stub';
-import { createFullScopeResponse } from './stubs/createFullScopeResponse.stub';
-import { updateInternalEventResponse } from './stubs/updateInternalEventResponse.stub';
-import { updateInternalHazardResponse } from './stubs/updateInternalHazardResponse.stub';
-import { updateExternalHazardResponse } from './stubs/updateExternalHazardResponse.stub';
-import { updateFullScopeResponse } from './stubs/updateFullScopeResponse.stub';
 import { getInternalEvents } from './stubs/getInternalEvents.stub';
 import { getInternalHazards } from './stubs/getInternalHazards.stub';
 import { getExternalHazards } from './stubs/getExternalHazards.stub';
@@ -27,6 +11,34 @@ import { getInternalEvent } from './stubs/getInternalEvent.stub';
 import { getInternalHazard } from './stubs/getInternalHazard.stub';
 import { getExternalHazard } from './stubs/getExternalHazard.stub';
 import { getFullScope } from './stubs/getFullScope.stub';
+import { createInternalEventRequest } from './stubs/createInternalEventRequest.stub';
+import { createInternalHazardRequest } from './stubs/createInternalHazardRequest.stub';
+import { createExternalHazardRequest } from './stubs/createExternalHazardRequest.stub';
+import { createFullScopeRequest } from './stubs/createFullScopeRequest.stub';
+import { updateInternalEventRequest } from './stubs/updateInternalEventRequest.stub';
+import { updateInternalHazardRequest } from './stubs/updateInternalHazardRequest.stub';
+import { updateExternalHazardRequest } from './stubs/updateExternalHazardRequest.stub';
+import { updateFullScopeRequest } from './stubs/updateFullScopeRequest.stub';
+import { addNestedToInternalEventRequest } from './stubs/addNestedToInternalEventRequest.stub';
+import { addNestedToInternalHazardRequest } from './stubs/addNestedToInternalHazardRequest.stub';
+import { addNestedToExternalHazardRequest } from './stubs/addNestedToExternalHazardRequest.stub';
+import { addNestedToFullScopeRequest } from './stubs/addNestedToFullScopeRequest.stub';
+import { createInternalEventResponse } from './stubs/createInternalEventResponse.stub';
+import { createInternalHazardResponse } from './stubs/createInternalHazardResponse.stub';
+import { createExternalHazardResponse } from './stubs/createExternalHazardResponse.stub';
+import { createFullScopeResponse } from './stubs/createFullScopeResponse.stub';
+import { updateInternalEventResponse } from './stubs/updateInternalEventResponse.stub';
+import { updateInternalHazardResponse } from './stubs/updateInternalHazardResponse.stub';
+import { updateExternalHazardResponse } from './stubs/updateExternalHazardResponse.stub';
+import { updateFullScopeResponse } from './stubs/updateFullScopeResponse.stub';
+import { addNestedToInternalEventResponse } from './stubs/addNestedToInternalEventResponse.stub';
+import { addNestedToInternalHazardResponse } from './stubs/addNestedToInternalHazardResponse.stub';
+import { addNestedToExternalHazardResponse } from './stubs/addNestedToExternalHazardResponse.stub';
+import { addNestedToFullScopeResponse } from './stubs/addNestedToFullScopeResponse.stub';
+import { deleteNestedFromInternalEventRequest } from './stubs/deleteNestedFromInternalEventRequest.stub';
+import { deleteNestedFromInternalHazardRequest } from './stubs/deleteNestedFromInternalHazardRequest.stub';
+import { deleteNestedFromExternalHazardRequest } from './stubs/deleteNestedFromExternalHazardRequest.stub';
+import { deleteNestedFromFullScopeRequest } from './stubs/deleteNestedFromFullScopeRequest.stub';
 
 describe('TypedModel Controller', () => {
     let Controller: TypedModelController;
@@ -59,14 +71,14 @@ describe('TypedModel Controller', () => {
                         deleteInternalHazard: jest.fn().mockResolvedValue(HttpStatus.NO_CONTENT),
                         deleteExternalHazard: jest.fn().mockResolvedValue(HttpStatus.NO_CONTENT),
                         deleteFullScope: jest.fn().mockResolvedValue(HttpStatus.NO_CONTENT),
-                        addNestedToInternalEvent: jest.fn().mockResolvedValue({}),
-                        addNestedToInternalHazard: jest.fn().mockResolvedValue({}),
-                        addNestedToExternalHazard: jest.fn().mockResolvedValue({}),
-                        addNestedToFullScope: jest.fn().mockResolvedValue({}),
-                        deleteNestedFromInternalEvent: jest.fn().mockResolvedValue({}),
-                        deleteNestedFromInternalHazard: jest.fn().mockResolvedValue({}),
-                        deleteNestedFromExternalHazard: jest.fn().mockResolvedValue({}),
-                        deleteNestedFromFullScope: jest.fn().mockResolvedValue({})
+                        addNestedToInternalEvent: jest.fn().mockResolvedValue(addNestedToInternalEventResponse),
+                        addNestedToInternalHazard: jest.fn().mockResolvedValue(addNestedToInternalHazardResponse),
+                        addNestedToExternalHazard: jest.fn().mockResolvedValue(addNestedToExternalHazardResponse),
+                        addNestedToFullScope: jest.fn().mockResolvedValue(addNestedToFullScopeResponse),
+                        deleteNestedFromInternalEvent: jest.fn().mockResolvedValue(updateInternalEventResponse),
+                        deleteNestedFromInternalHazard: jest.fn().mockResolvedValue(updateInternalHazardResponse),
+                        deleteNestedFromExternalHazard: jest.fn().mockResolvedValue(updateExternalHazardResponse),
+                        deleteNestedFromFullScope: jest.fn().mockResolvedValue(updateFullScopeResponse)
                     }
                 }
             ]
@@ -197,6 +209,54 @@ describe('TypedModel Controller', () => {
     describe('deleteFullScope()', () => {
         it('Should delete the Full Scope Model and return 204 status', () => {
             expect(Controller.deleteFullScope("8")).resolves.toEqual(HttpStatus.NO_CONTENT);
+        })
+    })
+
+    describe('addNestedToInternalEvent()', () => {
+        it('Should return the Updated Internal Event Model including the Nested Model', () => {
+            expect(Controller.addNestedToInternalEvent(addNestedToInternalEventRequest)).resolves.toEqual(addNestedToInternalEventResponse);
+        })
+    })
+
+    describe('addNestedToInternalHazard()', () => {
+        it('Should return the Updated Internal Hazard Model including the Nested Model', () => {
+            expect(Controller.addNestedToInternalHazard(addNestedToInternalHazardRequest)).resolves.toEqual(addNestedToInternalHazardResponse);
+        })
+    })
+
+    describe('addNestedToExternalHazard()', () => {
+        it('Should return the Updated External Hazard Model including the Nested Model', () => {
+            expect(Controller.addNestedToExternalHazard(addNestedToExternalHazardRequest)).resolves.toEqual(addNestedToExternalHazardResponse);
+        })
+    })
+
+    describe('addNestedToFullScope()', () => {
+        it('Should return the Updated Full Scope Model including the Nested Model', () => {
+            expect(Controller.addNestedToFullScope(addNestedToFullScopeRequest)).resolves.toEqual(addNestedToFullScopeResponse);
+        })
+    })
+
+    describe('deleteNestedFromInternalEvent()', () => {
+        it('Should return the Updated Internal Event Model excluding the Nested Model', () => {
+            expect(Controller.deleteNestedFromInternalEvent("1", deleteNestedFromInternalEventRequest)).resolves.toEqual(updateInternalEventResponse);
+        })
+    })
+
+    describe('deleteNestedFromInternalHazard()', () => {
+        it('Should return the Updated Internal Hazard Model excluding the Nested Model', () => {
+            expect(Controller.deleteNestedFromInternalHazard("2", deleteNestedFromInternalHazardRequest)).resolves.toEqual(updateInternalHazardResponse);
+        })
+    })
+
+    describe('deleteNestedFromExternalHazard()', () => {
+        it('Should return the Updated External Hazard Model excluding the Nested Model', () => {
+            expect(Controller.deleteNestedFromExternalHazard("3", deleteNestedFromExternalHazardRequest)).resolves.toEqual(updateExternalHazardResponse);
+        })
+    })
+
+    describe('deleteNestedFromFullScope()', () => {
+        it('Should return the Updated Full Scope Model excluding the Nested Model', () => {
+            expect(Controller.deleteNestedFromFullScope("4", deleteNestedFromFullScopeRequest)).resolves.toEqual(updateFullScopeResponse);
         })
     })
 });

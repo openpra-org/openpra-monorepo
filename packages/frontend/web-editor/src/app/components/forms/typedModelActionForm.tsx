@@ -52,7 +52,7 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
   const [selectedUsersList, setSelectedUsersList] = useState<EuiComboBoxOptionOption<any>[]>([])
 
   //list of the user ids which we add to the api calls
-  const [usersListId, setUsersListId] = useState([0])
+  const [usersListId, setUsersListId] = useState<number[]>([])
 
   console.log(patchEndpoint)
 

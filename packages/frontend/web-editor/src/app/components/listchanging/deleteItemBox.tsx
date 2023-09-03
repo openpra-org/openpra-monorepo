@@ -40,11 +40,11 @@ export default function DeleteItemBox(props: DeleteItemProps) {
     const navigate = useNavigate()
 
     //sets the data, then closes overlay
-    const deleteData = () => {
+    const deleteData = async () => {
         if(deleteTypedEndpoint){
-            deleteTypedEndpoint(id)
+            await deleteTypedEndpoint(id)
         } else if (deleteNestedEndpoint) {
-            deleteNestedEndpoint(id)
+            await deleteNestedEndpoint(id)
         }
         if(window.location.pathname.endsWith('settings')){
             navigate('')

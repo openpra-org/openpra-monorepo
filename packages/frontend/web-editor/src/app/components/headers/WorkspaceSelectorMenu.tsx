@@ -53,7 +53,7 @@ export default function WorkspaceSelectorMenu() {
       aria-label="Workspace menu"
       onClick={onMenuButtonClick}
     >
-      {selectedSpace.prepend}
+      {selectedSpace}
     </EuiHeaderSectionItemButton>
   );
 

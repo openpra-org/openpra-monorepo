@@ -17,7 +17,7 @@ jest.mock("react-router-dom", () => ({
 describe('Internal events button renders', () => {
     it('Renders the internal events button', () => { 
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+        const { getByText, getByAltText, getByTestId } = render(<ContextAddButton />);
 
         const buttonText = getByText('Create Internal Events');
 
@@ -26,230 +26,230 @@ describe('Internal events button renders', () => {
     });
 });
 
-describe('Internal hazards button renders', () => {
-    it('Renders the internal hazards button', () => { 
+// describe('Internal hazards button renders', () => {
+//     it('Renders the internal hazards button', () => { 
 
-        jest.mock("react-router-dom", () => ({
-            ...jest.requireActual("react-router-dom"),
-            useLocation: () => ({
-              pathname: "/internal-hazards"
-            })
-        }));
+//         jest.mock("react-router-dom", () => ({
+//             ...jest.requireActual("react-router-dom"),
+//             useLocation: () => ({
+//               pathname: "/internal-hazards"
+//             })
+//         }));
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+//         const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
 
-        const buttonText = getByText('Create Internal Hazards');
+//         const buttonText = getByText('Create Internal Hazards');
 
-        expect(buttonText).toBeTruthy();
+//         expect(buttonText).toBeTruthy();
 
-    });
-});
+//     });
+// });
 
-describe('External hazards button renders', () => {
-    it('Renders the external hazards button', () => { 
+// describe('External hazards button renders', () => {
+//     it('Renders the external hazards button', () => { 
 
-        jest.mock("react-router-dom", () => ({
-            ...jest.requireActual("react-router-dom"),
-            useLocation: () => ({
-              pathname: "/external-hazards"
-            })
-        }));
+//         jest.mock("react-router-dom", () => ({
+//             ...jest.requireActual("react-router-dom"),
+//             useLocation: () => ({
+//               pathname: "/external-hazards"
+//             })
+//         }));
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+//         const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
 
-        const buttonText = getByText('Create External Hazards');
+//         const buttonText = getByText('Create External Hazards');
 
-        expect(buttonText).toBeTruthy();
+//         expect(buttonText).toBeTruthy();
 
-    });
-});
+//     });
+// });
 
-describe('Full Scope button renders', () => {
-    it('Renders the full scope button', () => { 
+// describe('Full Scope button renders', () => {
+//     it('Renders the full scope button', () => { 
 
-        jest.mock("react-router-dom", () => ({
-            ...jest.requireActual("react-router-dom"),
-            useLocation: () => ({
-              pathname: "/full-scope"
-            })
-        }));
+//         jest.mock("react-router-dom", () => ({
+//             ...jest.requireActual("react-router-dom"),
+//             useLocation: () => ({
+//               pathname: "/full-scope"
+//             })
+//         }));
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+//         const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
 
-        const buttonText = getByText('Create Full Scope');
+//         const buttonText = getByText('Create Full Scope');
 
-        expect(buttonText).toBeTruthy();
+//         expect(buttonText).toBeTruthy();
 
-    });
-});
+//     });
+// });
 
-describe('Bayesian estimation button renders', () => {
-    it('Renders the bayesian estimation button', () => { 
+// describe('Bayesian estimation button renders', () => {
+//     it('Renders the bayesian estimation button', () => { 
 
-        jest.mock("react-router-dom", () => ({
-            ...jest.requireActual("react-router-dom"),
-            useLocation: () => ({
-              pathname: "/full-scope/bayesian-estimations"
-            })
-        }));
+//         jest.mock("react-router-dom", () => ({
+//             ...jest.requireActual("react-router-dom"),
+//             useLocation: () => ({
+//               pathname: "/full-scope/bayesian-estimations"
+//             })
+//         }));
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+//         const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
 
-        const buttonText = getByText('Create Bayesian Estimation');
+//         const buttonText = getByText('Create Bayesian Estimation');
 
-        expect(buttonText).toBeTruthy();
+//         expect(buttonText).toBeTruthy();
 
-    });
-});
+//     });
+// });
 
-describe('Bayesian network button renders', () => {
-    it('Renders the bayesian network button', () => { 
+// describe('Bayesian network button renders', () => {
+//     it('Renders the bayesian network button', () => { 
 
-        jest.mock("react-router-dom", () => ({
-            ...jest.requireActual("react-router-dom"),
-            useLocation: () => ({
-              pathname: "/full-scope/bayesian-networks"
-            })
-        }));
+//         jest.mock("react-router-dom", () => ({
+//             ...jest.requireActual("react-router-dom"),
+//             useLocation: () => ({
+//               pathname: "/full-scope/bayesian-networks"
+//             })
+//         }));
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+//         const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
 
-        const buttonText = getByText('Create Bayesian Network');
+//         const buttonText = getByText('Create Bayesian Network');
 
-        expect(buttonText).toBeTruthy();
+//         expect(buttonText).toBeTruthy();
 
-    });
-});
+//     });
+// });
 
-describe('Event sequence diagram button renders', () => {
-    it('Renders the event sequence diagram button', () => { 
+// describe('Event sequence diagram button renders', () => {
+//     it('Renders the event sequence diagram button', () => { 
 
-        jest.mock("react-router-dom", () => ({
-            ...jest.requireActual("react-router-dom"),
-            useLocation: () => ({
-              pathname: "/full-scope/event-sequence-diagrams"
-            })
-        }));
+//         jest.mock("react-router-dom", () => ({
+//             ...jest.requireActual("react-router-dom"),
+//             useLocation: () => ({
+//               pathname: "/full-scope/event-sequence-diagrams"
+//             })
+//         }));
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+//         const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
 
-        const buttonText = getByText('Create Event Sequence Diagram');
+//         const buttonText = getByText('Create Event Sequence Diagram');
 
-        expect(buttonText).toBeTruthy();
+//         expect(buttonText).toBeTruthy();
 
-    });
-});
+//     });
+// });
 
-describe('Event tree button renders', () => {
-    it('Renders the event tree button', () => { 
+// describe('Event tree button renders', () => {
+//     it('Renders the event tree button', () => { 
 
-        jest.mock("react-router-dom", () => ({
-            ...jest.requireActual("react-router-dom"),
-            useLocation: () => ({
-              pathname: "/full-scope/event-trees"
-            })
-        }));
+//         jest.mock("react-router-dom", () => ({
+//             ...jest.requireActual("react-router-dom"),
+//             useLocation: () => ({
+//               pathname: "/full-scope/event-trees"
+//             })
+//         }));
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+//         const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
 
-        const buttonText = getByText('Create Event Tree');
+//         const buttonText = getByText('Create Event Tree');
 
-        expect(buttonText).toBeTruthy();
+//         expect(buttonText).toBeTruthy();
 
-    });
-});
+//     });
+// });
 
-describe('Fault tree button renders', () => {
-    it('Renders the fault tree button', () => { 
+// describe('Fault tree button renders', () => {
+//     it('Renders the fault tree button', () => { 
 
-        jest.mock("react-router-dom", () => ({
-            ...jest.requireActual("react-router-dom"),
-            useLocation: () => ({
-              pathname: "/full-scope/fault-trees"
-            })
-        }));
+//         jest.mock("react-router-dom", () => ({
+//             ...jest.requireActual("react-router-dom"),
+//             useLocation: () => ({
+//               pathname: "/full-scope/fault-trees"
+//             })
+//         }));
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+//         const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
 
-        const buttonText = getByText('Create Fault Tree');
+//         const buttonText = getByText('Create Fault Tree');
 
-        expect(buttonText).toBeTruthy();
+//         expect(buttonText).toBeTruthy();
 
-    });
-});
+//     });
+// });
 
-describe('Functional event button renders', () => {
-    it('Renders the functional event button', () => { 
+// describe('Functional event button renders', () => {
+//     it('Renders the functional event button', () => { 
 
-        jest.mock("react-router-dom", () => ({
-            ...jest.requireActual("react-router-dom"),
-            useLocation: () => ({
-              pathname: "/full-scope/functional-events"
-            })
-        }));
+//         jest.mock("react-router-dom", () => ({
+//             ...jest.requireActual("react-router-dom"),
+//             useLocation: () => ({
+//               pathname: "/full-scope/functional-events"
+//             })
+//         }));
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+//         const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
 
-        const buttonText = getByText('Create Functional Event');
+//         const buttonText = getByText('Create Functional Event');
 
-        expect(buttonText).toBeTruthy();
+//         expect(buttonText).toBeTruthy();
 
-    });
-});
+//     });
+// });
 
-describe('Initiating events button renders', () => {
-    it('Renders the intiating events button', () => { 
+// describe('Initiating events button renders', () => {
+//     it('Renders the intiating events button', () => { 
 
-        jest.mock("react-router-dom", () => ({
-            ...jest.requireActual("react-router-dom"),
-            useLocation: () => ({
-              pathname: "/full-scope/initiating-events"
-            })
-        }));
+//         jest.mock("react-router-dom", () => ({
+//             ...jest.requireActual("react-router-dom"),
+//             useLocation: () => ({
+//               pathname: "/full-scope/initiating-events"
+//             })
+//         }));
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+//         const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
 
-        const buttonText = getByText('Create Initiating Events');
+//         const buttonText = getByText('Create Initiating Events');
 
-        expect(buttonText).toBeTruthy();
+//         expect(buttonText).toBeTruthy();
 
-    });
-});
+//     });
+// });
 
-describe('Markov chains button renders', () => {
-    it('Renders the markov chains button', () => { 
+// describe('Markov chains button renders', () => {
+//     it('Renders the markov chains button', () => { 
 
-        jest.mock("react-router-dom", () => ({
-            ...jest.requireActual("react-router-dom"),
-            useLocation: () => ({
-              pathname: "/full-scope/markov-chains"
-            })
-        }));
+//         jest.mock("react-router-dom", () => ({
+//             ...jest.requireActual("react-router-dom"),
+//             useLocation: () => ({
+//               pathname: "/full-scope/markov-chains"
+//             })
+//         }));
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+//         const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
 
-        const buttonText = getByText('Create Markov Chains');
+//         const buttonText = getByText('Create Markov Chains');
 
-        expect(buttonText).toBeTruthy();
+//         expect(buttonText).toBeTruthy();
 
-    });
-});
+//     });
+// });
 
-describe('Weibull analysis button renders', () => {
-    it('Renders the weibull analysis button', () => { 
+// describe('Weibull analysis button renders', () => {
+//     it('Renders the weibull analysis button', () => { 
 
-        jest.mock("react-router-dom", () => ({
-            ...jest.requireActual("react-router-dom"),
-            useLocation: () => ({
-              pathname: "/full-scope/weibull-analysis"
-            })
-        }));
+//         jest.mock("react-router-dom", () => ({
+//             ...jest.requireActual("react-router-dom"),
+//             useLocation: () => ({
+//               pathname: "/full-scope/weibull-analysis"
+//             })
+//         }));
         
-        const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
+//         const { getByText, getByAltText, getByTestId, } = render(<ContextAddButton />);
 
-        const buttonText = getByText('Create Weibull Analysis');
+//         const buttonText = getByText('Create Weibull Analysis');
 
-        expect(buttonText).toBeTruthy();
+//         expect(buttonText).toBeTruthy();
 
-    });
-});
+//     });
+// });

@@ -54,7 +54,7 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
   const [selectedUsersList, setSelectedUsersList] = useState<EuiComboBoxOptionOption<any>[]>([])
 
   //list of the user ids which we add to the api calls
-  const [usersListId, setUsersListId] = useState([0])
+  const [usersListId, setUsersListId] = useState<number[]>([])
 
   //use effect to set up users, only runs if init form values is passed which is only passed on edit!
   if(initialFormValues){

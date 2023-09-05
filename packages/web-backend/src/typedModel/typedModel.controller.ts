@@ -197,8 +197,8 @@ export class TypedModelController {
    * @param modelId id of the model to be deleted
    * @returns the deleted model in a promise
    */
-  @Delete('/internal-events/:id/')
-  async deleteInternalEvent(@Param('id') modelId: string): Promise<HttpStatus> {
+  @Delete('/internal-events/')
+  async deleteInternalEvent(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
     return this.typedModelService.deleteInternalEvent(modelId);
   }
 
@@ -207,18 +207,8 @@ export class TypedModelController {
    * @param modelId id of the model to be deleted
    * @returns the deleted model in a promise
    */
-  @Delete('/internal-hazards/:id/')
-  async deleteInternalHazard(@Param('id') modelId: string): Promise<HttpStatus> {
-    return this.typedModelService.deleteInternalHazard(modelId);
-  }
-
-  /**
-   * 
-   * @param modelId id of the model to be deleted
-   * @returns the deleted model in a promise
-   */
-  @Delete('/external-hazards/:id/')
-  async deleteExternalHazard(@Param('id') modelId: string): Promise<HttpStatus> {
+  @Delete('/external-hazards/')
+  async deleteEternalHazard(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
     return this.typedModelService.deleteExternalHazard(modelId);
   }
 
@@ -227,8 +217,18 @@ export class TypedModelController {
    * @param modelId id of the model to be deleted
    * @returns the deleted model in a promise
    */
-  @Delete('/full-scope/:id/')
-  async deleteFullScope(@Param('id') modelId: string): Promise<HttpStatus> {
+  @Delete('/internal-hazards/')
+  async deleteInternalHazard(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
+    return this.typedModelService.deleteInternalHazard(modelId);
+  }
+
+  /**
+   * 
+   * @param modelId id of the model to be deleted
+   * @returns the deleted model in a promise
+   */
+  @Delete('/full-scope/')
+  async deleteFullScope(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
     return this.typedModelService.deleteFullScope(modelId);
   }
 

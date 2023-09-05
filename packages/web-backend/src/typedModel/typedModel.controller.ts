@@ -194,8 +194,9 @@ export class TypedModelController {
    * @returns the deleted model in a promise
    */
   @Delete('/internal-events/')
-  async deleteInternalEvent(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
-    return this.typedModelService.deleteInternalEvent(modelId);
+  async deleteInternalEvent(@Query('modelId') modelId: number, @Query('userId') userId: number): Promise<InternalEventsModel> {
+    console.log('in controller', modelId, userId)
+    return this.typedModelService.deleteInternalEvent(modelId, userId);
   }
 
   /**
@@ -204,8 +205,8 @@ export class TypedModelController {
    * @returns the deleted model in a promise
    */
   @Delete('/external-hazards/')
-  async deleteEternalHazard(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
-    return this.typedModelService.deleteExternalHazard(modelId);
+  async deleteEternalHazard(@Query('modelId') modelId: number, @Query() userId: number): Promise<InternalEventsModel> {
+    return this.typedModelService.deleteExternalHazard(modelId, userId);
   }
 
   /**
@@ -214,8 +215,8 @@ export class TypedModelController {
    * @returns the deleted model in a promise
    */
   @Delete('/internal-hazards/')
-  async deleteInternalHazard(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
-    return this.typedModelService.deleteInternalHazard(modelId);
+  async deleteInternalHazard(@Query('modelId') modelId: number, @Query() userId: number): Promise<InternalEventsModel> {
+    return this.typedModelService.deleteInternalHazard(modelId, userId);
   }
 
   /**
@@ -224,8 +225,8 @@ export class TypedModelController {
    * @returns the deleted model in a promise
    */
   @Delete('/full-scope/')
-  async deleteFullScope(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
-    return this.typedModelService.deleteFullScope(modelId);
+  async deleteFullScope(@Query('modelId') modelId: number, @Query() userId: number): Promise<InternalEventsModel> {
+    return this.typedModelService.deleteFullScope(modelId, userId);
   }
 
   //endpoints for adding a nested model id

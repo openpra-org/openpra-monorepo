@@ -49,7 +49,7 @@ export default function DeleteItemBox(props: DeleteItemProps) {
         if(window.location.pathname.endsWith('settings')){
             navigate('')
         }
-        location.reload()
+        //location.reload()
     }
 
     return (

@@ -10,7 +10,6 @@ import EventTrees from "../fullScopePages/eventTrees";
 import InternalEventsContainer from "../../components/pageContainers/internalEventsContainer";
 import PlantOperationState from "../fullScopePages/plantOperationState";
 import FunctionalEvents from "../fullScopePages/functionalEvents";
-import LogicalModels from "../fullScopePages/logicalModels";
 import BayesianEstimation from "../fullScopePages/bayesianEstimation";
 import MechanisticAnalysis from "../fullScopePages/mechanisticAnalysis";
 import RadiologicalAnalysis from "../fullScopePages/radiologicalAnalysis";
@@ -18,9 +17,6 @@ import RiskIntegration from "../fullScopePages/riskIntegration";
 import WeibullAnalysis from "../fullScopePages/weibullAnalysis";
 import MarkovChains from "../fullScopePages/markovChains";
 import HRA from "../fullScopePages/humanReliabilityAnalysis";
-import TypedModelApiManager from "packages/shared-types/src/lib/api/TypedModelApiManager";
-import ApiManager from "packages/shared-types/src/lib/api/ApiManager";
-import ModelList from "../../components/lists/ModelList";
 import FaultTrees from "../fullScopePages/faultTrees";
 
 
@@ -71,10 +67,10 @@ export async function loadModel() {
 export default function InternalEventsPage() {
   return (
     <Routes>
-      <Route 
-        path="" 
+      <Route
+        path=""
         //loader={internalEventsLoader}
-        element=<InternalEventsList/> 
+        element=<InternalEventsList/>
       />
       <Route
         path=":modelId"
@@ -132,15 +128,15 @@ export default function InternalEventsPage() {
         <Route
           path= "mechanistic-source-term-analysis/*"
           element= {<MechanisticAnalysis />}
-        />  
+        />
         <Route
           path= "radiological-consequence-analysis/*"
           element= {<RadiologicalAnalysis />}
-        />  
+        />
         <Route
           path= "risk-integration/*"
           element= {<RiskIntegration />}
-        />   
+        />
         <Route
           path= "settings/*"
           element= {<ModelSettings />}

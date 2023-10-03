@@ -66,9 +66,9 @@ export default function AdvancedSettings() {
           <EuiFlexGrid direction="row" responsive={false} columns={smallScreen ? 1 : 2}>
               <EuiFlexItem grow={false}>
                   <EuiPanel paddingSize="xl">
-                      <EuiTitle size="s" ><h6>Model Grouping</h6></EuiTitle>
+                      <EuiTitle size="s" data-testid="title"><h6>Model Grouping</h6></EuiTitle>
                       <EuiSpacer size="s"/>
-                      <EuiText size="s" color="subdued">The model can be grouped as a project, subsystem, or component. <EuiSpacer size="s"/> <strong>Default: Component</strong></EuiText>
+                      <EuiText size="s" data-testid="text" color="subdued">The model can be grouped as a project, subsystem, or component. <EuiSpacer size="s"/> <strong>Default: Component</strong></EuiText>
                       <EuiSpacer />
                       <EuiFormRow label="Grouping">
                           <EuiFlexGroup>
@@ -79,23 +79,24 @@ export default function AdvancedSettings() {
                                 onChange={(e) => onChange(e)}
                                 aria-label="Use aria labels when no actual label is in use"
                                 fullWidth={true}
+                                data-testid="grouping"
                               />
                           </EuiFlexGroup>
                       </EuiFormRow>
                       <EuiFormRow fullWidth>
-                          <EuiButton fullWidth isDisabled={false} color="primary">Save</EuiButton>
+                          <EuiButton fullWidth isDisabled={false} data-testid="saveButton" color="primary">Save</EuiButton>
                       </EuiFormRow>
                     </EuiPanel>
                 </EuiFlexItem>
                 <EuiFlexItem>
                   <EuiPanel paddingSize="xl">
                       <EuiFlexGroup direction="column">
-                          <EuiTitle size="s"><h6>Trash Model</h6></EuiTitle>
+                          <EuiTitle size="s" data-testid="trashTitle"><h6>Trash Model</h6></EuiTitle>
                           <EuiSpacer size="s"/>
-                          <EuiText size="s" color="subdued">Once deleted, a model cannot be recovered.</EuiText>
+                          <EuiText size="s" color="subdued" data-testid="trashText">Once deleted, a model cannot be recovered.</EuiText>
                           <EuiSpacer />
                           <EuiFormRow fullWidth>
-                              <EuiButton fullWidth isDisabled={false} color="danger" fill>Trash</EuiButton>
+                              <EuiButton fullWidth isDisabled={false} data-testid="trashButton" color="danger" fill>Trash</EuiButton>
                           </EuiFormRow>
                       </EuiFlexGroup>
                   </EuiPanel>

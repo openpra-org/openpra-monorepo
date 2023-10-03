@@ -36,8 +36,8 @@ export default function ButtonWithPopover({ iconType, children, buttonText, onRe
   }
 
   //color changed by setting fill
-  const button = isIcon ? <EuiButtonIcon {...rest} children={buttonText} iconType={iconType || "none"} onClick={onButtonClick} /> : 
-    <EuiButton {...rest} children={buttonText} iconType={iconType} fill={true} onClick={onButtonClick} />;
+  const button = isIcon ? <EuiButtonIcon {...rest} children={buttonText} iconType={iconType || "none"} data-testid="button-icon" onClick={onButtonClick} /> : 
+    <EuiButton {...rest} children={buttonText} iconType={iconType} fill={true} data-testid="button-text" onClick={onButtonClick} />;
 
   let modal: JSX.Element | null = null;
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -51,6 +51,7 @@ export default function ButtonWithPopover({ iconType, children, buttonText, onRe
     modal = isModalVisible ? (
       <EuiConfirmModal
         title="Discard changes?"
+        data-testid="modal"
         onCancel={closeModal}
         onConfirm={() => {
           closeModal();

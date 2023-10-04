@@ -50,7 +50,7 @@ describe('TypedModel Controller', () => {
             providers: [
                 {
                     provide: TypedModelService,
-                    useValue: { 
+                    useValue: {
                         createInternalEventModel: jest.fn().mockResolvedValue(createInternalEventResponse),
                         createInternalHazardModel: jest.fn().mockResolvedValue(createInternalHazardResponse),
                         createExternalHazardModel: jest.fn().mockResolvedValue(createExternalHazardResponse),
@@ -190,25 +190,25 @@ describe('TypedModel Controller', () => {
 
     describe('deleteInternalEvent()', () => {
         it('Should delete the Internal Event Model and return 204 status', () => {
-            expect(Controller.deleteInternalEvent("5")).resolves.toEqual(HttpStatus.NO_CONTENT);
+            expect(Controller.deleteInternalEvent(request, "5")).resolves.toEqual(HttpStatus.NO_CONTENT);
         })
     })
 
     describe('deleteInternalHazard()', () => {
         it('Should delete the Internal Hazard Model and return 204 status', () => {
-            expect(Controller.deleteInternalHazard("6")).resolves.toEqual(HttpStatus.NO_CONTENT);
+            expect(Controller.deleteInternalHazard(request, "6")).resolves.toEqual(HttpStatus.NO_CONTENT);
         })
     })
 
     describe('deleteExternalHazard()', () => {
         it('Should delete the External Hazard Model and return 204 status', () => {
-            expect(Controller.deleteExternalHazard("7")).resolves.toEqual(HttpStatus.NO_CONTENT);
+            expect(Controller.deleteExternalHazard(request, "7")).resolves.toEqual(HttpStatus.NO_CONTENT);
         })
     })
 
     describe('deleteFullScope()', () => {
         it('Should delete the Full Scope Model and return 204 status', () => {
-            expect(Controller.deleteFullScope("8")).resolves.toEqual(HttpStatus.NO_CONTENT);
+            expect(Controller.deleteFullScope(request, "8")).resolves.toEqual(HttpStatus.NO_CONTENT);
         })
     })
 

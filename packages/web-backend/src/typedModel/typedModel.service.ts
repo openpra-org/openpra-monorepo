@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { InternalEvents, InternalEventsDocument } from './schemas/internal-events.schema';
@@ -7,6 +7,11 @@ import { ExternalHazards, ExternalHazardsDocument } from './schemas/external-haz
 import { FullScope, FullScopeDocument } from './schemas/full-scope.schema';
 import { TypedModel, TypedModelJSON } from './schemas/templateSchema/typed-model.schema';
 import { ModelCounter, ModelCounterDocument } from '../schemas/model-counter.schema';
+
+import InternalEventsModel from 'shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel';
+import InternalHazardsModel from 'shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel';
+import FullScopeModel from 'shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel';
+import ExternalHazardsModel from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
 
 @Injectable()
 export class TypedModelService {
@@ -18,7 +23,7 @@ export class TypedModelService {
     @InjectModel(FullScope.name) private fullScopeModel: Model<FullScopeDocument>
   ) {}
 
-  /** 
+  /**
    * this was copied from elsewhere, its to create a counter, it should probably have the suer counter named something else now but oh well
     * @param {string} name Name of the counter
     * @description
@@ -26,9 +31,9 @@ export class TypedModelService {
     * @returns {number} ID number
     */
   async getNextModelValue(name: string) {
-    let record = await this.modelCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
+    const record = await this.modelCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
     if(!record) {
-        let newCounter = new this.modelCounterModel({ _id: name, seq: 1 });
+        const newCounter = new this.modelCounterModel({ _id: name, seq: 1 });
         await newCounter.save();
         return newCounter.seq;
     }
@@ -342,7 +347,7 @@ export class TypedModelService {
 
       //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
       let result
-      
+
       //query to search based on this field
       const query = {'id': Number(modelId)}
 
@@ -376,7 +381,7 @@ export class TypedModelService {
 
       //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
       let result
-      
+
       //query to search based on this field
       const query = {'users': Number(modelId)}
 
@@ -409,7 +414,7 @@ export class TypedModelService {
     try {
       //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
       let result
-      
+
       //query to search based on this field
       const query = {'users': Number(modelId)}
 
@@ -441,7 +446,7 @@ export class TypedModelService {
     try {
       //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
       let result
-      
+
       //query to search based on this field
       const query = {'users': Number(modelId)}
 
@@ -469,7 +474,7 @@ export class TypedModelService {
 
   /**
    * adds a nested model to a larger model
-   * @param modelId id of the typed model 
+   * @param modelId id of the typed model
    * @param nestedId id of the nested model
    * @param nestedType string in camelCase of the nested model type
    * @returns a promise with the new typed model
@@ -497,7 +502,7 @@ export class TypedModelService {
 
   /**
    * adds a nested model to a larger model
-   * @param modelId id of the typed model 
+   * @param modelId id of the typed model
    * @param nestedId id of the nested model
    * @param nestedType string in camelCase of the nested model type
    * @returns a promise with the new typed model
@@ -525,7 +530,7 @@ export class TypedModelService {
 
   /**
    * adds a nested model to a larger model
-   * @param modelId id of the typed model 
+   * @param modelId id of the typed model
    * @param nestedId id of the nested model
    * @param nestedType string in camelCase of the nested model type
    * @returns a promise with the new typed model
@@ -553,7 +558,7 @@ export class TypedModelService {
 
   /**
    * adds a nested model to a larger model
-   * @param modelId id of the typed model 
+   * @param modelId id of the typed model
    * @param nestedId id of the nested model
    * @param nestedType string in camelCase of the nested model type
    * @returns a promise with the new typed model
@@ -583,12 +588,12 @@ export class TypedModelService {
 
   /**
    * deletes a nested model to a larger model
-   * @param modelId id of the typed model 
+   * @param modelId id of the typed model
    * @param nestedId id of the nested model
    * @param nestedType string in camelCase of the nested model type
    * @returns a promise with the new typed model
    */
-  async deleteNestedFromInternalEvent(modelId: number, nestedId: number, nestedType: string ): Promise<TypedModelJSON> {
+  async deleteNestedFromInternalEvent(modelId: string, nestedId: number, nestedType: string ): Promise<TypedModelJSON> {
     try {
       // Find the document that matches the provided modelId and userId
       const query = { 'id': Number(modelId)};
@@ -611,7 +616,7 @@ export class TypedModelService {
 
   /**
    * deletes a nested model to a larger model
-   * @param modelId id of the typed model 
+   * @param modelId id of the typed model
    * @param nestedId id of the nested model
    * @param nestedType string in camelCase of the nested model type
    * @returns a promise with the new typed model
@@ -639,7 +644,7 @@ export class TypedModelService {
 
   /**
    * deletes a nested model to a larger model
-   * @param modelId id of the typed model 
+   * @param modelId id of the typed model
    * @param nestedId id of the nested model
    * @param nestedType string in camelCase of the nested model type
    * @returns a promise with the new typed model
@@ -667,7 +672,7 @@ export class TypedModelService {
 
   /**
    * deletes a nested model to a larger model
-   * @param modelId id of the typed model 
+   * @param modelId id of the typed model
    * @param nestedId id of the nested model
    * @param nestedType string in camelCase of the nested model type
    * @returns a promise with the new typed model

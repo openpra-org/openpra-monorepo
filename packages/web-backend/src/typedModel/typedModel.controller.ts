@@ -8,6 +8,12 @@ import { ExternalHazards } from './schemas/external-hazards.schema';
 import { FullScope } from './schemas/full-scope.schema';
 import { TypedModel, TypedModelJSON } from './schemas/templateSchema/typed-model.schema';
 
+import InternalEventsModel from 'shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel';
+import ExternalEventsModel from 'shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel';
+import InternalHazardsModel from 'shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel';
+import FullScopeModel from 'shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel';
+
+
 @Controller()
 @UseGuards(AuthGuard('jwt'))
 @UseFilters(InvalidTokenFilter)
@@ -17,7 +23,7 @@ export class TypedModelController {
   //all the post methods go here
 
   /**
-   * 
+   *
    * @param internalEventsModel takes in an internal events model that needs to be added to the database with a dummy id
    * @returns a promise of internalEventsModel
    */
@@ -27,7 +33,7 @@ export class TypedModelController {
   }
 
   /**
-   * 
+   *
    * @param internalHazardsModel takes in an internalHazardsModel with all fields but a dummy id
    * @returns a promise with an internalHazardsModel
    */
@@ -37,7 +43,7 @@ export class TypedModelController {
   }
 
   /**
-   * 
+   *
    * @param externalHazardsModel takes in an externalHazardsModel with all fields, and a dummy id
    * @returns promise of an externalHazardsModel
    */
@@ -47,7 +53,7 @@ export class TypedModelController {
   }
 
   /**
-   * 
+   *
    * @param fullScopeModel takes in a fullScopeModel with a dummy id
    * @returns a promise of fullScopeModel
    */
@@ -105,7 +111,7 @@ export class TypedModelController {
   //get methods for collections
 
   /**
-   * 
+   *
    * @param id the id of the user whose models you want to retrieve
    * @returns a list of the internal hazards moodels the user is on
    */
@@ -115,7 +121,7 @@ export class TypedModelController {
   }
 
   /**
-   * 
+   *
    * @param id the id of the user whose models you want to retrieve
    * @returns a list of the internal hazards moodels the user is on
    */
@@ -125,7 +131,7 @@ export class TypedModelController {
   }
 
   /**
-   * 
+   *
    * @param id the id of the user whose models you want to retrieve
    * @returns a list of the internal hazards moodels the user is on
    */
@@ -135,7 +141,7 @@ export class TypedModelController {
   }
 
   /**
-   * 
+   *
    * @param id the id of the user whose models you want to retrieve
    * @returns a list of the full scope models the user is on
    */
@@ -193,47 +199,42 @@ export class TypedModelController {
   //delete methods
 
   /**
-   * 
+   *
    * @param modelId id of the model to be deleted
    * @returns the deleted model in a promise
    */
   @Delete('/internal-events/')
-  async deleteInternalEvent(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
-    return this.typedModelService.deleteInternalEvent(modelId);
+  async deleteInternalEvent(@Request() req, @Query('modelId') modelId: string): Promise<InternalEventsModel> {
+    return this.typedModelService.deleteInternalEvent(Number(modelId), req.user.user_id);
   }
 
   /**
-   * 
+   *
    * @param modelId id of the model to be deleted
    * @returns the deleted model in a promise
    */
   @Delete('/external-hazards/')
-  async deleteEternalHazard(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
-    return this.typedModelService.deleteExternalHazard(modelId);
+  async deleteExternalHazard(@Request() req, @Query('modelId') modelId: string): Promise<ExternalEventsModel> {
+    return this.typedModelService.deleteExternalHazard(Number(modelId), req.user.user_id);
   }
 
   /**
-   * 
+   *
    * @param modelId id of the model to be deleted
    * @returns the deleted model in a promise
    */
   @Delete('/internal-hazards/')
-  async deleteInternalHazard(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
-    return this.typedModelService.deleteInternalHazard(modelId);
+  async deleteInternalHazard(@Request() req, @Query('modelId') modelId: string): Promise<InternalHazardsModel> {
+    return this.typedModelService.deleteInternalHazard(Number(modelId), req.user.user_id);
   }
 
-  /**
-   * 
-   * @param modelId id of the model to be deleted
-   * @returns the deleted model in a promise
-   */
   @Delete('/full-scope/')
-  async deleteFullScope(@Query('modelId') modelId: number): Promise<InternalEventsModel> {
-    return this.typedModelService.deleteFullScope(modelId);
+  async deleteFullScope(@Request() req, @Query('modelId') modelId: string): Promise<FullScopeModel> {
+    return this.typedModelService.deleteFullScope(Number(modelId), req.user.user_id);
   }
 
   //endpoints for adding a nested model id
-  
+
   /**
    * updates internal events model
    * @param body modelId number, nestedId number, and a nestedType camelCase string

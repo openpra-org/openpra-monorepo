@@ -1,7 +1,7 @@
 import HclApiManager from "./HclApiManager";
 
 export default class DataApiManager extends HclApiManager {
-  public static ENDPOINT: string = HclApiManager.ENDPOINT + "/data/parameter-estimates/";
+  public static override ENDPOINT: string = HclApiManager.ENDPOINT + "/data/parameter-estimates/";
 
   public static getSpecialEvents() {
     return HclApiManager.getWithOptions(DataApiManager.ENDPOINT+'special-events/');

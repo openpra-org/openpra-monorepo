@@ -1,16 +1,21 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, MongooseError } from 'mongoose';
+import * as argon2 from 'argon2';
 import * as dot from 'dot-object';
-import { HclService } from '../hcl/hcl.service';
 import { PaginationDto } from './dtos/pagination.dto';
+import { CreateNewUserDto } from './dtos/create-new-user.dto';
 import { UserPreferencesDto } from './dtos/user-preferences.dto';
+import { UserCounter, UserCounterDocument } from './schemas/user-counter.schema';
 import { User, UserDocument } from './schemas/user.schema';
+import { InvalidTokenError } from 'jwt-decode';
+//import { DuplicateUserException } from '../../../shared-types/src/lib/errors/duplicateUserException';
 
 @Injectable()
 export class CollabService {
     constructor(
-        private hclService: HclService,
+        //private hclService: HclService,
+        @InjectModel(UserCounter.name) private userCounterModel: Model<UserCounterDocument>,
         @InjectModel(User.name) private userModel: Model<UserDocument>
     ) {}
 
@@ -35,8 +40,24 @@ export class CollabService {
     }
 
     /**
+    * @param {string} name Name of the counter
+    * @description
+    * Generates an ID for the newly created user in an incremental order of 1. Initially if no user exists, the serial ID starts from 1.
+    * @returns {number} ID number
+    */
+    async getNextUserValue(name: string) {
+        let record = await this.userCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
+        if(!record) {
+            let newCounter = new this.userCounterModel({ _id: name, seq: 1 });
+            await newCounter.save();
+            return newCounter.seq;
+        }
+        return record.seq;
+    }
+
+    /**
     * @param {number} count Total number of results
-    * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl} 
+    * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
     * @param limit How many results can be seen at once
     * @param offset How many initial results will be skipped
     * @description
@@ -101,50 +122,9 @@ export class CollabService {
     }
 
     /**
-    * @param {number} user_id Current user's ID
     * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
-    * @param {string} type Model type (bayesian, circsim, expert, gsn, hcl, omf, phoenix, and pf)
     * @param limit How many results can be seen at once
     * @param offset How many initial results will be skipped
-    * @description
-    * Since only HCL Models are supported, the Model list will be retrieved using HclService.getHclModelList() method.
-    * HclService.getHclModelList() takes in 6 parameters. Since the 'tag' parameter cannot be provided here, it has been replaced with 'undefined' type.
-    * @returns List of models assigned to the user that match with the provided type
-    */
-    async getHclModelList(user_id: number, url: string, type: string, limit?: any, offset?: any): Promise<PaginationDto> {
-        if(type && !limit && !offset) {
-            return this.hclService.getHclModelList(user_id, url, undefined, type, undefined, undefined);
-        } else if(type && limit && offset) {
-            return this.hclService.getHclModelList(user_id, url, undefined, type, limit, offset);
-        }
-    }
-
-    /**
-    * @param {number} user_id Current user's ID
-    * @param {string} model_id ID of the model
-    * @description
-    * Since only HCL Models are supported, the HCL Model will be retrieved using the Model ID through the HclService.getHclModelById() method.
-    * @returns A certain HCL model
-    */
-    async getCollabModelById(user_id: number, model_id: string) {
-        return this.hclService.getHclModelById(user_id, model_id);
-    }
-
-    /**
-    * @param {number} user_id Current user's ID
-    * @param {string} model_id ID of the model 
-    * @description
-    * Since only HCL Models are available now, one of the HCL Models is going to be deleted based on the provided Model ID.
-    * @returns 204 HTTP status @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204}
-    */
-    async deleteCollabModelById(user_id: number, model_id: string): Promise<HttpStatus> {
-        return this.hclService.deleteHclModelById(user_id, model_id);
-    }
-
-    /**
-    * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
-    * @param limit How many results can be seen at once
-    * @param offset How many initial results will be skipped 
     * @description
     * No parameter is needed to retrieve the User list. The retrieved data is presented in a 'paginated' format:
     *   1. Count: the number of users found.
@@ -175,6 +155,52 @@ export class CollabService {
             previous: paths.previous,
             results: result
         }
+    }
+
+    /**
+    * @param body Request body
+    * @description
+    * There are some hard-coded data provided alongside the request body for creating a 'user' document:
+    *   1. The password is encrypted using the 'argon2id' method.
+    *   2. The UserID is generated in an incremental order using getNextUserValue() function.
+    *   3. The name of the user is saved by simply joining the first and last names of the user.
+    *   4. The 'recently_accessed' object contains a list of all the Models created by the user. By default its kept empty at first.
+    *      The Projects and Subsystems have not been implemented yet. Whenever the user creates any new HCL tree inside a Model,
+    *      the tree's info gets saved inside this Model list. After creating a tree, if it is viewed, edited or quantified - those
+    *      information get saved as well - to get an idea about the activity of the user.
+    *   5. Whenever a user is interacting with the tree editor, the user can enable or disable certain settings of the editor. Those settings
+    *      are saved in the 'preferences' object. By default all the settings inside the 'preferences' are set to 'enabled' when a user is created.
+    *   6. The permissions feature has not been implemented yet - so it is kept empty by default. Once implemented, a user will be able to assume
+    *      one of the two roles - either the role of an administrator (with special access - such as deleting a user from the database) or the role of a general user.
+    * @returns A mongoose document of the new user
+    */
+    async createNewUser(body: CreateNewUserDto): Promise<User> {
+        const username = body.username
+        const response = await this.userModel.findOne({'username': username})
+        if(response){
+            throw new Error("Duplicate Username")
+        }
+        body.password = await argon2.hash(body.password);
+        const newUser = new this.userModel(body);
+        newUser.id = await this.getNextUserValue('UserCounter');
+        newUser.recently_accessed = {
+            models: [],
+            subsystems: [],
+            projects: []
+        };
+        newUser.preferences = {
+            theme: 'Light',
+            nodeIdsVisible: true,
+            outlineVisible: true,
+            node_value_visible: true,
+            nodeDescriptionEnabled: true,
+            pageBreaksVisible: true,
+            quantificationConfigurations: {
+                configurations: {},
+                currentlySelected: ' '
+            }
+        };
+        return newUser.save();
     }
 
     /**

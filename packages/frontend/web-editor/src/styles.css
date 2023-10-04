@@ -14,3 +14,19 @@ html {
     margin: 8px;
     background-color: #343741;
 }
+
+.euiTreeView .euiTreeView {
+    padding-left: 12px !important;
+}
+
+.euiTreeView--withArrows.euiTreeView--compressed .euiTreeView__iconWrapper {
+    margin-left: 0 !important;
+}
+
+.euiTreeView--withArrows.euiTreeView .euiTreeView__iconWrapper {
+    margin-left: 0 !important;
+}
+
+.euiListGroupItem__label {
+    flex-grow: 1 !important;
+}

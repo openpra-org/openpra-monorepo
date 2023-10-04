@@ -6,14 +6,19 @@ import { AuthService } from './auth.service';
 import { CollabModule } from '../collab/collab.module';
 import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import * as fs from "fs";
+import * as process from "process";
 
 @Module({
   imports: [
     CollabModule,
     PassportModule,
     JwtModule.registerAsync({
-      useFactory: async () => ({
-        secret: process.env.JWT_SECRET_KEY,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (config: ConfigService) => ({
+        secret: !!(process.env.DEPLOYMENT) ? fs.readFileSync(config.get<string>('JWT_SECRET_KEY')) : config.get<string>('JWT_SECRET_KEY'),
         signOptions: { expiresIn: '24h' }
       })
     })
@@ -23,3 +28,4 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 })
 
 export class AuthModule {}
+

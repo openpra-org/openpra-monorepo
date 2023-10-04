@@ -1,9 +1,9 @@
 import GenericItemList from "../GenericItemList";
 import GenericListItem from "../GenericListItem";
-import ApiManager from "packages/shared-types/src/lib/api/ApiManager";
+import ApiManager from "shared-types/src/lib/api/ApiManager";
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
-import TypedModelApiManager from "packages/shared-types/src/lib/api/TypedModelApiManager";
-import FullScopeModel from "packages/shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
+import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
+import FullScopeModel from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
 import { useEffect, useState } from "react";
 
 //grabs the model List
@@ -80,7 +80,7 @@ export default function FullScopeList(){
             <EuiPageTemplate.Section>
                 <EuiSkeletonRectangle
                     width="100%"
-                    height={70}
+                    height={490}
                     borderRadius="m"
                     isLoading={isLoading}
                     contentAriaLabel="Example description"
@@ -89,14 +89,6 @@ export default function FullScopeList(){
                         {genericListItems}
                     </GenericItemList>
                 </EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
-                <EuiSkeletonRectangle width="100%" height={70} borderRadius="m" isLoading={isLoading} contentAriaLabel="Example description"></EuiSkeletonRectangle><EuiSpacer size='s'/>
             </EuiPageTemplate.Section>
         </EuiPageTemplate>
     );

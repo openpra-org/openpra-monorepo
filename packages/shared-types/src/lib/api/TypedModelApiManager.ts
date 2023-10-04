@@ -368,7 +368,8 @@ export default class TypedModelApiManager {
      */
     static async deleteInternalEvent(id = -1, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback): Promise<InternalEventsModel[]> {
         await NestedModelApiManager.removeParentIds(id)
-        return await TypedModelApiManager.delete(`${INTERNAL_EVENTS_ENDPOINT}/?modelId=${Number(id)}`, override, onSuccessCallback, onFailCallback)
+        const userId = ApiManager.getCurrentUser().user_id
+        return await TypedModelApiManager.delete(`${INTERNAL_EVENTS_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`, override, onSuccessCallback, onFailCallback)
             .then((response) => { return response.json()}) // Parse the response as JSON
             .catch((error) => {
                 console.error('Error fetching internal events:', error);
@@ -386,7 +387,8 @@ export default class TypedModelApiManager {
      */
     static async deleteExternalHazard(id = -1, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback): Promise<InternalEventsModel[]> {
         await NestedModelApiManager.removeParentIds(id)
-        return await TypedModelApiManager.delete(`${EXTERNAL_HAZARDS_ENDPOINT}/?modelId=${Number(id)}`, override, onSuccessCallback, onFailCallback)
+        const userId = ApiManager.getCurrentUser().user_id
+        return await TypedModelApiManager.delete(`${EXTERNAL_HAZARDS_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`, override, onSuccessCallback, onFailCallback)
             .then((response) => {return response.json()}) // Parse the response as JSON
             .catch((error) => {
                 console.error('Error fetching internal events:', error);
@@ -404,7 +406,8 @@ export default class TypedModelApiManager {
      */
     static async deleteInternalHazard(id = -1, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback): Promise<InternalEventsModel[]> {
         await NestedModelApiManager.removeParentIds(id)
-        return await TypedModelApiManager.delete(`${INTERNAL_HAZARDS_ENDPOINT}/?modelId=${Number(id)}`, override, onSuccessCallback, onFailCallback)
+        const userId = ApiManager.getCurrentUser().user_id
+        return await TypedModelApiManager.delete(`${INTERNAL_HAZARDS_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`, override, onSuccessCallback, onFailCallback)
             .then((response) => {return response.json()}) // Parse the response as JSON
             .catch((error) => {
                 console.error('Error fetching internal events:', error);
@@ -422,7 +425,8 @@ export default class TypedModelApiManager {
      */
     static async deleteFullScope(id = -1, override: any = null, onSuccessCallback = TypedModelApiManager.defaultSuccessCallback, onFailCallback = TypedModelApiManager.defaultFailCallback): Promise<InternalEventsModel[]> {
         await NestedModelApiManager.removeParentIds(id)
-        return await TypedModelApiManager.delete(`${FULL_SCOPE_ENDPOINT}/?modelId=${Number(id)}`, override, onSuccessCallback, onFailCallback)
+        const userId = ApiManager.getCurrentUser().user_id
+        return await TypedModelApiManager.delete(`${FULL_SCOPE_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`, override, onSuccessCallback, onFailCallback)
             .then((response) => {return response.json()}) // Parse the response as JSON
             .catch((error) => {
                 console.error('Error fetching internal events:', error);

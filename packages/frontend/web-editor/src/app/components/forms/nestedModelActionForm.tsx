@@ -2,16 +2,18 @@ import {
     EuiButton,
     EuiFieldText, EuiFlexGroup, EuiFlexItem,
     EuiForm,
-    EuiFormRow, 
+    EuiFormRow,
     EuiSpacer, EuiText,
     EuiTextArea, EuiTitle
   } from "@elastic/eui";
   import React, { useState } from "react";
-  import { toTitleCase } from "../../../utils/StringUtils";
+
   import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
-  import { DEFAULT_NESTED_MODEL_JSON, NestedModelJSON } from "packages/shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
-  import { LabelJSON } from "packages/shared-types/src/lib/types/Label";
-  
+  import { DEFAULT_NESTED_MODEL_JSON, NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+  import { LabelJSON } from "shared-types/src/lib/types/Label";
+
+  import { toTitleCase } from "../../../utils/StringUtils";
+
   export type NestedItemFormProps = {
     itemName: string;
     // TODO:: TODO :: replace endpoint string with TypedApiManager method
@@ -26,27 +28,27 @@ import {
     compressed?: boolean;
     noHeader?: boolean;
   }
-  
+
   export default function NestedModelActionForm({ itemName, onCancel, noHeader, compressed, initialFormValues, action, patchEndpoint, postEndpoint, onSuccess, onFail, id}: NestedItemFormProps) {
 
     //setting up initial values depending on what has been send, if init form values are passed its assumed to be updating instead of adding
     const formInitials = initialFormValues ? initialFormValues : DEFAULT_NESTED_MODEL_JSON
-  
+
     //sets the current typed model using our formIntials, in a react state so we can pass it around
     const [typedModel, setTypedModel] = useState(formInitials);
-  
+
     //Handles the click for the submit button, functionality depends on whether initform values are passed, indicating an update
     const handleAction = (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
-  
+
       if (typedModel.label.name != '') {
-  
+
         //creating a partial model to pass for update, may update to work for adding later aswell
         const partialModel: NestedModelJSON = {
           label: typedModel.label,
           parentIds: [TypedModelApiManager.getCurrentModelId()]
         };
-  
+
         //dummied out patch functionality as I think this will be very different
         //calls the 2 functions depending on what is passed to patch
         // if(initialFormValues){
@@ -67,7 +69,7 @@ import {
       onFail && onFail();
       location.reload();
     }
-  
+
     //const formTouched = label.name !== DEFAULT_LABEL_JSON.name || label.description !== DEFAULT_LABEL_JSON.description;
     const actionLabel = toTitleCase(action);
     const itemLabel = toTitleCase(itemName);
@@ -138,4 +140,3 @@ import {
       </>
     );
   }
-  

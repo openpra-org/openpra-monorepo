@@ -38,7 +38,7 @@ export class CollabService {
     async updateLastLogin(user_id: number) {
         await this.userModel.updateOne({ id: user_id }, { 'last_login': Date.now() });
     }
-
+    
     /** 
     * @param {string} name Name of the counter
     * @description
@@ -57,7 +57,7 @@ export class CollabService {
 
     /**
     * @param {number} count Total number of results
-    * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl} 
+    * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
     * @param limit How many results can be seen at once
     * @param offset How many initial results will be skipped
     * @description
@@ -121,51 +121,10 @@ export class CollabService {
         }
     }
 
-    // /**
-    // * @param {number} user_id Current user's ID
-    // * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
-    // * @param {string} type Model type (bayesian, circsim, expert, gsn, hcl, omf, phoenix, and pf)
-    // * @param limit How many results can be seen at once
-    // * @param offset How many initial results will be skipped
-    // * @description
-    // * Since only HCL Models are supported, the Model list will be retrieved using HclService.getHclModelList() method.
-    // * HclService.getHclModelList() takes in 6 parameters. Since the 'tag' parameter cannot be provided here, it has been replaced with 'undefined' type.
-    // * @returns List of models assigned to the user that match with the provided type
-    // */
-    // async getHclModelList(user_id: number, url: string, type: string, limit?: any, offset?: any): Promise<PaginationDto> {
-    //     if(type && !limit && !offset) {
-    //         return this.hclService.getHclModelList(user_id, url, undefined, type, undefined, undefined);
-    //     } else if(type && limit && offset) {
-    //         return this.hclService.getHclModelList(user_id, url, undefined, type, limit, offset);
-    //     }
-    // }
-
-    // /**
-    // * @param {number} user_id Current user's ID
-    // * @param {string} model_id ID of the model
-    // * @description
-    // * Since only HCL Models are supported, the HCL Model will be retrieved using the Model ID through the HclService.getHclModelById() method.
-    // * @returns A certain HCL model
-    // */
-    // async getCollabModelById(user_id: number, model_id: string) {
-    //     return this.hclService.getHclModelById(user_id, model_id);
-    // }
-
-    // /**
-    // * @param {number} user_id Current user's ID
-    // * @param {string} model_id ID of the model 
-    // * @description
-    // * Since only HCL Models are available now, one of the HCL Models is going to be deleted based on the provided Model ID.
-    // * @returns 204 HTTP status @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204}
-    // */
-    // async deleteCollabModelById(user_id: number, model_id: string): Promise<HttpStatus> {
-    //     return this.hclService.deleteHclModelById(user_id, model_id);
-    // }
-
     /**
     * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
     * @param limit How many results can be seen at once
-    * @param offset How many initial results will be skipped 
+    * @param offset How many initial results will be skipped
     * @description
     * No parameter is needed to retrieve the User list. The retrieved data is presented in a 'paginated' format:
     *   1. Count: the number of users found.
@@ -243,7 +202,6 @@ export class CollabService {
         };
         return newUser.save();
     }
-
     /**
     * @param {string} user_id Current user's ID
     * @description

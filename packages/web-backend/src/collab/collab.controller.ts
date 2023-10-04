@@ -3,60 +3,17 @@ import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { Public } from '../guards/public.guard';
 import { InvalidTokenFilter } from '../filters/invalid-token.filter';
 import { CollabService } from './collab.service';
+import { CreateNewUserDto } from './dtos/create-new-user.dto';
 import { PaginationDto } from './dtos/pagination.dto';
-import { CreateNewUserDto } from '../collab/dtos/create-new-user.dto';
 import { UserPreferencesDto } from './dtos/user-preferences.dto';
-import { User } from '../collab/schemas/user.schema';
 import { HclModel } from '../hcl/schemas/hcl-model.schema';
+import { User } from './schemas/user.schema';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
 @UseFilters(InvalidTokenFilter)
 export class CollabController {
     constructor(private collabService: CollabService) {}
-    
-    // /**
-    // * @param req Express request object @see {@link https://expressjs.com/en/api.html#req}
-    // * @param query Query string parameters
-    // * @returns List of models
-    // * @example GET request -> https://staging.app.openpra.org/api/collab/model/?type=hcl
-    // * @example GET request -> https://staging.app.openpra.org/api/collab/model/?type=hcl&limit=10&offset=0
-    // */
-    // @Get('/model/')
-    // async getCollabModelList(@Request() req, @Query() query: { type: string, limit?: string, offset?: string }): Promise<PaginationDto> {
-    //     if(query.type === 'hcl' && !query.limit && !query.offset) {
-    //         return this.collabService.getHclModelList(req.user.user_id, req.originalUrl, query.type, undefined, undefined);
-    //     } else if(query.type === 'hcl' && query.limit && query.offset) {
-    //         return this.collabService.getHclModelList(req.user.user_id, req.originalUrl, query.type, query.limit, query.offset);
-    //     }
-    // }
-
-    // /**
-    // * @param req Express request object @see {@link https://expressjs.com/en/api.html#req}
-    // * @param {string} model_id ID of the model
-    // * @param {string} id ID of the model
-    // * @returns Model that matches with the provided ID
-    // * @example GET request -> https://staging.app.openpra.org/api/collab/model/1/
-    // * @example GET request -> https://staging.app.openpra.org/api/collab/model/1/?id=1
-    // */
-    // @Get('/model/:model_id/')
-    // async getCollabModelById(@Request() req, @Param('model_id') model_id: string, @Query('id') id?: string): Promise<HclModel> {
-    //     if(id) {
-    //         return this.collabService.getCollabModelById(req.user.user_id, id);
-    //     }
-    //     return this.collabService.getCollabModelById(req.user.user_id, model_id);
-    // }
-
-    // /**
-    // * @param req Express request object @see {@link https://expressjs.com/en/api.html#req}
-    // * @param {string} model_id ID of the model
-    // * @returns 204 HTTP status @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204}
-    // * @example DELETE request -> https://staging.app.openpra.org/api/collab/model/1/
-    // */
-    // @Delete('/model/:model_id/')
-    // async deleteCollabModelById(@Request() req, @Param('model_id') model_id: string): Promise<HttpStatus> {
-    //     return this.collabService.deleteCollabModelById(req.user.user_id, model_id);
-    // }
 
     /**
     * @param req Express request object @see {@link https://expressjs.com/en/api.html#req}

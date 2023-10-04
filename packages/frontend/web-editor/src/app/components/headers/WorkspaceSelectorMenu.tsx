@@ -35,7 +35,7 @@ export default function WorkspaceSelectorMenu() {
   useEffect(() => {
 
     if (isMountedRef.current) {
-      navigate('/' + selectedSpace.key);
+      navigate('/' + selectedSpace?.key);
     }
 
     return () => {
@@ -53,7 +53,7 @@ export default function WorkspaceSelectorMenu() {
       aria-label="Workspace menu"
       onClick={onMenuButtonClick}
     >
-      {selectedSpace.prepend}
+       {selectedSpace?.prepend} {/* Render the label property */}
     </EuiHeaderSectionItemButton>
   );
 

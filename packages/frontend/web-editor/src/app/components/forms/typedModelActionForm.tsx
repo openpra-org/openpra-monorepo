@@ -1,5 +1,5 @@
 import {
-  EuiButton, 
+  EuiButton,
   EuiFieldText, EuiFlexGroup, EuiFlexItem,
   EuiForm,
   EuiFormRow, EuiComboBox, EuiComboBoxOptionOption,
@@ -7,10 +7,12 @@ import {
   EuiTextArea, EuiTitle
 } from "@elastic/eui";
 import React, {useEffect, useState} from "react";
-import { toTitleCase } from "../../../utils/StringUtils";
+
 import { DEFAULT_TYPED_MODEL_JSON, TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
-import ApiManager from "packages/shared-types/src/lib/api/ApiManager";
+import ApiManager from "shared-types/src/lib/api/ApiManager";
 import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
+
+import { toTitleCase } from "../../../utils/StringUtils";
 
 export type ItemFormProps = {
   itemName: string;
@@ -52,9 +54,7 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
   const [selectedUsersList, setSelectedUsersList] = useState<EuiComboBoxOptionOption<any>[]>([])
 
   //list of the user ids which we add to the api calls
-  const [usersListId, setUsersListId] = useState([0])
-
-  console.log(patchEndpoint)
+  const [usersListId, setUsersListId] = useState<number[]>([])
 
   //use effect to set up users, only runs if init form values is passed which is only passed on edit!
   if(initialFormValues){
@@ -143,7 +143,7 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
         <>
           <EuiTitle size="xs" ><h6> Create {itemLabel} Model </h6></EuiTitle>
           <EuiSpacer size="s"/>
-          <EuiText size="s" color="subdued"> A valid {itemLabel} model must have a name </EuiText>
+          <EuiText size="s" color="subdued"> A valid {itemLabel} must have a name </EuiText>
           <EuiSpacer />
         </>
       }

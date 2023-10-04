@@ -20,14 +20,14 @@ import { useNavigate } from 'react-router-dom';
     deleteTypedEndpoint?: (id: number) => {};
     deleteNestedEndpoint?: (id: number) => {};
   }
-  
+
 
 /**
- * 
+ *
  * @param title takes in an optional title string
  * @param id takes in an optional id which later be used to interacti with the database
  * @param toggleBox this needs to be there to toggle the deltebox on and off accross components, a state to set the delete box being visible
- * @returns 
+ * @returns
  */
 export default function DeleteItemBox(props: DeleteItemProps) {
 
@@ -40,26 +40,26 @@ export default function DeleteItemBox(props: DeleteItemProps) {
     const navigate = useNavigate()
 
     //sets the data, then closes overlay
-    const deleteData = () => {
+    const deleteData = async () => {
         if(deleteTypedEndpoint){
-            deleteTypedEndpoint(id)
+            await deleteTypedEndpoint(id)
         } else if (deleteNestedEndpoint) {
-            deleteNestedEndpoint(id)
+            await deleteNestedEndpoint(id)
         }
         if(window.location.pathname.endsWith('settings')){
             navigate('')
         }
-        location.reload()
+        //location.reload()
     }
 
     return (
         <>
-            {/** this styling is so its in a nice looking box, it scales if the users tab is there or not */}            
+            {/** this styling is so its in a nice looking box, it scales if the users tab is there or not */}
             <EuiForm>
                 <EuiSpacer size='s'/>
                 {/** this gives the text, and then importantly sets the title of the item */}
                 <EuiFormRow fullWidth={true}>
-                    <EuiTitle size='m'><strong>Delete {itemName}</strong></EuiTitle>
+                    <EuiTitle data-testid="delete-item-title" size='m'><strong>Delete {itemName}</strong></EuiTitle>
                 </EuiFormRow>
                  {/** the submit and also the go back buttons are right here*/}
                 <EuiFormRow>
@@ -73,6 +73,7 @@ export default function DeleteItemBox(props: DeleteItemProps) {
                     <EuiFieldText
                         placeholder='Please type yes to proceed'
                         value={confirmDelete}
+                        data-testid="delete-item-input"
                         onChange={(e) => setConfirmDelete(e.target.value)}
                     />
                 </EuiFormRow>
@@ -82,7 +83,7 @@ export default function DeleteItemBox(props: DeleteItemProps) {
                     <EuiFlexGroup justifyContent='spaceBetween' gutterSize='xs'>
                         <EuiFlexItem>
                             {/** This button will only be clickable when user types yes/Yes/YES/etc */}
-                            <EuiButton fill={true} color="danger" isDisabled={!(confirmDelete.toLowerCase() === 'yes')} onClick={deleteData}>
+                            <EuiButton data-testid="delete-item-button" fill={true} color="danger" isDisabled={!(confirmDelete.toLowerCase() === 'yes')} onClick={deleteData}>
                                 Delete
                             </EuiButton>
                         </EuiFlexItem>

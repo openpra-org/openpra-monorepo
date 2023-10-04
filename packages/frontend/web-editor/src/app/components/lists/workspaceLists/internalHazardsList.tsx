@@ -1,9 +1,9 @@
 import GenericItemList from "../GenericItemList";
 import GenericListItem from "../GenericListItem";
-import ApiManager from "packages/shared-types/src/lib/api/ApiManager";
+import ApiManager from "shared-types/src/lib/api/ApiManager";
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
-import TypedModelApiManager from "packages/shared-types/src/lib/api/TypedModelApiManager";
-import InternalHazardsModel from "packages/shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
+import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
+import InternalHazardsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
 import { useEffect, useState } from "react";
 
 //grabs the model List

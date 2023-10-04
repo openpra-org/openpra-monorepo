@@ -22,7 +22,7 @@ import {
 import {Link, useLocation, useNavigate} from 'react-router-dom';
 import { toTitleCase, tokenizePath } from "../../../utils/StringUtils";
 import WorkspaceSelectorMenu from "./WorkspaceSelectorMenu";
-import ApiManager from 'packages/shared-types/src/lib/api/ApiManager';
+import ApiManager from 'shared-types/src/lib/api/ApiManager';
 import ContextAddButton from '../buttons/contextAddButton';
 
 export default () => {
@@ -59,6 +59,7 @@ export default () => {
     return (
       <EuiHeaderBreadcrumbs
         aria-label="Navigation Breadcrumbs"
+        data-testid="breadcrumbs"
         breadcrumbs={createBreadcrumbs(location.pathname)}
         max={10}
         truncate={false}
@@ -74,12 +75,12 @@ export default () => {
         compressed: true,
       }}
       popoverButton={
-        <EuiHeaderSectionItemButton aria-label="Sitewide search">
+        <EuiHeaderSectionItemButton data-testid="search-icon" aria-label="Sitewide search">
           <EuiIcon type="search" size="m" />
         </EuiHeaderSectionItemButton>
       }
       emptyMessage={
-        <EuiSelectableMessage style={{ minHeight: 300 }}>
+        <EuiSelectableMessage data-testid="search-menu" style={{ minHeight: 300 }}>
           <p>
             Please see the component page for{' '}
             <Link to="/forms/selectable">
@@ -133,7 +134,7 @@ const HeaderUserMenu = () => {
   //thewse two lines grab the username so that it can be used throughout the page. Needs this because for some reason user can be undefined
   const currentUser = ApiManager.getCurrentUser();
   const nameString = currentUser && currentUser.username ? currentUser.username : "Unknown User";
-  
+
   const closeMenu = () => {
     setIsOpen(false);
   };
@@ -149,6 +150,7 @@ const HeaderUserMenu = () => {
       aria-expanded={isOpen}
       aria-haspopup="true"
       aria-label="Account menu"
+      data-testid="user-menu"
       onClick={onMenuButtonClick}
     >
       <EuiAvatar name={nameString} size="s" />
@@ -163,7 +165,7 @@ const HeaderUserMenu = () => {
       closePopover={closeMenu}
       panelPaddingSize="none"
     >
-      <div style={{ width: 320 }}>
+      <div data-testid="user-menu-content" style={{ width: 320 }}>
         <EuiFlexGroup
           gutterSize="m"
           className="euiHeaderProfile"
@@ -211,6 +213,7 @@ const HeaderAppMenu = () => {
       aria-haspopup="true"
       aria-label="Apps menu with 1 new app"
       notification="1"
+      data-testid="app-menu"
       onClick={onMenuButtonClick}
     >
       <EuiIcon type="apps" size="m" />
@@ -224,7 +227,7 @@ const HeaderAppMenu = () => {
       anchorPosition="downRight"
       closePopover={closeMenu}
     >
-      <EuiKeyPadMenu id={headerAppKeyPadMenuId} style={{ width: 288 }}>
+      <EuiKeyPadMenu data-testid="app-menu-content" id={headerAppKeyPadMenuId} style={{ width: 288 }}>
         <EuiKeyPadMenuItem label="Discover">
           <EuiIcon type="discoverApp" size="l" />
         </EuiKeyPadMenuItem>

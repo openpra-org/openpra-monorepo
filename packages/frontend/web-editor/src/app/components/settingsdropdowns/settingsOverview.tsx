@@ -65,9 +65,9 @@ export default function SettingsOverview() {
           <EuiFlexGrid direction="row" responsive={true} columns={2}>
               <EuiFlexItem grow={false}>
                   <EuiPanel paddingSize="xl">
-                      <EuiTitle size="s" ><h6>Overview Diagram</h6></EuiTitle>
+                      <EuiTitle size="s" data-testid="title" ><h6>Overview Diagram</h6></EuiTitle>
                       <EuiSpacer size="s"/>
-                      <EuiText size="s" color="subdued">Overview page can display a read-only version of the chosen diagram.</EuiText>
+                      <EuiText size="s" color="subdued" data-testid="text">Overview page can display a read-only version of the chosen diagram.</EuiText>
                       <EuiSpacer />
                       <EuiForm component="form">
                           <EuiFlexGroup direction="row" justifyContent="flexStart">
@@ -77,6 +77,7 @@ export default function SettingsOverview() {
                                         id={basicSelectId}
                                         options={options}
                                         value={overviewValue}
+                                        data-testid="selectDiagram"
                                         onChange={(e) => onChange(e)}
                                         aria-label="Use aria labels when no actual label is in use"
                                       />
@@ -89,13 +90,14 @@ export default function SettingsOverview() {
                                         min={1}
                                         disabled={true}
                                         value={1}
+                                        data-testid="diagramNumber"
                                       />
                                   </EuiFormRow>
                               </EuiFlexItem>
                           </EuiFlexGroup>
                           <EuiSpacer size="m" />
                           <EuiFormRow>
-                              <EuiButton isDisabled={false} color="primary">Save</EuiButton>
+                              <EuiButton isDisabled={false} color="primary" data-testid="saveButton">Save</EuiButton>
                           </EuiFormRow>
                       </EuiForm>
                   </EuiPanel>

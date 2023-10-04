@@ -53,15 +53,15 @@
   },
   "license": "MIT",
   "dependencies": {
-    "@mapbox/node-pre-gyp": "^1.0.8",
-    "node-addon-api": "^4.3.0"
+    "@mapbox/node-pre-gyp": "1.0.8",
+    "node-addon-api": "4.3.0"
   },
   "devDependencies": {
-    "aws-sdk": "^2.840.0",
-    "bytes": "^3.1.0",
-    "d3-queue": "^3.0.7",
-    "minimist": "^1.2.5",
-    "tape": "^5.1.1"
+    "aws-sdk": "2.840.0",
+    "bytes": "3.1.0",
+    "d3-queue": "3.0.7",
+    "minimist": "1.2.5",
+    "tape": "5.1.1"
   },
   "binary": {
     "module_name": "module",

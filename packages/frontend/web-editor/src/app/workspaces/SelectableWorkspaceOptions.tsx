@@ -20,7 +20,7 @@ export const SelectableWorkspaceOptions: EuiSelectableOption<WorkspaceOption>[] 
     label: 'Internal Events',
     key: 'internal-events',
     prepend: <EuiAvatar type="space" name="Internal Event" size="s" />,
-    // ...((window.location.pathname.split('/')[1] === 'internal-events' || !window.location.pathname.split('/')[1]) && {checked: 'on'}),
+    checked: window.location.pathname.split('/')[1] === 'internal-events' || !window.location.pathname.split('/')[1] ? 'on' : 'off',
   }, //This one ^ checks if the url is an internal-events url or if there isn't one (login page)
   {
     label: 'Internal Hazards',

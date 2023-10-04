@@ -29,6 +29,7 @@ export default ({id, children, buttonContent, initial = false} : {id: string, ch
       paddingSize="l"
       forceState={isOpen ? 'open' : 'closed'}
       onToggle={onToggle}
+      data-testid="settingsAccordian"
     >
       {children}
     </EuiAccordion>

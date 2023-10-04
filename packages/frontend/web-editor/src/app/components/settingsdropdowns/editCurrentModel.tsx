@@ -109,6 +109,7 @@ export default function EditCurrentModel(){
               borderRadius="m"
               isLoading={!isLoaded}
               contentAriaLabel="Edit Current Model"
+              data-testid="editBox"
             >
               <TypedModelActionForm
                 action="edit"

@@ -1,6 +1,6 @@
 
 # By default, starting from the root dir, all files are owned by the project members
-* "Project Members"
+* "Project Member"
 
 *Dockerfile "Project Admin"
 docker-compose*.yml "Project Admin"

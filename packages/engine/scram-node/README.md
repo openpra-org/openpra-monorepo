@@ -20,7 +20,12 @@ nx build engine-scram-node
 ```
 
 # Run Commands
-Checkout [`package.json`](./package.json), to see what kind of commands you can run.
+Checkout [`package.json`](./package.json), to see what kind of commands you can run. Here is an example:
+
+```bash
+nx run engine-scram-node:test
+nx run 
+```
 
 
 

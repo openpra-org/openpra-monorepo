@@ -1,7 +1,13 @@
 import { queryAllByRole, render } from '@testing-library/react';
 import AuthCard from '../authCard';
+import { before } from 'node:test';
 
 describe('AuthCard', () => {
+  // before(() => {
+  //   // Navigate to the URL where your AuthCard component is rendered
+  //   cy.visit('/your-app-url');
+  // });
+  
   it('renders AuthCard component with correct elements', () => {
     const { getByText, getByAltText, getByTestId} = render(<AuthCard />);
     

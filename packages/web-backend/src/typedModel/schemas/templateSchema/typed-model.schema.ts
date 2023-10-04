@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
-import { Label, LabelSchema } from 'src/schemas/label.schema';
+import { Label, LabelSchema } from '../../../schemas/label.schema';
 
   export interface TypedModelJSON {
     label: Label

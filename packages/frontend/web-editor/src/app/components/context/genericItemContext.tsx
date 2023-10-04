@@ -11,13 +11,22 @@ type Item = {
     itemName: string;
 };
 
-type ItemContextType = {
-  items: Item[];
-  updateItems: (items: Item[]) => boolean;
-  removeItems: (itemIds_or_Keys: (number | string)[]) => boolean;
-};
+// export type GenericType = {
+//
+// }
+//
+// interface ItemContextType<ItemType> {
+//   items: ItemType[];
+//   updateItems: (newItems: ItemType[]) => boolean; // update or create passed items
+//   removeItems: (itemIds_or_Keys: (number | string)[]) => boolean;
+// }
+//
+// type TypedContext<ItemType, ContextType extends ItemContextType<ItemType>> = {};
+// }
 
-const ItemContext = createContext<ItemContextType | undefined>(undefined);
+const ItemContext= createContext({});
+
+//const ItemContext<ItemType> = createContext<ItemContextType | undefined>(undefined);
 
 export const useItemContext = () => {
   const context = useContext(ItemContext);
@@ -27,14 +36,14 @@ export const useItemContext = () => {
   return context;
 };
 
+
 export const ListItemProvider: React.FC = ({ children }) => {
   const [items, setItems] = useState<Item[]>([]);
 
   const updateItems = (newItems: Item[]): boolean => {
-
     //updates items here
     setItems(newItems);
-    return true; 
+    return true;
   };
 
   const removeItems = (itemIds_or_Keys: (number | string)[]): boolean => {

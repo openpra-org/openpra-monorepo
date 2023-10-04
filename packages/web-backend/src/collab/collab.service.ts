@@ -38,8 +38,8 @@ export class CollabService {
     async updateLastLogin(user_id: number) {
         await this.userModel.updateOne({ id: user_id }, { 'last_login': Date.now() });
     }
-
-    /**
+    
+    /** 
     * @param {string} name Name of the counter
     * @description
     * Generates an ID for the newly created user in an incremental order of 1. Initially if no user exists, the serial ID starts from 1.
@@ -202,7 +202,6 @@ export class CollabService {
         };
         return newUser.save();
     }
-
     /**
     * @param {string} user_id Current user's ID
     * @description

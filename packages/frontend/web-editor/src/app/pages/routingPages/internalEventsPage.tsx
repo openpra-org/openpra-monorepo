@@ -10,7 +10,6 @@ import EventTrees from "../fullScopePages/eventTrees";
 import InternalEventsContainer from "../../components/pageContainers/internalEventsContainer";
 import PlantOperationState from "../fullScopePages/plantOperationState";
 import FunctionalEvents from "../fullScopePages/functionalEvents";
-import LogicalModels from "../fullScopePages/logicalModels";
 import BayesianEstimation from "../fullScopePages/bayesianEstimation";
 import MechanisticAnalysis from "../fullScopePages/mechanisticAnalysis";
 import RadiologicalAnalysis from "../fullScopePages/radiologicalAnalysis";

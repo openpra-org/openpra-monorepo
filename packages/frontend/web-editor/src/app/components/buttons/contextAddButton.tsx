@@ -21,11 +21,11 @@ export default () => {
       return <CreateFunctionalEventButton/>
     if(location.endsWith('/fault-trees'))
       return <CreateFaultTreeButton/>
-    if(location.endsWith('markov-chains'))
+    if(location.endsWith('/markov-chains'))
       return <CreateMarkovChainButton/>
-    if(location.endsWith('bayesian-estimation'))
+    if(location.endsWith('/bayesian-estimations'))
       return <CreateBayesianEstimationButton/>
-    if(location.endsWith('weibull-analysis'))
+    if(location.endsWith('/weibull-analysis'))
       return <CreateWeibullAnalysisButton/>
     return <></>
   } else if (location.startsWith('/internal-hazards')){
@@ -43,11 +43,11 @@ export default () => {
       return <CreateFunctionalEventButton/>
     if(location.endsWith('/fault-trees'))
       return <CreateFaultTreeButton/>
-    if(location.endsWith('markov-chains'))
+    if(location.endsWith('/markov-chains'))
       return <CreateMarkovChainButton/>
-    if(location.endsWith('bayesian-estimation'))
+    if(location.endsWith('/bayesian-estimations'))
       return <CreateBayesianEstimationButton/>
-    if(location.endsWith('weibull-analysis'))
+    if(location.endsWith('/weibull-analysis'))
       return <CreateWeibullAnalysisButton/>
     return <></>
   } else if (location.startsWith('/external-hazards')){
@@ -65,11 +65,11 @@ export default () => {
       return <CreateFunctionalEventButton/>
     if(location.endsWith('/fault-trees'))
       return <CreateFaultTreeButton/>
-    if(location.endsWith('markov-chains'))
+    if(location.endsWith('/markov-chains'))
       return <CreateMarkovChainButton/>
-    if(location.endsWith('bayesian-estimation'))
+    if(location.endsWith('/bayesian-estimations'))
       return <CreateBayesianEstimationButton/>
-    if(location.endsWith('weibull-analysis'))
+    if(location.endsWith('/weibull-analysis'))
       return <CreateWeibullAnalysisButton/>
     return <></>
   } else if (location.startsWith('/full-scope')){
@@ -87,11 +87,11 @@ export default () => {
       return <CreateFunctionalEventButton/>
     if(location.endsWith('/fault-trees'))
       return <CreateFaultTreeButton/>
-    if(location.endsWith('markov-chains'))
+    if(location.endsWith('/markov-chains'))
       return <CreateMarkovChainButton/>
-    if(location.endsWith('bayesian-estimation'))
+    if(location.endsWith('/bayesian-estimations'))
       return <CreateBayesianEstimationButton/>
-    if(location.endsWith('weibull-analysis'))
+    if(location.endsWith('/weibull-analysis'))
       return <CreateWeibullAnalysisButton/>
     return <></>
   }

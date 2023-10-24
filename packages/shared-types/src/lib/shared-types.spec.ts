@@ -1,4 +1,4 @@
-import { sharedTypes } from './shared-types';
+import { sharedTypes } from "./shared-types";
 
 describe('sharedTypes', () => {
   it('should work', () => {

@@ -1,5 +1,27 @@
 import { useLocation } from "react-router-dom";
-import { CreateBayesianEstimationButton, CreateBayesianNetworkButton, CreateEventSequenceDiagramButton, CreateEventTreeButton, CreateExternalHazardsButton, CreateFaultTreeButton, CreateFullScopeButton, CreateFunctionalEventButton, CreateInitiatingEventButton, CreateInternalEventsButton, CreateInternalHazardsButton, CreateMarkovChainButton, CreateWeibullAnalysisButton } from "./CreateItemButton";
+import { CreateBayesianEstimationButton, 
+CreateBayesianNetworkButton, 
+CreateDataAnalysisButton, 
+CreateEventSequenceAnalysisButton, 
+CreateEventSequenceDiagramButton, 
+CreateEventSequenceQuantificationDiagramButton, 
+CreateEventTreeButton, 
+CreateExternalHazardsButton, 
+CreateFaultTreeButton, 
+CreateFullScopeButton, 
+CreateFunctionalEventButton, 
+CreateHumanReliabilityAnalysisButton, 
+CreateInitiatingEventButton, 
+CreateInternalEventsButton, 
+CreateInternalHazardsButton, 
+CreateMarkovChainButton, 
+CreateMechanisticSourceTermButton, 
+CreateOperatingStateAnalysisButton, 
+CreateRadiologicalConsequenceAnalysisButton, 
+CreateRiskIntegrationButton, 
+CreateSuccessCriteriaButton, 
+CreateSystemsAnalysisButton, 
+CreateWeibullAnalysisButton } from "./CreateItemButton";
 
 export default () => {
   const location = useLocation().pathname
@@ -23,10 +45,30 @@ export default () => {
       return <CreateFaultTreeButton/>
     if(location.endsWith('/markov-chains'))
       return <CreateMarkovChainButton/>
-    if(location.endsWith('/bayesian-estimations'))
+    if(location.endsWith('/bayesian-estimation'))
       return <CreateBayesianEstimationButton/>
     if(location.endsWith('/weibull-analysis'))
       return <CreateWeibullAnalysisButton/>
+    if(location.endsWith('/operating-state-analysis'))
+      return <CreateOperatingStateAnalysisButton/>
+    if(location.endsWith('/risk-integration'))
+      return <CreateRiskIntegrationButton/>
+    if(location.endsWith('/radiological-consequence-analysis'))
+      return <CreateRadiologicalConsequenceAnalysisButton/>
+    if(location.endsWith('/mechanistic-source-terms'))
+      return <CreateMechanisticSourceTermButton/>
+    if(location.endsWith('/event-sequence-quantification-diagrams'))
+      return <CreateEventSequenceQuantificationDiagramButton/>
+    if(location.endsWith('/data-analysis'))
+      return <CreateDataAnalysisButton/>
+    if(location.endsWith('/human-reliability-analysis'))
+      return <CreateHumanReliabilityAnalysisButton/>
+    if(location.endsWith('/systems-analysis'))
+      return <CreateSystemsAnalysisButton/>
+    if(location.endsWith('/success-criteria'))
+      return <CreateSuccessCriteriaButton/>
+    if(location.endsWith('/event-sequence-analysis'))
+      return <CreateEventSequenceAnalysisButton/>
     return <></>
   } else if (location.startsWith('/internal-hazards')){
     if(location === '/internal-hazards')

@@ -12,9 +12,17 @@ import { MarkovChain, MarkovChainDocument } from './schemas/markov-chain.schema'
 import { WeibullAnalysis, WeibullAnalysisDocument } from './schemas/weibull-analysis.schema';
 import { FunctionalEvent, FunctionalEventDocument } from './schemas/functional-event.schema';
 import { BayesianNetwork, BayesianNetworkDocument } from './schemas/bayesian-network.schema';
-import { Init } from 'v8';
 import { Label } from 'src/schemas/label.schema';
-import { number } from 'nestjs-zod/z';
+import { RiskIntegration, RiskIntegrationDocument } from './schemas/risk-integration.schema';
+import { MechanisticSourceTerm, MechanisticSourceTermDocument } from './schemas/mechanistic-source-term.schema';
+import { EventSequenceQuantificationDiagram, EventSequenceQuantificationDiagramDocument } from './schemas/event-sequence-quantification-diagram.schema';
+import { DataAnalysis, DataAnalysisDocument } from './schemas/data-analysis.schema';
+import { SystemsAnalysis, SystemsAnalysisDocument } from './schemas/systems-analysis.schema';
+import { SuccessCriteria, SuccessCriteriaDocument } from './schemas/success-criteria.schema';
+import { EventSequenceAnalysis, EventSequenceAnalysisDocument } from './schemas/event-sequence-analysis.schema';
+import { OperatingStateAnalysis, OperatingStateAnalysisDocument } from './schemas/operatingStateAnalysis.schema';
+import { RadiologicalConsequenceAnalysis, RadiologicalConsequenceAnalysisDocument } from './schemas/radiological-consequence-analysis.schema';
+import { HumanReliabilityAnalysis, HumanReliabilityAnalysisDocument } from './schemas/human-reliability-analysis.schema';
 
 @Injectable()
 export class NestedModelService {
@@ -31,6 +39,16 @@ export class NestedModelService {
     @InjectModel(MarkovChain.name) private markovChainModel: Model<MarkovChainDocument>,
     @InjectModel(WeibullAnalysis.name) private weibullAnalysisModel: Model<WeibullAnalysisDocument>,
     @InjectModel(NestedCounter.name) private nestedCounterModel: Model<NestedCounterDocument>,
+    @InjectModel(RiskIntegration.name) private riskIntegrationModel: Model<RiskIntegrationDocument>,
+    @InjectModel(RadiologicalConsequenceAnalysis.name) private radiologicalConsequenceAnalysisModel: Model<RadiologicalConsequenceAnalysisDocument>,
+    @InjectModel(MechanisticSourceTerm.name) private mechanisticSourceTermModel: Model<MechanisticSourceTermDocument>,
+    @InjectModel(EventSequenceQuantificationDiagram.name) private eventSequenceQuantificationDiagramModel: Model<EventSequenceQuantificationDiagramDocument>,
+    @InjectModel(DataAnalysis.name) private dataAnalysisModel: Model<DataAnalysisDocument>,
+    @InjectModel(HumanReliabilityAnalysis.name) private humanReliabilityAnalysisModel: Model<HumanReliabilityAnalysisDocument>,
+    @InjectModel(SystemsAnalysis.name) private systemsAnalysisModel: Model<SystemsAnalysisDocument>,
+    @InjectModel(SuccessCriteria.name) private successCriteriaModel: Model<SuccessCriteriaDocument>,
+    @InjectModel(EventSequenceAnalysis.name) private eventSequenceAnalysisModel: Model<EventSequenceAnalysisDocument>,
+    @InjectModel(OperatingStateAnalysis.name) private operatingStateAnalysisModel: Model<OperatingStateAnalysisDocument>,
   ) {}
 
   /** 
@@ -208,6 +226,166 @@ export class NestedModelService {
     }
   }
 
+  /**
+   * creates the type of nestedmodel defined in the function name
+   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
+   * and a label object with a name string and optional description string
+   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   */
+  async createRiskIntegration(body: Partial<NestedModel>): Promise<NestedModel> {
+    try {
+      const newRiskIntegration = new this.riskIntegrationModel(body);
+      newRiskIntegration.id = await this.getNextValue('nestedCounter');
+      return newRiskIntegration.save();
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * creates the type of nestedmodel defined in the function name
+   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
+   * and a label object with a name string and optional description string
+   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   */
+  async createRadiologicalConsequenceAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
+    try {
+      const newRCA = new this.radiologicalConsequenceAnalysisModel(body);
+      newRCA.id = await this.getNextValue('nestedCounter');
+      return newRCA.save();
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * creates the type of nestedmodel defined in the function name
+   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
+   * and a label object with a name string and optional description string
+   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   */
+  async createMechanisticSourceTerm(body: Partial<NestedModel>): Promise<NestedModel> {
+    try {
+      const newMachnisticSourceTerm = new this.mechanisticSourceTermModel(body);
+      newMachnisticSourceTerm.id = await this.getNextValue('nestedCounter');
+      return newMachnisticSourceTerm.save();
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * creates the type of nestedmodel defined in the function name
+   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
+   * and a label object with a name string and optional description string
+   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   */
+  async createEventSequenceQuantificationDiagram(body: Partial<NestedModel>): Promise<NestedModel> {
+    try {
+      const newESQD = new this.eventSequenceQuantificationDiagramModel(body);
+      newESQD.id = await this.getNextValue('nestedCounter');
+      return newESQD.save();
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * creates the type of nestedmodel defined in the function name
+   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
+   * and a label object with a name string and optional description string
+   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   */
+  async createDataAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
+    try {
+      const newDataAnalysis = new this.dataAnalysisModel(body);
+      newDataAnalysis.id = await this.getNextValue('nestedCounter');
+      return newDataAnalysis.save();
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * creates the type of nestedmodel defined in the function name
+   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
+   * and a label object with a name string and optional description string
+   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   */
+  async createHumanReliabilityAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
+    try {
+      const newHRA = new this.humanReliabilityAnalysisModel(body);
+      newHRA.id = await this.getNextValue('nestedCounter');
+      return newHRA.save();
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * creates the type of nestedmodel defined in the function name
+   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
+   * and a label object with a name string and optional description string
+   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   */
+  async createSystemsAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
+    try {
+      const newSystemsAnalysis = new this.systemsAnalysisModel(body);
+      newSystemsAnalysis.id = await this.getNextValue('nestedCounter');
+      return newSystemsAnalysis.save();
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * creates the type of nestedmodel defined in the function name
+   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
+   * and a label object with a name string and optional description string
+   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   */
+  async createSuccessCriteria(body: Partial<NestedModel>): Promise<NestedModel> {
+    try {
+      const newSuccessCriteria = new this.successCriteriaModel(body);
+      newSuccessCriteria.id = await this.getNextValue('nestedCounter');
+      return newSuccessCriteria.save();
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * creates the type of nestedmodel defined in the function name
+   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
+   * and a label object with a name string and optional description string
+   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   */
+  async createEventSequenceAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
+    try {
+      const newESA = new this.eventSequenceAnalysisModel(body);
+      newESA.id = await this.getNextValue('nestedCounter');
+      return newESA.save();
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
+  /**
+   * creates the type of nestedmodel defined in the function name
+   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
+   * and a label object with a name string and optional description string
+   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   */
+  async createOperatingStateAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
+    try {
+      const newOSA = new this.operatingStateAnalysisModel(body);
+      newOSA.id = await this.getNextValue('nestedCounter');
+      return newOSA.save();
+    } catch(error) {
+      throw new Error(error);
+    }
+  }
+
   //get collection methods
 
   /**
@@ -331,6 +509,147 @@ export class NestedModelService {
     }
   }
 
+  /**
+ * Retrieves a collection of Risk Integration models based on the parent ID.
+ * @param parentId The ID of the parent model for the nested model.
+ * @returns A promise with an array of nested Risk Integration models associated with the specified parent ID.
+ */
+async getRiskIntegration(parentId: number): Promise<RiskIntegration[]> {
+  // Typecast to a number because for some reason, it isn't a number????
+  try {
+    return this.riskIntegrationModel.find({ 'parentIds': Number(parentId) }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a collection of Radiological Consequence Analysis models based on the parent ID.
+ * @param parentId The ID of the parent model for the nested model.
+ * @returns A promise with an array of nested Radiological Consequence Analysis models associated with the specified parent ID.
+ */
+async getRadiologicalConsequenceAnalysis(parentId: number): Promise<RadiologicalConsequenceAnalysis[]> {
+  // Typecast to a number because for some reason, it isn't a number????
+  try {
+    return this.radiologicalConsequenceAnalysisModel.find({ 'parentIds': Number(parentId) }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a collection of Mechanistic Source Term models based on the parent ID.
+ * @param parentId The ID of the parent model for the nested model.
+ * @returns A promise with an array of nested Mechanistic Source Term models associated with the specified parent ID.
+ */
+async getMechanisticSourceTerm(parentId: number): Promise<MechanisticSourceTerm[]> {
+  // Typecast to a number because for some reason, it isn't a number????
+  try {
+    return this.mechanisticSourceTermModel.find({ 'parentIds': Number(parentId) }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a collection of Event Sequence Quantification Diagram models based on the parent ID.
+ * @param parentId The ID of the parent model for the nested model.
+ * @returns A promise with an array of nested Event Sequence Quantification Diagram models associated with the specified parent ID.
+ */
+async getEventSequenceQuantificationDiagram(parentId: number): Promise<EventSequenceQuantificationDiagram[]> {
+  // Typecast to a number because for some reason, it isn't a number????
+  try {
+    return this.eventSequenceQuantificationDiagramModel.find({ 'parentIds': Number(parentId) }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a collection of Data Analysis models based on the parent ID.
+ * @param parentId The ID of the parent model for the nested model.
+ * @returns A promise with an array of nested Data Analysis models associated with the specified parent ID.
+ */
+async getDataAnalysis(parentId: number): Promise<DataAnalysis[]> {
+  // Typecast to a number because for some reason, it isn't a number????
+  try {
+    return this.dataAnalysisModel.find({ 'parentIds': Number(parentId) }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a collection of Human Reliability Analysis models based on the parent ID.
+ * @param parentId The ID of the parent model for the nested model.
+ * @returns A promise with an array of nested Human Reliability Analysis models associated with the specified parent ID.
+ */
+async getHumanReliabilityAnalysis(parentId: number): Promise<HumanReliabilityAnalysis[]> {
+  // Typecast to a number because for some reason, it isn't a number????
+  try {
+    return this.humanReliabilityAnalysisModel.find({ 'parentIds': Number(parentId) }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a collection of Systems Analysis models based on the parent ID.
+ * @param parentId The ID of the parent model for the nested model.
+ * @returns A promise with an array of nested Systems Analysis models associated with the specified parent ID.
+ */
+async getSystemsAnalysis(parentId: number): Promise<SystemsAnalysis[]> {
+  // Typecast to a number because for some reason, it isn't a number????
+  try {
+    return this.systemsAnalysisModel.find({ 'parentIds': Number(parentId) }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a collection of Success Criteria models based on the parent ID.
+ * @param parentId The ID of the parent model for the nested model.
+ * @returns A promise with an array of nested Success Criteria models associated with the specified parent ID.
+ */
+async getSuccessCriteria(parentId: number): Promise<SuccessCriteria[]> {
+  // Typecast to a number because for some reason, it isn't a number????
+  try {
+    return this.successCriteriaModel.find({ 'parentIds': Number(parentId) }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a collection of Event Sequence Analysis models based on the parent ID.
+ * @param parentId The ID of the parent model for the nested model.
+ * @returns A promise with an array of nested Event Sequence Analysis models associated with the specified parent ID.
+ */
+async getEventSequenceAnalysis(parentId: number): Promise<EventSequenceAnalysis[]> {
+  // Typecast to a number because for some reason, it isn't a number????
+  try {
+    return this.eventSequenceAnalysisModel.find({ 'parentIds': Number(parentId) }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a collection of Operating State Analysis models based on the parent ID.
+ * @param parentId The ID of the parent model for the nested model.
+ * @returns A promise with an array of nested Operating State Analysis models associated with the specified parent ID.
+ */
+async getOperatingStateAnalysis(parentId: number): Promise<OperatingStateAnalysis[]> {
+  // Typecast to a number because for some reason, it isn't a number????
+  try {
+    return this.operatingStateAnalysisModel.find({ 'parentIds': Number(parentId) }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+
   //singular get methods
 
   /**
@@ -450,6 +769,136 @@ export class NestedModelService {
     }
   }
 
+  /**
+ * Retrieves a single Risk Integration model based on the ID.
+ * @param modelId The ID of the Risk Integration model to be retrieved.
+ * @returns The Risk Integration model associated with the specified ID.
+ */
+async getSingleRiskIntegration(modelId: number): Promise<RiskIntegration> {
+  try {
+    return this.riskIntegrationModel.findOne({ id: modelId }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a single Radiological Consequence Analysis model based on the ID.
+ * @param modelId The ID of the Radiological Consequence Analysis model to be retrieved.
+ * @returns The Radiological Consequence Analysis model associated with the specified ID.
+ */
+async getSingleRadiologicalConsequenceAnalysis(modelId: number): Promise<RadiologicalConsequenceAnalysis> {
+  try {
+    return this.radiologicalConsequenceAnalysisModel.findOne({ id: modelId }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a single Mechanistic Source Term model based on the ID.
+ * @param modelId The ID of the Mechanistic Source Term model to be retrieved.
+ * @returns The Mechanistic Source Term model associated with the specified ID.
+ */
+async getSingleMechanisticSourceTerm(modelId: number): Promise<MechanisticSourceTerm> {
+  try {
+    return this.mechanisticSourceTermModel.findOne({ id: modelId }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a single Event Sequence Quantification Diagram model based on the ID.
+ * @param modelId The ID of the Event Sequence Quantification Diagram model to be retrieved.
+ * @returns The Event Sequence Quantification Diagram model associated with the specified ID.
+ */
+async getSingleEventSequenceQuantificationDiagram(modelId: number): Promise<EventSequenceQuantificationDiagram> {
+  try {
+    return this.eventSequenceQuantificationDiagramModel.findOne({ id: modelId }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a single Data Analysis model based on the ID.
+ * @param modelId The ID of the Data Analysis model to be retrieved.
+ * @returns The Data Analysis model associated with the specified ID.
+ */
+async getSingleDataAnalysis(modelId: number): Promise<DataAnalysis> {
+  try {
+    return this.dataAnalysisModel.findOne({ id: modelId }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a single Human Reliability Analysis model based on the ID.
+ * @param modelId The ID of the Human Reliability Analysis model to be retrieved.
+ * @returns The Human Reliability Analysis model associated with the specified ID.
+ */
+async getSingleHumanReliabilityAnalysis(modelId: number): Promise<HumanReliabilityAnalysis> {
+  try {
+    return this.humanReliabilityAnalysisModel.findOne({ id: modelId }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a single Systems Analysis model based on the ID.
+ * @param modelId The ID of the Systems Analysis model to be retrieved.
+ * @returns The Systems Analysis model associated with the specified ID.
+ */
+async getSingleSystemsAnalysis(modelId: number): Promise<SystemsAnalysis> {
+  try {
+    return this.systemsAnalysisModel.findOne({ id: modelId }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a single Success Criteria model based on the ID.
+ * @param modelId The ID of the Success Criteria model to be retrieved.
+ * @returns The Success Criteria model associated with the specified ID.
+ */
+async getSingleSuccessCriteria(modelId: number): Promise<SuccessCriteria> {
+  try {
+    return this.successCriteriaModel.findOne({ id: modelId }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a single Event Sequence Analysis model based on the ID.
+ * @param modelId The ID of the Event Sequence Analysis model to be retrieved.
+ * @returns The Event Sequence Analysis model associated with the specified ID.
+ */
+async getSingleEventSequenceAnalysis(modelId: number): Promise<EventSequenceAnalysis> {
+  try {
+    return this.eventSequenceAnalysisModel.findOne({ id: modelId }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Retrieves a single Operating State Analysis model based on the ID.
+ * @param modelId The ID of the Operating State Analysis model to be retrieved.
+ * @returns The Operating State Analysis model associated with the specified ID.
+ */
+async getSingleOperatingStateAnalysis(modelId: number): Promise<OperatingStateAnalysis> {
+  try {
+    return this.operatingStateAnalysisModel.findOne({ id: modelId }, { _id: 0 });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
   //delete methods
 
   /**
@@ -568,6 +1017,137 @@ export class NestedModelService {
       throw new Error(error);
     }
   }
+
+  /**
+ * Finds and deletes a Risk Integration model based on the ID.
+ * @param modelId The ID of the Risk Integration model to be deleted.
+ * @returns A promise with the deleted Risk Integration model.
+ */
+async deleteRiskIntegration(modelId: number): Promise<RiskIntegration> {
+  try {
+    return this.riskIntegrationModel.findOneAndDelete({ 'id': modelId });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Finds and deletes a Radiological Consequence Analysis model based on the ID.
+ * @param modelId The ID of the Radiological Consequence Analysis model to be deleted.
+ * @returns A promise with the deleted Radiological Consequence Analysis model.
+ */
+async deleteRadiologicalConsequenceAnalysis(modelId: number): Promise<RadiologicalConsequenceAnalysis> {
+  try {
+    return this.radiologicalConsequenceAnalysisModel.findOneAndDelete({ 'id': modelId });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Finds and deletes a Mechanistic Source Term model based on the ID.
+ * @param modelId The ID of the Mechanistic Source Term model to be deleted.
+ * @returns A promise with the deleted Mechanistic Source Term model.
+ */
+async deleteMechanisticSourceTerm(modelId: number): Promise<MechanisticSourceTerm> {
+  try {
+    return this.mechanisticSourceTermModel.findOneAndDelete({ 'id': modelId });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Finds and deletes an Event Sequence Quantification Diagram model based on the ID.
+ * @param modelId The ID of the Event Sequence Quantification Diagram model to be deleted.
+ * @returns A promise with the deleted Event Sequence Quantification Diagram model.
+ */
+async deleteEventSequenceQuantificationDiagram(modelId: number): Promise<EventSequenceQuantificationDiagram> {
+  try {
+    return this.eventSequenceQuantificationDiagramModel.findOneAndDelete({ 'id': modelId });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Finds and deletes a Data Analysis model based on the ID.
+ * @param modelId The ID of the Data Analysis model to be deleted.
+ * @returns A promise with the deleted Data Analysis model.
+ */
+async deleteDataAnalysis(modelId: number): Promise<DataAnalysis> {
+  try {
+    return this.dataAnalysisModel.findOneAndDelete({ 'id': modelId });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Finds and deletes a Human Reliability Analysis model based on the ID.
+ * @param modelId The ID of the Human Reliability Analysis model to be deleted.
+ * @returns A promise with the deleted Human Reliability Analysis model.
+ */
+async deleteHumanReliabilityAnalysis(modelId: number): Promise<HumanReliabilityAnalysis> {
+  try {
+    return this.humanReliabilityAnalysisModel.findOneAndDelete({ 'id': modelId });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Finds and deletes a Systems Analysis model based on the ID.
+ * @param modelId The ID of the Systems Analysis model to be deleted.
+ * @returns A promise with the deleted Systems Analysis model.
+ */
+async deleteSystemsAnalysis(modelId: number): Promise<SystemsAnalysis> {
+  try {
+    return this.systemsAnalysisModel.findOneAndDelete({ 'id': modelId });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Finds and deletes a Success Criteria model based on the ID.
+ * @param modelId The ID of the Success Criteria model to be deleted.
+ * @returns A promise with the deleted Success Criteria model.
+ */
+async deleteSuccessCriteria(modelId: number): Promise<SuccessCriteria> {
+  try {
+    return this.successCriteriaModel.findOneAndDelete({ 'id': modelId });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Finds and deletes an Event Sequence Analysis model based on the ID.
+ * @param modelId The ID of the Event Sequence Analysis model to be deleted.
+ * @returns A promise with the deleted Event Sequence Analysis model.
+ */
+async deleteEventSequenceAnalysis(modelId: number): Promise<EventSequenceAnalysis> {
+  try {
+    return this.eventSequenceAnalysisModel.findOneAndDelete({ 'id': modelId });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Finds and deletes an Operating State Analysis model based on the ID.
+ * @param modelId The ID of the Operating State Analysis model to be deleted.
+ * @returns A promise with the deleted Operating State Analysis model.
+ */
+async deleteOperatingStateAnalysis(modelId: number): Promise<OperatingStateAnalysis> {
+  try {
+    return this.operatingStateAnalysisModel.findOneAndDelete({ 'id': modelId });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
 
   /**
    * updates the label in the nested model
@@ -694,6 +1274,148 @@ export class NestedModelService {
       throw new Error(error);
     }
   } 
+
+  /**
+ * Updates the label in a Risk Integration model.
+ * @param id The ID of the Risk Integration model to be updated.
+ * @param body A label with a name and description.
+ * @returns A promise with the updated Risk Integration model with an updated label.
+ */
+async updateRiskIntegrationLabel(id: number, body: Label): Promise<RiskIntegration> {
+  try {
+    return this.riskIntegrationModel.findOneAndUpdate({ 'id': Number(id) }, { 'label': body }, { new: true });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Updates the label in a Radiological Consequence Analysis model.
+ * @param id The ID of the Radiological Consequence Analysis model to be updated.
+ * @param body A label with a name and description.
+ * @returns A promise with the updated Radiological Consequence Analysis model with an updated label.
+ */
+async updateRadiologicalConsequenceAnalysisLabel(id: number, body: Label): Promise<RadiologicalConsequenceAnalysis> {
+  try {
+    return this.radiologicalConsequenceAnalysisModel.findOneAndUpdate({ 'id': Number(id) }, { 'label': body }, { new: true });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Updates the label in a Mechanistic Source Term model.
+ * @param id The ID of the Mechanistic Source Term model to be updated.
+ * @param body A label with a name and description.
+ * @returns A promise with the updated Mechanistic Source Term model with an updated label.
+ */
+async updateMechanisticSourceTermLabel(id: number, body: Label): Promise<MechanisticSourceTerm> {
+  try {
+    return this.mechanisticSourceTermModel.findOneAndUpdate({ 'id': Number(id) }, { 'label': body }, { new: true });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Updates the label in an Event Sequence Quantification Diagram model.
+ * @param id The ID of the Event Sequence Quantification Diagram model to be updated.
+ * @param body A label with a name and description.
+ * @returns A promise with the updated Event Sequence Quantification Diagram model with an updated label.
+ */
+async updateEventSequenceQuantificationDiagramLabel(id: number, body: Label): Promise<EventSequenceQuantificationDiagram> {
+  try {
+    return this.eventSequenceQuantificationDiagramModel.findOneAndUpdate({ 'id': Number(id) }, { 'label': body }, { new: true });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Updates the label in a Data Analysis model.
+ * @param id The ID of the Data Analysis model to be updated.
+ * @param body A label with a name and description.
+ * @returns A promise with the updated Data Analysis model with an updated label.
+ */
+async updateDataAnalysisLabel(id: number, body: Label): Promise<DataAnalysis> {
+  try {
+    return this.dataAnalysisModel.findOneAndUpdate({ 'id': Number(id) }, { 'label': body }, { new: true });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Updates the label in a Human Reliability Analysis model.
+ * @param id The ID of the Human Reliability Analysis model to be updated.
+ * @param body A label with a name and description.
+ * @returns A promise with the updated Human Reliability Analysis model with an updated label.
+ */
+async updateHumanReliabilityAnalysisLabel(id: number, body: Label): Promise<HumanReliabilityAnalysis> {
+  try {
+    return this.humanReliabilityAnalysisModel.findOneAndUpdate({ 'id': Number(id) }, { 'label': body }, { new: true });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Updates the label in a Systems Analysis model.
+ * @param id The ID of the Systems Analysis model to be updated.
+ * @param body A label with a name and description.
+ * @returns A promise with the updated Systems Analysis model with an updated label.
+ */
+async updateSystemsAnalysisLabel(id: number, body: Label): Promise<SystemsAnalysis> {
+  try {
+    return this.systemsAnalysisModel.findOneAndUpdate({ 'id': Number(id) }, { 'label': body }, { new: true });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Updates the label in a Success Criteria model.
+ * @param id The ID of the Success Criteria model to be updated.
+ * @param body A label with a name and description.
+ * @returns A promise with the updated Success Criteria model with an updated label.
+ */
+async updateSuccessCriteriaLabel(id: number, body: Label): Promise<SuccessCriteria> {
+  try {
+    return this.successCriteriaModel.findOneAndUpdate({ 'id': Number(id) }, { 'label': body }, { new: true });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Updates the label in an Event Sequence Analysis model.
+ * @param id The ID of the Event Sequence Analysis model to be updated.
+ * @param body A label with a name and description.
+ * @returns A promise with the updated Event Sequence Analysis model with an updated label.
+ */
+async updateEventSequenceAnalysisLabel(id: number, body: Label): Promise<EventSequenceAnalysis> {
+  try {
+    return this.eventSequenceAnalysisModel.findOneAndUpdate({ 'id': Number(id) }, { 'label': body }, { new: true });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+/**
+ * Updates the label in an Operating State Analysis model.
+ * @param id The ID of the Operating State Analysis model to be updated.
+ * @param body A label with a name and description.
+ * @returns A promise with the updated Operating State Analysis model with an updated label.
+ */
+async updateOperatingStateAnalysisLabel(id: number, body: Label): Promise<OperatingStateAnalysis> {
+  try {
+    return this.operatingStateAnalysisModel.findOneAndUpdate({ 'id': Number(id) }, { 'label': body }, { new: true });
+  } catch (error) {
+    throw new Error(error);
+  }
+}
+
+
   //method to remove something a single parent from a child given just the parent id
 
   /**
@@ -799,6 +1521,106 @@ export class NestedModelService {
         numberRemoved++
       } else {
         await this.weibullAnalysisModel.findOneAndUpdate(query, updateData)
+      }
+    }
+
+    // For Risk Integration
+    while (result = await this.riskIntegrationModel.findOne(query)) {
+      if (result.parentIds.length == 1) {
+        await this.riskIntegrationModel.findOneAndDelete(query);
+        numberRemoved++;
+      } else {
+        await this.riskIntegrationModel.findOneAndUpdate(query, updateData);
+      }
+    }
+
+    // For Radiological Consequence Analysis
+    while (result = await this.radiologicalConsequenceAnalysisModel.findOne(query)) {
+      if (result.parentIds.length == 1) {
+        await this.radiologicalConsequenceAnalysisModel.findOneAndDelete(query);
+        numberRemoved++;
+      } else {
+        await this.radiologicalConsequenceAnalysisModel.findOneAndUpdate(query, updateData);
+      }
+    }
+
+    // For Mechanistic Source Term
+    while (result = await this.mechanisticSourceTermModel.findOne(query)) {
+      if (result.parentIds.length == 1) {
+        await this.mechanisticSourceTermModel.findOneAndDelete(query);
+        numberRemoved++;
+      } else {
+        await this.mechanisticSourceTermModel.findOneAndUpdate(query, updateData);
+      }
+    }
+
+    // For Event Sequence Quantification Diagram
+    while (result = await this.eventSequenceQuantificationDiagramModel.findOne(query)) {
+      if (result.parentIds.length == 1) {
+        await this.eventSequenceQuantificationDiagramModel.findOneAndDelete(query);
+        numberRemoved++;
+      } else {
+        await this.eventSequenceQuantificationDiagramModel.findOneAndUpdate(query, updateData);
+      }
+    }
+
+    // For Data Analysis
+    while (result = await this.dataAnalysisModel.findOne(query)) {
+      if (result.parentIds.length == 1) {
+        await this.dataAnalysisModel.findOneAndDelete(query);
+        numberRemoved++;
+      } else {
+        await this.dataAnalysisModel.findOneAndUpdate(query, updateData);
+      }
+    }
+
+    // For Human Reliability Analysis
+    while (result = await this.humanReliabilityAnalysisModel.findOne(query)) {
+      if (result.parentIds.length == 1) {
+        await this.humanReliabilityAnalysisModel.findOneAndDelete(query);
+        numberRemoved++;
+      } else {
+        await this.humanReliabilityAnalysisModel.findOneAndUpdate(query, updateData);
+      }
+    }
+
+    // For Systems Analysis
+    while (result = await this.systemsAnalysisModel.findOne(query)) {
+      if (result.parentIds.length == 1) {
+        await this.systemsAnalysisModel.findOneAndDelete(query);
+        numberRemoved++;
+      } else {
+        await this.systemsAnalysisModel.findOneAndUpdate(query, updateData);
+      }
+    }
+
+    // For Success Criteria
+    while (result = await this.successCriteriaModel.findOne(query)) {
+      if (result.parentIds.length == 1) {
+        await this.successCriteriaModel.findOneAndDelete(query);
+        numberRemoved++;
+      } else {
+        await this.successCriteriaModel.findOneAndUpdate(query, updateData);
+      }
+    }
+
+    // For Event Sequence Analysis
+    while (result = await this.eventSequenceAnalysisModel.findOne(query)) {
+      if (result.parentIds.length == 1) {
+        await this.eventSequenceAnalysisModel.findOneAndDelete(query);
+        numberRemoved++;
+      } else {
+        await this.eventSequenceAnalysisModel.findOneAndUpdate(query, updateData);
+      }
+    }
+
+    // For Operating State Analysis
+    while (result = await this.operatingStateAnalysisModel.findOne(query)) {
+      if (result.parentIds.length == 1) {
+        await this.operatingStateAnalysisModel.findOneAndDelete(query);
+        numberRemoved++;
+      } else {
+        await this.operatingStateAnalysisModel.findOneAndUpdate(query, updateData);
       }
     }
 

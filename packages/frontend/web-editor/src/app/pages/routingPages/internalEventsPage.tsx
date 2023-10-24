@@ -3,21 +3,26 @@ import { LabelJSON } from "shared-types/src/lib/types/Label";
 import InternalEventsList from '../../components/lists/workspaceLists/internalEventsList';
 import EventSequenceDiagrams from '../fullScopePages/eventSequenceDiagrams';
 import BayesianNetworks from '../fullScopePages/bayesianNetworks'
-import QuantificationHistory from "../fullScopePages/quantificationHistory";
 import ModelSettings from "../fullScopePages/modelSettings";
 import InitiatingEvents from "../fullScopePages/initiatingEvents";
 import EventTrees from "../fullScopePages/eventTrees";
 import InternalEventsContainer from "../../components/pageContainers/internalEventsContainer";
-import PlantOperationState from "../fullScopePages/plantOperationState";
+import PlantOperationState from "../fullScopePages/operatingStateAnalysis";
 import FunctionalEvents from "../fullScopePages/functionalEvents";
 import BayesianEstimation from "../fullScopePages/bayesianEstimation";
 import MechanisticAnalysis from "../fullScopePages/mechanisticAnalysis";
-import RadiologicalAnalysis from "../fullScopePages/radiologicalAnalysis";
 import RiskIntegration from "../fullScopePages/riskIntegration";
 import WeibullAnalysis from "../fullScopePages/weibullAnalysis";
 import MarkovChains from "../fullScopePages/markovChains";
 import HRA from "../fullScopePages/humanReliabilityAnalysis";
 import FaultTrees from "../fullScopePages/faultTrees";
+import DataAnalysis from "../fullScopePages/dataAnalysis";
+import EventSequenceAnalysis from "../fullScopePages/eventSequenceAnalysis";
+import OperatingStateAnalysis from "../fullScopePages/operatingStateAnalysis";
+import SuccessCriteria from "../fullScopePages/successCriteria";
+import SystemsAnalysis from "../fullScopePages/systemsAnalysis";
+import EventSequenceQuantificationDiagrams from "../fullScopePages/eventSequenceQuantificationDiagrams";
+import RadiologicalConsequenceAnalysisList from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
 
 
 const getModelFixture = (): ModelProps => {
@@ -122,21 +127,41 @@ export default function InternalEventsPage() {
           element= {<WeibullAnalysis />}
         />
         <Route
-          path= "event-sequence-quantification/*"
-          element= {<QuantificationHistory />}
+          path= "event-sequence-quantification-diagrams/*"
+          element= {<EventSequenceQuantificationDiagrams />}
         />
         <Route
-          path= "mechanistic-source-term-analysis/*"
+          path= "mechanistic-source-terms/*"
           element= {<MechanisticAnalysis />}
         />
         <Route
           path= "radiological-consequence-analysis/*"
-          element= {<RadiologicalAnalysis />}
+          element= {<RadiologicalConsequenceAnalysisList />}
         />
         <Route
           path= "risk-integration/*"
           element= {<RiskIntegration />}
         />
+        <Route
+          path= "operating-state-analysis/*"
+          element= {<OperatingStateAnalysis />}
+        />
+        <Route
+          path= "event-sequence-analysis/*"
+          element= {<EventSequenceAnalysis />}
+        />
+        <Route
+          path= "success-criteria/*"
+          element= {<SuccessCriteria />}
+        />
+        <Route
+          path= "systems-analysis/*"
+          element= {<SystemsAnalysis />}
+        />
+        <Route
+          path= "data-analysis/*"
+          element= {<DataAnalysis />}
+        /> 
         <Route
           path= "settings/*"
           element= {<ModelSettings />}

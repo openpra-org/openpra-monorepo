@@ -128,6 +128,46 @@ export function CreateMarkovChainButton() {
   return <CreateNestedItemButton itemName="markov-chain" postEndpoint={NestedModelApiManager.postMarkovChain} />
 }
 
+export function CreateRiskIntegrationButton() {
+  return <CreateNestedItemButton itemName="risk-integration" postEndpoint={NestedModelApiManager.postRiskIntegration} />
+}
+
+export function CreateRadiologicalConsequenceAnalysisButton() {
+  return <CreateNestedItemButton itemName="radiological-consequence-analysis" postEndpoint={NestedModelApiManager.postRadiologicalConsequenceAnalysis} />
+}
+
+export function CreateMechanisticSourceTermButton() {
+  return <CreateNestedItemButton itemName="mechanistic-source-term" postEndpoint={NestedModelApiManager.postMechanisticSourceTerm} />
+}
+
+export function CreateEventSequenceQuantificationDiagramButton() {
+  return <CreateNestedItemButton itemName="event-sequence-quantification-diagram" postEndpoint={NestedModelApiManager.postEventSequenceQuantificationDiagram} />
+}
+
+export function CreateDataAnalysisButton() {
+  return <CreateNestedItemButton itemName="data-analysis" postEndpoint={NestedModelApiManager.postDataAnalysis} />
+}
+
+export function CreateHumanReliabilityAnalysisButton() {
+  return <CreateNestedItemButton itemName="human-reliability-analysis" postEndpoint={NestedModelApiManager.postHumanReliabilityAnalysis} />
+}
+
+export function CreateSystemsAnalysisButton() {
+  return <CreateNestedItemButton itemName="systems-analysis" postEndpoint={NestedModelApiManager.postSystemsAnalysis} />
+}
+
+export function CreateSuccessCriteriaButton() {
+  return <CreateNestedItemButton itemName="success-criteria" postEndpoint={NestedModelApiManager.postSuccessCriteria} />
+}
+
+export function CreateEventSequenceAnalysisButton() {
+  return <CreateNestedItemButton itemName="event-sequence-analysis" postEndpoint={NestedModelApiManager.postEventSequenceAnalysis} />
+}
+
+export function CreateOperatingStateAnalysisButton() {
+  return <CreateNestedItemButton itemName="operating-state-analysis" postEndpoint={NestedModelApiManager.postOperatingStateAnalysis} />
+}
+
 export function CreateWeibullAnalysisButton() {
   return <CreateNestedItemButton itemName="weibull-analysis" postEndpoint={NestedModelApiManager.postWeibullAnalysis} />
 }

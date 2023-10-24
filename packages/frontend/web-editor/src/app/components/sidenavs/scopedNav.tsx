@@ -69,6 +69,13 @@ export default function ScopedNav(props: scopedNavProps) {
     createTreeItem("Plant Operating State Analysis",  {
       icon: <EuiToken iconType="sparkles"/>,
       callback: () => {navigate('plant-operating-state-analysis')},
+      isExpanded: true, 
+      children: [
+        createTreeItem("Operating State Analysis", {
+          icon: <EuiToken iconType="shard"/>,
+          callback: () => {navigate('operating-state-analysis')},
+        }, 1),
+      ],
     }),
   ];
 
@@ -90,6 +97,10 @@ export default function ScopedNav(props: scopedNavProps) {
       isExpanded: true,
       callback: () => {navigate('event-sequence-analysis')},
       children: [
+        createTreeItem("Event Sequence Analysis", {
+          icon: <EuiToken iconType="aggregate"/>,
+          callback: () => {navigate('event-sequence-analysis')},
+        }, 1),
         createTreeItem("Event Sequence Diagrams", {
           icon: <EuiToken iconType="tokenRepo"/>,
           callback: () => {navigate('event-sequence-diagrams')},
@@ -107,6 +118,10 @@ export default function ScopedNav(props: scopedNavProps) {
       isExpanded: true,
       callback: () => {navigate('success-criteria-developement')},
       children: [
+        createTreeItem("Success Criteria", {
+          icon: <EuiToken iconType="stats"/>,
+          callback: () => {navigate('success-criteria')},
+        }, 1),
         createTreeItem("Functional Events", {
           icon: <EuiToken iconType="tokenRepo"/>,
           callback: () => {navigate('functional-events')},
@@ -119,6 +134,10 @@ export default function ScopedNav(props: scopedNavProps) {
       isExpanded: true,
       callback: () => {navigate('systems-analysis')},
       children: [
+        createTreeItem("Systems Analysis", {
+          icon: <EuiToken iconType="aggregate" shape="square"/>,
+          callback: () => {navigate('systems-analysis')},
+        }, 1),
         createTreeItem("Fault Trees", {
           icon: <EuiToken iconType="tokenRepo"/>,
           callback: () => {navigate('fault-trees')},
@@ -138,6 +157,13 @@ export default function ScopedNav(props: scopedNavProps) {
   const HR = [
     createTreeItem("Human Reliability Analysis",  {
       callback: () => {navigate('human-reliability-analysis')},
+      isExpanded: true,
+      children: [
+        createTreeItem("Human Reliability Analysis", {
+          icon: <EuiToken iconType="tokenRepo"/>,
+          callback: () => {navigate('human-reliability-analysis')},
+        }, 1),
+      ],
     }),
   ];
 
@@ -146,12 +172,16 @@ export default function ScopedNav(props: scopedNavProps) {
       isExpanded: true,
       callback: () => {navigate('data-analysis')},
       children: [
+        createTreeItem("Data Analysis", {
+          icon: <EuiToken iconType="aggregate" shape="square"/>,
+          callback: () => {navigate('data-analysis')},
+        }, 1),
         createTreeItem("Bayesian Estimation", {
           icon: <EuiToken iconType="tokenRepo"/>,
           callback: () => {navigate('bayesian-estimation')},
         }, 1),
         createTreeItem("Weibull Analysis", {
-          icon: <EuiToken iconType="editorBold" shape="square"/>,
+          icon: <EuiToken iconType="bolt" shape="square"/>,
           callback: () => {navigate('weibull-analysis')},
         }, 1),
       ],
@@ -203,24 +233,52 @@ export default function ScopedNav(props: scopedNavProps) {
   const ESQ = [
     createTreeItem("Event Sequence Quantification",  {
       callback: () => {navigate('event-sequence-quantification')},
+      isExpanded: true,
+      children: [
+        createTreeItem("Event Sequence Quantification Diagrams", {
+          icon: <EuiToken iconType="tokenRepo"/>,
+          callback: () => {navigate('event-sequence-quantification-diagrams')},
+        }, 1),
+      ],
     }),
   ];
 
   const MS = [
     createTreeItem("Mechanistic Source Term Analysis",  {
       callback: () => {navigate('mechanistic-source-term-analysis')},
+      isExpanded: true,
+      children: [
+        createTreeItem("Mechanistic Source Terms", {
+          icon: <EuiToken iconType="tokenRepo"/>,
+          callback: () => {navigate('mechanistic-source-terms')},
+        }, 1),
+      ],
     }),
   ];
 
   const RC = [
     createTreeItem("Radiological Consequence Analysis",  {
       callback: () => {navigate('radiological-consequence-analysis')},
+      isExpanded: true,
+      children: [
+        createTreeItem("Radiological Consequence Analysis", {
+          icon: <EuiToken iconType="tokenRepo"/>,
+          callback: () => {navigate('radiological-consequence-analysis')},
+        }, 1),
+      ],
     }),
   ];
 
   const RI = [
     createTreeItem("Risk Integration",  {
       callback: () => {navigate('risk-integration')},
+      isExpanded: true,
+      children: [
+        createTreeItem("Risk Integration", {
+          icon: <EuiToken iconType="tokenRepo"/>,
+          callback: () => {navigate('risk-integration')},
+        }, 1),
+      ],
     }),
   ];
 

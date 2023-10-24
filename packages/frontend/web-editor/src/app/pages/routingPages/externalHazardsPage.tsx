@@ -2,7 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 import ExternalHazardsList from '../../components/lists/workspaceLists/externalHazardsList';
 import ExternalHazardsContainer from "../../components/pageContainers/externalHazardsContainer";
-import PlantOperationState from "../fullScopePages/plantOperationState";
+import PlantOperationState from "../fullScopePages/operatingStateAnalysis";
 import HRA from "../fullScopePages/humanReliabilityAnalysis";
 import BayesianEstimation from "../fullScopePages/bayesianEstimation";
 import BayesianNetworks from "../fullScopePages/bayesianNetworks";
@@ -13,19 +13,21 @@ import FunctionalEvents from "../fullScopePages/functionalEvents";
 import HazardsScreeningAnalysis from "../fullScopePages/hazardsScreeningAnalysis";
 import HighWinds from "../fullScopePages/highWinds";
 import InitiatingEvents from "../fullScopePages/initiatingEvents";
-import InternalFire from "../fullScopePages/internalFire";
-import InternalFlood from "../fullScopePages/internalFlood";
-import LogicalModels from "../fullScopePages/logicalModels";
 import MarkovChains from "../fullScopePages/markovChains";
 import MechanisticAnalysis from "../fullScopePages/mechanisticAnalysis";
 import ModelSettings from "../fullScopePages/modelSettings";
 import OtherHazards from "../fullScopePages/otherHazards";
-import QuantificationHistory from "../fullScopePages/quantificationHistory";
-import RadiologicalAnalysis from "../fullScopePages/radiologicalAnalysis";
 import RiskIntegration from "../fullScopePages/riskIntegration";
 import Seismic from "../fullScopePages/seismic";
 import WeibullAnalysis from "../fullScopePages/weibullAnalysis";
 import FaultTrees from "../fullScopePages/faultTrees";
+import DataAnalysis from "../fullScopePages/dataAnalysis";
+import EventSequenceAnalysis from "../fullScopePages/eventSequenceAnalysis";
+import OperatingStateAnalysis from "../fullScopePages/operatingStateAnalysis";
+import SuccessCriteria from "../fullScopePages/successCriteria";
+import SystemsAnalysis from "../fullScopePages/systemsAnalysis";
+import EventSequenceQuantificationDiagramList from "../../components/lists/nestedLists/eventSequenceQunatificationDiagramList";
+import RadiologicalConsequenceAnalysis from "../fullScopePages/radiologicalConsequenceAnalysis";
 
 
 const getModelFixture = (): ModelProps => {
@@ -142,21 +144,41 @@ export default function ExternalHazardsPage() {
                   element= {<OtherHazards />}
                 />  
                 <Route
-                  path= "event-sequence-quantification/*"
-                  element= {<QuantificationHistory />}
+                  path= "event-sequence-quantification-diagrams/*"
+                  element= {<EventSequenceQuantificationDiagramList />}
                 />
                 <Route
-                  path= "mechanistic-source-term-analysis/*"
+                  path= "mechanistic-source-terms/*"
                   element= {<MechanisticAnalysis />}
                 />  
                 <Route
                   path= "radiological-consequence-analysis/*"
-                  element= {<RadiologicalAnalysis />}
+                  element= {<RadiologicalConsequenceAnalysis />}
                 />  
                 <Route
                   path= "risk-integration/*"
                   element= {<RiskIntegration />}
-                />   
+                />    
+                <Route
+                  path= "operating-state-analysis/*"
+                  element= {<OperatingStateAnalysis />}
+                />
+                <Route
+                  path= "event-sequence-analysis/*"
+                  element= {<EventSequenceAnalysis />}
+                />
+                <Route
+                  path= "success-criteria/*"
+                  element= {<SuccessCriteria />}
+                />
+                <Route
+                  path= "systems-analysis/*"
+                  element= {<SystemsAnalysis />}
+                />
+                <Route
+                  path= "data-analysis/*"
+                  element= {<DataAnalysis />}
+                /> 
                 <Route
                   path= "settings/*"
                   element= {<ModelSettings />}

@@ -1,7 +1,7 @@
 {
   "name": "scram-node",
   "version": "0.0.1",
-  "description": "",
+  "license": "AGPL-3.0-or-later",
   "main": "./lib/index.js",
   "scripts": {
     "test": "tape test/*.test.js",
@@ -51,7 +51,6 @@
       }
     }
   },
-  "license": "MIT",
   "dependencies": {
     "@mapbox/node-pre-gyp": "1.0.8",
     "node-addon-api": "4.3.0"

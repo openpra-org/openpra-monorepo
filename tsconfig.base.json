@@ -16,13 +16,8 @@
     "baseUrl": ".",
     "paths": {
       "engine/scram-node": ["packages/engine/scram-node/src/index.ts"],
-      "frontend/assets": ["packages/frontend/assets/src/index.ts"],
-      "frontend/mxgraph-js-types": [
-        "packages/frontend/mxgraph-js-types/src/index.ts"
-      ],
       "model-generator": ["packages/model-generator/src/index.ts"],
-      "shared-types": ["packages/shared-types/src/index.ts"],
-      "types/mxgraph-js": ["packages/types/mxgraph-js/src/index.ts"]
+      "shared-types": ["packages/shared-types/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

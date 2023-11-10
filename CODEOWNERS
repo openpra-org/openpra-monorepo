@@ -1,13 +1,35 @@
+# This file itself is owned by members who are assigned the Project Admin role in this project.
+CODEOWNERS "Project Admin"
 
 # By default, starting from the root dir, all files are owned by the project members
 * "Project Member"
 
+# Code Sanitization
+*eslint* "Project Admin"
+*prettier* "Project Admin"
+
+# Repo Sanitization
+*.gitignore "Project Admin"
+*.gitkeep "Project Admin"
+
+# Package Sanitization
+*.npmrc "Project Admin"
+*package.json "Project Admin"
+*pnpm-lock.yaml "Project Admin"
+*pnpm-workspace.yaml "Project Admin"
+*project.json "Project Admin"
+*nx.json "Project Admin"
+*migrations.json "Project Admin"
+*tsconfig* "Project Admin"
+*webpack* "Project Admin"
+*babel* "Project Admin"
+*jest.config* "Project Admin"
+
+# Deployment Checks
 *Dockerfile "Project Admin"
 docker-compose*.yml "Project Admin"
+stack.yml "Project Admin"
 
-packages/engine/scram-node mail@earthperson.org
-
-package.json "Project Admin"
-
-# This file itself is owned by members who are assigned the Project Admin role in this project.
-CODEOWNERS "Project Admin"
+# CI/CD, GitLab Pipelines, Space Automations
+.space.kts
+.gitlab-ci.yml

@@ -1,5 +1,6 @@
-import { EuiDataGrid, EuiFlexGroup, EuiFlexItem } from '@elastic/eui';
-import { useCallback, useState } from 'react';
+import { EuiDataGrid, EuiFlexGroup, EuiFlexItem } from "@elastic/eui";
+import { SetStateAction, useCallback, useState } from "react";
+import { EuiDataGridColumnSortingConfig } from "@elastic/eui/src/components/datagrid/data_grid_types";
 
 interface DataTableProps {
   rows: any[];
@@ -12,50 +13,80 @@ interface CellValueProps {
 }
 
 /**
- * 
- * @param columns needs to take in columns to define each data section
- * @param rows the row of data matching the columns
- * @returns a formated data grid with the information that is passed in
+ * DataTable component that renders a data grid using Elastic UI components.
+ *
+ * @param props - The props for the DataTable component.
+ * @param props.columns - The column definitions for the data grid.
+ * @param props.rows - The data rows that will populate the grid.
+ * @returns The `EuiDataGrid` component populated with the provided data.
  */
-export default function DataTable({ rows, columns }: DataTableProps) {
+export default function DataTable({ rows, columns }: DataTableProps): JSX.Element {
 
-  //sets the visibile columns in a state
-  const [visibleColumns, setVisibleColumns] = useState(columns.map((column) => column.id));
+  /**
+   * State to manage the visibility of columns in the data grid.
+   */
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(columns.map((column) => column.id));
 
-  //this sets all the values in the cells
-  const cellValue = ({ rowIndex, colIndex }: CellValueProps) => {
+  /**
+   * Retrieves the value for a cell given its row and column index.
+   *
+   * @param cellProps - The properties for the cell.
+   * @param cellProps.rowIndex - The index of the row for the cell.
+   * @param cellProps.colIndex - The index of the column for the cell.
+   * @returns The value for the cell at the specified row and column index.
+   */
+  const cellValue = ({ rowIndex, colIndex }: CellValueProps): any => {
     const visibleColumnId = visibleColumns[colIndex];
     const row = rows[rowIndex];
-    const value = row[visibleColumnId];
-    return value;
+    return row[visibleColumnId];
   };
 
-  // Pagination, basic taken from official place
+  /**
+   * State to manage pagination settings for the data grid.
+   */
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 });
+
+  /**
+   * Callback to handle changes in the number of items per page.
+   *
+   * @param pageSize - The new page size.
+   */
   const onChangeItemsPerPage = useCallback(
-      (pageSize) =>
-          setPagination((pagination) => ({
-            ...pagination,
-            pageSize,
-            pageIndex: 0,
-          })),
-      [setPagination]
+    (pageSize: number): void => {
+      setPagination((pagination) => ({
+        ...pagination,
+        pageSize,
+        pageIndex: 0,
+      }));
+    },
+    [setPagination]
   );
 
-  //updates pagination stuff
+  /**
+   * Callback to handle page changes.
+   *
+   * @param pageIndex - The new page index.
+   */
   const onChangePage = useCallback(
-      (pageIndex) =>
-          setPagination((pagination) => ({ ...pagination, pageIndex })),
-      [setPagination]
+    (pageIndex: number): void => {
+      setPagination((pagination) => ({ ...pagination, pageIndex }));
+    },
+    [setPagination]
   );
 
-  // Sorting the columns
-  const [sortingColumns, setSortingColumns] = useState([]);
+  /**
+   * State to manage sorting configurations for the data grid columns.
+   */
+  const [sortingColumns, setSortingColumns] = useState<EuiDataGridColumnSortingConfig[]>([]);
 
-  //this jsut sorts the columns, works as the example does
+  /**
+   * Callback to handle sorting changes.
+   *
+   * @param newSortingColumns - The new sorting configuration for the columns.
+   */
   const onSort = useCallback(
-    (sortingColumns) => {
-      setSortingColumns(sortingColumns);
+    (newSortingColumns: SetStateAction<EuiDataGridColumnSortingConfig[]>): void => {
+      setSortingColumns(newSortingColumns);
     },
     [setSortingColumns]
   );
@@ -68,7 +99,7 @@ export default function DataTable({ rows, columns }: DataTableProps) {
           columnVisibility={{ visibleColumns, setVisibleColumns }}
           rowCount={rows.length}
           renderCellValue={cellValue}
-          sorting={{ columns: sortingColumns, onSort}}
+          sorting={{ columns: sortingColumns, onSort }}
           inMemory={{ level: 'sorting' }}
           aria-label="dataTable"
           pagination={{

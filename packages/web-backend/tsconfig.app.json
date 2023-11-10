@@ -19,15 +19,25 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
-    // "rootDir": ".",
     "moduleResolution": "node",
     "importHelpers": true,
     "lib": ["es2020", "dom"],
     "skipDefaultLibCheck": true,
     "paths": {
-      "frontend/assets": ["packages/frontend/assets/src/index.ts"],
+      "frontend/assets": ["packages/frontend/assets/src/index.ts"]
     }
   },
-  "exclude": ["node_modules","jest.config.ts", "src/**/test/*.spec.ts", "src/**/test/*.test.ts"],
-  "include": ["src/*.ts", "src/**/strategies/*.ts", "src/**/dtos/*ts", "src/**/schemas/*.ts", "src/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "jest.config.ts",
+    "src/**/test/*.spec.ts",
+    "src/**/test/*.test.ts"
+  ],
+  "include": [
+    "src/*.ts",
+    "src/**/strategies/*.ts",
+    "src/**/dtos/*ts",
+    "src/**/schemas/*.ts",
+    "src/**/*.ts"
+  ]
 }

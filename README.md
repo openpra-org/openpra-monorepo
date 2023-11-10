@@ -1,129 +1,174 @@
 # OpenPRA Monorepo
 
+Welcome to the OpenPRA Monorepo, the unified codebase for the [OpenPRA application suite](https://docs.openpra.org/). 
+This repository uses the [Nx](https://nx.dev) build system, which encapsulates and manages a collection of packages.
+Together, these packages facilitate the maintenance of [OpenPRA App](https://app.op), including the frontend, backend, 
+wrappers for underlying C/C++ engines, shared TypeScript definitions, and utility packages for common functions.
+
+For instance, the `openpra-json-schema` package centralizes the 
+[OpenPRA-MEF (Model Exchange Format) definitions](https://docs.openpra.org/en/model-exchange-formats), while the 
+`shared-types` package leverages these definitions to create TypeScript types and other shared data structures.
+
+## Table of Contents
+
+- [Packages](#packages)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+  - [`nvm`](#nvm)
+  - [`node`](#node)
+  - [`pnpm`](#pnpm)
+  - [`mongo`](#mongo)
+- [Setup](#setup)
+- [Development Steps](#development-steps)
+  - [Command Line Usage](#command-line-usage)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+
 ## Packages
 
-## Getting Started
+Included within this monorepo are the following packages:
 
-You need `pnpm`, `nvm`, `node`, and `mongodb` installed.
+- `engine-scram-node`: Node.js wrappers for the `SCRAM` C/C++ engine.
+- `frontend-web-editor`: A React v18 and TypeScript-based frontend UI.
+- `model-generator`: A tool for creating models from predefined schemas.
+- `shared-types`: Shared TypeScript definitions for consistent data structuring.
+- `web-backend`: A NestJS and TypeScript backend service.
 
-### Installing PNPM
+## Prerequisites
 
-#### On Windows
+Before setting up the project, please ensure the following tools are installed on your system, instructions for which 
+are provided in the following sections.
 
-```shell
-winget install pnpm
-```
+- `pnpm` (Package Manager)
+- `nvm` (Node Version Manager)
+- Node.js `v20.2.0`
+- MongoDB (for hosting a database)
+  - [Optional] Native Mongo App
+  - [Optional] Docker Desktop & Compose 
+- A Chromium-based web browser (for debugging in-browser Javascript with breakpoints)
 
-#### On MacOS
+## Installation
 
-Ensure that you have [Homebrew](https://brew.sh) installed.
-If not, run this script in Terminal `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"`
-Finally, install pnpm
+### `nvm`
+- **Linux**: Installation instructions can be found [here](https://github.com/nvm-sh/nvm).
+- **Windows**: Download and install [nvm-setup.exe](https://github.com/coreybutler/nvm/releases).
+- **MacOS**: Install Homebrew if not present with
+  - `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"`
+  - then `brew install nvm`
 
-```shell
-brew install pnpm
-```
-
-#### On Linux
-
-You don't need instructions do you big boy. DuckDuckGo it if you do.
-
-### Installing NVM
-
-#### On Windows
-
-- Download and install [nvm-setup.exe](https://github.com/coreybutler/nvm/releases)
-- Logout then login to add nvm and pnpm to your PowerShell `PATH`
-
-### Installing Node
-
-- We are sticking with `v20.2.0` since it will have [LTS support](https://nodejs.dev/en/about/releases/) `10/2023` through `06/2025`.
-
+### `node`
+Once installed, `nvm` can be used to download and use the `node` version of choice. Install it using `nvm` with the 
+following commands:
 ```shell
 nvm install 20.2.0
 nvm use 20.2.0
 ```
 
-### Setup
+### `pnpm`
+
+- **Windows**: `winget install pnpm`.
+- **macOS**: Install Homebrew if not present with 
+  - `/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"`
+  - then `brew install pnpm`
+- **Linux**: Refer to the [PNPM installation guide](https://pnpm.io/installation) for your distribution.
+
+### `mongo`
+
+Choose one of the two options below, not both!
+
+* #### Docker Desktop
+
+  * Install the [Docker Desktop](https://www.docker.com/products/docker-desktop/) app for your OS.
+  * Then, follow the instructions to install [Docker Compose v2](https://docs.docker.com/compose/install/).
+  * Be sure to skip the `Native App` step in this case.
+
+* #### Native App
+
+  * For ease of development on Linux/MacOS, we have typically been using `Docker` and `docker compose` to spin up MongoDB.
+  * However, you can also just download MongoDB for your OS and run it directly. If you intend to do this, follow the 
+  [official MongoDB installation guide](https://docs.mongodb.com/manual/installation/) for your OS.
+
+## Setup
+
+Once prerequisites are installed, initialize the project with these commands:
 
 ```shell
-pnpm setup #if this isn't working try and run "npm install -g pnpm", and then try again
+pnpm setup
 pnpm install --shamefully-hoist=true
-pnpm install --global nx@16.5.4 #you could also try nx@latest but ymmv
+pnpm install --global nx@17.1.1
 ```
 
-- On Windows, if you're unable to run `nx` post-install, set the following script execution policy in PowerShell.
-- IMPORTANT!!!: You will have to run this script everytime you open a PowerShell for development.
+For Windows users experiencing issues with `nx`, adjust the PowerShell script execution policy:
 
 ```shell
 Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
 ```
+---
+## Development Steps
 
-### For Development: Serve frontend & backend
+### 1. Start the `mongo` database
+Using one of the two options below, spin up an instance of the database
+* #### Docker Compose
+  * Set up a Docker-managed database environment with:
+    ```shell
+    docker compose -f docker/docker-compose.yml up -d
+    ```
+    
+* #### Native App
+  * You will need to figure out how to start the mongo server.
 
+### 2. Start the `web-backend` debugger
+To debug the frontend in JetBrains WebStorm using `nx` scripts:
+
+1. Open the project in WebStorm.
+2. Go to `Run` > `Edit Configurations`.
+3. Add a new `Nx` configuration by choosing the `web-backend`.
+4. Save the configuration.
+5. Click the run icon to start the backend server. Once up, the debugger will attach to the running process.
+
+### 3. Start the `web-editor` debuggers
+To debug the backend in JetBrains WebStorm using `nx` scripts:
+
+1. Open the project in WebStorm.
+2. Navigate to `Run` > `Edit Configurations`.
+3. Create a new `Nx` configuration for the `web-editor`.
+4. Save and run the configuration.
+5. Set up browser debugging following [WebStorm's guide](https://www.jetbrains.com/help/webstorm/debugging-javascript-in-chrome.html).
+
+### 4. Other Targets
+To debug any other build targets, or `CommonJS`, `Typescript`, or `Node.js` packages, follow these general steps:
+
+1. Open the project in WebStorm.
+2. Go to `Run` > `Edit Configurations`.
+3. Click the `+` button to add a new configuration.
+4. Choose `Node.js` for CommonJS or Node.js packages, or `TypeScript` for TypeScript packages.
+5. In the `JavaScript file` field, specify the path to the file you want to run or debug.
+6. For Node.js applications, you can also specify environment variables, node parameters, and the working directory if needed.
+7. Save the configuration by clicking `OK`.
+8. Click the run icon to start the application or the debug icon to start debugging.
+
+---
+### Command Line Usage
+
+You can always use the command line to serve or build any of the targets. `nx` supports a wide range of commands, so be 
+sure to check out its documentation. Some very basic examples include:
 ```shell
-nx serve frontend-web-editor
+nx serve web-editor
 nx serve web-backend
+
+# alternatively, serve all concurrently:
+nx run-many -t serve --all
+
+# run Jest unit tests and linting across the project with:
+nx run-many -t test
+nx run-many -t lint
 ```
 
-Or, serve together
+## Troubleshooting
 
-```shell
-nx run-many -t serve
-```
+- If dependency issues arise, check for proper camel casing in frontend component filenames and adjust as necessary.
+- If `docker compose` fails to work, you can confirm that your configuration is valid by running `docker compose -f docker/docker-compose.yml config`
+## License
 
-### For Deployment: Build frontend & backend
-
-```shell
-nx build frontend-web-editor
-nx build web-backend
-```
-
-Or in parallel
-
-```shell
-nx run-many -t build
-```
-
-### Updating dependencies
-
-```shell
-npm i -g npm-check-updates
-ncu -u
-```
-
-### Docker/Database
-
-download docker here: https://www.docker.com/products/docker-desktop/
-docker-compose up -d to spin up the database
-
-
-### Fix for dependency errors
-
-if files are already on file, make sure the files within frontend components have camelcasing on the file, rename them if they don't and it should fix
-
-## Testing
-We are using Jest and Cypress for testing.
-
-### Jest
-Jest Test Suites and Jest Tests are used together to structure your tests in a way that makes them easy to understand and manage. Here are some use cases for choosing to write a Jest Test Suite vs just Jest Tests:
-
-1. **Grouping related tests**: Jest Test Suites (describe blocks) are used to group related tests together. This makes 
-it easier to understand which parts of your code the tests are covering. If you're testing a single function or a small
-piece of functionality, you might only need individual Jest Tests (it blocks). But if you're testing a larger feature or a whole module, it's helpful to group the tests into a suite.
-
-2. **Shared setup and teardown**: If several tests need to run the same setup or teardown code, you can put that code in
-beforeAll, beforeEach, afterEach, or afterAll blocks inside a test suite. This avoids repetition and keeps your tests
-DRY (Don't Repeat Yourself).
-
-3. **Scoped variables**: Variables declared in a describe block are available to all the tests and nested describe
-blocks inside it. This can be useful for sharing values between tests, like instances of the objects you're testing.
-
-4. **Nested suites**: You can nest describe blocks to create sub-groups of tests. This can be useful for testing
-different aspects or sub-features of the code covered by the parent suite.
-
-5. **Readability and organization**: Using test suites can make your test output easier to read, because Jest will print
-the suite and test names in a hierarchical format. This can make it easier to see at a glance what's being tested and what the results are.
-
-6. **Selective test running**: You can use Jest's CLI options to run only the tests in a specific suite, which can be
-useful if you're working on a particular feature or if you want to isolate a failing test for debugging.
+This project is under the [GNU AGPLv3 license](LICENSE.md), which requires that any networked use of a modified version 
+of the software must make the source code available. For more information, visit [AGPL-3.0 license details](https://choosealicense.com/licenses/agpl-3.0/).

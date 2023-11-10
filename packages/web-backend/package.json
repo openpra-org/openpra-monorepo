@@ -1,8 +1,7 @@
 {
   "name": "web-backend",
   "version": "0.0.1",
-  "description": "",
-  "author": "",
+  "license": "AGPL-3.0-or-later",
   "private": true,
   "dependencies": {
     "@nestjs/common": "9.4.2",

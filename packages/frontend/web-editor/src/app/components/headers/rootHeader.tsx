@@ -96,7 +96,7 @@ export default () => {
     return (
         <EuiHeader position="fixed">
           <EuiHeaderSection grow={false}>
-            <EuiHeaderSectionItem border="right">
+            <EuiHeaderSectionItem>
               <WorkspaceSelectorMenu/>
             </EuiHeaderSectionItem>
           </EuiHeaderSection>

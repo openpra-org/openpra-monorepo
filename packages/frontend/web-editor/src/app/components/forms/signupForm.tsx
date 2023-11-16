@@ -10,9 +10,6 @@ import {
 } from "@elastic/eui";
 import { SignUpErrorProps, SignUpProps } from "shared-types/src/lib/api/AuthTypes";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
-//import { DuplicateUserException } from 'shared-types/src/lib/errors/duplicateUserException';
-import { InvalidTokenError } from "jwt-decode";
-import { sign } from "crypto";
 
 export default function SignupForm() {
     const defaultProps: SignUpProps = {
@@ -59,7 +56,7 @@ export default function SignupForm() {
                         email: true
                     })
                 }
-                
+
             })
     }
 

@@ -1,43 +1,15 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "../../tsconfig.base.json",
+  "include": ["src/**/*.ts"],
+  "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"],
   "compilerOptions": {
-    "outDir": "../../dist/out-tsc",
     "module": "commonjs",
-    "types": ["jest", "node"],
-    "emitDecoratorMetadata": true,
-    "declaration": true,
-    "removeComments": true,
-    "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "target": "es2021",
     "sourceMap": true,
-    "baseUrl": "./",
-    "incremental": true,
-    "skipLibCheck": true,
-    "strictNullChecks": false,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false,
-    "moduleResolution": "node",
-    "importHelpers": true,
-    "lib": ["es2020", "dom"],
-    "skipDefaultLibCheck": true,
-    "paths": {
-      "frontend/assets": ["packages/frontend/assets/src/index.ts"]
-    }
+    "declaration": true,
+    "esModuleInterop": true,
+    "emitDecoratorMetadata": true,
+    "target": "es2021",
+    "types": ["node"],
+    "declarationDir": "../../dist/types/web-backend"
   },
-  "exclude": [
-    "node_modules",
-    "jest.config.ts",
-    "src/**/test/*.spec.ts",
-    "src/**/test/*.test.ts"
-  ],
-  "include": [
-    "src/*.ts",
-    "src/**/strategies/*.ts",
-    "src/**/dtos/*ts",
-    "src/**/schemas/*.ts",
-    "src/**/*.ts"
-  ]
 }

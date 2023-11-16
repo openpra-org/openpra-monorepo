@@ -1,6 +1,6 @@
 import EventTreeList from "../../components/lists/nestedLists/eventTreeList";
 import { Route, Routes } from "react-router-dom";
-import React, { ReactElement, useCallback } from "react";
+import { ReactElement, useCallback } from "react";
 
 import ReactFlow, { addEdge, Node, Edge, Connection, Position, useEdgesState, useNodesState } from "reactflow";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS

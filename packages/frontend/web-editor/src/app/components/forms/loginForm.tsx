@@ -26,13 +26,6 @@ export default function LoginForm() {
     const [invalid, setInvalid] = useState(false);
     const [ redirectToHomepage, setRedirectToHomepage ] = useState(false);
 
-
-    //if (error.username == true || error.password == true) {
-    const    errors = [
-            'invalid username or password',
-        ]
-    //}
-
     async function handleLogin() {
         setInvalid(false)
         const { username, password } = login;
@@ -48,14 +41,6 @@ export default function LoginForm() {
         } catch (error){
             console.log(error)
         }
-    }
-
-    //Used as a callback to print errors hooray
-    function handleLoginError() {
-        setError({
-            ...error,
-            password: true
-        })
     }
 
     //Corrects the isInvalid when a user types something in a blank input field

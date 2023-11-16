@@ -1,6 +1,6 @@
 import ProxyTypes from "./ProxyTypes";
 import Expression, {ExpressionJSON} from "./Expression";
-import {Formula, FormulaJSON} from "./Formula";
+import Formula, {FormulaJSON} from "./Formula";
 import {OutcomeJSON} from "./Outcome";
 
 interface InstructionJSON {

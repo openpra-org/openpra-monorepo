@@ -823,7 +823,7 @@ export class NestedModelController {
    * @returns a promise with the number of totally deleted nested models
    */
   @Delete()
-  async removeParentIds(@Query('modelId') modelId: number): Promise<Number> {
+  async removeParentIds(@Query('modelId') modelId: number): Promise<number> {
     return this.nestedModelService.removeParentModels(modelId);
   }
 }

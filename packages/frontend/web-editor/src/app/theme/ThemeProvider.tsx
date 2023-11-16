@@ -75,14 +75,14 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
         this.onRequestChangeTheme(stateToApply);
     }
 
-    componentDidMount = () => {
+    override componentDidMount = () => {
         if (!this.listener) {
             this.listener = window.matchMedia('(prefers-color-scheme: dark)');
             this.listener.addEventListener('change', this.onMediaPreferenceChange, false);
         }
     };
 
-    componentWillUnmount(): void {
+    override componentWillUnmount(): void {
         if (this.listener) {
             this.listener.removeEventListener('change', this.onMediaPreferenceChange);
             this.listener = undefined;
@@ -136,7 +136,7 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
     };
 
 
-    render() {
+    override render() {
         const { children, themeOptions } = this.props;
         const themePreference = ThemeProvider.getThemePreference();
         const colorMode: EuiThemeColorMode = (themePreference.mode === PreferenceModes.DARK) ? 'dark' : 'light';

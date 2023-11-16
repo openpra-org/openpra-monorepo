@@ -2,7 +2,6 @@ import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 import InternalHazardsList from '../../components/lists/workspaceLists/internalHazardsList';
 import EventSequenceDiagrams from '../fullScopePages/eventSequenceDiagrams';
-import FaultTrees from "../fullScopePages/faultTrees";
 import BayesianNetworks from '../fullScopePages/bayesianNetworks'
 import ModelSettings from "../fullScopePages/modelSettings";
 import InitiatingEvents from "../fullScopePages/initiatingEvents";
@@ -99,10 +98,6 @@ export default function InternalHazardsPage() {
                 element= {<FunctionalEvents/>}
             />
             <Route
-                path= "fault-trees/*"
-                element= {<FaultTrees />}
-            />
-            <Route
                 path= "bayesian-networks/*"
                 element= {<BayesianNetworks />}
             />
@@ -137,7 +132,7 @@ export default function InternalHazardsPage() {
             <Route
                 path= "other-hazards-pra/*"
                 element= {<OtherHazards />}
-            />  
+            />
             <Route
                 path= "event-sequence-quantification-diagrams/*"
                 element= {<EventSequenceQuantificationDiagrams/>}
@@ -145,11 +140,11 @@ export default function InternalHazardsPage() {
             <Route
                 path= "mechanistic-source-terms/*"
                 element= {<MechanisticAnalysis />}
-            />  
+            />
             <Route
                 path= "radiological-consequence-analysis/*"
                 element= {<RadiologicalConsequenceAnalysisList />}
-            />  
+            />
             <Route
                 path= "risk-integration/*"
                 element= {<RiskIntegration />}
@@ -173,7 +168,7 @@ export default function InternalHazardsPage() {
             <Route
               path= "data-analysis/*"
               element= {<DataAnalysis />}
-            />    
+            />
             <Route
                 path= "settings/*"
                 element= {<ModelSettings />}

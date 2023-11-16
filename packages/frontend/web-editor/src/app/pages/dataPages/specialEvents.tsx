@@ -5,14 +5,12 @@ import SpecialEventsTable from "../../components/tables/specialEventsTable";
 
 export default function SpecialEvents() {
     return (
-        <> 
-            <TemplatedPageBody
+        <TemplatedPageBody
                 headerProps={{
                 pageTitle: "Special Events",
                 iconType: "tableDensityNormal",
             }}>
                 <SpecialEventsTable/>
             </TemplatedPageBody>
-        </>
     )
 }

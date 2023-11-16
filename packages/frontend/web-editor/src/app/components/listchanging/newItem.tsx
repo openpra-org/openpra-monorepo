@@ -8,13 +8,11 @@ import {
     EuiFlexGroup,
     EuiFlexItem,
     EuiSpacer,
-    useEuiTheme,
     EuiSelectable,
     EuiSelectableOption,
     EuiTitle,
     EuiButtonEmpty
 } from '@elastic/eui'
-// import {addModelDataToList} from "../../largecomponents/lists/modelItemsList";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
   export interface NewItemProps {
@@ -30,11 +28,8 @@ import {
   //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
 export default function NewItem(props: NewItemProps) {
 
-    //use the theme
-    const {euiTheme} = useEuiTheme();
-
     //grabbing the props
-    const { title, page, itemTitle, itemDescription, users, toggleBox } = props;
+    const { title, users, toggleBox } = props;
 
     //this is what is in the newItem strucutre, will eventually be used to actually make things
     //this is also subject tyo change, propbably needs a type passed in from props eventually
@@ -46,10 +41,7 @@ export default function NewItem(props: NewItemProps) {
 
     //use states that change things, called by functions later
     const [itemInfo, setItemInfo] =useState(newItem)
-
     const [options, setOptions] = useState<EuiSelectableOption[]>([]);
-
-    const [selectedOptions, setSelectedOptions] = useState<EuiSelectableOption[]>([]);
 
     //this shows which things have actually been selected
     useEffect(() => {
@@ -80,11 +72,11 @@ export default function NewItem(props: NewItemProps) {
           users: selectedUsers,
         });
       };
-      
+
     //sets the data, then closes overlay
     const setData = () => {
         closeOverlay();
-    }      
+    }
 
     //just closes the overlay for adding items
     const closeOverlay = () => {
@@ -125,8 +117,7 @@ export default function NewItem(props: NewItemProps) {
                 </EuiFormRow>
                 {/** toggles if users exists and is passed, and it shows the selectable menu of users */}
                 {users &&(
-                    <>
-                        <EuiFormRow fullWidth={true}>
+                    <EuiFormRow fullWidth={true}>
                         <EuiSelectable
                             options={options}
                             onChange={(newOptions) => {
@@ -143,8 +134,7 @@ export default function NewItem(props: NewItemProps) {
                                 </div>
                             )}
                             </EuiSelectable>
-                        </EuiFormRow>
-                    </>
+                    </EuiFormRow>
                 )}
                 {/** the submit and also the go back buttons are right here*/}
                 <EuiFormRow fullWidth={true}>

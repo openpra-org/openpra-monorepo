@@ -1,6 +1,6 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, MongooseError } from 'mongoose';
+import { Model } from 'mongoose';
 import * as argon2 from 'argon2';
 import * as dot from 'dot-object';
 import { PaginationDto } from './dtos/pagination.dto';
@@ -8,8 +8,6 @@ import { CreateNewUserDto } from './dtos/create-new-user.dto';
 import { UserPreferencesDto } from './dtos/user-preferences.dto';
 import { UserCounter, UserCounterDocument } from './schemas/user-counter.schema';
 import { User, UserDocument } from './schemas/user.schema';
-import { InvalidTokenError } from 'jwt-decode';
-//import { DuplicateUserException } from '../../../shared-types/src/lib/errors/duplicateUserException';
 
 @Injectable()
 export class CollabService {
@@ -38,17 +36,17 @@ export class CollabService {
     async updateLastLogin(user_id: number) {
         await this.userModel.updateOne({ id: user_id }, { 'last_login': Date.now() });
     }
-    
-    /** 
+
+    /**
     * @param {string} name Name of the counter
     * @description
     * Generates an ID for the newly created user in an incremental order of 1. Initially if no user exists, the serial ID starts from 1.
     * @returns {number} ID number
     */
     async getNextUserValue(name: string) {
-        let record = await this.userCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
+        const record = await this.userCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
         if(!record) {
-            let newCounter = new this.userCounterModel({ _id: name, seq: 1 });
+            const newCounter = new this.userCounterModel({ _id: name, seq: 1 });
             await newCounter.save();
             return newCounter.seq;
         }
@@ -82,7 +80,7 @@ export class CollabService {
     pagination(count: number, url: string, limit?: any, offset?: any) {
         let previous = null;
         let next = null;
-        let regex = /limit=[A-Za-z0-9]+&offset=[A-Za-z0-9]+/i;
+        const regex = /limit=[A-Za-z0-9]+&offset=[A-Za-z0-9]+/i;
 
         let default_limit = 10;
         let default_offset = 0;
@@ -93,8 +91,8 @@ export class CollabService {
             { default_offset = Number(offset) };
         }
 
-        let total_page = Math.ceil(count/default_limit);
-        let current_page = (default_offset/default_limit) + 1;
+        const total_page = Math.ceil(count/default_limit);
+        const current_page = (default_offset/default_limit) + 1;
 
         if(total_page <= 1) {
             return { previous, next, default_limit, default_offset };
@@ -237,7 +235,7 @@ export class CollabService {
     * @returns Updated preferences of the user
     */
     async updateUserPreferences(user_id: string, body: UserPreferencesDto) {
-        let user = await this.userModel.findOne({ id: Number(user_id) }).lean();
+        const user = await this.userModel.findOne({ id: Number(user_id) }).lean();
         return this.userModel.findByIdAndUpdate(user._id, { $set: dot.dot(body) }, { projection: { 'preferences': 1 }, new: true, upsert: false });
     }
 }

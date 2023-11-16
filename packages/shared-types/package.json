@@ -2,5 +2,14 @@
   "name": "shared-types",
   "version": "0.0.1",
   "license": "AGPL-3.0-or-later",
-  "type": "commonjs"
+  "type": "commonjs",
+  "nx": {
+    "tags": [
+      "scope:shared"
+    ]
+  },
+  "dependencies": {
+    "axios": "1.6.1",
+    "jwt-decode": "4.0.0"
+  }
 }

@@ -1,24 +1,8 @@
 {
+  "extends": "@tsconfig/recommended/tsconfig.json",
   "compileOnSave": false,
   "compilerOptions": {
-    "rootDir": ".",
-    "sourceMap": true,
-    "declaration": false,
-    "moduleResolution": "node",
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "importHelpers": true,
-    "target": "es2015",
-    "module": "esnext",
-    "lib": ["es2020", "dom"],
-    "skipLibCheck": true,
-    "skipDefaultLibCheck": true,
     "baseUrl": ".",
-    "paths": {
-      "engine/scram-node": ["packages/engine/scram-node/src/index.ts"],
-      "model-generator": ["packages/model-generator/src/index.ts"],
-      "shared-types": ["packages/shared-types/src/index.ts"]
-    }
-  },
-  "exclude": ["node_modules", "tmp"]
+    "paths": {}
+  }
 }

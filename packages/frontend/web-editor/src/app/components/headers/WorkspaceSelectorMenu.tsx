@@ -42,9 +42,7 @@ export default function WorkspaceSelectorMenu() {
       isMountedRef.current = true;
     };
   }, [selectedSpace]);
-  const addMoreSpaces = () => {
-    setSpaces(spaces.concat([]));
-  };
+
   const button = (
     <EuiHeaderSectionItemButton
       aria-controls={popoverID}

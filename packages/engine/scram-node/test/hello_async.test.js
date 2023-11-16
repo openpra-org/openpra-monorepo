@@ -1,5 +1,5 @@
 var test = require('tape');
-var module = require('../lib');
+var module = require('../lib/binding/module');
 
 test('success: prints loud busy world', function(t) {
   module.helloAsync({ louder: true }, function(err, result) {

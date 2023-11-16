@@ -1,9 +1,5 @@
 import Label from "../../Label";
 import { BasicModel } from "../basicModel";
-import ExternalHazardsModel from "./externalHazardsModel";
-import FullScopeModel from "./fullScopeModel";
-import InternalEventsModel from "./internalEventsModel";
-import InternalHazardsModel from "./internalHazardsModel";
 
 export interface TypedModelJSON {
   id: number;

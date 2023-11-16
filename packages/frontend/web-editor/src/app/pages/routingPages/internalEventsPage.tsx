@@ -1,4 +1,4 @@
-import { Route, Routes, json } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 import InternalEventsList from '../../components/lists/workspaceLists/internalEventsList';
 import EventSequenceDiagrams from '../fullScopePages/eventSequenceDiagrams';
@@ -15,7 +15,6 @@ import RiskIntegration from "../fullScopePages/riskIntegration";
 import WeibullAnalysis from "../fullScopePages/weibullAnalysis";
 import MarkovChains from "../fullScopePages/markovChains";
 import HRA from "../fullScopePages/humanReliabilityAnalysis";
-import FaultTrees from "../fullScopePages/faultTrees";
 import DataAnalysis from "../fullScopePages/dataAnalysis";
 import EventSequenceAnalysis from "../fullScopePages/eventSequenceAnalysis";
 import OperatingStateAnalysis from "../fullScopePages/operatingStateAnalysis";
@@ -103,10 +102,6 @@ export default function InternalEventsPage() {
           element= {<FunctionalEvents/>}
         />
         <Route
-          path= "fault-trees/*"
-          element= {<FaultTrees />}
-        />
-        <Route
           path= "bayesian-networks/*"
           element= {<BayesianNetworks />}
         />
@@ -161,7 +156,7 @@ export default function InternalEventsPage() {
         <Route
           path= "data-analysis/*"
           element= {<DataAnalysis />}
-        /> 
+        />
         <Route
           path= "settings/*"
           element= {<ModelSettings />}

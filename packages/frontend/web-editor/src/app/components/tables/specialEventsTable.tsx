@@ -1,9 +1,6 @@
-import {useEuiTheme} from "@elastic/eui";
 import DataTable from "./templatetable/dataTable";
 
 export default function SpecialEventsTable(){
-
-    const {euiTheme} = useEuiTheme();
 
     const rows = [
         {

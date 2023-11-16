@@ -21,7 +21,7 @@ export interface NewParameterProps {
 export default function NewParameter(props: NewParameterProps) {
 
     //this is to make sure the new thing gets set
-    const [addNewVisible, setAddNewVisible] = useState(false);
+    // const [addNewVisible, setAddNewVisible] = useState(false);
 
     //grabbing the props
     const { toggleBox } = props;
@@ -59,7 +59,7 @@ export default function NewParameter(props: NewParameterProps) {
     //sets the data, then closes overlay
     const setData = () => {
         closeOverlay();
-    }      
+    }
 
     //just closes the overlay for adding items
     const closeOverlay = () => {

@@ -4,14 +4,12 @@ import TemplatedPageBody from '../../components/headers/TemplatedPageBody'
 
 export default function Ccf() {
     return (
-        <>
-            <TemplatedPageBody
+        <TemplatedPageBody
                 headerProps={{
                 pageTitle: "Common Cause Failure",
                 iconType: "tableDensityNormal",
             }}>
                 <CcfTable/>
             </TemplatedPageBody>
-        </>
     )
 }

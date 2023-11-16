@@ -94,8 +94,16 @@ Once prerequisites are installed, initialize the project with these commands:
 
 ```shell
 pnpm setup
-pnpm install --shamefully-hoist=true
-pnpm install --global nx@17.1.1
+pnpm install
+pnpm install --global nx@17.1.2
+```
+
+### Nx Migrations [Admin Only]
+```shell
+nx migrate 17.1.2
+pnpm install --no-frozen-lockfile
+## if migrations.json was created, run:
+nx migrate --run-migrations
 ```
 
 For Windows users experiencing issues with `nx`, adjust the PowerShell script execution policy:

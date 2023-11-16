@@ -20,7 +20,6 @@ import OtherHazards from "../fullScopePages/otherHazards";
 import RiskIntegration from "../fullScopePages/riskIntegration";
 import Seismic from "../fullScopePages/seismic";
 import WeibullAnalysis from "../fullScopePages/weibullAnalysis";
-import FaultTrees from "../fullScopePages/faultTrees";
 import DataAnalysis from "../fullScopePages/dataAnalysis";
 import EventSequenceAnalysis from "../fullScopePages/eventSequenceAnalysis";
 import OperatingStateAnalysis from "../fullScopePages/operatingStateAnalysis";
@@ -100,10 +99,6 @@ export default function ExternalHazardsPage() {
                   element= {<FunctionalEvents/>}
                 />
                 <Route
-                  path= "fault-trees/*"
-                  element= {<FaultTrees />}
-                />
-                <Route
                   path= "bayesian-networks/*"
                   element= {<BayesianNetworks />}
                 />
@@ -138,11 +133,11 @@ export default function ExternalHazardsPage() {
                 <Route
                   path= "external-flooding-pra/*"
                   element= {<ExternalFlooding />}
-                /> 
+                />
                 <Route
                   path= "other-hazards-pra/*"
                   element= {<OtherHazards />}
-                />  
+                />
                 <Route
                   path= "event-sequence-quantification-diagrams/*"
                   element= {<EventSequenceQuantificationDiagramList />}
@@ -150,15 +145,15 @@ export default function ExternalHazardsPage() {
                 <Route
                   path= "mechanistic-source-terms/*"
                   element= {<MechanisticAnalysis />}
-                />  
+                />
                 <Route
                   path= "radiological-consequence-analysis/*"
                   element= {<RadiologicalConsequenceAnalysis />}
-                />  
+                />
                 <Route
                   path= "risk-integration/*"
                   element= {<RiskIntegration />}
-                />    
+                />
                 <Route
                   path= "operating-state-analysis/*"
                   element= {<OperatingStateAnalysis />}
@@ -178,7 +173,7 @@ export default function ExternalHazardsPage() {
                 <Route
                   path= "data-analysis/*"
                   element= {<DataAnalysis />}
-                /> 
+                />
                 <Route
                   path= "settings/*"
                   element= {<ModelSettings />}

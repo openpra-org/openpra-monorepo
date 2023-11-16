@@ -18,7 +18,7 @@ import * as process from "process";
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => ({
-        secret: !!(process.env.DEPLOYMENT) ? fs.readFileSync(config.get<string>('JWT_SECRET_KEY')) : config.get<string>('JWT_SECRET_KEY'),
+        secret: process.env.DEPLOYMENT ? fs.readFileSync(config.get<string>('JWT_SECRET_KEY')) : config.get<string>('JWT_SECRET_KEY'),
         signOptions: { expiresIn: '24h' }
       })
     })

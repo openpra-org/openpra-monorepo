@@ -10,7 +10,6 @@ import React, {useEffect, useState} from "react";
 
 import { DEFAULT_TYPED_MODEL_JSON, TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
-import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
 
 import { toTitleCase } from "../../../utils/StringUtils";
 
@@ -41,12 +40,6 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
   //sets the current typed model using our formIntials, in a react state so we can pass it around
   const [typedModel, setTypedModel] = useState(formInitials);
 
-  //for setting if the page is loading
-  const [isLoading, setIsLoading] = useState(true);
-
-  //need a state for the list of user ints, gonna dummy it out for now
-  const [updateUsersList, setUpdateUsersList] = useState(initUsers)
-
   //need a state for the list of user ints, gonna dummy it out for now
   const [usersList, setUsersList] = useState<EuiComboBoxOptionOption<any>[]>([])
 
@@ -58,6 +51,7 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
 
   //use effect to set up users, only runs if init form values is passed which is only passed on edit!
   if(initialFormValues){
+    // TODO:: BROKEN
     useEffect(() => {
       const logFetchedData = async () => {
         try {
@@ -72,16 +66,16 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
               key: item.id,
             };
           })
-          let selectedList = listWithoutCurrentUser.map((item: any) => {
-            //console.log(initUsers)
+
+          const selectedList: EuiComboBoxOptionOption[] = [];
+          listWithoutCurrentUser.forEach((item: any) => {
             if (initUsers.includes(item.key)) {
-              return {
+              selectedList.push({
                 label: item.label,
                 key: item.key,
-              };
+              });
             }
           })
-          selectedList = selectedList.filter((item: any) => item !== undefined)
           setSelectedUsersList(selectedList)
           setUsersList(listWithoutCurrentUser)
         } catch (error) {
@@ -105,7 +99,7 @@ export default function TypedModelActionForm({ itemName, onCancel, noHeader, com
   const handleAction = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
-    if (typedModel.label.name != '') {
+    if (typedModel.label.name !== '') {
 
       //this creates the finalIdList that is added when updated or added to the model
       const finalIdList = usersListId

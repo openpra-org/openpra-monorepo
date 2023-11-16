@@ -1,5 +1,5 @@
 
-export interface NewModelProps<type> {
+export interface NewModelProps {
     title: string,
     description: string,
     assigned: string[]

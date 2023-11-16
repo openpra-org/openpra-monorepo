@@ -1,7 +1,7 @@
 'use strict';
 
 const test = require('tape');
-const { helloPromise } = require('../lib');
+const { helloPromise } = require('../lib/binding/module');
 
 test('success: no options object', async (assert) => {
   const result = await helloPromise();

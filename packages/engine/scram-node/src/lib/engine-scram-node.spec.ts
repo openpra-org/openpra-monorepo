@@ -1,4 +1,4 @@
-import { engineScramNode } from './engine-scram-node';
+import { engineScramNode } from "engine/scram-node";
 
 describe('engineScramNode', () => {
   it('should work', () => {

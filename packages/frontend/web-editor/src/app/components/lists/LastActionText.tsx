@@ -8,8 +8,6 @@ export type LastActionTextProps = {
 
 // TODO
 export default function LastActionText({ timestamp, action }: LastActionTextProps) {
-  const timeNow = Date.now();
-  const duration = timeNow - timestamp;
 
   let text = usePrettyDuration({
     timeFrom: 'now-3w',

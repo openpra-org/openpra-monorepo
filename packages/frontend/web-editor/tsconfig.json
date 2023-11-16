@@ -1,20 +1,19 @@
-{
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "allowJs": false,
-    "esModuleInterop": false,
-    "allowSyntheticDefaultImports": true,
-    "strict": true
-  },
-  "files": [],
-  "include": [],
-  "references": [
-    {
-      "path": "./tsconfig.app.json"
-    },
-    {
-      "path": "./tsconfig.spec.json"
-    }
-  ],
-  "extends": "../../../tsconfig.base.json"
-}
+//{
+//  "compilerOptions": {
+//    "jsx": "react-jsx",
+//  },
+//  "files": [
+//    "../../../node_modules/@nx/react/typings/cssmodule.d.ts",
+//    "../../../node_modules/@nx/react/typings/image.d.ts"
+//  ],
+//  "include": [],
+//  "references": [
+//    {
+//      "path": "./tsconfig.app.json"
+//    },
+//    {
+//      "path": "./tsconfig.spec.json"
+//    }
+//  ],
+//  "extends": "../../../tsconfig.base.json"
+//}

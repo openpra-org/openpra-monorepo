@@ -1,4 +1,4 @@
-import jwtDecode from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 import AuthToken, { EMPTY_TOKEN } from "../types/AuthToken";
 
 class AuthService {

@@ -1,5 +1,5 @@
 var test = require('tape');
-var module = require('../lib');
+var module = require('../lib/binding/module');
 
 test('success: prints expected string', function(t) {
   var H = new module.HelloObject('carol');

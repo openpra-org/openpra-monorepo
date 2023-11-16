@@ -1,7 +1,6 @@
 import { EuiPageBodyProps } from "@elastic/eui/src/components/page/page_body/page_body";
 import { EuiPageBody, EuiPageHeaderProps, useEuiTheme, EuiPageTemplate } from "@elastic/eui";
 import { EuiPageSectionProps } from "@elastic/eui/src/components/page/page_section/page_section";
-import TemplatedPageHeader from "./TemplatedPageHeader";
 
 export type TemplatedPageBodyProps = {
   headerProps?: EuiPageHeaderProps;

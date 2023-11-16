@@ -4,7 +4,6 @@ import ScopedNav from "../sidenavs/scopedNav";
 
 export default () => {
   return (
-    <>
     <EuiPageTemplate panelled={false} offset={0} grow={true} restrictWidth={false}>
       <EuiPageTemplate.Sidebar
         paddingSize="s"
@@ -16,6 +15,5 @@ export default () => {
       </EuiPageTemplate.Sidebar>
       <Outlet />
     </EuiPageTemplate>
-    </>
   );
 };

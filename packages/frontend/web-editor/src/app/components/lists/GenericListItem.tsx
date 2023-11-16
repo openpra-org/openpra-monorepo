@@ -5,15 +5,13 @@ import {
   logicalStyle,
   useEuiTheme,
   useEuiPaddingSize,
-  EuiOverlayMask, EuiFlexGroup, EuiFlexItem, EuiButtonIcon
+  EuiFlexGroup, EuiFlexItem
 } from "@elastic/eui";
-import { useState } from "react";
 import { Link } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
-import DeleteItemBox from "../listchanging/deleteItemBox";
 import LastActionText from "./LastActionText";
-import { ListItemContextMenuButton, ListItemEditAction } from "./ListItemAction";
-import { TypedModelJSON } from "packages/shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+import { ListItemContextMenuButton } from "./ListItemAction";
+import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 
 
 //title is required, description isnt required but is typically present
@@ -38,10 +36,8 @@ export type GenericListItemProps = {
  */
 export default function GenericListItem(props: GenericListItemProps) {
 
-  const {euiTheme} = useEuiTheme();
-
   //grabs the props
-  const { itemName, label, id, path, deleteTypedEndpoint, deleteNestedEndpoint} = props;
+  const { label, id, path} = props;
 
   // TODO
   //setting themeing constants to be used later

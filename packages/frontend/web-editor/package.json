@@ -2,6 +2,11 @@
   "name": "frontend-web-editor",
   "version": "0.0.1",
   "license": "AGPL-3.0-or-later",
+  "nx": {
+    "tags": [
+      "scope:client"
+    ]
+  },
   "dependencies": {
     "@elastic/datemath": "5.0.3",
     "@elastic/eui": "91.0.0",
@@ -19,7 +24,10 @@
   },
   "devDependencies": {
     "@testing-library/react": "13.4.0",
+    "@types/d3-hierarchy": "3.1.6",
+    "@types/d3-timer": "3.0.2",
     "@types/react": "18.2.37",
-    "@types/react-dom": "18.2.15"
+    "@types/react-dom": "18.2.15",
+    "uuid": "9.0.1"
   }
 }

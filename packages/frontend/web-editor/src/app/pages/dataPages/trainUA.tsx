@@ -4,14 +4,12 @@ import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
 
 export default function TrainUA() {
     return (
-        <> 
-            <TemplatedPageBody
+        <TemplatedPageBody
                 headerProps={{
                 pageTitle: "Train UA",
                 iconType: "tableDensityNormal",
             }}>
                 <TrainUaTable/>
             </TemplatedPageBody>
-        </>
     )
 }

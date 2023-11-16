@@ -5,14 +5,12 @@ import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
 
 export default function Ccf() {
     return (
-        <> 
-            <TemplatedPageBody
+        <TemplatedPageBody
                 headerProps={{
                 pageTitle: "Component Reliability",
                 iconType: "tableDensityNormal",
             }}>
                 <ComponentReliabilityTable/>
             </TemplatedPageBody>
-        </>
     )
 }

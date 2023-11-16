@@ -1,9 +1,6 @@
-import {useEuiTheme} from "@elastic/eui";
 import DataTable from "./templatetable/dataTable";
 
 export default function TrainUaTable(){
-
-    const {euiTheme} = useEuiTheme();
 
     //data has fields for every label
     //fth is 5th, nfth is 95th
@@ -32,7 +29,7 @@ export default function TrainUaTable(){
     ];
 
     //has the following column headers
-    // Section, Sub Section, Train Unavailability Event, Train Description, Data Source, Analysis, MSPI Trains, 
+    // Section, Sub Section, Train Unavailability Event, Train Description, Data Source, Analysis, MSPI Trains,
     // Distribution, 5th Percentile, Median, 95th Percentile, alpha, beta, Mean, std dev, Error Factor, Baseline Period, Effective Date
     // It may be worth going back and making some of these enums instead for limited options
     const columns = [

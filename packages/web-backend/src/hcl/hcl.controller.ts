@@ -1,14 +1,6 @@
 import { Controller, Get, Post, Patch, Delete, Request, Param, Query, Body, HttpStatus, UseFilters, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { InvalidTokenFilter } from '../filters/invalid-token.filter';
-import { GlobalParameterDto } from './dtos/global-parameter.dto';
-import { HclModelDto } from './dtos/hcl-model.dto';
-import{ HclModelTreeDto } from './dtos/hcl-model-tree.dto';
-import { PaginationDto } from './dtos/pagination.dto';
-import { GlobalParameter } from './schemas/global-parameter.schema';
-import { HclModel } from './schemas/hcl-model.schema';
-import { HclModelTree } from './schemas/hcl-model-tree.schema';
-import { OverviewTree } from './schemas/overview-tree.schema';
 
 @Controller()
 @UseGuards(AuthGuard('jwt'))
@@ -214,7 +206,7 @@ export class HclController {
 //     }
 //     return this.hclService.getHclModelQuantificationListById(model_id, req.originalUrl);
 //   }
-  
+
 //   /**
 //   * @param req Express request object @see {@link https://expressjs.com/en/api.html#req}
 //   * @param {string} model_id ID of the model

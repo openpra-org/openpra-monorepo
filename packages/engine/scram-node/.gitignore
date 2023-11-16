@@ -4,7 +4,7 @@ build
 *.cmake
 *.make
 Makefile
-lib/*
+lib
 *.node
 bin
 

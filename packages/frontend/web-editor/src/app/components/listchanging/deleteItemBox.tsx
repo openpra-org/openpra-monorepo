@@ -35,7 +35,7 @@ export default function DeleteItemBox(props: DeleteItemProps) {
     const [confirmDelete, setConfirmDelete] = useState('');
 
     //grabbing the props
-    const {id, itemName, typeOfModel, deleteNestedEndpoint, deleteTypedEndpoint} = props;
+    const {id, itemName, deleteNestedEndpoint, deleteTypedEndpoint} = props;
 
     const navigate = useNavigate()
 

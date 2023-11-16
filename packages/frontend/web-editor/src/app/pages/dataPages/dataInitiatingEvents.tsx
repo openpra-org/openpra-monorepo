@@ -4,14 +4,12 @@ import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
 
 export default function DataInitiatingEvents() {
     return (
-        <> 
-            <TemplatedPageBody
+        <TemplatedPageBody
                 headerProps={{
                 pageTitle: "Initiating Events",
                 iconType: "tableDensityNormal",
             }}>
                 <InitiatingEventsTable/>
             </TemplatedPageBody>
-        </>
     )
 }

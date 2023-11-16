@@ -59,9 +59,9 @@ export class NestedModelService {
   * @returns {number} ID number
   */
   async getNextValue(name: string) {
-    let record = await this.nestedCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
+    const record = await this.nestedCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
     if(!record) {
-        let newCounter = new this.nestedCounterModel({ _id: name, seq: 1 });
+        const newCounter = new this.nestedCounterModel({ _id: name, seq: 1 });
         await newCounter.save();
         return newCounter.seq;
     }
@@ -76,7 +76,7 @@ export class NestedModelService {
   * @returns {number} ID number
   */
   async getValue(name: string) : Promise<number> {
-    let record = await this.nestedCounterModel.findById(name);
+    const record = await this.nestedCounterModel.findById(name);
     return (record.seq);
   }
 

@@ -1,5 +1,5 @@
 var test = require('tape');
-var module = require('../lib');
+var module = require('../lib/binding/module');
 
 test('prints world', function(t) {
   var check = module.hello();

@@ -7,7 +7,6 @@ import {
   EuiText,
   EuiCollapsibleNavGroup,
   useEuiPaddingSize,
-  useEuiBackgroundColor
 } from "@elastic/eui";
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view"
 import { useNavigate } from "react-router-dom";
@@ -69,7 +68,7 @@ export default function ScopedNav(props: scopedNavProps) {
     createTreeItem("Plant Operating State Analysis",  {
       icon: <EuiToken iconType="sparkles"/>,
       callback: () => {navigate('plant-operating-state-analysis')},
-      isExpanded: true, 
+      isExpanded: true,
       children: [
         createTreeItem("Operating State Analysis", {
           icon: <EuiToken iconType="shard"/>,
@@ -81,7 +80,7 @@ export default function ScopedNav(props: scopedNavProps) {
 
   const IE = [
     createTreeItem("Initiating Event Analysis",  {
-      isExpanded: true, 
+      isExpanded: true,
       callback: () => {navigate('initiating-event-analysis')},
       children: [
         createTreeItem("Initiating Events", {
@@ -282,20 +281,6 @@ export default function ScopedNav(props: scopedNavProps) {
     }),
   ];
 
-  // const quantificationHistory = [
-  //   createTreeItem("Quantification History",  {
-  //     icon: <EuiIcon type="visAreaStacked" />,
-  //     callback: () => {navigate('quantification-history')},
-  //   }, 0),
-  // ];
-
-  // const globalParams = [
-  //   createTreeItem("Global Parameters",  {
-  //     icon: <EuiIcon type="beta" />,
-  //     callback: () => {navigate('global-parameters')},
-  //   }, 0),
-  // ];
-
   const settings = [
     createTreeItem("Settings",  {
       icon: <EuiIcon type="gear" />,
@@ -303,8 +288,6 @@ export default function ScopedNav(props: scopedNavProps) {
     }, 0),
   ];
 
-
-  const backgroundColor =  useEuiBackgroundColor("plain");
   const padding = useEuiPaddingSize("s") || '0px';
 
   const createTreeView = (items: TreeItem[], i: number, forceTreeView = false) => {

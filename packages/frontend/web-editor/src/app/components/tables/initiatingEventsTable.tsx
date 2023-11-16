@@ -1,9 +1,6 @@
-import {useEuiTheme} from "@elastic/eui";
 import DataTable from "./templatetable/dataTable";
 
 export default function InitiatingEventsTable(){
-
-    const {euiTheme} = useEuiTheme();
 
     //data has fields for every label
     //fth is 5th, nfth is 95th

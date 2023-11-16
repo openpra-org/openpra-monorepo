@@ -5,7 +5,6 @@ import {
     EuiButton,
     EuiFlexGroup,
     useGeneratedHtmlId,
-    useEuiTheme,
     EuiText,
     EuiPanel,
     EuiFlexGrid,
@@ -38,8 +37,6 @@ const buttonContent = (
 
 //this page in theory changes the diagram on the voerview page, but again, cant even remotely test right now so its mostly dummied out
 export default function SettingsOverview() {
-
-    const {euiTheme} = useEuiTheme();
 
     const [overviewValue, setOverviewValue] = useState('')
 

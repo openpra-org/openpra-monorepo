@@ -1,15 +1,20 @@
 {
-  "extends": "./tsconfig.json",
+  "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "../../../dist/out-tsc",
-    "module": "commonjs",
-    "types": [
-      "jest",
-      "node",
-      "@nx/react/typings/cssmodule.d.ts",
-      "@nx/react/typings/image.d.ts"
-    ]
+    //    "module": "commonjs",
+    "jsx": "react-jsx",
+    "baseUrl": ".",
+    //    "types": [
+    //      "jest",
+    //      "node",
+    //      "@nx/react/typings/cssmodule.d.ts",
+    //      "@nx/react/typings/image.d.ts"
+    //    ]
   },
+//  "files": [
+//    "../../../node_modules/@nx/react/typings/cssmodule.d.ts",
+//    "../../../node_modules/@nx/react/typings/image.d.ts"
+//  ],
   "include": [
     "jest.config.ts",
     "src/**/*.test.ts",
@@ -22,8 +27,4 @@
     "src/**/*.spec.jsx",
     "src/**/*.d.ts"
   ],
-  "files": [
-    "../../../node_modules/@nx/react/typings/cssmodule.d.ts",
-    "../../../node_modules/@nx/react/typings/image.d.ts"
-  ]
 }

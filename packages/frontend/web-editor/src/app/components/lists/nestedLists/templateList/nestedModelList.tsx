@@ -1,5 +1,5 @@
 
-import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
+import { EuiPageTemplate, EuiSkeletonRectangle } from "@elastic/eui";
 import { useEffect, useState } from "react";
 
 import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
@@ -28,7 +28,7 @@ async function fetchModelList(getNestedEndpoint: (id: number) => Promise<NestedM
   }
 }
 
-//this doesnt work right now, it returns a typedModelJSon I think instead of internaleventsmdoel
+//this doesn't work right now, it returns a typedModelJSon I think instead of internaleventsmdoel
 //this works but poorly, need to fix how ids are done
 //I also cant really get the items to know what type they are, I'm assuming typedmodeljson
 const getFixtures = async (getNestedEndpoint: (id: number) => Promise<NestedModel[]>, deleteNestedEndpoint: (id: number) => {}, patchNestedEndpoint: (id: number, data: LabelJSON) => {},

@@ -1,4 +1,3 @@
-import { Role, RoleJSON } from "../Role";
 import Label from "../Label";
 import { VertexPositionJSONDefaultsMap, VertexPositionJSONMap } from "./VertexPositionJSON";
 
@@ -18,7 +17,7 @@ export const HCLTreeVertexValueChangeEvents = {
   LABEL_CHANGED: "label",
 };
 
-export interface HCLTreeVertexJSON extends RoleJSON, HCLTreeVertexValueJSON {
+export interface HCLTreeVertexJSON extends HCLTreeVertexValueJSON {
   style?: VertexPositionJSONMap;
 }
 
@@ -28,7 +27,6 @@ export interface HCLTreeVertexJSONMap {
 
 export const DEFAULT_HCLTREEVERTEXJSON: HCLTreeVertexJSON = {
   label: new Label().getDefaultJSON(),
-  ...(new Role()).getDefaultJSON(),
   ...{
     style: VertexPositionJSONDefaultsMap,
   }

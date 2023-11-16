@@ -1,4 +1,4 @@
-import { EuiAvatar, EuiHorizontalRule, EuiSelectableOption } from "@elastic/eui";
+import { EuiAvatar, EuiSelectableOption } from "@elastic/eui";
 
 export type WorkspaceOption = {
   label: string | JSX.Element,

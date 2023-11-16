@@ -3,8 +3,6 @@ import RootHeader from "../components/headers/rootHeader";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 import {useEffect, useRef, useState} from "react";
 
-const TIME_OUT_REMINDER_VALUE = 0
-
 export default function RootContainer() {
 
   const [isLoggedIn, setIsLoggedIn] = useState(ApiManager.isLoggedIn());
@@ -34,20 +32,9 @@ export default function RootContainer() {
   //conditional if not logged in don't render the header yet, as it lets people freely navigate
   if(!isLoggedIn && location.pathname == '/'){
     return (
-        <>
-      <Outlet/>
-        </>
+        <Outlet/>
     )
   }
-  // else if(timer.current < 60){
-  //   return (
-  //       <>
-  //         <RootHeader/>
-  //         <ReAuthCard/>
-  //         <Outlet/>
-  //       </>
-  //   )
-  // }
   else{
     return (
       <>

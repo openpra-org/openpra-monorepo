@@ -1,6 +1,5 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import * as mongoose from "mongoose";
 import * as request from 'supertest';
 import { ApiModule } from '../src/api.module'
 
@@ -35,7 +34,7 @@ describe('OpenPRA web-backend endpoints testing (e2e)', () => {
                     "password":"123456"
                 });
             jwttoken = res.body.token;
-            expect(res.status).tobe(200);
+            expect(res.status).toBe(200);
         });
 
         it('Get Model List', async () => {

@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { NestedModelService } from './nestedModel.service';
 import { NestedModelController } from './nestedModel.controller';
-import { NestedCounter, NestedCounterSchema } from 'src/schemas/tree-counter.schema';
+import { NestedCounter, NestedCounterSchema } from '../schemas/tree-counter.schema';
 import { BayesianEstimation, BayesianEstimationSchema } from './schemas/bayesian-estimation.schema';
 import { EventSequenceDiagram, EventSequenceDiagramSchema } from './schemas/event-sequence-diagram.schema';
 import { EventTree, EventTreeSchema } from './schemas/event-tree.schema';

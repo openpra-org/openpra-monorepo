@@ -61,10 +61,10 @@ export default class Gate extends Event {
      * @returns A set of ancestors.
      */
     get_ancestors(): Set<Gate | Event> {
-        let ancestors = new Set<Gate | Event>([this]);
+        const ancestors = new Set<Gate | Event>([this]);
         let parents: Array<Gate | Event> = Array.from(this.parents); // to avoid recursion
         while (parents.length > 0) {
-            let parent = parents.shift();
+            const parent = parents.shift();
             if (parent && !ancestors.has(parent)) {
                 ancestors.add(parent);
                 parents = parents.concat(Array.from(parent.parents));

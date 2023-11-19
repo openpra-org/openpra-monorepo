@@ -10,7 +10,7 @@ import { FunctionalEvent } from './schemas/functional-event.schema';
 import { InitiatingEvent } from './schemas/initiating-event.schema';
 import { MarkovChain } from './schemas/markov-chain.schema';
 import { WeibullAnalysis } from './schemas/weibull-analysis.schema';
-import { Label } from 'src/schemas/label.schema';
+import { Label } from '../schemas/label.schema';
 import { OperatingStateAnalysis } from './schemas/operatingStateAnalysis.schema';
 import { EventSequenceAnalysis } from './schemas/event-sequence-analysis.schema';
 import { SystemsAnalysis } from './schemas/systems-analysis.schema';

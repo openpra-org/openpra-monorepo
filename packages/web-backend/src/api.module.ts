@@ -2,7 +2,6 @@ import { APP_PIPE, RouterModule } from '@nestjs/core';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
-import { SentryModule } from '@ntegral/nestjs-sentry';
 import { ZodValidationPipe } from 'nestjs-zod';
 import { AuthModule } from './auth/auth.module';
 import { CollabModule } from './collab/collab.module';
@@ -28,16 +27,6 @@ import { ApiService } from './api.service';
       inject: [ConfigService],
       useFactory: async (config: ConfigService) => ({
         uri: config.get<string>('MONGO_URL')
-      })
-    }),
-    SentryModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
-        dsn: config.get<string>('SENTRY_DSN'),
-        debug: config.get<boolean>('DEBUG', true),
-        environment: config.get<string>('SENTRY_ENV', 'dev'),
-        logLevels: ['verbose']
       })
     }),
     RouterModule.register([

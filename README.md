@@ -94,7 +94,7 @@ Once prerequisites are installed, initialize the project with these commands:
 
 ```shell
 pnpm setup
-pnpm install
+pnpm install --shamefully-hoist=true
 pnpm install --global nx@17.1.2
 ```
 

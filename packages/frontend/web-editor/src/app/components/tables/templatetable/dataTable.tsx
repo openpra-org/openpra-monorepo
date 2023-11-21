@@ -20,12 +20,16 @@ interface CellValueProps {
  * @param props.rows - The data rows that will populate the grid.
  * @returns The `EuiDataGrid` component populated with the provided data.
  */
-export default function DataTable({ rows, columns }: DataTableProps): JSX.Element {
-
+export default function DataTable({
+  rows,
+  columns,
+}: DataTableProps): JSX.Element {
   /**
    * State to manage the visibility of columns in the data grid.
    */
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(columns.map((column) => column.id));
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+    columns.map((column) => column.id),
+  );
 
   /**
    * Retrieves the value for a cell given its row and column index.
@@ -59,7 +63,7 @@ export default function DataTable({ rows, columns }: DataTableProps): JSX.Elemen
         pageIndex: 0,
       }));
     },
-    [setPagination]
+    [setPagination],
   );
 
   /**
@@ -71,13 +75,15 @@ export default function DataTable({ rows, columns }: DataTableProps): JSX.Elemen
     (pageIndex: number): void => {
       setPagination((pagination) => ({ ...pagination, pageIndex }));
     },
-    [setPagination]
+    [setPagination],
   );
 
   /**
    * State to manage sorting configurations for the data grid columns.
    */
-  const [sortingColumns, setSortingColumns] = useState<EuiDataGridColumnSortingConfig[]>([]);
+  const [sortingColumns, setSortingColumns] = useState<
+    EuiDataGridColumnSortingConfig[]
+  >([]);
 
   /**
    * Callback to handle sorting changes.
@@ -85,14 +91,16 @@ export default function DataTable({ rows, columns }: DataTableProps): JSX.Elemen
    * @param newSortingColumns - The new sorting configuration for the columns.
    */
   const onSort = useCallback(
-    (newSortingColumns: SetStateAction<EuiDataGridColumnSortingConfig[]>): void => {
+    (
+      newSortingColumns: SetStateAction<EuiDataGridColumnSortingConfig[]>,
+    ): void => {
       setSortingColumns(newSortingColumns);
     },
-    [setSortingColumns]
+    [setSortingColumns],
   );
 
   return (
-    <EuiFlexGroup className='eui-xScroll'>
+    <EuiFlexGroup className="eui-xScroll">
       <EuiFlexItem grow={true}>
         <EuiDataGrid
           columns={columns}
@@ -100,7 +108,7 @@ export default function DataTable({ rows, columns }: DataTableProps): JSX.Elemen
           rowCount={rows.length}
           renderCellValue={cellValue}
           sorting={{ columns: sortingColumns, onSort }}
-          inMemory={{ level: 'sorting' }}
+          inMemory={{ level: "sorting" }}
           aria-label="dataTable"
           pagination={{
             ...pagination,

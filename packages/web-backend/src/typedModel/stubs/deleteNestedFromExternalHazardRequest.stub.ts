@@ -1,4 +1,4 @@
 export const deleteNestedFromExternalHazardRequest = {
-    nestedId: 11,
-    nestedType: "bayesianNetworks"
-}
+  nestedId: 11,
+  nestedType: "bayesianNetworks",
+};

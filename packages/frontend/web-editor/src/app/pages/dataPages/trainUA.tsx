@@ -3,13 +3,14 @@ import TrainUaTable from "../../components/tables/trainUaTable";
 import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
 
 export default function TrainUA() {
-    return (
-        <TemplatedPageBody
-                headerProps={{
-                pageTitle: "Train UA",
-                iconType: "tableDensityNormal",
-            }}>
-                <TrainUaTable/>
-            </TemplatedPageBody>
-    )
+  return (
+    <TemplatedPageBody
+      headerProps={{
+        pageTitle: "Train UA",
+        iconType: "tableDensityNormal",
+      }}
+    >
+      <TrainUaTable />
+    </TemplatedPageBody>
+  );
 }

@@ -2,7 +2,15 @@ import EventTreeList from "../../components/lists/nestedLists/eventTreeList";
 import { Route, Routes } from "react-router-dom";
 import { ReactElement, useCallback } from "react";
 
-import ReactFlow, { addEdge, Node, Edge, Connection, Position, useEdgesState, useNodesState } from "reactflow";
+import ReactFlow, {
+  addEdge,
+  Node,
+  Edge,
+  Connection,
+  Position,
+  useEdgesState,
+  useNodesState,
+} from "reactflow";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
 
@@ -12,59 +20,59 @@ import "reactflow/dist/style.css";
  */
 const initialNodes: Node[] = [
   {
-    id: 'horizontal-1',
+    id: "horizontal-1",
     sourcePosition: Position.Right,
-    type: 'input',
-    data: { label: 'Input' },
+    type: "input",
+    data: { label: "Input" },
     position: { x: 0, y: 80 },
   },
   {
-    id: 'horizontal-2',
+    id: "horizontal-2",
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
-    data: { label: 'A Node' },
+    data: { label: "A Node" },
     position: { x: 250, y: 0 },
   },
   {
-    id: 'horizontal-3',
+    id: "horizontal-3",
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
-    data: { label: 'Node 3' },
+    data: { label: "Node 3" },
     position: { x: 250, y: 160 },
   },
   {
-    id: 'horizontal-4',
+    id: "horizontal-4",
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
-    data: { label: 'Node 4' },
+    data: { label: "Node 4" },
     position: { x: 500, y: 0 },
   },
   {
-    id: 'horizontal-5',
+    id: "horizontal-5",
     sourcePosition: Position.Top,
     targetPosition: Position.Bottom,
-    data: { label: 'Node 5' },
+    data: { label: "Node 5" },
     position: { x: 500, y: 100 },
   },
   {
-    id: 'horizontal-6',
+    id: "horizontal-6",
     sourcePosition: Position.Bottom,
     targetPosition: Position.Top,
-    data: { label: 'Node 6' },
+    data: { label: "Node 6" },
     position: { x: 500, y: 230 },
   },
   {
-    id: 'horizontal-7',
+    id: "horizontal-7",
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
-    data: { label: 'Node 7' },
+    data: { label: "Node 7" },
     position: { x: 750, y: 50 },
   },
   {
-    id: 'horizontal-8',
+    id: "horizontal-8",
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
-    data: { label: 'Node 8' },
+    data: { label: "Node 8" },
     position: { x: 750, y: 300 },
   },
 ];
@@ -86,7 +94,7 @@ type ConnectionConfig = {
   source: string;
 
   /** The type of the connection curve. */
-  type: 'smoothstep';
+  type: "smoothstep";
 
   /** The identifier of the target node to which the connection goes. */
   target: string;
@@ -101,52 +109,52 @@ type ConnectionConfig = {
  */
 const initialEdges: Edge<ConnectionConfig>[] = [
   {
-    id: 'horizontal-e1-2',
-    source: 'horizontal-1',
-    type: 'smoothstep',
-    target: 'horizontal-2',
+    id: "horizontal-e1-2",
+    source: "horizontal-1",
+    type: "smoothstep",
+    target: "horizontal-2",
     animated: true,
   },
   {
-    id: 'horizontal-e1-3',
-    source: 'horizontal-1',
-    type: 'smoothstep',
-    target: 'horizontal-3',
+    id: "horizontal-e1-3",
+    source: "horizontal-1",
+    type: "smoothstep",
+    target: "horizontal-3",
     animated: true,
   },
   {
-    id: 'horizontal-e1-4',
-    source: 'horizontal-2',
-    type: 'smoothstep',
-    target: 'horizontal-4',
-    label: 'edge label',
+    id: "horizontal-e1-4",
+    source: "horizontal-2",
+    type: "smoothstep",
+    target: "horizontal-4",
+    label: "edge label",
   },
   {
-    id: 'horizontal-e3-5',
-    source: 'horizontal-3',
-    type: 'smoothstep',
-    target: 'horizontal-5',
+    id: "horizontal-e3-5",
+    source: "horizontal-3",
+    type: "smoothstep",
+    target: "horizontal-5",
     animated: true,
   },
   {
-    id: 'horizontal-e3-6',
-    source: 'horizontal-3',
-    type: 'smoothstep',
-    target: 'horizontal-6',
+    id: "horizontal-e3-6",
+    source: "horizontal-3",
+    type: "smoothstep",
+    target: "horizontal-6",
     animated: true,
   },
   {
-    id: 'horizontal-e5-7',
-    source: 'horizontal-5',
-    type: 'smoothstep',
-    target: 'horizontal-7',
+    id: "horizontal-e5-7",
+    source: "horizontal-5",
+    type: "smoothstep",
+    target: "horizontal-7",
     animated: true,
   },
   {
-    id: 'horizontal-e6-8',
-    source: 'horizontal-6',
-    type: 'smoothstep',
-    target: 'horizontal-8',
+    id: "horizontal-e6-8",
+    source: "horizontal-6",
+    type: "smoothstep",
+    target: "horizontal-8",
     animated: true,
   },
 ];
@@ -161,15 +169,19 @@ const initialEdges: Edge<ConnectionConfig>[] = [
 const HorizontalFlow = (): ReactElement => {
   // State hook for nodes, initialized with `initialNodes`.
   // The second parameter (unused) would be a function to set nodes, hence the double comma.
-  const [nodes,, onNodesChange] = useNodesState<Node[]>(initialNodes);
+  const [nodes, , onNodesChange] = useNodesState<Node[]>(initialNodes);
 
   // State hook for edges, initialized with `initialEdges`.
   // `setEdges` is used to update the edges state when new connections are made.
-  const [edges, setEdges, onEdgesChange] = useEdgesState<ConnectionConfig>(initialEdges);
+  const [edges, setEdges, onEdgesChange] =
+    useEdgesState<ConnectionConfig>(initialEdges);
 
   // `useCallback` hook to memoize the `onConnect` function, which adds a new edge when nodes are connected.
   // It depends on `setEdges`, so it will only change if `setEdges` changes.
-  const onConnect = useCallback((params: Connection) => setEdges((els) => addEdge(params, els)), [setEdges]);
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((els) => addEdge(params, els)),
+    [setEdges],
+  );
 
   // The React Flow component is returned with the configured nodes and edges.
   // Event handlers for node and edge changes are provided, as well as the `onConnect` handler.
@@ -201,17 +213,10 @@ export function EventTreeEditor(): ReactElement {
  * @returns {ReactElement} Routes component containing the EventTreeList and EventTreeEditor components.
  */
 export default function EventTrees(): ReactElement {
-    return (
-      <Routes>
-          <Route
-            path=""
-            element=<EventTreeList/>
-          />
-          <Route
-            path=":eventTreeId"
-            element=<EventTreeEditor/>
-          >
-          </Route>
-      </Routes>
-    )
+  return (
+    <Routes>
+      <Route path="" element=<EventTreeList /> />
+      <Route path=":eventTreeId" element=<EventTreeEditor />></Route>
+    </Routes>
+  );
 }

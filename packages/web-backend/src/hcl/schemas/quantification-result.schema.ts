@@ -1,87 +1,87 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import mongoose, { Document } from "mongoose";
 
 @Schema({ _id: false, versionKey: false })
 class Constructor {
-    @Prop({ required: false })
-    tree_id: number;
+  @Prop({ required: false })
+  tree_id: number;
 
-    @Prop({ required: false })
-    replace_transfer_gates_with_basic_events: boolean;
+  @Prop({ required: false })
+  replace_transfer_gates_with_basic_events: boolean;
 }
 
 @Schema({ _id: false, versionKey: false })
 class Sampling {
-    @Prop({ required: false })
-    method: string;
+  @Prop({ required: false })
+  method: string;
 
-    @Prop({ required: false })
-    number_of_samples: number;
+  @Prop({ required: false })
+  number_of_samples: number;
 
-    @Prop({ required: false })
-    confidence_interval: number;
+  @Prop({ required: false })
+  confidence_interval: number;
 }
 
 const SamplingSchema = SchemaFactory.createForClass(Sampling);
 
 @Schema({ _id: false, versionKey: false })
 class Importance {
-    @Prop({ required: false })
-    events: string;
+  @Prop({ required: false })
+  events: string;
 
-    @Prop({ required: false })
-    measures: string[];
+  @Prop({ required: false })
+  measures: string[];
 }
 
 const ImportanceSchema = SchemaFactory.createForClass(Importance);
 
 @Schema({ minimize: false, _id: false, versionKey: false })
 class Quantify {
-    @Prop()
-    type: string;
+  @Prop()
+  type: string;
 
-    @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-    mission_test_interval: number | null;
+  @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
+  mission_test_interval: number | null;
 
-    @Prop()
-    user_defined_max_cutset: number;
+  @Prop()
+  user_defined_max_cutset: number;
 
-    @Prop()
-    targets: string;
+  @Prop()
+  targets: string;
 
-    @Prop({ type: SamplingSchema, required: false })
-    sampling: Sampling;
+  @Prop({ type: SamplingSchema, required: false })
+  sampling: Sampling;
 
-    @Prop({ type: ImportanceSchema, required: false })
-    importance: Importance;
+  @Prop({ type: ImportanceSchema, required: false })
+  importance: Importance;
 }
 
 const QuantifySchema = SchemaFactory.createForClass(Quantify);
 
 @Schema({ _id: false, versionKey: false })
 class Engine {
-    @Prop()
-    BBNSolver: number;
+  @Prop()
+  BBNSolver: number;
 
-    @Prop()
-    OrderingRule: number;
+  @Prop()
+  OrderingRule: number;
 
-    @Prop()
-    BDDConstructor: number;
+  @Prop()
+  BDDConstructor: number;
 }
 
 const EngineSchema = SchemaFactory.createForClass(Engine);
 
 @Schema({ strict: false, _id: false, versionKey: false })
 class Configuration {
-    @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-    index: Constructor;
+  @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
+  index: Constructor;
 
-    @Prop({ type: QuantifySchema })
-    quantify: Quantify;
+  @Prop({ type: QuantifySchema })
+  quantify: Quantify;
 
-    @Prop({ type: EngineSchema })
-    engine: Engine;
+  @Prop({ type: EngineSchema })
+  engine: Engine;
 }
 
 @Schema()
@@ -90,37 +90,38 @@ class ResultData {}
 const ResultDataSchema = SchemaFactory.createForClass(ResultData);
 
 @Schema({
-    strict: false,
-    timestamps: {
-        createdAt: 'date_created',
-        updatedAt: false
+  strict: false,
+  timestamps: {
+    createdAt: "date_created",
+    updatedAt: false,
+  },
+  toJSON: {
+    transform: function (doc, ret) {
+      delete ret._id;
     },
-    toJSON: {
-        transform: function(doc, ret) {
-            delete ret._id;
-        }
-    },
-    versionKey: false
+  },
+  versionKey: false,
 })
 export class QuantificationResult {
-    @Prop({ required: false })
-    id: number;
+  @Prop({ required: false })
+  id: number;
 
-    @Prop()
-    creator: number;
+  @Prop()
+  creator: number;
 
-    @Prop()
-    model: number;
+  @Prop()
+  model: number;
 
-    @Prop()
-    model_title: string;
+  @Prop()
+  model_title: string;
 
-    @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-    configuration: Configuration;
+  @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
+  configuration: Configuration;
 
-    @Prop({ type: ResultDataSchema, required: false })
-    result_data: ResultData;
+  @Prop({ type: ResultDataSchema, required: false })
+  result_data: ResultData;
 }
 
 export type QuantificationResultDocument = QuantificationResult & Document;
-export const QuantificationResultSchema = SchemaFactory.createForClass(QuantificationResult);
+export const QuantificationResultSchema =
+  SchemaFactory.createForClass(QuantificationResult);

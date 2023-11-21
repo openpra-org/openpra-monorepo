@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import { useEffect, useState } from "react";
 import {
   EuiAvatar,
   EuiFlexGroup,
@@ -18,56 +18,49 @@ import {
   EuiSpacer,
   EuiText,
   useGeneratedHtmlId,
-} from '@elastic/eui';
-import {Link, useLocation, useNavigate} from 'react-router-dom';
+} from "@elastic/eui";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toTitleCase, tokenizePath } from "../../../utils/StringUtils";
 import WorkspaceSelectorMenu from "./WorkspaceSelectorMenu";
-import ApiManager from 'shared-types/src/lib/api/ApiManager';
-import ContextAddButton from '../buttons/contextAddButton';
+import ApiManager from "shared-types/src/lib/api/ApiManager";
+import ContextAddButton from "../buttons/contextAddButton";
 
 export default () => {
-
   const navigate = useNavigate();
 
   const createBreadcrumbs = (path: string) => {
     const tokens = tokenizePath(path);
-    return tokens.map((item, i) => {
-      return (
-        {
-          text: toTitleCase(item),
-          style: {fontWeight: 500},
-          onClick: (e: any) => {
-            e.preventDefault();
-            navigate(tokens.slice(0, i+1).join("/"));
-          },
-        }
-      )
-    });
-  }
+    return tokens.map((item, i) => ({
+      text: toTitleCase(item),
+      style: { fontWeight: 500 },
+      onClick: (e: any) => {
+        e.preventDefault();
+        navigate(tokens.slice(0, i + 1).join("/"));
+      },
+    }));
+  };
 
   //Initiates using location
   const location = useLocation();
 
   //redirects to the auth page if the user is not logged in
   useEffect(() => {
-    if (!ApiManager.isLoggedIn() && location.pathname != '/') {
-      navigate('/')
+    if (!ApiManager.isLoggedIn() && location.pathname != "/") {
+      navigate("/");
     }
   }, []);
 
-  const renderBreadcrumbs = () => {
-    return (
-      <EuiHeaderBreadcrumbs
-        aria-label="Navigation Breadcrumbs"
-        data-testid="breadcrumbs"
-        breadcrumbs={createBreadcrumbs(location.pathname)}
-        max={10}
-        truncate={false}
-        type="application"
-        lastBreadcrumbIsCurrentPage={true}
-      />
-    );
-  };
+  const renderBreadcrumbs = () => (
+    <EuiHeaderBreadcrumbs
+      aria-label="Navigation Breadcrumbs"
+      data-testid="breadcrumbs"
+      breadcrumbs={createBreadcrumbs(location.pathname)}
+      max={10}
+      truncate={false}
+      type="application"
+      lastBreadcrumbIsCurrentPage={true}
+    />
+  );
   const search = (
     <EuiSelectableTemplateSitewide
       options={[]}
@@ -75,17 +68,23 @@ export default () => {
         compressed: true,
       }}
       popoverButton={
-        <EuiHeaderSectionItemButton data-testid="search-icon" aria-label="Sitewide search">
+        <EuiHeaderSectionItemButton
+          data-testid="search-icon"
+          aria-label="Sitewide search"
+        >
           <EuiIcon type="search" size="m" />
         </EuiHeaderSectionItemButton>
       }
       emptyMessage={
-        <EuiSelectableMessage data-testid="search-menu" style={{ minHeight: 300 }}>
+        <EuiSelectableMessage
+          data-testid="search-menu"
+          style={{ minHeight: 300 }}
+        >
           <p>
-            Please see the component page for{' '}
+            Please see the component page for{" "}
             <Link to="/forms/selectable">
               <strong>EuiSelectableTemplateSitewide</strong>
-            </Link>{' '}
+            </Link>{" "}
             on how to configure your sitewide search.
           </p>
         </EuiSelectableMessage>
@@ -93,36 +92,34 @@ export default () => {
     />
   );
 
-    return (
-        <EuiHeader position="fixed">
-          <EuiHeaderSection grow={false}>
-            <EuiHeaderSectionItem>
-              <WorkspaceSelectorMenu/>
-            </EuiHeaderSectionItem>
-          </EuiHeaderSection>
-          {renderBreadcrumbs()}
-          <EuiHeaderSection side="right">
-            <EuiHeaderSectionItem>
-              <ContextAddButton/>
-            </EuiHeaderSectionItem>
-            <EuiHeaderSectionItem>{search}</EuiHeaderSectionItem>
-            <EuiHeaderSectionItem>
-              <HeaderUserMenu/>
-            </EuiHeaderSectionItem>
-            <EuiHeaderSectionItem>
-              <HeaderAppMenu/>
-            </EuiHeaderSectionItem>
-          </EuiHeaderSection>
-        </EuiHeader>
-    );
-
+  return (
+    <EuiHeader position="fixed">
+      <EuiHeaderSection grow={false}>
+        <EuiHeaderSectionItem>
+          <WorkspaceSelectorMenu />
+        </EuiHeaderSectionItem>
+      </EuiHeaderSection>
+      {renderBreadcrumbs()}
+      <EuiHeaderSection side="right">
+        <EuiHeaderSectionItem>
+          <ContextAddButton />
+        </EuiHeaderSectionItem>
+        <EuiHeaderSectionItem>{search}</EuiHeaderSectionItem>
+        <EuiHeaderSectionItem>
+          <HeaderUserMenu />
+        </EuiHeaderSectionItem>
+        <EuiHeaderSectionItem>
+          <HeaderAppMenu />
+        </EuiHeaderSectionItem>
+      </EuiHeaderSection>
+    </EuiHeader>
+  );
 };
 const HeaderUserMenu = () => {
-
   const navigate = useNavigate();
 
   const headerUserPopoverId = useGeneratedHtmlId({
-    prefix: 'headerUserPopover',
+    prefix: "headerUserPopover",
   });
 
   const [isOpen, setIsOpen] = useState(false);
@@ -133,16 +130,17 @@ const HeaderUserMenu = () => {
 
   //thewse two lines grab the username so that it can be used throughout the page. Needs this because for some reason user can be undefined
   const currentUser = ApiManager.getCurrentUser();
-  const nameString = currentUser && currentUser.username ? currentUser.username : "Unknown User";
+  const nameString =
+    currentUser && currentUser.username ? currentUser.username : "Unknown User";
 
   const closeMenu = () => {
     setIsOpen(false);
   };
 
   const logoutFunction = () => {
-    ApiManager.logout()
-    navigate("")
-  }
+    ApiManager.logout();
+    navigate("");
+  };
 
   const button = (
     <EuiHeaderSectionItemButton
@@ -179,12 +177,12 @@ const HeaderUserMenu = () => {
               <p>{nameString}</p>
             </EuiText>
             <EuiSpacer size="m" />
-              <EuiFlexGroup justifyContent="spaceBetween">
-                <EuiFlexItem grow={false}>
-                  <EuiLink>Edit profile</EuiLink>
-                </EuiFlexItem>
-                <EuiFlexItem grow={false}>
-                  <EuiLink onClick={logoutFunction}>Log out</EuiLink>
+            <EuiFlexGroup justifyContent="spaceBetween">
+              <EuiFlexItem grow={false}>
+                <EuiLink>Edit profile</EuiLink>
+              </EuiFlexItem>
+              <EuiFlexItem grow={false}>
+                <EuiLink onClick={logoutFunction}>Log out</EuiLink>
               </EuiFlexItem>
             </EuiFlexGroup>
           </EuiFlexItem>
@@ -195,9 +193,9 @@ const HeaderUserMenu = () => {
 };
 
 const HeaderAppMenu = () => {
-  const headerAppPopoverId = useGeneratedHtmlId({ prefix: 'headerAppPopover' });
+  const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
   const headerAppKeyPadMenuId = useGeneratedHtmlId({
-    prefix: 'headerAppKeyPadMenu',
+    prefix: "headerAppKeyPadMenu",
   });
   const [isOpen, setIsOpen] = useState(false);
   const onMenuButtonClick = () => {
@@ -227,7 +225,11 @@ const HeaderAppMenu = () => {
       anchorPosition="downRight"
       closePopover={closeMenu}
     >
-      <EuiKeyPadMenu data-testid="app-menu-content" id={headerAppKeyPadMenuId} style={{ width: 288 }}>
+      <EuiKeyPadMenu
+        data-testid="app-menu-content"
+        id={headerAppKeyPadMenuId}
+        style={{ width: 288 }}
+      >
         <EuiKeyPadMenuItem label="Discover">
           <EuiIcon type="discoverApp" size="l" />
         </EuiKeyPadMenuItem>

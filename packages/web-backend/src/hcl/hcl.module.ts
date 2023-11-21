@@ -27,7 +27,7 @@
 //       { name: GlobalParameter.name, schema: GlobalParameterSchema },
 //       { name: TreeCounter.name, schema: TreeCounterSchema },
 //       { name: Action.name, schema: ActionSchema },
-//       { 
+//       {
 //         name: HclModelTree.name, schema: HclModelTreeSchema,
 //         discriminators: [
 //           { name: FaultTree.name, schema: FaultTreeSchema },

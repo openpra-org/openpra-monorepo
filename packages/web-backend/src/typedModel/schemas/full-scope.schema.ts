@@ -1,10 +1,9 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { TypedModel } from './templateSchema/typed-model.schema';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
+import { TypedModel } from "./templateSchema/typed-model.schema";
 
 @Schema({ versionKey: false })
-export class FullScope extends TypedModel{
-}
+export class FullScope extends TypedModel {}
 
 export type FullScopeDocument = FullScope & Document;
 export const FullScopeSchema = SchemaFactory.createForClass(FullScope);

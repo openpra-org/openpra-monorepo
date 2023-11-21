@@ -1,23 +1,22 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { Label, LabelSchema } from '../../schemas/label.schema';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
+import { Label, LabelSchema } from "../../schemas/label.schema";
 
-  export interface TypedModelJSON {
-    label: Label
-    users: number[];
-  }
+export interface TypedModelJSON {
+  label: Label;
+  users: number[];
+}
 
 @Schema({ versionKey: false })
 export class TypedModel {
+  @Prop({ required: true, unique: true })
+  id: number;
 
-    @Prop({required: true, unique: true})
-    id: number;
+  @Prop({ type: LabelSchema, required: false })
+  label: Label;
 
-    @Prop(({ type: LabelSchema, required: false }))
-    label: Label
-
-    @Prop()
-    users: number[];
+  @Prop()
+  users: number[];
 }
 
 export type TypedModelDocument = TypedModel & Document;

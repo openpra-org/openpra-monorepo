@@ -8,7 +8,7 @@
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
-        "lintFilePatterns": ["packages/engine/scram-node/**/*.ts"]
+        "lintFilePatterns": ["packages/engine/scram-node/**/*.ts", "packages/engine/scram-node/**/*.js"]
       }
     }
   },

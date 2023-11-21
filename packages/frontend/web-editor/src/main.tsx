@@ -1,9 +1,14 @@
-import React, { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import React, { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
 import App from "./app/app";
 
 import * as Sentry from "@sentry/react";
-import { createRoutesFromChildren, matchRoutes, useLocation, useNavigationType } from "react-router-dom";
+import {
+  createRoutesFromChildren,
+  matchRoutes,
+  useLocation,
+  useNavigationType,
+} from "react-router-dom";
 
 /**
  * Initializes Sentry to automatically track errors and performance issues.
@@ -24,7 +29,7 @@ Sentry.init({
         useLocation,
         useNavigationType,
         createRoutesFromChildren,
-        matchRoutes
+        matchRoutes,
       ),
     }),
     new Sentry.Replay(),
@@ -47,7 +52,7 @@ Sentry.init({
 });
 
 // Select the DOM element where the React application will be attached.
-const container = document.getElementById('root') as HTMLElement;
+const container = document.getElementById("root") as HTMLElement;
 
 // Create a root for the React application.
 const root = createRoot(container);
@@ -56,5 +61,5 @@ const root = createRoot(container);
 root.render(
   <StrictMode>
     <App />
-  </StrictMode>
+  </StrictMode>,
 );

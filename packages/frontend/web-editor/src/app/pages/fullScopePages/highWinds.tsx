@@ -1,5 +1,3 @@
-export default function() {
-    return (
-        <></>
-    )
+export default function () {
+  return <></>;
 }

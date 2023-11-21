@@ -3,13 +3,14 @@ import InitiatingEventsTable from "../../components/tables/initiatingEventsTable
 import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
 
 export default function DataInitiatingEvents() {
-    return (
-        <TemplatedPageBody
-                headerProps={{
-                pageTitle: "Initiating Events",
-                iconType: "tableDensityNormal",
-            }}>
-                <InitiatingEventsTable/>
-            </TemplatedPageBody>
-    )
+  return (
+    <TemplatedPageBody
+      headerProps={{
+        pageTitle: "Initiating Events",
+        iconType: "tableDensityNormal",
+      }}
+    >
+      <InitiatingEventsTable />
+    </TemplatedPageBody>
+  );
 }

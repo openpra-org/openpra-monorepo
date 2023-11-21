@@ -7,13 +7,12 @@ import {
 } from "@elastic/eui";
 
 type ItemListProps = {
-    children: JSX.Element[];
+  children: JSX.Element[];
 };
 
 //formerly modelItemList, now it is a template in which all item lists will use, I will probably need to pass it another
 //parameter to get the type of object grabbed
 const GenericItemList: React.FC<ItemListProps> = ({ children }) => {
-
   //used to set the current page, starts at negative one so things start on the first page
   //gonna be honest I dont really get why this is, I tried to change logic elsewhere to no avail
   const [currentPage, setCurrentPage] = useState(-1);
@@ -47,10 +46,10 @@ const GenericItemList: React.FC<ItemListProps> = ({ children }) => {
 
   //used to change the items in each page
   const changeItemsPerPage = (pageSize: number) => {
-    setTotalPages(Math.ceil(totalItems/pageSize));
+    setTotalPages(Math.ceil(totalItems / pageSize));
     setRowSize(pageSize);
-    setCurrentPage(-1)
-  }
+    setCurrentPage(-1);
+  };
 
   //change items per page
   //const changeItemsPerPage = (pageSize: number) => {

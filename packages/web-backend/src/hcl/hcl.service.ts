@@ -40,7 +40,7 @@
 //     @InjectModel(QuantificationResult.name) private quantificationResultModel: Model<QuantificationResultDocument>
 //   ) {}
 
-//   /** 
+//   /**
 //   * @param {string} name Name of the counter
 //   * @description
 //   * Generates an ID for the newly created model in an incremental order of 1. Initially if no model exists, the serial ID starts from 1.
@@ -56,7 +56,7 @@
 //     return record.seq;
 //   }
 
-//   /** 
+//   /**
 //   * @param {string} name Name of the counter
 //   * @description
 //   * Generates an ID for the newly created global parameter in an incremental order of 1. Initially if no global parameter exists, the serial ID starts from 1.
@@ -72,7 +72,7 @@
 //     return record.seq;
 //   }
 
-//   /** 
+//   /**
 //   * @param {string} name Name of the counter
 //   * @description
 //   * Generates an ID for the newly created tree in an incremental order of 1. Initially if no tree exists, the serial ID starts from 1.
@@ -88,11 +88,11 @@
 //     return record.seq;
 //   }
 
-//   /** 
+//   /**
 //   * @param {string} name Name of the counter
 //   * @description
 //   * Generates an ID for the recent quantified result in an incremental order of 1. Initially if no quantified result exists, the serial ID starts from 1.
-//   * @returns {number} ID number 
+//   * @returns {number} ID number
 //   */
 //   async getNextQuantificationResultValue(name: string) {
 //     var record = await this.quantificationResultCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
@@ -106,7 +106,7 @@
 
 //   /**
 //     * @param {number} count Total number of results
-//     * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl} 
+//     * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
 //     * @param limit How many results can be seen at once
 //     * @param offset How many initial results will be skipped
 //     * @description
@@ -144,7 +144,7 @@
 
 //     let total_page = Math.ceil(count/default_limit);
 //     let current_page = (default_offset/default_limit) + 1;
-    
+
 //     if(total_page <= 1) {
 //       return { previous, next, default_limit, default_offset };
 //     } else if(current_page === 1 && total_page > 1) {
@@ -196,7 +196,7 @@
 //       return this.hclModelTree.find(queryOptions, { 'tree_data.basic_events': 1 });
 //     } else if(basic_events === 'false' && house_events === 'true') {
 //       return this.hclModelTree.find(queryOptions, { 'tree_data.house_events': 1 });
-//     } else if(basic_events === 'true' && house_events === 'true') { 
+//     } else if(basic_events === 'true' && house_events === 'true') {
 //       return this.hclModelTree.find(queryOptions, { 'tree_data.basic_events': 1, 'tree_data.house_events': 1 });
 //     }
 //   }
@@ -204,7 +204,7 @@
 //   /**
 //   * @param {string} model_id ID of the model
 //   * @description
-//   * To show the gates' data only, inside the projection parameter of hclModelTree.find() method the desired field is set to 1 (or true). 
+//   * To show the gates' data only, inside the projection parameter of hclModelTree.find() method the desired field is set to 1 (or true).
 //   * Since the tree_data is a nested object, to show an object of tree_data (e.g. gates object) that object has to be added after the dot operator.
 //   * @returns List of gates' data of all the fault trees of an HCL model
 //   */
@@ -215,8 +215,8 @@
 //     };
 //     return this.hclModelTree.find(queryOptions, { 'tree_data.gates': 1 });
 //   }
-  
-//   /** 
+
+//   /**
 //   * @param {number} user_id Current user's ID
 //   * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
 //   * @param {string} tag Model tag ('CO' - components, 'SU' - subsystems, 'PR' - projects)
@@ -433,7 +433,7 @@
 //   *  c) or else the overview_tree
 //   * Since a copy of the HCL Model is kept inside the User document, each time we update the HCL Model we have to update the User document as well. The HCL
 //   * Model is saved as a nested object inside the User document. Nested objects should always be updated using the dot operator. In case of scenario (a),
-//   * instead of updating the 3 properties manually inside the User document, the map() method is used to iterate over the request body and update the User 
+//   * instead of updating the 3 properties manually inside the User document, the map() method is used to iterate over the request body and update the User
 //   * document accordingly.
 //   * @returns The updated HCL model
 //   */
@@ -473,7 +473,7 @@
 //   * The HCL Model and all of these associated data are removed from the database.
 //   * 2. Besides that, the 'OverviewTree' and 'Action' documents that are carrying the data of the HCL trees related to this HCL Model are deleted.
 //   * 3. Finally, some of the data related to the HCL Model still persists in the 'User' document, so that portion of data needs to be removed as well.
-//   * @returns 204 HTTP status @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204} 
+//   * @returns 204 HTTP status @see {@link https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/204}
 //   */
 //   async deleteHclModelById(user_id: number, model_id: string): Promise<HttpStatus> {
 //     let hclModelTrees = await this.hclModelTree.find({ model_id: Number(model_id) }).lean();
@@ -485,11 +485,11 @@
 //         await this.overviewTreeModel.findOneAndDelete({ overview_tree_id: treeId });
 //       });
 //     }
-    
+
 //     await this.globalParameterModel.deleteMany({ model_id: Number(model_id) });
 //     await this.quantificationResultModel.deleteMany({ model: Number(model_id) });
 //     await this.userModel.updateOne({ 'recently_accessed.models.id': Number(model_id) }, { $pull: { 'recently_accessed.models': { 'id': Number(model_id) } } });
-    
+
 //     await this.hclModel.findOneAndDelete({ 'id': Number(model_id), 'assigned_users': user_id });
 //     return HttpStatus.NO_CONTENT;
 //   }
@@ -498,7 +498,7 @@
 //   * @param {number} user_id ID of the current user
 //   * @param {number} overviewTreeId ID of the overview tree of the model
 //   * @param body Request body
-//   * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl} 
+//   * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
 //   * @returns A mongoose document of the newly created HCL model copy
 //   */
 //   async createCopyHclModel(user_id: number, overviewTreeId: number, body: HclModelDto, url: string): Promise<HclModel> {
@@ -514,7 +514,7 @@
 //     await this.userModel.findByIdAndUpdate(userId, { $push: { 'recently_accessed.models': savedHclModel } }, { upsert: false });
 //     return savedHclModel;
 //   }
-  
+
 //   /**
 //   * @param {number} user_id ID of the current user
 //   * @param {string|number} model_id ID of the model
@@ -543,7 +543,7 @@
 //       'model_id': Number(model_id)
 //     };
 //     let hclModelTrees = await this.hclModelTree.find(treeQueryOptions);
-    
+
 //     hclModelTrees.map(async tree => {
 //       let isOverviewTree = false;
 //       if(tree.id === overviewTreeId) {
@@ -563,7 +563,7 @@
 //         let faultTree = await this.createFaultTreeByModelId(user_id, username, hclModelCopyId, treeBody);
 //         let faultTreeId = faultTree._id;
 //         let treeId = faultTree.id;
-//         let updateBody = { 
+//         let updateBody = {
 //           tree_name: 'FaultTree',
 //           tree_data: tree_data
 //         };
@@ -575,7 +575,7 @@
 //         let eventSequenceDiagram = await this.createEventSequenceDiagramByModelId(user_id, username, hclModelCopyId, treeBody);
 //         let eventSequenceDiagramId = eventSequenceDiagram._id;
 //         let treeId = eventSequenceDiagram.id;
-//         let updateBody = { 
+//         let updateBody = {
 //           tree_name: 'EventSequenceDiagram',
 //           tree_data: tree_data
 //         };
@@ -587,7 +587,7 @@
 //         let bayesianNetworks = await this.createBayesianNetworksByModelId(user_id, username, hclModelCopyId, treeBody);
 //         let bayesianNetworksId = bayesianNetworks._id;
 //         let treeId = bayesianNetworks.id;
-//         let updateBody = { 
+//         let updateBody = {
 //           tree_name: 'BayesianNetworks',
 //           tree_data: tree_data
 //         };
@@ -650,8 +650,8 @@
 //       results: result
 //     }
 //   }
-  
-//   /** 
+
+//   /**
 //   * @param {string} model_id ID of the model
 //   * @param body Request body
 //   * @description
@@ -740,7 +740,7 @@
 //       results: result
 //     }
 //   }
-  
+
 //   /**
 //   * @param {number} user_id ID of the current user
 //   * @param {string} model_id ID of the model
@@ -768,10 +768,10 @@
 //     await this.userModel.updateOne(
 //       { 'recently_accessed.models.actions.tree_id': hclModelTreeId },
 //       { $set:
-//         { 
+//         {
 //           'recently_accessed.models.$[outer].actions.$[inner].date': Date.now(),
-//           'recently_accessed.models.$[outer].actions.$[inner].type': 'q' 
-//         } 
+//           'recently_accessed.models.$[outer].actions.$[inner].type': 'q'
+//         }
 //       },
 //       { 'arrayFilters': [{ 'outer.creator': user_id }, { 'inner.tree_id': hclModelTreeId }], upsert: false }
 //     )
@@ -831,10 +831,10 @@
 //       result = await this.hclModelTree.find(queryOptions).lean().limit(paths.default_limit);
 //     }
 //     return {
-//       count: count, 
+//       count: count,
 //       next: paths.next,
 //       previous: paths.previous,
-//       results: result 
+//       results: result
 //     }
 //   }
 
@@ -885,7 +885,7 @@
 //     let hclModelId = hclModel._id;
 //     await this.hclModel.findByIdAndUpdate(hclModelId, { $push: { 'actions': savedAction, 'model_data.fault_trees': newFaultTree.id } });
 //     await this.userModel.updateOne({ 'recently_accessed.models.id': Number(model_id) }, { $push: { 'recently_accessed.models.$.actions': savedAction } }, { upsert: false });
-    
+
 //     let tree_id = savedFaultTree._id;
 //     let updateBody = {
 //       tree_name: 'FaultTree',
@@ -905,7 +905,7 @@
 //     return this.faultTreeModel.findByIdAndUpdate(tree_id, { $set: updateBody }, { new: true, upsert: false });
 //   }
 
-//   /** 
+//   /**
 //   * @param {number} user_id ID of the current user
 //   * @param {string} username
 //   * @param {string|number} model_id ID of the model
@@ -1029,7 +1029,7 @@
 //     let hclModelId = hclModel._id;
 //     await this.hclModel.findByIdAndUpdate(hclModelId, { $push: { 'actions': savedAction, 'model_data.bayesian_networks': newBayesianNetworks.id } });
 //     await this.userModel.updateOne({ 'recently_accessed.models.id': Number(model_id) }, { $push: { 'recently_accessed.models.$.actions': savedAction } }, { upsert: false });
-    
+
 //     let tree_id = savedBayesianNetworks._id;
 //     let updateBody = {
 //       tree_name: 'BayesianNetworks',
@@ -1080,7 +1080,7 @@
 //   /**
 //   * @param {number} user_id Current user's ID
 //   * @param {string} tree_id ID of the tree
-//   * @param include_tree_data Whether additional data will be added with the result or not 
+//   * @param include_tree_data Whether additional data will be added with the result or not
 //   * @returns A mongoose document of the tree
 //   */
 //   async getHclTreeById(user_id: number, tree_id: string, include_tree_data?: string): Promise<HclModelTree> {
@@ -1091,8 +1091,8 @@
 //       await this.hclModel.updateOne({ 'actions.tree_id': Number(tree_id) }, { $set: { 'actions.$.date': Date.now(), 'actions.$.type': 'v' } });
 //       await this.userModel.updateOne(
 //         { 'recently_accessed.models.actions.tree_id': Number(tree_id) },
-//         { $set: 
-//           { 
+//         { $set:
+//           {
 //             'recently_accessed.models.$[outer].actions.$[inner].date': Date.now(),
 //             'recently_accessed.models.$[outer].actions.$[inner].type': 'v'
 //           }
@@ -1151,11 +1151,11 @@
 //       await this.hclModel.updateOne({ 'actions.tree_id': Number(tree_id) }, { $set: { 'actions.$.date': Date.now(), 'actions.$.type': 'e' } });
 //       await this.userModel.updateOne(
 //         { 'recently_accessed.models.actions.tree_id': Number(tree_id) },
-//         { $set: 
-//           { 
+//         { $set:
+//           {
 //             'recently_accessed.models.$[outer].actions.$[inner].date': Date.now(),
-//             'recently_accessed.models.$[outer].actions.$[inner].type': 'e' 
-//           } 
+//             'recently_accessed.models.$[outer].actions.$[inner].type': 'e'
+//           }
 //         },
 //         { 'arrayFilters': [{ 'outer.creator': user_id }, { 'inner.tree_id': Number(tree_id) }], upsert: false }
 //       );
@@ -1167,11 +1167,11 @@
 //       await this.hclModel.updateOne({ 'actions.tree_id': Number(tree_id) }, { $set: { 'actions.$.date': Date.now(), 'actions.$.type': 'e' } });
 //       await this.userModel.updateOne(
 //         { 'recently_accessed.models.actions.tree_id': Number(tree_id) },
-//         { $set: 
-//           { 
+//         { $set:
+//           {
 //             'recently_accessed.models.$[outer].actions.$[inner].date': Date.now(),
 //             'recently_accessed.models.$[outer].actions.$[inner].type': 'e'
-//           } 
+//           }
 //         },
 //         { 'arrayFilters': [{ 'outer.creator': user_id }, { 'inner.tree_id': Number(tree_id) }], upsert: false }
 //       );
@@ -1183,11 +1183,11 @@
 //       await this.hclModel.updateOne({ 'actions.tree_id': Number(tree_id) }, { $set: { 'actions.$.date': Date.now(), 'actions.$.type': 'e' } });
 //       await this.userModel.updateOne(
 //         { 'recently_accessed.models.actions.tree_id': Number(tree_id) },
-//         { $set: 
-//           { 
+//         { $set:
+//           {
 //             'recently_accessed.models.$[outer].actions.$[inner].date': Date.now(),
-//             'recently_accessed.models.$[outer].actions.$[inner].type': 'e' 
-//           } 
+//             'recently_accessed.models.$[outer].actions.$[inner].type': 'e'
+//           }
 //         },
 //         { 'arrayFilters': [{ 'outer.creator': user_id }, { 'inner.tree_id': Number(tree_id) }], upsert: false }
 //       );
@@ -1208,7 +1208,7 @@
 //   */
 //   async deleteHclTreeById(tree_id: string): Promise<HttpStatus> {
 //     let hclTreeType = (await this.hclModelTree.findOne({ 'id': Number(tree_id) }).lean()).tree_type;
-    
+
 //     await this.hclModelTree.findOneAndDelete({ 'id': Number(tree_id) });
 //     await this.actionModel.findOneAndDelete({ 'tree_id': Number(tree_id) });
 //     await this.overviewTreeModel.findOneAndDelete({ 'overview_tree_id': Number(tree_id) });
@@ -1221,7 +1221,7 @@
 //     } else if(hclTreeType === 'b') {
 //       await this.hclModel.updateOne({ 'actions.tree_id': Number(tree_id) }, { $pull: { 'actions': { 'tree_id': Number(tree_id) }, 'model_data.bayesian_networks': Number(tree_id) } }, { upsert: false });
 //     }
-    
+
 //     await this.userModel.updateOne({ 'recently_accessed.models.actions.tree_id': Number(tree_id) }, { $pull: { 'recently_accessed.models.$[].actions': { 'tree_id': Number(tree_id) } } });
 //     return HttpStatus.NO_CONTENT;
 //   }
@@ -1229,7 +1229,7 @@
 //   /**
 //   * @param {number} user_id Current user's ID
 //   * @param {string} username
-//   * @param {string|number} tree_id ID of the tree 
+//   * @param {string|number} tree_id ID of the tree
 //   * @returns A mongoose document of the tree copy
 //   */
 //   async copyHclTreeById(user_id: number, username: string, tree_id: string | number) {
@@ -1240,7 +1240,7 @@
 //     let hclTree = await this.hclModelTree.findOne(queryOptions);
 //     let hclTreeObject = hclTree.toObject({ flattenMaps: true });
 //     let { model_id, title, description, tree_type, tree_data } = hclTreeObject;
-    
+
 //     let hclTreeBody = {
 //       title: title,
 //       description: description,
@@ -1278,7 +1278,7 @@
 //   /**
 //   * @param {number} user_id Current user's ID
 //   * @param {string} username
-//   * @param {string} tree_id ID of the tree 
+//   * @param {string} tree_id ID of the tree
 //   * @returns A mongoose document of the tree copy
 //   */
 //   async copyHclTreeByIdWithLinkedTrees(user_id: number, username: string, tree_id: string) {
@@ -1296,7 +1296,7 @@
 //       tree_type: tree_type,
 //       tree_data: {}
 //     };
-    
+
 //     if(tree_type === 'f') {
 //       let gatesObj = tree_data.gates;
 //       let linkedTreeIds = [];
@@ -1308,7 +1308,7 @@
 //       linkedTreeIds.map(async treeId => {
 //         await this.copyHclTreeById(user_id, username, treeId);
 //       });
-      
+
 //       let updateBody = {
 //         tree_name: 'FaultTree',
 //         tree_data: tree_data

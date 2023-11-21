@@ -1,6 +1,4 @@
-import {
-  EuiHorizontalRule,
-} from "@elastic/eui";
+import { EuiHorizontalRule } from "@elastic/eui";
 import EditCurrentModel from "../../components/settingsdropdowns/editCurrentModel";
 import SettingsOverview from "../../components/settingsdropdowns/settingsOverview";
 import AdvancedSettings from "../../components/settingsdropdowns/advancedSettings";
@@ -13,12 +11,13 @@ export default function ModelSettings() {
       headerProps={{
         pageTitle: "Settings",
         iconType: "gear",
-      }}>
-      <EditCurrentModel/>
+      }}
+    >
+      <EditCurrentModel />
       <EuiHorizontalRule />
-      <SettingsOverview/>
+      <SettingsOverview />
       <EuiHorizontalRule />
-      <AdvancedSettings/>
+      <AdvancedSettings />
     </TemplatedPageBody>
   );
 }

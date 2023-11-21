@@ -4,16 +4,21 @@ import DataSidenav from "../sidenavs/dataSidenav";
 
 export default function DataContainer() {
   return (
-    <EuiPageTemplate panelled={false} offset={48} grow={true} restrictWidth={false}>
+    <EuiPageTemplate
+      panelled={false}
+      offset={48}
+      grow={true}
+      restrictWidth={false}
+    >
       <EuiPageTemplate.Sidebar
         paddingSize="s"
         sticky
         minWidth={320}
         responsive={[]}
       >
-        <DataSidenav/>
+        <DataSidenav />
       </EuiPageTemplate.Sidebar>
       <Outlet />
     </EuiPageTemplate>
   );
-};
+}

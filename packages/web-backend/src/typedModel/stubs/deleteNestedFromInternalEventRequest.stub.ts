@@ -1,4 +1,4 @@
 export const deleteNestedFromInternalEventRequest = {
-    nestedId: 9,
-    nestedType: "faultTrees"
-}
+  nestedId: 9,
+  nestedType: "faultTrees",
+};

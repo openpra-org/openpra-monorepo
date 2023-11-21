@@ -1,50 +1,49 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { Label, LabelSchema } from '../../../schemas/label.schema';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
+import { Label, LabelSchema } from "../../../schemas/label.schema";
 
-  export interface TypedModelJSON {
-    label: Label
-    users: number[];
-  }
+export interface TypedModelJSON {
+  label: Label;
+  users: number[];
+}
 
 @Schema({ _id: false, versionKey: false })
 export class TypedModel {
-  
-    @Prop({required: true, unique: true})
-    id: number;
+  @Prop({ required: true, unique: true })
+  id: number;
 
-    @Prop(({ type: LabelSchema, required: false }))
-    label: Label
+  @Prop({ type: LabelSchema, required: false })
+  label: Label;
 
-    @Prop()
-    users: number[];
+  @Prop()
+  users: number[];
 
-    @Prop()
-    initiatingEvents: number[];
+  @Prop()
+  initiatingEvents: number[];
 
-    @Prop()
-    eventSequenceDiagrams: number[];
+  @Prop()
+  eventSequenceDiagrams: number[];
 
-    @Prop()
-    functionalEvents: number[];
+  @Prop()
+  functionalEvents: number[];
 
-    @Prop()
-    eventTrees: number[];
+  @Prop()
+  eventTrees: number[];
 
-    @Prop()
-    faultTrees: number[];
+  @Prop()
+  faultTrees: number[];
 
-    @Prop()
-    bayesianNetworks: number[];
+  @Prop()
+  bayesianNetworks: number[];
 
-    @Prop()
-    markovChains: number[];
+  @Prop()
+  markovChains: number[];
 
-    @Prop()
-    bayesianEstimations: number[];
+  @Prop()
+  bayesianEstimations: number[];
 
-    @Prop()
-    weibullAnalysis: number[];
+  @Prop()
+  weibullAnalysis: number[];
 }
 
 export type TypedModelDocument = TypedModel & Document;

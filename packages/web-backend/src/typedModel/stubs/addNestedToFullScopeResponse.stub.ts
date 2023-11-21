@@ -1,18 +1,18 @@
 export const addNestedToFullScopeResponse = {
-    _id: 'an ObjectID',
-    id: 4,
-    label: {
-        name: 'Updated Full Scope Model',
-        description: 'Description for Updated Full Scope Model'
-    },
-    users: [1],
-    initiatingEvents: [],
-    eventSequenceDiagrams: [12],
-    functionalEvents: [],
-    eventTrees: [],
-    faultTrees: [],
-    bayesianNetworks: [],
-    markovChains: [],
-    bayesianEstimations: [],
-    weibullAnalysis: []
-}
+  _id: "an ObjectID",
+  id: 4,
+  label: {
+    name: "Updated Full Scope Model",
+    description: "Description for Updated Full Scope Model",
+  },
+  users: [1],
+  initiatingEvents: [],
+  eventSequenceDiagrams: [12],
+  functionalEvents: [],
+  eventTrees: [],
+  faultTrees: [],
+  bayesianNetworks: [],
+  markovChains: [],
+  bayesianEstimations: [],
+  weibullAnalysis: [],
+};

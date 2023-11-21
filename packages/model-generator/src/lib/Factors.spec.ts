@@ -1,13 +1,4 @@
-/**
- * @file Factors.spec.ts
- * @brief This file contains unit tests for the Factors class.
- * @details The Factors class provides methods to set and get various factors such as the number of basic events, house
- * events, ccf groups, etc. It also provides methods to calculate derived factors and to sample gate operators and the
- * number of arguments for a given gate type.
- */
-
 import Factors from "./Factors";
-import Gate from "./Gate";
 
 describe("Factors", () => {
   let factors: Factors;

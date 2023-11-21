@@ -9,32 +9,17 @@ import DataContainer from "../../components/pageContainers/dataContainer";
 export default function DataPage() {
   return (
     //routes
-      <Routes>
+    <Routes>
+      <Route path="" element=<DataContainer />>
+        <Route path="special-events/*" element={<SpecialEvents />} />
         <Route
-        path=""
-        element=<DataContainer/>
-        >
-          <Route
-              path="special-events/*"
-              element={<SpecialEvents />}
-          />
-          <Route
-              path="component-reliability/*"
-              element= {<ComponentReliability />}
-          />
-          <Route
-            path="initiating-events/*"
-            element={<DataInitiatingEvents />}
-          />
-          <Route
-              path="train-ua/*"
-              element={<TrainUA />}
-          />
-          <Route
-              path="ccf/*"
-              element={<Ccf />}
-          />
-        </Route>
+          path="component-reliability/*"
+          element={<ComponentReliability />}
+        />
+        <Route path="initiating-events/*" element={<DataInitiatingEvents />} />
+        <Route path="train-ua/*" element={<TrainUA />} />
+        <Route path="ccf/*" element={<Ccf />} />
+      </Route>
     </Routes>
-  )
+  );
 }

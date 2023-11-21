@@ -1,4 +1,3 @@
-
 /**
 
  Converts a string to title case.
@@ -8,15 +7,13 @@
  Defaults to true.
  @returns {string} The input string converted to title case.
  */
-export const toTitleCase = (str: string, stripDashes = true) => {
-  return str.replace(/-/g, stripDashes ? " " : "-").replace(
-    /\w\S*/g,
-    function(txt) {
-      return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
-    }
-  );
-}
-
+export const toTitleCase = (str: string, stripDashes = true) =>
+  str
+    .replace(/-/g, stripDashes ? " " : "-")
+    .replace(
+      /\w\S*/g,
+      (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(),
+    );
 
 /**
 
@@ -27,7 +24,10 @@ export const toTitleCase = (str: string, stripDashes = true) => {
  Defaults to true.
  @returns {string[]} An array of individual path segments extracted from the input path string.
  */
-export const tokenizePath = (path: string, stripTrailingSlash = true): string[] => {
-  const str = stripTrailingSlash ? path.replace(/\/+$/, '') : path;
-  return str.split("/").filter((value) => (value !== ""));
-}
+export const tokenizePath = (
+  path: string,
+  stripTrailingSlash = true,
+): string[] => {
+  const str = stripTrailingSlash ? path.replace(/\/+$/, "") : path;
+  return str.split("/").filter((value) => value !== "");
+};

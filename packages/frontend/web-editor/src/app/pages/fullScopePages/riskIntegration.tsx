@@ -1,7 +1,5 @@
 import RiskIntegrationList from "../../components/lists/nestedLists/riskIntegrationList";
 
-export default function() {
-    return (
-        <RiskIntegrationList/>
-    )
+export default function () {
+  return <RiskIntegrationList />;
 }

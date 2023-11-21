@@ -1,24 +1,28 @@
 import { useNavigate } from "react-router-dom";
 import {
   EuiHeaderSectionItemButton,
-  EuiPopover, EuiPopoverTitle, EuiSelectable,
+  EuiPopover,
+  EuiPopoverTitle,
+  EuiSelectable,
   EuiSelectableOption,
   EuiSelectableProps,
-  useGeneratedHtmlId
+  useGeneratedHtmlId,
 } from "@elastic/eui";
-import {useEffect, useRef, useState} from "react";
+import { useEffect, useRef, useState } from "react";
 import { SelectableWorkspaceOptions } from "../../workspaces/SelectableWorkspaceOptions";
 
 export default function WorkspaceSelectorMenu() {
   const isMountedRef = useRef(false);
   const navigate = useNavigate();
   const popoverID = useGeneratedHtmlId({
-    prefix: 'WorkspaceSelectorMenu',
+    prefix: "WorkspaceSelectorMenu",
   });
 
-  const [spaces, setSpaces] = useState<EuiSelectableOption[]>(SelectableWorkspaceOptions);
+  const [spaces, setSpaces] = useState<EuiSelectableOption[]>(
+    SelectableWorkspaceOptions,
+  );
   const [selectedSpace, setSelectedSpace] = useState(
-    spaces.filter((option) => option.checked)[0]
+    spaces.filter((option) => option.checked)[0],
   );
   const [isOpen, setIsOpen] = useState(false);
 
@@ -28,14 +32,13 @@ export default function WorkspaceSelectorMenu() {
   const closePopover = () => {
     setIsOpen(false);
   };
-  const onChange: EuiSelectableProps['onChange'] = (options) => {
+  const onChange: EuiSelectableProps["onChange"] = (options) => {
     setSpaces(options);
     setSelectedSpace(() => options.filter((option) => option.checked)[0]);
   };
   useEffect(() => {
-
     if (isMountedRef.current) {
-      navigate('/' + selectedSpace?.key);
+      navigate("/" + selectedSpace?.key);
     }
 
     return () => {
@@ -51,7 +54,7 @@ export default function WorkspaceSelectorMenu() {
       aria-label="Workspace menu"
       onClick={onMenuButtonClick}
     >
-       {selectedSpace?.prepend} {/* Render the label property */}
+      {selectedSpace?.prepend} {/* Render the label property */}
     </EuiHeaderSectionItemButton>
   );
 
@@ -76,16 +79,14 @@ export default function WorkspaceSelectorMenu() {
           bordered: false,
         }}
       >
-        {(list, search) => {
-          return (
-            <>
-              <EuiPopoverTitle paddingSize="s">
-                {search || 'Your workspaces'}
-              </EuiPopoverTitle>
-              {list}
-            </>
-          )
-        }}
+        {(list, search) => (
+          <>
+            <EuiPopoverTitle paddingSize="s">
+              {search || "Your workspaces"}
+            </EuiPopoverTitle>
+            {list}
+          </>
+        )}
       </EuiSelectable>
     </EuiPopover>
   );

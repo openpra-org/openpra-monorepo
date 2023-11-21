@@ -1,18 +1,30 @@
 {
   "root": true,
   "ignorePatterns": ["!**/*"],
-  "plugins": ["@nx"],
+  "plugins": ["@nx", "@typescript-eslint/eslint-plugin", "eslint-plugin-tsdoc"],
+  "extends": ["plugin:@typescript-eslint/recommended", "plugin:prettier/recommended"],
   "overrides": [
     {
       "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
       "rules": {
+        "eqeqeq": ["warn", "always"],
+        "no-unused-vars": ["warn", { "vars": "all", "args": "after-used", "ignoreRestSiblings": false }],
+        "no-var": "warn",
+        "prefer-const": ["warn", {
+          "destructuring": "any",
+          "ignoreReadBeforeAssign": false
+        }],
+        "prettier/prettier": "warn",
+        "arrow-body-style": "warn",
+        "prefer-arrow-callback": "warn"
       }
     },
     {
       "files": ["*.ts", "*.tsx"],
       "extends": ["plugin:@nx/typescript"],
       "rules": {
-        "@typescript-eslint/no-unused-vars": "error"
+        "@typescript-eslint/no-unused-vars": "warn",
+        "tsdoc/syntax": "warn"
       }
     },
     {

@@ -21,6 +21,7 @@ For instance, the `openpra-json-schema` package centralizes the
 - [Setup](#setup)
 - [Development Steps](#development-steps)
   - [Command Line Usage](#command-line-usage)
+  - [Installing Packages](#installing-packages)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
 
@@ -171,6 +172,36 @@ nx run-many -t serve --all
 nx run-many -t test
 nx run-many -t lint
 ```
+
+### Installing Packages
+
+When working within the monorepo, it's important to understand the distinction between scoped packages and workspace-related packages. 
+Scoped packages are those that are specific to a particular package within the monorepo, while the workspace package is the one defined
+by the `package.json` at the repo root.
+
+To install a new package, use the following commands:
+
+- For scoped packages (specific to a project):
+  ```shell
+  pnpm --filter=<project-name> install --save-exact <package-name>
+  ```
+- For workspace-related packages (global to the monorepo):
+  ```shell
+  pnpm -w install --save-exact <package-name>
+  ```
+The `--save-exact` flag is enforced to ensure that the exact version of a package is installed, which helps in maintaining consistency
+and avoiding issues with minor updatesthat may introduce breaking changes.
+
+When installing packages, you also need to decide whether to use `--save-dev` or `--save`:
+
+- Use `--save-dev` (or `-D`) for packages that are only needed during development or for building the project, such as linters, type definitions, or compilers.
+  ```shell
+  pnpm --filter=<project-name> install --save-dev --save-exact <package-name>
+  ```
+- Use `--save` (or no flag) for packages that are required at runtime by your package.
+  ```shell
+  pnpm --filter=<project-name> install --save --save-exact <package-name>
+  ```
 
 ## Troubleshooting
 

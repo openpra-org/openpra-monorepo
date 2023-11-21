@@ -1,7 +1,6 @@
 // import { createContext, useContext } from "react";
 // import { Route, Navigate } from "react-router-dom";
 
-
 // const authContext = createContext(null);
 
 // export function useAuth() {

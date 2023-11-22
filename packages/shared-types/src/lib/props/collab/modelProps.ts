@@ -1,6 +1,5 @@
-
 export interface NewModelProps {
-    title: string,
-    description: string,
-    assigned: string[]
+  title: string;
+  description: string;
+  assigned: string[];
 }

@@ -1,4 +1,4 @@
-import {Defaults} from "./ObjectTypes";
+import { Defaults } from "./ObjectTypes";
 
 export interface Parsable<ClassJSONMap, ClassJSON> {
   toJSON(): ClassJSON;

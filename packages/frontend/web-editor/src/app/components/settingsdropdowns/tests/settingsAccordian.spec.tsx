@@ -1,5 +1,5 @@
-import AdvancedSettings from "../advancedSettings";
 import { render } from "@testing-library/react";
+import AdvancedSettings from "../advancedSettings";
 import "@testing-library/jest-dom";
 import SettingsAccordian from "../SettingsAccordian";
 

@@ -20,10 +20,10 @@ import {
   useGeneratedHtmlId,
 } from "@elastic/eui";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { toTitleCase, tokenizePath } from "../../../utils/StringUtils";
-import WorkspaceSelectorMenu from "./WorkspaceSelectorMenu";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { toTitleCase, tokenizePath } from "../../../utils/StringUtils";
 import ContextAddButton from "../buttons/contextAddButton";
+import WorkspaceSelectorMenu from "./WorkspaceSelectorMenu";
 
 export default () => {
   const navigate = useNavigate();

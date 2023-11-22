@@ -1,10 +1,10 @@
-import { jwtDecode } from 'jwt-decode';
+import { jwtDecode } from "jwt-decode";
 import AuthToken, { EMPTY_TOKEN } from "../types/AuthToken";
 
 class AuthService {
   static hasTokenExpired(token: string | null) {
     // if token is null, it has certainly expired
-    if (!token || token === 'undefined') {
+    if (!token || token === "undefined") {
       return true;
     }
     try {
@@ -12,7 +12,7 @@ class AuthService {
       if (!payload || !payload.exp) {
         return true;
       }
-      return (Date.now() / 1000) > payload.exp;
+      return Date.now() / 1000 > payload.exp;
     } catch (err) {
       return true;
     }
@@ -21,7 +21,7 @@ class AuthService {
   //gets the actual timer of the token for reauth purposes
   static getTokenTimer(token: string | null): number {
     // if token is null, it has certainly expired
-    if (!token || token === 'undefined') {
+    if (!token || token === "undefined") {
       return -1;
     }
     try {
@@ -29,7 +29,7 @@ class AuthService {
       if (!payload || !payload.exp) {
         return -1;
       }
-      return (payload.exp - (Date.now() / 1000));
+      return payload.exp - Date.now() / 1000;
     } catch (err) {
       return -1;
     }
@@ -37,17 +37,17 @@ class AuthService {
 
   static setEncodedToken(idToken: string | null) {
     if (idToken) {
-      localStorage.setItem('id_token', idToken);
+      localStorage.setItem("id_token", idToken);
     }
   }
 
   static getEncodedToken() {
-    const idToken = localStorage.getItem('id_token');
-    return (idToken === 'undefined') ? null : idToken;
+    const idToken = localStorage.getItem("id_token");
+    return idToken === "undefined" ? null : idToken;
   }
 
   static logout() {
-    localStorage.removeItem('id_token');
+    localStorage.removeItem("id_token");
     return AuthService.getEncodedToken() === null;
   }
 
@@ -65,4 +65,3 @@ class AuthService {
 }
 
 export default AuthService;
-

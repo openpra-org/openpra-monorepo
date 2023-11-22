@@ -1,7 +1,7 @@
 import ProxyTypes from "./ProxyTypes";
-import Expression, {ExpressionJSON} from "./Expression";
-import Formula, {FormulaJSON} from "./Formula";
-import {OutcomeJSON} from "./Outcome";
+import Expression, { ExpressionJSON } from "./Expression";
+import Formula, { FormulaJSON } from "./Formula";
+import { OutcomeJSON } from "./Outcome";
 
 interface InstructionJSON {
   formula?: FormulaJSON | OutcomeJSON;
@@ -10,7 +10,6 @@ interface InstructionJSON {
 }
 
 class Instruction {
-
   private formula?: Formula;
   private expression?: Expression;
   private proxy: ProxyTypes;
@@ -26,18 +25,22 @@ class Instruction {
    * @throw Will throws an error if obj does not have valid
    *  _proxy field.
    */
-  constructor(obj: InstructionJSON = { _proxy: ProxyTypes.COLLECT_EXPRESSION }) {
+  constructor(
+    obj: InstructionJSON = { _proxy: ProxyTypes.COLLECT_EXPRESSION },
+  ) {
     this.proxy = obj._proxy || ProxyTypes.COLLECT_EXPRESSION;
     switch (this.proxy) {
       case ProxyTypes.COLLECT_FORMULA:
-        // @ts-ignore
+        // @ts-expect-error
         this.formula = new Formula(obj.formula);
         break;
       case ProxyTypes.COLLECT_EXPRESSION:
         this.expression = new Expression(obj.expression);
         break;
       default:
-        throw new Error(`Instruction of proxy "${this.proxy}" is not registerd`);
+        throw new Error(
+          `Instruction of proxy "${this.proxy}" is not registerd`,
+        );
     }
   }
 
@@ -50,25 +53,26 @@ class Instruction {
   toJSON(): InstructionJSON {
     switch (this.proxy) {
       case ProxyTypes.COLLECT_FORMULA:
-        return ({
+        return {
           formula: this.formula.toJSON(),
-          _proxy: this.proxy
-        });
+          _proxy: this.proxy,
+        };
       case ProxyTypes.COLLECT_EXPRESSION:
         if (this.expression.getProxy() === ProxyTypes.LOGICAL_EXPRESSION) {
-          return ({
+          return {
             formula: this.expression.toJSON(),
-            _proxy: this.proxy
-          });
-        }
-        else {
-          return ({
+            _proxy: this.proxy,
+          };
+        } else {
+          return {
             expression: this.expression.toJSON(),
-            _proxy: this.proxy
-          });
+            _proxy: this.proxy,
+          };
         }
       default:
-        throw new Error(`Instruction of proxy "${this.proxy}" is not registerd`);
+        throw new Error(
+          `Instruction of proxy "${this.proxy}" is not registerd`,
+        );
     }
   }
 
@@ -127,22 +131,23 @@ class Instruction {
       case ProxyTypes.COLLECT_FORMULA:
         return new Instruction({
           formula: this.formula.inverse().toJSON(),
-          _proxy: this.proxy
+          _proxy: this.proxy,
         });
       case ProxyTypes.COLLECT_EXPRESSION:
         return new Instruction({
           expression: this.expression.inverse().toJSON(),
-          _proxy: this.proxy
+          _proxy: this.proxy,
         });
       default:
-        throw new Error(`Instruction of proxy "${this.proxy}" is not registered`);
+        throw new Error(
+          `Instruction of proxy "${this.proxy}" is not registered`,
+        );
     }
   }
 
   clone(): Instruction {
     return new Instruction(this.toJSON());
   }
-
 }
 
 export default Instruction;

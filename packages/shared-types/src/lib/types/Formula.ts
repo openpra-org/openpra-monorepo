@@ -11,7 +11,6 @@ export interface FormulaJSON {
 }
 
 export default class Formula {
-
   private proxy: ProxyTypes;
   private outcome?: Outcome;
   private expr?: GateTypes;
@@ -30,22 +29,24 @@ export default class Formula {
    *  Expect the format from {@link Formula#toJSON}.
    * @throws Will throw an error if the proxyTypes are not valid.
    */
-  constructor(obj: FormulaJSON | OutcomeJSON = { _proxy: ProxyTypes.EVENT_REFERENCE }) {
+  constructor(
+    obj: FormulaJSON | OutcomeJSON = { _proxy: ProxyTypes.EVENT_REFERENCE },
+  ) {
     this.proxy = obj._proxy || ProxyTypes.EVENT_REFERENCE;
     switch (this.proxy) {
       case ProxyTypes.EVENT_REFERENCE:
         this.outcome = Outcome.build(obj);
         break;
       case ProxyTypes.LOGICAL_EXPRESSION:
-        // @ts-ignore
+        // @ts-expect-error
         const formulas = obj.formulas || [];
-        // @ts-ignore
+        // @ts-expect-error
         this.expr = obj.expr;
-        // @ts-ignore
-        this.outcomes = formulas.map(formula => Outcome.build(formula));
+        // @ts-expect-error
+        this.outcomes = formulas.map((formula) => Outcome.build(formula));
 
-        this.minValueSet = 'min_value' in obj;
-        // @ts-ignore
+        this.minValueSet = "min_value" in obj;
+        // @ts-expect-error
         this.minValue = this.minValueSet ? obj.min_value : 0;
         break;
       default:
@@ -63,15 +64,15 @@ export default class Formula {
         return this.outcome.toJSON();
       case ProxyTypes.LOGICAL_EXPRESSION:
         const json = {
-          formulas: this.outcomes.map(outcome => outcome.toJSON()),
+          formulas: this.outcomes.map((outcome) => outcome.toJSON()),
           expr: this.expr,
-          _proxy: this.proxy
+          _proxy: this.proxy,
         };
         if (this.minValueSet) {
-          // @ts-ignore
+          // @ts-expect-error
           json.min_value = Number(this.minValue);
         }
-        return (json);
+        return json;
       default:
         throw new Error(`Formula proxy "${this.proxy}" is not supported`);
     }
@@ -175,7 +176,10 @@ export default class Formula {
    * @return {Formula} - inverted formula
    */
   inverse(): Formula {
-    if (this.proxy !== ProxyTypes.EVENT_REFERENCE && this.proxy !== ProxyTypes.LOGICAL_EXPRESSION) {
+    if (
+      this.proxy !== ProxyTypes.EVENT_REFERENCE &&
+      this.proxy !== ProxyTypes.LOGICAL_EXPRESSION
+    ) {
       throw new Error(`Formula proxy "${this.proxy}" is not supported`);
     }
 
@@ -184,15 +188,13 @@ export default class Formula {
       return new Formula({
         formulas: [this.outcome.toJSON()],
         expr: GateTypes.NOT,
-        _proxy: ProxyTypes.LOGICAL_EXPRESSION
+        _proxy: ProxyTypes.LOGICAL_EXPRESSION,
       });
-
     }
     // success to failure
     else {
-      return new Formula(this.outcomes[0].toJSON())
+      return new Formula(this.outcomes[0].toJSON());
     }
-
   }
 
   clone(): Formula {
@@ -200,11 +202,11 @@ export default class Formula {
   }
 
   toString(): string {
-    switch(this.proxy) {
+    switch (this.proxy) {
       case ProxyTypes.EVENT_REFERENCE:
         //TODO:: FIX
         return "";
-        //return FaultTreeTransferGateVertexValue.getSubLabelString(this);
+      //return FaultTreeTransferGateVertexValue.getSubLabelString(this);
       default:
         return this.proxy;
     }

@@ -74,7 +74,9 @@ export default function DeleteItemBox(props: DeleteItemProps) {
             placeholder="Please type yes to proceed"
             value={confirmDelete}
             data-testid="delete-item-input"
-            onChange={(e) => setConfirmDelete(e.target.value)}
+            onChange={(e) => {
+              setConfirmDelete(e.target.value);
+            }}
           />
         </EuiFormRow>
 

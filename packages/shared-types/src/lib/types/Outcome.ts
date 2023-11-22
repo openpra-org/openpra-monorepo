@@ -10,7 +10,6 @@ export interface OutcomeJSON {
   _proxy?: ProxyTypes;
 }
 
-
 export default class Outcome {
   public name: string;
 
@@ -29,8 +28,16 @@ export default class Outcome {
    * @return {Outcome}
    */
   static build(obj: OutcomeJSON = {}): Outcome {
-    const makeInstance = obj && 'make_instance' in obj ? obj.make_instance : false;
-    return new Outcome(obj.name, obj.reference_type, obj.tree_id, obj.path, obj._proxy, makeInstance);
+    const makeInstance =
+      obj && "make_instance" in obj ? obj.make_instance : false;
+    return new Outcome(
+      obj.name,
+      obj.reference_type,
+      obj.tree_id,
+      obj.path,
+      obj._proxy,
+      makeInstance,
+    );
   }
 
   /**
@@ -41,11 +48,18 @@ export default class Outcome {
    * @param {ProxyTypes} proxy
    * @param {boolean} make_instance
    */
-  constructor(name = '', referenceType: ReferenceTypes = null, treeId = NaN, path = '', proxy: ProxyTypes = ProxyTypes.EVENT_REFERENCE, make_instance: boolean = false) {
-    this.name = name || '';
+  constructor(
+    name = "",
+    referenceType: ReferenceTypes = null,
+    treeId = NaN,
+    path = "",
+    proxy: ProxyTypes = ProxyTypes.EVENT_REFERENCE,
+    make_instance = false,
+  ) {
+    this.name = name || "";
     this.referenceType = referenceType || null;
     this.treeId = treeId || 0;
-    this.path = path || '';
+    this.path = path || "";
     this.makeInstance = make_instance;
     this.proxy = proxy || ProxyTypes.EVENT_REFERENCE;
   }

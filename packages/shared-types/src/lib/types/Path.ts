@@ -7,7 +7,6 @@ export interface PathJSON {
 }
 
 class Path {
-
   private outcome: Outcome;
   private instructions: Instruction[];
 
@@ -16,10 +15,9 @@ class Path {
    */
   constructor(obj: PathJSON = {}) {
     this.outcome = Outcome.build(obj.outcome);
-    this.instructions =
-      (obj.instructions
-        && obj.instructions.map(instruction => new Instruction(instruction)))
-      || [new Instruction()];
+    this.instructions = obj.instructions?.map(
+      (instruction) => new Instruction(instruction),
+    ) || [new Instruction()];
   }
 
   /**
@@ -54,12 +52,13 @@ class Path {
    * @return {PathJSON} - dictionary object that describes this
    */
   toJSON(): PathJSON {
-    return ({
+    return {
       outcome: this.outcome.toJSON(),
-      instructions: this.instructions.map(instruction => instruction.toJSON())
-    });
+      instructions: this.instructions.map((instruction) =>
+        instruction.toJSON(),
+      ),
+    };
   }
-
 }
 
 export default Path;

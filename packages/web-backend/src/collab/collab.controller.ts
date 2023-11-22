@@ -19,14 +19,13 @@ import { CollabService } from "./collab.service";
 import { CreateNewUserDto } from "./dtos/create-new-user.dto";
 import { PaginationDto } from "./dtos/pagination.dto";
 import { UserPreferencesDto } from "./dtos/user-preferences.dto";
-import { HclModel } from "../hcl/schemas/hcl-model.schema";
 import { User } from "./schemas/user.schema";
 
 @Controller()
 @UseGuards(JwtAuthGuard)
 @UseFilters(InvalidTokenFilter)
 export class CollabController {
-  constructor(private collabService: CollabService) {}
+  constructor(private readonly collabService: CollabService) {}
 
   /**
    * @param req Express request object @see {@link https://expressjs.com/en/api.html#req}

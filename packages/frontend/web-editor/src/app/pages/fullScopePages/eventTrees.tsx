@@ -1,4 +1,3 @@
-import EventTreeList from "../../components/lists/nestedLists/eventTreeList";
 import { Route, Routes } from "react-router-dom";
 import { ReactElement, useCallback } from "react";
 
@@ -11,6 +10,7 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
 } from "reactflow";
+import EventTreeList from "../../components/lists/nestedLists/eventTreeList";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
 
@@ -86,7 +86,7 @@ const initialNodes: Node[] = [
  * @property {string} target - The identifier of the target node to which the connection goes.
  * @property {boolean} animated - Indicates whether the connection has animations enabled.
  */
-type ConnectionConfig = {
+interface ConnectionConfig {
   /** The unique identifier for the connection. */
   id: string;
 
@@ -101,7 +101,7 @@ type ConnectionConfig = {
 
   /** Indicates whether the connection has animations enabled. */
   animated: boolean;
-};
+}
 
 /**
  * Initial set of edges to be used in the ReactFlow component.
@@ -179,7 +179,9 @@ const HorizontalFlow = (): ReactElement => {
   // `useCallback` hook to memoize the `onConnect` function, which adds a new edge when nodes are connected.
   // It depends on `setEdges`, so it will only change if `setEdges` changes.
   const onConnect = useCallback(
-    (params: Connection) => setEdges((els) => addEdge(params, els)),
+    (params: Connection) => {
+      setEdges((els) => addEdge(params, els));
+    },
     [setEdges],
   );
 

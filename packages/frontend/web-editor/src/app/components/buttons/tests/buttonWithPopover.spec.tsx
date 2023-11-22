@@ -1,9 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import "@testing-library/jest-dom";
+import { BrowserRouter } from "react-router-dom";
 import ButtonWithPopover, {
   ButtonWithClosablePopover,
 } from "../ButtonWithPopover";
-import { BrowserRouter } from "react-router-dom";
 
 describe(ButtonWithPopover, () => {
   it("Checks the button with icon", () => {

@@ -1,14 +1,14 @@
 import { logicalStyle } from "@elastic/eui";
 import { EuiButtonIconPropsForButton } from "@elastic/eui/src/components/button/button_icon/button_icon";
+import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
 import ButtonWithPopover, {
   ButtonWithClosablePopover,
   ButtonWithPopoverProps,
 } from "../buttons/ButtonWithPopover";
 import { toTitleCase } from "../../../utils/StringUtils";
 import ItemFormAction, { ItemFormProps } from "../forms/typedModelActionForm";
-import ListItemActionContextMenu from "./ListItemContextMenu";
 import { GenericListItemProps } from "../lists/GenericListItem";
-import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
+import ListItemActionContextMenu from "./ListItemContextMenu";
 
 export type ListItemActionProps = {} & ButtonWithPopoverProps &
   Omit<EuiButtonIconPropsForButton, "iconType"> &

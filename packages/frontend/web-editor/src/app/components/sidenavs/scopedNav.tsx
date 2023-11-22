@@ -11,7 +11,7 @@ import {
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
 
-type TreeItem = {
+interface TreeItem {
   id: string;
   key: string;
   isExpanded?: boolean;
@@ -19,7 +19,7 @@ type TreeItem = {
   children?: TreeItem[];
   icon?: JSX.Element;
   callback?: () => {};
-};
+}
 
 export interface scopedNavProps {
   type: string;
@@ -459,8 +459,8 @@ export default function ScopedNav(props: scopedNavProps) {
       const style = {
         //commented this out because I think it adds a bit of unneeded color, I will see what some other people think
         //background: backgroundColor,
-        borderWidth: euiTheme.border.width["thin"],
-        borderRadius: euiTheme.border.radius["medium"],
+        borderWidth: euiTheme.border.width.thin,
+        borderRadius: euiTheme.border.radius.medium,
         borderColor: euiTheme.border.color,
         padding: padding,
       };

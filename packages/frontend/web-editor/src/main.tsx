@@ -1,8 +1,11 @@
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import App from "./app/app";
-
-import * as Sentry from "@sentry/react";
+import {
+  init,
+  BrowserTracing,
+  reactRouterV6Instrumentation,
+  Replay,
+} from "@sentry/react";
 import {
   createRoutesFromChildren,
   matchRoutes,
@@ -10,21 +13,30 @@ import {
   useNavigationType,
 } from "react-router-dom";
 
+import App from "./app/app";
+
 /**
  * Initializes Sentry to automatically track errors and performance issues.
  */
-Sentry.init({
+init({
   dsn: "https://4e6f4dd638ec41368bed874cb17dde3a@o574983.ingest.sentry.io/4505489238982656",
   integrations: [
-    new Sentry.BrowserTracing({
+    new BrowserTracing({
       /**
-       * Set 'tracePropagationTargets' to control for which URLs distributed tracing should be enabled.
+       * Set 'tracePropagationTargets' to control for which URLs distributed
+       * tracing should be enabled.
        */
       tracePropagationTargets: ["localhost", /^https:\/\/app.openpra\.org/],
+
+      /**
+       * @remarks Trace fetch requests.
+       */
+      traceFetch: true,
+
       /**
        * Configures Sentry's routing instrumentation for React Router v6.
        */
-      routingInstrumentation: Sentry.reactRouterV6Instrumentation(
+      routingInstrumentation: reactRouterV6Instrumentation(
         React.useEffect,
         useLocation,
         useNavigationType,
@@ -32,7 +44,7 @@ Sentry.init({
         matchRoutes,
       ),
     }),
-    new Sentry.Replay(),
+    new Replay(),
   ],
   /**
    * Performance Monitoring configuration.
@@ -52,14 +64,19 @@ Sentry.init({
 });
 
 // Select the DOM element where the React application will be attached.
-const container = document.getElementById("root") as HTMLElement;
+const container = document.getElementById("root");
 
-// Create a root for the React application.
-const root = createRoot(container);
+if (container instanceof HTMLElement) {
+  // Create a root for the React application.
+  const root = createRoot(container);
 
-// Render the React application within the StrictMode component for highlighting potential problems.
-root.render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+  // Render the React application within the StrictMode component for
+  // highlighting potential problems.
+  root.render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+} else {
+  throw new Error("Element with id 'root' not found in document");
+}

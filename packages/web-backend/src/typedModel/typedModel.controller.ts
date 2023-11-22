@@ -13,6 +13,10 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
+import InternalEventsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
+import ExternalEventsModel from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
+import InternalHazardsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
+import FullScopeModel from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";
 import { TypedModelService } from "./typedModel.service";
 import { InternalEvents } from "./schemas/internal-events.schema";
@@ -24,16 +28,11 @@ import {
   TypedModelJSON,
 } from "./schemas/templateSchema/typed-model.schema";
 
-import InternalEventsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
-import ExternalEventsModel from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
-import InternalHazardsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
-import FullScopeModel from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
-
 @Controller()
 @UseGuards(AuthGuard("jwt"))
 @UseFilters(InvalidTokenFilter)
 export class TypedModelController {
-  constructor(private typedModelService: TypedModelService) {}
+  constructor(private readonly typedModelService: TypedModelService) {}
 
   //all the post methods go here
 

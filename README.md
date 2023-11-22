@@ -54,7 +54,7 @@ are provided in the following sections.
 
 - `pnpm` (Package Manager)
 - `nvm` (Node Version Manager)
-- Node.js `v20.2.0`
+- Node.js `lts/iron`
 - MongoDB (for hosting a database)
   - [Optional] Native Mongo App
   - [Optional] Docker Desktop & Compose
@@ -80,8 +80,8 @@ choice. Install it using `nvm` with the
 following commands:
 
 ```shell
-nvm install 20.2.0
-nvm use 20.2.0
+nvm install 20.9.0
+nvm use 20.9.0
 ```
 
 ### `pnpm`
@@ -122,7 +122,7 @@ Once prerequisites are installed, initialize the project with these commands:
 
 ```shell
 pnpm setup
-pnpm install --shamefully-hoist=true
+pnpm install
 pnpm install --global nx@17.1.2
 ```
 

@@ -1,4 +1,4 @@
-import FactorError from "./FactorError";
+import { FactorError } from "./FactorError";
 
 describe("FactorError", () => {
   test("should create an error with a message", () => {

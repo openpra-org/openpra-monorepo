@@ -21,7 +21,7 @@ import { LabelJSON } from "shared-types/src/lib/types/Label";
 
 import { toTitleCase } from "../../../utils/StringUtils";
 
-export type NestedItemFormProps = {
+export interface NestedItemFormProps {
   itemName: string;
   // TODO:: TODO :: replace endpoint string with TypedApiManager method
   id?: number;
@@ -34,7 +34,7 @@ export type NestedItemFormProps = {
   initialFormValues?: NestedModelJSON;
   compressed?: boolean;
   noHeader?: boolean;
-};
+}
 
 export default function NestedModelActionForm({
   itemName,
@@ -84,8 +84,8 @@ export default function NestedModelActionForm({
     } else {
       alert("Please enter a valid name");
     }
-    onSuccess && onSuccess();
-    onFail && onFail();
+    onSuccess?.();
+    onFail?.();
     location.reload();
   };
 
@@ -120,15 +120,15 @@ export default function NestedModelActionForm({
                 compressed
                 placeholder={initialFormValues?.label.name}
                 value={typedModel.label.name}
-                onChange={(e) =>
+                onChange={(e) => {
                   setTypedModel({
                     ...typedModel,
                     label: {
                       ...typedModel.label,
                       name: e.target.value,
                     },
-                  })
-                }
+                  });
+                }}
               />
             </EuiFormRow>
           </EuiFlexItem>
@@ -145,15 +145,15 @@ export default function NestedModelActionForm({
             compressed
             placeholder={initialFormValues?.label.description}
             value={typedModel.label.description}
-            onChange={(e) =>
+            onChange={(e) => {
               setTypedModel({
                 ...typedModel,
                 label: {
                   ...typedModel.label,
                   description: e.target.value,
                 },
-              })
-            }
+              });
+            }}
           />
         </EuiFormRow>
         <EuiSpacer size="m" />

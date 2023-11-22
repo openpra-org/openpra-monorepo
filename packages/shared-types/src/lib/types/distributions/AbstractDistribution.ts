@@ -14,16 +14,21 @@ export const DistributionDictionary = {
   [DistributionTimeDependence.TIME_DEPENDENT]: [
     ProxyTypes.WEIBULL_DISTRIBUTION,
     ProxyTypes.EXPONENTIAL_DISTRIBUTION,
-    ProxyTypes.NON_PARAMETRIC_DISTRIBUTION
+    ProxyTypes.NON_PARAMETRIC_DISTRIBUTION,
   ],
 };
 
-const ReversedDistributionDictionary: { [key: string]: DistributionTimeDependence } = {};
-Object.keys(DistributionDictionary).forEach((key: DistributionTimeDependence) => {
-  DistributionDictionary[key].forEach(value => {
-    ReversedDistributionDictionary[value] = key;
-  });
-});
+const ReversedDistributionDictionary: Record<
+  string,
+  DistributionTimeDependence
+> = {};
+Object.keys(DistributionDictionary).forEach(
+  (key: DistributionTimeDependence) => {
+    DistributionDictionary[key].forEach((value) => {
+      ReversedDistributionDictionary[value] = key;
+    });
+  },
+);
 export { ReversedDistributionDictionary };
 
 export interface DistributionSummary {
@@ -66,7 +71,7 @@ export default abstract class AbstractDistribution {
     const pdf = this.pdf();
     const len = vec.length;
     const arr = new Array(len);
-    for (let i = 0; i < len; i++ ) arr[i] = pdf(vec[i]);
+    for (let i = 0; i < len; i++) arr[i] = pdf(vec[i]);
     return arr;
   }
 
@@ -79,7 +84,7 @@ export default abstract class AbstractDistribution {
     const cdf = this.cdf();
     const len = vec.length;
     const arr = new Array(len);
-    for (let i = 0; i < len; i++ ) arr[i] = cdf(vec[i]);
+    for (let i = 0; i < len; i++) arr[i] = cdf(vec[i]);
     return arr;
   }
 
@@ -93,12 +98,14 @@ export default abstract class AbstractDistribution {
     const quantile = this.quantile();
     const len = vec.length;
     const arr = new Array(len);
-    for (let i = 0; i < len; i++ ) {
-      const val = vec[ i ];
-      if ( val < 0 || val > 1 ) throw new Error( 'getQuantiles::invalid input argument. Array values must exist on the interval [0,1].' );
+    for (let i = 0; i < len; i++) {
+      const val = vec[i];
+      if (val < 0 || val > 1)
+        throw new Error(
+          "getQuantiles::invalid input argument. Array values must exist on the interval [0,1].",
+        );
       arr[i] = quantile(val);
     }
     return arr;
   }
-
 }

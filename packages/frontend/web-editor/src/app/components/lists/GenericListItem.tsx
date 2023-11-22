@@ -10,12 +10,12 @@ import {
 } from "@elastic/eui";
 import { Link } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
+import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import LastActionText from "./LastActionText";
 import { ListItemContextMenuButton } from "./ListItemAction";
-import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 
 //title is required, description isnt required but is typically present
-export type GenericListItemProps = {
+export interface GenericListItemProps {
   id: number;
   label: LabelJSON;
   endpoint: string;
@@ -30,7 +30,7 @@ export type GenericListItemProps = {
   users?: number[];
   path: string;
   itemName: string;
-};
+}
 
 /**
  *
@@ -61,7 +61,7 @@ export default function GenericListItem(props: GenericListItemProps) {
         <Link to={path}>
           {/** avatar with the abbreviation for the item, it is in a  link as is the other part so that clicks are seamless */}
           <EuiAvatar
-            name={label?.name ? label.name : ""}
+            name={label.name ? label.name : ""}
             size="l"
             type="space"
           />
@@ -73,12 +73,12 @@ export default function GenericListItem(props: GenericListItemProps) {
             <Link to={path}>
               {/** this is the title for the item */}
               <EuiText size="m" color="default" grow={false}>
-                <strong>{label?.name}</strong>
+                <strong>{label.name}</strong>
               </EuiText>
             </Link>
             {/** this is the description for the item */}
             <EuiText size="s" color="subdued" grow={false}>
-              {label?.description}
+              {label.description}
             </EuiText>
           </EuiFlexItem>
 

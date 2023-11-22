@@ -1,13 +1,14 @@
-import AbstractDistribution, {DistributionSummary} from "./AbstractDistribution";
-const linspace = require('linspace');
-const erf = require('compute-erf');
-const erfinv = require('compute-erfinv');
+import AbstractDistribution, {
+  DistributionSummary,
+} from "./AbstractDistribution";
+const linspace = require("linspace");
+const erf = require("compute-erf");
+const erfinv = require("compute-erfinv");
 
 /**
  * Referenced from {@link https://en.wikipedia.org/wiki/Normal_distribution}
  */
 class Normal extends AbstractDistribution {
-
   private mu: number;
   private sigma: number;
 
@@ -37,7 +38,10 @@ class Normal extends AbstractDistribution {
    * @throws Error if sigma is less than 0
    */
   setSigma(sigma: number): void {
-    if (sigma <= 0) throw new TypeError( 'setSigma()::invalid input argument. sigma must be a positive number.' );
+    if (sigma <= 0)
+      throw new TypeError(
+        "setSigma()::invalid input argument. sigma must be a positive number.",
+      );
     this.sigma = sigma;
   }
 
@@ -55,7 +59,7 @@ class Normal extends AbstractDistribution {
    */
   pdf(): (x: number) => number {
     const mu = this.mu;
-    const A = 1 / Math.sqrt(2 * Math.PI) * this.sigma;
+    const A = (1 / Math.sqrt(2 * Math.PI)) * this.sigma;
     const B = -1 / (2 * this.sigma * this.sigma);
 
     return (x: number) => {
@@ -94,17 +98,15 @@ class Normal extends AbstractDistribution {
    * @override
    * @param {number} n
    */
-  getSummary(n: number = 100): DistributionSummary {
+  getSummary(n = 100): DistributionSummary {
     const x = linspace(0, 1, n);
 
     return {
       x: x,
       pdf: this.getPDFs(x),
-      cdf: this.getCDFs(x)
+      cdf: this.getCDFs(x),
     };
-
   }
-
 }
 
 export default Normal;

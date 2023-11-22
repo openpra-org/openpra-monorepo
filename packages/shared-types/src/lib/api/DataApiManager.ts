@@ -1,24 +1,28 @@
 import HclApiManager from "./HclApiManager";
 
 export default class DataApiManager extends HclApiManager {
-  public static override ENDPOINT: string = HclApiManager.ENDPOINT + "/data/parameter-estimates/";
+  public static override ENDPOINT: string =
+    HclApiManager.ENDPOINT + "/data/parameter-estimates/";
 
   public static getSpecialEvents() {
-    return HclApiManager.getWithOptions(DataApiManager.ENDPOINT+'special-events/');
+    return HclApiManager.getWithOptions(
+      DataApiManager.ENDPOINT + "special-events/",
+    );
   }
   public static getComponentReliability() {
-    return HclApiManager.getWithOptions(DataApiManager.ENDPOINT+'component-reliability/');
+    return HclApiManager.getWithOptions(
+      DataApiManager.ENDPOINT + "component-reliability/",
+    );
   }
   public static getInitiatingEvents() {
-    return HclApiManager.getWithOptions(DataApiManager.ENDPOINT+'initiating-events/');
+    return HclApiManager.getWithOptions(
+      DataApiManager.ENDPOINT + "initiating-events/",
+    );
   }
   public static getTrainUA() {
-    return HclApiManager.getWithOptions(DataApiManager.ENDPOINT+'train-ua/');
+    return HclApiManager.getWithOptions(DataApiManager.ENDPOINT + "train-ua/");
   }
   public static getCCF() {
-    return HclApiManager.getWithOptions(DataApiManager.ENDPOINT+'ccf/');
+    return HclApiManager.getWithOptions(DataApiManager.ENDPOINT + "ccf/");
   }
-
-
-
 }

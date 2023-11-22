@@ -9,7 +9,7 @@ export default interface VertexShape {
   GATE?: number;
   SUB_LABEL_HEIGHT: number;
   SUB_LABEL_OFFSET: number;
-};
+}
 
 export const DEFAULT_SHAPE = {
   HEIGHT: 124,
@@ -19,4 +19,3 @@ export const DEFAULT_SHAPE = {
   SUB_LABEL_HEIGHT: 32,
   SUB_LABEL_OFFSET: 32,
 };
-

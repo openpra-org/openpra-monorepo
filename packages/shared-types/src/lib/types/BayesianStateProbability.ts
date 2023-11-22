@@ -1,4 +1,4 @@
-import {Parsable} from "./Parsable";
+import { Parsable } from "./Parsable";
 import Expression, { ExpressionJSON } from "./Expression";
 import Outcome, { OutcomeJSON } from "./Outcome";
 import Clonable from "./Clonable";
@@ -6,22 +6,29 @@ export interface BayesianStateProbabilityJSON {
   expression: ExpressionJSON;
   states?: OutcomeJSON[];
 }
-export type BayesianStateProbabilityJSONMap = {[key: string]: BayesianStateProbabilityJSON};
+export interface BayesianStateProbabilityJSONMap {[key: string]: BayesianStateProbabilityJSON}
+};
 
-
-export default class BayesianStateProbability implements Parsable<BayesianStateProbabilityJSONMap, BayesianStateProbabilityJSON>, Clonable<BayesianStateProbabilityJSON, BayesianStateProbability> {
+export default class BayesianStateProbability
+  implements
+    Parsable<BayesianStateProbabilityJSONMap, BayesianStateProbabilityJSON>,
+    Clonable<BayesianStateProbabilityJSON, BayesianStateProbability>
+{
   protected expression: Expression;
   protected states: Outcome[];
 
-  constructor(expression: Expression = new Expression(), states: Outcome[] = []) {
+  constructor(
+    expression: Expression = new Expression(),
+    states: Outcome[] = [],
+  ) {
     this.expression = expression;
     this.states = states;
   }
 
   getDefaultJSON(): BayesianStateProbabilityJSON {
-    return  {
+    return {
       expression: new Expression().toJSON(),
-      states: []
+      states: [],
     };
   }
 
@@ -41,8 +48,12 @@ export default class BayesianStateProbability implements Parsable<BayesianStateP
   }
 
   static build(json: BayesianStateProbabilityJSON): BayesianStateProbability {
-    const states = json.states?.map((stateJSON: OutcomeJSON) => Outcome.build(stateJSON));
-    return new BayesianStateProbability(new Expression(json.expression), states);
+    const states = json.states?.map((stateJSON: OutcomeJSON) =>
+      Outcome.build(stateJSON),
+    );
+    return new BayesianStateProbability(
+      new Expression(json.expression),
+      states,
+    );
   }
-
 }

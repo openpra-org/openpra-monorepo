@@ -43,7 +43,7 @@ export default function LoginForm() {
         },
       );
     } catch (error) {
-      console.log(error);
+      console.error(error);
     }
   }
 
@@ -94,12 +94,12 @@ export default function LoginForm() {
             placeholder="Username"
             isInvalid={error.username}
             value={login.username}
-            onChange={(e) =>
+            onChange={(e) => {
               setLogin({
                 ...login,
                 username: e.target.value,
-              })
-            }
+              });
+            }}
           />
         </EuiFormRow>
         <EuiFormRow isInvalid={error.password} error="Invalid Password">
@@ -108,12 +108,12 @@ export default function LoginForm() {
             placeholder="Password"
             value={login.password}
             isInvalid={error.password}
-            onChange={(e) =>
+            onChange={(e) => {
               setLogin({
                 ...login,
                 password: e.target.value,
-              })
-            }
+              });
+            }}
           />
         </EuiFormRow>
         <EuiFormRow isInvalid={invalid} error="Invalid username or password">

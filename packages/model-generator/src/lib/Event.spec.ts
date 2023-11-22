@@ -1,4 +1,4 @@
-import Event from "./Event";
+import { Event } from "./Event";
 
 describe("Event", () => {
   let event: Event;
@@ -29,8 +29,8 @@ describe("Event", () => {
   test("addParent should throw an error if the parent is already added", () => {
     const parent = new Event("parent");
     event.addParent(parent);
-    expect(() => event.addParent(parent)).toThrowError(
-      "Gate is already a parent of this node.",
-    );
+    expect(() => {
+      event.addParent(parent);
+    }).toThrow("Gate is already a parent of this node.");
   });
 });

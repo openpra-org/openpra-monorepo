@@ -1,6 +1,6 @@
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { Test, TestingModule } from "@nestjs/testing";
-import * as request from "supertest";
+import request from "supertest";
 import { ApiModule } from "../src/api.module";
 
 describe("OpenPRA web-backend endpoints testing (e2e)", () => {

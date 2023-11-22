@@ -1,7 +1,7 @@
-FROM node:20.2.0-slim AS base
+FROM node:20.9.0-slim AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV NX_VERSION=17.1.1
+ENV NX_VERSION=17.1.2
 ENV BUILD_PACKAGES \
     make cmake g++ python3
 WORKDIR /app

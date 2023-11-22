@@ -1,4 +1,4 @@
-import Factors from "./Factors";
+import { Factors } from "./Factors";
 
 describe("Factors", () => {
   let factors: Factors;

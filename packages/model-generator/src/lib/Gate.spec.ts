@@ -1,5 +1,5 @@
-import Gate from "./Gate";
-import Event from "./Event";
+import { Gate } from "./Gate";
+import { Event } from "./Event";
 
 describe("Gate", () => {
   let gate: Gate;
@@ -13,19 +13,19 @@ describe("Gate", () => {
   test("constructor", () => {
     expect(gate.name).toBe("G1");
     expect(gate.operator).toBe("AND");
-    expect(gate.k_num).toBeNull();
-    expect(gate.num_arguments()).toBe(0);
+    expect(gate.kNum).toBeNull();
+    expect(gate.numArguments()).toBe(0);
   });
 
   test("add_argument", () => {
-    gate.add_argument(event);
-    expect(gate.num_arguments()).toBe(1);
+    gate.addArgument(event);
+    expect(gate.numArguments()).toBe(1);
     expect(event.parents.has(gate)).toBeTruthy();
   });
 
   test("get_ancestors", () => {
     const gate2 = new Gate("G2", "OR");
-    gate2.add_argument(gate);
-    expect(gate.get_ancestors().has(gate2)).toBeTruthy();
+    gate2.addArgument(gate);
+    expect(gate.getAncestors().has(gate2)).toBeTruthy();
   });
 });

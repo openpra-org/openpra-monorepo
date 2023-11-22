@@ -87,12 +87,12 @@ export default function NewParameter(props: NewParameterProps) {
           fullWidth={true}
           placeholder="Title"
           value={itemInfo.name}
-          onChange={(e) =>
+          onChange={(e) => {
             setItemInfo({
               ...itemInfo,
               name: e.target.value,
-            })
-          }
+            });
+          }}
         />
       </EuiFormRow>
       {/** this form row is for the description */}
@@ -101,12 +101,12 @@ export default function NewParameter(props: NewParameterProps) {
           fullWidth={true}
           placeholder="Value"
           value={itemInfo.value}
-          onChange={(e) =>
+          onChange={(e) => {
             setItemInfo({
               ...itemInfo,
               value: parseInt(e.target.value),
-            })
-          }
+            });
+          }}
         />
       </EuiFormRow>
       {/** toggles if users exists and is passed, and it shows the selectable menu of users */}

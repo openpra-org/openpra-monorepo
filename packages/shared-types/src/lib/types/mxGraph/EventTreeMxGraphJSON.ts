@@ -1,15 +1,15 @@
-import { HCLTreeMxGraphJSON } from "./HCLTreeMxGraphJSON";
-import { HCLTreeVertexJSON } from "./HCLTreeVertexJSON";
 import ReferenceTypes from "../ReferenceTypes";
 import { ProxyTypes } from "../ProxyTypes";
-import { InitVertexJSON } from "./InitVertex";
 import { PathJSON } from "../Path";
+import { HCLTreeMxGraphJSON } from "./HCLTreeMxGraphJSON";
+import { HCLTreeVertexJSON } from "./HCLTreeVertexJSON";
+import { InitVertexJSON } from "./InitVertex";
 
 export default interface EventTreeMxGraphJSON extends HCLTreeMxGraphJSON {
-  [ReferenceTypes.BRANCHES]: {[index: string]: { outcome: BranchJSON }};
-  [ReferenceTypes.FUNCTIONAL_EVENTS]: {[index: string]: HCLTreeVertexJSON };
+  [ReferenceTypes.BRANCHES]: Record<string, { outcome: BranchJSON }>;
+  [ReferenceTypes.FUNCTIONAL_EVENTS]: Record<string, HCLTreeVertexJSON>;
   [ReferenceTypes.INITIAL_STATE]: InitVertexJSON;
-  [ReferenceTypes.SEQUENCES]: {[index: string]: HCLTreeVertexJSON };
+  [ReferenceTypes.SEQUENCES]: Record<string, HCLTreeVertexJSON>;
 }
 
 interface BranchJSON {

@@ -1,4 +1,6 @@
-import AbstractDistribution, {DistributionSummary} from "./AbstractDistribution";
+import AbstractDistribution, {
+  DistributionSummary,
+} from "./AbstractDistribution";
 
 class NonParametric extends AbstractDistribution {
   private timeToFailure: number[];
@@ -59,7 +61,6 @@ class NonParametric extends AbstractDistribution {
       return 0;
     };
   }
-
 }
 
 export default NonParametric;

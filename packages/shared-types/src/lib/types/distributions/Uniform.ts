@@ -1,11 +1,12 @@
-import AbstractDistribution, { DistributionSummary } from './AbstractDistribution';
-const linspace = require('linspace');
+import AbstractDistribution, {
+  DistributionSummary,
+} from "./AbstractDistribution";
+const linspace = require("linspace");
 
 /**
  * Referenced from {@link http://mathworld.wolfram.com/UniformDistribution.html}
  */
 class Uniform extends AbstractDistribution {
-
   private max: number;
   private min: number;
 
@@ -66,16 +67,16 @@ class Uniform extends AbstractDistribution {
   }
 
   quantile(): (x: number) => number {
-    throw new Error('Not supported for uniform distribution')
+    throw new Error("Not supported for uniform distribution");
   }
 
-  getSummary(n: number = 100): DistributionSummary {
+  getSummary(n = 100): DistributionSummary {
     const x = linspace(this.min, this.max, n);
 
     return {
       x: x,
       pdf: this.getPDFs(x),
-      cdf: this.getCDFs(x)
+      cdf: this.getCDFs(x),
     };
   }
 }

@@ -12,7 +12,7 @@ import {
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
 
-type TreeItem = {
+interface TreeItem {
   id: string;
   key: string;
   isExpanded?: boolean;
@@ -20,7 +20,7 @@ type TreeItem = {
   children?: TreeItem[];
   icon?: JSX.Element;
   callback?: () => {};
-};
+}
 export default function DataSidenav() {
   const { euiTheme } = useEuiTheme();
 
@@ -158,8 +158,8 @@ export default function DataSidenav() {
     if (forceTreeView) {
       const style = {
         background: backgroundColor,
-        borderWidth: euiTheme.border.width["thin"],
-        borderRadius: euiTheme.border.radius["medium"],
+        borderWidth: euiTheme.border.width.thin,
+        borderRadius: euiTheme.border.radius.medium,
         borderColor: euiTheme.border.color,
         padding: padding,
       };

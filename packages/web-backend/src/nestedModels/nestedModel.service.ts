@@ -5,6 +5,7 @@ import {
   NestedCounter,
   NestedCounterDocument,
 } from "../schemas/tree-counter.schema";
+import { Label } from "../schemas/label.schema";
 import { NestedModel } from "./schemas/templateSchema/nested-model.schema";
 import {
   BayesianEstimation,
@@ -36,7 +37,6 @@ import {
   BayesianNetwork,
   BayesianNetworkDocument,
 } from "./schemas/bayesian-network.schema";
-import { Label } from "../schemas/label.schema";
 import {
   RiskIntegration,
   RiskIntegrationDocument,
@@ -83,45 +83,45 @@ export class NestedModelService {
   //creating out object links to the database
   constructor(
     @InjectModel(BayesianEstimation.name)
-    private bayesianEstimationModel: Model<BayesianEstimationDocument>,
+    private readonly bayesianEstimationModel: Model<BayesianEstimationDocument>,
     @InjectModel(EventSequenceDiagram.name)
-    private eventSequenceDiagramModel: Model<EventSequenceDiagramDocument>,
+    private readonly eventSequenceDiagramModel: Model<EventSequenceDiagramDocument>,
     @InjectModel(BayesianNetwork.name)
-    private bayesianNetworkModel: Model<BayesianNetworkDocument>,
+    private readonly bayesianNetworkModel: Model<BayesianNetworkDocument>,
     @InjectModel(EventTree.name)
-    private eventTreeModel: Model<EventTreeDocument>,
+    private readonly eventTreeModel: Model<EventTreeDocument>,
     @InjectModel(FaultTree.name)
-    private faultTreeModel: Model<FaultTreeDocument>,
+    private readonly faultTreeModel: Model<FaultTreeDocument>,
     @InjectModel(FunctionalEvent.name)
-    private functionalEventsModel: Model<FunctionalEventDocument>,
+    private readonly functionalEventsModel: Model<FunctionalEventDocument>,
     @InjectModel(InitiatingEvent.name)
-    private initiatingEventModel: Model<InitiatingEventDocument>,
+    private readonly initiatingEventModel: Model<InitiatingEventDocument>,
     @InjectModel(MarkovChain.name)
-    private markovChainModel: Model<MarkovChainDocument>,
+    private readonly markovChainModel: Model<MarkovChainDocument>,
     @InjectModel(WeibullAnalysis.name)
-    private weibullAnalysisModel: Model<WeibullAnalysisDocument>,
+    private readonly weibullAnalysisModel: Model<WeibullAnalysisDocument>,
     @InjectModel(NestedCounter.name)
-    private nestedCounterModel: Model<NestedCounterDocument>,
+    private readonly nestedCounterModel: Model<NestedCounterDocument>,
     @InjectModel(RiskIntegration.name)
-    private riskIntegrationModel: Model<RiskIntegrationDocument>,
+    private readonly riskIntegrationModel: Model<RiskIntegrationDocument>,
     @InjectModel(RadiologicalConsequenceAnalysis.name)
-    private radiologicalConsequenceAnalysisModel: Model<RadiologicalConsequenceAnalysisDocument>,
+    private readonly radiologicalConsequenceAnalysisModel: Model<RadiologicalConsequenceAnalysisDocument>,
     @InjectModel(MechanisticSourceTerm.name)
-    private mechanisticSourceTermModel: Model<MechanisticSourceTermDocument>,
+    private readonly mechanisticSourceTermModel: Model<MechanisticSourceTermDocument>,
     @InjectModel(EventSequenceQuantificationDiagram.name)
-    private eventSequenceQuantificationDiagramModel: Model<EventSequenceQuantificationDiagramDocument>,
+    private readonly eventSequenceQuantificationDiagramModel: Model<EventSequenceQuantificationDiagramDocument>,
     @InjectModel(DataAnalysis.name)
-    private dataAnalysisModel: Model<DataAnalysisDocument>,
+    private readonly dataAnalysisModel: Model<DataAnalysisDocument>,
     @InjectModel(HumanReliabilityAnalysis.name)
-    private humanReliabilityAnalysisModel: Model<HumanReliabilityAnalysisDocument>,
+    private readonly humanReliabilityAnalysisModel: Model<HumanReliabilityAnalysisDocument>,
     @InjectModel(SystemsAnalysis.name)
-    private systemsAnalysisModel: Model<SystemsAnalysisDocument>,
+    private readonly systemsAnalysisModel: Model<SystemsAnalysisDocument>,
     @InjectModel(SuccessCriteria.name)
-    private successCriteriaModel: Model<SuccessCriteriaDocument>,
+    private readonly successCriteriaModel: Model<SuccessCriteriaDocument>,
     @InjectModel(EventSequenceAnalysis.name)
-    private eventSequenceAnalysisModel: Model<EventSequenceAnalysisDocument>,
+    private readonly eventSequenceAnalysisModel: Model<EventSequenceAnalysisDocument>,
     @InjectModel(OperatingStateAnalysis.name)
-    private operatingStateAnalysisModel: Model<OperatingStateAnalysisDocument>,
+    private readonly operatingStateAnalysisModel: Model<OperatingStateAnalysisDocument>,
   ) {}
 
   /**

@@ -84,7 +84,9 @@ export default function SettingsOverview() {
                       options={options}
                       value={overviewValue}
                       data-testid="selectDiagram"
-                      onChange={(e) => onChange(e)}
+                      onChange={(e) => {
+                        onChange(e);
+                      }}
                       aria-label="Use aria labels when no actual label is in use"
                     />
                   </EuiFormRow>

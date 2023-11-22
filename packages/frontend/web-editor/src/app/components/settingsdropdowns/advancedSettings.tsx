@@ -89,7 +89,9 @@ export default function AdvancedSettings() {
                   id={basicSelectId}
                   options={options}
                   value={overviewValue}
-                  onChange={(e) => onChange(e)}
+                  onChange={(e) => {
+                    onChange(e);
+                  }}
                   aria-label="Use aria labels when no actual label is in use"
                   fullWidth={true}
                   data-testid="grouping"

@@ -22,7 +22,7 @@ import ApiManager from "shared-types/src/lib/api/ApiManager";
 
 import { toTitleCase } from "../../../utils/StringUtils";
 
-export type ItemFormProps = {
+export interface ItemFormProps {
   itemName: string;
   // TODO:: TODO :: replace endpoint string with TypedApiManager method
   postEndpoint?: (data: Partial<TypedModelJSON>) => {};
@@ -38,7 +38,7 @@ export type ItemFormProps = {
   initialFormValues?: TypedModelJSON;
   compressed?: boolean;
   noHeader?: boolean;
-};
+}
 
 export default function TypedModelActionForm({
   itemName,
@@ -52,7 +52,7 @@ export default function TypedModelActionForm({
   onSuccess,
   onFail,
 }: ItemFormProps) {
-  const userId = ApiManager.getCurrentUser()?.user_id ?? -1;
+  const userId = ApiManager.getCurrentUser().user_id ?? -1;
 
   //setting up initial values depending on what has been send, if init form values are passed its assumed to be updating instead of adding
   const formInitials = initialFormValues
@@ -149,8 +149,8 @@ export default function TypedModelActionForm({
     } else {
       alert("Please enter a valid name");
     }
-    onSuccess && onSuccess();
-    onFail && onFail();
+    onSuccess?.();
+    onFail?.();
     window.location.reload();
   };
 
@@ -185,15 +185,15 @@ export default function TypedModelActionForm({
                 compressed
                 placeholder={initialFormValues?.label.name}
                 value={typedModel.label.name}
-                onChange={(e) =>
+                onChange={(e) => {
                   setTypedModel({
                     ...typedModel,
                     label: {
                       ...typedModel.label,
                       name: e.target.value,
                     },
-                  })
-                }
+                  });
+                }}
               />
             </EuiFormRow>
           </EuiFlexItem>
@@ -210,15 +210,15 @@ export default function TypedModelActionForm({
             compressed
             placeholder={initialFormValues?.label.description}
             value={typedModel.label.description}
-            onChange={(e) =>
+            onChange={(e) => {
               setTypedModel({
                 ...typedModel,
                 label: {
                   ...typedModel.label,
                   description: e.target.value,
                 },
-              })
-            }
+              });
+            }}
           />
         </EuiFormRow>
         <EuiSpacer size="m" />
@@ -235,7 +235,9 @@ export default function TypedModelActionForm({
                   fullWidth
                   options={usersList}
                   selectedOptions={selectedUsersList}
-                  onChange={(newOptions) => setSelectedUsersList(newOptions)}
+                  onChange={(newOptions) => {
+                    setSelectedUsersList(newOptions);
+                  }}
                 />
               </EuiFormRow>
             </EuiFlexGroup>

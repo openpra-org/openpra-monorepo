@@ -3,31 +3,30 @@ import { BasicModel } from "../basicModel";
 
 //interface that will maybe be used to pass partials to the database
 export interface NestedModelJSON {
-  label:{
+  label: {
     name: string;
     description: string;
-  }
-  parentIds: number[]
+  };
+  parentIds: number[];
 }
 
 //maps the json
-export type TypedModelJSONMap = { [key: string]: NestedModelJSON };
+export type TypedModelJSONMap = Record<string, NestedModelJSON>;
 
 //creates the default JSON object
 export const DEFAULT_NESTED_MODEL_JSON: NestedModelJSON = {
-  label:{
-    name: '',
-    description: ''
+  label: {
+    name: "",
+    description: "",
   },
-  parentIds: []
+  parentIds: [],
 };
 
 // exports a class called nested model, this extends basic model and has additional functionality to track the model which this is assigned to,
 // works similarly to how the other models work, but instead of a user its a model its attached to and will be loaded from
 export default class NestedModel extends BasicModel /** implements Parsable<TypedModelJSONMap, TypedModelJSON> */ {
-  
   //id number of the parent model
-  private parentIds: number[];
+  private readonly parentIds: number[];
 
   /**
    * @param {TypedModelJSON} obj - dictionary object to parse
@@ -42,16 +41,16 @@ export default class NestedModel extends BasicModel /** implements Parsable<Type
    * @param {number} id the id of the current model
    * @param {number} parentId the id of the parent model this is attached to
    */
-  constructor(name = '', description = '', id = -1, parentIds = []) {
+  constructor(name = "", description = "", id = -1, parentIds = []) {
     super(new Label(name, description), id);
-    this.parentIds = parentIds
+    this.parentIds = parentIds;
   }
 
   getParent(): number[] {
-    return this.parentIds
+    return this.parentIds;
   }
 
   addParent(parentId: number) {
-    this.parentIds.push(parentId)
+    this.parentIds.push(parentId);
   }
 }

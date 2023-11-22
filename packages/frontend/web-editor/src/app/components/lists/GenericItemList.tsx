@@ -6,9 +6,9 @@ import {
   EuiTablePagination,
 } from "@elastic/eui";
 
-type ItemListProps = {
+interface ItemListProps {
   children: JSX.Element[];
-};
+}
 
 //formerly modelItemList, now it is a template in which all item lists will use, I will probably need to pass it another
 //parameter to get the type of object grabbed

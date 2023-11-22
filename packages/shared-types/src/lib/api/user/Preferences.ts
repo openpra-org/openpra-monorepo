@@ -1,4 +1,4 @@
-import QuantificationConfigurations from './QuantificationConfigurations';
+import QuantificationConfigurations from "./QuantificationConfigurations";
 
 export default class Preferences {
   theme?: string;

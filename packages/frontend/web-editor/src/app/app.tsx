@@ -3,6 +3,7 @@ import {
   RouteObject,
   RouterProvider,
 } from "react-router-dom";
+import { ReactElement } from "react";
 import ThemeProvider from "./theme/ThemeProvider";
 import ErrorPage from "./pages/errorPage";
 import InternalEventsPage from "./pages/routingPages/internalEventsPage";
@@ -70,7 +71,7 @@ const router = createBrowserRouter(routes, {
   },
 });
 
-export function App() {
+export function App(): ReactElement {
   return (
     <ThemeProvider>
       <RouterProvider router={router} />

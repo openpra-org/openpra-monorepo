@@ -1,6 +1,14 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
+import InternalEventsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
+import InternalHazardsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
+import FullScopeModel from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
+import ExternalHazardsModel from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
+import {
+  ModelCounter,
+  ModelCounterDocument,
+} from "../schemas/model-counter.schema";
 import {
   InternalEvents,
   InternalEventsDocument,
@@ -18,29 +26,20 @@ import {
   TypedModel,
   TypedModelJSON,
 } from "./schemas/templateSchema/typed-model.schema";
-import {
-  ModelCounter,
-  ModelCounterDocument,
-} from "../schemas/model-counter.schema";
-
-import InternalEventsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
-import InternalHazardsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
-import FullScopeModel from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
-import ExternalHazardsModel from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
 
 @Injectable()
 export class TypedModelService {
   constructor(
     @InjectModel(ModelCounter.name)
-    private modelCounterModel: Model<ModelCounterDocument>,
+    private readonly modelCounterModel: Model<ModelCounterDocument>,
     @InjectModel(InternalEvents.name)
-    private internalEventsModel: Model<InternalEventsDocument>,
+    private readonly internalEventsModel: Model<InternalEventsDocument>,
     @InjectModel(InternalHazards.name)
-    private internalHazardsModel: Model<InternalHazardsDocument>,
+    private readonly internalHazardsModel: Model<InternalHazardsDocument>,
     @InjectModel(ExternalHazards.name)
-    private externalHazardsModel: Model<ExternalHazardsDocument>,
+    private readonly externalHazardsModel: Model<ExternalHazardsDocument>,
     @InjectModel(FullScope.name)
-    private fullScopeModel: Model<FullScopeDocument>,
+    private readonly fullScopeModel: Model<FullScopeDocument>,
   ) {}
 
   /**

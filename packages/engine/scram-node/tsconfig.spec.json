@@ -4,6 +4,7 @@
     "module": "commonjs",
     "types": ["tape", "node"]
   },
+  "exclude": ["*.js"],
   "include": [
     "src/**/*.test.ts",
     "src/**/*.spec.ts",

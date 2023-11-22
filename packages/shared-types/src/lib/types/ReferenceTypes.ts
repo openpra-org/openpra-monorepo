@@ -14,7 +14,7 @@ enum ReferenceTypes {
   INITIAL_STATE = "initial_state",
   SEQUENCES = "sequences",
   BAYESIAN_NODES = "bayesian_nodes",
-  STATES = "states"
+  STATES = "states",
 }
 
 export default ReferenceTypes;

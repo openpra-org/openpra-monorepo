@@ -18,13 +18,13 @@ export enum ProxyTypes {
   NON_PARAMETRIC_DISTRIBUTION = "NonParametricDistribution",
   FORK = "Fork",
   END_STATE = "EndState",
-  SEQUENCE_NOT_DEVELOPED_FURTHER="SequenceNotDevelopedFurther",//does not actually exist
-  ESD_TRANSFER="ESDTransfer",//does not actually exist
-  DESCRIPTION="Description",//not exist
-  INTERMEDIATE_PLANT_STATE="IntermediatePlantState",//not exist
+  SEQUENCE_NOT_DEVELOPED_FURTHER = "SequenceNotDevelopedFurther", //does not actually exist
+  ESD_TRANSFER = "ESDTransfer", //does not actually exist
+  DESCRIPTION = "Description", //not exist
+  INTERMEDIATE_PLANT_STATE = "IntermediatePlantState", //not exist
   BBN_LINK_EXPRESSION = "BBNLinkExpression",
   PARTS_FIT_EXPRESSION = "PartsFITExpression",
-  DISTRIBUTION = "Distribution" // This field does not actually exist. Front end development purpose only.
+  DISTRIBUTION = "Distribution", // This field does not actually exist. Front end development purpose only.
 }
 
 export const ProxyTypeDisplayNames = {
@@ -48,5 +48,5 @@ export const ProxyTypeDisplayNames = {
   [ProxyTypes.INTERMEDIATE_PLANT_STATE]: "IntermediatePlantState",
   [ProxyTypes.DISTRIBUTION]: "Distribution",
   [ProxyTypes.BBN_LINK_EXPRESSION]: "Bayesian Network Link",
-  [ProxyTypes.PARTS_FIT_EXPRESSION]: "Parts FIT"
+  [ProxyTypes.PARTS_FIT_EXPRESSION]: "Parts FIT",
 };

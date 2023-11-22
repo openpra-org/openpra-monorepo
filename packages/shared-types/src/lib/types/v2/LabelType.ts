@@ -21,7 +21,7 @@ export type DescriptionType = string;
  * @brief Type definition for LabelType.
  * @details It is an object type with optional name and description properties. Both properties are string types.
  */
-export type LabelType = {
+export interface LabelType {
   name?: NameType;
   description?: DescriptionType;
-};
+}

@@ -153,12 +153,12 @@ export default function SignupForm() {
             placeholder="First name"
             isInvalid={error.firstName}
             value={signup.firstName}
-            onChange={(e) =>
+            onChange={(e) => {
               setSignup({
                 ...signup,
                 firstName: e.target.value,
-              })
-            }
+              });
+            }}
           />
         </EuiFormRow>
         <EuiFormRow>
@@ -166,12 +166,12 @@ export default function SignupForm() {
             placeholder="Last name"
             isInvalid={error.lastName}
             value={signup.lastName}
-            onChange={(e) =>
+            onChange={(e) => {
               setSignup({
                 ...signup,
                 lastName: e.target.value,
-              })
-            }
+              });
+            }}
           />
         </EuiFormRow>
         <EuiFormRow isInvalid={error.email} error="Invalid Email">
@@ -179,12 +179,12 @@ export default function SignupForm() {
             placeholder="Email"
             isInvalid={error.email}
             value={signup.email}
-            onChange={(e) =>
+            onChange={(e) => {
               setSignup({
                 ...signup,
                 email: e.target.value,
-              })
-            }
+              });
+            }}
           />
         </EuiFormRow>
         <EuiFormRow isInvalid={error.username} error="Invalid Username">
@@ -192,12 +192,12 @@ export default function SignupForm() {
             placeholder="Username"
             isInvalid={error.username}
             value={signup.username}
-            onChange={(e) =>
+            onChange={(e) => {
               setSignup({
                 ...signup,
                 username: e.target.value,
-              })
-            }
+              });
+            }}
           />
         </EuiFormRow>
         <EuiFormRow>
@@ -206,12 +206,12 @@ export default function SignupForm() {
             placeholder="Password"
             isInvalid={error.password}
             value={signup.password}
-            onChange={(e) =>
+            onChange={(e) => {
               setSignup({
                 ...signup,
                 password: e.target.value,
-              })
-            }
+              });
+            }}
           />
         </EuiFormRow>
         <EuiFormRow
@@ -223,12 +223,12 @@ export default function SignupForm() {
             placeholder="Confirm Password"
             isInvalid={error.passConfirm}
             value={signup.passConfirm}
-            onChange={(e) =>
+            onChange={(e) => {
               setSignup({
                 ...signup,
                 passConfirm: e.target.value,
-              })
-            }
+              });
+            }}
           />
         </EuiFormRow>
         <EuiFormRow>

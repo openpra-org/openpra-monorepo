@@ -3,33 +3,37 @@ import { BasicModel } from "../basicModel";
 
 export interface TypedModelJSON {
   id: number;
-  label:{
+  label: {
     name: string;
     description: string;
-  }
+  };
   users: number[];
 }
 
-export type TypedModelJSONMap = { [key: string]: TypedModelJSON };
+export type TypedModelJSONMap = Record<string, TypedModelJSON>;
 
 export const DEFAULT_TYPED_MODEL_JSON: TypedModelJSON = {
   id: -1,
-  label:{
-    name: '',
-    description: ''
+  label: {
+    name: "",
+    description: "",
   },
-  users: []
+  users: [],
 };
 
 export default class TypedModel extends BasicModel /** implements Parsable<TypedModelJSONMap, TypedModelJSON> */ {
-
   private users: number[];
 
   /**
    * @param {TypedModelJSON} obj - dictionary object to parse
    */
   static build(obj: TypedModelJSON): TypedModel {
-    return new TypedModel(obj.id, obj.label.name, obj.label.description, obj.users);
+    return new TypedModel(
+      obj.id,
+      obj.label.name,
+      obj.label.description,
+      obj.users,
+    );
   }
 
   /**
@@ -37,7 +41,7 @@ export default class TypedModel extends BasicModel /** implements Parsable<Typed
    * @param {string} description
    * @param {number []} users a list of users represented by their id numbers
    */
-  constructor(id = -1, name = '', description = '', users: number[] = []) {
+  constructor(id = -1, name = "", description = "", users: number[] = []) {
     super(new Label(name, description), id);
     this.users = users;
   }

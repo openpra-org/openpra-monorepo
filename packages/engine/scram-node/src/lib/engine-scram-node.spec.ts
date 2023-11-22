@@ -1,7 +1,7 @@
-import { engineScramNode } from "engine/scram-node";
+import tape from "tape";
+import { engineScramNode } from "./engine-scram-node";
 
-describe("engineScramNode", () => {
-  it("should work", () => {
-    expect(engineScramNode()).toEqual("engine-scram-node");
-  });
+tape("engineScramNode", (t: tape.Test) => {
+  t.equal(engineScramNode(), "engine-scram-node", "test ran");
+  t.end();
 });

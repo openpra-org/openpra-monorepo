@@ -8,6 +8,7 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
+import { Label } from "../schemas/label.schema";
 import { NestedModel } from "./schemas/templateSchema/nested-model.schema";
 import { NestedModelService } from "./nestedModel.service";
 import { BayesianEstimation } from "./schemas/bayesian-estimation.schema";
@@ -19,7 +20,6 @@ import { FunctionalEvent } from "./schemas/functional-event.schema";
 import { InitiatingEvent } from "./schemas/initiating-event.schema";
 import { MarkovChain } from "./schemas/markov-chain.schema";
 import { WeibullAnalysis } from "./schemas/weibull-analysis.schema";
-import { Label } from "../schemas/label.schema";
 import { OperatingStateAnalysis } from "./schemas/operatingStateAnalysis.schema";
 import { EventSequenceAnalysis } from "./schemas/event-sequence-analysis.schema";
 import { SystemsAnalysis } from "./schemas/systems-analysis.schema";
@@ -33,7 +33,7 @@ import { RiskIntegration } from "./schemas/risk-integration.schema";
 
 @Controller()
 export class NestedModelController {
-  constructor(private nestedModelService: NestedModelService) {}
+  constructor(private readonly nestedModelService: NestedModelService) {}
 
   //method to get counter value
 

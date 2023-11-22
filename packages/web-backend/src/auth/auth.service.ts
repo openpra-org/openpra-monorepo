@@ -7,8 +7,8 @@ import { User } from "../collab/schemas/user.schema";
 @Injectable()
 export class AuthService {
   constructor(
-    private collabService: CollabService,
-    private jwtService: JwtService,
+    private readonly collabService: CollabService,
+    private readonly jwtService: JwtService,
   ) {}
 
   /**
@@ -58,7 +58,7 @@ export class AuthService {
       // Verify the refresh token
       const decodedToken = this.jwtService.verify(refreshToken);
       // Check if the token is valid and not expired
-      if (decodedToken && decodedToken.user_id) {
+      if (decodedToken?.user_id) {
         // Create a new access token with a new expiration time (e.g., 15 minutes)
         const payload = {
           user_id: decodedToken.user_id,

@@ -38,9 +38,9 @@ class Constant {
    * @returns {ConstantJSON} - dictionary object that describes this
    */
   toJSON(): ConstantJSON {
-    return ({
+    return {
       value: JSON.parse(String(this.value)),
-    });
+    };
   }
 
   clone(): Constant {

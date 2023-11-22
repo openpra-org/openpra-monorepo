@@ -1,4 +1,4 @@
-import {Parsable} from "./Parsable";
+import { Parsable } from "./Parsable";
 import { Defaults } from "./ObjectTypes";
 
 export interface LabelJSON {
@@ -6,11 +6,11 @@ export interface LabelJSON {
   description: string;
 }
 
-export type LabelJSONMap = {[key: string]: LabelJSON};
+export type LabelJSONMap = Record<string, LabelJSON>;
 
 export const DEFAULT_LABEL_JSON: LabelJSON = {
-  name: '',
-  description: '',
+  name: "",
+  description: "",
 };
 
 export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
@@ -29,9 +29,9 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
    * @param {string} name
    * @param {string} description
    */
-  constructor(name = '', description = '') {
-    this.name = name || '';
-    this.description = description || '';
+  constructor(name = "", description = "") {
+    this.name = name || "";
+    this.description = description || "";
   }
 
   /**
@@ -41,7 +41,6 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
     return this.name;
   }
 
-
   /**
    * @param {string} name
    */
@@ -49,14 +48,12 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
     this.name = name;
   }
 
-
   /**
    * @return {string}
    */
   getDescription(): string {
     return this.description;
   }
-
 
   /**
    * @param {string} description
@@ -69,10 +66,10 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
    * @return {LabelJSON} - dictionary object that represents this
    */
   toJSON(): LabelJSON {
-    return ({
+    return {
       name: this.name,
       description: this.description,
-    });
+    };
   }
 
   getDefaultJSON(): LabelJSON {
@@ -85,15 +82,15 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
 
   getDefaultMappedJSON(): Defaults<LabelJSONMap> {
     return {
-      "label": DEFAULT_LABEL_JSON,
-    }
+      label: DEFAULT_LABEL_JSON,
+    };
   }
 
   toPartialMappedJSON(): Partial<LabelJSONMap> {
     return {
-      "label": {
+      label: {
         ...this.toJSON(),
-      }
-    }
+      },
+    };
   }
 }

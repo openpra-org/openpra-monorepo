@@ -9,7 +9,7 @@ import {
 import { EuiPopoverProps } from "@elastic/eui/src/components/popover/popover";
 
 //props for button with popover
-type ButtonWithPopoverPropsPartials = {
+interface ButtonWithPopoverPropsPartials {
   popoverProps?: Partial<
     Omit<
       EuiPopoverProps,
@@ -21,7 +21,7 @@ type ButtonWithPopoverPropsPartials = {
   isIcon?: boolean;
   iconType?: string;
   onRequestClose?: boolean;
-};
+}
 
 export type ButtonWithPopoverProps = EuiButtonPropsForButton &
   ButtonWithPopoverPropsPartials;
@@ -46,11 +46,10 @@ export default function ButtonWithPopover({
   ...rest
 }: ButtonWithPopoverProps) {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const togglePopover = () =>
+  const togglePopover = () => {
     setIsPopoverOpen((isPopoverOpen) => !isPopoverOpen);
-  const onButtonClick = (
-    event: React.MouseEvent<HTMLButtonElement, MouseEvent>,
-  ) => {
+  };
+  const onButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
     togglePopover();
     if (onClick) {
@@ -80,13 +79,19 @@ export default function ButtonWithPopover({
 
   let modal: JSX.Element | null = null;
   const [isModalVisible, setIsModalVisible] = useState(false);
-  let showModal = () => setIsPopoverOpen(false);
+  let showModal = () => {
+    setIsPopoverOpen(false);
+  };
 
   //TODO: Make this look better, it seems to confirm modal in EUI can't make the cofirm and discard buttons look good
   if (confirmDiscard) {
     /** Discard Confirmation Modal **/
-    const closeModal = () => setIsModalVisible(false);
-    showModal = () => setIsModalVisible(true);
+    const closeModal = () => {
+      setIsModalVisible(false);
+    };
+    showModal = () => {
+      setIsModalVisible(true);
+    };
     modal = isModalVisible ? (
       <EuiConfirmModal
         title="Discard changes?"
@@ -117,7 +122,9 @@ export default function ButtonWithPopover({
         {...popoverProps}
         button={button}
         isOpen={popoverStatus}
-        closePopover={() => setIsPopoverOpen(false)}
+        closePopover={() => {
+          setIsPopoverOpen(false);
+        }}
         focusTrapProps={{
           clickOutsideDisables: false,
           onClickOutside: showModal,

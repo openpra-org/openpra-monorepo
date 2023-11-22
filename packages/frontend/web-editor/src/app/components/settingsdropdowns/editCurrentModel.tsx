@@ -11,10 +11,10 @@ import {
   EuiIcon,
   EuiSkeletonRectangle,
 } from "@elastic/eui";
-import SettingsAccordian from "./SettingsAccordian";
 import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
 import TypedModel from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import TypedModelActionForm from "../forms/typedModelActionForm";
+import SettingsAccordian from "./SettingsAccordian";
 
 const TYPED_MODEL_TYPE_LOCATION = 1;
 

@@ -11,7 +11,7 @@
  * Error class and is used to throw and catch errors that occur when setting and calculating factors in the Factors
  * class.
  */
-export default class FactorError extends Error {
+export class FactorError extends Error {
   /**
    * @remarks Creates a new FactorError object. This constructor creates a new FactorError object with a specified error
    * message.

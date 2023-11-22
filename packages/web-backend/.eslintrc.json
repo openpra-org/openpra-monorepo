@@ -1,18 +1,22 @@
 {
-  "extends": ["../../.eslintrc.json"],
-  "ignorePatterns": ["!**/*"],
+  // https://github.com/darraghoriordan/eslint-plugin-nestjs-typed
+  "extends": ["../../.eslintrc.json", "plugin:@darraghor/nestjs-typed/recommended", "plugin:@darraghor/nestjs-typed/no-swagger"],
+  "plugins": ["@darraghor/nestjs-typed"],
+  "parserOptions": {
+    "project": ["packages/web-backend/tsconfig.*?.json"]
+  },
   "overrides": [
     {
-      "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
-      "rules": {}
-    },
-    {
-      "files": ["*.ts", "*.tsx"],
-      "rules": {}
-    },
-    {
-      "files": ["*.js", "*.jsx"],
-      "rules": {}
+      "files": ["**/*.ts"],
+      "rules": {
+        "@darraghor/nestjs-typed/injectable-should-be-provided": [
+          "off",
+          {
+            "src": ["packages/web-backend/src/**/*.ts"],
+            "filterFromPaths": ["node_modules", ".*\\.test\\.ts", ".*\\.e2e-spec\\.ts", ".*\\?spec\\.ts"]
+          }
+        ]
+      }
     }
   ]
 }

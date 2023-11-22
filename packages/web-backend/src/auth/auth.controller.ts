@@ -13,7 +13,7 @@ import { AuthService } from "./auth.service";
 @UseGuards(AuthGuard("local"))
 @UseFilters(LoginErrorFilter)
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
   /**
    * @param req Express request object @see {@link https://expressjs.com/en/api.html#req}

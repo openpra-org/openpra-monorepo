@@ -13,7 +13,7 @@ enum GateTypes {
   NOR = "nor",
   NOT = "not",
   OR = "or",
-  XOR = "xor"
+  XOR = "xor",
 }
 
 export const GateTypeDescriptions = {
@@ -26,7 +26,7 @@ export const GateTypeDescriptions = {
   [GateTypes.NOR]: "NOR Gate",
   [GateTypes.NOT]: "NOT Gate",
   [GateTypes.OR]: "OR Gate",
-  [GateTypes.XOR]: "XOR Gate"
+  [GateTypes.XOR]: "XOR Gate",
 };
 
 export default GateTypes;

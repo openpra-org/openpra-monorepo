@@ -1,3 +1,6 @@
 {
-  "extends": ["plugin:@nx/react", "../../../.eslintrc.json"]
+  "extends": ["plugin:@nx/react", "../../../.eslintrc.json"],
+  "parserOptions": {
+    "project": ["packages/frontend/web-editor/tsconfig.*?.json"]
+  }
 }

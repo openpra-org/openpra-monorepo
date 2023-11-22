@@ -1,5 +1,9 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
+import {
+  ModelCounter,
+  ModelCounterSchema,
+} from "../schemas/model-counter.schema";
 import { TypedModelController } from "./typedModel.controller";
 import { TypedModelService } from "./typedModel.service";
 import {
@@ -15,10 +19,6 @@ import {
   ExternalHazardsSchema,
 } from "./schemas/external-hazards.schema";
 import { FullScope, FullScopeSchema } from "./schemas/full-scope.schema";
-import {
-  ModelCounter,
-  ModelCounterSchema,
-} from "../schemas/model-counter.schema";
 
 @Module({
   imports: [

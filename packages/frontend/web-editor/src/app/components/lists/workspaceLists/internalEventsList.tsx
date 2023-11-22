@@ -1,10 +1,10 @@
-import GenericItemList from "../GenericItemList";
-import GenericListItem from "../GenericListItem";
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
 import InternalEventsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
 import { ReactElement, useEffect, useState } from "react";
+import GenericListItem from "../GenericListItem";
+import GenericItemList from "../GenericItemList";
 
 // TODO:: This while fetching code is broken, fix it.
 

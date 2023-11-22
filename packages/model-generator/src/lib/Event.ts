@@ -2,7 +2,7 @@
  * @public Representation of a base class for an event in a fault tree. This class provides methods to manage and query
  * the parents of an event.
  */
-export default class Event {
+export class Event {
   name: string;
   parents: Set<Event>;
 

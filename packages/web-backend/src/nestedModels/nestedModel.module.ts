@@ -1,11 +1,11 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
-import { NestedModelService } from "./nestedModel.service";
-import { NestedModelController } from "./nestedModel.controller";
 import {
   NestedCounter,
   NestedCounterSchema,
 } from "../schemas/tree-counter.schema";
+import { NestedModelService } from "./nestedModel.service";
+import { NestedModelController } from "./nestedModel.controller";
 import {
   BayesianEstimation,
   BayesianEstimationSchema,

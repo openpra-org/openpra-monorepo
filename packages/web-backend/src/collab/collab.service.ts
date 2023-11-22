@@ -17,8 +17,8 @@ export class CollabService {
   constructor(
     //private hclService: HclService,
     @InjectModel(UserCounter.name)
-    private userCounterModel: Model<UserCounterDocument>,
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
+    private readonly userCounterModel: Model<UserCounterDocument>,
+    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
   /**

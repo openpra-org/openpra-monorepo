@@ -10,8 +10,8 @@ import {
 import AuthCard from "../components/cards/authCard";
 export default function LoginPage() {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
-  const textCss = [useEuiPaddingCSS("horizontal")["m"]];
-  const containterCss = [useEuiPaddingCSS()["m"]];
+  const textCss = [useEuiPaddingCSS("horizontal").m];
+  const containterCss = [useEuiPaddingCSS().m];
   const smallSizes = ["xs", "s"];
   const smallScreen = useIsWithinBreakpoints(smallSizes);
   const flexGroupStyles = {

@@ -1,14 +1,15 @@
-import AbstractDistribution, {DistributionSummary} from "./AbstractDistribution";
+import AbstractDistribution, {
+  DistributionSummary,
+} from "./AbstractDistribution";
 
-const linspace = require('linspace');
-const erf = require('compute-erf');
-const erfinv = require('compute-erfinv');
+const linspace = require("linspace");
+const erf = require("compute-erf");
+const erfinv = require("compute-erfinv");
 
 /**
  * Referenced from {@link https://en.wikipedia.org/wiki/Log-normal_distribution}
  */
 class LogNormal extends AbstractDistribution {
-
   private mu: number;
   private sigma: number;
 
@@ -46,7 +47,10 @@ class LogNormal extends AbstractDistribution {
    * @throws Error if sigma is a negative number
    */
   setSigma(sigma: number) {
-    if (sigma <= 0) throw new Error( 'setSigma()::invalid input argument. sigma parameter must be greater than 0.' );
+    if (sigma <= 0)
+      throw new Error(
+        "setSigma()::invalid input argument. sigma parameter must be greater than 0.",
+      );
     this.sigma = sigma;
   }
 
@@ -55,13 +59,13 @@ class LogNormal extends AbstractDistribution {
    * @return {(x: number) => number}
    */
   pdf(): (x: number) => number {
-    const A = 1 / (Math.sqrt(2 * Math.PI) * this.sigma );
+    const A = 1 / (Math.sqrt(2 * Math.PI) * this.sigma);
     const B = -1 / (2 * this.sigma * this.sigma);
     return (x: number) => {
       if (x === 0) return 0;
       const C = Math.log(x) - this.mu;
-      return A / x * Math.exp(B * C * C);
-    }
+      return (A / x) * Math.exp(B * C * C);
+    };
   }
 
   /**
@@ -74,7 +78,7 @@ class LogNormal extends AbstractDistribution {
     return (x: number) => {
       const C = Math.log(x) - this.mu;
       return A + A * erf(C / B);
-    }
+    };
   }
 
   /**
@@ -95,16 +99,14 @@ class LogNormal extends AbstractDistribution {
    * @param {number} n
    * @return DistributionSummary
    */
-  getSummary(n: number = 100): DistributionSummary {
+  getSummary(n = 100): DistributionSummary {
     const x = linspace(0, 1, n);
     return {
       x: x,
       pdf: this.getPDFs(x),
-      cdf: this.getCDFs(x)
+      cdf: this.getCDFs(x),
     };
-
   }
-
 }
 
 export default LogNormal;

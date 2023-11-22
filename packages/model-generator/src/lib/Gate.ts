@@ -1,4 +1,4 @@
-import Event from "./Event";
+import { Event } from "./Event";
 
 /**
  * @public Represents a logical gate within a system model.
@@ -6,13 +6,13 @@ import Event from "./Event";
  * @remarks A gate can have multiple arguments which can be other gates or events. It is characterized by a boolean
  * operator and can be part of a larger logical structure.
  */
-export default class Gate extends Event {
+export class Gate extends Event {
   operator: string;
-  k_num: number | null;
-  g_arguments: Set<Gate>;
-  b_arguments: Set<Event>; // Assuming BasicEvent extends Event
-  h_arguments: Set<Event>; // Assuming HouseEvent extends Event
-  u_arguments: Set<Event>;
+  kNum: number | null;
+  gArguments: Set<Gate>;
+  bArguments: Set<Event>; // Assuming BasicEvent extends Event
+  hArguments: Set<Event>; // Assuming HouseEvent extends Event
+  uArguments: Set<Event>;
   mark: boolean;
 
   /**
@@ -20,17 +20,17 @@ export default class Gate extends Event {
    *
    * @param name - Identifier of the node.
    * @param operator - Boolean operator of this formula.
-   * @param k_num - Min number for the combination operator.
+   * @param kNum - Min number for the combination operator.
    */
-  constructor(name: string, operator: string, k_num: number | null = null) {
+  constructor(name: string, operator: string, kNum: number | null = null) {
     super(name);
     this.mark = false;
     this.operator = operator;
-    this.k_num = k_num;
-    this.g_arguments = new Set<Gate>();
-    this.b_arguments = new Set<Event>();
-    this.h_arguments = new Set<Event>();
-    this.u_arguments = new Set<Event>();
+    this.kNum = kNum;
+    this.gArguments = new Set<Gate>();
+    this.bArguments = new Set<Event>();
+    this.hArguments = new Set<Event>();
+    this.uArguments = new Set<Event>();
   }
 
   /**
@@ -38,12 +38,12 @@ export default class Gate extends Event {
    *
    * @returns The total number of arguments.
    */
-  num_arguments(): number {
+  numArguments(): number {
     return (
-      this.g_arguments.size +
-      this.b_arguments.size +
-      this.h_arguments.size +
-      this.u_arguments.size
+      this.gArguments.size +
+      this.bArguments.size +
+      this.hArguments.size +
+      this.uArguments.size
     );
   }
 
@@ -54,12 +54,12 @@ export default class Gate extends Event {
    *
    * @param argument - Gate, HouseEvent, BasicEvent, or Event argument.
    */
-  add_argument(argument: Gate | Event): void {
+  addArgument(argument: Gate | Event): void {
     argument.addParent(this);
     if (argument instanceof Gate) {
-      this.g_arguments.add(argument);
+      this.gArguments.add(argument);
     } else {
-      this.u_arguments.add(argument);
+      this.uArguments.add(argument);
     }
   }
 
@@ -68,9 +68,9 @@ export default class Gate extends Event {
    *
    * @returns A set of ancestors.
    */
-  get_ancestors(): Set<Gate | Event> {
+  getAncestors(): Set<Gate | Event> {
     const ancestors = new Set<Gate | Event>([this]);
-    let parents: Array<Gate | Event> = Array.from(this.parents); // to avoid recursion
+    let parents: (Gate | Event)[] = Array.from(this.parents); // to avoid recursion
     while (parents.length > 0) {
       const parent = parents.shift();
       if (parent && !ancestors.has(parent)) {

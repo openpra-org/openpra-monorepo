@@ -96,12 +96,12 @@ export default function NewItem(props: NewItemProps) {
           fullWidth={true}
           placeholder="Title"
           value={itemInfo.title}
-          onChange={(e) =>
+          onChange={(e) => {
             setItemInfo({
               ...itemInfo,
               title: e.target.value,
-            })
-          }
+            });
+          }}
         />
       </EuiFormRow>
       {/** this form row is for the description */}
@@ -111,12 +111,12 @@ export default function NewItem(props: NewItemProps) {
           placeholder="Description"
           resize="none"
           value={itemInfo.description}
-          onChange={(e) =>
+          onChange={(e) => {
             setItemInfo({
               ...itemInfo,
               description: e.target.value,
-            })
-          }
+            });
+          }}
         />
       </EuiFormRow>
       {/** toggles if users exists and is passed, and it shows the selectable menu of users */}

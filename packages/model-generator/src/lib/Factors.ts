@@ -5,8 +5,8 @@
  * the number of arguments for a given gate type.
  */
 
-import Gate from "./Gate";
-import FactorError from "./FactorError";
+import { Gate } from "./Gate";
+import { FactorError } from "./FactorError";
 
 /**
  * @public Factors
@@ -15,9 +15,9 @@ import FactorError from "./FactorError";
  * also provides methods to calculate derived factors and to sample gate operators and the number of arguments for a
  * given gate type.
  */
-export default class Factors {
+export class Factors {
   // Constant configurations
-  private static OPERATORS = ["and", "or", "atleast", "not", "xor"]; // the order matters
+  private static readonly operators = ["and", "or", "atleast", "not", "xor"]; // the order matters
 
   // Probabilistic factors
   minProb = 0;
@@ -32,6 +32,9 @@ export default class Factors {
   numArgs = 0;
   parentsB = 0;
   parentsG = 0;
+  ccfModel = 0;
+  ccfSize = 0;
+
   private weightsG: number[] = []; // should not be set directly
 
   // Calculated factors
@@ -42,10 +45,37 @@ export default class Factors {
   private percentBasic = 0; // % of basic events in gate arguments
   private percentGate = 0; // % of gates in gate arguments
 
-  // Special case with the constrained number of gates
-  private numGate = 0; // If set, all other factors get affected.
-  ccfModel = 0;
-  ccfSize = 0;
+  /**
+   * @remarks Calculates the maximum number of arguments for sampling. This method is used to calculate the maximum
+   * number of arguments for sampling. The result may have a fractional part that must be adjusted in sampling
+   * accordingly.
+   *
+   * @param numArgs - The average number of arguments for gates.
+   * @param weights - Normalized weights for gate types.
+   * @returns The upper bound for sampling in symmetric distributions.
+   */
+  private static calculateMaxArgs(numArgs: number, weights: number[]): number {
+    // Min numbers for AND, OR, K/N, NOT, XOR types.
+    const minArgs = [2, 2, 3, 1, 2];
+    // Note that max and min numbers are the same for NOT and XOR.
+    const constArgs = minArgs.slice(3);
+    const constWeights = weights.slice(3);
+    const constContrib = constArgs.map((x, i) => x * constWeights[i]);
+
+    // AND, OR, K/N gate types can have the varying number of args.
+    const varArgs = minArgs.slice(0, 3);
+    const varWeights = weights.slice(0, 3);
+    const varContrib = varArgs.map((x, i) => x * varWeights[i]);
+
+    // AND, OR, K/N gate types can have the varying number of arguments.
+    // Since the distribution is symmetric, the average is (max + min) / 2.
+    return (
+      (2 * numArgs -
+        varContrib.reduce((a, b) => a + b, 0) -
+        2 * constContrib.reduce((a, b) => a + b, 0)) /
+      varWeights.reduce((a, b) => a + b, 0)
+    );
+  }
 
   /**
    * @remarks Sets the probability boundaries for basic events. This method is used to set the minimum and maximum
@@ -153,38 +183,6 @@ export default class Factors {
   }
 
   /**
-   * @remarks Calculates the maximum number of arguments for sampling. This method is used to calculate the maximum
-   * number of arguments for sampling. The result may have a fractional part that must be adjusted in sampling
-   * accordingly.
-   *
-   * @param numArgs - The average number of arguments for gates.
-   * @param weights - Normalized weights for gate types.
-   * @returns The upper bound for sampling in symmetric distributions.
-   */
-  private static calculateMaxArgs(numArgs: number, weights: number[]): number {
-    // Min numbers for AND, OR, K/N, NOT, XOR types.
-    const minArgs = [2, 2, 3, 1, 2];
-    // Note that max and min numbers are the same for NOT and XOR.
-    const constArgs = minArgs.slice(3);
-    const constWeights = weights.slice(3);
-    const constContrib = constArgs.map((x, i) => x * constWeights[i]);
-
-    // AND, OR, K/N gate types can have the varying number of args.
-    const varArgs = minArgs.slice(0, 3);
-    const varWeights = weights.slice(0, 3);
-    const varContrib = varArgs.map((x, i) => x * varWeights[i]);
-
-    // AND, OR, K/N gate types can have the varying number of arguments.
-    // Since the distribution is symmetric, the average is (max + min) / 2.
-    return (
-      (2 * numArgs -
-        varContrib.reduce((a, b) => a + b, 0) -
-        2 * constContrib.reduce((a, b) => a + b, 0)) /
-      varWeights.reduce((a, b) => a + b, 0)
-    );
-  }
-
-  /**
    * @remarks Calculates any derived factors from the setup. This method is used to calculate any derived factors from
    * the setup. This function must be called after all public factors are initialized.
    */
@@ -193,7 +191,7 @@ export default class Factors {
     const gFactor =
       1 -
       this.commonG +
-      (this.parentsG == 0 ? 0 : this.commonG / this.parentsG);
+      (this.parentsG === 0 ? 0 : this.commonG / this.parentsG);
     this.ratio = this.numArgs * gFactor - 1;
     this.percentBasic = this.ratio / (1 + this.ratio);
     this.percentGate = 1 / (1 + this.ratio);
@@ -205,7 +203,7 @@ export default class Factors {
    * @returns Expected to return weights from the arguments.
    */
   getGateWeights(): number[] {
-    if (this.weightsG === null) {
+    if (this.weightsG.length === 0) {
       throw new Error("weightsG is not set");
     }
     return this.weightsG;
@@ -219,13 +217,13 @@ export default class Factors {
    * @throws FactorError Invalid weight values or setup.
    */
   setGateWeights(weights: number[]): void {
-    if (!weights) {
+    if (weights.length === 0) {
       throw new FactorError("No weights are provided");
     }
     if (weights.some((i) => i < 0)) {
       throw new FactorError("Weights cannot be negative");
     }
-    if (weights.length > Factors.OPERATORS.length) {
+    if (weights.length > Factors.operators.length) {
       throw new FactorError("Too many weights are provided");
     }
     if (weights.reduce((a, b) => a + b, 0) === 0) {
@@ -239,7 +237,7 @@ export default class Factors {
     }
 
     this.weightsG = weights.slice();
-    for (let i = 0; i < Factors.OPERATORS.length - weights.length; i++) {
+    for (let i = 0; i < Factors.operators.length - weights.length; i++) {
       this.weightsG.push(0); // padding for missing weights
     }
     this.normWeights = this.weightsG.map(
@@ -263,7 +261,7 @@ export default class Factors {
     while (this.cumDist[binNum] <= rNum) {
       binNum += 1;
     }
-    return Factors.OPERATORS[binNum - 1];
+    return Factors.operators[binNum - 1];
   }
 
   /**
@@ -293,7 +291,7 @@ export default class Factors {
         maxArgs = 3;
       }
       const numArgs = Math.floor(Math.random() * (maxArgs - 3 + 1)) + 3;
-      gate.k_num = Math.floor(Math.random() * (numArgs - 2 + 1)) + 2;
+      gate.kNum = Math.floor(Math.random() * (numArgs - 2 + 1)) + 2;
       return numArgs;
     }
     return Math.floor(Math.random() * (maxArgs - 2 + 1)) + 2;
@@ -317,14 +315,10 @@ export default class Factors {
    * @returns The number of gates needed for the given basic events.
    */
   getNumGate(): number {
-    // Special case of constrained gates
-    if (this.numGate) {
-      return this.numGate;
-    }
     const bFactor =
       1 -
       this.commonB +
-      (this.parentsB == 0 ? 0 : this.commonB / this.parentsB);
+      (this.parentsB === 0 ? 0 : this.commonB / this.parentsB);
     return Math.floor(
       this.numBasic / (this.percentBasic * this.numArgs * bFactor),
     );

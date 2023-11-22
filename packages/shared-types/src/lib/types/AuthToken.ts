@@ -1,14 +1,13 @@
-import { JwtPayload } from 'jwt-decode';
+import { JwtPayload } from "jwt-decode";
 
 export interface AuthTokenAdditionals {
-  user_id?: number,
-  username?: string,
-  email?: string,
-  orig_iat?: number
+  user_id?: number;
+  username?: string;
+  email?: string;
+  orig_iat?: number;
 }
 
 type AuthToken = JwtPayload & AuthTokenAdditionals;
-
 
 export const EMPTY_TOKEN: AuthToken = {};
 

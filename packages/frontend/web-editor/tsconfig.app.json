@@ -8,10 +8,6 @@
       "@nx/react/typings/image.d.ts"
     ],
     "sourceMap": true,
-
-    // TODO:: setting this seems to have no effect since it needs to be configured in webpack config
-    "declaration": true,
-    "declarationMap": true,
   },
   "exclude": [
     "jest.config.ts",
@@ -19,10 +15,7 @@
     "src/**/*.test.ts",
     "src/**/*.spec.tsx",
     "src/**/*.test.tsx",
-    "src/**/*.spec.js",
-    "src/**/*.test.js",
-    "src/**/*.spec.jsx",
-    "src/**/*.test.jsx"
+    "*.js"
   ],
-  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
 }

@@ -1,10 +1,10 @@
-import GenericItemList from "../GenericItemList";
-import GenericListItem from "../GenericListItem";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
 import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
 import ExternalHazardsModel from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
 import { useEffect, useState } from "react";
+import GenericListItem from "../GenericListItem";
+import GenericItemList from "../GenericItemList";
 
 //grabs the model List
 async function fetchModelList() {

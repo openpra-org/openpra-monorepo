@@ -1,7 +1,7 @@
 import { Outlet, useLocation } from "react-router-dom";
-import RootHeader from "../components/headers/rootHeader";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 import { useEffect, useRef, useState } from "react";
+import RootHeader from "../components/headers/rootHeader";
 
 export default function RootContainer() {
   const [isLoggedIn, setIsLoggedIn] = useState(ApiManager.isLoggedIn());

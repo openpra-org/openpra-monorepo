@@ -1,13 +1,13 @@
-import { ButtonWithClosablePopover } from "./ButtonWithPopover";
 import { logicalStyle } from "@elastic/eui";
 import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
+import NestedModelApiManager from "shared-types/src/lib/api/NestedModelApiManager";
 import { ItemFormProps } from "../forms/typedModelActionForm";
 import NestedModelActionForm, {
   NestedItemFormProps,
 } from "../forms/nestedModelActionForm";
 import TypedModelActionForm from "../forms/typedModelActionForm";
-import NestedModelApiManager from "shared-types/src/lib/api/NestedModelApiManager";
 import { toTitleCase } from "../../../utils/StringUtils";
+import { ButtonWithClosablePopover } from "./ButtonWithPopover";
 
 //different props depending on different type of objects we are using for the add button
 export type CreateItemButtonProps = {} & Omit<ItemFormProps, "action">;

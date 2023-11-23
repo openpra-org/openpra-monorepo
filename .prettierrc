@@ -1,4 +1,5 @@
 {
   "singleQuote": false,
-  "experimentalTernaries": true
+  "experimentalTernaries": true,
+  "endOfLine": "lf"
 }

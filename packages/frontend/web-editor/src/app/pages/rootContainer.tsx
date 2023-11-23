@@ -1,35 +1,61 @@
 import { Outlet, useLocation } from "react-router-dom";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
-import { useEffect, useRef, useState } from "react";
+import { ReactElement, useEffect, useRef, useState } from "react";
 import RootHeader from "../components/headers/rootHeader";
 
-export default function RootContainer() {
-  const [isLoggedIn, setIsLoggedIn] = useState(ApiManager.isLoggedIn());
-  const timer = useRef(ApiManager.getTokenTimer());
+/**
+ * A React functional component that renders the application layout with a header and outlet for nested routes.
+ * It checks if the user is logged in and updates the login status at a regular interval.
+ * If the user is not logged in and is on the root path, it renders only the outlet without the header.
+ *
+ * @returns {@link ReactElement} The component structure to be rendered.
+ */
+const AppLayout = (): ReactElement => {
+  /**
+   * State to track if the user is logged in.
+   */
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(
+    ApiManager.isLoggedIn(),
+  );
+
+  /**
+   * A ref to store the token timer returned by the ApiManager.
+   */
+  const timer: React.MutableRefObject<number> = useRef(
+    ApiManager.getTokenTimer(),
+  );
+
+  /**
+   * The current location object, which represents where the app is now.
+   */
   const location = useLocation();
 
   useEffect(() => {
+    // Update login status and token timer on mount and when the pathname changes.
     setIsLoggedIn(ApiManager.isLoggedIn());
-    timer.current = ApiManager.getTokenTimer();
-    //console.log(timer.current)
 
-    const interval = setInterval(() => {
-      // Code inside this block will be executed at the specified interval in ms
+    // get the token time
+    timer.current = ApiManager.getTokenTimer();
+
+    // Set an interval to refresh the login status and token timer every 30 seconds.
+    setInterval(() => {
       setIsLoggedIn(ApiManager.isLoggedIn());
       timer.current = ApiManager.getTokenTimer();
-      //console.log(timer.current)
     }, 30000);
 
-    // Code inside this block will be executed when the component unmounts or the dependency changes.
-    return () => {
-      clearInterval(interval);
+    // Clear the interval when the component unmounts or the dependency changes.
+    return (): void => {
+      if (timer.current) {
+        clearInterval(timer.current);
+      }
     };
-  }, [location.pathname]); //redoes everytime window changes as well
+  }, [location.pathname]);
 
-  //conditional if not logged in don't render the header yet, as it lets people freely navigate
-  if (!isLoggedIn && location.pathname == "/") {
+  // Render only the outlet if not logged in and on the root path.
+  if (!isLoggedIn && location.pathname === "/") {
     return <Outlet />;
   } else {
+    // Render the header and the outlet when logged in or not on the root path.
     return (
       <>
         <RootHeader />
@@ -37,4 +63,6 @@ export default function RootContainer() {
       </>
     );
   }
-}
+};
+
+export default AppLayout;

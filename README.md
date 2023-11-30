@@ -60,6 +60,7 @@ are provided in the following sections.
   - [Optional] Docker Desktop & Compose
 - A Chromium-based web browser (for debugging in-browser Javascript with
   breakpoints)
+- React Developer Tools
 
 ## Installation
 
@@ -115,6 +116,12 @@ Choose one of the two options below, not both!
     If you intend to do this, follow the
     [official MongoDB installation guide](https://docs.mongodb.com/manual/installation/)
     for your OS.
+
+### `React Developer Tools`
+
+  * Install the [React Developer Tools](https://react.dev/learn/react-developer-tools) for your browser.
+  * Verify the installation by going to the [React](https://react.dev/) Website and opening `Developer Tools` on your Browser.
+  * You should have two additional tabs along with the already present ones - `Profiler` and `Components`.
 
 ## Setup
 

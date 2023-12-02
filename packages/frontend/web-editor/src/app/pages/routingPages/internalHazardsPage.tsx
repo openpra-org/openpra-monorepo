@@ -68,10 +68,10 @@ export async function loadModel() {
 export default function InternalHazardsPage() {
   return (
     <Routes>
-      <Route path="" element=<InternalHazardsList /> />
+      <Route path="" element={<InternalHazardsList />} />
       <Route
         path=":modelId"
-        element=<InternalHazardsContainer />
+        element={<InternalHazardsContainer />}
         // loader={loadModel}
       >
         <Route

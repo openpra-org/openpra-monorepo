@@ -71,11 +71,11 @@ export default function InternalEventsPage() {
       <Route
         path=""
         //loader={internalEventsLoader}
-        element=<InternalEventsList />
+        element={<InternalEventsList />}
       />
       <Route
         path=":modelId"
-        element=<InternalEventsContainer />
+        element={<InternalEventsContainer />}
         // loader={loadModel}
       >
         <Route

@@ -10,7 +10,7 @@ export default function DataPage() {
   return (
     //routes
     <Routes>
-      <Route path="" element=<DataContainer />>
+      <Route path="" element={<DataContainer />}>
         <Route path="special-events/*" element={<SpecialEvents />} />
         <Route
           path="component-reliability/*"

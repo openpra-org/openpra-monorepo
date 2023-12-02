@@ -69,10 +69,10 @@ export async function loadModel() {
 export default function ExternalHazardsPage() {
   return (
     <Routes>
-      <Route path="" element=<ExternalHazardsList /> />
+      <Route path="" element={<ExternalHazardsList />} />
       <Route
         path=":modelId"
-        element=<ExternalHazardsContainer />
+        element={<ExternalHazardsContainer />}
         // loader={loadModel}
       >
         <Route

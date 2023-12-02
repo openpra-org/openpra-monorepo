@@ -71,10 +71,10 @@ export async function loadModel() {
 export default function FullScopePage() {
   return (
     <Routes>
-      <Route path="" element=<FullScopeList /> />
+      <Route path="" element={<FullScopeList />} />
       <Route
         path=":modelId"
-        element=<FullScopeContainer />
+        element={<FullScopeContainer />}
         // loader={loadModel}
       >
         <Route

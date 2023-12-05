@@ -153,6 +153,8 @@ Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process
 
 ## Development Steps
 
+Review the [WebStorm Config - Prettier & ESLint](./README/linting/README.md#webstorm-prettier-config) README.
+
 ### 1. Start the `mongo` database
 
 Using one of the two options below, spin up an instance of the database

@@ -30,7 +30,10 @@
   formatted code shows up as a linting error. This also means that it can be
   fixed using eslint. I have tested this and it works.
 
-- eslint and prettier should now automatically connect to Webstorm's code
-  inspector, throwing warnings and errors as per our eslint settings as you edit
-  a file. Please use these, and let me know if linting/formatting issues are not
-  always picked up by Webstorm.
+## WebStorm Prettier Config
+- "Settings > Languages & Frameworks > JavaScript > Prettier"
+  - Enable/Check `Automatic Prettier configuration`
+  - eslint and prettier should now automatically connect to Webstorm's code
+    inspector, throwing warnings and errors as per our eslint settings as you edit
+    a file. Please use these, and let me know if linting/formatting issues are not
+    always picked up by Webstorm.

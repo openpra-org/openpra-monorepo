@@ -1,7 +1,7 @@
-import { modelGenerator } from "./model-generator";
+import { ModelGenerator } from "./model-generator";
 
 describe("modelGenerator", () => {
   it("should work", () => {
-    expect(modelGenerator()).toEqual("model-generator");
+    expect(ModelGenerator()).toEqual("model-generator");
   });
 });

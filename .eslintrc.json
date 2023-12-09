@@ -16,7 +16,11 @@
     "plugin:@typescript-eslint/stylistic-type-checked",
     // https://www.npmjs.com/package/eslint-plugin-security
     "plugin:security/recommended",
-    "plugin:prettier/recommended"
+    "plugin:prettier/recommended",
+    // https://www.npmjs.com/package/eslint-plugin-jsonc
+    // https://ota-meshi.github.io/eslint-plugin-jsonc/rules/
+    "plugin:jsonc/recommended-with-jsonc",
+    "plugin:json-schema-validator/recommended"
   ],
   "overrides": [
     {
@@ -94,6 +98,13 @@
         "plugin:jest/recommended" // Add the Jest recommended configuration here
       ],
       "rules": {}
+    },
+    {
+      "files": ["*.json"],
+      "parser": "jsonc-eslint-parser",
+      "rules": {
+        "@nx/dependency-checks": "error"
+      }
     }
   ]
 }

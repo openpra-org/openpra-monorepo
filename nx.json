@@ -48,5 +48,10 @@
         "unitTestRunner": "jest"
       }
     }
+  },
+  "pluginsConfig": {
+    "@nx/js": {
+      "analyzeSourceFiles": true
+    }
   }
 }

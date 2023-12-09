@@ -1,3 +1,3 @@
-export function modelGenerator(): string {
+export function ModelGenerator(): string {
   return "model-generator";
 }

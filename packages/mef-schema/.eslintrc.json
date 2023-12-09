@@ -1,0 +1,6 @@
+{
+  "extends": ["../../.eslintrc.json"],
+  "parserOptions": {
+    "project": ["packages/mef-schema/tsconfig.*?.json"]
+  }
+}

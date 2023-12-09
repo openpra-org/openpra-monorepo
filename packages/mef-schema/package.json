@@ -1,11 +1,11 @@
 {
-  "name": "model-generator",
+  "name": "mef-schema",
   "version": "0.0.1",
+  "dependencies": {
+    "tslib": "2.5.2"
+  },
   "license": "AGPL-3.0-or-later",
   "type": "commonjs",
   "main": "./src/index.js",
-  "typings": "./src/index.d.ts",
-  "dependencies": {
-    "tslib": "2.5.2"
-  }
+  "typings": "./src/index.d.ts"
 }

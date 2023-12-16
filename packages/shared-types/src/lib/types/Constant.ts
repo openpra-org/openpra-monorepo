@@ -1,6 +1,6 @@
-export interface ConstantJSON {
+export type ConstantJSON = {
   value: boolean;
-}
+};
 
 class Constant {
   private value: boolean;

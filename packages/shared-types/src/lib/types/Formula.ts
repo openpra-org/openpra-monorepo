@@ -2,13 +2,13 @@ import Outcome, { OutcomeJSON } from "./Outcome";
 import { ProxyTypes } from "./ProxyTypes";
 import GateTypes from "./GateTypes";
 
-export interface FormulaJSON {
+export type FormulaJSON = {
   _proxy: ProxyTypes;
   outcome?: OutcomeJSON;
   expr?: GateTypes;
   formulas?: OutcomeJSON[];
   min_value?: number;
-}
+};
 
 export default class Formula {
   private proxy: ProxyTypes;

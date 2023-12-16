@@ -5,9 +5,10 @@ import {
   VertexPositionJSONMap,
 } from "./VertexPositionJSON";
 
-export default interface HCLTreeVertexValueJSON {
+type HCLTreeVertexValueJSON = {
   label: LabelJSON;
-}
+};
+export default HCLTreeVertexValueJSON;
 
 export const DEFAULT_HCLTREEVERTEXVALUE_JSON: HCLTreeVertexValueJSON = {
   label: DEFAULT_LABEL_JSON,
@@ -19,9 +20,9 @@ export const HCLTreeVertexValueChangeEvents = {
   LABEL_CHANGED: "label",
 };
 
-export interface HCLTreeVertexJSON extends HCLTreeVertexValueJSON {
+export type HCLTreeVertexJSON = {
   style?: VertexPositionJSONMap;
-}
+} & HCLTreeVertexValueJSON;
 
 export type HCLTreeVertexJSONMap = Record<string, HCLTreeVertexJSON>;
 

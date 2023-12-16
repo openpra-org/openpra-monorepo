@@ -1,10 +1,8 @@
 import { OutcomeJSON } from "../Outcome";
 import HCLTreeVertexValueJSON, { HCLTreeVertexJSON } from "./HCLTreeVertexJSON";
 
-export interface InitVertexValueJSON extends HCLTreeVertexValueJSON {
+export type InitVertexValueJSON = {
   outcome?: OutcomeJSON;
-}
+} & HCLTreeVertexValueJSON;
 
-export interface InitVertexJSON
-  extends InitVertexValueJSON,
-    HCLTreeVertexJSON {}
+export type InitVertexJSON = {} & InitVertexValueJSON & HCLTreeVertexJSON;

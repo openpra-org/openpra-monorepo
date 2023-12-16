@@ -1,3 +1,4 @@
-export default interface Clonable<JSON, V> {
+type Clonable<JSON, V> = {
   clone(json?: JSON): V;
-}
+};
+export default Clonable;

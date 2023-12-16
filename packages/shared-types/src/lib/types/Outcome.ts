@@ -1,14 +1,14 @@
 import { ProxyTypes } from "./ProxyTypes";
 import ReferenceTypes from "./ReferenceTypes";
 
-export interface OutcomeJSON {
+export type OutcomeJSON = {
   name?: string;
   reference_type?: ReferenceTypes;
   tree_id?: number;
   path?: string;
   make_instance?: boolean;
   _proxy?: ProxyTypes;
-}
+};
 
 export default class Outcome {
   public name: string;

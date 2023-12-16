@@ -1,8 +1,12 @@
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
-import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
-import InternalEventsModel from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
+import { InternalEventsModel } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
 import { ReactElement, useEffect, useState } from "react";
+import {
+  DeleteInternalEvent,
+  GetInternalEvents,
+  PatchInternalEvent,
+} from "shared-types/src/lib/api/TypedModelApiManager";
 import GenericListItem from "../GenericListItem";
 import GenericItemList from "../GenericItemList";
 
@@ -11,9 +15,7 @@ import GenericItemList from "../GenericItemList";
 //grabs the model List
 async function fetchModelList() {
   try {
-    return await TypedModelApiManager.getInternalEvents(
-      ApiManager.getCurrentUser().user_id,
-    );
+    return await GetInternalEvents(ApiManager.getCurrentUser().user_id);
   } catch (error) {
     console.error("Error fetching internal events:", error);
     return [];
@@ -48,8 +50,8 @@ const getFixtures = async (): Promise<ReactElement[]> => {
         }}
         path={`${modelItem.getId()}`}
         endpoint={`internal-event`} // Adjust this based on your model's structure
-        deleteTypedEndpoint={TypedModelApiManager.deleteInternalEvent}
-        patchTypedEndpoint={TypedModelApiManager.patchInternalEvent}
+        deleteTypedEndpoint={DeleteInternalEvent}
+        patchTypedEndpoint={PatchInternalEvent}
         users={modelItem.getUsers()}
       />
     ));

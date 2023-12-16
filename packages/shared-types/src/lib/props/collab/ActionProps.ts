@@ -6,8 +6,9 @@ export enum ACTION_TYPES {
   CREATED = "c",
 }
 
-export default interface ActionProps {
+type ActionProps = {
   user: Partial<UserProps>;
   date: string;
   type: ACTION_TYPES;
-}
+};
+export default ActionProps;

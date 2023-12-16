@@ -1,10 +1,10 @@
 import { Parsable } from "./Parsable";
 import { Defaults } from "./ObjectTypes";
 
-export interface LabelJSON {
+export type LabelJSON = {
   name: string;
   description: string;
-}
+};
 
 export type LabelJSONMap = Record<string, LabelJSON>;
 

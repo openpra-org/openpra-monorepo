@@ -1,7 +1,7 @@
 /**
- * @file EventType.test.ts
- * @brief This file contains unit tests for the EventType.
- * @details The tests use jest framework.
+ *  EventType.test.ts
+ * @remarks This file contains unit tests for the EventType.
+ *  The tests use jest framework.
  */
 
 import { EventType } from "./EventType";

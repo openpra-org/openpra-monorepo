@@ -1,12 +1,16 @@
-import NestedModelApiManager from "shared-types/src/lib/api/NestedModelApiManager";
+import {
+  DeleteEventTree,
+  GetEventTrees,
+  PatchEventTreeLabel,
+} from "shared-types/src/lib/api/NestedModelApiManager";
 import NestedModelList from "./templateList/nestedModelList";
 
 export default function EventTreeList() {
   return (
     <NestedModelList
-      getNestedEndpoint={NestedModelApiManager.getEventTrees}
-      deleteNestedEndpoint={NestedModelApiManager.deleteEventTree}
-      patchNestedEndpoint={NestedModelApiManager.patchEventTreeLabel}
+      getNestedEndpoint={GetEventTrees}
+      deleteNestedEndpoint={DeleteEventTree}
+      patchNestedEndpoint={PatchEventTreeLabel}
       name="event-tree"
     />
   );

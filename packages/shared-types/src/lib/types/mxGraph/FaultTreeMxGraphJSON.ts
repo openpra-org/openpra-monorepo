@@ -5,10 +5,10 @@ import { BasicEventVertexJSON } from "./BasicEventVertexJSON";
 import { HouseEventVertexJSON } from "./HouseEventVertexJSON";
 import { GateVertexJSON } from "./GateVertexJSON";
 
-export interface FaultTreeMxGraphJSON extends HCLTreeMxGraphJSON {
+export type FaultTreeMxGraphJSON = {
   [ReferenceTypes.BASIC_EVENTS]: Record<string, BasicEventVertexJSON>;
   [ReferenceTypes.HOUSE_EVENTS]: Record<string, HouseEventVertexJSON>;
   [ReferenceTypes.GATES]: Record<string, GateVertexJSON>;
   components: Record<string, any>;
   top_node: OutcomeJSON;
-}
+} & HCLTreeMxGraphJSON;

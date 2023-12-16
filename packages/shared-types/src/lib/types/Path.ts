@@ -1,10 +1,10 @@
 import Outcome, { OutcomeJSON } from "./Outcome";
 import Instruction, { InstructionJSON } from "./Instruction";
 
-export interface PathJSON {
+export type PathJSON = {
   outcome?: OutcomeJSON;
   instructions?: InstructionJSON[];
-}
+};
 
 class Path {
   private outcome: Outcome;

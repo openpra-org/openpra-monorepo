@@ -18,7 +18,7 @@ import NonParametric from "./distributions/NonParametric";
 import { DistributionSummary } from "./distributions/AbstractDistribution";
 import Exponential from "./distributions/Exponential";
 
-export interface ExpressionJSON {
+export type ExpressionJSON = {
   _proxy: ProxyTypes;
 
   /**
@@ -119,7 +119,7 @@ export interface ExpressionJSON {
    */
   time_to_failure?: number[];
   estimated_reliability?: number[];
-}
+};
 
 class Expression {
   private value?: number;

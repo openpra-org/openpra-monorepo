@@ -1,6 +1,6 @@
 import TypedModel from "./typedModel";
 
 /**
- * full scop models do what a typed model does and nothing else
+ * full scope models do what a typed model does and nothing else
  */
-export default class FullScopeModel extends TypedModel {}
+export class FullScopeModel extends TypedModel {}

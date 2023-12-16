@@ -1,7 +1,7 @@
 /**
- * @file LabelType.test.ts
- * @brief This file contains unit tests for the NameType, DescriptionType and LabelType.
- * @details The tests use jest framework.
+ *  LabelType.test.ts
+ * @remarks This file contains unit tests for the NameType, DescriptionType and LabelType.
+ *  The tests use jest framework.
  */
 
 import { NameType, DescriptionType, LabelType } from "./LabelType";

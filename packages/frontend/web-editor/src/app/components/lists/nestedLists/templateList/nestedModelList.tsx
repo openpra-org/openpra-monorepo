@@ -1,25 +1,25 @@
 import { EuiPageTemplate, EuiSkeletonRectangle } from "@elastic/eui";
 import { ReactElement, useEffect, useState } from "react";
 
-import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
-import NestedModel from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+import { NestedModel } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 
+import { GetCurrentModelId } from "shared-types/src/lib/api/TypedModelApiManager";
 import GenericListItem from "../../GenericListItem";
 import GenericItemList from "../../GenericItemList";
 
-export interface NestedModelListProps {
+export type NestedModelListProps = {
   name: string;
   getNestedEndpoint: (id: number) => Promise<NestedModel[]>;
   deleteNestedEndpoint: (id: number) => NonNullable<unknown>;
   patchNestedEndpoint: (id: number, data: LabelJSON) => NonNullable<unknown>;
-}
+};
 
 //grabs the model List
 async function fetchModelList(
   getNestedEndpoint: (id: number) => Promise<NestedModel[]>,
 ) {
-  const modelId = TypedModelApiManager.getCurrentModelId();
+  const modelId = GetCurrentModelId();
   try {
     return await getNestedEndpoint(modelId);
   } catch (error) {

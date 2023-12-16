@@ -1,6 +1,5 @@
 import { logicalStyle } from "@elastic/eui";
 import { EuiButtonIconPropsForButton } from "@elastic/eui/src/components/button/button_icon/button_icon";
-import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
 import ButtonWithPopover, {
   ButtonWithClosablePopover,
   ButtonWithPopoverProps,
@@ -9,6 +8,7 @@ import { toTitleCase } from "../../../utils/StringUtils";
 import ItemFormAction, { ItemFormProps } from "../forms/typedModelActionForm";
 import { GenericListItemProps } from "../lists/GenericListItem";
 import ListItemActionContextMenu from "./ListItemContextMenu";
+import {PatchInternalEvent} from "shared-types/src/lib/api/TypedModelApiManager";
 
 export type ListItemActionProps = {} & ButtonWithPopoverProps &
   Omit<EuiButtonIconPropsForButton, "iconType"> &
@@ -64,7 +64,7 @@ export function ListItemEditAction({
         noHeader
         action="edit"
         itemName={label}
-        patchEndpoint={TypedModelApiManager.patchInternalEvent}
+        patchEndpoint={PatchInternalEvent}
       />
     </ButtonWithClosablePopover>
   );

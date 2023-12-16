@@ -1,4 +1,4 @@
-export interface TrackableProps {
+export type TrackableProps = {
   id: number;
   title: string;
   date_created: string;
@@ -6,4 +6,4 @@ export interface TrackableProps {
   creator: number;
   description: string;
   assigned_users: number[];
-}
+};

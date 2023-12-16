@@ -1,18 +1,17 @@
-export interface LoginCredentials<Type> {
+export type LoginCredentials<Type> = {
   username: Type;
   password: Type;
-}
+};
 
-export interface SignUpCredentialsGeneric<Type> extends LoginCredentials<Type> {
+export type SignUpCredentialsGeneric<Type> = {
   email: Type; //email type
   firstName: Type;
   lastName: Type;
-}
+} & LoginCredentials<Type>;
 
-export interface SignUpPropsGeneric<Type>
-  extends SignUpCredentialsGeneric<Type> {
+export type SignUpPropsGeneric<Type> = {
   passConfirm: Type;
-}
+} & SignUpCredentialsGeneric<Type>;
 
 export type SignUpProps = SignUpPropsGeneric<string>;
 export type SignUpErrorProps = SignUpPropsGeneric<boolean>;

@@ -2,9 +2,8 @@ import { ConstantJSON } from "../Constant";
 import HCLTreeVertexValueJSON from "./HCLTreeVertexJSON";
 import { HCLTreeVertexJSON } from "./HCLTreeVertexJSON";
 
-export interface HouseEventVertexValueJSON extends HCLTreeVertexValueJSON {
+export type HouseEventVertexValueJSON = {
   constant: ConstantJSON;
-}
-export interface HouseEventVertexJSON
-  extends HouseEventVertexValueJSON,
-    HCLTreeVertexJSON {}
+} & HCLTreeVertexValueJSON;
+export type HouseEventVertexJSON = {} & HouseEventVertexValueJSON &
+  HCLTreeVertexJSON;

@@ -1,6 +1,31 @@
 import { logicalStyle } from "@elastic/eui";
-import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
-import NestedModelApiManager from "shared-types/src/lib/api/NestedModelApiManager";
+import {
+  PostExternalHazard,
+  PostFullScope,
+  PostInternalEvent,
+  PostInternalHazard,
+} from "shared-types/src/lib/api/TypedModelApiManager";
+import {
+  PostBayesianEstimation,
+  PostBayesianNetwork,
+  PostDataAnalysis,
+  PostEventSequenceAnalysis,
+  PostEventSequenceDiagram,
+  PostEventSequenceQuantificationDiagram,
+  PostEventTree,
+  PostFaultTree,
+  PostFunctionalEvent,
+  PostHumanReliabilityAnalysis,
+  PostInitiatingEvent,
+  PostMarkovChain,
+  PostMechanisticSourceTerm,
+  PostOperatingStateAnalysis,
+  PostRadiologicalConsequenceAnalysis,
+  PostRiskIntegration,
+  PostSuccessCriteria,
+  PostSystemsAnalysis,
+  PostWeibullAnalysis,
+} from "shared-types/src/lib/api/NestedModelApiManager";
 import { ItemFormProps } from "../forms/typedModelActionForm";
 import NestedModelActionForm, {
   NestedItemFormProps,
@@ -10,17 +35,14 @@ import { toTitleCase } from "../../../utils/StringUtils";
 import { ButtonWithClosablePopover } from "./ButtonWithPopover";
 
 //different props depending on different type of objects we are using for the add button
-export type CreateItemButtonProps = {} & Omit<ItemFormProps, "action">;
+export type CreateItemButtonProps = Omit<ItemFormProps, "action">;
 
-export type CreateNestedItemButtonProps = {} & Omit<
-  NestedItemFormProps,
-  "action"
->;
+export type CreateNestedItemButtonProps = Omit<NestedItemFormProps, "action">;
 
 /**
  * for typed models
- * @param itemName the type of item that is being passed
- * @param endpoint endpoint that will be used to add the item
+ * @param itemName - the type of item that is being passed
+ * @param endpoint - endpoint that will be used to add the item
  * @returns the create item button
  */
 export default function CreateItemButton({
@@ -97,7 +119,7 @@ export function CreateInternalEventsButton() {
   return (
     <CreateItemButton
       itemName="internal-events"
-      postEndpoint={TypedModelApiManager.postInternalEvent}
+      postEndpoint={PostInternalEvent}
     />
   );
 }
@@ -106,7 +128,7 @@ export function CreateInternalHazardsButton() {
   return (
     <CreateItemButton
       itemName="internal-hazards"
-      postEndpoint={TypedModelApiManager.postInternalHazard}
+      postEndpoint={PostInternalHazard}
     />
   );
 }
@@ -115,17 +137,14 @@ export function CreateExternalHazardsButton() {
   return (
     <CreateItemButton
       itemName="external-hazards"
-      postEndpoint={TypedModelApiManager.postExternalHazard}
+      postEndpoint={PostExternalHazard}
     />
   );
 }
 
 export function CreateFullScopeButton() {
   return (
-    <CreateItemButton
-      itemName="full-scope"
-      postEndpoint={TypedModelApiManager.postFullScope}
-    />
+    <CreateItemButton itemName="full-scope" postEndpoint={PostFullScope} />
   );
 }
 
@@ -133,7 +152,7 @@ export function CreateFaultTreeButton() {
   return (
     <CreateNestedItemButton
       itemName="fault-tree"
-      postEndpoint={NestedModelApiManager.postFaultTree}
+      postEndpoint={PostFaultTree}
     />
   );
 }
@@ -142,7 +161,7 @@ export function CreateBayesianNetworkButton() {
   return (
     <CreateNestedItemButton
       itemName="bayesian-network"
-      postEndpoint={NestedModelApiManager.postBayesianNetwork}
+      postEndpoint={PostBayesianNetwork}
     />
   );
 }
@@ -151,7 +170,7 @@ export function CreateBayesianEstimationButton() {
   return (
     <CreateNestedItemButton
       itemName="bayesian-estimation"
-      postEndpoint={NestedModelApiManager.postBayesianEstimation}
+      postEndpoint={PostBayesianEstimation}
     />
   );
 }
@@ -160,7 +179,7 @@ export function CreateEventSequenceDiagramButton() {
   return (
     <CreateNestedItemButton
       itemName="event-sequence-diagram"
-      postEndpoint={NestedModelApiManager.postEventSequenceDiagram}
+      postEndpoint={PostEventSequenceDiagram}
     />
   );
 }
@@ -169,7 +188,7 @@ export function CreateEventTreeButton() {
   return (
     <CreateNestedItemButton
       itemName="event-tree"
-      postEndpoint={NestedModelApiManager.postEventTree}
+      postEndpoint={PostEventTree}
     />
   );
 }
@@ -178,7 +197,7 @@ export function CreateInitiatingEventButton() {
   return (
     <CreateNestedItemButton
       itemName="initiating-event"
-      postEndpoint={NestedModelApiManager.postInitiatingEvent}
+      postEndpoint={PostInitiatingEvent}
     />
   );
 }
@@ -187,7 +206,7 @@ export function CreateFunctionalEventButton() {
   return (
     <CreateNestedItemButton
       itemName="functional-event"
-      postEndpoint={NestedModelApiManager.postFunctionalEvent}
+      postEndpoint={PostFunctionalEvent}
     />
   );
 }
@@ -196,7 +215,7 @@ export function CreateMarkovChainButton() {
   return (
     <CreateNestedItemButton
       itemName="markov-chain"
-      postEndpoint={NestedModelApiManager.postMarkovChain}
+      postEndpoint={PostMarkovChain}
     />
   );
 }
@@ -205,7 +224,7 @@ export function CreateRiskIntegrationButton() {
   return (
     <CreateNestedItemButton
       itemName="risk-integration"
-      postEndpoint={NestedModelApiManager.postRiskIntegration}
+      postEndpoint={PostRiskIntegration}
     />
   );
 }
@@ -214,7 +233,7 @@ export function CreateRadiologicalConsequenceAnalysisButton() {
   return (
     <CreateNestedItemButton
       itemName="radiological-consequence-analysis"
-      postEndpoint={NestedModelApiManager.postRadiologicalConsequenceAnalysis}
+      postEndpoint={PostRadiologicalConsequenceAnalysis}
     />
   );
 }
@@ -223,7 +242,7 @@ export function CreateMechanisticSourceTermButton() {
   return (
     <CreateNestedItemButton
       itemName="mechanistic-source-term"
-      postEndpoint={NestedModelApiManager.postMechanisticSourceTerm}
+      postEndpoint={PostMechanisticSourceTerm}
     />
   );
 }
@@ -232,9 +251,7 @@ export function CreateEventSequenceQuantificationDiagramButton() {
   return (
     <CreateNestedItemButton
       itemName="event-sequence-quantification-diagram"
-      postEndpoint={
-        NestedModelApiManager.postEventSequenceQuantificationDiagram
-      }
+      postEndpoint={PostEventSequenceQuantificationDiagram}
     />
   );
 }
@@ -243,7 +260,7 @@ export function CreateDataAnalysisButton() {
   return (
     <CreateNestedItemButton
       itemName="data-analysis"
-      postEndpoint={NestedModelApiManager.postDataAnalysis}
+      postEndpoint={PostDataAnalysis}
     />
   );
 }
@@ -252,7 +269,7 @@ export function CreateHumanReliabilityAnalysisButton() {
   return (
     <CreateNestedItemButton
       itemName="human-reliability-analysis"
-      postEndpoint={NestedModelApiManager.postHumanReliabilityAnalysis}
+      postEndpoint={PostHumanReliabilityAnalysis}
     />
   );
 }
@@ -261,7 +278,7 @@ export function CreateSystemsAnalysisButton() {
   return (
     <CreateNestedItemButton
       itemName="systems-analysis"
-      postEndpoint={NestedModelApiManager.postSystemsAnalysis}
+      postEndpoint={PostSystemsAnalysis}
     />
   );
 }
@@ -270,7 +287,7 @@ export function CreateSuccessCriteriaButton() {
   return (
     <CreateNestedItemButton
       itemName="success-criteria"
-      postEndpoint={NestedModelApiManager.postSuccessCriteria}
+      postEndpoint={PostSuccessCriteria}
     />
   );
 }
@@ -279,7 +296,7 @@ export function CreateEventSequenceAnalysisButton() {
   return (
     <CreateNestedItemButton
       itemName="event-sequence-analysis"
-      postEndpoint={NestedModelApiManager.postEventSequenceAnalysis}
+      postEndpoint={PostEventSequenceAnalysis}
     />
   );
 }
@@ -288,7 +305,7 @@ export function CreateOperatingStateAnalysisButton() {
   return (
     <CreateNestedItemButton
       itemName="operating-state-analysis"
-      postEndpoint={NestedModelApiManager.postOperatingStateAnalysis}
+      postEndpoint={PostOperatingStateAnalysis}
     />
   );
 }
@@ -297,7 +314,7 @@ export function CreateWeibullAnalysisButton() {
   return (
     <CreateNestedItemButton
       itemName="weibull-analysis"
-      postEndpoint={NestedModelApiManager.postWeibullAnalysis}
+      postEndpoint={PostWeibullAnalysis}
     />
   );
 }

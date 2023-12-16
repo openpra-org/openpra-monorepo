@@ -3,10 +3,9 @@ import { HCLTreeMxGraphJSON } from "./HCLTreeMxGraphJSON";
 import { HCLTreeVertexJSON } from "./HCLTreeVertexJSON";
 import { BayesianNodeVertexValueJSON } from "./BayesianNodeVertexJSON";
 
-export interface BayesianNetworkMxGraphJSON extends HCLTreeMxGraphJSON {
+export type BayesianNetworkMxGraphJSON = {
   [ReferenceTypes.BAYESIAN_NODES]: Record<string, BayesianNodeJSON>;
-}
+} & HCLTreeMxGraphJSON;
 
-export interface BayesianNodeJSON
-  extends BayesianNodeVertexValueJSON,
-    HCLTreeVertexJSON {}
+export type BayesianNodeJSON = {} & BayesianNodeVertexValueJSON &
+  HCLTreeVertexJSON;

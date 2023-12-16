@@ -31,11 +31,11 @@ Object.keys(DistributionDictionary).forEach(
 );
 export { ReversedDistributionDictionary };
 
-export interface DistributionSummary {
+export type DistributionSummary = {
   x: number[];
   pdf: number[];
   cdf: number[];
-}
+};
 
 export default abstract class AbstractDistribution {
   /**

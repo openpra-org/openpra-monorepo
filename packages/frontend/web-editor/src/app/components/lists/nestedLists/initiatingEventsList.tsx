@@ -1,12 +1,16 @@
-import NestedModelApiManager from "shared-types/src/lib/api/NestedModelApiManager";
+import {
+  DeleteInitiatingEvent,
+  GetInitiatingEvents,
+  PatchInitiatingEventLabel,
+} from "shared-types/src/lib/api/NestedModelApiManager";
 import NestedModelList from "./templateList/nestedModelList";
 
 export default function InitiatingEventsList() {
   return (
     <NestedModelList
-      getNestedEndpoint={NestedModelApiManager.getInitiatingEvents}
-      deleteNestedEndpoint={NestedModelApiManager.deleteInitiatingEvent}
-      patchNestedEndpoint={NestedModelApiManager.patchInitiatingEventLabel}
+      getNestedEndpoint={GetInitiatingEvents}
+      deleteNestedEndpoint={DeleteInitiatingEvent}
+      patchNestedEndpoint={PatchInitiatingEventLabel}
       name="initiating-event"
     />
   );

@@ -1,5 +1,6 @@
-export default interface UserProps {
+type UserProps = {
   id: number;
   username: string;
   email: string;
-}
+};
+export default UserProps;

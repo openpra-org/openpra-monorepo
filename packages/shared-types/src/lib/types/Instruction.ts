@@ -3,11 +3,11 @@ import Expression, { ExpressionJSON } from "./Expression";
 import Formula, { FormulaJSON } from "./Formula";
 import { OutcomeJSON } from "./Outcome";
 
-interface InstructionJSON {
+type InstructionJSON = {
   formula?: FormulaJSON | OutcomeJSON;
   expression?: ExpressionJSON;
   _proxy: ProxyTypes;
-}
+};
 
 class Instruction {
   private formula?: Formula;

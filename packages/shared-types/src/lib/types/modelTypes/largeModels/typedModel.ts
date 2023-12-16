@@ -1,14 +1,14 @@
 import Label from "../../Label";
 import { BasicModel } from "../basicModel";
 
-export interface TypedModelJSON {
+export type TypedModelJSON = {
   id: number;
   label: {
     name: string;
     description: string;
   };
   users: number[];
-}
+};
 
 export type TypedModelJSONMap = Record<string, TypedModelJSON>;
 

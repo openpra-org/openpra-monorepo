@@ -6,8 +6,9 @@ export enum TreeTypes {
   BAYESIAN_NETWORK = "b",
 }
 
-export default interface TreeProps extends TrackableProps {
+type TreeProps = {
   assigned_users: never;
   valid: boolean;
   tree_type: TreeTypes;
-}
+} & TrackableProps;
+export default TreeProps;

@@ -1,12 +1,16 @@
-import NestedModelApiManager from "shared-types/src/lib/api/NestedModelApiManager";
+import {
+  DeleteBayesianEstimation,
+  GetBayesianEstimations,
+  PatchBayesianEstimationLabel,
+} from "shared-types/src/lib/api/NestedModelApiManager";
 import NestedModelList from "./templateList/nestedModelList";
 
 export default function BayesianEstimationList() {
   return (
     <NestedModelList
-      getNestedEndpoint={NestedModelApiManager.getBayesianEstimations}
-      deleteNestedEndpoint={NestedModelApiManager.deleteBayesianEstimation}
-      patchNestedEndpoint={NestedModelApiManager.patchBayesianEstimationLabel}
+      getNestedEndpoint={GetBayesianEstimations}
+      deleteNestedEndpoint={DeleteBayesianEstimation}
+      patchNestedEndpoint={PatchBayesianEstimationLabel}
       name="bayesian-estimation"
     />
   );

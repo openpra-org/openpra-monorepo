@@ -1,6 +1,6 @@
 import TypedModel from "./typedModel";
 
 /**
- * Internal events mdoels do the same thing as a typed model for now, just have their own object for sorting purposes
+ * Internal events models do the same thing as a typed model for now, just have their own object for sorting purposes
  */
-export default class InternalEventsModel extends TypedModel {}
+export class InternalEventsModel extends TypedModel {}

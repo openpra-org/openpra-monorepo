@@ -3,10 +3,8 @@ import { FormulaJSON } from "../Formula";
 import { HCLTreeVertexJSON } from "./HCLTreeVertexJSON";
 import HCLTreeVertexValueJSON from "./HCLTreeVertexJSON";
 
-export interface GateVertexValueJSON extends HCLTreeVertexValueJSON {
+export type GateVertexValueJSON = {
   formula: FormulaJSON | OutcomeJSON;
-}
+} & HCLTreeVertexValueJSON;
 
-export interface GateVertexJSON
-  extends GateVertexValueJSON,
-    HCLTreeVertexJSON {}
+export type GateVertexJSON = {} & GateVertexValueJSON & HCLTreeVertexJSON;

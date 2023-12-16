@@ -2,11 +2,10 @@ import { ExpressionJSON } from "../Expression";
 import { HCLTreeVertexJSON } from "./HCLTreeVertexJSON";
 import HCLTreeVertexValueJSON from "./HCLTreeVertexJSON";
 
-export interface BasicEventVertexValueJSON extends HCLTreeVertexValueJSON {
+export type BasicEventVertexValueJSON = {
   expression: ExpressionJSON;
   source_type: string;
-}
+} & HCLTreeVertexValueJSON;
 
-export interface BasicEventVertexJSON
-  extends BasicEventVertexValueJSON,
-    HCLTreeVertexJSON {}
+export type BasicEventVertexJSON = {} & BasicEventVertexValueJSON &
+  HCLTreeVertexJSON;

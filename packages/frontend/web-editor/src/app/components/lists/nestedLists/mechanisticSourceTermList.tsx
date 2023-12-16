@@ -1,14 +1,16 @@
-import NestedModelApiManager from "shared-types/src/lib/api/NestedModelApiManager";
+import {
+  DeleteMechanisticSourceTerm,
+  GetMechanisticSourceTerm,
+  PatchMechanisticSourceTermLabel,
+} from "shared-types/src/lib/api/NestedModelApiManager";
 import NestedModelList from "./templateList/nestedModelList";
 
 export default function MechanisticSourceTermList() {
   return (
     <NestedModelList
-      getNestedEndpoint={NestedModelApiManager.getMechanisticSourceTerm}
-      deleteNestedEndpoint={NestedModelApiManager.deleteMechanisticSourceTerm}
-      patchNestedEndpoint={
-        NestedModelApiManager.patchMechanisticSourceTermLabel
-      }
+      getNestedEndpoint={GetMechanisticSourceTerm}
+      deleteNestedEndpoint={DeleteMechanisticSourceTerm}
+      patchNestedEndpoint={PatchMechanisticSourceTermLabel}
       name="mechanistic-source-term"
     />
   );

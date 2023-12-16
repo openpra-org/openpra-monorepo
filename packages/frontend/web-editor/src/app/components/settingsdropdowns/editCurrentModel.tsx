@@ -11,16 +11,20 @@ import {
   EuiIcon,
   EuiSkeletonRectangle,
 } from "@elastic/eui";
-import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
 import TypedModel from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import TypedModelActionForm from "../forms/typedModelActionForm";
 import SettingsAccordian from "./SettingsAccordian";
+import {
+  GetCurrentTypedModel, PatchExternalHazard, PatchFullScope,
+  PatchInternalEvent,
+  PatchInternalHazard
+} from "shared-types/src/lib/api/TypedModelApiManager";
 
 const TYPED_MODEL_TYPE_LOCATION = 1;
 
 async function fetchCurrentTypedModel() {
   try {
-    return await TypedModelApiManager.getCurrentTypedModel();
+    return await GetCurrentTypedModel();
   } catch (error) {
     throw new Error("Error fetching current typed model: ");
   }
@@ -45,13 +49,13 @@ export default function EditCurrentModel() {
   const currentModelType = splitPath[TYPED_MODEL_TYPE_LOCATION];
 
   if (currentModelType === "internal-events") {
-    endpoint = TypedModelApiManager.patchInternalEvent;
+    endpoint = PatchInternalEvent;
   } else if (currentModelType === "internal-hazards") {
-    endpoint = TypedModelApiManager.patchInternalHazard;
+    endpoint = PatchInternalHazard;
   } else if (currentModelType === "external-hazards") {
-    endpoint = TypedModelApiManager.patchExternalHazard;
+    endpoint = PatchExternalHazard;
   } else if (currentModelType === "full-scope") {
-    endpoint = TypedModelApiManager.patchFullScope;
+    endpoint = PatchFullScope;
   }
 
   //this takes any type instead of what it should, I have *no* idea how to carry over the types across promises, it doesn't seem to work and I've tinkered quite a bit

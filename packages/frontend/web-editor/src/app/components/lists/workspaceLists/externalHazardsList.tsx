@@ -1,17 +1,19 @@
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
-import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
-import ExternalHazardsModel from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
+import { ExternalHazardsModel } from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
 import { useEffect, useState } from "react";
+import {
+  DeleteExternalHazard,
+  GetExternalHazards,
+  PatchExternalHazard,
+} from "shared-types/src/lib/api/TypedModelApiManager";
 import GenericListItem from "../GenericListItem";
 import GenericItemList from "../GenericItemList";
 
 //grabs the model List
 async function fetchModelList() {
   try {
-    return await TypedModelApiManager.getExternalHazards(
-      ApiManager.getCurrentUser().user_id,
-    );
+    return await GetExternalHazards(ApiManager.getCurrentUser().user_id);
   } catch (error) {
     console.error("Error fetching internal events:", error);
     return [];
@@ -47,8 +49,8 @@ const getFixtures = async (): Promise<JSX.Element[]> => {
           }}
           path={`/external-hazards/${modelItem.getId()}`}
           endpoint={`external-hazard`} // Adjust this based on your model's structure
-          deleteTypedEndpoint={TypedModelApiManager.deleteExternalHazard}
-          patchTypedEndpoint={TypedModelApiManager.patchExternalHazard}
+          deleteTypedEndpoint={DeleteExternalHazard}
+          patchTypedEndpoint={PatchExternalHazard}
           users={modelItem.getUsers()}
         />
       ),

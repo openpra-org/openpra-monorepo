@@ -1,7 +1,7 @@
 /**
- * @file IDType.test.ts
- * @brief This file contains tests for IDType.ts
- * @details In this file, we test the isValidIDType function from IDType.ts to ensure it correctly validates IDs.
+ *  IDType.test.ts
+ * @remarks This file contains tests for IDType.ts
+ *  In this file, we test the isValidIDType function from IDType.ts to ensure it correctly validates IDs.
  */
 
 import { isValidIDType, IDType } from "./IDType";
@@ -9,8 +9,8 @@ import { isValidIDType, IDType } from "./IDType";
 describe("isValidIDType", () => {
   /**
    * Test to check if the function correctly identifies valid IDs.
-   * @brief Test for valid IDs
-   * @details In this test, we pass valid IDs to the function and expect it to return true.
+   * @remarks Test for valid IDs
+   *  In this test, we pass valid IDs to the function and expect it to return true.
    */
   it("should return true for valid IDs", () => {
     const validIDs: IDType[] = [
@@ -27,8 +27,8 @@ describe("isValidIDType", () => {
 
   /**
    * Test to check if the function correctly identifies invalid IDs.
-   * @brief Test for invalid IDs
-   * @details In this test, we pass invalid IDs to the function and expect it to return false.
+   * @remarks Test for invalid IDs
+   *  In this test, we pass invalid IDs to the function and expect it to return false.
    */
   it("should return false for invalid IDs", () => {
     const invalidIDs: IDType[] = [

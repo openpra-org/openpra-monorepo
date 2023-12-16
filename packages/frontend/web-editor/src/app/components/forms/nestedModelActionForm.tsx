@@ -10,18 +10,18 @@ import {
   EuiTextArea,
   EuiTitle,
 } from "@elastic/eui";
-import React, { useState } from "react";
+import { useState } from "react";
 
-import TypedModelApiManager from "shared-types/src/lib/api/TypedModelApiManager";
+import { GetCurrentModelId } from "shared-types/src/lib/api/TypedModelApiManager";
 import {
-  DEFAULT_NESTED_MODEL_JSON,
+  DefaultNestedModelJSON,
   NestedModelJSON,
 } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 
 import { toTitleCase } from "../../../utils/StringUtils";
 
-export interface NestedItemFormProps {
+export type NestedItemFormProps = {
   itemName: string;
   // TODO:: TODO :: replace endpoint string with TypedApiManager method
   id?: number;
@@ -34,7 +34,7 @@ export interface NestedItemFormProps {
   initialFormValues?: NestedModelJSON;
   compressed?: boolean;
   noHeader?: boolean;
-}
+};
 
 export default function NestedModelActionForm({
   itemName,
@@ -52,7 +52,7 @@ export default function NestedModelActionForm({
   //setting up initial values depending on what has been send, if init form values are passed its assumed to be updating instead of adding
   const formInitials = initialFormValues
     ? initialFormValues
-    : DEFAULT_NESTED_MODEL_JSON;
+    : DefaultNestedModelJSON;
 
   //sets the current typed model using our formIntials, in a react state so we can pass it around
   const [typedModel, setTypedModel] = useState(formInitials);
@@ -65,7 +65,7 @@ export default function NestedModelActionForm({
       //creating a partial model to pass for update, may update to work for adding later aswell
       const partialModel: NestedModelJSON = {
         label: typedModel.label,
-        parentIds: [TypedModelApiManager.getCurrentModelId()],
+        parentIds: [GetCurrentModelId()],
       };
 
       //dummied out patch functionality as I think this will be very different

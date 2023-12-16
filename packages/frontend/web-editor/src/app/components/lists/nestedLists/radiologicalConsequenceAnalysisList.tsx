@@ -1,18 +1,16 @@
-import NestedModelApiManager from "shared-types/src/lib/api/NestedModelApiManager";
+import {
+  DeleteRadiologicalConsequenceAnalysis,
+  GetRadiologicalConsequenceAnalysis,
+  PatchRadiologicalConsequenceLabel,
+} from "shared-types/src/lib/api/NestedModelApiManager";
 import NestedModelList from "./templateList/nestedModelList";
 
 export default function RadiologicalConsequenceAnalysisList() {
   return (
     <NestedModelList
-      getNestedEndpoint={
-        NestedModelApiManager.getRadiologicalConsequenceAnalysis
-      }
-      deleteNestedEndpoint={
-        NestedModelApiManager.deleteRadiologicalConsequenceAnalysis
-      }
-      patchNestedEndpoint={
-        NestedModelApiManager.patchRadiologicalConsequenceLabel
-      }
+      getNestedEndpoint={GetRadiologicalConsequenceAnalysis}
+      deleteNestedEndpoint={DeleteRadiologicalConsequenceAnalysis}
+      patchNestedEndpoint={PatchRadiologicalConsequenceLabel}
       name="radiological-consequence-analysis"
     />
   );

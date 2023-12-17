@@ -1,4 +1,4 @@
-# OpenPRA Monorepo
+# OpenPRA MonoRepo
 
 Welcome to the OpenPRA Monorepo, the unified codebase for
 the [OpenPRA application suite](https://docs.openpra.org/).
@@ -214,17 +214,32 @@ packages, follow these general steps:
 
 You can always use the command line to serve or build any of the targets. `nx`
 supports a wide range of commands, so be
-sure to check out its documentation. Some very basic examples include:
+sure to check out its documentation.
 
+Some very basic examples include:
+
+ - Serve packages concurrently
+```shell
+nx run-many -t serve --all
+```
+
+ - Serve packages individually:
 ```shell
 nx serve web-editor
+```
+```shell
 nx serve web-backend
+```
+```shell
+nx serve shared-types
+```
 
-# alternatively, serve all concurrently:
-nx run-many -t serve --all
-
-# run Jest unit tests and linting across the project with:
+ - Run Jest unit tests and linting across the project with:
+```shell
 nx run-many -t test
+```
+ - Run ES linting across the project with:
+```shell
 nx run-many -t lint
 ```
 

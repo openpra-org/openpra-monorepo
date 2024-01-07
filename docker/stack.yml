@@ -1,8 +1,22 @@
 version: '3.3'
 
+networks:
+  db_net:
+    driver: overlay
+    attachable: true
+  backend:
+    driver: overlay
+    attachable: true
+  traefik-public:
+    external: true
+
+secrets:
+  CI_JWT_SECRET_KEY:
+    file: secrets/DSF_JWT_SECRET_KEY.secret
+
 services:
   frontend:
-    image: ${CI_REGISTRY_IMAGE}:frontend-${CI_COMMIT_REF_SLUG}
+    image: ${IMAGE_FRONTEND}
     networks:
       - traefik-public
       - backend
@@ -24,20 +38,21 @@ services:
         - traefik.http.services.${APP_NAME}-frontend.loadbalancer.server.port=80
 
   backend:
-    image: ${CI_REGISTRY_IMAGE}:backend-${CI_COMMIT_REF_SLUG}
+    image: ${IMAGE_BACKEND}
     networks:
       - traefik-public
       - backend
       - db_net
+    secrets:
+      - CI_JWT_SECRET_KEY
     environment:
       MONGO_URL: mongodb://mongodb:27017
+#      JWT_SECRET_KEY: ${DSF_JWT_SECRET_KEY}
       JWT_SECRET_KEY: /run/secrets/CI_JWT_SECRET_KEY
       SENTRY_DSN: ${CI_SENTRY_DSN}
       SENTRY_ENV: ${CI_SENTRY_ENV}
       DEBUG: ${CI_DEBUG}
       DEPLOYMENT: 'true'
-    secrets:
-      - CI_JWT_SECRET_KEY
     depends_on:
       - mongodb
     deploy:
@@ -89,28 +104,5 @@ services:
     image: mongo:latest
     networks:
       - db_net
-    deploy:
-      placement:
-        constraints:
-          - node.labels.persistent == ${PERSIST_VOLUME?Variable not set}
     volumes:
-      - mongo-data:/data/db
-
-
-volumes:
-  mongo-data:
-    driver: local
-
-networks:
-  db_net:
-    driver: overlay
-    attachable: true
-  backend:
-    driver: overlay
-    attachable: true
-  traefik-public:
-    external: true
-
-secrets:
-  CI_JWT_SECRET_KEY:
-    file: $CI_DSF_JWT_SECRET_KEY
+      - "$ENV_SHARED_VOLUME_PATH/mongodb:/data/db"

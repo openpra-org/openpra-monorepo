@@ -28,7 +28,7 @@ RUN source /root/.bashrc \
 
 FROM nginx:latest as frontend
 WORKDIR /usr/share/nginx/html/web-editor
-COPY default.conf /etc/nginx/nginx.conf
+COPY docker/default.conf /etc/nginx/nginx.conf
 COPY --from=frontend_builder /app/dist/packages/frontend/web-editor/ ./
 
 FROM base as backend

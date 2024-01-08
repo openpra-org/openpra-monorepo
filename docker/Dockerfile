@@ -34,6 +34,6 @@ COPY --from=frontend_builder /app/dist/packages/frontend/web-editor/ ./
 FROM base as backend
 WORKDIR /app
 SHELL ["/bin/bash", "-c"]
-CMD source /root/.bashrc && nx run web-backend:serve:$BUILD_TYPE
+CMD source /root/.bashrc && nx run --verbose web-backend:serve:$BUILD_TYPE
 
 

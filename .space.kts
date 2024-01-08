@@ -57,7 +57,8 @@ job("Deployment") {
       shellScript("docker build frontend"){
         interpreter = "/bin/bash"
         content = """
-                          docker build --target frontend --build-arg BUILD_TYPE="{{ buildType }}" --tag="$remote:frontend-{{ branchSlug }}" -f ./docker/Dockerfile .
+                          docker pull $remote:frontend-{{ branchSlug }} || true
+                          docker build --no-cache --target frontend --build-arg BUILD_TYPE="{{ buildType }}" --tag="$remote:frontend-{{ branchSlug }}" -f ./docker/Dockerfile .
                           """
       }
 
@@ -77,7 +78,8 @@ job("Deployment") {
       shellScript("docker build backend"){
         interpreter = "/bin/bash"
         content = """
-                            docker build --target backend --build-arg BUILD_TYPE="{{ buildType }}" --tag="$remote:backend-{{ branchSlug }}" -f ./docker/Dockerfile .
+                            docker pull $remote:backend-{{ branchSlug }} || true
+                            docker build --no-cache --target backend --build-arg BUILD_TYPE="{{ buildType }}" --tag="$remote:backend-{{ branchSlug }}" -f ./docker/Dockerfile .
                             """
       }
 
@@ -212,7 +214,8 @@ job("Build, Test, Lint, Cleanup") {
             shellScript("nx run-many -t build"){
                 interpreter = "/bin/bash"
                 content = """
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --no-cache -target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
                         docker run --rm "$remote:{{ branchSlug }}" nx run-many -t build
                         """
             }
@@ -222,7 +225,8 @@ job("Build, Test, Lint, Cleanup") {
             shellScript("nx run-many -t test"){
                 interpreter = "/bin/bash"
                 content = """
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
                         docker run --rm "$remote:{{ branchSlug }}" nx run-many -t test
                         """
             }
@@ -232,7 +236,8 @@ job("Build, Test, Lint, Cleanup") {
             shellScript("nx run-many -t lint"){
                 interpreter = "/bin/bash"
                 content = """
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
                         docker run --rm "$remote:{{ branchSlug }}" nx run-many -t lint
                         """
             }

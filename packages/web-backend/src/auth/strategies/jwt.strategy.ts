@@ -1,3 +1,5 @@
+import * as fs from "fs";
+import * as process from "process";
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
@@ -17,7 +19,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderWithScheme("JWT"),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>("JWT_SECRET_KEY"),
+      secretOrKey: process.env.DEPLOYMENT
+        ? fs.readFileSync(configService.get<string>("JWT_SECRET_KEY"))
+        : configService.get<string>("JWT_SECRET_KEY"),
     });
   }
 

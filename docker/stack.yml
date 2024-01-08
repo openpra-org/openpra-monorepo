@@ -20,6 +20,8 @@ services:
     networks:
       - traefik-public
       - backend
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
     deploy:
       labels:
         - traefik.enable=true
@@ -55,6 +57,8 @@ services:
       DEPLOYMENT: 'true'
     depends_on:
       - mongodb
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
     deploy:
       labels:
         - traefik.enable=true
@@ -77,6 +81,8 @@ services:
     networks:
       - traefik-public
       - db_net
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb
       ME_CONFIG_MONGODB_ENABLE_ADMIN: 'true'
@@ -106,3 +112,4 @@ services:
       - db_net
     volumes:
       - "$ENV_SHARED_VOLUME_PATH/mongodb:/data/db"
+      - "/etc/localtime:/etc/localtime:ro"

@@ -13,10 +13,10 @@ import {
   HttpStatus,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import {InternalEventsModel} from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
-import {InternalHazardsModel} from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
-import {FullScopeModel} from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
-import {ExternalHazardsModel} from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
+import { InternalEventsModel } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
+import { InternalHazardsModel } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
+import { FullScopeModel } from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
+import { ExternalHazardsModel } from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";
 import { TypedModelService } from "./typedModel.service";
 import { InternalEvents } from "./schemas/internal-events.schema";

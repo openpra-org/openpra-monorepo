@@ -11,6 +11,13 @@ export enum NodeTypes {
   Undeveloped = "Undeveloped",
   Transfer = "Transfer",
   End = "End State",
+  AndGate = "And Gate",
+  OrGate = "Or Gate",
+  AtLeastGate = "At Least Gate",
+  NotGate = "Not Gate",
+  TransferGate = "Transfer Gate",
+  BasicEvent = "Basic Event",
+  HouseEvent = "House Event"
 }
 
 /**

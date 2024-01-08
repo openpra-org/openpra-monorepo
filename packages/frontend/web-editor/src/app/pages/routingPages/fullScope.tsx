@@ -29,6 +29,7 @@ import EventSequenceAnalysis from "../fullScopePages/eventSequenceAnalysis";
 import SuccessCriteria from "../fullScopePages/successCriteria";
 import SystemsAnalysis from "../fullScopePages/systemsAnalysis";
 import DataAnalysis from "../fullScopePages/dataAnalysis";
+import FaultTrees from "../fullScopePages/faultTrees";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -88,6 +89,7 @@ export default function FullScopePage() {
         />
         <Route path="event-trees/*" element={<EventTrees />} />
         <Route path="functional-events/*" element={<FunctionalEvents />} />
+        <Route path="fault-trees/*" element={<FaultTrees />} />
         <Route path="bayesian-networks/*" element={<BayesianNetworks />} />
         <Route path="markov-chains/*" element={<MarkovChains />} />
         <Route path="human-reliability-analysis/*" element={<HRA />} />

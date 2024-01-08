@@ -1,0 +1,23 @@
+.gate_icon {
+    margin: auto;
+    height: 100%;
+    width: 30px;
+}
+
+.context_menu_container {
+    display: inline-block !important;
+    white-space: nowrap !important;
+    overflow-x: scroll;
+}
+
+.context_menu_container > li {
+    display: inline-block !important;
+}
+
+
+.basic_event_icon {
+    margin: auto;
+    height: 30px;
+    width: 40px;
+}
+

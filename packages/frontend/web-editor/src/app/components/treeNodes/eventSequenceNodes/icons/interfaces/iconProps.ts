@@ -23,5 +23,9 @@ export interface IIconProps {
   /**
    * @param selected boolean flag if a node is selected (to highlight a selected node)
    */
-  selected: boolean;
+  selected?: boolean;
+  /**
+   * @param viewBox set view box property of the svg
+   */
+  viewBox?: string;
 }

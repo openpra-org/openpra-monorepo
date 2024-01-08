@@ -217,8 +217,8 @@ export function EventTreeEditor(): ReactElement {
 export default function EventTrees(): ReactElement {
   return (
     <Routes>
-      <Route path="" element=<EventTreeList /> />
-      <Route path=":eventTreeId" element=<EventTreeEditor />></Route>
+      <Route path="" element={<EventTreeList />} />
+      <Route path=":eventTreeId" element={<EventTreeEditor />}></Route>
     </Routes>
   );
 }

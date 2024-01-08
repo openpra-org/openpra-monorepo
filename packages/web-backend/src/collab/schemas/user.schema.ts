@@ -159,6 +159,9 @@ export class User {
 
   @Prop({ type: PermissionsSchema, default: {}, required: false })
   permissions: Permissions;
+
+  @Prop({type:Date, default:Date.now()})
+  last_login: Date;
 }
 
 export type UserDocument = User & Document;

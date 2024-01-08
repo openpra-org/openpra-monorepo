@@ -124,7 +124,7 @@ importers:
         specifier: 27.6.0
         version: 27.6.0(@typescript-eslint/eslint-plugin@6.10.0)(eslint@8.53.0)(jest@29.7.0)(typescript@5.2.2)
       eslint-plugin-json-schema-validator:
-        specifier: ^4.7.3
+        specifier: 4.7.3
         version: 4.7.3(eslint@8.53.0)
       eslint-plugin-jsonc:
         specifier: 2.10.0
@@ -226,6 +226,18 @@ importers:
       '@testing-library/jest-dom':
         specifier: 6.1.4
         version: 6.1.4(@types/jest@29.5.8)(jest@29.7.0)
+      classnames:
+        specifier: 2.3.2
+        version: 2.3.2
+      d3-hierarchy:
+        specifier: 3.1.2
+        version: 3.1.2
+      d3-timer:
+        specifier: 3.0.1
+        version: 3.0.1
+      lodash:
+        specifier: 4.17.21
+        version: 4.17.21
       moment:
         specifier: 2.29.4
         version: 2.29.4
@@ -257,6 +269,9 @@ importers:
       '@types/d3-timer':
         specifier: 3.0.2
         version: 3.0.2
+      '@types/lodash':
+        specifier: 4.14.202
+        version: 4.14.202
       '@types/react':
         specifier: 18.2.38
         version: 18.2.38
@@ -4504,7 +4519,6 @@ packages:
 
   /@types/lodash@4.14.202:
     resolution: {integrity: sha512-OvlIYQK9tNneDlS0VN54LLd5uiPCBOp7gS5Z0f1mjoJYBrtStzgmJBxONW3U6OZqdtNzZPmn9BS/7WI7BFFcFQ==}
-    dev: false
 
   /@types/mdast@3.0.15:
     resolution: {integrity: sha512-LnwD+mUEfxWMa1QpDraczIn6k0Ee3SMicuYSSzS6ZYl2gKS09EClnJYGd8Du6rfc5r/GZEk5o1mRb8TaTj03sQ==}
@@ -6666,6 +6680,11 @@ packages:
 
   /d3-ease@3.0.1:
     resolution: {integrity: sha512-wR/XK3D3XcLIZwpbvQwQ5fK+8Ykds1ip7A2Txe0yxncXSdq1L9skcG7blcedkOX+ZcgxGAmLX1FrRGbADwzi0w==}
+    engines: {node: '>=12'}
+    dev: false
+
+  /d3-hierarchy@3.1.2:
+    resolution: {integrity: sha512-FX/9frcub54beBdugHjDCdikxThEqjnR93Qt7PvQTOHxyiNCAlvMrHhclk3cD5VeAaq9fxmfRp+CnWw9rEMBuA==}
     engines: {node: '>=12'}
     dev: false
 

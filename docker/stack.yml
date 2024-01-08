@@ -22,6 +22,7 @@ services:
       - backend
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
     deploy:
       labels:
         - traefik.enable=true
@@ -49,7 +50,6 @@ services:
       - CI_JWT_SECRET_KEY
     environment:
       MONGO_URL: mongodb://mongodb:27017
-#      JWT_SECRET_KEY: ${DSF_JWT_SECRET_KEY}
       JWT_SECRET_KEY: /run/secrets/CI_JWT_SECRET_KEY
       SENTRY_DSN: ${CI_SENTRY_DSN}
       SENTRY_ENV: ${CI_SENTRY_ENV}
@@ -59,6 +59,7 @@ services:
       - mongodb
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
     deploy:
       labels:
         - traefik.enable=true
@@ -83,6 +84,7 @@ services:
       - db_net
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb
       ME_CONFIG_MONGODB_ENABLE_ADMIN: 'true'
@@ -113,3 +115,4 @@ services:
     volumes:
       - "$ENV_SHARED_VOLUME_PATH/mongodb:/data/db"
       - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"

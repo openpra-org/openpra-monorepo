@@ -215,7 +215,7 @@ job("Build, Test, Lint, Cleanup") {
                 interpreter = "/bin/bash"
                 content = """
                         docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache -target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
+                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
                         docker run --rm "$remote:{{ branchSlug }}" nx run-many -t build
                         """
             }

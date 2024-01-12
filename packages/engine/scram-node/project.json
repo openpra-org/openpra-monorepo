@@ -10,6 +10,12 @@
       "options": {
         "lintFilePatterns": ["packages/engine/scram-node/**/*.ts"]
       }
+    },
+    "build": {
+      "executor": "nx:run-script",
+      "options": {
+        "script": "install"
+      }
     }
   },
   "tags": []

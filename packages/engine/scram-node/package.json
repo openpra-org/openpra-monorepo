@@ -4,20 +4,11 @@
   "license": "AGPL-3.0-or-later",
   "main": "./lib/index.js",
   "scripts": {
-    "test": "tape test/*.test.js",
-    "install": "node-pre-gyp install --fallback-to-build",
-    "docs": "documentation build ./lib/index.js -f md > API.md",
-    "clean": "make clean",
-    "distclean": "make distclean",
-    "build-deps": "make build-deps",
-    "tidy": "make tidy",
-    "format": "make format",
-    "sanitize": "make sanitize",
-    "debug": "make debug",
-    "release": "make release",
-    "make": "make",
-    "coverage": "make coverage",
-    "build": "make"
+    "install": "cmake-js -C --parallel 8 compile --target scram scram-node ",
+    "rebuild": "cmake-js -C --parallel 8 rebuild --target scram scram-node ",
+    "configure": "cmake-js -C --parallel 8 configure --target scram scram-node ",
+    "clean": "cmake-js clean",
+    "test": "jest"
   },
   "nx": {
     "namedInputs": {
@@ -25,7 +16,7 @@
         "{projectRoot}/**/*"
       ],
       "production": [
-        "!{projectRoot}/**/*.spec.ts"
+        "!{projectRoot}/**/*.spec.tsx"
       ]
     },
     "targets": {
@@ -52,21 +43,16 @@
     }
   },
   "dependencies": {
-    "@mapbox/node-pre-gyp": "1.0.8",
-    "node-addon-api": "4.3.0"
+    "cmake-js": "7.2.1",
+    "node-addon-api": "7.0.0"
   },
   "devDependencies": {
-    "bytes": "3.1.0",
-    "d3-queue": "3.0.7",
-    "minimist": "1.2.5",
-    "tape": "5.1.1",
-    "@types/tape": "5.6.4"
+    "jest": "29.7.0"
   },
   "binary": {
-    "module_name": "module",
-    "module_path": "./lib/binding/",
-    "host": "undefined",
-    "remote_path": "./{name}/v{version}/{configuration}/{toolset}/",
-    "package_name": "{platform}-{arch}.tar.gz"
+    "napi_versions": [7]
+  },
+  "engines": {
+    "node": "20.9.0"
   }
 }

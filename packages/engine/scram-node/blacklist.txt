@@ -1,2 +1,0 @@
-[cfi-derived-cast]
-fun:*ObjectWrap*

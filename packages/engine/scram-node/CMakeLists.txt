@@ -191,7 +191,6 @@ list(APPEND LIBS ${CMAKE_DL_LIBS})
 message(STATUS "Libraries: ${LIBS}")
 
 ########################## End of find libraries ######################## }}}
-
 ########################## Begin includes ############################### {{{
 
 # Include all the discovered system directories.

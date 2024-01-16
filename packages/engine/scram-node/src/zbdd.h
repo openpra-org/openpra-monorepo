@@ -566,6 +566,18 @@ class Zbdd : private boost::noncopyable {
   const TerminalPtr kBase_;  ///< Terminal Base (Unity/1) set.
   const TerminalPtr kEmpty_;  ///< Terminal Empty (Null/0) set.
 
+public:
+    const std::vector<std::vector<int>> &getFrozenProducts() const {
+        return frozenProducts_;
+    }
+
+protected:
+    std::vector<std::vector<int>> frozenProducts_ = std::vector<std::vector<int>>();
+    void freezeProducts() {
+    this->frozenProducts_.clear();
+    this->frozenProducts_ = std::vector<std::vector<int>>(this->begin(), this->end());
+  }
+
  private:
   using SetNodeWeakPtr = WeakIntrusivePtr<SetNode>;  ///< Pointer for tables.
   using ComputeTable = TripletTable<VertexPtr>;  ///< General computation table.

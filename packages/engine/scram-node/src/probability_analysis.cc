@@ -184,8 +184,7 @@ namespace scram::core {
         double sum = 0;
 //  double rare_start_time = omp_get_wtime();
 
-        // Convert Zbdd to a vector of vectors
-        std::vector<std::vector<int>> cut_sets_vector(cut_sets.begin(), cut_sets.end());
+        auto cut_sets_vector = cut_sets.getFrozenProducts();
         double rare_start_time = omp_get_wtime();
 //  #pragma omp parallel for reduction(+:sum) num_threads(6)
         for (std::size_t i = 0; i < cut_sets_vector.size(); ++i) {
@@ -196,16 +195,16 @@ namespace scram::core {
         return sum > 1 ? 1 : sum;
     }
 // #original implementation
-    double McubCalculator::Calculate(
-            const Zbdd& cut_sets, const Pdag::IndexMap<double>& p_vars) noexcept {
-        double m = 1;
-        double mcub_start_time = omp_get_wtime();
-        for (const std::vector<int>& cut_set : cut_sets) {
-            m *= 1 - CutSetProbabilityCalculator::Calculate(cut_set, p_vars);
-        }
-        std::cout<<"--> Mcubcalculator original implementations elapsed time:"<<(omp_get_wtime() - mcub_start_time)*1000<<" milliseconds"<<std::endl;
-        return 1 - m;
-    }
+//    double McubCalculator::Calculate(
+//            const Zbdd& cut_sets, const Pdag::IndexMap<double>& p_vars) noexcept {
+//        double m = 1;
+//        double mcub_start_time = omp_get_wtime();
+//        for (const std::vector<int>& cut_set : cut_sets) {
+//            m *= 1 - CutSetProbabilityCalculator::Calculate(cut_set, p_vars);
+//        }
+//        std::cout<<"--> Mcubcalculator original implementations elapsed time:"<<(omp_get_wtime() - mcub_start_time)*1000<<" milliseconds"<<std::endl;
+//        return 1 - m;
+//    }
 //alternative #2
 //double McubCalculator::Calculate(const Zbdd& cut_sets, const Pdag::IndexMap<double>& p_vars) noexcept {
 //  double m = 1;
@@ -217,22 +216,21 @@ namespace scram::core {
 //  return 1 - m;
 //}
 // alternative #3
-//double McubCalculator::Calculate(const Zbdd& cut_sets, const Pdag::IndexMap<double>& p_vars) noexcept {
-//  double m = 1;
-//    double mcub_start_time = omp_get_wtime();
-//
-//  // Convert Zbdd to a vector of vectors
-//  std::vector<std::vector<int>> cut_sets_vector(cut_sets.begin(), cut_sets.end());
-//  double mcub_loop_start_time = omp_get_wtime();
-//#pragma omp parallel for reduction(*:m) num_threads(6)
-//  for (std::size_t i = 0; i < cut_sets_vector.size(); ++i) {
-//    const std::vector<int>& cut_set = cut_sets_vector[i];
-//    m *= 1 - CutSetProbabilityCalculator::Calculate(cut_set, p_vars);
-//  }
-//  std::cout<<"---> Mcubcalculator just loop elapsed time:"<<(omp_get_wtime() - mcub_loop_start_time)*1000<<" ms"<<std::endl;
-//  std::cout<<"---> Mcubcalculator elapsed time:"<<(omp_get_wtime() - mcub_start_time)*1000<<" ms"<<std::endl;
-//  return 1 - m;
-//}
+double McubCalculator::Calculate(const Zbdd& cut_sets, const Pdag::IndexMap<double>& p_vars) noexcept {
+  double m = 1;
+    double mcub_start_time = omp_get_wtime();
+
+  auto cut_sets_vector = cut_sets.getFrozenProducts();
+  double mcub_loop_start_time = omp_get_wtime();
+  #pragma omp parallel for reduction(*:m)
+  for (std::size_t i = 0; i < cut_sets_vector.size(); ++i) {
+    const std::vector<int>& cut_set = cut_sets_vector[i];
+    m *= 1 - CutSetProbabilityCalculator::Calculate(cut_set, p_vars);
+  }
+  std::cout<<"---> Mcubcalculator just loop elapsed time:"<<(omp_get_wtime() - mcub_loop_start_time)*1000<<" ms"<<std::endl;
+  std::cout<<"---> Mcubcalculator elapsed time:"<<(omp_get_wtime() - mcub_start_time)*1000<<" ms"<<std::endl;
+  return 1 - m;
+}
 
     void ProbabilityAnalyzerBase::ExtractVariableProbabilities() {
         p_vars_.reserve(graph_->basic_events().size());

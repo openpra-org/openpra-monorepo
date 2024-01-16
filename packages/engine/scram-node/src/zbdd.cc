@@ -100,6 +100,7 @@ void Zbdd::Analyze(const Pdag* graph) noexcept {
 
   Freeze();  // Complete cleanup of the memory.
   LOG(DEBUG3) << "G" << module_index_ << " analysis time: " << DUR(zbdd_time);
+  freezeProducts();
 }
 
 Zbdd::Zbdd(const Settings& settings, bool coherent, int module_index) noexcept

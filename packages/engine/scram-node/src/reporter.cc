@@ -19,6 +19,8 @@
 /// @file
 /// Implements Reporter class.
 
+#include <omp.h>
+
 #include "reporter.h"
 
 #include <ctime>

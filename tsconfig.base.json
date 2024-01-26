@@ -4,6 +4,6 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {},
-    "types": ["jest", "node"]
+    "types": ["jest", "node", "@types/jest"]
   }
 }

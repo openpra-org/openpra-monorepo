@@ -75,7 +75,7 @@ class Expression : private boost::noncopyable {
   virtual ~Expression() = default;
 
   /// @returns A set of arguments of the expression.
-  const std::vector<Expression*>& args() const { return args_; }
+  [[nodiscard]] const std::vector<Expression*>& args() const { return args_; }
 
   /// Validates the expression.
   /// This late validation is due to parameters that are defined late.

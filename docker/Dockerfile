@@ -9,7 +9,7 @@ ENV SCRAM_BUILD_PACKAGES \
     libxml2-dev libomp-dev \
     libgoogle-perftools-dev libboost-program-options-dev \
     libboost-math-dev libboost-random-dev libboost-filesystem-dev \
-    libboost-date-time-dev libjemalloc-dev
+    libboost-test-dev libboost-date-time-dev libjemalloc-dev
 
 ENV SCRAM_RUNTIME_PACKAGES \
     libxml2 libboost-filesystem1.74.0 libboost-program-options1.74.0 \

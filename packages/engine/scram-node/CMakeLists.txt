@@ -98,18 +98,6 @@ endif()
 
 include(CTest)
 
-
-# Setup build locations.
-if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${SCRAM_BINARY_DIR}/bin")
-endif()
-if(NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${SCRAM_BINARY_DIR}/lib/scram")
-endif()
-if(NOT CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
-  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${SCRAM_BINARY_DIR}/lib/scram")
-endif()
-
 if(WIN32)
   set(CMAKE_SKIP_RPATH TRUE)
 else()
@@ -203,7 +191,6 @@ list(APPEND LIBS ${CMAKE_DL_LIBS})
 message(STATUS "Libraries: ${LIBS}")
 
 ########################## End of find libraries ######################## }}}
-
 ########################## Begin includes ############################### {{{
 
 # Include all the discovered system directories.

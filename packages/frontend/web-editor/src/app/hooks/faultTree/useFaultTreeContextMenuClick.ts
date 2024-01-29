@@ -1,9 +1,9 @@
 import {useCallback, useState} from 'react';
 import {Edge, getConnectedEdges, getIncomers, getOutgoers, Node, NodeProps, useReactFlow} from 'reactflow';
 import _ from 'lodash'
-import {generateUUID, state} from '../../../utils/treeUtils';
+import {GenerateUUID, FaultTreeState} from '../../../utils/treeUtils';
 import {useParams} from "react-router-dom";
-import GraphApiManager from "shared-types/src/lib/api/GraphApiManager";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 
 
 /**
@@ -67,8 +67,8 @@ export function useFaultTreeContextMenuClick(id: NodeProps['id']) {
       // add two basic events as children and update the current node to the type of new node
 
       // create a unique id for the child nodes
-      const childNodeId1 = generateUUID();
-      const childNodeId2 = generateUUID();
+      const childNodeId1 = GenerateUUID();
+      const childNodeId2 = GenerateUUID();
 
       // create the child nodes
       const childNode1 = {
@@ -113,7 +113,7 @@ export function useFaultTreeContextMenuClick(id: NodeProps['id']) {
       // and a basic event as another subtree
 
       // create a unique id for the child nodes
-      const childNodeId1 = generateUUID();
+      const childNodeId1 = GenerateUUID();
 
       // add a basic event as child
       const childNode1 = {
@@ -149,7 +149,7 @@ export function useFaultTreeContextMenuClick(id: NodeProps['id']) {
       edgesToRemove.push(...edges.filter((edge) => !(edge.target === parentNode.id)));
       nodesToRemove.push(...nodes);
 
-      const childNodeId = generateUUID();
+      const childNodeId = GenerateUUID();
 
       // add a not gate node
       const childNode = {
@@ -192,7 +192,7 @@ export function useFaultTreeContextMenuClick(id: NodeProps['id']) {
     setEdges(edges);
 
     GraphApiManager.storeFaultTree(
-      state({
+      FaultTreeState({
         faultTreeId: faultTreeId!,
         nodes: nodes,
         edges: edges

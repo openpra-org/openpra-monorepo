@@ -7,11 +7,11 @@ import { NodeTypes } from "./icons/interfaces/nodeProps";
 
 /**
  * Intermediate State Node
- * @param id node identifier
- * @param selected node selection flag (true if selected)
+ * @param id - node identifier
+ * @param selected - node selection flag (true if selected)
  * @returns Intermediate State Node JSX Element
  */
-const IntermediateStateNode = ({ id, selected }: NodeProps) => {
+const IntermediateStateNode = ({ id, selected }: NodeProps): JSX.Element => {
   const onClick = useNodeClickHandler(id);
 
   return (

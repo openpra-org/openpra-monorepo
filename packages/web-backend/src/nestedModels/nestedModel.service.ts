@@ -17,7 +17,6 @@ import {
 } from "./schemas/event-sequence-diagram.schema";
 import { EventTree, EventTreeDocument } from "./schemas/event-tree.schema";
 import { FaultTree, FaultTreeDocument } from "./schemas/fault-tree.schema";
-import {FaultTreeGraph, FaultTreeGraphDocument} from "./schemas/fault-tree-graph.schema";
 import {
   InitiatingEvent,
   InitiatingEventDocument,
@@ -93,8 +92,6 @@ export class NestedModelService {
     private readonly eventTreeModel: Model<EventTreeDocument>,
     @InjectModel(FaultTree.name)
     private readonly faultTreeModel: Model<FaultTreeDocument>,
-    @InjectModel(FaultTreeGraph.name)
-    private readonly faultTreeGraphModel: Model<FaultTreeGraphDocument>,
     @InjectModel(FunctionalEvent.name)
     private readonly functionalEventsModel: Model<FunctionalEventDocument>,
     @InjectModel(InitiatingEvent.name)
@@ -227,28 +224,6 @@ export class NestedModelService {
     newFaultTree.id = await this.getNextValue("nestedCounter");
     return newFaultTree.save();
   }
-
-  /**
-   * creates the type of nestedmodel defined in the function name
-   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
-   * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
-   */
-  async saveFaultTreeGraph(
-    body: Partial<FaultTreeGraph>,
-  ): Promise<FaultTreeGraph> {
-    const existingGraph = await this.faultTreeGraphModel.findOne({ faultTreeId: body.faultTreeId });
-    if (existingGraph) {
-      existingGraph.nodes = body.nodes;
-      existingGraph.edges = body.edges;
-      await existingGraph.save();
-    } else {
-      const newFaultTreeGraph = new this.faultTreeGraphModel(body);
-      newFaultTreeGraph.id = new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
-      return newFaultTreeGraph.save();
-    }
-  }
-
 
   /**
    * creates the type of nestedmodel defined in the function name
@@ -483,7 +458,6 @@ export class NestedModelService {
     parentId: number,
   ): Promise<EventSequenceDiagram[]> {
     //typecast to a number because for some reason, it isnt a number????
-
     return this.eventSequenceDiagramModel.find(
       { parentIds: Number(parentId) },
       { _id: 0 },
@@ -523,20 +497,6 @@ export class NestedModelService {
    * @param parentId id of the parent model the nested model is number
    * @returns a promise with an array of the nested model of the type in the function name
    */
-  async getFaultTreeGraph(
-    faultTreeId: string,
-  ): Promise<FaultTreeGraph> {
-    return this.faultTreeGraphModel.findOne(
-      { faultTreeId: faultTreeId },
-      { _id: 0 },
-    )
-  }
-
-  /**
-   * gets the collection of the nested model as defined by the function name (bayesian estimations, etc.)
-   * @param parentId id of the parent model the nested model is number
-   * @returns a promise with an array of the nested model of the type in the function name
-   */
   async getFunctionalEvents(parentId: number): Promise<FunctionalEvent[]> {
     //typecast to a number because for some reason, it isnt a number????
 
@@ -561,7 +521,7 @@ export class NestedModelService {
   }
 
   async getMarkovChains(parentId: number): Promise<MarkovChain[]> {
-    //typecast to a number because for some reason, it isnt a number????
+    //typecast to a number because for some Areason, it isnt a number????
 
     return this.markovChainModel.find(
       { parentIds: Number(parentId) },

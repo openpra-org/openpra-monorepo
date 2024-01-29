@@ -1,6 +1,8 @@
 import { EdgeProps, useReactFlow } from "reactflow";
-
-import { generateUUID } from "../../../utils/treeUtils";
+import { useParams } from "react-router-dom";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { EventSequenceGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { EventSequenceState, GenerateUUID } from "../../../utils/treeUtils";
 
 /**
  * Hook for handling click events on edges in a React Flow diagram.
@@ -8,30 +10,21 @@ import { generateUUID } from "../../../utils/treeUtils";
  * This hook provides a function, `handleEdgeClick`, that can be used to perform actions when an edge is clicked.
  * It utilizes the React Flow library for managing nodes and edges in a flowchart-like UI.
  *
- * @param {string} id - The unique identifier of the clicked edge.
- * @returns {Function} A function (`handleEdgeClick`) to be used as an event handler for edge click events.
+ * @param id - The unique identifier of the clicked edge.
+ * @returns A function (`handleEdgeClick`) to be used as an event handler for edge click events.
  *
  * @example
- * ```typescript
- * const handleEdgeClick = useEdgeClick('uniqueEdgeId');
+ * ```
+ * const handleEdgeClick = useEdgeClick(uniqueEdgeId);
  * <Edge onClick={handleEdgeClick} />;
  * ```
  */
-function useEdgeClick(id: EdgeProps["id"]) {
-  const { setEdges, setNodes, getNode, getEdge } = useReactFlow();
+function UseEdgeClick(id: EdgeProps["id"]): () => void {
+  const { setEdges, setNodes, getNode, getEdge, getEdges, getNodes } =
+    useReactFlow();
+  const { eventSequenceId } = useParams() as { eventSequenceId: string };
 
-  /**
-   * Handles the click event on an edge by inserting a new Description node between the source and target nodes.
-   *
-   * @throws {Error} If either the edge or the target node is not found.
-   *
-   * @example
-   * ```typescript
-   * const handleEdgeClick = useEdgeClick('uniqueEdgeId');
-   * handleEdgeClick();
-   * ```
-   */
-  const handleEdgeClick = () => {
+  return (): void => {
     // first we retrieve the edge object to get the source and target id
     const edge = getEdge(id);
 
@@ -47,14 +40,14 @@ function useEdgeClick(id: EdgeProps["id"]) {
     }
 
     // create a unique id for newly added elements
-    const insertNodeId = generateUUID();
+    const insertNodeId = GenerateUUID();
 
     // this is the node object that will be added in between source and target node
     const insertNode = {
       id: insertNodeId,
       // we place the node at the current position of the target (prevents jumping)
       position: { x: targetNode.position.x, y: targetNode.position.y },
-      data: { label: "Description" },
+      data: {},
       type: "description",
     };
 
@@ -76,25 +69,35 @@ function useEdgeClick(id: EdgeProps["id"]) {
     };
 
     // remove the edge that was clicked as we have a new connection with a node in between
-    setEdges((edges) =>
-      edges.filter((e) => e.id !== id).concat([sourceEdge, targetEdge]),
-    );
+    const edges = getEdges()
+      .filter((e) => e.id !== id)
+      .concat([sourceEdge, targetEdge]);
+    setEdges(edges);
 
     // insert the node between the source and target node in the react flow state
-    setNodes((nodes) => {
-      const targetNodeIndex = nodes.findIndex(
-        (node) => node.id === edge.target,
-      );
+    const currentNodes = getNodes();
+    const targetNodeIndex = currentNodes.findIndex(
+      (node) => node.id === edge.target,
+    );
+    const nodes = [
+      ...currentNodes.slice(0, targetNodeIndex),
+      insertNode,
+      ...currentNodes.slice(targetNodeIndex, currentNodes.length),
+    ];
+    setNodes(nodes);
 
-      return [
-        ...nodes.slice(0, targetNodeIndex),
-        insertNode,
-        ...nodes.slice(targetNodeIndex, nodes.length),
-      ];
+    const eventSequenceCurrentState: EventSequenceGraph = EventSequenceState({
+      eventSequenceId: eventSequenceId,
+      nodes: nodes,
+      edges: edges,
     });
-  };
 
-  return handleEdgeClick;
+    void GraphApiManager.storeEventSequence(eventSequenceCurrentState).then(
+      (r: EventSequenceGraph) => {
+        console.log(r);
+      },
+    );
+  };
 }
 
-export default useEdgeClick;
+export default UseEdgeClick;

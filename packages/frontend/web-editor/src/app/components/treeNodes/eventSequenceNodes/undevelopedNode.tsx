@@ -7,11 +7,11 @@ import { NodeTypes } from "./icons/interfaces/nodeProps";
 
 /**
  * Sequence Not Developed Node
- * @param id node identifier
- * @param selected node selection flag (true if selected)
+ * @param id - node identifier
+ * @param selected - node selection flag (true if selected)
  * @returns Sequence Not Developed Node JSX Element
  */
-const UndevelopedNode = ({ id, selected }: NodeProps) => {
+const UndevelopedNode = ({ id, selected }: NodeProps): JSX.Element => {
   const onClick = useNodeClickHandler(id);
 
   return (

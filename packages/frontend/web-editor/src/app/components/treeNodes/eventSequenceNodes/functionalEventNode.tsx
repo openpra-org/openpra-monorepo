@@ -7,11 +7,11 @@ import { NodeTypes } from "./icons/interfaces/nodeProps";
 
 /**
  * Functional Node
- * @param id node identifier
- * @param selected node selection flag (true if selected)
+ * @param id - node identifier
+ * @param selected - node selection flag (true if selected)
  * @returns Functional Node JSX Element
  */
-const FunctionalEventNode = ({ id, selected }: NodeProps) => {
+const FunctionalEventNode = ({ id, selected }: NodeProps): JSX.Element => {
   const onClick = useNodeClickHandler(id);
 
   return (

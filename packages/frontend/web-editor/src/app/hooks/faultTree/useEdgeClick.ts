@@ -1,6 +1,6 @@
 import {EdgeProps, useReactFlow} from 'reactflow';
 
-import {generateUUID} from '../../../utils/treeUtils';
+import {GenerateUUID} from '../../../utils/treeUtils';
 
 /**
  * Hook for handling click events on edges in a React Flow diagram.
@@ -36,7 +36,7 @@ function useEdgeClick(id: EdgeProps['id']) {
     }
 
     // create a unique id for newly added elements
-    const insertNodeId = generateUUID();
+    const insertNodeId = GenerateUUID();
 
     // this is the node object that will be added in between source and target node
     const insertNode = {

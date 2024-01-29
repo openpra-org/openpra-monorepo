@@ -1,21 +1,21 @@
 /**
  * Represents the additional properties of the icon - especially for elliptical svg generation.
  */
-export interface IAdditionalIconProps {
+export type IAdditionalIconProps = {
   /**
-   * @param cx center x
+   * @param cx - center x
    */
   cx: string;
   /**
-   * @param cy center y
+   * @param cy - center y
    */
   cy: string;
   /**
-   * @param rx radius x
+   * @param rx - radius x
    */
   rx: string;
   /**
-   * @param ry radius y
+   * @param ry - radius y
    */
   ry: string;
-}
+};

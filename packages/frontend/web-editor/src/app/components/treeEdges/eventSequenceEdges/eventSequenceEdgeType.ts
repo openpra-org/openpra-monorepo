@@ -4,9 +4,9 @@ import FunctionalEdge from "./functionalEdge";
 /**
  * Represents the types of edges of event sequence diagram
  */
-export const edgeTypes = {
+export const ESEdgeTypes = {
   normal: NormalEdge,
   functional: FunctionalEdge,
 };
 
-export default edgeTypes;
+export default ESEdgeTypes;

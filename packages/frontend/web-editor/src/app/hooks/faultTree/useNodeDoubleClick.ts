@@ -1,7 +1,7 @@
 import {useCallback, useState} from 'react';
 import {getOutgoers, NodeProps, useReactFlow} from 'reactflow';
 
-import {generateUUID} from '../../../utils/treeUtils';
+import {GenerateUUID} from '../../../utils/treeUtils';
 
 /**
  * This hook implements the double click event on a node.
@@ -25,7 +25,7 @@ export function useNodeDoubleClick(id: NodeProps['id']) {
     }
 
     // create a unique id for the child node
-    const childNodeId = generateUUID();
+    const childNodeId = GenerateUUID();
 
 
     // create the child node

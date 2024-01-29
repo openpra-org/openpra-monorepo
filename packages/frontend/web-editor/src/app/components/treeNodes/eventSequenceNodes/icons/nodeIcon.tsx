@@ -1,14 +1,17 @@
-import {IIconProps} from "./interfaces/iconProps";
-import {INodeProps, NodeTypes} from "./interfaces/nodeProps";
 import React from "react";
+import { IIconProps } from "./interfaces/iconProps";
+import { INodeProps, NodeTypes } from "./interfaces/nodeProps";
 
 /**
  * Represents the shape of the node based on the type of node and icon properties
- * @param nodeType type of node
- * @param data additional properties of icon (in case of elliptical shape)
- * @param selected flag determining whether a node is selected or not
+ * @param nodeType - type of node
+ * @param data - additional properties of icon (in case of elliptical shape)
+ * @param selected - flag determining whether a node is selected or not
  */
-function getNodeShape(nodeType: NodeTypes, {data, selected = false}: IIconProps) {
+function getNodeShape(
+  nodeType: NodeTypes,
+  { data, selected = false }: IIconProps,
+): JSX.Element {
   const outerStroke = selected ? "#7c0a02" : "#0984e3";
   switch (nodeType) {
     case NodeTypes.Initiating:
@@ -116,7 +119,7 @@ function getNodeShape(nodeType: NodeTypes, {data, selected = false}: IIconProps)
           }}
           transform="rotate(-90 0 0)"
         />
-      )
+      );
     case NodeTypes.OrGate:
       return (
         <path
@@ -136,7 +139,7 @@ function getNodeShape(nodeType: NodeTypes, {data, selected = false}: IIconProps)
           }}
           transform="rotate(-90 0 0)"
         />
-      )
+      );
     case NodeTypes.NotGate:
       return (
         <>
@@ -177,7 +180,7 @@ function getNodeShape(nodeType: NodeTypes, {data, selected = false}: IIconProps)
             transform="rotate(90 0 0)"
           />
         </>
-      )
+      );
     case NodeTypes.AtLeastGate:
       return (
         <path
@@ -197,7 +200,7 @@ function getNodeShape(nodeType: NodeTypes, {data, selected = false}: IIconProps)
             strokeOpacity: 1,
           }}
         />
-      )
+      );
     case NodeTypes.TransferGate:
       return (
         <path
@@ -206,15 +209,20 @@ function getNodeShape(nodeType: NodeTypes, {data, selected = false}: IIconProps)
           strokeWidth={1.4}
           d="m50 16 35 69H15l35-69z"
         />
-      )
+      );
     case NodeTypes.BasicEvent:
       return (
-        <circle style={{
-          stroke: "#0984e3",
-          strokeWidth: 2.5,
-          fill: "white"
-        }} cx="60" cy="60" r="55"/>
-      )
+        <circle
+          style={{
+            stroke: "#0984e3",
+            strokeWidth: 2.5,
+            fill: "white",
+          }}
+          cx="60"
+          cy="60"
+          r="55"
+        />
+      );
     case NodeTypes.HouseEvent:
       return (
         <path
@@ -234,17 +242,17 @@ function getNodeShape(nodeType: NodeTypes, {data, selected = false}: IIconProps)
           }}
           transform="translate(-89 -481.362)"
         />
-      )
+      );
   }
 }
 
 /**
  * Represents the node's icon based on the type of the node
- * @param nodeType type of node
- * @param iconProps icon properties
+ * @param nodeType - type of node
+ * @param iconProps - icon properties
  * @returns JSX Element of the node's icon
  */
-export const NodeIcon = ({nodeType, iconProps}: INodeProps) => {
+export const NodeIcon = ({ nodeType, iconProps }: INodeProps): JSX.Element => {
   let text = <></>;
   if (iconProps.showText) {
     text = (
@@ -264,7 +272,11 @@ export const NodeIcon = ({nodeType, iconProps}: INodeProps) => {
     );
   }
   return (
-    <svg viewBox={iconProps.viewBox} width={iconProps.width} height={iconProps.height}>
+    <svg
+      viewBox={iconProps.viewBox}
+      width={iconProps.width}
+      height={iconProps.height}
+    >
       {getNodeShape(nodeType, iconProps)}
       {text}
     </svg>

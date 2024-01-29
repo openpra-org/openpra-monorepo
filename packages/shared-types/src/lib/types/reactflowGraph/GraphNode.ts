@@ -1,8 +1,11 @@
 import { Position } from "./Position";
 
-export interface GraphNode {
+/**
+ * Graph Node with id, data, position and type properties
+ */
+export type GraphNode = {
   id: string;
   data: object;
   position: Position;
   type: string;
-}
+};

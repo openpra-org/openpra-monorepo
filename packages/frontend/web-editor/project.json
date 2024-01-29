@@ -87,31 +87,6 @@
         "jestConfig": "packages/frontend/web-editor/jest.config.ts"
       }
     },
-    "e2e-cypress": {
-      "executor": "@nx/cypress:cypress",
-      "options": {
-        "cypressConfig": "packages/frontend/web-editor/cypress.config.ts",
-        "testingType": "e2e",
-        "devServerTarget": "frontend-web-editor:serve"
-      },
-      "configurations": {
-        "production": {
-          "devServerTarget": "frontend-web-editor:serve:production"
-        },
-        "ci": {
-          "devServerTarget": "frontend-web-editor:serve-static"
-        }
-      }
-    },
-    "component-test": {
-      "executor": "@nx/cypress:cypress",
-      "options": {
-        "cypressConfig": "packages/frontend/web-editor/cypress.config.ts",
-        "testingType": "component",
-        "devServerTarget": "frontend-web-editor:build",
-        "skipServe": true
-      }
-    },
     "e2e": {
       "executor": "@nx/playwright:playwright",
       "outputs": [
@@ -122,7 +97,17 @@
         "uiPort": "8080",
         "ui": true
       }
-    }
+    },
+  "e2e-cli": {
+        "executor": "@nx/playwright:playwright",
+        "outputs": [
+          "{workspaceRoot}/dist/.playwright/packages/frontend/web-editor"
+        ],
+        "options": {
+          "config": "packages/frontend/web-editor/playwright.config.ts",
+          "ui": false
+        }
+      }
   },
   "tags": []
 }

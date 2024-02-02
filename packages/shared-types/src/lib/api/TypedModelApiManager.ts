@@ -2,6 +2,7 @@ import { InternalEventsModel } from "../types/modelTypes/largeModels/internalEve
 import { InternalHazardsModel } from "../types/modelTypes/largeModels/internalHazardsModel";
 import { ExternalHazardsModel } from "../types/modelTypes/largeModels/externalHazardsModel";
 import { FullScopeModel } from "../types/modelTypes/largeModels/fullScopeModel";
+import { sideNavModel } from "../../../../frontend/web-editor/src/app/api/models/sideNavModel";
 import TypedModel, {
   TypedModelJSON,
 } from "../types/modelTypes/largeModels/typedModel";
@@ -16,6 +17,7 @@ const INTERNAL_EVENTS_ENDPOINT = `${TYPED_ENDPOINT}/internal-events`;
 const EXTERNAL_HAZARDS_ENDPOINT = `${TYPED_ENDPOINT}/external-hazards`;
 const INTERNAL_HAZARDS_ENDPOINT = `${TYPED_ENDPOINT}/internal-hazards`;
 const FULL_SCOPE_ENDPOINT = `${TYPED_ENDPOINT}/full-scope`;
+const SIDE_NAV_ENDPOINT = `${TYPED_ENDPOINT}/side-nav-tabs`;
 const TYPED_MODEL_TYPE_LOCATION = 1;
 const TYPED_MODEL_ID_LOCATION = 2;
 
@@ -112,6 +114,15 @@ export function GetCurrentModelType(): string {
  * @param url - the url where we are grabbing a data list from
  * @returns a promise with a list of a type of models
  */
+
+export function GetNavTabs(id = -1): Promise<sideNavModel[]> {
+  return Get(`${SIDE_NAV_ENDPOINT}/?id=${Number(id)}`)
+    .then((response) => response.json() as Promise<sideNavModel[]>) // Parse the response as JSON
+    .catch((error) => {
+      throw error; // Re-throw the error to propagate it if needed
+    });
+}
+
 export function Get(url: string): Promise<Response> {
   return fetch(url, {
     method: "GET",

@@ -26,6 +26,7 @@ import {
   TypedModel,
   TypedModelJSON,
 } from "./schemas/templateSchema/typed-model.schema";
+import { SideNavTab, SideNavTabsDocument } from "./schemas/side-nav-tabs.schema";
 
 @Injectable()
 export class TypedModelService {
@@ -40,6 +41,8 @@ export class TypedModelService {
     private readonly externalHazardsModel: Model<ExternalHazardsDocument>,
     @InjectModel(FullScope.name)
     private readonly fullScopeModel: Model<FullScopeDocument>,
+    @InjectModel(SideNavTab.name)
+    private readonly sideNavModel: Model<SideNavTabsDocument>,
   ) {
   }
 
@@ -338,6 +341,17 @@ export class TypedModelService {
    */
   async getFullScope(modelId: string, userId: number): Promise<FullScope> {
     return this.fullScopeModel.findOne({id: modelId, users: userId});
+  }
+
+  /**
+   * Retrieves the side navigation tabs for a specific user.
+   *
+   * @param {number} userId - The unique identifier of the user.
+   * @returns {Promise<SideNavTab[]>} A promise that resolves to an array of SideNavTab objects representing the user's side navigation tabs.
+   */
+  async getSideNavTabs(userId: number): Promise<SideNavTab[]> {
+    // Fetch side navigation tabs from the database
+    return this.sideNavModel.find();
   }
 
   //delete functions

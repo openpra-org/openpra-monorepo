@@ -19,6 +19,7 @@ import {
   ExternalHazardsSchema,
 } from "./schemas/external-hazards.schema";
 import { FullScope, FullScopeSchema } from "./schemas/full-scope.schema";
+import { SideNavTab, SideNavTabSchema } from "./schemas/side-nav-tabs.schema";
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { FullScope, FullScopeSchema } from "./schemas/full-scope.schema";
       { name: ExternalHazards.name, schema: ExternalHazardsSchema },
       { name: FullScope.name, schema: FullScopeSchema },
       { name: ModelCounter.name, schema: ModelCounterSchema },
+      { name: SideNavTab.name, schema: SideNavTabSchema },
     ]),
   ],
   controllers: [TypedModelController],

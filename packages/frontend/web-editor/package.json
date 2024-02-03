@@ -27,13 +27,18 @@
     "shared-types": "0.0.1"
   },
   "devDependencies": {
+    "@playwright/experimental-ct-react": "^1.41.2",
     "@testing-library/react": "14.1.2",
     "@types/d3-hierarchy": "3.1.6",
     "@types/d3-timer": "3.0.2",
     "@types/jest": "^29.5.11",
     "@types/lodash": "4.14.202",
+    "@types/node": "20.9.0",
     "@types/react": "18.2.38",
     "@types/react-dom": "18.2.17",
     "uuid": "9.0.1"
+  },
+  "scripts": {
+    "test-ct": "playwright test -c playwright-ct.config.ts"
   }
 }

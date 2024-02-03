@@ -8,7 +8,7 @@ import {NodeIcon} from "../treeNodes/eventSequenceNodes/icons/nodeIcon";
 
 export type treeNodeContextMenuProps = {
   id: string,
-  top: Position.Top | undefined,
+  top: Position.Top | number | undefined,
   left: any,
   right: any,
   bottom: any,

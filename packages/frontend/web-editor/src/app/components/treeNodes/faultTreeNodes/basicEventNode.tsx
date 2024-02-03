@@ -15,7 +15,7 @@ import {NodeIcon} from "../eventSequenceNodes/icons/nodeIcon";
 const BasicEventNode = ({id, data}: NodeProps) => {
 
   return (
-    <div className={styles.node_container}>
+    <div data-testid={"basic-event-node"} className={styles.node_container}>
       <div className={cx(styles.node)} title="right click to update node">
         {"Basic Event"}
 

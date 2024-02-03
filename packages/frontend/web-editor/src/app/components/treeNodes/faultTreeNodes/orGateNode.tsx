@@ -17,7 +17,7 @@ const OrGateNode = ({id, data}: NodeProps) => {
 
   const {handleNodeDoubleClick} = useNodeDoubleClick(id);
   return (
-    <div className={styles.node_container} onDoubleClick={handleNodeDoubleClick}>
+    <div data-testid={"or-gate-node"} className={styles.node_container} onDoubleClick={handleNodeDoubleClick}>
       <div className={cx(styles.node)} title="double click to add a basic event">
         {"OR Gate"}
 

@@ -1,13 +1,12 @@
-import { test, expect } from "@playwright/test";
+import {test, expect, PlaywrightTestArgs} from "@playwright/test";
 import { signUp } from "./signup.spec";
 
 test.describe("Internal Events", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+  test.beforeEach(async ({ page }: PlaywrightTestArgs) => {
     const username = "playwright" + Math.floor(Math.random() * 1000);
     await signUp({ page, username });
   });
-  // if we want to access alias in test, we need to change arrow function => to function ()
+
   test("Can create events", async ({ page }) => {
     await page.getByRole("button", { name: "Create Internal Events" }).click();
     await page.getByLabel("Internal Events name").fill("IE 1");

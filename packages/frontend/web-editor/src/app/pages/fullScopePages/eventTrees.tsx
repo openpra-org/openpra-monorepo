@@ -3,9 +3,11 @@ import { ReactElement, useCallback } from "react";
 
 import ReactFlow, {
   addEdge,
-  Node,
-  Edge,
   Connection,
+  Edge,
+  EdgeTypes,
+  Node,
+  NodeTypes,
   Position,
   useEdgesState,
   useNodesState,
@@ -14,151 +16,184 @@ import EventTreeList from "../../components/lists/nestedLists/eventTreeList";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
 
+import hiddenNode from "../../components/treeNodes/eventTreeEditorNode/hiddenNode";
+import columnNode from "../../components/treeNodes/eventTreeEditorNode/columnNode";
+import CustomEdge from "../../components/treeNodes/eventTreeEditorNode/customEdge";
+
 /**
  * Initial set of nodes to be used in the ReactFlow component.
  * @type {Node[]}
  */
+const xDistance = 100;
+const yDistance = 60;
+
 const initialNodes: Node[] = [
+  {
+    id: "vertical-1",
+
+    type: "columnNode",
+    data: { label: "Input", width: xDistance },
+    position: { x: xDistance / 2, y: -200 },
+  },
+  {
+    id: "vertical-1-connect",
+
+    type: "columnNode",
+    data: { label: "Input", width: xDistance, hideText: true },
+    position: { x: xDistance / 2, y: 200 },
+  },
+  {
+    id: "vertical-2",
+
+    type: "columnNode",
+    data: { label: "Input", width: xDistance },
+    width: xDistance / 4,
+    position: { x: (3 / 2) * xDistance, y: -200 },
+  },
+  {
+    id: "vertical-2-connect",
+
+    type: "columnNode",
+    data: { label: "Input", width: xDistance, hideText: true },
+    width: xDistance / 4,
+    position: { x: (3 / 2) * xDistance, y: 200 },
+  },
+  {
+    id: "vertical-3",
+
+    type: "columnNode",
+    data: { label: "Input", width: xDistance },
+    width: xDistance / 4,
+    position: { x: (5 / 2) * xDistance, y: -200 },
+  },
+  {
+    id: "vertical-3-connect",
+
+    type: "columnNode",
+    data: { label: "Input", width: xDistance, hideText: true },
+    width: xDistance / 4,
+    position: { x: (5 / 2) * xDistance, y: 200 },
+  },
   {
     id: "horizontal-1",
     sourcePosition: Position.Right,
-    type: "input",
+    type: "hiddenNode",
     data: { label: "Input" },
-    position: { x: 0, y: 80 },
+    position: { x: 0, y: 0 },
   },
   {
     id: "horizontal-2",
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
+    type: "hiddenNode",
     data: { label: "A Node" },
-    position: { x: 250, y: 0 },
+    position: { x: xDistance, y: -yDistance },
   },
   {
     id: "horizontal-3",
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
-    data: { label: "Node 3" },
-    position: { x: 250, y: 160 },
+    type: "hiddenNode",
+    data: { label: "A Node" },
+    position: { x: xDistance, y: yDistance },
   },
   {
     id: "horizontal-4",
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
-    data: { label: "Node 4" },
-    position: { x: 500, y: 0 },
+    type: "hiddenNode",
+    data: { label: "A Node" },
+    position: { x: 2 * xDistance, y: (-3 / 2) * yDistance },
   },
   {
     id: "horizontal-5",
-    sourcePosition: Position.Top,
-    targetPosition: Position.Bottom,
-    data: { label: "Node 5" },
-    position: { x: 500, y: 100 },
-  },
-  {
-    id: "horizontal-6",
-    sourcePosition: Position.Bottom,
-    targetPosition: Position.Top,
-    data: { label: "Node 6" },
-    position: { x: 500, y: 230 },
-  },
-  {
-    id: "horizontal-7",
     sourcePosition: Position.Right,
     targetPosition: Position.Left,
-    data: { label: "Node 7" },
-    position: { x: 750, y: 50 },
-  },
-  {
-    id: "horizontal-8",
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    data: { label: "Node 8" },
-    position: { x: 750, y: 300 },
+    type: "hiddenNode",
+    data: { label: "A Node" },
+    position: { x: 2 * xDistance, y: -yDistance / 2 },
   },
 ];
 
-/**
- * Represents the configuration for a connection between two nodes.
- *
- * @property {string} id - The unique identifier for the connection.
- * @property {string} source - The identifier of the source node from which the connection originates.
- * @property {string} type - The type of the connection curve.
- * @property {string} target - The identifier of the target node to which the connection goes.
- * @property {boolean} animated - Indicates whether the connection has animations enabled.
- */
-interface ConnectionConfig {
-  /** The unique identifier for the connection. */
-  id: string;
-
-  /** The identifier of the source node from which the connection originates. */
-  source: string;
-
-  /** The type of the connection curve. */
-  type: "smoothstep";
-
-  /** The identifier of the target node to which the connection goes. */
-  target: string;
-
-  /** Indicates whether the connection has animations enabled. */
-  animated: boolean;
-}
-
-/**
- * Initial set of edges to be used in the ReactFlow component.
- * @type {Edge<ConnectionConfig>[]}
- */
-const initialEdges: Edge<ConnectionConfig>[] = [
+const initialEdges: Edge[] = [
   {
     id: "horizontal-e1-2",
     source: "horizontal-1",
-    type: "smoothstep",
+    type: "custom",
     target: "horizontal-2",
-    animated: true,
+    animated: false,
   },
   {
     id: "horizontal-e1-3",
     source: "horizontal-1",
-    type: "smoothstep",
+    type: "custom",
     target: "horizontal-3",
-    animated: true,
+    animated: false,
   },
   {
-    id: "horizontal-e1-4",
+    id: "horizontal-e2-4",
     source: "horizontal-2",
-    type: "smoothstep",
+    type: "custom",
     target: "horizontal-4",
-    label: "edge label",
+    animated: false,
   },
   {
-    id: "horizontal-e3-5",
-    source: "horizontal-3",
-    type: "smoothstep",
+    id: "horizontal-e2-5",
+    source: "horizontal-2",
+    type: "custom",
     target: "horizontal-5",
-    animated: true,
+    animated: false,
   },
   {
-    id: "horizontal-e3-6",
-    source: "horizontal-3",
-    type: "smoothstep",
-    target: "horizontal-6",
-    animated: true,
+    id: "vertical-l1-connect",
+    source: "vertical-1",
+    sourceHandle: "a",
+    type: "custom",
+    target: "vertical-1-connect",
+    targetHandle: "a",
+    data: { straight: true, color: "grey" },
+    animated: false,
   },
   {
-    id: "horizontal-e5-7",
-    source: "horizontal-5",
-    type: "smoothstep",
-    target: "horizontal-7",
-    animated: true,
+    id: "vertical-r1-connect",
+    source: "vertical-1",
+    sourceHandle: "b",
+    type: "custom",
+    target: "vertical-1-connect",
+    targetHandle: "b",
+    data: { straight: true, color: "grey" },
+    animated: false,
   },
   {
-    id: "horizontal-e6-8",
-    source: "horizontal-6",
-    type: "smoothstep",
-    target: "horizontal-8",
-    animated: true,
+    id: "vertical-l2-connect",
+    source: "vertical-2",
+    sourceHandle: "a",
+    type: "custom",
+    target: "vertical-2-connect",
+    targetHandle: "a",
+    data: { straight: true, color: "grey" },
+    animated: false,
+  },
+  {
+    id: "vertical-r2-connect",
+    source: "vertical-2",
+    sourceHandle: "b",
+    type: "custom",
+    target: "vertical-2-connect",
+    targetHandle: "b",
+    data: { straight: true, color: "grey" },
+    animated: false,
   },
 ];
 
+const nodeTypes: NodeTypes = {
+  hiddenNode: hiddenNode,
+  columnNode: columnNode,
+};
+
+const edgeTypes: EdgeTypes = {
+  custom: CustomEdge,
+};
 /**
  * The `HorizontalFlow` component sets up a React Flow instance with predefined nodes and edges.
  * It utilizes the `useNodesState` and `useEdgesState` hooks from React Flow to manage the state of nodes and edges.
@@ -173,8 +208,7 @@ const HorizontalFlow = (): ReactElement => {
 
   // State hook for edges, initialized with `initialEdges`.
   // `setEdges` is used to update the edges state when new connections are made.
-  const [edges, setEdges, onEdgesChange] =
-    useEdgesState<ConnectionConfig>(initialEdges);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   // `useCallback` hook to memoize the `onConnect` function, which adds a new edge when nodes are connected.
   // It depends on `setEdges`, so it will only change if `setEdges` changes.
@@ -196,6 +230,8 @@ const HorizontalFlow = (): ReactElement => {
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
       fitView
       attributionPosition="bottom-left"
     ></ReactFlow>
@@ -206,6 +242,7 @@ const HorizontalFlow = (): ReactElement => {
  * The EventTreeEditor component wraps the HorizontalFlow component for editing event trees.
  * @returns {ReactElement} The HorizontalFlow component for editing event trees.
  */
+
 export function EventTreeEditor(): ReactElement {
   return <HorizontalFlow />;
 }

@@ -1,4 +1,4 @@
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useParams } from "react-router-dom";
 import ReactFlow, {
   Background,
   Edge,
@@ -7,28 +7,26 @@ import ReactFlow, {
   ReactFlowProvider,
   useReactFlow,
 } from "reactflow";
-import {
-  useEffect,
-  useState,
-  useRef,
-  useCallback,
-} from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { EventSequenceGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import EventSequenceList from "../../components/lists/nestedLists/eventSequenceList";
 import useLayout from "../../hooks/eventSequence/useLayout";
-import nodeTypes from "../../components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
-import edgeTypes from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
+import ESNodeTypes from "../../components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
+import ESEdgeTypes from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 import { EventSequenceContextMenuOptions } from "../../components/context_menu/interfaces/eventSequenceContextMenuOptions.interface";
 import EventSequenceContextMenu from "../../components/context_menu/eventSequenceContextMenu";
-import { generateUUID } from "../../../utils/treeUtils";
+import { GenerateUUID } from "../../../utils/treeUtils";
+import LoadingCard from "../../components/cards/loadingCard";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
 // initial setup: an initiating event followed by a functional node and 2 end state nodes
-const initiating_event_id = generateUUID();
-const functional_event_id = generateUUID();
-const first_end_state_id = generateUUID();
-const second_end_state_id = generateUUID();
+const initiating_event_id = GenerateUUID();
+const functional_event_id = GenerateUUID();
+const first_end_state_id = GenerateUUID();
+const second_end_state_id = GenerateUUID();
 
 const defaultNodes: Node[] = [
   {
@@ -92,18 +90,31 @@ const fitViewOptions = {
  * This component includes additional features and options for event sequence editing, such as context menus, popover,
  * and the ability to disable certain interactions like dragging and connecting nodes.
  *
- * @returns {JSX.Element} The JSX element representing the customized React Flow diagram for event sequence editing.
+ * @returns JSX.Element - The JSX element representing the customized React Flow diagram for event sequence editing.
  */
 function ReactFlowPro(): JSX.Element {
   // this hook call ensures that the layout is re-calculated every time the graph changes
   useLayout();
 
   const { fitView } = useReactFlow();
-  const [nodes] = useState<Node[]>(defaultNodes);
+  const [nodes, updateNodes] = useState<Node[]>(defaultNodes);
+  const [edges, updateEdges] = useState<Edge[]>(defaultEdges);
+  const { eventSequenceId } = useParams();
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fitView({ duration: 400 });
-  }, [nodes, fitView]);
+    const loadGraph = async (): Promise<void> => {
+      await GraphApiManager.getEventSequence(eventSequenceId).then(
+        (res: EventSequenceGraph) => {
+          updateNodes(res.nodes.length !== 0 ? res.nodes : defaultNodes);
+          updateEdges(res.edges.length !== 0 ? res.edges : defaultEdges);
+          setLoading(false);
+        },
+      );
+    };
+    void (loading && loadGraph());
+  }, [nodes, fitView, loading, eventSequenceId]);
 
   const [menu, setMenu] = useState<EventSequenceContextMenuOptions | null>(
     null,
@@ -138,24 +149,26 @@ function ReactFlowPro(): JSX.Element {
         left: left,
       });
     },
-    [setMenu],
+    [isOpen],
   );
 
   // Close the context menu if it's open whenever the window is clicked.
   const onPaneClick = useCallback(() => {
     setMenu(null);
     setIsOpen(false);
-  }, [setMenu, isOpen]);
+  }, [setMenu]);
 
-  return (
+  return loading ? (
+    <LoadingCard />
+  ) : (
     <ReactFlow
       ref={ref}
-      defaultNodes={defaultNodes}
-      defaultEdges={defaultEdges}
+      defaultNodes={nodes}
+      defaultEdges={edges}
       proOptions={proOptions}
       fitView
-      nodeTypes={nodeTypes}
-      edgeTypes={edgeTypes}
+      nodeTypes={ESNodeTypes}
+      edgeTypes={ESEdgeTypes}
       fitViewOptions={fitViewOptions}
       minZoom={1.2}
       nodesDraggable={false}
@@ -192,7 +205,7 @@ function ReactFlowPro(): JSX.Element {
  * This component uses the `ReactFlowProvider` to provide the necessary context for managing nodes and edges in a flowchart-like UI.
  * It also includes the `ReactFlowPro` component, which likely contains the interactive elements and controls for editing the event sequence.
  *
- * @returns {JSX.Element} The JSX element representing the event sequence editor.
+ * @returns JSX.Element - The JSX element representing the event sequence editor.
  */
 export function EventSequenceEditor(): JSX.Element {
   return (
@@ -208,7 +221,7 @@ export function EventSequenceEditor(): JSX.Element {
  * This component uses the `Routes` and `Route` components from React Router to define different views for
  * displaying a list of event sequences (`EventSequenceList`) and editing a specific event sequence (`EventSequenceEditor`).
  *
- * @returns {JSX.Element} The JSX element representing the component with defined routes.
+ * @returns JSX.Element - The JSX element representing the component with defined routes.
  */
 export default function EventSequenceDiagrams(): JSX.Element {
   return (

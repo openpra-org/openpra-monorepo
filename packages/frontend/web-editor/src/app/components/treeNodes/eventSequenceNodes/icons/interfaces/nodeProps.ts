@@ -17,19 +17,19 @@ export enum NodeTypes {
   NotGate = "Not Gate",
   TransferGate = "Transfer Gate",
   BasicEvent = "Basic Event",
-  HouseEvent = "House Event"
+  HouseEvent = "House Event",
 }
 
 /**
  * Represents the node properties
  */
-export interface INodeProps {
+export type INodeProps = {
   /**
-   * @param nodeType type of node (based on NodeTypes enum)
+   * @param nodeType - type of node (based on NodeTypes enum)
    */
   nodeType: NodeTypes;
   /**
-   * @param iconProps properties of icon associated with the node
+   * @param iconProps - properties of icon associated with the node
    */
   iconProps: IIconProps;
-}
+};

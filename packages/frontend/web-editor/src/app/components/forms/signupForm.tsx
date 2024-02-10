@@ -48,6 +48,7 @@ export default function SignupForm() {
         }
       })
       .catch((signInError) => {
+
         if (signInError.message.includes("Internal Server Error")) {
           setError({
             ...error,
@@ -148,7 +149,10 @@ export default function SignupForm() {
     return (
       <EuiForm component="form" onSubmit={validateSignup} error={passError}>
         <br />
-        <EuiFormRow>
+        <EuiFormRow
+          isInvalid={error.firstName}
+          error="First name is empty"
+        >
           <EuiFieldText
             placeholder="First name"
             isInvalid={error.firstName}
@@ -161,7 +165,9 @@ export default function SignupForm() {
             }}
           />
         </EuiFormRow>
-        <EuiFormRow>
+        <EuiFormRow
+          isInvalid={error.lastName}
+          error="Last name is empty">
           <EuiFieldText
             placeholder="Last name"
             isInvalid={error.lastName}

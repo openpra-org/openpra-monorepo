@@ -1,21 +1,25 @@
 {
-  "extends": "../../../tsconfig.base.json",
+  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "jsx": "react-jsx",
+    //"outDir": "../dist/out-tsc",
     "types": [
       "node",
       "@nx/react/typings/cssmodule.d.ts",
-      "@nx/react/typings/image.d.ts"
-    ],
-    "sourceMap": true,
+      "@nx/react/typings/image.d.ts",
+      "jest"
+    ]
   },
   "exclude": [
     "jest.config.ts",
+    "webpack.config.js",
     "src/**/*.spec.ts",
     "src/**/*.test.ts",
     "src/**/*.spec.tsx",
     "src/**/*.test.tsx",
-    "*.js"
+    "src/**/*.spec.js",
+    "src/**/*.test.js",
+    "src/**/*.spec.jsx",
+    "src/**/*.test.jsx"
   ],
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx",]
 }

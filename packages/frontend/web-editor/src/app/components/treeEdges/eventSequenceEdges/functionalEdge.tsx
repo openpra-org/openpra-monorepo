@@ -1,6 +1,5 @@
 import { getBezierPath, EdgeProps } from "reactflow";
-
-import useEdgeClick from "../../../hooks/eventSequence/useEdgeClick";
+import UseEdgeClick from "../../../hooks/eventSequence/useEdgeClick";
 import styles from "./styles/edgeType.module.css";
 
 /**
@@ -28,8 +27,8 @@ export default function FunctionalEdge({
   style,
   markerEnd,
   label,
-}: EdgeProps) {
-  const onClick = useEdgeClick(id);
+}: EdgeProps): JSX.Element {
+  const onClick = UseEdgeClick(id);
 
   const [edgePath, edgeCenterX, edgeCenterY] = getBezierPath({
     sourceX,

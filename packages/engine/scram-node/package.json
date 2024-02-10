@@ -8,7 +8,8 @@
     "rebuild": "cmake-js -C --parallel 8 rebuild --target scram scram-node ",
     "configure": "cmake-js -C --parallel 8 configure --target scram scram-node ",
     "clean": "cmake-js clean",
-    "test": "jest"
+    "test": "jest",
+    "ctest": "cmake-js -C --parallel 8 install -T test_mef"
   },
   "nx": {
     "namedInputs": {

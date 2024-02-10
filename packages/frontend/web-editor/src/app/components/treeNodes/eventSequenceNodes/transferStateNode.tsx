@@ -7,11 +7,11 @@ import { NodeTypes } from "./icons/interfaces/nodeProps";
 
 /**
  * Transfer State Node
- * @param id node identifier
- * @param selected node selection flag (true if selected)
+ * @param id - node identifier
+ * @param selected - node selection flag (true if selected)
  * @returns Transfer State Node JSX Element
  */
-const TransferStateNode = ({ id, selected }: NodeProps) => {
+const TransferStateNode = ({ id, selected }: NodeProps): JSX.Element => {
   const onClick = useNodeClickHandler(id);
 
   return (

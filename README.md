@@ -281,6 +281,12 @@ or `--save`:
   pnpm --filter=<project-name> install --save --save-exact <package-name>
   ```
 
+## Testing
+For package specific testing documentation, refer to the package's corresponding
+README.md file.
+
+- [`frontend-web-editor`](packages/frontend/web-editor/README.md#Testing)
+
 ## Troubleshooting
 
 - If dependency issues arise, check for proper camel casing in frontend

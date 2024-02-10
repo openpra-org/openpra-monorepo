@@ -4,7 +4,7 @@ import {
   EuiKeyPadMenu,
   EuiKeyPadMenuItem,
 } from "@elastic/eui";
-import { useEventSequenceContextMenuClick } from "../../hooks/eventSequence/useContextMenuClick";
+import { UseEventSequenceContextMenuClick } from "../../hooks/eventSequence/useContextMenuClick";
 import { NodeTypes } from "../treeNodes/eventSequenceNodes/icons/interfaces/nodeProps";
 import { NodeIcon } from "../treeNodes/eventSequenceNodes/icons/nodeIcon";
 import { EventSequenceContextMenuOptions } from "./interfaces/eventSequenceContextMenuOptions.interface";
@@ -12,7 +12,7 @@ import styles from "./styles/eventSequenceContextMenu.module.css";
 
 /**
  * @public The context menu with different types of nodes of Event Sequence Diagram
- * @params EventSequenceContextMenuOptions - options to load the menu
+ * @param EventSequenceContextMenuOptions - options to load the menu
  * @returns JSX Element
  */
 export default function EventSequenceContextMenu({
@@ -20,8 +20,8 @@ export default function EventSequenceContextMenu({
   top,
   left,
   ...props
-}: EventSequenceContextMenuOptions) {
-  const { useHandleContextMenuClick } = useEventSequenceContextMenuClick(id);
+}: EventSequenceContextMenuOptions): JSX.Element {
+  const { useHandleContextMenuClick } = UseEventSequenceContextMenuClick(id);
   return (
     <EuiKeyPadMenu
       data-testid="app-menu-content"

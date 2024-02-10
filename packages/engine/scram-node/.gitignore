@@ -8,6 +8,9 @@ lib
 *.node
 bin
 
+
+cmake-*
+
 # remove remains from running 'make coverage'
 rm -f *.profraw
 rm -f *.profdata
@@ -170,7 +173,6 @@ web_modules/
 .yarn-integrity
 
 # dotenv environment variable files
-.env
 .env.development.local
 .env.test.local
 .env.production.local
@@ -199,7 +201,6 @@ dist
 
 # vuepress v2.x temp and cache directory
 .temp
-.cache
 
 # Docusaurus cache and generated files
 .docusaurus

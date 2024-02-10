@@ -40,7 +40,7 @@
           ],
           "optimization": true,
           "outputHashing": "all",
-          "sourceMap": true,
+          "sourceMap": false,
           "namedChunks": false,
           "extractLicenses": true,
           "vendorChunk": false
@@ -86,7 +86,28 @@
       "options": {
         "jestConfig": "packages/frontend/web-editor/jest.config.ts"
       }
-    }
+    },
+    "e2e": {
+      "executor": "@nx/playwright:playwright",
+      "outputs": [
+        "{workspaceRoot}/dist/.playwright/packages/frontend/web-editor"
+      ],
+      "options": {
+        "config": "packages/frontend/web-editor/playwright.config.ts",
+        "uiPort": "8080",
+        "ui": true
+      }
+    },
+  "e2e-cli": {
+        "executor": "@nx/playwright:playwright",
+        "outputs": [
+          "{workspaceRoot}/dist/.playwright/packages/frontend/web-editor"
+        ],
+        "options": {
+          "config": "packages/frontend/web-editor/playwright.config.ts",
+          "ui": false
+        }
+      }
   },
   "tags": []
 }

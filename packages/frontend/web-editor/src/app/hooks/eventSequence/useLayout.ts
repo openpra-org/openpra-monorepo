@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import {
   useReactFlow,
   useStore,
@@ -18,7 +18,8 @@ const layout = tree<Node>()
   .separation(() => 1);
 
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change
-const nodeCountSelector = (state: ReactFlowState) => state.nodeInternals.size;
+const nodeCountSelector = (state: ReactFlowState): number =>
+  state.nodeInternals.size;
 
 const options = { duration: 200 };
 
@@ -33,7 +34,7 @@ const options = { duration: 200 };
  * It also includes animation logic to smoothly transition nodes to their new positions.
  * The hook ensures horizontal layout of the nodes
  */
-function useLayout() {
+function useLayout(): void {
   // we are using nodeCount as the trigger for the re-layouting
   // whenever the nodes length changes, we calculate the new layout
   const nodeCount = useStore(nodeCountSelector);
@@ -61,7 +62,7 @@ function useLayout() {
     const root = layout(hierarchy);
 
     const targetNodes = nodes.map((node) => {
-      const { x, y } = root.find((d) => d.id === node.id) || {
+      const { x, y } = root.find((d) => d.id === node.id) ?? {
         x: node.position.x,
         y: node.position.y,
       };
@@ -77,7 +78,7 @@ function useLayout() {
     const transitions = targetNodes.map((node) => ({
       id: node.id,
       // this is where the node currently is placed
-      from: getNode(node.id)?.position || node.position,
+      from: getNode(node.id)?.position ?? node.position,
       // this is where we want the node to be placed
       to: node.position,
       node,
@@ -94,7 +95,7 @@ function useLayout() {
           x: from.x + (to.x - from.x) * s,
           y: from.y + (to.y - from.y) * s,
         },
-        data: { ...node.data },
+        data: { ...(node.data as object) },
         type: node.type,
       }));
 
@@ -110,7 +111,7 @@ function useLayout() {
             x: to.x,
             y: to.y,
           },
-          data: { ...node.data },
+          data: { ...(node.data as object) },
           type: node.type,
         }));
 

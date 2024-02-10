@@ -1,0 +1,8 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "description.json",
+  "title": "Description",
+  "description": "The description field",
+  "type": "string",
+  "examples": ["Any", "String"]
+}

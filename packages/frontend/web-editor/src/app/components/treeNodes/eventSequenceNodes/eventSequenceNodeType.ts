@@ -10,7 +10,7 @@ import EndStateNode from "./endStateNode";
 /**
  * Represents the types of nodes of event sequence diagram
  */
-const nodeTypes: NodeTypes = {
+const ESNodeTypes: NodeTypes = {
   initiating: InitiatingEventNode,
   functional: FunctionalEventNode,
   description: DescriptionNode,
@@ -20,4 +20,4 @@ const nodeTypes: NodeTypes = {
   end: EndStateNode,
 };
 
-export default nodeTypes;
+export default ESNodeTypes;

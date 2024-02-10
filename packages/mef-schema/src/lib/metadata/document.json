@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://${DOMAIN}/metadata/document.json",
+  "title": "DigitalDocument Adapted Document Metadata",
+  "description": "AdaptedSchema.org DigitalDocument metadata for a document",
+  "type": "object",
+  "properties": {
+    "@context": {
+      "type": "string",
+      "const": "https://schema.org"
+    },
+    "@type": {
+      "type": "string",
+      "const": "DigitalDocument"
+    },
+    "dateCreated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The time the document was created"
+    },
+    "dateModified": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The last time the document was modified"
+    },
+    "version": {
+      "$ref": "https://${DOMAIN}/identifier/semantic-version.json",
+      "description": "The version of the document"
+    },
+    "creator": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The people or systems that created the document"
+    },
+    "contributor": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The people or systems that contributed to the document"
+    },
+    "reviewedBy": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The people or systems that reviewed the document"
+    },
+    "license": {
+      "type": "string",
+      "description": "The license under which the document is released"
+    }
+  },
+  "required": ["@context", "@type", "dateCreated", "version"],
+  "examples": [
+    {
+      "@context": "https://schema.org",
+      "@type": "DigitalDocument",
+      "dateCreated": "2022-01-01T00:00:00Z",
+      "dateModified": "2022-01-02T00:00:00Z",
+      "version": "1.0",
+      "creator": ["Creator1", "Creator2"],
+      "contributor": ["Contributor1", "Contributor2"],
+      "reviewedBy": ["Reviewer1", "Reviewer2"],
+      "license": "MIT"
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "DigitalDocument",
+      "dateCreated": "2022-03-01T00:00:00Z",
+      "dateModified": "2022-03-02T00:00:00Z",
+      "version": "3.0.0",
+      "creator": ["Alice", "Bob"],
+      "contributor": ["Charlie", "Dave"],
+      "reviewedBy": ["Eve", "Frank"],
+      "license": "Apache-2.0"
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "DigitalDocument",
+      "dateCreated": "2022-02-01T00:00:00Z",
+      "version": "2.0.0"
+    }
+  ]
+}

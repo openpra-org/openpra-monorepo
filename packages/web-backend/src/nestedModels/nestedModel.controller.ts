@@ -13,7 +13,6 @@ import { NestedModel } from "./schemas/templateSchema/nested-model.schema";
 import { NestedModelService } from "./nestedModel.service";
 import { BayesianEstimation } from "./schemas/bayesian-estimation.schema";
 import { FaultTree } from "./schemas/fault-tree.schema";
-import { FaultTreeGraph } from "./schemas/fault-tree-graph.schema";
 import { EventTree } from "./schemas/event-tree.schema";
 import { BayesianNetwork } from "./schemas/bayesian-network.schema";
 import { EventSequenceDiagram } from "./schemas/event-sequence-diagram.schema";
@@ -108,16 +107,6 @@ export class NestedModelController {
     @Body() data: Partial<NestedModel>,
   ): Promise<NestedModel> {
     return this.nestedModelService.createFaultTree(data);
-  }
-
-  /**
-   * @returns a promise with the newly created model, with the general nested model fields
-   */
-  @Post("/fault-tree-graph")
-  async createFaultTreeGraph(
-    @Body() data: Partial<FaultTreeGraph>,
-  ): Promise<FaultTreeGraph> {
-    return this.nestedModelService.saveFaultTreeGraph(data);
   }
 
   /**
@@ -484,18 +473,6 @@ export class NestedModelController {
   @Get("/event-trees/:id")
   async getSingleEventTree(@Param("id") modelId: number): Promise<EventTree> {
     return this.nestedModelService.getSingleEventTree(modelId);
-  }
-
-  /**
-   * grabs the colleciton of the type of nested model defined by the function call name (Fault Tree Diagrams)
-   * @param faultTreeId the id of the parent model
-   * @returns a promise with a list of the model typed defined
-   */
-  @Get("/fault-tree-graph/")
-  async getFaultTreeGraph(
-    @Query("faultTreeId") faultTreeId: string,
-  ): Promise<FaultTreeGraph> {
-    return this.nestedModelService.getFaultTreeGraph(faultTreeId);
   }
 
   /**

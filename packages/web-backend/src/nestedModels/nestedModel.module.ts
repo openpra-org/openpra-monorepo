@@ -16,7 +16,6 @@ import {
 } from "./schemas/event-sequence-diagram.schema";
 import { EventTree, EventTreeSchema } from "./schemas/event-tree.schema";
 import { FaultTree, FaultTreeSchema } from "./schemas/fault-tree.schema";
-import {FaultTreeGraph, FaultTreeGraphSchema} from "./schemas/fault-tree-graph.schema";
 import {
   InitiatingEvent,
   InitiatingEventSchema,
@@ -83,7 +82,6 @@ import {
       { name: EventSequenceDiagram.name, schema: EventSequenceDiagramSchema },
       { name: EventTree.name, schema: EventTreeSchema },
       { name: FaultTree.name, schema: FaultTreeSchema },
-      { name: FaultTreeGraph.name, schema: FaultTreeGraphSchema },
       { name: FunctionalEvent.name, schema: FunctionalEventSchema },
       { name: InitiatingEvent.name, schema: InitiatingEventSchema },
       { name: MarkovChain.name, schema: MarkovChainSchema },

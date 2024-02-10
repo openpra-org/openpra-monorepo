@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "uuid.json",
+  "title": "UUID",
+  "description": "A UUID representation",
+  "type": "string",
+  "format": "uuid",
+  "examples": [
+    "123e4567-e89b-12d3-a456-426614174000"
+  ]
+}

@@ -11,6 +11,7 @@ import {
   Body,
   UseFilters,
   UseGuards,
+  HttpException,
 } from "@nestjs/common";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { Public } from "../guards/public.guard";
@@ -68,8 +69,21 @@ export class CollabController {
    */
   @Public()
   @Post("/user/")
-  async createNewUser(@Body() body: CreateNewUserDto): Promise<User> {
-    return this.collabService.createNewUser(body);
+  async createNewUser(@Body() body: CreateNewUserDto): Promise<User | string> {
+    const newUser = await this.collabService.createNewUser(body);
+
+    // Check if newUser is null, indicating duplicate username
+    if (newUser === "username already exists") {
+      // Handle the case where the user already exists, for example, return an appropriate response
+      throw new HttpException("Username already exists", HttpStatus.CONFLICT);
+    }
+    if (newUser === "email already exists") {
+      // Handle the case where the user already exists, for example, return an appropriate response
+      throw new HttpException("Email already exists", HttpStatus.BAD_REQUEST);
+    }
+
+    // User creation was successful, return the new user
+    return newUser;
   }
 
   /**

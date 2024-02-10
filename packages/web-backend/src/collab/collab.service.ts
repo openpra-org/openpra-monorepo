@@ -205,11 +205,20 @@ export class CollabService {
    *      one of the two roles - either the role of an administrator (with special access - such as deleting a user from the database) or the role of a general user.
    * @returns A mongoose document of the new user
    */
-  async createNewUser(body: CreateNewUserDto): Promise<User> {
+  async createNewUser(body: CreateNewUserDto): Promise<User | string> {
     const username = body.username;
-    const response = await this.userModel.findOne({ username: username });
-    if (response) {
-      throw new Error("Duplicate Username");
+    const email = body.email;
+    const response1 = await this.userModel.findOne({
+      username: username,
+    });
+    const response2 = await this.userModel.findOne({
+      email: email,
+    });
+    if (response1) {
+      return "username already exists";
+    }
+    if (response2) {
+      return "email already exists";
     }
     body.password = await argon2.hash(body.password);
     const newUser = new this.userModel(body);

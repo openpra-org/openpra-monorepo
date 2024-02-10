@@ -14,10 +14,19 @@ export class InvalidTokenFilter implements ExceptionFilter {
     const request = context.getRequest<Request>();
     const errorStatus = exception.getStatus();
     const errorMessage = exception.getResponse();
-    response.status(errorStatus).json({
-      issue: errorMessage,
-      timestamp: new Date().toISOString(),
-      path: request.url,
-    });
+
+    if (errorStatus === 401) {
+      response.status(errorStatus).json({
+        issue: {message:"invalid token"},
+        timestamp: new Date().toISOString(),
+        path: request.url,
+      });
+    } else {
+      response.status(errorStatus).json({
+        issue: errorMessage,
+        timestamp: new Date().toISOString(),
+        path: request.url,
+      });
+    }
   }
 }

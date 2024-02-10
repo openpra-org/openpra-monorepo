@@ -14,7 +14,8 @@ set(ALLOWED_MALLOC_TYPES "tcmalloc" "jemalloc" "malloc" CACHE STRING "Allowed me
 set(MALLOC_TYPE "tcmalloc" CACHE STRING "Select the memory allocator type (tcmalloc, jemalloc, malloc)")
 option(WITH_COVERAGE "Instrument for coverage analysis" OFF)
 option(WITH_PROFILE "Instrument for performance profiling" OFF)
-option(BUILD_TESTS "Build the tests" ON)  # Influences CTest.
+option(BUILD_TESTS "Build the tests" ON)
+option(GENERATE_DOCS "Generate the documentation" ON)
 option(OPTIMIZE_FOR_NATIVE "Build with -march=native" OFF)
 
 ####################### End Options ##################### }}}
@@ -212,4 +213,7 @@ add_subdirectory(targets/scram-node)
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
+endif()
+if(GENERATE_DOCS)
+  add_subdirectory(docs)
 endif()

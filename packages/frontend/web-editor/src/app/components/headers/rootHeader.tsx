@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import {
+  logicalCSSWithFallback,
   EuiAvatar,
+  EuiCollapsibleNav,
   EuiFlexGroup,
   EuiFlexItem,
   EuiHeader,
@@ -18,12 +20,15 @@ import {
   EuiSpacer,
   EuiText,
   useGeneratedHtmlId,
+  useIsWithinBreakpoints,
 } from "@elastic/eui";
+import { css } from '@emotion/react';
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 import { toTitleCase, tokenizePath } from "../../../utils/StringUtils";
 import ContextAddButton from "../buttons/contextAddButton";
 import WorkspaceSelectorMenu from "./WorkspaceSelectorMenu";
+import PinnableScopedNav from "../sidenavs/PinnableScopedNav";
 
 export default () => {
   const navigate = useNavigate();
@@ -92,8 +97,41 @@ export default () => {
     />
   );
 
+  const isMenuButtonVisible = useIsWithinBreakpoints(["xs", "s"]);
+  const [isNavOpenOnCollapsed, setIsNavOpenOnCollapsed] = useState(false);
+
   return (
     <EuiHeader position="fixed">
+      {isMenuButtonVisible && (
+        <EuiHeaderSection grow={false}>
+          <EuiHeaderSectionItem>
+            <EuiCollapsibleNav
+              id={"id"}
+              aria-label="Main navigation"
+              isOpen={isNavOpenOnCollapsed}
+              button={
+                <EuiHeaderSectionItemButton
+                  aria-label="Toggle main navigation"
+                  onClick={() => {
+                    setIsNavOpenOnCollapsed(!isNavOpenOnCollapsed);
+                  }}
+                >
+                  <EuiIcon type={"menu"} size="m" aria-hidden="true" />
+                </EuiHeaderSectionItemButton>
+              }
+              onClose={() => {
+                setIsNavOpenOnCollapsed(false);
+              }}
+              // Accessibility - Add scroll to nav on very small screens
+              css={css`
+                ${logicalCSSWithFallback("overflow-y", "auto")}
+              `}
+            >
+              <PinnableScopedNav />
+            </EuiCollapsibleNav>
+          </EuiHeaderSectionItem>
+        </EuiHeaderSection>
+      )}
       <EuiHeaderSection grow={false}>
         <EuiHeaderSectionItem>
           <WorkspaceSelectorMenu />

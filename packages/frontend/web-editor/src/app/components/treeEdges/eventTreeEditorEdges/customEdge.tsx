@@ -58,6 +58,7 @@ const CustomEdge: FC<EdgeProps<CustomEdgeData>> = memo(
         targetX,
         targetY,
         targetPosition,
+        borderRadius: 0,
       });
       return (
         <>

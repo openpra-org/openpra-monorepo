@@ -18,173 +18,15 @@ import "reactflow/dist/style.css";
 
 import hiddenNode from "../../components/treeNodes/eventTreeEditorNode/hiddenNode";
 import columnNode from "../../components/treeNodes/eventTreeEditorNode/columnNode";
-import CustomEdge from "../../components/treeNodes/eventTreeEditorNode/customEdge";
+import CustomEdge from "../../components/treeEdges/eventTreeEditorEdges/customEdge";
+
+import { edgeData } from "../../components/treeEdges/eventTreeEditorEdges/edgeData";
+import { nodeData } from "../../components/treeNodes/eventTreeEditorNode/nodeData";
 
 /**
  * Initial set of nodes to be used in the ReactFlow component.
  * @type {Node[]}
  */
-const xDistance = 100;
-const yDistance = 60;
-
-const initialNodes: Node[] = [
-  {
-    id: "vertical-1",
-
-    type: "columnNode",
-    data: { label: "Input", width: xDistance },
-    position: { x: xDistance / 2, y: -200 },
-  },
-  {
-    id: "vertical-1-connect",
-
-    type: "columnNode",
-    data: { label: "Input", width: xDistance, hideText: true },
-    position: { x: xDistance / 2, y: 200 },
-  },
-  {
-    id: "vertical-2",
-
-    type: "columnNode",
-    data: { label: "Input", width: xDistance },
-    width: xDistance / 4,
-    position: { x: (3 / 2) * xDistance, y: -200 },
-  },
-  {
-    id: "vertical-2-connect",
-
-    type: "columnNode",
-    data: { label: "Input", width: xDistance, hideText: true },
-    width: xDistance / 4,
-    position: { x: (3 / 2) * xDistance, y: 200 },
-  },
-  {
-    id: "vertical-3",
-
-    type: "columnNode",
-    data: { label: "Input", width: xDistance },
-    width: xDistance / 4,
-    position: { x: (5 / 2) * xDistance, y: -200 },
-  },
-  {
-    id: "vertical-3-connect",
-
-    type: "columnNode",
-    data: { label: "Input", width: xDistance, hideText: true },
-    width: xDistance / 4,
-    position: { x: (5 / 2) * xDistance, y: 200 },
-  },
-  {
-    id: "horizontal-1",
-    sourcePosition: Position.Right,
-    type: "hiddenNode",
-    data: { label: "Input" },
-    position: { x: 0, y: 0 },
-  },
-  {
-    id: "horizontal-2",
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: "hiddenNode",
-    data: { label: "A Node" },
-    position: { x: xDistance, y: -yDistance },
-  },
-  {
-    id: "horizontal-3",
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: "hiddenNode",
-    data: { label: "A Node" },
-    position: { x: xDistance, y: yDistance },
-  },
-  {
-    id: "horizontal-4",
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: "hiddenNode",
-    data: { label: "A Node" },
-    position: { x: 2 * xDistance, y: (-3 / 2) * yDistance },
-  },
-  {
-    id: "horizontal-5",
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: "hiddenNode",
-    data: { label: "A Node" },
-    position: { x: 2 * xDistance, y: -yDistance / 2 },
-  },
-];
-
-const initialEdges: Edge[] = [
-  {
-    id: "horizontal-e1-2",
-    source: "horizontal-1",
-    type: "custom",
-    target: "horizontal-2",
-    animated: false,
-  },
-  {
-    id: "horizontal-e1-3",
-    source: "horizontal-1",
-    type: "custom",
-    target: "horizontal-3",
-    animated: false,
-  },
-  {
-    id: "horizontal-e2-4",
-    source: "horizontal-2",
-    type: "custom",
-    target: "horizontal-4",
-    animated: false,
-  },
-  {
-    id: "horizontal-e2-5",
-    source: "horizontal-2",
-    type: "custom",
-    target: "horizontal-5",
-    animated: false,
-  },
-  {
-    id: "vertical-l1-connect",
-    source: "vertical-1",
-    sourceHandle: "a",
-    type: "custom",
-    target: "vertical-1-connect",
-    targetHandle: "a",
-    data: { straight: true, color: "grey" },
-    animated: false,
-  },
-  {
-    id: "vertical-r1-connect",
-    source: "vertical-1",
-    sourceHandle: "b",
-    type: "custom",
-    target: "vertical-1-connect",
-    targetHandle: "b",
-    data: { straight: true, color: "grey" },
-    animated: false,
-  },
-  {
-    id: "vertical-l2-connect",
-    source: "vertical-2",
-    sourceHandle: "a",
-    type: "custom",
-    target: "vertical-2-connect",
-    targetHandle: "a",
-    data: { straight: true, color: "grey" },
-    animated: false,
-  },
-  {
-    id: "vertical-r2-connect",
-    source: "vertical-2",
-    sourceHandle: "b",
-    type: "custom",
-    target: "vertical-2-connect",
-    targetHandle: "b",
-    data: { straight: true, color: "grey" },
-    animated: false,
-  },
-];
 
 const nodeTypes: NodeTypes = {
   hiddenNode: hiddenNode,
@@ -204,11 +46,11 @@ const edgeTypes: EdgeTypes = {
 const HorizontalFlow = (): ReactElement => {
   // State hook for nodes, initialized with `initialNodes`.
   // The second parameter (unused) would be a function to set nodes, hence the double comma.
-  const [nodes, , onNodesChange] = useNodesState<Node[]>(initialNodes);
+  const [nodes, , onNodesChange] = useNodesState<Node[]>(nodeData);
 
   // State hook for edges, initialized with `initialEdges`.
   // `setEdges` is used to update the edges state when new connections are made.
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(edgeData);
 
   // `useCallback` hook to memoize the `onConnect` function, which adds a new edge when nodes are connected.
   // It depends on `setEdges`, so it will only change if `setEdges` changes.

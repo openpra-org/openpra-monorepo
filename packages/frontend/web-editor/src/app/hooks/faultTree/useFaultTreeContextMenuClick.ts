@@ -252,9 +252,9 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
 
       await GraphApiManager.storeFaultTree(
         FaultTreeState({
+          nodes: nodes,
           edges: edges,
           faultTreeId: faultTreeId ?? "", // Use empty string as default value,
-          nodes: nodes,
         }),
       ).then((r: FaultTreeGraph): void => {
         //console.log(r);

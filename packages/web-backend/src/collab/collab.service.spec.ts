@@ -3,12 +3,10 @@ import { CollabService } from './collab.service';
 import { User, UserSchema } from './schemas/user.schema';
 import { UserCounter, UserCounterSchema } from './schemas/user-counter.schema';
 import { MongooseModule, getConnectionToken } from '@nestjs/mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 import mongoose, { Connection } from 'mongoose';
 
 describe('CollabService', () => {
   let collabService: CollabService;
-  let mongoServer: MongoMemoryServer;
   let connection: Connection;
   /**
    * Before all tests
@@ -18,9 +16,7 @@ describe('CollabService', () => {
    * define connection and collabService
    */
   beforeAll(async () => {
-    mongoServer = new MongoMemoryServer(); //create mongodb memory server
-    await mongoServer.start(); // start server
-    const mongoUri = mongoServer.getUri(); // get server url which will be used by mongoose to connect to db
+    const mongoUri = process.env.MONGO_URI; //get the URI from the environment variable
     const module: TestingModule = await Test.createTestingModule({
       imports:[
         MongooseModule.forRoot(mongoUri),
@@ -43,11 +39,9 @@ describe('CollabService', () => {
   /**
    * After all tests
    * Disconnect mongoose
-   * Stop mongoDB server
    */
   afterAll(async () => {
     await mongoose.disconnect();
-    await mongoServer.stop();
   });
 
   describe('CollabService', () => {

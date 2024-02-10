@@ -7,5 +7,7 @@ export default {
     '^.+\\.[tj]s$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
-  snapshotFormat: { escapeString: true, printBasicPrototype: true }
+  snapshotFormat: { escapeString: true, printBasicPrototype: true },
+  globalSetup: '<rootDir>/test/unitTestSetup.ts',
+  globalTeardown: '<rootDir>/test/unitTestTeardown.ts',
 };

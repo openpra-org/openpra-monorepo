@@ -6,24 +6,19 @@ import { User, UserSchema } from '../collab/schemas/user.schema';
 import { UserCounter, UserCounterSchema } from '../collab/schemas/user-counter.schema';
 import {MongooseModule , getConnectionToken} from '@nestjs/mongoose';
 import mongoose, {Connection} from 'mongoose';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 
 describe('AuthService', () => {
     let authService: AuthService;
     let collabService: CollabService;
-    let mongoServer: MongoMemoryServer;
     let connection: Connection;
-    
+
     /**
      * Before any test is run, start a new in-memory MongoDB instance and connect to it.
      * Create a new module with the AuthService and CollabService.
      * make connection object and authService and collabService available to all tests.
      */
     beforeAll(async () => {
-        mongoServer = new MongoMemoryServer();
-        await mongoServer.start();
-        const mongoUri = mongoServer.getUri();
-
+        const mongoUri = process.env.MONGO_URI; //get the URI from the environment variable
         const module: TestingModule = await Test.createTestingModule({
             imports:[
               MongooseModule.forRoot(mongoUri),
@@ -37,16 +32,16 @@ describe('AuthService', () => {
         connection = await module.get(getConnectionToken());
     });
 
-    
-    afterAll(async () => {
-        await mongoose.disconnect(); //disconnect from database
-        await mongoServer.stop();
-    });
+
+
 
     afterEach(async () => {
         await connection.dropDatabase();
       });
 
+    afterAll(async () => {
+        await mongoose.disconnect(); //disconnect from database
+    });
 
     describe('AuthService', () => {
         it("AuthService should be defined", async () => {
@@ -58,7 +53,7 @@ describe('AuthService', () => {
         it("should be defined",async () =>{
             expect(authService.loginUser).toBeDefined();
         });
-          
+
         /**
          * define a user object and create a new user
          * store correct password in a variable
@@ -72,7 +67,7 @@ describe('AuthService', () => {
             const result = await authService.loginUser(user_object.username,correctPassword); // call loginUser function
             expect(result).toBeInstanceOf(Object); //expect result to be an instance of User
         });
-        
+
         /**
          * define a user object and create a new user
          * store incorrect password in a variable
@@ -89,7 +84,7 @@ describe('AuthService', () => {
                 expect(err).toBeInstanceOf(Error); //expect result to be an instance of User
             }
         });
-        
+
         /**
          * define a user object and create a new user
          * store incorrect username in a variable

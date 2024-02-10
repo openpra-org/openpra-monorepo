@@ -7,14 +7,12 @@ import { UserCounter, UserCounterSchema } from '../collab/schemas/user-counter.s
 import {MongooseModule , getConnectionToken} from '@nestjs/mongoose';
 import mongoose, {Connection} from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
-import { MongoMemoryServer } from 'mongodb-memory-server';
 
 
 describe('AuthController', () => {
     let authService: AuthService;
     let authController: AuthController;
     let connection: Connection;
-    let mongoServer: MongoMemoryServer;
     let collabService: CollabService;
 
     /**
@@ -23,10 +21,7 @@ describe('AuthController', () => {
      * make connection object and authService and authController available to all tests.
      */
     beforeAll(async () => {
-        mongoServer = new MongoMemoryServer();
-        await mongoServer.start();
-        const mongoUri = mongoServer.getUri();
-
+        const mongoUri = process.env.MONGO_URI; //get the URI from the environment variable
         const module: TestingModule = await Test.createTestingModule({
             imports:[
               MongooseModule.forRoot(mongoUri),
@@ -44,11 +39,10 @@ describe('AuthController', () => {
     });
 
     /**
-     * after all tests are done, disconnect from mongoose and stop the in-memory MongoDB instance.
+     * after all tests are done, disconnect from mongoose
      */
     afterAll(async () => {
         await mongoose.disconnect(); //disconnect from database
-        await mongoServer.stop();
     });
 
     /**

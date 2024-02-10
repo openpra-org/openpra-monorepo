@@ -50,6 +50,20 @@ export const nodeData: Node[] = [
     position: { x: (5 / 2) * xDistance, y: 200 },
   },
   {
+    id: "vertical-4",
+    type: "columnNode",
+    data: { label: "Input", width: xDistance },
+    width: xDistance / 4,
+    position: { x: (7 / 2) * xDistance, y: -200 },
+  },
+  {
+    id: "vertical-4-connect",
+    type: "columnNode",
+    data: { label: "Input", width: xDistance, hideText: true },
+    width: xDistance / 4,
+    position: { x: (7 / 2) * xDistance, y: 200 },
+  },
+  {
     id: "horizontal-1",
     sourcePosition: Position.Right,
     type: "hiddenNode",
@@ -87,5 +101,21 @@ export const nodeData: Node[] = [
     type: "hiddenNode",
     data: { label: "A Node" },
     position: { x: 2 * xDistance, y: -yDistance / 2 },
+  },
+  {
+    id: "horizontal-6",
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    type: "hiddenNode",
+    data: { label: "A Node" },
+    position: { x: 3 * xDistance, y: (-4 / 2) * yDistance },
+  },
+  {
+    id: "horizontal-7",
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    type: "hiddenNode",
+    data: { label: "A Node" },
+    position: { x: 3 * xDistance, y: (-2 / 2) * yDistance },
   },
 ];

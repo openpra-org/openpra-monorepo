@@ -17,7 +17,7 @@ export class InvalidTokenFilter implements ExceptionFilter {
 
     if (errorStatus === 401) {
       response.status(errorStatus).json({
-        issue: {message:"invalid token"},
+        issue: { message: "invalid token" },
         timestamp: new Date().toISOString(),
         path: request.url,
       });

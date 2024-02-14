@@ -1,10 +1,10 @@
 import { usePrettyDuration } from "@elastic/eui";
 import { toTitleCase } from "../../../utils/StringUtils";
 
-export interface LastActionTextProps {
+export type LastActionTextProps = {
   timestamp: number;
   action: "created" | "updated" | "viewed";
-}
+};
 
 // TODO
 export default function LastActionText({

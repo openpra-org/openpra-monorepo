@@ -3,7 +3,7 @@ import { Position } from "reactflow";
 /**
  * Represents the properties for the context menu options.
  */
-export interface EventSequenceContextMenuOptions {
+export type EventSequenceContextMenuOptions = {
   /**
    * @param id option identifier
    */
@@ -20,4 +20,4 @@ export interface EventSequenceContextMenuOptions {
    * @eventProperty onClick event of the context menu options
    */
   onClick?: () => void;
-}
+};

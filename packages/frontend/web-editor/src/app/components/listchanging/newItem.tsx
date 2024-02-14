@@ -15,14 +15,14 @@ import {
 } from "@elastic/eui";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
-export interface NewItemProps {
+export type NewItemProps = {
   title: string;
   page?: string;
   itemTitle?: string;
   itemDescription?: string;
   users?: string[];
   toggleBox: (isVisible: boolean) => void;
-}
+};
 
 //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
 export default function NewItem(props: NewItemProps) {

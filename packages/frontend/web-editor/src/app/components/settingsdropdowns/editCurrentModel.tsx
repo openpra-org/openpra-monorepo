@@ -12,13 +12,15 @@ import {
   EuiSkeletonRectangle,
 } from "@elastic/eui";
 import TypedModel from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+import {
+  GetCurrentTypedModel,
+  PatchExternalHazard,
+  PatchFullScope,
+  PatchInternalEvent,
+  PatchInternalHazard,
+} from "shared-types/src/lib/api/TypedModelApiManager";
 import TypedModelActionForm from "../forms/typedModelActionForm";
 import SettingsAccordian from "./SettingsAccordian";
-import {
-  GetCurrentTypedModel, PatchExternalHazard, PatchFullScope,
-  PatchInternalEvent,
-  PatchInternalHazard
-} from "shared-types/src/lib/api/TypedModelApiManager";
 
 const TYPED_MODEL_TYPE_LOCATION = 1;
 

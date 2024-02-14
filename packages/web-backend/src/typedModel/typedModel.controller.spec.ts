@@ -1,10 +1,12 @@
-import { TypedModelController } from "./typedModel.controller";
-import { TypedModelService } from "./typedModel.service";
 import { Test, TestingModule } from "@nestjs/testing";
+import { getConnectionToken, MongooseModule } from "@nestjs/mongoose";
+import { Connection } from "mongoose";
 import {
   ModelCounter,
   ModelCounterSchema,
 } from "../schemas/model-counter.schema";
+import { TypedModelController } from "./typedModel.controller";
+import { TypedModelService } from "./typedModel.service";
 import {
   InternalEvents,
   InternalEventsSchema,
@@ -18,8 +20,6 @@ import {
   ExternalHazardsSchema,
 } from "./schemas/external-hazards.schema";
 import { FullScope, FullScopeSchema } from "./schemas/full-scope.schema";
-import { getConnectionToken, MongooseModule } from "@nestjs/mongoose";
-import { Connection } from "mongoose";
 
 import { createFullScopeRequest } from "./stubs/createFullScopeRequest.stub";
 import { createInternalEventRequest } from "./stubs/createInternalEventRequest.stub";

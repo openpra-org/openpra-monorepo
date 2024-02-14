@@ -1,11 +1,11 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { TypedModelService } from "./typedModel.service";
 import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { Connection } from "mongoose";
 import {
   ModelCounter,
   ModelCounterSchema,
 } from "../schemas/model-counter.schema";
+import { TypedModelService } from "./typedModel.service";
 import {
   InternalEvents,
   InternalEventsSchema,
@@ -614,7 +614,7 @@ describe("CollabService", () => {
         internalEventObject.users[0],
       );
       expect(internalEventReturned).toBeDefined();
-      let getInternalEventModel = await typedmodelService.getInternalEvent(
+      const getInternalEventModel = await typedmodelService.getInternalEvent(
         internalEvent.id.toString(),
         internalEventObject.users[1],
       );

@@ -11,7 +11,7 @@ import {
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
 
-interface TreeItem {
+type TreeItem = {
   id: string;
   key: string;
   isExpanded?: boolean;
@@ -19,11 +19,11 @@ interface TreeItem {
   children?: TreeItem[];
   icon?: JSX.Element;
   callback?: () => {};
-}
+};
 
-export interface scopedNavProps {
+export type scopedNavProps = {
   type: string;
-}
+};
 
 export default function ScopedNav(props: scopedNavProps) {
   const { type } = props;

@@ -5,5 +5,5 @@ export const createExternalHazardRequest: Partial<TypedModel> = {
     name: "External Hazard Model",
     description: "Description for External Hazard Model",
   },
-  users: [1,2,3],
+  users: [1, 2, 3],
 };

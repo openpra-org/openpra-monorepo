@@ -9,7 +9,7 @@ import {
 import { EuiPopoverProps } from "@elastic/eui/src/components/popover/popover";
 
 //props for button with popover
-interface ButtonWithPopoverPropsPartials {
+type ButtonWithPopoverPropsPartials = {
   popoverProps?: Partial<
     Omit<
       EuiPopoverProps,
@@ -21,7 +21,7 @@ interface ButtonWithPopoverPropsPartials {
   isIcon?: boolean;
   iconType?: string;
   onRequestClose?: boolean;
-}
+};
 
 export type ButtonWithPopoverProps = EuiButtonPropsForButton &
   ButtonWithPopoverPropsPartials;

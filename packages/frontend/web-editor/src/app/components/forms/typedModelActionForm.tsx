@@ -22,7 +22,7 @@ import ApiManager from "shared-types/src/lib/api/ApiManager";
 
 import { toTitleCase } from "../../../utils/StringUtils";
 
-export interface ItemFormProps {
+export type ItemFormProps = {
   itemName: string;
   // TODO:: TODO :: replace endpoint string with TypedApiManager method
   postEndpoint?: (data: Partial<TypedModelJSON>) => {};
@@ -38,7 +38,7 @@ export interface ItemFormProps {
   initialFormValues?: TypedModelJSON;
   compressed?: boolean;
   noHeader?: boolean;
-}
+};
 
 export default function TypedModelActionForm({
   itemName,

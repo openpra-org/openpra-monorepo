@@ -15,7 +15,7 @@ import LastActionText from "./LastActionText";
 import { ListItemContextMenuButton } from "./ListItemAction";
 
 //title is required, description isnt required but is typically present
-export interface GenericListItemProps {
+export type GenericListItemProps = {
   id: number;
   label: LabelJSON;
   endpoint: string;
@@ -30,7 +30,7 @@ export interface GenericListItemProps {
   users?: number[];
   path: string;
   itemName: string;
-}
+};
 
 /**
  *

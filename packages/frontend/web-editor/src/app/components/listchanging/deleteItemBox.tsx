@@ -13,13 +13,13 @@ import {
 import { useNavigate } from "react-router-dom";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
-export interface DeleteItemProps {
+export type DeleteItemProps = {
   id: number;
   itemName: string;
   typeOfModel: string;
   deleteTypedEndpoint?: (id: number) => {};
   deleteNestedEndpoint?: (id: number) => {};
-}
+};
 
 /**
  *

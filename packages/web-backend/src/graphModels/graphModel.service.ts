@@ -43,11 +43,7 @@ export class GraphModelService {
     const existingGraph = await this.eventSequenceDiagramGraphModel.findOne({
       eventSequenceId: body.eventSequenceId,
     });
-    return this.saveGraph(
-      existingGraph,
-      body,
-      GraphTypes.EventSequence,
-    );
+    return this.saveGraph(existingGraph, body, GraphTypes.EventSequence);
   }
 
   /**

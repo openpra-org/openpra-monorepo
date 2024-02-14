@@ -35,7 +35,7 @@ describe(DeleteItemBox, () => {
     );
     const inputBox = screen.getByTestId("delete-item-input");
     fireEvent.change(inputBox, { target: { value: "yes" } });
-    expect(inputBox).toHaveValue("yes");
+    await expect(inputBox).toHaveValue("yes");
   });
 
   //test for initial rendering of delete button
@@ -46,7 +46,7 @@ describe(DeleteItemBox, () => {
       </BrowserRouter>,
     );
     const deleteItemButton = screen.getByTestId("delete-item-button");
-    expect(deleteItemButton).toHaveAttribute("disabled");
+    await expect(deleteItemButton).toHaveAttribute("disabled");
   });
 
   //test for enabled delete button after getting input in input box
@@ -59,6 +59,6 @@ describe(DeleteItemBox, () => {
     const deleteItemButton = screen.getByTestId("delete-item-button");
     const inputBox = screen.getByTestId("delete-item-input");
     fireEvent.change(inputBox, { target: { value: "yes" } });
-    expect(deleteItemButton).not.toHaveAttribute("disabled");
+    await expect(deleteItemButton).not.toHaveAttribute("disabled");
   });
 });

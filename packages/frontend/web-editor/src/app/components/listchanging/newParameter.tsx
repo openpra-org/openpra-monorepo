@@ -12,9 +12,9 @@ import {
   EuiFieldNumber,
 } from "@elastic/eui";
 
-export interface NewParameterProps {
+export type NewParameterProps = {
   toggleBox: (isVisible: boolean) => void;
-}
+};
 
 //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
 export default function NewParameter(props: NewParameterProps) {
@@ -27,10 +27,10 @@ export default function NewParameter(props: NewParameterProps) {
   //use the theme
   const { euiTheme } = useEuiTheme();
 
-  interface item {
+  type item = {
     name: string;
     value?: number;
-  }
+  };
 
   //this is what is in the newItem strucutre, will eventually be used to actually make things
   //this is also subject tyo change, propbably needs a type passed in from props eventually

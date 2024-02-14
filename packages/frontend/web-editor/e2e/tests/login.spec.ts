@@ -1,7 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { signUp, logOut } from "./signup.spec";
 
-
 test.describe("Signup", () => {
   // if we want to access alias in test, we need to change arrow function => to function ()
   test("can register a new account", async ({ page }) => {
@@ -64,4 +63,3 @@ test.describe("Login", () => {
     await expect(page.getByText("Invalid username or password")).toBeVisible();
   });
 });
-

@@ -55,16 +55,16 @@ const getModelFixture = (): ModelProps => ({
   ],
 });
 
-export interface FaultTreeProps {
+export type FaultTreeProps = {
   id: string | number;
   label: LabelJSON;
-}
+};
 
-export interface ModelProps {
+export type ModelProps = {
   id: string | number;
   label: LabelJSON;
   faultTrees: FaultTreeProps[];
-}
+};
 export async function loadModel() {
   return getModelFixture();
 }

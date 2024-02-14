@@ -86,7 +86,7 @@ const initialNodes: Node[] = [
  * @property {string} target - The identifier of the target node to which the connection goes.
  * @property {boolean} animated - Indicates whether the connection has animations enabled.
  */
-interface ConnectionConfig {
+type ConnectionConfig = {
   /** The unique identifier for the connection. */
   id: string;
 
@@ -101,7 +101,7 @@ interface ConnectionConfig {
 
   /** Indicates whether the connection has animations enabled. */
   animated: boolean;
-}
+};
 
 /**
  * Initial set of edges to be used in the ReactFlow component.

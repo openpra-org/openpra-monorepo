@@ -1,7 +1,7 @@
-import WorkflowEdge from './workFlowEdge';
+import WorkflowEdge from "./workFlowEdge";
 
 export const edgeTypes = {
-    workflow: WorkflowEdge,
+  workflow: WorkflowEdge,
 };
 
 export default edgeTypes;

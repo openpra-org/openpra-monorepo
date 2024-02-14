@@ -19,6 +19,8 @@
 /// @file
 /// Implements Reporter class.
 
+#include <omp.h>
+
 #include "reporter.h"
 
 #include <ctime>
@@ -400,25 +402,64 @@ void Reporter::ReportResults(const core::RiskAnalysis::Result::Id& id,
                             [](int number) { return std::to_string(number); }),
                     " "));
   }
+  CLOCK(copy_original_products);
+  const auto& originalProducts = fta.products();
+  std::vector<core::Product> productsCopy(originalProducts.begin(), originalProducts.end());
+  LOG(DEBUG1)<<"Original products are copied in a vector in "<<DUR(copy_original_products);
 
   double sum = 0;  // Sum of probabilities for contribution calculations.
+  CLOCK(sum_prob_reporter);
+//below is the original implementation
+//  if (prob_analysis) {
+//    for (const core::Product& product_set : fta.products())
+//      sum += product_set.p();
+//  }
   if (prob_analysis) {
-    for (const core::Product& product_set : fta.products())
-      sum += product_set.p();
+#pragma omp parallel for reduction(+:sum) schedule(dynamic) num_threads(6)
+      for (auto it = productsCopy.begin(); it != productsCopy.end(); ++it) {
+          const core::Product &product_set = *it;
+          sum += product_set.p();
+      }
   }
-  for (const core::Product& product_set : fta.products()) {
+  LOG(DEBUG1)<<"Sum of probabilities in reporter completed in "<<DUR(sum_prob_reporter);
+
+  //below is the original implementation
+//  for (const core::Product& product_set : fta.products()) {
+//    xml::StreamElement product = sum_of_products.AddChild("product");
+//    product.SetAttribute("order", product_set.order());
+//    if (prob_analysis) {
+//      double prob = product_set.p();
+//      product.SetAttribute("probability", prob);
+//      if (sum != 0)
+//        product.SetAttribute("contribution", prob / sum);
+//    }
+//    for (const core::Literal& literal : product_set) {
+//      ReportLiteral(literal, &product);
+//    }
+//  }
+  CLOCK(fta_product_reporter);
+#pragma omp parallel for schedule(dynamic) num_threads(6)
+  for (auto it = productsCopy.begin(); it != productsCopy.end(); ++it) {
+      const core::Product& product_set = *it;
+
+// Use a critical section to create xml::StreamElement in a thread-safe manner
+#pragma omp critical
+{
     xml::StreamElement product = sum_of_products.AddChild("product");
     product.SetAttribute("order", product_set.order());
     if (prob_analysis) {
-      double prob = product_set.p();
-      product.SetAttribute("probability", prob);
-      if (sum != 0)
-        product.SetAttribute("contribution", prob / sum);
+        double prob = product_set.p();
+        product.SetAttribute("probability", prob);
+        if (sum != 0)
+            product.SetAttribute("contribution", prob / sum);
+        // Iterate over literals in a thread-safe manner
+         for (const core::Literal& literal : product_set) {
+             ReportLiteral(literal, &product);
+         }
     }
-    for (const core::Literal& literal : product_set) {
-      ReportLiteral(literal, &product);
-    }
+}
   }
+    LOG(DEBUG1)<<"fta product reporter is completed in "<<DUR(fta_product_reporter);
 }
 
 void Reporter::ReportResults(const core::RiskAnalysis::Result::Id& id,

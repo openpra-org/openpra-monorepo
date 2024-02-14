@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include <omp.h>
+
 #include <utility>
 #include <vector>
 
@@ -140,21 +142,51 @@ class UncertaintyAnalyzer : public UncertaintyAnalysis {
 };
 
 template <class Calculator>
+/// serial version of UncertaintyAnalyzer<Calculator>::Sample()
+//std::vector<double> UncertaintyAnalyzer<Calculator>::Sample() noexcept {
+//  std::vector<std::pair<int, mef::Expression&>> deviate_expressions =
+//      UncertaintyAnalysis::GatherDeviateExpressions(prob_analyzer_->graph());
+//  Pdag::IndexMap<double> p_vars = prob_analyzer_->p_vars();  // Private copy!
+//  std::vector<double> samples;
+//  samples.reserve(Analysis::settings().num_trials());
+//
+//  for (int i = 0; i < Analysis::settings().num_trials(); ++i) {
+//    UncertaintyAnalysis::SampleExpressions(deviate_expressions, &p_vars);
+//    double result = prob_analyzer_->CalculateTotalProbability(p_vars);
+//    assert(result >= 0 && result <= 1);
+//    samples.push_back(result);
+//  }
+//
+//  return samples;
+//}
+
+/// parallel version of UncertaintyAnalyzer<Calculator>::Sample()
 std::vector<double> UncertaintyAnalyzer<Calculator>::Sample() noexcept {
-  std::vector<std::pair<int, mef::Expression&>> deviate_expressions =
-      UncertaintyAnalysis::GatherDeviateExpressions(prob_analyzer_->graph());
-  Pdag::IndexMap<double> p_vars = prob_analyzer_->p_vars();  // Private copy!
-  std::vector<double> samples;
-  samples.reserve(Analysis::settings().num_trials());
+    std::vector<std::pair<int, mef::Expression&>> deviate_expressions =
+            UncertaintyAnalysis::GatherDeviateExpressions(prob_analyzer_->graph());
+    Pdag::IndexMap<double> p_vars = prob_analyzer_->p_vars();  // Private copy!
+    std::vector<double> samples;
+    samples.reserve(Analysis::settings().num_trials());
+#pragma omp parallel
+    {
+        std::vector<double> thread_samples;
+        thread_samples.reserve(Analysis::settings().num_trials() / omp_get_num_threads());
 
-  for (int i = 0; i < Analysis::settings().num_trials(); ++i) {
-    UncertaintyAnalysis::SampleExpressions(deviate_expressions, &p_vars);
-    double result = prob_analyzer_->CalculateTotalProbability(p_vars);
-    assert(result >= 0 && result <= 1);
-    samples.push_back(result);
-  }
+#pragma omp for
+        for (int i = 0; i < Analysis::settings().num_trials(); ++i) {
+            UncertaintyAnalysis::SampleExpressions(deviate_expressions, &p_vars);
+            double result = prob_analyzer_->CalculateTotalProbability(p_vars);
+            assert(result >= 0 && result <= 1);
+            thread_samples.push_back(result);
+        }
 
-  return samples;
+#pragma omp critical
+        {
+            samples.insert(samples.end(), thread_samples.begin(), thread_samples.end());
+        }
+    }
+
+    return samples;
 }
 
 }  // namespace scram::core

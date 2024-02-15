@@ -21,7 +21,7 @@ type TreeItem = {
   icon?: JSX.Element;
   callback?: () => {};
 };
-export default function DataSidenav() {
+function DataSidenav() {
   const { euiTheme } = useEuiTheme();
 
   const createTreeItem = (label: string, data = {}, depth = 0): TreeItem => {
@@ -225,3 +225,5 @@ export default function DataSidenav() {
 
   return <>{createTreeViews(treeItems)}</>;
 }
+
+export { DataSidenav };

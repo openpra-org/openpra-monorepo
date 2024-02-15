@@ -3,9 +3,9 @@ import {
   GetEventTrees,
   PatchEventTreeLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function EventTreeList() {
+function EventTreeList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetEventTrees}
@@ -15,3 +15,5 @@ export default function EventTreeList() {
     />
   );
 }
+
+export { EventTreeList };

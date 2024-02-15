@@ -3,9 +3,9 @@ import {
   GetDataAnalysis,
   PatchDataAnalysisLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function DataAnalysisList() {
+function DataAnalysisList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetDataAnalysis}
@@ -15,3 +15,4 @@ export default function DataAnalysisList() {
     />
   );
 }
+export { DataAnalysisList };

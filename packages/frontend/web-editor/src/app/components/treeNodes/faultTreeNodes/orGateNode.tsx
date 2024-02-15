@@ -2,7 +2,7 @@ import React, { memo } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import cx from "classnames";
 
-import useNodeDoubleClick from "../../../hooks/faultTree/useNodeDoubleClick";
+import { UseNodeDoubleClick } from "../../../hooks/faultTree/useNodeDoubleClick";
 import { NodeTypes } from "../eventSequenceNodes/icons/interfaces/nodeProps";
 import { NodeIcon } from "../eventSequenceNodes/icons/nodeIcon";
 import styles from "./styles/nodeTypes.module.css";
@@ -13,8 +13,8 @@ import styles from "./styles/nodeTypes.module.css";
  * @param data Data that the node holds
  * @returns OrGateNode JSX Element
  */
-const OrGateNode = ({ id, data }: NodeProps) => {
-  const { handleNodeDoubleClick } = useNodeDoubleClick(id);
+const OrGateNode = memo(({ id, data }: NodeProps) => {
+  const { handleNodeDoubleClick } = UseNodeDoubleClick(id);
   return (
     <div
       className={styles.node_container}
@@ -49,6 +49,6 @@ const OrGateNode = ({ id, data }: NodeProps) => {
       />
     </div>
   );
-};
+});
 
-export default memo(OrGateNode);
+export { OrGateNode };

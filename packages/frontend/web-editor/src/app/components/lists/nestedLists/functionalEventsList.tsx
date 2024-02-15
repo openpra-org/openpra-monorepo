@@ -3,9 +3,9 @@ import {
   GetFunctionalEvents,
   PatchFunctionalEventLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function FunctionalEventsList() {
+function FunctionalEventsList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetFunctionalEvents}
@@ -15,3 +15,5 @@ export default function FunctionalEventsList() {
     />
   );
 }
+
+export { FunctionalEventsList };

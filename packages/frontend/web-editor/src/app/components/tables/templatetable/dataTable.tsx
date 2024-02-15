@@ -20,10 +20,7 @@ type CellValueProps = {
  * @param props.rows - The data rows that will populate the grid.
  * @returns The `EuiDataGrid` component populated with the provided data.
  */
-export default function DataTable({
-  rows,
-  columns,
-}: DataTableProps): JSX.Element {
+function DataTable({ rows, columns }: DataTableProps): JSX.Element {
   /**
    * State to manage the visibility of columns in the data grid.
    */
@@ -121,3 +118,5 @@ export default function DataTable({
     </EuiFlexGroup>
   );
 }
+
+export { DataTable };

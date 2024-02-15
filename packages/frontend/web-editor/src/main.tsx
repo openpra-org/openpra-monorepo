@@ -13,7 +13,7 @@ import {
   useNavigationType,
 } from "react-router-dom";
 
-import App from "./app/app";
+import { App } from "./app/app";
 
 /**
  * Initializes Sentry to automatically track errors and performance issues.

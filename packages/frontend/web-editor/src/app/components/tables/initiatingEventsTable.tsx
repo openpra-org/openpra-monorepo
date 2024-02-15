@@ -1,6 +1,6 @@
-import DataTable from "./templatetable/dataTable";
+import { DataTable } from "./templatetable/dataTable";
 
-export default function InitiatingEventsTable() {
+function InitiatingEventsTable() {
   //data has fields for every label
   //fth is 5th, nfth is 95th
   const rows = [
@@ -145,3 +145,5 @@ export default function InitiatingEventsTable() {
 
   return <DataTable rows={rows} columns={columns} />;
 }
+
+export { InitiatingEventsTable };

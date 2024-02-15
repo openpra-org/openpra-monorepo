@@ -3,9 +3,9 @@ import {
   GetInitiatingEvents,
   PatchInitiatingEventLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function InitiatingEventsList() {
+function InitiatingEventsList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetInitiatingEvents}
@@ -15,3 +15,5 @@ export default function InitiatingEventsList() {
     />
   );
 }
+
+export { InitiatingEventsList };

@@ -1,5 +1,7 @@
-import TemplatedPageHeader from "../../components/headers/TemplatedPageHeader";
+import { TemplatedPageHeader } from "../../components/headers/TemplatedPageHeader";
 
-export default function OverviewPage() {
+function OverviewPage() {
   return <TemplatedPageHeader />;
 }
+
+export { OverviewPage };

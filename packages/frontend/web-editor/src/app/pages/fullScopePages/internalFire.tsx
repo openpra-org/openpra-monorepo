@@ -1,3 +1,5 @@
-export default function () {
+function InternalFire() {
   return <></>;
 }
+
+export { InternalFire };

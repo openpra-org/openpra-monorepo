@@ -1,3 +1,5 @@
-export default function () {
+function LogicalModels() {
   return <></>;
 }
+
+export { LogicalModels };

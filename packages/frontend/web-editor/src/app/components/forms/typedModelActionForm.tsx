@@ -40,7 +40,7 @@ export type ItemFormProps = {
   noHeader?: boolean;
 };
 
-export default function TypedModelActionForm({
+function TypedModelActionForm({
   itemName,
   onCancel,
   noHeader,
@@ -275,3 +275,4 @@ export default function TypedModelActionForm({
     </>
   );
 }
+export { TypedModelActionForm };

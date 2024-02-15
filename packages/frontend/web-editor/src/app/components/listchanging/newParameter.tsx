@@ -17,7 +17,7 @@ export type NewParameterProps = {
 };
 
 //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
-export default function NewParameter(props: NewParameterProps) {
+function NewParameter(props: NewParameterProps) {
   //this is to make sure the new thing gets set
   // const [addNewVisible, setAddNewVisible] = useState(false);
 
@@ -55,12 +55,12 @@ export default function NewParameter(props: NewParameterProps) {
   }, [itemInfo]);
 
   //sets the data, then closes overlay
-  const setData = () => {
+  const setData = (): void => {
     closeOverlay();
   };
 
   //just closes the overlay for adding items
-  const closeOverlay = () => {
+  const closeOverlay = (): void => {
     toggleBox(false);
   };
 
@@ -87,7 +87,7 @@ export default function NewParameter(props: NewParameterProps) {
           fullWidth={true}
           placeholder="Title"
           value={itemInfo.name}
-          onChange={(e) => {
+          onChange={(e): void => {
             setItemInfo({
               ...itemInfo,
               name: e.target.value,
@@ -101,7 +101,7 @@ export default function NewParameter(props: NewParameterProps) {
           fullWidth={true}
           placeholder="Value"
           value={itemInfo.value}
-          onChange={(e) => {
+          onChange={(e): void => {
             setItemInfo({
               ...itemInfo,
               value: parseInt(e.target.value),
@@ -146,3 +146,4 @@ export default function NewParameter(props: NewParameterProps) {
     </EuiForm>
   );
 }
+export { NewParameter };

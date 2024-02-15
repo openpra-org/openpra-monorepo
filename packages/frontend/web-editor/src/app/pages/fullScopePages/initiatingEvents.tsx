@@ -1,5 +1,7 @@
-import InitiatingEventsList from "../../components/lists/nestedLists/initiatingEventsList";
+import { InitiatingEventsList } from "../../components/lists/nestedLists/initiatingEventsList";
 
-export default function InitiatingEvents() {
+function InitiatingEvents() {
   return <InitiatingEventsList />;
 }
+
+export { InitiatingEvents };

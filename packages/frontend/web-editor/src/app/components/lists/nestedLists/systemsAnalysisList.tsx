@@ -3,9 +3,9 @@ import {
   GetSystemsAnalysis,
   PatchSystemsAnalysisLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function SystemsAnalysisList() {
+function SystemsAnalysisList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetSystemsAnalysis}
@@ -15,3 +15,5 @@ export default function SystemsAnalysisList() {
     />
   );
 }
+
+export { SystemsAnalysisList };

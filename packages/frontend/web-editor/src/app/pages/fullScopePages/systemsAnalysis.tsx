@@ -1,5 +1,7 @@
-import SystemsAnalysisList from "../../components/lists/nestedLists/systemsAnalysisList";
+import { SystemsAnalysisList } from "../../components/lists/nestedLists/systemsAnalysisList";
 
-export default function () {
+function SystemsAnalysis() {
   return <SystemsAnalysisList />;
 }
+
+export { SystemsAnalysis };

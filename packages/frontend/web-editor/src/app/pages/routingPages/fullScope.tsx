@@ -1,35 +1,34 @@
 import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
-import FullScopeList from "../../components/lists/workspaceLists/fullScopeList";
-import EventSequenceDiagrams from "../fullScopePages/eventSequenceDiagrams";
-import BayesianNetworks from "../fullScopePages/bayesianNetworks";
-import ModelSettings from "../fullScopePages/modelSettings";
-import InitiatingEvents from "../fullScopePages/initiatingEvents";
-import EventTrees from "../fullScopePages/eventTrees";
-import FullScopeContainer from "../../components/pageContainers/fullScopeContainer";
-import PlantOperationState from "../fullScopePages/operatingStateAnalysis";
-import FunctionalEvents from "../fullScopePages/functionalEvents";
-import MarkovChains from "../fullScopePages/markovChains";
-import HRA from "../fullScopePages/humanReliabilityAnalysis";
-import RiskIntegration from "../fullScopePages/riskIntegration";
-import MechanisticAnalysis from "../fullScopePages/mechanisticAnalysis";
-import OtherHazards from "../fullScopePages/otherHazards";
-import ExternalFlooding from "../fullScopePages/externalFlooding";
-import HighWinds from "../fullScopePages/highWinds";
-import HazardsScreeningAnalysis from "../fullScopePages/hazardsScreeningAnalysis";
-import Seismic from "../fullScopePages/seismic";
-import InternalFire from "../fullScopePages/internalFire";
-import InternalFlood from "../fullScopePages/internalFlood";
-import BayesianEstimation from "../fullScopePages/bayesianEstimation";
-import WeibullAnalysis from "../fullScopePages/weibullAnalysis";
-import RadiologicalConsequenceAnalysis from "../fullScopePages/radiologicalConsequenceAnalysis";
-import EventSequenceQuantificationDiagrams from "../fullScopePages/eventSequenceQuantificationDiagrams";
-import OperatingStateAnalysis from "../fullScopePages/operatingStateAnalysis";
-import EventSequenceAnalysis from "../fullScopePages/eventSequenceAnalysis";
-import SuccessCriteria from "../fullScopePages/successCriteria";
-import SystemsAnalysis from "../fullScopePages/systemsAnalysis";
-import DataAnalysis from "../fullScopePages/dataAnalysis";
-import FaultTrees from "../fullScopePages/faultTrees";
+import { FullScopeList } from "../../components/lists/workspaceLists/fullScopeList";
+import { EventSequenceDiagrams } from "../fullScopePages/eventSequenceDiagrams";
+import { BayesianNetworks } from "../fullScopePages/bayesianNetworks";
+import { ModelSettings } from "../fullScopePages/modelSettings";
+import { InitiatingEvents } from "../fullScopePages/initiatingEvents";
+import { EventTrees } from "../fullScopePages/eventTrees";
+import { FullScopeContainer } from "../../components/pageContainers/fullScopeContainer";
+import { FunctionalEvents } from "../fullScopePages/functionalEvents";
+import { MarkovChains } from "../fullScopePages/markovChains";
+import { HRA } from "../fullScopePages/humanReliabilityAnalysis";
+import { RiskIntegration } from "../fullScopePages/riskIntegration";
+import { MechanisticAnalysis } from "../fullScopePages/mechanisticAnalysis";
+import { OtherHazards } from "../fullScopePages/otherHazards";
+import { ExternalFlooding } from "../fullScopePages/externalFlooding";
+import { HighWinds } from "../fullScopePages/highWinds";
+import { HazardsScreeningAnalysis } from "../fullScopePages/hazardsScreeningAnalysis";
+import { Seismic } from "../fullScopePages/seismic";
+import { InternalFire } from "../fullScopePages/internalFire";
+import { InternalFlood } from "../fullScopePages/internalFlood";
+import { BayesianEstimation } from "../fullScopePages/bayesianEstimation";
+import { WeibullAnalysis } from "../fullScopePages/weibullAnalysis";
+import { RadiologicalConsequenceAnalysis } from "../fullScopePages/radiologicalConsequenceAnalysis";
+import { EventSequenceQuantificationDiagrams } from "../fullScopePages/eventSequenceQuantificationDiagrams";
+import { OperatingStateAnalysis } from "../fullScopePages/operatingStateAnalysis";
+import { EventSequenceAnalysis } from "../fullScopePages/eventSequenceAnalysis";
+import { SuccessCriteria } from "../fullScopePages/successCriteria";
+import { SystemsAnalysis } from "../fullScopePages/systemsAnalysis";
+import { DataAnalysis } from "../fullScopePages/dataAnalysis";
+import { FaultTrees } from "../fullScopePages/faultTrees";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -69,7 +68,7 @@ export async function loadModel() {
   return getModelFixture();
 }
 
-export default function FullScopePage() {
+function FullScopePage() {
   return (
     <Routes>
       <Route path="" element={<FullScopeList />} />
@@ -80,7 +79,7 @@ export default function FullScopePage() {
       >
         <Route
           path="plant-operating-state-analysis/*"
-          element={<PlantOperationState />}
+          element={<OperatingStateAnalysis />}
         />
         <Route path="initiating-events/*" element={<InitiatingEvents />} />
         <Route
@@ -137,3 +136,5 @@ export default function FullScopePage() {
     </Routes>
   );
 }
+
+export { FullScopePage };

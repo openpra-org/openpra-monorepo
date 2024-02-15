@@ -34,7 +34,7 @@ const options = { duration: 200 };
  * It also includes animation logic to smoothly transition nodes to their new positions.
  * The hook ensures horizontal layout of the nodes
  */
-function useLayout(): void {
+function UseLayout(): void {
   // we are using nodeCount as the trigger for the re-layouting
   // whenever the nodes length changes, we calculate the new layout
   const nodeCount = useStore(nodeCountSelector);
@@ -129,4 +129,4 @@ function useLayout(): void {
   }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);
 }
 
-export default useLayout;
+export { UseLayout };

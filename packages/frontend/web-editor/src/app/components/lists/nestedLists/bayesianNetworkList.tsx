@@ -3,9 +3,9 @@ import {
   GetBayesianNetworks,
   PatchBayesianNetworkLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function BayesianNetworkList() {
+function BayesianNetworkList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetBayesianNetworks}
@@ -15,3 +15,4 @@ export default function BayesianNetworkList() {
     />
   );
 }
+export { BayesianNetworkList };

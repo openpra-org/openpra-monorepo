@@ -36,7 +36,7 @@ export type NestedItemFormProps = {
   noHeader?: boolean;
 };
 
-export default function NestedModelActionForm({
+function NestedModelActionForm({
   itemName,
   onCancel,
   noHeader,
@@ -189,3 +189,4 @@ export default function NestedModelActionForm({
     </>
   );
 }
+export { NestedModelActionForm };

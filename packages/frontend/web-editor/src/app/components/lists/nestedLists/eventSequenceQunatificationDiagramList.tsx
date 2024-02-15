@@ -3,9 +3,9 @@ import {
   GetEventSequenceQuantificationDiagram,
   PatchEventSequenceQuantificationDiagramLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function EventSequenceQuantificationDiagramList() {
+function EventSequenceQuantificationDiagramList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetEventSequenceQuantificationDiagram}
@@ -15,3 +15,5 @@ export default function EventSequenceQuantificationDiagramList() {
     />
   );
 }
+
+export { EventSequenceQuantificationDiagramList };

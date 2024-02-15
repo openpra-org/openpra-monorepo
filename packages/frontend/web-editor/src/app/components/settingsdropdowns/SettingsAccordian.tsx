@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { EuiButton, EuiAccordion } from "@elastic/eui";
 
-export default ({
+const SettingsAccordian = ({
   id,
   children,
   buttonContent,
@@ -43,3 +43,5 @@ export default ({
     </EuiAccordion>
   );
 };
+
+export { SettingsAccordian };

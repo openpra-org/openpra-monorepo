@@ -19,8 +19,8 @@ import {
   PatchInternalEvent,
   PatchInternalHazard,
 } from "shared-types/src/lib/api/TypedModelApiManager";
-import TypedModelActionForm from "../forms/typedModelActionForm";
-import SettingsAccordian from "./SettingsAccordian";
+import { TypedModelActionForm } from "../forms/typedModelActionForm";
+import { SettingsAccordian } from "./SettingsAccordian";
 
 const TYPED_MODEL_TYPE_LOCATION = 1;
 
@@ -33,7 +33,7 @@ async function fetchCurrentTypedModel() {
 }
 
 //a change of new item that lets you edit an item, though right now functionality for that isnt available because it requires database
-export default function EditCurrentModel() {
+function EditCurrentModel() {
   //this is what is in the newItem structure, will eventually be used to actually make things
   //this is also subject to change, probably needs a type passed in from props eventually
   const newItem = new TypedModel();
@@ -148,3 +148,5 @@ export default function EditCurrentModel() {
     </SettingsAccordian>
   );
 }
+
+export { EditCurrentModel };

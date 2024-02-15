@@ -1,6 +1,6 @@
-import DataTable from "./templatetable/dataTable";
+import { DataTable } from "./templatetable/dataTable";
 
-export default function SpecialEventsTable() {
+function SpecialEventsTable() {
   const rows = [
     {
       id: "1",
@@ -23,3 +23,5 @@ export default function SpecialEventsTable() {
 
   return <DataTable rows={rows} columns={columns} />;
 }
+
+export { SpecialEventsTable };

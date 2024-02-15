@@ -1,3 +1,5 @@
-export default function () {
+function OtherHazards() {
   return <></>;
 }
+
+export { OtherHazards };

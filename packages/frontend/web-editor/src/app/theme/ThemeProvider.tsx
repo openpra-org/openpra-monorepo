@@ -261,4 +261,4 @@ export const ThemeSettingsConsumer = ThemeSettingsContext.Consumer;
 /**
  * Default export of the ThemeProvider component.
  */
-export default ThemeProvider;
+export { ThemeProvider };

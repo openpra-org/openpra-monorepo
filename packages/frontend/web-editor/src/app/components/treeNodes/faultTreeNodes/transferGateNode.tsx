@@ -12,7 +12,7 @@ import styles from "./styles/nodeTypes.module.css";
  * @param data Data that the node holds
  * @returns AndGateNode JSX Element
  */
-const TransferGateNode = ({ id, data }: NodeProps) => (
+const TransferGateNode = memo(({ id, data }: NodeProps) => (
   <div className={styles.node_container}>
     <div className={cx(styles.node)} title="click to add a child node">
       {"Transfer Gate"}
@@ -39,6 +39,6 @@ const TransferGateNode = ({ id, data }: NodeProps) => (
       }}
     />
   </div>
-);
+));
 
-export default memo(TransferGateNode);
+export { TransferGateNode };

@@ -3,9 +3,9 @@ import {
   GetOperatingStateAnalysis,
   PatchOperatingStateLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function OperatingStateAnalysisList() {
+function OperatingStateAnalysisList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetOperatingStateAnalysis}
@@ -15,3 +15,5 @@ export default function OperatingStateAnalysisList() {
     />
   );
 }
+
+export { OperatingStateAnalysisList };

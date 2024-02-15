@@ -11,7 +11,7 @@ export type TemplatedPageBodyProps = {
   headerProps?: EuiPageHeaderProps;
   sectionProps?: EuiPageSectionProps;
 } & EuiPageBodyProps;
-export default function TemplatedPageBody({
+function TemplatedPageBody({
   panelled,
   children,
   restrictWidth,
@@ -32,3 +32,4 @@ export default function TemplatedPageBody({
     </EuiPageBody>
   );
 }
+export { TemplatedPageBody };

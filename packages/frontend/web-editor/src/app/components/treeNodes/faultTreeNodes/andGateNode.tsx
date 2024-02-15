@@ -2,7 +2,7 @@ import React, { memo } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import cx from "classnames";
 
-import useNodeDoubleClick from "../../../hooks/faultTree/useNodeDoubleClick";
+import { UseNodeDoubleClick } from "../../../hooks/faultTree/useNodeDoubleClick";
 import { NodeIcon } from "../eventSequenceNodes/icons/nodeIcon";
 import { NodeTypes } from "../eventSequenceNodes/icons/interfaces/nodeProps";
 import styles from "./styles/nodeTypes.module.css";
@@ -13,8 +13,8 @@ import styles from "./styles/nodeTypes.module.css";
  * @param data Data that the node holds
  * @returns AndGateNode JSX Element
  */
-const AndGateNode = ({ id, data }: NodeProps) => {
-  const { handleNodeDoubleClick } = useNodeDoubleClick(id);
+const AndGateNode = memo(({ id, data }: NodeProps) => {
+  const { handleNodeDoubleClick } = UseNodeDoubleClick(id);
   return (
     <div
       className={styles.node_container}
@@ -49,6 +49,6 @@ const AndGateNode = ({ id, data }: NodeProps) => {
       />
     </div>
   );
-};
+});
 
-export default memo(AndGateNode);
+export { AndGateNode };

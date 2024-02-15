@@ -5,15 +5,15 @@ import { Position } from "reactflow";
  */
 export type EventSequenceContextMenuOptions = {
   /**
-   * @param id option identifier
+   * @param id - option identifier
    */
   id: string;
   /**
-   * @param top position of the context menu
+   * @param top - position of the context menu
    */
   top: number;
   /**
-   * @param left position of the context menu
+   * @param left - position of the context menu
    */
   left: number;
   /**

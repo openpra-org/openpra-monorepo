@@ -1,5 +1,7 @@
-import EventSequenceAnalysisList from "../../components/lists/nestedLists/eventSequenceAnalysisList";
+import { EventSequenceAnalysisList } from "../../components/lists/nestedLists/eventSequenceAnalysisList";
 
-export default function () {
+function EventSequenceAnalysis() {
   return <EventSequenceAnalysisList />;
 }
+
+export { EventSequenceAnalysis };

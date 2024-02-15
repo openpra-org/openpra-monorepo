@@ -7,8 +7,8 @@ import {
   GetInternalEvents,
   PatchInternalEvent,
 } from "shared-types/src/lib/api/TypedModelApiManager";
-import GenericListItem from "../GenericListItem";
-import GenericItemList from "../GenericItemList";
+import { GenericListItem } from "../GenericListItem";
+import { GenericItemList } from "../GenericItemList";
 
 // TODO:: This while fetching code is broken, fix it.
 
@@ -61,7 +61,7 @@ const getFixtures = async (): Promise<ReactElement[]> => {
   }
 };
 
-export default function InternalEventsList() {
+function InternalEventsList() {
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -103,3 +103,5 @@ export default function InternalEventsList() {
     </EuiPageTemplate>
   );
 }
+
+export { InternalEventsList };

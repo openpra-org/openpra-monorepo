@@ -12,7 +12,7 @@ import styles from "./styles/nodeTypes.module.css";
  * @param data Data that the node holds
  * @returns NotGateNode JSX Element
  */
-const NotGateNode = ({ id, data }: NodeProps) => (
+const NotGateNode = memo(({ id, data }: NodeProps) => (
   <div className={styles.node_container}>
     <div className={cx(styles.node)} title="click to add a child node">
       {"NOT Gate"}
@@ -39,6 +39,6 @@ const NotGateNode = ({ id, data }: NodeProps) => (
       }}
     />
   </div>
-);
+));
 
-export default memo(NotGateNode);
+export { NotGateNode };

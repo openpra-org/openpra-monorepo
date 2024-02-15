@@ -15,7 +15,7 @@ import styles from "./styles/eventSequenceContextMenu.module.css";
  * @param EventSequenceContextMenuOptions - options to load the menu
  * @returns JSX Element
  */
-export default function EventSequenceContextMenu({
+function EventSequenceContextMenu({
   id,
   top,
   left,
@@ -141,3 +141,4 @@ export default function EventSequenceContextMenu({
     </EuiKeyPadMenu>
   );
 }
+export { EventSequenceContextMenu };

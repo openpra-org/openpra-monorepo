@@ -7,8 +7,8 @@ import {
   GetFullScopeModels,
   PatchFullScope,
 } from "shared-types/src/lib/api/TypedModelApiManager";
-import GenericListItem from "../GenericListItem";
-import GenericItemList from "../GenericItemList";
+import { GenericListItem } from "../GenericListItem";
+import { GenericItemList } from "../GenericItemList";
 
 //grabs the model List
 async function fetchModelList() {
@@ -59,7 +59,7 @@ const getFixtures = async (): Promise<JSX.Element[]> => {
   }
 };
 
-export default function FullScopeList() {
+function FullScopeList() {
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -103,3 +103,5 @@ export default function FullScopeList() {
     </EuiPageTemplate>
   );
 }
+
+export { FullScopeList };

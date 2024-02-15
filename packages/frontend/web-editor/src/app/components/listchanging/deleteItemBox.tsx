@@ -23,12 +23,12 @@ export type DeleteItemProps = {
 
 /**
  *
- * @param title takes in an optional title string
- * @param id takes in an optional id which later be used to interacti with the database
- * @param toggleBox this needs to be there to toggle the deltebox on and off accross components, a state to set the delete box being visible
+ * @param title - takes in an optional title string
+ * @param id - takes in an optional id which later be used to interacti with the database
+ * @param toggleBox - this needs to be there to toggle the deltebox on and off accross components, a state to set the delete box being visible
  * @returns
  */
-export default function DeleteItemBox(props: DeleteItemProps) {
+function DeleteItemBox(props: DeleteItemProps) {
   //State used to hold value within text box. User types 'yes' to unlock the submit button
   const [confirmDelete, setConfirmDelete] = useState("");
 
@@ -101,3 +101,4 @@ export default function DeleteItemBox(props: DeleteItemProps) {
     </>
   );
 }
+export { DeleteItemBox };

@@ -1,5 +1,5 @@
 import { EdgeProps, getBezierPath } from "reactflow";
-import UseEdgeClick from "../../../hooks/eventSequence/useEdgeClick";
+import { UseEdgeClick } from "../../../hooks/eventSequence/useEdgeClick";
 import styles from "./styles/edgeType.module.css";
 
 /**
@@ -15,7 +15,7 @@ import styles from "./styles/edgeType.module.css";
  * @param markerEnd - marker
  * @returns JSX Element for the edge
  */
-export default function NormalEdge({
+function NormalEdge({
   id,
   sourceX,
   sourceY,
@@ -64,3 +64,5 @@ export default function NormalEdge({
     </>
   );
 }
+
+export { NormalEdge };

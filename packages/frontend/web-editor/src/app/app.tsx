@@ -4,15 +4,15 @@ import {
   RouterProvider,
 } from "react-router-dom";
 import { ReactElement } from "react";
-import ThemeProvider from "./theme/ThemeProvider";
-import ErrorPage from "./pages/errorPage";
-import InternalEventsPage from "./pages/routingPages/internalEventsPage";
-import InternalHazardsPage from "./pages/routingPages/internalHazardsPage";
-import ExternalhazardsPage from "./pages/routingPages/externalHazardsPage";
-import RootContainer from "./pages/rootContainer";
-import DataPage from "./pages/routingPages/dataAnalysisPage";
-import FullScopePage from "./pages/routingPages/fullScope";
-import LoginPage from "./pages/LandingPage";
+import { ThemeProvider } from "./theme/ThemeProvider";
+import { ErrorPage } from "./pages/errorPage";
+import { InternalEventsPage } from "./pages/routingPages/internalEventsPage";
+import { InternalHazardsPage } from "./pages/routingPages/internalHazardsPage";
+import { ExternalHazardsPage } from "./pages/routingPages/externalHazardsPage";
+import { RootContainer } from "./pages/rootContainer";
+import { DataPage } from "./pages/routingPages/dataAnalysisPage";
+import { FullScopePage } from "./pages/routingPages/fullScope";
+import { LoginPage } from "./pages/LandingPage";
 
 const routes: RouteObject[] = [
   {
@@ -36,7 +36,7 @@ const routes: RouteObject[] = [
           },
           {
             path: "external-hazards/*",
-            element: <ExternalhazardsPage />,
+            element: <ExternalHazardsPage />,
           },
           {
             path: "full-scope/*",
@@ -71,7 +71,7 @@ const router = createBrowserRouter(routes, {
   },
 });
 
-export function App(): ReactElement {
+function App(): ReactElement {
   return (
     <ThemeProvider>
       <RouterProvider router={router} />
@@ -79,4 +79,4 @@ export function App(): ReactElement {
   );
 }
 
-export default App;
+export { App };

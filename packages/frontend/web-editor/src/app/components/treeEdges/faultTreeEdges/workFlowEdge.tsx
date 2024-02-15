@@ -1,10 +1,10 @@
 import React from "react";
 import { EdgeProps, getBezierPath } from "reactflow";
 
-import useEdgeClick from "../../../hooks/faultTree/useEdgeClick";
+import { UseEdgeClick } from "../../../hooks/faultTree/useEdgeClick";
 import styles from "./styles/edgeType.module.css";
 
-export default function WorkFlowEdge({
+function WorkFlowEdge({
   id,
   sourceX,
   sourceY,
@@ -17,7 +17,7 @@ export default function WorkFlowEdge({
 }: EdgeProps) {
   // see the hook for implementation details
   // onClick adds a node in between the nodes that are connected by this edge
-  const onClick = useEdgeClick(id);
+  const onClick = UseEdgeClick(id);
 
   const [edgePath, edgeCenterX, edgeCenterY] = getBezierPath({
     sourceX,
@@ -55,3 +55,5 @@ export default function WorkFlowEdge({
     </>
   );
 }
+
+export { WorkFlowEdge };

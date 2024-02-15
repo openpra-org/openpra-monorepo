@@ -3,9 +3,9 @@ import {
   GetRiskIntegration,
   PatchRiskIntegrationLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function RiskIntegrationList() {
+function RiskIntegrationList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetRiskIntegration}
@@ -15,3 +15,5 @@ export default function RiskIntegrationList() {
     />
   );
 }
+
+export { RiskIntegrationList };

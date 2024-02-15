@@ -5,7 +5,7 @@ import {
   EuiKeyPadMenuItem,
   useGeneratedHtmlId,
 } from "@elastic/eui";
-import useFaultTreeContextMenuClick from "../../hooks/faultTree/useFaultTreeContextMenuClick";
+import { UseFaultTreeContextMenuClick } from "../../hooks/faultTree/useFaultTreeContextMenuClick";
 import { NodeTypes } from "../treeNodes/eventSequenceNodes/icons/interfaces/nodeProps";
 import { NodeIcon } from "../treeNodes/eventSequenceNodes/icons/nodeIcon";
 import styles from "./styles/treeNodeStyles.module.css";
@@ -19,7 +19,7 @@ export type treeNodeContextMenuProps = {
   onClick?: () => void;
 };
 
-export default function FaultTreeNodeContextMenu({
+function FaultTreeNodeContextMenu({
   id,
   top,
   left,
@@ -27,7 +27,7 @@ export default function FaultTreeNodeContextMenu({
   bottom,
   ...props
 }: treeNodeContextMenuProps) {
-  const { handleContextMenuClick } = useFaultTreeContextMenuClick(id);
+  const { handleContextMenuClick } = UseFaultTreeContextMenuClick(id);
   return (
     <EuiKeyPadMenu
       className={styles.context_menu_container}
@@ -119,3 +119,5 @@ export default function FaultTreeNodeContextMenu({
     </EuiKeyPadMenu>
   );
 }
+
+export { FaultTreeNodeContextMenu };

@@ -12,7 +12,7 @@ import styles from "./styles/nodeTypes.module.css";
  * @param data Data that the node holds
  * @returns AtLeastGateNode JSX Element
  */
-const AtLeastGateNode = ({ id, data }: NodeProps) => (
+const AtLeastGateNode = memo(({ id, data }: NodeProps) => (
   <div className={styles.node_container}>
     <div className={cx(styles.node)} title="click to add a child node">
       {"At Least Gate"}
@@ -35,6 +35,6 @@ const AtLeastGateNode = ({ id, data }: NodeProps) => (
       iconProps={{ width: "30px", height: "100%", viewBox: "96 96 308 308" }}
     />
   </div>
-);
+));
 
-export default memo(AtLeastGateNode);
+export { AtLeastGateNode };

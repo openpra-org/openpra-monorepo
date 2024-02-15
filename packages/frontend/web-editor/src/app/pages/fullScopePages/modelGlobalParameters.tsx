@@ -1,6 +1,6 @@
-import GlobalParametersList from "../../components/lists/globalParametersList";
-import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
-export default function BasicEvents() {
+import { GlobalParametersList } from "../../components/lists/globalParametersList";
+import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
+function BasicEvents() {
   return (
     <TemplatedPageBody
       headerProps={{
@@ -12,3 +12,5 @@ export default function BasicEvents() {
     </TemplatedPageBody>
   );
 }
+
+export { BasicEvents };

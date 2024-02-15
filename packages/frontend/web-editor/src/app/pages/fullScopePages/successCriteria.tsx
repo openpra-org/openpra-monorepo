@@ -1,5 +1,7 @@
-import SuccessCriteriaList from "../../components/lists/nestedLists/successCriteriaList";
+import { SuccessCriteriaList } from "../../components/lists/nestedLists/successCriteriaList";
 
-export default function () {
+function SuccessCriteria() {
   return <SuccessCriteriaList />;
 }
+
+export { SuccessCriteria };

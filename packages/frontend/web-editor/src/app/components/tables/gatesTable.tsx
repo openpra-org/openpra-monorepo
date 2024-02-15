@@ -1,6 +1,6 @@
-import DataTable from "./templatetable/dataTable";
+import { DataTable } from "./templatetable/dataTable";
 
-export default function GatesTable() {
+function GatesTable() {
   //data has fields for every label
   //fth is 5th, nfth is 95th
   const rows = [
@@ -43,3 +43,5 @@ export default function GatesTable() {
 
   return <DataTable rows={rows} columns={columns} />;
 }
+
+export { GatesTable };

@@ -1,3 +1,5 @@
-export default function () {
+function InternalFlood() {
   return <></>;
 }
+
+export { InternalFlood };

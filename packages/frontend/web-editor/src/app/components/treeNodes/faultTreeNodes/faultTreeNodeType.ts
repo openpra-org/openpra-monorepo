@@ -1,12 +1,12 @@
 import { NodeTypes } from "reactflow";
 
-import OrGateNode from "./orGateNode";
-import AndGateNode from "./andGateNode";
-import NotGateNode from "./notGateNode";
-import BasicEventNode from "./basicEventNode";
-import AtLeastGateNode from "./atLeastGateNode";
-import HouseEventNode from "./houseEventNode";
-import TransferGateNode from "./transferGateNode";
+import { OrGateNode } from "./orGateNode";
+import { AndGateNode } from "./andGateNode";
+import { NotGateNode } from "./notGateNode";
+import { BasicEventNode } from "./basicEventNode";
+import { AtLeastGateNode } from "./atLeastGateNode";
+import { HouseEventNode } from "./houseEventNode";
+import { TransferGateNode } from "./transferGateNode";
 
 export type IFaultTreeNodeIconProps = {
   className?: string;
@@ -23,4 +23,4 @@ const nodeTypes: NodeTypes = {
   transferGate: TransferGateNode,
 };
 
-export default nodeTypes;
+export { nodeTypes };

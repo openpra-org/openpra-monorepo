@@ -15,7 +15,7 @@ import {
   useIsWithinBreakpoints,
 } from "@elastic/eui";
 import { useState } from "react";
-import SettingsAccordian from "./SettingsAccordian";
+import { SettingsAccordian } from "./SettingsAccordian";
 
 const buttonContent = (
   <div>
@@ -40,7 +40,7 @@ const buttonContent = (
 );
 
 //returns the advanced settings menu, which is a drop down with a few settings
-export default function AdvancedSettings() {
+function AdvancedSettings() {
   //setting the value of the overview
   const [overviewValue, setOverviewValue] = useState("");
 
@@ -139,3 +139,5 @@ export default function AdvancedSettings() {
     </SettingsAccordian>
   );
 }
+
+export { AdvancedSettings };

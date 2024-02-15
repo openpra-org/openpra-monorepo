@@ -27,10 +27,11 @@ import {
   PostWeibullAnalysis,
 } from "shared-types/src/lib/api/NestedModelApiManager";
 import { ItemFormProps } from "../forms/typedModelActionForm";
-import NestedModelActionForm, {
+import {
   NestedItemFormProps,
+  NestedModelActionForm,
 } from "../forms/nestedModelActionForm";
-import TypedModelActionForm from "../forms/typedModelActionForm";
+import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { toTitleCase } from "../../../utils/StringUtils";
 import { ButtonWithClosablePopover } from "./ButtonWithPopover";
 
@@ -45,10 +46,7 @@ export type CreateNestedItemButtonProps = Omit<NestedItemFormProps, "action">;
  * @param endpoint - endpoint that will be used to add the item
  * @returns the create item button
  */
-export default function CreateItemButton({
-  itemName,
-  postEndpoint,
-}: CreateItemButtonProps) {
+function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps) {
   const popoverExtra = (child: JSX.Element) => (
     <div style={logicalStyle("max-width", 240)}>{child}</div>
   );
@@ -76,7 +74,7 @@ export default function CreateItemButton({
     </ButtonWithClosablePopover>
   );
 }
-
+export { CreateItemButton };
 /**
  * @remarks for nested models
  * @param itemName - the type of item that is being passed

@@ -11,14 +11,14 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { EventSequenceGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import EventSequenceList from "../../components/lists/nestedLists/eventSequenceList";
-import useLayout from "../../hooks/eventSequence/useLayout";
-import ESNodeTypes from "../../components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
-import ESEdgeTypes from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
+import { EventSequenceList } from "../../components/lists/nestedLists/eventSequenceList";
+import { UseLayout } from "../../hooks/eventSequence/useLayout";
+import { ESNodeTypes } from "../../components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
+import { ESEdgeTypes } from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 import { EventSequenceContextMenuOptions } from "../../components/context_menu/interfaces/eventSequenceContextMenuOptions.interface";
-import EventSequenceContextMenu from "../../components/context_menu/eventSequenceContextMenu";
+import { EventSequenceContextMenu } from "../../components/context_menu/eventSequenceContextMenu";
 import { GenerateUUID } from "../../../utils/treeUtils";
-import LoadingCard from "../../components/cards/loadingCard";
+import { LoadingCard } from "../../components/cards/loadingCard";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
@@ -94,7 +94,7 @@ const fitViewOptions = {
  */
 function ReactFlowPro(): JSX.Element {
   // this hook call ensures that the layout is re-calculated every time the graph changes
-  useLayout();
+  UseLayout();
 
   const { fitView } = useReactFlow();
   const [nodes, updateNodes] = useState<Node[]>(defaultNodes);
@@ -223,7 +223,7 @@ export function EventSequenceEditor(): JSX.Element {
  *
  * @returns JSX.Element - The JSX element representing the component with defined routes.
  */
-export default function EventSequenceDiagrams(): JSX.Element {
+function EventSequenceDiagrams(): JSX.Element {
   return (
     <Routes>
       <Route path="" element={<EventSequenceList />} />
@@ -231,3 +231,5 @@ export default function EventSequenceDiagrams(): JSX.Element {
     </Routes>
   );
 }
+
+export { EventSequenceDiagrams };

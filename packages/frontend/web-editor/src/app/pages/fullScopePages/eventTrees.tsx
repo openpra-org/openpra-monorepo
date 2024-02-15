@@ -10,7 +10,7 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
 } from "reactflow";
-import EventTreeList from "../../components/lists/nestedLists/eventTreeList";
+import { EventTreeList } from "../../components/lists/nestedLists/eventTreeList";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
 
@@ -214,7 +214,7 @@ export function EventTreeEditor(): ReactElement {
  * The EventTrees component provides routing for the event tree list and the event tree editor.
  * @returns {ReactElement} Routes component containing the EventTreeList and EventTreeEditor components.
  */
-export default function EventTrees(): ReactElement {
+function EventTrees(): ReactElement {
   return (
     <Routes>
       <Route path="" element={<EventTreeList />} />
@@ -222,3 +222,5 @@ export default function EventTrees(): ReactElement {
     </Routes>
   );
 }
+
+export { EventTrees };

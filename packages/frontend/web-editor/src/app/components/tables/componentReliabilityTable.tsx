@@ -1,6 +1,6 @@
-import DataTable from "./templatetable/dataTable";
+import { DataTable } from "./templatetable/dataTable";
 
-export default function ComponentReliabilityTable() {
+function ComponentReliabilityTable() {
   //data has fields for every label
   //fth is 5th, nfth is 95th
   const rows = [
@@ -205,3 +205,5 @@ export default function ComponentReliabilityTable() {
 
   return <DataTable rows={rows} columns={columns} />;
 }
+
+export { ComponentReliabilityTable };

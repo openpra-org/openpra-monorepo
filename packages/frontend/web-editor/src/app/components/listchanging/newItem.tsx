@@ -25,15 +25,15 @@ export type NewItemProps = {
 };
 
 //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
-export default function NewItem(props: NewItemProps) {
+function NewItem(props: NewItemProps) {
   //grabbing the props
   const { title, users, toggleBox } = props;
 
   //this is what is in the newItem strucutre, will eventually be used to actually make things
   //this is also subject tyo change, propbably needs a type passed in from props eventually
   const newItem = {
-    title: props.itemTitle || "",
-    description: props.itemDescription || "",
+    title: props.itemTitle ?? "",
+    description: props.itemDescription ?? "",
     users: [] as string[],
   };
 
@@ -61,7 +61,7 @@ export default function NewItem(props: NewItemProps) {
   }, []);
 
   //this does something if users exist, it will map the users in the new item to the selected users
-  const handleOptionChange = (newOptions: EuiSelectableOption[]) => {
+  const handleOptionChange = (newOptions: EuiSelectableOption[]): void => {
     const selectedUsers = newOptions
       .filter((option) => option.checked)
       .map((option) => option.label);
@@ -72,12 +72,12 @@ export default function NewItem(props: NewItemProps) {
   };
 
   //sets the data, then closes overlay
-  const setData = () => {
+  const setData = (): void => {
     closeOverlay();
   };
 
   //just closes the overlay for adding items
-  const closeOverlay = () => {
+  const closeOverlay = (): void => {
     toggleBox(false);
   };
 
@@ -96,7 +96,7 @@ export default function NewItem(props: NewItemProps) {
           fullWidth={true}
           placeholder="Title"
           value={itemInfo.title}
-          onChange={(e) => {
+          onChange={(e): void => {
             setItemInfo({
               ...itemInfo,
               title: e.target.value,
@@ -111,7 +111,7 @@ export default function NewItem(props: NewItemProps) {
           placeholder="Description"
           resize="none"
           value={itemInfo.description}
-          onChange={(e) => {
+          onChange={(e): void => {
             setItemInfo({
               ...itemInfo,
               description: e.target.value,
@@ -124,7 +124,7 @@ export default function NewItem(props: NewItemProps) {
         <EuiFormRow fullWidth={true}>
           <EuiSelectable
             options={options}
-            onChange={(newOptions) => {
+            onChange={(newOptions): void => {
               setOptions(newOptions);
               handleOptionChange(newOptions); // call handleOptionChange with newOptions
             }}
@@ -163,3 +163,4 @@ export default function NewItem(props: NewItemProps) {
     </EuiForm>
   );
 }
+export { NewItem };

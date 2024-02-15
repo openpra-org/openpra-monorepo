@@ -1,3 +1,5 @@
-export default function () {
+function ExternalFlooding() {
   return <></>;
 }
+
+export { ExternalFlooding };

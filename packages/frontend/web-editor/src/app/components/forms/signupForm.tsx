@@ -11,7 +11,7 @@ import {
 import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 
-export default function SignupForm() {
+function SignupForm() {
   const defaultProps: SignUpProps = {
     username: "",
     email: "",
@@ -29,7 +29,7 @@ export default function SignupForm() {
     ApiManager.isLoggedIn(),
   );
 
-  function handleSignup() {
+  function handleSignup(): void {
     const { passConfirm, ...signupData } = signup;
     ApiManager.signup(signupData)
       .then(() => {
@@ -38,7 +38,6 @@ export default function SignupForm() {
         }
       })
       .catch((signInError) => {
-        console.log(signInError.message);
         if (signInError.message === "Conflict") {
           setIsValidUsername(false);
         } else if (signInError.message === "Bad Request") {
@@ -67,7 +66,7 @@ export default function SignupForm() {
             placeholder="First name"
             isInvalid={!signup.firstName && signupButtonClicked}
             value={signup.firstName}
-            onChange={(e) => {
+            onChange={(e): void => {
               setSignup({
                 ...signup,
                 firstName: e.target.value,
@@ -83,7 +82,7 @@ export default function SignupForm() {
             placeholder="Last name"
             isInvalid={!signup.lastName && signupButtonClicked}
             value={signup.lastName}
-            onChange={(e) => {
+            onChange={(e): void => {
               setSignup({
                 ...signup,
                 lastName: e.target.value,
@@ -104,7 +103,7 @@ export default function SignupForm() {
             placeholder="Email"
             isInvalid={(!isValidEmail || !signup.email) && signupButtonClicked}
             value={signup.email}
-            onChange={(e) => {
+            onChange={(e): void => {
               setSignup({
                 ...signup,
                 email: e.target.value,
@@ -125,7 +124,7 @@ export default function SignupForm() {
               (!isValidUsername || !signup.username) && signupButtonClicked
             }
             value={signup.username}
-            onChange={(e) => {
+            onChange={(e): void => {
               setSignup({
                 ...signup,
                 username: e.target.value,
@@ -140,7 +139,7 @@ export default function SignupForm() {
             placeholder="Password"
             isInvalid={!signup.password && signupButtonClicked}
             value={signup.password}
-            onChange={(e) => {
+            onChange={(e): void => {
               setSignup({
                 ...signup,
                 password: e.target.value,
@@ -161,7 +160,7 @@ export default function SignupForm() {
               !(signup.passConfirm === signup.password) && signupButtonClicked
             }
             value={signup.passConfirm}
-            onChange={(e) => {
+            onChange={(e): void => {
               setSignup({
                 ...signup,
                 passConfirm: e.target.value,
@@ -178,3 +177,4 @@ export default function SignupForm() {
     );
   }
 }
+export { SignupForm };

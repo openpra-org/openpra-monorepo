@@ -1,9 +1,9 @@
 //this is all placeholder so that I can test hrefs and stuff
 
-import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
-import SpecialEventsTable from "../../components/tables/specialEventsTable";
+import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
+import { SpecialEventsTable } from "../../components/tables/specialEventsTable";
 
-export default function SpecialEvents() {
+function SpecialEvents() {
   return (
     <TemplatedPageBody
       headerProps={{
@@ -15,3 +15,5 @@ export default function SpecialEvents() {
     </TemplatedPageBody>
   );
 }
+
+export { SpecialEvents };

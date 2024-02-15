@@ -3,9 +3,9 @@ import {
   GetEventSequenceAnalysis,
   PatchEventSequenceAnalysisLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function EventSequenceAnalysisList() {
+function EventSequenceAnalysisList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetEventSequenceAnalysis}
@@ -15,3 +15,4 @@ export default function EventSequenceAnalysisList() {
     />
   );
 }
+export { EventSequenceAnalysisList };

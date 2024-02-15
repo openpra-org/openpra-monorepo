@@ -2,12 +2,12 @@ import { EuiPageTemplate, EuiPageHeaderProps, useEuiTheme } from "@elastic/eui";
 
 /**
  *
- * @param pageTitle optional title for the page
- * @param iconType optional icon to the left of the title
- * @param restrictWidth restricts the width if needed
+ * @param pageTitle - optional title for the page
+ * @param iconType - optional icon to the left of the title
+ * @param restrictWidth - restricts the width if needed
  * @returns
  */
-export default function TemplatedPageHeader({
+function TemplatedPageHeader({
   pageTitle,
   iconType,
   restrictWidth,
@@ -32,3 +32,4 @@ export default function TemplatedPageHeader({
     />
   );
 }
+export { TemplatedPageHeader };

@@ -1,3 +1,5 @@
-export default function () {
+function HazardsScreeningAnalysis() {
   return <></>;
 }
+
+export { HazardsScreeningAnalysis };

@@ -1,5 +1,7 @@
-import OperatingStateAnalysisList from "../../components/lists/nestedLists/operatingStateAnalysisList";
+import { OperatingStateAnalysisList } from "../../components/lists/nestedLists/operatingStateAnalysisList";
 
-export default function () {
+function OperatingStateAnalysis() {
   return <OperatingStateAnalysisList />;
 }
+
+export { OperatingStateAnalysis };

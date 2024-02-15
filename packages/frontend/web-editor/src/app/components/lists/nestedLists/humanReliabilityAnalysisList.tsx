@@ -3,9 +3,9 @@ import {
   GetHumanReliabilityAnalysis,
   PatchHumanReliabilityLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function HumanReliabilityAnalysisList() {
+function HumanReliabilityAnalysisList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetHumanReliabilityAnalysis}
@@ -15,3 +15,5 @@ export default function HumanReliabilityAnalysisList() {
     />
   );
 }
+
+export { HumanReliabilityAnalysisList };

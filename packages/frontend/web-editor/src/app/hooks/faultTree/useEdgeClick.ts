@@ -17,7 +17,7 @@ import { GenerateUUID } from "../../../utils/treeUtils";
  * <Edge onClick={handleEdgeClick} />;
  * ```
  */
-function useEdgeClick(id: EdgeProps["id"]) {
+function UseEdgeClick(id: EdgeProps["id"]) {
   const { setEdges, setNodes, getNode, getEdge } = useReactFlow();
 
   const handleEdgeClick = () => {
@@ -85,4 +85,4 @@ function useEdgeClick(id: EdgeProps["id"]) {
   return handleEdgeClick;
 }
 
-export default useEdgeClick;
+export { UseEdgeClick };

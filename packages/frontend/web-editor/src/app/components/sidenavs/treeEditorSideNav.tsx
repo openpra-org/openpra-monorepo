@@ -1,6 +1,6 @@
 import React, { DragEvent } from "react";
 import styles from "./styles.module.css";
-export default function TreeEditorSideNav() {
+function TreeEditorSideNav() {
   const onDragStart = (nodeData: any) => (event: DragEvent) => {
     const dataString = JSON.stringify(nodeData);
     event.dataTransfer.setData("application/reactflow", dataString);
@@ -28,3 +28,5 @@ export default function TreeEditorSideNav() {
     </div>
   );
 }
+
+export { TreeEditorSideNav };

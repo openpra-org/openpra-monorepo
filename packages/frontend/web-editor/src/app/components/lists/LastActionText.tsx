@@ -7,10 +7,7 @@ export type LastActionTextProps = {
 };
 
 // TODO
-export default function LastActionText({
-  timestamp,
-  action,
-}: LastActionTextProps) {
+function LastActionText({ timestamp, action }: LastActionTextProps) {
   let text = usePrettyDuration({
     timeFrom: "now-3w",
     timeTo: "now",
@@ -20,3 +17,4 @@ export default function LastActionText({
   text = `${toTitleCase(action)} within the ${text.toLowerCase()}`;
   return <>{text}</>;
 }
+export { LastActionText };

@@ -1,8 +1,8 @@
 //this is all placeholder so that I can test hrefs and stuff
-import CcfTable from "../../components/tables/ccfTable";
-import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
+import { CcfTable } from "../../components/tables/ccfTable";
+import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
 
-export default function Ccf() {
+function Ccf() {
   return (
     <TemplatedPageBody
       headerProps={{
@@ -14,3 +14,5 @@ export default function Ccf() {
     </TemplatedPageBody>
   );
 }
+
+export { Ccf };

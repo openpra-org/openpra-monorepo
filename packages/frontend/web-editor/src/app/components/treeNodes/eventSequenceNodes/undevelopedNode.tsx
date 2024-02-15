@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { Handle, NodeProps, Position } from "reactflow";
-import useNodeClickHandler from "../../../hooks/eventSequence/useNodeClick";
+import { UseNodeClick } from "../../../hooks/eventSequence/useNodeClick";
 import styles from "./styles/nodeTypes.module.css";
 import { NodeIcon } from "./icons/nodeIcon";
 import { NodeTypes } from "./icons/interfaces/nodeProps";
@@ -11,8 +11,8 @@ import { NodeTypes } from "./icons/interfaces/nodeProps";
  * @param selected - node selection flag (true if selected)
  * @returns Sequence Not Developed Node JSX Element
  */
-const UndevelopedNode = ({ id, selected }: NodeProps): JSX.Element => {
-  const onClick = useNodeClickHandler(id);
+const UndevelopedNode = memo(({ id, selected }: NodeProps): JSX.Element => {
+  const onClick = UseNodeClick(id);
 
   return (
     <div onClick={onClick} style={{ position: "relative" }}>
@@ -33,6 +33,6 @@ const UndevelopedNode = ({ id, selected }: NodeProps): JSX.Element => {
       />
     </div>
   );
-};
+});
 
-export default memo(UndevelopedNode);
+export { UndevelopedNode };

@@ -12,7 +12,7 @@ import styles from "./styles/nodeTypes.module.css";
  * @param data Data that the node holds
  * @returns HouseEventNode JSX Element
  */
-const HouseEventNode = ({ id, data }: NodeProps) => (
+const HouseEventNode = memo(({ id, data }: NodeProps) => (
   <div className={styles.node_container}>
     <div className={cx(styles.node)} title="click to add a child node">
       {"House Event"}
@@ -35,6 +35,6 @@ const HouseEventNode = ({ id, data }: NodeProps) => (
       iconProps={{ width: "30px", height: "100%", viewBox: "0 0 42 42" }}
     />
   </div>
-);
+));
 
-export default memo(HouseEventNode);
+export { HouseEventNode };

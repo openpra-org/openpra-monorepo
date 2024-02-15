@@ -1,8 +1,8 @@
 import { Outlet } from "react-router-dom";
 import { EuiPageTemplate } from "@elastic/eui";
-import ScopedNav from "../sidenavs/scopedNav";
+import { ScopedNav } from "../sidenavs/scopedNav";
 
-export default () => (
+const FullScopeContainer = () => (
   <EuiPageTemplate
     panelled={false}
     offset={48}
@@ -20,3 +20,4 @@ export default () => (
     <Outlet />
   </EuiPageTemplate>
 );
+export { FullScopeContainer };

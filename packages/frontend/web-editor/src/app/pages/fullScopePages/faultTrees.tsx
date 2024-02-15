@@ -21,17 +21,18 @@ import ReactFlow, {
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import useLayout from "../../hooks/faultTree/useLayout";
-import nodeTypes from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
-import edgeTypes from "../../components/treeEdges/faultTreeEdges/faultTreeEdgeType";
+import { UseLayout } from "../../hooks/faultTree/useLayout";
+import { nodeTypes } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
+import { edgeTypes } from "../../components/treeEdges/faultTreeEdges/faultTreeEdgeType";
 
 import "reactflow/dist/style.css";
 import { Route, Routes, useParams } from "react-router-dom";
-import FaultTreeList from "../../components/lists/nestedLists/faultTreeList";
-import FaultTreeNodeContextMenu, {
+import { FaultTreeList } from "../../components/lists/nestedLists/faultTreeList";
+import {
+  FaultTreeNodeContextMenu,
   treeNodeContextMenuProps,
 } from "../../components/context_menu/faultTreeNodeContextMenu";
-import LoadingCard from "../../components/cards/loadingCard";
+import { LoadingCard } from "../../components/cards/loadingCard";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
@@ -80,7 +81,7 @@ const fitViewOptions = {
 
 function ReactFlowPro() {
   // this hook call ensures that the layout is re-calculated every time the graph changes
-  useLayout();
+  UseLayout();
   const [menu, setMenu] = useState<treeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
@@ -182,7 +183,7 @@ export function FaultTreeEditor() {
   );
 }
 
-export default function FaultTrees() {
+function FaultTrees() {
   return (
     <Routes>
       <Route path="" element={<FaultTreeList />} />
@@ -190,3 +191,5 @@ export default function FaultTrees() {
     </Routes>
   );
 }
+
+export { FaultTrees };

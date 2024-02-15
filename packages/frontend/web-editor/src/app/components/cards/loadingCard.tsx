@@ -1,6 +1,6 @@
 import { EuiCard, logicalStyle } from "@elastic/eui";
 
-export default function LoadingCard() {
+function LoadingCard() {
   const cardStyle = {
     ...logicalStyle("padding-top", "150px"),
   };
@@ -68,3 +68,5 @@ export default function LoadingCard() {
     </EuiCard>
   );
 }
+
+export { LoadingCard };

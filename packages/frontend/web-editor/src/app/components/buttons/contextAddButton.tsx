@@ -25,7 +25,7 @@ import {
   CreateWeibullAnalysisButton,
 } from "./CreateItemButton";
 
-export default () => {
+const ContextAddButton = () => {
   const location = useLocation().pathname;
 
   //creates the correct object depending on the path, uses starts with and ends with and conditional logic to keep things in the root header
@@ -128,3 +128,5 @@ export default () => {
     return <></>;
   }
 };
+
+export { ContextAddButton };

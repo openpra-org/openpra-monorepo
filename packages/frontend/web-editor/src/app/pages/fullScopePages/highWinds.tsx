@@ -1,3 +1,5 @@
-export default function () {
+function HighWinds() {
   return <></>;
 }
+
+export { HighWinds };

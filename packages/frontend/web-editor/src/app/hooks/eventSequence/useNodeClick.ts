@@ -10,7 +10,7 @@ import { NodeProps, useReactFlow } from "reactflow";
  * @param id - The unique identifier of the clicked node.
  * @returns A function (`onClick`) to be used as an event handler for node click events.
  */
-export function UseNodeClick(id: NodeProps["id"]): () => void {
+function UseNodeClick(id: NodeProps["id"]): () => void {
   const { getNode } = useReactFlow();
 
   return useCallback(() => {
@@ -21,4 +21,4 @@ export function UseNodeClick(id: NodeProps["id"]): () => void {
   }, [getNode, id]);
 }
 
-export default UseNodeClick;
+export { UseNodeClick };

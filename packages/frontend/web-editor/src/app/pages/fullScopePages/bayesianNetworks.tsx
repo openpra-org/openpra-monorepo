@@ -1,6 +1,8 @@
-import BayesianNetworkList from "../../components/lists/nestedLists/bayesianNetworkList";
+import { BayesianNetworkList } from "../../components/lists/nestedLists/bayesianNetworkList";
 
 //passes in the model page filer and then the list of the objects to display
-export default function BayesianNetworks() {
+function BayesianNetworks() {
   return <BayesianNetworkList />;
 }
+
+export { BayesianNetworks };

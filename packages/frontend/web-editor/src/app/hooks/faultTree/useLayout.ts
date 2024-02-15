@@ -41,7 +41,7 @@ function layoutNodes(nodes: Node[], edges: Edge[]): Node[] {
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change
 const nodeCountSelector = (state: ReactFlowState) => state.nodeInternals.size;
 
-function useLayout() {
+function UseLayout() {
   // this ref is used to fit the nodes in the first run
   // after first run, this is set to false
   const initial = useRef(true);
@@ -118,10 +118,10 @@ function useLayout() {
       }
     });
 
-    return () => {
+    return (): void => {
       t.stop();
     };
   }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);
 }
 
-export default useLayout;
+export { UseLayout };

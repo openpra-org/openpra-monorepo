@@ -22,10 +22,10 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 import { toTitleCase, tokenizePath } from "../../../utils/StringUtils";
-import ContextAddButton from "../buttons/contextAddButton";
-import WorkspaceSelectorMenu from "./WorkspaceSelectorMenu";
+import { ContextAddButton } from "../buttons/contextAddButton";
+import { WorkspaceSelectorMenu } from "./WorkspaceSelectorMenu";
 
-export default () => {
+const RootHeader = () => {
   const navigate = useNavigate();
 
   const createBreadcrumbs = (path: string) => {
@@ -33,7 +33,7 @@ export default () => {
     return tokens.map((item, i) => ({
       text: toTitleCase(item),
       style: { fontWeight: 500 },
-      onClick: (e: any) => {
+      onClick: (e: any): void => {
         e.preventDefault();
         navigate(tokens.slice(0, i + 1).join("/"));
       },
@@ -45,7 +45,7 @@ export default () => {
 
   //redirects to the auth page if the user is not logged in
   useEffect(() => {
-    if (!ApiManager.isLoggedIn() && location.pathname != "/") {
+    if (!ApiManager.isLoggedIn() && location.pathname !== "/") {
       navigate("/");
     }
   }, []);
@@ -115,6 +115,7 @@ export default () => {
     </EuiHeader>
   );
 };
+export { RootHeader };
 const HeaderUserMenu = () => {
   const navigate = useNavigate();
 
@@ -124,7 +125,7 @@ const HeaderUserMenu = () => {
 
   const [isOpen, setIsOpen] = useState(false);
 
-  const onMenuButtonClick = () => {
+  const onMenuButtonClick = (): void => {
     setIsOpen(!isOpen);
   };
 
@@ -133,11 +134,11 @@ const HeaderUserMenu = () => {
   const nameString =
     currentUser && currentUser.username ? currentUser.username : "Unknown User";
 
-  const closeMenu = () => {
+  const closeMenu = (): void => {
     setIsOpen(false);
   };
 
-  const logoutFunction = () => {
+  const logoutFunction = (): void => {
     ApiManager.logout();
     navigate("");
   };
@@ -198,10 +199,10 @@ const HeaderAppMenu = () => {
     prefix: "headerAppKeyPadMenu",
   });
   const [isOpen, setIsOpen] = useState(false);
-  const onMenuButtonClick = () => {
+  const onMenuButtonClick = (): void => {
     setIsOpen(!isOpen);
   };
-  const closeMenu = () => {
+  const closeMenu = (): void => {
     setIsOpen(false);
   };
   const button = (

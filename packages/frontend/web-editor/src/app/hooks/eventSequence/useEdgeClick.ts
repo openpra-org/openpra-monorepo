@@ -100,4 +100,4 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
   };
 }
 
-export default UseEdgeClick;
+export { UseEdgeClick };

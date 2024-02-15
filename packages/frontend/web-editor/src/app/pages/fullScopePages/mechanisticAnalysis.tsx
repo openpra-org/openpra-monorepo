@@ -1,5 +1,7 @@
-import MechanisticSourceTermList from "../../components/lists/nestedLists/mechanisticSourceTermList";
+import { MechanisticSourceTermList } from "../../components/lists/nestedLists/mechanisticSourceTermList";
 
-export default function () {
+function MechanisticAnalysis() {
   return <MechanisticSourceTermList />;
 }
+
+export { MechanisticAnalysis };

@@ -1,6 +1,6 @@
 import React from "react";
 import { EuiKeyPadMenu, EuiKeyPadMenuItem } from "@elastic/eui";
-import useLogicGateClick from "../../hooks/faultTree/useFaultTreeContextMenuClick";
+import { UseFaultTreeContextMenuClick } from "../../hooks/faultTree/useFaultTreeContextMenuClick";
 import { NodeIcon } from "../treeNodes/eventSequenceNodes/icons/nodeIcon";
 import { NodeTypes } from "../treeNodes/eventSequenceNodes/icons/interfaces/nodeProps";
 import styles from "./styles/faultTreeNodeContextMenu.module.css";
@@ -14,7 +14,7 @@ export type treeNodeContextMenuProps = {
   onClick?: () => void;
 };
 
-export default function FaultTreeNodeContextMenu({
+function FaultTreeNodeContextMenu({
   id,
   top,
   left,
@@ -22,7 +22,7 @@ export default function FaultTreeNodeContextMenu({
   bottom,
   ...props
 }: treeNodeContextMenuProps) {
-  const { handleContextMenuClick } = useLogicGateClick(id);
+  const { handleContextMenuClick } = UseFaultTreeContextMenuClick(id);
   return (
     <EuiKeyPadMenu
       className={styles.context_menu_container}
@@ -113,3 +113,5 @@ export default function FaultTreeNodeContextMenu({
     </EuiKeyPadMenu>
   );
 }
+
+export { FaultTreeNodeContextMenu };

@@ -12,7 +12,7 @@ import styles from "./styles/nodeTypes.module.css";
  * @param data Data that the node holds
  * @returns BasicEventNode JSX Element
  */
-const BasicEventNode = ({ id, data }: NodeProps) => (
+const BasicEventNode = memo(({ id, data }: NodeProps) => (
   <div className={styles.node_container}>
     <div className={cx(styles.node)} title="right click to update node">
       {"Basic Event"}
@@ -39,6 +39,6 @@ const BasicEventNode = ({ id, data }: NodeProps) => (
       }}
     />
   </div>
-);
+));
 
-export default memo(BasicEventNode);
+export { BasicEventNode };

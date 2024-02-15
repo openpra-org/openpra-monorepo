@@ -25,7 +25,7 @@ export type scopedNavProps = {
   type: string;
 };
 
-export default function ScopedNav(props: scopedNavProps) {
+function ScopedNav(props: scopedNavProps) {
   const { type } = props;
 
   const { euiTheme } = useEuiTheme();
@@ -562,3 +562,5 @@ export default function ScopedNav(props: scopedNavProps) {
 
   return <>{createTreeViews(treeItems)}</>;
 }
+
+export { ScopedNav };

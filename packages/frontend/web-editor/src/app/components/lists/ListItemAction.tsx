@@ -1,14 +1,18 @@
 import { logicalStyle } from "@elastic/eui";
 import { EuiButtonIconPropsForButton } from "@elastic/eui/src/components/button/button_icon/button_icon";
 import { PatchInternalEvent } from "shared-types/src/lib/api/TypedModelApiManager";
-import ButtonWithPopover, {
+import {
   ButtonWithClosablePopover,
+  ButtonWithPopover,
   ButtonWithPopoverProps,
 } from "../buttons/ButtonWithPopover";
 import { toTitleCase } from "../../../utils/StringUtils";
-import ItemFormAction, { ItemFormProps } from "../forms/typedModelActionForm";
+import {
+  TypedModelActionForm,
+  ItemFormProps,
+} from "../forms/typedModelActionForm";
 import { GenericListItemProps } from "../lists/GenericListItem";
-import ListItemActionContextMenu from "./ListItemContextMenu";
+import { ListItemContextMenu } from "./ListItemContextMenu";
 
 export type ListItemActionProps = {} & ButtonWithPopoverProps &
   Omit<EuiButtonIconPropsForButton, "iconType"> &
@@ -27,14 +31,15 @@ export function ListItemContextMenuButton(props: GenericListItemProps) {
       }}
       color="text"
     >
-      <ListItemActionContextMenu {...props} />
+      <ListItemContextMenu {...props} />
     </ButtonWithPopover>
   );
 }
 
-export default function ListItemAction() {}
+function ListItemAction() {}
 
 //TODO
+export { ListItemAction };
 export function ListItemEditAction({
   itemName,
   patchEndpoint,
@@ -59,7 +64,7 @@ export function ListItemEditAction({
       }}
       color="text"
     >
-      <ItemFormAction
+      <TypedModelActionForm
         compressed
         noHeader
         action="edit"

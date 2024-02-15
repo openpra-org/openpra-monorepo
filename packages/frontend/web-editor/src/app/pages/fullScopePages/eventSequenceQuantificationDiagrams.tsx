@@ -1,5 +1,7 @@
-import EventSequenceQuantificationDiagramList from "../../components/lists/nestedLists/eventSequenceQunatificationDiagramList";
+import { EventSequenceQuantificationDiagramList } from "../../components/lists/nestedLists/eventSequenceQunatificationDiagramList";
 
-export default function eventSequenceQuantificationDiagrams() {
+function EventSequenceQuantificationDiagrams() {
   return <EventSequenceQuantificationDiagramList />;
 }
+
+export { EventSequenceQuantificationDiagrams };

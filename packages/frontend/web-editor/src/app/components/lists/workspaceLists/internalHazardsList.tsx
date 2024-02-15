@@ -7,8 +7,8 @@ import {
 } from "shared-types/src/lib/api/TypedModelApiManager";
 import { InternalHazardsModel } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
 import { useEffect, useState } from "react";
-import GenericListItem from "../GenericListItem";
-import GenericItemList from "../GenericItemList";
+import { GenericListItem } from "../GenericListItem";
+import { GenericItemList } from "../GenericItemList";
 
 //grabs the model List
 async function fetchModelList() {
@@ -63,7 +63,7 @@ const getFixtures = async (): Promise<JSX.Element[]> => {
   }
 };
 
-export default function InternalHazardsList() {
+function InternalHazardsList() {
   const [genericListItems, setGenericListItems] = useState<JSX.Element[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -180,3 +180,5 @@ export default function InternalHazardsList() {
     </EuiPageTemplate>
   );
 }
+
+export { InternalHazardsList };

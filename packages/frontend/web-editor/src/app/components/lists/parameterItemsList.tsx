@@ -8,11 +8,11 @@ import {
 } from "@elastic/eui";
 import { useState } from "react";
 
-export default function parameterItemsList() {
+function ParameterItemsList() {
   //state to toggle the delete menu
   const [deleteVisible, setDeleteVisible] = useState(false);
 
-  function onDeleteClick() {
+  function onDeleteClick(): void {
     setDeleteVisible(!deleteVisible);
   }
 
@@ -78,3 +78,5 @@ export default function parameterItemsList() {
     </EuiFlexGroup>
   );
 }
+
+export { ParameterItemsList };

@@ -1,12 +1,12 @@
 import { Route, Routes } from "react-router-dom";
-import SpecialEvents from "../dataPages/specialEvents";
-import ComponentReliability from "../dataPages/componentReliability";
-import DataInitiatingEvents from "../dataPages/dataInitiatingEvents";
-import TrainUA from "../dataPages/trainUA";
-import Ccf from "../dataPages/ccf";
-import DataContainer from "../../components/pageContainers/dataContainer";
+import { SpecialEvents } from "../dataPages/specialEvents";
+import { ComponentReliability } from "../dataPages/componentReliability";
+import { DataInitiatingEvents } from "../dataPages/dataInitiatingEvents";
+import { TrainUA } from "../dataPages/trainUA";
+import { Ccf } from "../dataPages/ccf";
+import { DataContainer } from "../../components/pageContainers/dataContainer";
 
-export default function DataPage() {
+function DataPage() {
   return (
     //routes
     <Routes>
@@ -23,3 +23,5 @@ export default function DataPage() {
     </Routes>
   );
 }
+
+export { DataPage };

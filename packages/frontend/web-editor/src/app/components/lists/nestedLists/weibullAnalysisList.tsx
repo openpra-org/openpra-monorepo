@@ -3,9 +3,9 @@ import {
   GetWeibullAnalysis,
   PatchWeibullAnalysisLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function WeibullAnalysisList() {
+function WeibullAnalysisList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetWeibullAnalysis}
@@ -15,3 +15,5 @@ export default function WeibullAnalysisList() {
     />
   );
 }
+
+export { WeibullAnalysisList };

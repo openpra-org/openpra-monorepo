@@ -2,20 +2,80 @@ import { Node, Position } from "reactflow";
 
 const xDistance = 100;
 const yDistance = 60;
+const pos = { x: 0, y: 0 };
+
 export const nodeData: Node[] = [
+  {
+    id: "horizontal-1",
+    sourcePosition: Position.Right,
+    type: "hiddenNode",
+    data: { label: "Input" },
+    position: pos,
+  },
+  {
+    id: "horizontal-2-a",
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    type: "hiddenNode",
+    data: { label: "A Node" },
+    position: pos,
+  },
+  {
+    id: "horizontal-2-b",
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    type: "hiddenNode",
+    data: { label: "b Node" },
+    position: pos,
+  },
+  {
+    id: "horizontal-3-a",
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    type: "hiddenNode",
+    data: { label: "c Node" },
+    position: pos,
+  },
+  {
+    id: "horizontal-3-b",
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    type: "hiddenNode",
+    data: { label: "d Node" },
+    position: pos,
+  },
+  {
+    id: "horizontal-4-a",
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    type: "hiddenNode",
+    data: { label: "e Node" },
+    position: pos,
+  },
+  {
+    id: "horizontal-4-b",
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left,
+    type: "hiddenNode",
+    data: { label: "f Node" },
+    position: pos,
+  },
+];
+
+export const colData: Node[] = [
   {
     id: "vertical-1",
 
     type: "columnNode",
     data: { label: "Input", width: xDistance },
-    position: { x: xDistance / 2, y: -200 },
+    position: pos,
   },
   {
     id: "vertical-1-connect",
 
     type: "columnNode",
     data: { label: "Input", width: xDistance, hideText: true },
-    position: { x: xDistance / 2, y: 200 },
+    position: pos,
   },
   {
     id: "vertical-2",
@@ -23,7 +83,7 @@ export const nodeData: Node[] = [
     type: "columnNode",
     data: { label: "Input", width: xDistance },
     width: xDistance / 4,
-    position: { x: (3 / 2) * xDistance, y: -200 },
+    position: pos,
   },
   {
     id: "vertical-2-connect",
@@ -31,7 +91,7 @@ export const nodeData: Node[] = [
     type: "columnNode",
     data: { label: "Input", width: xDistance, hideText: true },
     width: xDistance / 4,
-    position: { x: (3 / 2) * xDistance, y: 200 },
+    position: pos,
   },
   {
     id: "vertical-3",
@@ -39,7 +99,7 @@ export const nodeData: Node[] = [
     type: "columnNode",
     data: { label: "Input", width: xDistance },
     width: xDistance / 4,
-    position: { x: (5 / 2) * xDistance, y: -200 },
+    position: pos,
   },
   {
     id: "vertical-3-connect",
@@ -47,75 +107,20 @@ export const nodeData: Node[] = [
     type: "columnNode",
     data: { label: "Input", width: xDistance, hideText: true },
     width: xDistance / 4,
-    position: { x: (5 / 2) * xDistance, y: 200 },
+    position: pos,
   },
   {
     id: "vertical-4",
     type: "columnNode",
     data: { label: "Input", width: xDistance },
     width: xDistance / 4,
-    position: { x: (7 / 2) * xDistance, y: -200 },
+    position: pos,
   },
   {
     id: "vertical-4-connect",
     type: "columnNode",
     data: { label: "Input", width: xDistance, hideText: true },
     width: xDistance / 4,
-    position: { x: (7 / 2) * xDistance, y: 200 },
-  },
-  {
-    id: "horizontal-1",
-    sourcePosition: Position.Right,
-    type: "hiddenNode",
-    data: { label: "Input" },
-    position: { x: 0, y: 0 },
-  },
-  {
-    id: "horizontal-2",
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: "hiddenNode",
-    data: { label: "A Node" },
-    position: { x: xDistance, y: -yDistance },
-  },
-  {
-    id: "horizontal-3",
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: "hiddenNode",
-    data: { label: "A Node" },
-    position: { x: xDistance, y: yDistance },
-  },
-  {
-    id: "horizontal-4",
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: "hiddenNode",
-    data: { label: "A Node" },
-    position: { x: 2 * xDistance, y: (-3 / 2) * yDistance },
-  },
-  {
-    id: "horizontal-5",
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: "hiddenNode",
-    data: { label: "A Node" },
-    position: { x: 2 * xDistance, y: -yDistance / 2 },
-  },
-  {
-    id: "horizontal-6",
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: "hiddenNode",
-    data: { label: "A Node" },
-    position: { x: 3 * xDistance, y: (-4 / 2) * yDistance },
-  },
-  {
-    id: "horizontal-7",
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    type: "hiddenNode",
-    data: { label: "A Node" },
-    position: { x: 3 * xDistance, y: (-2 / 2) * yDistance },
+    position: pos,
   },
 ];

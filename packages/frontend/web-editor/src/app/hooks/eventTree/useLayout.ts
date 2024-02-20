@@ -35,7 +35,7 @@ function layoutNodes(nodes: Node[], edges: Edge[]): Node[] {
   // we only extract the position from the d3 function
   return root
     .descendants()
-    .map((d) => ({ ...d.data, position: { x: d.x, y: d.y } }));
+    .map((d) => ({ ...d.data, position: { x: d.y, y: d.x } }));
 }
 
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change

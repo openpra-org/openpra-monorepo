@@ -22,3 +22,10 @@ export type EventSequenceGraph = {
 export type FaultTreeGraph = {
   faultTreeId: string;
 } & Graph;
+
+/**
+ * Event Tree Graph, extending Graph type with event tree id
+ */
+export type EventTreeGraph = {
+  eventTreeId: string;
+} & Graph;

@@ -1,5 +1,12 @@
-import { Route, Routes } from "react-router-dom";
-import { FC, ReactElement, useCallback, useEffect, useState } from "react";
+import { Route, Routes, useParams } from "react-router-dom";
+import {
+  FC,
+  ReactElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { cluster, stratify, tree } from "d3-hierarchy";
 import ReactFlow, {
   addEdge,
@@ -12,6 +19,9 @@ import ReactFlow, {
   useEdgesState,
   useNodesState,
 } from "reactflow";
+import { useGeneratedHtmlId } from "@elastic/eui";
+import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import EventTreeList from "../../components/lists/nestedLists/eventTreeList";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
@@ -23,6 +33,8 @@ import CustomEdge from "../../components/treeEdges/eventTreeEditorEdges/customEd
 import { edgeData } from "../../components/treeEdges/eventTreeEditorEdges/edgeData";
 import { nodeData } from "../../components/treeNodes/eventTreeEditorNode/nodeData";
 import { colData } from "../../components/treeNodes/eventTreeEditorNode/nodeData";
+import useLayout from "../../hooks/eventTree/useLayout";
+import { treeNodeContextMenuProps } from "../../components/menus/eventTreeNodeContextMenu";
 
 /**
  * Initial set of nodes to be used in the ReactFlow component.
@@ -71,83 +83,101 @@ const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
  *
  * @returns {ReactElement} The React Flow component with nodes and edges configured for horizontal layout.
  */
-const HorizontalFlow = (): ReactElement => {
-  const [cols, setCols] = useNodesState<Node[]>(colData);
-  const [colHeight, setColHeight] = useState<number>(0);
-  const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
-    nodeData,
-    edgeData,
-  );
-  // State hook for nodes, initialized with `initialNodes`.
-  // The second parameter (unused) would be a function to set nodes, hence the double comma.
-  const [nodes, setNodes, onNodesChange] = useNodesState(layoutedNodes);
+function ReactFlowPro() {
+  // this hook call ensures that the layout is re-calculated every time the graph changes
+  useLayout();
+  const [menu, setMenu] = useState<treeNodeContextMenuProps | null>(null);
+  const ref = useRef(document.createElement("div"));
+  const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
 
-  // State hook for edges, initialized with `initialEdges`.
-  // `setEdges` is used to update the edges state when new connections are made.
-  const [edges, setEdges, onEdgesChange] = useEdgesState(layoutedEdges);
-
-  // `useCallback` hook to memoize the `onConnect` function, which adds a new edge when nodes are connected.
-  // It depends on `setEdges`, so it will only change if `setEdges` changes.
-  const onConnect = useCallback(
-    (params: Connection) => {
-      setEdges((els) => addEdge(params, els));
-    },
-    [setEdges],
-  );
+  const [nodes, setNodes] = useState<Node[]>(nodeData);
+  const [edges, setEdges] = useState<Edge[]>(edgeData);
+  const [loading, setLoading] = useState(true);
+  const { eventTreeId } = useParams();
+  const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    // Perform layout calculations when component mounts or when colData changes
-    const {
-      nodes: layoutedNodes,
-      edges: layoutedEdges,
-      height,
-    } = getLayoutedElements(nodes, edges);
-    console.log("a");
-    layoutedNodes.forEach((node: Node) => {
-      // Extract the numeric part from the node ID
-      const nodeId = parseInt(node.id.split("-")[1]);
-
-      // Find the corresponding col index
-      const correspondingColIndex = cols.findIndex(
-        (col) => parseInt(col.id) === nodeId,
+    const loadGraph = async (): Promise<void> => {
+      await GraphApiManager.getEventTree(eventTreeId).then(
+        (res: EventTreeGraph) => {
+          setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
+          setEdges(res.edges.length !== 0 ? res.edges : edgeData);
+          setLoading(false);
+        },
       );
+    };
+    void (loading && loadGraph());
+  }, [eventTreeId, loading, nodes]);
 
-      if (correspondingColIndex !== -1) {
-        cols[correspondingColIndex].position = {
-          x: node.position.y,
-          y: height ?? 0,
-        };
-      }
-    });
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      // Prevent native context menu from showing
+      event.preventDefault();
+      // Calculate position of the context menu. We want to make sure it
+      // doesn't get positioned off-screen.
+      setIsOpen(!isOpen);
+      const pane = ref.current.getBoundingClientRect();
+      setMenu({
+        id: node.id,
+        top: event.clientY < pane.height - 200 && event.clientY,
+        left: event.clientX - 320 < pane.width - 200 && event.clientX - 320,
+        right:
+          event.clientX - 320 >= pane.width - 200 &&
+          pane.width - event.clientX - 800,
+        bottom:
+          event.clientY >= pane.height - 200 &&
+          pane.height - event.clientY - 800,
+      });
+    },
+    [setMenu],
+  );
 
-    // Update nodes and edges state with layouted nodes and edges
-    // setNodes([...layoutedNodes, ...cols]);
-    setNodes(layoutedNodes);
-    setEdges(layoutedEdges);
-  }, [nodes, edges, setCols, cols]);
-
-  // The React Flow component is returned with the configured nodes and edges.
-  // Event handlers for node and edge changes are provided, as well as the `onConnect` handler.
-  // `fitView` is enabled to ensure all nodes are visible within the viewport.
-  // `attributionPosition` is set to show the React Flow attribution in the bottom-left corner.
-  return (
+  // Close the context menu if it's open whenever the window is clicked.
+  const onPaneClick = useCallback(() => {
+    setMenu(null);
+    setIsOpen(false);
+  }, [setMenu, isOpen]);
+  return loading ? (
+    <LoadingCard />
+  ) : (
     <ReactFlow
-      nodes={nodes}
-      edges={edges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onConnect={onConnect}
+      ref={ref}
+      defaultNodes={nodes}
+      defaultEdges={edges}
+      proOptions={proOptions}
+      fitView
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
-      fitView
-      attributionPosition="bottom-left"
+      fitViewOptions={fitViewOptions}
+      onPaneClick={onPaneClick}
+      onNodeContextMenu={onNodeContextMenu}
+      minZoom={0.2}
       nodesDraggable={false}
       nodesConnectable={false}
       zoomOnDoubleClick={false}
-    ></ReactFlow>
+      // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
+      // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
+      deleteKeyCode={null}
+    >
+      <Background />
+      <EuiPopover
+        id={headerAppPopoverId}
+        button={<></>}
+        isOpen={isOpen}
+        anchorPosition="downRight"
+        style={{
+          top: typeof menu?.top === "number" ? menu.top : undefined,
+          left: typeof menu?.left === "number" ? menu.left : undefined,
+          bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
+          right: typeof menu?.right === "number" ? menu.right : undefined,
+        }}
+        closePopover={onPaneClick}
+      >
+        {menu && <FaultTreeNodeContextMenu onClick={onPaneClick} {...menu} />}
+      </EuiPopover>
+    </ReactFlow>
   );
-};
-
+}
 /**
  * The EventTreeEditor component wraps the HorizontalFlow component for editing event trees.
  * @returns {ReactElement} The HorizontalFlow component for editing event trees.

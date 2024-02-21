@@ -1,5 +1,5 @@
 import { Route, Routes, useParams } from "react-router-dom";
-import {
+import React, {
   FC,
   ReactElement,
   useCallback,
@@ -10,16 +10,19 @@ import {
 import { cluster, stratify, tree } from "d3-hierarchy";
 import ReactFlow, {
   addEdge,
+  Background,
   Connection,
   Edge,
   EdgeTypes,
   Node,
   NodeTypes,
   Position,
+  ProOptions,
+  ReactFlowProvider,
   useEdgesState,
   useNodesState,
 } from "reactflow";
-import { useGeneratedHtmlId } from "@elastic/eui";
+import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import EventTreeList from "../../components/lists/nestedLists/eventTreeList";
@@ -32,14 +35,19 @@ import CustomEdge from "../../components/treeEdges/eventTreeEditorEdges/customEd
 
 import { edgeData } from "../../components/treeEdges/eventTreeEditorEdges/edgeData";
 import { nodeData } from "../../components/treeNodes/eventTreeEditorNode/nodeData";
-import { colData } from "../../components/treeNodes/eventTreeEditorNode/nodeData";
+
 import useLayout from "../../hooks/eventTree/useLayout";
-import { treeNodeContextMenuProps } from "../../components/menus/eventTreeNodeContextMenu";
+import EventTreeNodeContextMenu, {
+  treeNodeContextMenuProps,
+} from "../../components/menus/eventTreeNodeContextMenu";
+import LoadingCard from "../../components/cards/loadingCard";
 
 /**
  * Initial set of nodes to be used in the ReactFlow component.
  * @type {Node[]}
  */
+
+const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
 const nodeTypes: NodeTypes = {
   hiddenNode: hiddenNode,
@@ -50,30 +58,8 @@ const edgeTypes: EdgeTypes = {
   custom: CustomEdge,
 };
 
-const g = tree();
-
-const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
-  if (nodes.length === 0) return { nodes, edges };
-
-  const element = document.querySelector(`[data-id="${nodes[0].id}"]`);
-  if (!element) return { nodes, edges }; // Check if element is null
-
-  const { width, height } = element.getBoundingClientRect();
-  const hierarchy = stratify()
-    .id((node: any) => node.id)
-    .parentId(
-      (node: any) => edges.find((edge) => edge.target === node.id)?.source,
-    );
-  const root = hierarchy(nodes);
-  const layout = g.nodeSize([width * 2, height * 2])(root);
-  return {
-    nodes: layout.descendants().map((node) => ({
-      ...(node.data as any),
-      position: { x: node.y, y: node.x },
-    })),
-    edges,
-    height: width * 3,
-  };
+const fitViewOptions = {
+  padding: 0.95,
 };
 
 /**
@@ -173,7 +159,7 @@ function ReactFlowPro() {
         }}
         closePopover={onPaneClick}
       >
-        {menu && <FaultTreeNodeContextMenu onClick={onPaneClick} {...menu} />}
+        {menu && <EventTreeNodeContextMenu onClick={onPaneClick} {...menu} />}
       </EuiPopover>
     </ReactFlow>
   );
@@ -184,7 +170,11 @@ function ReactFlowPro() {
  */
 
 export function EventTreeEditor(): ReactElement {
-  return <HorizontalFlow />;
+  return (
+    <ReactFlowProvider>
+      <ReactFlowPro />
+    </ReactFlowProvider>
+  );
 }
 
 /**

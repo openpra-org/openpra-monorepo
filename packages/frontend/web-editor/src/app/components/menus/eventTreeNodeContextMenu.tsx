@@ -5,10 +5,10 @@ import { useEventTreeContextMenuClick } from "../../hooks/eventTree/useEventTree
 
 export type treeNodeContextMenuProps = {
   id: string;
-  top: Position.Top | undefined;
-  left: any;
-  right: any;
-  bottom: any;
+  top: number | false | undefined;
+  left: number | false | undefined;
+  right: number | false | undefined;
+  bottom: number | false | undefined;
   onClick?: () => void;
 };
 

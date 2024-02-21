@@ -60,9 +60,6 @@ export const nodeData: Node[] = [
     data: { label: "f Node" },
     position: pos,
   },
-];
-
-export const colData: Node[] = [
   {
     id: "vertical-1",
 
@@ -70,13 +67,7 @@ export const colData: Node[] = [
     data: { label: "Input", width: xDistance },
     position: pos,
   },
-  {
-    id: "vertical-1-connect",
 
-    type: "columnNode",
-    data: { label: "Input", width: xDistance, hideText: true },
-    position: pos,
-  },
   {
     id: "vertical-2",
 
@@ -85,14 +76,7 @@ export const colData: Node[] = [
     width: xDistance / 4,
     position: pos,
   },
-  {
-    id: "vertical-2-connect",
 
-    type: "columnNode",
-    data: { label: "Input", width: xDistance, hideText: true },
-    width: xDistance / 4,
-    position: pos,
-  },
   {
     id: "vertical-3",
 
@@ -101,25 +85,11 @@ export const colData: Node[] = [
     width: xDistance / 4,
     position: pos,
   },
-  {
-    id: "vertical-3-connect",
 
-    type: "columnNode",
-    data: { label: "Input", width: xDistance, hideText: true },
-    width: xDistance / 4,
-    position: pos,
-  },
   {
     id: "vertical-4",
     type: "columnNode",
     data: { label: "Input", width: xDistance },
-    width: xDistance / 4,
-    position: pos,
-  },
-  {
-    id: "vertical-4-connect",
-    type: "columnNode",
-    data: { label: "Input", width: xDistance, hideText: true },
     width: xDistance / 4,
     position: pos,
   },

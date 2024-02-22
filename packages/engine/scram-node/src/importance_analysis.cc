@@ -33,6 +33,7 @@ namespace scram::core {
 ImportanceAnalysis::ImportanceAnalysis(const ProbabilityAnalysis* prob_analysis)
     : Analysis(prob_analysis->settings()) {}
 
+    //serial version of importance analysis
 void ImportanceAnalysis::Analyze() noexcept {
   CLOCK(imp_time);
   LOG(DEBUG3) << "Calculating importance factors...";
@@ -61,7 +62,42 @@ void ImportanceAnalysis::Analyze() noexcept {
   LOG(DEBUG3) << "Calculated importance factors in " << DUR(imp_time);
   Analysis::AddAnalysisTime(DUR(imp_time));
 }
-
+//parallel version of importance measurement
+//parallel version
+//    void ImportanceAnalysis::Analyze() noexcept {
+//        CLOCK(imp_time);
+//        LOG(DEBUG3) << "Calculating importance factors...";
+//        double p_total = this->p_total();
+//        const std::vector<const mef::BasicEvent*>& basic_events =
+//                this->basic_events();
+//
+//        std::vector<int> occurrences = this->occurrences();
+//
+//        // Parallelize the loop using OpenMP
+//#pragma omp parallel for
+//        for (int i = 0; i < basic_events.size(); ++i) {
+//            if (occurrences[i] == 0)
+//                continue;
+//            const mef::BasicEvent& event = *basic_events[i];
+//            double p_var = event.p();
+//            ImportanceFactors imp{};
+//            imp.occurrence = occurrences[i];
+//            imp.mif = this->CalculateMif(i);
+//            if (p_total != 0) {
+//                imp.cif = p_var * imp.mif / p_total;
+//                imp.raw = 1 + (1 - p_var) * imp.mif / p_total;
+//                imp.dif = p_var * imp.raw;
+//                if (p_total != p_var * imp.mif)
+//                    imp.rrw = p_total / (p_total - p_var * imp.mif);
+//            }
+//
+//#pragma omp critical
+//            importance_.push_back({event, imp});
+//        }
+//
+//        LOG(DEBUG2) << "Calculated importance factors in " << DUR(imp_time); //switched from DEBUG3 to DEBUG2 during omp implementation
+//        Analysis::AddAnalysisTime(DUR(imp_time));
+//    }
 std::vector<int> ImportanceAnalyzerBase::occurrences() noexcept {
   Pdag::IndexMap<int> result(prob_analyzer_->graph()->basic_events().size());
   for (const std::vector<int>& product : prob_analyzer_->products()) {

@@ -46,6 +46,10 @@ job("Monorepo Deployment") {
 
      host("Build Frontend") {
 
+       requirements {
+         workerTags("swarm-worker")
+       }
+
        shellScript("docker build frontend"){
          interpreter = "/bin/bash"
          content = """
@@ -63,6 +67,10 @@ job("Monorepo Deployment") {
      }
 
      host("Build Backend") {
+
+       requirements {
+         workerTags("swarm-worker")
+       }
 
        shellScript("docker build backend"){
          interpreter = "/bin/bash"

@@ -1,8 +1,4 @@
-job("Deployment") {
-
-   failOn {
-     nonZeroExitCode { enabled = true }
-   }
+job("Monorepo Deployment") {
 
    val registry = "packages.space.openpra.org/p/openpra/containers/"
    val image = "openpra-monorepo"
@@ -21,7 +17,7 @@ job("Deployment") {
          .replace(Regex("-+"), "-") // Replace multiple consecutive hyphens with a single hyphen
          .lowercase() // Convert to lower case for consistency
 
-       val maxSlugLength = if (branchName.length > 48) 48 else branchName.length
+       val maxSlugLength = if (branchName.length > 36) 36 else branchName.length
 
        var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
 
@@ -50,15 +46,11 @@ job("Deployment") {
 
      host("Build Frontend") {
 
-       requirements {
-         workerTags("swarm-worker")
-       }
-
        shellScript("docker build frontend"){
          interpreter = "/bin/bash"
          content = """
                            docker pull $remote:frontend-{{ branchSlug }} || true
-                           docker build --no-cache --target frontend --build-arg BUILD_TYPE="{{ buildType }}" --tag="$remote:frontend-{{ branchSlug }}" -f ./docker/Dockerfile .
+                           docker build --target frontend --build-arg BRANCH_SLUG="{{ branchSlug }}" --build-arg BUILD_TYPE="{{ buildType }}" --tag="$remote:frontend-{{ branchSlug }}" -f ./docker/Dockerfile .
                            """
        }
 
@@ -71,15 +63,12 @@ job("Deployment") {
      }
 
      host("Build Backend") {
-       requirements {
-         workerTags("swarm-worker")
-       }
 
        shellScript("docker build backend"){
          interpreter = "/bin/bash"
          content = """
                              docker pull $remote:backend-{{ branchSlug }} || true
-                             docker build --no-cache --target backend --build-arg BUILD_TYPE="{{ buildType }}" --tag="$remote:backend-{{ branchSlug }}" -f ./docker/Dockerfile .
+                             docker build --target backend --build-arg BUILD_TYPE="{{ buildType }}" --tag="$remote:backend-{{ branchSlug }}" -f ./docker/Dockerfile .
                              """
        }
 
@@ -154,231 +143,277 @@ job("Deployment") {
    }
  }
 
-job("Build, Test, Lint, Cleanup") {
-
-
-    requirements {
-        workerTags("swarm-worker")
-    }
+job("Monorepo CI") {
 
     failOn {
         nonZeroExitCode { enabled = false }
     }
 
+    requirements {
+      workerTags("swarm-worker")
+    }
+
     val registry = "packages.space.openpra.org/p/openpra/containers/"
     val image = "openpra-monorepo"
     val remote = "$registry$image"
-    val buildType = "development"
-    val urlSlugPrefix = "review-"
 
-    host("Deployment Tags") {
-      // use kotlinScript blocks for usage of parameters
-      kotlinScript("Generate slugs") { api ->
+     host("Image Tags") {
+       // use kotlinScript blocks for usage of parameters
+       kotlinScript("Generate slugs") { api ->
 
-        api.parameters["commitRef"] = api.gitRevision()
-        api.parameters["gitBranch"] = api.gitBranch()
+         api.parameters["commitRef"] = api.gitRevision()
+         api.parameters["gitBranch"] = api.gitBranch()
 
-        val branchName = api.gitBranch()
-          .subSequence(1, 16)
-          .toString()
-          .replace(Regex("[^A-Za-z0-9-]"), "-") // Replace all non-alphanumeric characters except hyphens with hyphens
-          .replace(Regex("-+"), "-") // Replace multiple consecutive hyphens with a single hyphen
-          .lowercase() // Convert to lower case for consistency
+         val branchName = api.gitBranch()
+           .removePrefix("refs/heads/")
+           .replace(Regex("[^A-Za-z0-9-]"), "-") // Replace all non-alphanumeric characters except hyphens with hyphens
+           .replace(Regex("-+"), "-") // Replace multiple consecutive hyphens with a single hyphen
+           .lowercase() // Convert to lower case for consistency
 
-        if (branchName == "main") {
-          api.parameters["branchSlug"] = branchName
-        } else {
-          api.parameters["branchSlug"] = urlSlugPrefix + branchName
-        }
-      }
-    }
+         val maxSlugLength = if (branchName.length > 36) 36 else branchName.length
+
+         var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
+
+         if (branchName == "main") {
+           branchSlug = "v2"
+           api.parameters["buildType"] = "production"
+           api.parameters["debugMode"] = "false"
+           api.parameters["isReview"] = "false"
+         } else {
+           branchSlug = "review-$branchSlug"
+           api.parameters["buildType"] = "development"
+           api.parameters["debugMode"] = "true"
+           api.parameters["isReview"] = "true"
+         }
+
+         api.parameters["branchSlug"] = branchSlug
+         api.parameters["externalLinkLabel"] = branchSlug
+         api.parameters["externalLinkUrl"] = "$branchSlug.app.openpra.org"
+       }
+     }
+
 
     parallel {
 
-        host("Build") {
-            shellScript("frontend-web-editor:build"){
-                interpreter = "/bin/bash"
-                content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
-                        docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:build
-                        """
-            }
+      host("frontend-web-editor:build") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                      docker pull $remote:{{ branchSlug }} || true
+                      docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:build
+                      """
+        }
+      }
 
-            shellScript("web-backend:build"){
-                interpreter = "/bin/bash"
-                content = """
+      host("frontend-web-editor:test") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                      docker pull $remote:{{ branchSlug }} || true
+                      docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:test
+                      """
+        }
+      }
+
+      host("frontend-web-editor:e2e") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                      docker pull $remote:{{ branchSlug }} || true
+                      docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:e2e-cli
+                      """
+        }
+      }
+
+      host("frontend-web-editor:lint") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                      docker pull $remote:{{ branchSlug }} || true
+                      docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:lint
+                      """
+        }
+      }
+
+
+      host("web-backend:build") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
                         docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
                         docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:build
                         """
-            }
-
-            shellScript("shared-types:build"){
-                interpreter = "/bin/bash"
-                content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
-                        docker run --rm "$remote:{{ branchSlug }}" nx run shared-types:build
-                        """
-            }
-            shellScript("model-generator:build"){
-                interpreter = "/bin/bash"
-                content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
-                        docker run --rm "$remote:{{ branchSlug }}" nx run model-generator:build
-                        """
-            }
-            shellScript("scram-node:build"){
-                interpreter = "/bin/bash"
-                content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
-                        docker run --rm "$remote:{{ branchSlug }}" nx run scram-node:build
-                        """
-            }
-            shellScript("mef-schema:build"){
-                interpreter = "/bin/bash"
-                content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
-                        docker run --rm "$remote:{{ branchSlug }}" nx run mef-schema:build
-                        """
-            }
         }
+      }
 
-        host("Tests") {
-            shellScript("frontend-web-editor:test"){
-                interpreter = "/bin/bash"
-                content = """
+      host("web-backend:test") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
                         docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
-                        docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:test
-                        """
-            }
-
-            shellScript("frontend-web-editor:e2e-cli"){
-                interpreter = "/bin/bash"
-                content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
-                        docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:e2e-cli
-                        """
-            }
-
-            shellScript("web-backend:test"){
-                interpreter = "/bin/bash"
-                content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
                         docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:test
                         """
-            }
+        }
+      }
 
-            shellScript("web-backend:e2e"){
-                interpreter = "/bin/bash"
-                content = """
+      host("web-backend:e2e") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
                         docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
                         docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:e2e
                         """
-            }
-
-            shellScript("shared-types:test"){
-                interpreter = "/bin/bash"
-                content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
-                        docker run --rm "$remote:{{ branchSlug }}" nx run shared-types:test
-                        """
-            }
-            shellScript("model-generator:test"){
-                interpreter = "/bin/bash"
-                content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
-                        docker run --rm "$remote:{{ branchSlug }}" nx run model-generator:test
-                        """
-            }
-            shellScript("scram-node:test"){
-                interpreter = "/bin/bash"
-                content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
-                        docker run --rm "$remote:{{ branchSlug }}" nx run scram-node:test
-                        """
-            }
-            shellScript("mef-schema:test"){
-                interpreter = "/bin/bash"
-                content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
-                        docker run --rm "$remote:{{ branchSlug }}" nx run mef-schema:test
-                        """
-            }
         }
+      }
 
-        host("Lint") {
-            shellScript("frontend-web-editor:lint"){
-                interpreter = "/bin/bash"
-                content = """
+      host("web-backend:lint") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
                         docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
-                        docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:lint
-                        """
-            }
-
-            shellScript("web-backend:lint"){
-                interpreter = "/bin/bash"
-                content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
                         docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:lint
                         """
-            }
+        }
+      }
 
-            shellScript("shared-types:lint"){
-                interpreter = "/bin/bash"
-                content = """
+      host("shared-types:build") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
                         docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run shared-types:build
+                        """
+        }
+      }
+
+      host("shared-types:test") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run shared-types:test
+                        """
+        }
+      }
+
+      host("shared-types:lint") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
                         docker run --rm "$remote:{{ branchSlug }}" nx run shared-types:lint
                         """
-            }
-            shellScript("model-generator:lint"){
-                interpreter = "/bin/bash"
-                content = """
+        }
+      }
+
+      host("model-generator:build") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
                         docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run model-generator:build
+                        """
+        }
+      }
+
+      host("model-generator:test") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run model-generator:test
+                        """
+        }
+      }
+
+      host("model-generator:lint") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
                         docker run --rm "$remote:{{ branchSlug }}" nx run model-generator:lint
                         """
-            }
-            shellScript("scram-node:lint"){
-                interpreter = "/bin/bash"
-                content = """
+        }
+      }
+
+      host("scram-node:build") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
                         docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run scram-node:build
+                        """
+        }
+      }
+
+      host("scram-node:test") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run scram-node:test
+                        """
+        }
+      }
+
+      host("scram-node:lint") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
                         docker run --rm "$remote:{{ branchSlug }}" nx run scram-node:lint
                         """
-            }
-            shellScript("mef-schema:lint"){
-                interpreter = "/bin/bash"
-                content = """
+        }
+      }
+
+      host("mef-schema:build") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
                         docker pull $remote:{{ branchSlug }} || true
-                        docker build --no-cache --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile . && \
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run mef-schema:build
+                        """
+        }
+      }
+
+      host("mef-schema:test") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run mef-schema:test
+                        """
+        }
+      }
+
+      host("mef-schema:lint") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
                         docker run --rm "$remote:{{ branchSlug }}" nx run mef-schema:lint
                         """
-            }
         }
-        }
-
-    host("Remove") {
-        shellScript("docker rmi") {
-            interpreter = "/bin/bash"
-            content = """
-                        docker rmi "$remote:{{ branchSlug }}" || true
-                        """
-        }
+      }
     }
 }

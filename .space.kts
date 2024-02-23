@@ -143,6 +143,79 @@ job("Monorepo Deployment") {
    }
  }
 
+job("Monorepo Deployment Cleanup") {
+
+  startOn {
+    gitBranchDeleted {
+      enabled = true
+    }
+  }
+
+  host("Deployment Tags") {
+    // use kotlinScript blocks for usage of parameters
+    kotlinScript("Generate slugs") { api ->
+
+      api.parameters["commitRef"] = api.gitRevision()
+      api.parameters["gitBranch"] = api.gitBranch()
+
+      val branchName = api.gitBranch()
+        .removePrefix("refs/heads/")
+        .replace(Regex("[^A-Za-z0-9-]"), "-") // Replace all non-alphanumeric characters except hyphens with hyphens
+        .replace(Regex("-+"), "-") // Replace multiple consecutive hyphens with a single hyphen
+        .lowercase() // Convert to lower case for consistency
+
+      val maxSlugLength = if (branchName.length > 36) 36 else branchName.length
+
+      var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
+
+      if (branchName == "main") {
+        branchSlug = "v2"
+        api.parameters["buildType"] = "production"
+        api.parameters["debugMode"] = "false"
+        api.parameters["isReview"] = "false"
+      } else {
+        branchSlug = "review-$branchSlug"
+        api.parameters["buildType"] = "development"
+        api.parameters["debugMode"] = "true"
+        api.parameters["isReview"] = "true"
+      }
+
+      api.parameters["branchSlug"] = branchSlug
+      api.parameters["externalLinkLabel"] = branchSlug
+      api.parameters["externalLinkUrl"] = "$branchSlug.app.openpra.org"
+    }
+  }
+
+  host("Remove Stack") {
+    requirements {
+      workerTags("swarm-manager")
+    }
+
+    env["APP_NAME"] = "v2-app-{{ branchSlug }}"
+
+    shellScript("docker stack rm"){
+      interpreter = "/bin/bash"
+      content = """
+                             docker stack rm ${'$'}APP_NAME
+                             """
+    }
+
+    kotlinScript("remove deployment") { api ->
+
+      val label: String? = api.parameters["externalLinkLabel"]
+      val url: String = api.parameters["externalLinkUrl"]!!
+      val externalLink = ExternalLink(label, url)
+
+      api.space().projects.automation.deployments.finish(
+        project = api.projectIdentifier(),
+        targetIdentifier = TargetIdentifier.Key("v2-app"),
+        version = "job-" + api.executionNumber(),
+        externalLink = externalLink
+      )
+    }
+  }
+}
+
 job("Monorepo CI") {
 
     failOn {

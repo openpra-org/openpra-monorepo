@@ -129,13 +129,13 @@ job("Monorepo Deployment") {
      kotlinScript("update deployments target") { api ->
 
        val label: String? = api.parameters["externalLinkLabel"]
-       val url: String = api.parameters["externalLinkUrl"]!!
+       val url: String = "https://" + api.parameters["externalLinkUrl"]!!
        val externalLink = ExternalLink(label, url)
 
        api.space().projects.automation.deployments.start(
          project = api.projectIdentifier(),
          targetIdentifier = TargetIdentifier.Key("v2-app"),
-         version = "job-" + api.executionNumber(),
+         version = label + "-" + api.executionNumber(),
          syncWithAutomationJob = true,
          externalLink = externalLink
        )
@@ -198,20 +198,6 @@ job("Monorepo Deployment Cleanup") {
       content = """
                              docker stack rm ${'$'}APP_NAME
                              """
-    }
-
-    kotlinScript("remove deployment") { api ->
-
-      val label: String? = api.parameters["externalLinkLabel"]
-      val url: String = api.parameters["externalLinkUrl"]!!
-      val externalLink = ExternalLink(label, url)
-
-      api.space().projects.automation.deployments.finish(
-        project = api.projectIdentifier(),
-        targetIdentifier = TargetIdentifier.Key("v2-app"),
-        version = "job-" + api.executionNumber(),
-        externalLink = externalLink
-      )
     }
   }
 }

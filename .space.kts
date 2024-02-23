@@ -146,8 +146,8 @@ job("Monorepo Deployment") {
 job("Monorepo Deployment Cleanup") {
 
   startOn {
-    gitBranchDeleted {
-      enabled = true
+    codeReviewClosed{
+      branchToCheckout = CodeReviewBranch.MERGE_REQUEST_SOURCE
     }
   }
 

@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { cluster, stratify, tree } from "d3-hierarchy";
+
 import ReactFlow, {
   addEdge,
   Background,
@@ -25,6 +25,7 @@ import ReactFlow, {
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import useTreeData from "../../hooks/eventTree/useTreeData";
 import EventTreeList from "../../components/lists/nestedLists/eventTreeList";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
@@ -69,7 +70,11 @@ const fitViewOptions = {
  *
  * @returns {ReactElement} The React Flow component with nodes and edges configured for horizontal layout.
  */
-function ReactFlowPro() {
+type Props = {
+  nodeData: Node[];
+  edgeData: Edge[];
+};
+const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData }) => {
   // this hook call ensures that the layout is re-calculated every time the graph changes
   useLayout();
   const [menu, setMenu] = useState<treeNodeContextMenuProps | null>(null);
@@ -78,6 +83,7 @@ function ReactFlowPro() {
 
   const [nodes, setNodes] = useState<Node[]>(nodeData);
   const [edges, setEdges] = useState<Edge[]>(edgeData);
+
   const [loading, setLoading] = useState(true);
   const { eventTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
@@ -137,7 +143,7 @@ function ReactFlowPro() {
       fitViewOptions={fitViewOptions}
       onPaneClick={onPaneClick}
       onNodeContextMenu={onNodeContextMenu}
-      minZoom={0.2}
+      minZoom={0.5}
       nodesDraggable={false}
       nodesConnectable={false}
       zoomOnDoubleClick={false}
@@ -163,19 +169,21 @@ function ReactFlowPro() {
       </EuiPopover>
     </ReactFlow>
   );
-}
+};
 /**
  * The EventTreeEditor component wraps the HorizontalFlow component for editing event trees.
  * @returns {ReactElement} The HorizontalFlow component for editing event trees.
  */
 
-export function EventTreeEditor(): ReactElement {
+export const EventTreeEditor = (): ReactElement => {
+  const { nodes, edges } = useTreeData(4);
+
   return (
     <ReactFlowProvider>
-      <ReactFlowPro />
+      <ReactFlowPro nodeData={nodes} edgeData={edges} />
     </ReactFlowProvider>
   );
-}
+};
 
 /**
  * The EventTrees component provides routing for the event tree list and the event tree editor.

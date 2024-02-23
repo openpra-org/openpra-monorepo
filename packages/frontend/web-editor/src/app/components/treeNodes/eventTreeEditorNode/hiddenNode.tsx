@@ -1,7 +1,8 @@
 import { Handle, NodeProps, Position } from "reactflow";
 import { memo } from "react";
+import React from "react";
 
-export default memo(() => (
+const hiddenNode: React.FC<NodeProps> = memo(({ data }) => (
   <div>
     <Handle
       type="target"
@@ -10,24 +11,22 @@ export default memo(() => (
       style={{
         position: "absolute",
         top: "50%",
+        left: "50%",
 
-        transform: "translate(80%,-50%)",
         visibility: "hidden",
       }}
     />
     <div
       style={{
         borderColor: "white",
-        borderLeft: "1px solid white",
-        borderRight: "1px solid white",
-        borderBottom: "1px solid white",
-        borderTop: "1px solid white",
-        width: 60,
+        // borderLeft: "1px solid white",
+        // borderRight: "1px solid white",
+        // borderBottom: "1px solid white",
+        // borderTop: "1px solid white",
+        width: 140,
         height: 40,
       }}
-    >
-      <p style={{ visibility: "hidden" }}>aawdawd.</p>
-    </div>
+    ></div>
     <Handle
       type="source"
       position={Position.Right}
@@ -35,10 +34,11 @@ export default memo(() => (
       style={{
         position: "absolute",
         top: "50%",
-        left: "-15%",
+        right: "50%",
         visibility: "hidden",
-        transform: "translate(0%,-50%)",
       }}
     />
   </div>
 ));
+
+export default hiddenNode;

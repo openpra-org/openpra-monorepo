@@ -6,10 +6,11 @@ import { timer } from "d3-timer";
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
 const layout = cluster<Node>()
   // the node size configures the spacing between the nodes ([width, height])
-  .nodeSize([200, 300]) // this is needed for creating equal space between all nodes
-  .separation(() => 1);
+  //.nodeSize([130, 130]) // this is needed for creating equal space between all nodes
+  .size([500, 420])
+  .separation(() => 2);
 
-const colLayout = partition<Node>().size([200, 300]);
+const colLayout = partition<Node>().size([100, 560]);
 
 const options = { duration: 300 };
 
@@ -37,7 +38,6 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
     cols,
   );
 
-  // colHierarchy.sum((d) => parseInt(d.id.charAt(d.id.length - 1), 10));
   const colRoot = colLayout(colHierarchy);
 
   // run the layout algorithm with the hierarchy data structure
@@ -46,9 +46,22 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
   // convert the hierarchy back to react flow nodes (the original node is stored as d.data)
   // we only extract the position from the d3 function
 
-  return root
-    .descendants()
-    .map((d) => ({ ...d.data, position: { x: d.y, y: d.x } }));
+  cols = colRoot.descendants().map((d) => ({
+    ...d.data,
+    position: { x: d.y0, y: d.x0 },
+  }));
+  const lastColRootNodeX = colRoot.descendants().reduce(
+    (maxX, d) => Math.max(maxX, d.y0 + 150), // Add 150 to the x position of the last node of colRoot
+    -Infinity,
+  );
+  nodes = root.descendants().map((d) => ({
+    ...d.data,
+    position: { x: d.data.data.output ? lastColRootNodeX + 100 : d.y, y: d.x },
+  }));
+
+  console.log(colRoot.descendants(), root.descendants());
+
+  return [...nodes, ...cols];
 }
 
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change
@@ -81,6 +94,8 @@ function useLayout() {
         nodes.push(node);
       }
     });
+
+    console.log(nodes, cols, edges);
 
     // run the layout and get back the nodes with their updated positions
     const targetNodes = layoutNodes(nodes, cols, edges);

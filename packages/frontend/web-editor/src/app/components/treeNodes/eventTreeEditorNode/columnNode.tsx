@@ -13,7 +13,7 @@ type NodeProps = {
 const columnNode: React.FC<NodeProps> = memo(({ data }) => (
   <>
     <Handle
-      type={data.hideText ? "target" : "source"}
+      type="target"
       position={Position.Left}
       id="a"
       style={{
@@ -23,25 +23,25 @@ const columnNode: React.FC<NodeProps> = memo(({ data }) => (
         visibility: "hidden",
       }}
     />
-    {data.label && (
-      <div
-        style={{
-          visibility: data.hideText ? "hidden" : "visible",
-          borderColor: "white",
-          borderLeft: "1px solid white",
-          borderRight: "1px solid white",
-          borderBottom: "1px solid white",
-          padding: "4px",
-          fontSize: "0.6rem",
-          minWidth: data.width,
-          minHeight: 30,
-        }}
-      >
-        {data.label}
-      </div>
-    )}
+
+    <div
+      style={{
+        visibility: data.hideText ? "hidden" : "visible",
+        borderColor: "white",
+        borderLeft: "1px solid white",
+        borderRight: "1px solid white",
+        borderBottom: "1px solid white",
+        padding: "4px",
+        fontSize: "0.6rem",
+        minWidth: data.width,
+        minHeight: 30,
+      }}
+    >
+      {data.label}
+    </div>
+
     <Handle
-      type={data.hideText ? "target" : "source"}
+      type="source"
       position={Position.Right}
       id="b"
       style={{

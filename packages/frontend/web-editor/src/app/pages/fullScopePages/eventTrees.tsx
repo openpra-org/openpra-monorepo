@@ -73,10 +73,11 @@ const fitViewOptions = {
 type Props = {
   nodeData: Node[];
   edgeData: Edge[];
+  depth: number;
 };
-const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData }) => {
+const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
   // this hook call ensures that the layout is re-calculated every time the graph changes
-  useLayout();
+  useLayout(depth);
   const [menu, setMenu] = useState<treeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
@@ -176,11 +177,13 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData }) => {
  */
 
 export const EventTreeEditor = (): ReactElement => {
-  const { nodes, edges } = useTreeData(4);
+  const input = 3;
+  const output = 3;
+  const { nodes, edges } = useTreeData(input, output, 140);
 
   return (
     <ReactFlowProvider>
-      <ReactFlowPro nodeData={nodes} edgeData={edges} />
+      <ReactFlowPro nodeData={nodes} edgeData={edges} depth={input + output} />
     </ReactFlowProvider>
   );
 };

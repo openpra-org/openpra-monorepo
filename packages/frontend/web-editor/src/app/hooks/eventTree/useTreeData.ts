@@ -1,9 +1,12 @@
 import { Edge, Node } from "reactflow";
 
 const useTreeData = (
-  verticalLevels: number,
+  inputLevels: number,
+  outputLevels: number,
+  nodeWidth: number,
 ): { nodes: Node[]; edges: Edge[] } => {
   const pos = { x: 0, y: 0 };
+  const verticalLevels = inputLevels + outputLevels;
 
   // Function to generate tree nodes and edges
   const generateTreeNodesAndEdges = (): { nodes: Node[]; edges: Edge[] } => {
@@ -15,15 +18,16 @@ const useTreeData = (
     const rootNode: Node = {
       id: rootId,
       type: "hiddenNode",
-      data: { label: "Root Node", depth: 1 },
+      data: { label: "Root Node", depth: 1, width: nodeWidth },
       position: pos,
     };
     nodes.push(rootNode);
 
     let prevNodes = [rootNode]; // Track previous nodes
+    let currentNodes: Node[] = [];
 
-    for (let depth = 2; depth <= verticalLevels; depth++) {
-      const currentNodes: Node[] = [];
+    for (let depth = 2; depth <= inputLevels; depth++) {
+      currentNodes = [];
 
       for (let i = 0; i < prevNodes.length; i++) {
         const parent = prevNodes[i];
@@ -33,7 +37,12 @@ const useTreeData = (
         const leftChildNode: Node = {
           id: leftChildId,
           type: "hiddenNode",
-          data: { label: `Node ${leftChildId}`, depth: depth },
+          data: {
+            label: `Node ${leftChildId}`,
+            depth: depth,
+            width: nodeWidth,
+            output: false,
+          },
           position: pos,
         };
         nodes.push(leftChildNode);
@@ -43,7 +52,12 @@ const useTreeData = (
         const rightChildNode: Node = {
           id: rightChildId,
           type: "hiddenNode",
-          data: { label: `Node ${rightChildId}`, depth: depth },
+          data: {
+            label: `Node ${rightChildId}`,
+            depth: depth,
+            width: nodeWidth,
+            output: false,
+          },
           position: pos,
         };
         nodes.push(rightChildNode);
@@ -71,6 +85,52 @@ const useTreeData = (
       prevNodes = currentNodes; // Update previous nodes for the next depth
     }
 
+    // Connect each leaf node of input to its own sequence of output nodes
+    const outputStartDepth = inputLevels + 1; // Depth of the first output level
+    let prevNodeId = "";
+
+    for (let i = 0; i < currentNodes.length; i++) {
+      const inputLeafNode = currentNodes[i];
+
+      for (let j = 0; j < outputLevels; j++) {
+        const outputNodeId = `output-${i}-${j + 1}`;
+        const outputNode: Node = {
+          id: outputNodeId,
+          type: "hiddenNode",
+          data: {
+            label: `Output ${outputNodeId}`,
+            depth: outputStartDepth + j,
+            width: nodeWidth,
+            output: true,
+          },
+          position: pos,
+        };
+        nodes.push(outputNode);
+
+        let edge: Edge;
+        if (j == 0) {
+          edge = {
+            id: `${inputLeafNode.id}-${outputNodeId}`,
+            source: inputLeafNode.id,
+            target: outputNodeId,
+            type: "custom",
+            animated: false,
+          };
+        } else {
+          edge = {
+            id: `${prevNodeId}-${outputNodeId}`,
+            source: prevNodeId,
+            target: outputNodeId,
+            type: "custom",
+            animated: false,
+          };
+        }
+
+        edges.push(edge);
+        prevNodeId = outputNodeId;
+      }
+    }
+
     return { nodes, edges };
   };
 
@@ -78,13 +138,14 @@ const useTreeData = (
   const generateColNodesAndEdges = (): { nodes: Node[]; edges: Edge[] } => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-    const xDistance = 140;
 
     for (let column = 1; column <= verticalLevels; column++) {
       const nodeId = `col-${column}`;
       const nodeData = {
         label: `Column ${column}`,
-        width: xDistance,
+        width: nodeWidth,
+        depth: column,
+        output: column > inputLevels, // Check if it's an output column
       };
       const node: Node = {
         id: nodeId,

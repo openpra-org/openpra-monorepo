@@ -6,12 +6,10 @@ import { timer } from "d3-timer";
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
 const layout = cluster<Node>()
   // the node size configures the spacing between the nodes ([width, height])
-  //.nodeSize([130, 130]) // this is needed for creating equal space between all nodes
-  .size([500, 420])
-  .separation(() => 2);
+  .nodeSize([140, 40]) // this is needed for creating equal space between all nodes
+  .separation(() => 1);
 
-const colLayout = partition<Node>().size([100, 560]);
-
+const colLayout = partition<Node>();
 const options = { duration: 300 };
 
 // the layouting function
@@ -30,6 +28,16 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
     nodes,
   );
 
+  // run the layout algorithm with the hierarchy data structure
+  const root = layout(hierarchy);
+
+  // convert the hierarchy back to react flow nodes (the original node is stored as d.data)
+  // we only extract the position from the d3 function
+  nodes = root.descendants().map((d) => ({
+    ...d.data,
+    position: { x: d.y, y: d.x },
+  }));
+
   const colHierarchy = stratify<Node>()
     .id((d) => d.id)
     // get the id of each node by searching through the edges
@@ -40,26 +48,24 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
 
   const colRoot = colLayout(colHierarchy);
 
-  // run the layout algorithm with the hierarchy data structure
-  const root = layout(hierarchy);
-
-  // convert the hierarchy back to react flow nodes (the original node is stored as d.data)
-  // we only extract the position from the d3 function
-
+  // Find the maximum value of y from the leaf nodes
+  const maxYLeaf = Math.max(...root.leaves().map((d) => d.x));
+  console.log(maxYLeaf);
+  // Update the y values of all column nodes with y + 100
   cols = colRoot.descendants().map((d) => ({
     ...d.data,
-    position: { x: d.y0, y: d.x0 },
-  }));
-  const lastColRootNodeX = colRoot.descendants().reduce(
-    (maxX, d) => Math.max(maxX, d.y0 + 150), // Add 150 to the x position of the last node of colRoot
-    -Infinity,
-  );
-  nodes = root.descendants().map((d) => ({
-    ...d.data,
-    position: { x: d.data.data.output ? lastColRootNodeX + 100 : d.y, y: d.x },
+    position: { x: d.y0, y: -maxYLeaf / 150 },
   }));
 
-  console.log(colRoot.descendants(), root.descendants());
+  // Update the x position of the tree nodes with the same number as the column nodes
+  nodes.forEach((node) => {
+    const correspondingColNode = cols.find(
+      (col) => col.data.depth === node.data.depth,
+    );
+    if (correspondingColNode) {
+      node.position.x = correspondingColNode.position.x;
+    }
+  });
 
   return [...nodes, ...cols];
 }
@@ -67,7 +73,7 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change
 const nodeCountSelector = (state: ReactFlowState) => state.nodeInternals.size;
 
-function useLayout() {
+function useLayout(depth: number) {
   // this ref is used to fit the nodes in the first run
   // after first run, this is set to false
   const initial = useRef(true);
@@ -95,7 +101,8 @@ function useLayout() {
       }
     });
 
-    console.log(nodes, cols, edges);
+    layout.size([Math.pow(2, depth) * 5, 1000]);
+    colLayout.size([500, depth * 140]);
 
     // run the layout and get back the nodes with their updated positions
     const targetNodes = layoutNodes(nodes, cols, edges);

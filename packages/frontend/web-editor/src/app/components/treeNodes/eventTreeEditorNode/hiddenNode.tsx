@@ -1,7 +1,9 @@
 import { Handle, NodeProps, Position } from "reactflow";
 import { memo } from "react";
 import React from "react";
-
+import { EuiText } from "@elastic/eui";
+import { EuiTextAlign } from "@elastic/eui/src/components/text";
+import styles from "./styles/nodeTypes.module.css";
 const hiddenNode: React.FC<NodeProps> = memo(({ data }) => (
   <div>
     <Handle
@@ -18,15 +20,28 @@ const hiddenNode: React.FC<NodeProps> = memo(({ data }) => (
     />
     <div
       style={{
-        borderColor: "white",
-        // borderLeft: "1px solid white",
-        // borderRight: "1px solid white",
-        // borderBottom: "1px solid white",
-        // borderTop: "1px solid white",
-        width: 140,
+        width: data.width,
         height: 40,
       }}
-    ></div>
+    >
+      <div className={data.output ? styles.outputNode : null}>
+        <EuiText
+          style={{
+            fontSize: "0.7rem",
+            borderColor: "white",
+            borderLeft: "1px",
+          }}
+          textAlign={"center"}
+        >
+          0.543
+        </EuiText>
+      </div>
+      {data.output ? null : (
+        <EuiText style={{ fontSize: "0.7rem" }} textAlign={"center"}>
+          Yes
+        </EuiText>
+      )}
+    </div>
     <Handle
       type="source"
       position={Position.Right}

@@ -11,7 +11,7 @@ import {
 import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 
-function SignupForm() {
+function SignupForm(): JSX.Element {
   const defaultProps: SignUpProps = {
     username: "",
     email: "",

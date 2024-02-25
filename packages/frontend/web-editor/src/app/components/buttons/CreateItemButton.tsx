@@ -32,7 +32,7 @@ import {
   NestedModelActionForm,
 } from "../forms/nestedModelActionForm";
 import { TypedModelActionForm } from "../forms/typedModelActionForm";
-import { toTitleCase } from "../../../utils/StringUtils";
+import { ToTitleCase } from "../../../utils/StringUtils";
 import { ButtonWithClosablePopover } from "./ButtonWithPopover";
 
 //different props depending on different type of objects we are using for the add button
@@ -46,8 +46,11 @@ export type CreateNestedItemButtonProps = Omit<NestedItemFormProps, "action">;
  * @param endpoint - endpoint that will be used to add the item
  * @returns the create item button
  */
-function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps) {
-  const popoverExtra = (child: JSX.Element) => (
+function CreateItemButton({
+  itemName,
+  postEndpoint,
+}: CreateItemButtonProps): JSX.Element {
+  const popoverExtra = (child: JSX.Element): JSX.Element => (
     <div style={logicalStyle("max-width", 240)}>{child}</div>
   );
   //this now checks what type of thing is being added, as adding a typed model has a extra field that isnt needed
@@ -55,7 +58,7 @@ function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps) {
     <ButtonWithClosablePopover
       popoverExtra={popoverExtra}
       closeProp="onCancel"
-      buttonText={"Create " + toTitleCase(itemName)}
+      buttonText={"Create " + ToTitleCase(itemName)}
       confirmDiscard={true}
       popoverProps={{
         initialFocus: "#name",
@@ -84,8 +87,8 @@ export { CreateItemButton };
 export function CreateNestedItemButton({
   itemName,
   postEndpoint,
-}: CreateNestedItemButtonProps) {
-  const popoverExtra = (child: JSX.Element) => (
+}: CreateNestedItemButtonProps): JSX.Element {
+  const popoverExtra = (child: JSX.Element): JSX.Element => (
     <div style={logicalStyle("max-width", 240)}>{child}</div>
   );
   //this now checks what type of thing is being added, as adding a typed model has a extra field that isnt needed
@@ -93,7 +96,7 @@ export function CreateNestedItemButton({
     <ButtonWithClosablePopover
       popoverExtra={popoverExtra}
       closeProp="onCancel"
-      buttonText={"Create " + toTitleCase(itemName)}
+      buttonText={"Create " + ToTitleCase(itemName)}
       confirmDiscard={true}
       popoverProps={{
         initialFocus: "#name",
@@ -113,7 +116,7 @@ export function CreateNestedItemButton({
 }
 
 //TODO: Functions are dummied out for the creates that don't exist
-export function CreateInternalEventsButton() {
+export function CreateInternalEventsButton(): JSX.Element {
   return (
     <CreateItemButton
       itemName="internal-events"
@@ -122,7 +125,7 @@ export function CreateInternalEventsButton() {
   );
 }
 
-export function CreateInternalHazardsButton() {
+export function CreateInternalHazardsButton(): JSX.Element {
   return (
     <CreateItemButton
       itemName="internal-hazards"
@@ -131,7 +134,7 @@ export function CreateInternalHazardsButton() {
   );
 }
 
-export function CreateExternalHazardsButton() {
+export function CreateExternalHazardsButton(): JSX.Element {
   return (
     <CreateItemButton
       itemName="external-hazards"
@@ -140,13 +143,13 @@ export function CreateExternalHazardsButton() {
   );
 }
 
-export function CreateFullScopeButton() {
+export function CreateFullScopeButton(): JSX.Element {
   return (
     <CreateItemButton itemName="full-scope" postEndpoint={PostFullScope} />
   );
 }
 
-export function CreateFaultTreeButton() {
+export function CreateFaultTreeButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="fault-tree"
@@ -155,7 +158,7 @@ export function CreateFaultTreeButton() {
   );
 }
 
-export function CreateBayesianNetworkButton() {
+export function CreateBayesianNetworkButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="bayesian-network"
@@ -164,7 +167,7 @@ export function CreateBayesianNetworkButton() {
   );
 }
 
-export function CreateBayesianEstimationButton() {
+export function CreateBayesianEstimationButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="bayesian-estimation"
@@ -173,7 +176,7 @@ export function CreateBayesianEstimationButton() {
   );
 }
 
-export function CreateEventSequenceDiagramButton() {
+export function CreateEventSequenceDiagramButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="event-sequence-diagram"
@@ -182,7 +185,7 @@ export function CreateEventSequenceDiagramButton() {
   );
 }
 
-export function CreateEventTreeButton() {
+export function CreateEventTreeButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="event-tree"
@@ -191,7 +194,7 @@ export function CreateEventTreeButton() {
   );
 }
 
-export function CreateInitiatingEventButton() {
+export function CreateInitiatingEventButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="initiating-event"
@@ -200,7 +203,7 @@ export function CreateInitiatingEventButton() {
   );
 }
 
-export function CreateFunctionalEventButton() {
+export function CreateFunctionalEventButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="functional-event"
@@ -209,7 +212,7 @@ export function CreateFunctionalEventButton() {
   );
 }
 
-export function CreateMarkovChainButton() {
+export function CreateMarkovChainButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="markov-chain"
@@ -218,7 +221,7 @@ export function CreateMarkovChainButton() {
   );
 }
 
-export function CreateRiskIntegrationButton() {
+export function CreateRiskIntegrationButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="risk-integration"
@@ -227,7 +230,7 @@ export function CreateRiskIntegrationButton() {
   );
 }
 
-export function CreateRadiologicalConsequenceAnalysisButton() {
+export function CreateRadiologicalConsequenceAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="radiological-consequence-analysis"
@@ -236,7 +239,7 @@ export function CreateRadiologicalConsequenceAnalysisButton() {
   );
 }
 
-export function CreateMechanisticSourceTermButton() {
+export function CreateMechanisticSourceTermButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="mechanistic-source-term"
@@ -245,7 +248,7 @@ export function CreateMechanisticSourceTermButton() {
   );
 }
 
-export function CreateEventSequenceQuantificationDiagramButton() {
+export function CreateEventSequenceQuantificationDiagramButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="event-sequence-quantification-diagram"
@@ -254,7 +257,7 @@ export function CreateEventSequenceQuantificationDiagramButton() {
   );
 }
 
-export function CreateDataAnalysisButton() {
+export function CreateDataAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="data-analysis"
@@ -263,7 +266,7 @@ export function CreateDataAnalysisButton() {
   );
 }
 
-export function CreateHumanReliabilityAnalysisButton() {
+export function CreateHumanReliabilityAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="human-reliability-analysis"
@@ -272,7 +275,7 @@ export function CreateHumanReliabilityAnalysisButton() {
   );
 }
 
-export function CreateSystemsAnalysisButton() {
+export function CreateSystemsAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="systems-analysis"
@@ -281,7 +284,7 @@ export function CreateSystemsAnalysisButton() {
   );
 }
 
-export function CreateSuccessCriteriaButton() {
+export function CreateSuccessCriteriaButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="success-criteria"
@@ -290,7 +293,7 @@ export function CreateSuccessCriteriaButton() {
   );
 }
 
-export function CreateEventSequenceAnalysisButton() {
+export function CreateEventSequenceAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="event-sequence-analysis"
@@ -299,7 +302,7 @@ export function CreateEventSequenceAnalysisButton() {
   );
 }
 
-export function CreateOperatingStateAnalysisButton() {
+export function CreateOperatingStateAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="operating-state-analysis"
@@ -308,7 +311,7 @@ export function CreateOperatingStateAnalysisButton() {
   );
 }
 
-export function CreateWeibullAnalysisButton() {
+export function CreateWeibullAnalysisButton(): JSX.Element {
   return (
     <CreateNestedItemButton
       itemName="weibull-analysis"

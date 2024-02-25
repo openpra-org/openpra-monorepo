@@ -2,7 +2,7 @@
 import { InitiatingEventsTable } from "../../components/tables/initiatingEventsTable";
 import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
 
-function DataInitiatingEvents() {
+function DataInitiatingEvents(): JSX.Element {
   return (
     <TemplatedPageBody
       headerProps={{

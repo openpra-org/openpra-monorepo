@@ -66,9 +66,17 @@
             "format": ["PascalCase"]
           },
           {
+            "selector": "variable",
+            "format": ["camelCase", "PascalCase"]
+          },
+          {
             "selector": "function",
             "modifiers": ["exported"],
             "format": ["PascalCase"]
+          },
+          {
+            "selector": "function",
+            "format": ["camelCase", "PascalCase"]
           },
           {
             "selector": "enum",

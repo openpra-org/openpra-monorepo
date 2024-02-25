@@ -1,4 +1,4 @@
-function InternalFlood() {
+function InternalFlood(): JSX.Element {
   return <></>;
 }
 

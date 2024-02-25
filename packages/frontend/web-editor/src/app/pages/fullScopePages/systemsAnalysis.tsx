@@ -1,6 +1,6 @@
 import { SystemsAnalysisList } from "../../components/lists/nestedLists/systemsAnalysisList";
 
-function SystemsAnalysis() {
+function SystemsAnalysis(): JSX.Element {
   return <SystemsAnalysisList />;
 }
 

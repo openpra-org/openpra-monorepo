@@ -5,7 +5,7 @@ import {
 } from "shared-types/src/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function FunctionalEventsList() {
+function FunctionalEventsList(): JSX.Element {
   return (
     <NestedModelList
       getNestedEndpoint={GetFunctionalEvents}

@@ -20,7 +20,7 @@ import {
 } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 
-import { toTitleCase } from "../../../utils/StringUtils";
+import { ToTitleCase } from "../../../utils/StringUtils";
 
 export type ItemFormProps = {
   itemName: string;
@@ -51,7 +51,7 @@ function TypedModelActionForm({
   postEndpoint,
   onSuccess,
   onFail,
-}: ItemFormProps) {
+}: ItemFormProps): JSX.Element {
   const userId = ApiManager.getCurrentUser().user_id ?? -1;
 
   //setting up initial values depending on what has been send, if init form values are passed its assumed to be updating instead of adding
@@ -82,7 +82,7 @@ function TypedModelActionForm({
   if (initialFormValues) {
     // TODO:: BROKEN
     useEffect(() => {
-      const logFetchedData = async () => {
+      const logFetchedData = async (): Promise<void> => {
         try {
           const usersData = await ApiManager.getUsers();
           const resultList = usersData.results;
@@ -123,7 +123,7 @@ function TypedModelActionForm({
   }
 
   //Handles the click for the submit button, functionality depends on whether initform values are passed, indicating an update
-  const handleAction = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAction = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
 
     if (typedModel.label.name !== "") {
@@ -155,8 +155,8 @@ function TypedModelActionForm({
   };
 
   //const formTouched = label.name !== DEFAULT_LABEL_JSON.name || label.description !== DEFAULT_LABEL_JSON.description;
-  const actionLabel = toTitleCase(action);
-  const itemLabel = toTitleCase(itemName);
+  const actionLabel = ToTitleCase(action);
+  const itemLabel = ToTitleCase(itemName);
   return (
     <>
       {!noHeader && (
@@ -185,7 +185,7 @@ function TypedModelActionForm({
                 compressed
                 placeholder={initialFormValues?.label.name}
                 value={typedModel.label.name}
-                onChange={(e) => {
+                onChange={(e): void => {
                   setTypedModel({
                     ...typedModel,
                     label: {
@@ -210,7 +210,7 @@ function TypedModelActionForm({
             compressed
             placeholder={initialFormValues?.label.description}
             value={typedModel.label.description}
-            onChange={(e) => {
+            onChange={(e): void => {
               setTypedModel({
                 ...typedModel,
                 label: {
@@ -235,7 +235,7 @@ function TypedModelActionForm({
                   fullWidth
                   options={usersList}
                   selectedOptions={selectedUsersList}
-                  onChange={(newOptions) => {
+                  onChange={(newOptions): void => {
                     setSelectedUsersList(newOptions);
                   }}
                 />

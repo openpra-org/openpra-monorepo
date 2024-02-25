@@ -1,6 +1,6 @@
 import { BayesianEstimationList } from "../../components/lists/nestedLists/bayesianEstimationList";
 
-function BayesianEstimation() {
+function BayesianEstimation(): JSX.Element {
   return <BayesianEstimationList />;
 }
 

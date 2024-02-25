@@ -13,7 +13,7 @@ import { GenericItemList } from "../GenericItemList";
 // TODO:: This while fetching code is broken, fix it.
 
 //grabs the model List
-async function fetchModelList() {
+async function fetchModelList(): Promise<InternalEventsModel[]> {
   try {
     return await GetInternalEvents(ApiManager.getCurrentUser().user_id);
   } catch (error) {
@@ -61,12 +61,12 @@ const getFixtures = async (): Promise<ReactElement[]> => {
   }
 };
 
-function InternalEventsList() {
+function InternalEventsList(): JSX.Element {
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchGenericListItems = async () => {
+    const fetchGenericListItems = async (): Promise<void> => {
       try {
         const items = await getFixtures();
         setGenericListItems(items);

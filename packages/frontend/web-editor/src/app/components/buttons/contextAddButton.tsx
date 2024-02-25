@@ -25,7 +25,7 @@ import {
   CreateWeibullAnalysisButton,
 } from "./CreateItemButton";
 
-const ContextAddButton = () => {
+const ContextAddButton = (): JSX.Element => {
   const location = useLocation().pathname;
 
   //creates the correct object depending on the path, uses starts with and ends with and conditional logic to keep things in the root header

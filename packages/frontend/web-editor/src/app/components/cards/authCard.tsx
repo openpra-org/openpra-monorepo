@@ -19,7 +19,7 @@ const tabs = [
   },
 ];
 
-function AuthCardContent() {
+function AuthCardContent(): JSX.Element {
   return (
     <EuiTabbedContent
       tabs={tabs}
@@ -30,7 +30,7 @@ function AuthCardContent() {
   );
 }
 
-function AuthCard() {
+function AuthCard(): JSX.Element {
   const cardStyle = {
     ...logicalStyle("width", 300),
     ...logicalStyle("margin-horizontal", "auto"),

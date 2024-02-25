@@ -1,6 +1,6 @@
 import { EventSequenceAnalysisList } from "../../components/lists/nestedLists/eventSequenceAnalysisList";
 
-function EventSequenceAnalysis() {
+function EventSequenceAnalysis(): JSX.Element {
   return <EventSequenceAnalysisList />;
 }
 

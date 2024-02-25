@@ -79,7 +79,7 @@ const fitViewOptions = {
   padding: 0.95,
 };
 
-function ReactFlowPro() {
+function ReactFlowPro(): JSX.Element {
   // this hook call ensures that the layout is re-calculated every time the graph changes
   UseLayout();
   const [menu, setMenu] = useState<treeNodeContextMenuProps | null>(null);
@@ -175,7 +175,7 @@ function ReactFlowPro() {
   );
 }
 
-export function FaultTreeEditor() {
+export function FaultTreeEditor(): JSX.Element {
   return (
     <ReactFlowProvider>
       <ReactFlowPro />
@@ -183,7 +183,7 @@ export function FaultTreeEditor() {
   );
 }
 
-function FaultTrees() {
+function FaultTrees(): JSX.Element {
   return (
     <Routes>
       <Route path="" element={<FaultTreeList />} />

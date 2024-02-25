@@ -28,7 +28,7 @@ export type DeleteItemProps = {
  * @param toggleBox - this needs to be there to toggle the deltebox on and off accross components, a state to set the delete box being visible
  * @returns
  */
-function DeleteItemBox(props: DeleteItemProps) {
+function DeleteItemBox(props: DeleteItemProps): JSX.Element {
   //State used to hold value within text box. User types 'yes' to unlock the submit button
   const [confirmDelete, setConfirmDelete] = useState("");
 
@@ -38,7 +38,7 @@ function DeleteItemBox(props: DeleteItemProps) {
   const navigate = useNavigate();
 
   //sets the data, then closes overlay
-  const deleteData = async () => {
+  const deleteData = async (): Promise<void> => {
     if (deleteTypedEndpoint) {
       await deleteTypedEndpoint(id);
     } else if (deleteNestedEndpoint) {
@@ -74,7 +74,7 @@ function DeleteItemBox(props: DeleteItemProps) {
             placeholder="Please type yes to proceed"
             value={confirmDelete}
             data-testid="delete-item-input"
-            onChange={(e) => {
+            onChange={(e): void => {
               setConfirmDelete(e.target.value);
             }}
           />

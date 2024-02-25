@@ -1,6 +1,6 @@
 import { EuiCard, logicalStyle } from "@elastic/eui";
 
-function LoadingCard() {
+function LoadingCard(): JSX.Element {
   const cardStyle = {
     ...logicalStyle("padding-top", "150px"),
   };

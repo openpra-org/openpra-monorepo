@@ -1,6 +1,6 @@
 import { OperatingStateAnalysisList } from "../../components/lists/nestedLists/operatingStateAnalysisList";
 
-function OperatingStateAnalysis() {
+function OperatingStateAnalysis(): JSX.Element {
   return <OperatingStateAnalysisList />;
 }
 

@@ -11,7 +11,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { SelectableWorkspaceOptions } from "../../workspaces/SelectableWorkspaceOptions";
 
-function WorkspaceSelectorMenu() {
+function WorkspaceSelectorMenu(): JSX.Element {
   const isMountedRef = useRef(false);
   const navigate = useNavigate();
   const popoverID = useGeneratedHtmlId({
@@ -79,7 +79,7 @@ function WorkspaceSelectorMenu() {
           bordered: false,
         }}
       >
-        {(list, search) => (
+        {(list, search): JSX.Element => (
           <>
             <EuiPopoverTitle paddingSize="s">
               {search ?? "Your workspaces"}

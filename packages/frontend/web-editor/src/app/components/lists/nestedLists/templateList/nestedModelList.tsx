@@ -18,7 +18,7 @@ export type NestedModelListProps = {
 //grabs the model List
 async function fetchModelList(
   getNestedEndpoint: (id: number) => Promise<NestedModel[]>,
-) {
+): Promise<NestedModel[]> {
   const modelId = GetCurrentModelId();
   try {
     return await getNestedEndpoint(modelId);
@@ -72,7 +72,7 @@ const getFixtures = async (
   }
 };
 
-function NestedModelList(props: NestedModelListProps) {
+function NestedModelList(props: NestedModelListProps): JSX.Element {
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

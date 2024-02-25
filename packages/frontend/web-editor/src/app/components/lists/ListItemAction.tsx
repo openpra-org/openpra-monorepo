@@ -6,19 +6,19 @@ import {
   ButtonWithPopover,
   ButtonWithPopoverProps,
 } from "../buttons/ButtonWithPopover";
-import { toTitleCase } from "../../../utils/StringUtils";
+import { ToTitleCase } from "../../../utils/StringUtils";
 import {
   TypedModelActionForm,
   ItemFormProps,
 } from "../forms/typedModelActionForm";
-import { GenericListItemProps } from "../lists/GenericListItem";
+import { GenericListItemProps } from "./GenericListItem";
 import { ListItemContextMenu } from "./ListItemContextMenu";
 
 export type ListItemActionProps = {} & ButtonWithPopoverProps &
   Omit<EuiButtonIconPropsForButton, "iconType"> &
   ItemFormProps;
 
-export function ListItemContextMenuButton(props: GenericListItemProps) {
+export function ListItemContextMenuButton(props: GenericListItemProps): JSX.Element {
   return (
     <ButtonWithPopover
       iconType="boxesHorizontal"
@@ -36,7 +36,7 @@ export function ListItemContextMenuButton(props: GenericListItemProps) {
   );
 }
 
-function ListItemAction() {}
+function ListItemAction(): void {}
 
 //TODO
 export { ListItemAction };
@@ -44,10 +44,10 @@ export function ListItemEditAction({
   itemName,
   patchEndpoint,
   ...rest
-}: ListItemActionProps) {
-  const label = toTitleCase(itemName);
+}: ListItemActionProps): JSX.Element {
+  const label = ToTitleCase(itemName);
 
-  const scaffolding = (child: JSX.Element) => (
+  const scaffolding = (child: JSX.Element): JSX.Element => (
     <div style={logicalStyle("max-width", 260)}>{child}</div>
   );
 

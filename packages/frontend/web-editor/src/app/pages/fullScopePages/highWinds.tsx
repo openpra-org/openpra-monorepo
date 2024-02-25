@@ -1,4 +1,4 @@
-function HighWinds() {
+function HighWinds(): JSX.Element {
   return <></>;
 }
 

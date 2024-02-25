@@ -1,6 +1,6 @@
 import { TemplatedPageHeader } from "../../components/headers/TemplatedPageHeader";
 
-function OverviewPage() {
+function OverviewPage(): JSX.Element {
   return <TemplatedPageHeader />;
 }
 

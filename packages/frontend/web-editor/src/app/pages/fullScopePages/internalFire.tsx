@@ -1,4 +1,4 @@
-function InternalFire() {
+function InternalFire(): JSX.Element {
   return <></>;
 }
 

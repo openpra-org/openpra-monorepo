@@ -21,17 +21,18 @@ import {
 } from "@elastic/eui";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
-import { toTitleCase, tokenizePath } from "../../../utils/StringUtils";
+import { ToTitleCase, tokenizePath } from "../../../utils/StringUtils";
 import { ContextAddButton } from "../buttons/contextAddButton";
 import { WorkspaceSelectorMenu } from "./WorkspaceSelectorMenu";
+import { EuiBreadcrumb } from "@elastic/eui/src/components/breadcrumbs";
 
-const RootHeader = () => {
+const RootHeader = (): JSX.Element => {
   const navigate = useNavigate();
 
-  const createBreadcrumbs = (path: string) => {
+  const createBreadcrumbs = (path: string): EuiBreadcrumb[] => {
     const tokens = tokenizePath(path);
     return tokens.map((item, i) => ({
-      text: toTitleCase(item),
+      text: ToTitleCase(item),
       style: { fontWeight: 500 },
       onClick: (e: any): void => {
         e.preventDefault();
@@ -50,7 +51,7 @@ const RootHeader = () => {
     }
   }, []);
 
-  const renderBreadcrumbs = () => (
+  const renderBreadcrumbs = (): JSX.Element => (
     <EuiHeaderBreadcrumbs
       aria-label="Navigation Breadcrumbs"
       data-testid="breadcrumbs"
@@ -116,7 +117,7 @@ const RootHeader = () => {
   );
 };
 export { RootHeader };
-const HeaderUserMenu = () => {
+const HeaderUserMenu = (): JSX.Element => {
   const navigate = useNavigate();
 
   const headerUserPopoverId = useGeneratedHtmlId({
@@ -193,7 +194,7 @@ const HeaderUserMenu = () => {
   );
 };
 
-const HeaderAppMenu = () => {
+const HeaderAppMenu = (): JSX.Element => {
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
   const headerAppKeyPadMenuId = useGeneratedHtmlId({
     prefix: "headerAppKeyPadMenu",

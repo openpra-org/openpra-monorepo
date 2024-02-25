@@ -44,7 +44,7 @@ function ButtonWithPopover({
   popoverProps,
   confirmDiscard,
   ...rest
-}: ButtonWithPopoverProps) {
+}: ButtonWithPopoverProps): JSX.Element {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const togglePopover = (): void => {
     setIsPopoverOpen((isPopoverOpen) => !isPopoverOpen);
@@ -143,7 +143,7 @@ export type ButtonWithClosablePopoverProps = {
 } & ButtonWithPopoverProps;
 export function ButtonWithClosablePopover(
   props: ButtonWithClosablePopoverProps,
-) {
+): JSX.Element {
   const [forceClose, setForceClose] = useState(false);
 
   const { children, closeProp, popoverExtra, ...rest } = props;
@@ -153,7 +153,7 @@ export function ButtonWithClosablePopover(
     }
   }, [forceClose]);
 
-  const modifiedPopoverContent = () => (
+  const modifiedPopoverContent = (): React.ReactElement => (
     <>
       {React.Children.map(children, (child) => {
         if (!child) {

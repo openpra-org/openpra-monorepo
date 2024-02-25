@@ -14,7 +14,7 @@ function WorkFlowEdge({
   targetPosition,
   style,
   markerEnd,
-}: EdgeProps) {
+}: EdgeProps): JSX.Element {
   // see the hook for implementation details
   // onClick adds a node in between the nodes that are connected by this edge
   const onClick = UseEdgeClick(id);

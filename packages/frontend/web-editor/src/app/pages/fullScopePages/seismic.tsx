@@ -1,4 +1,4 @@
-function Seismic() {
+function Seismic(): JSX.Element {
   return <></>;
 }
 

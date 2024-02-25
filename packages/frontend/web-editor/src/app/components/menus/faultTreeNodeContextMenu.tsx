@@ -26,7 +26,7 @@ function FaultTreeNodeContextMenu({
   right,
   bottom,
   ...props
-}: treeNodeContextMenuProps) {
+}: treeNodeContextMenuProps): JSX.Element {
   const { handleContextMenuClick } = UseFaultTreeContextMenuClick(id);
   return (
     <EuiKeyPadMenu

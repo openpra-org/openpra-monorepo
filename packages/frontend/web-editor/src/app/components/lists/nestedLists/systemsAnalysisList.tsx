@@ -5,7 +5,7 @@ import {
 } from "shared-types/src/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function SystemsAnalysisList() {
+function SystemsAnalysisList(): JSX.Element {
   return (
     <NestedModelList
       getNestedEndpoint={GetSystemsAnalysis}

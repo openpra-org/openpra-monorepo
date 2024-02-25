@@ -61,11 +61,11 @@ export type ModelProps = {
   label: LabelJSON;
   faultTrees: FaultTreeProps[];
 };
-export async function loadModel() {
+export async function loadModel(): Promise<ModelProps> {
   return getModelFixture();
 }
 
-function ExternalHazardsPage() {
+function ExternalHazardsPage(): JSX.Element {
   return (
     <Routes>
       <Route path="" element={<ExternalHazardsList />} />

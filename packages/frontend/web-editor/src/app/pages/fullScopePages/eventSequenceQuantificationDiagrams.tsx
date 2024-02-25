@@ -1,6 +1,6 @@
 import { EventSequenceQuantificationDiagramList } from "../../components/lists/nestedLists/eventSequenceQunatificationDiagramList";
 
-function EventSequenceQuantificationDiagrams() {
+function EventSequenceQuantificationDiagrams(): JSX.Element {
   return <EventSequenceQuantificationDiagramList />;
 }
 

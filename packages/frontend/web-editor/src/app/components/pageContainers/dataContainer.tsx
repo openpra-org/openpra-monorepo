@@ -2,7 +2,7 @@ import { Outlet } from "react-router-dom";
 import { EuiPageTemplate } from "@elastic/eui";
 import { DataSidenav } from "../sidenavs/dataSidenav";
 
-function DataContainer() {
+function DataContainer(): JSX.Element {
   return (
     <EuiPageTemplate
       panelled={false}

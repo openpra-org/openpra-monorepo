@@ -21,7 +21,7 @@ type TreeItem = {
   icon?: JSX.Element;
   callback?: () => {};
 };
-function DataSidenav() {
+function DataSidenav(): JSX.Element {
   const { euiTheme } = useEuiTheme();
 
   const createTreeItem = (label: string, data = {}, depth = 0): TreeItem => {
@@ -153,7 +153,7 @@ function DataSidenav() {
     items: TreeItem[],
     i: number,
     forceTreeView = false,
-  ) => {
+  ): JSX.Element => {
     //TODO
     if (forceTreeView) {
       const style = {
@@ -210,7 +210,7 @@ function DataSidenav() {
 
   const treeItems = [parameterEstimates];
 
-  const createTreeViews = (items = treeItems) => {
+  const createTreeViews = (items = treeItems): JSX.Element[] => {
     const viewItems: JSX.Element[] = [];
     items.forEach((item, i) => {
       viewItems.push(

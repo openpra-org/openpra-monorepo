@@ -5,7 +5,7 @@ import {
 } from "shared-types/src/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function MechanisticSourceTermList() {
+function MechanisticSourceTermList(): JSX.Element {
   return (
     <NestedModelList
       getNestedEndpoint={GetMechanisticSourceTerm}

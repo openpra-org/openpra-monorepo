@@ -11,7 +11,7 @@ import { GenericListItem } from "../GenericListItem";
 import { GenericItemList } from "../GenericItemList";
 
 //grabs the model List
-async function fetchModelList() {
+async function fetchModelList(): Promise<ExternalHazardsModel[]> {
   try {
     return await GetExternalHazards(ApiManager.getCurrentUser().user_id);
   } catch (error) {
@@ -63,7 +63,7 @@ const getFixtures = async (): Promise<JSX.Element[]> => {
   }
 };
 
-function ExternalHazardsList() {
+function ExternalHazardsList(): JSX.Element {
   const [genericListItems, setGenericListItems] = useState<JSX.Element[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

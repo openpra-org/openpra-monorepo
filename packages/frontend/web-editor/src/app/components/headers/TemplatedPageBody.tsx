@@ -18,7 +18,7 @@ function TemplatedPageBody({
   sectionProps,
   headerProps,
   ...rest
-}: TemplatedPageBodyProps) {
+}: TemplatedPageBodyProps): JSX.Element {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.l;
   const isPanelled = panelled === undefined ? true : panelled;
   const width =

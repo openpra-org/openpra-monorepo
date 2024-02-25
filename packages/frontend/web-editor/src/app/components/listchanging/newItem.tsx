@@ -25,7 +25,7 @@ export type NewItemProps = {
 };
 
 //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
-function NewItem(props: NewItemProps) {
+function NewItem(props: NewItemProps): JSX.Element {
   //grabbing the props
   const { title, users, toggleBox } = props;
 
@@ -131,7 +131,7 @@ function NewItem(props: NewItemProps) {
             searchable
             singleSelection={false}
           >
-            {(list, search) => (
+            {(list, search): JSX.Element => (
               <div>
                 {search}
                 {list}

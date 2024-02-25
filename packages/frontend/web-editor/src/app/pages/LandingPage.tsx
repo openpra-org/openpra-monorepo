@@ -8,7 +8,7 @@ import {
   useEuiTheme,
 } from "@elastic/eui";
 import { AuthCard } from "../components/cards/authCard";
-function LoginPage() {
+function LoginPage(): JSX.Element {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
   const textCss = [useEuiPaddingCSS("horizontal").m];
   const containterCss = [useEuiPaddingCSS().m];

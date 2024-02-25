@@ -1,6 +1,6 @@
 import { InitiatingEventsList } from "../../components/lists/nestedLists/initiatingEventsList";
 
-function InitiatingEvents() {
+function InitiatingEvents(): JSX.Element {
   return <InitiatingEventsList />;
 }
 

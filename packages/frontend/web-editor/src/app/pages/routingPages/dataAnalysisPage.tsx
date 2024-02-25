@@ -6,7 +6,7 @@ import { TrainUA } from "../dataPages/trainUA";
 import { Ccf } from "../dataPages/ccf";
 import { DataContainer } from "../../components/pageContainers/dataContainer";
 
-function DataPage() {
+function DataPage(): JSX.Element {
   return (
     //routes
     <Routes>

@@ -1,6 +1,6 @@
 import { DataTable } from "./templatetable/dataTable";
 
-function SpecialEventsTable() {
+function SpecialEventsTable(): JSX.Element {
   const rows = [
     {
       id: "1",

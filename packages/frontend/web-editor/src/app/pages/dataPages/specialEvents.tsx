@@ -3,7 +3,7 @@
 import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
 import { SpecialEventsTable } from "../../components/tables/specialEventsTable";
 
-function SpecialEvents() {
+function SpecialEvents(): JSX.Element {
   return (
     <TemplatedPageBody
       headerProps={{

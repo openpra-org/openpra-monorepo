@@ -34,11 +34,11 @@ export type GenericListItemProps = {
 
 /**
  *
- * @param id takes in the id number of the objecty
- * @param path the path that the list item will send the user to after clicked
- * @param label this is an optional prop that passes a labelJSON
+ * @param id - takes in the id number of the objecty
+ * @param path - the path that the list item will send the user to after clicked
+ * @param label - this is an optional prop that passes a labelJSON
  */
-function GenericListItem(props: GenericListItemProps) {
+function GenericListItem(props: GenericListItemProps): JSX.Element {
   //grabs the props
   const { label, id, path } = props;
 

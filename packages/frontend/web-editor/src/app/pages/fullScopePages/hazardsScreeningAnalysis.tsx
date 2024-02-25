@@ -1,4 +1,4 @@
-function HazardsScreeningAnalysis() {
+function HazardsScreeningAnalysis(): JSX.Element {
   return <></>;
 }
 

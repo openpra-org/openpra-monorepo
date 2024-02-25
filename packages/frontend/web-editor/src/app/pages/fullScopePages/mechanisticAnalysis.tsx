@@ -1,6 +1,6 @@
 import { MechanisticSourceTermList } from "../../components/lists/nestedLists/mechanisticSourceTermList";
 
-function MechanisticAnalysis() {
+function MechanisticAnalysis(): JSX.Element {
   return <MechanisticSourceTermList />;
 }
 

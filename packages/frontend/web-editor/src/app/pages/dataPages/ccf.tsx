@@ -2,7 +2,7 @@
 import { CcfTable } from "../../components/tables/ccfTable";
 import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
 
-function Ccf() {
+function Ccf(): JSX.Element {
   return (
     <TemplatedPageBody
       headerProps={{

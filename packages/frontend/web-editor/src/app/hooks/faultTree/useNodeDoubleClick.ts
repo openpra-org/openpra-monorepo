@@ -14,7 +14,9 @@ import { GenerateUUID } from "../../../utils/treeUtils";
  */
 // this hook implements the logic for double click on any node
 // on double click on node: create a new basic event child node or otherwise specified action
-function UseNodeDoubleClick(id: NodeProps["id"]) {
+function UseNodeDoubleClick(id: NodeProps["id"]): {
+  handleNodeDoubleClick: (nodeType: React.MouseEvent) => void;
+} {
   const { setEdges, setNodes, getNodes, getEdges, getNode } = useReactFlow();
 
   const handleNodeDoubleClick = useCallback(

@@ -1,6 +1,6 @@
 import { GlobalParametersList } from "../../components/lists/globalParametersList";
 import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
-function BasicEvents() {
+function BasicEvents(): JSX.Element {
   return (
     <TemplatedPageBody
       headerProps={{

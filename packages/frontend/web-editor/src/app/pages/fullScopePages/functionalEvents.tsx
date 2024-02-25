@@ -1,6 +1,6 @@
 import { FunctionalEventsList } from "../../components/lists/nestedLists/functionalEventsList";
 
-function FunctionalEvents() {
+function FunctionalEvents(): JSX.Element {
   return <FunctionalEventsList />;
 }
 

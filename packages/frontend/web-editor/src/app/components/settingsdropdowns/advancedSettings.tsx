@@ -40,7 +40,7 @@ const buttonContent = (
 );
 
 //returns the advanced settings menu, which is a drop down with a few settings
-function AdvancedSettings() {
+function AdvancedSettings(): JSX.Element {
   //setting the value of the overview
   const [overviewValue, setOverviewValue] = useState("");
 
@@ -55,7 +55,7 @@ function AdvancedSettings() {
   ];
 
   //part of changing the value in the dropdown menu
-  const onChange = (e: any) => {
+  const onChange = (e: any): void => {
     setOverviewValue(e.target.value);
   };
 
@@ -89,7 +89,7 @@ function AdvancedSettings() {
                   id={basicSelectId}
                   options={options}
                   value={overviewValue}
-                  onChange={(e) => {
+                  onChange={(e): void => {
                     onChange(e);
                   }}
                   aria-label="Use aria labels when no actual label is in use"

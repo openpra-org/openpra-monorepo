@@ -11,10 +11,10 @@ const SettingsAccordian = ({
   children: JSX.Element[] | JSX.Element;
   buttonContent: JSX.Element;
   initial?: boolean;
-}) => {
+}): JSX.Element => {
   const [isOpen, setIsOpen] = useState(initial);
 
-  const onToggle = () => {
+  const onToggle = (): void => {
     setIsOpen(!isOpen);
   };
 

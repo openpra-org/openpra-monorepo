@@ -1,4 +1,4 @@
-function OtherHazards() {
+function OtherHazards(): JSX.Element {
   return <></>;
 }
 

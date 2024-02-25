@@ -19,7 +19,7 @@ import {
 } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 
-import { toTitleCase } from "../../../utils/StringUtils";
+import { ToTitleCase } from "../../../utils/StringUtils";
 
 export type NestedItemFormProps = {
   itemName: string;
@@ -48,7 +48,7 @@ function NestedModelActionForm({
   onSuccess,
   onFail,
   id,
-}: NestedItemFormProps) {
+}: NestedItemFormProps): JSX.Element {
   //setting up initial values depending on what has been send, if init form values are passed its assumed to be updating instead of adding
   const formInitials = initialFormValues
     ? initialFormValues
@@ -58,7 +58,7 @@ function NestedModelActionForm({
   const [typedModel, setTypedModel] = useState(formInitials);
 
   //Handles the click for the submit button, functionality depends on whether initform values are passed, indicating an update
-  const handleAction = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAction = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
 
     if (typedModel.label.name != "") {
@@ -90,8 +90,8 @@ function NestedModelActionForm({
   };
 
   //const formTouched = label.name !== DEFAULT_LABEL_JSON.name || label.description !== DEFAULT_LABEL_JSON.description;
-  const actionLabel = toTitleCase(action);
-  const itemLabel = toTitleCase(itemName);
+  const actionLabel = ToTitleCase(action);
+  const itemLabel = ToTitleCase(itemName);
   return (
     <>
       {!noHeader && (
@@ -120,7 +120,7 @@ function NestedModelActionForm({
                 compressed
                 placeholder={initialFormValues?.label.name}
                 value={typedModel.label.name}
-                onChange={(e) => {
+                onChange={(e): void => {
                   setTypedModel({
                     ...typedModel,
                     label: {
@@ -145,7 +145,7 @@ function NestedModelActionForm({
             compressed
             placeholder={initialFormValues?.label.description}
             value={typedModel.label.description}
-            onChange={(e) => {
+            onChange={(e): void => {
               setTypedModel({
                 ...typedModel,
                 label: {

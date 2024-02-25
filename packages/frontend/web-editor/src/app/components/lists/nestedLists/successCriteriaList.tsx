@@ -5,7 +5,7 @@ import {
 } from "shared-types/src/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function SuccessCriteriaList() {
+function SuccessCriteriaList(): JSX.Element {
   return (
     <NestedModelList
       getNestedEndpoint={GetSuccessCriteria}

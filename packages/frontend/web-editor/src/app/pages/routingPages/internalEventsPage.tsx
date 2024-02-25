@@ -57,7 +57,7 @@ export type ModelProps = {
   label: LabelJSON;
   faultTrees: FaultTreeProps[];
 };
-export async function loadModel() {
+export async function loadModel(): Promise<ModelProps> {
   return getModelFixture();
 }
 
@@ -65,7 +65,7 @@ export async function loadModel() {
 //   return TypedModelApiManager.getInternalEvents(ApiManager.getCurrentUser().user_id)
 // }
 
-function InternalEventsPage() {
+function InternalEventsPage(): JSX.Element {
   return (
     <Routes>
       <Route

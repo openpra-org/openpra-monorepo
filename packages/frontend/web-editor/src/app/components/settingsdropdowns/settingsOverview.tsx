@@ -41,7 +41,7 @@ const buttonContent = (
 );
 
 //this page in theory changes the diagram on the voerview page, but again, cant even remotely test right now so its mostly dummied out
-function SettingsOverview() {
+function SettingsOverview(): JSX.Element {
   const [overviewValue, setOverviewValue] = useState("");
 
   const basicSelectId = useGeneratedHtmlId({ prefix: "basicSelect" });
@@ -53,7 +53,7 @@ function SettingsOverview() {
     { value: "bayesianNetwork", text: "Bayesian Network" },
   ];
 
-  const onChange = (e: any) => {
+  const onChange = (e: any): void => {
     setOverviewValue(e.target.value);
   };
 
@@ -84,7 +84,7 @@ function SettingsOverview() {
                       options={options}
                       value={overviewValue}
                       data-testid="selectDiagram"
-                      onChange={(e) => {
+                      onChange={(e): void => {
                         onChange(e);
                       }}
                       aria-label="Use aria labels when no actual label is in use"

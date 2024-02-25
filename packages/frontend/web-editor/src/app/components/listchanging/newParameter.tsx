@@ -17,7 +17,7 @@ export type NewParameterProps = {
 };
 
 //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
-function NewParameter(props: NewParameterProps) {
+function NewParameter(props: NewParameterProps): JSX.Element {
   //this is to make sure the new thing gets set
   // const [addNewVisible, setAddNewVisible] = useState(false);
 

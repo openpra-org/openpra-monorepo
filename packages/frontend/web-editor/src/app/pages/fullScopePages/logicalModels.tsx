@@ -1,4 +1,4 @@
-function LogicalModels() {
+function LogicalModels(): JSX.Element {
   return <></>;
 }
 

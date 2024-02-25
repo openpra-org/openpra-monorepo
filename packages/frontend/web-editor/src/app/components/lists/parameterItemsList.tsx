@@ -8,7 +8,7 @@ import {
 } from "@elastic/eui";
 import { useState } from "react";
 
-function ParameterItemsList() {
+function ParameterItemsList(): JSX.Element {
   //state to toggle the delete menu
   const [deleteVisible, setDeleteVisible] = useState(false);
 

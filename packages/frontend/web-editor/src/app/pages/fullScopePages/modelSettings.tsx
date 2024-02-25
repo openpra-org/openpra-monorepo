@@ -4,7 +4,7 @@ import { SettingsOverview } from "../../components/settingsdropdowns/settingsOve
 import { AdvancedSettings } from "../../components/settingsdropdowns/advancedSettings";
 import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
 
-function ModelSettings() {
+function ModelSettings(): JSX.Element {
   return (
     <TemplatedPageBody
       panelled={false}

@@ -1,6 +1,6 @@
 import { TemplatedPageHeader } from "../../components/headers/TemplatedPageHeader";
 
-function CcfGroups() {
+function CcfGroups(): JSX.Element {
   return (
     <TemplatedPageHeader
       pageTitle="Common Cause Failure Groups"

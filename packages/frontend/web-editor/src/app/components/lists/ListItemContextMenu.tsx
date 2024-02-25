@@ -21,7 +21,7 @@ import { GenericListItemProps } from "./GenericListItem";
 export type ListItemContextMenuProps = {} & GenericListItemProps &
   Omit<ItemFormProps, "action">;
 
-const ListItemContextMenu = (props: ListItemContextMenuProps) => {
+const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
   //TODO: Make this work correctly, the prop is bad
   const {
     id,
@@ -144,7 +144,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps) => {
               id={embeddedCodeSwitchId__1}
               label="Snapshot data"
               checked={true}
-              onChange={() => {}}
+              onChange={(): void => {}}
             />
           </EuiFormRow>
           <EuiFormRow
@@ -156,7 +156,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps) => {
               id={embeddedCodeSwitchId__2}
               label="Current time range"
               checked={true}
-              onChange={() => {}}
+              onChange={(): void => {}}
             />
           </EuiFormRow>
           <EuiSpacer />

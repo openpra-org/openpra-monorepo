@@ -1,4 +1,4 @@
-function ExternalFlooding() {
+function ExternalFlooding(): JSX.Element {
   return <></>;
 }
 

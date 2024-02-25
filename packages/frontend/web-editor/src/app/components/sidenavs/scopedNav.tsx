@@ -25,7 +25,7 @@ export type scopedNavProps = {
   type: string;
 };
 
-function ScopedNav(props: scopedNavProps) {
+function ScopedNav(props: scopedNavProps): JSX.Element {
   const { type } = props;
 
   const { euiTheme } = useEuiTheme();
@@ -453,7 +453,7 @@ function ScopedNav(props: scopedNavProps) {
     items: TreeItem[],
     i: number,
     forceTreeView = false,
-  ) => {
+  ): JSX.Element => {
     //TODO
     if (forceTreeView) {
       const style = {
@@ -547,7 +547,7 @@ function ScopedNav(props: scopedNavProps) {
   }
 
   treeItems.push(settings);
-  const createTreeViews = (items = treeItems) => {
+  const createTreeViews = (items = treeItems): JSX.Element[] => {
     const viewItems: JSX.Element[] = [];
     items.forEach((item, i) => {
       viewItems.push(

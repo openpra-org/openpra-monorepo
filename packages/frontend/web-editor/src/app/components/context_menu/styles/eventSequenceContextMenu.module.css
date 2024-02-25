@@ -3,3 +3,13 @@
     height: 50px;
     width: 70px;
 }
+
+.context_menu_container {
+    display: inline-block !important;
+    white-space: nowrap !important;
+    overflow-x: scroll;
+}
+
+.context_menu_container > li {
+    display: inline-block !important;
+}

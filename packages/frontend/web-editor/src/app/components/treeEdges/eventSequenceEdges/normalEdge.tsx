@@ -1,6 +1,8 @@
+import { memo } from "react";
 import { EdgeProps, getBezierPath } from "reactflow";
 import { UseEdgeClick } from "../../../hooks/eventSequence/useEdgeClick";
 import styles from "./styles/edgeType.module.css";
+import { EventSequenceTypeProps } from "./eventSequenceEdgeType";
 
 /**
  * Normal Edge between two nodes
@@ -13,39 +15,34 @@ import styles from "./styles/edgeType.module.css";
  * @param targetPosition - target position
  * @param style - styling of edge
  * @param markerEnd - marker
+ * @param data - data attributes of edge
  * @returns JSX Element for the edge
  */
-function NormalEdge({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  style,
-  markerEnd,
-}: EdgeProps): JSX.Element {
-  const onClick = UseEdgeClick(id);
-
-  const [edgePath, edgeCenterX, edgeCenterY] = getBezierPath({
+const NormalEdge = memo(
+  ({
+    id,
     sourceX,
     sourceY,
-    sourcePosition,
     targetX,
     targetY,
+    sourcePosition,
     targetPosition,
-  });
+    style,
+    markerEnd,
+    data = {},
+  }: EdgeProps<EventSequenceTypeProps>): JSX.Element => {
+    const onClick = UseEdgeClick(id);
+    const stylesMap = styles as Record<string, string>;
+    const [edgePath, edgeCenterX, edgeCenterY] = getBezierPath({
+      sourceX,
+      sourceY,
+      sourcePosition,
+      targetX,
+      targetY,
+      targetPosition,
+    });
 
-  return (
-    <>
-      <path
-        id={id}
-        style={style}
-        className={styles.edgePath}
-        d={edgePath}
-        markerEnd={markerEnd}
-      />
+    const edgeBtn = (
       <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
         <rect
           onClick={onClick}
@@ -55,14 +52,29 @@ function NormalEdge({
           ry={2}
           rx={2}
           height={10}
-          className={styles.edgeButton}
+          className={stylesMap.edgeButton}
         />
-        <text className={styles.edgeButtonText} y={3} x={-3}>
+        <text className={stylesMap.edgeButtonText} y={3} x={-3}>
           +
         </text>
       </g>
-    </>
-  );
-}
+    );
+
+    return (
+      <>
+        <path
+          id={id}
+          style={style}
+          className={
+            data.tentative ? stylesMap.placeholderPath : stylesMap.edgePath
+          }
+          d={edgePath}
+          markerEnd={markerEnd}
+        />
+        {data.tentative ? <></> : edgeBtn}
+      </>
+    );
+  },
+);
 
 export { NormalEdge };

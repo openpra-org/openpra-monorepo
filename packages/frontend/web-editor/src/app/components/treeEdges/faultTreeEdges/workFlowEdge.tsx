@@ -18,6 +18,7 @@ function WorkFlowEdge({
   // see the hook for implementation details
   // onClick adds a node in between the nodes that are connected by this edge
   const onClick = UseEdgeClick(id);
+  const stylesMap = styles as Record<string, string>;
 
   const [edgePath, edgeCenterX, edgeCenterY] = getBezierPath({
     sourceX,
@@ -33,22 +34,22 @@ function WorkFlowEdge({
       <path
         id={id}
         style={style}
-        className={styles.edgePath}
+        className={stylesMap.edgePath}
         d={edgePath}
         markerEnd={markerEnd}
       />
       <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
         <rect
           onClick={onClick}
-          x={-10}
-          y={-10}
-          width={20}
-          ry={4}
-          rx={4}
-          height={20}
-          className={styles.edgeButton}
+          x={-5}
+          y={-5}
+          width={10}
+          ry={2}
+          rx={2}
+          height={10}
+          className={stylesMap.edgeButton}
         />
-        <text className={styles.edgeButtonText} y={5} x={-4}>
+        <text className={stylesMap.edgeButtonText} y={3.5} x={-4}>
           +
         </text>
       </g>

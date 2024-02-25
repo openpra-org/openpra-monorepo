@@ -5,7 +5,7 @@ import { GraphEdge } from "./GraphEdge";
  * Graph type with list of GraphNodes and GraphEdges
  */
 export type Graph = {
-  nodes: GraphNode[];
+  nodes: GraphNode<object>[];
   edges: GraphEdge[];
 };
 

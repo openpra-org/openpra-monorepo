@@ -1,6 +1,8 @@
+import { memo } from "react";
 import { getBezierPath, EdgeProps } from "reactflow";
 import { UseEdgeClick } from "../../../hooks/eventSequence/useEdgeClick";
 import styles from "./styles/edgeType.module.css";
+import { EventSequenceTypeProps } from "./eventSequenceEdgeType";
 
 /**
  * Functional Edge (having a label Yes/No)
@@ -14,40 +16,35 @@ import styles from "./styles/edgeType.module.css";
  * @param style - styling of edge
  * @param markerEnd - marker
  * @param label - label of edge
+ * @param data - data attributes of edge
  * @returns JSX Element for the edge
  */
-function FunctionalEdge({
-  id,
-  sourceX,
-  sourceY,
-  targetX,
-  targetY,
-  sourcePosition,
-  targetPosition,
-  style,
-  markerEnd,
-  label,
-}: EdgeProps): JSX.Element {
-  const onClick = UseEdgeClick(id);
-
-  const [edgePath, edgeCenterX, edgeCenterY] = getBezierPath({
+const FunctionalEdge = memo(
+  ({
+    id,
     sourceX,
     sourceY,
-    sourcePosition,
     targetX,
     targetY,
+    sourcePosition,
     targetPosition,
-  });
+    style,
+    markerEnd,
+    label,
+    data = {},
+  }: EdgeProps<EventSequenceTypeProps>): JSX.Element => {
+    const onClick = UseEdgeClick(id);
+    const stylesMap = styles as Record<string, string>;
+    const [edgePath, edgeCenterX, edgeCenterY] = getBezierPath({
+      sourceX,
+      sourceY,
+      sourcePosition,
+      targetX,
+      targetY,
+      targetPosition,
+    });
 
-  return (
-    <>
-      <path
-        id={id}
-        style={style}
-        className={styles.edgePath}
-        d={edgePath}
-        markerEnd={markerEnd}
-      />
+    const edgeBtnWithLabel = (
       <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
         <rect
           onClick={onClick}
@@ -57,17 +54,31 @@ function FunctionalEdge({
           ry={2}
           rx={2}
           height={10}
-          className={styles.edgeButton}
+          className={stylesMap.edgeButton}
         />
-        <text className={styles.edgeButtonText} y={3} x={-3}>
+        <text className={stylesMap.edgeButtonText} y={3} x={-3}>
           +
         </text>
-        <text className={styles.edgeButtonText} y={3} x={10}>
+        <text className={stylesMap.edgeButtonText} y={3} x={10}>
           {label}
         </text>
       </g>
-    </>
-  );
-}
+    );
+    return (
+      <>
+        <path
+          id={id}
+          style={style}
+          className={
+            data.tentative ? stylesMap.placeholderPath : stylesMap.edgePath
+          }
+          d={edgePath}
+          markerEnd={markerEnd}
+        />
+        {data.tentative ? <></> : edgeBtnWithLabel}
+      </>
+    );
+  },
+);
 
 export { FunctionalEdge };

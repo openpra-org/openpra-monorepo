@@ -20,4 +20,9 @@ const ESNodeTypes: NodeTypes = {
   end: EndStateNode,
 };
 
+export type EventSequenceNodeProps = {
+  tentative?: boolean;
+  isDeleted?: boolean;
+};
+
 export { ESNodeTypes };

@@ -13,7 +13,7 @@ export const STORAGE_STATE = path.join(__dirname, "playwright/.auth/user.json");
 
 // eslint-disable-next-line import/no-default-export
 export default defineConfig({
-  ...nxE2EPreset(__filename, { testDir: "./e2e" }),
+  ...nxE2EPreset(__filename, { testDir: "./tests" }),
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     baseURL,

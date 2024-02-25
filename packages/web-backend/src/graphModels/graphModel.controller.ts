@@ -15,7 +15,7 @@ export class GraphModelController {
    * @returns a promise with the newly created graph model
    */
   @Post("/event-sequence-diagram-graph")
-  async createEventSequenceDiagramGraph(
+  async saveEventSequenceDiagramGraph(
     @Body() data: Partial<EventSequenceDiagramGraph>,
   ): Promise<BaseGraphDocument> {
     return this.graphModelService.saveEventSequenceDiagramGraph(data);

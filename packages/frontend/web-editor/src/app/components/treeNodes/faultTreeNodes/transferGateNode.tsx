@@ -2,8 +2,8 @@ import React, { memo } from "react";
 import { Handle, Position, NodeProps } from "reactflow";
 import cx from "classnames";
 
-import { NodeTypes } from "../eventSequenceNodes/icons/interfaces/nodeProps";
-import { NodeIcon } from "../eventSequenceNodes/icons/nodeIcon";
+import { NodeTypes } from "../icons/interfaces/nodeProps";
+import { NodeIcon } from "../icons/nodeIcon";
 import styles from "./styles/nodeTypes.module.css";
 
 /**

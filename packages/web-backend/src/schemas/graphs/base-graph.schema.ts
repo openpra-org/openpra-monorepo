@@ -12,7 +12,7 @@ export class BaseGraph {
   _id: mongoose.Types.ObjectId;
 
   @Prop()
-  nodes: GraphNode[];
+  nodes: GraphNode<object>[];
 
   @Prop()
   edges: GraphEdge[];

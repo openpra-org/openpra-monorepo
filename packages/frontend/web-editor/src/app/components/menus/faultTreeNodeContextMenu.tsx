@@ -6,8 +6,8 @@ import {
   useGeneratedHtmlId,
 } from "@elastic/eui";
 import { UseFaultTreeContextMenuClick } from "../../hooks/faultTree/useFaultTreeContextMenuClick";
-import { NodeTypes } from "../treeNodes/eventSequenceNodes/icons/interfaces/nodeProps";
-import { NodeIcon } from "../treeNodes/eventSequenceNodes/icons/nodeIcon";
+import { NodeTypes } from "../treeNodes/icons/interfaces/nodeProps";
+import { NodeIcon } from "../treeNodes/icons/nodeIcon";
 import styles from "./styles/treeNodeStyles.module.css";
 
 export type treeNodeContextMenuProps = {

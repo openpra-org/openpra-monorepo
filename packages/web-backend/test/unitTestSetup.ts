@@ -1,6 +1,6 @@
 import { MongoMemoryServer } from 'mongodb-memory-server';
 
-//gloabl variable to store the mongo server
+//global variable to store the mongo server
 let mongoServer: MongoMemoryServer;
 
 

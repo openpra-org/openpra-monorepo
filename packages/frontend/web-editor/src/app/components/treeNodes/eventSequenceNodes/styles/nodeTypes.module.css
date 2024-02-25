@@ -1,21 +1,22 @@
 .node {
     border: 1px solid #0984e3;
-    border-radius: 4px;
+    border-radius: 8px;
     background-color: #fff;
-    box-shadow: rgba(0, 0, 0, 0.08) 0px 4px 12px;
+    box-shadow: rgba(0, 0, 0, 0.08) 0 4px 12px;
     padding: 12px;
-    width: 120px;
+    width: 70px;
     height: 50px;
+    font-size: 10px;
     text-align: center;
-    font-weight: bold;
     color: #0984e3;
     cursor: pointer;
     line-height: 1.2;
 }
 
-.selected-node-border {
-    border: 1px dashed #0984e3;
-    border-radius: 4px;
+.node_container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .node:hover {
@@ -36,4 +37,168 @@
     border: 1px dashed #bbb;
     color: #bbb;
     box-shadow: none;
+}
+
+.line {
+  margin-top: -10px;
+  position: relative;
+  width: 100%;
+  height: 1px;
+  background-color: #0984e3;
+}
+
+.description_node {
+    padding-top: 17.5px;
+    width: 75px;
+    border-radius: 50%;
+}
+
+.end_state_node_container {
+    display: inline-block;
+    position: relative;
+    width: 50px;
+    height: 50px;
+}
+
+.end_state_node {
+    border: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    clip-path: polygon(
+            25% 0,
+            75% 0,
+            100% 25%,
+            100% 75%,
+            75% 100%,
+            25% 100%,
+            0 75%,
+            0 25%
+    );
+}
+
+.end_state_node_border {
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
+    border: 8px solid #0984e3; /* Border style */
+    clip-path: polygon(
+            25% 0,
+            75% 0,
+            100% 25%,
+            100% 75%,
+            75% 100%,
+            25% 100%,
+            0 75%,
+            0 25%
+    );
+}
+
+.functional_node {
+    padding-top: 18px;
+    width: 75px;
+}
+
+
+.inter_state_node_container {
+    display: inline-block;
+    position: relative;
+    width: 65px;
+    height: 50px;
+}
+
+.inter_state_node {
+    border: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding-top: 17.5px;
+    padding-left: 2.5px;
+    clip-path: polygon(
+        0 50%,
+        25% 100%,
+        75% 100%,
+        100% 50%,
+        75% 0,
+        25% 0
+    );
+}
+
+.inter_state_node_border {
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
+    border: 14px solid #0984e3; /* Border style */
+    clip-path: polygon(
+        0 50%,
+        25% 100%,
+        75% 100%,
+        100% 50%,
+        75% 0,
+        25% 0
+    );
+}
+
+.undeveloped_node_container {
+    display: inline-block;
+    position: relative;
+    width: 75px;
+    height: 50px;
+}
+
+.undeveloped_node {
+    border: 0;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding-top: 19.5px;
+    padding-left: 6px;
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+.undeveloped_node_border {
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
+    border: 16px solid #0984e3; /* Border style */
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+}
+
+
+.transfer_state_node_container {
+    display: inline-block;
+    position: relative;
+    width: 70px;
+    height: 50px;
+    overflow: hidden;
+}
+
+.transfer_state_node {
+    border: 1px solid #0984e3;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding-top: 12.5px;
+    padding-left: 6px;
+    clip-path: polygon(0% 25%, 50% 25%, 50% 0%, 100% 50%, 50% 100%, 50% 75%, 0% 75%);
+}
+
+.transfer_state_node_border {
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    width: calc(100% + 1px);
+    height: calc(100% + 2px);
+    border: 16px solid #0984e3; /* Border style */
+    clip-path: polygon(0% 24.5%, 49.5% 24.5%, 49.5% -1%, 102% 50%, 49.5% 101%, 49.5% 75.5%, 0% 75.5%);
 }

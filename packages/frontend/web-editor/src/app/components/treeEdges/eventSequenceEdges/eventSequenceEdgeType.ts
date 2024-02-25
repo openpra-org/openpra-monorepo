@@ -9,4 +9,8 @@ const ESEdgeTypes = {
   functional: FunctionalEdge,
 };
 
+export type EventSequenceTypeProps = {
+  tentative?: boolean;
+};
+
 export { ESEdgeTypes };

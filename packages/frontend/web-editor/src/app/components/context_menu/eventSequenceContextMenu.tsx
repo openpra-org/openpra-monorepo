@@ -1,14 +1,22 @@
-import React from "react";
+import React, { useCallback } from "react";
+import { EuiContextMenu, EuiIcon } from "@elastic/eui";
+import { EuiContextMenuPanelDescriptor } from "@elastic/eui/src/components/context_menu";
+import { EuiContextMenuPanelItemDescriptor } from "@elastic/eui/src/components/context_menu/context_menu";
+import { useReactFlow, Node, NodeProps } from "reactflow";
+import { useParams } from "react-router-dom";
+import { EventSequenceNodeProps } from "../treeNodes/eventSequenceNodes/eventSequenceNodeType";
 import {
-  EuiHorizontalRule,
-  EuiKeyPadMenu,
-  EuiKeyPadMenuItem,
-} from "@elastic/eui";
-import { UseEventSequenceContextMenuClick } from "../../hooks/eventSequence/useContextMenuClick";
-import { NodeTypes } from "../treeNodes/eventSequenceNodes/icons/interfaces/nodeProps";
-import { NodeIcon } from "../treeNodes/eventSequenceNodes/icons/nodeIcon";
+  DeleteEventSequenceNode,
+  StoreEventSequenceDiagramCurrentState,
+  UpdateEventSequenceNode,
+} from "../../../utils/treeUtils";
+import FunctionalNodeIcon from "../../../assets/images/nodeIcons/functionalNodeIcon.svg";
+import DescriptionNodeIcon from "../../../assets/images/nodeIcons/descriptionNodeIcon.svg";
+import IntermediateNodeIcon from "../../../assets/images/nodeIcons/intermediateNodeIcon.svg";
+import EndStateNodeIcon from "../../../assets/images/nodeIcons/endStateNodeIcon.svg";
+import TransferStateNodeIcon from "../../../assets/images/nodeIcons/transferStateNodeIcon.svg";
+import UndevelopedNodeIcon from "../../../assets/images/nodeIcons/undevelopedNodeIcon.svg";
 import { EventSequenceContextMenuOptions } from "./interfaces/eventSequenceContextMenuOptions.interface";
-import styles from "./styles/eventSequenceContextMenu.module.css";
 
 /**
  * @public The context menu with different types of nodes of Event Sequence Diagram
@@ -17,128 +25,153 @@ import styles from "./styles/eventSequenceContextMenu.module.css";
  */
 function EventSequenceContextMenu({
   id,
-  top,
-  left,
-  ...props
+  onClick,
+  isDelete = false,
 }: EventSequenceContextMenuOptions): JSX.Element {
-  const { useHandleContextMenuClick } = UseEventSequenceContextMenuClick(id);
-  return (
-    <EuiKeyPadMenu
-      data-testid="app-menu-content"
-      style={{ width: 310, height: 196 }}
-      {...props}
-    >
-      <EuiKeyPadMenuItem label="Functional">
-        <div
-          className={styles.context_menu_option}
-          onClick={useHandleContextMenuClick}
-          id={"functional"}
-        >
-          <NodeIcon
-            nodeType={NodeTypes.Functional}
-            iconProps={{
-              showText: false,
-              width: "70",
-              height: "60",
-              selected: false,
-            }}
-          />
-        </div>
-      </EuiKeyPadMenuItem>
-      <EuiKeyPadMenuItem label="Description">
-        <div
-          className={styles.context_menu_option}
-          onClick={useHandleContextMenuClick}
-          id={"description"}
-        >
-          <NodeIcon
-            nodeType={NodeTypes.Description}
-            iconProps={{
-              showText: false,
-              width: "80",
-              height: "50",
-              data: {
-                cx: "48%",
-                cy: "50%",
-                rx: "38",
-                ry: "24",
-              },
-              selected: false,
-            }}
-          />
-        </div>
-      </EuiKeyPadMenuItem>
-      <EuiKeyPadMenuItem label="Intermediate">
-        <div
-          className={styles.context_menu_option}
-          onClick={useHandleContextMenuClick}
-          id={"intermediate"}
-        >
-          <NodeIcon
-            nodeType={NodeTypes.Intermediate}
-            iconProps={{
-              showText: false,
-              width: "60",
-              height: "60",
-              selected: false,
-            }}
-          />
-        </div>
-      </EuiKeyPadMenuItem>
-      <EuiHorizontalRule />
-      <EuiKeyPadMenuItem label="Not Developed">
-        <div
-          className={styles.context_menu_option}
-          onClick={useHandleContextMenuClick}
-          id={"undeveloped"}
-        >
-          <NodeIcon
-            nodeType={NodeTypes.Undeveloped}
-            iconProps={{
-              showText: false,
-              width: "60",
-              height: "60",
-              selected: false,
-            }}
-          />
-        </div>
-      </EuiKeyPadMenuItem>
-      <EuiKeyPadMenuItem label="Transfer State">
-        <div
-          className={styles.context_menu_option}
-          onClick={useHandleContextMenuClick}
-          id={"transfer"}
-        >
-          <NodeIcon
-            nodeType={NodeTypes.Transfer}
-            iconProps={{
-              showText: false,
-              width: "60",
-              height: "60",
-              selected: false,
-            }}
-          />
-        </div>
-      </EuiKeyPadMenuItem>
-      <EuiKeyPadMenuItem label="End State">
-        <div
-          className={styles.context_menu_option}
-          onClick={useHandleContextMenuClick}
-          id={"end"}
-        >
-          <NodeIcon
-            nodeType={NodeTypes.End}
-            iconProps={{
-              showText: false,
-              width: "60",
-              height: "60",
-              selected: false,
-            }}
-          />
-        </div>
-      </EuiKeyPadMenuItem>
-      <EuiHorizontalRule />
-    </EuiKeyPadMenu>
+  const { getNode, getNodes, getEdges, setNodes, setEdges } = useReactFlow();
+  const { eventSequenceId } = useParams() as { eventSequenceId: string };
+
+  const onItemClick = useCallback(
+    (id: NodeProps["id"], type: string) => {
+      // we need the parent node object for positioning the new child node
+      const parentNode: Node<EventSequenceNodeProps> | undefined = getNode(id);
+      const currentNodes = getNodes();
+      const currentEdges = getEdges();
+      if (!parentNode) {
+        return;
+      }
+
+      if (
+        parentNode.data.isDeleted === true ||
+        parentNode.data.tentative === true
+      )
+        return;
+
+      // if the event is for delete node, handle it separately
+      if (type === "delete") {
+        const onDeleteState = DeleteEventSequenceNode(
+          parentNode,
+          currentNodes,
+          currentEdges,
+        );
+        if (onDeleteState !== undefined) {
+          setNodes(onDeleteState.nodes);
+          setEdges(onDeleteState.edges);
+          if (onDeleteState.updateState) {
+            StoreEventSequenceDiagramCurrentState(
+              eventSequenceId,
+              onDeleteState.nodes,
+              onDeleteState.edges,
+            );
+          }
+        }
+        onClick && onClick();
+        return;
+      }
+
+      // change child nodes based on the updated type of node
+      parentNode.type = type;
+
+      const updatedState = UpdateEventSequenceNode(
+        parentNode,
+        currentNodes,
+        currentEdges,
+      );
+      if (updatedState !== undefined) {
+        setNodes(
+          updatedState.nodes.map((n) => {
+            if (n.id === parentNode.id) {
+              n.type = type;
+            }
+            return n;
+          }),
+        );
+        setEdges(updatedState.edges);
+        if (updatedState.updateState) {
+          StoreEventSequenceDiagramCurrentState(
+            eventSequenceId,
+            updatedState.nodes,
+            updatedState.edges,
+          );
+        }
+      }
+      onClick && onClick();
+    },
+    [eventSequenceId, getEdges, getNode, getNodes, onClick, setEdges, setNodes],
   );
+
+  const basePanelItems: EuiContextMenuPanelItemDescriptor[] = [
+    {
+      name: "Update node type",
+      icon: <EuiIcon type="wrench" size={"m"} color={"#0984e3"}></EuiIcon>,
+      panel: 1,
+    },
+  ];
+  if (isDelete) {
+    basePanelItems.push({
+      name: "Delete node",
+      icon: <EuiIcon type="trash" size={"m"} color={"#0984e3"}></EuiIcon>,
+      onClick: (): void => {
+        onItemClick(id, "delete");
+      },
+    });
+  }
+
+  const panels: EuiContextMenuPanelDescriptor[] | undefined = [
+    {
+      id: 0,
+      items: basePanelItems,
+    },
+    {
+      id: 1,
+      title: "Node Types",
+      items: [
+        {
+          name: "Functional",
+          icon: <EuiIcon type={FunctionalNodeIcon} size={"l"}></EuiIcon>,
+          onClick: (): void => {
+            onItemClick(id, "functional");
+          },
+        },
+        {
+          name: "Description",
+          icon: <EuiIcon type={DescriptionNodeIcon} size={"l"}></EuiIcon>,
+          onClick: (): void => {
+            onItemClick(id, "description");
+          },
+        },
+        {
+          name: "Intermediate",
+          icon: <EuiIcon type={IntermediateNodeIcon} size={"l"}></EuiIcon>,
+          onClick: (): void => {
+            onItemClick(id, "intermediate");
+          },
+        },
+        {
+          name: "End State",
+          icon: <EuiIcon type={EndStateNodeIcon} size={"l"}></EuiIcon>,
+          onClick: (): void => {
+            onItemClick(id, "end");
+          },
+        },
+        {
+          name: "Transfer State",
+          icon: <EuiIcon type={TransferStateNodeIcon} size={"l"}></EuiIcon>,
+          onClick: (): void => {
+            onItemClick(id, "transfer");
+          },
+        },
+        {
+          name: "Undeveloped",
+          icon: <EuiIcon type={UndevelopedNodeIcon} size={"l"}></EuiIcon>,
+          onClick: (): void => {
+            onItemClick(id, "undeveloped");
+          },
+        },
+      ],
+    },
+  ];
+
+  return <EuiContextMenu initialPanelId={0} panels={panels} size={"s"} />;
 }
 export { EventSequenceContextMenu };

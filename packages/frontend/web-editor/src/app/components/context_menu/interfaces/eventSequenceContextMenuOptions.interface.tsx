@@ -1,5 +1,3 @@
-import { Position } from "reactflow";
-
 /**
  * Represents the properties for the context menu options.
  */
@@ -20,4 +18,8 @@ export type EventSequenceContextMenuOptions = {
    * @eventProperty onClick event of the context menu options
    */
   onClick?: () => void;
+  /**
+   * @param isDelete - show delete context menu option if applicable
+   */
+  isDelete: boolean;
 };

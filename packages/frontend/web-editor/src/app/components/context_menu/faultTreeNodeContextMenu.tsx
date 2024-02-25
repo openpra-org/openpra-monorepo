@@ -1,8 +1,8 @@
 import React from "react";
 import { EuiKeyPadMenu, EuiKeyPadMenuItem } from "@elastic/eui";
 import { UseFaultTreeContextMenuClick } from "../../hooks/faultTree/useFaultTreeContextMenuClick";
-import { NodeIcon } from "../treeNodes/eventSequenceNodes/icons/nodeIcon";
-import { NodeTypes } from "../treeNodes/eventSequenceNodes/icons/interfaces/nodeProps";
+import { NodeIcon } from "../treeNodes/icons/nodeIcon";
+import { NodeTypes } from "../treeNodes/icons/interfaces/nodeProps";
 import styles from "./styles/faultTreeNodeContextMenu.module.css";
 
 export type treeNodeContextMenuProps = {

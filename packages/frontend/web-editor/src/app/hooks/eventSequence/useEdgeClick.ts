@@ -1,8 +1,9 @@
 import { EdgeProps, useReactFlow } from "reactflow";
 import { useParams } from "react-router-dom";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { EventSequenceGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import { EventSequenceState, GenerateUUID } from "../../../utils/treeUtils";
+import {
+  GenerateUUID,
+  StoreEventSequenceDiagramCurrentState,
+} from "../../../utils/treeUtils";
 
 /**
  * Hook for handling click events on edges in a React Flow diagram.
@@ -86,17 +87,7 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
     ];
     setNodes(nodes);
 
-    const eventSequenceCurrentState: EventSequenceGraph = EventSequenceState({
-      eventSequenceId: eventSequenceId,
-      nodes: nodes,
-      edges: edges,
-    });
-
-    void GraphApiManager.storeEventSequence(eventSequenceCurrentState).then(
-      (r: EventSequenceGraph) => {
-        console.log(r);
-      },
-    );
+    StoreEventSequenceDiagramCurrentState(eventSequenceId, nodes, edges);
   };
 }
 

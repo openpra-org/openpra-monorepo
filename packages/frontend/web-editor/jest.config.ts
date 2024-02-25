@@ -12,5 +12,7 @@ export default {
   moduleNameMapper: {
     "^uuid$": require.resolve("uuid"),
   },
-  setupFiles: [ '<rootDir>/src/tests/mocks.js' ]
+  setupFiles: [ '<rootDir>/src/tests/mocks.js' ],
+  collectCoverage: true,
+  coverageDirectory: '../../../coverage/packages/frontend',
 };

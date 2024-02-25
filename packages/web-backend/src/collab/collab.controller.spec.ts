@@ -1,6 +1,6 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import mongoose, { Connection } from "mongoose";
+import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
+import { Test, TestingModule } from "@nestjs/testing";
 import { CollabService } from "./collab.service";
 import { CollabController } from "./collab.controller";
 import { User, UserSchema } from "./schemas/user.schema";
@@ -41,6 +41,13 @@ describe("CollabController", () => {
     await connection.dropDatabase();
   });
 
+  /**
+   * after all tests are done, disconnect from mongoose
+   */
+  afterAll(async () => {
+    await mongoose.disconnect(); //disconnect from database
+  });
+
   describe("CollabController", () => {
     /**
      * Test that the CollabController is defined
@@ -51,7 +58,7 @@ describe("CollabController", () => {
   });
 
   describe("createNewUser", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(collabController.createNewUser).toBeDefined();
     });
     /**
@@ -72,7 +79,7 @@ describe("CollabController", () => {
   });
 
   describe("getUserPreferences", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(collabController.getUserPreferences).toBeDefined();
     });
 
@@ -97,7 +104,7 @@ describe("CollabController", () => {
   });
 
   describe("updateUserPreferences", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(collabController.updateUserPreferences).toBeDefined();
     });
 

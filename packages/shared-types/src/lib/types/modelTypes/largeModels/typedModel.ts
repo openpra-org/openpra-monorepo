@@ -22,7 +22,7 @@ export const DEFAULT_TYPED_MODEL_JSON: TypedModelJSON = {
 };
 
 export default class TypedModel extends BasicModel /** implements Parsable<TypedModelJSONMap, TypedModelJSON> */ {
-  private users: number[];
+  users: number[];
 
   /**
    * @param {TypedModelJSON} obj - dictionary object to parse

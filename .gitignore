@@ -65,6 +65,5 @@ lerna-debug.log*
 .nx/installation
 .nx/cache
 
-
 #don't add coverage folder from web backend
-packages/web-backend/coverage
+**/coverage/**/*

@@ -105,7 +105,7 @@ export class TypedModelService {
   }
 
   /**
-   * method for creating a new internal evnet model in the database
+   * method for creating a new internal event model in the database
    * @param body takes in the model type that is requested in the name
    * @returns promise with the model type
    */
@@ -344,6 +344,7 @@ export class TypedModelService {
   /**
    * deletes an internal event with the given id from a user, and from the database if these is only 1 user
    * @param modelId the id of the internal event to be deleted
+   * @param userId the user for which model is to be deleted
    * @returns the deleted model
    */
   async deleteInternalEvent(
@@ -351,7 +352,6 @@ export class TypedModelService {
     userId: number,
   ): Promise<InternalEventsModel> {
     //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
-    let result;
 
     //query to search based on this field
     const query = { id: Number(modelId) };
@@ -363,32 +363,28 @@ export class TypedModelService {
       },
     };
 
-    while ((result = await this.internalEventsModel.findOne(query))) {
-      if (result.users.length == 1) {
-        return await this.internalEventsModel.findOneAndDelete(query);
-      } else {
-        return await this.internalEventsModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
-      }
+    const result = await this.internalEventsModel.findOne(query);
+    if (result.users.length == 1) {
+      return await this.internalEventsModel.findOneAndDelete(query);
+    } else {
+      return await this.internalEventsModel
+        .findOneAndUpdate(query, updateData, { new: true })
+        .lean();
     }
   }
 
   /**
    * deletes an internal hazard with the given id from a user, and from the database if these is only 1 user
    * @param modelId the id of the internal hazard to be deleted
+   * @param userId the user for whom the model is to be deleted
    * @returns the deleted model
    */
   async deleteInternalHazard(
     modelId: number,
     userId: number,
   ): Promise<InternalHazardsModel> {
-    //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
-    let result;
-
     //query to search based on this field
-    const query = { users: Number(modelId) };
+    const query = { id: Number(modelId) };
 
     //to remove the id from the list
     const updateData = {
@@ -397,32 +393,31 @@ export class TypedModelService {
       },
     };
 
-    while ((result = await this.internalHazardsModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
-        return await this.internalHazardsModel.findOneAndDelete(query);
-      } else {
-        return await this.internalHazardsModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
-      }
+    const result = await this.internalHazardsModel.findOne(query);
+    if (result.users.length == 1) {
+      return await this.internalHazardsModel.findOneAndDelete(query, {
+        new: true,
+      });
+    } else {
+      result.users = result.users.filter((user) => user != userId);
+      return await this.internalHazardsModel
+        .findOneAndUpdate(query, updateData, { new: true })
+        .lean();
     }
   }
 
   /**
    * deletes an external hazard with the given id from a user, and from the database if these is only 1 user
    * @param modelId the id of the external hazard to be deleted
+   * @param userId the id of the user for whom model is to be deleted
    * @returns the deleted model
    */
   async deleteExternalHazard(
     modelId: number,
     userId: number,
   ): Promise<ExternalHazardsModel> {
-    //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
-    let result;
-
     //query to search based on this field
-    const query = { users: Number(modelId) };
+    const query = { id: Number(modelId) };
 
     //to remove the id from the list
     const updateData = {
@@ -430,32 +425,30 @@ export class TypedModelService {
         users: Number(userId),
       },
     };
-    while ((result = await this.externalHazardsModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
-        return await this.externalHazardsModel.findOneAndDelete(query);
-      } else {
-        return await this.externalHazardsModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
-      }
+
+    const result = await this.externalHazardsModel.findOne(query);
+    if (result.users.length == 1) {
+      return await this.externalHazardsModel.findOneAndDelete(query);
+    } else {
+      result.users = result.users.filter((user) => user != userId);
+      return await this.externalHazardsModel
+        .findOneAndUpdate(query, updateData, { new: true })
+        .lean();
     }
   }
 
   /**
    * deletes a full scope with the given id from a user, and from the database if these is only 1 user
    * @param modelId the id of the full scope to be deleted
+   * @param userId the user for whom the model is supposed to be deleted
    * @returns the deleted model
    */
   async deleteFullScope(
     modelId: number,
     userId: number,
   ): Promise<FullScopeModel> {
-    //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
-    let result;
-
     //query to search based on this field
-    const query = { users: Number(modelId) };
+    const query = { id: Number(modelId) };
 
     //to remove the id from the list
     const updateData = {
@@ -464,16 +457,15 @@ export class TypedModelService {
       },
     };
 
-    while ((result = await this.fullScopeModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
-        return await this.fullScopeModel.findOneAndDelete(query);
-      } else {
-        return await this.fullScopeModel.findOneAndUpdate(query, updateData);
-      }
+    const result = await this.fullScopeModel.findOne(query);
+    if (result.users.length == 1) {
+      return await this.fullScopeModel.findOneAndDelete(query);
+    } else {
+      return await this.fullScopeModel.findOneAndUpdate(query, updateData, {
+        new: true,
+      });
     }
   }
-
-  //functions to add nested models
 
   /**
    * adds a nested model to a larger model

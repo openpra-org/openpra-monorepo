@@ -1,7 +1,7 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import mongoose, { Connection } from "mongoose";
+import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { JwtService } from "@nestjs/jwt";
+import { Test, TestingModule } from "@nestjs/testing";
 import { CollabService } from "../collab/collab.service";
 import { User, UserSchema } from "../collab/schemas/user.schema";
 import {
@@ -12,11 +12,8 @@ import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 
 describe("AuthController", () => {
-  let authService: AuthService;
   let authController: AuthController;
   let connection: Connection;
-  let collabService: CollabService;
-
   /**
    * Before any test is run, start a new in-memory MongoDB instance and connect to it.
    * Create a new module with the AuthService and AuthController.
@@ -35,20 +32,11 @@ describe("AuthController", () => {
       providers: [AuthService, CollabService, JwtService],
       controllers: [AuthController],
     }).compile();
-    authService = module.get<AuthService>(AuthService);
     authController = module.get<AuthController>(AuthController);
-    collabService = module.get<CollabService>(CollabService);
     connection = await module.get(getConnectionToken());
     await connection
       .collection("users")
       .findOneAndDelete({ username: "testUser" }); //delete test user before each test
-  });
-
-  /**
-   * after all tests are done, disconnect from mongoose
-   */
-  afterAll(async () => {
-    await mongoose.disconnect(); //disconnect from database
   });
 
   /**
@@ -63,7 +51,7 @@ describe("AuthController", () => {
     /**
      * Test that the AuthController is defined
      */
-    it("AuthService should be defined", async () => {
+    it("AuthService should be defined", () => {
       expect(authController).toBeDefined();
     });
   });

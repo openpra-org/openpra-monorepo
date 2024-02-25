@@ -1,7 +1,7 @@
 import { Test, TestingModule } from "@nestjs/testing";
-import { JwtService } from "@nestjs/jwt";
-import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import mongoose, { Connection } from "mongoose";
+import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
+import { JwtService } from "@nestjs/jwt";
 import { CollabService } from "../collab/collab.service";
 import { User, UserSchema } from "../collab/schemas/user.schema";
 import {
@@ -52,7 +52,7 @@ describe("AuthService", () => {
   });
 
   describe("loginUser", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(authService.loginUser).toBeDefined();
     });
 
@@ -94,12 +94,9 @@ describe("AuthService", () => {
         password: "12345678",
       };
       const incorrectPassword = "123";
-      const response = await collabService.createNewUser(user_object); // create a new user
+      await collabService.createNewUser(user_object); // create a new user
       try {
-        const result = await authService.loginUser(
-          user_object.username,
-          incorrectPassword,
-        ); // call loginUser function
+        await authService.loginUser(user_object.username, incorrectPassword); // call loginUser function
       } catch (err) {
         expect(err).toBeInstanceOf(Error); //expect result to be an instance of User
       }
@@ -120,12 +117,9 @@ describe("AuthService", () => {
         password: "12345678",
       };
       const incorrectUsername = "testUserABCD";
-      const response = await collabService.createNewUser(user_object); // create a new user
+      await collabService.createNewUser(user_object); // create a new user
       try {
-        const result = await authService.loginUser(
-          incorrectUsername,
-          user_object.password,
-        ); // call loginUser function
+        await authService.loginUser(incorrectUsername, user_object.password); // call loginUser function
       } catch (err) {
         expect(err).toBeInstanceOf(Error); //expect result to be an instance of User
       }

@@ -1,6 +1,7 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { Connection } from "mongoose";
+import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
+import { Test, TestingModule } from "@nestjs/testing";
+import { expect } from "@playwright/test";
 import {
   ModelCounter,
   ModelCounterSchema,
@@ -75,7 +76,7 @@ describe("CollabService", () => {
   });
 
   describe("CreateInternalEventModel", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.createInternalEventModel).toBeDefined();
     });
 
@@ -102,7 +103,7 @@ describe("CollabService", () => {
   });
 
   describe("CreateInternalHazardModel", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.createInternalHazardModel).toBeDefined();
     });
 
@@ -131,7 +132,7 @@ describe("CollabService", () => {
   });
 
   describe("CreateExternalHazardModel", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.createExternalHazardModel).toBeDefined();
     });
 
@@ -160,7 +161,7 @@ describe("CollabService", () => {
   });
 
   describe("CreateFullScopeModel", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.createFullScopeModel).toBeDefined();
     });
 
@@ -187,7 +188,7 @@ describe("CollabService", () => {
   });
 
   describe("getInternalEvents", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.getInternalEvents).toBeDefined();
     });
 
@@ -247,7 +248,7 @@ describe("CollabService", () => {
   });
 
   describe("getInternalHazards", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.getInternalHazards).toBeDefined();
     });
 
@@ -307,7 +308,7 @@ describe("CollabService", () => {
   });
 
   describe("getExternalHazards", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.getExternalHazards).toBeDefined();
     });
 
@@ -367,7 +368,7 @@ describe("CollabService", () => {
   });
 
   describe("getFullScopes", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.getFullScopes).toBeDefined();
     });
 
@@ -421,7 +422,7 @@ describe("CollabService", () => {
   });
 
   describe("getInternalEvent", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.getInternalEvent).toBeDefined();
     });
 
@@ -468,7 +469,7 @@ describe("CollabService", () => {
   });
 
   describe("getInternalHazard", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.getInternalHazard).toBeDefined();
     });
 
@@ -514,7 +515,7 @@ describe("CollabService", () => {
   });
 
   describe("getExternalHazard", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.getExternalHazard).toBeDefined();
     });
 
@@ -560,7 +561,7 @@ describe("CollabService", () => {
   });
 
   describe("getFullScope", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.getFullScope).toBeDefined();
     });
 
@@ -601,7 +602,7 @@ describe("CollabService", () => {
   });
 
   describe("deleteInternalEvent", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.deleteInternalEvent).toBeDefined();
     });
 
@@ -639,8 +640,25 @@ describe("CollabService", () => {
     });
   });
 
+  describe("deleteFullScope", () => {
+    it("should be defined", () => {
+      expect(typedmodelService.deleteFullScope).toBeDefined();
+    });
+    it("should delete Full Scope Model", async () => {
+      const fullScope = await typedmodelService.createFullScopeModel(
+        createFullScopeRequest,
+      );
+      const returnedObject = await typedmodelService.deleteFullScope(
+        fullScope.id,
+        fullScope.users[0],
+      );
+      expect(returnedObject).toBeDefined();
+      expect(returnedObject.users).toEqual([2, 3]);
+    });
+  });
+
   describe("addNestedToInternalEvent", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.addNestedToInternalEvent).toBeDefined();
     });
 
@@ -674,11 +692,11 @@ describe("CollabService", () => {
       //create an array containing all nested objects
 
       //add each nested object to the internal event
-      for (let i = 0; i < nestedObjects.length; i++) {
+      for (const nestedObject of nestedObjects) {
         await typedmodelService.addNestedToInternalEvent(
           internalEvent.id,
-          nestedObjects[i].nestedId,
-          nestedObjects[i].nestedType,
+          nestedObject.nestedId,
+          nestedObject.nestedType,
         );
       }
 
@@ -699,7 +717,7 @@ describe("CollabService", () => {
   });
 
   describe("addNestedToInternalHazard", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.addNestedToInternalHazard).toBeDefined();
     });
 
@@ -732,11 +750,11 @@ describe("CollabService", () => {
       //create an array containing all nested objects
 
       //add each nested object to the internal hazard
-      for (let i = 0; i < nestedObjects.length; i++) {
+      for (const nestedObject of nestedObjects) {
         await typedmodelService.addNestedToInternalHazard(
           internalHazard.id,
-          nestedObjects[i].nestedId,
-          nestedObjects[i].nestedType,
+          nestedObject.nestedId,
+          nestedObject.nestedType,
         );
       }
 
@@ -757,7 +775,7 @@ describe("CollabService", () => {
   });
 
   describe("addNestedToExternalHazard", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.addNestedToExternalHazard).toBeDefined();
     });
 
@@ -791,11 +809,11 @@ describe("CollabService", () => {
       //create an array containing all nested objects
 
       //add each nested object to the external hazard
-      for (let i = 0; i < nestedObjects.length; i++) {
+      for (const nestedObject of nestedObjects) {
         await typedmodelService.addNestedToExternalHazard(
           externalHazard.id,
-          nestedObjects[i].nestedId,
-          nestedObjects[i].nestedType,
+          nestedObject.nestedId,
+          nestedObject.nestedType,
         );
       }
 
@@ -816,7 +834,7 @@ describe("CollabService", () => {
   });
 
   describe("addNestedToFullScope", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.addNestedToFullScope).toBeDefined();
     });
 
@@ -850,11 +868,11 @@ describe("CollabService", () => {
       //create an array containing all nested objects
 
       //add each nested object to the full scope
-      for (let i = 0; i < nestedObjects.length; i++) {
+      for (const nestedObject of nestedObjects) {
         await typedmodelService.addNestedToFullScope(
           fullScope.id,
-          nestedObjects[i].nestedId,
-          nestedObjects[i].nestedType,
+          nestedObject.nestedId,
+          nestedObject.nestedType,
         );
       }
 
@@ -875,7 +893,7 @@ describe("CollabService", () => {
   });
 
   describe("deleteNestedFromInternalEvent", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.deleteNestedFromInternalEvent).toBeDefined();
     });
 
@@ -914,20 +932,20 @@ describe("CollabService", () => {
       //create an array containing all nested objects
 
       //add each nested object to the internal event
-      for (let i = 0; i < nestedObjects.length; i++) {
+      for (const nestedObject of nestedObjects) {
         await typedmodelService.addNestedToInternalEvent(
           internalEvent.id,
-          nestedObjects[i].nestedId,
-          nestedObjects[i].nestedType,
+          nestedObject.nestedId,
+          nestedObject.nestedType,
         );
       }
 
       //delete each nested object from the internal event
-      for (let i = 0; i < nestedObjects.length; i++) {
+      for (const nestedObject of nestedObjects) {
         await typedmodelService.deleteNestedFromInternalEvent(
           internalEvent.id.toString(),
-          nestedObjects[i].nestedId,
-          nestedObjects[i].nestedType,
+          nestedObject.nestedId,
+          nestedObject.nestedType,
         );
       }
 
@@ -948,7 +966,7 @@ describe("CollabService", () => {
   });
 
   describe("deleteNestedFromInternalHazard", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.deleteNestedFromInternalHazard).toBeDefined();
     });
 
@@ -987,20 +1005,20 @@ describe("CollabService", () => {
       //create an array containing all nested objects
 
       //add each nested object to the internal hazard
-      for (let i = 0; i < nestedObjects.length; i++) {
+      for (const nestedObject of nestedObjects) {
         await typedmodelService.addNestedToInternalHazard(
           internalHazard.id,
-          nestedObjects[i].nestedId,
-          nestedObjects[i].nestedType,
+          nestedObject.nestedId,
+          nestedObject.nestedType,
         );
       }
 
       //delete each nested object from the internal hazard
-      for (let i = 0; i < nestedObjects.length; i++) {
+      for (const nestedObject of nestedObjects) {
         await typedmodelService.deleteNestedFromInternalHazard(
           internalHazard.id.toString(),
-          nestedObjects[i].nestedId,
-          nestedObjects[i].nestedType,
+          nestedObject.nestedId,
+          nestedObject.nestedType,
         );
       }
 
@@ -1021,7 +1039,7 @@ describe("CollabService", () => {
   });
 
   describe("deleteNestedFromExternalHazard", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.deleteNestedFromExternalHazard).toBeDefined();
     });
 
@@ -1060,20 +1078,20 @@ describe("CollabService", () => {
       //create an array containing all nested objects
 
       //add each nested object to the external hazard
-      for (let i = 0; i < nestedObjects.length; i++) {
+      for (const nestedObject of nestedObjects) {
         await typedmodelService.addNestedToExternalHazard(
           externalHazard.id,
-          nestedObjects[i].nestedId,
-          nestedObjects[i].nestedType,
+          nestedObject.nestedId,
+          nestedObject.nestedType,
         );
       }
 
       //delete each nested object from the external hazard
-      for (let i = 0; i < nestedObjects.length; i++) {
+      for (const nestedObject of nestedObjects) {
         await typedmodelService.deleteNestedFromExternalHazard(
           externalHazard.id.toString(),
-          nestedObjects[i].nestedId,
-          nestedObjects[i].nestedType,
+          nestedObject.nestedId,
+          nestedObject.nestedType,
         );
       }
 
@@ -1094,7 +1112,7 @@ describe("CollabService", () => {
   });
 
   describe("deleteNestedFromFullScope", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(typedmodelService.deleteNestedFromFullScope).toBeDefined();
     });
 
@@ -1132,20 +1150,20 @@ describe("CollabService", () => {
       //create an array containing all nested objects
 
       //add each nested object to the full scope
-      for (let i = 0; i < nestedObjects.length; i++) {
+      for (const nestedObject of nestedObjects) {
         await typedmodelService.addNestedToFullScope(
           fullScope.id,
-          nestedObjects[i].nestedId,
-          nestedObjects[i].nestedType,
+          nestedObject.nestedId,
+          nestedObject.nestedType,
         );
       }
 
       //delete each nested object from the full scope
-      for (let i = 0; i < nestedObjects.length; i++) {
+      for (const nestedObject of nestedObjects) {
         await typedmodelService.deleteNestedFromFullScope(
           fullScope.id.toString(),
-          nestedObjects[i].nestedId,
-          nestedObjects[i].nestedType,
+          nestedObject.nestedId,
+          nestedObject.nestedType,
         );
       }
 

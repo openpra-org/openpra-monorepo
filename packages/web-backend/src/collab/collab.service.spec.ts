@@ -1,9 +1,11 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import mongoose, { Connection } from "mongoose";
+import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
+import { Test, TestingModule } from "@nestjs/testing";
 import { CollabService } from "./collab.service";
 import { User, UserSchema } from "./schemas/user.schema";
 import { UserCounter, UserCounterSchema } from "./schemas/user-counter.schema";
+
+import { CreateUserObject } from "./stubs/createNewUser.stub";
 
 describe("CollabService", () => {
   let collabService: CollabService;
@@ -50,13 +52,13 @@ describe("CollabService", () => {
     /**
      * Test if collabService is defined
      */
-    it("CollabService should be defined", async () => {
+    it("CollabService should be defined", () => {
       expect(collabService).toBeDefined();
     });
   });
 
   describe("createNewUser", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(collabService.createNewUser).toBeDefined();
     });
 
@@ -66,14 +68,7 @@ describe("CollabService", () => {
      * expect response to be defined
      */
     it("should create user and return object", async () => {
-      const user_obect = {
-        firstName: "User1",
-        lastName: "Last1",
-        email: "xyz@gmail.com",
-        username: "testUser",
-        password: "12345678",
-      };
-      const response = await collabService.createNewUser(user_obect);
+      const response = await collabService.createNewUser(CreateUserObject);
       expect(response).toBeDefined();
     });
 
@@ -85,17 +80,10 @@ describe("CollabService", () => {
      * expect an error to be thrown
      */
     it("should fail on duplicate username", async () => {
-      const user_object = {
-        firstName: "User1",
-        lastName: "Last1",
-        email: "xyz@gmail.com",
-        username: "testUser",
-        password: "12345678",
-      };
-      const response = await collabService.createNewUser(user_object);
+      const response = await collabService.createNewUser(CreateUserObject);
       expect(response).toBeDefined();
       try {
-        const returnedValue = await collabService.createNewUser(user_object); // calling create new_user again with same username
+        await collabService.createNewUser(CreateUserObject); // calling create new_user again with same username
       } catch (err) {
         expect(err).toBeInstanceOf(Error); // expect an error to be thrown
       }
@@ -103,7 +91,7 @@ describe("CollabService", () => {
   });
 
   describe("loginUser", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(collabService.loginUser).toBeDefined();
     });
 
@@ -125,21 +113,14 @@ describe("CollabService", () => {
      * expect result to be defined
      */
     it("should return user document if user logged in successfully", async () => {
-      const user_object = {
-        firstName: "User1",
-        lastName: "Last1",
-        email: "xyz@gmail.com",
-        username: "testUser",
-        password: "12345678",
-      };
-      const response = await collabService.createNewUser(user_object); // create a new user
-      const result = await collabService.loginUser(user_object.username); // call loginUser function
+      await collabService.createNewUser(CreateUserObject); // create a new user
+      const result = await collabService.loginUser(CreateUserObject.username); // call loginUser function
       expect(result).toBeDefined(); //expect result to be defined, if login is successful
     });
   });
 
   describe("getUserPreferences", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(collabService.getUserPreferences).toBeDefined();
     });
 
@@ -150,14 +131,7 @@ describe("CollabService", () => {
      * expect result to be defined
      */
     it("should return user preferences", async () => {
-      const user_object = {
-        firstName: "User1",
-        lastName: "Last1",
-        email: "xyz@gmail.com",
-        username: "testUser",
-        password: "12345678",
-      };
-      const response = await collabService.createNewUser(user_object); // create a new user
+      const response = await collabService.createNewUser(CreateUserObject); // create a new user
       const returnedValue = await collabService.getUserPreferences(
         String(response.id),
       ); // calling getUserPreferences
@@ -166,7 +140,7 @@ describe("CollabService", () => {
   });
 
   describe("updateUserPreferences", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(collabService.updateUserPreferences).toBeDefined();
     });
 
@@ -179,18 +153,12 @@ describe("CollabService", () => {
      */
     it("should update user preferences - theme", async () => {
       const userPreferenceObject = { preferences: { theme: "Dark" } };
-      const user_object = {
-        firstName: "User1",
-        lastName: "Last1",
-        email: "xyz@gmail.com",
-        username: "testUser",
-        password: "12345678",
-      };
-      const response = await collabService.createNewUser(user_object); // create a new user
+      const response = await collabService.createNewUser(CreateUserObject); // create a new user
       const returnedValue = await collabService.updateUserPreferences(
         String(response.id),
         userPreferenceObject,
       ); // calling updateUserPreferences
+      expect(returnedValue).toBeDefined(); // user preferences should be defined
       expect(returnedValue.preferences.theme).toMatch("Dark"); // theme should be updated
     });
 
@@ -202,14 +170,7 @@ describe("CollabService", () => {
      */
     it("should update user preferences - nodeIdsVisible", async () => {
       const userPreferenceObject = { preferences: { nodeIdsVisible: false } };
-      const user_object = {
-        firstName: "User1",
-        lastName: "Last1",
-        email: "xyz@gmail.com",
-        username: "testUser",
-        password: "12345678",
-      };
-      const response = await collabService.createNewUser(user_object); // create a new user
+      const response = await collabService.createNewUser(CreateUserObject); // create a new user
       const returnedValue = await collabService.updateUserPreferences(
         String(response.id),
         userPreferenceObject,
@@ -225,14 +186,7 @@ describe("CollabService", () => {
      */
     it("should update user preferences - outlineVisible", async () => {
       const userPreferenceObject = { preferences: { outlineVisible: false } };
-      const user_object = {
-        firstName: "User1",
-        lastName: "Last1",
-        email: "xyz@gmail.com",
-        username: "testUser",
-        password: "12345678",
-      };
-      const response = await collabService.createNewUser(user_object); // create a new user
+      const response = await collabService.createNewUser(CreateUserObject); // create a new user
       const returnedValue = await collabService.updateUserPreferences(
         String(response.id),
         userPreferenceObject,
@@ -242,7 +196,7 @@ describe("CollabService", () => {
   });
 
   describe("updateLastLogin", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(collabService.updateLastLogin).toBeDefined();
     });
 
@@ -256,24 +210,19 @@ describe("CollabService", () => {
      * expect last_login to be greater than timestamp before updateLastLogin
      */
     it("should update last login", async () => {
-      const user_object = {
-        firstName: "User1",
-        lastName: "Last1",
-        email: "xyz@gmail.com",
-        username: "testUser",
-        password: "12345678",
-      };
-      const response = await collabService.createNewUser(user_object); // create a new user
+      const response = await collabService.createNewUser(CreateUserObject); // create a new user
       const dateBefore = Date.now(); //get current timestamp
       await collabService.updateLastLogin(response.id); // calling updateLastLogin
-      const returnedValue = await collabService.loginUser(user_object.username); // calling loginUser to get the latest user object
+      const returnedValue = await collabService.loginUser(
+        CreateUserObject.username,
+      ); // calling loginUser to get the latest user object
       const dateNumber = returnedValue.last_login.getTime(); // get Date object from returned value and convert to timestamp
       expect(dateNumber).toBeGreaterThanOrEqual(dateBefore); // last_login should be greater than
     });
   });
 
   describe("getUsersList", () => {
-    it("should be defined", async () => {
+    it("should be defined", () => {
       expect(collabService.getUsersList).toBeDefined();
     });
 
@@ -312,7 +261,7 @@ describe("CollabService", () => {
           username: "testUser" + String(i),
           password: "12345678",
         };
-        const response = await collabService.createNewUser(user_object); // create a new user
+        await collabService.createNewUser(user_object); // create a new user
       }
       const url = "?limit=10&offset=0";
       const returnedValue = await collabService.getUsersList(url); // calling getUsersList
@@ -348,7 +297,7 @@ describe("CollabService", () => {
           username: "testUser" + String(i),
           password: "12345678",
         };
-        const response = await collabService.createNewUser(user_object);
+        await collabService.createNewUser(user_object);
       }
       const url = "limit=10&offset=10";
       const returnedValue = await collabService.getUsersList(url, 10, 10);
@@ -386,7 +335,7 @@ describe("CollabService", () => {
           username: "testUser" + String(i),
           password: "12345678",
         };
-        const response = await collabService.createNewUser(user_object);
+        await collabService.createNewUser(user_object);
       }
       const url = "limit=10&offset=20";
       const returnedValue = await collabService.getUsersList(url, 10, 20);
@@ -423,7 +372,7 @@ describe("CollabService", () => {
           username: "testUser" + String(i),
           password: "12345678",
         };
-        const response = await collabService.createNewUser(user_object);
+        await collabService.createNewUser(user_object);
       }
       const url = "limit=10&offset=0";
       const returnedValue = await collabService.getUsersList(url, 10, 0);
@@ -460,7 +409,7 @@ describe("CollabService", () => {
           username: "testUser" + String(i),
           password: "12345678",
         };
-        const response = await collabService.createNewUser(user_object);
+        await collabService.createNewUser(user_object);
       }
       const url = "limit=10&offset=100";
       const returnedValue = await collabService.getUsersList(url, 10, 100);

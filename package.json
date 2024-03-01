@@ -26,6 +26,7 @@
     "@swc/helpers": "0.5.3",
     "@testing-library/react": "14.1.0",
     "@tsconfig/recommended": "1.0.3",
+    "@types/d3": "^7.4.3",
     "@types/jest": "29.5.8",
     "@types/node": "20.9.0",
     "@types/react": "18.2.37",
@@ -67,6 +68,7 @@
     "@nestjs/common": "10.2.10",
     "@nestjs/core": "10.2.10",
     "argon2": "0.31.2",
+    "d3": "^7.8.5",
     "mongodb": "6.3.0",
     "nestjs-zod": "3.0.0",
     "tslib": "2.5.2"

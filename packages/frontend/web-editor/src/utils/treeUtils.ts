@@ -5,6 +5,8 @@ import {
 } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
 import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
+import { Node, Edge } from "reactflow";
+import { BASIC_EVENT, WORKFLOW } from "./constants";
 import {
   Edge,
   getConnectedEdges,

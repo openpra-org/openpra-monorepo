@@ -87,11 +87,11 @@ function TypedModelActionForm({
           const usersData = await ApiManager.getUsers();
           const resultList = usersData.results;
           // Filters out the current user from the list since it's implied that they want to see their own model
-          let listWithoutCurrentUser = resultList.filter(
+          const results = resultList.filter(
             (x: any) => x.id != ApiManager.getCurrentUser().user_id,
           );
           // Creates the objects that will go in the EuiSelectable
-          listWithoutCurrentUser = listWithoutCurrentUser.map((item: any) => ({
+          const listWithoutCurrentUser = results.map((item: any) => ({
             label: item.firstName + " " + item.lastName,
             key: item.id,
           }));

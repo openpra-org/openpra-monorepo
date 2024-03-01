@@ -1,11 +1,13 @@
 import Axios, { AxiosResponse } from "axios";
 
 import AuthToken from "../types/AuthToken";
+import User from "../types/User";
 import AuthService from "./AuthService";
 import Accounts from "./Accounts";
 import Admin from "./Admin";
 import { SignUpCredentials } from "./AuthTypes";
 import Preferences from "./user/Preferences";
+import { MemberResult, Members } from "./Members";
 
 const API_ENDPOINT = "/api";
 
@@ -614,27 +616,35 @@ export default class ApiManager {
     );
   }
 
+  /**
+   *
+   * @param limit - Page limit if we want to limit the results
+   * @param offset - Page offset if we want to limit the results
+   * @param override
+   * @param onSuccessCallback - Function to call if api call is successful
+   * @param onFailCallback - Function to call if api call is unsuccessful
+   */
   static getUsers(
     limit?: any,
     offset?: any,
     override?: any,
     onSuccessCallback?: any,
     onFailCallback?: any,
-  ) {
+  ): Promise<Members> {
     if (limit) {
       return ApiManager.getWithOptions(
         `${collabEndpoint}/user/?limit=${limit}&offset=${offset}`,
         override,
         onSuccessCallback,
         onFailCallback,
-      );
+      ).then((res: Response) => res.json() as Promise<Members>);
     }
     return ApiManager.getWithOptions(
       `${collabEndpoint}/user/`,
       override,
       onSuccessCallback,
       onFailCallback,
-    ).then((res) => res.json());
+    ).then((res) => res.json() as Promise<Members>);
   }
 
   static getProjects(
@@ -1474,18 +1484,26 @@ export default class ApiManager {
     // .catch(onFailCallback, override)
   }
 
-  static getUser(
-    id: any,
+  /**
+   * Use this function to get a particular user using their id as reference
+   *
+   * @param id - id of the user
+   * @param override - override function
+   * @param onSuccessCallback - function to be called if successful
+   * @param onFailCallback - function to be called if un-successful
+   */
+  static getUserById(
+    id: string,
     override?: any,
     onSuccessCallback?: any,
     onFailCallback?: any,
-  ) {
+  ): Promise<MemberResult> {
     return ApiManager.getWithOptions(
       `${collabEndpoint}/user/${id}/`,
       override,
       onSuccessCallback,
       onFailCallback,
-    );
+    ).then((res) => res.json() as Promise<MemberResult>);
   }
 
   static getUserByEmail(
@@ -1508,11 +1526,18 @@ export default class ApiManager {
   //old_password
   //double check new
 
+  /**
+   *
+   * @param id - Id of the user which is to be updated
+   * @param override - Serialized MemberResult Object
+   * @param onSuccessCallback - Function called on success
+   * @param onFailCallback - Function called on failure
+   */
   static updateUser(
-    id: any,
-    override: any,
-    onSuccessCallback: any,
-    onFailCallback: any,
+    id: number,
+    override: string,
+    onSuccessCallback?: () => void,
+    onFailCallback?: () => void,
   ) {
     return ApiManager.put(
       `${collabEndpoint}/user/${id}/`,

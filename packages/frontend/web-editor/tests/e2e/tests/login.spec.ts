@@ -1,21 +1,21 @@
 import { test, expect } from "@playwright/test";
-import { signUp, logOut } from "./signup.spec";
+import { SignUp, LogOut } from "./signup.spec";
 
 test.describe("Signup", () => {
   // if we want to access alias in test, we need to change arrow function => to function ()
   test("can register a new account", async ({ page }) => {
     // added delay as sometimes it can make tests flaky if typing too fast (default is 10)
     const username = "playwright" + Math.floor(Math.random() * 1000);
-    await signUp({ page, username });
+    await SignUp({ page, username });
     await expect(page.getByTestId("user-menu")).toBeVisible();
   });
 
   test("Account already created", async ({ page }) => {
     // added delay as sometimes it can make tests flaky if typing too fast (default is 10)
     const username = "playwright" + Math.floor(Math.random() * 1000);
-    await signUp({ page, username });
-    await logOut({ page });
-    await signUp({ page, username });
+    await SignUp({ page, username });
+    await LogOut({ page });
+    await SignUp({ page, username });
     await expect(page.getByText("Invalid Username")).toBeVisible();
   });
 
@@ -41,8 +41,8 @@ test.describe("Login", () => {
   // if we want to access alias in test, we need to change arrow function => to function ()
   test("Can Login", async ({ page }) => {
     const username = "playwright" + Math.floor(Math.random() * 1000);
-    await signUp({ page, username });
-    await logOut({ page });
+    await SignUp({ page, username });
+    await LogOut({ page });
     await page.getByRole("tab", { name: "Login" }).click();
     await page.getByPlaceholder("Username").fill(username);
     await page

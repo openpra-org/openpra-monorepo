@@ -18,7 +18,9 @@ export type ListItemActionProps = {} & ButtonWithPopoverProps &
   Omit<EuiButtonIconPropsForButton, "iconType"> &
   ItemFormProps;
 
-export function ListItemContextMenuButton(props: GenericListItemProps): JSX.Element {
+export function ListItemContextMenuButton(
+  props: GenericListItemProps,
+): JSX.Element {
   return (
     <ButtonWithPopover
       iconType="boxesHorizontal"

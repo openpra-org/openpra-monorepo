@@ -2,6 +2,7 @@ import path = require("path");
 import { defineConfig } from "@playwright/test";
 import { nxE2EPreset } from "@nx/playwright/preset";
 import { workspaceRoot } from "@nx/devkit";
+import { devices } from "@playwright/experimental-ct-react";
 
 // For CI, you may want to set BASE_URL to the deployed application.
 const baseURL = process.env.BASE_URL ?? "http://localhost:4200";
@@ -9,7 +10,10 @@ const baseURL = process.env.BASE_URL ?? "http://localhost:4200";
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
-export const STORAGE_STATE = path.join(__dirname, "playwright/.auth/user.json");
+export const STORAGE_STATE = path.join(
+  __dirname,
+  "packages/frontend/web-editor/e2e/.auth/user.json",
+);
 
 // eslint-disable-next-line import/no-default-export
 export default defineConfig({
@@ -22,28 +26,24 @@ export default defineConfig({
   },
   // Run your local dev server before starting the tests
   webServer: {
-    command: "nx run-many -t serve --all",
-    url: "http://localhost:4200",
-    reuseExistingServer: !process.env.CI,
+    command: "nx run-many -t serve",
+    url: "http://localhost:8000/api",
+    reuseExistingServer: false,
     cwd: workspaceRoot,
+    timeout: 120 * 1000,
   },
-  // projects: [
-  //   {
-  //     name: 'Signup',
-  //     testMatch: 'signup.spec.ts',
-  //   },
-  //   {
-  //     name: 'Login',
-  //     testMatch: 'login.spec.ts',
-  //     dependencies: ['Signup']
-  //   },
-  //   {
-  //     name: 'Dashboard',
-  //     testMatch: '**/*.dashboard.ts',
-  //     dependencies: ['Login'],
-  //     use: {
-  //       storageState: STORAGE_STATE,
-  //     },
-  //   },
-  // ],
+  projects: [
+    {
+      name: "setup",
+      testMatch: /.*setup.spec\.ts/,
+    },
+    {
+      name: "Admin Tests",
+      testMatch: "**/adminPage.spec.ts",
+      dependencies: ["setup"],
+      use: {
+        storageState: "packages/frontend/web-editor/e2e/.auth/user.json",
+      },
+    },
+  ],
 });

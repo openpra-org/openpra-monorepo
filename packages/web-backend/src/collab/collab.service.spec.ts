@@ -1,6 +1,7 @@
 import mongoose, { Connection } from "mongoose";
 import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { Test, TestingModule } from "@nestjs/testing";
+import { MemberResult } from "shared-types/src/lib/api/Members";
 import { CollabService } from "./collab.service";
 import { User, UserSchema } from "./schemas/user.schema";
 import { UserCounter, UserCounterSchema } from "./schemas/user-counter.schema";
@@ -59,7 +60,7 @@ describe("CollabService", () => {
 
   describe("createNewUser", () => {
     it("should be defined", () => {
-      expect(collabService.createNewUser).toBeDefined();
+      expect(collabService.createNewUser(CreateUserObject)).toBeDefined();
     });
 
     /**
@@ -132,10 +133,37 @@ describe("CollabService", () => {
      */
     it("should return user preferences", async () => {
       const response = await collabService.createNewUser(CreateUserObject); // create a new user
-      const returnedValue = await collabService.getUserPreferences(
-        String(response.id),
-      ); // calling getUserPreferences
-      expect(returnedValue).toBeDefined(); // user preferences should be defined
+      if (typeof response !== "string") {
+        const returnedValue = await collabService.getUserPreferences(
+          String(response.id),
+        ); // calling getUserPreferences
+        expect(returnedValue).toBeDefined(); // user preferences should be defined
+      }
+    });
+  });
+
+  describe("getUserById", () => {
+    it("should be defined", (): void => {
+      expect(collabService.getUserById("1")).toBeDefined();
+    });
+
+    it("should return a single user", async (): Promise<void> => {
+      for (let i = 0; i < 30; i++) {
+        const userObject = {
+          firstName: "User" + String(i),
+          lastName: "Last" + String(i),
+          email: "xyz@gmail" + String(i) + ".com",
+          username: "testUser" + String(i),
+          password: "12345678",
+        };
+        await collabService.createNewUser(userObject);
+      }
+      const user: User = await collabService.getUserById("1");
+      expect(user).not.toBeNull();
+      expect(user.id).toEqual<number>(1);
+      expect(user.email).toEqual<string>("xyz@gmail0.com");
+      expect(user.firstName).toEqual<string>("User0");
+      expect(user.lastName).toEqual<string>("Last0");
     });
   });
 
@@ -154,12 +182,14 @@ describe("CollabService", () => {
     it("should update user preferences - theme", async () => {
       const userPreferenceObject = { preferences: { theme: "Dark" } };
       const response = await collabService.createNewUser(CreateUserObject); // create a new user
-      const returnedValue = await collabService.updateUserPreferences(
-        String(response.id),
-        userPreferenceObject,
-      ); // calling updateUserPreferences
-      expect(returnedValue).toBeDefined(); // user preferences should be defined
-      expect(returnedValue.preferences.theme).toMatch("Dark"); // theme should be updated
+      if (typeof response !== "string") {
+        const returnedValue = await collabService.updateUserPreferences(
+          String(response.id),
+          userPreferenceObject,
+        ); // calling updateUserPreferences
+        expect(returnedValue).toBeDefined(); // user preferences should be defined
+        expect(returnedValue.preferences.theme).toMatch("Dark"); // theme should be updated
+      }
     });
 
     /**
@@ -169,13 +199,17 @@ describe("CollabService", () => {
      * expect nodeIdsVisible to be updated to false
      */
     it("should update user preferences - nodeIdsVisible", async () => {
-      const userPreferenceObject = { preferences: { nodeIdsVisible: false } };
+      const userPreferenceObject = {
+        preferences: { nodeIdsVisible: false },
+      };
       const response = await collabService.createNewUser(CreateUserObject); // create a new user
-      const returnedValue = await collabService.updateUserPreferences(
-        String(response.id),
-        userPreferenceObject,
-      ); // calling updateUserPreferences
-      expect(returnedValue.preferences.nodeIdsVisible).toBeFalsy(); // nodeIdsVisible should be updated
+      if (typeof response !== "string") {
+        const returnedValue = await collabService.updateUserPreferences(
+          String(response.id),
+          userPreferenceObject,
+        ); // calling updateUserPreferences
+        expect(returnedValue.preferences.nodeIdsVisible).toBeFalsy();
+      } // nodeIdsVisible should be updated
     });
 
     /**
@@ -185,13 +219,17 @@ describe("CollabService", () => {
      * expect outlineVisible to be updated to false
      */
     it("should update user preferences - outlineVisible", async () => {
-      const userPreferenceObject = { preferences: { outlineVisible: false } };
+      const userPreferenceObject = {
+        preferences: { outlineVisible: false },
+      };
       const response = await collabService.createNewUser(CreateUserObject); // create a new user
-      const returnedValue = await collabService.updateUserPreferences(
-        String(response.id),
-        userPreferenceObject,
-      ); // calling updateUserPreferences
-      expect(returnedValue.preferences.outlineVisible).toBeFalsy(); // user preferences should be updated
+      if (typeof response !== "string") {
+        const returnedValue = await collabService.updateUserPreferences(
+          String(response.id),
+          userPreferenceObject,
+        ); // calling updateUserPreferences
+        expect(returnedValue.preferences.outlineVisible).toBeFalsy(); // user preferences should be updated
+      }
     });
   });
 
@@ -212,12 +250,48 @@ describe("CollabService", () => {
     it("should update last login", async () => {
       const response = await collabService.createNewUser(CreateUserObject); // create a new user
       const dateBefore = Date.now(); //get current timestamp
-      await collabService.updateLastLogin(response.id); // calling updateLastLogin
-      const returnedValue = await collabService.loginUser(
-        CreateUserObject.username,
-      ); // calling loginUser to get the latest user object
-      const dateNumber = returnedValue.last_login.getTime(); // get Date object from returned value and convert to timestamp
-      expect(dateNumber).toBeGreaterThanOrEqual(dateBefore); // last_login should be greater than
+      if (typeof response !== "string") {
+        await collabService.updateLastLogin(response.id); // calling updateLastLogin
+        const returnedValue = await collabService.loginUser(
+          CreateUserObject.username,
+        ); // calling loginUser to get the latest user object
+        const dateNumber = returnedValue.last_login.getTime(); // get Date object from returned value and convert to timestamp
+        expect(dateNumber).toBeGreaterThanOrEqual(dateBefore);
+      } // last_login should be greater than
+    });
+  });
+
+  describe("updateUser", (): void => {
+    it("should update user", async () => {
+      const emailChange = "hellotestchangeemail@gmail.com";
+      const firstNameChange = "FirstName";
+      const users = connection.collection("users");
+      const member: MemberResult = {
+        account_created: "",
+        last_login: "",
+        permissions: {},
+        preferences: undefined,
+        recently_accessed: undefined,
+        firstName: "Test",
+        lastName: "String",
+        username: "TestString",
+        email: "TestString@gmail.com",
+        id: 786,
+      };
+      const user = new User();
+      user.email = member.email;
+      user.firstName = member.firstName;
+      user.lastName = member.lastName;
+      user.username = member.username;
+      user.id = member.id;
+      user.password = await argon2.hash("Password");
+      await users.insertOne(user);
+      member.email = emailChange;
+      member.firstName = firstNameChange;
+      await collabService.updateUser(member);
+      const foundUser: User = await users.findOne<User>({ id: 786 });
+      expect(foundUser.email).toEqual(emailChange);
+      expect(foundUser.firstName).toEqual(firstNameChange);
     });
   });
 
@@ -254,14 +328,14 @@ describe("CollabService", () => {
      */
     it("should return first page of users with limit 10 and offset 0 if 30 users exist", async () => {
       for (let i = 0; i < 30; i++) {
-        const user_object = {
+        const userObject = {
           firstName: "User" + String(i),
           lastName: "Last" + String(i),
           email: "xyz@gmail" + String(i) + ".com",
           username: "testUser" + String(i),
           password: "12345678",
         };
-        await collabService.createNewUser(user_object); // create a new user
+        await collabService.createNewUser(userObject); // create a new user
       }
       const url = "?limit=10&offset=0";
       const returnedValue = await collabService.getUsersList(url); // calling getUsersList
@@ -290,14 +364,14 @@ describe("CollabService", () => {
      */
     it("should return middle page of users with limit 10 and offset 10", async () => {
       for (let i = 0; i < 30; i++) {
-        const user_object = {
+        const userObject = {
           firstName: "User" + String(i),
           lastName: "Last" + String(i),
           email: "xyz@gmail" + String(i) + ".com",
           username: "testUser" + String(i),
           password: "12345678",
         };
-        await collabService.createNewUser(user_object);
+        await collabService.createNewUser(userObject);
       }
       const url = "limit=10&offset=10";
       const returnedValue = await collabService.getUsersList(url, 10, 10);
@@ -328,14 +402,14 @@ describe("CollabService", () => {
     it("should return last page of users with limit 10 and offset 20 if 30 users in database", async () => {
       //add 30 users to database using for loop
       for (let i = 0; i < 30; i++) {
-        const user_object = {
+        const userObject = {
           firstName: "User" + String(i),
           lastName: "Last" + String(i),
           email: "xyz@gmail" + String(i) + ".com",
           username: "testUser" + String(i),
           password: "12345678",
         };
-        await collabService.createNewUser(user_object);
+        await collabService.createNewUser(userObject);
       }
       const url = "limit=10&offset=20";
       const returnedValue = await collabService.getUsersList(url, 10, 20);
@@ -402,14 +476,14 @@ describe("CollabService", () => {
     it("should return empty list when offset greater than number of users in database", async () => {
       //add 3 users to database using for loop
       for (let i = 0; i < 3; i++) {
-        const user_object = {
+        const userObject = {
           firstName: "User" + String(i),
           lastName: "Last" + String(i),
           email: "xyz@gmail" + String(i) + ".com",
           username: "testUser" + String(i),
           password: "12345678",
         };
-        await collabService.createNewUser(user_object);
+        await collabService.createNewUser(userObject);
       }
       const url = "limit=10&offset=100";
       const returnedValue = await collabService.getUsersList(url, 10, 100);

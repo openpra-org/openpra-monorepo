@@ -21,10 +21,10 @@ import {
 } from "@elastic/eui";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { EuiBreadcrumb } from "@elastic/eui/src/components/breadcrumbs";
 import { ToTitleCase, tokenizePath } from "../../../utils/StringUtils";
 import { ContextAddButton } from "../buttons/contextAddButton";
 import { WorkspaceSelectorMenu } from "./WorkspaceSelectorMenu";
-import { EuiBreadcrumb } from "@elastic/eui/src/components/breadcrumbs";
 
 const RootHeader = (): JSX.Element => {
   const navigate = useNavigate();
@@ -34,7 +34,7 @@ const RootHeader = (): JSX.Element => {
     return tokens.map((item, i) => ({
       text: ToTitleCase(item),
       style: { fontWeight: 500 },
-      onClick: (e: any): void => {
+      onClick: (e): void => {
         e.preventDefault();
         navigate(tokens.slice(0, i + 1).join("/"));
       },
@@ -49,7 +49,7 @@ const RootHeader = (): JSX.Element => {
     if (!ApiManager.isLoggedIn() && location.pathname !== "/") {
       navigate("/");
     }
-  }, []);
+  }, [location.pathname, navigate]);
 
   const renderBreadcrumbs = (): JSX.Element => (
     <EuiHeaderBreadcrumbs
@@ -132,8 +132,9 @@ const HeaderUserMenu = (): JSX.Element => {
 
   //thewse two lines grab the username so that it can be used throughout the page. Needs this because for some reason user can be undefined
   const currentUser = ApiManager.getCurrentUser();
-  const nameString =
-    currentUser && currentUser.username ? currentUser.username : "Unknown User";
+  const nameString = currentUser.username
+    ? currentUser.username
+    : "Unknown User";
 
   const closeMenu = (): void => {
     setIsOpen(false);
@@ -142,6 +143,10 @@ const HeaderUserMenu = (): JSX.Element => {
   const logoutFunction = (): void => {
     ApiManager.logout();
     navigate("");
+  };
+
+  const adminFunction = (): void => {
+    navigate("settings");
   };
 
   const button = (
@@ -181,7 +186,9 @@ const HeaderUserMenu = (): JSX.Element => {
             <EuiSpacer size="m" />
             <EuiFlexGroup justifyContent="spaceBetween">
               <EuiFlexItem grow={false}>
-                <EuiLink>Edit profile</EuiLink>
+                <EuiLink onClick={adminFunction} data-testid="root-settings">
+                  Settings
+                </EuiLink>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
                 <EuiLink onClick={logoutFunction}>Log out</EuiLink>

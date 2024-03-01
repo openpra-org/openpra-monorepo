@@ -114,7 +114,7 @@ class Preferences {
 const PreferencesSchema = SchemaFactory.createForClass(Preferences);
 
 @Schema({ minimize: false, _id: false, versionKey: false })
-class Permissions {}
+export class Permissions {}
 
 const PermissionsSchema = SchemaFactory.createForClass(Permissions);
 

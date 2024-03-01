@@ -289,7 +289,7 @@ job("Monorepo CI") {
           interpreter = "/bin/bash"
           content = """
                       docker pull $remote:{{ branchSlug }} || true
-                      docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                      docker build --target=e2e-tests --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
                       docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:e2e-cli
                       """
         }

@@ -1,6 +1,12 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, Page } from "@playwright/test";
 
-export async function signUp({ page, username }): Promise<void> {
+export async function SignUp({
+  page,
+  username,
+}: {
+  page: Page;
+  username: string;
+}): Promise<void> {
   await page.goto("/");
   await page.getByPlaceholder("First name").fill("Playwright");
   await page.getByPlaceholder("Last name").fill("press");
@@ -11,7 +17,7 @@ export async function signUp({ page, username }): Promise<void> {
   await page.getByRole("button", { name: "Sign Up" }).click();
 }
 
-export async function logOut({ page }): Promise<void> {
+export async function LogOut({ page }: { page: Page }): Promise<void> {
   await page.getByTestId("user-menu").click();
   await page.getByRole("button", { name: "Log out" }).click();
 }
@@ -21,16 +27,16 @@ test.describe("Signup", () => {
   test("can register a new account", async ({ page }) => {
     // added delay as sometimes it can make tests flaky if typing too fast (default is 10)
     const username = "playwright" + Math.floor(Math.random() * 1000);
-    await signUp({ page, username });
+    await SignUp({ page, username });
     await expect(page.getByTestId("user-menu")).toBeVisible();
   });
 
   test("Account already created", async ({ page }) => {
     // added delay as sometimes it can make tests flaky if typing too fast (default is 10)
     const username = "playwright" + Math.floor(Math.random() * 1000);
-    await signUp({ page, username });
-    await logOut({ page });
-    await signUp({ page, username });
+    await SignUp({ page, username });
+    await LogOut({ page });
+    await SignUp({ page, username });
     await expect(page.getByText("Invalid Username")).toBeVisible();
   });
 

@@ -7,7 +7,10 @@ export type LastActionTextProps = {
 };
 
 // TODO
-function LastActionText({ timestamp, action }: LastActionTextProps): JSX.Element {
+function LastActionText({
+  timestamp,
+  action,
+}: LastActionTextProps): JSX.Element {
   let text = usePrettyDuration({
     timeFrom: "now-3w",
     timeTo: "now",

@@ -13,6 +13,7 @@ import { RootContainer } from "./pages/rootContainer";
 import { DataPage } from "./pages/routingPages/dataAnalysisPage";
 import { FullScopePage } from "./pages/routingPages/fullScope";
 import { LoginPage } from "./pages/LandingPage";
+import { SettingsPage } from "./pages/routingPages/settingsPage";
 
 const routes: RouteObject[] = [
   {
@@ -57,6 +58,10 @@ const routes: RouteObject[] = [
           {
             path: "cybersecurity/*",
             element: <>WIP</>,
+          },
+          {
+            path: "settings/*",
+            element: <SettingsPage />,
           },
         ],
       },

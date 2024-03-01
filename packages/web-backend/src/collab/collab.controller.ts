@@ -13,6 +13,7 @@ import {
   UseGuards,
   HttpException,
 } from "@nestjs/common";
+import { MemberResult } from "shared-types/src/lib/api/Members";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { Public } from "../guards/public.guard";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";
@@ -120,5 +121,23 @@ export class CollabController {
     @Body() body: UserPreferencesDto,
   ) {
     return this.collabService.updateUserPreferences(user_id, body);
+  }
+
+  /**
+   * This endpoint fetches a particular user by ID
+   * @param user_id - user ID of the member which you want to find
+   */
+  @Get("/user/:user_id/")
+  async getUserById(@Param("user_id") user_id: string): Promise<User> {
+    return this.collabService.getUserById(user_id);
+  }
+
+  /**
+   * This endpoint will update a user
+   * @param body - The UpdateUserDto object which contains the id of the user to be updated and the updated details
+   */
+  @Put("/user/:user_id/")
+  async updateUserById(@Body() body: MemberResult): Promise<void> {
+    await this.collabService.updateUser(body);
   }
 }

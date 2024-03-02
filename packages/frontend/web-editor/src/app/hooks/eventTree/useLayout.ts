@@ -9,7 +9,6 @@ const layout = cluster<Node>()
   .nodeSize([140, 40]) // this is needed for creating equal space between all nodes
   .separation(() => 1);
 
-const colLayout = partition<Node>();
 const options = { duration: 300 };
 
 // the layouting function
@@ -19,6 +18,9 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
   if (nodes.length === 0) {
     return [];
   }
+
+  console.log(cols, edges);
+
   // convert nodes and edges into a hierarchical object for using it with the layout function
   const hierarchy = stratify<Node>()
     .id((d) => d.id)
@@ -38,24 +40,17 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
     position: { x: d.y, y: d.x },
   }));
 
-  const colHierarchy = stratify<Node>()
-    .id((d) => d.id)
-    // get the id of each node by searching through the edges
-
-    .parentId((d: Node) => edges.find((e: Edge) => e.target === d.id)?.source)(
-    cols,
-  );
-
-  const colRoot = colLayout(colHierarchy);
-
   // Find the maximum value of y from the leaf nodes
-  const maxYLeaf = Math.max(...root.leaves().map((d) => d.x));
-  console.log(maxYLeaf);
-  // Update the y values of all column nodes with y + 100
-  cols = colRoot.descendants().map((d) => ({
-    ...d.data,
-    position: { x: d.y0, y: -maxYLeaf / 150 },
-  }));
+  const maxYLeaf = Math.min(...root.leaves().map((d) => d.x));
+
+  // Iterate over each column node and update its position
+  cols.forEach((col, index) => {
+    // Calculate the x position based on the column number and column width
+    const xPosition = index * col.data.width; // Assuming colWidth is defined somewhere
+
+    // Update the position of the column node
+    col.position = { x: xPosition, y: maxYLeaf - 75 };
+  });
 
   // Update the x position of the tree nodes with the same number as the column nodes
   nodes.forEach((node) => {
@@ -100,9 +95,6 @@ function useLayout(depth: number) {
         nodes.push(node);
       }
     });
-
-    layout.size([Math.pow(2, depth) * 5, 1000]);
-    colLayout.size([500, depth * 140]);
 
     // run the layout and get back the nodes with their updated positions
     const targetNodes = layoutNodes(nodes, cols, edges);

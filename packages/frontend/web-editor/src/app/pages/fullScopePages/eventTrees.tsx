@@ -30,12 +30,8 @@ import EventTreeList from "../../components/lists/nestedLists/eventTreeList";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
 
-import hiddenNode from "../../components/treeNodes/eventTreeEditorNode/hiddenNode";
-import columnNode from "../../components/treeNodes/eventTreeEditorNode/columnNode";
-import CustomEdge from "../../components/treeEdges/eventTreeEditorEdges/customEdge";
-
-import { edgeData } from "../../components/treeEdges/eventTreeEditorEdges/edgeData";
-import { nodeData } from "../../components/treeNodes/eventTreeEditorNode/nodeData";
+import nodeTypes from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
+import edgeTypes from "../../components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
 
 import useLayout from "../../hooks/eventTree/useLayout";
 import EventTreeNodeContextMenu, {
@@ -49,15 +45,6 @@ import LoadingCard from "../../components/cards/loadingCard";
  */
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
-
-const nodeTypes: NodeTypes = {
-  hiddenNode: hiddenNode,
-  columnNode: columnNode,
-};
-
-const edgeTypes: EdgeTypes = {
-  custom: CustomEdge,
-};
 
 const fitViewOptions = {
   padding: 0.95,
@@ -144,7 +131,8 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
       fitViewOptions={fitViewOptions}
       onPaneClick={onPaneClick}
       onNodeContextMenu={onNodeContextMenu}
-      minZoom={0.5}
+      minZoom={0.8}
+      maxZoom={100}
       nodesDraggable={false}
       nodesConnectable={false}
       zoomOnDoubleClick={false}
@@ -178,7 +166,7 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
 
 export const EventTreeEditor = (): ReactElement => {
   const input = 3;
-  const output = 3;
+  const output = 2;
   const { nodes, edges } = useTreeData(input, output, 140);
 
   return (

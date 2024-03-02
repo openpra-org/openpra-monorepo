@@ -1,5 +1,5 @@
 .outputNode{
-  border: 1px solid white;
+  border: 1px solid ;
   height: 50%
 }
 
@@ -7,4 +7,17 @@
 
 .inputNode{
 
+}
+
+.addNodeButton{
+  cursor: pointer;
+  pointer-events: all;
+  stroke: #0984e3;
+  fill: white;
+}
+
+.addNodeButtonText{
+  user-select: none;
+  z-index: 12;
+  text-align: center;
 }

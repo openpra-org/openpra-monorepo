@@ -18,7 +18,14 @@ const useTreeData = (
     const rootNode: Node = {
       id: rootId,
       type: "hiddenNode",
-      data: { label: "Root Node", depth: 1, width: nodeWidth },
+      data: {
+        label: "Root Node",
+        inputDepth: inputLevels,
+        outputDepth: outputLevels,
+        width: nodeWidth,
+        maxIndex: Math.pow(2, inputLevels),
+        maxColIndex: verticalLevels,
+      },
       position: pos,
     };
     nodes.push(rootNode);
@@ -93,7 +100,7 @@ const useTreeData = (
       const inputLeafNode = currentNodes[i];
 
       for (let j = 0; j < outputLevels; j++) {
-        const outputNodeId = `output-${i}-${j + 1}`;
+        const outputNodeId = `output-${j + 1}-${i + 1}`;
         const outputNode: Node = {
           id: outputNodeId,
           type: "hiddenNode",

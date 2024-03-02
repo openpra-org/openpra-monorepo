@@ -7,11 +7,11 @@ import {
 } from "reactflow";
 import { memo } from "react";
 
-interface CustomEdgeData {
+type CustomEdgeData = {
   color?: string;
   text?: string;
   straight?: boolean;
-}
+};
 
 const CustomEdge: FC<EdgeProps<CustomEdgeData>> = memo(
   ({
@@ -24,61 +24,17 @@ const CustomEdge: FC<EdgeProps<CustomEdgeData>> = memo(
     targetPosition,
     data = {},
   }) => {
-    const { color = "white", text = "", straight = false } = data;
+    const [edgePath] = getSmoothStepPath({
+      sourceX,
+      sourceY,
+      sourcePosition,
+      targetX,
+      targetY,
+      targetPosition,
+      borderRadius: 0,
+    });
 
-    if (straight) {
-      const [edgePath] = getStraightPath({
-        sourceX,
-        sourceY,
-        targetX,
-        targetY,
-      });
-      return (
-        <>
-          <BaseEdge style={{ stroke: color }} path={edgePath} id={id} />
-          {text && (
-            <text>
-              <textPath
-                href={`#${id}`}
-                style={{ fontSize: "12px" }}
-                startOffset="50%"
-                textAnchor="middle"
-              >
-                {text}
-              </textPath>
-            </text>
-          )}
-        </>
-      );
-    } else {
-      const [edgePath] = getSmoothStepPath({
-        sourceX,
-        sourceY,
-        sourcePosition,
-        targetX,
-        targetY,
-        targetPosition,
-        borderRadius: 0,
-      });
-      return (
-        <>
-          <BaseEdge style={{ stroke: color }} path={edgePath} id={id} />
-          {text && (
-            <text>
-              <textPath
-                href={`#${id}`}
-                style={{ fontSize: "12px" }}
-                startOffset="50%"
-                textAnchor="middle"
-              >
-                {text}
-              </textPath>
-            </text>
-          )}
-        </>
-      );
-    }
+    return <BaseEdge path={edgePath} id={id} />;
   },
 );
-
 export default CustomEdge;

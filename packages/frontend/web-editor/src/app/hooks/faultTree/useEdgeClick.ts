@@ -1,6 +1,6 @@
-import {EdgeProps, useReactFlow} from 'reactflow';
+import { EdgeProps, useReactFlow } from "reactflow";
 
-import {GenerateUUID} from '../../../utils/treeUtils';
+import { GenerateUUID } from "../../../utils/treeUtils";
 
 /**
  * Hook for handling click events on edges in a React Flow diagram.
@@ -17,9 +17,8 @@ import {GenerateUUID} from '../../../utils/treeUtils';
  * <Edge onClick={handleEdgeClick} />;
  * ```
  */
-function useEdgeClick(id: EdgeProps['id']) {
-  const {setEdges, setNodes, getNode, getEdge} = useReactFlow();
-
+function UseEdgeClick(id: EdgeProps["id"]) {
+  const { setEdges, setNodes, getNode, getEdge } = useReactFlow();
   const handleEdgeClick = () => {
     // first we retrieve the edge object to get the source and target id
     const edge = getEdge(id);
@@ -42,9 +41,9 @@ function useEdgeClick(id: EdgeProps['id']) {
     const insertNode = {
       id: insertNodeId,
       // we place the node at the current position of the target (prevents jumping)
-      position: {x: targetNode.position.x, y: targetNode.position.y},
+      position: { x: targetNode.position.x, y: targetNode.position.y },
       data: {},
-      type: 'notGate',
+      type: "notGate",
     };
 
     // new connection from source to new node
@@ -52,7 +51,7 @@ function useEdgeClick(id: EdgeProps['id']) {
       id: `${edge.source}->${insertNodeId}`,
       source: edge.source,
       target: insertNodeId,
-      type: 'workflow',
+      type: "workflow",
     };
 
     // new connection from new node to target
@@ -60,21 +59,29 @@ function useEdgeClick(id: EdgeProps['id']) {
       id: `${insertNodeId}->${edge.target}`,
       source: insertNodeId,
       target: edge.target,
-      type: 'workflow',
+      type: "workflow",
     };
 
     // remove the edge that was clicked as we have a new connection with a node inbetween
-    setEdges((edges) => edges.filter((e) => e.id !== id).concat([sourceEdge, targetEdge]));
+    setEdges((edges) =>
+      edges.filter((e) => e.id !== id).concat([sourceEdge, targetEdge]),
+    );
 
     // insert the node between the source and target node in the react flow state
     setNodes((nodes) => {
-      const targetNodeIndex = nodes.findIndex((node) => node.id === edge.target);
+      const targetNodeIndex = nodes.findIndex(
+        (node) => node.id === edge.target,
+      );
 
-      return [...nodes.slice(0, targetNodeIndex), insertNode, ...nodes.slice(targetNodeIndex, nodes.length)];
+      return [
+        ...nodes.slice(0, targetNodeIndex),
+        insertNode,
+        ...nodes.slice(targetNodeIndex, nodes.length),
+      ];
     });
   };
 
   return handleEdgeClick;
 }
 
-export default useEdgeClick;
+export default UseEdgeClick;

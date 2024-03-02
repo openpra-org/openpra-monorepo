@@ -23,6 +23,7 @@ import SystemsAnalysis from "../fullScopePages/systemsAnalysis";
 import EventSequenceQuantificationDiagrams from "../fullScopePages/eventSequenceQuantificationDiagrams";
 import RadiologicalConsequenceAnalysisList from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
 import FaultTrees from "../fullScopePages/faultTrees";
+import InitiatingEventsFaultTrees from "../fullScopePages/initiatingEventsFaultTree";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -91,6 +92,7 @@ export default function InternalEventsPage() {
         <Route path="event-trees/*" element={<EventTrees />} />
         <Route path="functional-events/*" element={<FunctionalEvents />} />
         <Route path="fault-trees/*" element={<FaultTrees />} />
+        <Route path="initiating-event-fault-tree/*" element={<InitiatingEventsFaultTrees />} />
         <Route path="bayesian-networks/*" element={<BayesianNetworks />} />
         <Route path="markov-chains/*" element={<MarkovChains />} />
         <Route path="human-reliability-analysis/*" element={<HRA />} />

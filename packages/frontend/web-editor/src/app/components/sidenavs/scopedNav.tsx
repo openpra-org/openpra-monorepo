@@ -106,6 +106,16 @@ export default function ScopedNav(props: scopedNavProps) {
           },
           1,
         ),
+        createTreeItem(
+          "Fault Tree",
+          {
+            icon: <EuiToken iconType="shard" />,
+            callback: () => {
+              navigate("initiating-event-fault-tree");
+            },
+          },
+          1,
+        ),
       ],
     }),
   ];

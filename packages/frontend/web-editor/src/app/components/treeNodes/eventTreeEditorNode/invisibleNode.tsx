@@ -1,12 +1,12 @@
 import { Handle, NodeProps, Position } from "reactflow";
 import { memo } from "react";
 import React from "react";
-import { EuiText } from "@elastic/eui";
+import { EuiText, EuiTextArea } from "@elastic/eui";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 import useNodeClick from "../../../hooks/eventSequence/useNodeClick";
 import styles from "./styles/nodeTypes.module.css";
 
-function HiddenNode({ id, data }: NodeProps) {
+function InvisibleNode({ id, data }: NodeProps) {
   const onClick = useCreateNodeClick(id);
 
   return (
@@ -30,26 +30,20 @@ function HiddenNode({ id, data }: NodeProps) {
           textAlign: "center",
         }}
       >
-        <div className={data.output ? styles.outputNode : styles.inputNode}>
-          <EuiText
-            style={{
-              fontSize: "0.7rem",
-              height: "1.2rem",
-            }}
-          >
-            0.55
-          </EuiText>{" "}
-        </div>
-        {data.output ? null : (
-          <>
-            <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>
-              Yes
-            </EuiText>
+        {/*<div className={styles.inputNode}>*/}
+        {/*  <EuiText*/}
+        {/*    style={{ fontSize: "0.7rem", height: "1.2rem", resize: "none" }}*/}
+        {/*  >*/}
+        {/*    0.55*/}
+        {/*  </EuiText>*/}
+        {/*</div>*/}
 
-            <p onClick={onClick} className={styles.addNodeButtonText}>
-              +
-            </p>
-          </>
+        {/*<EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>Yes</EuiText>*/}
+
+        {data.depth != 1 && (
+          <p onClick={onClick} className={styles.addNodeButtonText}>
+            +
+          </p>
         )}
       </div>
 
@@ -68,4 +62,4 @@ function HiddenNode({ id, data }: NodeProps) {
   );
 }
 
-export default HiddenNode;
+export default InvisibleNode;

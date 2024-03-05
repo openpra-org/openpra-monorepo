@@ -4,7 +4,7 @@ import { cluster, partition, stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
-const layout = cluster<Node>()
+const layout = tree<Node>()
   // the node size configures the spacing between the nodes ([width, height])
   .nodeSize([140, 40]) // this is needed for creating equal space between all nodes
   .separation(() => 1);
@@ -19,7 +19,7 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
     return [];
   }
 
-  console.log(cols, edges);
+  console.log(nodes, edges);
 
   // convert nodes and edges into a hierarchical object for using it with the layout function
   const hierarchy = stratify<Node>()
@@ -91,7 +91,11 @@ function useLayout(depth: number) {
     nodeData.forEach((node) => {
       if (node.type === "columnNode") {
         cols.push(node);
-      } else if (node.type === "hiddenNode") {
+      } else if (
+        node.type === "visibleNode" ||
+        node.type === "invisibleNode" ||
+        node.type === "outputNode"
+      ) {
         nodes.push(node);
       }
     });

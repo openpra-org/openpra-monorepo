@@ -1,20 +1,22 @@
 import { Edge, NodeProps, Node, useReactFlow } from "reactflow";
+import { last } from "lodash";
+import { GenerateUUID } from "../../../utils/treeUtils";
 
 function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
 
   const addNode = () => {
     // Get current nodes and edges
-    const nodes = getNodes();
+    let nodes = getNodes();
     const edges = getEdges();
 
     // Find the root node
-    const rootNode = nodes.find((node) => node.id === "tree-1-1");
+    const rootNode = nodes.find((node) => node.data.depth === 1);
 
     // Handle potential undefined rootNode
     if (!rootNode) {
       // Handle the case where the root node is not found
-      throw new Error("Root node with ID 'tree-1-1' not found");
+      throw new Error("Root node with Level 1 not found");
     }
 
     // Extract the output depth from the root node
@@ -23,101 +25,143 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
       rootNode.data?.inputDepth,
     ] as [number, number];
 
-    const maxIndex = rootNode.data?.maxIndex + 1;
-    rootNode.data.maxIndex = maxIndex;
+    const rightmostNodeIndices = findRightmostNodeIndicesAtEachLevel(
+      clickedNodeId,
+      nodes,
+      edges,
+      inputLevels,
+      outputLevels,
+    );
 
     // Find the clicked node
-    const clickedNode = nodes.find((node) => node.id === clickedNodeId);
+    const clickedNodeIndex = nodes.findIndex(
+      (node) => node.id === clickedNodeId,
+    );
+    const clickedNode =
+      clickedNodeIndex !== -1 ? nodes[clickedNodeIndex] : null;
+
+    // put the clicked node as activated (for a dangling node)
+    if (clickedNode?.type === "invisibleNode") {
+      nodes[clickedNodeIndex].type = "visibleNode";
+    }
 
     // Find the edge connecting clickedNode and its parent node
     const clickedNodeEdge = edges.find((edge) => edge.target === clickedNodeId);
 
     // Determine the depth of the new node
-    const depth = parseInt(clickedNodeId.split("-")[1]);
-    const index = parseInt(clickedNodeId.split("-")[2]);
+    const clickedNodeDepth = clickedNode?.data.depth;
 
-    // Create the new node ID
-    const newNodeId = `tree-${depth}-${maxIndex}`;
+    // Initialize placeholders for new nodes and edges
 
-    // Create the new node
-    const newNode: Node = {
-      id: newNodeId,
-      type: "hiddenNode",
-      data: {
-        label: `Node ${newNodeId}`,
-        depth: depth,
-        width: clickedNode && (clickedNode.data.width as number),
-        output: false,
-      },
-      position: clickedNode?.position as { x: number; y: number },
-    };
+    const newEdges: Edge[] = [];
+    let lastNodeId = clickedNodeEdge ? clickedNodeEdge.source : "";
 
-    // Create the edge from the clicked node to the new node
-    const newEdge: Edge = {
-      id: `${clickedNodeEdge?.source ?? "default-source"}-${newNodeId}`,
-      source: clickedNodeEdge?.source ?? "default-source",
-      target: newNodeId,
-      type: "custom",
-      animated: false,
-    };
+    rightmostNodeIndices.forEach((rightmostNodeIndex, level) => {
+      // Generate a new node ID
+      const newNodeId = GenerateUUID();
 
-    // Create the group of output nodes and their edges
-    const outputNodes: Node[] = [];
-    const outputEdges: Edge[] = [];
+      // Decide the node type based on its level
+      const nodeType =
+        level === 0
+          ? "visibleNode"
+          : level <= inputLevels - clickedNodeDepth
+          ? "invisibleNode"
+          : "outputNode";
 
-    for (let i = 1; i <= outputLevels; i++) {
-      const outputNodeId = `output-${i}-${maxIndex}`;
-      outputNodes.push({
-        id: outputNodeId,
-        type: "hiddenNode",
+      // Create the new node based on the level and type
+      const newNode: Node = {
+        id: newNodeId,
+        type: nodeType,
         data: {
-          label: `Output ${outputNodeId}`,
-          depth: inputLevels + i,
-          width: clickedNode?.data.width as number,
-          output: true,
+          label: `Node ${newNodeId}`,
+          depth: level + clickedNodeDepth,
+          width: rootNode.data.width,
+          output: nodeType === "outputNode",
         },
-        position: clickedNode?.position as { x: number; y: number },
-      });
+        position: {
+          x: clickedNode?.position.x!, // This should be calculated based on your layout logic
+          y: clickedNode?.position.y!, // This should be calculated based on your layout logic
+        },
+      };
 
-      if (i === 1) {
-        outputEdges.push({
-          id: `${newNodeId}-${outputNodeId}`,
-          source: newNodeId,
-          target: outputNodeId,
-          type: "custom",
-          animated: false,
-        });
-      } else {
-        outputEdges.push({
-          id: `output-${i - 1}-${maxIndex}-to-output-${i}-${maxIndex}`, // Correct the edge ID if necessary
-          source: `output-${i - 1}-${maxIndex}`,
-          target: `output-${i}-${maxIndex}`,
-          type: "custom",
-          animated: false,
-        });
-      }
-    }
+      nodes = [
+        ...nodes.slice(0, rightmostNodeIndex + 1 + level),
+        newNode,
+        ...nodes.slice(rightmostNodeIndex + 1 + level, nodes.length),
+      ];
+
+      // Determine source node for the edge
+      const sourceNodeId = lastNodeId;
+      lastNodeId = newNodeId;
+
+      // Create and add the new edge
+      const newEdge: Edge = {
+        id: GenerateUUID(),
+        source: sourceNodeId,
+        target: newNodeId,
+        type: "custom",
+        animated: false,
+      };
+
+      newEdges.push(newEdge);
+    });
 
     // Set nodes and edges with the updated and new elements
-    setNodes((prevNodes) => {
-      const targetNodeIndex = nodes.findIndex(
-        (node) => node.id === clickedNodeId,
-      );
-      const targetOutputIndex = nodes.findIndex(
-        (node) => node.id === maxIndex?.id,
-      );
-      return [
-        rootNode,
-        ...nodes.slice(1, targetNodeIndex + 1),
-        newNode,
-        ...nodes.slice(targetNodeIndex + 1, nodes.length),
-        ...outputNodes,
-      ];
-    });
-    setEdges((prevEdges) => [...prevEdges, newEdge, ...outputEdges]);
+    setNodes(nodes);
+    setEdges(edges.concat(newEdges));
   };
 
   return addNode;
 }
 
 export default useCreateNodeClick;
+
+function findRightmostNodeIndicesAtEachLevel(
+  clickedNodeId: string,
+  nodes: Node[],
+  edges: Edge[],
+  inputLevel: number,
+  outputLevel: number,
+): number[] {
+  // Find the clicked node to get its depth
+  const clickedNode = nodes.find((node) => node.id === clickedNodeId);
+  if (!clickedNode) {
+    console.error("Clicked node not found");
+    return [];
+  }
+  const clickedNodeDepth = clickedNode.data.depth;
+
+  // Calculate total depth to explore from the clicked node
+  const totalDepth = inputLevel + outputLevel - clickedNodeDepth + 1;
+  const rightmostNodeIndices: number[] = new Array(totalDepth).fill(-1);
+
+  // DFS to find rightmost nodes
+  function dfs(nodeId: string, currentDepth: number) {
+    const node = nodes.find((node) => node.id === nodeId);
+    if (!node) return;
+
+    // Calculate the level relative to the clicked node
+    const relativeLevel = node.data.depth - clickedNodeDepth;
+    if (relativeLevel >= 0 && relativeLevel < totalDepth) {
+      const currentIndex = nodes.findIndex((n) => n.id === nodeId);
+      // Check if this node is the rightmost at its level
+      if (
+        rightmostNodeIndices[relativeLevel] === -1 ||
+        node.position.y > nodes[rightmostNodeIndices[relativeLevel]].position.y
+      ) {
+        rightmostNodeIndices[relativeLevel] = currentIndex;
+      }
+    }
+
+    // Recurse for children
+    const childrenEdges = edges.filter((e) => e.source === nodeId);
+    childrenEdges.forEach((edge) => {
+      dfs(edge.target, currentDepth + 1);
+    });
+  }
+
+  // Start DFS from the clicked node
+  dfs(clickedNodeId, clickedNodeDepth);
+
+  return rightmostNodeIndices;
+}

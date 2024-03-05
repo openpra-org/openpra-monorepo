@@ -9,18 +9,11 @@ import React, {
 } from "react";
 
 import ReactFlow, {
-  addEdge,
   Background,
-  Connection,
   Edge,
-  EdgeTypes,
   Node,
-  NodeTypes,
-  Position,
   ProOptions,
   ReactFlowProvider,
-  useEdgesState,
-  useNodesState,
 } from "reactflow";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
@@ -65,6 +58,7 @@ type Props = {
 const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
   // this hook call ensures that the layout is re-calculated every time the graph changes
   useLayout(depth);
+
   const [menu, setMenu] = useState<treeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
@@ -166,7 +160,7 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
 
 export const EventTreeEditor = (): ReactElement => {
   const input = 3;
-  const output = 2;
+  const output = 1;
   const { nodes, edges } = useTreeData(input, output, 140);
 
   return (

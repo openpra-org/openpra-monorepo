@@ -159,7 +159,7 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
  */
 
 export const EventTreeEditor = (): ReactElement => {
-  const input = 3;
+  const input = 2;
   const output = 1;
   const { nodes, edges } = useTreeData(input, output, 140);
 

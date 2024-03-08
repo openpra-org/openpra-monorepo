@@ -32,7 +32,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
       inputLevels,
       outputLevels,
     );
-
+    console.log(nodes, rightmostNodeIndices);
     // Find the clicked node
     const clickedNodeIndex = nodes.findIndex(
       (node) => node.id === clickedNodeId,
@@ -43,6 +43,8 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     // put the clicked node as activated (for a dangling node)
     if (clickedNode?.type === "invisibleNode") {
       nodes[clickedNodeIndex].type = "visibleNode";
+      const idx = edges.findIndex((edge) => edge.target === clickedNodeId);
+      edges[idx].animated = false;
     }
 
     // Find the edge connecting clickedNode and its parent node
@@ -100,7 +102,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
         source: sourceNodeId,
         target: newNodeId,
         type: "custom",
-        animated: false,
+        animated: level === 0 ? false : true,
       };
 
       newEdges.push(newEdge);
@@ -143,8 +145,7 @@ function findRightmostNodeIndicesAtEachLevel(
     // Calculate the level relative to the clicked node
     const relativeLevel = node.data.depth - clickedNodeDepth;
     if (relativeLevel >= 0 && relativeLevel < totalDepth) {
-      const currentIndex = nodes.findIndex((n) => n.id === nodeId);
-      // Check if this node is the rightmost at its level
+      const currentIndex = nodes.findIndex((n) => n.id === nodeId); // Check if this node is the rightmost at its level
       if (
         rightmostNodeIndices[relativeLevel] === -1 ||
         node.position.y > nodes[rightmostNodeIndices[relativeLevel]].position.y

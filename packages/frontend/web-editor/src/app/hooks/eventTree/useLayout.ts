@@ -19,8 +19,6 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
     return [];
   }
 
-  console.log(nodes, edges);
-
   // convert nodes and edges into a hierarchical object for using it with the layout function
   const hierarchy = stratify<Node>()
     .id((d) => d.id)
@@ -88,14 +86,11 @@ function useLayout(depth: number) {
     // splitting the nodeData into nodes and columns
     const nodes: Node[] = [];
     const cols: Node[] = [];
+    console.log(nodeData, edges);
     nodeData.forEach((node) => {
       if (node.type === "columnNode") {
         cols.push(node);
-      } else if (
-        node.type === "visibleNode" ||
-        node.type === "invisibleNode" ||
-        node.type === "outputNode"
-      ) {
+      } else {
         nodes.push(node);
       }
     });

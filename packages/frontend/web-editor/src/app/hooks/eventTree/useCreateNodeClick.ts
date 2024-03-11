@@ -1,9 +1,13 @@
 import { Edge, NodeProps, Node, useReactFlow } from "reactflow";
 import { last } from "lodash";
-import { GenerateUUID } from "../../../utils/treeUtils";
+import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { useParams } from "react-router-dom";
+import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
 
 function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
+  const { eventTreeId } = useParams() as { eventTreeId: string };
 
   const addNode = () => {
     // Get current nodes and edges
@@ -114,8 +118,21 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     });
 
     // Set nodes and edges with the updated and new elements
+    const updatedEdges = edges.concat(newEdges);
     setNodes(nodes);
-    setEdges(edges.concat(newEdges));
+    setEdges(updatedEdges);
+
+    const eventTreeCurrentState: EventTreeGraph = EventTreeState({
+      eventTreeId: eventTreeId,
+      nodes: nodes,
+      edges: updatedEdges,
+    });
+
+    void GraphApiManager.storeEventTree(eventTreeCurrentState).then(
+      (r: EventTreeGraph) => {
+        console.log(r);
+      },
+    );
   };
 
   return addNode;

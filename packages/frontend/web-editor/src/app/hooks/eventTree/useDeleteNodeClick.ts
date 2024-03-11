@@ -1,7 +1,12 @@
 import { NodeProps, EdgeProps, useReactFlow, Edge } from "reactflow";
+import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { useParams } from "react-router-dom";
+import { EventTreeState } from "../../../utils/treeUtils";
 
 function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
+  const { eventTreeId } = useParams() as { eventTreeId: string };
 
   const deleteNode = () => {
     const nodes = getNodes();
@@ -61,6 +66,18 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
 
       setNodes(remainingNodes);
       setEdges(remainingEdges);
+
+      const eventTreeCurrentState: EventTreeGraph = EventTreeState({
+        eventTreeId: eventTreeId,
+        nodes: remainingNodes,
+        edges: remainingEdges,
+      });
+
+      void GraphApiManager.storeEventTree(eventTreeCurrentState).then(
+        (r: EventTreeGraph) => {
+          console.log(r);
+        },
+      );
     } else {
       // Update clicked node to invisibleNode and animate edges
       const updatedNodes = nodes.map((node) => {
@@ -79,6 +96,18 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
 
       setNodes(updatedNodes);
       setEdges(updatedEdges);
+
+      const eventTreeCurrentState: EventTreeGraph = EventTreeState({
+        eventTreeId: eventTreeId,
+        nodes: updatedNodes,
+        edges: updatedEdges,
+      });
+
+      void GraphApiManager.storeEventTree(eventTreeCurrentState).then(
+        (r: EventTreeGraph) => {
+          console.log(r);
+        },
+      );
     }
   };
 

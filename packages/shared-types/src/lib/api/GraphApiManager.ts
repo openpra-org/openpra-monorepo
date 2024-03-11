@@ -9,6 +9,7 @@ const API_ENDPOINT = "/api";
 const GRAPH_ENDPOINT = `${API_ENDPOINT}/graph-models`;
 const EVENT_SEQUENCE_DIAGRAMS_ENDPOINT = `${GRAPH_ENDPOINT}/event-sequence-diagram-graph`;
 const FAULT_TREE_GRAPH_ENDPOINT = `${GRAPH_ENDPOINT}/fault-tree-graph`;
+const EVENT_TREE_GRAPH_ENDPOINT = `${GRAPH_ENDPOINT}/event-tree-graph`;
 
 /**
  * Manager class to manage API calls of graph related endpoints
@@ -82,7 +83,7 @@ export class GraphApiManager {
    * @returns Updated fault tree graph
    */
   static async storeEventTree(data: EventTreeGraph): Promise<EventTreeGraph> {
-    return await this.post(`${FAULT_TREE_GRAPH_ENDPOINT}`, data)
+    return await this.post(`${EVENT_TREE_GRAPH_ENDPOINT}`, data)
       .then((res) => this.getEventTreeResponse(res, data.eventTreeId))
       .catch((err) => {
         throw err;
@@ -96,7 +97,7 @@ export class GraphApiManager {
    */
   static async getEventTree(eventTreeId = "-1"): Promise<EventTreeGraph> {
     return await this.get(
-      `${FAULT_TREE_GRAPH_ENDPOINT}/?eventTreeId=${eventTreeId}`,
+      `${EVENT_TREE_GRAPH_ENDPOINT}/?eventTreeId=${eventTreeId}`,
     )
       .then((res) => this.getEventTreeResponse(res, eventTreeId))
       .catch((error) => {

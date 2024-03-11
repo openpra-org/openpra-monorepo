@@ -37,9 +37,7 @@ const useTreeData = (
     for (let depth = 2; depth <= inputLevels; depth++) {
       currentNodes = [];
 
-      for (let i = 0; i < prevNodes.length; i++) {
-        const parent = prevNodes[i];
-
+      for (const parent of prevNodes) {
         // Create two child nodes for each parent node
         const leftChildId = GenerateUUID();
         const leftChildNode: Node = {
@@ -97,9 +95,7 @@ const useTreeData = (
     const outputStartDepth = inputLevels + 1; // Depth of the first output level
     let prevNodeId = "";
 
-    for (let i = 0; i < currentNodes.length; i++) {
-      const inputLeafNode = currentNodes[i];
-
+    currentNodes.forEach((inputLeafNode) => {
       for (let j = 0; j < outputLevels; j++) {
         const outputNodeId = GenerateUUID();
         const outputNode: Node = {
@@ -137,7 +133,7 @@ const useTreeData = (
         edges.push(edge);
         prevNodeId = outputNodeId;
       }
-    }
+    });
 
     return { nodes, edges };
   };

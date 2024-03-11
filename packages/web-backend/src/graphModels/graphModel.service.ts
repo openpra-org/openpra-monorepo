@@ -35,7 +35,7 @@ export class GraphModelService {
     private readonly eventSequenceDiagramGraphModel: Model<EventSequenceDiagramGraphDocument>,
     @InjectModel(FaultTreeGraph.name)
     private readonly faultTreeGraphModel: Model<FaultTreeGraphDocument>,
-    @InjectModel(FaultTreeGraph.name)
+    @InjectModel(EventTreeGraph.name)
     private readonly eventTreeGraphModel: Model<EventTreeGraphDocument>,
   ) {}
 
@@ -193,6 +193,8 @@ export class GraphModelService {
         return new this.eventSequenceDiagramGraphModel(body);
       case GraphTypes.FaultTree:
         return new this.faultTreeGraphModel(body);
+      case GraphTypes.EventTree:
+        return new this.eventTreeGraphModel(body);
       default:
         throw new Error("model type not found");
     }

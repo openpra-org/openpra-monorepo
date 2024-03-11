@@ -55,6 +55,14 @@ type Props = {
   edgeData: Edge[];
   depth: number;
 };
+type CustomNodeData = {
+  label: string;
+  depth: number;
+  width: number;
+  output: boolean;
+  inputDepth?: number;
+  outputDepth?: number;
+};
 const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
   // this hook call ensures that the layout is re-calculated every time the graph changes
   useLayout(depth);
@@ -63,7 +71,7 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
   const ref = useRef(document.createElement("div"));
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
 
-  const [nodes, setNodes] = useState<Node[]>(nodeData);
+  const [nodes, setNodes] = useState<Node<CustomNodeData>[]>(nodeData);
   const [edges, setEdges] = useState<Edge[]>(edgeData);
 
   const [loading, setLoading] = useState(true);

@@ -9,3 +9,19 @@ export type GraphNode = {
   position: Position;
   type: string;
 };
+
+export type EventTreeNode = {
+  id: string;
+  data: EventTreeData;
+  position: Position;
+  type: string;
+};
+
+type EventTreeData = {
+  label: string;
+  depth: number;
+  width: number;
+  output: boolean;
+  inputDepth?: number;
+  outputDepth?: number;
+};

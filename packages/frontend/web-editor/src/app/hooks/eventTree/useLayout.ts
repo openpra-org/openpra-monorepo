@@ -8,7 +8,7 @@ const layout = cluster<Node>()
   // the node size configures the spacing between the nodes ([width, height])
   .nodeSize([140, 40]) // this is needed for creating equal space between all nodes
 
-  .separation(() => 0.35);
+  .separation(() => 0.45);
 
 const options = { duration: 300 };
 

@@ -1,13 +1,17 @@
 import { Edge, NodeProps, Node, useReactFlow } from "reactflow";
-import { GenerateUUID } from "../../../utils/treeUtils";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { useParams } from "react-router-dom";
+import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
 
 function useCreateColClick(clickedNodeId: NodeProps["id"]) {
-  const { setNodes, setEdges, getNodes, getEdges } = useReactFlow();
+  const { setNodes, setEdges, getNodes, getEdges, getNode } = useReactFlow();
+  const { eventTreeId } = useParams() as { eventTreeId: string };
 
   const addCol = () => {
     // Get current nodes and edges
-    const nodeData: Node[] = getNodes();
-    let edges: Edge[] = getEdges();
+    const nodeData = getNodes();
+    let edges = getEdges();
 
     // splitting the nodeData into nodes and columns
     const nodes: Node[] = [];
@@ -26,10 +30,10 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
 
     let lastIndexOfPrevDepth = -1;
     let indexOfPrevCol = -1;
-    const clickedNodeEdge = edges.find(
-      (edge) => edge.source === clickedNodeId,
-    )!;
-    const clickedNode = cols.find((node) => node.id === clickedNodeId)!;
+    const clickedNodeEdge = edges.find((edge) => edge.source === clickedNodeId);
+    const clickedNode = getNode(clickedNodeId);
+    if (!clickedNode) return; // Guard clause if clickedNode is not found
+
     const clickedDepth = clickedNode.data.depth;
 
     // Determine the last index of the nodes with the previous depth
@@ -153,9 +157,22 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
     } else {
       rootNode.data.inputDepth += 1;
     }
+    const updatedNodes = [...nodes, ...cols];
     // Update edges with new connection
-    setNodes([...nodes, ...cols]);
+    setNodes(updatedNodes);
     setEdges(edges);
+
+    const eventTreeCurrentState: EventTreeGraph = EventTreeState({
+      eventTreeId: eventTreeId,
+      nodes: updatedNodes,
+      edges: edges,
+    });
+
+    void GraphApiManager.storeEventTree(eventTreeCurrentState).then(
+      (r: EventTreeGraph) => {
+        console.log(r);
+      },
+    );
   };
   return addCol;
 }

@@ -1,5 +1,6 @@
 import { GraphNode } from "./GraphNode";
 import { GraphEdge } from "./GraphEdge";
+import { EventTreeData } from "./graphData/EventTreeData";
 
 /**
  * Graph type with list of GraphNodes and GraphEdges
@@ -28,4 +29,7 @@ export type FaultTreeGraph = {
  */
 export type EventTreeGraph = {
   eventTreeId: string;
-} & Graph;
+} & {
+  nodes: GraphNode<EventTreeData>[];
+  edges: GraphEdge[];
+};

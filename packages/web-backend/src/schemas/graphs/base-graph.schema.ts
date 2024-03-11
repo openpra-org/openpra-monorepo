@@ -17,5 +17,4 @@ export class BaseGraph {
   @Prop()
   edges: GraphEdge[];
 }
-
 export type BaseGraphDocument = BaseGraph & Document;

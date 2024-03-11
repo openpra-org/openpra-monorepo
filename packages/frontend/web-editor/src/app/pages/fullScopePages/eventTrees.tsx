@@ -19,7 +19,7 @@ import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import useTreeData from "../../hooks/eventTree/useTreeData";
-import EventTreeList from "../../components/lists/nestedLists/eventTreeList";
+import { EventTreeList } from "../../components/lists/nestedLists/eventTreeList";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
 
@@ -30,7 +30,7 @@ import useLayout from "../../hooks/eventTree/useLayout";
 import EventTreeNodeContextMenu, {
   treeNodeContextMenuProps,
 } from "../../components/menus/eventTreeNodeContextMenu";
-import LoadingCard from "../../components/cards/loadingCard";
+import { LoadingCard } from "../../components/cards/loadingCard";
 
 /**
  * Initial set of nodes to be used in the ReactFlow component.
@@ -182,7 +182,7 @@ export const EventTreeEditor = (): ReactElement => {
  * The EventTrees component provides routing for the event tree list and the event tree editor.
  * @returns {ReactElement} Routes component containing the EventTreeList and EventTreeEditor components.
  */
-export default function EventTrees(): ReactElement {
+export function EventTrees(): ReactElement {
   return (
     <Routes>
       <Route path="" element={<EventTreeList />} />

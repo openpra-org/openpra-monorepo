@@ -1,9 +1,9 @@
 import { Handle, NodeProps, Position } from "reactflow";
-import { memo } from "react";
+
 import React from "react";
-import { EuiText, EuiTextArea } from "@elastic/eui";
+
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
-import useNodeClick from "../../../hooks/eventSequence/useNodeClick";
+
 import styles from "./styles/nodeTypes.module.css";
 
 function InvisibleNode({ id, data }: NodeProps) {

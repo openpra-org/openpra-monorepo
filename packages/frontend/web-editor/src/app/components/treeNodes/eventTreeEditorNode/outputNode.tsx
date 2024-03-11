@@ -16,7 +16,7 @@ function OutputNode({ id, data }: NodeProps) {
         style={{
           position: "absolute",
           top: "50%",
-          left: "50%",
+          left: "0%",
 
           visibility: "hidden",
         }}
@@ -44,7 +44,7 @@ function OutputNode({ id, data }: NodeProps) {
         style={{
           position: "absolute",
           top: "50%",
-          right: "50%",
+          right: "0%",
           visibility: "hidden",
         }}
       />

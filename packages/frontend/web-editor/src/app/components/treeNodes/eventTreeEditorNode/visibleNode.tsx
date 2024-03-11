@@ -4,10 +4,12 @@ import React from "react";
 import { EuiText, EuiTextArea } from "@elastic/eui";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 import useNodeClick from "../../../hooks/eventSequence/useNodeClick";
+import useDeleteNodeClick from "../../../hooks/eventTree/useDeleteNodeClick";
 import styles from "./styles/nodeTypes.module.css";
 
 function VisibleNode({ id, data }: NodeProps) {
-  const onClick = useCreateNodeClick(id);
+  const onClickCreate = useCreateNodeClick(id);
+  const onClickDelete = useDeleteNodeClick(id);
 
   return (
     <div>
@@ -41,9 +43,20 @@ function VisibleNode({ id, data }: NodeProps) {
         <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>Yes</EuiText>
 
         {data.depth != 1 && (
-          <p onClick={onClick} className={styles.addNodeButtonText}>
-            +
-          </p>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <p onClick={onClickCreate} className={styles.addNodeButtonText}>
+              +
+            </p>
+            <p onClick={onClickDelete} className={styles.addNodeButtonText}>
+              -
+            </p>
+          </div>
         )}
       </div>
 

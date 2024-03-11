@@ -32,7 +32,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
       inputLevels,
       outputLevels,
     );
-    console.log(nodes, rightmostNodeIndices);
+
     // Find the clicked node
     const clickedNodeIndex = nodes.findIndex(
       (node) => node.id === clickedNodeId,
@@ -43,6 +43,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     // put the clicked node as activated (for a dangling node)
     if (clickedNode?.type === "invisibleNode") {
       nodes[clickedNodeIndex].type = "visibleNode";
+
       const idx = edges.findIndex((edge) => edge.target === clickedNodeId);
       edges[idx].animated = false;
     }
@@ -75,7 +76,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
         id: newNodeId,
         type: nodeType,
         data: {
-          label: `Node ${newNodeId}`,
+          label: `node at ${level + clickedNodeDepth}`,
           depth: level + clickedNodeDepth,
           width: rootNode.data.width,
           output: nodeType === "outputNode",
@@ -102,7 +103,11 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
         source: sourceNodeId,
         target: newNodeId,
         type: "custom",
-        animated: level === 0 ? false : true,
+        animated:
+          nodeType === "invisibleNode" ||
+          level === inputLevels - clickedNodeDepth + 1
+            ? true
+            : false,
       };
 
       newEdges.push(newEdge);

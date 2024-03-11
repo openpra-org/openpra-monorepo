@@ -1,5 +1,5 @@
 .outputNode{
-  border: 1px solid ;
+  border: 1.5px solid ;
   height: 50%
 }
 
@@ -17,8 +17,9 @@
 }
 
 .addNodeButtonText{
-
   text-align: center;
+  padding-right: 0.2rem;
+  font-size: medium;
 }
 
 .textarea{

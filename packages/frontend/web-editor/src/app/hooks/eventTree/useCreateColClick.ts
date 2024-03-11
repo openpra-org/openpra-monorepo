@@ -12,7 +12,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
     // splitting the nodeData into nodes and columns
     const nodes: Node[] = [];
     const cols: Node[] = [];
-    console.log(nodeData, edges);
+
     nodeData.forEach((node) => {
       if (node.type === "columnNode") {
         cols.push(node);
@@ -48,7 +48,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         const nodeEdge = edges.find((edge) => edge.source === node.id)!;
         const newInvisibleNode: Node = {
           id: newNodeId,
-          type: "invisibleNode",
+          type: clickedNode.data.output ? "outputNode" : "invisibleNode",
           data: {
             label: `New Node at Depth ${clickedDepth + 1}`,
             depth: clickedDepth + 1,
@@ -72,7 +72,11 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
               source: newNodeId,
               target: edge.target,
               type: "custom",
-              animated: edge.animated,
+              animated:
+                edges.filter((edge) => edge.source === node.id).length > 1 ||
+                clickedNode.data.output
+                  ? false
+                  : true,
             });
           }
         });
@@ -81,7 +85,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
           source: node.id,
           target: newNodeId,
           type: "custom",
-          animated: true,
+          animated: clickedNode.data.output ? false : true,
         });
 
         edges = edges.filter((e) => e.source !== node.id);
@@ -95,9 +99,10 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
       id: newColNodeId,
       type: "columnNode",
       data: {
-        label: `Column at Depth ${clickedDepth + 1}`,
+        label: clickedNode.data.output ? `End State ` : `Functional Event `,
         depth: clickedDepth + 1,
         width: clickedNode.data.width,
+        output: clickedNode.data.output,
         // Additional properties as needed
       },
       position: {

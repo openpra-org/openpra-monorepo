@@ -4,10 +4,11 @@ import { cluster, partition, stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
-const layout = tree<Node>()
+const layout = cluster<Node>()
   // the node size configures the spacing between the nodes ([width, height])
   .nodeSize([140, 40]) // this is needed for creating equal space between all nodes
-  .separation(() => 1);
+
+  .separation(() => 0.35);
 
 const options = { duration: 300 };
 
@@ -35,7 +36,10 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
   // we only extract the position from the d3 function
   nodes = root.descendants().map((d) => ({
     ...d.data,
-    position: { x: d.y, y: d.x },
+    position: {
+      x: d.y,
+      y: d.x,
+    },
   }));
 
   // Find the maximum value of y from the leaf nodes

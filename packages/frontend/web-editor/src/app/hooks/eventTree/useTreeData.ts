@@ -122,7 +122,7 @@ const useTreeData = (
             source: inputLeafNode.id,
             target: outputNodeId,
             type: "custom",
-            animated: false,
+            animated: true,
           };
         } else {
           edge = {
@@ -152,7 +152,7 @@ const useTreeData = (
       id: rootColNode,
       type: "columnNode",
       data: {
-        label: `Column ${rootColNode}`,
+        label: `Initiating Event`,
         width: nodeWidth,
         depth: 1,
         output: false,
@@ -165,7 +165,7 @@ const useTreeData = (
     for (let column = 2; column <= verticalLevels; column++) {
       const nodeId = GenerateUUID();
       const nodeData = {
-        label: `Column ${column}`,
+        label: column > inputLevels ? `End State` : `Functional Event`,
         width: nodeWidth,
         depth: column,
         output: column > inputLevels, // Check if it's an output column

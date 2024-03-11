@@ -5,5 +5,5 @@ export const createInternalEventRequest: Partial<TypedModel> = {
     name: "Internal Event Model",
     description: "Description for Internal Event Model",
   },
-  users: [1],
+  users: [1, 2, 3],
 };

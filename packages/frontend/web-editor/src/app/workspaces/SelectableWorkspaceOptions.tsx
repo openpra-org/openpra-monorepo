@@ -1,6 +1,6 @@
 import { EuiAvatar, EuiSelectableOption } from "@elastic/eui";
 
-export interface WorkspaceOption {
+export type WorkspaceOption = {
   label: string | JSX.Element;
   key: string | number;
   prepend?: JSX.Element;
@@ -9,7 +9,7 @@ export interface WorkspaceOption {
   disabled?: boolean;
   isGroupLabel?: boolean;
   data?: Record<string, any>;
-}
+};
 
 //Each item in object checks the url to determine if it will have the 'checked' property
 //This prevents the page from defaulting to the Internal Events workspace whenever the page is refreshed (wouldn't change the url just which icon was in the top left)

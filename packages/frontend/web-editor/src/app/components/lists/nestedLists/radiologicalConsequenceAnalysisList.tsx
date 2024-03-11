@@ -3,9 +3,9 @@ import {
   GetRadiologicalConsequenceAnalysis,
   PatchRadiologicalConsequenceLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function RadiologicalConsequenceAnalysisList() {
+function RadiologicalConsequenceAnalysisList(): JSX.Element {
   return (
     <NestedModelList
       getNestedEndpoint={GetRadiologicalConsequenceAnalysis}
@@ -15,3 +15,5 @@ export default function RadiologicalConsequenceAnalysisList() {
     />
   );
 }
+
+export { RadiologicalConsequenceAnalysisList };

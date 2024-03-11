@@ -1,8 +1,8 @@
 //this is all placeholder so that I can test hrefs and stuff
-import InitiatingEventsTable from "../../components/tables/initiatingEventsTable";
-import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
+import { InitiatingEventsTable } from "../../components/tables/initiatingEventsTable";
+import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
 
-export default function DataInitiatingEvents() {
+function DataInitiatingEvents(): JSX.Element {
   return (
     <TemplatedPageBody
       headerProps={{
@@ -14,3 +14,5 @@ export default function DataInitiatingEvents() {
     </TemplatedPageBody>
   );
 }
+
+export { DataInitiatingEvents };

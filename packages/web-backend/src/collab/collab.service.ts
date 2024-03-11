@@ -3,6 +3,8 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import * as argon2 from "argon2";
 import * as dot from "dot-object";
+import { UpdateOneModel } from "mongodb";
+import { MemberResult } from "shared-types/src/lib/api/Members";
 import { PaginationDto } from "./dtos/pagination.dto";
 import { CreateNewUserDto } from "./dtos/create-new-user.dto";
 import { UserPreferencesDto } from "./dtos/user-preferences.dto";
@@ -189,6 +191,15 @@ export class CollabService {
   }
 
   /**
+   *
+   * This function returns a user with a particular id
+   * @param user_id - Id of the user you want to find
+   */
+  async getUserById(user_id: string): Promise<User> {
+    return this.userModel.findOne({ id: Number(user_id) });
+  }
+
+  /**
    * @param body Request body
    * @description
    * There are some hard-coded data provided alongside the request body for creating a 'user' document:
@@ -205,11 +216,20 @@ export class CollabService {
    *      one of the two roles - either the role of an administrator (with special access - such as deleting a user from the database) or the role of a general user.
    * @returns A mongoose document of the new user
    */
-  async createNewUser(body: CreateNewUserDto): Promise<User> {
+  async createNewUser(body: CreateNewUserDto): Promise<User | string> {
     const username = body.username;
-    const response = await this.userModel.findOne({ username: username });
-    if (response) {
-      throw new Error("Duplicate Username");
+    const email = body.email;
+    const response1 = await this.userModel.findOne({
+      username: username,
+    });
+    const response2 = await this.userModel.findOne({
+      email: email,
+    });
+    if (response1) {
+      return "username already exists";
+    }
+    if (response2) {
+      return "email already exists";
     }
     body.password = await argon2.hash(body.password);
     const newUser = new this.userModel(body);
@@ -274,5 +294,34 @@ export class CollabService {
       { $set: dot.dot(body) },
       { projection: { preferences: 1 }, new: true, upsert: false },
     );
+  }
+
+  /**
+   * This is a general update user function. It will allow the following updates: preferences, permissions, lastname, email, firstname, and username
+   * @param member - This is the user schema object
+   */
+  async updateUser(member: MemberResult): Promise<UpdateOneModel> {
+    const user = new User();
+    user.id = member.id;
+    user.email = member.email;
+    user.firstName = member.firstName;
+    user.lastName = member.lastName;
+    user.username = member.username;
+    user.preferences = member.preferences;
+    user.permissions = member.permissions;
+    return this.userModel
+      .updateOne({ id: user.id }, user, {
+        projection: {
+          preferences: 1,
+          permissions: 1,
+          lastName: 1,
+          email: 1,
+          firstName: 1,
+          username: 1,
+        },
+        new: true,
+        upsert: false,
+      })
+      .lean();
   }
 }

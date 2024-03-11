@@ -16,24 +16,25 @@
   your comments in this format.
 
 
-- Going forward, we will be converting warnings to errors, so this is our chance
-  to clean up as much code as possible while still working on features.
+- Going forward, we will be converting warnings to errors.
 
 
 - Linting errors can often be fixed using the `--fix` flag. But for it to work,
   you need to research how to direct eslint to fix it. GPT is your friend here.
-  I cleaned up ~7000 errors today so when it works it's a lifesaver.
 
 
 - In addition to linting, we are also using prettier, which is an opinionated
   code formatting package. It is configured along with eslint such that poorly
   formatted code shows up as a linting error. This also means that it can be
-  fixed using eslint. I have tested this and it works.
+  fixed using eslint.
 
+## WebStorm ESLint Config
+- "Settings > Languages & Frameworks > JavaScript > Code Quality Tools > ESLint"
+  - Enable/Check `Automatic ESLint configuration`
+  -
 ## WebStorm Prettier Config
 - "Settings > Languages & Frameworks > JavaScript > Prettier"
   - Enable/Check `Automatic Prettier configuration`
   - eslint and prettier should now automatically connect to Webstorm's code
     inspector, throwing warnings and errors as per our eslint settings as you edit
-    a file. Please use these, and let me know if linting/formatting issues are not
-    always picked up by Webstorm.
+    a file.

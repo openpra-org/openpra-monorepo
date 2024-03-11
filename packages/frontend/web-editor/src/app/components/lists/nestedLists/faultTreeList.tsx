@@ -3,9 +3,9 @@ import {
   GetFaultTrees,
   PatchFaultTreeLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function FaultTreeList() {
+function FaultTreeList(): JSX.Element {
   return (
     <NestedModelList
       getNestedEndpoint={GetFaultTrees}
@@ -15,3 +15,5 @@ export default function FaultTreeList() {
     />
   );
 }
+
+export { FaultTreeList };

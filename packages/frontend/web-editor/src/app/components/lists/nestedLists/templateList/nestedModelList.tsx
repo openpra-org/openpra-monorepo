@@ -5,8 +5,8 @@ import { NestedModel } from "shared-types/src/lib/types/modelTypes/innerModels/n
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 
 import { GetCurrentModelId } from "shared-types/src/lib/api/TypedModelApiManager";
-import GenericListItem from "../../GenericListItem";
-import GenericItemList from "../../GenericItemList";
+import { GenericListItem } from "../../GenericListItem";
+import { GenericItemList } from "../../GenericItemList";
 
 export type NestedModelListProps = {
   name: string;
@@ -18,7 +18,7 @@ export type NestedModelListProps = {
 //grabs the model List
 async function fetchModelList(
   getNestedEndpoint: (id: number) => Promise<NestedModel[]>,
-) {
+): Promise<NestedModel[]> {
   const modelId = GetCurrentModelId();
   try {
     return await getNestedEndpoint(modelId);
@@ -72,7 +72,7 @@ const getFixtures = async (
   }
 };
 
-export default function NestedModelList(props: NestedModelListProps) {
+function NestedModelList(props: NestedModelListProps): JSX.Element {
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -80,7 +80,7 @@ export default function NestedModelList(props: NestedModelListProps) {
     props;
 
   useEffect(() => {
-    const fetchGenericListItems = async () => {
+    const fetchGenericListItems = async (): Promise<void> => {
       try {
         const items = await getFixtures(
           getNestedEndpoint,
@@ -122,3 +122,5 @@ export default function NestedModelList(props: NestedModelListProps) {
     </EuiPageTemplate>
   );
 }
+
+export { NestedModelList };

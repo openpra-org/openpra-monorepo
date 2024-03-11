@@ -12,17 +12,19 @@ import {
   EuiSkeletonRectangle,
 } from "@elastic/eui";
 import TypedModel from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
-import TypedModelActionForm from "../forms/typedModelActionForm";
-import SettingsAccordian from "./SettingsAccordian";
 import {
-  GetCurrentTypedModel, PatchExternalHazard, PatchFullScope,
+  GetCurrentTypedModel,
+  PatchExternalHazard,
+  PatchFullScope,
   PatchInternalEvent,
-  PatchInternalHazard
+  PatchInternalHazard,
 } from "shared-types/src/lib/api/TypedModelApiManager";
+import { TypedModelActionForm } from "../forms/typedModelActionForm";
+import { SettingsAccordian } from "./SettingsAccordian";
 
 const TYPED_MODEL_TYPE_LOCATION = 1;
 
-async function fetchCurrentTypedModel() {
+async function fetchCurrentTypedModel(): Promise<TypedModel> {
   try {
     return await GetCurrentTypedModel();
   } catch (error) {
@@ -31,7 +33,7 @@ async function fetchCurrentTypedModel() {
 }
 
 //a change of new item that lets you edit an item, though right now functionality for that isnt available because it requires database
-export default function EditCurrentModel() {
+function EditCurrentModel(): JSX.Element {
   //this is what is in the newItem structure, will eventually be used to actually make things
   //this is also subject to change, probably needs a type passed in from props eventually
   const newItem = new TypedModel();
@@ -59,7 +61,7 @@ export default function EditCurrentModel() {
   }
 
   //this takes any type instead of what it should, I have *no* idea how to carry over the types across promises, it doesn't seem to work and I've tinkered quite a bit
-  const updateCurrentModel = (newModel: any) => {
+  const updateCurrentModel = (newModel: any): void => {
     const addModel = new TypedModel(
       newModel.id,
       newModel.label.name,
@@ -70,7 +72,7 @@ export default function EditCurrentModel() {
   };
 
   useEffect(() => {
-    const fetchModel = async () => {
+    const fetchModel = async (): Promise<void> => {
       try {
         const model = await fetchCurrentTypedModel();
         updateCurrentModel(model);
@@ -146,3 +148,5 @@ export default function EditCurrentModel() {
     </SettingsAccordian>
   );
 }
+
+export { EditCurrentModel };

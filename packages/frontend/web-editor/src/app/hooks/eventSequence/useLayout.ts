@@ -13,7 +13,7 @@ import { timer } from "d3-timer";
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
 const layout = tree<Node>()
   // the node size configures the spacing between the nodes ([width, height])
-  .nodeSize([100, 175])
+  .nodeSize([100, 150])
   // this is needed for creating equal space between all nodes
   .separation(() => 1);
 
@@ -34,7 +34,7 @@ const options = { duration: 200 };
  * It also includes animation logic to smoothly transition nodes to their new positions.
  * The hook ensures horizontal layout of the nodes
  */
-function useLayout(): void {
+function UseLayout(): void {
   // we are using nodeCount as the trigger for the re-layouting
   // whenever the nodes length changes, we calculate the new layout
   const nodeCount = useStore(nodeCountSelector);
@@ -129,4 +129,4 @@ function useLayout(): void {
   }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);
 }
 
-export default useLayout;
+export { UseLayout };

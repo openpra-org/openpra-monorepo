@@ -1,3 +1,5 @@
-export default function () {
+function HazardsScreeningAnalysis(): JSX.Element {
   return <></>;
 }
+
+export { HazardsScreeningAnalysis };

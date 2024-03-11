@@ -12,7 +12,7 @@ import {
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
 
-interface TreeItem {
+type TreeItem = {
   id: string;
   key: string;
   isExpanded?: boolean;
@@ -20,8 +20,8 @@ interface TreeItem {
   children?: TreeItem[];
   icon?: JSX.Element;
   callback?: () => {};
-}
-export default function DataSidenav() {
+};
+function DataSidenav(): JSX.Element {
   const { euiTheme } = useEuiTheme();
 
   const createTreeItem = (label: string, data = {}, depth = 0): TreeItem => {
@@ -153,7 +153,7 @@ export default function DataSidenav() {
     items: TreeItem[],
     i: number,
     forceTreeView = false,
-  ) => {
+  ): JSX.Element => {
     //TODO
     if (forceTreeView) {
       const style = {
@@ -210,7 +210,7 @@ export default function DataSidenav() {
 
   const treeItems = [parameterEstimates];
 
-  const createTreeViews = (items = treeItems) => {
+  const createTreeViews = (items = treeItems): JSX.Element[] => {
     const viewItems: JSX.Element[] = [];
     items.forEach((item, i) => {
       viewItems.push(
@@ -225,3 +225,5 @@ export default function DataSidenav() {
 
   return <>{createTreeViews(treeItems)}</>;
 }
+
+export { DataSidenav };

@@ -1,11 +1,12 @@
 import { EuiFlexGroup } from "@elastic/eui";
-import ParameterItems from "./parameterItemsList";
+import { ParameterItemsList } from "./parameterItemsList";
 
 //as of right now this just returns the list of parameter items in parameter items
-export default function () {
+function GlobalParametersList(): JSX.Element {
   return (
     <EuiFlexGroup>
-      <ParameterItems></ParameterItems>
+      <ParameterItemsList></ParameterItemsList>
     </EuiFlexGroup>
   );
 }
+export { GlobalParametersList };

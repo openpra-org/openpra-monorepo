@@ -20,9 +20,9 @@ import {
 } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 
-import { toTitleCase } from "../../../utils/StringUtils";
+import { ToTitleCase } from "../../../utils/StringUtils";
 
-export interface ItemFormProps {
+export type ItemFormProps = {
   itemName: string;
   // TODO:: TODO :: replace endpoint string with TypedApiManager method
   postEndpoint?: (data: Partial<TypedModelJSON>) => {};
@@ -38,9 +38,9 @@ export interface ItemFormProps {
   initialFormValues?: TypedModelJSON;
   compressed?: boolean;
   noHeader?: boolean;
-}
+};
 
-export default function TypedModelActionForm({
+function TypedModelActionForm({
   itemName,
   onCancel,
   noHeader,
@@ -51,7 +51,7 @@ export default function TypedModelActionForm({
   postEndpoint,
   onSuccess,
   onFail,
-}: ItemFormProps) {
+}: ItemFormProps): JSX.Element {
   const userId = ApiManager.getCurrentUser().user_id ?? -1;
 
   //setting up initial values depending on what has been send, if init form values are passed its assumed to be updating instead of adding
@@ -82,16 +82,16 @@ export default function TypedModelActionForm({
   if (initialFormValues) {
     // TODO:: BROKEN
     useEffect(() => {
-      const logFetchedData = async () => {
+      const logFetchedData = async (): Promise<void> => {
         try {
           const usersData = await ApiManager.getUsers();
           const resultList = usersData.results;
           // Filters out the current user from the list since it's implied that they want to see their own model
-          let listWithoutCurrentUser = resultList.filter(
+          const results = resultList.filter(
             (x: any) => x.id != ApiManager.getCurrentUser().user_id,
           );
           // Creates the objects that will go in the EuiSelectable
-          listWithoutCurrentUser = listWithoutCurrentUser.map((item: any) => ({
+          const listWithoutCurrentUser = results.map((item: any) => ({
             label: item.firstName + " " + item.lastName,
             key: item.id,
           }));
@@ -123,7 +123,7 @@ export default function TypedModelActionForm({
   }
 
   //Handles the click for the submit button, functionality depends on whether initform values are passed, indicating an update
-  const handleAction = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleAction = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
 
     if (typedModel.label.name !== "") {
@@ -155,8 +155,8 @@ export default function TypedModelActionForm({
   };
 
   //const formTouched = label.name !== DEFAULT_LABEL_JSON.name || label.description !== DEFAULT_LABEL_JSON.description;
-  const actionLabel = toTitleCase(action);
-  const itemLabel = toTitleCase(itemName);
+  const actionLabel = ToTitleCase(action);
+  const itemLabel = ToTitleCase(itemName);
   return (
     <>
       {!noHeader && (
@@ -185,7 +185,7 @@ export default function TypedModelActionForm({
                 compressed
                 placeholder={initialFormValues?.label.name}
                 value={typedModel.label.name}
-                onChange={(e) => {
+                onChange={(e): void => {
                   setTypedModel({
                     ...typedModel,
                     label: {
@@ -210,7 +210,7 @@ export default function TypedModelActionForm({
             compressed
             placeholder={initialFormValues?.label.description}
             value={typedModel.label.description}
-            onChange={(e) => {
+            onChange={(e): void => {
               setTypedModel({
                 ...typedModel,
                 label: {
@@ -235,7 +235,7 @@ export default function TypedModelActionForm({
                   fullWidth
                   options={usersList}
                   selectedOptions={selectedUsersList}
-                  onChange={(newOptions) => {
+                  onChange={(newOptions): void => {
                     setSelectedUsersList(newOptions);
                   }}
                 />
@@ -275,3 +275,4 @@ export default function TypedModelActionForm({
     </>
   );
 }
+export { TypedModelActionForm };

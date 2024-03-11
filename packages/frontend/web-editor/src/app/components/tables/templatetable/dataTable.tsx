@@ -2,15 +2,15 @@ import { EuiDataGrid, EuiFlexGroup, EuiFlexItem } from "@elastic/eui";
 import { SetStateAction, useCallback, useState } from "react";
 import { EuiDataGridColumnSortingConfig } from "@elastic/eui/src/components/datagrid/data_grid_types";
 
-interface DataTableProps {
+type DataTableProps = {
   rows: any[];
   columns: any[];
-}
+};
 
-interface CellValueProps {
+type CellValueProps = {
   rowIndex: number;
   colIndex: number;
-}
+};
 
 /**
  * DataTable component that renders a data grid using Elastic UI components.
@@ -20,10 +20,7 @@ interface CellValueProps {
  * @param props.rows - The data rows that will populate the grid.
  * @returns The `EuiDataGrid` component populated with the provided data.
  */
-export default function DataTable({
-  rows,
-  columns,
-}: DataTableProps): JSX.Element {
+function DataTable({ rows, columns }: DataTableProps): JSX.Element {
   /**
    * State to manage the visibility of columns in the data grid.
    */
@@ -121,3 +118,5 @@ export default function DataTable({
     </EuiFlexGroup>
   );
 }
+
+export { DataTable };

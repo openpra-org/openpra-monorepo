@@ -1,7 +1,7 @@
-import GatesTable from "../../components/tables/gatesTable";
-import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
+import { GatesTable } from "../../components/tables/gatesTable";
+import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
 
-export default function ModelGates() {
+function ModelGates(): JSX.Element {
   return (
     <TemplatedPageBody
       headerProps={{
@@ -13,3 +13,5 @@ export default function ModelGates() {
     </TemplatedPageBody>
   );
 }
+
+export { ModelGates };

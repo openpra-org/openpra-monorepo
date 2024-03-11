@@ -1,12 +1,16 @@
-import NormalEdge from "./normalEdge";
-import FunctionalEdge from "./functionalEdge";
+import { NormalEdge } from "./normalEdge";
+import { FunctionalEdge } from "./functionalEdge";
 
 /**
  * Represents the types of edges of event sequence diagram
  */
-export const ESEdgeTypes = {
+const ESEdgeTypes = {
   normal: NormalEdge,
   functional: FunctionalEdge,
 };
 
-export default ESEdgeTypes;
+export type EventSequenceTypeProps = {
+  tentative?: boolean;
+};
+
+export { ESEdgeTypes };

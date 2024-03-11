@@ -1,10 +1,10 @@
-import {Injectable} from "@nestjs/common";
-import {InjectModel} from "@nestjs/mongoose";
-import {Model} from "mongoose";
-import {InternalEventsModel} from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
-import {InternalHazardsModel} from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
-import {FullScopeModel} from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
-import {ExternalHazardsModel} from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { InternalEventsModel } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
+import { InternalHazardsModel } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
+import { FullScopeModel } from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
+import { ExternalHazardsModel } from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
 import {
   ModelCounter,
   ModelCounterDocument,
@@ -21,7 +21,7 @@ import {
   ExternalHazards,
   ExternalHazardsDocument,
 } from "./schemas/external-hazards.schema";
-import {FullScope, FullScopeDocument} from "./schemas/full-scope.schema";
+import { FullScope, FullScopeDocument } from "./schemas/full-scope.schema";
 import {
   TypedModel,
   TypedModelJSON,
@@ -40,8 +40,7 @@ export class TypedModelService {
     private readonly externalHazardsModel: Model<ExternalHazardsDocument>,
     @InjectModel(FullScope.name)
     private readonly fullScopeModel: Model<FullScopeDocument>,
-  ) {
-  }
+  ) {}
 
   /**
    * this was copied from elsewhere, its to create a counter, it should probably have the suer counter named something else now but oh well
@@ -53,11 +52,11 @@ export class TypedModelService {
   async getNextModelValue(name: string) {
     const record = await this.modelCounterModel.findByIdAndUpdate(
       name,
-      {$inc: {seq: 1}},
-      {new: true},
+      { $inc: { seq: 1 } },
+      { new: true },
     );
     if (!record) {
-      const newCounter = new this.modelCounterModel({_id: name, seq: 1});
+      const newCounter = new this.modelCounterModel({ _id: name, seq: 1 });
       await newCounter.save();
       return newCounter.seq;
     }
@@ -106,7 +105,7 @@ export class TypedModelService {
   }
 
   /**
-   * method for creating a new internal evnet model in the database
+   * method for creating a new internal event model in the database
    * @param body takes in the model type that is requested in the name
    * @returns promise with the model type
    */
@@ -131,7 +130,7 @@ export class TypedModelService {
     model: Partial<InternalEvents>,
   ): Promise<InternalEvents> {
     // Find the document that matches the provided modelId and userId
-    const query = {id: Number(modelId), users: userId};
+    const query = { id: Number(modelId), users: userId };
 
     const newInternalEvent = new this.internalEventsModel(model);
 
@@ -141,7 +140,7 @@ export class TypedModelService {
     };
 
     // The `new` option returns the updated document instead of the original one
-    const options = {new: true};
+    const options = { new: true };
 
     // Update the document with the provided model data
     return await this.internalEventsModel.findOneAndUpdate(
@@ -164,7 +163,7 @@ export class TypedModelService {
     model: Partial<InternalHazards>,
   ): Promise<InternalHazards> {
     // Find the document that matches the provided modelId and userId
-    const query = {id: Number(modelId), users: userId};
+    const query = { id: Number(modelId), users: userId };
 
     const newInternalHazard = new this.internalHazardsModel(model);
 
@@ -174,7 +173,7 @@ export class TypedModelService {
     };
 
     // The `new` option returns the updated document instead of the original one
-    const options = {new: true};
+    const options = { new: true };
 
     // Update the document with the provided model data
     return await this.internalHazardsModel.findOneAndUpdate(
@@ -197,7 +196,7 @@ export class TypedModelService {
     model: Partial<ExternalHazards>,
   ): Promise<ExternalHazards> {
     // Find the document that matches the provided modelId and userId
-    const query = {id: Number(modelId), users: userId};
+    const query = { id: Number(modelId), users: userId };
 
     const newExternalHazard = new this.externalHazardsModel(model);
 
@@ -207,7 +206,7 @@ export class TypedModelService {
     };
 
     // The `new` option returns the updated document instead of the original one
-    const options = {new: true};
+    const options = { new: true };
 
     // Update the document with the provided model data
     return await this.externalHazardsModel.findOneAndUpdate(
@@ -230,7 +229,7 @@ export class TypedModelService {
     model: Partial<FullScope>,
   ): Promise<FullScope> {
     // Find the document that matches the provided modelId and userId
-    const query = {id: Number(modelId), users: userId};
+    const query = { id: Number(modelId), users: userId };
 
     const newFullScope = new this.fullScopeModel(model);
 
@@ -240,7 +239,7 @@ export class TypedModelService {
     };
 
     // The `new` option returns the updated document instead of the original one
-    const options = {new: true};
+    const options = { new: true };
 
     // Update the document with the provided model data
     return await this.fullScopeModel.findOneAndUpdate(
@@ -260,7 +259,7 @@ export class TypedModelService {
   async getInternalEvents(userId: number): Promise<InternalEvents[]> {
     //typecast to a number because for some reason, it isn't a number????
 
-    return this.internalEventsModel.find({users: userId});
+    return this.internalEventsModel.find({ users: userId });
   }
 
   /**
@@ -269,7 +268,7 @@ export class TypedModelService {
    * @returns the list of models for the type that the user has been assigned to
    */
   async getInternalHazards(userId: number): Promise<InternalHazards[]> {
-    return this.internalHazardsModel.find({users: userId});
+    return this.internalHazardsModel.find({ users: userId });
   }
 
   /**
@@ -278,7 +277,7 @@ export class TypedModelService {
    * @returns the list of models for the type that the user has been assigned to
    */
   async getExternalHazards(userId: number): Promise<ExternalHazards[]> {
-    return this.externalHazardsModel.find({users: userId});
+    return this.externalHazardsModel.find({ users: userId });
   }
 
   /**
@@ -287,7 +286,7 @@ export class TypedModelService {
    * @returns the list of models for the type that the user has been assigned to
    */
   async getFullScopes(userId: number): Promise<FullScope[]> {
-    return this.fullScopeModel.find({users: userId});
+    return this.fullScopeModel.find({ users: userId });
   }
 
   //single get functions
@@ -304,7 +303,7 @@ export class TypedModelService {
   ): Promise<InternalEvents> {
     //typecast to a number because for some reason, it isnt a number????
 
-    return this.internalEventsModel.findOne({id: modelId, users: userId});
+    return this.internalEventsModel.findOne({ id: modelId, users: userId });
   }
 
   /**
@@ -316,7 +315,7 @@ export class TypedModelService {
     modelId: string,
     userId: number,
   ): Promise<InternalHazards> {
-    return this.internalHazardsModel.findOne({id: modelId, users: userId});
+    return this.internalHazardsModel.findOne({ id: modelId, users: userId });
   }
 
   /**
@@ -328,7 +327,7 @@ export class TypedModelService {
     modelId: string,
     userId: number,
   ): Promise<ExternalHazards> {
-    return this.externalHazardsModel.findOne({id: modelId, users: userId});
+    return this.externalHazardsModel.findOne({ id: modelId, users: userId });
   }
 
   /**
@@ -337,7 +336,7 @@ export class TypedModelService {
    * @returns the list of models for the type that the user has been assigned to
    */
   async getFullScope(modelId: string, userId: number): Promise<FullScope> {
-    return this.fullScopeModel.findOne({id: modelId, users: userId});
+    return this.fullScopeModel.findOne({ id: modelId, users: userId });
   }
 
   //delete functions
@@ -345,6 +344,7 @@ export class TypedModelService {
   /**
    * deletes an internal event with the given id from a user, and from the database if these is only 1 user
    * @param modelId the id of the internal event to be deleted
+   * @param userId the user for which model is to be deleted
    * @returns the deleted model
    */
   async deleteInternalEvent(
@@ -352,10 +352,9 @@ export class TypedModelService {
     userId: number,
   ): Promise<InternalEventsModel> {
     //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
-    let result;
 
     //query to search based on this field
-    const query = {id: Number(modelId)};
+    const query = { id: Number(modelId) };
 
     //to remove the id from the list
     const updateData = {
@@ -364,32 +363,28 @@ export class TypedModelService {
       },
     };
 
-    while ((result = await this.internalEventsModel.findOne(query))) {
-      if (result.users.length == 1) {
-        return await this.internalEventsModel.findOneAndDelete(query);
-      } else {
-        return await this.internalEventsModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
-      }
+    const result = await this.internalEventsModel.findOne(query);
+    if (result.users.length == 1) {
+      return await this.internalEventsModel.findOneAndDelete(query);
+    } else {
+      return await this.internalEventsModel
+        .findOneAndUpdate(query, updateData, { new: true })
+        .lean();
     }
   }
 
   /**
    * deletes an internal hazard with the given id from a user, and from the database if these is only 1 user
    * @param modelId the id of the internal hazard to be deleted
+   * @param userId the user for whom the model is to be deleted
    * @returns the deleted model
    */
   async deleteInternalHazard(
     modelId: number,
     userId: number,
   ): Promise<InternalHazardsModel> {
-    //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
-    let result;
-
     //query to search based on this field
-    const query = {users: Number(modelId)};
+    const query = { id: Number(modelId) };
 
     //to remove the id from the list
     const updateData = {
@@ -398,32 +393,31 @@ export class TypedModelService {
       },
     };
 
-    while ((result = await this.internalHazardsModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
-        return await this.internalHazardsModel.findOneAndDelete(query);
-      } else {
-        return await this.internalHazardsModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
-      }
+    const result = await this.internalHazardsModel.findOne(query);
+    if (result.users.length == 1) {
+      return await this.internalHazardsModel.findOneAndDelete(query, {
+        new: true,
+      });
+    } else {
+      result.users = result.users.filter((user) => user != userId);
+      return await this.internalHazardsModel
+        .findOneAndUpdate(query, updateData, { new: true })
+        .lean();
     }
   }
 
   /**
    * deletes an external hazard with the given id from a user, and from the database if these is only 1 user
    * @param modelId the id of the external hazard to be deleted
+   * @param userId the id of the user for whom model is to be deleted
    * @returns the deleted model
    */
   async deleteExternalHazard(
     modelId: number,
     userId: number,
   ): Promise<ExternalHazardsModel> {
-    //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
-    let result;
-
     //query to search based on this field
-    const query = {users: Number(modelId)};
+    const query = { id: Number(modelId) };
 
     //to remove the id from the list
     const updateData = {
@@ -431,32 +425,30 @@ export class TypedModelService {
         users: Number(userId),
       },
     };
-    while ((result = await this.externalHazardsModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
-        return await this.externalHazardsModel.findOneAndDelete(query);
-      } else {
-        return await this.externalHazardsModel.findOneAndUpdate(
-          query,
-          updateData,
-        );
-      }
+
+    const result = await this.externalHazardsModel.findOne(query);
+    if (result.users.length == 1) {
+      return await this.externalHazardsModel.findOneAndDelete(query);
+    } else {
+      result.users = result.users.filter((user) => user != userId);
+      return await this.externalHazardsModel
+        .findOneAndUpdate(query, updateData, { new: true })
+        .lean();
     }
   }
 
   /**
    * deletes a full scope with the given id from a user, and from the database if these is only 1 user
    * @param modelId the id of the full scope to be deleted
+   * @param userId the user for whom the model is supposed to be deleted
    * @returns the deleted model
    */
   async deleteFullScope(
     modelId: number,
     userId: number,
   ): Promise<FullScopeModel> {
-    //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
-    let result;
-
     //query to search based on this field
-    const query = {users: Number(modelId)};
+    const query = { id: Number(modelId) };
 
     //to remove the id from the list
     const updateData = {
@@ -465,16 +457,15 @@ export class TypedModelService {
       },
     };
 
-    while ((result = await this.fullScopeModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
-        return await this.fullScopeModel.findOneAndDelete(query);
-      } else {
-        return await this.fullScopeModel.findOneAndUpdate(query, updateData);
-      }
+    const result = await this.fullScopeModel.findOne(query);
+    if (result.users.length == 1) {
+      return await this.fullScopeModel.findOneAndDelete(query);
+    } else {
+      return await this.fullScopeModel.findOneAndUpdate(query, updateData, {
+        new: true,
+      });
     }
   }
-
-  //functions to add nested models
 
   /**
    * adds a nested model to a larger model
@@ -489,7 +480,7 @@ export class TypedModelService {
     nestedType: string,
   ): Promise<TypedModelJSON> {
     // Find the document that matches the provided modelId and userId
-    const query = {id: modelId};
+    const query = { id: modelId };
 
     const updateData = {
       $push: {
@@ -498,7 +489,7 @@ export class TypedModelService {
     };
 
     // The `new` option returns the updated document instead of the original one
-    const options = {new: true};
+    const options = { new: true };
 
     // Update the document with the provided model data
     return this.internalEventsModel.findOneAndUpdate(
@@ -521,7 +512,7 @@ export class TypedModelService {
     nestedType: string,
   ): Promise<TypedModelJSON> {
     // Find the document that matches the provided modelId and userId
-    const query = {id: Number(modelId)};
+    const query = { id: Number(modelId) };
 
     const updateData = {
       $push: {
@@ -530,7 +521,7 @@ export class TypedModelService {
     };
 
     // The `new` option returns the updated document instead of the original one
-    const options = {new: true};
+    const options = { new: true };
 
     // Update the document with the provided model data
     return this.internalHazardsModel.findOneAndUpdate(
@@ -553,7 +544,7 @@ export class TypedModelService {
     nestedType: string,
   ): Promise<TypedModelJSON> {
     // Find the document that matches the provided modelId and userId
-    const query = {id: Number(modelId)};
+    const query = { id: Number(modelId) };
 
     const updateData = {
       $push: {
@@ -562,7 +553,7 @@ export class TypedModelService {
     };
 
     // The `new` option returns the updated document instead of the original one
-    const options = {new: true};
+    const options = { new: true };
 
     // Update the document with the provided model data
     return this.externalHazardsModel.findOneAndUpdate(
@@ -585,7 +576,7 @@ export class TypedModelService {
     nestedType: string,
   ): Promise<TypedModelJSON> {
     // Find the document that matches the provided modelId and userId
-    const query = {id: Number(modelId)};
+    const query = { id: Number(modelId) };
 
     const updateData = {
       $push: {
@@ -594,7 +585,7 @@ export class TypedModelService {
     };
 
     // The `new` option returns the updated document instead of the original one
-    const options = {new: true};
+    const options = { new: true };
 
     // Update the document with the provided model data
     return this.fullScopeModel.findOneAndUpdate(query, updateData, options);
@@ -615,7 +606,7 @@ export class TypedModelService {
     nestedType: string,
   ): Promise<TypedModelJSON> {
     // Find the document that matches the provided modelId and userId
-    const query = {id: Number(modelId)};
+    const query = { id: Number(modelId) };
 
     const updateData = {
       $pull: {
@@ -624,7 +615,7 @@ export class TypedModelService {
     };
 
     // The `new` option returns the updated document instead of the original one
-    const options = {new: true};
+    const options = { new: true };
 
     // Update the document with the provided model data
     return this.internalEventsModel.findOneAndUpdate(
@@ -647,7 +638,7 @@ export class TypedModelService {
     nestedType: string,
   ): Promise<TypedModelJSON> {
     // Find the document that matches the provided modelId and userId
-    const query = {id: Number(modelId)};
+    const query = { id: Number(modelId) };
 
     const updateData = {
       $pull: {
@@ -656,7 +647,7 @@ export class TypedModelService {
     };
 
     // The `new` option returns the updated document instead of the original one
-    const options = {new: true};
+    const options = { new: true };
 
     // Update the document with the provided model data
     return this.internalHazardsModel.findOneAndUpdate(
@@ -679,7 +670,7 @@ export class TypedModelService {
     nestedType: string,
   ): Promise<TypedModelJSON> {
     // Find the document that matches the provided modelId and userId
-    const query = {id: Number(modelId)};
+    const query = { id: Number(modelId) };
 
     const updateData = {
       $pull: {
@@ -688,7 +679,7 @@ export class TypedModelService {
     };
 
     // The `new` option returns the updated document instead of the original one
-    const options = {new: true};
+    const options = { new: true };
 
     // Update the document with the provided model data
     return this.externalHazardsModel.findOneAndUpdate(
@@ -711,7 +702,7 @@ export class TypedModelService {
     nestedType: string,
   ): Promise<TypedModelJSON> {
     // Find the document that matches the provided modelId and userId
-    const query = {id: Number(modelId)};
+    const query = { id: Number(modelId) };
 
     const updateData = {
       $pull: {
@@ -720,7 +711,7 @@ export class TypedModelService {
     };
 
     // The `new` option returns the updated document instead of the original one
-    const options = {new: true};
+    const options = { new: true };
 
     // Update the document with the provided model data
     return this.fullScopeModel.findOneAndUpdate(query, updateData, options);

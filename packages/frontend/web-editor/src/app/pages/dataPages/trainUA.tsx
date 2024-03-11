@@ -1,8 +1,8 @@
 //this is all placeholder so that I can test hrefs and stuff
-import TrainUaTable from "../../components/tables/trainUaTable";
-import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
+import { TrainUaTable } from "../../components/tables/trainUaTable";
+import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
 
-export default function TrainUA() {
+function TrainUA(): JSX.Element {
   return (
     <TemplatedPageBody
       headerProps={{
@@ -14,3 +14,5 @@ export default function TrainUA() {
     </TemplatedPageBody>
   );
 }
+
+export { TrainUA };

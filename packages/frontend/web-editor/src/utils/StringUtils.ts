@@ -7,7 +7,7 @@
  @param stripDashes - Specifies whether to strip dashes from the string
  @returns The input string converted to title case.
  */
-export const toTitleCase = (str: string, stripDashes = true): string =>
+export const ToTitleCase = (str: string, stripDashes = true): string =>
   str
     .replace(/-/g, stripDashes ? " " : "-")
     .replace(

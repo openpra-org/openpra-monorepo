@@ -1,3 +1,5 @@
-export default function () {
+function ExternalFlooding(): JSX.Element {
   return <></>;
 }
+
+export { ExternalFlooding };

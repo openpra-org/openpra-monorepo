@@ -42,10 +42,10 @@ const DEFAULT_MODE_KEY = PreferenceModes.AUTO;
 /**
  * Interface representing a theme configuration.
  */
-export interface Theme {
+export type Theme = {
   name: string;
   mode: PreferenceModes;
-}
+};
 
 /**
  * Default theme option used as a fallback.
@@ -63,19 +63,19 @@ const DEFAULT_LOCALSTORAGE_PREFERENCES = DEFAULT_THEME_OPTION;
 /**
  * Interface representing the props for the ThemeProvider component.
  */
-export interface ThemeProviderProps {
+export type ThemeProviderProps = {
   themeOptions: Readonly<NonEmptyArray<Theme>>;
   children?: ReactElement;
-}
+};
 
 /**
  * Interface representing the context props for the ThemeSettingsContext.
  */
-export interface ThemeContextProps {
+export type ThemeContextProps = {
   themeOptions: string[];
   changeTheme: (e: Theme) => void;
   getStoredThemePreferences(): Theme;
-}
+};
 
 /**
  * Provides a theme context to its children components.
@@ -261,4 +261,4 @@ export const ThemeSettingsConsumer = ThemeSettingsContext.Consumer;
 /**
  * Default export of the ThemeProvider component.
  */
-export default ThemeProvider;
+export { ThemeProvider };

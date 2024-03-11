@@ -1,5 +1,7 @@
-import HumanReliabilityAnalysisList from "../../components/lists/nestedLists/humanReliabilityAnalysisList";
+import { HumanReliabilityAnalysisList } from "../../components/lists/nestedLists/humanReliabilityAnalysisList";
 
-export default function HRA() {
+function HRA(): JSX.Element {
   return <HumanReliabilityAnalysisList />;
 }
+
+export { HRA };

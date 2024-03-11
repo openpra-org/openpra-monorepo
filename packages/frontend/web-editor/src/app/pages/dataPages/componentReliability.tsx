@@ -1,8 +1,8 @@
 //this is all placeholder so that I can test hrefs and stuff
-import ComponentReliabilityTable from "../../components/tables/componentReliabilityTable";
-import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
+import { ComponentReliabilityTable } from "../../components/tables/componentReliabilityTable";
+import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
 
-export default function Ccf() {
+function ComponentReliability(): JSX.Element {
   return (
     <TemplatedPageBody
       headerProps={{
@@ -14,3 +14,5 @@ export default function Ccf() {
     </TemplatedPageBody>
   );
 }
+
+export { ComponentReliability };

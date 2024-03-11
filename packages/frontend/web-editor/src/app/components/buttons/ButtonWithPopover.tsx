@@ -9,7 +9,7 @@ import {
 import { EuiPopoverProps } from "@elastic/eui/src/components/popover/popover";
 
 //props for button with popover
-interface ButtonWithPopoverPropsPartials {
+type ButtonWithPopoverPropsPartials = {
   popoverProps?: Partial<
     Omit<
       EuiPopoverProps,
@@ -21,20 +21,20 @@ interface ButtonWithPopoverPropsPartials {
   isIcon?: boolean;
   iconType?: string;
   onRequestClose?: boolean;
-}
+};
 
 export type ButtonWithPopoverProps = EuiButtonPropsForButton &
   ButtonWithPopoverPropsPartials;
 
 /**
  *
- * @param onClick, an onClick function if desired
- * @param popoverContent optionally able to pass over an element to be in the popover
- * @param popoverProps optionally able to pass all the props for the popover
- * @param confirmDiscard optionally boolean to allow for confirming discarding changes
+ * @param onClick - an onClick function if desired
+ * @param popoverContent - optionally able to pass over an element to be in the popover
+ * @param popoverProps - optionally able to pass all the props for the popover
+ * @param confirmDiscard - optionally boolean to allow for confirming discarding changes
  * @returns a button with a popover that displays
  */
-export default function ButtonWithPopover({
+function ButtonWithPopover({
   iconType,
   children,
   buttonText,
@@ -44,12 +44,12 @@ export default function ButtonWithPopover({
   popoverProps,
   confirmDiscard,
   ...rest
-}: ButtonWithPopoverProps) {
+}: ButtonWithPopoverProps): JSX.Element {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
-  const togglePopover = () => {
+  const togglePopover = (): void => {
     setIsPopoverOpen((isPopoverOpen) => !isPopoverOpen);
   };
-  const onButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const onButtonClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
     event.preventDefault();
     togglePopover();
     if (onClick) {
@@ -62,7 +62,7 @@ export default function ButtonWithPopover({
     <EuiButtonIcon
       {...rest}
       children={buttonText}
-      iconType={iconType || "none"}
+      iconType={iconType ?? "none"}
       data-testid="button-icon"
       onClick={onButtonClick}
     />
@@ -79,17 +79,17 @@ export default function ButtonWithPopover({
 
   let modal: JSX.Element | null = null;
   const [isModalVisible, setIsModalVisible] = useState(false);
-  let showModal = () => {
+  let showModal = (): void => {
     setIsPopoverOpen(false);
   };
 
   //TODO: Make this look better, it seems to confirm modal in EUI can't make the cofirm and discard buttons look good
   if (confirmDiscard) {
     /** Discard Confirmation Modal **/
-    const closeModal = () => {
+    const closeModal = (): void => {
       setIsModalVisible(false);
     };
-    showModal = () => {
+    showModal = (): void => {
       setIsModalVisible(true);
     };
     modal = isModalVisible ? (
@@ -97,7 +97,7 @@ export default function ButtonWithPopover({
         title="Discard changes?"
         data-testid="modal"
         onCancel={closeModal}
-        onConfirm={() => {
+        onConfirm={(): void => {
           closeModal();
           setIsPopoverOpen(false);
         }}
@@ -122,7 +122,7 @@ export default function ButtonWithPopover({
         {...popoverProps}
         button={button}
         isOpen={popoverStatus}
-        closePopover={() => {
+        closePopover={(): void => {
           setIsPopoverOpen(false);
         }}
         focusTrapProps={{
@@ -136,14 +136,14 @@ export default function ButtonWithPopover({
     </>
   );
 }
-
+export { ButtonWithPopover };
 export type ButtonWithClosablePopoverProps = {
   closeProp: string;
   popoverExtra?: (child: JSX.Element) => JSX.Element;
 } & ButtonWithPopoverProps;
 export function ButtonWithClosablePopover(
   props: ButtonWithClosablePopoverProps,
-) {
+): JSX.Element {
   const [forceClose, setForceClose] = useState(false);
 
   const { children, closeProp, popoverExtra, ...rest } = props;
@@ -153,7 +153,7 @@ export function ButtonWithClosablePopover(
     }
   }, [forceClose]);
 
-  const modifiedPopoverContent = () => (
+  const modifiedPopoverContent = (): React.ReactElement => (
     <>
       {React.Children.map(children, (child) => {
         if (!child) {

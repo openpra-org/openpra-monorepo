@@ -1,3 +1,5 @@
-export default function () {
+function OtherHazards(): JSX.Element {
   return <></>;
 }
+
+export { OtherHazards };

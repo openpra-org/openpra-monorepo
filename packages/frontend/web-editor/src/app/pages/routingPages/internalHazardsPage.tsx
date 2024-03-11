@@ -1,31 +1,30 @@
 import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
-import InternalHazardsList from "../../components/lists/workspaceLists/internalHazardsList";
-import EventSequenceDiagrams from "../fullScopePages/eventSequenceDiagrams";
-import BayesianNetworks from "../fullScopePages/bayesianNetworks";
-import ModelSettings from "../fullScopePages/modelSettings";
-import InitiatingEvents from "../fullScopePages/initiatingEvents";
-import EventTrees from "../fullScopePages/eventTrees";
-import InternalHazardsContainer from "../../components/pageContainers/internalHazardsContainer";
-import HRA from "../fullScopePages/humanReliabilityAnalysis";
-import BayesianEstimation from "../fullScopePages/bayesianEstimation";
-import FunctionalEvents from "../fullScopePages/functionalEvents";
-import HazardsScreeningAnalysis from "../fullScopePages/hazardsScreeningAnalysis";
-import InternalFire from "../fullScopePages/internalFire";
-import InternalFlood from "../fullScopePages/internalFlood";
-import MarkovChains from "../fullScopePages/markovChains";
-import MechanisticAnalysis from "../fullScopePages/mechanisticAnalysis";
-import OtherHazards from "../fullScopePages/otherHazards";
-import PlantOperationState from "../fullScopePages/operatingStateAnalysis";
-import RiskIntegration from "../fullScopePages/riskIntegration";
-import WeibullAnalysis from "../fullScopePages/weibullAnalysis";
-import EventSequenceQuantificationDiagrams from "../fullScopePages/eventSequenceQuantificationDiagrams";
-import DataAnalysis from "../fullScopePages/dataAnalysis";
-import EventSequenceAnalysis from "../fullScopePages/eventSequenceAnalysis";
-import OperatingStateAnalysis from "../fullScopePages/operatingStateAnalysis";
-import SuccessCriteria from "../fullScopePages/successCriteria";
-import SystemsAnalysis from "../fullScopePages/systemsAnalysis";
-import RadiologicalConsequenceAnalysisList from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
+import { InternalHazardsList } from "../../components/lists/workspaceLists/internalHazardsList";
+import { EventSequenceDiagrams } from "../fullScopePages/eventSequenceDiagrams";
+import { BayesianNetworks } from "../fullScopePages/bayesianNetworks";
+import { ModelSettings } from "../fullScopePages/modelSettings";
+import { InitiatingEvents } from "../fullScopePages/initiatingEvents";
+import { EventTrees } from "../fullScopePages/eventTrees";
+import { InternalHazardsContainer } from "../../components/pageContainers/internalHazardsContainer";
+import { HRA } from "../fullScopePages/humanReliabilityAnalysis";
+import { BayesianEstimation } from "../fullScopePages/bayesianEstimation";
+import { FunctionalEvents } from "../fullScopePages/functionalEvents";
+import { HazardsScreeningAnalysis } from "../fullScopePages/hazardsScreeningAnalysis";
+import { InternalFire } from "../fullScopePages/internalFire";
+import { InternalFlood } from "../fullScopePages/internalFlood";
+import { MarkovChains } from "../fullScopePages/markovChains";
+import { MechanisticAnalysis } from "../fullScopePages/mechanisticAnalysis";
+import { OtherHazards } from "../fullScopePages/otherHazards";
+import { RiskIntegration } from "../fullScopePages/riskIntegration";
+import { WeibullAnalysis } from "../fullScopePages/weibullAnalysis";
+import { EventSequenceQuantificationDiagrams } from "../fullScopePages/eventSequenceQuantificationDiagrams";
+import { DataAnalysis } from "../fullScopePages/dataAnalysis";
+import { EventSequenceAnalysis } from "../fullScopePages/eventSequenceAnalysis";
+import { OperatingStateAnalysis } from "../fullScopePages/operatingStateAnalysis";
+import { SuccessCriteria } from "../fullScopePages/successCriteria";
+import { SystemsAnalysis } from "../fullScopePages/systemsAnalysis";
+import { RadiologicalConsequenceAnalysisList } from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -51,21 +50,21 @@ const getModelFixture = (): ModelProps => ({
   ],
 });
 
-export interface FaultTreeProps {
+export type FaultTreeProps = {
   id: string | number;
   label: LabelJSON;
-}
+};
 
-export interface ModelProps {
+export type ModelProps = {
   id: string | number;
   label: LabelJSON;
   faultTrees: FaultTreeProps[];
-}
-export async function loadModel() {
+};
+export async function loadModel(): Promise<ModelProps> {
   return getModelFixture();
 }
 
-export default function InternalHazardsPage() {
+function InternalHazardsPage(): JSX.Element {
   return (
     <Routes>
       <Route path="" element={<InternalHazardsList />} />
@@ -76,7 +75,7 @@ export default function InternalHazardsPage() {
       >
         <Route
           path="plant-operating-state-analysis/*"
-          element={<PlantOperationState />}
+          element={<OperatingStateAnalysis />}
         />
         <Route path="initiating-events/*" element={<InitiatingEvents />} />
         <Route
@@ -129,3 +128,5 @@ export default function InternalHazardsPage() {
     </Routes>
   );
 }
+
+export { InternalHazardsPage };

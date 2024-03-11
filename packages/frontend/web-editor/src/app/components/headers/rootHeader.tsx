@@ -21,19 +21,20 @@ import {
 } from "@elastic/eui";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
-import { toTitleCase, tokenizePath } from "../../../utils/StringUtils";
-import ContextAddButton from "../buttons/contextAddButton";
-import WorkspaceSelectorMenu from "./WorkspaceSelectorMenu";
+import { EuiBreadcrumb } from "@elastic/eui/src/components/breadcrumbs";
+import { ToTitleCase, tokenizePath } from "../../../utils/StringUtils";
+import { ContextAddButton } from "../buttons/contextAddButton";
+import { WorkspaceSelectorMenu } from "./WorkspaceSelectorMenu";
 
-export default () => {
+const RootHeader = (): JSX.Element => {
   const navigate = useNavigate();
 
-  const createBreadcrumbs = (path: string) => {
+  const createBreadcrumbs = (path: string): EuiBreadcrumb[] => {
     const tokens = tokenizePath(path);
     return tokens.map((item, i) => ({
-      text: toTitleCase(item),
+      text: ToTitleCase(item),
       style: { fontWeight: 500 },
-      onClick: (e: any) => {
+      onClick: (e): void => {
         e.preventDefault();
         navigate(tokens.slice(0, i + 1).join("/"));
       },
@@ -45,12 +46,12 @@ export default () => {
 
   //redirects to the auth page if the user is not logged in
   useEffect(() => {
-    if (!ApiManager.isLoggedIn() && location.pathname != "/") {
+    if (!ApiManager.isLoggedIn() && location.pathname !== "/") {
       navigate("/");
     }
-  }, []);
+  }, [location.pathname, navigate]);
 
-  const renderBreadcrumbs = () => (
+  const renderBreadcrumbs = (): JSX.Element => (
     <EuiHeaderBreadcrumbs
       aria-label="Navigation Breadcrumbs"
       data-testid="breadcrumbs"
@@ -115,7 +116,8 @@ export default () => {
     </EuiHeader>
   );
 };
-const HeaderUserMenu = () => {
+export { RootHeader };
+const HeaderUserMenu = (): JSX.Element => {
   const navigate = useNavigate();
 
   const headerUserPopoverId = useGeneratedHtmlId({
@@ -124,22 +126,27 @@ const HeaderUserMenu = () => {
 
   const [isOpen, setIsOpen] = useState(false);
 
-  const onMenuButtonClick = () => {
+  const onMenuButtonClick = (): void => {
     setIsOpen(!isOpen);
   };
 
   //thewse two lines grab the username so that it can be used throughout the page. Needs this because for some reason user can be undefined
   const currentUser = ApiManager.getCurrentUser();
-  const nameString =
-    currentUser && currentUser.username ? currentUser.username : "Unknown User";
+  const nameString = currentUser.username
+    ? currentUser.username
+    : "Unknown User";
 
-  const closeMenu = () => {
+  const closeMenu = (): void => {
     setIsOpen(false);
   };
 
-  const logoutFunction = () => {
+  const logoutFunction = (): void => {
     ApiManager.logout();
     navigate("");
+  };
+
+  const adminFunction = (): void => {
+    navigate("settings");
   };
 
   const button = (
@@ -179,7 +186,9 @@ const HeaderUserMenu = () => {
             <EuiSpacer size="m" />
             <EuiFlexGroup justifyContent="spaceBetween">
               <EuiFlexItem grow={false}>
-                <EuiLink>Edit profile</EuiLink>
+                <EuiLink onClick={adminFunction} data-testid="root-settings">
+                  Settings
+                </EuiLink>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
                 <EuiLink onClick={logoutFunction}>Log out</EuiLink>
@@ -192,16 +201,16 @@ const HeaderUserMenu = () => {
   );
 };
 
-const HeaderAppMenu = () => {
+const HeaderAppMenu = (): JSX.Element => {
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
   const headerAppKeyPadMenuId = useGeneratedHtmlId({
     prefix: "headerAppKeyPadMenu",
   });
   const [isOpen, setIsOpen] = useState(false);
-  const onMenuButtonClick = () => {
+  const onMenuButtonClick = (): void => {
     setIsOpen(!isOpen);
   };
-  const closeMenu = () => {
+  const closeMenu = (): void => {
     setIsOpen(false);
   };
   const button = (

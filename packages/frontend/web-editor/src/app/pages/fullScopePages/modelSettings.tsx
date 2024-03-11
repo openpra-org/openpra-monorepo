@@ -1,10 +1,10 @@
 import { EuiHorizontalRule } from "@elastic/eui";
-import EditCurrentModel from "../../components/settingsdropdowns/editCurrentModel";
-import SettingsOverview from "../../components/settingsdropdowns/settingsOverview";
-import AdvancedSettings from "../../components/settingsdropdowns/advancedSettings";
-import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
+import { EditCurrentModel } from "../../components/settingsdropdowns/editCurrentModel";
+import { SettingsOverview } from "../../components/settingsdropdowns/settingsOverview";
+import { AdvancedSettings } from "../../components/settingsdropdowns/advancedSettings";
+import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
 
-export default function ModelSettings() {
+function ModelSettings(): JSX.Element {
   return (
     <TemplatedPageBody
       panelled={false}
@@ -21,3 +21,5 @@ export default function ModelSettings() {
     </TemplatedPageBody>
   );
 }
+
+export { ModelSettings };

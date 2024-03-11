@@ -1,6 +1,6 @@
-import DataTable from "./templatetable/dataTable";
+import { DataTable } from "./templatetable/dataTable";
 
-export default function CcfTable() {
+function CcfTable(): JSX.Element {
   //data has fields for every label
   //fth is 5th, nfth is 95th
   const rows = [
@@ -85,3 +85,5 @@ export default function CcfTable() {
 
   return <DataTable rows={rows} columns={columns} />;
 }
+
+export { CcfTable };

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { EuiButton, EuiAccordion } from "@elastic/eui";
 
-export default ({
+const SettingsAccordian = ({
   id,
   children,
   buttonContent,
@@ -11,10 +11,10 @@ export default ({
   children: JSX.Element[] | JSX.Element;
   buttonContent: JSX.Element;
   initial?: boolean;
-}) => {
+}): JSX.Element => {
   const [isOpen, setIsOpen] = useState(initial);
 
-  const onToggle = () => {
+  const onToggle = (): void => {
     setIsOpen(!isOpen);
   };
 
@@ -43,3 +43,5 @@ export default ({
     </EuiAccordion>
   );
 };
+
+export { SettingsAccordian };

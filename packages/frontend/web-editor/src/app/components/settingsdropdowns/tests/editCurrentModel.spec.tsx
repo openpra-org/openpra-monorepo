@@ -25,7 +25,7 @@ describe(EditCurrentModel, () => {
     );
     const settingsAccordian = screen.getByTestId("settingsAccordian");
     fireEvent.click(settingsAccordian);
-    const editBox = await screen.getByTestId("editBox");
+    const editBox = screen.getByTestId("editBox");
     expect(editBox).toBeInTheDocument();
   });
 });

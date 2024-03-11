@@ -1,3 +1,5 @@
-export default function () {
+function HighWinds(): JSX.Element {
   return <></>;
 }
+
+export { HighWinds };

@@ -6,9 +6,9 @@ import {
   EuiTablePagination,
 } from "@elastic/eui";
 
-interface ItemListProps {
+type ItemListProps = {
   children: JSX.Element[];
-}
+};
 
 //formerly modelItemList, now it is a template in which all item lists will use, I will probably need to pass it another
 //parameter to get the type of object grabbed
@@ -40,12 +40,12 @@ const GenericItemList: React.FC<ItemListProps> = ({ children }) => {
   const currentItems = children.slice(startIndex, endIndex);
 
   //used to change the page number, subtracts 1 because of how arrays work
-  const onPageChange = (pageNumber: number) => {
+  const onPageChange = (pageNumber: number): void => {
     setCurrentPage(pageNumber - 1);
   };
 
   //used to change the items in each page
-  const changeItemsPerPage = (pageSize: number) => {
+  const changeItemsPerPage = (pageSize: number): void => {
     setTotalPages(Math.ceil(totalItems / pageSize));
     setRowSize(pageSize);
     setCurrentPage(-1);
@@ -82,4 +82,4 @@ const GenericItemList: React.FC<ItemListProps> = ({ children }) => {
   );
 };
 
-export default GenericItemList;
+export { GenericItemList };

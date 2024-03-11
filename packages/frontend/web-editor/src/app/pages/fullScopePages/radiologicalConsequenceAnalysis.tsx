@@ -1,5 +1,7 @@
-import RadiologicalConsequenceAnalysisList from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
+import { RadiologicalConsequenceAnalysisList } from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
 
-export default function () {
+function RadiologicalConsequenceAnalysis(): JSX.Element {
   return <RadiologicalConsequenceAnalysisList />;
 }
+
+export { RadiologicalConsequenceAnalysis };

@@ -1,5 +1,7 @@
-import RiskIntegrationList from "../../components/lists/nestedLists/riskIntegrationList";
+import { RiskIntegrationList } from "../../components/lists/nestedLists/riskIntegrationList";
 
-export default function () {
+function RiskIntegration(): JSX.Element {
   return <RiskIntegrationList />;
 }
+
+export { RiskIntegration };

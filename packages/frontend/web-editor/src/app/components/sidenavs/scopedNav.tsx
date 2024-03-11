@@ -11,7 +11,7 @@ import {
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
 
-interface TreeItem {
+type TreeItem = {
   id: string;
   key: string;
   isExpanded?: boolean;
@@ -19,13 +19,13 @@ interface TreeItem {
   children?: TreeItem[];
   icon?: JSX.Element;
   callback?: () => {};
-}
+};
 
-export interface scopedNavProps {
+export type scopedNavProps = {
   type: string;
-}
+};
 
-export default function ScopedNav(props: scopedNavProps) {
+function ScopedNav(props: scopedNavProps): JSX.Element {
   const { type } = props;
 
   const { euiTheme } = useEuiTheme();
@@ -453,7 +453,7 @@ export default function ScopedNav(props: scopedNavProps) {
     items: TreeItem[],
     i: number,
     forceTreeView = false,
-  ) => {
+  ): JSX.Element => {
     //TODO
     if (forceTreeView) {
       const style = {
@@ -547,7 +547,7 @@ export default function ScopedNav(props: scopedNavProps) {
   }
 
   treeItems.push(settings);
-  const createTreeViews = (items = treeItems) => {
+  const createTreeViews = (items = treeItems): JSX.Element[] => {
     const viewItems: JSX.Element[] = [];
     items.forEach((item, i) => {
       viewItems.push(
@@ -562,3 +562,5 @@ export default function ScopedNav(props: scopedNavProps) {
 
   return <>{createTreeViews(treeItems)}</>;
 }
+
+export { ScopedNav };

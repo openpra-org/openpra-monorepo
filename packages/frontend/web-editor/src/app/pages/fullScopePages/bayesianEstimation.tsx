@@ -1,5 +1,7 @@
-import BayesianEstimationList from "../../components/lists/nestedLists/bayesianEstimationList";
+import { BayesianEstimationList } from "../../components/lists/nestedLists/bayesianEstimationList";
 
-export default function () {
+function BayesianEstimation(): JSX.Element {
   return <BayesianEstimationList />;
 }
+
+export { BayesianEstimation };

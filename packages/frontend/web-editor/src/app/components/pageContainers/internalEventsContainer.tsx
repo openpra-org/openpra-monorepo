@@ -1,8 +1,8 @@
 import { Outlet } from "react-router-dom";
 import { EuiPageTemplate } from "@elastic/eui";
-import ScopedNav from "../sidenavs/scopedNav";
+import { ScopedNav } from "../sidenavs/scopedNav";
 
-export default () => (
+const InternalEventsContainer = (): JSX.Element => (
   <EuiPageTemplate
     panelled={false}
     offset={0}
@@ -20,3 +20,5 @@ export default () => (
     <Outlet />
   </EuiPageTemplate>
 );
+
+export { InternalEventsContainer };

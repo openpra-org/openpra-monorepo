@@ -1,5 +1,7 @@
-import MarkovChainsList from "../../components/lists/nestedLists/markovChainsList";
+import { MarkovChainsList } from "../../components/lists/nestedLists/markovChainsList";
 
-export default function () {
+function MarkovChains(): JSX.Element {
   return <MarkovChainsList />;
 }
+
+export { MarkovChains };

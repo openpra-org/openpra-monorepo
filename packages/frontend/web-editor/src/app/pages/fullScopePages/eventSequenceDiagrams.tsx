@@ -5,20 +5,29 @@ import ReactFlow, {
   Node,
   ProOptions,
   ReactFlowProvider,
+  useKeyPress,
   useReactFlow,
 } from "reactflow";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { EventSequenceGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import EventSequenceList from "../../components/lists/nestedLists/eventSequenceList";
-import useLayout from "../../hooks/eventSequence/useLayout";
-import ESNodeTypes from "../../components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
-import ESEdgeTypes from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
+import { EventSequenceList } from "../../components/lists/nestedLists/eventSequenceList";
+import { UseLayout } from "../../hooks/eventSequence/useLayout";
+import {
+  ESNodeTypes,
+  EventSequenceNodeProps,
+} from "../../components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
+import { ESEdgeTypes } from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 import { EventSequenceContextMenuOptions } from "../../components/context_menu/interfaces/eventSequenceContextMenuOptions.interface";
-import EventSequenceContextMenu from "../../components/context_menu/eventSequenceContextMenu";
-import { GenerateUUID } from "../../../utils/treeUtils";
-import LoadingCard from "../../components/cards/loadingCard";
+import { EventSequenceContextMenu } from "../../components/context_menu/eventSequenceContextMenu";
+import {
+  DeleteEventSequenceNode,
+  GenerateUUID,
+  IsNodeDeletable,
+  StoreEventSequenceDiagramCurrentState,
+} from "../../../utils/treeUtils";
+import { LoadingCard } from "../../components/cards/loadingCard";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
@@ -28,7 +37,7 @@ const functional_event_id = GenerateUUID();
 const first_end_state_id = GenerateUUID();
 const second_end_state_id = GenerateUUID();
 
-const defaultNodes: Node[] = [
+const defaultNodes: Node<object>[] = [
   {
     id: initiating_event_id,
     data: {},
@@ -94,12 +103,12 @@ const fitViewOptions = {
  */
 function ReactFlowPro(): JSX.Element {
   // this hook call ensures that the layout is re-calculated every time the graph changes
-  useLayout();
+  UseLayout();
 
-  const { fitView } = useReactFlow();
-  const [nodes, updateNodes] = useState<Node[]>(defaultNodes);
+  const { fitView, getNodes, getEdges, setNodes, setEdges } = useReactFlow();
+  const [nodes, updateNodes] = useState<Node<object>[]>(defaultNodes);
   const [edges, updateEdges] = useState<Edge[]>(defaultEdges);
-  const { eventSequenceId } = useParams();
+  const { eventSequenceId } = useParams() as { eventSequenceId: string };
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -122,35 +131,69 @@ function ReactFlowPro(): JSX.Element {
   const ref = useRef<HTMLDivElement>(document.createElement("div"));
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
   const [isOpen, setIsOpen] = useState(false);
+  const deleteKeyPressed = useKeyPress(["Delete", "Backspace"]);
 
   const onNodeContextMenu = useCallback(
-    (event: React.MouseEvent, node: Node) => {
+    (event: React.MouseEvent, node: Node<EventSequenceNodeProps>) => {
       // Prevent native context menu from showing
       event.preventDefault();
 
       // context menu not needed for initiating node
       if (node.type === "initiating") return;
 
+      // if node is tentative or can be deleted (in case of functional node deletion process), don't show context menu
+      if (node.data.isDeleted === true || node.data.tentative === true) return;
+
       setIsOpen(!isOpen);
 
       // Calculate position of the context menu. We want to make sure it
       // doesn't get positioned off-screen.
-      const left =
-        event.clientX + 342 > window.innerWidth
-          ? event.clientX - 342
-          : event.clientX;
+      const left = event.clientX - 200;
       const top =
         event.clientY + 228 > window.innerHeight
-          ? event.clientY - 228
+          ? event.clientY - 160
           : event.clientY;
       setMenu({
         id: node.id,
         top: top,
         left: left,
+        isDelete: IsNodeDeletable(node.type),
+        onClick: onPaneClick,
       });
     },
     [isOpen],
   );
+
+  useEffect(() => {
+    const selectedNode: Node<EventSequenceNodeProps> | undefined =
+      getNodes().find((node) => node.selected);
+    if (selectedNode !== undefined) {
+      const updatedState = DeleteEventSequenceNode(
+        selectedNode,
+        getNodes(),
+        getEdges(),
+      );
+      if (updatedState !== undefined) {
+        setNodes(updatedState.nodes);
+        setEdges(updatedState.edges);
+
+        if (updatedState.updateState) {
+          StoreEventSequenceDiagramCurrentState(
+            eventSequenceId,
+            updatedState.nodes,
+            updatedState.edges,
+          );
+        }
+      }
+    }
+  }, [
+    deleteKeyPressed,
+    eventSequenceId,
+    getEdges,
+    getNodes,
+    setEdges,
+    setNodes,
+  ]);
 
   // Close the context menu if it's open whenever the window is clicked.
   const onPaneClick = useCallback(() => {
@@ -176,20 +219,22 @@ function ReactFlowPro(): JSX.Element {
       zoomOnDoubleClick={false}
       onPaneClick={onPaneClick}
       onNodeContextMenu={onNodeContextMenu}
-      // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
-      // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
+      multiSelectionKeyCode={null}
       deleteKeyCode={null}
     >
       <Background />
       <EuiPopover
         id={headerAppPopoverId}
-        button={<></>}
+        button={<div style={{ width: 0, height: 0 }}></div>}
         isOpen={isOpen}
         anchorPosition="downRight"
         hasArrow={false}
         style={{
           top: menu?.top,
           left: menu?.left,
+        }}
+        panelStyle={{
+          width: 220,
         }}
         closePopover={onPaneClick}
       >
@@ -223,7 +268,7 @@ export function EventSequenceEditor(): JSX.Element {
  *
  * @returns JSX.Element - The JSX element representing the component with defined routes.
  */
-export default function EventSequenceDiagrams(): JSX.Element {
+function EventSequenceDiagrams(): JSX.Element {
   return (
     <Routes>
       <Route path="" element={<EventSequenceList />} />
@@ -231,3 +276,5 @@ export default function EventSequenceDiagrams(): JSX.Element {
     </Routes>
   );
 }
+
+export { EventSequenceDiagrams };

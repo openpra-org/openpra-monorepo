@@ -3,9 +3,9 @@ import {
   GetSuccessCriteria,
   PatchSuccessCriteriaLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function SuccessCriteriaList() {
+function SuccessCriteriaList(): JSX.Element {
   return (
     <NestedModelList
       getNestedEndpoint={GetSuccessCriteria}
@@ -15,3 +15,5 @@ export default function SuccessCriteriaList() {
     />
   );
 }
+
+export { SuccessCriteriaList };

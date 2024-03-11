@@ -13,15 +13,15 @@ import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModel
 import { NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 
 import { ItemFormProps } from "../forms/typedModelActionForm";
-import DeleteItemBox from "../listchanging/deleteItemBox";
-import TypedModelActionForm from "../forms/typedModelActionForm";
-import NestedModelActionForm from "../forms/nestedModelActionForm";
+import { DeleteItemBox } from "../listchanging/deleteItemBox";
+import { TypedModelActionForm } from "../forms/typedModelActionForm";
+import { NestedModelActionForm } from "../forms/nestedModelActionForm";
 import { GenericListItemProps } from "./GenericListItem";
 
 export type ListItemContextMenuProps = {} & GenericListItemProps &
   Omit<ItemFormProps, "action">;
 
-export default (props: ListItemContextMenuProps) => {
+const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
   //TODO: Make this work correctly, the prop is bad
   const {
     id,
@@ -144,7 +144,7 @@ export default (props: ListItemContextMenuProps) => {
               id={embeddedCodeSwitchId__1}
               label="Snapshot data"
               checked={true}
-              onChange={() => {}}
+              onChange={(): void => {}}
             />
           </EuiFormRow>
           <EuiFormRow
@@ -156,7 +156,7 @@ export default (props: ListItemContextMenuProps) => {
               id={embeddedCodeSwitchId__2}
               label="Current time range"
               checked={true}
-              onChange={() => {}}
+              onChange={(): void => {}}
             />
           </EuiFormRow>
           <EuiSpacer />
@@ -168,3 +168,5 @@ export default (props: ListItemContextMenuProps) => {
 
   return <EuiContextMenu size="m" initialPanelId={0} panels={panels} />;
 };
+
+export { ListItemContextMenu };

@@ -11,14 +11,14 @@ export type TemplatedPageBodyProps = {
   headerProps?: EuiPageHeaderProps;
   sectionProps?: EuiPageSectionProps;
 } & EuiPageBodyProps;
-export default function TemplatedPageBody({
+function TemplatedPageBody({
   panelled,
   children,
   restrictWidth,
   sectionProps,
   headerProps,
   ...rest
-}: TemplatedPageBodyProps) {
+}: TemplatedPageBodyProps): JSX.Element {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.l;
   const isPanelled = panelled === undefined ? true : panelled;
   const width =
@@ -32,3 +32,4 @@ export default function TemplatedPageBody({
     </EuiPageBody>
   );
 }
+export { TemplatedPageBody };

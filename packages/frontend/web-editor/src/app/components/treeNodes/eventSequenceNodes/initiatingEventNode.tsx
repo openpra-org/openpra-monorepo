@@ -1,9 +1,8 @@
 import { memo } from "react";
 import { Handle, NodeProps, Position } from "reactflow";
-import useNodeClickHandler from "../../../hooks/eventSequence/useNodeClick";
+import cx from "classnames";
+import { UseNodeClick } from "../../../hooks/eventSequence/useNodeClick";
 import styles from "./styles/nodeTypes.module.css";
-import { NodeIcon } from "./icons/nodeIcon";
-import { NodeTypes } from "./icons/interfaces/nodeProps";
 
 /**
  * Initiating Event Node
@@ -11,28 +10,29 @@ import { NodeTypes } from "./icons/interfaces/nodeProps";
  * @param selected - node selection flag (true if selected)
  * @returns Initiating Event Node JSX Element
  */
-const InitiatingEventNode = ({ id, selected }: NodeProps): JSX.Element => {
-  const onClick = useNodeClickHandler(id);
-
+const InitiatingEventNode = memo(({ id, selected }: NodeProps): JSX.Element => {
+  const onClick = UseNodeClick(id, {});
+  const stylesMap = styles as Record<string, string>;
+  const border = selected ? "#7c0a02" : "#0984e3";
   return (
-    <div onClick={onClick} style={{ position: "relative" }}>
-      <Handle
-        className={styles.handle}
-        type="source"
-        position={Position.Right}
-        isConnectable={false}
-      />
-      <NodeIcon
-        nodeType={NodeTypes.Initiating}
-        iconProps={{
-          width: "90",
-          height: "50",
-          showText: true,
-          selected: selected,
-        }}
-      />
+    <div className={cx(stylesMap.node_container)}>
+      <div
+        className={cx(stylesMap.node)}
+        data-testid={"initiating-event-node"}
+        onClick={onClick}
+        style={{ position: "relative", borderColor: border }}
+      >
+        {"Initiating Event"}
+        <Handle
+          className={stylesMap.handle}
+          type="source"
+          position={Position.Right}
+          isConnectable={false}
+        />
+      </div>
+      <div className={cx(stylesMap.line)} />
     </div>
   );
-};
+});
 
-export default memo(InitiatingEventNode);
+export { InitiatingEventNode };

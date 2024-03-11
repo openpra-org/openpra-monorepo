@@ -1,3 +1,5 @@
-export default function () {
+function Seismic(): JSX.Element {
   return <></>;
 }
+
+export { Seismic };

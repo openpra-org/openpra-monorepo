@@ -14,7 +14,7 @@ import {
 } from "shared-types/src/lib/api/AuthTypes";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 
-export default function LoginForm() {
+function LoginForm(): JSX.Element {
   const DefaultProps: LoginProps = {
     username: "",
     password: "",
@@ -29,7 +29,7 @@ export default function LoginForm() {
   const [invalid, setInvalid] = useState(false);
   const [redirectToHomepage, setRedirectToHomepage] = useState(false);
 
-  async function handleLogin() {
+  async function handleLogin(): Promise<void> {
     setInvalid(false);
     const { username, password } = login;
     try {
@@ -94,7 +94,7 @@ export default function LoginForm() {
             placeholder="Username"
             isInvalid={error.username}
             value={login.username}
-            onChange={(e) => {
+            onChange={(e): void => {
               setLogin({
                 ...login,
                 username: e.target.value,
@@ -108,7 +108,7 @@ export default function LoginForm() {
             placeholder="Password"
             value={login.password}
             isInvalid={error.password}
-            onChange={(e) => {
+            onChange={(e): void => {
               setLogin({
                 ...login,
                 password: e.target.value,
@@ -125,3 +125,4 @@ export default function LoginForm() {
     );
   }
 }
+export { LoginForm };

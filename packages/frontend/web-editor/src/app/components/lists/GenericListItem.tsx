@@ -11,11 +11,11 @@ import {
 import { Link } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
-import LastActionText from "./LastActionText";
+import { LastActionText } from "./LastActionText";
 import { ListItemContextMenuButton } from "./ListItemAction";
 
 //title is required, description isnt required but is typically present
-export interface GenericListItemProps {
+export type GenericListItemProps = {
   id: number;
   label: LabelJSON;
   endpoint: string;
@@ -30,15 +30,15 @@ export interface GenericListItemProps {
   users?: number[];
   path: string;
   itemName: string;
-}
+};
 
 /**
  *
- * @param id takes in the id number of the objecty
- * @param path the path that the list item will send the user to after clicked
- * @param label this is an optional prop that passes a labelJSON
+ * @param id - takes in the id number of the objecty
+ * @param path - the path that the list item will send the user to after clicked
+ * @param label - this is an optional prop that passes a labelJSON
  */
-export default function GenericListItem(props: GenericListItemProps) {
+function GenericListItem(props: GenericListItemProps): JSX.Element {
   //grabs the props
   const { label, id, path } = props;
 
@@ -102,3 +102,4 @@ export default function GenericListItem(props: GenericListItemProps) {
     ></EuiListGroupItem>
   );
 }
+export { GenericListItem };

@@ -25,11 +25,13 @@ import { GenerateUUID, FaultTreeState } from "../../../utils/treeUtils";
  * const { handleContextMenuClick } = useFaultTreeContextMenuClick('uniqueNodeId');
  * ```
  */
-export function useFaultTreeContextMenuClick(id: NodeProps["id"]) {
+function UseFaultTreeContextMenuClick(id: NodeProps["id"]): {
+  handleContextMenuClick: (contextMenuClickEvent: React.MouseEvent) => void;
+} {
   const { setEdges, setNodes, getNodes, getEdges, getNode } = useReactFlow();
   const { faultTreeId } = useParams();
   // function to get all child nodes and edges
-  function getAllChildren(parentNode: Node) {
+  function getAllChildren(parentNode: Node): { nodes: Node[]; edges: Edge[] } {
     let childNodes: Node[] = [];
     let childEdges: Edge[] = [];
     const children = getOutgoers(parentNode, getNodes(), getEdges());
@@ -246,4 +248,4 @@ export function useFaultTreeContextMenuClick(id: NodeProps["id"]) {
   return { handleContextMenuClick };
 }
 
-export default useFaultTreeContextMenuClick;
+export { UseFaultTreeContextMenuClick };

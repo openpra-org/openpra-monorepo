@@ -1,6 +1,6 @@
 import { EuiCard, logicalStyle, EuiTabbedContent } from "@elastic/eui";
-import LoginForm from "../forms/loginForm";
-import SignupForm from "../forms/signupForm";
+import { LoginForm } from "../forms/loginForm";
+import { SignupForm } from "../forms/signupForm";
 import OpenPRALogo from "../../../assets/images/logos/OpenPRA_vs_0.1x.png";
 
 //required to show version number!
@@ -19,7 +19,7 @@ const tabs = [
   },
 ];
 
-function AuthCardContent() {
+function AuthCardContent(): JSX.Element {
   return (
     <EuiTabbedContent
       tabs={tabs}
@@ -30,7 +30,7 @@ function AuthCardContent() {
   );
 }
 
-export default function AuthCard() {
+function AuthCard(): JSX.Element {
   const cardStyle = {
     ...logicalStyle("width", 300),
     ...logicalStyle("margin-horizontal", "auto"),
@@ -49,3 +49,4 @@ export default function AuthCard() {
     </EuiCard>
   );
 }
+export { AuthCard };

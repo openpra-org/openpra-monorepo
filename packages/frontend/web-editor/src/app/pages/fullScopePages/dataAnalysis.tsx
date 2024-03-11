@@ -1,5 +1,7 @@
-import DataAnalysisList from "../../components/lists/nestedLists/dataAnalysisList";
+import { DataAnalysisList } from "../../components/lists/nestedLists/dataAnalysisList";
 
-export default function () {
+function DataAnalysis(): JSX.Element {
   return <DataAnalysisList />;
 }
+
+export { DataAnalysis };

@@ -1,5 +1,7 @@
-import WeibullAnalysisList from "../../components/lists/nestedLists/weibullAnalysisList";
+import { WeibullAnalysisList } from "../../components/lists/nestedLists/weibullAnalysisList";
 
-export default function () {
+function WeibullAnalysis(): JSX.Element {
   return <WeibullAnalysisList />;
 }
+
+export { WeibullAnalysis };

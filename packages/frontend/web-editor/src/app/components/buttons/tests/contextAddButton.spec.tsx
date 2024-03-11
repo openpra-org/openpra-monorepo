@@ -7,7 +7,7 @@ import {
   Routes,
 } from "react-router-dom";
 import ContextAddButton from "../contextAddButton";
-import App from "../../../app";
+import { App } from "../../../app";
 
 /**
  * tests all of the create item button types

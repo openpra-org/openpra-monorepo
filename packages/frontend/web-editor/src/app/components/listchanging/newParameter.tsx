@@ -12,12 +12,12 @@ import {
   EuiFieldNumber,
 } from "@elastic/eui";
 
-export interface NewParameterProps {
+export type NewParameterProps = {
   toggleBox: (isVisible: boolean) => void;
-}
+};
 
 //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
-export default function NewParameter(props: NewParameterProps) {
+function NewParameter(props: NewParameterProps): JSX.Element {
   //this is to make sure the new thing gets set
   // const [addNewVisible, setAddNewVisible] = useState(false);
 
@@ -27,10 +27,10 @@ export default function NewParameter(props: NewParameterProps) {
   //use the theme
   const { euiTheme } = useEuiTheme();
 
-  interface item {
+  type item = {
     name: string;
     value?: number;
-  }
+  };
 
   //this is what is in the newItem strucutre, will eventually be used to actually make things
   //this is also subject tyo change, propbably needs a type passed in from props eventually
@@ -55,12 +55,12 @@ export default function NewParameter(props: NewParameterProps) {
   }, [itemInfo]);
 
   //sets the data, then closes overlay
-  const setData = () => {
+  const setData = (): void => {
     closeOverlay();
   };
 
   //just closes the overlay for adding items
-  const closeOverlay = () => {
+  const closeOverlay = (): void => {
     toggleBox(false);
   };
 
@@ -87,7 +87,7 @@ export default function NewParameter(props: NewParameterProps) {
           fullWidth={true}
           placeholder="Title"
           value={itemInfo.name}
-          onChange={(e) => {
+          onChange={(e): void => {
             setItemInfo({
               ...itemInfo,
               name: e.target.value,
@@ -101,7 +101,7 @@ export default function NewParameter(props: NewParameterProps) {
           fullWidth={true}
           placeholder="Value"
           value={itemInfo.value}
-          onChange={(e) => {
+          onChange={(e): void => {
             setItemInfo({
               ...itemInfo,
               value: parseInt(e.target.value),
@@ -146,3 +146,4 @@ export default function NewParameter(props: NewParameterProps) {
     </EuiForm>
   );
 }
+export { NewParameter };

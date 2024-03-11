@@ -26,7 +26,8 @@
       "cache": true,
       "inputs": ["default", "^default", "{workspaceRoot}/jest.preset.js"],
       "options": {
-        "passWithNoTests": true
+        "passWithNoTests": true,
+        "codeCoverage": true
       },
       "configurations": {
         "ci": {

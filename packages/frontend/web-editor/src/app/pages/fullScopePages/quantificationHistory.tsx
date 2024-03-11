@@ -1,5 +1,5 @@
-import TemplatedPageBody from "../../components/headers/TemplatedPageBody";
-export default function QuantificationHistory() {
+import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
+function QuantificationHistory(): JSX.Element {
   return (
     <TemplatedPageBody
       headerProps={{
@@ -9,3 +9,5 @@ export default function QuantificationHistory() {
     ></TemplatedPageBody>
   );
 }
+
+export { QuantificationHistory };

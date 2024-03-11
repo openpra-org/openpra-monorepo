@@ -29,12 +29,19 @@ COPY .. .
 RUN source /root/.bashrc \
     && pnpm install
 
+FROM base as e2e-tests
+RUN source /root/.bashrc && \
+    pnpm playwright install-deps
+
 FROM base as frontend_builder
 ARG BUILD_TYPE=development
+ARG BRANCH_SLUG=""
+ARG ENABLE_SENTRY=1
+
 WORKDIR /app
 SHELL ["/bin/bash", "-c"]
-RUN source /root/.bashrc \
-    && nx run frontend-web-editor:build:$BUILD_TYPE
+RUN source /root/.bashrc && \
+    BRANCH_SLUG=$BRANCH_SLUG NODE_ENV=$BUILD_TYPE ENABLE_SENTRY=$ENABLE_SENTRY nx run frontend-web-editor:build:$BUILD_TYPE
 
 FROM nginx:latest as frontend
 WORKDIR /usr/share/nginx/html/web-editor

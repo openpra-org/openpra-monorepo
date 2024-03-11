@@ -7,8 +7,8 @@ import {
   useEuiPaddingCSS,
   useEuiTheme,
 } from "@elastic/eui";
-import AuthCard from "../components/cards/authCard";
-export default function LoginPage() {
+import { AuthCard } from "../components/cards/authCard";
+function LoginPage(): JSX.Element {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
   const textCss = [useEuiPaddingCSS("horizontal").m];
   const containterCss = [useEuiPaddingCSS().m];
@@ -69,3 +69,5 @@ export default function LoginPage() {
     </EuiFlexGroup>
   );
 }
+
+export { LoginPage };

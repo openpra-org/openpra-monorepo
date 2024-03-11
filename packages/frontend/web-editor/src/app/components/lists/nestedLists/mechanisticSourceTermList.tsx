@@ -3,9 +3,9 @@ import {
   GetMechanisticSourceTerm,
   PatchMechanisticSourceTermLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import NestedModelList from "./templateList/nestedModelList";
+import { NestedModelList } from "./templateList/nestedModelList";
 
-export default function MechanisticSourceTermList() {
+function MechanisticSourceTermList(): JSX.Element {
   return (
     <NestedModelList
       getNestedEndpoint={GetMechanisticSourceTerm}
@@ -15,3 +15,5 @@ export default function MechanisticSourceTermList() {
     />
   );
 }
+
+export { MechanisticSourceTermList };

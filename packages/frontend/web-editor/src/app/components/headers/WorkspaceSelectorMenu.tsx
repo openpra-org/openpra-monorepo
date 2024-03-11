@@ -11,7 +11,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { SelectableWorkspaceOptions } from "../../workspaces/SelectableWorkspaceOptions";
 
-export default function WorkspaceSelectorMenu() {
+function WorkspaceSelectorMenu(): JSX.Element {
   const isMountedRef = useRef(false);
   const navigate = useNavigate();
   const popoverID = useGeneratedHtmlId({
@@ -26,10 +26,10 @@ export default function WorkspaceSelectorMenu() {
   );
   const [isOpen, setIsOpen] = useState(false);
 
-  const onMenuButtonClick = () => {
+  const onMenuButtonClick = (): void => {
     setIsOpen(!isOpen);
   };
-  const closePopover = () => {
+  const closePopover = (): void => {
     setIsOpen(false);
   };
   const onChange: EuiSelectableProps["onChange"] = (options) => {
@@ -41,7 +41,7 @@ export default function WorkspaceSelectorMenu() {
       navigate("/" + selectedSpace.key);
     }
 
-    return () => {
+    return (): void => {
       isMountedRef.current = true;
     };
   }, [selectedSpace]);
@@ -79,10 +79,10 @@ export default function WorkspaceSelectorMenu() {
           bordered: false,
         }}
       >
-        {(list, search) => (
+        {(list, search): JSX.Element => (
           <>
             <EuiPopoverTitle paddingSize="s">
-              {search || "Your workspaces"}
+              {search ?? "Your workspaces"}
             </EuiPopoverTitle>
             {list}
           </>
@@ -91,3 +91,4 @@ export default function WorkspaceSelectorMenu() {
     </EuiPopover>
   );
 }
+export { WorkspaceSelectorMenu };

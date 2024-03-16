@@ -26,6 +26,12 @@ import {
   TypedModel,
   TypedModelJSON,
 } from "./schemas/templateSchema/typed-model.schema";
+import {
+  SideNavTab,
+  SideNavTabsDocument,
+  UserSideNavPreferences,
+  UserSideNavTabsDocument
+} from "./schemas/side-nav-tabs.schema";
 
 @Injectable()
 export class TypedModelService {
@@ -40,7 +46,10 @@ export class TypedModelService {
     private readonly externalHazardsModel: Model<ExternalHazardsDocument>,
     @InjectModel(FullScope.name)
     private readonly fullScopeModel: Model<FullScopeDocument>,
-  ) {}
+    @InjectModel(UserSideNavPreferences.name)
+    private readonly userSideNavModel: Model<UserSideNavTabsDocument>,
+  ) {
+  }
 
   /**
    * this was copied from elsewhere, its to create a counter, it should probably have the suer counter named something else now but oh well
@@ -337,6 +346,31 @@ export class TypedModelService {
    */
   async getFullScope(modelId: string, userId: number): Promise<FullScope> {
     return this.fullScopeModel.findOne({ id: modelId, users: userId });
+  }
+
+  /**
+   * Retrieves the side navigation tabs for a specific user.
+   *
+   * @param {number} user - The unique identifier of the user.
+   * @param {number} userId - The unique identifier of the user.
+   * @returns {Promise<SideNavTab[]>} A promise that resolves to an array of SideNavTab objects representing the user's side navigation tabs.
+   */
+  async getSideNavTabs(userId: number, user: string): Promise<SideNavTab[]> {
+    //Fetch side navigation tabs from the database
+    const result = await this.userSideNavModel.find({user: user});
+    const userSideNavTabs: SideNavTab[] = [];
+    if (result[0]) {
+      result[0].preferences.map((sideNav) => {
+        userSideNavTabs.push({
+          title: sideNav.title,
+          navigateTo: sideNav.navigateTo,
+          children: sideNav.children,
+          pinned: sideNav.pinned,
+          visible: sideNav.visible,
+        });
+      });
+    }
+    return userSideNavTabs;
   }
 
   //delete functions

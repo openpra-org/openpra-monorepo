@@ -13,6 +13,8 @@ import {
   UserCounterDocument,
 } from "./schemas/user-counter.schema";
 import { User, UserDocument } from "./schemas/user.schema";
+import {UserSideNavPreferences, UserSideNavTabsDocument} from "../typedModel/schemas/side-nav-tabs.schema";
+import {SIDE_NAV_DATA} from "./sideNavData";
 
 @Injectable()
 export class CollabService {
@@ -21,6 +23,7 @@ export class CollabService {
     @InjectModel(UserCounter.name)
     private readonly userCounterModel: Model<UserCounterDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(UserSideNavPreferences.name) private readonly userSideNavModel: Model<UserSideNavTabsDocument>
   ) {}
 
   /**
@@ -251,6 +254,11 @@ export class CollabService {
         currentlySelected: " ",
       },
     };
+    //Add sidebar tabs for the user with each new signup
+    await this.userSideNavModel.create({
+      user: username,
+      preferences: SIDE_NAV_DATA,
+    });
     return newUser.save();
   }
 

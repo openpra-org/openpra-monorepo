@@ -21,6 +21,12 @@ import {
 import { FullScope, FullScopeSchema } from "./schemas/full-scope.schema";
 import { MetaTypedModelController } from "./metadata/meta-typed-model.controller";
 import { MetaTypedModelService } from "./metadata/meta-typed-model.service";
+import {
+  SideNavTab,
+  SideNavTabSchema,
+  UserSideNavPreferences,
+  UserSideNavTabSchema
+} from "./schemas/side-nav-tabs.schema";
 
 @Module({
   imports: [
@@ -30,6 +36,7 @@ import { MetaTypedModelService } from "./metadata/meta-typed-model.service";
       { name: ExternalHazards.name, schema: ExternalHazardsSchema },
       { name: FullScope.name, schema: FullScopeSchema },
       { name: ModelCounter.name, schema: ModelCounterSchema },
+      { name: UserSideNavPreferences.name, schema: UserSideNavTabSchema},
     ]),
   ],
   controllers: [TypedModelController, MetaTypedModelController],

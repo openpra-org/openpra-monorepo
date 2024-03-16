@@ -27,6 +27,7 @@ import {
   TypedModel,
   TypedModelJSON,
 } from "./schemas/templateSchema/typed-model.schema";
+import { SideNavTab } from "./schemas/side-nav-tabs.schema";
 
 @Controller()
 @UseGuards(AuthGuard("jwt"))
@@ -266,13 +267,27 @@ export class TypedModelController {
     return this.typedModelService.getFullScope(modelId, req.user.user_id);
   }
 
-  //delete methods
 
   /**
+   * Fetches side navigation tabs for the current user.
    *
+   * @param req - The incoming request object
+   * @param user - The incoming user.
+   * @returns A Promise resolving to an array of SideNavTab objects.
+   */
+  @Get("/side-nav-tabs/")
+  async getSideNavTabs(
+    @Request() req,
+  ): Promise<SideNavTab[]> {
+    return this.typedModelService.getSideNavTabs(req.user.user_id, req.user.username);
+  }
+
+  /**
    * @param modelId id of the model to be deleted
    * @returns the deleted model in a promise
    */
+  //delete methods
+
   @Delete("/internal-events/")
   async deleteInternalEvent(
     @Request() req,

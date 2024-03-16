@@ -9,7 +9,7 @@ import { ErrorPage } from "./pages/errorPage";
 import { InternalEventsPage } from "./pages/routingPages/internalEventsPage";
 import { InternalHazardsPage } from "./pages/routingPages/internalHazardsPage";
 import { ExternalHazardsPage } from "./pages/routingPages/externalHazardsPage";
-import { RootContainer } from "./pages/rootContainer";
+import RootContainer  from "./pages/rootContainer";
 import { DataPage } from "./pages/routingPages/dataAnalysisPage";
 import { FullScopePage } from "./pages/routingPages/fullScope";
 import { LoginPage } from "./pages/LandingPage";

@@ -16,7 +16,7 @@ import edgeTypes from "../../components/treeEdges/faultTreeEdges/faultTreeEdgeTy
 import "reactflow/dist/style.css";
 import FaultTreeNodeContextMenu, {
   treeNodeContextMenuProps,
-} from "../../components/context_menu/faultTreeNodeContextMenu";
+} from "../../components/context_menu/initiatingEventsFaultTreeContextMenu";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 

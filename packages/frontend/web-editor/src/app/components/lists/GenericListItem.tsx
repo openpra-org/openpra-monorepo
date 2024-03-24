@@ -19,7 +19,7 @@ export type GenericListItemProps = {
   id: number;
   label: LabelJSON;
   endpoint: string;
-  deleteTypedEndpoint?: (id: number) => {};
+  deleteTypedEndpoint?: (id: number) => NonNullable<unknown>;
   deleteNestedEndpoint?: (id: number) => {};
   postFunction?: (data: Partial<TypedModelJSON>) => Promise<void>;
   deleteFunction?: (id: number) => Promise<void>;
@@ -32,8 +32,8 @@ export type GenericListItemProps = {
     modelId: number,
     userId: number,
     data: Partial<TypedModelJSON>,
-  ) => {};
-  patchNestedEndpoint?: (id: number, data: LabelJSON) => {};
+  ) => NonNullable<unknown>;
+  patchNestedEndpoint?: (id: number, data: LabelJSON) => NonNullable<unknown>;
   users?: number[];
   path: string;
   itemName: string;

@@ -18,14 +18,14 @@ type TreeItem = {
   label: JSX.Element;
   children?: TreeItem[];
   icon?: JSX.Element;
-  callback?: () => {};
+  callback?: () => NonNullable<unknown>;
 };
 
-export type scopedNavProps = {
+export type ScopedNavProps = {
   type: string;
 };
 
-function ScopedNav(props: scopedNavProps): JSX.Element {
+function ScopedNav(props: ScopedNavProps): JSX.Element {
   const { type } = props;
 
   const { euiTheme } = useEuiTheme();
@@ -447,7 +447,7 @@ function ScopedNav(props: scopedNavProps): JSX.Element {
     ),
   ];
 
-  const padding = useEuiPaddingSize("s") || "0px";
+  const padding = useEuiPaddingSize("s") ?? "0px";
 
   const createTreeView = (
     items: TreeItem[],

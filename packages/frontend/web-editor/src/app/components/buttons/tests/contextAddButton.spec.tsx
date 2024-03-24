@@ -1,13 +1,6 @@
 import { render } from "@testing-library/react";
-import {
-  BrowserRouter,
-  MemoryRouter,
-  Route,
-  Router,
-  Routes,
-} from "react-router-dom";
-import ContextAddButton from "../contextAddButton";
-import { App } from "../../../app";
+import { MemoryRouter } from "react-router-dom";
+import { ContextAddButton } from "../contextAddButton";
 
 /**
  * tests all of the create item button types
@@ -15,7 +8,7 @@ import { App } from "../../../app";
  * as this function creates those, just with different parameters
  */
 
-describe(ContextAddButton, () => {
+describe("ContextAddButton", () => {
   it("Renders the internal events button", () => {
     const { getByText } = render(
       <MemoryRouter initialEntries={["/internal-events"]}>
@@ -36,7 +29,7 @@ describe(ContextAddButton, () => {
     expect(buttonText).toBeTruthy();
   });
 
-  it("Renders the internal hazards button", () => {
+  it("Renders the external hazards button", () => {
     const { getByText } = render(
       <MemoryRouter initialEntries={["/external-hazards"]}>
         <ContextAddButton />
@@ -46,7 +39,7 @@ describe(ContextAddButton, () => {
     expect(buttonText).toBeTruthy();
   });
 
-  it("Renders the internal hazards button", () => {
+  it("Renders the full scope button", () => {
     const { getByText } = render(
       <MemoryRouter initialEntries={["/full-scope"]}>
         <ContextAddButton />
@@ -56,7 +49,7 @@ describe(ContextAddButton, () => {
     expect(buttonText).toBeTruthy();
   });
 
-  it("Renders the internal hazards button", () => {
+  it("Renders the event sequence diagram button", () => {
     const { getByText } = render(
       <MemoryRouter
         initialEntries={["/internal-events/event-sequence-diagrams"]}
@@ -68,7 +61,7 @@ describe(ContextAddButton, () => {
     expect(buttonText).toBeTruthy();
   });
 
-  it("Renders the internal hazards button", () => {
+  it("Renders the functional events button", () => {
     const { getByText } = render(
       <MemoryRouter initialEntries={["/internal-events/functional-events"]}>
         <ContextAddButton />
@@ -78,7 +71,7 @@ describe(ContextAddButton, () => {
     expect(buttonText).toBeTruthy();
   });
 
-  it("Renders the internal hazards button", () => {
+  it("Renders the initiating events button", () => {
     const { getByText } = render(
       <MemoryRouter initialEntries={["/internal-events/initiating-events"]}>
         <ContextAddButton />
@@ -88,7 +81,7 @@ describe(ContextAddButton, () => {
     expect(buttonText).toBeTruthy();
   });
 
-  it("Renders the internal hazards button", () => {
+  it("Renders the event trees button", () => {
     const { getByText } = render(
       <MemoryRouter initialEntries={["/internal-events/event-trees"]}>
         <ContextAddButton />
@@ -98,7 +91,7 @@ describe(ContextAddButton, () => {
     expect(buttonText).toBeTruthy();
   });
 
-  it("Renders the internal hazards button", () => {
+  it("Renders the bayesian networks button", () => {
     const { getByText } = render(
       <MemoryRouter initialEntries={["/internal-events/bayesian-networks"]}>
         <ContextAddButton />
@@ -108,7 +101,7 @@ describe(ContextAddButton, () => {
     expect(buttonText).toBeTruthy();
   });
 
-  it("Renders the internal hazards button", () => {
+  it("Renders the bayesian estimations button", () => {
     const { getByText } = render(
       <MemoryRouter initialEntries={["/internal-events/bayesian-estimations"]}>
         <ContextAddButton />
@@ -118,7 +111,7 @@ describe(ContextAddButton, () => {
     expect(buttonText).toBeTruthy();
   });
 
-  it("Renders the internal hazards button", () => {
+  it("Renders the fault trees button", () => {
     const { getByText } = render(
       <MemoryRouter initialEntries={["/internal-events/fault-trees"]}>
         <ContextAddButton />
@@ -128,7 +121,7 @@ describe(ContextAddButton, () => {
     expect(buttonText).toBeTruthy();
   });
 
-  it("Renders the internal hazards button", () => {
+  it("Renders the weibull analysis button", () => {
     const { getByText } = render(
       <MemoryRouter initialEntries={["/internal-events/weibull-analysis"]}>
         <ContextAddButton />

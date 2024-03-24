@@ -1,16 +1,12 @@
 import React from "react";
 import { Position } from "reactflow";
-import {
-  EuiKeyPadMenu,
-  EuiKeyPadMenuItem,
-  useGeneratedHtmlId,
-} from "@elastic/eui";
+import { EuiKeyPadMenu, EuiKeyPadMenuItem } from "@elastic/eui";
 import { UseFaultTreeContextMenuClick } from "../../hooks/faultTree/useFaultTreeContextMenuClick";
 import { NodeTypes } from "../treeNodes/icons/interfaces/nodeProps";
 import { NodeIcon } from "../treeNodes/icons/nodeIcon";
 import styles from "./styles/treeNodeStyles.module.css";
 
-export type treeNodeContextMenuProps = {
+export type TreeNodeContextMenuProps = {
   id: string;
   top: Position.Top | undefined;
   left: any;
@@ -26,7 +22,7 @@ function FaultTreeNodeContextMenu({
   right,
   bottom,
   ...props
-}: treeNodeContextMenuProps): JSX.Element {
+}: TreeNodeContextMenuProps): JSX.Element {
   const { handleContextMenuClick } = UseFaultTreeContextMenuClick(id);
   return (
     <EuiKeyPadMenu

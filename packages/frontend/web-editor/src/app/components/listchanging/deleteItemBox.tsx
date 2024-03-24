@@ -17,8 +17,8 @@ export type DeleteItemProps = {
   itemName: string;
   typeOfModel: string;
   deleteFunction?: (id: number) => Promise<void>;
-  deleteTypedEndpoint?: (id: number) => {};
-  deleteNestedEndpoint?: (id: number) => {};
+  deleteTypedEndpoint?: (id: number) => NonNullable<unknown>;
+  deleteNestedEndpoint?: (id: number) => NonNullable<unknown>;
 };
 
 /**

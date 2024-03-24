@@ -18,7 +18,8 @@ import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { NestedModelActionForm } from "../forms/nestedModelActionForm";
 import { GenericListItemProps } from "./GenericListItem";
 
-export type ListItemContextMenuProps = {} & GenericListItemProps &
+export type ListItemContextMenuProps = NonNullable<unknown> &
+  GenericListItemProps &
   Omit<ItemFormProps, "action">;
 
 const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
@@ -50,11 +51,11 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
   //pre-made model info we are sending to update
   const nestedInfo: NestedModelJSON = { label: label, parentIds: [] };
 
-  const embeddedCodeSwitchId__1 = useGeneratedHtmlId({
+  const embeddedCodeSwitchId1 = useGeneratedHtmlId({
     prefix: "embeddedCodeSwitch",
     suffix: "first",
   });
-  const embeddedCodeSwitchId__2 = useGeneratedHtmlId({
+  const embeddedCodeSwitchId2 = useGeneratedHtmlId({
     prefix: "embeddedCodeSwitch",
     suffix: "second",
   });
@@ -161,10 +162,12 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
           <EuiFormRow label="Generate a public snapshot?" hasChildLabel={false}>
             <EuiSwitch
               name="switch"
-              id={embeddedCodeSwitchId__1}
+              id={embeddedCodeSwitchId1}
               label="Snapshot data"
               checked={true}
-              onChange={(): void => {}}
+              onChange={(): void => {
+                //empty
+              }}
             />
           </EuiFormRow>
           <EuiFormRow
@@ -173,10 +176,12 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
           >
             <EuiSwitch
               name="switch"
-              id={embeddedCodeSwitchId__2}
+              id={embeddedCodeSwitchId2}
               label="Current time range"
               checked={true}
-              onChange={(): void => {}}
+              onChange={(): void => {
+                //empty
+              }}
             />
           </EuiFormRow>
           <EuiSpacer />

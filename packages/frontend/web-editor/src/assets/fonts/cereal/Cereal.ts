@@ -5,7 +5,7 @@ import CerealBoldWoff2 from "./Cereal-Bold.woff2";
 import CerealExtraBoldWoff2 from "./Cereal-Extra-Bold.woff2";
 import CerealBlackWoff2 from "./Cereal-Black.woff2";
 
-export const cerealLight = {
+export const CerealLight = {
   fontFamily: "Cereal, sans-serif",
   fontStyle: "normal",
   fontDisplay: "swap",
@@ -13,7 +13,7 @@ export const cerealLight = {
   src: `url(${CerealLightWoff2}) format('woff2')`,
 };
 
-export const cerealBook = {
+export const CerealBook = {
   fontFamily: "Cereal, sans-serif",
   fontStyle: "normal",
   fontDisplay: "swap",
@@ -21,7 +21,7 @@ export const cerealBook = {
   src: `url(${CerealBookWoff2}) format('woff2')`,
 };
 
-export const cerealMedium = {
+export const CerealMedium = {
   fontFamily: "Cereal, sans-serif",
   fontStyle: "normal",
   fontDisplay: "swap",
@@ -29,7 +29,7 @@ export const cerealMedium = {
   src: `url(${CerealMediumWoff2}) format('woff2')`,
 };
 
-export const cerealBold = {
+export const CerealBold = {
   fontFamily: "Cereal, sans-serif",
   fontStyle: "normal",
   fontDisplay: "swap",
@@ -37,7 +37,7 @@ export const cerealBold = {
   src: `url(${CerealBoldWoff2}) format('woff2')`,
 };
 
-export const cerealExtraBold = {
+export const CerealExtraBold = {
   fontFamily: "Cereal, sans-serif",
   fontStyle: "normal",
   fontDisplay: "swap",
@@ -45,7 +45,7 @@ export const cerealExtraBold = {
   src: `url(${CerealExtraBoldWoff2}) format('woff2')`,
 };
 
-export const cerealBlack = {
+export const CerealBlack = {
   fontFamily: "Cereal, sans-serif",
   fontStyle: "normal",
   fontDisplay: "swap",
@@ -53,11 +53,11 @@ export const cerealBlack = {
   src: `url(${CerealBlackWoff2}) format('woff2')`,
 };
 
-export const cerealAll = [
-  cerealLight,
-  cerealBook,
-  cerealMedium,
-  cerealBold,
-  cerealExtraBold,
-  cerealBlack,
+export const CerealAll = [
+  CerealLight,
+  CerealBook,
+  CerealMedium,
+  CerealBold,
+  CerealExtraBold,
+  CerealBlack,
 ];

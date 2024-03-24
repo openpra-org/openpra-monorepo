@@ -1,5 +1,5 @@
 function OtherHazards(): JSX.Element {
-  return <></>;
+  return <div></div>;
 }
 
 export { OtherHazards };

@@ -1,12 +1,11 @@
 import { BrowserRouter } from "react-router-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
-import AdvancedSettings from "../advancedSettings";
 import "@testing-library/jest-dom";
-import EditCurrentModel from "../editCurrentModel";
+import { EditCurrentModel } from "../editCurrentModel";
 
-describe(EditCurrentModel, () => {
+describe("EditCurrentModel", () => {
   //test for settings menu
-  it("Renders the accordian", async () => {
+  it("Renders the accordian", () => {
     render(
       <BrowserRouter>
         <EditCurrentModel />
@@ -17,7 +16,7 @@ describe(EditCurrentModel, () => {
   });
 
   //test for settings menu
-  it("Renders the edit box", async () => {
+  it("Renders the edit box", () => {
     render(
       <BrowserRouter>
         <EditCurrentModel />

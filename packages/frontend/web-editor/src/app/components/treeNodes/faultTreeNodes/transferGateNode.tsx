@@ -8,8 +8,8 @@ import styles from "./styles/nodeTypes.module.css";
 
 /**
  * Transfer Gate Node
- * @param id Node identifier
- * @param data Data that the node holds
+ * @param id - Node identifier
+ * @param data - Data that the node holds
  * @returns AndGateNode JSX Element
  */
 const TransferGateNode = memo(({ id, data }: NodeProps) => (

@@ -16,8 +16,8 @@ type CellValueProps = {
  * DataTable component that renders a data grid using Elastic UI components.
  *
  * @param props - The props for the DataTable component.
- * @param props.columns - The column definitions for the data grid.
- * @param props.rows - The data rows that will populate the grid.
+ * @param columns - The column definitions for the data grid.
+ * @param rows - The data rows that will populate the grid.
  * @returns The `EuiDataGrid` component populated with the provided data.
  */
 function DataTable({ rows, columns }: DataTableProps): JSX.Element {
@@ -32,8 +32,8 @@ function DataTable({ rows, columns }: DataTableProps): JSX.Element {
    * Retrieves the value for a cell given its row and column index.
    *
    * @param cellProps - The properties for the cell.
-   * @param cellProps.rowIndex - The index of the row for the cell.
-   * @param cellProps.colIndex - The index of the column for the cell.
+   * @param rowIndex - The index of the row for the cell.
+   * @param colIndex - The index of the column for the cell.
    * @returns The value for the cell at the specified row and column index.
    */
   const cellValue = ({ rowIndex, colIndex }: CellValueProps): any => {

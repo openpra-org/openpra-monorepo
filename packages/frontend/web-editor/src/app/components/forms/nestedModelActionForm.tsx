@@ -25,10 +25,10 @@ export type NestedItemFormProps = {
   itemName: string;
   // TODO:: TODO :: replace endpoint string with TypedApiManager method
   id?: number;
-  postEndpoint?: (data: NestedModelJSON) => {};
-  patchEndpoint?: (id: number, data: LabelJSON) => {};
-  onSuccess?: () => {};
-  onFail?: () => {};
+  postEndpoint?: (data: NestedModelJSON) => NonNullable<unknown>;
+  patchEndpoint?: (id: number, data: LabelJSON) => NonNullable<unknown>;
+  onSuccess?: () => NonNullable<unknown>;
+  onFail?: () => NonNullable<unknown>;
   onCancel?: (func: any) => void;
   action: "create" | "edit"; // TODO: Use this in the title with .ToTitleCase() to prettify
   initialFormValues?: NestedModelJSON;
@@ -61,7 +61,7 @@ function NestedModelActionForm({
   const handleAction = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
 
-    if (typedModel.label.name != "") {
+    if (typedModel.label.name !== "") {
       //creating a partial model to pass for update, may update to work for adding later aswell
       const partialModel: NestedModelJSON = {
         label: typedModel.label,
@@ -86,7 +86,7 @@ function NestedModelActionForm({
     }
     onSuccess?.();
     onFail?.();
-    location.reload();
+    //location.reload();
   };
 
   //const formTouched = label.name !== DEFAULT_LABEL_JSON.name || label.description !== DEFAULT_LABEL_JSON.description;

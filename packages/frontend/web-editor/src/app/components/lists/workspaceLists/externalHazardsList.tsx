@@ -15,7 +15,7 @@ async function fetchModelList(): Promise<ExternalHazardsModel[]> {
   try {
     return await GetExternalHazards(ApiManager.getCurrentUser().user_id);
   } catch (error) {
-    console.error("Error fetching internal events:", error);
+    //console.error("Error fetching internal events:", error);
     return [];
   }
 }
@@ -58,7 +58,7 @@ const getFixtures = async (): Promise<JSX.Element[]> => {
 
     return genericListItems;
   } catch (error) {
-    console.error("Error fetching internal events:", error);
+    //console.error("Error fetching internal events:", error);
     return []; // Return an empty array or handle the error as needed
   }
 };
@@ -74,7 +74,7 @@ function ExternalHazardsList(): JSX.Element {
         setGenericListItems(items);
         setIsLoading(false);
       } catch (error) {
-        console.error("Error fetching fixtures:", error);
+        //console.error("Error fetching fixtures:", error);
         setGenericListItems([]); // Set empty array or handle the error as needed
         if (error) {
           setIsLoading(true);
@@ -82,7 +82,7 @@ function ExternalHazardsList(): JSX.Element {
       }
     };
 
-    fetchGenericListItems();
+    void fetchGenericListItems();
   }, []);
 
   return (

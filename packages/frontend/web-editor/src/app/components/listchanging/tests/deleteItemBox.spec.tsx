@@ -1,9 +1,9 @@
-import DeleteItemBox from "../deleteItemBox";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { BrowserRouter } from "react-router-dom";
+import { DeleteItemBox } from "../deleteItemBox";
 
-describe(DeleteItemBox, () => {
+describe("DeleteItemBox", () => {
   //test for initial rendering of text delete {item_name}
   it("renders delete {list_item} as title", () => {
     render(
@@ -33,9 +33,10 @@ describe(DeleteItemBox, () => {
         <DeleteItemBox id={1} itemName={"Test"} typeOfModel={""} />
       </BrowserRouter>,
     );
-    const inputBox = screen.getByTestId("delete-item-input");
+    const inputBox: HTMLInputElement = screen.getByTestId("delete-item-input");
     fireEvent.change(inputBox, { target: { value: "yes" } });
-    await expect(inputBox).toHaveValue("yes");
+    const inputValue = inputBox.value;
+    expect(inputValue).toBe("yes");
   });
 
   //test for initial rendering of delete button
@@ -45,8 +46,10 @@ describe(DeleteItemBox, () => {
         <DeleteItemBox id={1} itemName={"Test"} typeOfModel={""} />
       </BrowserRouter>,
     );
-    const deleteItemButton = screen.getByTestId("delete-item-button");
-    await expect(deleteItemButton).toHaveAttribute("disabled");
+    const deleteItemButton: HTMLInputElement =
+      screen.getByTestId("delete-item-button");
+    const buttonAttribute = deleteItemButton.getAttribute("disabled");
+    expect(buttonAttribute).toBe("true");
   });
 
   //test for enabled delete button after getting input in input box
@@ -56,9 +59,11 @@ describe(DeleteItemBox, () => {
         <DeleteItemBox id={1} itemName={"Test"} typeOfModel={""} />
       </BrowserRouter>,
     );
-    const deleteItemButton = screen.getByTestId("delete-item-button");
+    const deleteItemButton: HTMLInputElement =
+      screen.getByTestId("delete-item-button");
     const inputBox = screen.getByTestId("delete-item-input");
     fireEvent.change(inputBox, { target: { value: "yes" } });
-    await expect(deleteItemButton).not.toHaveAttribute("disabled");
+    const buttonAttribute = deleteItemButton.getAttribute("disabled");
+    expect(buttonAttribute).toBe(null);
   });
 });

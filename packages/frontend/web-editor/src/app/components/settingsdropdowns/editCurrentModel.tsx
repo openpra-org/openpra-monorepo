@@ -80,10 +80,10 @@ function EditCurrentModel(): JSX.Element {
         updateCurrentModel(model);
         setIsLoaded(true);
       } catch (error) {
-        console.error("Error fetching fixtures:", error);
+        //console.error("Error fetching fixtures:", error);
       }
     };
-    fetchModel();
+    void fetchModel();
   }, []);
 
   //const [itemInfo, setItemInfo] = useState(newItem)

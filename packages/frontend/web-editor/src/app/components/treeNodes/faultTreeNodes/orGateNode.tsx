@@ -9,8 +9,8 @@ import styles from "./styles/nodeTypes.module.css";
 
 /**
  * Or Gate Node
- * @param id Node identifier
- * @param data Data that the node holds
+ * @param id - Node identifier
+ * @param data - Data that the node holds
  * @returns OrGateNode JSX Element
  */
 const OrGateNode = memo(({ id, data }: NodeProps) => {

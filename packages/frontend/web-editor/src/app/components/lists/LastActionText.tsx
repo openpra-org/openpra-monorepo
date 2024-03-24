@@ -18,6 +18,6 @@ function LastActionText({
   });
 
   text = `${ToTitleCase(action)} within the ${text.toLowerCase()}`;
-  return <>{text}</>;
+  return <div>{text}</div>;
 }
 export { LastActionText };

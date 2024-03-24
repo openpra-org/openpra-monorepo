@@ -24,7 +24,7 @@ import ApiManager from "shared-types/src/lib/api/ApiManager";
 import { EuiBreadcrumb } from "@elastic/eui/src/components/breadcrumbs";
 import { InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
 import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
-import { ToTitleCase, tokenizePath } from "../../../utils/StringUtils";
+import { ToTitleCase, TokenizePath } from "../../../utils/StringUtils";
 import { ContextAddButton } from "../buttons/contextAddButton";
 import { ResetAllSlices, UseGlobalStore } from "../../zustand/Store";
 import { WorkspaceSelectorMenu } from "./WorkspaceSelectorMenu";
@@ -49,7 +49,7 @@ const RootHeader = (): JSX.Element => {
   };
 
   const createBreadcrumbs = (path: string): EuiBreadcrumb[] => {
-    const tokens = tokenizePath(path);
+    const tokens = TokenizePath(path);
     return tokens.map((token, i) => {
       if (token.length === 24) {
         token = getModelName(token);

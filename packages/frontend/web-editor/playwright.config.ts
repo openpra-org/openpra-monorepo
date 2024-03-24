@@ -2,7 +2,6 @@ import path = require("path");
 import { defineConfig } from "@playwright/test";
 import { nxE2EPreset } from "@nx/playwright/preset";
 import { workspaceRoot } from "@nx/devkit";
-import { devices } from "@playwright/experimental-ct-react";
 
 // For CI, you may want to set BASE_URL to the deployed application.
 const baseURL = process.env.BASE_URL ?? "http://localhost:4200";
@@ -10,7 +9,7 @@ const baseURL = process.env.BASE_URL ?? "http://localhost:4200";
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
-export const STORAGE_STATE = path.join(
+export const StorageState = path.join(
   __dirname,
   "packages/frontend/web-editor/e2e/.auth/user.json",
 );

@@ -8,8 +8,8 @@ import styles from "./styles/nodeTypes.module.css";
 
 /**
  * House Event Node
- * @param id Node identifier
- * @param data Data that the node holds
+ * @param id - Node identifier
+ * @param data - Data that the node holds
  * @returns HouseEventNode JSX Element
  */
 const HouseEventNode = memo(({ id, data }: NodeProps) => (

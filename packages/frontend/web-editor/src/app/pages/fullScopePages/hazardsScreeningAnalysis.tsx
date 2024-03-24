@@ -1,5 +1,5 @@
 function HazardsScreeningAnalysis(): JSX.Element {
-  return <></>;
+  return <div></div>;
 }
 
 export { HazardsScreeningAnalysis };

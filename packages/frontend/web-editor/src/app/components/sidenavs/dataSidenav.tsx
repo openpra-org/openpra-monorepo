@@ -19,7 +19,7 @@ type TreeItem = {
   label: JSX.Element;
   children?: TreeItem[];
   icon?: JSX.Element;
-  callback?: () => {};
+  callback?: () => NonNullable<unknown>;
 };
 function DataSidenav(): JSX.Element {
   const { euiTheme } = useEuiTheme();
@@ -147,7 +147,7 @@ function DataSidenav(): JSX.Element {
   ];
 
   const backgroundColor = useEuiBackgroundColor("plain");
-  const padding = useEuiPaddingSize("s") || "0px";
+  const padding = useEuiPaddingSize("s") ?? "0px";
 
   const createTreeView = (
     items: TreeItem[],

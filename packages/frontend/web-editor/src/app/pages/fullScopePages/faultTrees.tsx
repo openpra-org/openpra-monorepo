@@ -21,16 +21,17 @@ import ReactFlow, {
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { Route, Routes, useParams } from "react-router-dom";
 import { UseLayout } from "../../hooks/faultTree/useLayout";
-import { nodeTypes } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
-import { edgeTypes } from "../../components/treeEdges/faultTreeEdges/faultTreeEdgeType";
+import { FaultTreeNodeTypes } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
+import { EdgeTypes } from "../../components/treeEdges/faultTreeEdges/faultTreeEdgeType";
 
 import "reactflow/dist/style.css";
-import { Route, Routes, useParams } from "react-router-dom";
+
 import { FaultTreeList } from "../../components/lists/nestedLists/faultTreeList";
 import {
   FaultTreeNodeContextMenu,
-  treeNodeContextMenuProps,
+  TreeNodeContextMenuProps,
 } from "../../components/context_menu/faultTreeNodeContextMenu";
 import { LoadingCard } from "../../components/cards/loadingCard";
 
@@ -82,7 +83,7 @@ const fitViewOptions = {
 function ReactFlowPro(): JSX.Element {
   // this hook call ensures that the layout is re-calculated every time the graph changes
   UseLayout();
-  const [menu, setMenu] = useState<treeNodeContextMenuProps | null>(null);
+  const [menu, setMenu] = useState<TreeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
 
@@ -125,14 +126,14 @@ function ReactFlowPro(): JSX.Element {
           pane.height - event.clientY - 800,
       });
     },
-    [setMenu],
+    [setMenu, isOpen],
   );
 
   // Close the context menu if it's open whenever the window is clicked.
   const onPaneClick = useCallback(() => {
     setMenu(null);
     setIsOpen(false);
-  }, [setMenu, isOpen]);
+  }, [setMenu]);
   return loading ? (
     <LoadingCard />
   ) : (
@@ -142,8 +143,8 @@ function ReactFlowPro(): JSX.Element {
       defaultEdges={edges}
       proOptions={proOptions}
       fitView
-      nodeTypes={nodeTypes}
-      edgeTypes={edgeTypes}
+      nodeTypes={FaultTreeNodeTypes}
+      edgeTypes={EdgeTypes}
       fitViewOptions={fitViewOptions}
       onPaneClick={onPaneClick}
       onNodeContextMenu={onNodeContextMenu}
@@ -158,7 +159,7 @@ function ReactFlowPro(): JSX.Element {
       <Background />
       <EuiPopover
         id={headerAppPopoverId}
-        button={<></>}
+        button={<div></div>}
         isOpen={isOpen}
         anchorPosition="downRight"
         style={{

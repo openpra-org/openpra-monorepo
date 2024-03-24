@@ -150,7 +150,7 @@ function NewItem(props: NewItemProps): JSX.Element {
             <EuiButton
               fill={true}
               isDisabled={
-                (users && itemInfo.users.length === 0) ||
+                (users && itemInfo.users.length === 0) ??
                 itemInfo.title.length === 0
               }
               onClick={setData}

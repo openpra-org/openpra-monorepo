@@ -1,10 +1,9 @@
 import { BrowserRouter } from "react-router-dom";
 import { fireEvent, render, screen } from "@testing-library/react";
-import AdvancedSettings from "../advancedSettings";
 import "@testing-library/jest-dom";
-import SettingsOverview from "../settingsOverview";
+import { SettingsOverview } from "../settingsOverview";
 
-describe(SettingsOverview, () => {
+describe("SettingsOverview", () => {
   //test for accordian
   it("Renders the accordian", () => {
     render(

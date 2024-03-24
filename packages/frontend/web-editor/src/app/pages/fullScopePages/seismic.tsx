@@ -1,5 +1,5 @@
 function Seismic(): JSX.Element {
-  return <></>;
+  return <div></div>;
 }
 
 export { Seismic };

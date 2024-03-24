@@ -12,7 +12,8 @@ import {
 import { GenericListItemProps } from "./GenericListItem";
 import { ListItemContextMenu } from "./ListItemContextMenu";
 
-export type ListItemActionProps = {} & ButtonWithPopoverProps &
+export type ListItemActionProps = NonNullable<unknown> &
+  ButtonWithPopoverProps &
   Omit<EuiButtonIconPropsForButton, "iconType"> &
   ItemFormProps;
 

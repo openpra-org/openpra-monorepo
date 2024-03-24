@@ -43,7 +43,7 @@ function LoginForm(): JSX.Element {
         },
       );
     } catch (error) {
-      console.error(error);
+      //console.error(error);
     }
   }
 
@@ -61,7 +61,7 @@ function LoginForm(): JSX.Element {
         password: false,
       });
     }
-  }, [login]);
+  }, [login, error]);
 
   function validateLogin(e: React.FormEvent<HTMLFormElement>): void {
     e.preventDefault();
@@ -79,7 +79,19 @@ function LoginForm(): JSX.Element {
 
     //makes sure all input fields are not empty
     if (!errorCheck.username && !errorCheck.password) {
-      handleLogin();
+      handleLogin()
+        .then(() => {
+          // Handle successful login
+          if (redirectToHomepage) {
+            // Redirect to the homepage
+            return <Navigate to="internal-events" replace={true} />;
+          }
+        })
+        .catch((error) => {
+          // Handle login error
+          //console.error("Login failed:", error);
+          // Optionally, you can also set an error state to display to the user
+        });
     }
   }
 

@@ -64,7 +64,7 @@ export type ModelProps = {
   label: LabelJSON;
   faultTrees: FaultTreeProps[];
 };
-export async function loadModel(): Promise<ModelProps> {
+export function LoadModel(): ModelProps {
   return getModelFixture();
 }
 

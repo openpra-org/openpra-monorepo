@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { getOutgoers, NodeProps, useReactFlow } from "reactflow";
 
 import { GenerateUUID } from "../../../utils/treeUtils";
@@ -9,7 +9,7 @@ import { GenerateUUID } from "../../../utils/treeUtils";
  * This hook provides a function, `handleNodeDoubleClick`, that can be used as an event handler for node click events.
  * It retrieves information about the clicked node using the `useReactFlow` hook.
  *
- * @param id The unique identifier of the node clicked.
+ * @param id - The unique identifier of the node clicked.
  * @returns A function (`handleNodeDoubleClick`) to be used as an event handler for node double click events.
  */
 // this hook implements the logic for double click on any node

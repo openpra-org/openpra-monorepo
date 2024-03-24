@@ -75,7 +75,7 @@ const FunctionalEdge = memo(
           d={edgePath}
           markerEnd={markerEnd}
         />
-        {data.tentative ? <></> : edgeBtnWithLabel}
+        {data.tentative ? <div></div> : edgeBtnWithLabel}
       </>
     );
   },

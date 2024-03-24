@@ -8,8 +8,8 @@ import styles from "./styles/nodeTypes.module.css";
 
 /**
  * At Least Gate Node
- * @param id Node identifier
- * @param data Data that the node holds
+ * @param id - Node identifier
+ * @param data - Data that the node holds
  * @returns AtLeastGateNode JSX Element
  */
 const AtLeastGateNode = memo(({ id, data }: NodeProps) => (

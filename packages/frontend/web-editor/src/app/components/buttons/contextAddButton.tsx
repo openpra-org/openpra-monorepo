@@ -1,4 +1,5 @@
 import { useLocation } from "react-router-dom";
+import React from "react";
 import {
   CreateBayesianEstimationButton,
   CreateBayesianNetworkButton,
@@ -67,7 +68,7 @@ const ContextAddButton = (): JSX.Element => {
       return <CreateSuccessCriteriaButton />;
     if (location.endsWith("/event-sequence-analysis"))
       return <CreateEventSequenceAnalysisButton />;
-    return <></>;
+    return null as unknown as JSX.Element;
   } else if (location.startsWith("/internal-hazards")) {
     if (location === "/internal-hazards")
       return <CreateInternalHazardsButton />;
@@ -86,7 +87,7 @@ const ContextAddButton = (): JSX.Element => {
       return <CreateBayesianEstimationButton />;
     if (location.endsWith("/weibull-analysis"))
       return <CreateWeibullAnalysisButton />;
-    return <></>;
+    return null as unknown as JSX.Element;
   } else if (location.startsWith("/external-hazards")) {
     if (location === "/external-hazards")
       return <CreateExternalHazardsButton />;
@@ -105,7 +106,7 @@ const ContextAddButton = (): JSX.Element => {
       return <CreateBayesianEstimationButton />;
     if (location.endsWith("/weibull-analysis"))
       return <CreateWeibullAnalysisButton />;
-    return <></>;
+    return null as unknown as JSX.Element;
   } else if (location.startsWith("/full-scope")) {
     if (location === "/full-scope") return <CreateFullScopeButton />;
     if (location.endsWith("/initiating-events"))
@@ -123,9 +124,9 @@ const ContextAddButton = (): JSX.Element => {
       return <CreateBayesianEstimationButton />;
     if (location.endsWith("/weibull-analysis"))
       return <CreateWeibullAnalysisButton />;
-    return <></>;
+    return null as unknown as JSX.Element;
   } else {
-    return <></>;
+    return null as unknown as JSX.Element;
   }
 };
 

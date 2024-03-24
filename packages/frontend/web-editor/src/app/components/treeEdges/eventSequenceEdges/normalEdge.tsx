@@ -71,7 +71,7 @@ const NormalEdge = memo(
           d={edgePath}
           markerEnd={markerEnd}
         />
-        {data.tentative ? <></> : edgeBtn}
+        {data.tentative ? <div></div> : edgeBtn}
       </>
     );
   },

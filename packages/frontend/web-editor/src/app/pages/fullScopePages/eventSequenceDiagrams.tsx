@@ -32,32 +32,32 @@ import { LoadingCard } from "../../components/cards/loadingCard";
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
 // initial setup: an initiating event followed by a functional node and 2 end state nodes
-const initiating_event_id = GenerateUUID();
-const functional_event_id = GenerateUUID();
-const first_end_state_id = GenerateUUID();
-const second_end_state_id = GenerateUUID();
+const initiatingEventId = GenerateUUID();
+const functionalEventId = GenerateUUID();
+const firstEndStateId = GenerateUUID();
+const secondEndStateId = GenerateUUID();
 
 const defaultNodes: Node<object>[] = [
   {
-    id: initiating_event_id,
+    id: initiatingEventId,
     data: {},
     position: { x: 0, y: 0 },
     type: "initiating",
   },
   {
-    id: functional_event_id,
+    id: functionalEventId,
     data: {},
     position: { x: 0, y: 0 },
     type: "functional",
   },
   {
-    id: first_end_state_id,
+    id: firstEndStateId,
     data: {},
     position: { x: 0, y: 0 },
     type: "end",
   },
   {
-    id: second_end_state_id,
+    id: secondEndStateId,
     data: {},
     position: { x: 0, y: 0 },
     type: "end",
@@ -68,22 +68,22 @@ const defaultNodes: Node<object>[] = [
 // and connect the functional node to 2 end state nodes with functional edges (with labels)
 const defaultEdges: Edge[] = [
   {
-    id: `${initiating_event_id}->${functional_event_id}`,
-    source: initiating_event_id,
-    target: functional_event_id,
+    id: `${initiatingEventId}->${functionalEventId}`,
+    source: initiatingEventId,
+    target: functionalEventId,
     type: "normal",
   },
   {
-    id: `${functional_event_id}->${first_end_state_id}`,
-    source: functional_event_id,
-    target: first_end_state_id,
+    id: `${functionalEventId}->${firstEndStateId}`,
+    source: functionalEventId,
+    target: firstEndStateId,
     type: "functional",
     label: "Yes",
   },
   {
-    id: `${functional_event_id}->${second_end_state_id}`,
-    source: functional_event_id,
-    target: second_end_state_id,
+    id: `${functionalEventId}->${secondEndStateId}`,
+    source: functionalEventId,
+    target: secondEndStateId,
     type: "functional",
     label: "No",
   },
@@ -132,7 +132,11 @@ function ReactFlowPro(): JSX.Element {
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
   const [isOpen, setIsOpen] = useState(false);
   const deleteKeyPressed = useKeyPress(["Delete", "Backspace"]);
-
+  // Close the context menu if it's open whenever the window is clicked.
+  const onPaneClick = useCallback(() => {
+    setMenu(null);
+    setIsOpen(false);
+  }, [setMenu]);
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node<EventSequenceNodeProps>) => {
       // Prevent native context menu from showing
@@ -161,7 +165,7 @@ function ReactFlowPro(): JSX.Element {
         onClick: onPaneClick,
       });
     },
-    [isOpen],
+    [isOpen, onPaneClick],
   );
 
   useEffect(() => {
@@ -194,12 +198,6 @@ function ReactFlowPro(): JSX.Element {
     setEdges,
     setNodes,
   ]);
-
-  // Close the context menu if it's open whenever the window is clicked.
-  const onPaneClick = useCallback(() => {
-    setMenu(null);
-    setIsOpen(false);
-  }, [setMenu]);
 
   return loading ? (
     <LoadingCard />

@@ -27,14 +27,14 @@ function NewParameter(props: NewParameterProps): JSX.Element {
   //use the theme
   const { euiTheme } = useEuiTheme();
 
-  type item = {
+  type Item = {
     name: string;
     value?: number;
   };
 
-  //this is what is in the newItem strucutre, will eventually be used to actually make things
-  //this is also subject tyo change, propbably needs a type passed in from props eventually
-  const newItem: item = {
+  //this is what is in the newItem structure, will eventually be used to actually make things
+  //this is also subject tyo change, probably needs a type passed in from props eventually
+  const newItem: Item = {
     name: "",
   };
 

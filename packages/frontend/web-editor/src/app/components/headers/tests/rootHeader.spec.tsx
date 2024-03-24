@@ -1,9 +1,9 @@
-import RootHeader from "../rootHeader";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { BrowserRouter } from "react-router-dom";
+import { RootHeader } from "../rootHeader";
 
-describe(RootHeader, () => {
+describe("RootHeader", () => {
   //test for workspace selector
 
   //test for initial render of breadcrumbs

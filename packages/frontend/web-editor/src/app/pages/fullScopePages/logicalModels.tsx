@@ -1,5 +1,5 @@
 function LogicalModels(): JSX.Element {
-  return <></>;
+  return <div></div>;
 }
 
 export { LogicalModels };

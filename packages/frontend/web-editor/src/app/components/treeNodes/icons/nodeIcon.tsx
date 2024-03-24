@@ -151,7 +151,7 @@ function getNodeShape(nodeType: NodeTypes): JSX.Element {
         />
       );
     default:
-      return <></>;
+      return <div></div>;
   }
 }
 

@@ -24,7 +24,7 @@ export const ToTitleCase = (str: string, stripDashes = true): string =>
   false, trailing slashes will be retained. Defaults to true.
  @returns An array of individual path segments extracted from the input path string.
  */
-export const tokenizePath = (
+export const TokenizePath = (
   path: string,
   stripTrailingSlash = true,
 ): string[] => {

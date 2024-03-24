@@ -23,7 +23,7 @@ async function fetchModelList(
   try {
     return await getNestedEndpoint(modelId);
   } catch (error) {
-    console.error("Error fetching internal events:", error);
+    //console.error("Error fetching internal events:", error);
     return [];
   }
 }
@@ -67,7 +67,7 @@ const getFixtures = async (
       />
     ));
   } catch (error) {
-    console.error("Error fetching internal events:", error);
+    //console.error("Error fetching internal events:", error);
     return []; // Return an empty array or handle the error as needed
   }
 };
@@ -91,15 +91,15 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
         setGenericListItems(items);
         setIsLoading(false);
       } catch (error) {
-        console.error("Error fetching fixtures:", error);
+        //console.error("Error fetching fixtures:", error);
         setGenericListItems([]); // Set empty array or handle the error as needed
         if (error) {
           setIsLoading(true);
         }
       }
     };
-    fetchGenericListItems();
-  }, []);
+    void fetchGenericListItems();
+  }, [deleteNestedEndpoint, getNestedEndpoint, name, patchNestedEndpoint]);
 
   return (
     <EuiPageTemplate

@@ -15,7 +15,7 @@ async function fetchModelList(): Promise<FullScopeModel[]> {
   try {
     return await GetFullScopeModels(ApiManager.getCurrentUser().user_id);
   } catch (error) {
-    console.error("Error fetching internal events:", error);
+    //console.error("Error fetching internal events:", error);
     return [];
   }
 }
@@ -78,7 +78,7 @@ function FullScopeList(): JSX.Element {
       }
     };
 
-    fetchGenericListItems();
+    void fetchGenericListItems();
   }, []);
 
   return (

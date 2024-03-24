@@ -1,8 +1,7 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import {
   Edge,
   getConnectedEdges,
-  getIncomers,
   getOutgoers,
   Node,
   NodeProps,
@@ -19,7 +18,7 @@ import { GenerateUUID, FaultTreeState } from "../../../utils/treeUtils";
  * This hook provides a function `handleContextMenuClick` that can be used to update the state of the fault tree
  * based on the selected node type. It utilizes the React Flow library for managing nodes and edges in a flowchart-like UI.
  *
- * @param id The unique identifier for each node.
+ * @param id - The unique identifier for each node.
  * @example
  * ```typescript
  * const { handleContextMenuClick } = useFaultTreeContextMenuClick('uniqueNodeId');
@@ -31,28 +30,31 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]): {
   const { setEdges, setNodes, getNodes, getEdges, getNode } = useReactFlow();
   const { faultTreeId } = useParams();
   // function to get all child nodes and edges
-  function getAllChildren(parentNode: Node): { nodes: Node[]; edges: Edge[] } {
-    let childNodes: Node[] = [];
-    let childEdges: Edge[] = [];
-    const children = getOutgoers(parentNode, getNodes(), getEdges());
-    childNodes.push(...children);
-    const childrenEdges = getConnectedEdges(
-      [parentNode, ...children],
-      getEdges(),
-    ).filter((edge) => !(edge.target === parentNode.id));
-    childEdges.push(...childrenEdges);
-    children.forEach((child) => {
-      const { nodes, edges } = getAllChildren(child);
-      childNodes.push(...nodes);
-      childEdges.push(...edges);
-    });
-    childNodes = _.uniqBy(childNodes, "id");
-    childEdges = _.uniqBy(childEdges, "id");
-    return {
-      nodes: childNodes,
-      edges: childEdges,
-    };
-  }
+  const getAllChildren = useCallback(
+    (parentNode: Node): { nodes: Node[]; edges: Edge[] } => {
+      let childNodes: Node[] = [];
+      let childEdges: Edge[] = [];
+      const children = getOutgoers(parentNode, getNodes(), getEdges());
+      childNodes.push(...children);
+      const childrenEdges = getConnectedEdges(
+        [parentNode, ...children],
+        getEdges(),
+      ).filter((edge) => !(edge.target === parentNode.id));
+      childEdges.push(...childrenEdges);
+      children.forEach((child) => {
+        const { nodes, edges } = getAllChildren(child);
+        childNodes.push(...nodes);
+        childEdges.push(...edges);
+      });
+      childNodes = _.uniqBy(childNodes, "id");
+      childEdges = _.uniqBy(childEdges, "id");
+      return {
+        nodes: childNodes,
+        edges: childEdges,
+      };
+    },
+    [getNodes, getEdges],
+  );
 
   const handleContextMenuClick = useCallback(
     (contextMenuClickEvent: React.MouseEvent) => {
@@ -232,17 +234,26 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]): {
 
       setEdges(edges);
 
-      GraphApiManager.storeFaultTree(
+      void GraphApiManager.storeFaultTree(
         FaultTreeState({
-          faultTreeId: faultTreeId!,
+          faultTreeId: faultTreeId ?? "", // Use empty string as default value,
           nodes: nodes,
           edges: edges,
         }),
       ).then((r: any) => {
-        console.log(r);
+        //console.log(r);
       });
     },
-    [getEdges, getNode, getNodes, id, setEdges, setNodes],
+    [
+      getEdges,
+      getNode,
+      getNodes,
+      id,
+      setEdges,
+      setNodes,
+      faultTreeId,
+      getAllChildren,
+    ],
   );
 
   return { handleContextMenuClick };

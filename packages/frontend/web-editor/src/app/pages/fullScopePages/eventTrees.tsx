@@ -48,7 +48,7 @@ const fitViewOptions = {
  * It utilizes the `useNodesState` and `useEdgesState` hooks from React Flow to manage the state of nodes and edges.
  * The `onConnect` callback is used to handle new connections between nodes.
  *
- * @returns {ReactElement} The React Flow component with nodes and edges configured for horizontal layout.
+ * @returns ReactElement The React Flow component with nodes and edges configured for horizontal layout.
  */
 type Props = {
   nodeData: Node[];
@@ -163,7 +163,7 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
 };
 /**
  * The EventTreeEditor component wraps the HorizontalFlow component for editing event trees.
- * @returns {ReactElement} The HorizontalFlow component for editing event trees.
+ * @returns ReactElement The HorizontalFlow component for editing event trees.
  */
 
 export const EventTreeEditor = (): ReactElement => {
@@ -180,9 +180,9 @@ export const EventTreeEditor = (): ReactElement => {
 
 /**
  * The EventTrees component provides routing for the event tree list and the event tree editor.
- * @returns {ReactElement} Routes component containing the EventTreeList and EventTreeEditor components.
+ * @returns ReactElement Routes component containing the EventTreeList and EventTreeEditor components.
  */
-export function EventTrees(): ReactElement {
+function EventTrees(): ReactElement {
   return (
     <Routes>
       <Route path="" element={<EventTreeList />} />
@@ -190,3 +190,5 @@ export function EventTrees(): ReactElement {
     </Routes>
   );
 }
+
+export { EventTrees };

@@ -8,8 +8,8 @@ import { GenerateUUID } from "../../../utils/treeUtils";
  * This hook provides a function, `handleEdgeClick`, that can be used to perform actions when an edge is clicked.
  * It utilizes the React Flow library for managing nodes and edges in a flowchart-like UI.
  *
- * @param {string} id - The unique identifier of the clicked edge.
- * @returns {Function} A function (`handleEdgeClick`) to be used as an event handler for edge click events.
+ * @param id - The unique identifier of the clicked edge.
+ * @returns  A function (`handleEdgeClick`) to be used as an event handler for edge click events.
  *
  * @example
  * ```typescript

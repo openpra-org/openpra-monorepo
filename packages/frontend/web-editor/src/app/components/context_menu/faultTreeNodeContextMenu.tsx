@@ -5,7 +5,7 @@ import { NodeIcon } from "../treeNodes/icons/nodeIcon";
 import { NodeTypes } from "../treeNodes/icons/interfaces/nodeProps";
 import styles from "./styles/faultTreeNodeContextMenu.module.css";
 
-export type treeNodeContextMenuProps = {
+export type TreeNodeContextMenuProps = {
   id: string;
   top: number | false | undefined;
   left: number | false | undefined;
@@ -21,7 +21,7 @@ function FaultTreeNodeContextMenu({
   right,
   bottom,
   ...props
-}: treeNodeContextMenuProps): JSX.Element {
+}: TreeNodeContextMenuProps): JSX.Element {
   const { handleContextMenuClick } = UseFaultTreeContextMenuClick(id);
   return (
     <EuiKeyPadMenu

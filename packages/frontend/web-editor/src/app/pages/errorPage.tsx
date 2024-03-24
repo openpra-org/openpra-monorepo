@@ -2,12 +2,15 @@ import { isRouteErrorResponse, useRouteError } from "react-router-dom";
 import { ReactElement } from "react";
 
 function ErrorPage(): ReactElement {
-  const error: Error | unknown = useRouteError();
+  const error = useRouteError();
   let statusText = "";
-  if (isRouteErrorResponse(error)) {
+
+  if (error && isRouteErrorResponse(error)) {
     statusText = error.statusText;
   }
+
   console.error(error);
+
   return (
     <div id="error-page">
       <h1>Oops!</h1>

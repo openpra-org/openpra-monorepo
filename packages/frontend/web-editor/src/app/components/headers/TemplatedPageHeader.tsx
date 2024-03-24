@@ -14,8 +14,7 @@ function TemplatedPageHeader({
   ...rest
 }: EuiPageHeaderProps): JSX.Element {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
-  const restrictedWidth =
-    restrictWidth === undefined ? largeScreenBreakpoint : restrictWidth;
+  const restrictedWidth = restrictWidth ?? largeScreenBreakpoint;
   return (
     <EuiPageTemplate.Header
       {...rest}

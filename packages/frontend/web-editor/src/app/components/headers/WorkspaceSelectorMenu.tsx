@@ -44,7 +44,7 @@ function WorkspaceSelectorMenu(): JSX.Element {
     return (): void => {
       isMountedRef.current = true;
     };
-  }, [selectedSpace]);
+  }, [navigate, selectedSpace]);
 
   const button = (
     <EuiHeaderSectionItemButton

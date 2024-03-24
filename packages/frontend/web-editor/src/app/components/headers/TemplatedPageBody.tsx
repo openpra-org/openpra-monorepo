@@ -20,12 +20,13 @@ function TemplatedPageBody({
   ...rest
 }: TemplatedPageBodyProps): JSX.Element {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.l;
-  const isPanelled = panelled === undefined ? true : panelled;
-  const width =
-    restrictWidth === undefined ? largeScreenBreakpoint : restrictWidth;
+  const isPanelled = panelled ?? true;
+  const width = restrictWidth ?? largeScreenBreakpoint;
   return (
     <EuiPageBody {...rest} panelled={isPanelled} restrictWidth={false}>
-      {/** <TemplatedPageHeader {...headerProps} restrictWidth={width}/> */}
+      {
+        //<TemplatedPageHeader {...headerProps} restrictWidth={width}/>
+      }
       <EuiPageTemplate.Section {...sectionProps} restrictWidth={width}>
         {children}
       </EuiPageTemplate.Section>

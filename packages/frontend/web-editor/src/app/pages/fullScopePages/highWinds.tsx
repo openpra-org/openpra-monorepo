@@ -1,5 +1,5 @@
 function HighWinds(): JSX.Element {
-  return <></>;
+  return <div></div>;
 }
 
 export { HighWinds };

@@ -1,5 +1,5 @@
 function InternalFire(): JSX.Element {
-  return <></>;
+  return <div></div>;
 }
 
 export { InternalFire };

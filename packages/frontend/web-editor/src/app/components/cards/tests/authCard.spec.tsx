@@ -1,4 +1,3 @@
-import { before } from "node:test";
 import { queryAllByRole, render } from "@testing-library/react";
 import { AuthCard } from "../authCard";
 

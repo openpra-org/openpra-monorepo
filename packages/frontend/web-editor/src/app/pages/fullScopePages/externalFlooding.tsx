@@ -1,5 +1,5 @@
 function ExternalFlooding(): JSX.Element {
-  return <></>;
+  return <div></div>;
 }
 
 export { ExternalFlooding };

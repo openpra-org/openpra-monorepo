@@ -8,8 +8,8 @@ import styles from "./styles/nodeTypes.module.css";
 
 /**
  * Not Gate Node
- * @param id Node identifier
- * @param data Data that the node holds
+ * @param id - Node identifier
+ * @param data - Data that the node holds
  * @returns NotGateNode JSX Element
  */
 const NotGateNode = memo(({ id, data }: NodeProps) => (

@@ -13,7 +13,7 @@ export type IFaultTreeNodeIconProps = {
 };
 
 // two different node types are needed for our example: workflow and placeholder nodes
-const nodeTypes: NodeTypes = {
+const FaultTreeNodeTypes: NodeTypes = {
   orGate: OrGateNode,
   andGate: AndGateNode,
   notGate: NotGateNode,
@@ -23,4 +23,4 @@ const nodeTypes: NodeTypes = {
   transferGate: TransferGateNode,
 };
 
-export { nodeTypes };
+export { FaultTreeNodeTypes };

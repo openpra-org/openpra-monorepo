@@ -25,20 +25,20 @@ import { ToTitleCase } from "../../../utils/StringUtils";
 export type ItemFormProps = {
   itemName: string;
   // TODO:: TODO :: replace endpoint string with TypedApiManager method
-  postEndpoint?: (data: Partial<TypedModelJSON>) => {};
+  postEndpoint?: (data: Partial<TypedModelJSON>) => NonNullable<unknown>;
   postFunction?: (data: Partial<TypedModelJSON>) => Promise<void>;
   patchEndpoint?: (
     modelId: number,
     userId: number,
     data: Partial<TypedModelJSON>,
-  ) => {};
+  ) => NonNullable<unknown>;
   patchFunction?: (
     modelId: number,
     userId: number,
     data: Partial<TypedModelJSON>,
   ) => Promise<void>;
-  onSuccess?: () => {};
-  onFail?: () => {};
+  onSuccess?: () => NonNullable<unknown>;
+  onFail?: () => NonNullable<unknown>;
   onCancel?: (func: any) => void;
   action: "create" | "edit"; // TODO: Use this in the title with .ToTitleCase() to prettify
   initialFormValues?: TypedModelJSON;
@@ -114,11 +114,11 @@ function TypedModelActionForm({
           setSelectedUsersList(selectedList);
           setUsersList(listWithoutCurrentUser);
         } catch (error) {
-          console.error("Error fetching data:", error);
+          //console.error("Error fetching data:", error);
         }
       };
-      logFetchedData();
-    }, []);
+      void logFetchedData();
+    }, [initUsers]);
 
     //use effect hook that updates the list of users we are setting
     useEffect(() => {

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   EuiFlexGrid,
   EuiFlexItem,
@@ -29,6 +29,10 @@ const GenericItemList: React.FC<ItemListProps> = ({ children }) => {
 
   //gets the total amount of pages
   const [totalPages, setTotalPages] = useState(Math.ceil(totalItems / rowSize));
+
+  useEffect(() => {
+    setTotalPages(Math.ceil(children.length / rowSize));
+  }, [children.length, rowSize]);
 
   //gets the start index of the items, itemsPerPage is added because arrays start at 0
   const startIndex = currentPage * rowSize + rowSize;

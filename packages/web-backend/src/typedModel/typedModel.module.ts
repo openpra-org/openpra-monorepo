@@ -19,6 +19,8 @@ import {
   ExternalHazardsSchema,
 } from "./schemas/external-hazards.schema";
 import { FullScope, FullScopeSchema } from "./schemas/full-scope.schema";
+import { MetaTypedModelController } from "./metadata/meta-typed-model.controller";
+import { MetaTypedModelService } from "./metadata/meta-typed-model.service";
 
 @Module({
   imports: [
@@ -30,8 +32,8 @@ import { FullScope, FullScopeSchema } from "./schemas/full-scope.schema";
       { name: ModelCounter.name, schema: ModelCounterSchema },
     ]),
   ],
-  controllers: [TypedModelController],
-  providers: [TypedModelService],
-  exports: [TypedModelService],
+  controllers: [TypedModelController, MetaTypedModelController],
+  providers: [TypedModelService, MetaTypedModelService],
+  exports: [TypedModelService, MetaTypedModelService],
 })
 export class TypedModelModule {}

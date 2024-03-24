@@ -14,13 +14,20 @@ import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModel
 import { LastActionText } from "./LastActionText";
 import { ListItemContextMenuButton } from "./ListItemAction";
 
-//title is required, description isnt required but is typically present
+//title is required, description isn't required but is typically present
 export type GenericListItemProps = {
   id: number;
   label: LabelJSON;
   endpoint: string;
   deleteTypedEndpoint?: (id: number) => {};
   deleteNestedEndpoint?: (id: number) => {};
+  postFunction?: (data: Partial<TypedModelJSON>) => Promise<void>;
+  deleteFunction?: (id: number) => Promise<void>;
+  patchFunction?: (
+    modelId: number,
+    userId: number,
+    data: Partial<TypedModelJSON>,
+  ) => Promise<void>;
   patchTypedEndpoint?: (
     modelId: number,
     userId: number,
@@ -30,11 +37,12 @@ export type GenericListItemProps = {
   users?: number[];
   path: string;
   itemName: string;
-};
+  _id?: string;
+}
 
 /**
  *
- * @param id - takes in the id number of the objecty
+ * @param id - takes in the id number of the object
  * @param path - the path that the list item will send the user to after clicked
  * @param label - this is an optional prop that passes a labelJSON
  */
@@ -43,7 +51,7 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
   const { label, id, path } = props;
 
   // TODO
-  //setting themeing constants to be used later
+  //setting theming constants to be used later
   const border = useEuiTheme().euiTheme.border;
   const borderLine = logicalStyle(
     "border-bottom",

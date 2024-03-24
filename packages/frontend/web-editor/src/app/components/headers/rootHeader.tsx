@@ -22,23 +22,47 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 import { EuiBreadcrumb } from "@elastic/eui/src/components/breadcrumbs";
+import { InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
+import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
 import { ToTitleCase, tokenizePath } from "../../../utils/StringUtils";
 import { ContextAddButton } from "../buttons/contextAddButton";
+import { ResetAllSlices, UseGlobalStore } from "../../zustand/Store";
 import { WorkspaceSelectorMenu } from "./WorkspaceSelectorMenu";
 
 const RootHeader = (): JSX.Element => {
   const navigate = useNavigate();
+  const internalEvents = UseGlobalStore.use.internalEvents();
+  const internalHazards = UseGlobalStore.use.internalHazards();
+
+  const getModelName = (id: string): string => {
+    const ieName = internalEvents.find(
+      (ie: InternalEventsModelType) => ie._id === id,
+    )?.label.name;
+    if (ieName) return ieName;
+
+    const ihName = internalHazards.find(
+      (ih: InternalHazardsModelType) => ih._id === id,
+    )?.label.name;
+    if (ihName) return ihName;
+
+    return id;
+  };
 
   const createBreadcrumbs = (path: string): EuiBreadcrumb[] => {
     const tokens = tokenizePath(path);
-    return tokens.map((item, i) => ({
-      text: ToTitleCase(item),
-      style: { fontWeight: 500 },
-      onClick: (e): void => {
-        e.preventDefault();
-        navigate(tokens.slice(0, i + 1).join("/"));
-      },
-    }));
+    return tokens.map((token, i) => {
+      if (token.length === 24) {
+        token = getModelName(token);
+      }
+      return {
+        text: ToTitleCase(token),
+        style: { fontWeight: 500 },
+        onClick: (e): void => {
+          e.preventDefault();
+          navigate(tokens.slice(0, i + 1).join("/"));
+        },
+      };
+    });
   };
 
   //Initiates using location
@@ -142,6 +166,7 @@ const HeaderUserMenu = (): JSX.Element => {
 
   const logoutFunction = (): void => {
     ApiManager.logout();
+    ResetAllSlices();
     navigate("");
   };
 

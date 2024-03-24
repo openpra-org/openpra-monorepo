@@ -30,21 +30,24 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
     deleteNestedEndpoint,
     deleteTypedEndpoint,
     label,
+    patchFunction,
+    deleteFunction,
     patchTypedEndpoint,
     patchNestedEndpoint,
     users,
+    onCancel,
   } = props;
 
   const itemUsers = users ? users : [];
 
-  //premade model info we are sending to update
+  //pre-made model info we are sending to update
   const modelInfo: TypedModelJSON = {
     id: Number(id),
     label: label,
     users: itemUsers,
   };
 
-  //premade model info we are sending to update
+  //pre-made model info we are sending to update
   const nestedInfo: NestedModelJSON = { label: label, parentIds: [] };
 
   const embeddedCodeSwitchId__1 = useGeneratedHtmlId({
@@ -94,15 +97,30 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
       title: "Quick Edit",
       content: (
         <div style={{ padding: useEuiPaddingSize("s") || "35px" }}>
-          {patchTypedEndpoint ? (
-            <TypedModelActionForm
-              noHeader
-              compressed
-              action="edit"
-              itemName={endpoint}
-              patchEndpoint={patchTypedEndpoint}
-              initialFormValues={modelInfo}
-            />
+          {patchTypedEndpoint || patchFunction ? (
+            patchFunction ? (
+              <TypedModelActionForm
+                noHeader
+                compressed
+                action="edit"
+                itemName={endpoint}
+                patchFunction={patchFunction}
+                initialFormValues={modelInfo}
+                onCancel={onCancel}
+              />
+            ) : (
+              patchTypedEndpoint && (
+                <TypedModelActionForm
+                  noHeader
+                  compressed
+                  action="edit"
+                  itemName={endpoint}
+                  patchEndpoint={patchTypedEndpoint}
+                  initialFormValues={modelInfo}
+                  onCancel={onCancel}
+                />
+              )
+            )
           ) : (
             <NestedModelActionForm
               noHeader
@@ -112,6 +130,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
               itemName={endpoint}
               patchEndpoint={patchNestedEndpoint}
               initialFormValues={nestedInfo}
+              onCancel={onCancel}
             />
           )}
         </div>
@@ -127,6 +146,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
             id={id}
             itemName={itemName}
             typeOfModel={endpoint}
+            deleteFunction={deleteFunction}
             deleteTypedEndpoint={deleteTypedEndpoint}
             deleteNestedEndpoint={deleteNestedEndpoint}
           />

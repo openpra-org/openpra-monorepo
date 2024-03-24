@@ -1,5 +1,12 @@
-import { InternalEventsModel } from "../types/modelTypes/largeModels/internalEventsModel";
-import { InternalHazardsModel } from "../types/modelTypes/largeModels/internalHazardsModel";
+import {
+  InternalEventsModelType,
+  InternalEventsMetadata,
+  InternalEventsModel,
+} from "../types/modelTypes/largeModels/internalEventsModel";
+import {
+  InternalHazardsModel,
+  InternalHazardsModelType,
+} from "../types/modelTypes/largeModels/internalHazardsModel";
 import { ExternalHazardsModel } from "../types/modelTypes/largeModels/externalHazardsModel";
 import { FullScopeModel } from "../types/modelTypes/largeModels/fullScopeModel";
 import TypedModel, {
@@ -19,14 +26,32 @@ const FULL_SCOPE_ENDPOINT = `${TYPED_ENDPOINT}/full-scope`;
 const TYPED_MODEL_TYPE_LOCATION = 1;
 const TYPED_MODEL_ID_LOCATION = 2;
 
+const METADATA_ENDPOINT = `${API_ENDPOINT}/typed-models/metadata`;
+const MD_INTERNAL_EVENTS_ENDPOINT = `${METADATA_ENDPOINT}/internal-events`;
+
+/**
+ * gets a list of metadata of the internal events based on a users id
+ * @param id - the id of the user whose events we want to load
+ * @returns a promise with an internal event list
+ */
+export function GetInternalEventsMetadata(
+  id = -1,
+): Promise<InternalEventsMetadata[]> {
+  return Get(`${MD_INTERNAL_EVENTS_ENDPOINT}/?id=${Number(id)}`)
+    .then((response) => response.json() as Promise<InternalEventsMetadata[]>) // Parse the response as JSON
+    .catch((error) => {
+      throw error; // Re-throw the error to propagate it if needed
+    });
+}
+
 /**
  * gets a list of internal events based on a users id
  * @param id - the id of the user whose events we want to load
  * @returns a promise with an internal event list
  */
-export function GetInternalEvents(id = -1): Promise<InternalEventsModel[]> {
+export function GetInternalEvents(id = -1): Promise<InternalEventsModelType[]> {
   return Get(`${INTERNAL_EVENTS_ENDPOINT}/?id=${Number(id)}`)
-    .then((response) => response.json() as Promise<InternalEventsModel[]>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<InternalEventsModelType[]>) // Parse the response as JSON
     .catch((error) => {
       throw error; // Re-throw the error to propagate it if needed
     });
@@ -50,9 +75,9 @@ export function GetExternalHazards(id = -1): Promise<ExternalHazardsModel[]> {
  * @param id - the id of the user whose models we want to load
  * @returns a promise with an internal hazards list
  */
-export function GetInternalHazards(id = -1): Promise<InternalHazardsModel[]> {
+export function GetInternalHazards(id = -1): Promise<InternalHazardsModelType[]> {
   return Get(`${INTERNAL_HAZARDS_ENDPOINT}/?id=${Number(id)}`)
-    .then((response) => response.json() as Promise<InternalEventsModel[]>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<InternalHazardsModelType[]>) // Parse the response as JSON
     .catch((error) => {
       throw error; // Re-throw the error to propagate it if needed
     });
@@ -132,9 +157,9 @@ export function Get(url: string): Promise<Response> {
  */
 export function PostInternalEvent(
   data: Partial<TypedModelJSON>,
-): Promise<TypedModel> {
+): Promise<InternalEventsModelType> {
   return Post(`${INTERNAL_EVENTS_ENDPOINT}/`, data).then(
-    (response) => response.json() as Promise<TypedModel>,
+    (response) => response.json() as Promise<InternalEventsModelType>,
   );
 }
 
@@ -145,9 +170,9 @@ export function PostInternalEvent(
  */
 export function PostInternalHazard(
   data: Partial<TypedModelJSON>,
-): Promise<TypedModel> {
+): Promise<InternalHazardsModelType> {
   return Post(`${INTERNAL_HAZARDS_ENDPOINT}/`, data).then(
-    (response) => response.json() as Promise<TypedModel>,
+    (response) => response.json() as Promise<InternalHazardsModelType>,
   );
 }
 
@@ -211,11 +236,11 @@ export function PatchInternalEvent(
   modelId: number,
   userId: number,
   data: Partial<TypedModelJSON>,
-): Promise<InternalEventsModel> {
+): Promise<InternalEventsModelType> {
   return Patch(
     `${INTERNAL_EVENTS_ENDPOINT}/${modelId}/?userId=${Number(userId)}`,
     data,
-  ).then((response) => response.json() as Promise<InternalEventsModel>);
+  ).then((response) => response.json() as Promise<InternalEventsModelType>);
 }
 
 /**
@@ -247,11 +272,11 @@ export function PatchInternalHazard(
   modelId: number,
   userId: number,
   data: Partial<TypedModelJSON>,
-): Promise<InternalHazardsModel> {
+): Promise<InternalHazardsModelType> {
   return Patch(
     `${INTERNAL_HAZARDS_ENDPOINT}/${modelId}/?userId=${Number(userId)}`,
     data,
-  ).then((response) => response.json() as Promise<InternalHazardsModel>);
+  ).then((response) => response.json() as Promise<InternalHazardsModelType>);
 }
 
 /**
@@ -305,7 +330,7 @@ function Patch(
  */
 export async function DeleteInternalEvent(
   id = -1,
-): Promise<InternalEventsModel> {
+): Promise<InternalEventsModelType> {
   await RemoveParentIds(id);
   const userId = ApiManager.getCurrentUser().user_id;
   return await DeleteCall(
@@ -313,7 +338,7 @@ export async function DeleteInternalEvent(
       userId,
     )}`,
   )
-    .then((response) => response.json() as Promise<InternalEventsModel>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<InternalEventsModelType>) // Parse the response as JSON
     .catch((error) => {
       throw error; // Re-throw the error to propagate it if needed
     });
@@ -347,7 +372,7 @@ export async function DeleteExternalHazard(
  */
 export async function DeleteInternalHazard(
   id = -1,
-): Promise<InternalHazardsModel> {
+): Promise<InternalHazardsModelType> {
   await RemoveParentIds(id);
   const userId = ApiManager.getCurrentUser().user_id;
   return await DeleteCall(
@@ -355,7 +380,7 @@ export async function DeleteInternalHazard(
       userId,
     )}`,
   )
-    .then((response) => response.json() as Promise<InternalHazardsModel>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<InternalHazardsModelType>) // Parse the response as JSON
     .catch((error) => {
       throw error; // Re-throw the error to propagate it if needed
     });

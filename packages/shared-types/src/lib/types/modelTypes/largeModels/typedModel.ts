@@ -102,3 +102,22 @@ export default class TypedModel extends BasicModel /** implements Parsable<Typed
   //   };
   // }
 }
+
+export type typedModelType = {
+  _id: string;
+  label: {
+    name: string;
+    description: string;
+  };
+  users: number[];
+  initiatingEvents?: [];
+  eventSequenceDiagrams?: [];
+  functionalEvents?: [];
+  eventTrees?: [];
+  faultTrees?: [];
+  bayesianNetworks?: [];
+  markovChains?: [];
+  bayesianEstimations?: [];
+  weibullAnalysis?: [];
+  id: number;
+};

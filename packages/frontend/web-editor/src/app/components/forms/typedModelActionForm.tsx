@@ -26,11 +26,17 @@ export type ItemFormProps = {
   itemName: string;
   // TODO:: TODO :: replace endpoint string with TypedApiManager method
   postEndpoint?: (data: Partial<TypedModelJSON>) => {};
+  postFunction?: (data: Partial<TypedModelJSON>) => Promise<void>;
   patchEndpoint?: (
     modelId: number,
     userId: number,
     data: Partial<TypedModelJSON>,
   ) => {};
+  patchFunction?: (
+    modelId: number,
+    userId: number,
+    data: Partial<TypedModelJSON>,
+  ) => Promise<void>;
   onSuccess?: () => {};
   onFail?: () => {};
   onCancel?: (func: any) => void;
@@ -47,25 +53,25 @@ function TypedModelActionForm({
   compressed,
   initialFormValues,
   action,
+  patchFunction,
+  postFunction,
   patchEndpoint,
   postEndpoint,
-  onSuccess,
-  onFail,
 }: ItemFormProps): JSX.Element {
   const userId = ApiManager.getCurrentUser().user_id ?? -1;
 
-  //setting up initial values depending on what has been send, if init form values are passed its assumed to be updating instead of adding
+  //setting up initial values depending on what has been sent, if init form values are passed it's assumed to be updating instead of adding
   const formInitials = initialFormValues
     ? initialFormValues
     : DEFAULT_TYPED_MODEL_JSON;
 
-  //initial users is set depending on if things are new or not, essentiall sets other people innately if they were already set
+  //initial users is set depending on if things are new or not, essential sets other people innately if they were already set
   const initUsers = initialFormValues ? initialFormValues.users : [userId];
 
-  //sets the current typed model using our formIntials, in a react state so we can pass it around
+  //sets the current typed model using our formInitials in a React state, so we can pass it around
   const [typedModel, setTypedModel] = useState(formInitials);
 
-  //need a state for the list of user ints, gonna dummy it out for now
+  //need a state for the list of user ints, going dummy it out for now
   const [usersList, setUsersList] = useState<EuiComboBoxOptionOption<any>[]>(
     [],
   );
@@ -88,7 +94,7 @@ function TypedModelActionForm({
           const resultList = usersData.results;
           // Filters out the current user from the list since it's implied that they want to see their own model
           const results = resultList.filter(
-            (x: any) => x.id != ApiManager.getCurrentUser().user_id,
+            (x: any) => x.id !== ApiManager.getCurrentUser().user_id,
           );
           // Creates the objects that will go in the EuiSelectable
           const listWithoutCurrentUser = results.map((item: any) => ({
@@ -131,7 +137,7 @@ function TypedModelActionForm({
       const finalIdList = usersListId;
       finalIdList.push(userId);
 
-      //creating a partial model to pass for update, may update to work for adding later aswell
+      //creating a partial model to pass for update, may update to work for adding later as well
       const partialModel: Partial<TypedModelJSON> = {
         label: typedModel.label,
         users: finalIdList,
@@ -139,19 +145,36 @@ function TypedModelActionForm({
 
       //calls the 2 functions depending on what is passed to patch
       if (initialFormValues) {
-        if (patchEndpoint) {
-          patchEndpoint(initialFormValues.id, userId, partialModel);
+        if (itemName === "Internal Events" || itemName === "Internal Hazards") {
+          if (patchFunction) {
+            void patchFunction(initialFormValues.id, userId, partialModel).then(
+              () => {
+                onCancel && onCancel(false);
+              },
+            );
+          }
+        } else {
+          if (patchEndpoint) {
+            patchEndpoint(initialFormValues.id, userId, partialModel);
+          }
+        }
+      } else {
+        if (postFunction) {
+          if (
+            itemName === "Internal Events" ||
+            itemName === "Internal Hazards"
+          ) {
+            postFunction(partialModel).then(() => {
+              onCancel && onCancel(false);
+            });
+          }
+        } else if (postEndpoint) {
+          postEndpoint(partialModel);
+        } else {
+          alert("Please enter a valid name");
         }
       }
-      if (postEndpoint) {
-        postEndpoint(partialModel);
-      }
-    } else {
-      alert("Please enter a valid name");
     }
-    onSuccess?.();
-    onFail?.();
-    window.location.reload();
   };
 
   //const formTouched = label.name !== DEFAULT_LABEL_JSON.name || label.description !== DEFAULT_LABEL_JSON.description;
@@ -162,7 +185,7 @@ function TypedModelActionForm({
       {!noHeader && (
         <>
           <EuiTitle size="xs">
-            <h6> Create {itemLabel} Model </h6>
+            <h6> Create {itemLabel} </h6>
           </EuiTitle>
           <EuiSpacer size="s" />
           <EuiText size="s" color="subdued">

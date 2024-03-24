@@ -10,13 +10,13 @@ import {
   EuiSpacer,
   EuiTitle,
 } from "@elastic/eui";
-import { useNavigate } from "react-router-dom";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
 export type DeleteItemProps = {
   id: number;
   itemName: string;
   typeOfModel: string;
+  deleteFunction?: (id: number) => Promise<void>;
   deleteTypedEndpoint?: (id: number) => {};
   deleteNestedEndpoint?: (id: number) => {};
 };
@@ -24,8 +24,8 @@ export type DeleteItemProps = {
 /**
  *
  * @param title - takes in an optional title string
- * @param id - takes in an optional id which later be used to interacti with the database
- * @param toggleBox - this needs to be there to toggle the deltebox on and off accross components, a state to set the delete box being visible
+ * @param id - takes in an optional id which later be used to interact with the database
+ * @param toggleBox - this needs to be there to toggle the delete box on and off across components, a state to set the delete box being visible
  * @returns
  */
 function DeleteItemBox(props: DeleteItemProps): JSX.Element {
@@ -33,21 +33,27 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
   const [confirmDelete, setConfirmDelete] = useState("");
 
   //grabbing the props
-  const { id, itemName, deleteNestedEndpoint, deleteTypedEndpoint } = props;
-
-  const navigate = useNavigate();
+  const {
+    id,
+    itemName,
+    deleteNestedEndpoint,
+    deleteFunction,
+    deleteTypedEndpoint,
+  } = props;
 
   //sets the data, then closes overlay
-  const deleteData = async (): Promise<void> => {
-    if (deleteTypedEndpoint) {
-      await deleteTypedEndpoint(id);
-    } else if (deleteNestedEndpoint) {
-      await deleteNestedEndpoint(id);
+  const deleteData = (): void => {
+    try {
+      if (deleteTypedEndpoint) deleteTypedEndpoint(id);
+      else if (deleteFunction)
+        deleteFunction(id).then(() => {
+          // TODO:: Log this right
+          console.log("deleted");
+        });
+    } catch (e) {
+      console.error(e);
     }
-    if (window.location.pathname.endsWith("settings")) {
-      navigate("");
-    }
-    //location.reload()
+    // TODO:: Implement delete functionality for nested models
   };
 
   return (

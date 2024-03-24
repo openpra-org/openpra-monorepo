@@ -16,10 +16,10 @@ import {
   GetCurrentTypedModel,
   PatchExternalHazard,
   PatchFullScope,
-  PatchInternalEvent,
   PatchInternalHazard,
 } from "shared-types/src/lib/api/TypedModelApiManager";
 import { TypedModelActionForm } from "../forms/typedModelActionForm";
+import { UseGlobalStore } from "../../zustand/Store";
 import { SettingsAccordian } from "./SettingsAccordian";
 
 const TYPED_MODEL_TYPE_LOCATION = 1;
@@ -32,11 +32,13 @@ async function fetchCurrentTypedModel(): Promise<TypedModel> {
   }
 }
 
-//a change of new item that lets you edit an item, though right now functionality for that isnt available because it requires database
+//a change of new item that lets you edit an item, though right now functionality for that isn't available because it requires database
 function EditCurrentModel(): JSX.Element {
   //this is what is in the newItem structure, will eventually be used to actually make things
   //this is also subject to change, probably needs a type passed in from props eventually
   const newItem = new TypedModel();
+
+  const editInternalEvent = UseGlobalStore.use.editInternalEvent();
 
   //grabs the current models information
   const [currentModel, setCurrentModel] = useState(newItem);
@@ -44,14 +46,14 @@ function EditCurrentModel(): JSX.Element {
   //sets the current endpoint
   let endpoint;
 
-  //this isLoading set is here to make sure we dont load in the other component too soon
+  //this isLoading set is here to make sure we don't load in the other component too soon
   const [isLoaded, setIsLoaded] = useState(false);
 
   const splitPath = window.location.pathname.split("/"); // Gets the path part of the URL (/internal-events/2) // Splits the path into segments using the '/' character
   const currentModelType = splitPath[TYPED_MODEL_TYPE_LOCATION];
 
   if (currentModelType === "internal-events") {
-    endpoint = PatchInternalEvent;
+    endpoint = editInternalEvent;
   } else if (currentModelType === "internal-hazards") {
     endpoint = PatchInternalHazard;
   } else if (currentModelType === "external-hazards") {
@@ -60,7 +62,7 @@ function EditCurrentModel(): JSX.Element {
     endpoint = PatchFullScope;
   }
 
-  //this takes any type instead of what it should, I have *no* idea how to carry over the types across promises, it doesn't seem to work and I've tinkered quite a bit
+  //this takes any type instead of what it should, I have *no* idea how to carry over the types across promises, it doesn't seem to work, and I've tinkered quite a bit
   const updateCurrentModel = (newModel: any): void => {
     const addModel = new TypedModel(
       newModel.id,

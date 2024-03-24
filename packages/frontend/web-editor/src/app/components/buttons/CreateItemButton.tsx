@@ -2,7 +2,6 @@ import { logicalStyle } from "@elastic/eui";
 import {
   PostExternalHazard,
   PostFullScope,
-  PostInternalEvent,
   PostInternalHazard,
 } from "shared-types/src/lib/api/TypedModelApiManager";
 import {
@@ -33,6 +32,7 @@ import {
 } from "../forms/nestedModelActionForm";
 import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { ToTitleCase } from "../../../utils/StringUtils";
+import { UseGlobalStore } from "../../zustand/Store";
 import { ButtonWithClosablePopover } from "./ButtonWithPopover";
 
 //different props depending on different type of objects we are using for the add button
@@ -49,11 +49,12 @@ export type CreateNestedItemButtonProps = Omit<NestedItemFormProps, "action">;
 function CreateItemButton({
   itemName,
   postEndpoint,
+  postFunction,
 }: CreateItemButtonProps): JSX.Element {
   const popoverExtra = (child: JSX.Element): JSX.Element => (
     <div style={logicalStyle("max-width", 240)}>{child}</div>
   );
-  //this now checks what type of thing is being added, as adding a typed model has a extra field that isnt needed
+  //this now checks what type of thing is being added, as adding a typed model has an extra field that isn't needed
   return (
     <ButtonWithClosablePopover
       popoverExtra={popoverExtra}
@@ -73,6 +74,7 @@ function CreateItemButton({
         action="create"
         itemName={itemName}
         postEndpoint={postEndpoint}
+        postFunction={postFunction}
       />
     </ButtonWithClosablePopover>
   );
@@ -91,7 +93,7 @@ export function CreateNestedItemButton({
   const popoverExtra = (child: JSX.Element): JSX.Element => (
     <div style={logicalStyle("max-width", 240)}>{child}</div>
   );
-  //this now checks what type of thing is being added, as adding a typed model has a extra field that isnt needed
+  //this now checks what type of thing is being added, as adding a typed model has an extra field that isn't needed
   return (
     <ButtonWithClosablePopover
       popoverExtra={popoverExtra}
@@ -115,21 +117,24 @@ export function CreateNestedItemButton({
   );
 }
 
-//TODO: Functions are dummied out for the creates that don't exist
+//TODO: Functions have placeholders for the creates that don't exist
 export function CreateInternalEventsButton(): JSX.Element {
+  const createInternalEvent = UseGlobalStore.use.addInternalEvent();
+
   return (
     <CreateItemButton
-      itemName="internal-events"
-      postEndpoint={PostInternalEvent}
+      itemName="Internal Events"
+      postFunction={createInternalEvent}
     />
   );
 }
 
 export function CreateInternalHazardsButton(): JSX.Element {
+  const createInternalHazard = UseGlobalStore.use.addInternalHazard();
   return (
     <CreateItemButton
-      itemName="internal-hazards"
-      postEndpoint={PostInternalHazard}
+      itemName="Internal Hazards"
+      postFunction={createInternalHazard}
     />
   );
 }

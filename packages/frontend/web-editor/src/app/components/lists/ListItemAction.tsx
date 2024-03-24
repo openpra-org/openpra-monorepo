@@ -1,9 +1,7 @@
 import { logicalStyle } from "@elastic/eui";
 import { EuiButtonIconPropsForButton } from "@elastic/eui/src/components/button/button_icon/button_icon";
-import { PatchInternalEvent } from "shared-types/src/lib/api/TypedModelApiManager";
 import {
   ButtonWithClosablePopover,
-  ButtonWithPopover,
   ButtonWithPopoverProps,
 } from "../buttons/ButtonWithPopover";
 import { ToTitleCase } from "../../../utils/StringUtils";
@@ -22,7 +20,8 @@ export function ListItemContextMenuButton(
   props: GenericListItemProps,
 ): JSX.Element {
   return (
-    <ButtonWithPopover
+    <ButtonWithClosablePopover
+      closeProp="onCancel"
       iconType="boxesHorizontal"
       isIcon={true}
       aria-label="Edit Item"
@@ -34,7 +33,7 @@ export function ListItemContextMenuButton(
       color="text"
     >
       <ListItemContextMenu {...props} />
-    </ButtonWithPopover>
+    </ButtonWithClosablePopover>
   );
 }
 
@@ -44,6 +43,7 @@ function ListItemAction(): void {}
 export { ListItemAction };
 export function ListItemEditAction({
   itemName,
+  patchFunction,
   patchEndpoint,
   ...rest
 }: ListItemActionProps): JSX.Element {
@@ -71,7 +71,8 @@ export function ListItemEditAction({
         noHeader
         action="edit"
         itemName={label}
-        patchEndpoint={PatchInternalEvent}
+        patchFunction={patchFunction}
+        patchEndpoint={patchEndpoint}
       />
     </ButtonWithClosablePopover>
   );

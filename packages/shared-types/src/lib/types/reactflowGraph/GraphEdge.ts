@@ -6,5 +6,5 @@ export type GraphEdge = {
   source: string;
   target: string;
   type: string;
-  label?: string;
+  animated: boolean;
 };

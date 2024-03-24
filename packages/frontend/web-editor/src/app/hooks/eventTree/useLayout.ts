@@ -1,24 +1,25 @@
 import { useEffect, useRef } from "react";
 import { useReactFlow, useStore, Node, Edge, ReactFlowState } from "reactflow";
-import { stratify, tree } from "d3-hierarchy";
+import { cluster, partition, stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
-const layout = tree<Node>()
+const layout = cluster<Node>()
   // the node size configures the spacing between the nodes ([width, height])
-  .nodeSize([200, 150])
-  // this is needed for creating equal space between all nodes
-  .separation(() => 1);
+  .nodeSize([140, 40]) // this is needed for creating equal space between all nodes
+
+  .separation(() => 0.45);
 
 const options = { duration: 300 };
 
 // the layouting function
 // accepts current nodes and edges and returns the layouted nodes with their updated positions
-function layoutNodes(nodes: Node[], edges: Edge[]): Node[] {
+function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
   // if there are no nodes we can't calculate a layout
   if (nodes.length === 0) {
     return [];
   }
+
   // convert nodes and edges into a hierarchical object for using it with the layout function
   const hierarchy = stratify<Node>()
     .id((d) => d.id)
@@ -33,16 +34,43 @@ function layoutNodes(nodes: Node[], edges: Edge[]): Node[] {
 
   // convert the hierarchy back to react flow nodes (the original node is stored as d.data)
   // we only extract the position from the d3 function
-  return root
-    .descendants()
-    .map((d) => ({ ...d.data, position: { x: d.x, y: d.y } }));
+  nodes = root.descendants().map((d) => ({
+    ...d.data,
+    position: {
+      x: d.y,
+      y: d.x,
+    },
+  }));
+
+  // Find the maximum value of y from the leaf nodes
+  const maxYLeaf = Math.min(...root.leaves().map((d) => d.x));
+
+  // Iterate over each column node and update its position
+  cols.forEach((col, index) => {
+    // Calculate the x position based on the column number and column width
+    const xPosition = index * col.data.width; // Assuming colWidth is defined somewhere
+
+    // Update the position of the column node
+    col.position = { x: xPosition, y: maxYLeaf - 75 };
+  });
+
+  // Update the x position of the tree nodes with the same number as the column nodes
+  nodes.forEach((node) => {
+    const correspondingColNode = cols.find(
+      (col) => col.data.depth === node.data.depth,
+    );
+    if (correspondingColNode) {
+      node.position.x = correspondingColNode.position.x;
+    }
+  });
+
+  return [...nodes, ...cols];
 }
 
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change
-const nodeCountSelector = (state: ReactFlowState): number =>
-  state.nodeInternals.size;
+const nodeCountSelector = (state: ReactFlowState) => state.nodeInternals.size;
 
-function UseLayout(): void {
+function useLayout(depth: number) {
   // this ref is used to fit the nodes in the first run
   // after first run, this is set to false
   const initial = useRef(true);
@@ -56,11 +84,23 @@ function UseLayout(): void {
 
   useEffect(() => {
     // get the current nodes and edges
-    const nodes = getNodes();
+    const nodeData = getNodes();
     const edges = getEdges();
 
+    // splitting the nodeData into nodes and columns
+    const nodes: Node[] = [];
+    const cols: Node[] = [];
+    console.log(nodeData, edges);
+    nodeData.forEach((node) => {
+      if (node.type === "columnNode") {
+        cols.push(node);
+      } else {
+        nodes.push(node);
+      }
+    });
+
     // run the layout and get back the nodes with their updated positions
-    const targetNodes = layoutNodes(nodes, edges);
+    const targetNodes = layoutNodes(nodes, cols, edges);
 
     // if you do not want to animate the nodes, you can uncomment the following line
     // return setNodes(targetNodes);
@@ -118,11 +158,10 @@ function UseLayout(): void {
         initial.current = false;
       }
     });
-
-        return () => {
-            t.stop();
-        };
-    }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);
+    return () => {
+      t.stop();
+    };
+  }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);
 }
 
-export { UseLayout };
+export default useLayout;

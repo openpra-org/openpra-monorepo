@@ -14,6 +14,10 @@ import {
   BaseGraph,
   BaseGraphDocument,
 } from "../schemas/graphs/base-graph.schema";
+import {
+  EventTreeGraph,
+  EventTreeGraphDocument,
+} from "../schemas/graphs/event-tree-graph.schema";
 
 /**
  * Enum of supported graph types
@@ -21,6 +25,7 @@ import {
 enum GraphTypes {
   EventSequence = "event-sequence",
   FaultTree = "fault-tree",
+  EventTree = "event-tree",
 }
 
 @Injectable()
@@ -30,6 +35,8 @@ export class GraphModelService {
     private readonly eventSequenceDiagramGraphModel: Model<EventSequenceDiagramGraphDocument>,
     @InjectModel(FaultTreeGraph.name)
     private readonly faultTreeGraphModel: Model<FaultTreeGraphDocument>,
+    @InjectModel(EventTreeGraph.name)
+    private readonly eventTreeGraphModel: Model<EventTreeGraphDocument>,
   ) {}
 
   /**
@@ -109,6 +116,43 @@ export class GraphModelService {
   }
 
   /**
+   * Saves the event tree diagram graph
+   * @param body - The current state of the event tree diagram graph
+   * @returns A promise with a event tree diagram graph in it
+   */
+  async saveEventTreeGraph(
+    body: Partial<EventTreeGraph>,
+  ): Promise<BaseGraphDocument> {
+    const existingGraph = await this.eventTreeGraphModel.findOne({
+      eventTreeId: body.eventTreeId,
+    });
+    return this.saveGraph(existingGraph, body, GraphTypes.EventTree);
+  }
+
+  /**
+   * Sets the event tree diagram graph for the given event tree ID
+   * @param eventTreeId - Event tree ID
+   * @returns A promise with the event tree diagram graph
+   */
+  async getEventTreeGraph(eventTreeId: string): Promise<EventTreeGraph> {
+    const result = this.eventTreeGraphModel.findOne(
+      { eventTreeId: eventTreeId },
+      { _id: 0 },
+    );
+    if (result !== null) {
+      return result;
+    } else {
+      return {
+        id: "",
+        _id: new mongoose.Types.ObjectId(),
+        eventTreeId: eventTreeId,
+        nodes: [],
+        edges: [],
+      };
+    }
+  }
+
+  /**
    * Save the graph document
    * @param graph - Graph document
    * @param body - Model data
@@ -149,6 +193,8 @@ export class GraphModelService {
         return new this.eventSequenceDiagramGraphModel(body);
       case GraphTypes.FaultTree:
         return new this.faultTreeGraphModel(body);
+      case GraphTypes.EventTree:
+        return new this.eventTreeGraphModel(body);
       default:
         throw new Error("model type not found");
     }

@@ -44,10 +44,12 @@ function WorkFlowEdge({
           x={-5}
           y={-5}
           width={10}
+
           ry={2}
           rx={2}
           height={10}
           className={stylesMap.edgeButton}
+
         />
         <text className={stylesMap.edgeButtonText} y={3.5} x={-4}>
           +

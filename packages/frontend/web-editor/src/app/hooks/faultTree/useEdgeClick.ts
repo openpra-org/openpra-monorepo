@@ -19,7 +19,6 @@ import { GenerateUUID } from "../../../utils/treeUtils";
  */
 function UseEdgeClick(id: EdgeProps["id"]): () => void {
   const { setEdges, setNodes, getNode, getEdge } = useReactFlow();
-
   const handleEdgeClick = (): void => {
     // first we retrieve the edge object to get the source and target id
     const edge = getEdge(id);

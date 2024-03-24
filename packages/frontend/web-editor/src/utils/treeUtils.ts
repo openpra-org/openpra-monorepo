@@ -1,5 +1,6 @@
 import {
   EventSequenceGraph,
+  EventTreeGraph,
   FaultTreeGraph,
 } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
@@ -33,6 +34,13 @@ export type EventSequenceStateType = {
  */
 export type FaultTreeStateType = {
   faultTreeId: string;
+} & BaseGraphState;
+
+/**
+ * Event Tree state to store the event tree id and list of nodes & edges
+ */
+export type EventTreeStateType = {
+  eventTreeId: string;
 } & BaseGraphState;
 
 /**
@@ -80,6 +88,22 @@ export const FaultTreeState = ({
 });
 
 /**
+ * Generate the fault tree state with the provided list of nodes and edges, for a particular fault tree id
+ * @param faultTreeId - fault tree id
+ * @param nodes - list of nodes
+ * @param edges - list of edges
+ */
+export const EventTreeState = ({
+  eventTreeId,
+  nodes,
+  edges,
+}: EventTreeStateType): EventTreeGraph => ({
+  eventTreeId: eventTreeId,
+  nodes: getNodes(nodes),
+  edges: getEdges(edges),
+});
+
+/**
  * Map Node[] to GraphNode[]
  * @param nodes - List of Nodes
  * @returns List of GraphNodes
@@ -109,7 +133,7 @@ function getEdges(edges: Edge[]): GraphEdge[] {
         source: edge.source,
         target: edge.target,
         type: edge.type,
-        label: edge.label,
+        animated: edge.animated,
       }) as GraphEdge,
   );
 }

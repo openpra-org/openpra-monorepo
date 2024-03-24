@@ -1,0 +1,28 @@
+.outputNode{
+  border: 1.5px solid ;
+  height: 50%
+}
+
+.Output
+
+.inputNode{
+
+}
+
+.addNodeButton{
+  cursor: pointer;
+  pointer-events: all;
+  stroke: #0984e3;
+  fill: white;
+}
+
+.addNodeButtonText{
+  text-align: center;
+  padding-right: 0.2rem;
+  font-size: medium;
+}
+
+.textarea{
+  height:1.2rem;
+  fontSize: 0.7rem;
+}

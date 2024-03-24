@@ -153,6 +153,34 @@ export class GraphModelService {
   }
 
   /**
+   * Updates the label of the node/edge present in the data attribute
+   * @param id - Node/Edge ID
+   * @param type - 'node' or 'edge'
+   * @param label - New label for the node/edge
+   * @returns A promise with boolean confirmation of the update operation
+   */
+  async updateESLabel(
+    id: string,
+    type: string,
+    label: string,
+  ): Promise<boolean> {
+    // check if type is valid
+    if (!["node", "edge"].includes(type)) return false;
+
+    // attribute filter for node/edge
+    const attribute = type === "node" ? "nodes" : "edges";
+    const filter = {};
+    const set = {};
+    filter[`${attribute}.id`] = id;
+    set[`${attribute}.$.data.label`] = label;
+
+    const result = await this.eventSequenceDiagramGraphModel.updateOne(filter, {
+      $set: set,
+    });
+    return result.modifiedCount > 0;
+  }
+
+  /**
    * Save the graph document
    * @param graph - Graph document
    * @param body - Model data

@@ -17,6 +17,7 @@ import { UseLayout } from "../../hooks/eventSequence/useLayout";
 import {
   ESNodeTypes,
   EventSequenceNodeProps,
+  EventSequenceNodeTypes,
 } from "../../components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
 import { ESEdgeTypes } from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 import { EventSequenceContextMenuOptions } from "../../components/context_menu/interfaces/eventSequenceContextMenuOptions.interface";
@@ -24,10 +25,13 @@ import { EventSequenceContextMenu } from "../../components/context_menu/eventSeq
 import {
   DeleteEventSequenceNode,
   GenerateUUID,
+  GetESToast,
+  IsCurrentStateTentative,
   IsNodeDeletable,
   StoreEventSequenceDiagramCurrentState,
 } from "../../../utils/treeUtils";
 import { LoadingCard } from "../../components/cards/loadingCard";
+import { UseToastContext } from "../../providers/toastProvider";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
@@ -37,28 +41,36 @@ const functionalEventId = GenerateUUID();
 const firstEndStateId = GenerateUUID();
 const secondEndStateId = GenerateUUID();
 
-const defaultNodes: Node<object>[] = [
+const defaultNodes: Node<EventSequenceNodeProps, EventSequenceNodeTypes>[] = [
   {
     id: initiatingEventId,
-    data: {},
+    data: {
+      label: "Initiating Event",
+    },
     position: { x: 0, y: 0 },
     type: "initiating",
   },
   {
     id: functionalEventId,
-    data: {},
+    data: {
+      label: "Functional",
+    },
     position: { x: 0, y: 0 },
     type: "functional",
   },
   {
     id: firstEndStateId,
-    data: {},
+    data: {
+      label: "End State",
+    },
     position: { x: 0, y: 0 },
     type: "end",
   },
   {
     id: secondEndStateId,
-    data: {},
+    data: {
+      label: "End State",
+    },
     position: { x: 0, y: 0 },
     type: "end",
   },
@@ -78,14 +90,14 @@ const defaultEdges: Edge[] = [
     source: functionalEventId,
     target: firstEndStateId,
     type: "functional",
-    label: "Yes",
+    data: { label: "Yes", order: 1 },
   },
   {
     id: `${functionalEventId}->${secondEndStateId}`,
     source: functionalEventId,
     target: secondEndStateId,
     type: "functional",
-    label: "No",
+    data: { label: "No", order: 2 },
   },
 ];
 
@@ -106,6 +118,7 @@ function ReactFlowPro(): JSX.Element {
   UseLayout();
 
   const { fitView, getNodes, getEdges, setNodes, setEdges } = useReactFlow();
+  const { addToast } = UseToastContext();
   const [nodes, updateNodes] = useState<Node<object>[]>(defaultNodes);
   const [edges, updateEdges] = useState<Edge[]>(defaultEdges);
   const { eventSequenceId } = useParams() as { eventSequenceId: string };
@@ -132,11 +145,13 @@ function ReactFlowPro(): JSX.Element {
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
   const [isOpen, setIsOpen] = useState(false);
   const deleteKeyPressed = useKeyPress(["Delete", "Backspace"]);
+
   // Close the context menu if it's open whenever the window is clicked.
   const onPaneClick = useCallback(() => {
     setMenu(null);
     setIsOpen(false);
   }, [setMenu]);
+
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node<EventSequenceNodeProps>) => {
       // Prevent native context menu from showing
@@ -147,6 +162,17 @@ function ReactFlowPro(): JSX.Element {
 
       // if node is tentative or can be deleted (in case of functional node deletion process), don't show context menu
       if (node.data.isDeleted === true || node.data.tentative === true) return;
+
+      // if the current state is tentative, disallow node to be updated
+      if (IsCurrentStateTentative(getNodes(), getEdges())) {
+        addToast(
+          GetESToast(
+            "warning",
+            "Current state is not finalized yet. Please complete the on-going process first.",
+          ),
+        );
+        return;
+      }
 
       setIsOpen(!isOpen);
 
@@ -165,12 +191,15 @@ function ReactFlowPro(): JSX.Element {
         onClick: onPaneClick,
       });
     },
-    [isOpen, onPaneClick],
+    [addToast, getEdges, getNodes, isOpen, onPaneClick],
   );
 
   useEffect(() => {
-    const selectedNode: Node<EventSequenceNodeProps> | undefined =
-      getNodes().find((node) => node.selected);
+    const selectedNode:
+      | Node<EventSequenceNodeProps, EventSequenceNodeTypes>
+      | undefined = getNodes().find((node) => node.selected) as
+      | Node<EventSequenceNodeProps, EventSequenceNodeTypes>
+      | undefined;
     if (selectedNode !== undefined) {
       const updatedState = DeleteEventSequenceNode(
         selectedNode,

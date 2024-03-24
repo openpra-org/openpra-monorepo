@@ -106,6 +106,30 @@ export class GraphApiManager {
   }
 
   /**
+   * Update the label of a node or edge for an event sequence diagram
+   * @param id - Node/Edge ID
+   * @param label - New label
+   * @param type - 'node' or 'edge' for which the label needs to be updated
+   * @returns boolean confirmation whether update was successful or not
+   */
+  static async updateESLabel(
+    id: string,
+    label: string,
+    type: string,
+  ): Promise<boolean> {
+    const url = `${EVENT_SEQUENCE_DIAGRAMS_ENDPOINT}/update-label/`;
+    return await this.patch<{ id: string; type: string; label: string }>(url, {
+      id: id,
+      type: type,
+      label: label,
+    })
+      .then((res) => this.getEventSequenceLabelResponse(res))
+      .catch((error) => {
+        throw error;
+      });
+  }
+
+  /**
    * Make a POST call
    * @param url - URL endpoint
    * @param data - Graph data
@@ -143,6 +167,24 @@ export class GraphApiManager {
   }
 
   /**
+   * Make a PATCH call
+   * @param url - URL endpoint
+   * @param data - Patch data
+   * @returns Response from API - boolean
+   */
+  private static patch<T>(url: string, data: T): Promise<Response> {
+    return fetch(url, {
+      method: "PATCH",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `JWT ${AuthService.getEncodedToken()}`,
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
    * Read the API response and parse the event sequence data
    * @param res - Response from API
    * @param eventSequenceId - Event sequence id
@@ -160,6 +202,18 @@ export class GraphApiManager {
           edges: [],
         } as EventSequenceGraph)
       : (JSON.parse(response) as EventSequenceGraph);
+  }
+
+  /**
+   * Read the API response and return boolean value to indicate successful operation
+   * @param res - Response from API
+   * @returns boolean, false if response is empty
+   */
+  private static async getEventSequenceLabelResponse(
+    res: Response,
+  ): Promise<boolean> {
+    const response = await res.text();
+    return response === "" ? false : Boolean(response);
   }
 
   /**

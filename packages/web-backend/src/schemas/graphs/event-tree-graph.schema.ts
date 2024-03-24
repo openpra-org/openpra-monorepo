@@ -16,7 +16,7 @@ export class EventTreeGraph {
   nodes: GraphNode<EventTreeData>[];
 
   @Prop()
-  edges: GraphEdge[];
+  edges: GraphEdge<EventTreeData>[];
 
   @Prop({ type: String, unique: true, required: true })
   eventTreeId: string;

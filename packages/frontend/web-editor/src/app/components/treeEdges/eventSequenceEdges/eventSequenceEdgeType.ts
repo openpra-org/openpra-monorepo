@@ -1,16 +1,18 @@
-import { NormalEdge } from "./normalEdge";
-import { FunctionalEdge } from "./functionalEdge";
+import { EdgeTypes } from "reactflow";
+import { EventSequenceEdge } from "./eventSequenceEdge";
 
 /**
  * Represents the types of edges of event sequence diagram
  */
-const ESEdgeTypes = {
-  normal: NormalEdge,
-  functional: FunctionalEdge,
+const ESEdgeTypes: EdgeTypes = {
+  normal: EventSequenceEdge("normal"),
+  functional: EventSequenceEdge("functional"),
 };
 
-export type EventSequenceTypeProps = {
+export type EventSequenceEdgeProps = {
   tentative?: boolean;
+  label?: string;
+  order?: number;
 };
 
 export { ESEdgeTypes };

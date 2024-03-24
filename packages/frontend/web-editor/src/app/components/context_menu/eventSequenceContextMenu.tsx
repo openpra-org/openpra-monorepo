@@ -4,9 +4,14 @@ import { EuiContextMenuPanelDescriptor } from "@elastic/eui/src/components/conte
 import { EuiContextMenuPanelItemDescriptor } from "@elastic/eui/src/components/context_menu/context_menu";
 import { useReactFlow, Node, NodeProps } from "reactflow";
 import { useParams } from "react-router-dom";
-import { EventSequenceNodeProps } from "../treeNodes/eventSequenceNodes/eventSequenceNodeType";
+import {
+  EventSequenceNodeProps,
+  EventSequenceNodeTypes,
+} from "../treeNodes/eventSequenceNodes/eventSequenceNodeType";
 import {
   DeleteEventSequenceNode,
+  GetDefaultLabelOfNode,
+  GetESToast,
   StoreEventSequenceDiagramCurrentState,
   UpdateEventSequenceNode,
 } from "../../../utils/treeUtils";
@@ -16,6 +21,7 @@ import IntermediateNodeIcon from "../../../assets/images/nodeIcons/intermediateN
 import EndStateNodeIcon from "../../../assets/images/nodeIcons/endStateNodeIcon.svg";
 import TransferStateNodeIcon from "../../../assets/images/nodeIcons/transferStateNodeIcon.svg";
 import UndevelopedNodeIcon from "../../../assets/images/nodeIcons/undevelopedNodeIcon.svg";
+import { UseToastContext } from "../../providers/toastProvider";
 import { EventSequenceContextMenuOptions } from "./interfaces/eventSequenceContextMenuOptions.interface";
 
 /**
@@ -29,12 +35,17 @@ function EventSequenceContextMenu({
   isDelete = false,
 }: EventSequenceContextMenuOptions): JSX.Element {
   const { getNode, getNodes, getEdges, setNodes, setEdges } = useReactFlow();
+  const { addToast } = UseToastContext();
   const { eventSequenceId } = useParams() as { eventSequenceId: string };
 
   const onItemClick = useCallback(
-    (id: NodeProps["id"], type: string) => {
+    (id: NodeProps["id"], type: "delete" | EventSequenceNodeTypes) => {
       // we need the parent node object for positioning the new child node
-      const parentNode: Node<EventSequenceNodeProps> | undefined = getNode(id);
+      const parentNode:
+        | Node<EventSequenceNodeProps, EventSequenceNodeTypes>
+        | undefined = getNode(id) as
+        | Node<EventSequenceNodeProps, EventSequenceNodeTypes>
+        | undefined;
       const currentNodes = getNodes();
       const currentEdges = getEdges();
       if (!parentNode) {
@@ -69,8 +80,20 @@ function EventSequenceContextMenu({
         return;
       }
 
+      // if the selected node type is already the current node's type, simply return
+      if (parentNode.type === type) {
+        addToast(
+          GetESToast(
+            "warning",
+            "The selected node type is already the current node's type.",
+          ),
+        );
+        return;
+      }
+
       // change child nodes based on the updated type of node
       parentNode.type = type;
+      parentNode.data.label = GetDefaultLabelOfNode(type);
 
       const updatedState = UpdateEventSequenceNode(
         parentNode,
@@ -97,7 +120,16 @@ function EventSequenceContextMenu({
       }
       onClick && onClick();
     },
-    [eventSequenceId, getEdges, getNode, getNodes, onClick, setEdges, setNodes],
+    [
+      addToast,
+      eventSequenceId,
+      getEdges,
+      getNode,
+      getNodes,
+      onClick,
+      setEdges,
+      setNodes,
+    ],
   );
 
   const basePanelItems: EuiContextMenuPanelItemDescriptor[] = [

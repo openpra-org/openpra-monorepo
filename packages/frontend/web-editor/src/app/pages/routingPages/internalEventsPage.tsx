@@ -22,6 +22,8 @@ import { SystemsAnalysis } from "../fullScopePages/systemsAnalysis";
 import { EventSequenceQuantificationDiagrams } from "../fullScopePages/eventSequenceQuantificationDiagrams";
 import { RadiologicalConsequenceAnalysisList } from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
 import { FaultTrees } from "../fullScopePages/faultTrees";
+import { GlobalToastList } from "../../components/lists/globalToastList";
+import { ToastProvider } from "../../providers/toastProvider";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -67,64 +69,70 @@ export function LoadModel(): ModelProps {
 
 function InternalEventsPage(): JSX.Element {
   return (
-    <Routes>
-      <Route
-        path=""
-        //loader={internalEventsLoader}
-        element={<InternalEventsList />}
-      />
-      <Route
-        path=":modelId"
-        element={<InternalEventsContainer />}
-        // loader={loadModel}
-      >
+    <ToastProvider>
+      <Routes>
         <Route
-          path="plant-operating-state-analysis/*"
-          element={<OperatingStateAnalysis />}
-        />
-        <Route path="initiating-events/*" element={<InitiatingEvents />} />
-        <Route
-          path="event-sequence-diagrams/*"
-          element={<EventSequenceDiagrams />}
-        />
-        <Route path="event-trees/*" element={<EventTrees />} />
-        <Route path="functional-events/*" element={<FunctionalEvents />} />
-        <Route path="fault-trees/*" element={<FaultTrees />} />
-        <Route path="bayesian-networks/*" element={<BayesianNetworks />} />
-        <Route path="markov-chains/*" element={<MarkovChains />} />
-        <Route path="human-reliability-analysis/*" element={<HRA />} />
-        <Route path="bayesian-estimation/*" element={<BayesianEstimation />} />
-        <Route path="weibull-analysis/*" element={<WeibullAnalysis />} />
-        <Route
-          path="event-sequence-quantification-diagrams/*"
-          element={<EventSequenceQuantificationDiagrams />}
+          path=""
+          //loader={internalEventsLoader}
+          element={<InternalEventsList />}
         />
         <Route
-          path="mechanistic-source-terms/*"
-          element={<MechanisticAnalysis />}
-        />
-        <Route
-          path="radiological-consequence-analysis/*"
-          element={<RadiologicalConsequenceAnalysisList />}
-        />
-        <Route path="risk-integration/*" element={<RiskIntegration />} />
-        <Route
-          path="operating-state-analysis/*"
-          element={<OperatingStateAnalysis />}
-        />
-        <Route
-          path="event-sequence-analysis/*"
-          element={<EventSequenceAnalysis />}
-        />
-        <Route path="success-criteria/*" element={<SuccessCriteria />} />
-        <Route path="systems-analysis/*" element={<SystemsAnalysis />} />
-        <Route path="data-analysis/*" element={<DataAnalysis />} />
-        <Route path="settings/*" element={<ModelSettings />} />
-      </Route>
-      {/** everything below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested
-       * else a problem happens where the parent takes presedence and loads its content over everything else
-       */}
-    </Routes>
+          path=":modelId"
+          element={<InternalEventsContainer />}
+          // loader={loadModel}
+        >
+          <Route
+            path="plant-operating-state-analysis/*"
+            element={<OperatingStateAnalysis />}
+          />
+          <Route path="initiating-events/*" element={<InitiatingEvents />} />
+          <Route
+            path="event-sequence-diagrams/*"
+            element={<EventSequenceDiagrams />}
+          />
+          <Route path="event-trees/*" element={<EventTrees />} />
+          <Route path="functional-events/*" element={<FunctionalEvents />} />
+          <Route path="fault-trees/*" element={<FaultTrees />} />
+          <Route path="bayesian-networks/*" element={<BayesianNetworks />} />
+          <Route path="markov-chains/*" element={<MarkovChains />} />
+          <Route path="human-reliability-analysis/*" element={<HRA />} />
+          <Route
+            path="bayesian-estimation/*"
+            element={<BayesianEstimation />}
+          />
+          <Route path="weibull-analysis/*" element={<WeibullAnalysis />} />
+          <Route
+            path="event-sequence-quantification-diagrams/*"
+            element={<EventSequenceQuantificationDiagrams />}
+          />
+          <Route
+            path="mechanistic-source-terms/*"
+            element={<MechanisticAnalysis />}
+          />
+          <Route
+            path="radiological-consequence-analysis/*"
+            element={<RadiologicalConsequenceAnalysisList />}
+          />
+          <Route path="risk-integration/*" element={<RiskIntegration />} />
+          <Route
+            path="operating-state-analysis/*"
+            element={<OperatingStateAnalysis />}
+          />
+          <Route
+            path="event-sequence-analysis/*"
+            element={<EventSequenceAnalysis />}
+          />
+          <Route path="success-criteria/*" element={<SuccessCriteria />} />
+          <Route path="systems-analysis/*" element={<SystemsAnalysis />} />
+          <Route path="data-analysis/*" element={<DataAnalysis />} />
+          <Route path="settings/*" element={<ModelSettings />} />
+        </Route>
+        {/** everything below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested
+         * else a problem happens where the parent takes presedence and loads its content over everything else
+         */}
+      </Routes>
+      <GlobalToastList />
+    </ToastProvider>
   );
 }
 

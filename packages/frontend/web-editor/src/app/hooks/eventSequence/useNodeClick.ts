@@ -16,6 +16,7 @@ import {
   GetSubgraph,
   StoreEventSequenceDiagramCurrentState,
 } from "../../../utils/treeUtils";
+import { EventSequenceEdgeProps } from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 
 /**
  * Hook for handling click events on nodes in a React Flow diagram.
@@ -40,7 +41,7 @@ function UseNodeClick(
     const currentEdges: Edge[] = getEdges();
     if (node === undefined) return;
 
-    // a tentatively deleted node is clicked
+    // a tentatively updated/deleted node is clicked
     if (data.tentative) {
       // get parent node
       const functionalNode: Node<EventSequenceNodeProps> = GetParentNode(
@@ -48,8 +49,11 @@ function UseNodeClick(
         currentNodes,
         currentEdges,
       );
-      // if the parent node is the one that was selected to be deleted
-      if (functionalNode.data.isDeleted) {
+      // if the parent node is the one that was selected to be updated/deleted
+      if (
+        functionalNode.data.isDeleted === true ||
+        functionalNode.data.isUpdated === true
+      ) {
         // the child node clicked will be retained, the other child node and its subgraph to be deleted
         const children: Node<EventSequenceNodeProps>[] = getOutgoers(
           functionalNode,
@@ -63,8 +67,8 @@ function UseNodeClick(
 
         let updatedNodes: Node[] = [];
         let updatedEdges: Edge[] = [];
-        let deletedNodes: Node[] = [functionalNode];
-        let deletedEdges: Edge[] = [...connectedEdges];
+        let deletedNodes: Node[] = [];
+        let deletedEdges: Edge[] = [];
 
         // retain the child and its subgraph which was clicked, discard remaining children and their subgraph
         for (const child of children) {
@@ -85,18 +89,74 @@ function UseNodeClick(
               currentEdges,
             );
 
-            updatedNodes = [...nodes, child].map(
-              (node: Node<EventSequenceNodeProps>) => ({ ...node, data: {} }),
-            );
-            updatedEdges = [
-              ...edges,
-              BuildAnEdge(
-                parentNode,
-                child,
-                incomingEdgeOfParent.type,
-                incomingEdgeOfParent.label,
-              ),
-            ].map((edge: Edge) => ({ ...edge, data: {} }));
+            // function node was updated
+            if (functionalNode.data.isUpdated) {
+              // keep the functional node and the current child and its subgraph, reset the tentative flags
+              updatedNodes = [...nodes, functionalNode, child].map(
+                (node: Node<EventSequenceNodeProps>) => ({
+                  ...node,
+                  data: { label: node.data.label },
+                }),
+              );
+              // keep the current child subgraph's edges and the edge connecting the functional node to current child
+              // update this edge to a normal edge since the node is not a functional node anymore
+              // reset the tentative flags of all subgraph edges
+              updatedEdges = [
+                ...edges,
+                ...connectedEdges.filter((edge) => edge.target === node.id),
+              ].map((edge: Edge<EventSequenceEdgeProps>) => {
+                if (edge.target === node.id) {
+                  // this edge connects the functional node to the selected child node, make it a normal edge
+                  return {
+                    ...edge,
+                    type: "normal",
+                    data: { ...edge.data, tentative: false, label: undefined },
+                  };
+                }
+                return {
+                  ...edge,
+                  data: { ...edge.data, tentative: false },
+                };
+              });
+              // remove the edge(s) sourced from the functional node
+              // which are not targeted for the selected child node
+              deletedEdges = connectedEdges.filter(
+                (edge) =>
+                  edge.source === functionalNode.id && edge.target !== node.id,
+              );
+            } else {
+              // functional node was deleted
+              // update the tentative flags for the child node and its subgraph
+              updatedNodes = [...nodes, child].map(
+                (node: Node<EventSequenceNodeProps>) => ({
+                  ...node,
+                  data: {
+                    ...node.data,
+                    tentative: false,
+                    isDeleted: false,
+                    isUpdated: false,
+                  },
+                }),
+              );
+              // update the tentative flags for the child node subgraph's edges
+              // also build an edge directly from the functional node's parent to the selected child node
+              updatedEdges = [
+                ...edges,
+                BuildAnEdge(
+                  parentNode,
+                  child,
+                  incomingEdgeOfParent.type,
+                  incomingEdgeOfParent.data,
+                ),
+              ].map((edge: Edge<EventSequenceEdgeProps>) => ({
+                ...edge,
+                data: { ...edge.data, tentative: false },
+              }));
+              // delete the functional node
+              deletedNodes = deletedNodes.concat(functionalNode);
+              // delete the connected edges from the functional node
+              deletedEdges = deletedEdges.concat(...connectedEdges);
+            }
           } else {
             // this child and its subgraph needs to be removed
             const { nodes, edges } = GetSubgraph(

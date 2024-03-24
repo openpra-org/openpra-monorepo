@@ -15,6 +15,6 @@ export class BaseGraph {
   nodes: GraphNode<object>[];
 
   @Prop()
-  edges: GraphEdge[];
+  edges: GraphEdge<object>[];
 }
 export type BaseGraphDocument = BaseGraph & Document;

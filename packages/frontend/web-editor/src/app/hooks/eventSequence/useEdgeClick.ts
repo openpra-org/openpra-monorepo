@@ -1,9 +1,18 @@
-import { EdgeProps, useReactFlow } from "reactflow";
+import { Node, EdgeProps, useReactFlow, Edge } from "reactflow";
 import { useParams } from "react-router-dom";
 import {
+  BuildAnEdge,
   GenerateUUID,
+  GetESToast,
+  IsCurrentStateTentative,
   StoreEventSequenceDiagramCurrentState,
 } from "../../../utils/treeUtils";
+import {
+  EventSequenceNodeProps,
+  EventSequenceNodeTypes,
+} from "../../components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
+import { EventSequenceEdgeProps } from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
+import { UseToastContext } from "../../providers/toastProvider";
 
 /**
  * Hook for handling click events on edges in a React Flow diagram.
@@ -16,7 +25,7 @@ import {
  *
  * @example
  * ```
- * const handleEdgeClick = useEdgeClick(uniqueEdgeId);
+ * const handleEdgeClick = useEdgeClick(uniqueEdgeId, addToastHandler);
  * <Edge onClick={handleEdgeClick} />;
  * ```
  */
@@ -24,17 +33,43 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
   const { setEdges, setNodes, getNode, getEdge, getEdges, getNodes } =
     useReactFlow();
   const { eventSequenceId } = useParams() as { eventSequenceId: string };
+  const { addToast } = UseToastContext();
 
   return (): void => {
+    const currentNodes = getNodes();
+    const currentEdges = getEdges();
+
+    // if the current state is tentative, disallow creation of new node
+    if (IsCurrentStateTentative(currentNodes, currentEdges)) {
+      // show toast message
+      addToast(
+        GetESToast(
+          "warning",
+          "Current state is not finalized yet. Please complete the on-going process first.",
+        ),
+      );
+      return;
+    }
+
     // first we retrieve the edge object to get the source and target id
-    const edge = getEdge(id);
+    const edge: Edge<EventSequenceEdgeProps> | undefined = getEdge(id);
 
     if (!edge) {
       return;
     }
 
+    const sourceNode: Node<EventSequenceNodeProps> | undefined = getNode(
+      edge.source,
+    );
+
+    if (!sourceNode) {
+      return;
+    }
+
     // we retrieve the target node to get its position
-    const targetNode = getNode(edge.target);
+    const targetNode: Node<EventSequenceNodeProps> | undefined = getNode(
+      edge.target,
+    );
 
     if (!targetNode) {
       return;
@@ -44,39 +79,34 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
     const insertNodeId = GenerateUUID();
 
     // this is the node object that will be added in between source and target node
-    const insertNode = {
+    const insertNode: Node<EventSequenceNodeProps, EventSequenceNodeTypes> = {
       id: insertNodeId,
       // we place the node at the current position of the target (prevents jumping)
       position: { x: targetNode.position.x, y: targetNode.position.y },
-      data: {},
+      data: {
+        label: "Description",
+      },
       type: "description",
     };
 
     // new connection from source to new node
-    const sourceEdge = {
-      id: `${edge.source}->${insertNodeId}`,
-      source: edge.source,
-      target: insertNodeId,
-      type: edge.type,
-      label: edge.label,
-    };
+    const sourceEdge: Edge = BuildAnEdge(
+      sourceNode,
+      insertNode,
+      edge.type,
+      edge.data,
+    );
 
     // new connection from new node to target
-    const targetEdge = {
-      id: `${insertNodeId}->${edge.target}`,
-      source: insertNodeId,
-      target: edge.target,
-      type: "normal",
-    };
+    const targetEdge: Edge = BuildAnEdge(insertNode, targetNode, "normal", {});
 
     // remove the edge that was clicked as we have a new connection with a node in between
-    const edges = getEdges()
+    const edges = currentEdges
       .filter((e) => e.id !== id)
       .concat([sourceEdge, targetEdge]);
     setEdges(edges);
 
-    // insert the node between the source and target node in the react flow state
-    const currentNodes = getNodes();
+    // insert the node between the source and target node in the react-flow state
     const targetNodeIndex = currentNodes.findIndex(
       (node) => node.id === edge.target,
     );

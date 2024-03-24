@@ -1,0 +1,113 @@
+import { memo, MemoExoticComponent, useCallback, useState } from "react";
+import { EdgeProps, getBezierPath, Edge, useReactFlow } from "reactflow";
+import { EuiFieldText } from "@elastic/eui";
+import cx from "classnames";
+import { debounce } from "lodash";
+import { UseEdgeClick } from "../../../hooks/eventSequence/useEdgeClick";
+import { UpdateEventSequenceLabel } from "../../../../utils/treeUtils";
+import styles from "./styles/edgeType.module.css";
+import { EventSequenceEdgeProps } from "./eventSequenceEdgeType";
+
+function EventSequenceEdge(
+  type: string,
+): MemoExoticComponent<React.ComponentType<EdgeProps<EventSequenceEdgeProps>>> {
+  return memo(
+    ({
+      id,
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      sourcePosition,
+      targetPosition,
+      style,
+      markerEnd,
+      data = {},
+    }: EdgeProps<EventSequenceEdgeProps>): JSX.Element => {
+      const { getEdges, setEdges } = useReactFlow();
+      const onClick = UseEdgeClick(id);
+      const stylesMap = styles as Record<string, string>;
+      const [edgePath, edgeCenterX, edgeCenterY] = getBezierPath({
+        sourceX,
+        sourceY,
+        sourcePosition,
+        targetX,
+        targetY,
+        targetPosition,
+      });
+      const [edgeLabel, setEdgeLabel] = useState(data.label ?? "");
+      const updateHandler = useCallback(
+        debounce((newLabel: string): void => {
+          setEdges(
+            getEdges().map((n: Edge<EventSequenceEdgeProps>) => {
+              if (n.id === id) {
+                n.data = { ...n.data, label: newLabel };
+              }
+              return n;
+            }),
+          );
+          UpdateEventSequenceLabel(id, newLabel, "edge");
+        }, 500),
+        [getEdges, id, setEdges],
+      );
+      const onEdgeLabelChange = useCallback(
+        (e: React.ChangeEvent<HTMLInputElement>): void => {
+          const newLabel = e.target.value;
+          setEdgeLabel(newLabel);
+          updateHandler(newLabel);
+        },
+        [updateHandler],
+      );
+      const edgeLabelElement =
+        type === "normal" ? (
+          <span style={{ width: 0 }}></span>
+        ) : (
+          <foreignObject x={10} y={-10} width={40} height={30}>
+            <EuiFieldText
+              className={cx(stylesMap.edge_label)}
+              placeholder="Label"
+              value={edgeLabel}
+              onChange={onEdgeLabelChange}
+              compressed={true}
+              disabled={data.tentative}
+            />
+          </foreignObject>
+        );
+      const edgeBtn = (
+        <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
+          <rect
+            onClick={onClick}
+            x={-5}
+            y={-5}
+            width={10}
+            ry={2}
+            rx={2}
+            height={10}
+            className={stylesMap.edgeButton}
+          />
+          <text className={stylesMap.edgeButtonText} y={3} x={-3}>
+            +
+          </text>
+          {edgeLabelElement}
+        </g>
+      );
+
+      return (
+        <>
+          <path
+            id={id}
+            style={style}
+            className={
+              data.tentative ? stylesMap.placeholderPath : stylesMap.edgePath
+            }
+            d={edgePath}
+            markerEnd={markerEnd}
+          />
+          {data.tentative ? <button style={{ width: 0 }}></button> : edgeBtn}
+        </>
+      );
+    },
+  );
+}
+
+export { EventSequenceEdge };

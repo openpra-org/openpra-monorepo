@@ -1,28 +1,33 @@
 import { NodeTypes } from "reactflow";
-import { InitiatingEventNode } from "./initiatingEventNode";
-import { FunctionalEventNode } from "./functionalEventNode";
-import { DescriptionNode } from "./descriptionNode";
-import { UndevelopedNode } from "./undevelopedNode";
-import { IntermediateStateNode } from "./intermediateStateNode";
-import { TransferStateNode } from "./transferStateNode";
-import { EndStateNode } from "./endStateNode";
+import { EventSequenceNode } from "./eventSequenceNode";
+
+export type EventSequenceNodeTypes =
+  | "initiating"
+  | "functional"
+  | "description"
+  | "undeveloped"
+  | "intermediate"
+  | "transfer"
+  | "end";
 
 /**
  * Represents the types of nodes of event sequence diagram
  */
 const ESNodeTypes: NodeTypes = {
-  initiating: InitiatingEventNode,
-  functional: FunctionalEventNode,
-  description: DescriptionNode,
-  undeveloped: UndevelopedNode,
-  intermediate: IntermediateStateNode,
-  transfer: TransferStateNode,
-  end: EndStateNode,
+  initiating: EventSequenceNode("initiating"),
+  functional: EventSequenceNode("functional"),
+  description: EventSequenceNode("description"),
+  undeveloped: EventSequenceNode("undeveloped"),
+  intermediate: EventSequenceNode("intermediate"),
+  transfer: EventSequenceNode("transfer"),
+  end: EventSequenceNode("end"),
 };
 
 export type EventSequenceNodeProps = {
   tentative?: boolean;
+  isUpdated?: boolean;
   isDeleted?: boolean;
+  label?: string;
 };
 
 export { ESNodeTypes };

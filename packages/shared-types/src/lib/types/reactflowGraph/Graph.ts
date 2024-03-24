@@ -7,7 +7,7 @@ import { EventTreeData } from "./graphData/EventTreeData";
  */
 export type Graph = {
   nodes: GraphNode<object>[];
-  edges: GraphEdge[];
+  edges: GraphEdge<object>[];
 };
 
 /**
@@ -31,5 +31,5 @@ export type EventTreeGraph = {
   eventTreeId: string;
 } & {
   nodes: GraphNode<EventTreeData>[];
-  edges: GraphEdge[];
+  edges: GraphEdge<EventTreeData>[];
 };

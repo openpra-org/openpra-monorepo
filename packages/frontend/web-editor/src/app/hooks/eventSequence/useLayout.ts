@@ -6,9 +6,15 @@ import {
   Edge,
   ReactFlowState,
   Position,
+  getConnectedEdges,
 } from "reactflow";
-import { stratify, tree } from "d3-hierarchy";
+import { HierarchyNode, stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
+import {
+  AreSiblings,
+  GetIncomingEdge,
+  GetParentNode,
+} from "../../../utils/treeUtils";
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
 const layout = tree<Node>()
@@ -59,7 +65,33 @@ function UseLayout(): void {
       )(nodes);
 
     // run the layout algorithm with the hierarchy data structure
-    const root = layout(hierarchy);
+    const root = layout(
+      hierarchy.sort(
+        (node1: HierarchyNode<Node>, node2: HierarchyNode<Node>) => {
+          const currentNodes = getNodes();
+          const currentEdges = getEdges();
+          if (
+            GetParentNode(node1.data, currentNodes, currentEdges).type ===
+              "functional" &&
+            AreSiblings(node1.data, node2.data, currentNodes, currentEdges)
+          ) {
+            const incomingEdge1 = GetIncomingEdge(
+              node1.data,
+              getConnectedEdges([node1.data], currentEdges),
+            );
+            const incomingEdge2 = GetIncomingEdge(
+              node2.data,
+              getConnectedEdges([node2.data], currentEdges),
+            );
+            return incomingEdge1.data?.order !== undefined &&
+              incomingEdge2.data?.order !== undefined
+              ? incomingEdge1.data.order - incomingEdge2.data.order
+              : 0;
+          }
+          return 0;
+        },
+      ),
+    );
 
     const targetNodes = nodes.map((node) => {
       const { x, y } = root.find((d) => d.id === node.id) ?? {

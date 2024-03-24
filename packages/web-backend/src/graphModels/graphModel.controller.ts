@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Post, Query } from "@nestjs/common";
 import { EventSequenceDiagramGraph } from "../schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph } from "../schemas/graphs/fault-tree-graph.schema";
 import { BaseGraphDocument } from "../schemas/graphs/base-graph.schema";
@@ -70,6 +70,22 @@ export class GraphModelController {
     @Query("faultTreeId") faultTreeId: string,
   ): Promise<FaultTreeGraph> {
     return this.graphModelService.getFaultTreeGraph(faultTreeId);
+  }
+
+  /**
+   * Update the label of node/edge of an event sequence diagram
+   * @param id - Node/Edge ID
+   * @param type - 'node' or 'edge'
+   * @param label - New label for the node/edge
+   * @returns a promise with boolean confirmation whether update was successful or not
+   */
+  @Patch("/event-sequence-diagram-graph/update-label/")
+  async updateESNodeLabel(
+    @Body("id") id: string,
+    @Body("type") type: string,
+    @Body("label") label: string,
+  ): Promise<boolean> {
+    return this.graphModelService.updateESLabel(id, type, label);
   }
 
   /**

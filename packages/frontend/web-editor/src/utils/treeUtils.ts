@@ -6,15 +6,21 @@ import {
 import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
 import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
 import {
-  Node,
   Edge,
-  getOutgoers,
   getConnectedEdges,
   getIncomers,
+  getOutgoers,
+  Node,
 } from "reactflow";
 import _ from "lodash";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { EventSequenceNodeProps } from "../app/components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
+import { Toast } from "@elastic/eui/src/components/toast/global_toast_list";
+import { EuiToastProps } from "@elastic/eui/src/components/toast/toast";
+import {
+  EventSequenceNodeProps,
+  EventSequenceNodeTypes,
+} from "../app/components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
+import { EventSequenceEdgeProps } from "../app/components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 
 /**
  * Function to generate a new & random UUID
@@ -68,7 +74,7 @@ export const EventSequenceState = ({
 }: EventSequenceStateType): EventSequenceGraph => ({
   eventSequenceId: eventSequenceId,
   nodes: getNodes<EventSequenceNodeProps>(nodes),
-  edges: getEdges(edges),
+  edges: getEdges<EventSequenceEdgeProps>(edges),
 });
 
 /**
@@ -84,7 +90,7 @@ export const FaultTreeState = ({
 }: FaultTreeStateType): FaultTreeGraph => ({
   faultTreeId: faultTreeId,
   nodes: getNodes<object>(nodes),
-  edges: getEdges(edges),
+  edges: getEdges<object>(edges),
 });
 
 /**
@@ -125,16 +131,17 @@ function getNodes<T>(nodes: Node[]): GraphNode<T>[] {
  * @param edges - List of Edges
  * @returns List of GraphEdges
  */
-function getEdges(edges: Edge[]): GraphEdge[] {
+function getEdges<T>(edges: Edge[]): GraphEdge<T>[] {
   return edges.map(
-    (edge) =>
+    (edge: Edge<T>) =>
       ({
         id: edge.id,
         source: edge.source,
         target: edge.target,
         type: edge.type,
+        data: edge.data,
         animated: edge.animated,
-      }) as GraphEdge,
+      }) as GraphEdge<T>,
   );
 }
 
@@ -231,7 +238,10 @@ export function GetParentNode(
  * @returns incoming edge
  * @throws Error - if no incoming edge found
  */
-export function GetIncomingEdge(node: Node, connectedEdges: Edge[]): Edge {
+export function GetIncomingEdge(
+  node: Node,
+  connectedEdges: Edge[],
+): Edge<EventSequenceEdgeProps> {
   const incomingEdge: Edge | undefined = connectedEdges.find(
     (edge) => edge.target === node.id,
   );
@@ -246,21 +256,21 @@ export function GetIncomingEdge(node: Node, connectedEdges: Edge[]): Edge {
  * @param fromNode - originating node
  * @param toNode - destination node
  * @param edgeType - type of edge
- * @param edgeLabel - edge label
+ * @param data - edge properties like label, etc
  * @returns the connecting edge
  */
 export function BuildAnEdge(
   fromNode: Node,
   toNode: Node,
   edgeType: string | undefined,
-  edgeLabel: string | React.ReactNode | undefined,
-): Edge {
+  data: EventSequenceEdgeProps | undefined,
+): Edge<EventSequenceEdgeProps> {
   return {
     id: `${fromNode.id}->${toNode.id}`,
     source: fromNode.id,
     target: toNode.id,
     type: edgeType,
-    label: edgeLabel,
+    data: data,
   };
 }
 
@@ -297,7 +307,7 @@ export function StoreEventSequenceDiagramCurrentState(
  * @throws Error - if incoming or outgoing edge is not found for the node
  */
 export function DeleteEventSequenceNode(
-  selectedNode: Node<EventSequenceNodeProps>,
+  selectedNode: Node<EventSequenceNodeProps, EventSequenceNodeTypes>,
   currentNodes: Node[],
   currentEdges: Edge[],
 ): OnUpdateGraphState | undefined {
@@ -322,38 +332,12 @@ export function DeleteEventSequenceNode(
   // introduce an intermediate state of deletion by marking the whole subgraph as 'tentative'
   // and additionally mark the functional node to be deleted as 'isDeleted'
   if (selectedNode.type === "functional") {
-    const { nodes, edges } = GetSubgraph(
+    return GenerateTentativeState(
+      "delete",
       selectedNode,
       currentNodes,
       currentEdges,
     );
-    const newNodes = currentNodes.map(
-      (
-        mappedNode: Node<EventSequenceNodeProps>,
-      ): Node<EventSequenceNodeProps> => {
-        if (nodes.find((childNode) => childNode.id === mappedNode.id)) {
-          return { ...mappedNode, data: { tentative: true } };
-        }
-        if (mappedNode.id === selectedNode.id) {
-          return {
-            ...mappedNode,
-            data: { tentative: true, isDeleted: true },
-          };
-        }
-        return mappedNode;
-      },
-    );
-    const newEdges: Edge[] = currentEdges.map((edge: Edge) => {
-      if (edges.find((outgoingEdge) => outgoingEdge.id === edge.id)) {
-        return { ...edge, data: { tentative: true } };
-      }
-      return edge;
-    });
-    return {
-      nodes: newNodes,
-      edges: newEdges,
-      updateState: false,
-    } as OnUpdateGraphState;
   }
 
   // for description / intermediate node, delete the node and connect the parent node directly to its child node
@@ -361,7 +345,10 @@ export function DeleteEventSequenceNode(
     selectedNode.type === "description" ||
     selectedNode.type === "intermediate"
   ) {
-    const incomingEdge: Edge = GetIncomingEdge(selectedNode, connectedEdges);
+    const incomingEdge: Edge<EventSequenceEdgeProps> = GetIncomingEdge(
+      selectedNode,
+      connectedEdges,
+    );
     const outgoingEdges: Node[] = getOutgoers(
       selectedNode,
       currentNodes,
@@ -371,11 +358,11 @@ export function DeleteEventSequenceNode(
       throw Error("Outgoing edge(s) not found");
     }
 
-    const newEdge: Edge = BuildAnEdge(
+    const newEdge: Edge<EventSequenceEdgeProps> = BuildAnEdge(
       parentNode,
       outgoingEdges[0],
       incomingEdge.type,
-      incomingEdge.label,
+      incomingEdge.data,
     );
     const newNodes: Node[] = currentNodes.filter(
       (n: Node) => !(n.id === selectedNode.id),
@@ -397,13 +384,77 @@ export function DeleteEventSequenceNode(
 }
 
 /**
+ * Generate the tentative state when a functional node is either updated or deleted
+ * @param mode - 'update' or 'delete'
+ * @param selectedNode - selected functional node which has been updated or deleted
+ * @param currentNodes - list of current nodes
+ * @param currentEdges - list of current edges
+ */
+function GenerateTentativeState(
+  mode: "update" | "delete",
+  selectedNode: Node<EventSequenceNodeProps>,
+  currentNodes: Node<EventSequenceNodeProps>[],
+  currentEdges: Edge<EventSequenceEdgeProps>[],
+): OnUpdateGraphState {
+  const isUpdated = mode === "update";
+  const isDeleted = mode === "delete";
+  const { nodes, edges } = GetSubgraph(
+    selectedNode,
+    currentNodes,
+    currentEdges,
+  );
+  const newNodes = currentNodes.map(
+    (
+      mappedNode: Node<EventSequenceNodeProps>,
+    ): Node<EventSequenceNodeProps> => {
+      if (nodes.find((childNode) => childNode.id === mappedNode.id)) {
+        return {
+          ...mappedNode,
+          data: { tentative: true, label: mappedNode.data.label },
+        };
+      }
+      if (mappedNode.id === selectedNode.id) {
+        return {
+          ...mappedNode,
+          data: {
+            ...mappedNode.data,
+            tentative: true,
+            isUpdated: isUpdated,
+            isDeleted: isDeleted,
+          },
+        };
+      }
+      return mappedNode;
+    },
+  );
+  const newEdges: Edge[] = currentEdges.map(
+    (edge: Edge<EventSequenceEdgeProps>) => {
+      if (edges.find((outgoingEdge) => outgoingEdge.id === edge.id)) {
+        return { ...edge, data: { ...edge.data, tentative: true } };
+      }
+      return edge;
+    },
+  );
+  return {
+    nodes: newNodes,
+    edges: newEdges,
+    updateState: false,
+  } as OnUpdateGraphState;
+}
+
+/**
  * Generate a new End State Node
  * @returns node object of newly generate End State node
  */
-function GetEndStateNode(): Node {
+function GetEndStateNode(): Node<
+  EventSequenceNodeProps,
+  EventSequenceNodeTypes
+> {
   return {
     id: GenerateUUID(),
-    data: {},
+    data: {
+      label: "End State",
+    },
     position: { x: 0, y: 0 },
     type: "end",
   };
@@ -417,8 +468,9 @@ function GetEndStateEdge(
   parentNodeId: string,
   childNodeId: string,
   label = "",
-): Edge {
-  const edge: Edge = {
+  order: number | undefined = undefined,
+): Edge<EventSequenceEdgeProps> {
+  const edge: Edge<EventSequenceEdgeProps> = {
     id: `${parentNodeId}->${childNodeId}`,
     source: parentNodeId,
     target: childNodeId,
@@ -426,7 +478,7 @@ function GetEndStateEdge(
   };
   if (label !== "") {
     edge.type = "functional";
-    edge.label = label;
+    edge.data = { label: label, order: order };
   }
   return edge;
 }
@@ -441,7 +493,7 @@ function GetEndStateEdge(
  * The function returns undefined if the selected node cannot be updated
  */
 export function UpdateEventSequenceNode(
-  selectedNode: Node<EventSequenceNodeProps>,
+  selectedNode: Node<EventSequenceNodeProps, EventSequenceNodeTypes>,
   currentNodes: Node[],
   currentEdges: Edge[],
 ): OnUpdateGraphState | undefined {
@@ -456,8 +508,8 @@ export function UpdateEventSequenceNode(
       // if no nodes present, add two end state nodes
       const child1 = GetEndStateNode();
       const child2 = GetEndStateNode();
-      const edge1 = GetEndStateEdge(selectedNode.id, child1.id, "Yes");
-      const edge2 = GetEndStateEdge(selectedNode.id, child2.id, "No");
+      const edge1 = GetEndStateEdge(selectedNode.id, child1.id, "Yes", 1);
+      const edge2 = GetEndStateEdge(selectedNode.id, child2.id, "No", 2);
       nodesToAdd.push(child1, child2);
       edgesToAdd.push(edge1, edge2);
     } else if (childNodes.length === 1) {
@@ -472,11 +524,11 @@ export function UpdateEventSequenceNode(
           source: existingEdge.source,
           target: existingEdge.target,
           type: "functional",
-          label: "Yes",
+          data: { label: "Yes", order: 1 },
         });
       }
       const child2 = GetEndStateNode();
-      const edge2 = GetEndStateEdge(selectedNode.id, child2.id, "No");
+      const edge2 = GetEndStateEdge(selectedNode.id, child2.id, "No", 2);
       nodesToAdd.push(child2);
       edgesToAdd.push(edge2);
     } else if (childNodes.length === 2) {
@@ -491,14 +543,14 @@ export function UpdateEventSequenceNode(
           source: existingEdges[0].source,
           target: existingEdges[0].target,
           type: "functional",
-          label: "Yes",
+          data: { label: "Yes", order: 1 },
         },
         {
           id: existingEdges[1].id,
           source: existingEdges[1].source,
           target: existingEdges[1].target,
           type: "functional",
-          label: "No",
+          data: { label: "No", order: 2 },
         },
       );
     }
@@ -513,23 +565,14 @@ export function UpdateEventSequenceNode(
       nodesToAdd.push(child);
       edgesToAdd.push(edge);
     } else if (childNodes.length === 2) {
-      // if more than 1 node present, remove the additional node, update the existing edge
-      const existingEdges = currentEdges.filter(
-        (edge) => edge.source === selectedNode.id,
-      );
-      const extraNodes = getOutgoers(
+      // for a functional node, change the state of the subgraph to tentative so that
+      // the user can select one of the child nodes to finalize the state
+      return GenerateTentativeState(
+        "update",
         selectedNode,
         currentNodes,
         currentEdges,
-      ).filter((node) => !(node.id === existingEdges[0].target));
-      nodesToRemove.push(...extraNodes);
-      edgesToRemove.push(...existingEdges);
-      edgesToAdd.push({
-        id: existingEdges[0].id,
-        source: existingEdges[0].source,
-        target: existingEdges[0].target,
-        type: "normal",
-      });
+      );
     }
   } else if (
     selectedNode.type === "transfer" ||
@@ -581,4 +624,81 @@ export function AreSiblings(
   const parentOfNode2: Node = GetParentNode(node2, nodes, edges);
 
   return parentOfNode1.id === parentOfNode2.id;
+}
+
+/**
+ * Get default node label, based on its type
+ * @param nodeType - type of node
+ * @returns string - Default node label
+ */
+export function GetDefaultLabelOfNode(
+  nodeType: EventSequenceNodeTypes,
+): string {
+  switch (nodeType) {
+    case "initiating":
+      return "Initiating Event";
+    case "end":
+      return "End State";
+    case "transfer":
+      return "Transfer State";
+    case "undeveloped":
+      return "Undeveloped";
+    case "functional":
+      return "Functional";
+    case "description":
+      return "Description";
+    case "intermediate":
+      return "Intermediate";
+    default:
+      return "Invalid Node";
+  }
+}
+
+/**
+ * Update a label of the event sequence diagram
+ * @param id - ID of either node or edge
+ * @param label - New label
+ * @param type - 'node' or 'edge' label
+ */
+export function UpdateEventSequenceLabel(
+  id: string,
+  label: string,
+  type: string,
+): void {
+  void GraphApiManager.updateESLabel(id, label, type).then((r: boolean) => r);
+}
+
+/**
+ * Check if the current graph state is tentative
+ * (i.e. if the user has tried to delete or update a functional node
+ * and has not finalized the process by selecting a child node)
+ * @param nodes - current list of nodes
+ * @param edges - current list of edges
+ * @returns boolean
+ */
+export function IsCurrentStateTentative(nodes: Node[], edges: Edge[]): boolean {
+  return !(
+    nodes.findIndex(
+      (n: Node<EventSequenceNodeProps>) => n.data.tentative === true,
+    ) === -1 &&
+    edges.findIndex(
+      (e: Edge<EventSequenceEdgeProps>) => e.data?.tentative === true,
+    ) === -1
+  );
+}
+
+/**
+ * Create a toast with the given type and message
+ * @param type - type of toast (primary / warning / danger / success)
+ * @param message - toast message text
+ */
+export function GetESToast(
+  type: EuiToastProps["color"],
+  message: string,
+): Toast {
+  return {
+    id: GenerateUUID(),
+    color: type,
+    text: message,
+  } as Toast;
 }

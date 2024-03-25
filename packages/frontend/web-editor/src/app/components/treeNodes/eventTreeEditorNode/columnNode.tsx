@@ -2,10 +2,12 @@ import { Handle, NodeProps, Position, useUpdateNodeInternals } from "reactflow";
 import React, { memo, useEffect, useState } from "react";
 import { EuiText, EuiTextArea } from "@elastic/eui";
 import useCreateColClick from "../../../hooks/eventTree/useCreateColClick";
+import useDeleteColClick from "../../../hooks/eventTree/useDeleteColClick";
 import styles from "./styles/nodeTypes.module.css";
 
 function ColumnNode({ id, data }: NodeProps) {
   const onClickAddColumn = useCreateColClick(id);
+  const onClickDeleteColumn = useDeleteColClick(id);
 
   const [textareaValue, setTextareaValue] = useState<string>(data.label);
   const updateNodeInternals = useUpdateNodeInternals();
@@ -73,6 +75,12 @@ function ColumnNode({ id, data }: NodeProps) {
           />
           <text onClick={onClickAddColumn} className={styles.addNodeButtonText}>
             +
+          </text>
+          <text
+            onClick={onClickDeleteColumn}
+            className={styles.addNodeButtonText}
+          >
+            -
           </text>
         </div>
       </div>

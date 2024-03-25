@@ -13,11 +13,13 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
     const edges = getEdges();
 
     let shouldDeleteSubtree = true;
-    const nodesToDelete = new Set([clickedNodeId]);
+    const nodesToDelete = new Set();
+    const immediateConnectedNodes = new Set(); // To keep track of immediate connected nodes
+
     const stack = [clickedNodeId];
     let parentNodeId: string | null = null;
 
-    while (stack.length > 0 && shouldDeleteSubtree) {
+    while (stack.length > 0) {
       const nodeId = stack.pop();
       edges.forEach((edge) => {
         if (nodeId === clickedNodeId && edge.target === nodeId) {
@@ -27,9 +29,15 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
           const targetNode = nodes.find((node) => node.id === edge.target);
           if (targetNode && targetNode.type === "visibleNode") {
             shouldDeleteSubtree = false;
-          } else {
+          }
+          if (!nodesToDelete.has(edge.target)) {
+            // Check to prevent re-adding a node {
             stack.push(edge.target);
             nodesToDelete.add(edge.target);
+            if (edge.source === clickedNodeId) {
+              // If this is an immediate connection from the clicked node
+              immediateConnectedNodes.add(edge.target);
+            }
           }
         }
       });
@@ -54,7 +62,6 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
           }
         });
       }
-
       // Delete the node and its subtree
       const remainingNodes = nodes.filter(
         (node) => !nodesToDelete.has(node.id),
@@ -70,7 +77,7 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
       const eventTreeCurrentState: EventTreeGraph = EventTreeState({
         eventTreeId: eventTreeId,
         nodes: remainingNodes,
-        edges: remainingEdges,
+        edges: edges,
       });
 
       void GraphApiManager.storeEventTree(eventTreeCurrentState).then(
@@ -79,28 +86,29 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
         },
       );
     } else {
-      // Update clicked node to invisibleNode and animate edges
+      // Update nodes based on shouldDeleteSubtree and immediate deletion flags
       const updatedNodes = nodes.map((node) => {
-        if (node.id === clickedNodeId) {
-          return { ...node, type: "invisibleNode" };
+        if (nodesToDelete.has(node.id)) {
+          // Mark subtree nodes as tentative if shouldDeleteSubtree is false
+          const update = {
+            ...node,
+            data: { ...node.data, isTentative: !shouldDeleteSubtree },
+          };
+          if (immediateConnectedNodes.has(node.id)) {
+            // Additionally, mark immediate nodes with isDelete = true
+            update.data.isDelete = true;
+          }
+          return update;
         }
         return node;
       });
 
-      const updatedEdges = edges.map((edge) => {
-        if (edge.target === clickedNodeId) {
-          return { ...edge, animated: true };
-        }
-        return edge;
-      });
-
       setNodes(updatedNodes);
-      setEdges(updatedEdges);
 
       const eventTreeCurrentState: EventTreeGraph = EventTreeState({
         eventTreeId: eventTreeId,
         nodes: updatedNodes,
-        edges: updatedEdges,
+        edges: edges,
       });
 
       void GraphApiManager.storeEventTree(eventTreeCurrentState).then(

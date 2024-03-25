@@ -5,19 +5,10 @@
 }
 
 .context_menu_container {
-    display: inline-block !important;
-    white-space: nowrap !important;
+    display: flex;
     overflow-x: scroll;
-}
-
-.context_menu_container > li {
-    display: inline-block !important;
+    width: 250px;
 }
 
 
-.basic_event_icon {
-    margin: auto;
-    height: 30px;
-    width: 40px;
-}
 

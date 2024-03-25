@@ -12,6 +12,11 @@ export type IFaultTreeNodeIconProps = {
   className?: string;
 };
 
+export type FaultTreeNodeProps = {
+  isGrayed?: boolean;
+  branchId?: string;
+};
+
 // two different node types are needed for our example: workflow and placeholder nodes
 const FaultTreeNodeTypes: NodeTypes = {
   orGate: OrGateNode,

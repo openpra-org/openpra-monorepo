@@ -1,9 +1,40 @@
 import React from "react";
-import { EuiKeyPadMenu, EuiKeyPadMenuItem } from "@elastic/eui";
+import { EuiContextMenu, EuiIcon } from "@elastic/eui";
 import { UseFaultTreeContextMenuClick } from "../../hooks/faultTree/useFaultTreeContextMenuClick";
-import { NodeIcon } from "../treeNodes/icons/nodeIcon";
-import { NodeTypes } from "../treeNodes/icons/interfaces/nodeProps";
-import styles from "./styles/faultTreeNodeContextMenu.module.css";
+import {
+  AND_GATE,
+  AND_GATE_LABEL,
+  ATLEAST_GATE,
+  ATLEAST_GATE_LABEL,
+  BASIC_EVENT,
+  BASIC_EVENT_LABEL,
+  DELETE_NODE,
+  DELETE_SUBTREE,
+  DELETE_TYPE,
+  EDITOR_BLUE_COLOR,
+  HOUSE_EVENT,
+  HOUSE_EVENT_LABEL,
+  IMPORT_ACTION,
+  LARGE,
+  MEDIUM,
+  NODE_TYPES,
+  NOT_GATE,
+  NOT_GATE_LABEL,
+  OR_GATE,
+  OR_GATE_LABEL,
+  TRANSFER_GATE,
+  TRANSFER_GATE_LABEL,
+  TRASH,
+  UPDATE_NODE_TYPE,
+  WRENCH,
+} from "../../../utils/constants";
+import AndGateIcon from "../../../assets/images/faultTreeNodeIcons/AndGateIcon.svg";
+import AtLeastIcon from "../../../assets/images/faultTreeNodeIcons/AtLeastGateIcon.svg";
+import OrGateIcon from "../../../assets/images/faultTreeNodeIcons/OrGateIcon.svg";
+import NotGateIcon from "../../../assets/images/faultTreeNodeIcons/NotGateIcon.svg";
+import TransferGateIcon from "../../../assets/images/faultTreeNodeIcons/TransferGateIcon.svg";
+import BasicEventIcon from "../../../assets/images/faultTreeNodeIcons/BasicEventIcon.svg";
+import HouseEventIcon from "../../../assets/images/faultTreeNodeIcons/HouseEventIcon.svg";
 
 export type TreeNodeContextMenuProps = {
   id: string;
@@ -12,106 +43,141 @@ export type TreeNodeContextMenuProps = {
   right: number | false | undefined;
   bottom: number | false | undefined;
   onClick?: () => void;
+  addToastHandler?: (type: string) => void;
 };
 
-function FaultTreeNodeContextMenu({
+const FaultTreeNodeContextMenu = ({
   id,
   top,
   left,
   right,
   bottom,
+  addToastHandler,
   ...props
-}: TreeNodeContextMenuProps): JSX.Element {
-  const { handleContextMenuClick } = UseFaultTreeContextMenuClick(id);
-  return (
-    <EuiKeyPadMenu
-      className={styles.context_menu_container}
-      data-testid="app-menu-content"
-      style={{ width: 310 }}
-      {...props}
-    >
-      <div id={"orGate"} onClick={handleContextMenuClick}>
-        <EuiKeyPadMenuItem label="">
-          <NodeIcon
-            nodeType={NodeTypes.OrGate}
-            iconProps={{
-              width: "30px",
-              height: "100%",
-              viewBox: "109.34 8.5 234.19 193.67",
-            }}
-          />
-        </EuiKeyPadMenuItem>
-      </div>
-      <div id={"andGate"} onClick={handleContextMenuClick}>
-        <EuiKeyPadMenuItem label="">
-          <NodeIcon
-            nodeType={NodeTypes.AndGate}
-            iconProps={{
-              width: "30px",
-              height: "100%",
-              viewBox: "135.61 4.76 137.82 120.94",
-            }}
-          />
-        </EuiKeyPadMenuItem>
-      </div>
-      <div id={"atLeastGate"} onClick={handleContextMenuClick}>
-        <EuiKeyPadMenuItem label="">
-          <NodeIcon
-            nodeType={NodeTypes.AtLeastGate}
-            iconProps={{
-              width: "30px",
-              height: "100%",
-              viewBox: "96 96 308 308",
-            }}
-          />
-        </EuiKeyPadMenuItem>
-      </div>
-      <div id={"notGate"} onClick={handleContextMenuClick}>
-        <EuiKeyPadMenuItem label="">
-          <NodeIcon
-            nodeType={NodeTypes.NotGate}
-            iconProps={{
-              width: "30px",
-              height: "100%",
-              viewBox: "146.071 12.679 158.5 154.641",
-            }}
-          />
-        </EuiKeyPadMenuItem>
-      </div>
-      <div id={"basicEvent"} onClick={handleContextMenuClick}>
-        <EuiKeyPadMenuItem label="">
-          <NodeIcon
-            nodeType={NodeTypes.BasicEvent}
-            iconProps={{
-              width: "30px",
-              height: "100%",
-              viewBox: "0 3 122.61 125.61",
-            }}
-          />
-        </EuiKeyPadMenuItem>
-      </div>
-      <div id={"houseEvent"} onClick={handleContextMenuClick}>
-        <EuiKeyPadMenuItem label="">
-          <NodeIcon
-            nodeType={NodeTypes.HouseEvent}
-            iconProps={{ width: "30px", height: "100%", viewBox: "0 0 42 42" }}
-          />
-        </EuiKeyPadMenuItem>
-      </div>
-      <div id={"transferGate"} onClick={handleContextMenuClick}>
-        <EuiKeyPadMenuItem label="">
-          <NodeIcon
-            nodeType={NodeTypes.TransferGate}
-            iconProps={{
-              width: "30px",
-              height: "100%",
-              viewBox: "14.4 15.4 71.2 70.2",
-            }}
-          />
-        </EuiKeyPadMenuItem>
-      </div>
-    </EuiKeyPadMenu>
-  );
-}
+}: TreeNodeContextMenuProps): JSX.Element => {
+  const { handleContextMenuClick, validateFaultTreeContextMenuClick } =
+    UseFaultTreeContextMenuClick(id);
+  const basePanelItems = [
+    {
+      name: UPDATE_NODE_TYPE,
+      icon: (
+        <EuiIcon
+          type={WRENCH}
+          size={MEDIUM}
+          color={EDITOR_BLUE_COLOR}
+        ></EuiIcon>
+      ),
+      panel: 1,
+    },
+    {
+      name: "Delete",
+      icon: (
+        <EuiIcon type={TRASH} size={MEDIUM} color={EDITOR_BLUE_COLOR}></EuiIcon>
+      ),
+      panel: 2,
+    },
+    {
+      name: "Import JSON",
+      icon: (
+        <EuiIcon
+          type={IMPORT_ACTION}
+          size={MEDIUM}
+          color={EDITOR_BLUE_COLOR}
+        ></EuiIcon>
+      ),
+    },
+  ];
+
+  const onItemClick = async (id: string, type: string): Promise<void> => {
+    const toast = validateFaultTreeContextMenuClick(id, type);
+    if (toast) {
+      addToastHandler && addToastHandler(toast);
+    } else {
+      await handleContextMenuClick(type);
+    }
+    const { onClick } = props;
+    onClick && onClick();
+  };
+  const panels = [
+    {
+      id: 0,
+      items: basePanelItems,
+    },
+    {
+      id: 1,
+      title: NODE_TYPES,
+      items: [
+        {
+          name: AND_GATE_LABEL,
+          icon: <EuiIcon type={AndGateIcon} size={LARGE}></EuiIcon>,
+          onClick: async () => {
+            await onItemClick(id, AND_GATE);
+          },
+        },
+        {
+          name: OR_GATE_LABEL,
+          icon: <EuiIcon type={OrGateIcon} size={LARGE}></EuiIcon>,
+          onClick: async () => {
+            await onItemClick(id, OR_GATE);
+          },
+        },
+        {
+          name: ATLEAST_GATE_LABEL,
+          icon: <EuiIcon type={AtLeastIcon} size={LARGE}></EuiIcon>,
+          onClick: async () => {
+            await onItemClick(id, ATLEAST_GATE);
+          },
+        },
+        {
+          name: NOT_GATE_LABEL,
+          icon: <EuiIcon type={NotGateIcon} size={LARGE}></EuiIcon>,
+          onClick: async () => {
+            await onItemClick(id, NOT_GATE);
+          },
+        },
+        {
+          name: TRANSFER_GATE_LABEL,
+          icon: <EuiIcon type={TransferGateIcon} size={LARGE}></EuiIcon>,
+          onClick: async () => {
+            await onItemClick(id, TRANSFER_GATE);
+          },
+        },
+        {
+          name: HOUSE_EVENT_LABEL,
+          icon: <EuiIcon type={HouseEventIcon} size={LARGE}></EuiIcon>,
+          onClick: async () => {
+            await onItemClick(id, HOUSE_EVENT);
+          },
+        },
+        {
+          name: BASIC_EVENT_LABEL,
+          icon: <EuiIcon type={BasicEventIcon} size={LARGE}></EuiIcon>,
+          onClick: async () => {
+            await onItemClick(id, BASIC_EVENT);
+          },
+        },
+      ],
+    },
+    {
+      id: 2,
+      title: DELETE_TYPE,
+      items: [
+        {
+          name: DELETE_NODE,
+          onClick: async () => {
+            await onItemClick(id, "deleteNode");
+          },
+        },
+        {
+          name: DELETE_SUBTREE,
+          onClick: async () => {
+            await onItemClick(id, "deleteSubtree");
+          },
+        },
+      ],
+    },
+  ];
+  return <EuiContextMenu initialPanelId={0} panels={panels} size={"s"} />;
+};
 
 export { FaultTreeNodeContextMenu };

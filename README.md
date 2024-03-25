@@ -264,7 +264,7 @@ To install a new package, use the following commands:
 
 The `--save-exact` flag is enforced to ensure that the exact version of a
 package is installed, which helps in maintaining consistency
-and avoiding issues with minor updatesthat may introduce breaking changes.
+and avoiding issues with minor updates that may introduce breaking changes.
 
 When installing packages, you also need to decide whether to use `--save-dev`
 or `--save`:

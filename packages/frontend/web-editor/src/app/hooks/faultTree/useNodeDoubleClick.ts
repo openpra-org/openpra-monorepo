@@ -1,7 +1,9 @@
 import { useCallback } from "react";
-import { getOutgoers, NodeProps, useReactFlow } from "reactflow";
+import { Edge, Node, getOutgoers, NodeProps, useReactFlow } from "reactflow";
 
-import { GenerateUUID } from "../../../utils/treeUtils";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { useParams } from "react-router-dom";
+import { FaultTreeState, GenerateUUID } from "../../../utils/treeUtils";
 
 /**
  * This hook implements the double click event on a node.
@@ -18,9 +20,9 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
   handleNodeDoubleClick: (nodeType: React.MouseEvent) => void;
 } {
   const { setEdges, setNodes, getNodes, getEdges, getNode } = useReactFlow();
-
+  const { faultTreeId } = useParams();
   const handleNodeDoubleClick = useCallback(
-    (nodeType: React.MouseEvent) => {
+    async (nodeType: React.MouseEvent) => {
       // we need the parent node object for positioning the new child node
       const parentNode = getNode(id);
       if (!parentNode) {
@@ -54,18 +56,26 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
         .map((node) => node.id);
 
       // add the new nodes (child and placeholder), filter out the existing placeholder nodes of the clicked node
-      setNodes((nodes) =>
-        nodes
-          .filter((node) => !existingChildren.includes(node.id))
-          .concat([childNode]),
-      );
+      const nodes: Node[] = getNodes()
+        .filter((node) => !existingChildren.includes(node.id))
+        .concat([childNode]);
+      setNodes(nodes);
 
       // add the new edges (node -> child, child -> placeholder), filter out any placeholder edges
-      setEdges((edges) =>
-        edges
-          .filter((edge) => !existingChildren.includes(edge.target))
-          .concat([childEdge]),
-      );
+      const edges: Edge[] = getEdges()
+        .filter((edge) => !existingChildren.includes(edge.target))
+        .concat([childEdge]);
+      setEdges(edges);
+
+      await GraphApiManager.storeFaultTree(
+        FaultTreeState({
+          edges: edges,
+          faultTreeId: faultTreeId!,
+          nodes: nodes,
+        }),
+      ).then((r: any) => {
+        console.log(r);
+      });
     },
     [getEdges, getNode, getNodes, id, setEdges, setNodes],
   );

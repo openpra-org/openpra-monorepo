@@ -21,6 +21,7 @@ import {
   EventSequenceNodeTypes,
 } from "../app/components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
 import { EventSequenceEdgeProps } from "../app/components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
+import { BASIC_EVENT, WORKFLOW } from "./constants";
 
 /**
  * Function to generate a new & random UUID
@@ -144,6 +145,32 @@ function getEdges<T>(edges: Edge[]): GraphEdge<T>[] {
       }) as GraphEdge<T>,
   );
 }
+
+/**
+ * Generates a new empty Basic Event node for Fault Trees.
+ * @returns New empty Basic Event node.
+ */
+export const getBasicEventNode = (): Node => ({
+  id: GenerateUUID(),
+  data: {},
+  position: { x: 0, y: 0 },
+  type: BASIC_EVENT,
+});
+
+/**
+ * Generates a new workflow edge.
+ * @returns a new workflow edge.
+ */
+export const getWorkflowEdge = (
+  parentNodeId: string,
+  childNodeId: string,
+  label = "",
+): Edge => ({
+  id: `${parentNodeId}=>${childNodeId}`,
+  source: parentNodeId,
+  target: childNodeId,
+  type: WORKFLOW,
+});
 
 /**
  * Determine whether a node can be deleted, based on its type

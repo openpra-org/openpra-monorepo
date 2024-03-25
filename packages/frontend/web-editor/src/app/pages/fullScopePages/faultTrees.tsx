@@ -12,16 +12,25 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactFlow, {
   Background,
+  Connection,
   Edge,
+  EdgeChange,
   Node,
+  NodeChange,
   ProOptions,
   ReactFlowProvider,
 } from "reactflow";
 
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
+import {
+  EuiGlobalToastList,
+  EuiPopover,
+  EuiSkeletonRectangle,
+  useGeneratedHtmlId,
+} from "@elastic/eui";
 import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { Route, Routes, useParams } from "react-router-dom";
+import { shallow } from "zustand/shallow";
 import { UseLayout } from "../../hooks/faultTree/useLayout";
 import { FaultTreeNodeTypes } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 import { EdgeTypes } from "../../components/treeEdges/faultTreeEdges/faultTreeEdgeType";
@@ -33,52 +42,47 @@ import {
   FaultTreeNodeContextMenu,
   TreeNodeContextMenuProps,
 } from "../../components/context_menu/faultTreeNodeContextMenu";
-import { LoadingCard } from "../../components/cards/loadingCard";
+import { GenerateUUID } from "../../../utils/treeUtils";
+import {
+  allToasts,
+  initialEdges,
+  initialNodes,
+} from "../../../utils/faultTreeData";
+import { RFState, useStore } from "../../store/faultTreeStore";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
-
-// initial setup: one OR gate node and two basic events
-// basic event nodes can be turned into any type by right click
-const defaultNodes: Node[] = [
-  {
-    id: "1",
-    data: { label: "OR Gate" },
-    position: { x: 0, y: 0 },
-    type: "orGate",
-  },
-  {
-    id: "2",
-    data: { label: "Basic Event" },
-    position: { x: 0, y: 150 },
-    type: "basicEvent",
-  },
-  {
-    id: "3",
-    data: { label: "Basic Event" },
-    position: { x: 0, y: 150 },
-    type: "basicEvent",
-  },
-];
-
-// initial setup: connect the OR gate node to the basic event nodes with a workflow edge
-const defaultEdges: Edge[] = [
-  {
-    id: "1=>2",
-    source: "1",
-    target: "2",
-    type: "workflow",
-  },
-  {
-    id: "1=>3",
-    source: "1",
-    target: "3",
-    type: "workflow",
-  },
-];
 
 const fitViewOptions = {
   padding: 0.95,
 };
+
+type Toast = {
+  id: string;
+  title: string;
+  color: "warning" | "success" | "primary" | "danger" | undefined;
+  iconType: string;
+  type: string;
+};
+
+const selector = (
+  state: RFState,
+): {
+  nodes: Node[];
+  edges: Edge[];
+  onNodesChange: (changes: NodeChange[]) => void;
+  onEdgesChange: (changes: EdgeChange[]) => void;
+  onConnect: (connection: Connection) => void;
+  setNodes: (nodes: Node[]) => void;
+  setEdges: (edges: Edge[]) => void;
+} => ({
+  nodes: state.nodes,
+  edges: state.edges,
+  onNodesChange: state.onNodesChange,
+  onEdgesChange: state.onEdgesChange,
+  onConnect: state.onConnect,
+  setNodes: state.setNodes,
+  setEdges: state.setEdges,
+});
 
 function ReactFlowPro(): JSX.Element {
   // this hook call ensures that the layout is re-calculated every time the graph changes
@@ -87,24 +91,26 @@ function ReactFlowPro(): JSX.Element {
   const ref = useRef(document.createElement("div"));
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
 
-  const [nodes, setNodes] = useState<Node[]>(defaultNodes);
-  const [edges, setEdges] = useState<Edge[]>(defaultEdges);
-  const [loading, setLoading] = useState(true);
+  const { nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges } =
+    useStore(selector, shallow);
+  const [isLoading, setIsLoading] = useState(true);
   const { faultTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => {
     const loadGraph = async (): Promise<void> => {
       await GraphApiManager.getFaultTree(faultTreeId).then(
         (res: FaultTreeGraph) => {
-          setNodes(res.nodes.length !== 0 ? res.nodes : defaultNodes);
-          setEdges(res.edges.length !== 0 ? res.edges : defaultEdges);
-          setLoading(false);
+          setNodes(res.nodes.length !== 0 ? res.nodes : initialNodes);
+          setEdges(res.edges.length !== 0 ? res.edges : initialEdges);
+
+          setIsLoading(false);
         },
       );
     };
-    void (loading && loadGraph());
-  }, [faultTreeId, loading, nodes]);
+    void (isLoading && loadGraph());
+  }, [faultTreeId, isLoading, nodes, toasts]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -134,45 +140,79 @@ function ReactFlowPro(): JSX.Element {
     setMenu(null);
     setIsOpen(false);
   }, [setMenu]);
-  return loading ? (
-    <LoadingCard />
+
+  const removeToast = (): void => {
+    setToasts([]);
+  };
+
+  const addToastHandler = (type: string): void => {
+    const toast = allToasts.filter((toast) => toast.type === type)[0];
+    setToasts([
+      {
+        id: GenerateUUID(),
+        ...toast,
+      },
+    ]);
+  };
+
+  return isLoading ? (
+    <EuiSkeletonRectangle
+      isLoading={isLoading}
+      width={"100%"}
+      height={500}
+    ></EuiSkeletonRectangle>
   ) : (
-    <ReactFlow
-      ref={ref}
-      defaultNodes={nodes}
-      defaultEdges={edges}
-      proOptions={proOptions}
-      fitView
-      nodeTypes={FaultTreeNodeTypes}
-      edgeTypes={EdgeTypes}
-      fitViewOptions={fitViewOptions}
-      onPaneClick={onPaneClick}
-      onNodeContextMenu={onNodeContextMenu}
-      minZoom={0.2}
-      nodesDraggable={false}
-      nodesConnectable={false}
-      zoomOnDoubleClick={false}
-      // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
-      // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
-      deleteKeyCode={null}
-    >
-      <Background />
-      <EuiPopover
-        id={headerAppPopoverId}
-        button={<div></div>}
-        isOpen={isOpen}
-        anchorPosition="downRight"
-        style={{
-          top: typeof menu?.top === "number" ? menu.top : undefined,
-          left: typeof menu?.left === "number" ? menu.left : undefined,
-          bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
-          right: typeof menu?.right === "number" ? menu.right : undefined,
-        }}
-        closePopover={onPaneClick}
+    <>
+      <ReactFlow
+        ref={ref}
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        proOptions={proOptions}
+        fitView
+        nodeTypes={FaultTreeNodeTypes}
+        edgeTypes={EdgeTypes}
+        fitViewOptions={fitViewOptions}
+        onPaneClick={onPaneClick}
+        onNodeContextMenu={onNodeContextMenu}
+        minZoom={1.2}
+        nodesDraggable={false}
+        nodesConnectable={false}
+        zoomOnDoubleClick={false}
+        // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
+        // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
+        // deleteKeyCode={"Delete"}
       >
-        {menu && <FaultTreeNodeContextMenu onClick={onPaneClick} {...menu} />}
-      </EuiPopover>
-    </ReactFlow>
+        <Background />
+        <EuiPopover
+          id={headerAppPopoverId}
+          button={""}
+          isOpen={isOpen}
+          anchorPosition="downRight"
+          style={{
+            top: typeof menu?.top === "number" ? menu.top : undefined,
+            left: typeof menu?.left === "number" ? menu.left : undefined,
+            bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
+            right: typeof menu?.right === "number" ? menu.right : undefined,
+          }}
+          closePopover={onPaneClick}
+        >
+          {menu && (
+            <FaultTreeNodeContextMenu
+              onClick={onPaneClick}
+              addToastHandler={addToastHandler}
+              {...menu}
+            />
+          )}
+        </EuiPopover>
+      </ReactFlow>
+      <EuiGlobalToastList
+        toasts={toasts}
+        dismissToast={removeToast}
+        toastLifeTimeMs={3000}
+      />
+    </>
   );
 }
 

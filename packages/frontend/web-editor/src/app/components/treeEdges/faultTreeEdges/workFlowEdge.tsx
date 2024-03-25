@@ -1,5 +1,5 @@
 import React from "react";
-import { EdgeProps, getBezierPath } from "reactflow";
+import { EdgeProps, getSmoothStepPath } from "reactflow";
 
 import { UseEdgeClick } from "../../../hooks/faultTree/useEdgeClick";
 import styles from "./styles/edgeType.module.css";
@@ -20,15 +20,15 @@ function WorkFlowEdge({
   const onClick = UseEdgeClick(id);
   const stylesMap = styles as Record<string, string>;
 
-  const [edgePath, edgeCenterX, edgeCenterY] = getBezierPath({
+  const [edgePath, edgeCenterX, edgeCenterY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 0,
   });
-
   return (
     <>
       <path

@@ -1,6 +1,10 @@
-import { EdgeProps, useReactFlow } from "reactflow";
+import { Node, EdgeProps, useReactFlow, Edge } from "reactflow";
 
-import { GenerateUUID } from "../../../utils/treeUtils";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { useParams } from "react-router-dom";
+import { FaultTreeState, GenerateUUID } from "../../../utils/treeUtils";
+import { NOT_GATE, WORKFLOW } from "../../../utils/constants";
+import { useStore } from "../../store/faultTreeStore";
 
 /**
  * Hook for handling click events on edges in a React Flow diagram.
@@ -9,7 +13,7 @@ import { GenerateUUID } from "../../../utils/treeUtils";
  * It utilizes the React Flow library for managing nodes and edges in a flowchart-like UI.
  *
  * @param id - The unique identifier of the clicked edge.
- * @returns  A function (`handleEdgeClick`) to be used as an event handler for edge click events.
+ * @returns A function (`handleEdgeClick`) to be used as an event handler for edge click events.
  *
  * @example
  * ```typescript
@@ -17,8 +21,12 @@ import { GenerateUUID } from "../../../utils/treeUtils";
  * <Edge onClick={handleEdgeClick} />;
  * ```
  */
-function UseEdgeClick(id: EdgeProps["id"]): () => void {
-  const { setEdges, setNodes, getNode, getEdge } = useReactFlow();
+function UseEdgeClick(id: EdgeProps["id"]) {
+  const { nodes, edges, setEdges, setNodes } = useStore();
+  const { getNode, getEdge } = useReactFlow();
+
+  const { faultTreeId } = useParams();
+
   const handleEdgeClick = (): void => {
     // first we retrieve the edge object to get the source and target id
     const edge = getEdge(id);
@@ -29,8 +37,13 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
 
     // we retrieve the target node to get its position
     const targetNode = getNode(edge.target);
+    const sourceNode = getNode(edge.source);
 
-    if (!targetNode) {
+    if (!targetNode || !sourceNode) {
+      return;
+    }
+
+    if (targetNode.type === NOT_GATE || sourceNode.type === NOT_GATE) {
       return;
     }
 
@@ -43,7 +56,7 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
       // we place the node at the current position of the target (prevents jumping)
       position: { x: targetNode.position.x, y: targetNode.position.y },
       data: {},
-      type: "notGate",
+      type: NOT_GATE,
     };
 
     // new connection from source to new node
@@ -51,7 +64,7 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
       id: `${edge.source}->${insertNodeId}`,
       source: edge.source,
       target: insertNodeId,
-      type: "workflow",
+      type: WORKFLOW,
     };
 
     // new connection from new node to target
@@ -59,25 +72,35 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
       id: `${insertNodeId}->${edge.target}`,
       source: insertNodeId,
       target: edge.target,
-      type: "workflow",
+      type: WORKFLOW,
     };
 
-    // remove the edge that was clicked as we have a new connection with a node inbetween
-    setEdges((edges) =>
-      edges.filter((e) => e.id !== id).concat([sourceEdge, targetEdge]),
+    // remove the edge that was clicked as we have a new connection with a node in between
+    const newEdges = edges
+      .filter((e: Edge) => e.id !== id)
+      .concat([sourceEdge, targetEdge]);
+    setEdges(newEdges);
+
+    // insert the node between the source and target node in the React flow state
+    const currentNodes = nodes;
+    const targetNodeIndex = currentNodes.findIndex(
+      (node: Node) => node.id === edge.target,
     );
+    const newNodes = [
+      ...currentNodes.slice(0, targetNodeIndex),
+      insertNode,
+      ...currentNodes.slice(targetNodeIndex, currentNodes.length),
+    ];
+    setNodes(newNodes);
 
-    // insert the node between the source and target node in the react flow state
-    setNodes((nodes) => {
-      const targetNodeIndex = nodes.findIndex(
-        (node) => node.id === edge.target,
-      );
-
-      return [
-        ...nodes.slice(0, targetNodeIndex),
-        insertNode,
-        ...nodes.slice(targetNodeIndex, nodes.length),
-      ];
+    void GraphApiManager.storeFaultTree(
+      FaultTreeState({
+        faultTreeId: faultTreeId!,
+        nodes: nodes,
+        edges: edges,
+      }),
+    ).then((r: any) => {
+      console.log(r);
     });
   };
 

@@ -10,7 +10,7 @@ function InvisibleNode({ id, data }: NodeProps) {
   const onClick = useCreateNodeClick(id);
 
   return (
-    <div>
+    <div style={{ opacity: data.isTentative ? "0.5" : "1" }}>
       <Handle
         type="target"
         position={Position.Left}

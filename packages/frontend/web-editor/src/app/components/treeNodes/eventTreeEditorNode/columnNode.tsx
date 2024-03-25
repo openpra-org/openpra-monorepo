@@ -73,22 +73,15 @@ function ColumnNode({ id, data }: NodeProps) {
             rows={1}
             cols={1}
           />
-          {data.depth !== 1 && (
-            <>
-              <text
-                onClick={onClickAddColumn}
-                className={styles.addNodeButtonText}
-              >
-                +
-              </text>
-              <text
-                onClick={onClickDeleteColumn}
-                className={styles.addNodeButtonText}
-              >
-                -
-              </text>
-            </>
-          )}
+          <text onClick={onClickAddColumn} className={styles.addNodeButtonText}>
+            +
+          </text>
+          <text
+            onClick={onClickDeleteColumn}
+            className={styles.addNodeButtonText}
+          >
+            -
+          </text>
         </div>
       </div>
 

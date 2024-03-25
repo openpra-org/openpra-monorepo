@@ -5,7 +5,7 @@ import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph"
 import { EventTreeData } from "shared-types/src/lib/types/reactflowGraph/graphData/EventTreeData";
 import { checkAndCleanWithSemver } from "@nx/devkit/src/utils/semver";
 import { update } from "lodash";
-import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
+import { EventTreeState } from "../../../utils/treeUtils";
 
 function useOnNodeClick(clickedNodeId: NodeProps["id"]) {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
@@ -14,8 +14,9 @@ function useOnNodeClick(clickedNodeId: NodeProps["id"]) {
   const deleteNode = () => {
     const nodes: Node<EventTreeData>[] = getNodes();
     const edges = getEdges();
-    let finalNodes;
-    let finalEdges;
+
+    // Identify edges for animation
+    const edgeToAnimateIds = new Set();
 
     const clickedNode = nodes.find((node) => node.id === clickedNodeId);
     if (clickedNode && !clickedNode.data.isDelete) {
@@ -31,29 +32,6 @@ function useOnNodeClick(clickedNodeId: NodeProps["id"]) {
     const parentId = edges.find((edge) => edge.target === clickedNodeId)
       ?.source;
 
-    // Use a Set to keep track of all nodes in the clicked node's subtree
-    const nodesToRetain = new Set();
-
-    // Perform DFS from the parent node, if it exists
-
-    const siblingEdges = edges.filter(
-      (edge) => edge.source === parentId && edge.target !== clickedNodeId,
-    );
-
-    const stack = siblingEdges.map((node) => node.target);
-    while (stack.length > 0) {
-      const nodeId = stack.pop();
-
-      if (nodeId && !nodesToRetain.has(nodeId)) {
-        nodesToRetain.add(nodeId);
-        edges.forEach((edge) => {
-          if (edge.source === nodeId) {
-            stack.push(edge.target);
-          }
-        });
-      }
-    }
-
     if (columnNode?.data.isTentative) {
       if (
         !columnNode.data.tentativeDeleteNodes?.find((node) => node === parentId)
@@ -63,6 +41,25 @@ function useOnNodeClick(clickedNodeId: NodeProps["id"]) {
       const tentativeNodes = columnNode.data.tentativeDeleteNodes.filter(
         (node) => node !== parentId,
       );
+
+      // Use a Set to keep track of all nodes in the clicked node's subtree
+      const nodesToRetain = new Set();
+
+      // Perform DFS from the parent node, if it exists
+
+      const stack = [clickedNodeId];
+      while (stack.length > 0) {
+        const nodeId = stack.pop();
+
+        if (nodeId && !nodesToRetain.has(nodeId)) {
+          nodesToRetain.add(nodeId);
+          edges.forEach((edge) => {
+            if (edge.source === nodeId) {
+              stack.push(edge.target);
+            }
+          });
+        }
+      }
 
       let updatedNodes = nodes.map((node: Node<EventTreeData>) => {
         if (nodesToRetain.has(node.id)) {
@@ -105,234 +102,145 @@ function useOnNodeClick(clickedNodeId: NodeProps["id"]) {
 
         const nodeIdsToRemove = new Set(nodesToRemove.map((node) => node.id));
 
-        const colIdsToRemove: string[] = [];
-        // If the column node exists, add its ID and the IDs of all corresponding tree nodes at the same depth
-        if (columnNode) {
-          colIdsToRemove.push(columnNode.id);
-
-          // Find and add all tree nodes at the same depth as the column node
-          updatedNodes.forEach((node) => {
-            if (
-              node.data.depth === columnNode.data.depth &&
-              node.type !== "columnNode"
-            ) {
-              colIdsToRemove.push(node.id);
-            }
-          });
-        }
-
-        // Initialize an array to store new edges
-        const newEdges: Edge[] = [];
-
-        // Step 1: Create new edges bypassing nodes in colIdsToRemove
-        colIdsToRemove.forEach((colId) => {
-          // Find the parent node ID for the current node
-          const parentNodeId = updatedEdges.find(
-            (edge) => edge.target === colId,
-          )?.source;
-          if (!parentNodeId) return; // Skip if no parent found
-
-          // Identify the single child node directly connected and not in nodeIdsToRemove
-          const childNode = updatedEdges.find(
-            (edge) =>
-              edge.source === colId && !nodeIdsToRemove.has(edge.target),
-          );
-
-          // If a valid child node is found, create a new edge from the parent to this child
-          if (childNode) {
-            const newEdge = {
-              id: GenerateUUID(),
-              source: parentNodeId,
-              target: childNode.target,
-              type: "custom",
-              animated: true,
-            }; // Assuming these new edges should be animated
-            newEdges.push(newEdge);
-          }
-        });
-
-        // Step 2: Remove edges that are connected to nodes in colIdsToRemove and nodeIdsToRemove
-        updatedEdges = updatedEdges
-          .filter(
-            (edge) =>
-              !colIdsToRemove.includes(edge.source) &&
-              !colIdsToRemove.includes(edge.target) &&
-              !nodeIdsToRemove.has(edge.source) &&
-              !nodeIdsToRemove.has(edge.target),
-          )
-          .concat(newEdges); // Add the new edges to the updated edges list
-
-        // Step 3: Remove nodes in colIdsToRemove and nodeIdsToRemove from updatedNodes
-        updatedNodes = updatedNodes.filter(
+        const colTreeNodes = updatedNodes.filter(
           (node) =>
-            !colIdsToRemove.includes(node.id) && !nodeIdsToRemove.has(node.id),
+            node.type !== "columnNode" &&
+            node.data.depth === columnNode.data.depth,
+        );
+        const colTreeNodeIds = new Set(colTreeNodes.map((n) => n.id));
+
+        // Remove these nodes from the nodes array
+        updatedNodes = updatedNodes.filter(
+          (node) => !nodeIdsToRemove.has(node.id),
+          // && !colTreeNodeIds.has(node.id),
         );
 
-        // // IMP STEP check if there are multiple animated links
-        // Filter parent nodes as per your existing logic
-        // const parentNodes = updatedNodes.filter(
-        //   (node) =>
-        //     clickedNode &&
-        //     node.data.depth === clickedNode.data.depth - 2 &&
-        //     node.type !== "columnNode",
-        // );
-        //
-        // parentNodes.forEach((parentNode) => {
-        //   // Find edges leading from the parent to invisible nodes
-        //   const edgesToInvisibleNodes = updatedEdges.filter((edge) =>
-        //     updatedNodes.find(
-        //       (node) =>
-        //         node.id === edge.target && node.type === "invisibleNode",
-        //     ),
-        //   );
-        //
-        //   if (edgesToInvisibleNodes.length > 1) {
-        //     // Create a new consolidated invisible node
-        //     const newNodeId = GenerateUUID();
-        //     const newNode = {
-        //       id: newNodeId,
-        //       type: "invisibleNode",
-        //       data: {
-        //         label: `Node ${newNodeId}`,
-        //         depth: parentNode.data.depth + 1, // Assuming depth is relevant here
-        //         output: false,
-        //         width: 140,
-        //         // Additional properties as needed
-        //       },
-        //       position: {
-        //         x: parentNode.position.x + 100,
-        //         y: parentNode.position.y,
-        //       }, // Example positioning
-        //     };
-        //     updatedNodes.push(newNode);
-        //
-        //     // Create a new edge from the parent node to the new invisible node
-        //     const newEdgeToNewNode = {
-        //       id: GenerateUUID(),
-        //       source: parentNode.id,
-        //       target: newNodeId,
-        //       animated: true,
-        //       type: "custom",
-        //     };
-        //     updatedEdges.push(newEdgeToNewNode);
-        //
-        //     // For each old invisible node, redirect its daughter nodes to the new invisible node
-        //     edgesToInvisibleNodes.forEach((edge) => {
-        //       const daughterEdges = updatedEdges.filter(
-        //         (e) => e.source === edge.target,
-        //       );
-        //
-        //       daughterEdges.forEach((daughterEdge) => {
-        //         // Create a new edge from the new invisible node to the daughter node
-        //         const newEdge = {
-        //           id: GenerateUUID(),
-        //           source: newNodeId,
-        //           target: daughterEdge.target,
-        //           animated: true,
-        //           type: "custom",
+        // const tempUpdatedEdges = [...updatedEdges]; // Create a shallow copy to accumulate updates
+
+        // colTreeNodes.forEach((node) => {
+        //   tempUpdatedEdges = tempUpdatedEdges
+        //     .map((edge) => {
+        //       if (edge.target === node.id) {
+        //         // Update the target of the edge to be clickedNodeId
+        //         console.log(colTreeNodes);
+        //         return {
+        //           ...edge,
+        //           target:
+        //             updatedEdges.find((edge) => edge.source === node.id)
+        //               ?.target ?? "",
         //         };
-        //         updatedEdges.push(newEdge);
-        //       });
-        //
-        //       // Remove the old edge from parent to the invisible node
-        //       updatedEdges = updatedEdges.filter((e) => e.id !== edge.id);
-        //       // Remove edges from the invisible node to its daughters
-        //       updatedEdges = updatedEdges.filter(
-        //         (e) => e.source !== edge.target,
-        //       );
-        //     });
-        //
-        //     // Remove the old invisible nodes
-        //     updatedNodes = updatedNodes.filter(
-        //       (node) =>
-        //         !edgesToInvisibleNodes.find((edge) => edge.target === node.id),
-        //     );
-        //   }
+        //       }
+        //       return edge; // No change for this edge
+        //     })
+        //     .filter((edge) => edge.source !== node.id);
         // });
-        finalNodes = updatedNodes;
-        finalEdges = updatedEdges;
+
+        // Now tempUpdatedEdges holds the updated edges
+        // updatedEdges = tempUpdatedEdges;
+        updatedEdges = updatedEdges.filter(
+          (edge) =>
+            // Now, filter out the edges connected to nodes marked for deletion
+            !nodeIdsToRemove.has(edge.source) &&
+            !nodeIdsToRemove.has(edge.target),
+        );
+
+        console.log(updatedEdges);
         // Update the React Flow state with the modifications
         setNodes(updatedNodes);
         setEdges(updatedEdges);
       } else {
-        finalNodes = updatedNodes;
-        finalEdges = updatedEdges;
         setNodes(updatedNodes);
         setEdges(updatedEdges);
       }
-    } else {
-      const parentId = edges.find((edge) => edge.target === clickedNodeId)
-        ?.source;
-      let updatedNodes = nodes.map((node: Node<EventTreeData>) => {
-        if (node.id === parentId) {
-          return {
-            ...node,
-            type: "invisibleNode",
-            data: { ...node.data, isTentative: false },
-          };
-        }
-        if (nodesToRetain.has(node.id)) {
-          if (siblingEdges.length === 1 && node.id === siblingEdges[0].target) {
-            return {
-              ...node,
-              type: "invisibleNode",
-              data: { ...node.data, isTentative: false },
-            };
-          }
-          return { ...node, data: { ...node.data, isTentative: false } }; // Outside the subtree
-        }
-        return node;
-      });
-      // Find all nodes that are marked as tentative
-      const nodesToRemove = updatedNodes.filter(
-        (node) => node.data.isTentative === true,
-      );
 
-      const nodeIdsToRemove = new Set(nodesToRemove.map((node) => node.id));
-      updatedNodes = updatedNodes.filter(
-        (node) => !nodeIdsToRemove.has(node.id),
-      );
-
-      const updatedEdges = edges
-        .filter(
-          (edge) =>
-            !nodeIdsToRemove.has(edge.source) &&
-            !nodeIdsToRemove.has(edge.target),
-        )
-        .map((edge) => {
-          if (edge.target === parentId) {
-            return { ...edge, animated: true };
-          }
-          if (
-            siblingEdges.length === 1 &&
-            edge.target === siblingEdges[0].target
-          ) {
-            return { ...edge, animated: true };
-          }
-          return edge;
-        });
-
-      finalNodes = updatedNodes;
-      finalEdges = updatedEdges;
-      // Update the React Flow state with the modifications
-      setNodes(updatedNodes);
-      setEdges(updatedEdges);
+      // // Optionally, save the updated tree state
+      // const eventTreeCurrentState: EventTreeGraph = EventTreeState({
+      //   eventTreeId: eventTreeId,
+      //   nodes: updatedNodes,
+      //   edges: updatedEdges,
+      // });
+      //
+      // void GraphApiManager.storeEventTree(eventTreeCurrentState).then(
+      //   (r: EventTreeGraph) => {
+      //     console.log("Updated Event Tree:", r);
+      //   },
+      // );
     }
-    // Optionally, save the updated tree state
-    const eventTreeCurrentState: EventTreeGraph = EventTreeState({
-      eventTreeId: eventTreeId,
-      nodes: finalNodes,
-      edges: finalEdges,
-    });
-
-    void GraphApiManager.storeEventTree(eventTreeCurrentState).then(
-      (r: EventTreeGraph) => {
-        console.log("Updated Event Tree:", r);
-      },
-    );
   };
 
   return deleteNode;
+}
+
+function deleteSubtree(nodes: Node[], edges: Edge[], clickedNodeId: string) {
+  let parentNodeId = "";
+  // Identify edges for animation
+  const edgeToAnimateIds = new Set();
+
+  // Find the parent of the clicked node and edges to animate
+  edges.forEach((edge) => {
+    if (edge.target === clickedNodeId) {
+      parentNodeId = edge.source; // Find the parent node ID
+      edgeToAnimateIds.add(edge.id); // Add the connecting edge for animation
+    }
+    if (edge.source === parentNodeId) {
+      edgeToAnimateIds.add(edge.id); // Add edges originating from the parent node
+    }
+  });
+
+  // Use a Set to keep track of all nodes in the clicked node's subtree
+  const nodesToRetain = new Set([clickedNodeId]);
+  const nodesToDelete = new Set();
+  // Perform DFS from the parent node, if it exists
+
+  const stack = [parentNodeId];
+  while (stack.length > 0) {
+    const nodeId = stack.pop();
+    if (nodeId && nodeId !== clickedNodeId && !nodesToRetain.has(nodeId)) {
+      // Exclude clicked node and its subtree
+      if (nodeId !== parentNodeId) {
+        nodesToDelete.add(nodeId);
+      }
+      edges.forEach((edge) => {
+        if (edge.source === nodeId) {
+          stack.push(edge.target);
+        }
+      });
+    }
+  }
+
+  // Filter nodes to retain only the clicked node's subtree and set visibility
+  const updatedNodes = nodes
+    .map((node) => {
+      if (node.id === clickedNodeId || node.id === parentNodeId) {
+        return {
+          ...node,
+          type: "invisibleNode",
+          data: { ...node.data, isTentative: false },
+        }; // Set clicked and parent node to invisible
+      } else if (!nodesToDelete.has(node.id)) {
+        return { ...node, data: { ...node.data, isTentative: false } }; // Outside the subtree
+      }
+      return null; // Prepare to filter out
+    })
+    .filter((node) => node !== null) as Node[];
+
+  const updatedEdges = edges
+    .map((edge) => {
+      // Check if the edge needs to be animated and is not marked for deletion
+      if (edgeToAnimateIds.has(edge.id)) {
+        // Return a new edge object with animated set to true
+        return { ...edge, animated: true };
+      }
+      // Return the edge as-is if it doesn't need to be animated
+      return edge;
+    })
+    .filter(
+      (edge) =>
+        // Now, filter out the edges connected to nodes marked for deletion
+        !nodesToDelete.has(edge.source) && !nodesToDelete.has(edge.target),
+    );
+
+  return { updatedNodes, updatedEdges };
 }
 
 export default useOnNodeClick;

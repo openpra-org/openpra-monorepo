@@ -5,4 +5,7 @@ export type EventTreeData = {
   output: boolean;
   inputDepth?: number;
   outputDepth?: number;
+  isTentative?: boolean;
+  isDelete?: boolean;
+  tentativeDeleteNodes?: string[];
 };

@@ -82,8 +82,8 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
     const loadGraph = async (): Promise<void> => {
       await GraphApiManager.getEventTree(eventTreeId).then(
         (res: EventTreeGraph) => {
-          setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
-          setEdges(res.edges.length !== 0 ? res.edges : edgeData);
+          // setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
+          // setEdges(res.edges.length !== 0 ? res.edges : edgeData);
           setLoading(false);
         },
       );
@@ -167,7 +167,7 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
  */
 
 export const EventTreeEditor = (): ReactElement => {
-  const input = 2;
+  const input = 4;
   const output = 1;
   const { nodes, edges } = useTreeData(input, output, 140);
 

@@ -4,14 +4,31 @@ import React from "react";
 import { EuiText } from "@elastic/eui";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 import useDeleteNodeClick from "../../../hooks/eventTree/useDeleteNodeClick";
+import useOnNodeClick from "../../../hooks/eventTree/useOnNodeClick";
 import styles from "./styles/nodeTypes.module.css";
 
 function VisibleNode({ id, data }: NodeProps) {
   const onClickCreate = useCreateNodeClick(id);
   const onClickDelete = useDeleteNodeClick(id);
+  const onClickDeleteSubtree = useOnNodeClick(id);
+
+  // Wrap the original onClickCreate in a new function that stops event propagation
+  const handleCreateClick = (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+    onClickCreate();
+  };
+
+  // Wrap the original onClickDelete in a new function that stops event propagation
+  const handleDeleteClick = (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+    onClickDelete();
+  };
 
   return (
-    <div>
+    <div
+      onClick={onClickDeleteSubtree}
+      style={{ opacity: data.isTentative ? "0.5" : "1" }}
+    >
       <Handle
         type="target"
         position={Position.Left}
@@ -49,10 +66,10 @@ function VisibleNode({ id, data }: NodeProps) {
               justifyContent: "center",
             }}
           >
-            <p onClick={onClickCreate} className={styles.addNodeButtonText}>
+            <p onClick={handleCreateClick} className={styles.addNodeButtonText}>
               +
             </p>
-            <p onClick={onClickDelete} className={styles.addNodeButtonText}>
+            <p onClick={handleDeleteClick} className={styles.addNodeButtonText}>
               -
             </p>
           </div>

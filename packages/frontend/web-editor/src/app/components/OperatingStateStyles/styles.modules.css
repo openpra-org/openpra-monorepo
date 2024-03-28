@@ -1,0 +1,31 @@
+.datagrid-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.euiDataGrid {
+  width: 80%;
+  margin: 0 auto;
+}
+
+.datagrid input[type="checkbox"] {
+  display: none;
+}
+
+.datagrid input[type="checkbox"] + label {
+  display: inline-block;
+  border: 1px solid #000;
+  width: 30px;
+  height: 30px;
+  position: relative;
+}
+
+.datagrid input[type="checkbox"]:checked + label::after {
+  content: "✔";
+  position: absolute;
+  left: 10px; /* Adjust as needed */
+  top: 5px; /* Adjust as needed */
+  font-size: 1.6em;
+}

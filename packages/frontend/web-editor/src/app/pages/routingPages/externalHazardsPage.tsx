@@ -4,7 +4,7 @@ import { ExternalHazardsList } from "../../components/lists/workspaceLists/exter
 import { ExternalHazardsContainer } from "../../components/pageContainers/externalHazardsContainer";
 import { HRA } from "../fullScopePages/humanReliabilityAnalysis";
 import { BayesianEstimation } from "../fullScopePages/bayesianEstimation";
-import { BayesianNetworks } from "../fullScopePages/bayesianNetworks";
+import BayesianNetworks  from "../fullScopePages/bayesianNetworks";
 import { EventSequenceDiagrams } from "../fullScopePages/eventSequenceDiagrams";
 import { EventTrees } from "../fullScopePages/eventTrees";
 import { ExternalFlooding } from "../fullScopePages/externalFlooding";

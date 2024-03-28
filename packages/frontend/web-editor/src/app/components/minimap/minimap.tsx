@@ -1,0 +1,26 @@
+import React from "react";
+import { MiniMap, Node } from "reactflow";
+
+type CustomMiniMapProps = {
+  nodeColor?: (node: Node) => string;
+  nodeStrokeWidth?: number;
+  nodeBorderRadius?: number;
+};
+
+const CustomMiniMap: React.FC<CustomMiniMapProps> = ({
+  nodeColor = () => "#0984e3", // Provide a default function for nodeColor
+  nodeStrokeWidth = 3, // Default stroke width
+  nodeBorderRadius = 2, // Default border radius
+  ...props
+}) => (
+  <MiniMap
+    zoomable
+    pannable
+    nodeColor={nodeColor}
+    nodeStrokeWidth={nodeStrokeWidth}
+    nodeBorderRadius={nodeBorderRadius}
+    {...props} // Spread other props to allow further customization
+  />
+);
+
+export default CustomMiniMap;

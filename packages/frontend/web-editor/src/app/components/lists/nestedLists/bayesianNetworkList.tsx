@@ -1,3 +1,4 @@
+
 import {
   DeleteBayesianNetwork,
   GetBayesianNetworks,
@@ -5,7 +6,7 @@ import {
 } from "shared-types/src/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function BayesianNetworkList(): JSX.Element {
+export default function BayesianNetworkList() {
   return (
     <NestedModelList
       getNestedEndpoint={GetBayesianNetworks}
@@ -15,4 +16,3 @@ function BayesianNetworkList(): JSX.Element {
     />
   );
 }
-export { BayesianNetworkList };

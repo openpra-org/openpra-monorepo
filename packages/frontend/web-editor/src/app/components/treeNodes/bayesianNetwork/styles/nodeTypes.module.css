@@ -1,0 +1,116 @@
+body {
+  margin: 0;
+  height: 100%;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+.react-flow__node-mindmap {
+  position: relative;
+  background: white;
+  border-radius: 2px;
+  border: 1px solid transparent;
+  padding: 2px 5px;
+  font-weight: 700;
+}
+
+.react-flow__handle.target, .targetHandle{
+  pointer-events: none;
+  opacity: 0;
+  background: transparent;
+  top: 0;
+  left: 50%;
+  border: none;
+}
+
+.react-flow__handle.source, .sourceHandle {
+  height: 100%;
+  width: 100%;
+  top: 0;
+  left: 0;
+  transform: none;
+  background: transparent;
+  border-radius: 2px;
+  border: none;
+  pointer-events: none;
+  z-index: 9;
+}
+
+/* we want the connection line to be below the node */
+.react-flow .react-flow__connectionline {
+  z-index: 0;
+}
+
+.inputWrapper {
+  display: flex;
+  height: 20px;
+  position: relative;
+  pointer-events: auto;
+  background: white;
+  border: 1px solid #0984e3;
+  border-radius: 1px;
+  gap: 0;
+}
+
+.dragHandle {
+  background: #0984e3;
+  width: 14px;
+  height: 100%;
+  margin-right: 0px;
+  display: flex;
+  align-items: center;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+ /*pointer-events: none by default */
+.input {
+  border: none;
+  padding: 0 2px;
+  border-radius: none;
+  font-weight: 100;
+  background: transparent;
+  height: 100%;
+  color: #0984e3;
+  pointer-events: none;
+  flex-grow: 1;
+}
+
+.inputWrapper:hover .input,
+.input:focus {
+  pointer-events: auto;
+  border-radius: none;
+}
+
+/* pointer-events: all when it's focused so that we can type in it */
+.input:focus {
+  border: none;
+  outline: none;
+  pointer-events: all;
+}
+
+.label {
+  white-space: nowrap;
+  user-select: none; /* Prevent user from selecting the label text */
+}
+
+
+@keyframes blink {
+  50% {
+    border-color: black;
+    transform: scale(1.1);
+  }
+}
+
+.blinking-node {
+  animation: blink 1s step-start 0s infinite;
+  border: 2px solid black; /* Default border */
+  transform: scale(1); /* Default scale */
+}
+
+
+

@@ -2,7 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 import { InternalHazardsList } from "../../components/lists/workspaceLists/internalHazardsList";
 import { EventSequenceDiagrams } from "../fullScopePages/eventSequenceDiagrams";
-import { BayesianNetworks } from "../fullScopePages/bayesianNetworks";
+import BayesianNetworks from "../fullScopePages/bayesianNetworks";
 import { ModelSettings } from "../fullScopePages/modelSettings";
 import { InitiatingEvents } from "../fullScopePages/initiatingEvents";
 import { EventTrees } from "../fullScopePages/eventTrees";

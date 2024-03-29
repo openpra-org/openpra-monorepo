@@ -2,7 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 import { InternalEventsList } from "../../components/lists/workspaceLists/internalEventsList";
 import { EventSequenceDiagrams } from "../fullScopePages/eventSequenceDiagrams";
-import BayesianNetworks from "../fullScopePages/bayesianNetworks";
+import { BayesianNetworks } from "../fullScopePages/bayesianNetworks";
 import { ModelSettings } from "../fullScopePages/modelSettings";
 import { InitiatingEvents } from "../fullScopePages/initiatingEvents";
 import { EventTrees } from "../fullScopePages/eventTrees";
@@ -22,6 +22,7 @@ import { SystemsAnalysis } from "../fullScopePages/systemsAnalysis";
 import { EventSequenceQuantificationDiagrams } from "../fullScopePages/eventSequenceQuantificationDiagrams";
 import { RadiologicalConsequenceAnalysisList } from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
 import { FaultTrees } from "../fullScopePages/faultTrees";
+import { InitiatingEventModelView } from "../fullScopePages/initiatingEventModelView";
 import { GlobalToastList } from "../../components/lists/globalToastList";
 import { ToastProvider } from "../../providers/toastProvider";
 
@@ -86,6 +87,10 @@ function InternalEventsPage(): JSX.Element {
             element={<OperatingStateAnalysis />}
           />
           <Route path="initiating-events/*" element={<InitiatingEvents />} />
+          <Route
+            path="initiating-events-model-view/*"
+            element={<InitiatingEventModelView />}
+          />
           <Route
             path="event-sequence-diagrams/*"
             element={<EventSequenceDiagrams />}

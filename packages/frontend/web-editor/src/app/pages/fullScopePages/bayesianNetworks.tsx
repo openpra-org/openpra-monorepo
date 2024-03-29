@@ -1,15 +1,13 @@
-import React, { useCallback, useRef, useEffect, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import "reactflow/dist/style.css";
 import { Route, Routes } from "react-router-dom";
 import { shallow } from "zustand/shallow";
-import { nanoid } from "nanoid";
 import ReactFlow, {
   Node,
   Controls,
   Panel,
   ReactFlowProvider,
   NodeOrigin,
-  NodeChange,
   OnConnectStart,
   OnConnectEnd,
   useStoreApi,
@@ -354,7 +352,7 @@ export function BayesianNetworkEditor() {
   );
 }
 
-export default function BayesianNetworks() {
+function BayesianNetworks(): JSX.Element {
   return (
     <Routes>
       <Route path="" element={<BayesianNetworkList />} />
@@ -362,3 +360,5 @@ export default function BayesianNetworks() {
     </Routes>
   );
 }
+
+export { BayesianNetworks };

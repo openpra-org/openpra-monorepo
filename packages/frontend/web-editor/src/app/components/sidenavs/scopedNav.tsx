@@ -106,6 +106,16 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           },
           1,
         ),
+        createTreeItem(
+          "Model View",
+          {
+            icon: <EuiToken iconType="shard" />,
+            callback: () => {
+              navigate("initiating-events-model-view");
+            },
+          },
+          1
+        )
       ],
     }),
   ];

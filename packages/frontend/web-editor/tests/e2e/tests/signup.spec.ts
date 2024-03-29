@@ -10,7 +10,9 @@ export async function SignUp({
   await page.goto("/");
   await page.getByPlaceholder("First name").fill("Playwright");
   await page.getByPlaceholder("Last name").fill("press");
-  await page.getByPlaceholder("Email").fill("playwright@gmail.com");
+  await page
+    .getByPlaceholder("Email")
+    .fill("playwright" + Math.floor(Math.random() * 10000000) + "@gmail.com");
   await page.getByPlaceholder("Username").fill(username);
   await page.getByPlaceholder("Password", { exact: true }).fill("Playwright12");
   await page.getByPlaceholder("Confirm Password").fill("Playwright12");

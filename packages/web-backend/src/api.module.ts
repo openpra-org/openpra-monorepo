@@ -9,6 +9,7 @@ import { TypedModelModule } from "./typedModel/typedModel.module";
 import { NestedModelModule } from "./nestedModels/nestedModel.module";
 import { ApiController } from "./api.controller";
 import { ApiService } from "./api.service";
+import { FmeaModule } from "./fmea/fmea.module";
 import { GraphModelModule } from "./graphModels/graphModel.module";
 
 @Module({
@@ -17,6 +18,7 @@ import { GraphModelModule } from "./graphModels/graphModel.module";
     CollabModule,
     TypedModelModule,
     NestedModelModule,
+    FmeaModule,
     GraphModelModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
@@ -51,6 +53,10 @@ import { GraphModelModule } from "./graphModels/graphModel.module";
           {
             path: "nested-models",
             module: NestedModelModule,
+          },
+          {
+            path: "fmea",
+            module: FmeaModule,
           },
           {
             path: "graph-models",

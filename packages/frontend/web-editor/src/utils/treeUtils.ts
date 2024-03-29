@@ -58,9 +58,12 @@ export type BaseGraphState = {
   edges: Edge[];
 };
 
-export type OnUpdateGraphState = {
-  updateState?: boolean;
-} & BaseGraphState;
+export type OnUpdateOrDeleteGraphState = {
+  syncState?: boolean;
+  updatedState: BaseGraphState;
+  updatedSubgraph: BaseGraphState;
+  deletedSubgraph: BaseGraphState;
+};
 
 /**
  * Generate the event sequence state with the provided list of nodes and edges, for a particular event sequence id
@@ -301,26 +304,33 @@ export function BuildAnEdge(
   };
 }
 
-/**
- * Stores current state of the event sequence diagram
- * @param eventSequenceId - Event Sequence ID
- * @param nodes - list of current nodes
- * @param edges - list of current edges
- */
-export function StoreEventSequenceDiagramCurrentState(
+export function UpdateEventSequenceDiagram(
   eventSequenceId: string,
-  nodes: Node[],
-  edges: Edge[],
+  updatedSubgraph: BaseGraphState,
+  deletedSubgraph: BaseGraphState,
+  updatedState: BaseGraphState,
 ): void {
-  const eventSequenceCurrentState: EventSequenceGraph = EventSequenceState({
+  const updatedSubgraphState: EventSequenceGraph = EventSequenceState({
     eventSequenceId: eventSequenceId,
-    nodes: nodes,
-    edges: edges,
+    nodes: updatedSubgraph.nodes,
+    edges: updatedSubgraph.edges,
   });
-
-  void GraphApiManager.storeEventSequence(eventSequenceCurrentState).then(
-    (r: EventSequenceGraph) => r,
-  );
+  const deletedSubgraphState: EventSequenceGraph = EventSequenceState({
+    eventSequenceId: eventSequenceId,
+    nodes: deletedSubgraph.nodes,
+    edges: deletedSubgraph.edges,
+  });
+  const currentState: EventSequenceGraph = EventSequenceState({
+    eventSequenceId: eventSequenceId,
+    nodes: updatedState.nodes,
+    edges: updatedState.edges,
+  });
+  void GraphApiManager.updateESSubgraph(
+    eventSequenceId,
+    updatedSubgraphState,
+    deletedSubgraphState,
+    currentState,
+  ).then((r: boolean) => r);
 }
 
 /**
@@ -337,7 +347,7 @@ export function DeleteEventSequenceNode(
   selectedNode: Node<EventSequenceNodeProps, EventSequenceNodeTypes>,
   currentNodes: Node[],
   currentEdges: Edge[],
-): OnUpdateGraphState | undefined {
+): OnUpdateOrDeleteGraphState | undefined {
   // if the selected node is already in an intermediate delete state, it cannot be deleted
   if (
     selectedNode.data.isDeleted === true ||
@@ -400,10 +410,20 @@ export function DeleteEventSequenceNode(
       .concat([newEdge]);
 
     return {
-      nodes: newNodes,
-      edges: newEdges,
-      updateState: true,
-    } as OnUpdateGraphState;
+      updatedState: {
+        nodes: newNodes,
+        edges: newEdges,
+      },
+      updatedSubgraph: {
+        nodes: [],
+        edges: [newEdge],
+      },
+      deletedSubgraph: {
+        nodes: [selectedNode],
+        edges: connectedEdges,
+      },
+      syncState: true,
+    } as OnUpdateOrDeleteGraphState;
   }
 
   // for other types of nodes, simply return as they cannot be deleted
@@ -422,7 +442,7 @@ function GenerateTentativeState(
   selectedNode: Node<EventSequenceNodeProps>,
   currentNodes: Node<EventSequenceNodeProps>[],
   currentEdges: Edge<EventSequenceEdgeProps>[],
-): OnUpdateGraphState {
+): OnUpdateOrDeleteGraphState {
   const isUpdated = mode === "update";
   const isDeleted = mode === "delete";
   const { nodes, edges } = GetSubgraph(
@@ -443,6 +463,7 @@ function GenerateTentativeState(
       if (mappedNode.id === selectedNode.id) {
         return {
           ...mappedNode,
+          type: selectedNode.type,
           data: {
             ...mappedNode.data,
             tentative: true,
@@ -463,10 +484,49 @@ function GenerateTentativeState(
     },
   );
   return {
-    nodes: newNodes,
-    edges: newEdges,
-    updateState: false,
-  } as OnUpdateGraphState;
+    updatedState: {
+      nodes: newNodes,
+      edges: newEdges,
+    },
+    syncState: false,
+  } as OnUpdateOrDeleteGraphState;
+}
+
+export function RevertTentativeState(
+  currentNodes: Node<EventSequenceNodeProps>[],
+  currentEdges: Edge<EventSequenceEdgeProps>[],
+): OnUpdateOrDeleteGraphState {
+  const newNodes = currentNodes.map(
+    (node: Node<EventSequenceNodeProps>): Node<EventSequenceNodeProps> => {
+      if (node.data.tentative === true) {
+        node.data = {
+          ...node.data,
+          tentative: false,
+          isUpdated: false,
+          isDeleted: false,
+        };
+      }
+      return node;
+    },
+  );
+  const newEdges: Edge[] = currentEdges.map(
+    (edge: Edge<EventSequenceEdgeProps>) => {
+      if (edge.data?.tentative === true) {
+        edge.data = {
+          ...edge.data,
+          tentative: false,
+        };
+      }
+      return edge;
+    },
+  );
+  return {
+    updatedState: {
+      nodes: newNodes,
+      edges: newEdges,
+    },
+    syncState: false,
+  } as OnUpdateOrDeleteGraphState;
 }
 
 /**
@@ -523,7 +583,7 @@ export function UpdateEventSequenceNode(
   selectedNode: Node<EventSequenceNodeProps, EventSequenceNodeTypes>,
   currentNodes: Node[],
   currentEdges: Edge[],
-): OnUpdateGraphState | undefined {
+): OnUpdateOrDeleteGraphState | undefined {
   const childNodes = getOutgoers(selectedNode, currentNodes, currentEdges);
   const nodesToAdd: Node[] = [];
   const edgesToAdd: Edge[] = [];
@@ -627,10 +687,25 @@ export function UpdateEventSequenceNode(
     .concat(edgesToAdd);
 
   return {
-    nodes: updatedNodes,
-    edges: updatedEdges,
-    updateState: true,
-  } as OnUpdateGraphState;
+    updatedState: {
+      nodes: updatedNodes.map((n) => {
+        if (n.id === selectedNode.id) {
+          n.type = selectedNode.type;
+        }
+        return n;
+      }),
+      edges: updatedEdges,
+    },
+    updatedSubgraph: {
+      nodes: [...nodesToAdd, selectedNode],
+      edges: edgesToAdd,
+    },
+    deletedSubgraph: {
+      nodes: nodesToRemove,
+      edges: edgesToRemove,
+    },
+    syncState: true,
+  } as OnUpdateOrDeleteGraphState;
 }
 
 /**

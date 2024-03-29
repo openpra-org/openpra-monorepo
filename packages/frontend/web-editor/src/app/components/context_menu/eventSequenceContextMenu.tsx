@@ -12,7 +12,7 @@ import {
   DeleteEventSequenceNode,
   GetDefaultLabelOfNode,
   GetESToast,
-  StoreEventSequenceDiagramCurrentState,
+  UpdateEventSequenceDiagram,
   UpdateEventSequenceNode,
 } from "../../../utils/treeUtils";
 import FunctionalNodeIcon from "../../../assets/images/nodeIcons/functionalNodeIcon.svg";
@@ -66,13 +66,14 @@ function EventSequenceContextMenu({
           currentEdges,
         );
         if (onDeleteState !== undefined) {
-          setNodes(onDeleteState.nodes);
-          setEdges(onDeleteState.edges);
-          if (onDeleteState.updateState) {
-            StoreEventSequenceDiagramCurrentState(
+          setNodes(onDeleteState.updatedState.nodes);
+          setEdges(onDeleteState.updatedState.edges);
+          if (onDeleteState.syncState) {
+            UpdateEventSequenceDiagram(
               eventSequenceId,
-              onDeleteState.nodes,
-              onDeleteState.edges,
+              onDeleteState.updatedSubgraph,
+              onDeleteState.deletedSubgraph,
+              onDeleteState.updatedState,
             );
           }
         }
@@ -95,26 +96,20 @@ function EventSequenceContextMenu({
       parentNode.type = type;
       parentNode.data.label = GetDefaultLabelOfNode(type);
 
-      const updatedState = UpdateEventSequenceNode(
+      const state = UpdateEventSequenceNode(
         parentNode,
         currentNodes,
         currentEdges,
       );
-      if (updatedState !== undefined) {
-        setNodes(
-          updatedState.nodes.map((n) => {
-            if (n.id === parentNode.id) {
-              n.type = type;
-            }
-            return n;
-          }),
-        );
-        setEdges(updatedState.edges);
-        if (updatedState.updateState) {
-          StoreEventSequenceDiagramCurrentState(
+      if (state !== undefined) {
+        setNodes(state.updatedState.nodes);
+        setEdges(state.updatedState.edges);
+        if (state.syncState) {
+          UpdateEventSequenceDiagram(
             eventSequenceId,
-            updatedState.nodes,
-            updatedState.edges,
+            state.updatedSubgraph,
+            state.deletedSubgraph,
+            state.updatedState,
           );
         }
       }

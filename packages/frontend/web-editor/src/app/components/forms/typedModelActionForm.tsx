@@ -145,7 +145,12 @@ function TypedModelActionForm({
 
       //calls the 2 functions depending on what is passed to patch
       if (initialFormValues) {
-        if (itemName === "Internal Events" || itemName === "Internal Hazards") {
+        if (
+          itemName === "Internal Events" ||
+          itemName === "Internal Hazards" ||
+          itemName === "External Hazards" ||
+          itemName === "Full Scope"
+        ) {
           if (patchFunction) {
             void patchFunction(initialFormValues.id, userId, partialModel).then(
               () => {
@@ -162,7 +167,9 @@ function TypedModelActionForm({
         if (postFunction) {
           if (
             itemName === "Internal Events" ||
-            itemName === "Internal Hazards"
+            itemName === "Internal Hazards" ||
+            itemName === "External Hazards" ||
+            itemName === "Full Scope"
           ) {
             postFunction(partialModel).then(() => {
               onCancel && onCancel(false);

@@ -1,10 +1,11 @@
 import { ReactElement } from "react";
-import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
-import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
-import { InternalHazardsModel } from "packages/shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
+import {
+  TypedModelJSON,
+  typedModelType,
+} from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { GenericListItem } from "./GenericListItem";
 
-function CreateGenericList<T extends InternalEventsModelType>(
+function CreateGenericList<T extends typedModelType>(
   modelList: T[],
   endpoint: string,
   postFunction?: (data: Partial<TypedModelJSON>) => Promise<void>,
@@ -18,8 +19,8 @@ function CreateGenericList<T extends InternalEventsModelType>(
     modelId: number,
     userId: number,
     data: Partial<TypedModelJSON>,
-  ) => Promise<InternalHazardsModel>,
-  deleteTypedEndpoint?: (id: number) => Promise<InternalHazardsModel>,
+  ) => Promise<T>,
+  deleteTypedEndpoint?: (id: number) => Promise<T>,
 ): ReactElement[] {
   return modelList.map((modelItem: T) => (
     <GenericListItem

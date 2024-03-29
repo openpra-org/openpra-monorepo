@@ -38,7 +38,7 @@ export type GenericListItemProps = {
   path: string;
   itemName: string;
   _id?: string;
-}
+};
 
 /**
  *

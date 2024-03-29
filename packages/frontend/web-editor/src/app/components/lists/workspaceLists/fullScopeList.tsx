@@ -1,85 +1,38 @@
-import ApiManager from "shared-types/src/lib/api/ApiManager";
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
-import { FullScopeModel } from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
 import { ReactElement, useEffect, useState } from "react";
-import {
-  DeleteFullScope,
-  GetFullScopeModels,
-  PatchFullScope,
-} from "shared-types/src/lib/api/TypedModelApiManager";
-import { GenericListItem } from "../GenericListItem";
+import { FullScopeModelType } from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
 import { GenericItemList } from "../GenericItemList";
-
-//grabs the model List
-async function fetchModelList(): Promise<FullScopeModel[]> {
-  try {
-    return await GetFullScopeModels(ApiManager.getCurrentUser().user_id);
-  } catch (error) {
-    //console.error("Error fetching internal events:", error);
-    return [];
-  }
-}
-
-//this doesnt work right now, it returns a typedModelJSon I think instead of internaleventsmdoel
-//this works but poorly, need to fix how ids are done
-//I also cant really get the items to know what type they are, I'm assuming typedmodeljson
-const getFixtures = async (): Promise<JSX.Element[]> => {
-  try {
-    const modelList = await fetchModelList();
-    //we convert the full object type returned here (that should be  promise<internalevents>) but it isnt
-    const fullScopeList: FullScopeModel[] = modelList.map(
-      (item: any) =>
-        new FullScopeModel(
-          item.id,
-          item.label.name,
-          item.label.description,
-          item.users,
-        ),
-    );
-    //now we map these events to what they should be and display them
-    return fullScopeList.map((modelItem: FullScopeModel) => (
-      <GenericListItem
-        itemName={modelItem.getLabel().getName()}
-        id={modelItem.getId()}
-        key={modelItem.getId()} // Use a unique key for each item (e.g., the ID)
-        label={{
-          name: modelItem.getLabel().getName(),
-          description: modelItem.getLabel().getDescription(),
-        }}
-        path={`/full-scope/${modelItem.getId()}`}
-        endpoint={`full-scope`} // Adjust this based on your model's structure
-        deleteTypedEndpoint={DeleteFullScope}
-        patchTypedEndpoint={PatchFullScope}
-        users={modelItem.getUsers()}
-      />
-    ));
-  } catch (error) {
-    console.error("Error fetching internal events:", error);
-    return []; // Return an empty array or handle the error as needed
-  }
-};
+import { UseGlobalStore } from "../../../zustand/Store";
+import { CreateGenericList } from "../GenericList";
 
 function FullScopeList(): JSX.Element {
-  const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
+
+  const fullScopeList = UseGlobalStore.use.fullScope();
+  const setFullScope = UseGlobalStore.use.setFullScope();
+  const createFullScope = UseGlobalStore.use.addFullScope();
+  const deleteFullScope = UseGlobalStore.use.deleteFullScope();
+  const editFullScope = UseGlobalStore.use.editFullScope();
 
   useEffect(() => {
-    const fetchGenericListItems = async (): Promise<void> => {
-      try {
-        const items = await getFixtures();
-        setGenericListItems(items);
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Error fetching fixtures:", error);
-        setGenericListItems([]); // Set empty array or handle the error as needed
-        if (error) {
-          setIsLoading(true);
-        }
-      }
-    };
+    setIsLoading(true);
+    void setFullScope().then(() => {
+      setIsLoading(false);
+    });
+  }, [setFullScope]);
 
-    void fetchGenericListItems();
-  }, []);
+  useEffect(() => {
+    setGenericListItems(
+      CreateGenericList<FullScopeModelType>(
+        fullScopeList,
+        "Full Scope",
+        createFullScope,
+        editFullScope,
+        deleteFullScope,
+      ),
+    );
+  }, [createFullScope, deleteFullScope, editFullScope, fullScopeList]);
 
   return (
     <EuiPageTemplate

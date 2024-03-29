@@ -29,6 +29,7 @@ import { SuccessCriteria } from "../fullScopePages/successCriteria";
 import { SystemsAnalysis } from "../fullScopePages/systemsAnalysis";
 import { DataAnalysis } from "../fullScopePages/dataAnalysis";
 import { FaultTrees } from "../fullScopePages/faultTrees";
+import { HeatBalanceFaultTrees } from "../fullScopePages/heatBalanceFaultTree";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -82,6 +83,10 @@ function FullScopePage(): JSX.Element {
           element={<OperatingStateAnalysis />}
         />
         <Route path="initiating-events/*" element={<InitiatingEvents />} />
+        <Route
+          path="heat-balance-fault-trees/*"
+          element={<HeatBalanceFaultTrees />}
+        />
         <Route
           path="event-sequence-diagrams/*"
           element={<EventSequenceDiagrams />}

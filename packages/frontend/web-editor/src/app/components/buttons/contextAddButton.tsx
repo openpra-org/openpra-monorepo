@@ -10,6 +10,7 @@ import {
   CreateEventTreeButton,
   CreateExternalHazardsButton,
   CreateFaultTreeButton,
+  CreateHeatBalanceFaultTreeButton,
   CreateFullScopeButton,
   CreateFunctionalEventButton,
   CreateHumanReliabilityAnalysisButton,
@@ -43,6 +44,8 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/functional-events"))
       return <CreateFunctionalEventButton />;
     if (location.endsWith("/fault-trees")) return <CreateFaultTreeButton />;
+    if (location.endsWith("/heat-balance-fault-trees"))
+      return <CreateHeatBalanceFaultTreeButton />;
     if (location.endsWith("/markov-chains")) return <CreateMarkovChainButton />;
     if (location.endsWith("/bayesian-estimation"))
       return <CreateBayesianEstimationButton />;
@@ -82,6 +85,8 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/functional-events"))
       return <CreateFunctionalEventButton />;
     if (location.endsWith("/fault-trees")) return <CreateFaultTreeButton />;
+    if (location.endsWith("/heat-balance-fault-trees"))
+      return <CreateHeatBalanceFaultTreeButton />;
     if (location.endsWith("/markov-chains")) return <CreateMarkovChainButton />;
     if (location.endsWith("/bayesian-estimations"))
       return <CreateBayesianEstimationButton />;
@@ -101,6 +106,8 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/functional-events"))
       return <CreateFunctionalEventButton />;
     if (location.endsWith("/fault-trees")) return <CreateFaultTreeButton />;
+    if (location.endsWith("/heat-balance-fault-trees"))
+      return <CreateHeatBalanceFaultTreeButton />;
     if (location.endsWith("/markov-chains")) return <CreateMarkovChainButton />;
     if (location.endsWith("/bayesian-estimations"))
       return <CreateBayesianEstimationButton />;
@@ -119,6 +126,8 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/functional-events"))
       return <CreateFunctionalEventButton />;
     if (location.endsWith("/fault-trees")) return <CreateFaultTreeButton />;
+    if (location.endsWith("/heat-balance-fault-trees"))
+      return <CreateHeatBalanceFaultTreeButton />;
     if (location.endsWith("/markov-chains")) return <CreateMarkovChainButton />;
     if (location.endsWith("/bayesian-estimations"))
       return <CreateBayesianEstimationButton />;

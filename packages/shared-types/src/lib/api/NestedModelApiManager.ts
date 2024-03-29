@@ -22,6 +22,7 @@ const API_ENDPOINT = "/api";
 const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, only-if-cached
 const NESTED_ENDPOINT = `${API_ENDPOINT}/nested-models`;
 const INITIATING_EVENTS_ENDPOINT = `${NESTED_ENDPOINT}/initiating-events`;
+const HEAT_BALANCE_FAULT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/heat-balance-fault-trees`;
 const EVENT_SEQUENCE_DIAGRAMS_ENDPOINT = `${NESTED_ENDPOINT}/event-sequence-diagrams`;
 const EVENT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/event-trees`;
 const FUNCTIONAL_EVENTS_ENDPOINT = `${NESTED_ENDPOINT}/functional-events`;
@@ -69,6 +70,22 @@ export async function PostInitiatingEvent(
     data,
   ).then((response) => response.json() as Promise<NestedModel>);
   await AddNestedModelToTypedModel("initiatingEvents");
+  return returnResponse;
+}
+
+/**
+ * Posts the type of nested model, and adds its id to its parent
+ * @param data - a nestedModelJSON containing a label and a parent id
+ * @returns a promise with the nested model, containing only those features
+ */
+export async function PostHeatBalanceFaultTree(
+  data: NestedModelJSON,
+): Promise<NestedModel> {
+  const returnResponse = await Post(
+    `${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/`,
+    data,
+  ).then((response) => response.json() as Promise<NestedModel>);
+  await AddNestedModelToTypedModel("faultTrees");
   return returnResponse;
 }
 
@@ -362,6 +379,14 @@ export async function Post(
  */
 export function GetInitiatingEvents(id = -1): Promise<NestedModel[]> {
   return Get(`${INITIATING_EVENTS_ENDPOINT}/?id=${Number(id)}`)
+    .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
+    .catch((error) => {
+      throw error; // Re-throw the error to propagate it if needed
+    });
+}
+
+export function GetHeatBalanceFaultTrees(id = -1): Promise<NestedModel[]> {
+  return Get(`${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
     .catch((error) => {
       throw error; // Re-throw the error to propagate it if needed
@@ -687,6 +712,22 @@ export function PatchFaultTreeLabel(
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
+export function PatchHeatBalanceFaultTreeLabel(
+  id: number,
+  data: LabelJSON,
+): Promise<NestedModel> {
+  return Patch(
+    `${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/${id}`,
+    JSON.stringify(data),
+  ).then((response) => response.json() as Promise<NestedModel>);
+}
+
+/**
+ * updates the label for the type of nested model
+ * @param id - the id of the nested model
+ * @param data - a labelJSON with a name and optional description
+ * @returns a promise with the new updated model, with its label
+ */
 export function PatchFunctionalEventLabel(
   id: number,
   data: LabelJSON,
@@ -931,6 +972,21 @@ export async function DeleteFunctionalEvent(id = -1): Promise<NestedModel> {
 export async function DeleteFaultTree(id = -1): Promise<NestedModel> {
   const response = await Delete(
     `${FAULT_TREES_ENDPOINT}/?id=${Number(id)}`,
+  ).then((response) => response.json() as Promise<NestedModel>);
+  await RemoveNestedIds(id, "faultTrees");
+  return response;
+}
+
+/**
+ * Deletes a model from the endpoint
+ * @param id - the id of the model to be Deleted
+ * @returns the Deleted model
+ */
+export async function DeleteHeatBalanceFaultTree(
+  id = -1,
+): Promise<NestedModel> {
+  const response = await Delete(
+    `${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/?id=${Number(id)}`,
   ).then((response) => response.json() as Promise<NestedModel>);
   await RemoveNestedIds(id, "faultTrees");
   return response;

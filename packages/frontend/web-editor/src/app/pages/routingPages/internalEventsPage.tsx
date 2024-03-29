@@ -25,6 +25,7 @@ import { FaultTrees } from "../fullScopePages/faultTrees";
 import { InitiatingEventModelView } from "../fullScopePages/initiatingEventModelView";
 import { GlobalToastList } from "../../components/lists/globalToastList";
 import { ToastProvider } from "../../providers/toastProvider";
+import { HeatBalanceFaultTrees } from "../fullScopePages/heatBalanceFaultTree";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -90,6 +91,10 @@ function InternalEventsPage(): JSX.Element {
           <Route
             path="initiating-events-model-view/*"
             element={<InitiatingEventModelView />}
+          />
+          <Route
+            path="heat-balance-fault-trees/*"
+            element={<HeatBalanceFaultTrees />}
           />
           <Route
             path="event-sequence-diagrams/*"

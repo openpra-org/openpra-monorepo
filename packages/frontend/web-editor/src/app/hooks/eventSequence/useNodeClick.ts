@@ -14,7 +14,7 @@ import {
   GetIncomingEdge,
   GetParentNode,
   GetSubgraph,
-  StoreEventSequenceDiagramCurrentState,
+  UpdateEventSequenceDiagram,
 } from "../../../utils/treeUtils";
 import { EventSequenceEdgeProps } from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 
@@ -184,10 +184,11 @@ function UseNodeClick(
         setNodes(finalNodes);
         setEdges(finalEdges);
 
-        StoreEventSequenceDiagramCurrentState(
+        UpdateEventSequenceDiagram(
           eventSequenceId,
-          finalNodes,
-          finalEdges,
+          { nodes: updatedNodes, edges: updatedEdges },
+          { nodes: deletedNodes, edges: deletedEdges },
+          { nodes: finalNodes, edges: finalEdges },
         );
       }
     }

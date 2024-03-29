@@ -28,7 +28,8 @@ import {
   GetESToast,
   IsCurrentStateTentative,
   IsNodeDeletable,
-  StoreEventSequenceDiagramCurrentState,
+  RevertTentativeState,
+  UpdateEventSequenceDiagram,
 } from "../../../utils/treeUtils";
 import { LoadingCard } from "../../components/cards/loadingCard";
 import { UseToastContext } from "../../providers/toastProvider";
@@ -146,11 +147,22 @@ function ReactFlowPro(): JSX.Element {
   const [isOpen, setIsOpen] = useState(false);
   const deleteKeyPressed = useKeyPress(["Delete", "Backspace"]);
 
-  // Close the context menu if it's open whenever the window is clicked.
-  const onPaneClick = useCallback(() => {
+  const onPopoverClose = useCallback(() => {
     setMenu(null);
     setIsOpen(false);
-  }, [setMenu]);
+  }, []);
+
+  // Close the context menu if it's open whenever the window is clicked.
+  const onPaneClick = useCallback(() => {
+    const currentNodes = getNodes();
+    const currentEdges = getEdges();
+    if (IsCurrentStateTentative(currentNodes, currentEdges)) {
+      addToast(GetESToast("primary", "Reverting the tentative state."));
+      const { updatedState } = RevertTentativeState(currentNodes, currentEdges);
+      setNodes(updatedState.nodes);
+      setEdges(updatedState.edges);
+    }
+  }, [addToast, getEdges, getNodes, setEdges, setNodes]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node<EventSequenceNodeProps>) => {
@@ -164,14 +176,16 @@ function ReactFlowPro(): JSX.Element {
       if (node.data.isDeleted === true || node.data.tentative === true) return;
 
       // if the current state is tentative, disallow node to be updated
-      if (IsCurrentStateTentative(getNodes(), getEdges())) {
-        addToast(
-          GetESToast(
-            "warning",
-            "Current state is not finalized yet. Please complete the on-going process first.",
-          ),
+      const currentNodes = getNodes();
+      const currentEdges = getEdges();
+      if (IsCurrentStateTentative(currentNodes, currentEdges)) {
+        addToast(GetESToast("primary", "Reverting the tentative state."));
+        const { updatedState } = RevertTentativeState(
+          currentNodes,
+          currentEdges,
         );
-        return;
+        setNodes(updatedState.nodes);
+        setEdges(updatedState.edges);
       }
 
       setIsOpen(!isOpen);
@@ -188,10 +202,10 @@ function ReactFlowPro(): JSX.Element {
         top: top,
         left: left,
         isDelete: IsNodeDeletable(node.type),
-        onClick: onPaneClick,
+        onClick: onPopoverClose,
       });
     },
-    [addToast, getEdges, getNodes, isOpen, onPaneClick],
+    [addToast, getEdges, getNodes, isOpen, onPopoverClose, setEdges, setNodes],
   );
 
   useEffect(() => {
@@ -201,20 +215,20 @@ function ReactFlowPro(): JSX.Element {
       | Node<EventSequenceNodeProps, EventSequenceNodeTypes>
       | undefined;
     if (selectedNode !== undefined) {
-      const updatedState = DeleteEventSequenceNode(
+      const onDeleteState = DeleteEventSequenceNode(
         selectedNode,
         getNodes(),
         getEdges(),
       );
-      if (updatedState !== undefined) {
-        setNodes(updatedState.nodes);
-        setEdges(updatedState.edges);
-
-        if (updatedState.updateState) {
-          StoreEventSequenceDiagramCurrentState(
+      if (onDeleteState !== undefined) {
+        setNodes(onDeleteState.updatedState.nodes);
+        setEdges(onDeleteState.updatedState.edges);
+        if (onDeleteState.syncState) {
+          UpdateEventSequenceDiagram(
             eventSequenceId,
-            updatedState.nodes,
-            updatedState.edges,
+            onDeleteState.updatedSubgraph,
+            onDeleteState.deletedSubgraph,
+            onDeleteState.updatedState,
           );
         }
       }
@@ -263,9 +277,11 @@ function ReactFlowPro(): JSX.Element {
         panelStyle={{
           width: 220,
         }}
-        closePopover={onPaneClick}
+        closePopover={onPopoverClose}
       >
-        {menu && <EventSequenceContextMenu onClick={onPaneClick} {...menu} />}
+        {menu && (
+          <EventSequenceContextMenu onClick={onPopoverClose} {...menu} />
+        )}
       </EuiPopover>
     </ReactFlow>
   );

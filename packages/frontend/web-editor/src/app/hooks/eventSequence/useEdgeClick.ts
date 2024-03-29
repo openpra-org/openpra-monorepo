@@ -5,7 +5,8 @@ import {
   GenerateUUID,
   GetESToast,
   IsCurrentStateTentative,
-  StoreEventSequenceDiagramCurrentState,
+  RevertTentativeState,
+  UpdateEventSequenceDiagram,
 } from "../../../utils/treeUtils";
 import {
   EventSequenceNodeProps,
@@ -42,13 +43,10 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
     // if the current state is tentative, disallow creation of new node
     if (IsCurrentStateTentative(currentNodes, currentEdges)) {
       // show toast message
-      addToast(
-        GetESToast(
-          "warning",
-          "Current state is not finalized yet. Please complete the on-going process first.",
-        ),
-      );
-      return;
+      addToast(GetESToast("primary", "Reverting the tentative state."));
+      const { updatedState } = RevertTentativeState(currentNodes, currentEdges);
+      setNodes(updatedState.nodes);
+      setEdges(updatedState.edges);
     }
 
     // first we retrieve the edge object to get the source and target id
@@ -100,12 +98,6 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
     // new connection from new node to target
     const targetEdge: Edge = BuildAnEdge(insertNode, targetNode, "normal", {});
 
-    // remove the edge that was clicked as we have a new connection with a node in between
-    const edges = currentEdges
-      .filter((e) => e.id !== id)
-      .concat([sourceEdge, targetEdge]);
-    setEdges(edges);
-
     // insert the node between the source and target node in the react-flow state
     const targetNodeIndex = currentNodes.findIndex(
       (node) => node.id === edge.target,
@@ -115,9 +107,21 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
       insertNode,
       ...currentNodes.slice(targetNodeIndex, currentNodes.length),
     ];
-    setNodes(nodes);
 
-    StoreEventSequenceDiagramCurrentState(eventSequenceId, nodes, edges);
+    // remove the edge that was clicked as we have a new connection with a node in between
+    const edges = currentEdges
+      .filter((e) => e.id !== id)
+      .concat([sourceEdge, targetEdge]);
+
+    setNodes(nodes);
+    setEdges(edges);
+
+    UpdateEventSequenceDiagram(
+      eventSequenceId,
+      { nodes: [insertNode], edges: [sourceEdge, targetEdge] },
+      { nodes: [], edges: [edge] },
+      { nodes, edges },
+    );
   };
 }
 

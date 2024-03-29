@@ -1,8 +1,8 @@
 import { Body, Controller, Get, Patch, Post, Query } from "@nestjs/common";
 import { EventSequenceDiagramGraph } from "../schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph } from "../schemas/graphs/fault-tree-graph.schema";
-import { BaseGraphDocument } from "../schemas/graphs/base-graph.schema";
 import { EventTreeGraph } from "../schemas/graphs/event-tree-graph.schema";
+import { BaseGraph } from "../schemas/graphs/base-graph.schema";
 import { GraphModelService } from "./graphModel.service";
 
 @Controller()
@@ -18,7 +18,7 @@ export class GraphModelController {
   @Post("/event-sequence-diagram-graph")
   async saveEventSequenceDiagramGraph(
     @Body() data: Partial<EventSequenceDiagramGraph>,
-  ): Promise<BaseGraphDocument> {
+  ): Promise<boolean> {
     return this.graphModelService.saveEventSequenceDiagramGraph(data);
   }
 
@@ -31,7 +31,7 @@ export class GraphModelController {
   @Post("/fault-tree-graph")
   async createFaultTreeGraph(
     @Body() data: Partial<FaultTreeGraph>,
-  ): Promise<BaseGraphDocument> {
+  ): Promise<boolean> {
     return this.graphModelService.saveFaultTreeGraph(data);
   }
 
@@ -44,7 +44,7 @@ export class GraphModelController {
   @Post("/event-tree-graph")
   async createEventTreeGraph(
     @Body() data: Partial<EventTreeGraph>,
-  ): Promise<BaseGraphDocument> {
+  ): Promise<boolean> {
     return this.graphModelService.saveEventTreeGraph(data);
   }
 
@@ -58,6 +58,15 @@ export class GraphModelController {
     @Query("eventSequenceId") eventSequenceId: string,
   ): Promise<EventSequenceDiagramGraph> {
     return this.graphModelService.getEventSequenceDiagramGraph(eventSequenceId);
+  }
+
+  @Get("/event-sequence-diagram-graph/exists")
+  async checkIfEventSequenceDiagramGraphExists(
+    @Query("eventSequenceId") eventSequenceId: string,
+  ): Promise<boolean> {
+    return this.graphModelService.checkIfEventSequenceDiagramGraphExists(
+      eventSequenceId,
+    );
   }
 
   /**
@@ -86,6 +95,19 @@ export class GraphModelController {
     @Body("label") label: string,
   ): Promise<boolean> {
     return this.graphModelService.updateESLabel(id, type, label);
+  }
+
+  @Patch("/event-sequence-diagram-graph")
+  async updateESSubgraph(
+    @Body("eventSequenceId") eventSequenceId: string,
+    @Body("updated") updatedSubgraph: Partial<BaseGraph>,
+    @Body("deleted") deletedSubgraph: Partial<BaseGraph>,
+  ): Promise<boolean> {
+    return this.graphModelService.updateESSubgraph(
+      eventSequenceId,
+      updatedSubgraph,
+      deletedSubgraph,
+    );
   }
 
   /**

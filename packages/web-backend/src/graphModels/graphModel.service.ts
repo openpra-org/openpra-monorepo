@@ -46,7 +46,7 @@ export class GraphModelService {
    */
   async saveEventSequenceDiagramGraph(
     body: Partial<EventSequenceDiagramGraph>,
-  ): Promise<BaseGraphDocument> {
+  ): Promise<boolean> {
     const existingGraph = await this.eventSequenceDiagramGraphModel.findOne({
       eventSequenceId: body.eventSequenceId,
     });
@@ -78,14 +78,22 @@ export class GraphModelService {
     }
   }
 
+  async checkIfEventSequenceDiagramGraphExists(
+    eventSequenceId: string,
+  ): Promise<boolean> {
+    const result = await this.eventSequenceDiagramGraphModel.findOne(
+      { eventSequenceId: eventSequenceId },
+      { _id: 0 },
+    );
+    return result !== null;
+  }
+
   /**
    * Saves the fault tree diagram graph
    * @param body - The current state of the fault tree diagram graph
    * @returns A promise with a fault tree diagram graph in it
    */
-  async saveFaultTreeGraph(
-    body: Partial<FaultTreeGraph>,
-  ): Promise<BaseGraphDocument> {
+  async saveFaultTreeGraph(body: Partial<FaultTreeGraph>): Promise<boolean> {
     const existingGraph = await this.faultTreeGraphModel.findOne({
       faultTreeId: body.faultTreeId,
     });
@@ -120,9 +128,7 @@ export class GraphModelService {
    * @param body - The current state of the event tree diagram graph
    * @returns A promise with a event tree diagram graph in it
    */
-  async saveEventTreeGraph(
-    body: Partial<EventTreeGraph>,
-  ): Promise<BaseGraphDocument> {
+  async saveEventTreeGraph(body: Partial<EventTreeGraph>): Promise<boolean> {
     const existingGraph = await this.eventTreeGraphModel.findOne({
       eventTreeId: body.eventTreeId,
     });
@@ -180,6 +186,37 @@ export class GraphModelService {
     return result.modifiedCount > 0;
   }
 
+  async updateESSubgraph(
+    eventSequenceId: string,
+    updatedSubgraph: Partial<EventSequenceDiagramGraph>,
+    deletedSubgraph: Partial<EventSequenceDiagramGraph>,
+  ): Promise<boolean> {
+    const existingGraph = await this.eventSequenceDiagramGraphModel.findOne({
+      eventSequenceId: eventSequenceId,
+    });
+    if (existingGraph === null) return false;
+
+    existingGraph.nodes = existingGraph.nodes
+      .filter(
+        (node) =>
+          ![...deletedSubgraph.nodes, ...updatedSubgraph.nodes].some(
+            (n) => n.id === node.id,
+          ),
+      )
+      .concat(...updatedSubgraph.nodes);
+    existingGraph.edges = existingGraph.edges
+      .filter(
+        (edge) =>
+          ![...deletedSubgraph.edges, ...updatedSubgraph.edges].some(
+            (e) => e.id === edge.id,
+          ),
+      )
+      .concat(...updatedSubgraph.edges);
+
+    await existingGraph.save();
+    return true;
+  }
+
   /**
    * Save the graph document
    * @param graph - Graph document
@@ -191,7 +228,7 @@ export class GraphModelService {
     graph: BaseGraphDocument,
     body: Partial<BaseGraph>,
     modelType: GraphTypes,
-  ): Promise<BaseGraphDocument> {
+  ): Promise<boolean> {
     if (graph !== null) {
       graph.nodes = body.nodes;
       graph.edges = body.edges;
@@ -201,8 +238,9 @@ export class GraphModelService {
       newGraph.id =
         new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
       newGraph._id = new mongoose.Types.ObjectId();
-      return newGraph.save();
+      await newGraph.save();
     }
+    return true;
   }
 
   /**

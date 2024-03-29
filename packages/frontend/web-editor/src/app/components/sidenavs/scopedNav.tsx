@@ -114,8 +114,18 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
               navigate("initiating-events-model-view");
             },
           },
-          1
-        )
+          1,
+        ),
+        createTreeItem(
+          "Heat Balance fault Trees",
+          {
+            icon: <EuiToken iconType="tokenRepo" />,
+            callback: () => {
+              navigate("heat-balance-fault-trees");
+            },
+          },
+          1,
+        ),
       ],
     }),
   ];

@@ -18,6 +18,10 @@ import {
 import { EventTree, EventTreeDocument } from "./schemas/event-tree.schema";
 import { FaultTree, FaultTreeDocument } from "./schemas/fault-tree.schema";
 import {
+  HeatBalanceFaultTree,
+  HeatBalanceFaultTreeDocument,
+} from "./schemas/heat-balance-fault-tree.schema";
+import {
   InitiatingEvent,
   InitiatingEventDocument,
 } from "./schemas/initiating-event.schema";
@@ -92,6 +96,8 @@ export class NestedModelService {
     private readonly eventTreeModel: Model<EventTreeDocument>,
     @InjectModel(FaultTree.name)
     private readonly faultTreeModel: Model<FaultTreeDocument>,
+    @InjectModel(HeatBalanceFaultTree.name)
+    private readonly heatBalanceFaultTreeModel: Model<HeatBalanceFaultTreeDocument>,
     @InjectModel(FunctionalEvent.name)
     private readonly functionalEventsModel: Model<FunctionalEventDocument>,
     @InjectModel(InitiatingEvent.name)
@@ -223,6 +229,20 @@ export class NestedModelService {
     const newFaultTree = new this.faultTreeModel(body);
     newFaultTree.id = await this.getNextValue("nestedCounter");
     return newFaultTree.save();
+  }
+
+  /**
+   * creates the type of nestedmodel defined in the function name
+   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
+   * and a label object with a name string and optional description string
+   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   */
+  async createHeatBalanceFaultTree(
+    body: Partial<NestedModel>,
+  ): Promise<NestedModel> {
+    const newHeatBalanceFaultTree = new this.heatBalanceFaultTreeModel(body);
+    newHeatBalanceFaultTree.id = await this.getNextValue("nestedCounter");
+    return newHeatBalanceFaultTree.save();
   }
 
   /**
@@ -497,6 +517,22 @@ export class NestedModelService {
    * @param parentId id of the parent model the nested model is number
    * @returns a promise with an array of the nested model of the type in the function name
    */
+  async getHeatBalanceFaultTrees(
+    parentId: number,
+  ): Promise<HeatBalanceFaultTree[]> {
+    //typecast to a number because for some reason, it isnt a number????
+
+    return this.heatBalanceFaultTreeModel.find(
+      { parentIds: Number(parentId) },
+      { _id: 0 },
+    );
+  }
+
+  /**
+   * gets the collection of the nested model as defined by the function name (bayesian estimations, etc.)
+   * @param parentId id of the parent model the nested model is number
+   * @returns a promise with an array of the nested model of the type in the function name
+   */
   async getFunctionalEvents(parentId: number): Promise<FunctionalEvent[]> {
     //typecast to a number because for some reason, it isnt a number????
 
@@ -751,6 +787,17 @@ export class NestedModelService {
    * @param modelId the id of the model to be retrieved
    * @returns the model which has the associated id
    */
+  async getSingleHeatBalanceFaultTree(
+    modelId: number,
+  ): Promise<HeatBalanceFaultTree> {
+    return this.heatBalanceFaultTreeModel.findOne({ id: modelId }, { _id: 0 });
+  }
+
+  /**
+   * gets a single model from the collection based on the id
+   * @param modelId the id of the model to be retrieved
+   * @returns the model which has the associated id
+   */
   async getSingleFunctionalEvent(modelId: number): Promise<FunctionalEvent> {
     return this.functionalEventsModel.findOne({ id: modelId }, { _id: 0 });
   }
@@ -943,6 +990,17 @@ export class NestedModelService {
    */
   async deleteFaultTree(modelId: number): Promise<FaultTree> {
     return this.faultTreeModel.findOneAndDelete({ id: modelId });
+  }
+
+  /**
+   * finds and deletes the nested model in this collection with the give model id
+   * @param modelId the id of the mdoel we want to delete
+   * @returns a promise with the deleted model
+   */
+  async deleteHeatBalanceFaultTree(
+    modelId: number,
+  ): Promise<HeatBalanceFaultTree> {
+    return this.heatBalanceFaultTreeModel.findOneAndDelete({ id: modelId });
   }
 
   /**
@@ -1220,6 +1278,23 @@ export class NestedModelService {
    * @param body a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
+  async updateHeatBalanceFaultTreeLabel(
+    id: number,
+    body: Label,
+  ): Promise<NestedModel> {
+    return this.heatBalanceFaultTreeModel.findOneAndUpdate(
+      { id: Number(id) },
+      { label: body },
+      { new: true },
+    );
+  }
+
+  /**
+   * updates the label in the nested model
+   * @param id the id of the nested model to be udpated
+   * @param body a label with a name and description
+   * @returns a promise with the updated model with an updated label
+   */
   async updateWeibullAnalysisLabel(
     id: number,
     body: Label,
@@ -1481,6 +1556,18 @@ export class NestedModelService {
         numberRemoved++;
       } else {
         await this.faultTreeModel.findOneAndUpdate(query, updateData);
+      }
+    }
+
+    while ((result = await this.heatBalanceFaultTreeModel.findOne(query))) {
+      if (result.parentIds.length == 1) {
+        await this.heatBalanceFaultTreeModel.findOneAndDelete(query);
+        numberRemoved++;
+      } else {
+        await this.heatBalanceFaultTreeModel.findOneAndUpdate(
+          query,
+          updateData,
+        );
       }
     }
 

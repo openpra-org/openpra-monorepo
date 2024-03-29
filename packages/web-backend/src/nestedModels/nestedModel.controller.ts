@@ -13,6 +13,7 @@ import { NestedModel } from "./schemas/templateSchema/nested-model.schema";
 import { NestedModelService } from "./nestedModel.service";
 import { BayesianEstimation } from "./schemas/bayesian-estimation.schema";
 import { FaultTree } from "./schemas/fault-tree.schema";
+import { HeatBalanceFaultTree } from "./schemas/heat-balance-fault-tree.schema";
 import { EventTree } from "./schemas/event-tree.schema";
 import { BayesianNetwork } from "./schemas/bayesian-network.schema";
 import { EventSequenceDiagram } from "./schemas/event-sequence-diagram.schema";
@@ -107,6 +108,19 @@ export class NestedModelController {
     @Body() data: Partial<NestedModel>,
   ): Promise<NestedModel> {
     return this.nestedModelService.createFaultTree(data);
+  }
+
+  /**
+   * posts the nested model defined in the method name
+   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
+   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
+   * @returns a promise with the newly created model, with the general nested model fields
+   */
+  @Post("/heat-balance-fault-trees/")
+  async createHeatBalanceFaultTree(
+    @Body() data: Partial<NestedModel>,
+  ): Promise<NestedModel> {
+    return this.nestedModelService.createHeatBalanceFaultTree(data);
   }
 
   /**
@@ -304,6 +318,18 @@ export class NestedModelController {
   }
 
   /**
+   * grabs the colleciton of the type of nested model defined by the function call name (Fault Trees)
+   * @param id the id of the parent model
+   * @returns a promise with a list of the model typed defined
+   */
+  @Get("/heat-balance-fault-trees/")
+  async getHeatBalanceFaultTrees(
+    @Query("id") id: number,
+  ): Promise<HeatBalanceFaultTree[]> {
+    return this.nestedModelService.getHeatBalanceFaultTrees(id);
+  }
+
+  /**
    * grabs the colleciton of the type of nested model defined by the function call name (Functional events)
    * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
@@ -483,6 +509,18 @@ export class NestedModelController {
   @Get("/fault-trees/:id")
   async getSingleFaultTree(@Param("id") modelId: number): Promise<FaultTree> {
     return this.nestedModelService.getSingleFaultTree(modelId);
+  }
+
+  /**
+   * returns a single model from the given collection
+   * @param modelId the id of the model to be retrieved
+   * @returns a promise with the model with the given id
+   */
+  @Get("/heat-balance-fault-trees/:id")
+  async getSingleHeatBalanceFaultTree(
+    @Param("id") modelId: number,
+  ): Promise<HeatBalanceFaultTree> {
+    return this.nestedModelService.getSingleHeatBalanceFaultTree(modelId);
   }
 
   /**
@@ -680,6 +718,18 @@ export class NestedModelController {
    * @param id the id of the model to be deleted
    * @returns a promise with the deleted model
    */
+  @Delete("/heat-balance-fault-trees/")
+  async deleteHeatBalanceFaultTree(
+    @Query("id") id: number,
+  ): Promise<HeatBalanceFaultTree> {
+    return this.nestedModelService.deleteHeatBalanceFaultTree(id);
+  }
+
+  /**
+   * deletes a single nested model from the collection of that typed based on an id
+   * @param id the id of the model to be deleted
+   * @returns a promise with the deleted model
+   */
   @Delete("/functional-events/")
   async deleteFunctionalEvent(
     @Query("id") id: number,
@@ -867,6 +917,20 @@ export class NestedModelController {
     @Body() data: Label,
   ): Promise<NestedModel> {
     return this.nestedModelService.updateFaultTreeLabel(id, data);
+  }
+
+  /**
+   * updates a label for the nested model type
+   * @param id the id of the nested model to be updated
+   * @param data the new label, with a name and descrption string
+   * @returns the updated moel
+   */
+  @Patch("/heat-balance-fault-trees/:id")
+  async updateHeatBalanceFaultTreeLabel(
+    @Param("id") id: number,
+    @Body() data: Label,
+  ): Promise<NestedModel> {
+    return this.nestedModelService.updateHeatBalanceFaultTreeLabel(id, data);
   }
 
   /**

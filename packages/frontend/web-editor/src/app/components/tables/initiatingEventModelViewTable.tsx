@@ -24,6 +24,7 @@ import {
 import "@elastic/eui/dist/eui_theme_light.css";
 import { useEffect } from "react";
 import { groupBy, set } from "lodash";
+import { group } from "console";
 // Define the interface for a single row of data.
 interface DataRow {
   id: number;
@@ -258,38 +259,21 @@ const App: React.FC = () => {
     setData((currentData) => currentData.filter((row) => row.id !== rowId));
   }, []);
 
-  // Function to save the changes of the edit column modal
-  // const saveColumnChanges = () => {
-  //   setCustomColumns((prevColumns) =>
-  //     prevColumns.map((col) => {
-  //       if (col.id === newColumnData.id) {
-  //         return {
-  //           ...col,
-  //           displayAsText: newColumnData.displayAsText,
-  //           inputType: newColumnData.columnType as ColumnType,
-  //           dropdownOptions: newColumnData.dropdownOptions,
-  //         };
-  //       }
-  //       return col;
-  //     }),
-  //   );
-  //   setIsColumnEditModalVisible(false);
-  // };
   const saveColumnChanges = () => {
     let found = false;
     const updatedCustomColumns = found
       ? customColumns
       : customColumns.map((col) => {
-          if (col.id === newColumnData.id) {
-            return {
-              ...col,
-              displayAsText: newColumnData.displayAsText,
-              inputType: newColumnData.columnType as ColumnType,
-              dropdownOptions: newColumnData.dropdownOptions,
-            };
-          }
-          return col;
-        });
+        if (col.id === newColumnData.id) {
+          return {
+            ...col,
+            displayAsText: newColumnData.displayAsText,
+            inputType: newColumnData.columnType as ColumnType,
+            dropdownOptions: newColumnData.dropdownOptions,
+          };
+        }
+        return col;
+      });
     // Update baseColumns if necessary
     const updatedBaseColumns = baseColumns.map((col) => {
       // If this is the column we're updating, return a new object with the updated displayAsText
@@ -407,13 +391,18 @@ const App: React.FC = () => {
       }));
     }
   };
+
+  const [didGroupColumnChange, setDidGroupColumnChange] = useState(false);
+
   //This function manages both selectedRowData and data states for change in sidePanel to reflect in Datagrid
   const updateFieldInData = (
     fieldKey: keyof DataRow,
     value: string | number,
   ) => {
     if (!selectedRowData) return;
-
+    if (fieldKey==groupbyColumn){
+      setDidGroupColumnChange(true);
+    }
     const updatedSelectedRowData = { ...selectedRowData, [fieldKey]: value };
     setSelectedRowData(updatedSelectedRowData);
 
@@ -423,6 +412,16 @@ const App: React.FC = () => {
       ),
     );
   };
+
+  const handleSidePanelClose = () => {
+    if (didGroupColumnChange){
+      let temp = ungroup(data);
+      let groupedData = makeGroups(temp, groupbyColumn);
+      setData(groupedData);
+      setDidGroupColumnChange(false);
+    }
+    setIsSidePanelOpen(false);
+  }
 
   const handleAddDropdownOption = () => {
     setNewColumnData((prev) => ({
@@ -578,25 +577,6 @@ const App: React.FC = () => {
 
     handleAddNewColumn();
   };
-  const renderDetailsButton = ({
-    rowIndex,
-    columnId,
-  }: {
-    rowIndex: number;
-    columnId: string;
-  }) => {
-    const rowData = data[rowIndex];
-    return (
-      <EuiButtonIcon
-        iconType="inspect"
-        onClick={() => {
-          setSelectedRowData(rowData); // Update the state with the details of the selected row
-          setIsSidePanelOpen(true); // Open the side panel
-        }}
-        aria-label="View details"
-      />
-    );
-  };
   //state for selecting rows
   const [selectedRowIds, setSelectedRowIds] = useState(new Set<number>());
   // state for checking symbol for checkboxes
@@ -731,7 +711,6 @@ const App: React.FC = () => {
     baseColumns,
     customColumns,
     openEditColumnModal,
-    renderDetailsButton,
     selectedRowIds,
     handleRowSelectionChange,
     data,
@@ -790,6 +769,8 @@ const App: React.FC = () => {
     setCustomColumns(updatedColumns);
   };
 
+  //variable to store using which grouping should be performed
+  const [groupbyColumn, setGroupbyColumn] = useState<string>("");
   // Modify handleSaveData to handle both adding and editing rows
   const handleSaveData = useCallback((editedData: DataRow) => {
     setData((currentData) => {
@@ -800,19 +781,20 @@ const App: React.FC = () => {
         newData = [...currentData];
         newData[rowIndex] = { ...newData[rowIndex], ...editedData };
       } else {
-        newData = [ editedData,...currentData];
+        alert("In Handle Save Data"+groupbyColumn);
+        newData = [...currentData,editedData];
         if (groupbyColumn!=""){
-          alert("Length Data"+data.length);
           let temp = ungroup(newData);
-          alert("Length Temp"+temp.length);
+          alert("Temp"+temp.length)
           let groupedData = makeGroups(temp, groupbyColumn);
+          alert("grouped"+groupedData.length)
           return groupedData;
         }
       }
       return newData;
     });
     setIsModalVisible(false);
-  }, []);
+  }, [groupbyColumn]);
 
   // Function to handle closing the modal
   const handleCloseModal = useCallback(() => {
@@ -856,7 +838,7 @@ const App: React.FC = () => {
         id: Date.now(), // or use another method to generate a unique ID
       };
       handleSaveData(newRowData);
-      
+
     }
     setIsModalVisible(false); // Close the modal after saving the data
   };
@@ -864,8 +846,7 @@ const App: React.FC = () => {
   const handleCellEdit = useCallback(
     (rowIndex: number, columnId: keyof DataRow, value: string) => {
       // Update the specific cell data within the row
-      if(groupbyColumn!=""){
-      }
+
       setData((currentData) => {
         const newData = [...currentData];
         newData[rowIndex] = { ...newData[rowIndex], [columnId]: value };
@@ -915,7 +896,23 @@ const App: React.FC = () => {
         }
         if (selectedRowData && rowData.id === selectedRowData.id) {
           setIsSidePanelOpen((isOpen) => !isOpen);
+          //if sidebar is closed then grouping is performed again
+          //if in previously selected row the grouping column changed in sidebar
+          if (didGroupColumnChange){
+            let temp = ungroup(data);
+            let groupedData = makeGroups(temp, groupbyColumn);
+            setData(groupedData);
+            setDidGroupColumnChange(false);
+          }
         } else {
+          //if new row is selected then grouping is performed again
+          //if previously selected row changed in sidebar
+          if (didGroupColumnChange){
+            let temp = ungroup(data);
+            let groupedData = makeGroups(temp, groupbyColumn);
+            setData(groupedData);
+            setDidGroupColumnChange(false);
+          }
           setSelectedRowData(rowData);
           setIsSidePanelOpen(true);
         }
@@ -980,7 +977,7 @@ const App: React.FC = () => {
               value={rowData[columnId]}
               onChange={(e) => handleValueChange(e.target.value)}
               onBlur={() => setEditingCell(null)}
-              
+
               autoFocus
             />
           );
@@ -1101,8 +1098,6 @@ const App: React.FC = () => {
 
   //open popover for groupby
   const [groupbyPopoverOpen, setGroupbyPopoverOpen] = useState(false);
-
-
   //close popover for groupby
   const closeGroupbyPopover = () => {
     setGroupbyPopoverOpen(false);
@@ -1110,7 +1105,6 @@ const App: React.FC = () => {
 
 
   // store column by which grouping is done
-  const [groupbyColumn, setGroupbyColumn] = useState<string>("");
   function makeGroups(rows: any[], columnId: string) {
     const grouped = groupBy(rows, columnId);
     const groupedRows: any[] = [];
@@ -1118,7 +1112,6 @@ const App: React.FC = () => {
       let headerRow = { isHeader: true, group,};
       groupedRows.push(headerRow);
       grouped[group].forEach((row: any) => {
-        //add group: group to row
         row.group = group;
         groupedRows.push(row);
       });
@@ -1138,7 +1131,7 @@ const App: React.FC = () => {
 
   //handle the click on column name in popover
   //if column clicked on is same as groupby column then remove grouping
-  //else group by the column clicked on 
+  //else group by the column clicked on
   const handleGroupByOptionClick = useCallback((columnId: string) => {
     if (groupbyColumn === columnId) {
       setGroupbyColumn("");
@@ -1146,8 +1139,9 @@ const App: React.FC = () => {
       closeGroupbyPopover();
       return;
     }
-
+    alert("Setting Group by column to "+columnId)
     setGroupbyColumn(columnId);
+    alert("Group by " + columnId);
     if (groupbyColumn !=""){
       let temp = ungroup(data);
       setData(makeGroups(temp, columnId));
@@ -1156,8 +1150,9 @@ const App: React.FC = () => {
       setData(makeGroups(data, columnId));
     }
     closeGroupbyPopover();
-    alert("Group by " + columnId);
+
   }, [groupbyColumn, closePopover]);
+
 
   return (
     <div
@@ -1173,21 +1168,12 @@ const App: React.FC = () => {
               style={{ transition: "width 0.2s" }}
             >
               <div className="datagrid-container" style={{ marginTop: "20px" }}>
-                {/* <EuiButton onClick={handleAddNewRow} style={{ marginTop: "50px" }}>
-        Add New Row
-      </EuiButton> */}
-                {/* Render edit buttons for each column */}
-                {/* {renderEditColumnButtons()} */}
-                {/* Button to toggle the side panel */}
                 <EuiButtonIcon
                   iconType="gear"
                   onClick={toggleSidePanel}
-                  // onClick={() => setIsSidePanelVisible(true)}
                   aria-label="Edit column types"
                 />
-                {/* Main data grid container with dynamic width */}
                 <div style={{ width: dataGridWidth }}>
-                  {/* DataGrid and other components */}
                 </div>
 
                 <EuiButtonIcon
@@ -1561,6 +1547,14 @@ const App: React.FC = () => {
                 display: isSidePanelOpen ? "block" : "none",
               }}
             >
+
+              {/* Close button */}
+              <EuiButton
+                onClick={() => handleSidePanelClose()}
+                style={{ marginTop: "20px" }}
+              >
+                Close
+              </EuiButton>
               {isSidePanelOpen && selectedRowData && (
                 <EuiForm>
                   {getMergedColumns
@@ -1605,13 +1599,6 @@ const App: React.FC = () => {
                 </EuiForm>
               )}
 
-              {/* Close button */}
-              <EuiButton
-                onClick={() => setIsSidePanelOpen(false)}
-                style={{ marginTop: "20px" }}
-              >
-                Close
-              </EuiButton>
             </EuiResizablePanel>
           </>
         )}

@@ -7,8 +7,14 @@ import {
   InternalHazardsModel,
   InternalHazardsModelType,
 } from "../types/modelTypes/largeModels/internalHazardsModel";
-import { ExternalHazardsModel } from "../types/modelTypes/largeModels/externalHazardsModel";
-import { FullScopeModel } from "../types/modelTypes/largeModels/fullScopeModel";
+import {
+  ExternalHazardsModel,
+  ExternalHazardsModelType,
+} from "../types/modelTypes/largeModels/externalHazardsModel";
+import {
+  FullScopeModel,
+  FullScopeModelType,
+} from "../types/modelTypes/largeModels/fullScopeModel";
 import TypedModel, {
   TypedModelJSON,
 } from "../types/modelTypes/largeModels/typedModel";
@@ -62,9 +68,11 @@ export function GetInternalEvents(id = -1): Promise<InternalEventsModelType[]> {
  * @param id - the id of the user whose events we want to load
  * @returns a promise with an external hazards list
  */
-export function GetExternalHazards(id = -1): Promise<ExternalHazardsModel[]> {
+export function GetExternalHazards(
+  id = -1,
+): Promise<ExternalHazardsModelType[]> {
   return Get(`${EXTERNAL_HAZARDS_ENDPOINT}/?id=${Number(id)}`)
-    .then((response) => response.json() as Promise<ExternalHazardsModel[]>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<ExternalHazardsModelType[]>) // Parse the response as JSON
     .catch((error) => {
       throw error; // Re-throw the error to propagate it if needed
     });
@@ -75,7 +83,9 @@ export function GetExternalHazards(id = -1): Promise<ExternalHazardsModel[]> {
  * @param id - the id of the user whose models we want to load
  * @returns a promise with an internal hazards list
  */
-export function GetInternalHazards(id = -1): Promise<InternalHazardsModelType[]> {
+export function GetInternalHazards(
+  id = -1,
+): Promise<InternalHazardsModelType[]> {
   return Get(`${INTERNAL_HAZARDS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<InternalHazardsModelType[]>) // Parse the response as JSON
     .catch((error) => {
@@ -88,9 +98,9 @@ export function GetInternalHazards(id = -1): Promise<InternalHazardsModelType[]>
  * @param id - the id of the user whose models we want to load
  * @returns a promise with a full scope list
  */
-export function GetFullScopeModels(id = -1): Promise<FullScopeModel[]> {
+export function GetFullScopeModels(id = -1): Promise<FullScopeModelType[]> {
   return Get(`${FULL_SCOPE_ENDPOINT}/?id=${Number(id)}`)
-    .then((response) => response.json() as Promise<FullScopeModel[]>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<FullScopeModelType[]>) // Parse the response as JSON
     .catch((error) => {
       throw error; // Re-throw the error to propagate it if needed
     });
@@ -183,9 +193,9 @@ export function PostInternalHazard(
  */
 export function PostExternalHazard(
   data: Partial<TypedModelJSON>,
-): Promise<TypedModel> {
+): Promise<ExternalHazardsModelType> {
   return Post(`${EXTERNAL_HAZARDS_ENDPOINT}/`, data).then(
-    (response) => response.json() as Promise<TypedModel>,
+    (response) => response.json() as Promise<ExternalHazardsModelType>,
   );
 }
 
@@ -196,9 +206,9 @@ export function PostExternalHazard(
  */
 export function PostFullScope(
   data: Partial<TypedModelJSON>,
-): Promise<TypedModel> {
+): Promise<FullScopeModelType> {
   return Post(`${FULL_SCOPE_ENDPOINT}/`, data).then(
-    (response) => response.json() as Promise<TypedModel>,
+    (response) => response.json() as Promise<FullScopeModelType>,
   );
 }
 
@@ -254,11 +264,11 @@ export function PatchExternalHazard(
   modelId: number,
   userId: number,
   data: Partial<TypedModelJSON>,
-): Promise<ExternalHazardsModel> {
+): Promise<ExternalHazardsModelType> {
   return Patch(
     `${EXTERNAL_HAZARDS_ENDPOINT}/${modelId}/?userId=${Number(userId)}`,
     data,
-  ).then((response) => response.json() as Promise<ExternalHazardsModel>);
+  ).then((response) => response.json() as Promise<ExternalHazardsModelType>);
 }
 
 /**
@@ -290,11 +300,11 @@ export function PatchFullScope(
   modelId: number,
   userId: number,
   data: Partial<TypedModelJSON>,
-): Promise<FullScopeModel> {
+): Promise<FullScopeModelType> {
   return Patch(
     `${FULL_SCOPE_ENDPOINT}/${modelId}/?userId=${Number(userId)}`,
     data,
-  ).then((response) => response.json() as Promise<FullScopeModel>);
+  ).then((response) => response.json() as Promise<FullScopeModelType>);
 }
 
 /**
@@ -351,7 +361,7 @@ export async function DeleteInternalEvent(
  */
 export async function DeleteExternalHazard(
   id = -1,
-): Promise<ExternalHazardsModel> {
+): Promise<ExternalHazardsModelType> {
   await RemoveParentIds(id);
   const userId = ApiManager.getCurrentUser().user_id;
   return await DeleteCall(
@@ -359,7 +369,7 @@ export async function DeleteExternalHazard(
       userId,
     )}`,
   )
-    .then((response) => response.json() as Promise<ExternalHazardsModel>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<ExternalHazardsModelType>) // Parse the response as JSON
     .catch((error) => {
       throw error; // Re-throw the error to propagate it if needed
     });
@@ -391,13 +401,13 @@ export async function DeleteInternalHazard(
  * @param id - id of model
  * @returns a promise with the deleted full scope
  */
-export async function DeleteFullScope(id = -1): Promise<FullScopeModel> {
+export async function DeleteFullScope(id = -1): Promise<FullScopeModelType> {
   await RemoveParentIds(id);
   const userId = ApiManager.getCurrentUser().user_id;
   return await DeleteCall(
     `${FULL_SCOPE_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`,
   )
-    .then((response) => response.json() as Promise<FullScopeModel>) // Parse the response as JSON
+    .then((response) => response.json() as Promise<FullScopeModelType>) // Parse the response as JSON
     .catch((error) => {
       throw error; // Re-throw the error to propagate it if needed
     });

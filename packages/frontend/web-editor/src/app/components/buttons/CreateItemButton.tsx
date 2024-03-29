@@ -1,9 +1,5 @@
 import { logicalStyle } from "@elastic/eui";
-import {
-  PostExternalHazard,
-  PostFullScope,
-  PostInternalHazard,
-} from "shared-types/src/lib/api/TypedModelApiManager";
+import { PostFullScope } from "shared-types/src/lib/api/TypedModelApiManager";
 import {
   PostBayesianEstimation,
   PostBayesianNetwork,
@@ -140,17 +136,19 @@ export function CreateInternalHazardsButton(): JSX.Element {
 }
 
 export function CreateExternalHazardsButton(): JSX.Element {
+  const createExternalHazard = UseGlobalStore.use.addExternalHazard();
   return (
     <CreateItemButton
-      itemName="external-hazards"
-      postEndpoint={PostExternalHazard}
+      itemName="External Hazards"
+      postFunction={createExternalHazard}
     />
   );
 }
 
 export function CreateFullScopeButton(): JSX.Element {
+  const createFullScope = UseGlobalStore.use.addFullScope();
   return (
-    <CreateItemButton itemName="full-scope" postEndpoint={PostFullScope} />
+    <CreateItemButton itemName="Full Scope" postFunction={createFullScope} />
   );
 }
 

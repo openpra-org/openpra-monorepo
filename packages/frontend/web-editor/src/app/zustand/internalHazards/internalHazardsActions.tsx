@@ -30,7 +30,7 @@ export const addInternalHazard = async (
       internalHazards: [...state.internalHazards, ihr],
     }));
   } catch (error) {
-    console.error("Error adding internal event:", error);
+    console.error("Error adding internal hazard:", error);
   }
 };
 
@@ -57,7 +57,7 @@ export const editInternalHazard = async (
       ),
     }));
   } catch (error) {
-    console.error("Error adding internal event:", error);
+    console.error("Error adding internal hazard:", error);
   }
 };
 

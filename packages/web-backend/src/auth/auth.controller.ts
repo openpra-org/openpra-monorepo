@@ -4,6 +4,7 @@ import {
   Request,
   UseFilters,
   UseGuards,
+  Body,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { LoginErrorFilter } from "../filters/login-error.filter";
@@ -28,5 +29,28 @@ export class AuthController {
   @Post("/token-obtain/")
   async loginUser(@Request() req): Promise<{ token: string }> {
     return this.authService.getJwtToken(req.user);
+  }
+
+  /**
+   * This is a helper api call which will return true if password which user provides matches with the database
+   *
+   * @param body - The request should contain two keys username and password
+   * @example Request body example
+   * {
+   *   "username" : "Ed"
+   *   "password" : "FullMetalAlchemist"
+   * }
+   */
+  @Post("/verify-password/")
+  async verifyPassword(
+    @Body() body: { username: string; password: string },
+  ): Promise<{ match: boolean }> {
+    const match = await this.authService.verifyPassword(
+      body.username,
+      body.password,
+    );
+    return {
+      match: match,
+    };
   }
 }

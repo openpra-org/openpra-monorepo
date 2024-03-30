@@ -2280,4 +2280,20 @@ export default class ApiManager {
       onFailCallback,
     );
   }
+
+  /**
+   * This function will return true if the password for the given username is correct
+   * @param username - The username which we want to check
+   * @param password - The password for the user
+   */
+  static verifyPassword(username: string, password: string): Promise<Response> {
+    const data = {
+      username: username,
+      password: password,
+    };
+    return ApiManager.post(
+      `${authEndpoint}/verify-password`,
+      JSON.stringify(data),
+    );
+  }
 }

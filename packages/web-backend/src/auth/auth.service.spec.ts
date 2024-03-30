@@ -9,6 +9,7 @@ import {
   UserCounterSchema,
 } from "../collab/schemas/user-counter.schema";
 import { AuthService } from "./auth.service";
+import { expect } from "@playwright/test";
 
 describe("AuthService", () => {
   let authService: AuthService;
@@ -123,6 +124,42 @@ describe("AuthService", () => {
       } catch (err) {
         expect(err).toBeInstanceOf(Error); //expect result to be an instance of User
       }
+    });
+  });
+
+  describe("verifyPassword", () => {
+    it("should return true for correct password", async () => {
+      const userObject = {
+        firstName: "User1",
+        lastName: "Last1",
+        email: "xyz@gmail.com",
+        username: "testUser",
+        password: "12345678",
+      };
+      await collabService.createNewUser(userObject); // create a new user
+      const correctPassword = "12345678";
+      const passwordMatch = await authService.verifyPassword(
+        userObject.username,
+        correctPassword,
+      );
+      expect(passwordMatch).toBe(true);
+    });
+
+    it("should return false for incorrect password", async () => {
+      const userObject = {
+        firstName: "User1",
+        lastName: "Last1",
+        email: "xyz@gmail.com",
+        username: "testUser",
+        password: "12345678",
+      };
+      await collabService.createNewUser(userObject); // create a new user
+      const correctPassword = "1234568";
+      const passwordMatch = await authService.verifyPassword(
+        userObject.username,
+        correctPassword,
+      );
+      expect(passwordMatch).toBe(false);
     });
   });
 });

@@ -82,4 +82,20 @@ export class AuthService {
       throw new Error("Error verifying the refresh token");
     }
   }
+
+  /**
+   * Simple function that checks if the password is correct or not (Used for verification purposes)
+   * @param username - username of the user
+   * @param password - password of the user
+   */
+  async verifyPassword(username: string, password: string): Promise<boolean> {
+    const user = await this.collabService.loginUser(username);
+    try {
+      console.log("Here");
+      await argon2.verify(user.password, password);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 }

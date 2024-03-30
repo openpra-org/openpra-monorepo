@@ -20,12 +20,14 @@ function constructColumns(): EuiBasicTableColumn<MemberResult>[] {
     {
       name: "Users",
       render: (item: MemberResult): JSX.Element => (
-        <Link to={"../" + item.id}>{item.firstName + " " + item.lastName}</Link>
+        <Link to={"../preferences/" + item.id + "/personal-data"}>
+          {item.firstName + " " + item.lastName}
+        </Link>
       ),
       mobileOptions: {
         render: (item: MemberResult): JSX.Element => (
           <span>
-            <Link to={"../" + item.id}>
+            <Link to={"../preferences/" + item.id + "/personal-data"}>
               {item.firstName + " " + item.lastName}
             </Link>
           </span>
@@ -42,7 +44,7 @@ function constructColumns(): EuiBasicTableColumn<MemberResult>[] {
  * Exports the list of users JSX.Element
  *
  */
-export function UserList(): JSX.Element {
+export function Users(): JSX.Element {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [users, setUsers] = useState<MemberResult[]>([]);
   /**

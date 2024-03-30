@@ -5,40 +5,54 @@ import {
   EuiIcon,
   EuiPageHeader,
   EuiPageTemplate,
-  EuiSkeletonLoading,
   EuiSpacer,
   EuiText,
   EuiIconTip,
+  EuiSkeletonLoading,
   useIsWithinBreakpoints,
 } from "@elastic/eui";
 import { useEffect, useState } from "react";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
 import { MemberResult } from "shared-types/src/lib/api/Members";
 import { useNavigate } from "react-router-dom";
+import ApiManager from "shared-types/src/lib/api/ApiManager";
 
 /**
  * Function returns the main user profile page
  *
  */
-export function UserProfilePage(): JSX.Element {
-  const [currentMember, setCurrentMember] = useState<MemberResult>();
-  const [loading, setLoading] = useState<boolean>(true);
+export function UserProfilePage({ id }: { id: number }): JSX.Element {
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [onDetails, setOnDetails] = useState<boolean>(false);
-  const navigate = useNavigate();
+  const [currentMember, setCurrentMember] = useState<MemberResult>();
   useEffect(() => {
-    const currentUserId = ApiManager.getCurrentUser().user_id;
-    if (currentUserId !== undefined) {
-      void ApiManager.getUserById(JSON.stringify(currentUserId)).then((res) => {
-        setCurrentMember(res);
-        setLoading(false);
+    setIsLoading(true);
+    ApiManager.getUserById(String(id))
+      .then((result) => {
+        setCurrentMember(result);
+        setIsLoading(false);
+      })
+      .catch((reason) => {
+        setIsLoading(false);
       });
-    }
-  }, []);
+  }, [id]);
+  const navigate = useNavigate();
   const isMobile = useIsWithinBreakpoints(["xs", "s"]);
   return (
     <EuiSkeletonLoading
-      isLoading={loading}
-      loadingContent={<EuiPageTemplate.Section></EuiPageTemplate.Section>}
+      isLoading={isLoading}
+      loadingContent={
+        <EuiPageTemplate
+          panelled={false}
+          offset={48}
+          paddingSize="xl"
+          grow={true}
+          restrictWidth={true}
+        >
+          <EuiPageTemplate.Section>
+            <EuiText>Loading Data...</EuiText>
+          </EuiPageTemplate.Section>
+        </EuiPageTemplate>
+      }
       loadedContent={
         <EuiPageTemplate
           panelled={false}

@@ -16,6 +16,7 @@ export type MemberResult = {
   preferences: Preferences;
   account_created: string;
   last_login: string;
+  password: string | undefined;
 };
 
 type Permissions = {};

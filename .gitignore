@@ -69,3 +69,4 @@ lerna-debug.log*
 #don't add coverage folder from web backend
 **/coverage/**/*
 /packages/frontend/web-editor/e2e/.auth/
+/fixtures/

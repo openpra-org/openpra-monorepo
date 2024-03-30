@@ -2,6 +2,8 @@ import mongoose, { Connection } from "mongoose";
 import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { Test, TestingModule } from "@nestjs/testing";
 import { MemberResult } from "shared-types/src/lib/api/Members";
+import { expect } from "@playwright/test";
+import * as argon2 from "argon2";
 import { CollabService } from "./collab.service";
 import { User, UserSchema } from "./schemas/user.schema";
 import { UserCounter, UserCounterSchema } from "./schemas/user-counter.schema";
@@ -160,10 +162,10 @@ describe("CollabService", () => {
       }
       const user: User = await collabService.getUserById("1");
       expect(user).not.toBeNull();
-      expect(user.id).toEqual<number>(1);
-      expect(user.email).toEqual<string>("xyz@gmail0.com");
-      expect(user.firstName).toEqual<string>("User0");
-      expect(user.lastName).toEqual<string>("Last0");
+      expect(user.id).toEqual(1);
+      expect(user.email).toEqual("xyz@gmail0.com");
+      expect(user.firstName).toEqual("User0");
+      expect(user.lastName).toEqual("Last0");
     });
   });
 
@@ -261,10 +263,19 @@ describe("CollabService", () => {
     });
   });
 
+  /**
+   * state user email change, firstname change and password change
+   * create new user using mongo api (not by calling our own backend implementation)
+   * create a MemberResult object which contains the changes
+   * create a new User object and push to mongodb
+   * use updateUser api to update User to MemberResult
+   * compare results expect email to be changed, first name changed and password change
+   */
   describe("updateUser", (): void => {
     it("should update user", async () => {
       const emailChange = "hellotestchangeemail@gmail.com";
       const firstNameChange = "FirstName";
+      const passwordChange = "newPassword";
       const users = connection.collection("users");
       const member: MemberResult = {
         account_created: "",
@@ -277,6 +288,7 @@ describe("CollabService", () => {
         username: "TestString",
         email: "TestString@gmail.com",
         id: 786,
+        password: "password",
       };
       const user = new User();
       user.email = member.email;
@@ -284,12 +296,16 @@ describe("CollabService", () => {
       user.lastName = member.lastName;
       user.username = member.username;
       user.id = member.id;
-      user.password = await argon2.hash("Password");
+      user.password = await argon2.hash(member.password);
       await users.insertOne(user);
       member.email = emailChange;
       member.firstName = firstNameChange;
+      member.password = passwordChange;
       await collabService.updateUser(member);
       const foundUser: User = await users.findOne<User>({ id: 786 });
+      expect(await argon2.verify(foundUser.password, passwordChange)).toEqual(
+        true,
+      );
       expect(foundUser.email).toEqual(emailChange);
       expect(foundUser.firstName).toEqual(firstNameChange);
     });

@@ -8,6 +8,7 @@ import {
 } from "@elastic/eui";
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
+import ApiManager from "shared-types/src/lib/api/ApiManager";
 
 type TreeItem = {
   id: string;
@@ -25,6 +26,7 @@ type TreeItem = {
  */
 export function SettingsNav(): JSX.Element {
   const { euiTheme } = useEuiTheme();
+  const userId = ApiManager.getCurrentUser().user_id;
 
   const createTreeItem = (label: string, data = {}, depth = 0): TreeItem => {
     let size: "xs" | "s" | "m" | "relative" = "relative";
@@ -85,6 +87,16 @@ export function SettingsNav(): JSX.Element {
             iconType: "usersRolesApp",
             callback: () => {
               navigate("permissions");
+            },
+          },
+          1,
+        ),
+        createTreeItem(
+          "Preferences",
+          {
+            iconType: "preferences",
+            callback: () => {
+              navigate("preferences/" + userId + "/personal-data");
             },
           },
           1,

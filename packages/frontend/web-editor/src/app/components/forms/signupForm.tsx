@@ -10,6 +10,7 @@ import {
 } from "@elastic/eui";
 import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { PasswordForm } from "./passwordForm";
 
 function SignupForm(): JSX.Element {
   const defaultProps: SignUpProps = {
@@ -46,10 +47,16 @@ function SignupForm(): JSX.Element {
       });
   }
 
+  function isPasswordMatching(): boolean {
+    return signup.password === signup.passConfirm;
+  }
+
   function validateSignup(e: React.FormEvent<HTMLFormElement>): void {
     e.preventDefault();
     setSignupButtonClicked(true);
-    handleSignup();
+    if (isPasswordMatching()) {
+      handleSignup();
+    }
   }
 
   if (redirectToHomepage) {
@@ -133,41 +140,11 @@ function SignupForm(): JSX.Element {
             }}
           />
         </EuiFormRow>
-        <EuiFormRow>
-          <EuiFieldPassword
-            type="dual"
-            placeholder="Password"
-            isInvalid={!signup.password && signupButtonClicked}
-            value={signup.password}
-            onChange={(e): void => {
-              setSignup({
-                ...signup,
-                password: e.target.value,
-              });
-            }}
-          />
-        </EuiFormRow>
-        <EuiFormRow
-          isInvalid={
-            !(signup.passConfirm === signup.password) && signupButtonClicked
-          }
-          error="Passwords do not match"
-        >
-          <EuiFieldPassword
-            type="dual"
-            placeholder="Confirm Password"
-            isInvalid={
-              !(signup.passConfirm === signup.password) && signupButtonClicked
-            }
-            value={signup.passConfirm}
-            onChange={(e): void => {
-              setSignup({
-                ...signup,
-                passConfirm: e.target.value,
-              });
-            }}
-          />
-        </EuiFormRow>
+        <PasswordForm
+          signup={signup}
+          setSignup={setSignup}
+          signupButtonClicked={signupButtonClicked}
+        />
         <EuiFormRow>
           <EuiButton fullWidth type="submit">
             Sign Up
@@ -177,4 +154,5 @@ function SignupForm(): JSX.Element {
     );
   }
 }
+
 export { SignupForm };

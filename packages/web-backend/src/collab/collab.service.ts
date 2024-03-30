@@ -253,6 +253,7 @@ export class CollabService {
     };
     return newUser.save();
   }
+
   /**
    * @param {string} user_id Current user's ID
    * @description
@@ -309,6 +310,9 @@ export class CollabService {
     user.username = member.username;
     user.preferences = member.preferences;
     user.permissions = member.permissions;
+    if (member.password !== undefined) {
+      user.password = await argon2.hash(member.password);
+    }
     return this.userModel
       .updateOne({ id: user.id }, user, {
         projection: {
@@ -318,6 +322,7 @@ export class CollabService {
           email: 1,
           firstName: 1,
           username: 1,
+          password: 1,
         },
         new: true,
         upsert: false,

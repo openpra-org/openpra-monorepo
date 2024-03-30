@@ -7,7 +7,7 @@ const UseGrayedNodeHover = (id: NodeProps["id"]) => {
   const { nodes, edges, setNodes, setEdges } = useStore();
 
   const handleMouseEnter = useCallback(
-    (branchId: string) => {
+    (branchId: string | undefined) => {
       const solidNodes = nodes.map((node) => {
         if (
           node.data.branchId !== undefined &&
@@ -38,7 +38,7 @@ const UseGrayedNodeHover = (id: NodeProps["id"]) => {
   );
 
   const handleMouseLeave = useCallback(
-    (branchId: string) => {
+    (branchId: string | undefined) => {
       const grayedNodes: Node<FaultTreeNodeProps>[] = nodes.map((node) => {
         if (
           node.data.isGrayed !== undefined &&

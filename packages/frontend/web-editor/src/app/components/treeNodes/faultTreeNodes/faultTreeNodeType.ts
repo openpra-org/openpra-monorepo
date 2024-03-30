@@ -1,31 +1,20 @@
 import { NodeTypes } from "reactflow";
-
-import { OrGateNode } from "./orGateNode";
-import { AndGateNode } from "./andGateNode";
-import { NotGateNode } from "./notGateNode";
-import { BasicEventNode } from "./basicEventNode";
-import { AtLeastGateNode } from "./atLeastGateNode";
-import { HouseEventNode } from "./houseEventNode";
-import { TransferGateNode } from "./transferGateNode";
-
-export type IFaultTreeNodeIconProps = {
-  className?: string;
-};
+import { FaultTreeNode } from "./faultTreeNode";
 
 export type FaultTreeNodeProps = {
-  isGrayed?: boolean;
-  branchId?: string;
+  isGrayed?: boolean | undefined;
+  branchId?: string | undefined;
 };
 
 // two different node types are needed for our example: workflow and placeholder nodes
-const FaultTreeNodeTypes: NodeTypes = {
-  orGate: OrGateNode,
-  andGate: AndGateNode,
-  notGate: NotGateNode,
-  atLeastGate: AtLeastGateNode,
-  basicEvent: BasicEventNode,
-  houseEvent: HouseEventNode,
-  transferGate: TransferGateNode,
+const nodeTypes: NodeTypes = {
+  orGate: FaultTreeNode("orGate"),
+  andGate: FaultTreeNode("andGate"),
+  notGate: FaultTreeNode("notGate"),
+  atLeastGate: FaultTreeNode("atLeastGate"),
+  basicEvent: FaultTreeNode("basicEvent"),
+  houseEvent: FaultTreeNode("houseEvent"),
+  transferGate: FaultTreeNode("transferGate"),
 };
 
 export { FaultTreeNodeTypes };

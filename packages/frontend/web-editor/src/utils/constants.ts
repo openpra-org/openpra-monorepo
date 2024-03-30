@@ -43,3 +43,5 @@ export const NODE_TYPES = "Node type";
 export const DELETE_TYPE = "Delete types";
 export const DELETE_NODE = "Delete node";
 export const DELETE_SUBTREE = "Delete subtree";
+export const SOURCE = "source";
+export const TARGET = "target";

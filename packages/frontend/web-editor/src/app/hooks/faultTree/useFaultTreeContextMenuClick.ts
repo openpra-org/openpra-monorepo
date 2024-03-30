@@ -221,8 +221,6 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
               edges,
             );
 
-            console.log("Nodes: ", grayedNodes);
-            console.log("Edges: ", grayedEdges);
             setNodes(grayedNodes);
             setEdges(grayedEdges);
             return;

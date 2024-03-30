@@ -8,7 +8,7 @@ const UseGrayedNodeClick = (id: NodeProps["id"]) => {
   const { nodes, edges, setNodes, setEdges } = useStore();
 
   const handleGrayedNodeClick = useCallback(
-    (branchId: string) => {
+    (branchId: string | undefined) => {
       //loop through all nodes to find the parent (the node to be deleted)
       const parentNode = nodes.filter(
         (node) =>

@@ -17,7 +17,7 @@ job("Monorepo Deployment") {
          .replace(Regex("-+"), "-") // Replace multiple consecutive hyphens with a single hyphen
          .lowercase() // Convert to lower case for consistency
 
-       val maxSlugLength = if (branchName.length > 36) 36 else branchName.length
+       val maxSlugLength = if (branchName.length > 32) 32 else branchName.length
 
        var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
 
@@ -172,7 +172,7 @@ job("Monorepo Deployment Cleanup") {
         .replace(Regex("-+"), "-") // Replace multiple consecutive hyphens with a single hyphen
         .lowercase() // Convert to lower case for consistency
 
-      val maxSlugLength = if (branchName.length > 36) 36 else branchName.length
+      val maxSlugLength = if (branchName.length > 32) 32 else branchName.length
 
       var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
 
@@ -237,7 +237,7 @@ job("Monorepo CI") {
            .replace(Regex("-+"), "-") // Replace multiple consecutive hyphens with a single hyphen
            .lowercase() // Convert to lower case for consistency
 
-         val maxSlugLength = if (branchName.length > 36) 36 else branchName.length
+         val maxSlugLength = if (branchName.length > 32) 32 else branchName.length
 
          var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
 

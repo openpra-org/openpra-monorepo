@@ -53,6 +53,21 @@ const initialNodes: Node[] = [
     data: { label: 'node 3' },
     position: { x: 200, y: 100 },
   },
+  {
+      id: '4',
+      data: { label: 'node 4' },
+      position: { x: 200, y: 100 },
+  },
+  {
+      id: '4a',
+      data: { label: 'node 4a' },
+      position: { x: 200, y: 100 },
+  },
+  {
+      id: '4b',
+      data: { label: 'node 4b' },
+      position: { x: 200, y: 100 },
+  },
 ];
 
 const initialEdges: Edge[] = [
@@ -62,6 +77,9 @@ const initialEdges: Edge[] = [
   { id: 'e22b', source: '2', target: '2b', animated: true },
   { id: 'e22c', source: '2', target: '2c', animated: true },
   { id: 'e2c2d', source: '2c', target: '2d', animated: true },
+  { id: 'e14', source: '1', target: '4', animated: true },
+  { id: 'e44a', source: '4', target: '4a', animated: true },
+  { id: 'e44b', source: '4', target: '4b', animated: true },
 ];
 
 const layout = cluster<Node>().size([360, 360])

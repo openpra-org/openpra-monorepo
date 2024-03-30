@@ -12,7 +12,7 @@ import styles from "./styles/nodeTypes.module.css";
  * @param data - Data that the node holds
  * @returns NotGateNode JSX Element
  */
-const NotGateNode = memo(({ id, data }: NodeProps) => (
+const NotGateNode = memo(({ id, data, selected }: NodeProps) => (
   <div className={styles.node_container}>
     <div className={cx(styles.node)} title="click to add a child node">
       {"NOT Gate"}
@@ -31,6 +31,8 @@ const NotGateNode = memo(({ id, data }: NodeProps) => (
       />
     </div>
     <NodeIcon
+      selected={selected}
+      isGrayed={data?.isGrayed}
       nodeType={NodeTypes.NotGate}
       iconProps={{
         width: "30px",

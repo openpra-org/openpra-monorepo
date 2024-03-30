@@ -23,7 +23,7 @@ import { useStore } from "../../store/faultTreeStore";
  */
 function UseEdgeClick(id: EdgeProps["id"]) {
   const { nodes, edges, setEdges, setNodes } = useStore();
-  const { getNode, getEdge } = useReactFlow();
+  const { getNode, getEdge, getEdges } = useReactFlow();
 
   const { faultTreeId } = useParams();
 
@@ -96,8 +96,8 @@ function UseEdgeClick(id: EdgeProps["id"]) {
     void GraphApiManager.storeFaultTree(
       FaultTreeState({
         faultTreeId: faultTreeId!,
-        nodes: nodes,
-        edges: edges,
+        nodes: newNodes,
+        edges: newEdges,
       }),
     ).then((r: any) => {
       console.log(r);

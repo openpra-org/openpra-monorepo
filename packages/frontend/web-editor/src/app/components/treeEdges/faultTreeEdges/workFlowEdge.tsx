@@ -14,6 +14,7 @@ function WorkFlowEdge({
   targetPosition,
   style,
   markerEnd,
+  data,
 }: EdgeProps): JSX.Element {
   // see the hook for implementation details
   // onClick adds a node in between the nodes that are connected by this edge
@@ -34,27 +35,31 @@ function WorkFlowEdge({
       <path
         id={id}
         style={style}
-        className={stylesMap.edgePath}
+        className={
+          data?.isGrayed ? stylesMap.placeholderPath : stylesMap.edgePath
+        }
         d={edgePath}
         markerEnd={markerEnd}
       />
-      <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
-        <rect
-          onClick={onClick}
-          x={-5}
-          y={-5}
-          width={10}
-
-          ry={2}
-          rx={2}
-          height={10}
-          className={stylesMap.edgeButton}
-
-        />
-        <text className={stylesMap.edgeButtonText} y={3.5} x={-4}>
-          +
-        </text>
-      </g>
+      {data?.isGrayed ? (
+        ""
+      ) : (
+        <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
+          <rect
+            onClick={onClick}
+            x={-5}
+            y={-5}
+            width={10}
+            ry={2}
+            rx={2}
+            height={10}
+            className={stylesMap.edgeButton}
+          />
+          <text className={stylesMap.edgeButtonText} y={3.5} x={-4}>
+            +
+          </text>
+        </g>
+      )}
     </>
   );
 }

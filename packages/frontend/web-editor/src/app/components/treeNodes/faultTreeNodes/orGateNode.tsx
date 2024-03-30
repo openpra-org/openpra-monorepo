@@ -13,7 +13,7 @@ import styles from "./styles/nodeTypes.module.css";
  * @param data - Data that the node holds
  * @returns OrGateNode JSX Element
  */
-const OrGateNode = memo(({ id, data }: NodeProps) => {
+const OrGateNode = memo(({ id, data, selected }: NodeProps) => {
   const { handleNodeDoubleClick } = UseNodeDoubleClick(id);
   return (
     <div
@@ -40,6 +40,8 @@ const OrGateNode = memo(({ id, data }: NodeProps) => {
         />
       </div>
       <NodeIcon
+        selected={selected}
+        isGrayed={data?.isGrayed}
         nodeType={NodeTypes.OrGate}
         iconProps={{
           width: "30px",

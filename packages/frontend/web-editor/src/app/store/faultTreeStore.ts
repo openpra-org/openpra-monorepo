@@ -13,15 +13,16 @@ import {
   applyEdgeChanges,
 } from "reactflow";
 import { initialEdges, initialNodes } from "../../utils/faultTreeData";
+import { FaultTreeNodeProps } from "../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 
 export type RFState = {
-  nodes: Node[];
-  edges: Edge[];
+  nodes: Node<FaultTreeNodeProps>[];
+  edges: Edge<FaultTreeNodeProps>[];
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
   onConnect: OnConnect;
-  setNodes: (nodes: Node[]) => void;
-  setEdges: (edges: Edge[]) => void;
+  setNodes: (nodes: Node<FaultTreeNodeProps>[]) => void;
+  setEdges: (edges: Edge<FaultTreeNodeProps>[]) => void;
 };
 /**
  * This is our useStore hook that we can use in our components to get parts of the store and call actions
@@ -46,10 +47,10 @@ const useStore = create<RFState>((set, get) => ({
       edges: addEdge(connection, get().edges),
     });
   },
-  setNodes: (nodes: Node[]): void => {
+  setNodes: (nodes: Node<FaultTreeNodeProps>[]): void => {
     set({ nodes });
   },
-  setEdges: (edges: Edge[]): void => {
+  setEdges: (edges: Edge<FaultTreeNodeProps>[]): void => {
     set({ edges });
   },
 }));

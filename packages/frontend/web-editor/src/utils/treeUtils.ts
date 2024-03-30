@@ -23,6 +23,7 @@ import {
   EventSequenceNodeTypes,
 } from "../app/components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
 import { EventSequenceEdgeProps } from "../app/components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
+import { FaultTreeNodeProps } from "../app/components/treeNodes/faultTreeNodes/faultTreeNodeType";
 import { BASIC_EVENT, WORKFLOW } from "./constants";
 
 /**
@@ -170,12 +171,151 @@ export const getWorkflowEdge = (
   parentNodeId: string,
   childNodeId: string,
   label = "",
-): Edge => ({
+): Edge<FaultTreeNodeProps> => ({
   id: `${parentNodeId}=>${childNodeId}`,
   source: parentNodeId,
   target: childNodeId,
   type: WORKFLOW,
+  animated: false,
+  data: {},
 });
+
+export type OnGrayedState = {
+  grayedNodes: Node<FaultTreeNodeProps>[];
+  grayedEdges: Edge<FaultTreeNodeProps>[];
+};
+
+export type GrayedNodeData =
+  | Node<FaultTreeNodeProps>
+  | Edge<FaultTreeNodeProps>;
+
+export const filterDuplicateData = (currentData: GrayedNodeData[]) => {
+  return currentData.reduce((acc: GrayedNodeData[], curr: GrayedNodeData) => {
+    const existingItem: GrayedNodeData | undefined = acc.find(
+      (item: GrayedNodeData): boolean => item.id === curr.id,
+    );
+    if (existingItem) {
+      if (curr.data?.branchId) {
+        // Replace the existing item if the current item has branchId
+        return acc.map((item) => (item.id === curr.id ? curr : item));
+      } else {
+        // Skip the current item if the existing item already has branchId
+        return acc;
+      }
+    } else {
+      // Add the current item if it's a new id
+      return [...acc, curr];
+    }
+  }, []);
+};
+
+export const grayOutSubgraph = (
+  node: Node<FaultTreeNodeProps>,
+  currentNodes: Node[],
+  currentEdges: Edge[],
+): OnGrayedState => {
+  const grayedNodes: Node[] = [...currentNodes];
+  const grayedEdges: Edge[] = [...currentEdges];
+
+  //gray out current node
+  node.data.isGrayed = true;
+  grayedNodes.push(node);
+
+  //first we will get the subgraph which we want to gray out
+  const { nodes, edges } = GetSubgraph(node, currentNodes, currentEdges);
+  //get immediate children of the current node
+  const outgoers: Node[] = getOutgoers(node, currentNodes, currentEdges);
+  const branchRootNodes: Node<FaultTreeNodeProps>[] = [];
+  //attach unique branchId to each branch and an isGrayed property
+  nodes.forEach((node, index) => {
+    if (outgoers.includes(node)) {
+      node.data = {
+        isGrayed: true,
+        branchId: `branch-${index}`,
+      };
+      branchRootNodes.push(node);
+    }
+  });
+  grayedNodes.push(...branchRootNodes);
+  //gray out all child edges
+  const childEdges = getConnectedEdges([node, ...nodes], currentEdges).filter(
+    (edge) => !(edge.target === node.id),
+  );
+
+  //gray out edges and attach corresponding branchId
+  const grayedChildEdges: Edge<FaultTreeNodeProps>[] = childEdges.map(
+    (childEdge: Edge<FaultTreeNodeProps>, index) => {
+      const targetNode: Node<FaultTreeNodeProps> = getNodeFromId(
+        childEdge.target,
+        nodes,
+      );
+      return {
+        ...childEdge,
+        animated: true,
+        data: {
+          branchId: targetNode.data.branchId,
+          isGrayed: true,
+        },
+      };
+    },
+  );
+  grayedEdges.push(...grayedChildEdges);
+
+  branchRootNodes.map((branchRootNode: Node<FaultTreeNodeProps>) => {
+    const { grayedNodes: grayedBranchNodes, grayedEdges: grayedBranchEdges } =
+      grayOutBranch(branchRootNode, branchRootNode.data.branchId, nodes, edges);
+    grayedNodes.push(...grayedBranchNodes);
+    grayedEdges.push(...grayedBranchEdges);
+  });
+  const finalNodes = filterDuplicateData(grayedNodes);
+  const finalEdges = filterDuplicateData(grayedEdges);
+
+  return {
+    grayedNodes: finalNodes as Node<FaultTreeNodeProps>[],
+    grayedEdges: finalEdges as Edge<FaultTreeNodeProps>[],
+  };
+};
+
+export const grayOutBranch = (
+  branchRootNode: Node<FaultTreeNodeProps>,
+  branchId: string | undefined,
+  currentNodes: Node<FaultTreeNodeProps>[],
+  currentEdges: Edge<FaultTreeNodeProps>[],
+): OnGrayedState => {
+  const { nodes, edges } = GetSubgraph(
+    branchRootNode,
+    currentNodes,
+    currentEdges,
+  );
+
+  const branchChildNodes = nodes.map(
+    (branchChildNode: Node<FaultTreeNodeProps>) => ({
+      ...branchChildNode,
+      data: {
+        isGrayed: true,
+        branchId: branchId,
+      },
+    }),
+  );
+
+  const branchChildEdges = edges.map((branchChildEdge) => ({
+    ...branchChildEdge,
+    animated: true,
+    data: {
+      isGrayed: true,
+      branchId: branchId,
+    },
+  }));
+
+  return { grayedNodes: branchChildNodes, grayedEdges: branchChildEdges };
+};
+
+export const getNodeFromId = (
+  id: string,
+  currentNodes: Node<FaultTreeNodeProps>[],
+): Node<FaultTreeNodeProps> => {
+  return currentNodes.filter((node: Node) => node.id === id)[0];
+};
 
 /**
  * Determine whether a node can be deleted, based on its type

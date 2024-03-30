@@ -13,7 +13,7 @@ import { UseNodeDoubleClick } from "../../../hooks/faultTree/useNodeDoubleClick"
  * @param data - Data that the node holds
  * @returns AtLeastGateNode JSX Element
  */
-const AtLeastGateNode = memo(({ id, data }: NodeProps) => {
+const AtLeastGateNode = memo(({ id, data, selected }: NodeProps) => {
   const { handleNodeDoubleClick } = UseNodeDoubleClick(id);
   return (
     <div
@@ -37,6 +37,8 @@ const AtLeastGateNode = memo(({ id, data }: NodeProps) => {
         />
       </div>
       <NodeIcon
+        selected={selected}
+        isGrayed={data?.isGrayed}
         nodeType={NodeTypes.AtLeastGate}
         iconProps={{ width: "30px", height: "100%", viewBox: "96 96 308 308" }}
       />

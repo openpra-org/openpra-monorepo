@@ -1,37 +1,45 @@
 .node {
-    border: 1px solid #0984e3;
-    border-radius: 4px;
-    background-color: #fff;
-    box-shadow: rgba(0, 0, 0, 0.08) 0px 4px 12px;
-    padding: 12px;
-    width: 100px;
-    height: 50px;
-    font-size: 12px;
-    text-align: center;
-    color: #0984e3;
-    cursor: pointer;
-    line-height: 1.2;
-    justify-content: center;
+  border: 1px solid #0984e3;
+  border-radius: 4px;
+  background-color: #fff;
+  box-shadow: rgba(0, 0, 0, 0.08) 0px 4px 12px;
+  padding: 12px;
+  width: 180px;
+  height: 74px;
+  font-size: 12px;
+  text-align: center;
+  color: #0984e3;
+  cursor: pointer;
+  line-height: 1.2;
+  justify-content: center;
 }
 
 .node:hover {
-    background: radial-gradient(circle at 18.7% 37.8%, rgb(252, 252, 252) 0%, rgb(239, 241, 243) 90%);
+  background: radial-gradient(circle at 18.7% 37.8%, rgb(252, 252, 252) 0%, rgb(239, 241, 243) 90%);
 }
 
 .content {
-    pointer-events: none;
+  pointer-events: none;
 }
 
 .handle {
-    visibility: hidden;
+  visibility: hidden;
 }
 
 .placeholder {
-    width: 160px;
-    background: #fff;
-    border: 1px dashed #bbb;
-    color: #bbb;
-    box-shadow: none;
+  width: 180px;
+  height: 74px;
+  background: #fff;
+  border: 1px dashed #bbb;
+  color: #bbb;
+  padding: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1.2;
+  justify-content: center;
+  text-align: center;
+  font-size: 12px;
+  box-shadow: none;
 }
 
 .node_container {
@@ -41,5 +49,5 @@
 }
 
 .logic_gate {
-    margin: auto;
+  margin: auto;
 }

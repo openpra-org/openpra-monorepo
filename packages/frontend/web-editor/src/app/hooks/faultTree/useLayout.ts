@@ -6,7 +6,7 @@ import { timer } from "d3-timer";
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
 const layout = tree<Node>()
   // the node size configures the spacing between the nodes ([width, height])
-  .nodeSize([150, 130])
+  .nodeSize([250, 165])
   // this is needed for creating equal space between all nodes
   .separation(() => 0.75);
 

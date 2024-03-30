@@ -32,4 +32,12 @@ export type INodeProps = {
    * @param iconProps - properties of icon associated with the node
    */
   iconProps: IIconProps;
+  /**
+   * @param selected - boolean value indicating whether node is selected or not
+   */
+  selected: boolean;
+  /**
+   * @param isGrayed - boolean value indicating if node is grayed out or not
+   */
+  isGrayed: boolean;
 };

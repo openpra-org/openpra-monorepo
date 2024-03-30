@@ -77,7 +77,7 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
         console.log(r);
       });
     },
-    [getEdges, getNode, getNodes, id, setEdges, setNodes],
+    [faultTreeId, getEdges, getNode, getNodes, id, setEdges, setNodes],
   );
 
   return { handleNodeDoubleClick };

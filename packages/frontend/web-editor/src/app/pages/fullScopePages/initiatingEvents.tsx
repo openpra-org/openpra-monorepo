@@ -15,8 +15,6 @@ import {
   EuiFieldNumber,
   EuiDataGrid,
   EuiDataGridCellValueElementProps,
-  EuiGlobalToastList,
-  EuiToast,
   EuiResizableContainer,
 } from "@elastic/eui";
 import React, { useCallback, useEffect, useState } from "react";
@@ -48,32 +46,14 @@ export function EditableTable(): JSX.Element | null {
     Column["dropdownOptions"]
   >([{ number: 1, description: "low" }]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isInvalid, setIsInvalid] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const [toasts, setToasts] = useState<any[]>([]);
-  const [dataGridWidth, setDataGridWidth] = useState("calc(100% - 300px)");
-  const [sidePanelWidth, setSidePanelWidth] = useState("300px");
   const [isSidePanelVisible, setIsSidePanelVisible] = useState(false);
   const [selectedRowIdSidePanel, setSelectedRowIdSidePanel] =
     useState<string>("");
   // // Toggle the side panel and adjust the width of the data grid accordingly
-  const toggleSidePanel = () => {
+  const toggleSidePanel = (): void => {
     setIsSidePanelVisible(!isSidePanelVisible);
-    if (isSidePanelVisible) {
-      // If side panel is visible, hide it and extend the main grid
-      setSidePanelWidth("0px");
-    } else {
-      // If side panel is hidden, show it and shrink the main grid
-      setSidePanelWidth("300px");
-    }
-  };
-  const addToast = (toast: any) => {
-    setToasts(toasts.concat(toast));
-  };
-
-  const removeToast = (removedToast: any) => {
-    setToasts(toasts.filter((toast) => toast.id !== removedToast.id));
   };
 
   type DatagridColumn = {
@@ -110,7 +90,7 @@ export function EditableTable(): JSX.Element | null {
     };
 
     void loadFmea();
-    console.log(data);
+    //console.log(data);
   }, []);
 
   function showModal(columnName: string): void {
@@ -167,7 +147,6 @@ export function EditableTable(): JSX.Element | null {
     };
     void update();
   }
-
   const datagridColumns: DatagridColumn[] = columns.map((column) => {
     if (column.name !== "actions" && column.name !== "details") {
       return {
@@ -186,7 +165,7 @@ export function EditableTable(): JSX.Element | null {
         ),
       };
     } else {
-      if (column.name == "actions") {
+      if (column.name === "actions") {
         return {
           id: "actions",
           displayAsText: "Actions",
@@ -238,24 +217,24 @@ export function EditableTable(): JSX.Element | null {
     setNewColumn({ name: "", type: "string", dropdownOptions: [] });
     setDropdownOptions([{ number: 1, description: "low" }]);
   };
-  const showErrorToast = () => {
-    addToast({
-      id: "formErrorToast",
-      title: "Error addinf new column",
-      color: "danger",
-      iconType: "alert",
-      text: <p>Minimum 1 DropDown Options Required. Try Again.</p>,
-    });
-  };
+  // const showErrorToast = () => {
+  //   addToast({
+  //     id: "formErrorToast",
+  //     title: "Error addinf new column",
+  //     color: "danger",
+  //     iconType: "alert",
+  //     text: <p>Minimum 1 DropDown Options Required. Try Again.</p>,
+  //   });
+  // };
   function addNewColumn(): void {
     const isInvalid = newColumn.name.trim() === "";
     setIsSubmitted(true);
     if (!isInvalid) {
       if (
-        newColumn.type == "dropdown" &&
-        newColumn.dropdownOptions.length == 0
+        newColumn.type === "dropdown" &&
+        newColumn.dropdownOptions.length === 0
       ) {
-        showErrorToast();
+        //showErrorToast();
       } else {
         if (editingColumn) {
           // Update existing column
@@ -439,7 +418,7 @@ export function EditableTable(): JSX.Element | null {
   }
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
-  const onSelectionChange = (itemId: string) => {
+  const onSelectionChange = (itemId: string): void => {
     const newSelection = new Set(selectedItems);
     if (newSelection.has(itemId)) {
       newSelection.delete(itemId);
@@ -451,7 +430,7 @@ export function EditableTable(): JSX.Element | null {
   type RowData = Record<string, unknown>;
   const renderCellValue = useCallback(
     ({ rowIndex, columnId }: EuiDataGridCellValueElementProps) => {
-      console.log(columnId);
+      //console.log(columnId);
       const column = columns.find((col) => col.id === columnId);
 
       const item: RowData = data[rowIndex].row_data;
@@ -460,13 +439,13 @@ export function EditableTable(): JSX.Element | null {
         const value = item[column.id] as string;
         // Use `value` here within the if block
         //console.log(column);
-        if (columnId == "id") {
+        if (columnId === "id") {
           const id = data[rowIndex].id;
           return (
             <input
               type="checkbox"
               checked={selectedItems.has(id)}
-              onChange={() => {
+              onChange={(): void => {
                 onSelectionChange(id);
               }}
               aria-label={`Select row with id ${id}`}
@@ -512,7 +491,7 @@ export function EditableTable(): JSX.Element | null {
             );
           }
         } else {
-          if (column.name == "actions") {
+          if (column.name === "actions") {
             return (
               <EuiButtonIcon
                 onClick={(): void => {
@@ -558,7 +537,7 @@ export function EditableTable(): JSX.Element | null {
             Add Column
           </EuiButton>
           <EuiResizableContainer style={{ height: "400px" }}>
-            {(EuiResizablePanel, EuiResizableButton) => (
+            {(EuiResizablePanel, EuiResizableButton): React.JSX.Element => (
               <>
                 <EuiResizablePanel
                   initialSize={isSidePanelVisible ? 70 : 100}
@@ -638,11 +617,11 @@ export function EditableTable(): JSX.Element | null {
                           )
                           .map((column) => {
                             const row = data.filter(
-                              (r) => r.id == selectedRowIdSidePanel,
+                              (r) => r.id === selectedRowIdSidePanel,
                             );
-                            console.log(row);
+                            //console.log(row);
                             const value = row[0].row_data[column.id] as string;
-                            console.log(value);
+                            //console.log(value);
                             return (
                               <EuiFormRow label={column.name} key={column.id}>
                                 {column.type === "dropdown" ? (
@@ -685,11 +664,11 @@ export function EditableTable(): JSX.Element | null {
               </>
             )}
           </EuiResizableContainer>
-          <EuiGlobalToastList
-            toasts={toasts}
-            dismissToast={removeToast}
-            toastLifeTimeMs={60000}
-          />
+          {/*<EuiGlobalToastList*/}
+          {/*  toasts={toasts}*/}
+          {/*  dismissToast={removeToast}*/}
+          {/*  toastLifeTimeMs={60000}*/}
+          {/*/>*/}
         </EuiPageTemplate.Section>
       </EuiPageTemplate>
     </div>

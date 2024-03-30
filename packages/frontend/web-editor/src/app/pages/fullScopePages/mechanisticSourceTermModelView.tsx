@@ -1,7 +1,7 @@
 import { EuiPageTemplate, EuiSkeletonRectangle } from "@elastic/eui";
 import { InitiatingEventModelViewTable } from "../../components/tables/initiatingEventModelViewTable";
 
-function InitiatingEventModelView(): JSX.Element {
+function MechanisticSourceTermModelView(): JSX.Element {
   return (
     <EuiPageTemplate
       panelled={false}
@@ -24,4 +24,4 @@ function InitiatingEventModelView(): JSX.Element {
   );
 }
 
-export { InitiatingEventModelView };
+export { MechanisticSourceTermModelView };

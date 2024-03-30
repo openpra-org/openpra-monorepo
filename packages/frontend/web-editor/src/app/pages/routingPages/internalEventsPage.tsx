@@ -26,6 +26,7 @@ import { InitiatingEventModelView } from "../fullScopePages/initiatingEventModel
 import { GlobalToastList } from "../../components/lists/globalToastList";
 import { ToastProvider } from "../../providers/toastProvider";
 import { HeatBalanceFaultTrees } from "../fullScopePages/heatBalanceFaultTree";
+import { MechanisticSourceTermModelView } from "../fullScopePages/mechanisticSourceTermModelView";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -118,6 +119,10 @@ function InternalEventsPage(): JSX.Element {
           <Route
             path="mechanistic-source-terms/*"
             element={<MechanisticAnalysis />}
+          />
+          <Route
+            path="mechanistic-source-terms-model-view/*"
+            element={<MechanisticSourceTermModelView />}
           />
           <Route
             path="radiological-consequence-analysis/*"

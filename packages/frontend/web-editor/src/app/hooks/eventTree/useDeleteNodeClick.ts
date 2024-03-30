@@ -44,6 +44,7 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
     }
 
     if (shouldDeleteSubtree && parentNodeId) {
+      nodesToDelete.add(clickedNodeId);
       // Identify sibling node by checking the parent node's edges
       const siblingEdges = edges.filter(
         (edge) => edge.source === parentNodeId && edge.target !== clickedNodeId,

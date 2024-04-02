@@ -379,12 +379,6 @@ const App: React.FC = () => {
   };
 
   const handleSidePanelClose = () => {
-    if (didGroupColumnChange){
-      let temp = ungroup(data);
-      let groupedData = makeGroups(temp, groupbyColumn);
-      setData(groupedData);
-      setDidGroupColumnChange(false);
-    }
     setIsSidePanelOpen(false);
   }
 
@@ -804,23 +798,7 @@ const App: React.FC = () => {
         }
         if (selectedRowData && rowData.id === selectedRowData.id) {
           setIsSidePanelOpen((isOpen) => !isOpen);
-          //if sidebar is closed then grouping is performed again
-          //if in previously selected row the grouping column changed in sidebar
-          if (didGroupColumnChange){
-            let temp = ungroup(data);
-            let groupedData = makeGroups(temp, groupbyColumn);
-            setData(groupedData);
-            setDidGroupColumnChange(false);
-          }
         } else {
-          //if new row is selected then grouping is performed again
-          //if previously selected row changed in sidebar
-          if (didGroupColumnChange){
-            let temp = ungroup(data);
-            let groupedData = makeGroups(temp, groupbyColumn);
-            setData(groupedData);
-            setDidGroupColumnChange(false);
-          }
           setSelectedRowData(rowData);
           setIsSidePanelOpen(true);
         }
@@ -832,6 +810,7 @@ const App: React.FC = () => {
       // Define a function to handle changes in dropdown selection
       const handleDropdownChange = (selectedValue: string) => {
         // This function will update the DataRow in the grid data state
+        alert("In handleDropdownChange"+groupbyColumn);
         setData((prevData) =>
           prevData.map((row, index) => {
             if (index === rowIndex) {
@@ -846,7 +825,21 @@ const App: React.FC = () => {
         if (selectedRowData && selectedRowData.id === rowData.id) {
           setSelectedRowData({ ...selectedRowData, [columnId]: selectedValue });
         }
+
+        if (groupbyColumn == columnId){
+          setDidGroupColumnChange(true);
+        }
       };
+
+      //a function that runs everytime the value of didGroupColumnChange changes
+      useEffect(() => {
+        if (didGroupColumnChange){
+          let temp = ungroup(data);
+          let groupedData = makeGroups(temp, groupbyColumn);
+          setData(groupedData);
+          setDidGroupColumnChange(false);
+        }
+      }, [didGroupColumnChange]);
 
       // Only allow the side panel to open when clicking on text cells, not dropdowns or checkboxes
       const shouldOpenSidePanel =

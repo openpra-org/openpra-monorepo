@@ -723,6 +723,15 @@ const App: React.FC = () => {
   const [visibleColumns, setVisibleColumns] = useState(
     getMergedColumns.map((column) => column.id),
   );
+  
+  //to check if groupByColumn is present in visibleColumns, if not then reset the grouping
+  useEffect(() => {
+    if (!visibleColumns.includes(groupbyColumn)){
+      setGroupbyColumn("");
+      setData(ungroup(data));
+    }
+  }, [visibleColumns]);
+
   const [editingCell, setEditingCell] = useState<{
     rowIndex: number;
     columnId: string;

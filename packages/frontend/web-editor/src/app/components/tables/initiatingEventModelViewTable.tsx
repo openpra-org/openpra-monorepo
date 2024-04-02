@@ -287,6 +287,10 @@ const App: React.FC = () => {
       }
       return col;
     });
+    if (groupbyColumn == newColumnData.id){
+      setGroupbyColumn("");
+      setData(ungroup(data));
+    }
     // Update the customColumns with the new type
     setCustomColumns((prevColumns) =>
       prevColumns.map((col) => {
@@ -752,7 +756,6 @@ const App: React.FC = () => {
     setSelectedRowData(rowData);
     setIsModalVisible(true);
   };
-  const [items, setItems] = useState<Item[]>([]);
   // Handler to change individual column configuration
   const handleChange = (id: string, key: keyof CustomColumn, value: string) => {
     // Update the state of a specific column's configuration
@@ -856,6 +859,7 @@ const App: React.FC = () => {
     [],
   );
   const updateColumnType = (columnId: string, newType: ColumnType) => {
+    alert("In Update Column Type");
     setCustomColumns((prevCustomColumns) =>
       prevCustomColumns.map((column) => {
         if (column.id === columnId) {

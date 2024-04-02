@@ -25,6 +25,7 @@ import "@elastic/eui/dist/eui_theme_light.css";
 import { useEffect } from "react";
 import { groupBy, set } from "lodash";
 import { group } from "console";
+import "./initiatingEventModelViewTable.css"
 // Define the interface for a single row of data.
 interface DataRow {
   id: number;
@@ -44,13 +45,7 @@ interface Item {
   id: number;
   value: string;
 }
-// interface ColumnTypeEditorProps {
-//   columns: CustomColumn[];
-//   onSave: (updatedColumns: CustomColumn[]) => void;
-//   onCancel: () => void;
-//   // Add handleChange if it's supposed to be passed as a prop
-//   handleChange?: (id: string, key: keyof CustomColumn, value: string) => void;
-// }
+
 interface ColumnConfig {
   id: string;
   displayAsText: string;
@@ -63,15 +58,7 @@ interface CustomColumn extends EuiDataGridColumn {
   inputType?: ColumnType;
   dropdownOptions?: Array<{ value: string; text: string }>;
   previousType?: ColumnType; // Add this line to include the previousType property
-
-  // display?: React.ReactNode | ((props: CustomHeaderProps) => React.ReactNode);
 }
-// interface ColumnTypeEditorProps {
-//   columns: CustomColumn[];
-//   onSave: (updatedColumns: CustomColumn[]) => void;
-//   onCancel: () => void; // Explicitly defining the type of onCancel as a function that returns void
-// }
-// Define the props for the CustomHeader component
 interface CustomHeaderProps {
   column: CustomColumn;
   onEdit: (columnId: string) => void;
@@ -114,32 +101,6 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ column, onEdit }) => {
     </div>
   );
 };
-
-// const columns: CustomColumn[] = [
-//   // ... (your existing columns)
-//   {
-//     id: "definition",
-//     displayAsText: "Definition",
-//     //display: <CustomHeader column={/* column data */} onEdit={openEditColumnModal} />
-//   },
-//   { id: "characteristics", displayAsText: "Characteristics" },
-//   {
-//     id: "processCriteriaIdentification",
-//     displayAsText: "Process Criteria Identification",
-//   },
-//   {
-//     id: "controlRodInsertion",
-//     displayAsText: "Control Rod Insertion",
-//     isSortable: true,
-//   },
-//   { id: "feedwaterPump", displayAsText: "Feedwater Pump", isSortable: true },
-//   {
-//     id: "reactorCoolantCirculator",
-//     displayAsText: "Reactor Coolant Circulator",
-//     isExpandable: true,
-//   },
-//   { id: "others", displayAsText: "Others", isExpandable: true },
-// ];
 
 const App: React.FC = () => {
   const deleteColumnConfig = {
@@ -346,7 +307,6 @@ const App: React.FC = () => {
 
   const handleCreateColumn = () => {
     if (!newColumnData.id || !newColumnData.displayAsText) {
-      console.error("Both Column ID and Display Text are required.");
       return;
     }
 
@@ -364,7 +324,6 @@ const App: React.FC = () => {
     };
 
     setCustomColumns((prevColumns) => [...prevColumns, newColumn]);
-    // closeSidePanel();
   };
 
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -494,14 +453,11 @@ const App: React.FC = () => {
   const handleAddNewColumn = () => {
     // we are making sure that new column has an ID and a display text
     if (!newColumnDetails.id || !newColumnDetails.displayAsText) {
-      console.error("Both Column ID and Display Text are required.");
       return;
     }
     // Omit the delete column from being added again
     if (newColumnDetails.id === "delete") {
-      console.error(
-        "The 'delete' column ID is reserved and cannot be used for new columns.",
-      );
+      
       return;
     }
 
@@ -534,19 +490,6 @@ const App: React.FC = () => {
         },
       ];
     });
-
-    // // Add the new column config to the grid, without adding a new delete column
-    // setCustomColumns((prevColumns) => {
-    //   // First, remove the existing delete column if it is present
-    //   const columnsWithoutDelete = prevColumns.filter(
-    //     (column) => column.id !== "delete",
-    //   );
-    //   // Then, add the new column configuration
-    //   return [...columnsWithoutDelete, newColumnConfig];
-    // });
-
-    // Add the new column config to the grid
-    // setCustomColumns((prevColumns) => [...prevColumns, newColumnConfig]);
 
     // Reset the modal form state and close the modal
     setNewColumnDetails({ id: "", displayAsText: "", columnType: "text" });
@@ -593,8 +536,6 @@ const App: React.FC = () => {
       } else {
         newSelectedRowIds.add(rowId);
       }
-      console.log("In setSelectedRowId");
-      console.log(newSelectedRowIds);
       localStorage.setItem(
         "selectedRowIds",
         JSON.stringify([...newSelectedRowIds]),
@@ -634,18 +575,7 @@ const App: React.FC = () => {
       top: "5px",
       fontSize: "1.6em",
     };
-
-    //style for class named euiDataGridRowCell to remove borders
-    const euiDataGridRowCellStyle = {
-      display: "flex",
-      alignItems: "center",
-      border: "0px solid black",
-    };
-
-    const datagridContainerStyle = {
-      border: "none",
-      paddingbottom: "0px",
-    };
+    
 
     // Checkbox column for row selection
     const selectColumn = {
@@ -656,14 +586,6 @@ const App: React.FC = () => {
         const rowId = data[rowIndex].id;
         const isChecked = selectedRowIds.has(rowId);
         const optionId = `checkbox_${rowId}`;
-
-        // const handleCheckboxChange = (rowId: number) => {
-        //   // Toggle the selection on change
-        //   handleRowSelectionChange(rowId);
-        // };
-        console.log(`Row ${rowId} checked: ${isChecked}`);
-
-        // Return a checkbox with the correct 'checked' state and an onChange handler
         return (
           <EuiCheckbox
             key={optionId}
@@ -737,48 +659,12 @@ const App: React.FC = () => {
     columnId: string;
   } | null>(null);
 
-  // Function to handle opening the modal with selected row data
-  const handleOpenModal = useCallback((rowData: DataRow) => {
-    setSelectedRowData(rowData);
-    setIsModalVisible(true);
-  }, []);
-  const handleSaveNewColumn = () => {
-    // Construct the new column config object
-    const newColumnConfig = {
-      id: newColumnDetails.id,
-      displayAsText: newColumnDetails.displayAsText,
-      columnType: newColumnDetails.columnType,
-      // If it's a dropdown, you would handle dropdownOptions similarly
-    };
-
-    // Add the new column to your grid columns state (this logic depends on your existing code)
-    // ...
-
-    // Reset the modal form state and close the modal
-    setNewColumnDetails({ id: "", displayAsText: "", columnType: "text" });
-    // Close modal logic goes here...
-  };
   // When opening the modal to edit, make sure to set the editing cell state
   const openEditModal = (rowIndex: number, columnId: string) => {
     const rowData = data[rowIndex];
     setEditingCell({ rowIndex, columnId });
     setSelectedRowData(rowData);
     setIsModalVisible(true);
-  };
-  // Handler to change individual column configuration
-  const handleChange = (id: string, key: keyof CustomColumn, value: string) => {
-    // Update the state of a specific column's configuration
-    setCustomColumns((prevColumns) =>
-      prevColumns.map((column) =>
-        column.id === id ? { ...column, [key]: value } : column,
-      ),
-    );
-  };
-
-  // This function should be defined within your component where 'setCustomColumns' is available
-  const onSave = (updatedColumns: React.SetStateAction<CustomColumn[]>) => {
-    // Assuming 'setCustomColumns' is the state updater function for your custom columns
-    setCustomColumns(updatedColumns);
   };
 
   //variable to store using which grouping should be performed
@@ -797,9 +683,7 @@ const App: React.FC = () => {
         newData = [...currentData,editedData];
         if (groupbyColumn!=""){
           let temp = ungroup(newData);
-          alert("Temp"+temp.length)
           let groupedData = makeGroups(temp, groupbyColumn);
-          alert("grouped"+groupedData.length)
           return groupedData;
         }
       }
@@ -816,6 +700,8 @@ const App: React.FC = () => {
   // Function to handle adding a new row
   const handleAddNewRow = () => {
     // Open the modal to add a new row
+    // Initialize the selectedRowData state with an empty object
+    
     setSelectedRowData({
       id: Date.now(), // Example for a unique ID
       definition: "",
@@ -868,7 +754,6 @@ const App: React.FC = () => {
     [],
   );
   const updateColumnType = (columnId: string, newType: ColumnType) => {
-    alert("In Update Column Type");
     setCustomColumns((prevCustomColumns) =>
       prevCustomColumns.map((column) => {
         if (column.id === columnId) {
@@ -1034,8 +919,6 @@ const App: React.FC = () => {
     ],
   );
 
-  // ... rest of your component code
-
   // Form state for the modal fields
   const [modalFormState, setModalFormState] = useState<DataRow>(() => {
     const initialState: Partial<DataRow> = {};
@@ -1117,7 +1000,7 @@ const App: React.FC = () => {
   }
 
 
-  // store column by which grouping is done
+  // function to group the data by columnId
   function makeGroups(rows: any[], columnId: string) {
     const grouped = groupBy(rows, columnId);
     const groupedRows: any[] = [];
@@ -1131,6 +1014,8 @@ const App: React.FC = () => {
     }
     return groupedRows;
   }
+
+  //convert groupped data to ungrouped data 
   function ungroup(rows: any[]) {
     let updatedData =[];
     for (let i = 0; i < rows.length; i++) {

@@ -1343,6 +1343,8 @@ const App: React.FC = () => {
                           <div style={{ padding: 10 }}>
                             <EuiListGroup>
                               {[...baseColumns, ...customColumns].map((column) => (
+                                //only show which are in visible columns
+                                visibleColumns.includes(column.id) && column.id != "delete" &&
                                 <EuiListGroupItem
                                   key={column.id}
                                   label={column.displayAsText}

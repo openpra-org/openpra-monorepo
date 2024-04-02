@@ -169,6 +169,8 @@ const App: React.FC = () => {
     //   isSortable: false, // Deleting a row is an action, not something you sort by
     // },
   ]);
+  //variable to store using which grouping should be performed
+  const [groupbyColumn, setGroupbyColumn] = useState<string>("");
 
   // Add state to manage the width of the data grid and the side panel
   const [dataGridWidth, setDataGridWidth] = useState("calc(100% - 300px)");
@@ -545,11 +547,21 @@ const App: React.FC = () => {
   }, []);
 
   const handleDeleteSelectedRows = useCallback(() => {
-    setData((prevData) =>
-      prevData.filter((row) => !selectedRowIds.has(row.id)),
-    );
+    setData((prevData) => {
+      const newData = prevData.filter((row) => !selectedRowIds.has(row.id));
+
+      if (groupbyColumn !== "") {
+        let temp = ungroup(newData);
+        let groupedData = makeGroups(temp, groupbyColumn);
+        return groupedData;
+      }
+
+      return newData;
+    });
+
     setSelectedRowIds(new Set()); // Clear selection after deletion
-  }, [selectedRowIds]);
+    alert("In handle delete selected rows" + groupbyColumn);
+  }, [selectedRowIds, groupbyColumn]);
 
   const getMergedColumns = useMemo(() => {
     // Checkbox column for row selection
@@ -667,8 +679,6 @@ const App: React.FC = () => {
     setIsModalVisible(true);
   };
 
-  //variable to store using which grouping should be performed
-  const [groupbyColumn, setGroupbyColumn] = useState<string>("");
   // Modify handleSaveData to handle both adding and editing rows
   const handleSaveData = useCallback((editedData: DataRow) => {
     setData((currentData) => {

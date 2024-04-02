@@ -1350,8 +1350,57 @@ const App: React.FC = () => {
                             }
                           />
                         </EuiFormRow>
-                        {/* Dropdown options go here if columnType is 'dropdown' */}
-                        {/* ... */}
+                        {newColumnData.columnType === "dropdown" && (
+                            <React.Fragment>
+                              {newColumnData.dropdownOptions.map(
+                                (option, index) => (
+                                  <div key={index}>
+                                    <EuiFormRow
+                                      label={`Option ${index + 1} Text`}
+                                    >
+                                      <EuiFieldText
+                                        value={option.text}
+                                        onChange={(e) =>
+                                          handleDropdownOptionChange(
+                                            index,
+                                            "text",
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+                                    </EuiFormRow>
+                                    <EuiFormRow
+                                      label={`Option ${index + 1} Value`}
+                                    >
+                                      <EuiFieldText
+                                        value={option.value}
+                                        onChange={(e) =>
+                                          handleDropdownOptionChange(
+                                            index,
+                                            "value",
+                                            e.target.value,
+                                          )
+                                        }
+                                      />
+                                    </EuiFormRow>
+                                    <EuiButtonIcon
+                                      iconType="minusInCircle"
+                                      onClick={() =>
+                                        handleRemoveDropdownOption(index)
+                                      }
+                                      aria-label="Remove dropdown option"
+                                    />
+                                  </div>
+                                ),
+                              )}
+                              <EuiButton
+                                onClick={handleAddDropdownOption}
+                                iconType="plusInCircle"
+                              >
+                                Add Option
+                              </EuiButton>
+                            </React.Fragment>
+                          )}
                       </EuiForm>
                     </EuiModalBody>
                     <EuiModalFooter>

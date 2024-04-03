@@ -8,10 +8,13 @@ import {
   EuiTitle,
   useIsWithinBreakpoints,
   EuiText,
+  EuiSpacer,
   EuiIcon,
   EuiSkeletonRectangle,
+  EuiTabbedContent,
 } from "@elastic/eui";
 import TypedModel from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+
 import {
   GetCurrentTypedModel,
   PatchExternalHazard,
@@ -32,24 +35,13 @@ async function fetchCurrentTypedModel(): Promise<TypedModel> {
   }
 }
 
-//a change of new item that lets you edit an item, though right now functionality for that isn't available because it requires database
 function EditCurrentModel(): JSX.Element {
-  //this is what is in the newItem structure, will eventually be used to actually make things
-  //this is also subject to change, probably needs a type passed in from props eventually
   const newItem = new TypedModel();
-
-  const editInternalEvent = UseGlobalStore.use.editInternalEvent();
-
-  //grabs the current models information
   const [currentModel, setCurrentModel] = useState(newItem);
-
-  //sets the current endpoint
   let endpoint;
-
-  //this isLoading set is here to make sure we don't load in the other component too soon
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const splitPath = window.location.pathname.split("/"); // Gets the path part of the URL (/internal-events/2) // Splits the path into segments using the '/' character
+  const splitPath = window.location.pathname.split("/");
   const currentModelType = splitPath[TYPED_MODEL_TYPE_LOCATION];
 
   if (currentModelType === "internal-events") {
@@ -62,7 +54,6 @@ function EditCurrentModel(): JSX.Element {
     endpoint = PatchFullScope;
   }
 
-  //this takes any type instead of what it should, I have *no* idea how to carry over the types across promises, it doesn't seem to work, and I've tinkered quite a bit
   const updateCurrentModel = (newModel: any): void => {
     const addModel = new TypedModel(
       newModel.id,
@@ -86,68 +77,32 @@ function EditCurrentModel(): JSX.Element {
     void fetchModel();
   }, []);
 
-  //const [itemInfo, setItemInfo] = useState(newItem)
-
-  const buttonContent = (
-    <div>
-      <EuiFlexGroup gutterSize="s" alignItems="center" responsive={false}>
-        <EuiFlexItem grow={false}>
-          <EuiIcon type="dashboardApp" size="l" />
-        </EuiFlexItem>
-        <EuiFlexItem>
-          <EuiTitle size="xs">
-            <h3>General Settings</h3>
-          </EuiTitle>
-        </EuiFlexItem>
-      </EuiFlexGroup>
-      <EuiText size="s">
-        <p>
-          <EuiTextColor color="subdued">
-            Update the model name, description, and ID.
-          </EuiTextColor>
-        </p>
-      </EuiText>
-    </div>
-  );
-  //screen breakpoints
-  const smallScreen = useIsWithinBreakpoints(["xs", "s", "m"]);
 
   return (
-    <SettingsAccordian
-      id="model_settings"
-      buttonContent={buttonContent}
-      initial={true}
-    >
-      <EuiFlexGrid
-        direction="row"
-        responsive={false}
-        columns={smallScreen ? 1 : 2}
-      >
-        <EuiFlexItem grow={true}>
-          <EuiPanel paddingSize="xl">
-            <EuiSkeletonRectangle
-              width="100%"
-              height={500}
-              borderRadius="m"
-              isLoading={!isLoaded}
-              contentAriaLabel="Edit Current Model"
-              data-testid="editBox"
-            >
-              <TypedModelActionForm
-                action="edit"
-                itemName={currentModelType}
-                patchEndpoint={endpoint}
-                initialFormValues={{
-                  id: currentModel.getId(),
-                  label: currentModel.getLabel(),
-                  users: currentModel.getUsers(),
-                }}
-              />
-            </EuiSkeletonRectangle>
-          </EuiPanel>
-        </EuiFlexItem>
-      </EuiFlexGrid>
-    </SettingsAccordian>
+    <div>
+        {(<>
+          <EuiSpacer size="l" />
+          <EuiTitle size="xs">
+            <h6> Create {currentModelType} Model </h6>
+          </EuiTitle>
+          <EuiSpacer size="s" />
+
+          <EuiSpacer />
+        </>)}
+
+
+          <TypedModelActionForm
+            action="edit"
+            itemName={currentModelType}
+            patchEndpoint={endpoint}
+            initialFormValues={{
+              id: currentModel.getId(),
+              label: currentModel.getLabel(),
+              users: currentModel.getUsers(),
+            }}
+          />
+
+    </div>
   );
 }
 

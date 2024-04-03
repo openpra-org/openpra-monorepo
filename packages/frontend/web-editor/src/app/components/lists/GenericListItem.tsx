@@ -7,6 +7,7 @@ import {
   useEuiPaddingSize,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiButtonEmpty,
 } from "@elastic/eui";
 import { Link } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
@@ -48,7 +49,9 @@ export type GenericListItemProps = {
  */
 function GenericListItem(props: GenericListItemProps): JSX.Element {
   //grabs the props
-  const { label, id, path } = props;
+  const { label, id, path, endpoint } = props;
+  console.log(path)
+  const settings_path = path+'/settings';
 
   // TODO
   //setting theming constants to be used later
@@ -97,6 +100,17 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
               </small>
             </EuiText>
           </EuiFlexItem>
+
+          {endpoint === "event-sequence-diagram" && (
+          <EuiFlexItem grow={false}>
+            {/* Settings Button */}
+            <Link to={settings_path}>
+              <EuiButtonEmpty size="s" color="text" iconType="gear">
+                Settings
+              </EuiButtonEmpty>
+            </Link>
+          </EuiFlexItem>)}
+
           <EuiFlexItem grow={false}>
             <EuiFlexGroup direction="row" gutterSize="s">
               <ListItemContextMenuButton {...props} />

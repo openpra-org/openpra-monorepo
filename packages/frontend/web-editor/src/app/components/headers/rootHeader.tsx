@@ -27,6 +27,7 @@ import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/l
 import { ToTitleCase, TokenizePath } from "../../../utils/StringUtils";
 import { ContextAddButton } from "../buttons/contextAddButton";
 import { ResetAllSlices, UseGlobalStore } from "../../zustand/Store";
+import { CreateSettingButton } from "../buttons/CreateSettingButton";
 import { WorkspaceSelectorMenu } from "./WorkspaceSelectorMenu";
 
 const RootHeader = (): JSX.Element => {
@@ -128,6 +129,9 @@ const RootHeader = (): JSX.Element => {
       <EuiHeaderSection side="right">
         <EuiHeaderSectionItem>
           <ContextAddButton />
+        </EuiHeaderSectionItem>
+        <EuiHeaderSectionItem>
+          <CreateSettingButton />
         </EuiHeaderSectionItem>
         <EuiHeaderSectionItem>{search}</EuiHeaderSectionItem>
         <EuiHeaderSectionItem>

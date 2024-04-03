@@ -11,6 +11,8 @@ import ReactFlow, {
 import { useEffect, useState, useRef, useCallback } from "react";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { ModelSettings } from "./modelSettings";
+
 import { EventSequenceGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { EventSequenceList } from "../../components/lists/nestedLists/eventSequenceList";
 import { UseLayout } from "../../hooks/eventSequence/useLayout";
@@ -33,6 +35,7 @@ import {
 } from "../../../utils/treeUtils";
 import { LoadingCard } from "../../components/cards/loadingCard";
 import { UseToastContext } from "../../providers/toastProvider";
+
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
@@ -314,8 +317,16 @@ export function EventSequenceEditor(): JSX.Element {
 function EventSequenceDiagrams(): JSX.Element {
   return (
     <Routes>
+      {/* Route for displaying the list of event sequences */}
       <Route path="" element={<EventSequenceList />} />
-      <Route path=":eventSequenceId" element={<EventSequenceEditor />} />
+      <Route path="settings" element={<ModelSettings />} />
+
+      {/* Route for editing a specific event sequence */}
+      <Route path=":eventSequenceId">
+        <Route index element={<EventSequenceEditor />} />
+        {/* Nested route for event sequence settings */}
+        <Route path="settings" element={<ModelSettings />}  />
+      </Route>
     </Routes>
   );
 }

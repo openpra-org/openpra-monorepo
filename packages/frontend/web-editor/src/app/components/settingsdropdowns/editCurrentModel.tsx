@@ -24,6 +24,7 @@ import {
 import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { UseGlobalStore } from "../../zustand/Store";
 import { SettingsAccordian } from "./SettingsAccordian";
+import {editInternalEvent} from "../../zustand/internalEvents/internalEventsActions";
 
 const TYPED_MODEL_TYPE_LOCATION = 1;
 

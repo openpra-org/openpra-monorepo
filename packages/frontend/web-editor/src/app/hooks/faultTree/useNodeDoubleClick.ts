@@ -3,7 +3,14 @@ import { Edge, Node, getOutgoers, NodeProps, useReactFlow } from "reactflow";
 
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
+import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { FaultTreeState, GenerateUUID } from "../../../utils/treeUtils";
+import {
+  BASIC_EVENT,
+  LEAF_NODE_TYPES,
+  NOT_GATE,
+  WORKFLOW,
+} from "../../../utils/constants";
 
 /**
  * This hook implements the double click event on a node.
@@ -29,6 +36,13 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
         return;
       }
 
+      if (
+        LEAF_NODE_TYPES.includes(parentNode.type) ||
+        parentNode.type === NOT_GATE
+      ) {
+        return;
+      }
+
       // create a unique id for the child node
       const childNodeId = GenerateUUID();
 
@@ -38,7 +52,7 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
         // we try to place the child node close to the calculated position from the layout algorithm
         // 150 pixels below the parent node, this spacing can be adjusted in the useLayout hook
         position: { x: parentNode.position.x, y: parentNode.position.y + 150 },
-        type: "basicEvent",
+        type: BASIC_EVENT,
         data: {},
       };
 
@@ -47,7 +61,7 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
         id: `${parentNode.id}=>${childNodeId}`,
         source: parentNode.id,
         target: childNodeId,
-        type: "workflow",
+        type: WORKFLOW,
       };
 
       // if the clicked node has had any placeholders as children, we remove them because it will get a child now
@@ -70,11 +84,11 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
       await GraphApiManager.storeFaultTree(
         FaultTreeState({
           edges: edges,
-          faultTreeId: faultTreeId!,
+          faultTreeId: faultTreeId ?? "",
           nodes: nodes,
         }),
-      ).then((r: any) => {
-        console.log(r);
+      ).then((r: FaultTreeGraph) => {
+        // console.log(r);
       });
     },
     [faultTreeId, getEdges, getNode, getNodes, id, setEdges, setNodes],

@@ -1,7 +1,13 @@
 import { Edge, getOutgoers, Node, NodeProps } from "reactflow";
 import { useCallback } from "react";
+import { useParams } from "react-router-dom";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useStore } from "../../store/faultTreeStore";
-import { GetParentNode, getWorkflowEdge } from "../../../utils/treeUtils";
+import {
+  FaultTreeState,
+  GetParentNode,
+  getWorkflowEdge,
+} from "../../../utils/treeUtils";
 import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 
 /**
@@ -18,10 +24,10 @@ import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/fa
  */
 const UseGrayedNodeClick = (id: NodeProps["id"]) => {
   const { nodes, edges, setNodes, setEdges } = useStore();
-
+  const { faultTreeId } = useParams();
   //Solidifies the branch of the clicked node, takes in the branchId of the clicked node as a parameter
   const handleGrayedNodeClick = useCallback(
-    (branchId: string | undefined) => {
+    async (branchId: string | undefined) => {
       //loop through all nodes to find the parent (the node to be deleted)
       const parentNode = nodes.filter(
         (node) =>
@@ -77,8 +83,16 @@ const UseGrayedNodeClick = (id: NodeProps["id"]) => {
 
       setNodes(finalNodes);
       setEdges(finalEdges);
+
+      await GraphApiManager.storeFaultTree(
+        FaultTreeState({
+          nodes: finalNodes,
+          edges: finalEdges,
+          faultTreeId: faultTreeId ?? "",
+        }),
+      );
     },
-    [edges, nodes, setEdges, setNodes],
+    [edges, faultTreeId, nodes, setEdges, setNodes],
   );
   return { handleGrayedNodeClick };
 };

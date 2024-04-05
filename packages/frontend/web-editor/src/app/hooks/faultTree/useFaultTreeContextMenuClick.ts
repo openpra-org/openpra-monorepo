@@ -19,18 +19,15 @@ import {
   grayOutSubgraph,
 } from "../../../utils/treeUtils";
 import {
-  AND_GATE,
-  ATLEAST_GATE,
   ATLEAST_TWO_CHILDREN,
   BASIC_EVENT,
   DELETE,
   DELETE_ROOT_NODE,
   FAULT_TREE_ROOT_NODE_ID,
-  HOUSE_EVENT,
+  LEAF_NODE_TYPES,
+  LOGICAL_GATES,
   NOT_GATE,
   NOT_GATE_CHILD,
-  OR_GATE,
-  TRANSFER_GATE,
   UPDATE_ROOT_NODE,
   WORKFLOW,
 } from "../../../utils/constants";
@@ -55,18 +52,6 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
   const { nodes, edges, setNodes, setEdges } = useStore();
   const { faultTreeId } = useParams();
 
-  const leafNodeTypes: (string | undefined)[] = [
-    BASIC_EVENT,
-    HOUSE_EVENT,
-    TRANSFER_GATE,
-  ];
-
-  const logicalGates: (string | undefined)[] = [
-    AND_GATE,
-    OR_GATE,
-    ATLEAST_GATE,
-  ];
-
   const validateFaultTreeContextMenuClick = useCallback(
     (id: string, type: string) => {
       const currentNode: Node<FaultTreeNodeProps> | undefined = getNode(id);
@@ -76,7 +61,7 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
       if (type.startsWith("delete")) {
         if (id === FAULT_TREE_ROOT_NODE_ID) {
           return DELETE_ROOT_NODE;
-        } else if (leafNodeTypes.includes(currentNode.type)) {
+        } else if (LEAF_NODE_TYPES.includes(currentNode.type)) {
           //check parent of current node
           const incomers = getIncomers(currentNode, nodes, edges);
           //children of parent node
@@ -84,7 +69,7 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
 
           //if parent should have at least 2 children
           if (
-            logicalGates.includes(incomers[0].type) &&
+            LOGICAL_GATES.includes(incomers[0].type) &&
             outgoers.length === 2
           ) {
             return ATLEAST_TWO_CHILDREN;
@@ -96,7 +81,7 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
         }
       } else if (
         id === FAULT_TREE_ROOT_NODE_ID &&
-        (leafNodeTypes.includes(type) || type === NOT_GATE)
+        (LEAF_NODE_TYPES.includes(type) || type === NOT_GATE)
       ) {
         return UPDATE_ROOT_NODE;
       }
@@ -120,8 +105,8 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
 
       if (!updateNodeType.startsWith(DELETE)) {
         if (
-          leafNodeTypes.includes(clickedNode.type) &&
-          !leafNodeTypes.includes(updateNodeType) &&
+          LEAF_NODE_TYPES.includes(clickedNode.type) &&
+          !LEAF_NODE_TYPES.includes(updateNodeType) &&
           updateNodeType !== NOT_GATE
         ) {
           // case 1: current node is basic event (or any leaf event like house/transfer) and new node is and/or gate (not a leaf event)
@@ -134,7 +119,7 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
           // add the child nodes and edges
           nodesToAdd.push(childNode1, childNode2);
           edgesToAdd.push(childEdge1, childEdge2);
-        } else if (leafNodeTypes.includes(updateNodeType)) {
+        } else if (LEAF_NODE_TYPES.includes(updateNodeType)) {
           // case 2: current node is any type of node with children and new node is leaf node
           // delete all child nodes and edges
           const { nodes: subGraphNodes, edges: subGraphEdges } = GetSubgraph(
@@ -211,7 +196,7 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
           //if parent of intermediate node is NOT gate, handle separately
           const parentOfClickedNode = getIncomers(clickedNode, nodes, edges)[0];
           if (
-            logicalGates.includes(clickedNode.type) &&
+            LOGICAL_GATES.includes(clickedNode.type) &&
             parentOfClickedNode.type === NOT_GATE
           ) {
             //gray out the subgraph
@@ -277,7 +262,16 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
         //console.log(r);
       });
     },
-    [getNode, id, nodes, setNodes, edges, setEdges, faultTreeId, leafNodeTypes],
+    [
+      getNode,
+      id,
+      nodes,
+      setNodes,
+      edges,
+      setEdges,
+      faultTreeId,
+      LEAF_NODE_TYPES,
+    ],
   );
 
   return { handleContextMenuClick, validateFaultTreeContextMenuClick };

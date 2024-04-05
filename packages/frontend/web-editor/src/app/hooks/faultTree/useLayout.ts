@@ -2,13 +2,18 @@ import { useEffect, useRef } from "react";
 import { useReactFlow, useStore, Node, Edge, ReactFlowState } from "reactflow";
 import { stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
+import {
+  FAULT_TREE_NODE_HEIGHT,
+  FAULT_TREE_NODE_SEPARATION,
+  FAULT_TREE_NODE_WIDTH,
+} from "../../../utils/constants";
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
 const layout = tree<Node>()
   // the node size configures the spacing between the nodes ([width, height])
-  .nodeSize([250, 165])
+  .nodeSize([FAULT_TREE_NODE_WIDTH, FAULT_TREE_NODE_HEIGHT])
   // this is needed for creating equal space between all nodes
-  .separation(() => 0.75);
+  .separation(() => FAULT_TREE_NODE_SEPARATION);
 
 const options = { duration: 300 };
 
@@ -119,10 +124,10 @@ function UseLayout(): void {
       }
     });
 
-        return () => {
-            t.stop();
-        };
-    }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);
+    return () => {
+      t.stop();
+    };
+  }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);
 }
 
 export { UseLayout };

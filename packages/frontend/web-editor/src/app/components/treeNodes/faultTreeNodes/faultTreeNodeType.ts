@@ -7,7 +7,7 @@ export type FaultTreeNodeProps = {
 };
 
 // two different node types are needed for our example: workflow and placeholder nodes
-const nodeTypes: NodeTypes = {
+const FaultTreeNodeTypes: NodeTypes = {
   orGate: FaultTreeNode("orGate"),
   andGate: FaultTreeNode("andGate"),
   notGate: FaultTreeNode("notGate"),

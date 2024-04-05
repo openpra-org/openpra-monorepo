@@ -4380,7 +4380,7 @@ packages:
       classcat: 5.0.4
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
-      zustand: 4.4.6(@types/react@18.2.38)(react@18.2.0)
+      zustand: 4.5.1(@types/react@18.2.38)(react@18.2.0)
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -4396,7 +4396,7 @@ packages:
       classcat: 5.0.4
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
-      zustand: 4.4.6(@types/react@18.2.38)(react@18.2.0)
+      zustand: 4.5.1(@types/react@18.2.38)(react@18.2.0)
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -4418,7 +4418,7 @@ packages:
       d3-zoom: 3.0.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
-      zustand: 4.4.6(@types/react@18.2.38)(react@18.2.0)
+      zustand: 4.5.1(@types/react@18.2.38)(react@18.2.0)
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -4438,7 +4438,7 @@ packages:
       d3-zoom: 3.0.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
-      zustand: 4.4.6(@types/react@18.2.38)(react@18.2.0)
+      zustand: 4.5.1(@types/react@18.2.38)(react@18.2.0)
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -4456,7 +4456,7 @@ packages:
       d3-selection: 3.0.0
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
-      zustand: 4.4.6(@types/react@18.2.38)(react@18.2.0)
+      zustand: 4.5.1(@types/react@18.2.38)(react@18.2.0)
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -4472,7 +4472,7 @@ packages:
       classcat: 5.0.4
       react: 18.2.0
       react-dom: 18.2.0(react@18.2.0)
-      zustand: 4.4.6(@types/react@18.2.38)(react@18.2.0)
+      zustand: 4.5.1(@types/react@18.2.38)(react@18.2.0)
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -15993,8 +15993,8 @@ packages:
     resolution: {integrity: sha512-iC+8Io04lddc+mVqQ9AZ7OQ2MrUKGN+oIQyq1vemgt46jwCwLfhq7/pwnBnNXXXZb8VTVLKwp9EDkx+ryxIWmg==}
     dev: false
 
-  /zustand@4.4.6(@types/react@18.2.38)(react@18.2.0):
-    resolution: {integrity: sha512-Rb16eW55gqL4W2XZpJh0fnrATxYEG3Apl2gfHTyDSE965x/zxslTikpNch0JgNjJA9zK6gEFW8Fl6d1rTZaqgg==}
+  /zustand@4.5.1(@types/react@18.2.38)(react@18.2.0):
+    resolution: {integrity: sha512-XlauQmH64xXSC1qGYNv00ODaQ3B+tNPoy22jv2diYiP4eoDKr9LA+Bh5Bc3gplTrFdb6JVI+N4kc1DZ/tbtfPg==}
     engines: {node: '>=12.7.0'}
     peerDependencies:
       '@types/react': '>=16.8'

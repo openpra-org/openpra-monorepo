@@ -19,6 +19,7 @@ import {
   EuiModalHeaderTitle,
   EuiPopover,
   EuiResizableContainer,
+  EuiSearchBar,
   EuiSelect,
 } from "@elastic/eui";
 import "@elastic/eui/dist/eui_theme_light.css";
@@ -161,13 +162,6 @@ const App: React.FC = () => {
       isExpandable: true,
     },
     { id: "others", displayAsText: "Others", isExpandable: true },
-    // Delete column configuration
-    // {
-    //   id: "delete",
-    //   displayAsText: "",
-    //   // You can specify other properties here as needed
-    //   isSortable: false, // Deleting a row is an action, not something you sort by
-    // },
   ]);
   //variable to store using which grouping should be performed
   const [groupbyColumn, setGroupbyColumn] = useState<string>("");
@@ -557,6 +551,20 @@ const App: React.FC = () => {
     alert("In handle delete selected rows" + groupbyColumn);
   }, [selectedRowIds, groupbyColumn]);
 
+  const [query, setQuery] = useState(EuiSearchBar.Query.MATCH_ALL);
+  const [error, setError] = useState(null);
+
+  const onChangeSearch = ({ query, error }:{query:any, error:any}) => {
+    if (error) {
+      setError(error);
+    } else {
+      setError(null);
+      setQuery(query);
+      alert("Query is "+JSON.stringify(query.text));
+    }
+  };
+
+
   const getMergedColumns = useMemo(() => {
     // Checkbox column for row selection
 
@@ -782,9 +790,16 @@ const App: React.FC = () => {
     }
   };
 
+  const [filterData, setFilterData] = useState(data);
+  useEffect(() => {
+    alert("In useEffect"+JSON.stringify(query));
+    let temp = EuiSearchBar.Query.execute(query, data);
+    setFilterData(temp);
+  }, [query,data]);
+
   const renderCellValue = useCallback(
     ({ rowIndex, columnId }: EuiDataGridCellValueElementProps) => {
-      const rowData = data[rowIndex];
+      const rowData = filterData[rowIndex];
       const customColumn = [...baseColumns, ...customColumns].find(
         (col) => col.id === columnId,
       );
@@ -919,6 +934,7 @@ const App: React.FC = () => {
       handleRowSelectionChange,
       setSelectedRowData,
       setData,
+      filterData,
     ],
   );
 
@@ -1054,7 +1070,7 @@ const App: React.FC = () => {
 
   }, [groupbyColumn, closePopover]);
 
-
+  
   return (
     <div
       className="app-container"
@@ -1083,10 +1099,18 @@ const App: React.FC = () => {
                   aria-label="Add new column"
                 />
 
+                <EuiSearchBar
+                  defaultQuery={"*"}
+                  box={{
+                    placeholder: "Search...",
+                  }}
+                  onChange={onChangeSearch}
+                />
+                  
                 <EuiDataGrid
-                  aria-label="Data grid for Operating State Analysis"
+                  aria-label="Data grid for Initiating Event Model View"
                   columns={getMergedColumns}
-                  rowCount={data.length}
+                  rowCount={filterData.length}
                   renderCellValue={renderCellValue}
                   columnVisibility={{
                     visibleColumns: visibleColumns,

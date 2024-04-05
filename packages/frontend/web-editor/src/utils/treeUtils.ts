@@ -67,6 +67,21 @@ export type OnUpdateOrDeleteGraphState = {
 };
 
 /**
+ * Grayed node state to store grayed nodes and edges data array
+ */
+export type OnGrayedState = {
+  grayedNodes: Node<FaultTreeNodeProps>[];
+  grayedEdges: Edge<FaultTreeNodeProps>[];
+};
+
+/**
+ * Common type to store grayed nodes and edges data
+ */
+export type GrayedNodeData =
+  | Node<FaultTreeNodeProps>
+  | Edge<FaultTreeNodeProps>;
+
+/**
  * Generate the event sequence state with the provided list of nodes and edges, for a particular event sequence id
  * @param eventSequenceId - event sequence id
  * @param nodes - list of nodes
@@ -178,15 +193,11 @@ export const getWorkflowEdge = (
   data: {},
 });
 
-export type OnGrayedState = {
-  grayedNodes: Node<FaultTreeNodeProps>[];
-  grayedEdges: Edge<FaultTreeNodeProps>[];
-};
-
-export type GrayedNodeData =
-  | Node<FaultTreeNodeProps>
-  | Edge<FaultTreeNodeProps>;
-
+/**
+ * Filters out duplicate nodes and edges when graying out the graph.
+ * Utility function for `grayOutSubgraph` function
+ * @param currentData - Node or Edge array containing duplicates
+ */
 export const filterDuplicateData = (currentData: GrayedNodeData[]) => {
   return currentData.reduce((acc: GrayedNodeData[], curr: GrayedNodeData) => {
     const existingItem: GrayedNodeData | undefined = acc.find(
@@ -207,6 +218,13 @@ export const filterDuplicateData = (currentData: GrayedNodeData[]) => {
   }, []);
 };
 
+/**
+ * Grays out the entire subgraph from the given node. The given node is also grayed out.
+ * This function attaches a unique branchId to all immediate children of the given node.
+ * @param node - Node from which the graph beneath is to be grayed out
+ * @param currentNodes - Current nodes
+ * @param currentEdges - Current Edges
+ */
 export const grayOutSubgraph = (
   node: Node<FaultTreeNodeProps>,
   currentNodes: Node[],
@@ -274,6 +292,14 @@ export const grayOutSubgraph = (
   };
 };
 
+/**
+ * Grays out a particular branch in the graph given the branch's root node.
+ * It attaches the given branchId to all nodes and edges.
+ * @param branchRootNode - Root node of the branch.
+ * @param branchId - Unique branchId for the branch.
+ * @param currentNodes - Current nodes.
+ * @param currentEdges - Current edges.
+ */
 export const grayOutBranch = (
   branchRootNode: Node<FaultTreeNodeProps>,
   branchId: string | undefined,
@@ -308,6 +334,11 @@ export const grayOutBranch = (
   return { grayedNodes: branchChildNodes, grayedEdges: branchChildEdges };
 };
 
+/**
+ * Given the node id, return the node from current nodes.
+ * @param id - ID of the node to be retrieved.
+ * @param currentNodes - Current nodes.
+ */
 export const getNodeFromId = (
   id: string,
   currentNodes: Node<FaultTreeNodeProps>[],

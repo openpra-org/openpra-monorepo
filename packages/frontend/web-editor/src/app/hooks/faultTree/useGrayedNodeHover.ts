@@ -3,6 +3,17 @@ import { useCallback } from "react";
 import { useStore } from "../../store/faultTreeStore";
 import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 
+/**
+ * Hook for handling grayed node hover functionality.
+ *
+ * This hook provides two functions - `handleMouseEnter` and `handleMouseLeave` which are used to implement hover functionality.
+ * When mouse is hovered over a grayed node, the entire branch of that node is solidified.
+ * @param id - The unique identifier for each node.
+ * @example
+ * ```typescript
+ * const { handleMouseEnter, handleMouseLeave } = UseGrayedNodeHover(id);
+ * ```
+ */
 const UseGrayedNodeHover = (id: NodeProps["id"]) => {
   const { nodes, edges, setNodes, setEdges } = useStore();
 

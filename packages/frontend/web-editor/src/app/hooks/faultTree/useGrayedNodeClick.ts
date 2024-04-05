@@ -4,9 +4,22 @@ import { useStore } from "../../store/faultTreeStore";
 import { GetParentNode, getWorkflowEdge } from "../../../utils/treeUtils";
 import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 
+/**
+ * Hook handling click event on a grayed node.
+ *
+ * This hook provides a function `handleGrayedNodeClick` that is triggered when a grayed out node is clicked, and it solidifies
+ * the entire branch in which this node belongs (re-colours the nodes and edges of the branch).
+ *
+ * @param id - The unique identifier for each node.
+ * @example
+ * ```
+ * const { handleGrayedNodeClick } = UseGrayedNodeClick(id);
+ * ```
+ */
 const UseGrayedNodeClick = (id: NodeProps["id"]) => {
   const { nodes, edges, setNodes, setEdges } = useStore();
 
+  //Solidifies the branch of the clicked node, takes in the branchId of the clicked node as a parameter
   const handleGrayedNodeClick = useCallback(
     (branchId: string | undefined) => {
       //loop through all nodes to find the parent (the node to be deleted)

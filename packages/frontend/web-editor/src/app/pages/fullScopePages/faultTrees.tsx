@@ -42,7 +42,11 @@ import {
   FaultTreeNodeContextMenu,
   TreeNodeContextMenuProps,
 } from "../../components/context_menu/faultTreeNodeContextMenu";
-import { GenerateUUID } from "../../../utils/treeUtils";
+import {
+  exitGrayedState,
+  GenerateUUID,
+  isSubgraphGrayed,
+} from "../../../utils/treeUtils";
 import {
   allToasts,
   initialEdges,
@@ -110,12 +114,20 @@ function ReactFlowPro(): JSX.Element {
       );
     };
     void (isLoading && loadGraph());
-  }, [faultTreeId, isLoading, nodes, toasts]);
+  }, [faultTreeId, isLoading, nodes, setEdges, setNodes, toasts]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       // Prevent native context menu from showing
       event.preventDefault();
+
+      //exit grayed state if present
+      if (isSubgraphGrayed(nodes, edges)) {
+        const { newNodes, newEdges } = exitGrayedState(nodes, edges);
+        setNodes(newNodes);
+        setEdges(newEdges);
+      }
+
       // Calculate position of the context menu. We want to make sure it
       // doesn't get positioned off-screen.
       setIsOpen(!isOpen);
@@ -132,14 +144,23 @@ function ReactFlowPro(): JSX.Element {
           pane.height - event.clientY - 800,
       });
     },
-    [setMenu, isOpen],
+    [nodes, edges, isOpen, setNodes, setEdges],
   );
 
   // Close the context menu if it's open whenever the window is clicked.
   const onPaneClick = useCallback(() => {
+    closePopover();
+    if (isSubgraphGrayed(nodes, edges)) {
+      const { newNodes, newEdges } = exitGrayedState(nodes, edges);
+      setNodes(newNodes);
+      setEdges(newEdges);
+    }
+  }, [edges, nodes, setEdges, setNodes]);
+
+  const closePopover = () => {
     setMenu(null);
     setIsOpen(false);
-  }, [setMenu]);
+  };
 
   const removeToast = (): void => {
     setToasts([]);
@@ -196,11 +217,11 @@ function ReactFlowPro(): JSX.Element {
             bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
             right: typeof menu?.right === "number" ? menu.right : undefined,
           }}
-          closePopover={onPaneClick}
+          closePopover={closePopover}
         >
           {menu && (
             <FaultTreeNodeContextMenu
-              onClick={onPaneClick}
+              onClick={closePopover}
               addToastHandler={addToastHandler}
               {...menu}
             />

@@ -260,7 +260,7 @@ export const grayOutSubgraph = (
 
   //gray out edges and attach corresponding branchId
   const grayedChildEdges: Edge<FaultTreeNodeProps>[] = childEdges.map(
-    (childEdge: Edge<FaultTreeNodeProps>, index) => {
+    (childEdge: Edge<FaultTreeNodeProps>) => {
       const targetNode: Node<FaultTreeNodeProps> = getNodeFromId(
         childEdge.target,
         nodes,
@@ -334,6 +334,47 @@ export const grayOutBranch = (
   return { grayedNodes: branchChildNodes, grayedEdges: branchChildEdges };
 };
 
+/**
+ * Given current nodes and edges, checks if any of them are grayed out. Returns true if yes else false.
+ * @param nodes - Current nodes
+ * @param edges - Current edges
+ */
+export const isSubgraphGrayed = (nodes: Node[], edges: Edge[]) => {
+  return !(
+    nodes.findIndex(
+      (n: Node<FaultTreeNodeProps>) => n.data?.isGrayed === true,
+    ) === -1 &&
+    edges.findIndex(
+      (e: Edge<FaultTreeNodeProps>) => e.data?.isGrayed === true,
+    ) === -1
+  );
+};
+
+/**
+ * Exist the grayed out state of a graph and solidifies entire graph again.
+ * @param nodes - Current nodes
+ * @param edges - Current edges
+ */
+export const exitGrayedState = (
+  nodes: Node[],
+  edges: Edge[],
+): { newNodes: Node[]; newEdges: Edge[] } => {
+  const newNodes: Node[] = nodes.map(({ data, ...node }) => ({
+    ...node,
+    data: {
+      isGrayed: false,
+    },
+  }));
+  const newEdges: Edge[] = edges.map(({ data, ...edge }) => ({
+    ...edge,
+    animated: false,
+    data: {
+      isGrayed: false,
+    },
+  }));
+
+  return { newNodes, newEdges };
+};
 /**
  * Given the node id, return the node from current nodes.
  * @param id - ID of the node to be retrieved.

@@ -2,9 +2,15 @@ import { Node, EdgeProps, useReactFlow, Edge } from "reactflow";
 
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
-import { FaultTreeState, GenerateUUID } from "../../../utils/treeUtils";
+import {
+  exitGrayedState,
+  FaultTreeState,
+  GenerateUUID,
+  isSubgraphGrayed,
+} from "../../../utils/treeUtils";
 import { NOT_GATE, WORKFLOW } from "../../../utils/constants";
 import { useStore } from "../../store/faultTreeStore";
+import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 
 /**
  * Hook for handling click events on edges in a React Flow diagram.
@@ -12,8 +18,8 @@ import { useStore } from "../../store/faultTreeStore";
  * This hook provides a function, `handleEdgeClick`, that can be used to perform actions when an edge is clicked.
  * It utilizes the React Flow library for managing nodes and edges in a flowchart-like UI.
  *
- * @param {string} id - The unique identifier of the clicked edge.
- * @returns {Function} A function (`handleEdgeClick`) to be used as an event handler for edge click events.
+ * @param id - The unique identifier of the clicked edge.
+ * @returns \{Function\} A function (`handleEdgeClick`) to be used as an event handler for edge click events.
  *
  * @example
  * ```typescript
@@ -22,8 +28,13 @@ import { useStore } from "../../store/faultTreeStore";
  * ```
  */
 function UseEdgeClick(id: EdgeProps["id"]) {
-  const { nodes, edges, setEdges, setNodes } = useStore();
-  const { getNode, getEdge, getEdges } = useReactFlow();
+  let { nodes, edges, setEdges, setNodes } = useStore();
+  if (isSubgraphGrayed(nodes, edges)) {
+    const { newNodes, newEdges } = exitGrayedState(nodes, edges);
+    nodes = newNodes;
+    edges = newEdges;
+  }
+  const { getNode, getEdge } = useReactFlow();
 
   const { faultTreeId } = useParams();
 
@@ -95,12 +106,12 @@ function UseEdgeClick(id: EdgeProps["id"]) {
 
     void GraphApiManager.storeFaultTree(
       FaultTreeState({
-        faultTreeId: faultTreeId!,
+        faultTreeId: faultTreeId ?? "",
         nodes: newNodes,
         edges: newEdges,
       }),
-    ).then((r: any) => {
-      console.log(r);
+    ).then((r: FaultTreeGraph) => {
+      // console.log(r);
     });
   };
 

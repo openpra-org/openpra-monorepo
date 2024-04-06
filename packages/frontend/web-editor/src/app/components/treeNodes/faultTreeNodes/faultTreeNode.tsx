@@ -1,13 +1,10 @@
 import React, { memo, MemoExoticComponent } from "react";
-import cx from "classnames";
 import { Handle, NodeProps, Position } from "reactflow";
 import { NodeIcon } from "../icons/nodeIcon";
 import { NodeTypes } from "../icons/interfaces/nodeProps";
 import { UseNodeDoubleClick } from "../../../hooks/faultTree/useNodeDoubleClick";
 import { UseGrayedNodeHover } from "../../../hooks/faultTree/useGrayedNodeHover";
 import { UseGrayedNodeClick } from "../../../hooks/faultTree/useGrayedNodeClick";
-import styles from "./styles/nodeTypes.module.css";
-import { FaultTreeNodeProps } from "./faultTreeNodeType";
 import {
   AND_GATE,
   AND_GATE_LABEL,
@@ -26,6 +23,8 @@ import {
   TRANSFER_GATE,
   TRANSFER_GATE_LABEL,
 } from "../../../../utils/constants";
+import styles from "./styles/nodeTypes.module.css";
+import { FaultTreeNodeProps } from "./faultTreeNodeType";
 
 function getNodeIcon(
   type: string,
@@ -161,8 +160,8 @@ function FaultTreeNode(
     const mouseLeaveHandler = () => {
       handleMouseLeave(data?.branchId);
     };
-    const grayedNodeClickHandler = () => {
-      handleGrayedNodeClick(data?.branchId);
+    const grayedNodeClickHandler = async () => {
+      await handleGrayedNodeClick(data?.branchId);
     };
 
     return (
@@ -175,7 +174,13 @@ function FaultTreeNode(
         onMouseEnter={mouseEnterHandler}
         onMouseLeave={mouseLeaveHandler}
       >
-        <div className={data?.isGrayed ? styles.placeholder : cx(styles.node)}>
+        <div
+          className={
+            data?.isGrayed
+              ? styles.placeholder
+              : `${styles.node} ${selected ? styles.selected : ``}`
+          }
+        >
           {getNodeLabel(type)}
 
           <Handle

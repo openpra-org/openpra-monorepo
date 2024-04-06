@@ -32,11 +32,9 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
     async (nodeType: React.MouseEvent) => {
       // we need the parent node object for positioning the new child node
       const parentNode = getNode(id);
-      if (!parentNode) {
-        return;
-      }
 
       if (
+        !parentNode ||
         LEAF_NODE_TYPES.includes(parentNode.type) ||
         parentNode.type === NOT_GATE
       ) {

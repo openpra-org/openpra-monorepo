@@ -52,18 +52,20 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
   const { nodes, edges, setNodes, setEdges } = useStore();
   const { faultTreeId } = useParams();
 
+  // we need the parent node object for positioning the new child node
+  const clickedNode: Node<FaultTreeNodeProps> | undefined = getNode(id);
+
   const validateFaultTreeContextMenuClick = useCallback(
     (id: string, type: string) => {
-      const currentNode: Node<FaultTreeNodeProps> | undefined = getNode(id);
-      if (!currentNode) {
+      if (!clickedNode) {
         return;
       }
       if (type.startsWith("delete")) {
         if (id === FAULT_TREE_ROOT_NODE_ID) {
           return DELETE_ROOT_NODE;
-        } else if (LEAF_NODE_TYPES.includes(currentNode.type)) {
+        } else if (LEAF_NODE_TYPES.includes(clickedNode.type)) {
           //check parent of current node
-          const incomers = getIncomers(currentNode, nodes, edges);
+          const incomers = getIncomers(clickedNode, nodes, edges);
           //children of parent node
           const outgoers = getOutgoers(incomers[0], nodes, edges);
 
@@ -91,8 +93,6 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
 
   const handleContextMenuClick = useCallback(
     async (updateNodeType: string) => {
-      // we need the parent node object for positioning the new child node
-      const clickedNode: Node<FaultTreeNodeProps> | undefined = getNode(id);
       let updateClickedNodeTo = "";
 
       if (!clickedNode) {

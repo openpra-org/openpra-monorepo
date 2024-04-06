@@ -2,7 +2,7 @@
   border: 1px solid #0984e3;
   border-radius: 4px;
   background-color: #fff;
-  box-shadow: rgba(0, 0, 0, 0.08) 0px 4px 12px;
+  box-shadow: rgba(0, 0, 0, 0.08) 0 4px 12px;
   padding: 12px;
   width: 180px;
   height: 74px;
@@ -12,6 +12,10 @@
   cursor: pointer;
   line-height: 1.2;
   justify-content: center;
+}
+
+.selected {
+  border: 1px solid red;
 }
 
 .node:hover {

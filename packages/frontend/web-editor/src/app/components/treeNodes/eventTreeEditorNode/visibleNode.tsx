@@ -26,6 +26,7 @@ function VisibleNode({ id, data }: NodeProps) {
 
   return (
     <div
+      className={data.isTentative && styles.container}
       onClick={onClickDeleteSubtree}
       style={{ opacity: data.isTentative ? "0.5" : "1" }}
     >

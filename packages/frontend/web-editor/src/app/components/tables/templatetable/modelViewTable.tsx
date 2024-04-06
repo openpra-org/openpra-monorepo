@@ -45,7 +45,7 @@ function ModelViewTable({ rows, columns }: ModelViewTableProps): JSX.Element {
   // Function to divide models into smaller subsets based on their names
   const divideModels = () => {
 
-    const subsets = {};
+    const subsets: Record<string, any[]> = {};
     rows.forEach((row) => {
       const modelName = row.modelName;
       const firstLetter = modelName.charAt(0).toUpperCase();

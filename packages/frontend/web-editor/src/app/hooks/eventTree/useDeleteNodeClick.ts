@@ -19,7 +19,6 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
 
     const nodesToDelete = new Set();
     const immediateConnectedNodes = new Set(); // To keep track of immediate connected nodes
-
     const stack = [clickedNodeId];
     let parentNodeId: string | null = null;
 
@@ -74,6 +73,7 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
           }
         });
       }
+
       // Delete the node and its subtree
       const remainingNodes = nodes.filter(
         (node) => !nodesToDelete.has(node.id),

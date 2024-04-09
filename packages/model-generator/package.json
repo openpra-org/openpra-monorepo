@@ -7,5 +7,10 @@
   "typings": "./src/index.d.ts",
   "dependencies": {
     "tslib": "2.5.2"
+  },
+  "devDependencies": {
+    "@types/mongoose": "5.11.97",
+    "mongodb-memory-server": "9.1.1",
+    "mongoose": "8.0.1"
   }
 }

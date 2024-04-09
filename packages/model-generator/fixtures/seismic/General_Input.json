@@ -1,7 +1,5 @@
 [{
-  "_id": {
-    "$oid": "652810ab8227c1755161fe1d"
-  },
+  "_id": "ObjectId(\"652810ab8227c1755161fe1d\")",
   "logic_type": "OR",
   "description": "FAILURE OF [ssc_description] DUE MAINSHOCK",
   "name": "[ssc_name]-MS-FT",
@@ -10,9 +8,7 @@
   "inputs": []
 },
   {
-    "_id": {
-      "$oid": "652810ab8227a1755161fe1d"
-    },
+    "_id":  "ObjectId(\"652810ab8227a1755161fe1d\")",
     "logic_type": "AND",
     "description": "FAILURE OF [ssc_description] DUE TO PGA BIN [PGA_bin] g",
     "name": "[ssc_name]-MS-[PGA_bin_num]-GT",

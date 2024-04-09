@@ -1,10 +1,6 @@
 [{
-  "_id": {
-    "$oid": "65026bcf7358e5227605e798"
-  },
-  "room_id": {
-    "$oid": "65026bcc7358e5227605e791"
-  },
+  "_id": "ObjectId(\"65026bcf7358e5227605e798\")",
+  "room_id": "ObjectId(\"65026bcc7358e5227605e791\")",
   "failure_model": {
     "distribution_type": "SL",
     "median_seismic_acceleration": 1.4758237844122848,
@@ -19,17 +15,11 @@
   "name": "FLD-SRC-4",
   "type": "SBE",
   "logic_type": "BE",
-  "ssc_id": {
-    "$oid": "6591ee526f5b2a848ec3e6fd"
-  }
+  "ssc_id": "ObjectId(\"6591ee526f5b2a848ec3e6fd\")"
 },
   {
-    "_id": {
-      "$oid": "65026bd07358e5227605e7a6"
-    },
-    "room_id": {
-      "$oid": "65026bd07358e5227605e7a3"
-    },
+    "_id": "ObjectId(\"65026bd07358e5227605e7a6\")",
+    "room_id": "ObjectId(\"65026bd07358e5227605e7a3\")",
     "failure_model": {
       "distribution_type": "SL",
       "median_seismic_acceleration": 0.8639648675349997,
@@ -44,17 +34,11 @@
     "name": "FLD-SRC-6",
     "type": "SBE",
     "logic_type": "BE",
-    "ssc_id": {
-      "$oid": "6591ee526f5b2a848ec3e6fe"
-    }
+    "ssc_id": "ObjectId(\"6591ee526f5b2a848ec3e6fe\")"
   },
   {
-    "_id": {
-      "$oid": "65026bcf7358e5227605e7a1"
-    },
-    "room_id": {
-      "$oid": "65026bcf7358e5227605e79b"
-    },
+    "_id": "ObjectId(\"65026bcf7358e5227605e7a1\")",
+    "room_id": "ObjectId(\"65026bcf7358e5227605e79b\")",
     "failure_model": {
       "distribution_type": "SL",
       "median_seismic_acceleration": 1.1317066458719005,
@@ -69,17 +53,11 @@
     "name": "FLD-SRC-2",
     "type": "SBE",
     "logic_type": "BE",
-    "ssc_id": {
-      "$oid": "6591ee526f5b2a848ec3e6ff"
-    }
+    "ssc_id": "ObjectId(\"6591ee526f5b2a848ec3e6ff\")"
   },
   {
-    "_id": {
-      "$oid": "65026bcf7358e5227605e79a"
-    },
-    "room_id": {
-      "$oid": "65026bcf7358e5227605e79b"
-    },
+    "_id": "ObjectId(\"65026bcf7358e5227605e79a\")",
+    "room_id": "ObjectId(\"65026bcf7358e5227605e79b\")",
     "failure_model": {
       "distribution_type": "SL",
       "median_seismic_acceleration": 0.8651129914538945,
@@ -94,17 +72,11 @@
     "name": "FLD-SRC-1",
     "type": "SBE",
     "logic_type": "BE",
-    "ssc_id": {
-      "$oid": "6591ee526f5b2a848ec3e700"
-    }
+    "ssc_id": "ObjectId(\"6591ee526f5b2a848ec3e700\")"
   },
   {
-    "_id": {
-      "$oid": "65026bcf7358e5227605e799"
-    },
-    "room_id": {
-      "$oid": "65026bcc7358e5227605e791"
-    },
+    "_id": "ObjectId(\"65026bcf7358e5227605e799\")",
+    "room_id": "ObjectId(\"65026bcc7358e5227605e791\")",
     "failure_model": {
       "distribution_type": "SL",
       "median_seismic_acceleration": 0.4567772179726295,
@@ -119,7 +91,5 @@
     "name": "FLD-SRC-3",
     "type": "SBE",
     "logic_type": "BE",
-    "ssc_id": {
-      "$oid": "6591ee526f5b2a848ec3e701"
-    }
+    "ssc_id": "ObjectId(\"6591ee526f5b2a848ec3e701\")"
   }]

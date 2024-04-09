@@ -8,4 +8,6 @@ export default {
   },
   moduleFileExtensions: ["ts", "js", "html"],
   coverageDirectory: "../../coverage/packages/model-generator",
+  globalSetup: "<rootDir>/test/GlobalSetup.ts",
+  globalTeardown: "<rootDir>/test/GlobalTeardown.ts",
 };

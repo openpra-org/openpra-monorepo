@@ -27,17 +27,23 @@ class SeismicEventDB {
    * @param sscDocument - The SSC document to use for generating the fault tree.
    * @returns The generated mainshock fault tree.
    */
-  async generateMainshockFaultTree(sscDocument: Document): Promise<any> {
+  async generateMainshockFaultTree(sscDocument: Document): Promise<Document> {
     const msVector = await this.generalInput.findOne(
       {},
       { projection: { "Mainshock.MS_vector": 1 } },
     );
 
-    if (!msVector) {
+    if (!msVector || !msVector.Mainshock) {
       throw new Error("MS_vector is not found in the database.");
     }
 
-    const msVectorValues: number = msVector.Mainshock?.MS_vector;
+    // eslint-disable-next-line @typescript-eslint/naming-convention,@typescript-eslint/no-unsafe-assignment
+    const { MS_vector } = msVector.Mainshock;
+    if (!MS_vector) {
+      throw new Error("MS_vector is not found in the database.");
+    }
+
+    const msVectorValues: number = MS_vector as number;
 
     if (
       !msVectorValues ||
@@ -47,9 +53,13 @@ class SeismicEventDB {
       throw new Error("MS_vector is empty or contains non-numeric values.");
     }
 
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const room_id = String(sscDocument.room_id);
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const ssc_name = String(sscDocument.name);
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const ssc_description = String(sscDocument.description);
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-expect-error
     const mainshockFtTemplate: Document = await this.mainshockFt.findOne({
       id: "MSFT",
@@ -63,9 +73,12 @@ class SeismicEventDB {
     );
     this.removeObjectIds(mainshockFtTemplate);
 
-    mainshockFtTemplate.inputs.push(
-      ...(await this.createMainshockPgaGate(sscDocument, msVectorValues)),
-    );
+    if (mainshockFtTemplate.inputs) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call,@typescript-eslint/no-unsafe-member-access
+      mainshockFtTemplate.inputs.push(
+        ...(await this.createMainshockPgaGate(sscDocument, msVectorValues)),
+      );
+    }
 
     return mainshockFtTemplate;
   }
@@ -80,9 +93,13 @@ class SeismicEventDB {
     sscDocument: Document,
     msVectorValues: number[],
   ): Promise<Document[]> {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const room_id = String(sscDocument.room_id);
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const ssc_name = String(sscDocument.name);
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const ssc_description = String(sscDocument.description);
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     const correlation_set = String(sscDocument.correlation_set || ""); // Default to "" if not present
     const mainshockGateBins: Document[] = []; // List to store the mainshock_gate_bin objects
 

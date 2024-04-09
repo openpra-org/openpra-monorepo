@@ -16,6 +16,8 @@ let mongoDB: MongoMemoryServer | undefined = undefined;
 export const SetupDB: () => Promise<void> = async () => {
   mongoDB = await MongoMemoryServer.create();
   const uri = mongoDB.getUri();
+  process.env.MONGO_URI = uri; // Store the URI in an environment variable
+  console.log("Started server at", process.env.MONGO_URI);
   await mongoose.connect(uri);
 };
 

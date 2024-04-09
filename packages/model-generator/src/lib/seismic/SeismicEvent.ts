@@ -134,12 +134,12 @@ class SeismicEvent {
 
   /**
    * Replaces placeholders in a JSON object with specific values.
-   * @param jsonObj The JSON object to process.
-   * @param room_id The room ID to replace.
-   * @param ssc_name The SSC name to replace.
-   * @param ssc_description The SSC description to replace.
-   * @param PGA_bin The PGA bin to replace.
-   * @param PGA_bin_num The PGA bin number to replace.
+   * @param jsonObj - The JSON object to process.
+   * @param room_id - The room ID to replace.
+   * @param ssc_name - The SSC name to replace.
+   * @param ssc_description - The SSC description to replace.
+   * @param PGA_bin - The PGA bin to replace.
+   * @param PGA_bin_num - The PGA bin number to replace.
    */
   private replacePlaceholders(
     jsonObj: any,

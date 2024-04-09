@@ -50,7 +50,9 @@ class SeismicEvent {
     const room_id = String(sscDocument.room_id);
     const ssc_name = String(sscDocument.name);
     const ssc_description = String(sscDocument.description);
-    const mainshockFtTemplate = await this.mainshockFt.findOne({ id: "MSFT" });
+    const mainshockFtTemplate: Document = await this.mainshockFt.findOne({
+      id: "MSFT",
+    });
 
     this.replacePlaceholders(
       mainshockFtTemplate,
@@ -133,13 +135,13 @@ class SeismicEvent {
   // Ensure to implement the rest of the methods following TypeScript syntax and best practices.
 
   /**
-   * Replaces placeholders in a JSON object with specific values.
-   * @param jsonObj - The JSON object to process.
-   * @param room_id - The room ID to replace.
-   * @param ssc_name - The SSC name to replace.
-   * @param ssc_description - The SSC description to replace.
-   * @param PGA_bin - The PGA bin to replace.
-   * @param PGA_bin_num - The PGA bin number to replace.
+   * Recursively replaces placeholders in a JSON object or array with specific values.
+   * @param jsonObj - The JSON object or array to process.
+   * @param room_id - The room ID to replace the placeholder with.
+   * @param ssc_name - The SSC name to replace the placeholder with.
+   * @param ssc_description - The SSC description to replace the placeholder with.
+   * @param PGA_bin - The PGA bin value to replace the placeholder with.
+   * @param PGA_bin_num - The PGA bin number to replace the placeholder with.
    */
   private replacePlaceholders(
     jsonObj: any,
@@ -149,9 +151,52 @@ class SeismicEvent {
     PGA_bin?: number,
     PGA_bin_num?: number,
   ): void {
-    // Implementation of replacePlaceholders similar to Python's version, adapted for TypeScript.
-    // Due to the complexity and the need for brevity, this function's detailed implementation is omitted.
-    throw new Error("replacePlaceholders method not implemented.");
+    if (Array.isArray(jsonObj)) {
+      // If jsonObj is an array, process each element
+      jsonObj.forEach((item) => {
+        this.replacePlaceholders(
+          item,
+          room_id,
+          ssc_name,
+          ssc_description,
+          PGA_bin,
+          PGA_bin_num,
+        );
+      });
+    } else if (typeof jsonObj === "object" && jsonObj !== null) {
+      // If jsonObj is an object, process each key-value pair
+      Object.entries(jsonObj).forEach(([key, value]) => {
+        if (typeof value === "string") {
+          // Replace placeholders in the string value
+          let newValue = value;
+          if (room_id !== undefined)
+            newValue = newValue.replace("[room_id]", room_id);
+          if (ssc_name !== undefined)
+            newValue = newValue.replace("[ssc_name]", ssc_name);
+          if (ssc_description !== undefined)
+            newValue = newValue.replace("[ssc_description]", ssc_description);
+          if (PGA_bin !== undefined)
+            newValue = newValue.replace("[PGA_bin]", PGA_bin.toString());
+          if (PGA_bin_num !== undefined)
+            newValue = newValue.replace(
+              "[PGA_bin_num]",
+              PGA_bin_num.toString(),
+            );
+          jsonObj[key] = newValue;
+        } else {
+          // Recursively process nested objects or arrays
+          this.replacePlaceholders(
+            value,
+            room_id,
+            ssc_name,
+            ssc_description,
+            PGA_bin,
+            PGA_bin_num,
+          );
+        }
+      });
+    }
+    // If jsonObj is neither an object nor an array, do nothing (base case for recursion)
   }
 
   /**
@@ -179,6 +224,154 @@ class SeismicEvent {
     }
     // If it's neither an array nor an object, return it unchanged
     return obj;
+  }
+
+  /**
+   * Recursively searches for an object by its ID within a MongoDB document.
+   * @param document - The document (or sub-document) to search within. Can be an object or an array.
+   * @param targetId - The ID of the object to find.
+   * @param path - The current path taken to reach the current document. Used internally for recursion.
+   * @returns A tuple containing the found object (or null if not found) and the path to the object as an array of keys and indexes.
+   */
+  private findObjectById(
+    document: Document | Document[],
+    targetId: string,
+    path: (string | number)[] = [],
+  ): [Document | null, (string | number)[]] {
+    if (Array.isArray(document)) {
+      // If the document is an array, iterate through its elements
+      for (let index = 0; index < document.length; index++) {
+        const item = document[index];
+        const newPath = [...path, index];
+        const [result, resultPath] = this.findObjectById(
+          item,
+          targetId,
+          newPath,
+        );
+        if (result) return [result, resultPath]; // If the object is found, return it along with the path
+      }
+    } else if (typeof document === "object" && document !== null) {
+      // If the document is an object, check if it's the target object
+      if ("id" in document && document.id === targetId) {
+        return [document, path]; // Object found, return it along with the current path
+      }
+      // Otherwise, iterate through its properties
+      for (const [key, value] of Object.entries(document)) {
+        const newPath = [...path, key];
+        const [result, resultPath] = this.findObjectById(
+          value,
+          targetId,
+          newPath,
+        );
+        if (result) return [result, resultPath]; // If the object is found in a nested structure, return it
+      }
+    }
+    // If the object is not found, return null and an empty path
+    return [null, []];
+  }
+
+  /**
+   * Updates the value of a specified parameter within the failure model of a MongoDB document.
+   * @param mongodbDocument - The MongoDB document to search within.
+   * @param targetId - The ID of the target object whose failure model needs to be updated.
+   * @param stringParam - The parameter within the failure model to update.
+   * @param newValue - The new value to assign to the specified parameter.
+   * @returns The updated MongoDB document, or null if the target object is not found.
+   */
+  async updateFailureModelValue(
+    mongodbDocument: Document,
+    targetId: string,
+    stringParam: string,
+    newValue: any,
+  ): Promise<Document | null> {
+    const [foundObject, pathToObject] = this.findObjectById(
+      mongodbDocument,
+      targetId,
+    );
+
+    if (foundObject) {
+      // Check if the found object has a "failure_model" and update its specified parameter
+      if (
+        "failure_model" in foundObject &&
+        typeof foundObject.failure_model === "object"
+      ) {
+        foundObject.failure_model[stringParam] = newValue;
+
+        // Update the original document with the modified object
+        let currentObject: any = mongodbDocument;
+        for (const step of pathToObject.slice(0, -1)) {
+          currentObject = currentObject[step];
+        }
+        currentObject[pathToObject[pathToObject.length - 1]] = foundObject;
+
+        // Return the updated document
+        return mongodbDocument;
+      }
+    }
+
+    // Return null if the target ID is not found in the document
+    return null;
+  }
+
+  /**
+   * Updates the "inputs" field of a MongoDB document by appending new objects to it.
+   * @param mongodbDocument - The MongoDB document to search within.
+   * @param targetId - The ID of the target object whose "inputs" field needs to be updated.
+   * @param newObjects - The new objects to append to the "inputs" field.
+   * @returns The updated MongoDB document, or null if the target object is not found or if "inputs" is not a list.
+   */
+  async updateInputs(
+    mongodbDocument: Document,
+    targetId: string,
+    newObjects: any[],
+  ): Promise<Document | null> {
+    const [foundObject, pathToObject] = this.findObjectById(
+      mongodbDocument,
+      targetId,
+    );
+
+    if (foundObject) {
+      // Check if the found object has "inputs" and ensure it's a list
+      if ("inputs" in foundObject && Array.isArray(foundObject.inputs)) {
+        // Append the new objects to the "inputs" list
+        foundObject.inputs.push(...newObjects);
+
+        // Update the original document with the modified "inputs"
+        let currentObject: any = mongodbDocument;
+        for (const step of pathToObject.slice(0, -1)) {
+          currentObject = currentObject[step];
+        }
+        currentObject[pathToObject[pathToObject.length - 1]] = foundObject;
+
+        // Return the updated document
+        return mongodbDocument;
+      }
+    }
+
+    // Return null if the target ID is not found or if "inputs" is not a list
+    return null;
+  }
+
+  /**
+   * Extracts a specific object from a MongoDB document based on a given key.
+   * @param mongodbDoc - The MongoDB document from which to extract the object.
+   * @param extractedObj - The key of the object to extract.
+   * @returns The extracted object if found, or null otherwise.
+   */
+  private extractObjectMongoDB(
+    mongodbDoc: Document,
+    extractedObj: string,
+  ): any | null {
+    if (mongodbDoc.hasOwnProperty(extractedObj)) {
+      const obj = mongodbDoc[extractedObj];
+      return obj;
+    } else {
+      return null;
+    }
+  }
+
+  private correlationClass(): void {
+    return;
   }
 }
 

@@ -1,36 +1,66 @@
 [{
-  "_id": "ObjectId(\"652810ab8227c1755161fe1d\")",
-  "logic_type": "OR",
-  "description": "FAILURE OF [ssc_description] DUE MAINSHOCK",
-  "name": "[ssc_name]-MS-FT",
-  "type": "FT",
-  "id": "MSFT",
-  "inputs": []
-},
-  {
-    "_id":  "ObjectId(\"652810ab8227a1755161fe1d\")",
-    "logic_type": "AND",
-    "description": "FAILURE OF [ssc_description] DUE TO PGA BIN [PGA_bin] g",
-    "name": "[ssc_name]-MS-[PGA_bin_num]-GT",
-    "type": "GT",
-    "id": "MSGT",
-    "inputs": [
-      {
-        "description": "Fragility Event for PGA BIN [PGA_bin]",
-        "name": "[ssc_name]-MS-[PGA_bin_num]-BE",
-        "logic_type": "BE",
-        "id": "MS-BE",
-        "type": "SBE"
-      },
-      {
-        "description": "House Event for MAINSHOCK PGA BIN [PGA_bin]",
-        "name": "HE-MS-[PGA_bin_num]-BE",
-        "logic_type": "BE",
-        "id": "HE-MS",
-        "failure_model": {
-          "state": "F"
-        },
-        "type": "HE"
-      }
+  "_id": "ObjectId(\"65188f5eff3b1433457db6e5\")",
+  "Aftershocks": {
+    "consider_aftershocks": "No",
+    "num": 4,
+    "mission": 24,
+    "dt": 4,
+    "vector": [
+      0.3,
+      0.9,
+      1.3,
+      2.2
+    ],
+    "AF_arrival_params": {
+      "a": -1.67,
+      "b": 0.91,
+      "c": 0.05,
+      "p": 1.08,
+      "alpha": 2.3
+    }
+  },
+  "Mainshock": {
+    "num": 7,
+    "MS_vector": [
+      0.173,
+      0.387,
+      0.612,
+      0.86,
+      1.225,
+      2.121,
+      3
+    ],
+    "correlation": "No",
+    "damage_accumulation": "No",
+    "amplification": "No"
+  },
+  "Tsunami": {
+    "num": 7,
+    "max_wave_heights": [
+      1,
+      5,
+      10,
+      15,
+      20,
+      25,
+      35
     ]
-  }]
+  },
+  "Input": {
+    "path": "/Users/akram/Development/multi-hazard-pra-model-generator/inputs",
+    "name": "seismic_events.csv"
+  },
+  "Output": {
+    "path": "/Users/akram/Development/multi-hazard-pra-model-generator/outputs"
+  },
+  "Analysis": {
+    "type": "RANDOM",
+    "phase": "CD",
+    "project": "G-PWR"
+  },
+  "Aging": {
+    "consider_aging": "true",
+    "time": 50
+  },
+  "id": "GID"
+}]

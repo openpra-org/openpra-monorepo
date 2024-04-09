@@ -50,6 +50,7 @@ export const LoadFixtures = async (): Promise<void> => {
       __dirname,
       `../fixtures/seismic/${collectionName}.json`,
     );
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
     const data = JSON.parse(fs.readFileSync(filePath, "utf8")) as ObjectId[];
     const collection = mongoose.connection.collection(collectionName);
     await collection.insertMany(data);

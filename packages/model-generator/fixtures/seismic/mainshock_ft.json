@@ -1,0 +1,40 @@
+[{
+  "_id": {
+    "$oid": "652810ab8227c1755161fe1d"
+  },
+  "logic_type": "OR",
+  "description": "FAILURE OF [ssc_description] DUE MAINSHOCK",
+  "name": "[ssc_name]-MS-FT",
+  "type": "FT",
+  "id": "MSFT",
+  "inputs": []
+},
+  {
+    "_id": {
+      "$oid": "652810ab8227a1755161fe1d"
+    },
+    "logic_type": "AND",
+    "description": "FAILURE OF [ssc_description] DUE TO PGA BIN [PGA_bin] g",
+    "name": "[ssc_name]-MS-[PGA_bin_num]-GT",
+    "type": "GT",
+    "id": "MSGT",
+    "inputs": [
+      {
+        "description": "Fragility Event for PGA BIN [PGA_bin]",
+        "name": "[ssc_name]-MS-[PGA_bin_num]-BE",
+        "logic_type": "BE",
+        "id": "MS-BE",
+        "type": "SBE"
+      },
+      {
+        "description": "House Event for MAINSHOCK PGA BIN [PGA_bin]",
+        "name": "HE-MS-[PGA_bin_num]-BE",
+        "logic_type": "BE",
+        "id": "HE-MS",
+        "failure_model": {
+          "state": "F"
+        },
+        "type": "HE"
+      }
+    ]
+  }]

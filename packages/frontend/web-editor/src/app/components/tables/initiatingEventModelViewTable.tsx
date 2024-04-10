@@ -103,7 +103,11 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ column, onEdit }) => {
   );
 };
 
-const App: React.FC = () => {
+interface AppProps{
+  enableGrouping?: boolean;
+}
+
+const App: React.FC<AppProps> = ({enableGrouping = false}) => {
   const deleteColumnConfig = {
     id: "delete",
     displayAsText: "",
@@ -537,18 +541,11 @@ const App: React.FC = () => {
   const handleDeleteSelectedRows = useCallback(() => {
     setData((prevData) => {
       const newData = prevData.filter((row) => !selectedRowIds.has(row.id));
-
-      if (groupbyColumn !== "") {
-        let temp = ungroup(newData);
-        let groupedData = makeGroups(temp, groupbyColumn);
-        return groupedData;
-      }
-
       return newData;
     });
 
     setSelectedRowIds(new Set()); // Clear selection after deletion
-    alert("In handle delete selected rows" + groupbyColumn);
+    
   }, [selectedRowIds, groupbyColumn]);
 
   const [query, setQuery] = useState(EuiSearchBar.Query.MATCH_ALL);
@@ -560,7 +557,6 @@ const App: React.FC = () => {
     } else {
       setError(null);
       setQuery(query);
-      alert("Query is "+JSON.stringify(query.text));
     }
   };
 
@@ -691,7 +687,6 @@ const App: React.FC = () => {
         newData = [...currentData];
         newData[rowIndex] = { ...newData[rowIndex], ...editedData };
       } else {
-        alert("In Handle Save Data"+groupbyColumn);
         newData = [...currentData,editedData];
         if (groupbyColumn!=""){
           let temp = ungroup(newData);
@@ -792,7 +787,6 @@ const App: React.FC = () => {
 
   const [filterData, setFilterData] = useState(data);
   useEffect(() => {
-    alert("In useEffect"+JSON.stringify(query));
     let temp = EuiSearchBar.Query.execute(query, data);
     setFilterData(temp);
   }, [query,data]);
@@ -824,8 +818,7 @@ const App: React.FC = () => {
       };
       // Define a function to handle changes in dropdown selection
       const handleDropdownChange = (selectedValue: string) => {
-        // This function will update the DataRow in the grid data state
-        alert("In handleDropdownChange"+groupbyColumn);
+        // This function will update the DataRow in the grid data stategit stash
         setData((prevData) =>
           prevData.map((row, index) => {
             if (index === rowIndex) {
@@ -854,7 +847,7 @@ const App: React.FC = () => {
           setData(groupedData);
           setDidGroupColumnChange(false);
         }
-      }, [didGroupColumnChange]);
+      }, [didGroupColumnChange,data]);
 
       // Only allow the side panel to open when clicking on text cells, not dropdowns or checkboxes
       const shouldOpenSidePanel =
@@ -1056,9 +1049,8 @@ const App: React.FC = () => {
       closeGroupbyPopover();
       return;
     }
-    alert("Setting Group by column to "+columnId)
+    
     setGroupbyColumn(columnId);
-    alert("Group by " + columnId);
     if (groupbyColumn !=""){
       let temp = ungroup(data);
       setData(makeGroups(temp, columnId));
@@ -1243,30 +1235,32 @@ const App: React.FC = () => {
                             </React.Fragment>
                           )}
                         </EuiPopover>
-                        <EuiPopover
-                          button={
-                            <EuiButton onClick={() => {setGroupbyPopoverOpen(!groupbyPopoverOpen)}}>
-                              Group By
-                            </EuiButton>
-                          }
-                          isOpen={groupbyPopoverOpen}
-                          closePopover={closeGroupbyPopover}
-                        >
-                          <div style={{ padding: 10 }}>
-                            <EuiListGroup>
-                              {[...baseColumns, ...customColumns].map((column) => (
-                                //only show which are in visible columns
-                                visibleColumns.includes(column.id) && column.id != "delete" &&
-                                <EuiListGroupItem
-                                  key={column.id}
-                                  label={column.displayAsText}
-                                  onClick={() => handleGroupByOptionClick(column.id)}
-                                  size="xs"
-                                />
-                              ))}
-                            </EuiListGroup>
-                          </div>
-                        </EuiPopover>
+                          {enableGrouping ? (
+                            <EuiPopover
+                              button={
+                                <EuiButton onClick={() => {setGroupbyPopoverOpen(!groupbyPopoverOpen)}}>
+                                  Group By
+                                </EuiButton>
+                              }
+                              isOpen={groupbyPopoverOpen}
+                              closePopover={closeGroupbyPopover}
+                            >
+                              <div style={{ padding: 10 }}>
+                                <EuiListGroup>
+                                  {[...baseColumns, ...customColumns].map((column) => (
+                                    //only show which are in visible columns
+                                    visibleColumns.includes(column.id) && column.id != "delete" &&
+                                    <EuiListGroupItem
+                                      key={column.id}
+                                      label={column.displayAsText}
+                                      onClick={() => handleGroupByOptionClick(column.id)}
+                                      size="xs"
+                                    />
+                                  ))}
+                                </EuiListGroup>
+                              </div>
+                            </EuiPopover>
+                          ) : null}
                       </React.Fragment>
                     ),
                   }}
@@ -1583,10 +1577,10 @@ const App: React.FC = () => {
   );
 };
 
-export function InitiatingEventModelViewTable(): JSX.Element{
+export function InitiatingEventModelViewTable({enableGrouping = false}): JSX.Element{
   return (
     <>
-      <App />
+      <App enableGrouping ={enableGrouping}/>
     </>
   );
 }

@@ -688,7 +688,7 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
         newData[rowIndex] = { ...newData[rowIndex], ...editedData };
       } else {
         newData = [...currentData,editedData];
-        if (groupbyColumn!=""){
+        if (groupbyColumn!="" && enableGrouping){
           let temp = ungroup(newData);
           let groupedData = makeGroups(temp, groupbyColumn);
           return groupedData;
@@ -841,7 +841,7 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
 
       //a function that runs everytime the value of didGroupColumnChange changes
       useEffect(() => {
-        if (didGroupColumnChange){
+        if (didGroupColumnChange && enableGrouping){
           let temp = ungroup(data);
           let groupedData = makeGroups(temp, groupbyColumn);
           setData(groupedData);

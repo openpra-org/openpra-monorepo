@@ -789,11 +789,11 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
   useEffect(() => {
     let temp = EuiSearchBar.Query.execute(query, data);
     setFilterData(temp);
-  }, [query,data]);
+  }, [query]);
 
   const renderCellValue = useCallback(
     ({ rowIndex, columnId }: EuiDataGridCellValueElementProps) => {
-      const rowData = filterData[rowIndex];
+      const rowData = data[rowIndex];
       const customColumn = [...baseColumns, ...customColumns].find(
         (col) => col.id === columnId,
       );
@@ -1102,7 +1102,7 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
                 <EuiDataGrid
                   aria-label="Data grid for Initiating Event Model View"
                   columns={getMergedColumns}
-                  rowCount={filterData.length}
+                  rowCount={data.length}
                   renderCellValue={renderCellValue}
                   columnVisibility={{
                     visibleColumns: visibleColumns,

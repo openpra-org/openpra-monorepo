@@ -18,7 +18,7 @@ function InitiatingEventModelView(): JSX.Element {
           isLoading={false}
           contentAriaLabel="Example description"
         >
-          <InitiatingEventModelViewTable />
+          <InitiatingEventModelViewTable enableGrouping={true}/>
         </EuiSkeletonRectangle>
       </EuiPageTemplate.Section>
     </EuiPageTemplate>

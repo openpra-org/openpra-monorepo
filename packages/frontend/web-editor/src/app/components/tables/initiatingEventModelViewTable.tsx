@@ -136,12 +136,7 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
       others: "yes",
     },
   ]);
-  const dataCellStyle: React.CSSProperties = {
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    minWidth: "max-content",
-  };
-
+  
   const [baseColumns, setBaseColumns] = useState<CustomColumn[]>([
     // ... your initial columns here
     {
@@ -250,7 +245,6 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
     });
     if (groupbyColumn == newColumnData.id){
       setGroupbyColumn("");
-      setData(ungroup(data));
     }
     // Update the customColumns with the new type
     setCustomColumns((prevColumns) =>
@@ -660,7 +654,6 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
   useEffect(() => {
     if (!visibleColumns.includes(groupbyColumn)){
       setGroupbyColumn("");
-      setData(ungroup(data));
     }
   }, [visibleColumns]);
 
@@ -688,16 +681,11 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
         newData[rowIndex] = { ...newData[rowIndex], ...editedData };
       } else {
         newData = [...currentData,editedData];
-        if (groupbyColumn!="" && enableGrouping){
-          let temp = ungroup(newData);
-          let groupedData = makeGroups(temp, groupbyColumn);
-          return groupedData;
-        }
       }
       return newData;
     });
     setIsModalVisible(false);
-  }, [groupbyColumn]);
+  }, []);
 
   // Function to handle closing the modal
   const handleCloseModal = useCallback(() => {
@@ -787,13 +775,17 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
 
   const [filterData, setFilterData] = useState(data);
   useEffect(() => {
+
     let temp = EuiSearchBar.Query.execute(query, data);
+    if (groupbyColumn!="" && enableGrouping){
+      temp = makeGroups(temp, groupbyColumn);
+    }
     setFilterData(temp);
-  }, [query]);
+  }, [query, data, groupbyColumn,didGroupColumnChange]);
 
   const renderCellValue = useCallback(
     ({ rowIndex, columnId }: EuiDataGridCellValueElementProps) => {
-      const rowData = data[rowIndex];
+      const rowData = filterData[rowIndex];
       const customColumn = [...baseColumns, ...customColumns].find(
         (col) => col.id === columnId,
       );
@@ -802,7 +794,7 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
         editingCell?.columnId === columnId;
 
       const handleRowClick = () => {
-        if (rowData.isHeader) {
+        if (rowData?.isHeader) {
           return;
         }
         if (selectedRowData && rowData.id === selectedRowData.id) {
@@ -833,21 +825,7 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
         if (selectedRowData && selectedRowData.id === rowData.id) {
           setSelectedRowData({ ...selectedRowData, [columnId]: selectedValue });
         }
-
-        if (groupbyColumn == columnId){
-          setDidGroupColumnChange(true);
-        }
       };
-
-      //a function that runs everytime the value of didGroupColumnChange changes
-      useEffect(() => {
-        if (didGroupColumnChange && enableGrouping){
-          let temp = ungroup(data);
-          let groupedData = makeGroups(temp, groupbyColumn);
-          setData(groupedData);
-          setDidGroupColumnChange(false);
-        }
-      }, [didGroupColumnChange,data]);
 
       // Only allow the side panel to open when clicking on text cells, not dropdowns or checkboxes
       const shouldOpenSidePanel =
@@ -855,10 +833,10 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
 
       // For the select checkbox column, we don't want to toggle the side panel
       if (columnId === "select") {
-        if (data[rowIndex].isHeader) {
+        if (filterData[rowIndex].isHeader) {
           return <span></span>;
         }
-        const rowId = data[rowIndex].id;
+        const rowId = filterData[rowIndex]?.id;
         return (
           <input
             type="checkbox"
@@ -873,9 +851,9 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
       // Common cell content rendering
       const renderCellContent = () => {
         // Custom rendering for different column types
-        if(data[rowIndex].isHeader){
+        if(filterData[rowIndex]?.isHeader){
           if(columnId == groupbyColumn){
-            return <span>{data[rowIndex].group}</span>;
+            return <span>{filterData[rowIndex].group}</span>;
           }
           return <span></span>;
         }
@@ -1031,7 +1009,7 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
   function ungroup(rows: any[]) {
     let updatedData =[];
     for (let i = 0; i < rows.length; i++) {
-      if (rows[i].isHeader) {
+      if (rows[i]?.isHeader) {
         continue;
       }
       updatedData.push(rows[i]);
@@ -1045,18 +1023,9 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
   const handleGroupByOptionClick = useCallback((columnId: string) => {
     if (groupbyColumn === columnId) {
       setGroupbyColumn("");
-      setData(ungroup(data));
-      closeGroupbyPopover();
-      return;
-    }
-    
-    setGroupbyColumn(columnId);
-    if (groupbyColumn !=""){
-      let temp = ungroup(data);
-      setData(makeGroups(temp, columnId));
     }
     else{
-      setData(makeGroups(data, columnId));
+      setGroupbyColumn(columnId);
     }
     closeGroupbyPopover();
 
@@ -1092,7 +1061,7 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
                 />
 
                 <EuiSearchBar
-                  defaultQuery={"*"}
+                  defaultQuery={""}
                   box={{
                     placeholder: "Search...",
                   }}
@@ -1102,7 +1071,7 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
                 <EuiDataGrid
                   aria-label="Data grid for Initiating Event Model View"
                   columns={getMergedColumns}
-                  rowCount={data.length}
+                  rowCount={filterData.length}
                   renderCellValue={renderCellValue}
                   columnVisibility={{
                     visibleColumns: visibleColumns,

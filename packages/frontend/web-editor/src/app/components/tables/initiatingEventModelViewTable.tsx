@@ -349,17 +349,12 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
     }
   };
 
-  const [didGroupColumnChange, setDidGroupColumnChange] = useState(false);
-
   //This function manages both selectedRowData and data states for change in sidePanel to reflect in Datagrid
   const updateFieldInData = (
     fieldKey: keyof DataRow,
     value: string | number,
   ) => {
     if (!selectedRowData) return;
-    if (fieldKey==groupbyColumn){
-      setDidGroupColumnChange(true);
-    }
     const updatedSelectedRowData = { ...selectedRowData, [fieldKey]: value };
     setSelectedRowData(updatedSelectedRowData);
 
@@ -774,6 +769,11 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
   };
 
   const [filterData, setFilterData] = useState(data);
+
+  /**
+   * this effect updates the filterData state whenever the query, data, or groupbyColumn changes.
+   * It also groups the data if groupbyColumn is set and grouping is enabled.
+   */
   useEffect(() => {
 
     let temp = EuiSearchBar.Query.execute(query, data);
@@ -781,7 +781,7 @@ const App: React.FC<AppProps> = ({enableGrouping = false}) => {
       temp = makeGroups(temp, groupbyColumn);
     }
     setFilterData(temp);
-  }, [query, data, groupbyColumn,didGroupColumnChange]);
+  }, [query, data, groupbyColumn]);
 
   const renderCellValue = useCallback(
     ({ rowIndex, columnId }: EuiDataGridCellValueElementProps) => {

@@ -116,7 +116,7 @@ class SeismicEventDB {
         const msBin = msVectorValues[binNum];
         const mainshockGateBin = await this.mainshockFt.findOne({ id: "MSGT" });
 
-        // @ts-expect-error
+        // @ts-ignore
         for (const input of mainshockGateBin.inputs) {
           if (input.id === "MS-BE") {
             const failureModelParams = sscDocument.failure_model || {};

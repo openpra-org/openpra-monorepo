@@ -46,7 +46,13 @@
       "beta_u_uncertainty": 0.3448447316555707,
       "pga": "",
       "amplification": {
-        "$numberDecimal": "1.0"
+        "$numberDecimal": "1.0",
+        "aging_model": {
+          "type": "linear",
+          "aging_rate": [-0.006, -0.002],
+          "affected_parameters": ["median_seismic_acceleration", "beta_r_uncertainty"],
+          "time": 15
+        }
       }
     },
     "description": "Flooding Source 2",
@@ -84,7 +90,14 @@
       "beta_u_uncertainty": 0.09282593265315012,
       "pga": "",
       "amplification": {
-        "$numberDecimal": "1.0"
+        "$numberDecimal": "1.0",
+        "aging_model": {
+          "type": "function",
+          "expression": "affected_parameter * math.exp(aging_rate * (time-5))",
+          "aging_rate": [-0.009, -0.008],
+          "affected_parameters": ["median_seismic_acceleration", "beta_r_uncertainty"],
+          "time": 40
+        }
       }
     },
     "description": "Flooding Source 3",

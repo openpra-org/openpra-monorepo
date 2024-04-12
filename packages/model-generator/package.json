@@ -6,7 +6,8 @@
   "main": "./src/index.js",
   "typings": "./src/index.d.ts",
   "dependencies": {
-    "tslib": "2.5.2"
+    "tslib": "2.5.2",
+    "mathjs": "12.4.1"
   },
   "devDependencies": {
     "@types/mongoose": "5.11.97",

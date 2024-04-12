@@ -54,16 +54,14 @@ export class AgingModel {
           const rate = i < agingRate.length ? agingRate[i] : 0; // Use specific rate if available, else default to 0
 
           const currentValue = node.failure_model [parameter] || 0;
-          const newValue = currentValue + rate * time;
-          node.failure_model [parameter] = newValue;
+          node.failure_model [parameter] = currentValue + rate * time;
         }
       } else {
         // If aging_rate is a single float, update the first affected parameter
         const affectedParameter = agingModel.affected_parameters?.[0]; // Assume at least one affected parameter exists
         if (affectedParameter) {
           const currentValue = node.failure_model [affectedParameter] || 0;
-          const newValue = currentValue + agingRate * time;
-          node.failure_model [affectedParameter] = newValue;
+          node.failure_model [affectedParameter] = currentValue + agingRate * time;;
         }
       }
     } catch (error) {

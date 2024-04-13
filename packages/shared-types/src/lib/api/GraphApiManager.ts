@@ -2,6 +2,7 @@ import {
   EventSequenceGraph,
   EventTreeGraph,
   FaultTreeGraph,
+  HeatBalanceFaultTreeGraph,
 } from "../types/reactflowGraph/Graph";
 import AuthService from "./AuthService";
 
@@ -9,6 +10,7 @@ const ApiEndpoint = "/api";
 const GraphEndpoint = `${ApiEndpoint}/graph-models`;
 const EventSequenceDiagramEndpoint = `${GraphEndpoint}/event-sequence-diagram-graph`;
 const FaultTreeGraphEndpoint = `${GraphEndpoint}/fault-tree-graph`;
+const HeatBalanceFaultTreeGraphEndpoint = `${GraphEndpoint}/heat-balance-fault-tree-graph`;
 const EventTreeGraphEndpoint = `${GraphEndpoint}/event-tree-graph`;
 
 /**
@@ -40,6 +42,62 @@ export class GraphApiManager {
       `${FaultTreeGraphEndpoint}/?faultTreeId=${faultTreeId}`,
     )
       .then((res) => this.getFaultTreeResponse(res, faultTreeId))
+      .catch((error) => {
+        throw error;
+      });
+  }
+
+  /**
+   * Store (create/update) the fault tree graph based on the latest state of the graph
+   * @param data - Current state of fault tree graph
+   * @returns Updated fault tree graph
+   */
+  static async storeHeatBalanceFaultTree(
+    data: HeatBalanceFaultTreeGraph,
+  ): Promise<HeatBalanceFaultTreeGraph> {
+    return await this.post(`${HeatBalanceFaultTreeGraphEndpoint}`, data)
+      .then((res) => this.getHeatBalanceFaultTreeResponse(res, data.heatBalanceFaultTreeId))
+      .catch((err) => {
+        throw err;
+      });
+  }
+
+  /**
+   * Fetch the fault tree graph based on the fault tree id
+   * @param heatBalanceFaultTreeId - Fault tree id
+   * @returns Latest fault tree graph
+   */
+  static async getHeatBalanceFaultTree(
+    heatBalanceFaultTreeId = "-1",
+  ): Promise<HeatBalanceFaultTreeGraph> {
+    return await this.get(
+      `${HeatBalanceFaultTreeGraphEndpoint}/?heatBalanceFaultTreeId=${heatBalanceFaultTreeId}`,
+    )
+      .then((res) => this.getHeatBalanceFaultTreeResponse(res, heatBalanceFaultTreeId))
+      .catch((error) => {
+        throw error;
+      });
+  }
+
+  /**
+   * Update the label of a node or edge for an event sequence diagram
+   * @param id - Node/Edge ID
+   * @param label - New label
+   * @param type - 'node' or 'edge' for which the label needs to be updated
+   * @returns boolean confirmation whether update was successful or not
+   */
+  static async updateHeatBalanceFaultTreeLabel(
+    id: string,
+    label: string,
+    type: string,
+  ): Promise<boolean> {
+    const url = `${HeatBalanceFaultTreeGraphEndpoint}/update-label/`;
+    return await this.patch<{ id: string; type: string; label: string }>(url, {
+      id: id,
+      type: type,
+      label: label,
+    })
+      .then((res) => this.getHeatBalanceFaultTreeBooleanResponse(res))
       .catch((error) => {
         throw error;
       });
@@ -172,7 +230,7 @@ export class GraphApiManager {
    */
   private static post(
     url: string,
-    data: EventSequenceGraph | FaultTreeGraph | EventTreeGraph,
+    data: EventSequenceGraph | FaultTreeGraph | EventTreeGraph | HeatBalanceFaultTreeGraph,
   ): Promise<Response> {
     return fetch(url, this.getRequestInfo("POST", JSON.stringify(data)));
   }
@@ -261,6 +319,38 @@ export class GraphApiManager {
           edges: [],
         } as FaultTreeGraph)
       : (JSON.parse(response) as FaultTreeGraph);
+  }
+
+  /**
+   * Read the API response and parse the fault tree data
+   * @param res - Response from API
+   * @param heatBalanceFaultTreeId - Fault tree id
+   * @returns FaultTreeGraph object, empty object if response is empty
+   */
+  private static async getHeatBalanceFaultTreeResponse(
+    res: Response,
+    heatBalanceFaultTreeId: string,
+  ): Promise<HeatBalanceFaultTreeGraph> {
+    const response = await res.text();
+    return response === ""
+      ? ({
+          heatBalanceFaultTreeId: heatBalanceFaultTreeId,
+          nodes: [],
+          edges: [],
+        } as HeatBalanceFaultTreeGraph)
+      : (JSON.parse(response) as HeatBalanceFaultTreeGraph);
+  }
+
+  /**
+   * Read the API response and return boolean value to indicate successful operation
+   * @param res - Response from API
+   * @returns boolean, false if response is empty
+   */
+  private static async getHeatBalanceFaultTreeBooleanResponse(
+    res: Response,
+  ): Promise<boolean> {
+    const response = await res.text();
+    return response === "true";
   }
 
   /**

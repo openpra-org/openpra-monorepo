@@ -11,6 +11,10 @@ import {
   FaultTreeGraphDocument,
 } from "../schemas/graphs/fault-tree-graph.schema";
 import {
+  HeatBalanceFaultTreeGraph,
+  HeatBalanceFaultTreeGraphDocument,
+} from "../schemas/graphs/heat-balance-fault-tree-graph.schema";
+import {
   BaseGraph,
   BaseGraphDocument,
 } from "../schemas/graphs/base-graph.schema";
@@ -25,6 +29,7 @@ import {
 enum GraphTypes {
   EventSequence = "event-sequence",
   FaultTree = "fault-tree",
+  HeatBalanceFaultTree = "heat-balance-fault-tree",
   EventTree = "event-tree",
 }
 
@@ -35,6 +40,8 @@ export class GraphModelService {
     private readonly eventSequenceDiagramGraphModel: Model<EventSequenceDiagramGraphDocument>,
     @InjectModel(FaultTreeGraph.name)
     private readonly faultTreeGraphModel: Model<FaultTreeGraphDocument>,
+    @InjectModel(HeatBalanceFaultTreeGraph.name)
+    private readonly heatBalanceFaultTreeGraphModel: Model<HeatBalanceFaultTreeGraphDocument>,
     @InjectModel(EventTreeGraph.name)
     private readonly eventTreeGraphModel: Model<EventTreeGraphDocument>,
   ) {}
@@ -121,6 +128,72 @@ export class GraphModelService {
         edges: [],
       };
     }
+  }
+
+  /**
+   * Saves the heat balance fault tree diagram graph
+   * @param body - The current state of the fault tree diagram graph
+   * @returns A promise with a fault tree diagram graph in it
+   */
+  async saveHeatBalanceFaultTreeGraph(
+    body: Partial<HeatBalanceFaultTreeGraph>,
+  ): Promise<boolean> {
+    const existingGraph = await this.heatBalanceFaultTreeGraphModel.findOne({
+      heatBalanceFaultTreeId: body.heatBalanceFaultTreeId,
+    });
+    return this.saveGraph(existingGraph, body, GraphTypes.HeatBalanceFaultTree);
+  }
+
+  /**
+   * Sets the heat balance fault tree diagram graph for the given fault tree ID
+   * @param heatBalanceFaultTreeId - Fault tree ID
+   * @returns A promise with the fault tree diagram graph
+   */
+  async getHeatBalanceFaultTreeGraph(
+    heatBalanceFaultTreeId: string,
+  ): Promise<HeatBalanceFaultTreeGraph> {
+    const result = this.heatBalanceFaultTreeGraphModel.findOne(
+      { heatBalanceFaultTreeId: heatBalanceFaultTreeId },
+      { _id: 0 },
+    );
+    if (result !== null) {
+      return result;
+    } else {
+      return {
+        id: "",
+        _id: new mongoose.Types.ObjectId(),
+        heatBalanceFaultTreeId: heatBalanceFaultTreeId,
+        nodes: [],
+        edges: [],
+      };
+    }
+  }
+
+  /**
+   * Updates the label of the node/edge present in the data attribute
+   * @param id - Node/Edge ID
+   * @param type - 'node' or 'edge'
+   * @param label - New label for the node/edge
+   * @returns A promise with boolean confirmation of the update operation
+   */
+  async updateHeatBalanceFaultTreeLabel(
+    id: string,
+    type: string,
+    label: string,
+  ): Promise<boolean> {
+    if (!["node", "edge"].includes(type)) return false;
+
+    // attribute filter for node/edge
+    const attribute = type === "node" ? "nodes" : "edges";
+    const filter = {};
+    const set = {};
+    filter[`${attribute}.id`] = id;
+    set[`${attribute}.$.data.label`] = label;
+
+    const result = await this.heatBalanceFaultTreeGraphModel.updateOne(filter, {
+      $set: set,
+    });
+    return result.modifiedCount > 0;
   }
 
   /**
@@ -259,6 +332,8 @@ export class GraphModelService {
         return new this.eventSequenceDiagramGraphModel(body);
       case GraphTypes.FaultTree:
         return new this.faultTreeGraphModel(body);
+      case GraphTypes.HeatBalanceFaultTree:
+        return new this.heatBalanceFaultTreeGraphModel(body);
       case GraphTypes.EventTree:
         return new this.eventTreeGraphModel(body);
       default:

@@ -10,6 +10,11 @@ import {
 } from "../schemas/graphs/fault-tree-graph.schema";
 
 import {
+  HeatBalanceFaultTreeGraph,
+  HeatBalanceFaultTreeGraphSchema
+} from "../schemas/graphs/heat-balance-fault-tree-graph.schema";
+
+import {
   EventTreeGraph,
   EventTreeGraphSchema,
 } from "../schemas/graphs/event-tree-graph.schema";
@@ -25,6 +30,7 @@ import { GraphModelService } from "./graphModel.service";
         schema: EventSequenceDiagramGraphSchema,
       },
       { name: FaultTreeGraph.name, schema: FaultTreeGraphSchema },
+      { name: HeatBalanceFaultTreeGraph.name, schema: HeatBalanceFaultTreeGraphSchema},
       { name: EventTreeGraph.name, schema: EventTreeGraphSchema },
     ]),
   ],

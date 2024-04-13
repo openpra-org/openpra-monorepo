@@ -25,6 +25,13 @@ export type FaultTreeGraph = {
 } & Graph;
 
 /**
+ * Heat Balance Fault Tree Graph, extending Graph type with fault tree id
+ */
+export type HeatBalanceFaultTreeGraph = {
+  heatBalanceFaultTreeId: string;
+} & Graph;
+
+/**
  * Event Tree Graph, extending Graph type with event tree id
  */
 export type EventTreeGraph = {

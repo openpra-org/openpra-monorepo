@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Patch, Post, Query } from "@nestjs/common";
 import { EventSequenceDiagramGraph } from "../schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph } from "../schemas/graphs/fault-tree-graph.schema";
+import { HeatBalanceFaultTreeGraph } from "../schemas/graphs/heat-balance-fault-tree-graph.schema";
 import { EventTreeGraph } from "../schemas/graphs/event-tree-graph.schema";
 import { BaseGraph } from "../schemas/graphs/base-graph.schema";
 import { GraphModelService } from "./graphModel.service";
@@ -33,6 +34,19 @@ export class GraphModelController {
     @Body() data: Partial<FaultTreeGraph>,
   ): Promise<boolean> {
     return this.graphModelService.saveFaultTreeGraph(data);
+  }
+
+  /**
+   * stores/creates a heat balance fault tree diagram graph
+   * @param data - takes in a partial of a fault tree diagram model
+   * as well as the faultTreeId, if the id is missing - a new graph document will be created.
+   * @returns a promise with the newly created graph model
+   */
+  @Post("/heat-balance-fault-tree-graph")
+  async createHeatBalanceFaultTreeGraph(
+    @Body() data: Partial<HeatBalanceFaultTreeGraph>,
+  ): Promise<boolean> {
+    return this.graphModelService.saveHeatBalanceFaultTreeGraph(data);
   }
 
   /**
@@ -79,6 +93,36 @@ export class GraphModelController {
     @Query("faultTreeId") faultTreeId: string,
   ): Promise<FaultTreeGraph> {
     return this.graphModelService.getFaultTreeGraph(faultTreeId);
+  }
+
+  /**
+   * fetches the heat balance fault tree graph model for a particular diagram, based on its id
+   * @param heatBalanceFaultTreeId - the id of the fault tree diagram
+   * @returns a promise with an object of the fault tree diagram graph
+   */
+  @Get("/heat-balance-fault-tree-graph/")
+  async getHeatBalanceFaultTreeGraph(
+    @Query("heatBalanceFaultTreeId") heatBalanceFaultTreeId: string,
+  ): Promise<HeatBalanceFaultTreeGraph> {
+    return this.graphModelService.getHeatBalanceFaultTreeGraph(
+      heatBalanceFaultTreeId,
+    );
+  }
+
+  /**
+   * Update the label of node/edge of a heat balance fault tree
+   * @param id - Node/Edge ID
+   * @param type - 'node' or 'edge'
+   * @param label - New label for the node/edge
+   * @returns a promise with boolean confirmation whether update was successful or not
+   */
+  @Patch("/heat-balance-fault-tree-graph/update-label/")
+  async updateHeatBalanceFaultTreeNodeLabel(
+    @Body("id") id: string,
+    @Body("type") type: string,
+    @Body("label") label: string,
+  ): Promise<boolean> {
+    return this.graphModelService.updateHeatBalanceFaultTreeLabel(id, type, label);
   }
 
   /**

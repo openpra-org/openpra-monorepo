@@ -25,7 +25,7 @@ import { Row } from "shared-types/src/lib/types/fmea/Row";
 
 import FmeaApiManager from "shared-types/src/lib/api/InitiatingEventsApiManager";
 
-import InitiatorList from "../../components/lists/InitiatorList";
+// import InitiatorList from "../../components/lists/InitiatorList";
 import { InitiatingEventsList } from "../../components/lists/nestedLists/initiatingEventsList";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";
@@ -461,92 +461,108 @@ export function EditableTable(): JSX.Element | null {
   type RowData = Record<string, unknown>;
   const renderCellValue = useCallback(
     ({ rowIndex, columnId }: EuiDataGridCellValueElementProps) => {
+      const handleRowClick = () => {
+        toggleSidePanel();
+
+        setSelectedRowIdSidePanel(rowID);
+      };
       //console.log(columnId);
       const column = columns.find((col) => col.id === columnId);
 
       const item: RowData = data[rowIndex].row_data;
       const rowID = data[rowIndex].id;
-      if (column !== undefined) {
-        const value = item[column.id] as string;
-        // Use `value` here within the if block
-        //console.log(column);
-        if (columnId === "id") {
-          const id = data[rowIndex].id;
-          return (
-            <input
-              type="checkbox"
-              checked={selectedItems.has(id)}
-              onChange={(): void => {
-                onSelectionChange(id);
-              }}
-              aria-label={`Select row with id ${id}`}
-            />
-          );
-        }
-        if (column.name !== "actions" && column.name !== "details") {
-          if (column.type === "string") {
+      const renderCellContent = () => {
+        if (column !== undefined) {
+          const value = item[column.id] as string;
+          // Use `value` here within the if block
+          //console.log(column);
+          if (columnId === "id") {
+            const id = data[rowIndex].id;
             return (
-              <div
-                contentEditable
-                suppressContentEditableWarning
-                onBlur={(e): void => {
-                  updateCell(
-                    rowID,
-                    column.id,
-                    e.currentTarget.textContent ?? "",
-                  );
+              <input
+                type="checkbox"
+                checked={selectedItems.has(id)}
+                onChange={(event): void => {
+                  event.preventDefault();
                 }}
-                // onDoubleClick={() => {
-                //   setEditingCell({ rowIndex, columnId });
-                // }}
-                data-testid={`${column.name}`}
-              >
-                <span>{value}</span>
-              </div>
+                aria-label={`Select row with id ${id}`}
+              />
             );
-          } else {
-            return (
-              <div data-testid={`${column.name}`}>
-                <EuiSelect
-                  options={column.dropdownOptions.map((option) => ({
-                    value: option.number.toString(),
-                    text: option.number.toString(),
-                  }))}
-                  value={value}
-                  onChange={(e): void => {
-                    updateCell(rowID, column.id, e.target.value);
+          }
+          if (column.name !== "actions" && column.name !== "details") {
+            if (column.type === "string") {
+              return (
+                <div
+                  //suppressContentEditableWarning
+                  onClick={(event) => {
+                    event.preventDefault();
                   }}
-                  style={{ minWidth: "100px" }}
-                />
-              </div>
-            );
-          }
-        } else {
-          if (column.name === "actions") {
-            return (
-              <EuiButtonIcon
-                onClick={(): void => {
-                  deleteRow(rowID);
-                }}
-                iconType="trash"
-                aria-label="Delete row"
-              />
-            );
+                  // onBlur={(e): void => {
+                  //   updateCell(
+                  //     rowID,
+                  //     column.id,
+                  //     e.currentTarget.textContent ?? "",
+                  //   );
+                  // }}
+                  // onDoubleClick={() => {
+                  //   setEditingCell({ rowIndex, columnId });
+                  // }}
+                  data-testid={`${column.name}`}
+                >
+                  <span>{value}</span>
+                </div>
+              );
+            } else {
+              return (
+                <div data-testid={`${column.name}`}>
+                  <EuiSelect
+                    options={column.dropdownOptions.map((option) => ({
+                      value: option.number.toString(),
+                      text: option.number.toString(),
+                    }))}
+                    value={value}
+                    onClick={(event): void => {
+                      event.preventDefault();
+                    }}
+                    style={{ minWidth: "100px" }}
+                  />
+                </div>
+              );
+            }
           } else {
-            return (
-              <EuiButtonIcon
-                onClick={(): void => {
-                  toggleSidePanel();
-
-                  setSelectedRowIdSidePanel(rowID);
-                }}
-                iconType="searchProfilerApp"
-                aria-label="Delete row"
-              />
-            );
+            if (column.name === "actions") {
+              return (
+                <EuiButtonIcon
+                  onClick={(): void => {
+                    deleteRow(rowID);
+                  }}
+                  iconType="trash"
+                  aria-label="Delete row"
+                />
+              );
+            } else {
+              return (
+                <EuiButtonIcon
+                  onClick={(): void => {
+                    toggleSidePanel();
+                    setSelectedRowIdSidePanel(rowID);
+                  }}
+                  iconType="searchProfilerApp"
+                  aria-label="Delete row"
+                />
+              );
+            }
           }
         }
-      }
+      };
+      return (
+        <div
+          onClick={handleRowClick}
+          style={{ cursor: "pointer", minHeight: "10px" }}
+        >
+          {renderCellContent()}
+        </div>
+      );
     },
     [data, columns, updateCell],
   );

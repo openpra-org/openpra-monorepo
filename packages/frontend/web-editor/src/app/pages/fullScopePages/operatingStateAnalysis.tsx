@@ -1371,7 +1371,10 @@ const App: React.FC = () => {
 
       // Wrap the cell content to toggle the side panel on click
       return (
-        <div onClick={handleRowClick} style={{ cursor: "pointer" }}>
+        <div
+          onClick={handleRowClick}
+          style={{ cursor: "pointer", height: "10px" }}
+        >
           {renderCellContent()}
         </div>
       );

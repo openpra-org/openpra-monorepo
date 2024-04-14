@@ -27,9 +27,12 @@ import FmeaApiManager from "shared-types/src/lib/api/InitiatingEventsApiManager"
 
 import InitiatorList from "../../components/lists/InitiatorList";
 import { InitiatingEventsList } from "../../components/lists/nestedLists/initiatingEventsList";
+import { UseToastContext } from "../../providers/toastProvider";
+import { GetESToast } from "../../../utils/treeUtils";
 
 export function EditableTable(): JSX.Element | null {
   type RouteParams = Record<string, string>;
+  const { addToast } = UseToastContext();
   const params = useParams<RouteParams>();
   const [data, setData] = useState<Row[]>([]);
   const [columns, setColumn] = useState<Column[]>([]);
@@ -246,12 +249,17 @@ export function EditableTable(): JSX.Element | null {
   function addNewColumn(): void {
     const isInvalid = newColumn.name.trim() === "";
     setIsSubmitted(true);
+    if (newColumn.name == "") {
+      console.log("here");
+      addToast(GetESToast("danger", "Please provide column name."));
+    }
     if (!isInvalid) {
       if (
         newColumn.type === "dropdown" &&
         newColumn.dropdownOptions.length === 0
       ) {
         //showErrorToast();
+        addToast(GetESToast("danger", "Please provide column name."));
       } else {
         if (editingColumn) {
           // Update existing column

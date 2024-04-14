@@ -571,18 +571,18 @@ export function EditableTable(): JSX.Element | null {
       {isModalVisible && renderAddColumnModal()}
       <EuiPageTemplate panelled={false} offset={48} grow={false}>
         <EuiPageTemplate.Section>
-          <EuiButton size={"s"} onClick={addNewRow} style={{ margin: "10px" }}>
-            Add Row
-          </EuiButton>
-          <EuiButton
-            size={"s"}
-            onClick={(): void => {
-              showModal("");
-            }}
-            style={{ margin: "10px" }}
-          >
-            Add Column
-          </EuiButton>
+          {/*<EuiButton size={"s"} onClick={addNewRow} style={{ margin: "10px" }}>*/}
+          {/*  Add Row*/}
+          {/*</EuiButton>*/}
+          {/*<EuiButton*/}
+          {/*  size={"s"}*/}
+          {/*  onClick={(): void => {*/}
+          {/*    showModal("");*/}
+          {/*  }}*/}
+          {/*  style={{ margin: "10px" }}*/}
+          {/*>*/}
+          {/*  Add Column*/}
+          {/*</EuiButton>*/}
           <EuiResizableContainer style={{ height: "400px" }}>
             {(EuiResizablePanel, EuiResizableButton): React.JSX.Element => (
               <>
@@ -670,9 +670,14 @@ export function EditableTable(): JSX.Element | null {
                             const value = row[0].row_data[column.id] as string;
                             //console.log(value);
                             return (
-                              <EuiFormRow label={column.name} key={column.id}>
+                              <EuiFormRow
+                                fullWidth
+                                label={column.name}
+                                key={column.id}
+                              >
                                 {column.type === "dropdown" ? (
                                   <EuiSelect
+                                    fullWidth
                                     options={column.dropdownOptions.map(
                                       (option) => ({
                                         value: option.number.toString(),
@@ -691,6 +696,8 @@ export function EditableTable(): JSX.Element | null {
                                   />
                                 ) : (
                                   <EuiFieldText
+                                    fullWidth
+                                    style={{ maxWidth: "none", width: "100%" }}
                                     value={value}
                                     onChange={(e): void => {
                                       updateCell(

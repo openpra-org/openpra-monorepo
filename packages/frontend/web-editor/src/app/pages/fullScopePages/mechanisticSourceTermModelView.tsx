@@ -1,5 +1,5 @@
 import { EuiPageTemplate, EuiSkeletonRectangle } from "@elastic/eui";
-import { InitiatingEventModelViewTable } from "../../components/tables/initiatingEventModelViewTable";
+import { MechanisticSourceTermModelViewTable } from "../../components/tables/mechanisticSourceTermModelViewTable";
 
 function MechanisticSourceTermModelView(): JSX.Element {
   return (
@@ -17,7 +17,7 @@ function MechanisticSourceTermModelView(): JSX.Element {
           isLoading={false}
           contentAriaLabel="Example description"
         >
-          <InitiatingEventModelViewTable />
+          <MechanisticSourceTermModelViewTable />
         </EuiSkeletonRectangle>
       </EuiPageTemplate.Section>
     </EuiPageTemplate>

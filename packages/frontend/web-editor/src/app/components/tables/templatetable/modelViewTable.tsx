@@ -1,101 +1,152 @@
-import { EuiButton, EuiDataGrid, EuiFlexGroup, EuiFlexItem } from "@elastic/eui";
-import { useCallback, useState } from "react";
+import React, { useState, useMemo } from "react";
+import {
+  EuiDataGrid,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiButton,
+  EuiModal,
+  EuiModalBody,
+  EuiModalHeader,
+  EuiModalHeaderTitle,
+  EuiModalFooter,
+  EuiFieldSearch,
+  EuiPopover,
+  EuiButtonIcon,
+  EuiListGroup,
+  EuiListGroupItem,
+} from "@elastic/eui";
+import "@elastic/eui/dist/eui_theme_light.css";
 
 type ModelViewTableProps = {
-  rows: any[];
   columns: any[];
+  rows: any[];
 };
 
-type CellValueProps = {
-  rowIndex: number;
-  colIndex: number;
-};
-
-function ModelViewTable({ rows, columns }: ModelViewTableProps): JSX.Element {
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(
+const ModelViewTable: React.FC<ModelViewTableProps> = ({ columns, rows }) => {
+  const [visibleColumns, setVisibleColumns] = useState(
     columns.map((column) => column.id),
   );
+  const [queryText, setQueryText] = useState("");
+  const [isModalVisible, setModalVisible] = useState(false);
+  const [modalContent, setModalContent] = useState<any>(null);
+  const [groupByColumn, setGroupByColumn] = useState("");
+  const [isPopoverOpen, setPopoverOpen] = useState(false);
 
-  const cellValue = ({ rowIndex, colIndex }: CellValueProps): any => {
-    const visibleColumnId = visibleColumns[colIndex];
-    const row = rows[rowIndex];
-    return row[visibleColumnId];
+  const togglePopover = () => {
+    setPopoverOpen(!isPopoverOpen);
   };
 
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 20 });
-
-  const onChangeItemsPerPage = useCallback(
-    (pageSize: number): void => {
-      setPagination((pagination) => ({
-        ...pagination,
-        pageSize,
-        pageIndex: 0,
-      }));
-    },
-    [setPagination],
-  );
-
-  const onChangePage = useCallback(
-    (pageIndex: number): void => {
-      setPagination((pagination) => ({ ...pagination, pageIndex }));
-    },
-    [setPagination],
-  );
-
-  // Function to divide models into smaller subsets based on their names
-  const divideModels = () => {
-
-    const subsets: Record<string, any[]> = {};
-    rows.forEach((row) => {
-      const modelName = row.modelName;
-      const firstLetter = modelName.charAt(0).toUpperCase();
-      if (!subsets[firstLetter]) {
-        subsets[firstLetter] = [];
-      }
-      subsets[firstLetter].push(row);
-    });
-    console.log(subsets);
-    // Here you can perform actions with the subsets, such as updating state or displaying them in some way
+  const handleRowClick = (rowId: number) => {
+    const row = rows.find((row) => row.id === rowId);
+    setModalContent(row);
+    setModalVisible(true);
   };
 
-  const columnsWithButton = [
-    {
-      id: 'model',
-      displayAsText: 'Model',
-    },
-    ...columns, // Include other columns
-    {
-      id: 'divideButton',
-      displayAsText: 'Divide Models',
-      cellActions: [
-        {
-          icon: 'plusInCircle',
-          onClick: () => divideModels(),
-          label: 'Divide Models',
+  const closeModal = () => {
+    setModalVisible(false);
+    setModalContent(null);
+  };
+
+  const sortedAndFilteredRows = useMemo(() => {
+    let processedRows = rows;
+    if (queryText) {
+      processedRows = processedRows.filter((row) =>
+        Object.values(row).some((value) =>
+          value
+            ? value.toString().toLowerCase().includes(queryText.toLowerCase())
+            : false,
+        ),
+      );
+    }
+    if (groupByColumn) {
+      const grouped = processedRows.reduce<Record<string, typeof rows>>(
+        (acc, row) => {
+          const key = row[groupByColumn] || "Other"; // Explicit casting if `groupByColumn` is dynamic
+          acc[key] = acc[key] || [];
+          acc[key].push(row);
+          return acc;
         },
-      ],
-    },
-  ];
+        {},
+      );
+    }
+    return processedRows;
+  }, [rows, queryText, groupByColumn]);
 
   return (
-    <EuiFlexGroup className="eui-xScroll">
-      <EuiFlexItem grow={true}>
-        <EuiDataGrid
-          columns={columnsWithButton}
-          columnVisibility={{ visibleColumns, setVisibleColumns }}
-          rowCount={rows.length}
-          renderCellValue={cellValue}
-          aria-label="modelViewTable"
-          pagination={{
-            ...pagination,
-            pageSizeOptions: [20, 50, 100],
-            onChangeItemsPerPage: onChangeItemsPerPage,
-            onChangePage: onChangePage,
+    <EuiFlexGroup direction="column" gutterSize="s">
+      <EuiFlexItem>
+        <EuiButton onClick={togglePopover}>Group</EuiButton>
+        {isPopoverOpen && (
+          <EuiPopover
+            isOpen={isPopoverOpen}
+            closePopover={togglePopover}
+            button={
+              <EuiButtonIcon
+                iconType="arrowDown"
+                onClick={togglePopover}
+                aria-label="More options"
+              />
+            }
+          >
+            <EuiListGroup maxWidth={300}>
+              {columns.map((column) => (
+                <EuiListGroupItem
+                  key={column.id}
+                  label={column.displayAsText || column.id}
+                  onClick={() => {
+                    setGroupByColumn(column.id);
+                    togglePopover();
+                  }}
+                />
+              ))}
+            </EuiListGroup>
+          </EuiPopover>
+        )}
+      </EuiFlexItem>
+      <EuiFlexItem>
+        <EuiFieldSearch
+          placeholder="Search..."
+          value={queryText}
+          onChange={(e) => {
+            setQueryText(e.target.value);
           }}
+          isClearable={true}
         />
       </EuiFlexItem>
+      <EuiFlexItem>
+        <EuiDataGrid
+          aria-label="Model view grid"
+          columns={columns}
+          columnVisibility={{ visibleColumns, setVisibleColumns }}
+          rowCount={sortedAndFilteredRows.length}
+          renderCellValue={({ rowIndex, columnId }) => (
+            <div
+              onClick={() => {
+                handleRowClick(sortedAndFilteredRows[rowIndex].id);
+              }}
+            >
+              {sortedAndFilteredRows[rowIndex][columnId]}
+            </div>
+          )}
+        />
+      </EuiFlexItem>
+      {isModalVisible && (
+        <EuiModal onClose={closeModal}>
+          <EuiModalHeader>
+            <EuiModalHeaderTitle>
+              <h1>Row Details</h1>
+            </EuiModalHeaderTitle>
+          </EuiModalHeader>
+          <EuiModalBody>{JSON.stringify(modalContent, null, 2)}</EuiModalBody>
+          <EuiModalFooter>
+            <EuiButton onClick={closeModal} fill>
+              Close
+            </EuiButton>
+          </EuiModalFooter>
+        </EuiModal>
+      )}
     </EuiFlexGroup>
   );
-}
+};
 
 export { ModelViewTable };

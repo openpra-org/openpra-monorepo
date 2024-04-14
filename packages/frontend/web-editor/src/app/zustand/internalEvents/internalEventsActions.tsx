@@ -17,10 +17,12 @@ export const setInternalEvents = async (): Promise<void> => {
       internalEvents: internalEventsList,
     });
   } catch (error) {
+    // eslint-disable-next-line no-console
     console.error("Error fetching data:", error);
   }
 };
 
+// eslint-disable-next-line @typescript-eslint/naming-convention
 export const addInternalEvent = async (
   data: Partial<TypedModelJSON>,
 ): Promise<void> => {

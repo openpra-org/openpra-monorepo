@@ -1,18 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  EuiTextColor,
-  EuiFlexGroup,
-  EuiFlexItem,
-  EuiFlexGrid,
-  EuiPanel,
-  EuiTitle,
-  useIsWithinBreakpoints,
-  EuiText,
-  EuiSpacer,
-  EuiIcon,
-  EuiSkeletonRectangle,
-  EuiTabbedContent,
-} from "@elastic/eui";
+import { EuiTitle, EuiSpacer } from "@elastic/eui";
 import TypedModel from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 
 import {
@@ -22,9 +9,7 @@ import {
   PatchInternalHazard,
 } from "shared-types/src/lib/api/TypedModelApiManager";
 import { TypedModelActionForm } from "../forms/typedModelActionForm";
-import { UseGlobalStore } from "../../zustand/Store";
-import { SettingsAccordian } from "./SettingsAccordian";
-import {editInternalEvent} from "../../zustand/internalEvents/internalEventsActions";
+import { editInternalEvent } from "../../zustand/internalEvents/internalEventsActions";
 
 const TYPED_MODEL_TYPE_LOCATION = 1;
 
@@ -78,10 +63,10 @@ function EditCurrentModel(): JSX.Element {
     void fetchModel();
   }, []);
 
-
   return (
     <div>
-        {(<>
+      {
+        <>
           <EuiSpacer size="l" />
           <EuiTitle size="xs">
             <h6> Create {currentModelType} Model </h6>
@@ -89,20 +74,19 @@ function EditCurrentModel(): JSX.Element {
           <EuiSpacer size="s" />
 
           <EuiSpacer />
-        </>)}
+        </>
+      }
 
-
-          <TypedModelActionForm
-            action="edit"
-            itemName={currentModelType}
-            patchEndpoint={endpoint}
-            initialFormValues={{
-              id: currentModel.getId(),
-              label: currentModel.getLabel(),
-              users: currentModel.getUsers(),
-            }}
-          />
-
+      <TypedModelActionForm
+        action="edit"
+        itemName={currentModelType}
+        patchEndpoint={endpoint}
+        initialFormValues={{
+          id: currentModel.getId(),
+          label: currentModel.getLabel(),
+          users: currentModel.getUsers(),
+        }}
+      />
     </div>
   );
 }

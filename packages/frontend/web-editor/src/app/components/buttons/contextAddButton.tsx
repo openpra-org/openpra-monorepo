@@ -29,7 +29,6 @@ import {
 
 const ContextAddButton = (): JSX.Element => {
   const location = useLocation().pathname;
-  console.log(location)
 
   //creates the correct object depending on the path, uses starts with and ends with and conditional logic to keep things in the root header
   //this is a lot of stuff to look at

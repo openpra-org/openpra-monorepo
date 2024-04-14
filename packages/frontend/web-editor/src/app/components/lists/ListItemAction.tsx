@@ -38,10 +38,6 @@ export function ListItemContextMenuButton(
   );
 }
 
-function ListItemAction(): void {}
-
-//TODO
-export { ListItemAction };
 export function ListItemEditAction({
   itemName,
   patchFunction,

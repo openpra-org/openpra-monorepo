@@ -101,7 +101,6 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
     void fetchGenericListItems();
   }, [deleteNestedEndpoint, getNestedEndpoint, name, patchNestedEndpoint]);
 
-
   return (
     <EuiPageTemplate
       panelled={false}
@@ -117,7 +116,6 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
           isLoading={isLoading}
           contentAriaLabel="Example description"
         >
-
           <GenericItemList>{genericListItems}</GenericItemList>
         </EuiSkeletonRectangle>
       </EuiPageTemplate.Section>

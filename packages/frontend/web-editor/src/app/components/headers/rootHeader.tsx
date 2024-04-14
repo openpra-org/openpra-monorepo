@@ -130,9 +130,11 @@ const RootHeader = (): JSX.Element => {
         <EuiHeaderSectionItem>
           <ContextAddButton />
         </EuiHeaderSectionItem>
-        <EuiHeaderSectionItem>
-          <CreateSettingButton />
-        </EuiHeaderSectionItem>
+        {location.pathname === "/internal-events" ? null : (
+          <EuiHeaderSectionItem>
+            <CreateSettingButton />
+          </EuiHeaderSectionItem>
+        )}
         <EuiHeaderSectionItem>{search}</EuiHeaderSectionItem>
         <EuiHeaderSectionItem>
           <HeaderUserMenu />

@@ -11,7 +11,6 @@ import ReactFlow, {
 import { useEffect, useState, useRef, useCallback } from "react";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { ModelSettings } from "./modelSettings";
 
 import { EventSequenceGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { EventSequenceList } from "../../components/lists/nestedLists/eventSequenceList";
@@ -35,7 +34,7 @@ import {
 } from "../../../utils/treeUtils";
 import { LoadingCard } from "../../components/cards/loadingCard";
 import { UseToastContext } from "../../providers/toastProvider";
-
+import { ModelSettings } from "./modelSettings";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
@@ -325,7 +324,7 @@ function EventSequenceDiagrams(): JSX.Element {
       <Route path=":eventSequenceId">
         <Route index element={<EventSequenceEditor />} />
         {/* Nested route for event sequence settings */}
-        <Route path="settings" element={<ModelSettings />}  />
+        <Route path="settings" element={<ModelSettings />} />
       </Route>
     </Routes>
   );

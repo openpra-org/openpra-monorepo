@@ -18,6 +18,18 @@ function MechanisticSourceTermModelViewTable(): JSX.Element {
       id: "location",
       displayAsText: "Location",
     },
+    {
+      id: "form",
+      displayAsText: "Form",
+    },
+    {
+      id: "release rate",
+      displayAsText: "Release Rate",
+    },
+    {
+      id: "energy",
+      displayAsText: "Energy",
+    },
   ];
 
   return <ModelViewTable rows={rows} columns={columns} />;

@@ -75,7 +75,7 @@ const ModelViewTable: React.FC<ModelViewTableProps> = ({ columns, rows }) => {
   return (
     <EuiFlexGroup direction="column" gutterSize="s">
       <EuiFlexItem>
-        <EuiButton onClick={togglePopover}>Group</EuiButton>
+        <EuiButton onClick={togglePopover}>Button</EuiButton>
         {isPopoverOpen && (
           <EuiPopover
             isOpen={isPopoverOpen}

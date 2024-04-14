@@ -18,7 +18,7 @@ import {
   EuiResizableContainer,
 } from "@elastic/eui";
 import React, { useCallback, useEffect, useState } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useParams } from "react-router-dom";
 
 import { Column } from "shared-types/src/lib/types/fmea/Column";
 import { Row } from "shared-types/src/lib/types/fmea/Row";
@@ -29,6 +29,8 @@ import InitiatorList from "../../components/lists/InitiatorList";
 import { InitiatingEventsList } from "../../components/lists/nestedLists/initiatingEventsList";
 
 export function EditableTable(): JSX.Element | null {
+  type RouteParams = Record<string, string>;
+  const params = useParams<RouteParams>();
   const [data, setData] = useState<Row[]>([]);
   const [columns, setColumn] = useState<Column[]>([]);
   const [newColumn, setNewColumn] = useState({
@@ -63,9 +65,16 @@ export function EditableTable(): JSX.Element | null {
   };
 
   useEffect(() => {
+    console.log(params.intiatingEventId);
     const loadFmea = async (): Promise<void> => {
-      const res = await FmeaApiManager.getFmea(3);
-      //console.log(res);
+      const res = await FmeaApiManager.getFmea(
+        Number(params.intiatingEventId),
+        {
+          title: "title",
+          description: "description",
+        },
+      );
+      console.log(res);
 
       // Modify the columns as needed
       const modifiedColumns = [
@@ -123,11 +132,14 @@ export function EditableTable(): JSX.Element | null {
 
   function updateCell(id: string, column: string, value: string): void {
     const update = async (): Promise<void> => {
-      const res = await FmeaApiManager.updateCell(3, {
-        rowId: id,
-        column,
-        value,
-      });
+      const res = await FmeaApiManager.updateCell(
+        Number(params.intiatingEventId),
+        {
+          rowId: id,
+          column,
+          value,
+        },
+      );
       //console.log(res);
 
       // Create a new object/array that includes the modifications you want to make.
@@ -181,7 +193,10 @@ export function EditableTable(): JSX.Element | null {
 
   function deleteRow(id: string): void {
     const del = async (): Promise<void> => {
-      const res = await FmeaApiManager.deleteRow(3, id);
+      const res = await FmeaApiManager.deleteRow(
+        Number(params.intiatingEventId),
+        id,
+      );
       //console.log(res);
 
       // Assuming res.columns is mutable and you're okay with modifying it directly
@@ -204,10 +219,12 @@ export function EditableTable(): JSX.Element | null {
 
   const addNewRow = (): void => {
     const callAddRow = async (): Promise<void> => {
-      await FmeaApiManager.addRow(3).then((resposne) => {
-        //console.log(resposne);
-        setData(resposne.rows);
-      });
+      await FmeaApiManager.addRow(Number(params.intiatingEventId)).then(
+        (resposne) => {
+          //console.log(resposne);
+          setData(resposne.rows);
+        },
+      );
     };
 
     void callAddRow();
@@ -240,7 +257,10 @@ export function EditableTable(): JSX.Element | null {
           // Update existing column
           const updateColumn = async (): Promise<void> => {
             const body = { ...newColumn, prev_column_name: originalColumnId };
-            await FmeaApiManager.updateColumnDetails(3, body).then((res) => {
+            await FmeaApiManager.updateColumnDetails(
+              Number(params.intiatingEventId),
+              body,
+            ).then((res) => {
               //console.log(res);
               res.columns.push({
                 id: "actions",
@@ -269,7 +289,10 @@ export function EditableTable(): JSX.Element | null {
               dropdownOptions: newColumn.dropdownOptions,
             };
             //console.log(body);
-            await FmeaApiManager.addColumn(3, body).then((res) => {
+            await FmeaApiManager.addColumn(
+              Number(params.intiatingEventId),
+              body,
+            ).then((res) => {
               //console.log(res);
               res.columns.push({
                 id: "actions",
@@ -687,7 +710,7 @@ export function InitiatingEvents(): JSX.Element {
   return (
     <Routes>
       <Route path="" element={<InitiatingEventsList />} />
-      <Route path=":intiatingEventId" element={<InitiatorList />} />
+      <Route path=":intiatingEventId" element={<EditableTable />} />
       <Route path=":intiatingEventId/:initiator" element={<EditableTable />} />
     </Routes>
   );

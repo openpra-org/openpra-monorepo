@@ -30,9 +30,9 @@ export class FmeaController {
    * @param id FMEA ID
    * @returns the FMEA object
    */
-  @Get(":id")
-  async getFmea(@Param("id") id: number): Promise<Fmea | null> {
-    return this.fmeaService.getFmeaById(id);
+  @Post(":id")
+  async getFmea(@Param("id") id: number, @Body() body): Promise<Fmea | null> {
+    return this.fmeaService.fectchFmeaById(id, body);
   }
 
   /**

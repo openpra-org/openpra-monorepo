@@ -59,10 +59,10 @@ export class FmeaService {
   async createFmea(body): Promise<Fmea> {
     //create a new fmea using the body
     const newfmea = new this.fmeaModel({
-      id: await this.getNextValue("FMEACounter"),
+      id: body.id,
       title: body.title,
       description: body.description,
-      columns: [],
+      columns: generateDefaultColumn(),
       rows: [],
     });
     //save the fmea to the database
@@ -80,6 +80,15 @@ export class FmeaService {
     return this.fmeaModel.findOne({ id: id }).lean();
   }
 
+  async fectchFmeaById(id: number, body): Promise<Fmea | null> {
+    const response = await this.fmeaModel.findOne({ id: id }).lean();
+    body.id = id;
+    if (!response) {
+      return this.createFmea(body);
+    }
+    console.log(response);
+    return this.fmeaModel.findOne({ id: id }).lean();
+  }
   /**
    *
    * @returns Number of FMEAs in Database
@@ -451,3 +460,25 @@ export class FmeaService {
     return result;
   }
 }
+
+const generateDefaultColumn = () => {
+  const columnsNames = [
+    "Subsystem",
+    "Major Components",
+    "Functions",
+    "Failure Modes",
+    "Cause",
+    "Failure Effects",
+    "Preventative Measures",
+    "Postulated Resulting Initiating Events",
+  ];
+  const columns = columnsNames.map((name) => {
+    return {
+      id: crypto.randomUUID(),
+      name: name,
+      type: "string",
+      dropdownOptions: [],
+    };
+  });
+  return columns;
+};

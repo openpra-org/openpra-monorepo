@@ -54,23 +54,28 @@ export default class FmeaApiManager {
 
   static async getFmea(
     fmeaId: any = "-1",
+    body: any,
     override: any = null,
     onSuccessCallback = this.defaultSuccessCallback,
     onFailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
-    return this.get(
-      `${FMEA_ENDPOINT}/${fmeaId}`,
-      override,
-      onSuccessCallback,
-      onFailCallback,
-    )
+    return await fetch(`${FMEA_ENDPOINT}/${fmeaId}`, {
+      method: "POST",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    })
+      .then((res) =>
+        res.ok
+          ? onSuccessCallback(res.text(), override)
+          : onFailCallback(res, override),
+      )
       .then((response) =>
         !response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea),
       )
-      .catch((error) => {
-        console.error("Error fetching fault tree diagram:", error);
-        throw error;
-      });
+      .catch((err) => onFailCallback(err, override));
   }
 
   static async addColumn(

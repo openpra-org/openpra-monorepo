@@ -11,6 +11,7 @@ import { ApiController } from "./api.controller";
 import { ApiService } from "./api.service";
 import { FmeaModule } from "./fmea/fmea.module";
 import { GraphModelModule } from "./graphModels/graphModel.module";
+import { InitiatorModule } from "./initiators/initiators.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { GraphModelModule } from "./graphModels/graphModel.module";
     TypedModelModule,
     NestedModelModule,
     FmeaModule,
+    InitiatorModule,
     GraphModelModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
@@ -61,6 +63,10 @@ import { GraphModelModule } from "./graphModels/graphModel.module";
           {
             path: "graph-models",
             module: GraphModelModule,
+          },
+          {
+            path: "initiators",
+            module: InitiatorModule,
           },
         ],
       },

@@ -3,9 +3,6 @@ import { Document } from "mongoose";
 
 @Schema({ versionKey: false })
 export class Initiator {
-  @Prop()
-  _id: string;
-
   @Prop({ unique: true })
   name: string;
 

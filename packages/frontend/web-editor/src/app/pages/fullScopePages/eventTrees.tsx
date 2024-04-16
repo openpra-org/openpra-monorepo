@@ -33,10 +33,7 @@ import EventTreeNodeContextMenu, {
   treeNodeContextMenuProps,
 } from "../../components/menus/eventTreeNodeContextMenu";
 import { LoadingCard } from "../../components/cards/loadingCard";
-import VisibleNode from "../../components/treeNodes/eventTreeEditorNode/visibleNode";
-import InvisibleNode from "../../components/treeNodes/eventTreeEditorNode/invisibleNode";
-import OutputNode from "../../components/treeNodes/eventTreeEditorNode/outputNode";
-import ColumnNode from "../../components/treeNodes/eventTreeEditorNode/columnNode";
+
 import nodeTypes from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
 
 /**

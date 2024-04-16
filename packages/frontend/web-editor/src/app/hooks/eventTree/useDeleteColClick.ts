@@ -21,9 +21,6 @@ function useDeleteColClick(clickedNodeId: NodeProps["id"]) {
 
     const rootNode = nodes.find((node) => node.data.depth === 1)!;
 
-    const isLastFunctionalEventColumn =
-      clickedNode.data.depth === rootNode.data.inputDepth;
-
     const nodesToEvaluate = nodes.filter(
       (node) => node.data.depth === targetDepth && node.type !== "columnNode",
     );

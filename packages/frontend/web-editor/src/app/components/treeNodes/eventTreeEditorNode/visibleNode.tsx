@@ -56,7 +56,7 @@ function VisibleNode({ id, data }: NodeProps) {
         }}
       >
         <div style={{ display: "flex" }}>
-          <EuiFormControlLayout>
+          <EuiFormControlLayout style={{ width: "50%", padding: 0 }}>
             <EuiFieldText
               maxLength={20}
               compressed
@@ -78,7 +78,9 @@ function VisibleNode({ id, data }: NodeProps) {
               onChange={handleValueChange}
             />
           </EuiFormControlLayout>
-          <EuiFormControlLayout style={{ width: "80%" }}>
+          <EuiFormControlLayout
+            style={{ width: data.option === "maybe" ? "40%" : "30%" }}
+          >
             <EuiSelect
               id={id}
               compressed
@@ -100,6 +102,7 @@ function VisibleNode({ id, data }: NodeProps) {
             />
           </EuiFormControlLayout>
         </div>
+
         {data.depth != 1 && (
           <div
             style={{

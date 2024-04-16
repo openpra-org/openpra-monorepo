@@ -1,4 +1,5 @@
 import { Edge, Node } from "reactflow";
+import { useState } from "react";
 import { GenerateUUID } from "../../../utils/treeUtils";
 
 const useTreeData = (
@@ -24,6 +25,7 @@ const useTreeData = (
         inputDepth: inputLevels,
         outputDepth: outputLevels,
         width: nodeWidth,
+        option: "yes",
         depth: 1,
         index: 1,
       },
@@ -47,6 +49,7 @@ const useTreeData = (
             label: `Node ${leftChildId}`,
             depth: depth,
             width: nodeWidth,
+            option: "yes",
             output: false,
           },
           position: pos,
@@ -62,6 +65,7 @@ const useTreeData = (
             label: `Node ${rightChildId}`,
             depth: depth,
             width: nodeWidth,
+            option: "no",
             output: false,
           },
           position: pos,
@@ -126,7 +130,7 @@ const useTreeData = (
             source: prevNodeId,
             target: outputNodeId,
             type: "custom",
-            animated: false,
+            animated: true,
           };
         }
 
@@ -180,7 +184,7 @@ const useTreeData = (
         target: nodeId,
         type: "custom",
         hidden: true,
-        animated: false,
+        animated: true,
       };
       edges.push(edge);
       prevNode = nodeId;

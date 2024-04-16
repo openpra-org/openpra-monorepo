@@ -23,7 +23,7 @@ function OutputNode({ id, data }: NodeProps) {
       <div
         style={{
           width: data.width,
-          height: 40,
+          height: 50,
           textAlign: "center",
         }}
       >

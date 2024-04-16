@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useReactFlow, useStore, Node, Edge, ReactFlowState } from "reactflow";
 import { cluster, partition, stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
@@ -8,7 +8,7 @@ const layout = cluster<Node>()
   // the node size configures the spacing between the nodes ([width, height])
   .nodeSize([140, 40]) // this is needed for creating equal space between all nodes
 
-  .separation(() => 0.45);
+  .separation(() => 0.6);
 
 const options = { duration: 300 };
 
@@ -82,6 +82,14 @@ function useLayout(depth: number) {
   const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } =
     useReactFlow();
 
+  const onNodeDataChange = useCallback((nodeId: string, newData: any) => {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === nodeId ? { ...node, data: newData } : node,
+      ),
+    );
+  }, []);
+
   useEffect(() => {
     // get the current nodes and edges
     const nodeData = getNodes();
@@ -100,7 +108,11 @@ function useLayout(depth: number) {
     });
 
     // run the layout and get back the nodes with their updated positions
-    const targetNodes = layoutNodes(nodes, cols, edges);
+    let targetNodes = layoutNodes(nodes, cols, edges);
+    targetNodes = targetNodes.map((node) => ({
+      ...node,
+      data: { ...node.data, onNodeDataChange: onNodeDataChange },
+    }));
 
     // if you do not want to animate the nodes, you can uncomment the following line
     // return setNodes(targetNodes);

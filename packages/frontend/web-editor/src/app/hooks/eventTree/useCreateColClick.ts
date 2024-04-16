@@ -36,6 +36,14 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
 
     const clickedDepth = clickedNode.data.depth;
 
+    // Find the root node
+    const rootNode = nodes.find((node) => node.data.depth === 1)!;
+    if (clickedNode.data.output) {
+      rootNode.data.outputDepth += 1;
+    } else {
+      rootNode.data.inputDepth += 1;
+    }
+
     // Determine the last index of the nodes with the previous depth
     nodes.forEach((node, index) => {
       if (node.data.depth === clickedDepth) {
@@ -76,11 +84,10 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
               source: newNodeId,
               target: edge.target,
               type: "custom",
-              animated:
+              animated: !(
                 edges.filter((edge) => edge.source === node.id).length > 1 ||
                 clickedNode.data.output
-                  ? false
-                  : true,
+              ),
             });
           }
         });
@@ -89,7 +96,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
           source: node.id,
           target: newNodeId,
           type: "custom",
-          animated: clickedNode.data.output ? false : true,
+          animated: !clickedNode.data.output,
         });
 
         edges = edges.filter((e) => e.source !== node.id);
@@ -150,13 +157,6 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
     nodes.splice(lastIndexOfPrevDepth + 1, 0, ...newNodes);
     cols.splice(indexOfPrevCol + 1, 0, newColNode);
 
-    // Find the root node
-    const rootNode = nodes.find((node) => node.data.depth === 1)!;
-    if (clickedNode.data.output) {
-      rootNode.data.outputDepth += 1;
-    } else {
-      rootNode.data.inputDepth += 1;
-    }
     const updatedNodes = [...nodes, ...cols];
     // Update edges with new connection
     setNodes(updatedNodes);

@@ -1,16 +1,21 @@
 import { Handle, NodeProps, Position } from "reactflow";
 
 import React from "react";
-import { EuiText } from "@elastic/eui";
+import { EuiFieldText, EuiSelect, EuiFormControlLayout } from "@elastic/eui";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 import useDeleteNodeClick from "../../../hooks/eventTree/useDeleteNodeClick";
-import useOnNodeClick from "../../../hooks/eventTree/useOnNodeClick";
+
 import styles from "./styles/nodeTypes.module.css";
+
+const options = [
+  { value: "yes", text: "Yes" },
+  { value: "no", text: "No" },
+  { value: "maybe", text: "Maybe" },
+];
 
 function VisibleNode({ id, data }: NodeProps) {
   const onClickCreate = useCreateNodeClick(id);
   const onClickDelete = useDeleteNodeClick(id);
-  const onClickDeleteSubtree = useOnNodeClick(id);
 
   // Wrap the original onClickCreate in a new function that stops event propagation
   const handleCreateClick = (event: { stopPropagation: () => void }) => {
@@ -23,13 +28,15 @@ function VisibleNode({ id, data }: NodeProps) {
     event.stopPropagation();
     onClickDelete();
   };
+  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    data.onNodeDataChange(id, { ...data, value: e.target.value });
+  };
 
+  const handleOptionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    data.onNodeDataChange(id, { ...data, option: e.target.value });
+  };
   return (
-    <div
-      className={data.isTentative && styles.container}
-      onClick={onClickDeleteSubtree}
-      style={{ opacity: data.isTentative ? "0.5" : "1" }}
-    >
+    <div className={styles.container}>
       <Handle
         type="target"
         position={Position.Left}
@@ -45,20 +52,54 @@ function VisibleNode({ id, data }: NodeProps) {
       <div
         style={{
           width: data.width,
-          height: 40,
-          textAlign: "center",
+          height: 50,
         }}
       >
-        <div className={styles.inputNode}>
-          <EuiText
-            style={{ fontSize: "0.7rem", height: "1.2rem", resize: "none" }}
-          >
-            0.55
-          </EuiText>
+        <div style={{ display: "flex" }}>
+          <EuiFormControlLayout>
+            <EuiFieldText
+              maxLength={20}
+              compressed
+              style={{
+                fontSize: "0.7rem",
+                height: "1rem",
+                resize: "none",
+                border: "none",
+                outline: "none",
+                boxShadow: "none",
+                backgroundColor: "transparent",
+                overflow: "hidden",
+                padding: 0,
+                marginTop: "0.7rem",
+                marginLeft: "0.4rem",
+                width: "80%",
+              }}
+              value={data.value || "0.55"}
+              onChange={handleValueChange}
+            />
+          </EuiFormControlLayout>
+          <EuiFormControlLayout style={{ width: "80%" }}>
+            <EuiSelect
+              id={id}
+              compressed
+              style={{
+                fontSize: "0.7rem",
+
+                border: "none",
+                outline: "none",
+                boxShadow: "none",
+                backgroundColor: "transparent",
+                overflow: "hidden",
+                padding: 0,
+
+                borderRadius: 0,
+              }}
+              options={options}
+              value={data.option}
+              onChange={handleOptionChange}
+            />
+          </EuiFormControlLayout>
         </div>
-
-        <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>Yes</EuiText>
-
         {data.depth != 1 && (
           <div
             style={{
@@ -67,10 +108,18 @@ function VisibleNode({ id, data }: NodeProps) {
               justifyContent: "center",
             }}
           >
-            <p onClick={handleCreateClick} className={styles.addNodeButtonText}>
+            <p
+              style={{ marginRight: "0.2rem", fontSize: "1.2rem" }}
+              onClick={handleCreateClick}
+              className={styles.addNodeButtonText}
+            >
               +
             </p>
-            <p onClick={handleDeleteClick} className={styles.addNodeButtonText}>
+            <p
+              style={{ fontSize: "1.2rem" }}
+              onClick={handleDeleteClick}
+              className={styles.addNodeButtonText}
+            >
               -
             </p>
           </div>

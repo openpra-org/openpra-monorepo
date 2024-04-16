@@ -12,18 +12,20 @@ import ReactFlow, {
   Background,
   Edge,
   Node,
+  NodeProps,
+  NodeTypes,
   ProOptions,
   ReactFlowProvider,
 } from "reactflow";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { EventTreeData } from "shared-types/src/lib/types/reactflowGraph/graphData/EventTreeData";
 import useTreeData from "../../hooks/eventTree/useTreeData";
 import { EventTreeList } from "../../components/lists/nestedLists/eventTreeList";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
 
-import nodeTypes from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
 import edgeTypes from "../../components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
 
 import useLayout from "../../hooks/eventTree/useLayout";
@@ -31,6 +33,11 @@ import EventTreeNodeContextMenu, {
   treeNodeContextMenuProps,
 } from "../../components/menus/eventTreeNodeContextMenu";
 import { LoadingCard } from "../../components/cards/loadingCard";
+import VisibleNode from "../../components/treeNodes/eventTreeEditorNode/visibleNode";
+import InvisibleNode from "../../components/treeNodes/eventTreeEditorNode/invisibleNode";
+import OutputNode from "../../components/treeNodes/eventTreeEditorNode/outputNode";
+import ColumnNode from "../../components/treeNodes/eventTreeEditorNode/columnNode";
+import nodeTypes from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
 
 /**
  * Initial set of nodes to be used in the ReactFlow component.
@@ -82,8 +89,8 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
     const loadGraph = async (): Promise<void> => {
       await GraphApiManager.getEventTree(eventTreeId).then(
         (res: EventTreeGraph) => {
-          // setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
-          // setEdges(res.edges.length !== 0 ? res.edges : edgeData);
+          setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
+          setEdges(res.edges.length !== 0 ? res.edges : edgeData);
           setLoading(false);
         },
       );

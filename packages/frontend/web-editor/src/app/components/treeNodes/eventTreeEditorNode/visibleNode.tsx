@@ -17,9 +17,11 @@ function VisibleNode({ id, data }: NodeProps) {
   const onClickCreate = useCreateNodeClick(id);
   const onClickDelete = useDeleteNodeClick(id);
 
-  const InputTextValueWidth = data.value ? data.value.length * 4 + "%" : "12%";
+  const InputTextValueWidth = data.value
+    ? 1 + data.value.length * 4 + "%"
+    : "12%";
   const InputTextOptionWidth = data.option
-    ? data.option.length * 4 + "%"
+    ? 1 + data.option.length * 4 + "%"
     : "12%";
 
   // Wrap the original onClickCreate in a new function that stops event propagation

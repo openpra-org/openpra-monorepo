@@ -51,7 +51,11 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
     const xPosition = index * col.data.width; // Assuming colWidth is defined somewhere
 
     // Update the position of the column node
-    col.position = { x: xPosition, y: maxYLeaf - 75 };
+    console.log(col.data.height);
+    col.position = {
+      x: xPosition,
+      y: maxYLeaf - 75 - (col.data.height ? col.data.height : 0),
+    };
   });
 
   // Update the x position of the tree nodes with the same number as the column nodes
@@ -82,13 +86,35 @@ function useLayout(depth: number) {
   const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } =
     useReactFlow();
 
-  const onNodeDataChange = useCallback((nodeId: string, newData: any) => {
+  function onNodeDataChange(nodeId: string, newData: any) {
     setNodes((nds) =>
       nds.map((node) =>
         node.id === nodeId ? { ...node, data: newData } : node,
       ),
     );
-  }, []);
+  }
+
+  function onAllColumnHeightChange(
+    newHeight: number,
+    isIncreaseHeight: boolean,
+  ) {
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.type === "columnNode"
+          ? {
+              ...node,
+              position: {
+                ...node.position,
+                y: isIncreaseHeight
+                  ? node.position.y - 14
+                  : node.position.y + 14,
+              },
+              data: { ...node.data, height: newHeight },
+            }
+          : node,
+      ),
+    );
+  }
 
   useEffect(() => {
     // get the current nodes and edges
@@ -111,7 +137,11 @@ function useLayout(depth: number) {
     let targetNodes = layoutNodes(nodes, cols, edges);
     targetNodes = targetNodes.map((node) => ({
       ...node,
-      data: { ...node.data, onNodeDataChange: onNodeDataChange },
+      data: {
+        ...node.data,
+        onNodeDataChange: onNodeDataChange,
+        onAllColumnHeightChange: onAllColumnHeightChange,
+      },
     }));
 
     // if you do not want to animate the nodes, you can uncomment the following line

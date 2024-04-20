@@ -9,24 +9,19 @@ function ColumnNode({ id, data }: NodeProps) {
   const onClickAddColumn = useCreateColClick(id);
   const onClickDeleteColumn = useDeleteColClick(id);
 
-  const [textareaValue, setTextareaValue] = useState<string>(data.label);
-  const updateNodeInternals = useUpdateNodeInternals();
+  const handleValueChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newHeight = Number(Math.floor(e.target.value.length / 20) + 1.5);
+    const isIncreaseHeight = newHeight > data.height;
+    data.onNodeDataChange(id, {
+      ...data,
+      value: e.target.value,
+    });
+    console.log(newHeight, data.height);
 
-  const handleTextareaChange = (
-    event: React.ChangeEvent<HTMLTextAreaElement>,
-  ) => {
-    setTextareaValue(event.target.value);
-    // Optionally, update the node's data in React Flow's state here
-    // This might involve setting the new value in a context or state management system
-    // and then updating React Flow's representation of the node.
-    updateNodeInternals(id);
+    if (newHeight !== data.height) {
+      data.onAllColumnHeightChange(newHeight, isIncreaseHeight);
+    }
   };
-
-  useEffect(() => {
-    // Notify React Flow that this node needs to be re-rendered
-    // This is necessary to ensure React Flow's internal state is aware of the node's visual change
-    updateNodeInternals(id);
-  }, [textareaValue, updateNodeInternals, id]);
 
   return (
     <>
@@ -52,26 +47,33 @@ function ColumnNode({ id, data }: NodeProps) {
           padding: "4px",
           fontSize: "0.6rem",
           minWidth: data.width,
-          minHeight: 30,
         }}
       >
-        <div style={{ display: "flex" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            textAlign: "center",
+          }}
+        >
           <EuiTextArea
-            onChange={handleTextareaChange}
-            value={textareaValue}
+            onChange={handleValueChange}
+            value={data.value}
             style={{
               fontSize: "0.6rem",
               background: "transparent",
               border: "none",
+              maxHeight: "10rem",
+              overflow: "auto",
+              outline: "none",
+              // boxShadow: "none",
               padding: 4,
               maxWidth: 100,
-              outline: "none",
-              // overflow: "hidden",
+              height: data.height + "rem",
+
+              scrollbarWidth: "none",
             }}
-            compressed={true}
             resize="none"
-            rows={1}
-            cols={1}
           />
           {data.depth !== 1 && (
             <>

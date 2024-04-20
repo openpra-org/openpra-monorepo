@@ -25,7 +25,7 @@ const useTreeData = (
         inputDepth: inputLevels,
         outputDepth: outputLevels,
         width: nodeWidth,
-        option: "yes",
+        option: "",
         depth: 1,
         index: 1,
       },
@@ -49,7 +49,7 @@ const useTreeData = (
             label: `Node ${leftChildId}`,
             depth: depth,
             width: nodeWidth,
-            option: "yes",
+            option: "",
             output: false,
           },
           position: pos,
@@ -65,7 +65,7 @@ const useTreeData = (
             label: `Node ${rightChildId}`,
             depth: depth,
             width: nodeWidth,
-            option: "no",
+            option: "",
             output: false,
           },
           position: pos,
@@ -152,10 +152,11 @@ const useTreeData = (
       id: rootColNode,
       type: "columnNode",
       data: {
-        label: `Initiating Event`,
+        value: `Initiating Event`,
         width: nodeWidth,
         depth: 1,
         output: false,
+        height: 1.5,
       },
       position: pos,
     };
@@ -165,10 +166,11 @@ const useTreeData = (
     for (let column = 2; column <= verticalLevels; column++) {
       const nodeId = GenerateUUID();
       const nodeData = {
-        label: column > inputLevels ? `End State` : `Functional Event`,
+        value: column > inputLevels ? `End State` : `Functional Event`,
         width: nodeWidth,
         depth: column,
         output: column > inputLevels, // Check if it's an output column
+        height: 1.5,
       };
       const node: Node = {
         id: nodeId,

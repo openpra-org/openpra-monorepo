@@ -17,6 +17,11 @@ function VisibleNode({ id, data }: NodeProps) {
   const onClickCreate = useCreateNodeClick(id);
   const onClickDelete = useDeleteNodeClick(id);
 
+  const InputTextValueWidth = data.value ? data.value.length * 4 + "%" : "12%";
+  const InputTextOptionWidth = data.option
+    ? data.option.length * 4 + "%"
+    : "12%";
+
   // Wrap the original onClickCreate in a new function that stops event propagation
   const handleCreateClick = (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
@@ -32,7 +37,7 @@ function VisibleNode({ id, data }: NodeProps) {
     data.onNodeDataChange(id, { ...data, value: e.target.value });
   };
 
-  const handleOptionChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  const handleOptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     data.onNodeDataChange(id, { ...data, option: e.target.value });
   };
   return (
@@ -55,8 +60,14 @@ function VisibleNode({ id, data }: NodeProps) {
           height: 50,
         }}
       >
-        <div style={{ display: "flex" }}>
-          <EuiFormControlLayout style={{ width: "50%", padding: 0 }}>
+        <div>
+          <EuiFormControlLayout
+            style={{
+              height: "2rem",
+              textAlign: "center",
+              padding: 0,
+            }}
+          >
             <EuiFieldText
               maxLength={20}
               compressed
@@ -70,34 +81,34 @@ function VisibleNode({ id, data }: NodeProps) {
                 backgroundColor: "transparent",
                 overflow: "hidden",
                 padding: 0,
-                marginTop: "0.7rem",
+                width: InputTextValueWidth,
+                marginTop: "0.5rem",
                 marginLeft: "0.4rem",
-                width: "80%",
               }}
-              value={data.value || "0.55"}
+              value={data.value || "0.5"}
               onChange={handleValueChange}
             />
           </EuiFormControlLayout>
           <EuiFormControlLayout
-            style={{ width: data.option === "maybe" ? "40%" : "30%" }}
+            style={{ height: "1.5rem", padding: 0, textAlign: "center" }}
           >
-            <EuiSelect
-              id={id}
+            <EuiFieldText
+              maxLength={20}
               compressed
               style={{
                 fontSize: "0.7rem",
-
+                height: "1rem",
+                resize: "none",
                 border: "none",
                 outline: "none",
                 boxShadow: "none",
                 backgroundColor: "transparent",
                 overflow: "hidden",
                 padding: 0,
-
-                borderRadius: 0,
+                width: InputTextOptionWidth,
+                marginLeft: "0.4rem",
               }}
-              options={options}
-              value={data.option}
+              value={data.option || ""}
               onChange={handleOptionChange}
             />
           </EuiFormControlLayout>

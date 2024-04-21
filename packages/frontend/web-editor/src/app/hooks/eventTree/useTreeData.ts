@@ -21,7 +21,6 @@ const useTreeData = (
       id: rootId,
       type: "visibleNode",
       data: {
-        label: "Root Node",
         inputDepth: inputLevels,
         outputDepth: outputLevels,
         width: nodeWidth,
@@ -46,7 +45,6 @@ const useTreeData = (
           id: leftChildId,
           type: "visibleNode",
           data: {
-            label: `Node ${leftChildId}`,
             depth: depth,
             width: nodeWidth,
             option: "",
@@ -62,7 +60,6 @@ const useTreeData = (
           id: rightChildId,
           type: "visibleNode",
           data: {
-            label: `Node ${rightChildId}`,
             depth: depth,
             width: nodeWidth,
             option: "",
@@ -106,7 +103,6 @@ const useTreeData = (
           id: outputNodeId,
           type: "outputNode",
           data: {
-            label: `Output ${outputNodeId}`,
             depth: outputStartDepth + j,
             width: nodeWidth,
             output: true,

@@ -62,7 +62,6 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
           id: newNodeId,
           type: clickedNode.data.output ? "outputNode" : "invisibleNode",
           data: {
-            label: `New Node at Depth ${clickedDepth + 1}`,
             depth: clickedDepth + 1,
             width: node.data.width,
           },
@@ -110,10 +109,11 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
       id: newColNodeId,
       type: "columnNode",
       data: {
-        label: clickedNode.data.output ? `End State ` : `Functional Event `,
+        value: clickedNode.data.output ? `End State ` : `Functional Event `,
         depth: clickedDepth + 1,
         width: clickedNode.data.width,
         output: clickedNode.data.output,
+        height: 1.5,
         // Additional properties as needed
       },
       position: {

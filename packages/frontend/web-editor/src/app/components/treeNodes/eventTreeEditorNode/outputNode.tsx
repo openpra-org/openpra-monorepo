@@ -7,7 +7,7 @@ import styles from "./styles/nodeTypes.module.css";
 
 function OutputNode({ id, data }: NodeProps) {
   return (
-    <div style={{ opacity: data.isTentative ? "0.5" : "1" }}>
+    <div>
       <Handle
         type="target"
         position={Position.Left}

@@ -23,36 +23,55 @@ import { Initiator } from "./schemas/initiator.schema";
 @Controller()
 export class InitiatorController {
 constructor(private readonly initiatorService: InitiatorService) {}
+
+    /**
+     * A simple hello world endpoint to check if the server is running
+     */
     @Get("/hello/")
     async helloWorld(): Promise<string> {
         return "Hello World!";
     }
 
-    //get all initiators
+    /**
+     * @returns all initiators
+     */
     @Get("/initiators/")
     async getAllInitiators(): Promise<Initiator[]> {
         return this.initiatorService.getAllInitiators();
     }
 
-    //get initiator by id
+    /**
+     * @param id - the id of the initiator
+     * @returns - the initiator with the given id
+     */
     @Get("/initiator/:id")
     async getInitiatorById(@Param("id") id: string): Promise<Initiator | null> {
         return this.initiatorService.getInitiatorById(id);
     }
 
-    //create new initiator
+    /**
+     * @param initiator - the initiator to be created
+     * @returns the created initiator
+     */
     @Post("/initiator/")
     async createInitiator(@Body() initiator: Initiator): Promise<Initiator> {
         return this.initiatorService.createInitiator(initiator);
     }
 
-    //update initiator by id
+    /**
+     * @param id - the id of the initiator to be updated
+     * @param initiator - the updated initiator
+     * @returns the updated initiator
+     */
     @Put("/initiator/:id")
     async updateInitiator(@Param("id") id: string, @Body() initiator: Initiator): Promise<Initiator | null> {
         return this.initiatorService.updateInitiator(id, initiator);
     }
 
-    //delete initiator by id
+    /**
+     * @param id - the id of the initiator to be deleted
+     * @returns the deleted initiator
+     */
     @Delete("/initiator/:id")
     async deleteInitiator(@Param("id") id: string): Promise<Initiator | null> {
         return this.initiatorService.deleteInitiator(id);

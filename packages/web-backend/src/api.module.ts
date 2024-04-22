@@ -12,6 +12,7 @@ import { ApiService } from "./api.service";
 import { FmeaModule } from "./fmea/fmea.module";
 import { GraphModelModule } from "./graphModels/graphModel.module";
 import { InitiatorModule } from "./initiators/initiators.module";
+import { InitiatingEventGroupModule } from "./initiatingEventGroup/initiatingEventGroup.module";
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { InitiatorModule } from "./initiators/initiators.module";
     NestedModelModule,
     FmeaModule,
     InitiatorModule,
+    InitiatingEventGroupModule,
     GraphModelModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
@@ -67,6 +69,10 @@ import { InitiatorModule } from "./initiators/initiators.module";
           {
             path: "initiators",
             module: InitiatorModule,
+          },
+          {
+            path: "initiating-event-group",
+            module: InitiatingEventGroupModule,
           },
         ],
       },

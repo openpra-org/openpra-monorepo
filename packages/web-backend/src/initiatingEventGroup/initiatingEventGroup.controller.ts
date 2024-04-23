@@ -8,6 +8,7 @@ import {
   Body,
 } from "@nestjs/common";
 import { InitiatingEventGroupService } from "./initiatingEventGroup.service";
+import { InitiatingEventGroup } from "./schemas/initiatingEventGroup.schema";
 
 @Controller()
 export class InitiatingEventGroupController {
@@ -27,7 +28,7 @@ export class InitiatingEventGroupController {
    * @returns all initiating event groups
    */
   @Get("/initiatingEventGroup/")
-  async getInitiatingEventGroups(): Promise<any> {
+  async getInitiatingEventGroups(): Promise<InitiatingEventGroup[] | null> {
     return this.initatingEventGroupService.getInitiatingEventGroups();
   }
 
@@ -36,7 +37,9 @@ export class InitiatingEventGroupController {
    * @returns the initiating event group with the given id
    */
   @Get("/:id")
-  async getInitiatingEventGroupById(@Param("id") id: string): Promise<any> {
+  async getInitiatingEventGroupById(
+    @Param("id") id: string,
+  ): Promise<InitiatingEventGroup | null> {
     return this.initatingEventGroupService.getInitiatingEventGroupById(id);
   }
 
@@ -46,8 +49,8 @@ export class InitiatingEventGroupController {
    */
   @Post("/")
   async createInitiatingEventGroup(
-    @Body() initiatingEventGroup: any,
-  ): Promise<any> {
+    @Body() initiatingEventGroup: InitiatingEventGroup,
+  ): Promise<InitiatingEventGroup | null> {
     return this.initatingEventGroupService.createInitiatingEventGroup(
       initiatingEventGroup,
     );
@@ -62,8 +65,8 @@ export class InitiatingEventGroupController {
   @Put("/:id")
   async updateInitiatingEventGroup(
     @Param("id") id: string,
-    @Body() initiatingEventGroup: any,
-  ): Promise<any> {
+    @Body() initiatingEventGroup: InitiatingEventGroup,
+  ): Promise<InitiatingEventGroup | null> {
     return this.initatingEventGroupService.updateInitiatingEventGroup(
       id,
       initiatingEventGroup,
@@ -75,18 +78,20 @@ export class InitiatingEventGroupController {
    * @returns the deleted initiating event group
    */
   @Delete("/:id")
-  async deleteInitiatingEventGroup(@Param("id") id: string): Promise<any> {
+  async deleteInitiatingEventGroup(
+    @Param("id") id: string,
+  ): Promise<InitiatingEventGroup | null> {
     return this.initatingEventGroupService.deleteInitiatingEventGroup(id);
   }
 
   /**
-   * @param eventId find the initiating event group with the given event id
+   * @param eventId - find the initiating event group with the given event id
    * @returns the initiating event group with the given event id
    */
   @Get("/event/:eventId")
   async getInitiatingEventGroupIdByEventId(
     @Param("eventId") eventId: string,
-  ): Promise<any> {
+  ): Promise<InitiatingEventGroup[] | null> {
     return this.initatingEventGroupService.getInitiatingEventGroupIdByEventId(
       eventId,
     );
@@ -101,7 +106,7 @@ export class InitiatingEventGroupController {
   async addInitiatingEventToGroup(
     @Param("id") id: string,
     @Param("eventId") eventId: string,
-  ): Promise<any> {
+  ): Promise<InitiatingEventGroup | null> {
     return this.initatingEventGroupService.addInitiatingEventToGroup(
       id,
       eventId,
@@ -117,7 +122,7 @@ export class InitiatingEventGroupController {
   async removeInitiatingEventFromGroup(
     @Param("id") id: string,
     @Param("eventId") eventId: string,
-  ): Promise<any> {
+  ): Promise<InitiatingEventGroup | null> {
     return this.initatingEventGroupService.removeInitiatingEventFromGroup(
       id,
       eventId,

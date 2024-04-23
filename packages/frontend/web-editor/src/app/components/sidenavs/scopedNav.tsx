@@ -450,6 +450,16 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           },
           1,
         ),
+        createTreeItem(
+          "Elastic Logs",
+          {
+            icon: <EuiToken iconType="tokenRepo" />,
+            callback: () => {
+              navigate("comment-logs");
+            },
+          },
+          1,
+        ),
       ],
     }),
   ];

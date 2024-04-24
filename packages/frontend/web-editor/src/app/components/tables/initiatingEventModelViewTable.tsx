@@ -19,13 +19,17 @@ import {
   EuiModalHeaderTitle,
   EuiPopover,
   EuiResizableContainer,
+  EuiSearchBar,
   EuiSelect,
 } from "@elastic/eui";
 import "@elastic/eui/dist/eui_theme_light.css";
 import { useEffect } from "react";
-import { groupBy, set } from "lodash";
+import { groupBy } from "lodash";
+
+import "./initiatingEventModelViewTable.css";
 // Define the interface for a single row of data.
-interface DataRow {
+type DataRow = {
+  [key: string]: string | number;
   id: number;
   definition: string;
   characteristics: string;
@@ -34,47 +38,27 @@ interface DataRow {
   feedwaterPump: string;
   reactorCoolantCirculator: string;
   others: string;
-  [key: string]: string | number;
-}
+};
 type ColumnType = "text" | "dropdown" | "number";
 type DropdownOption = { value: string; text: string };
 
-interface Item {
-  id: number;
-  value: string;
-}
-// interface ColumnTypeEditorProps {
-//   columns: CustomColumn[];
-//   onSave: (updatedColumns: CustomColumn[]) => void;
-//   onCancel: () => void;
-//   // Add handleChange if it's supposed to be passed as a prop
-//   handleChange?: (id: string, key: keyof CustomColumn, value: string) => void;
-// }
-interface ColumnConfig {
+type ColumnConfig = {
   id: string;
   displayAsText: string;
   columnType: ColumnType;
   dropdownOptions: DropdownOption[];
-}
-interface CustomColumn extends EuiDataGridColumn {
+};
+type CustomColumn = {
   id: string;
   displayAsText: string;
   inputType?: ColumnType;
-  dropdownOptions?: Array<{ value: string; text: string }>;
+  dropdownOptions?: { value: string; text: string }[];
   previousType?: ColumnType; // Add this line to include the previousType property
-
-  // display?: React.ReactNode | ((props: CustomHeaderProps) => React.ReactNode);
-}
-// interface ColumnTypeEditorProps {
-//   columns: CustomColumn[];
-//   onSave: (updatedColumns: CustomColumn[]) => void;
-//   onCancel: () => void; // Explicitly defining the type of onCancel as a function that returns void
-// }
-// Define the props for the CustomHeader component
-interface CustomHeaderProps {
+} & EuiDataGridColumn;
+type CustomHeaderProps = {
   column: CustomColumn;
   onEdit: (columnId: string) => void;
-}
+};
 
 const CustomHeader: React.FC<CustomHeaderProps> = ({ column, onEdit }) => {
   // Style object for the header text container
@@ -105,7 +89,9 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ column, onEdit }) => {
       </div>
       <EuiButtonIcon
         iconType="pencil"
-        onClick={() => onEdit(column.id)}
+        onClick={() => {
+          onEdit(column.id);
+        }}
         aria-label={`Edit column ${column.displayAsText}`}
         size="s"
         style={iconStyle}
@@ -114,39 +100,11 @@ const CustomHeader: React.FC<CustomHeaderProps> = ({ column, onEdit }) => {
   );
 };
 
-// const columns: CustomColumn[] = [
-//   // ... (your existing columns)
-//   {
-//     id: "definition",
-//     displayAsText: "Definition",
-//     //display: <CustomHeader column={/* column data */} onEdit={openEditColumnModal} />
-//   },
-//   { id: "characteristics", displayAsText: "Characteristics" },
-//   {
-//     id: "processCriteriaIdentification",
-//     displayAsText: "Process Criteria Identification",
-//   },
-//   {
-//     id: "controlRodInsertion",
-//     displayAsText: "Control Rod Insertion",
-//     isSortable: true,
-//   },
-//   { id: "feedwaterPump", displayAsText: "Feedwater Pump", isSortable: true },
-//   {
-//     id: "reactorCoolantCirculator",
-//     displayAsText: "Reactor Coolant Circulator",
-//     isExpandable: true,
-//   },
-//   { id: "others", displayAsText: "Others", isExpandable: true },
-// ];
+type AppProps = {
+  enableGrouping?: boolean;
+};
 
-const App: React.FC = () => {
-  const deleteColumnConfig = {
-    id: "delete",
-    displayAsText: "",
-    // ... other properties
-  };
-
+const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const [data, setData] = useState<DataRow[]>([
     {
       id: 1,
@@ -169,11 +127,6 @@ const App: React.FC = () => {
       others: "yes",
     },
   ]);
-  const dataCellStyle: React.CSSProperties = {
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    minWidth: "max-content",
-  };
 
   const [baseColumns, setBaseColumns] = useState<CustomColumn[]>([
     // ... your initial columns here
@@ -199,17 +152,11 @@ const App: React.FC = () => {
       isExpandable: true,
     },
     { id: "others", displayAsText: "Others", isExpandable: true },
-    // Delete column configuration
-    // {
-    //   id: "delete",
-    //   displayAsText: "",
-    //   // You can specify other properties here as needed
-    //   isSortable: false, // Deleting a row is an action, not something you sort by
-    // },
   ]);
+  //variable to store using which grouping should be performed
+  const [groupbyColumn, setGroupbyColumn] = useState<string>("");
 
   // Add state to manage the width of the data grid and the side panel
-  const [dataGridWidth, setDataGridWidth] = useState("calc(100% - 300px)");
   const [sidePanelWidth, setSidePanelWidth] = useState("300px");
   const [isSidePanelVisible, setIsSidePanelVisible] = useState(false);
 
@@ -254,42 +201,19 @@ const App: React.FC = () => {
   ) => {
     setNewColumnData((prev) => ({ ...prev, [field]: e.target.value }));
   };
-  const handleDeleteRow = useCallback((rowId: number) => {
-    setData((currentData) => currentData.filter((row) => row.id !== rowId));
-  }, []);
 
-  // Function to save the changes of the edit column modal
-  // const saveColumnChanges = () => {
-  //   setCustomColumns((prevColumns) =>
-  //     prevColumns.map((col) => {
-  //       if (col.id === newColumnData.id) {
-  //         return {
-  //           ...col,
-  //           displayAsText: newColumnData.displayAsText,
-  //           inputType: newColumnData.columnType as ColumnType,
-  //           dropdownOptions: newColumnData.dropdownOptions,
-  //         };
-  //       }
-  //       return col;
-  //     }),
-  //   );
-  //   setIsColumnEditModalVisible(false);
-  // };
   const saveColumnChanges = () => {
-    let found = false;
-    const updatedCustomColumns = found
-      ? customColumns
-      : customColumns.map((col) => {
-          if (col.id === newColumnData.id) {
-            return {
-              ...col,
-              displayAsText: newColumnData.displayAsText,
-              inputType: newColumnData.columnType as ColumnType,
-              dropdownOptions: newColumnData.dropdownOptions,
-            };
-          }
-          return col;
-        });
+    customColumns.map((col) => {
+      if (col.id === newColumnData.id) {
+        return {
+          ...col,
+          displayAsText: newColumnData.displayAsText,
+          inputType: newColumnData.columnType as ColumnType,
+          dropdownOptions: newColumnData.dropdownOptions,
+        };
+      }
+      return col;
+    });
     // Update baseColumns if necessary
     const updatedBaseColumns = baseColumns.map((col) => {
       // If this is the column we're updating, return a new object with the updated displayAsText
@@ -303,13 +227,13 @@ const App: React.FC = () => {
       }
       return col;
     });
+    if (groupbyColumn === newColumnData.id) {
+      setGroupbyColumn("");
+    }
     // Update the customColumns with the new type
     setCustomColumns((prevColumns) =>
       prevColumns.map((col) => {
         if (col.id === newColumnData.id) {
-          // Keep track of the previous type to decide if we need to clear data
-          const previousType = col.inputType;
-
           // Call updateColumnType to update the type and possibly clear data
           updateColumnType(
             newColumnData.id,
@@ -348,17 +272,16 @@ const App: React.FC = () => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   // Function to toggle popover visibility
-  const togglePopover = () => {
+  const togglePopover = (): void => {
     setIsPopoverOpen((current) => !current);
   };
   // Function to close the popover
-  const closePopover = () => {
+  const closePopover = (): void => {
     setIsPopoverOpen(false);
   };
 
-  const handleCreateColumn = () => {
+  const handleCreateColumn = (): void => {
     if (!newColumnData.id || !newColumnData.displayAsText) {
-      console.error("Both Column ID and Display Text are required.");
       return;
     }
 
@@ -376,7 +299,6 @@ const App: React.FC = () => {
     };
 
     setCustomColumns((prevColumns) => [...prevColumns, newColumn]);
-    // closeSidePanel();
   };
 
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -407,13 +329,13 @@ const App: React.FC = () => {
       }));
     }
   };
+
   //This function manages both selectedRowData and data states for change in sidePanel to reflect in Datagrid
   const updateFieldInData = (
     fieldKey: keyof DataRow,
     value: string | number,
-  ) => {
+  ): void => {
     if (!selectedRowData) return;
-
     const updatedSelectedRowData = { ...selectedRowData, [fieldKey]: value };
     setSelectedRowData(updatedSelectedRowData);
 
@@ -424,7 +346,11 @@ const App: React.FC = () => {
     );
   };
 
-  const handleAddDropdownOption = () => {
+  const handleSidePanelClose = (): void => {
+    setIsSidePanelOpen(false);
+  };
+
+  const handleAddDropdownOption = (): void => {
     setNewColumnData((prev) => ({
       ...prev,
       dropdownOptions: [...prev.dropdownOptions, { value: "", text: "" }],
@@ -435,7 +361,7 @@ const App: React.FC = () => {
     index: number,
     key: string,
     value: string,
-  ) => {
+  ): void => {
     setNewColumnData((prev) => ({
       ...prev,
       dropdownOptions: prev.dropdownOptions.map((option, i) => {
@@ -447,7 +373,7 @@ const App: React.FC = () => {
     }));
   };
   // Function to handle removing a dropdown option
-  const handleRemoveDropdownOption = (index: number) => {
+  const handleRemoveDropdownOption = (index: number): void => {
     setNewColumnData((prev) => ({
       ...prev,
       dropdownOptions: prev.dropdownOptions.filter((_, i) => i !== index),
@@ -458,47 +384,13 @@ const App: React.FC = () => {
     displayAsText: "",
     columnType: "text",
   });
-  const renderDropdownOptions = () => {
-    return (
-      newColumnData.dropdownOptions &&
-      (newColumnData.dropdownOptions as DropdownOption[]).map(
-        (option, index) => (
-          <div key={index}>
-            <EuiFieldText
-              placeholder="Option text"
-              value={option.text}
-              onChange={(e) =>
-                handleDropdownOptionChange(index, "text", e.target.value)
-              }
-            />
-            <EuiFieldText
-              placeholder="Option value"
-              value={option.value}
-              onChange={(e) =>
-                handleDropdownOptionChange(index, "value", e.target.value)
-              }
-            />
-            <EuiButtonIcon
-              iconType="minusInCircle"
-              onClick={() => handleRemoveDropdownOption(index)}
-              aria-label="Remove dropdown option"
-            />
-          </div>
-        ),
-      )
-    );
-  };
-  const handleAddNewColumn = () => {
+  const handleAddNewColumn = (): void => {
     // we are making sure that new column has an ID and a display text
     if (!newColumnDetails.id || !newColumnDetails.displayAsText) {
-      console.error("Both Column ID and Display Text are required.");
       return;
     }
     // Omit the delete column from being added again
     if (newColumnDetails.id === "delete") {
-      console.error(
-        "The 'delete' column ID is reserved and cannot be used for new columns.",
-      );
       return;
     }
 
@@ -532,19 +424,6 @@ const App: React.FC = () => {
       ];
     });
 
-    // // Add the new column config to the grid, without adding a new delete column
-    // setCustomColumns((prevColumns) => {
-    //   // First, remove the existing delete column if it is present
-    //   const columnsWithoutDelete = prevColumns.filter(
-    //     (column) => column.id !== "delete",
-    //   );
-    //   // Then, add the new column configuration
-    //   return [...columnsWithoutDelete, newColumnConfig];
-    // });
-
-    // Add the new column config to the grid
-    // setCustomColumns((prevColumns) => [...prevColumns, newColumnConfig]);
-
     // Reset the modal form state and close the modal
     setNewColumnDetails({ id: "", displayAsText: "", columnType: "text" });
     setSelectedColumnType("text"); // or your default column type
@@ -553,7 +432,9 @@ const App: React.FC = () => {
   };
 
   /// The intermediate button click handler
-  const handleButtonClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleButtonClick = (
+    event: React.MouseEvent<HTMLButtonElement>,
+  ): void => {
     // You'll need to define how these values are determined - possibly from state or form inputs.
     const newColumnId = "newColumnId"; // This should be a unique ID for the new column
     const newColumnDisplayText = "New Column"; // The display text for the new column
@@ -578,29 +459,8 @@ const App: React.FC = () => {
 
     handleAddNewColumn();
   };
-  const renderDetailsButton = ({
-    rowIndex,
-    columnId,
-  }: {
-    rowIndex: number;
-    columnId: string;
-  }) => {
-    const rowData = data[rowIndex];
-    return (
-      <EuiButtonIcon
-        iconType="inspect"
-        onClick={() => {
-          setSelectedRowData(rowData); // Update the state with the details of the selected row
-          setIsSidePanelOpen(true); // Open the side panel
-        }}
-        aria-label="View details"
-      />
-    );
-  };
   //state for selecting rows
   const [selectedRowIds, setSelectedRowIds] = useState(new Set<number>());
-  // state for checking symbol for checkboxes
-  const [checked, setChecked] = useState(false);
   const handleRowSelectionChange = useCallback((rowId: number) => {
     setSelectedRowIds((prevSelectedRowIds) => {
       const newSelectedRowIds = new Set(prevSelectedRowIds);
@@ -609,8 +469,6 @@ const App: React.FC = () => {
       } else {
         newSelectedRowIds.add(rowId);
       }
-      console.log("In setSelectedRowId");
-      console.log(newSelectedRowIds);
       localStorage.setItem(
         "selectedRowIds",
         JSON.stringify([...newSelectedRowIds]),
@@ -620,49 +478,27 @@ const App: React.FC = () => {
   }, []);
 
   const handleDeleteSelectedRows = useCallback(() => {
-    setData((prevData) =>
-      prevData.filter((row) => !selectedRowIds.has(row.id)),
-    );
+    setData((prevData) => {
+      const newData = prevData.filter((row) => !selectedRowIds.has(row.id));
+      return newData;
+    });
+
     setSelectedRowIds(new Set()); // Clear selection after deletion
-  }, [selectedRowIds]);
+  }, [selectedRowIds, groupbyColumn]);
+
+  const [query, setQuery] = useState(EuiSearchBar.Query.MATCH_ALL);
+  const [error, setError] = useState(null);
+
+  const onChangeSearch = ({ query, error }: { query: any; error: any }) => {
+    if (error) {
+      setError(error);
+    } else {
+      setError(null);
+      setQuery(query);
+    }
+  };
 
   const getMergedColumns = useMemo(() => {
-    // Checkbox column for row selection
-
-    const checkboxStyle = {
-      display: "none",
-    };
-
-    const labelStyle = {
-      display: "inline-block",
-      border: "1px solid #000",
-      width: "30px",
-      height: "30px",
-      position: "relative",
-      cursor: "pointer",
-    };
-
-    const afterCheckedStyle: React.CSSProperties = {
-      content: '"✔"', // This is not valid in inline styles, it's just for illustration
-      display: "inline-block",
-      position: "absolute",
-      left: "10px",
-      top: "5px",
-      fontSize: "1.6em",
-    };
-
-    //style for class named euiDataGridRowCell to remove borders
-    const euiDataGridRowCellStyle = {
-      display: "flex",
-      alignItems: "center",
-      border: "0px solid black",
-    };
-
-    const datagridContainerStyle = {
-      border: "none",
-      paddingbottom: "0px",
-    };
-
     // Checkbox column for row selection
     const selectColumn = {
       id: "select",
@@ -672,20 +508,14 @@ const App: React.FC = () => {
         const rowId = data[rowIndex].id;
         const isChecked = selectedRowIds.has(rowId);
         const optionId = `checkbox_${rowId}`;
-
-        // const handleCheckboxChange = (rowId: number) => {
-        //   // Toggle the selection on change
-        //   handleRowSelectionChange(rowId);
-        // };
-        console.log(`Row ${rowId} checked: ${isChecked}`);
-
-        // Return a checkbox with the correct 'checked' state and an onChange handler
         return (
           <EuiCheckbox
             key={optionId}
             id={optionId}
             checked={isChecked}
-            onChange={() => handleRowSelectionChange(rowId)}
+            onChange={(): void => {
+              handleRowSelectionChange(rowId);
+            }}
             // aria-label={`Select row ${rowId}`}
 
             label={""} // Since we don't need a label next to each checkbox, we can leave this empty
@@ -704,7 +534,7 @@ const App: React.FC = () => {
     );
 
     // Combine and deduplicate the base and custom columns, exclude 'delete' column logic
-    let combinedColumns = [
+    const combinedColumns = [
       selectColumn,
       ...filteredBaseColumns,
       ...filteredCustomColumns,
@@ -731,7 +561,6 @@ const App: React.FC = () => {
     baseColumns,
     customColumns,
     openEditColumnModal,
-    renderDetailsButton,
     selectedRowIds,
     handleRowSelectionChange,
     data,
@@ -740,55 +569,18 @@ const App: React.FC = () => {
   const [visibleColumns, setVisibleColumns] = useState(
     getMergedColumns.map((column) => column.id),
   );
+
+  //to check if groupByColumn is present in visibleColumns, if not then reset the grouping
+  useEffect(() => {
+    if (!visibleColumns.includes(groupbyColumn)) {
+      setGroupbyColumn("");
+    }
+  }, [visibleColumns, groupbyColumn]);
+
   const [editingCell, setEditingCell] = useState<{
     rowIndex: number;
     columnId: string;
   } | null>(null);
-
-  // Function to handle opening the modal with selected row data
-  const handleOpenModal = useCallback((rowData: DataRow) => {
-    setSelectedRowData(rowData);
-    setIsModalVisible(true);
-  }, []);
-  const handleSaveNewColumn = () => {
-    // Construct the new column config object
-    const newColumnConfig = {
-      id: newColumnDetails.id,
-      displayAsText: newColumnDetails.displayAsText,
-      columnType: newColumnDetails.columnType,
-      // If it's a dropdown, you would handle dropdownOptions similarly
-    };
-
-    // Add the new column to your grid columns state (this logic depends on your existing code)
-    // ...
-
-    // Reset the modal form state and close the modal
-    setNewColumnDetails({ id: "", displayAsText: "", columnType: "text" });
-    // Close modal logic goes here...
-  };
-  // When opening the modal to edit, make sure to set the editing cell state
-  const openEditModal = (rowIndex: number, columnId: string) => {
-    const rowData = data[rowIndex];
-    setEditingCell({ rowIndex, columnId });
-    setSelectedRowData(rowData);
-    setIsModalVisible(true);
-  };
-  const [items, setItems] = useState<Item[]>([]);
-  // Handler to change individual column configuration
-  const handleChange = (id: string, key: keyof CustomColumn, value: string) => {
-    // Update the state of a specific column's configuration
-    setCustomColumns((prevColumns) =>
-      prevColumns.map((column) =>
-        column.id === id ? { ...column, [key]: value } : column,
-      ),
-    );
-  };
-
-  // This function should be defined within your component where 'setCustomColumns' is available
-  const onSave = (updatedColumns: React.SetStateAction<CustomColumn[]>) => {
-    // Assuming 'setCustomColumns' is the state updater function for your custom columns
-    setCustomColumns(updatedColumns);
-  };
 
   // Modify handleSaveData to handle both adding and editing rows
   const handleSaveData = useCallback((editedData: DataRow) => {
@@ -800,14 +592,7 @@ const App: React.FC = () => {
         newData = [...currentData];
         newData[rowIndex] = { ...newData[rowIndex], ...editedData };
       } else {
-        newData = [ editedData,...currentData];
-        if (groupbyColumn!=""){
-          alert("Length Data"+data.length);
-          let temp = ungroup(newData);
-          alert("Length Temp"+temp.length);
-          let groupedData = makeGroups(temp, groupbyColumn);
-          return groupedData;
-        }
+        newData = [...currentData, editedData];
       }
       return newData;
     });
@@ -820,8 +605,10 @@ const App: React.FC = () => {
   }, []);
 
   // Function to handle adding a new row
-  const handleAddNewRow = () => {
+  const handleAddNewRow = (): void => {
     // Open the modal to add a new row
+    // Initialize the selectedRowData state with an empty object
+
     setSelectedRowData({
       id: Date.now(), // Example for a unique ID
       definition: "",
@@ -845,7 +632,7 @@ const App: React.FC = () => {
     setIsModalVisible(true);
   };
 
-  const handleModalSubmit = () => {
+  const handleModalSubmit = (): void => {
     // If we are editing an existing row, use the modal state to save it
     if (selectedRowData) {
       handleSaveData(modalFormState);
@@ -856,7 +643,6 @@ const App: React.FC = () => {
         id: Date.now(), // or use another method to generate a unique ID
       };
       handleSaveData(newRowData);
-      
     }
     setIsModalVisible(false); // Close the modal after saving the data
   };
@@ -864,8 +650,7 @@ const App: React.FC = () => {
   const handleCellEdit = useCallback(
     (rowIndex: number, columnId: keyof DataRow, value: string) => {
       // Update the specific cell data within the row
-      if(groupbyColumn!=""){
-      }
+
       setData((currentData) => {
         const newData = [...currentData];
         newData[rowIndex] = { ...newData[rowIndex], [columnId]: value };
@@ -899,17 +684,30 @@ const App: React.FC = () => {
     }
   };
 
+  const [filterData, setFilterData] = useState(data);
+
+  /**
+   * this effect updates the filterData state whenever the query, data, or groupbyColumn changes.
+   * It also groups the data if groupbyColumn is set and grouping is enabled.
+   */
+  useEffect(() => {
+    let temp = EuiSearchBar.Query.execute(query, data);
+    if (groupbyColumn !== "" && enableGrouping) {
+      temp = makeGroups(temp, groupbyColumn);
+    }
+    setFilterData(temp);
+  }, [query, data, groupbyColumn]);
+
   const renderCellValue = useCallback(
     ({ rowIndex, columnId }: EuiDataGridCellValueElementProps) => {
-      const rowData = data[rowIndex];
+      const rowData = filterData[rowIndex];
       const customColumn = [...baseColumns, ...customColumns].find(
         (col) => col.id === columnId,
       );
       const isEditing =
-        editingCell?.rowIndex === rowIndex &&
-        editingCell?.columnId === columnId;
+        editingCell?.rowIndex === rowIndex && editingCell.columnId === columnId;
 
-      const handleRowClick = () => {
+      const handleRowClick = (): void => {
         if (rowData.isHeader) {
           return;
         }
@@ -926,7 +724,7 @@ const App: React.FC = () => {
       };
       // Define a function to handle changes in dropdown selection
       const handleDropdownChange = (selectedValue: string) => {
-        // This function will update the DataRow in the grid data state
+        // This function will update the DataRow in the grid data stategit stash
         setData((prevData) =>
           prevData.map((row, index) => {
             if (index === rowIndex) {
@@ -943,23 +741,23 @@ const App: React.FC = () => {
         }
       };
 
-      // Only allow the side panel to open when clicking on text cells, not dropdowns or checkboxes
-      const shouldOpenSidePanel =
-        customColumn?.inputType === "text" && columnId !== "select";
-
       // For the select checkbox column, we don't want to toggle the side panel
       if (columnId === "select") {
-        if (data[rowIndex].isHeader) {
+        if (filterData[rowIndex].isHeader) {
           return <span></span>;
         }
-        const rowId = data[rowIndex].id;
+        const rowId = filterData[rowIndex]?.id;
         return (
           <input
             type="checkbox"
             checked={selectedRowIds.has(rowId)}
-            onChange={() => handleRowSelectionChange(rowId)}
+            onChange={() => {
+              handleRowSelectionChange(rowId);
+            }}
             aria-label={`Select row ${rowId}`} // Fix: Replace with a template string
-            onClick={(e) => e.stopPropagation()} // Prevent this click from bubbling up
+            onClick={(e) => {
+              e.stopPropagation();
+            }} // Prevent this click from bubbling up
           />
         );
       }
@@ -967,9 +765,9 @@ const App: React.FC = () => {
       // Common cell content rendering
       const renderCellContent = () => {
         // Custom rendering for different column types
-        if(data[rowIndex].isHeader){
-          if(columnId == groupbyColumn){
-            return <span>{data[rowIndex].group}</span>;
+        if (filterData[rowIndex]?.isHeader) {
+          if (columnId === groupbyColumn) {
+            return <span>{filterData[rowIndex].group}</span>;
           }
           return <span></span>;
         }
@@ -978,9 +776,12 @@ const App: React.FC = () => {
             <EuiFieldText
               fullWidth
               value={rowData[columnId]}
-              onChange={(e) => handleValueChange(e.target.value)}
-              onBlur={() => setEditingCell(null)}
-              
+              onChange={(e) => {
+                handleValueChange(e.target.value);
+              }}
+              onBlur={() => {
+                setEditingCell(null);
+              }}
               autoFocus
             />
           );
@@ -990,9 +791,15 @@ const App: React.FC = () => {
               fullWidth
               options={customColumn.dropdownOptions}
               value={rowData[columnId]}
-              onChange={(e) => handleDropdownChange(e.target.value)}
-              onBlur={() => setEditingCell(null)}
-              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                handleDropdownChange(e.target.value);
+              }}
+              onBlur={() => {
+                setEditingCell(null);
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+              }}
             />
           );
         } else {
@@ -1021,10 +828,9 @@ const App: React.FC = () => {
       handleRowSelectionChange,
       setSelectedRowData,
       setData,
+      filterData,
     ],
   );
-
-  // ... rest of your component code
 
   // Form state for the modal fields
   const [modalFormState, setModalFormState] = useState<DataRow>(() => {
@@ -1076,7 +882,7 @@ const App: React.FC = () => {
   useEffect(() => {
     // This effect sets up the modal form state whenever the selected row data changes.
     if (selectedRowData) {
-      let baseState = { ...selectedRowData };
+      const baseState = { ...selectedRowData };
 
       customColumns.forEach((column) => {
         if (column.inputType === "dropdown") {
@@ -1101,34 +907,31 @@ const App: React.FC = () => {
 
   //open popover for groupby
   const [groupbyPopoverOpen, setGroupbyPopoverOpen] = useState(false);
-
-
   //close popover for groupby
-  const closeGroupbyPopover = () => {
+  const closeGroupbyPopover = (): void => {
     setGroupbyPopoverOpen(false);
-  }
+  };
 
-
-  // store column by which grouping is done
-  const [groupbyColumn, setGroupbyColumn] = useState<string>("");
+  // function to group the data by columnId
   function makeGroups(rows: any[], columnId: string) {
     const grouped = groupBy(rows, columnId);
     const groupedRows: any[] = [];
     for (const group in grouped) {
-      let headerRow = { isHeader: true, group,};
+      const headerRow = { isHeader: true, group };
       groupedRows.push(headerRow);
       grouped[group].forEach((row: any) => {
-        //add group: group to row
         row.group = group;
         groupedRows.push(row);
       });
     }
     return groupedRows;
   }
+
+  //convert groupped data to ungrouped data
   function ungroup(rows: any[]) {
-    let updatedData =[];
+    const updatedData = [];
     for (let i = 0; i < rows.length; i++) {
-      if (rows[i].isHeader) {
+      if (rows[i]?.isHeader) {
         continue;
       }
       updatedData.push(rows[i]);
@@ -1138,26 +941,18 @@ const App: React.FC = () => {
 
   //handle the click on column name in popover
   //if column clicked on is same as groupby column then remove grouping
-  //else group by the column clicked on 
-  const handleGroupByOptionClick = useCallback((columnId: string) => {
-    if (groupbyColumn === columnId) {
-      setGroupbyColumn("");
-      setData(ungroup(data));
+  //else group by the column clicked on
+  const handleGroupByOptionClick = useCallback(
+    (columnId: string) => {
+      if (groupbyColumn === columnId) {
+        setGroupbyColumn("");
+      } else {
+        setGroupbyColumn(columnId);
+      }
       closeGroupbyPopover();
-      return;
-    }
-
-    setGroupbyColumn(columnId);
-    if (groupbyColumn !=""){
-      let temp = ungroup(data);
-      setData(makeGroups(temp, columnId));
-    }
-    else{
-      setData(makeGroups(data, columnId));
-    }
-    closeGroupbyPopover();
-    alert("Group by " + columnId);
-  }, [groupbyColumn, closePopover]);
+    },
+    [groupbyColumn],
+  );
 
   return (
     <div
@@ -1173,33 +968,33 @@ const App: React.FC = () => {
               style={{ transition: "width 0.2s" }}
             >
               <div className="datagrid-container" style={{ marginTop: "20px" }}>
-                {/* <EuiButton onClick={handleAddNewRow} style={{ marginTop: "50px" }}>
-        Add New Row
-      </EuiButton> */}
-                {/* Render edit buttons for each column */}
-                {/* {renderEditColumnButtons()} */}
-                {/* Button to toggle the side panel */}
                 <EuiButtonIcon
                   iconType="gear"
                   onClick={toggleSidePanel}
-                  // onClick={() => setIsSidePanelVisible(true)}
                   aria-label="Edit column types"
                 />
-                {/* Main data grid container with dynamic width */}
-                <div style={{ width: dataGridWidth }}>
-                  {/* DataGrid and other components */}
-                </div>
+                <div style={{ width: "calc(100% - 300px)" }}></div>
 
                 <EuiButtonIcon
                   iconType="plusInCircle"
-                  onClick={() => setIsNewColumnModalVisible(true)}
+                  onClick={() => {
+                    setIsNewColumnModalVisible(true);
+                  }}
                   aria-label="Add new column"
                 />
 
+                <EuiSearchBar
+                  defaultQuery={""}
+                  box={{
+                    placeholder: "Search...",
+                  }}
+                  onChange={onChangeSearch}
+                />
+
                 <EuiDataGrid
-                  aria-label="Data grid for Operating State Analysis"
+                  aria-label="Data grid for Initiating Event Model View"
                   columns={getMergedColumns}
-                  rowCount={data.length}
+                  rowCount={filterData.length}
                   renderCellValue={renderCellValue}
                   columnVisibility={{
                     visibleColumns: visibleColumns,
@@ -1214,7 +1009,9 @@ const App: React.FC = () => {
 
                         <EuiButtonIcon
                           iconType="gear"
-                          onClick={() => setIsSidePanelVisible(true)}
+                          onClick={() => {
+                            setIsSidePanelVisible(true);
+                          }}
                           aria-label="Edit column types"
                         />
                         <EuiButton
@@ -1244,23 +1041,23 @@ const App: React.FC = () => {
                               <EuiFormRow label="Column ID">
                                 <EuiFieldText
                                   value={newColumnData.id}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
                                     setNewColumnData({
                                       ...newColumnData,
                                       id: e.target.value,
-                                    })
-                                  }
+                                    });
+                                  }}
                                 />
                               </EuiFormRow>
                               <EuiFormRow label="Display As">
                                 <EuiFieldText
                                   value={newColumnData.displayAsText}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
                                     setNewColumnData({
                                       ...newColumnData,
                                       displayAsText: e.target.value,
-                                    })
-                                  }
+                                    });
+                                  }}
                                 />
                               </EuiFormRow>
                               <EuiFormRow label="Column Type">
@@ -1290,13 +1087,13 @@ const App: React.FC = () => {
                                     >
                                       <EuiFieldText
                                         value={option.text}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
                                           handleDropdownOptionChange(
                                             index,
                                             "text",
                                             e.target.value,
-                                          )
-                                        }
+                                          );
+                                        }}
                                       />
                                     </EuiFormRow>
                                     <EuiFormRow
@@ -1304,20 +1101,20 @@ const App: React.FC = () => {
                                     >
                                       <EuiFieldText
                                         value={option.value}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
                                           handleDropdownOptionChange(
                                             index,
                                             "value",
                                             e.target.value,
-                                          )
-                                        }
+                                          );
+                                        }}
                                       />
                                     </EuiFormRow>
                                     <EuiButtonIcon
                                       iconType="minusInCircle"
-                                      onClick={() =>
-                                        handleRemoveDropdownOption(index)
-                                      }
+                                      onClick={() => {
+                                        handleRemoveDropdownOption(index);
+                                      }}
                                       aria-label="Remove dropdown option"
                                     />
                                   </div>
@@ -1332,28 +1129,41 @@ const App: React.FC = () => {
                             </React.Fragment>
                           )}
                         </EuiPopover>
-                        <EuiPopover
-                          button={
-                            <EuiButton onClick={() => {setGroupbyPopoverOpen(!groupbyPopoverOpen)}}>
-                              Group By
-                            </EuiButton>
-                          }
-                          isOpen={groupbyPopoverOpen}
-                          closePopover={closeGroupbyPopover}
-                        >
-                          <div style={{ padding: 10 }}>
-                            <EuiListGroup>
-                              {[...baseColumns, ...customColumns].map((column) => (
-                                <EuiListGroupItem
-                                  key={column.id}
-                                  label={column.displayAsText}
-                                  onClick={() => handleGroupByOptionClick(column.id)}
-                                  size="xs"
-                                />
-                              ))}
-                            </EuiListGroup>
-                          </div>
-                        </EuiPopover>
+                        {enableGrouping ? (
+                          <EuiPopover
+                            button={
+                              <EuiButton
+                                onClick={() => {
+                                  setGroupbyPopoverOpen(!groupbyPopoverOpen);
+                                }}
+                              >
+                                Group By
+                              </EuiButton>
+                            }
+                            isOpen={groupbyPopoverOpen}
+                            closePopover={closeGroupbyPopover}
+                          >
+                            <div style={{ padding: 10 }}>
+                              <EuiListGroup>
+                                {[...baseColumns, ...customColumns].map(
+                                  (column) =>
+                                    //only show which are in visible columns
+                                    visibleColumns.includes(column.id) &&
+                                    column.id != "delete" && (
+                                      <EuiListGroupItem
+                                        key={column.id}
+                                        label={column.displayAsText}
+                                        onClick={() => {
+                                          handleGroupByOptionClick(column.id);
+                                        }}
+                                        size="xs"
+                                      />
+                                    ),
+                                )}
+                              </EuiListGroup>
+                            </div>
+                          </EuiPopover>
+                        ) : null}
                       </React.Fragment>
                     ),
                   }}
@@ -1364,7 +1174,11 @@ const App: React.FC = () => {
                 />
 
                 {isNewColumnModalVisible && (
-                  <EuiModal onClose={() => setIsNewColumnModalVisible(false)}>
+                  <EuiModal
+                    onClose={() => {
+                      setIsNewColumnModalVisible(false);
+                    }}
+                  >
                     <EuiModalHeader>
                       <EuiModalHeaderTitle>Add New Column</EuiModalHeaderTitle>
                     </EuiModalHeader>
@@ -1373,23 +1187,23 @@ const App: React.FC = () => {
                         <EuiFormRow label="Column ID">
                           <EuiFieldText
                             value={newColumnDetails.id}
-                            onChange={(e) =>
+                            onChange={(e) => {
                               setNewColumnDetails({
                                 ...newColumnDetails,
                                 id: e.target.value,
-                              })
-                            }
+                              });
+                            }}
                           />
                         </EuiFormRow>
                         <EuiFormRow label="Display As">
                           <EuiFieldText
                             value={newColumnDetails.displayAsText}
-                            onChange={(e) =>
+                            onChange={(e) => {
                               setNewColumnDetails({
                                 ...newColumnDetails,
                                 displayAsText: e.target.value,
-                              })
-                            }
+                              });
+                            }}
                           />
                         </EuiFormRow>
                         <EuiFormRow label="Column Type">
@@ -1400,7 +1214,7 @@ const App: React.FC = () => {
                               { value: "number", text: "Number" },
                             ]}
                             value={newColumnData.columnType}
-                            onChange={(e) =>
+                            onChange={(e) => {
                               setNewColumnData({
                                 ...newColumnData,
                                 columnType: e.target.value as ColumnType,
@@ -1408,8 +1222,8 @@ const App: React.FC = () => {
                                   e.target.value === "dropdown"
                                     ? []
                                     : newColumnData.dropdownOptions,
-                              })
-                            }
+                              });
+                            }}
                           />
                         </EuiFormRow>
                       </EuiForm>
@@ -1422,7 +1236,9 @@ const App: React.FC = () => {
                 {/* Modal for editing columns */}
                 {isColumnEditModalVisible && (
                   <EuiModal
-                    onClose={() => setIsColumnEditModalVisible(false)}
+                    onClose={() => {
+                      setIsColumnEditModalVisible(false);
+                    }}
                     style={{ width: "800px" }}
                   >
                     <EuiModalHeader>
@@ -1436,9 +1252,9 @@ const App: React.FC = () => {
                         <EuiFormRow label="Column Heading">
                           <EuiFieldText
                             value={newColumnData.displayAsText}
-                            onChange={(e) =>
-                              handleEditColumnChange(e, "displayAsText")
-                            }
+                            onChange={(e) => {
+                              handleEditColumnChange(e, "displayAsText");
+                            }}
                           />
                         </EuiFormRow>
                         <EuiFormRow label="Column Type">
@@ -1449,18 +1265,69 @@ const App: React.FC = () => {
                               { value: "number", text: "Number" },
                             ]}
                             value={newColumnData.columnType}
-                            onChange={(e) =>
-                              handleEditColumnChange(e, "columnType")
-                            }
+                            onChange={(e) => {
+                              handleEditColumnChange(e, "columnType");
+                            }}
                           />
                         </EuiFormRow>
-                        {/* Dropdown options go here if columnType is 'dropdown' */}
-                        {/* ... */}
+                        {newColumnData.columnType === "dropdown" && (
+                          <React.Fragment>
+                            {newColumnData.dropdownOptions.map(
+                              (option, index) => (
+                                <div key={index}>
+                                  <EuiFormRow
+                                    label={`Option ${index + 1} Text`}
+                                  >
+                                    <EuiFieldText
+                                      value={option.text}
+                                      onChange={(e) => {
+                                        handleDropdownOptionChange(
+                                          index,
+                                          "text",
+                                          e.target.value,
+                                        );
+                                      }}
+                                    />
+                                  </EuiFormRow>
+                                  <EuiFormRow
+                                    label={`Option ${index + 1} Value`}
+                                  >
+                                    <EuiFieldText
+                                      value={option.value}
+                                      onChange={(e) => {
+                                        handleDropdownOptionChange(
+                                          index,
+                                          "value",
+                                          e.target.value,
+                                        );
+                                      }}
+                                    />
+                                  </EuiFormRow>
+                                  <EuiButtonIcon
+                                    iconType="minusInCircle"
+                                    onClick={() => {
+                                      handleRemoveDropdownOption(index);
+                                    }}
+                                    aria-label="Remove dropdown option"
+                                  />
+                                </div>
+                              ),
+                            )}
+                            <EuiButton
+                              onClick={handleAddDropdownOption}
+                              iconType="plusInCircle"
+                            >
+                              Add Option
+                            </EuiButton>
+                          </React.Fragment>
+                        )}
                       </EuiForm>
                     </EuiModalBody>
                     <EuiModalFooter>
                       <EuiButton
-                        onClick={() => setIsColumnEditModalVisible(false)}
+                        onClick={() => {
+                          setIsColumnEditModalVisible(false);
+                        }}
                       >
                         Cancel
                       </EuiButton>
@@ -1486,7 +1353,7 @@ const App: React.FC = () => {
                         {
                           // Dynamically create form fields for all columns
                           getMergedColumns.map((column) => {
-                            const customColumn = column as CustomColumn;
+                            const customColumn = column;
 
                             if (customColumn.inputType === "dropdown") {
                               // Render a dropdown for columns with type 'dropdown'
@@ -1498,12 +1365,12 @@ const App: React.FC = () => {
                                   <EuiSelect
                                     options={customColumn.dropdownOptions || []}
                                     value={modalFormState[column.id]}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
                                       handleModalFormChange(
                                         column.id,
                                         e.target.value,
-                                      )
-                                    }
+                                      );
+                                    }}
                                   />
                                 </EuiFormRow>
                               );
@@ -1517,12 +1384,12 @@ const App: React.FC = () => {
                                   <EuiFieldText
                                     name={column.id}
                                     value={modalFormState[column.id]}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
                                       handleModalFormChange(
                                         column.id,
                                         e.target.value,
-                                      )
-                                    }
+                                      );
+                                    }}
                                   />
                                 </EuiFormRow>
                               );
@@ -1561,6 +1428,15 @@ const App: React.FC = () => {
                 display: isSidePanelOpen ? "block" : "none",
               }}
             >
+              {/* Close button */}
+              <EuiButton
+                onClick={() => {
+                  handleSidePanelClose();
+                }}
+                style={{ marginTop: "20px" }}
+              >
+                Close
+              </EuiButton>
               {isSidePanelOpen && selectedRowData && (
                 <EuiForm>
                   {getMergedColumns
@@ -1571,7 +1447,7 @@ const App: React.FC = () => {
                         column.id !== "delete",
                     ) // Exclude non-data columns
                     .map((column) => {
-                      const customColumn = column as CustomColumn;
+                      const customColumn = column;
                       return (
                         <EuiFormRow
                           label={customColumn.displayAsText || customColumn.id}
@@ -1581,22 +1457,22 @@ const App: React.FC = () => {
                             <EuiSelect
                               options={customColumn.dropdownOptions || []}
                               value={selectedRowData[customColumn.id] || ""}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 updateFieldInData(
                                   customColumn.id,
                                   e.target.value,
-                                )
-                              }
+                                );
+                              }}
                             />
                           ) : (
                             <EuiFieldText
                               value={selectedRowData[customColumn.id] || ""}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 updateFieldInData(
                                   customColumn.id,
                                   e.target.value,
-                                )
-                              }
+                                );
+                              }}
                             />
                           )}
                         </EuiFormRow>
@@ -1604,14 +1480,6 @@ const App: React.FC = () => {
                     })}
                 </EuiForm>
               )}
-
-              {/* Close button */}
-              <EuiButton
-                onClick={() => setIsSidePanelOpen(false)}
-                style={{ marginTop: "20px" }}
-              >
-                Close
-              </EuiButton>
             </EuiResizablePanel>
           </>
         )}
@@ -1620,10 +1488,8 @@ const App: React.FC = () => {
   );
 };
 
-export function InitiatingEventModelViewTable(): JSX.Element{
-  return (
-    <>
-      <App />
-    </>
-  );
+export function InitiatingEventModelViewTable({
+  enableGrouping = false,
+}): JSX.Element {
+  return <App enableGrouping={enableGrouping} />;
 }

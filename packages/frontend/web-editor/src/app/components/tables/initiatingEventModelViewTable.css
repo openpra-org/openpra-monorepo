@@ -1,0 +1,7 @@
+.euiDataGridRowCell {
+    border: 10px black !important;
+}
+
+.euiDataGrid__content{
+    padding-bottom: 2%;
+}

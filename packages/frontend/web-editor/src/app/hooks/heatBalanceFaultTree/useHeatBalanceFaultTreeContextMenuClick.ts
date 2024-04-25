@@ -251,7 +251,7 @@ function UseHeatBalanceFaultTreeContextMenuClick(id: NodeProps["id"]) {
         .filter((edge: Edge) => !edgesToRemove.some((e) => e.id === edge.id))
         .concat(edgesToAdd);
       setEdges(newEdges);
-      console.log(heatBalanceFaultTreeId);
+      // console.log(nodes);
       await GraphApiManager.storeHeatBalanceFaultTree(
         HeatBalanceFaultTreeState({
           nodes: nodes,
@@ -259,7 +259,7 @@ function UseHeatBalanceFaultTreeContextMenuClick(id: NodeProps["id"]) {
           heatBalanceFaultTreeId: heatBalanceFaultTreeId ?? "", // Use empty string as default value,
         }),
       ).then((r: HeatBalanceFaultTreeGraph): void => {
-        console.log(r);
+        // console.log(r);
       });
     },
     [clickedNode, nodes, setNodes, edges, setEdges, heatBalanceFaultTreeId, id],

@@ -22,7 +22,7 @@ import { Route, Routes, useParams } from "react-router-dom";
 import { shallow } from "zustand/shallow";
 import { UseLayout } from "../../hooks/heatBalanceFaultTree/useLayout";
 import { HeatBalanceFaultTreeNodeTypes } from "../../components/treeNodes/heatBalancefaultTreeNodes/heatBalanceFaultTreeNodeType";
-import { EdgeTypes } from "../../components/treeEdges/faultTreeEdges/faultTreeEdgeType";
+import { EdgeTypes } from "../../components/treeEdges/heatBalanceFaultTreeEdges/heatBalanceFaultTreeEdgeType";
 
 import "reactflow/dist/style.css";
 

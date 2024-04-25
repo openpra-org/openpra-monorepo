@@ -42,7 +42,7 @@ function GetEditableNode(
 ): JSX.Element {
   let handles: JSX.Element;
   const { getNodes, setNodes } = useReactFlow();
-  const [nodeLabel, setNodeLabel] = useState(data.label ?? "");
+  const [nodeLabel, setNodeLabel] = useState(data.label ?? type);
   const updateHandler = useCallback(
     debounce((newLabel: string): void => {
       setNodes(

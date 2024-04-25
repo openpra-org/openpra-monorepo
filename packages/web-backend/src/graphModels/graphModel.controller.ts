@@ -122,7 +122,11 @@ export class GraphModelController {
     @Body("type") type: string,
     @Body("label") label: string,
   ): Promise<boolean> {
-    return this.graphModelService.updateHeatBalanceFaultTreeLabel(id, type, label);
+    return this.graphModelService.updateHeatBalanceFaultTreeLabel(
+      id,
+      type,
+      label,
+    );
   }
 
   /**

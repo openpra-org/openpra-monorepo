@@ -85,7 +85,7 @@ export async function PostHeatBalanceFaultTree(
     `${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/`,
     data,
   ).then((response) => response.json() as Promise<NestedModel>);
-  await AddNestedModelToTypedModel("faultTrees");
+  await AddNestedModelToTypedModel("heatBalanceFaultTrees");
   return returnResponse;
 }
 
@@ -988,7 +988,7 @@ export async function DeleteHeatBalanceFaultTree(
   const response = await Delete(
     `${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/?id=${Number(id)}`,
   ).then((response) => response.json() as Promise<NestedModel>);
-  await RemoveNestedIds(id, "faultTrees");
+  await RemoveNestedIds(id, "heatBalanceFaultTrees");
   return response;
 }
 

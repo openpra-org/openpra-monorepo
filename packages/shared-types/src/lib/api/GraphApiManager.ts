@@ -56,7 +56,9 @@ export class GraphApiManager {
     data: HeatBalanceFaultTreeGraph,
   ): Promise<HeatBalanceFaultTreeGraph> {
     return await this.post(`${HeatBalanceFaultTreeGraphEndpoint}`, data)
-      .then((res) => this.getHeatBalanceFaultTreeResponse(res, data.heatBalanceFaultTreeId))
+      .then((res) =>
+        this.getHeatBalanceFaultTreeResponse(res, data.heatBalanceFaultTreeId),
+      )
       .catch((err) => {
         throw err;
       });

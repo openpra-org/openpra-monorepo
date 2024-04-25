@@ -2,6 +2,7 @@ import {
   EventSequenceGraph,
   EventTreeGraph,
   FaultTreeGraph,
+  HeatBalanceFaultTreeGraph,
 } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
 import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
@@ -22,6 +23,7 @@ import {
 } from "../app/components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
 import { EventSequenceEdgeProps } from "../app/components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 import { FaultTreeNodeProps } from "../app/components/treeNodes/faultTreeNodes/faultTreeNodeType";
+import {HeatBalanceFaultTreeNodeProps} from "../app/components/treeNodes/heatBalancefaultTreeNodes/heatBalanceFaultTreeNodeType";
 import { BASIC_EVENT, WORKFLOW } from "./constants";
 
 /**
@@ -42,6 +44,13 @@ export type EventSequenceStateType = {
  */
 export type FaultTreeStateType = {
   faultTreeId: string;
+} & BaseGraphState;
+
+/**
+ * Fault Tree state to store the fault tree id and list of nodes & edges
+ */
+export type HeatBalanceFaultTreeStateType = {
+  heatBalanceFaultTreeId: string;
 } & BaseGraphState;
 
 /**
@@ -95,6 +104,22 @@ export const EventSequenceState = ({
   eventSequenceId: eventSequenceId,
   nodes: getNodes<EventSequenceNodeProps>(nodes),
   edges: getEdges<EventSequenceEdgeProps>(edges),
+});
+
+/**
+ * Generate the fault tree state with the provided list of nodes and edges, for a particular fault tree id
+ * @param faultTreeId - fault tree id
+ * @param nodes - list of nodes
+ * @param edges - list of edges
+ */
+export const HeatBalanceFaultTreeState = ({
+  heatBalanceFaultTreeId,
+  nodes,
+  edges,
+}: HeatBalanceFaultTreeStateType): HeatBalanceFaultTreeGraph => ({
+  heatBalanceFaultTreeId: heatBalanceFaultTreeId,
+  nodes: getNodes<object>(nodes),
+  edges: getEdges<object>(edges),
 });
 
 /**
@@ -386,6 +411,22 @@ export const getNodeFromId = (
 ): Node<FaultTreeNodeProps> => {
   return currentNodes.filter((node: Node) => node.id === id)[0];
 };
+
+/**
+ * Update a label of the fault tree
+ * @param id - ID of either node or edge
+ * @param label - New label
+ * @param type - 'node' or 'edge' label
+ */
+export function UpdateHeatBalanceFaultTreeLabel(
+  id: string,
+  label: string,
+  type: string,
+): void {
+  void GraphApiManager.updateHeatBalanceFaultTreeLabel(id, label, type).then(
+    (r: boolean) => r,
+  );
+}
 
 /**
  * Determine whether a node can be deleted, based on its type

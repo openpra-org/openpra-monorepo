@@ -38,6 +38,7 @@ import {
   initialNodes,
 } from "../../../utils/faultTreeData";
 import { RFState, useStore } from "../../store/heatBalanceFaultTreeStore";
+import CustomMiniMap from "../../components/minimap/minimap";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
@@ -195,6 +196,7 @@ function ReactFlowPro(): JSX.Element {
             />
           )}
         </EuiPopover>
+        <CustomMiniMap />
       </ReactFlow>
       <EuiGlobalToastList
         toasts={toasts}

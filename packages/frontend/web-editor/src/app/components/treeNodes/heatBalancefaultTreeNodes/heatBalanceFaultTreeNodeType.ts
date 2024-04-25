@@ -15,7 +15,7 @@ const HeatBalanceFaultTreeNodeTypes: NodeTypes = {
   notGate: HeatBalanceFaultTreeNode("notGate"),
   basicEvent: HeatBalanceFaultTreeNode("basicEvent"),
   transferGate: HeatBalanceFaultTreeNode("transferGate"),
-  initiator: HeatBalanceFaultTreeNode("initiator"),
+  undeveloped: HeatBalanceFaultTreeNode("undeveloped"),
 };
 
 export { HeatBalanceFaultTreeNodeTypes };

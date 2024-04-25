@@ -21,6 +21,7 @@ export const BASIC_EVENT = "basicEvent";
 export const TRANSFER_GATE = "transferGate";
 export const HOUSE_EVENT = "houseEvent";
 export const WORKFLOW = "workflow";
+export const UNDEVELOPED = "undeveloped";
 
 //Fault tree node labels
 export const OR_GATE_LABEL = "OR Gate";
@@ -30,6 +31,7 @@ export const NOT_GATE_LABEL = "NOT Gate";
 export const BASIC_EVENT_LABEL = "Basic Event";
 export const TRANSFER_GATE_LABEL = "Transfer Gate";
 export const HOUSE_EVENT_LABEL = "House Event";
+export const UNDEVELOPED_LABEL = "Undeveloped";
 
 //Fault Tree validation toast types
 export const DELETE_ROOT_NODE = "delete-root-node";
@@ -52,6 +54,7 @@ export const LEAF_NODE_TYPES: (string | undefined)[] = [
   BASIC_EVENT,
   HOUSE_EVENT,
   TRANSFER_GATE,
+  UNDEVELOPED,
 ];
 export const LOGICAL_GATES: (string | undefined)[] = [
   AND_GATE,

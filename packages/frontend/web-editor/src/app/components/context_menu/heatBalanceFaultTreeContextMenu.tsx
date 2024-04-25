@@ -20,6 +20,8 @@ import {
   OR_GATE_LABEL,
   TRANSFER_GATE,
   TRANSFER_GATE_LABEL,
+  UNDEVELOPED,
+  UNDEVELOPED_LABEL,
   TRASH,
   UPDATE_NODE_TYPE,
   WRENCH,
@@ -29,6 +31,7 @@ import OrGateIcon from "../../../assets/images/faultTreeNodeIcons/OrGateIcon.svg
 import NotGateIcon from "../../../assets/images/faultTreeNodeIcons/NotGateIcon.svg";
 import TransferGateIcon from "../../../assets/images/faultTreeNodeIcons/TransferGateIcon.svg";
 import BasicEventIcon from "../../../assets/images/faultTreeNodeIcons/BasicEventIcon.svg";
+import UndevelopedNodeIcon from "../../../assets/images/faultTreeNodeIcons/undevelopedNodeIcon.svg";
 
 export type TreeNodeContextMenuProps = {
   id: string;
@@ -134,6 +137,13 @@ const HeatBalanceFaultTreeContextMenu = ({
           icon: <EuiIcon type={BasicEventIcon} size={LARGE}></EuiIcon>,
           onClick: async () => {
             await onItemClick(id, BASIC_EVENT);
+          },
+        },
+        {
+          name: UNDEVELOPED_LABEL,
+          icon: <EuiIcon type={UndevelopedNodeIcon} size={LARGE}></EuiIcon>,
+          onClick: async () => {
+            await onItemClick(id, UNDEVELOPED);
           },
         },
       ],

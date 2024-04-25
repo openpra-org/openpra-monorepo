@@ -137,6 +137,25 @@ function getNodeShape(
           r="55"
         />
       );
+    case NodeTypes.Undeveloped:
+      return (
+        <path
+          d="M50,5 90,50 50,95 10,50 Z"
+          style={{
+            fill: "#fff",
+            fillOpacity: 1,
+            fillRule: "evenodd",
+            stroke: stroke,
+            strokeWidth: 3.5,
+            strokeLinecap: "butt",
+            strokeLinejoin: "round",
+            strokeMiterlimit: 4,
+            strokeDashoffset: 0,
+            strokeOpacity: 1,
+            transformOrigin: "225.321px 69.319px",
+          }}
+        />
+      );
     case NodeTypes.HouseEvent:
       return (
         <path

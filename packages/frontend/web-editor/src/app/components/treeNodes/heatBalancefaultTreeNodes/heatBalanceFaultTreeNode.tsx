@@ -1,12 +1,13 @@
 import React, { memo, MemoExoticComponent, useCallback, useState } from "react";
 import { Handle, Node, NodeProps, Position, useReactFlow } from "reactflow";
+import cx from "classnames";
+import { EuiFieldText } from "@elastic/eui";
+import { debounce } from "lodash";
 import { NodeIcon } from "../icons/nodeIcon";
 import { NodeTypes } from "../icons/interfaces/nodeProps";
 import { UseNodeDoubleClick } from "../../../hooks/heatBalanceFaultTree/useNodeDoubleClick";
 import { UseGrayedNodeHover } from "../../../hooks/heatBalanceFaultTree/useGrayedNodeHover";
 import { UseGrayedNodeClick } from "../../../hooks/heatBalanceFaultTree/useGrayedNodeClick";
-import { EuiFieldText } from "@elastic/eui";
-import { debounce } from "lodash";
 import {
   AND_GATE,
   AND_GATE_LABEL,
@@ -20,11 +21,12 @@ import {
   TARGET,
   TRANSFER_GATE,
   TRANSFER_GATE_LABEL,
+  UNDEVELOPED,
+  UNDEVELOPED_LABEL,
 } from "../../../../utils/constants";
-import { HeatBalanceFaultTreeNodeProps } from "./heatBalanceFaultTreeNodeType";
-import cx from "classnames";
-import styles from "./styles/nodeTypes.module.css";
 import { UpdateHeatBalanceFaultTreeLabel } from "../../../../utils/treeUtils";
+import { HeatBalanceFaultTreeNodeProps } from "./heatBalanceFaultTreeNodeType";
+import styles from "./styles/nodeTypes.module.css";
 
 const stylesMap = styles as Record<string, string>;
 
@@ -42,7 +44,7 @@ function GetEditableNode(
 ): JSX.Element {
   let handles: JSX.Element;
   const { getNodes, setNodes } = useReactFlow();
-  const [nodeLabel, setNodeLabel] = useState(data.label ?? type);
+  const [nodeLabel, setNodeLabel] = useState(data?.label ?? type);
   const updateHandler = useCallback(
     debounce((newLabel: string): void => {
       setNodes(
@@ -85,12 +87,12 @@ function GetEditableNode(
         </>
       );
       break;
-    case "initiator":
+    case "undeveloped":
       handles = (
         <Handle
           className={stylesMap.handle}
           type="target"
-          position={Position.Left}
+          position={Position.Top}
           isConnectable={false}
         />
       );
@@ -112,7 +114,6 @@ function GetEditableNode(
     </>
   );
 }
-
 
 function getNodeIcon(
   type: string,
@@ -186,6 +187,19 @@ function getNodeIcon(
           }}
         />
       );
+    case UNDEVELOPED:
+      return (
+        <NodeIcon
+          selected={selected}
+          isGrayed={data?.isGrayed ? data.isGrayed : false}
+          nodeType={NodeTypes.Undeveloped}
+          iconProps={{
+            width: "30px",
+            height: "100%",
+            viewBox: "14.4 15.4 71.2 70.2",
+          }}
+        />
+      );
     default:
       throw new Error("Node Type Invalid");
   }
@@ -210,61 +224,72 @@ function getNodeLabel(type: string): string {
 
 function HeatBalanceFaultTreeNode(
   type: string,
-): MemoExoticComponent<React.ComponentType<NodeProps<HeatBalanceFaultTreeNodeProps>>> {
+): MemoExoticComponent<
+  React.ComponentType<NodeProps<HeatBalanceFaultTreeNodeProps>>
+> {
   return memo(
     ({ id, selected, data }: NodeProps & HeatBalanceFaultTreeNodeProps) => {
-    const { handleNodeDoubleClick } = UseNodeDoubleClick(id);
-    const { handleMouseEnter, handleMouseLeave } = UseGrayedNodeHover(id);
-    const { handleGrayedNodeClick } = UseGrayedNodeClick(id);
+      const { handleNodeDoubleClick } = UseNodeDoubleClick(id);
+      const { handleMouseEnter, handleMouseLeave } = UseGrayedNodeHover(id);
+      const { handleGrayedNodeClick } = UseGrayedNodeClick(id);
 
-    const mouseEnterHandler = () => {
-      handleMouseEnter(data?.branchId);
-    };
-    const mouseLeaveHandler = () => {
-      handleMouseLeave(data?.branchId);
-    };
-    const grayedNodeClickHandler = async () => {
-      await handleGrayedNodeClick(data?.branchId);
-    };
+      const mouseEnterHandler = () => {
+        handleMouseEnter(data?.branchId);
+      };
+      const mouseLeaveHandler = () => {
+        handleMouseLeave(data?.branchId);
+      };
+      const grayedNodeClickHandler = async () => {
+        await handleGrayedNodeClick(data?.branchId);
+      };
 
-    return (
-      <div
-        className={styles.node_container}
-        onDoubleClick={handleNodeDoubleClick}
-        onClick={
-          data?.branchId !== undefined ? grayedNodeClickHandler : undefined
-        }
-        onMouseEnter={mouseEnterHandler}
-        onMouseLeave={mouseLeaveHandler}
-      >
+      return (
         <div
-          className={
-            data?.isGrayed
-              ? styles.placeholder
-              : `${styles.node} ${selected ? styles.selected : ``}`
+          className={styles.node_container}
+          onDoubleClick={handleNodeDoubleClick}
+          onClick={
+            data?.branchId !== undefined ? grayedNodeClickHandler : undefined
           }
+          onMouseEnter={mouseEnterHandler}
+          onMouseLeave={mouseLeaveHandler}
         >
-            {type === BASIC_EVENT
+          {/*{type === UNDEVELOPED ? (*/}
+          {/*  <div*/}
+          {/*    className={styles.undeveloped_node_border}*/}
+          {/*    style={{ borderColor: "0984e3" }}*/}
+          {/*  ></div>*/}
+          {/*) : (*/}
+          {/*  <></>*/}
+          {/*)}*/}
+          <div
+            className={
+              data?.isGrayed
+                ? styles.placeholder
+                : `${styles.node} ${selected ? styles.selected : ``}`
+            }
+          >
+            {type === BASIC_EVENT || type === UNDEVELOPED
               ? GetEditableNode(id, type, data)
               : getNodeLabel(type)}
 
-          <Handle
-            className={styles.handle}
-            type={TARGET}
-            position={Position.Top}
-            isConnectable={false}
-          />
-          <Handle
-            className={styles.handle}
-            type={SOURCE}
-            position={Position.Bottom}
-            isConnectable={false}
-          />
+            <Handle
+              className={styles.handle}
+              type={TARGET}
+              position={Position.Top}
+              isConnectable={false}
+            />
+            <Handle
+              className={styles.handle}
+              type={SOURCE}
+              position={Position.Bottom}
+              isConnectable={false}
+            />
+          </div>
+          {getNodeIcon(type, id, selected, data)}
         </div>
-        {getNodeIcon(type, id, selected, data)}
-      </div>
-    );
-  });
+      );
+    },
+  );
 }
 
 export { HeatBalanceFaultTreeNode };

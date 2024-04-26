@@ -11,4 +11,5 @@ export class InitiatingEventGroup {
 }
 
 export type InitiatingEventGroupDocument = InitiatingEventGroup & Document;
-export const InitiatingEventGroupSchema = SchemaFactory.createForClass(InitiatingEventGroup);
+export const InitiatingEventGroupSchema =
+  SchemaFactory.createForClass(InitiatingEventGroup);

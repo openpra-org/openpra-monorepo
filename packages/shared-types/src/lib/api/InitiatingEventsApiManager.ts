@@ -217,6 +217,31 @@ export default class FmeaApiManager {
       .catch((err) => onFailCallback(err, override));
   }
 
+  static async deleteRows(
+    fmeaId: number,
+    body: any,
+    override: any = null,
+    onSuccessCallback = this.defaultSuccessCallback,
+    onFailCallback = this.defaultFailCallback,
+  ): Promise<Fmea> {
+    return await fetch(`${FMEA_ENDPOINT}/${fmeaId}/rows`, {
+      method: "DELETE",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    })
+      .then((res) =>
+        res.ok
+          ? onSuccessCallback(res.text(), override)
+          : onFailCallback(res, override),
+      )
+      .then((response) =>
+        !response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea),
+      )
+      .catch((err) => onFailCallback(err, override));
+  }
   static async deleteFmea(
     fmeaId: number,
     override: any = null,

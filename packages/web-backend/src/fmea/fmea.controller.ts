@@ -108,7 +108,13 @@ export class FmeaController {
   ): Promise<Fmea | null> {
     return this.fmeaService.deleteRow(fmeaId, rowId);
   }
-
+  @Delete(":fmeaid/rows")
+  async deleteRows(
+    @Param("fmeaid") fmeaId: number,
+    @Body() body,
+  ): Promise<Fmea | null> {
+    return this.fmeaService.deleteRows(fmeaId, body);
+  }
   /**
    *
    * @param fmeaId the FMEA ID

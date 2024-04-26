@@ -16,6 +16,7 @@ import {
   EuiDataGrid,
   EuiDataGridCellValueElementProps,
   EuiResizableContainer,
+  EuiCheckbox,
 } from "@elastic/eui";
 import React, { useCallback, useEffect, useState } from "react";
 import { Route, Routes, useParams } from "react-router-dom";
@@ -81,6 +82,12 @@ export function EditableTable(): JSX.Element | null {
 
       // Modify the columns as needed
       const modifiedColumns = [
+        {
+          id: "select",
+          name: "",
+          type: "string",
+          dropdownOptions: [],
+        },
         ...res.columns,
         {
           id: "actions",
@@ -147,6 +154,12 @@ export function EditableTable(): JSX.Element | null {
 
       // Create a new object/array that includes the modifications you want to make.
       const updatedColumns = [
+        {
+          id: "select",
+          name: "",
+          type: "string",
+          dropdownOptions: [],
+        },
         ...res.columns,
         { id: "actions", name: "actions", type: "string", dropdownOptions: [] },
         {
@@ -194,6 +207,41 @@ export function EditableTable(): JSX.Element | null {
     }
   });
 
+  function deleteRows() {
+    const del = async (): Promise<void> => {
+      let rowIds: string[] = [];
+      selectedItems.forEach((item) => {
+        rowIds.push(item);
+      });
+      const res = await FmeaApiManager.deleteRows(
+        Number(params.intiatingEventId),
+        { rowIds: rowIds },
+      );
+      //console.log(res);
+
+      // Assuming res.columns is mutable and you're okay with modifying it directly
+      const updatedColumns = [
+        {
+          id: "select",
+          name: "",
+          type: "string",
+          dropdownOptions: [],
+        },
+        ...res.columns,
+        { id: "actions", name: "actions", type: "string", dropdownOptions: [] },
+        {
+          id: "details",
+          name: "details",
+          type: "string",
+          dropdownOptions: [],
+        },
+      ];
+      setSelectedRowIdSidePanel("");
+      setColumn(updatedColumns);
+      setData(res.rows);
+    };
+    void del();
+  }
   function deleteRow(id: string): void {
     const del = async (): Promise<void> => {
       const res = await FmeaApiManager.deleteRow(
@@ -204,6 +252,12 @@ export function EditableTable(): JSX.Element | null {
 
       // Assuming res.columns is mutable and you're okay with modifying it directly
       const updatedColumns = [
+        {
+          id: "select",
+          name: "",
+          type: "string",
+          dropdownOptions: [],
+        },
         ...res.columns,
         { id: "actions", name: "actions", type: "string", dropdownOptions: [] },
         {
@@ -237,21 +291,11 @@ export function EditableTable(): JSX.Element | null {
     setNewColumn({ name: "", type: "string", dropdownOptions: [] });
     setDropdownOptions([{ number: 1, description: "low" }]);
   };
-  // const showErrorToast = () => {
-  //   addToast({
-  //     id: "formErrorToast",
-  //     title: "Error addinf new column",
-  //     color: "danger",
-  //     iconType: "alert",
-  //     text: <p>Minimum 1 DropDown Options Required. Try Again.</p>,
-  //   });
-  // };
+
   function addNewColumn(): void {
     const isInvalid = newColumn.name.trim() === "";
     setIsSubmitted(true);
     if (newColumn.name == "") {
-      console.log("here");
-      addToast(GetESToast("danger", "Please provide column name."));
     }
     if (!isInvalid) {
       if (
@@ -259,7 +303,6 @@ export function EditableTable(): JSX.Element | null {
         newColumn.dropdownOptions.length === 0
       ) {
         //showErrorToast();
-        addToast(GetESToast("danger", "Please provide column name."));
       } else {
         if (editingColumn) {
           // Update existing column
@@ -381,7 +424,15 @@ export function EditableTable(): JSX.Element | null {
           </EuiModalHeader>
           <EuiModalBody>
             <EuiForm>
-              <EuiFormRow label="Column Name">
+              <EuiFormRow
+                label="Column Name"
+                isInvalid={isSubmitted && newColumn.name.trim() === ""}
+                error={
+                  isSubmitted && newColumn.name.trim() === ""
+                    ? "Required Column name"
+                    : ""
+                }
+              >
                 <EuiFieldText
                   isInvalid={isSubmitted && newColumn.name.trim() === ""}
                   value={newColumn.name}
@@ -416,14 +467,18 @@ export function EditableTable(): JSX.Element | null {
                         }}
                         style={{ flexGrow: 1, marginRight: "10px" }}
                       />
-                      <EuiButtonIcon
-                        iconType="trash"
-                        color="danger"
-                        onClick={(): void => {
-                          deleteDropdownOption(index);
-                        }}
-                        aria-label={`Delete option ${index + 1}`}
-                      />
+                      {dropdownOptions.length != 1 ? (
+                        <EuiButtonIcon
+                          iconType="trash"
+                          color="danger"
+                          onClick={(): void => {
+                            deleteDropdownOption(index);
+                          }}
+                          aria-label={`Delete option ${index + 1}`}
+                        />
+                      ) : (
+                        <></>
+                      )}
                     </div>
                   </EuiFormRow>
                 ))}
@@ -476,14 +531,15 @@ export function EditableTable(): JSX.Element | null {
           const value = item[column.id] as string;
           // Use `value` here within the if block
           //console.log(column);
-          if (columnId === "id") {
+          if (columnId === "select") {
             const id = data[rowIndex].id;
             return (
               <input
                 type="checkbox"
                 checked={selectedItems.has(id)}
-                onChange={(event): void => {
-                  event.preventDefault();
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelectionChange(id);
                 }}
                 aria-label={`Select row with id ${id}`}
               />
@@ -626,6 +682,16 @@ export function EditableTable(): JSX.Element | null {
                           >
                             Add Column
                           </EuiButton>
+                          <EuiButton
+                            size={"s"}
+                            color={"danger"}
+                            onClick={(): void => {
+                              deleteRows();
+                            }}
+                            style={{ margin: "10px" }}
+                          >
+                            Delete Row
+                          </EuiButton>
                         </React.Fragment>
                       ),
                     }}
@@ -659,6 +725,7 @@ export function EditableTable(): JSX.Element | null {
                         {columns
                           .filter(
                             (column) =>
+                              column.id !== "select" &&
                               column.id !== "actions" &&
                               column.id !== "details",
                           )

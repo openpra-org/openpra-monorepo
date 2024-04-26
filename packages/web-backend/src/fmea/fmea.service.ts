@@ -346,7 +346,24 @@ export class FmeaService {
       .findOneAndUpdate({ id: fmeaId }, { $set: { rows: rows } }, { new: true })
       .lean();
   }
+  async deleteRows(fmeaId: number, body: any): Promise<Fmea | null> {
+    // Get the Fmea object
+    const fmea = await this.getFmeaById(fmeaId);
+    // Remove the rows from the rows array whose IDs are in the rowIds array
+    const filteredRows = fmea.rows.filter(
+      (row) => !body.rowIds.includes(row.id),
+    );
 
+    console.log(filteredRows);
+    // Update the rows in the database
+    return this.fmeaModel
+      .findOneAndUpdate(
+        { id: fmeaId },
+        { $set: { rows: filteredRows } },
+        { new: true },
+      )
+      .lean();
+  }
   /**
    *
    * @param fmeaId the FMEA ID

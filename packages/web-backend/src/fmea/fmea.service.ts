@@ -451,6 +451,12 @@ export class FmeaService {
     return result;
   }
 
+  /**
+   *
+   * @param fmeaId - the FMEA ID
+   * @param initiatorId - the ID of the initiator
+   * @returns the updated FMEA object with the added initiator
+   */
   async addInitiator(
     fmeaId: number,
     initiatorId: string,
@@ -466,6 +472,12 @@ export class FmeaService {
       .lean();
   }
 
+  /**
+   *
+   * @param fmeaId - the FMEA ID
+   * @param initiatorId - the ID of the initiator
+   * @returns the updated FMEA object with the deleted initiator
+   */
   async deleteInitiator(
     fmeaId: number,
     initiatorId: string,

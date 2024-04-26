@@ -166,14 +166,26 @@ export class FmeaController {
     return this.fmeaService.updateColumnDetails(fmeaId, prev_column_name, body);
   }
 
+  /**
+   *
+   * @param fmeaId - the FMEA ID
+   * @param body - contains the initiator ID
+   * @returns updated FMEA object with the added initiator
+   */
   @Put(":id/addInitiator")
   async addInitiator(
     @Param("id") fmeaId: number,
-    @Body() body,
+    @Body() body: { initiatorId: string },
   ): Promise<Fmea | null> {
     return this.fmeaService.addInitiator(fmeaId, String(body.initiatorId));
   }
 
+  /**
+   *
+   * @param fmeaId - the FMEA ID
+   * @param body - contains the initiator ID
+   * @returns updated FMEA object with the deleted initiator
+   */
   @Put(":id/deleteInitiator")
   async deleteInitiator(
     @Param("id") fmeaId: number,

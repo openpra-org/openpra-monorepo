@@ -450,4 +450,34 @@ export class FmeaService {
     }
     return result;
   }
+
+  async addInitiator(
+    fmeaId: number,
+    initiatorId: string,
+  ): Promise<Fmea | null> {
+    const fmea = await this.getFmeaById(fmeaId);
+    fmea.initiators.push(initiatorId);
+    return this.fmeaModel
+      .findOneAndUpdate(
+        { id: fmeaId },
+        { $set: { initiators: fmea.initiators } },
+        { new: true },
+      )
+      .lean();
+  }
+
+  async deleteInitiator(
+    fmeaId: number,
+    initiatorId: string,
+  ): Promise<Fmea | null> {
+    const fmea = await this.getFmeaById(fmeaId);
+    fmea.initiators = fmea.initiators.filter((init) => init !== initiatorId);
+    return this.fmeaModel
+      .findOneAndUpdate(
+        { id: fmeaId },
+        { $set: { initiators: fmea.initiators } },
+        { new: true },
+      )
+      .lean();
+  }
 }

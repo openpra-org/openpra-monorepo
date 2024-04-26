@@ -39,6 +39,9 @@ export class Fmea {
     id: number;
     row_data: Map<string, string>;
   }[];
+
+  @Prop({ default: [] })
+  initiators: string[];
 }
 
 export const FmeaSchema = SchemaFactory.createForClass(Fmea);

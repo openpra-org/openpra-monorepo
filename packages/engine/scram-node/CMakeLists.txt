@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20.2)
+cmake_minimum_required(VERSION 3.18.4)
 
 # In-source build prevention.
 set(CMAKE_DISABLE_SOURCE_CHANGES ON)

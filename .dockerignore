@@ -2,9 +2,12 @@
 dist
 node_modules
 .env
-packages/*/**/build
 .nx
 build
-.git
 .idea
 CMakeFiles
+tmp
+.cache
+.pnpm-store
+cmake-*
+.development.env

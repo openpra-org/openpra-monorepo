@@ -3,7 +3,7 @@ FROM node:20.9.0-slim AS base
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NX_VERSION=17.1.2
 ENV BUILD_PACKAGES \
-    make cmake g++ python3
+    make cmake g++ python3 curl ca-certificates
 
 ENV SCRAM_BUILD_PACKAGES \
     libxml2-dev libomp-dev \
@@ -15,13 +15,14 @@ ENV SCRAM_RUNTIME_PACKAGES \
     libxml2 libboost-filesystem1.74.0 libboost-program-options1.74.0 \
     libtcmalloc-minimal4 libjemalloc2
 
-WORKDIR /app
+WORKDIR /data/project
 SHELL ["/bin/bash", "-c"]
 RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
     --mount=target=/var/cache/apt,type=cache,sharing=locked \
     rm -f /etc/apt/apt.conf.d/docker-clean && \
     apt update && \
     apt install -y --no-install-recommends $BUILD_PACKAGES $SCRAM_BUILD_PACKAGES $SCRAM_RUNTIME_PACKAGES && \
+    update-ca-certificates && \
     npm install --global pnpm nx@$NX_VERSION && \
     SHELL=bash pnpm setup
 
@@ -38,7 +39,7 @@ ARG BUILD_TYPE=development
 ARG BRANCH_SLUG=""
 ARG ENABLE_SENTRY=1
 
-WORKDIR /app
+WORKDIR /data/project
 SHELL ["/bin/bash", "-c"]
 RUN source /root/.bashrc && \
     BRANCH_SLUG=$BRANCH_SLUG NODE_ENV=$BUILD_TYPE ENABLE_SENTRY=$ENABLE_SENTRY nx run frontend-web-editor:build:$BUILD_TYPE
@@ -46,10 +47,10 @@ RUN source /root/.bashrc && \
 FROM nginx:latest as frontend
 WORKDIR /usr/share/nginx/html/web-editor
 COPY docker/default.conf /etc/nginx/nginx.conf
-COPY --from=frontend_builder /app/dist/packages/frontend/web-editor/ ./
+COPY --from=frontend_builder /data/project/dist/packages/frontend/web-editor/ ./
 
 FROM base as backend
-WORKDIR /app
+WORKDIR /data/project
 SHELL ["/bin/bash", "-c"]
 CMD source /root/.bashrc && nx run --verbose web-backend:serve:$BUILD_TYPE
 

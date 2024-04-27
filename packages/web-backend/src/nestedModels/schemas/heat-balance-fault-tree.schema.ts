@@ -1,12 +1,31 @@
-import { Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Schema, SchemaFactory, Prop } from "@nestjs/mongoose";
 import { Document } from "mongoose";
 import { NestedModel } from "./templateSchema/nested-model.schema";
 
 @Schema({ versionKey: false })
-export class HeatBalanceFaultTree extends NestedModel {}
+export class HeatBalanceFaultTree extends NestedModel {
+  @Prop()
+  operatingState: string[];
+
+  @Prop()
+  imbalanceInterface: string[];
+
+  @Prop()
+  imbalances: string[];
+
+  @Prop()
+  imbalanceCause: string[];
+
+  @Prop()
+  structureSystemsComponents: string[];
+
+  @Prop()
+  initiators: string[];
+}
 
 export type HeatBalanceFaultTreeDocument = HeatBalanceFaultTree & Document;
-export const HeatBalanceFaultTreeSchema = SchemaFactory.createForClass(HeatBalanceFaultTree);
+export const HeatBalanceFaultTreeSchema =
+  SchemaFactory.createForClass(HeatBalanceFaultTree);
 
 // @Schema({ _id: false, versionKey: false })
 // class Outcome {

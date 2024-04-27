@@ -14,6 +14,11 @@ import { Fmea } from "./schemas/fmea.schema";
 export class FmeaController {
   constructor(private readonly fmeaService: FmeaService) {}
 
+  @Get()
+  async getAllFmea(): Promise<any[]> {
+    let fmeas = this.fmeaService.getAllFmea();
+    return fmeas;
+  }
   /**
    *
    * @param body

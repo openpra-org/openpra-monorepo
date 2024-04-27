@@ -77,7 +77,26 @@ export default class FmeaApiManager {
       )
       .catch((err) => onFailCallback(err, override));
   }
-
+  static async getAllFmea(
+    override: any = null,
+    onSuccessCallback = this.defaultSuccessCallback,
+    onFailCallback = this.defaultFailCallback,
+  ): Promise<any[]> {
+    return await fetch(`${FMEA_ENDPOINT}`, {
+      method: "GET",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((res) =>
+        res.ok
+          ? onSuccessCallback(res.text(), override)
+          : onFailCallback(res, override),
+      )
+      .then((response) => (!response.trim() ? {} : JSON.parse(response)))
+      .catch((err) => onFailCallback(err, override));
+  }
   static async addColumn(
     fmeaId: number,
     body: any,

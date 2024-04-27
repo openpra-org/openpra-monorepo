@@ -126,6 +126,16 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           },
           1,
         ),
+        createTreeItem(
+          "Failure Modes And Effects Analyses",
+          {
+            icon: <EuiToken iconType="shard" />,
+            callback: () => {
+              navigate("failure-modes-and-effects-analyses");
+            },
+          },
+          1,
+        ),
       ],
     }),
   ];

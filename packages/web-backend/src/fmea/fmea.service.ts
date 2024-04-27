@@ -79,7 +79,9 @@ export class FmeaService {
   async getFmeaById(id: number): Promise<Fmea | null> {
     return this.fmeaModel.findOne({ id: id }).lean();
   }
-
+  async getAllFmea() {
+    return this.fmeaModel.find().lean();
+  }
   async fectchFmeaById(id: number, body): Promise<Fmea | null> {
     const response = await this.fmeaModel.findOne({ id: id }).lean();
     body.id = id;

@@ -28,6 +28,7 @@ export type EventSequenceNodeProps = {
   isUpdated?: boolean;
   isDeleted?: boolean;
   label?: string;
+  branchId?: string;
 };
 
 export { ESNodeTypes };

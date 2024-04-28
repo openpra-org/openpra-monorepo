@@ -13,6 +13,7 @@ export type EventSequenceEdgeProps = {
   tentative?: boolean;
   label?: string;
   order?: number;
+  branchId?: string;
 };
 
 export { ESEdgeTypes };

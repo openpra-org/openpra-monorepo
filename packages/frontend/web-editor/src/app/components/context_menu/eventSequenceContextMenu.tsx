@@ -10,8 +10,10 @@ import {
 } from "../treeNodes/eventSequenceNodes/eventSequenceNodeType";
 import {
   DeleteEventSequenceNode,
+  GetChildCount,
   GetDefaultLabelOfNode,
   GetESToast,
+  GetParentNode,
   UpdateEventSequenceDiagram,
   UpdateEventSequenceNode,
 } from "../../../utils/treeUtils";
@@ -22,6 +24,7 @@ import EndStateNodeIcon from "../../../assets/images/nodeIcons/endStateNodeIcon.
 import TransferStateNodeIcon from "../../../assets/images/nodeIcons/transferStateNodeIcon.svg";
 import UndevelopedNodeIcon from "../../../assets/images/nodeIcons/undevelopedNodeIcon.svg";
 import { UseToastContext } from "../../providers/toastProvider";
+import { UseFocusContext } from "../../providers/focusProvider";
 import { EventSequenceContextMenuOptions } from "./interfaces/eventSequenceContextMenuOptions.interface";
 
 /**
@@ -34,9 +37,11 @@ function EventSequenceContextMenu({
   onClick,
   isDelete = false,
 }: EventSequenceContextMenuOptions): JSX.Element {
-  const { getNode, getNodes, getEdges, setNodes, setEdges } = useReactFlow();
+  const { fitView, getNode, getNodes, getEdges, setNodes, setEdges } =
+    useReactFlow();
   const { addToast } = UseToastContext();
   const { eventSequenceId } = useParams() as { eventSequenceId: string };
+  const { setFocus } = UseFocusContext();
 
   const onItemClick = useCallback(
     (id: NodeProps["id"], type: "delete" | EventSequenceNodeTypes) => {
@@ -52,6 +57,10 @@ function EventSequenceContextMenu({
         return;
       }
 
+      if (parentNode.type === undefined) {
+        return;
+      }
+
       if (
         parentNode.data.isDeleted === true ||
         parentNode.data.tentative === true
@@ -60,6 +69,15 @@ function EventSequenceContextMenu({
 
       // if the event is for delete node, handle it separately
       if (type === "delete") {
+        if (parentNode.type === "functional") {
+          fitView({
+            nodes: [{ id: parentNode.id }],
+            duration: 500,
+            maxZoom: 1.6,
+          });
+        } else {
+          setFocus(GetParentNode(parentNode, currentNodes, currentEdges).id);
+        }
         const onDeleteState = DeleteEventSequenceNode(
           parentNode,
           currentNodes,
@@ -73,8 +91,15 @@ function EventSequenceContextMenu({
               eventSequenceId,
               onDeleteState.updatedSubgraph,
               onDeleteState.deletedSubgraph,
-              onDeleteState.updatedState,
-            );
+            )
+              .then((r) => {
+                if (!r) {
+                  addToast(GetESToast("danger", "Something went wrong"));
+                }
+              })
+              .catch(() => {
+                addToast(GetESToast("danger", "Something went wrong"));
+              });
           }
         }
         onClick && onClick();
@@ -93,6 +118,8 @@ function EventSequenceContextMenu({
       }
 
       // change child nodes based on the updated type of node
+      const childCount = GetChildCount(parentNode.type);
+      const newChildCount = GetChildCount(type);
       parentNode.type = type;
       parentNode.data.label = GetDefaultLabelOfNode(type);
 
@@ -109,20 +136,38 @@ function EventSequenceContextMenu({
             eventSequenceId,
             state.updatedSubgraph,
             state.deletedSubgraph,
-            state.updatedState,
-          );
+          )
+            .then((r) => {
+              if (!r) {
+                addToast(GetESToast("danger", "Something went wrong"));
+              }
+            })
+            .catch(() => {
+              addToast(GetESToast("danger", "Something went wrong"));
+            });
         }
+      }
+      if (childCount === newChildCount) {
+        fitView({
+          nodes: [{ id: parentNode.id }],
+          duration: 500,
+          maxZoom: 1.6,
+        });
+      } else {
+        setFocus(parentNode.id);
       }
       onClick && onClick();
     },
     [
       addToast,
       eventSequenceId,
+      fitView,
       getEdges,
       getNode,
       getNodes,
       onClick,
       setEdges,
+      setFocus,
       setNodes,
     ],
   );

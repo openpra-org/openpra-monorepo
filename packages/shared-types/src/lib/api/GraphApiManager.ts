@@ -46,19 +46,6 @@ export class GraphApiManager {
   }
 
   /**
-   * Store (create/update) the event sequence graph based on the latest state of the graph
-   * @param data - Current state of event sequence graph
-   * @returns Updated event sequence graph
-   */
-  static async storeEventSequence(data: EventSequenceGraph): Promise<boolean> {
-    return await this.post(`${EventSequenceDiagramEndpoint}`, data)
-      .then((res) => this.getEventSequenceBooleanResponse(res))
-      .catch((err) => {
-        throw err;
-      });
-  }
-
-  /**
    * Fetch the event sequence graph based on the event sequence id
    * @param eventSequenceId - Event sequence id
    * @returns Latest event sequence graph
@@ -70,18 +57,6 @@ export class GraphApiManager {
       `${EventSequenceDiagramEndpoint}/?eventSequenceId=${eventSequenceId}`,
     )
       .then((res) => this.getEventSequenceResponse(res, eventSequenceId))
-      .catch((error) => {
-        throw error;
-      });
-  }
-
-  static async checkIfEventSequenceDiagramExists(
-    eventSequenceId = "-1",
-  ): Promise<boolean> {
-    return await this.get(
-      `${EventSequenceDiagramEndpoint}/exists?eventSequenceId=${eventSequenceId}`,
-    )
-      .then((res) => this.getEventSequenceBooleanResponse(res))
       .catch((error) => {
         throw error;
       });
@@ -143,25 +118,20 @@ export class GraphApiManager {
     eventSequenceId: string,
     updatedSubgraph: EventSequenceGraph,
     deletedSubgraph: EventSequenceGraph,
-    currentState: EventSequenceGraph,
   ): Promise<boolean> {
-    const existingDiagram =
-      await this.checkIfEventSequenceDiagramExists(eventSequenceId);
-    return existingDiagram
-      ? await this.patch<{
-          eventSequenceId: string;
-          updated: EventSequenceGraph;
-          deleted: EventSequenceGraph;
-        }>(`${EventSequenceDiagramEndpoint}`, {
-          eventSequenceId: eventSequenceId,
-          updated: updatedSubgraph,
-          deleted: deletedSubgraph,
-        })
-          .then((res) => this.getEventSequenceBooleanResponse(res))
-          .catch((err) => {
-            throw err;
-          })
-      : await this.storeEventSequence(currentState);
+    return await this.patch<{
+      eventSequenceId: string;
+      updated: EventSequenceGraph;
+      deleted: EventSequenceGraph;
+    }>(`${EventSequenceDiagramEndpoint}`, {
+      eventSequenceId: eventSequenceId,
+      updated: updatedSubgraph,
+      deleted: deletedSubgraph,
+    })
+      .then((res) => this.getEventSequenceBooleanResponse(res))
+      .catch((err) => {
+        throw err;
+      });
   }
 
   /**

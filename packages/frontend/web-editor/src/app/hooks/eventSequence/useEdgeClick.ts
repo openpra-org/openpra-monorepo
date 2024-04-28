@@ -14,6 +14,7 @@ import {
 } from "../../components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
 import { EventSequenceEdgeProps } from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 import { UseToastContext } from "../../providers/toastProvider";
+import { UseFocusContext } from "../../providers/focusProvider";
 
 /**
  * Hook for handling click events on edges in a React Flow diagram.
@@ -35,6 +36,7 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
     useReactFlow();
   const { eventSequenceId } = useParams() as { eventSequenceId: string };
   const { addToast } = UseToastContext();
+  const { setFocus } = UseFocusContext();
 
   return (): void => {
     const currentNodes = getNodes();
@@ -113,6 +115,8 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
       .filter((e) => e.id !== id)
       .concat([sourceEdge, targetEdge]);
 
+    setFocus(insertNode.id);
+
     setNodes(nodes);
     setEdges(edges);
 
@@ -120,8 +124,15 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
       eventSequenceId,
       { nodes: [insertNode], edges: [sourceEdge, targetEdge] },
       { nodes: [], edges: [edge] },
-      { nodes, edges },
-    );
+    )
+      .then((r) => {
+        if (!r) {
+          addToast(GetESToast("danger", "Something went wrong"));
+        }
+      })
+      .catch(() => {
+        addToast(GetESToast("danger", "Something went wrong"));
+      });
   };
 }
 

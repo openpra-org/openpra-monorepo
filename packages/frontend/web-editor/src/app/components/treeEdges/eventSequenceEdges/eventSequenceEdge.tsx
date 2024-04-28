@@ -3,8 +3,10 @@ import { EdgeProps, getBezierPath, Edge, useReactFlow } from "reactflow";
 import { EuiFieldText } from "@elastic/eui";
 import cx from "classnames";
 import { debounce } from "lodash";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { UseEdgeClick } from "../../../hooks/eventSequence/useEdgeClick";
-import { UpdateEventSequenceLabel } from "../../../../utils/treeUtils";
+import { GetESToast } from "../../../../utils/treeUtils";
+import { UseToastContext } from "../../../providers/toastProvider";
 import styles from "./styles/edgeType.module.css";
 import { EventSequenceEdgeProps } from "./eventSequenceEdgeType";
 
@@ -36,6 +38,7 @@ function EventSequenceEdge(
         targetPosition,
       });
       const [edgeLabel, setEdgeLabel] = useState(data.label ?? "");
+      const { addToast } = UseToastContext();
       const updateHandler = useCallback(
         debounce((newLabel: string): void => {
           setEdges(
@@ -46,7 +49,15 @@ function EventSequenceEdge(
               return n;
             }),
           );
-          UpdateEventSequenceLabel(id, newLabel, "edge");
+          GraphApiManager.updateESLabel(id, newLabel, "edge")
+            .then((r) => {
+              if (!r) {
+                addToast(GetESToast("danger", "Something went wrong"));
+              }
+            })
+            .catch(() => {
+              addToast(GetESToast("danger", "Something went wrong"));
+            });
         }, 500),
         [getEdges, id, setEdges],
       );
@@ -70,6 +81,7 @@ function EventSequenceEdge(
               onChange={onEdgeLabelChange}
               compressed={true}
               disabled={data.tentative}
+              title={edgeLabel}
             />
           </foreignObject>
         );

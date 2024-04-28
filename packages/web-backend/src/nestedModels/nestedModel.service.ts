@@ -6,6 +6,7 @@ import {
   NestedCounterDocument,
 } from "../schemas/tree-counter.schema";
 import { Label } from "../schemas/label.schema";
+import { GraphModelService } from "../graphModels/graphModel.service";
 import { NestedModel } from "./schemas/templateSchema/nested-model.schema";
 import {
   BayesianEstimation,
@@ -128,6 +129,7 @@ export class NestedModelService {
     private readonly eventSequenceAnalysisModel: Model<EventSequenceAnalysisDocument>,
     @InjectModel(OperatingStateAnalysis.name)
     private readonly operatingStateAnalysisModel: Model<OperatingStateAnalysisDocument>,
+    private readonly graphModelService: GraphModelService,
   ) {}
 
   /**
@@ -203,7 +205,11 @@ export class NestedModelService {
     body: Partial<NestedModel>,
   ): Promise<NestedModel> {
     const newEventSequenceDiagram = new this.eventSequenceDiagramModel(body);
-    newEventSequenceDiagram.id = await this.getNextValue("nestedCounter");
+    const eventSequenceId: number = await this.getNextValue("nestedCounter");
+    newEventSequenceDiagram.id = eventSequenceId;
+    await this.graphModelService.saveEventSequenceDiagramGraph({
+      eventSequenceId: eventSequenceId.toString(),
+    });
     return newEventSequenceDiagram.save();
   }
 

@@ -10,7 +10,13 @@
   text-align: center;
   color: #0984e3;
   cursor: pointer;
-  line-height: 1.2;
+  line-height: 1.15;
+  & textarea {
+    box-shadow: none !important;
+    overflow: hidden;
+    line-height: 1.15;
+    text-overflow: ellipsis;
+  }
 }
 
 .node_container {
@@ -26,7 +32,17 @@
   padding: 0 !important;
   height: 20px !important;
   margin-top: -10px !important;
+  outline: none;
+  background: none;
+  background-color: unset !important;
 }
+
+.node_label:focus:focus-visible {
+  outline: none;
+  background-image: none;
+  background-color: unset;
+}
+
 
 .node:hover {
   background: radial-gradient(
@@ -61,13 +77,21 @@
 }
 
 .initiating_node {
-  padding-top: 17px;
+  padding-top: 15px;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
+  & textarea {
+    height: 30px !important;
+  }
 }
 
 .description_node {
-  padding-top: 17.5px;
+  padding-top: 19px;
   width: 100px;
   border-radius: 50%;
+  & textarea {
+    height: 30px !important;
+  }
 }
 
 .end_state_node_container {
@@ -83,7 +107,9 @@
   left: 0;
   width: 100%;
   height: 100%;
-  padding-top: 17.5px;
+  padding-top: 15px;
+  padding-left: 8px;
+  padding-right: 8px;
   clip-path: polygon(
     25% 0,
     75% 0,
@@ -94,6 +120,9 @@
     0 75%,
     0 25%
   );
+  & textarea {
+    height: 40px !important;
+  }
 }
 
 .end_state_node_border {
@@ -116,11 +145,12 @@
 }
 
 .functional_node {
-  padding-top: 18px;
-  padding-left: 5px;
+  padding-top: 15px;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
   width: 75px;
-  & input {
-    width: 65px !important;
+  & textarea {
+    height: 40px !important;
   }
 }
 
@@ -137,9 +167,13 @@
   left: 0;
   width: 100%;
   height: 100%;
-  padding-top: 17.5px;
-  padding-left: 11px;
+  padding-top: 15px;
+  padding-left: 15px;
+  padding-right: 15px;
   clip-path: polygon(0 50%, 25% 100%, 75% 100%, 100% 50%, 75% 0, 25% 0);
+  & textarea {
+    height: 40px !important;
+  }
 }
 
 .inter_state_node_border {
@@ -157,9 +191,6 @@
   position: relative;
   width: 100px;
   height: 50px;
-  & input {
-    width: 70px !important;
-  }
 }
 
 .undeveloped_node {
@@ -168,9 +199,13 @@
   left: 0;
   width: 100%;
   height: 100%;
-  padding-top: 19.5px;
-  padding-left: 10px;
+  padding-top: 23px;
+  padding-left: 15px;
+  padding-right: 15px;
   clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+  & textarea {
+    height: 25px !important;
+  }
 }
 
 .undeveloped_node_border {
@@ -189,9 +224,6 @@
   width: 100px;
   height: 50px;
   overflow: hidden;
-  & input {
-    width: 70px !important;
-  }
 }
 
 .transfer_state_node {
@@ -200,8 +232,8 @@
   left: 0;
   width: 100%;
   height: 100%;
-  padding-top: 17.5px;
-  padding-left: 6px;
+  padding-top: 22px;
+  padding-left: 3px;
   clip-path: polygon(
     0% 25%,
     50% 25%,
@@ -211,6 +243,9 @@
     50% 75%,
     0% 75%
   );
+  & textarea {
+    height: 25px !important;
+  }
 }
 
 .transfer_state_node_border {

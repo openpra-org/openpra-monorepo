@@ -1,7 +1,9 @@
 import * as mongoose from "mongoose";
 import { HydratedDocument, Model } from "mongoose";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
+import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
+import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
 import {
   EventSequenceDiagramGraph,
   EventSequenceDiagramGraphDocument,
@@ -30,6 +32,7 @@ enum GraphTypes {
 
 @Injectable()
 export class GraphModelService {
+  private readonly logger = new Logger(GraphModelService.name);
   constructor(
     @InjectModel(EventSequenceDiagramGraph.name)
     private readonly eventSequenceDiagramGraphModel: Model<EventSequenceDiagramGraphDocument>,
@@ -38,20 +41,6 @@ export class GraphModelService {
     @InjectModel(EventTreeGraph.name)
     private readonly eventTreeGraphModel: Model<EventTreeGraphDocument>,
   ) {}
-
-  /**
-   * Saves the event sequence diagram graph
-   * @param body - The current state of the event sequence diagram graph
-   * @returns A promise with an event sequence diagram graph in it
-   */
-  async saveEventSequenceDiagramGraph(
-    body: Partial<EventSequenceDiagramGraph>,
-  ): Promise<boolean> {
-    const existingGraph = await this.eventSequenceDiagramGraphModel.findOne({
-      eventSequenceId: body.eventSequenceId,
-    });
-    return this.saveGraph(existingGraph, body, GraphTypes.EventSequence);
-  }
 
   /**
    * Sets the event sequence diagram graph for the given event sequence ID
@@ -78,14 +67,28 @@ export class GraphModelService {
     }
   }
 
-  async checkIfEventSequenceDiagramGraphExists(
-    eventSequenceId: string,
-  ): Promise<boolean> {
-    const result = await this.eventSequenceDiagramGraphModel.findOne(
-      { eventSequenceId: eventSequenceId },
-      { _id: 0 },
-    );
-    return result !== null;
+  /**
+   * Saves the event sequence diagram graph
+   * @param body - The current state of the event sequence diagram graph
+   * @returns A promise with an event sequence diagram graph in it
+   */
+  async saveEventSequenceDiagramGraph(
+    body: Partial<EventSequenceDiagramGraph>,
+  ): Promise<EventSequenceDiagramGraph> {
+    try {
+      const newGraph = new this.eventSequenceDiagramGraphModel(body);
+      newGraph.eventSequenceId = body.eventSequenceId;
+      newGraph.id = this.generateUUID();
+      newGraph._id = new mongoose.Types.ObjectId();
+      const defaultEventSequenceGraph = this.getDefaultEventSequenceDiagram();
+      newGraph.nodes = defaultEventSequenceGraph.nodes;
+      newGraph.edges = defaultEventSequenceGraph.edges;
+      return newGraph.save();
+    } catch (exception) {
+      const error = exception as Error;
+      this.logger.error(error.message, error.stack);
+      throw new Error();
+    }
   }
 
   /**
@@ -94,10 +97,16 @@ export class GraphModelService {
    * @returns A promise with a fault tree diagram graph in it
    */
   async saveFaultTreeGraph(body: Partial<FaultTreeGraph>): Promise<boolean> {
-    const existingGraph = await this.faultTreeGraphModel.findOne({
-      faultTreeId: body.faultTreeId,
-    });
-    return this.saveGraph(existingGraph, body, GraphTypes.FaultTree);
+    try {
+      const existingGraph = await this.faultTreeGraphModel.findOne({
+        faultTreeId: body.faultTreeId,
+      });
+      return this.saveGraph(existingGraph, body, GraphTypes.FaultTree);
+    } catch (exception) {
+      const error = exception as Error;
+      this.logger.error(error.message, error.stack);
+      throw new Error();
+    }
   }
 
   /**
@@ -129,10 +138,16 @@ export class GraphModelService {
    * @returns A promise with a event tree diagram graph in it
    */
   async saveEventTreeGraph(body: Partial<EventTreeGraph>): Promise<boolean> {
-    const existingGraph = await this.eventTreeGraphModel.findOne({
-      eventTreeId: body.eventTreeId,
-    });
-    return this.saveGraph(existingGraph, body, GraphTypes.EventTree);
+    try {
+      const existingGraph = await this.eventTreeGraphModel.findOne({
+        eventTreeId: body.eventTreeId,
+      });
+      return this.saveGraph(existingGraph, body, GraphTypes.EventTree);
+    } catch (exception) {
+      const error = exception as Error;
+      this.logger.error(error.message, error.stack);
+      throw new Error();
+    }
   }
 
   /**
@@ -170,20 +185,32 @@ export class GraphModelService {
     type: string,
     label: string,
   ): Promise<boolean> {
-    // check if type is valid
-    if (!["node", "edge"].includes(type)) return false;
+    try {
+      // check if type is valid
+      if (!["node", "edge"].includes(type)) {
+        this.logger.error(`Invalid type (${type}) provided to update label`);
+        return false;
+      }
 
-    // attribute filter for node/edge
-    const attribute = type === "node" ? "nodes" : "edges";
-    const filter = {};
-    const set = {};
-    filter[`${attribute}.id`] = id;
-    set[`${attribute}.$.data.label`] = label;
+      // attribute filter for node/edge
+      const attribute = type === "node" ? "nodes" : "edges";
+      const filter = {};
+      const set = {};
+      filter[`${attribute}.id`] = id;
+      set[`${attribute}.$.data.label`] = label;
 
-    const result = await this.eventSequenceDiagramGraphModel.updateOne(filter, {
-      $set: set,
-    });
-    return result.modifiedCount > 0;
+      const result = await this.eventSequenceDiagramGraphModel.updateOne(
+        filter,
+        {
+          $set: set,
+        },
+      );
+      return result.modifiedCount > 0;
+    } catch (exception) {
+      const error = exception as Error;
+      this.logger.error(error.message, error.stack);
+      throw new Error();
+    }
   }
 
   async updateESSubgraph(
@@ -191,30 +218,36 @@ export class GraphModelService {
     updatedSubgraph: Partial<EventSequenceDiagramGraph>,
     deletedSubgraph: Partial<EventSequenceDiagramGraph>,
   ): Promise<boolean> {
-    const existingGraph = await this.eventSequenceDiagramGraphModel.findOne({
-      eventSequenceId: eventSequenceId,
-    });
-    if (existingGraph === null) return false;
+    try {
+      const existingGraph = await this.eventSequenceDiagramGraphModel.findOne({
+        eventSequenceId: eventSequenceId,
+      });
+      if (existingGraph === null) return false;
 
-    existingGraph.nodes = existingGraph.nodes
-      .filter(
-        (node) =>
-          ![...deletedSubgraph.nodes, ...updatedSubgraph.nodes].some(
-            (n) => n.id === node.id,
-          ),
-      )
-      .concat(...updatedSubgraph.nodes);
-    existingGraph.edges = existingGraph.edges
-      .filter(
-        (edge) =>
-          ![...deletedSubgraph.edges, ...updatedSubgraph.edges].some(
-            (e) => e.id === edge.id,
-          ),
-      )
-      .concat(...updatedSubgraph.edges);
+      existingGraph.nodes = existingGraph.nodes
+        .filter(
+          (node) =>
+            ![...deletedSubgraph.nodes, ...updatedSubgraph.nodes].some(
+              (n) => n.id === node.id,
+            ),
+        )
+        .concat(...updatedSubgraph.nodes);
+      existingGraph.edges = existingGraph.edges
+        .filter(
+          (edge) =>
+            ![...deletedSubgraph.edges, ...updatedSubgraph.edges].some(
+              (e) => e.id === edge.id,
+            ),
+        )
+        .concat(...updatedSubgraph.edges);
 
-    await existingGraph.save();
-    return true;
+      await existingGraph.save();
+      return true;
+    } catch (exception) {
+      const error = exception as Error;
+      this.logger.error(error.message, error.stack);
+      throw new Error();
+    }
   }
 
   /**
@@ -264,5 +297,82 @@ export class GraphModelService {
       default:
         throw new Error("model type not found");
     }
+  }
+
+  private generateUUID(): string {
+    return (
+      new Date().getTime().toString(36) + Math.random().toString(36).slice(2)
+    );
+  }
+
+  private getDefaultEventSequenceDiagram(): Partial<EventSequenceDiagramGraphDocument> {
+    const initiatingEventId = this.generateUUID();
+    const functionalEventId = this.generateUUID();
+    const firstEndStateId = this.generateUUID();
+    const secondEndStateId = this.generateUUID();
+
+    const defaultNodes: GraphNode<object>[] = [
+      {
+        id: initiatingEventId,
+        data: {
+          label: "Initiating Event",
+        },
+        position: { x: 0, y: 0 },
+        type: "initiating",
+      },
+      {
+        id: functionalEventId,
+        data: {
+          label: "Functional",
+        },
+        position: { x: 0, y: 0 },
+        type: "functional",
+      },
+      {
+        id: firstEndStateId,
+        data: {
+          label: "End State",
+        },
+        position: { x: 0, y: 0 },
+        type: "end",
+      },
+      {
+        id: secondEndStateId,
+        data: {
+          label: "End State",
+        },
+        position: { x: 0, y: 0 },
+        type: "end",
+      },
+    ];
+
+    const defaultEdges: GraphEdge<object>[] = [
+      {
+        id: `${initiatingEventId}->${functionalEventId}`,
+        source: initiatingEventId,
+        target: functionalEventId,
+        type: "normal",
+        animated: false,
+        data: {},
+      },
+      {
+        id: `${functionalEventId}->${firstEndStateId}`,
+        source: functionalEventId,
+        target: firstEndStateId,
+        type: "functional",
+        data: { label: "Yes", order: 1 },
+        animated: false,
+      },
+      {
+        id: `${functionalEventId}->${secondEndStateId}`,
+        source: functionalEventId,
+        target: secondEndStateId,
+        type: "functional",
+        data: { label: "No", order: 2 },
+        animated: false,
+      },
+    ];
+
+    return { nodes: defaultNodes, edges: defaultEdges };
   }
 }

@@ -4,6 +4,19 @@ import {
   NestedCounter,
   NestedCounterSchema,
 } from "../schemas/tree-counter.schema";
+import { GraphModelService } from "../graphModels/graphModel.service";
+import {
+  EventSequenceDiagramGraph,
+  EventSequenceDiagramGraphSchema,
+} from "../schemas/graphs/event-sequence-diagram-graph.schema";
+import {
+  FaultTreeGraph,
+  FaultTreeGraphSchema,
+} from "../schemas/graphs/fault-tree-graph.schema";
+import {
+  EventTreeGraph,
+  EventTreeGraphSchema,
+} from "../schemas/graphs/event-tree-graph.schema";
 import { NestedModelService } from "./nestedModel.service";
 import { NestedModelController } from "./nestedModel.controller";
 import {
@@ -114,10 +127,16 @@ import {
         name: OperatingStateAnalysis.name,
         schema: OperatingStateAnalysisSchema,
       },
+      {
+        name: EventSequenceDiagramGraph.name,
+        schema: EventSequenceDiagramGraphSchema,
+      },
+      { name: FaultTreeGraph.name, schema: FaultTreeGraphSchema },
+      { name: EventTreeGraph.name, schema: EventTreeGraphSchema },
     ]),
   ],
   controllers: [NestedModelController],
-  providers: [NestedModelService],
+  providers: [NestedModelService, GraphModelService],
   exports: [NestedModelService],
 })
 export class NestedModelModule {}

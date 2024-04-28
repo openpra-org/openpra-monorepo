@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Patch, Post, Query } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  HttpException,
+  HttpStatus,
+  Patch,
+  Post,
+  Query,
+} from "@nestjs/common";
 import { EventSequenceDiagramGraph } from "../schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph } from "../schemas/graphs/fault-tree-graph.schema";
 import { EventTreeGraph } from "../schemas/graphs/event-tree-graph.schema";
@@ -10,19 +19,6 @@ export class GraphModelController {
   constructor(private readonly graphModelService: GraphModelService) {}
 
   /**
-   * stores/creates an event sequence diagram graph
-   * @param data - takes in a partial of an event sequence diagram model
-   * as well as the eventSequenceId, if the id is missing - a new graph document will be created.
-   * @returns a promise with the newly created graph model
-   */
-  @Post("/event-sequence-diagram-graph")
-  async saveEventSequenceDiagramGraph(
-    @Body() data: Partial<EventSequenceDiagramGraph>,
-  ): Promise<boolean> {
-    return this.graphModelService.saveEventSequenceDiagramGraph(data);
-  }
-
-  /**
    * stores/creates a fault tree diagram graph
    * @param data - takes in a partial of a fault tree diagram model
    * as well as the faultTreeId, if the id is missing - a new graph document will be created.
@@ -32,7 +28,14 @@ export class GraphModelController {
   async createFaultTreeGraph(
     @Body() data: Partial<FaultTreeGraph>,
   ): Promise<boolean> {
-    return this.graphModelService.saveFaultTreeGraph(data);
+    try {
+      return this.graphModelService.saveFaultTreeGraph(data);
+    } catch (_) {
+      throw new HttpException(
+        "Something went wrong",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   /**
@@ -45,7 +48,14 @@ export class GraphModelController {
   async createEventTreeGraph(
     @Body() data: Partial<EventTreeGraph>,
   ): Promise<boolean> {
-    return this.graphModelService.saveEventTreeGraph(data);
+    try {
+      return this.graphModelService.saveEventTreeGraph(data);
+    } catch (_) {
+      throw new HttpException(
+        "Something went wrong",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   /**
@@ -58,15 +68,6 @@ export class GraphModelController {
     @Query("eventSequenceId") eventSequenceId: string,
   ): Promise<EventSequenceDiagramGraph> {
     return this.graphModelService.getEventSequenceDiagramGraph(eventSequenceId);
-  }
-
-  @Get("/event-sequence-diagram-graph/exists")
-  async checkIfEventSequenceDiagramGraphExists(
-    @Query("eventSequenceId") eventSequenceId: string,
-  ): Promise<boolean> {
-    return this.graphModelService.checkIfEventSequenceDiagramGraphExists(
-      eventSequenceId,
-    );
   }
 
   /**
@@ -94,7 +95,14 @@ export class GraphModelController {
     @Body("type") type: string,
     @Body("label") label: string,
   ): Promise<boolean> {
-    return this.graphModelService.updateESLabel(id, type, label);
+    try {
+      return this.graphModelService.updateESLabel(id, type, label);
+    } catch (_) {
+      throw new HttpException(
+        "Something went wrong",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Patch("/event-sequence-diagram-graph")
@@ -103,11 +111,18 @@ export class GraphModelController {
     @Body("updated") updatedSubgraph: Partial<BaseGraph>,
     @Body("deleted") deletedSubgraph: Partial<BaseGraph>,
   ): Promise<boolean> {
-    return this.graphModelService.updateESSubgraph(
-      eventSequenceId,
-      updatedSubgraph,
-      deletedSubgraph,
-    );
+    try {
+      return this.graphModelService.updateESSubgraph(
+        eventSequenceId,
+        updatedSubgraph,
+        deletedSubgraph,
+      );
+    } catch (_) {
+      throw new HttpException(
+        "Something went wrong",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   /**

@@ -11,12 +11,15 @@ import { useParams } from "react-router-dom";
 import { EventSequenceNodeProps } from "../../components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
 import {
   BuildAnEdge,
+  GetESToast,
   GetIncomingEdge,
   GetParentNode,
   GetSubgraph,
   UpdateEventSequenceDiagram,
 } from "../../../utils/treeUtils";
 import { EventSequenceEdgeProps } from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
+import { UseToastContext } from "../../providers/toastProvider";
+import { UseFocusContext } from "../../providers/focusProvider";
 
 /**
  * Hook for handling click events on nodes in a React Flow diagram.
@@ -34,6 +37,8 @@ function UseNodeClick(
 ): () => void {
   const { getNode, getNodes, getEdges, setNodes, setEdges } = useReactFlow();
   const { eventSequenceId } = useParams() as { eventSequenceId: string };
+  const { addToast } = UseToastContext();
+  const { setFocus } = UseFocusContext();
 
   return useCallback((): void => {
     const node: Node<EventSequenceNodeProps> | undefined = getNode(id);
@@ -42,13 +47,15 @@ function UseNodeClick(
     if (node === undefined) return;
 
     // a tentatively updated/deleted node is clicked
-    if (data.tentative) {
+    if (data.branchId !== undefined) {
       // get parent node
-      const functionalNode: Node<EventSequenceNodeProps> = GetParentNode(
-        node,
-        currentNodes,
-        currentEdges,
-      );
+      const functionalNode: Node<EventSequenceNodeProps> | undefined =
+        currentNodes.find(
+          (node) =>
+            node.data.branchId === undefined && node.data.tentative === true,
+        );
+      if (functionalNode === undefined) return;
+
       // if the parent node is the one that was selected to be updated/deleted
       if (
         functionalNode.data.isDeleted === true ||
@@ -110,12 +117,19 @@ function UseNodeClick(
                   return {
                     ...edge,
                     type: "normal",
-                    data: { ...edge.data, tentative: false, label: undefined },
+                    animated: false,
+                    data: {
+                      ...edge.data,
+                      tentative: false,
+                      label: undefined,
+                      branchId: undefined,
+                    },
                   };
                 }
                 return {
                   ...edge,
-                  data: { ...edge.data, tentative: false },
+                  animated: false,
+                  data: { ...edge.data, tentative: false, branchId: undefined },
                 };
               });
               // remove the edge(s) sourced from the functional node
@@ -130,11 +144,13 @@ function UseNodeClick(
               updatedNodes = [...nodes, child].map(
                 (node: Node<EventSequenceNodeProps>) => ({
                   ...node,
+                  animated: false,
                   data: {
                     ...node.data,
                     tentative: false,
                     isDeleted: false,
                     isUpdated: false,
+                    branchId: undefined,
                   },
                 }),
               );
@@ -150,7 +166,8 @@ function UseNodeClick(
                 ),
               ].map((edge: Edge<EventSequenceEdgeProps>) => ({
                 ...edge,
-                data: { ...edge.data, tentative: false },
+                animated: false,
+                data: { ...edge.data, tentative: false, branchId: undefined },
               }));
               // delete the functional node
               deletedNodes = deletedNodes.concat(functionalNode);
@@ -188,11 +205,22 @@ function UseNodeClick(
           eventSequenceId,
           { nodes: updatedNodes, edges: updatedEdges },
           { nodes: deletedNodes, edges: deletedEdges },
-          { nodes: finalNodes, edges: finalEdges },
-        );
+        )
+          .then((r) => {
+            if (!r) {
+              addToast(GetESToast("danger", "Something went wrong"));
+            }
+          })
+          .catch(() => {
+            addToast(GetESToast("danger", "Something went wrong"));
+          });
       }
+
+      setFocus(node.id);
     }
   }, [
+    addToast,
+    data.branchId,
     data.tentative,
     eventSequenceId,
     getEdges,
@@ -200,6 +228,7 @@ function UseNodeClick(
     getNodes,
     id,
     setEdges,
+    setFocus,
     setNodes,
   ]);
 }

@@ -7,6 +7,7 @@ import {
   ReactFlowState,
   Position,
   getConnectedEdges,
+  FitViewOptions,
 } from "reactflow";
 import { HierarchyNode, stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
@@ -15,6 +16,7 @@ import {
   GetIncomingEdge,
   GetParentNode,
 } from "../../../utils/treeUtils";
+import { UseFocusContext } from "../../providers/focusProvider";
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
 const layout = tree<Node>()
@@ -47,6 +49,7 @@ function UseLayout(): void {
 
   const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } =
     useReactFlow();
+  const { focusNodeId, reset } = UseFocusContext();
 
   useEffect(() => {
     if (!nodeCount) return;
@@ -155,7 +158,16 @@ function UseLayout(): void {
         // stop the animation
         t.stop();
 
-        fitView({ duration: 200, padding: 0.2 });
+        const fitViewOptions: FitViewOptions = {
+          duration: 500,
+          padding: 0.2,
+        };
+        if (focusNodeId !== undefined) {
+          fitViewOptions.nodes = [{ id: focusNodeId }];
+          fitViewOptions.maxZoom = 1.6;
+          reset();
+        }
+        fitView(fitViewOptions);
       }
     });
   }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);

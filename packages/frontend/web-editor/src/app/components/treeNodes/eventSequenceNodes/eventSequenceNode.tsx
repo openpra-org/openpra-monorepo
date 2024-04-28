@@ -1,10 +1,12 @@
 import { Handle, Node, NodeProps, Position, useReactFlow } from "reactflow";
 import { memo, MemoExoticComponent, useCallback, useState } from "react";
 import cx from "classnames";
-import { EuiFieldText } from "@elastic/eui";
+import { EuiTextArea, useEuiFontSize } from "@elastic/eui";
 import { debounce } from "lodash";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { UseNodeClick } from "../../../hooks/eventSequence/useNodeClick";
-import { UpdateEventSequenceLabel } from "../../../../utils/treeUtils";
+import { GetESToast } from "../../../../utils/treeUtils";
+import { UseToastContext } from "../../../providers/toastProvider";
 import {
   EventSequenceNodeProps,
   EventSequenceNodeTypes,
@@ -28,6 +30,8 @@ function GetNodeElements(
   let handles: JSX.Element;
   const { getNodes, setNodes } = useReactFlow();
   const [nodeLabel, setNodeLabel] = useState(data.label ?? "");
+  const { addToast } = UseToastContext();
+  const fontSize = useEuiFontSize("xs").fontSize;
   const updateHandler = useCallback(
     debounce((newLabel: string): void => {
       setNodes(
@@ -38,12 +42,20 @@ function GetNodeElements(
           return n;
         }),
       );
-      UpdateEventSequenceLabel(id, newLabel, "node");
+      GraphApiManager.updateESLabel(id, newLabel, "node")
+        .then((r) => {
+          if (!r) {
+            addToast(GetESToast("danger", "Something went wrong"));
+          }
+        })
+        .catch(() => {
+          addToast(GetESToast("danger", "Something went wrong"));
+        });
     }, 500),
     [getNodes, id, setNodes],
   );
   const onNodeLabelChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>): void => {
+    (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
       const newLabel = e.target.value;
       setNodeLabel(newLabel);
       updateHandler(newLabel);
@@ -102,13 +114,16 @@ function GetNodeElements(
   }
   return (
     <>
-      <EuiFieldText
+      <EuiTextArea
         className={cx(stylesMap.node_label)}
+        style={{ fontSize: fontSize }}
         placeholder="Node Label"
         value={nodeLabel}
+        fullWidth={true}
         onChange={onNodeLabelChange}
-        compressed={true}
-        disabled={data.isDeleted === true || data.tentative === true}
+        resize={"none"}
+        readOnly={data.tentative === true || data.branchId !== undefined}
+        title={nodeLabel}
       />
       {handles}
     </>
@@ -135,7 +150,7 @@ function GetNode(
   testId: string,
   borderClassName: string | undefined = undefined,
 ): JSX.Element {
-  const border = selected ? "#7c0a02" : "#0984e3";
+  const border = selected && !data.tentative ? "#02337c" : "#0984e3";
   const onClick = UseNodeClick(id, data);
   const nodeElements: JSX.Element = GetNodeElements(id, type, data);
   switch (type) {

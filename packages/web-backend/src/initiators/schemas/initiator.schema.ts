@@ -8,6 +8,9 @@ export class Initiator {
 
   @Prop()
   group: string[];
+
+  @Prop()
+  sources: string[];
 }
 
 export type InitiatorDocument = Initiator & Document;

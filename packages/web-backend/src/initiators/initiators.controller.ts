@@ -25,7 +25,7 @@ export class InitiatorController {
   /**
    * @returns all initiators
    */
-  @Get("/initiators/")
+  @Get("/fetchall/")
   async getAllInitiators(): Promise<Initiator[]> {
     return this.initiatorService.getAllInitiators();
   }
@@ -34,7 +34,7 @@ export class InitiatorController {
    * @param id - the id of the initiator
    * @returns - the initiator with the given id
    */
-  @Get("/initiator/:id")
+  @Get("/:id")
   async getInitiatorById(@Param("id") id: string): Promise<Initiator | null> {
     return this.initiatorService.getInitiatorById(id);
   }
@@ -43,7 +43,7 @@ export class InitiatorController {
    * @param initiator - the initiator to be created
    * @returns the created initiator
    */
-  @Post("/initiator/")
+  @Post("/")
   async createInitiator(@Body() initiator: Initiator): Promise<Initiator> {
     return this.initiatorService.createInitiator(initiator);
   }
@@ -53,7 +53,7 @@ export class InitiatorController {
    * @param initiator - the updated initiator
    * @returns the updated initiator
    */
-  @Put("/initiator/:id")
+  @Put("/:id")
   async updateInitiator(
     @Param("id") id: string,
     @Body() initiator: Initiator,
@@ -65,8 +65,32 @@ export class InitiatorController {
    * @param id - the id of the initiator to be deleted
    * @returns the deleted initiator
    */
-  @Delete("/initiator/:id")
+  @Delete("/:id")
   async deleteInitiator(@Param("id") id: string): Promise<Initiator | null> {
     return this.initiatorService.deleteInitiator(id);
+  }
+
+  @Put("/:id/addSource/:sourceId")
+  async addSourceToInitiator(
+    @Param("id") id: string,
+    @Param("sourceId") sourceId: string,
+  ): Promise<Initiator | null> {
+    return this.initiatorService.addSourceToInitiator(id, sourceId);
+  }
+
+  @Put("/:id/removeSource/:sourceId")
+  async removeSourceFromInitiator(
+    @Param("id") id: string,
+    @Param("sourceId") sourceId: string,
+  ): Promise<Initiator | null> {
+    return this.initiatorService.removeSourceFromInitiator(id, sourceId);
+  }
+
+  //get all initiators associated with a particular source
+  @Get("/source/:sourceId")
+  async getInitiatorsBySource(
+    @Param("sourceId") sourceId: string,
+  ): Promise<Initiator[]> {
+    return this.initiatorService.findInitiatorsBySourceId(sourceId);
   }
 }

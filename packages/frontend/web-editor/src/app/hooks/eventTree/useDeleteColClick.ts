@@ -20,6 +20,7 @@ function useDeleteColClick(clickedNodeId: NodeProps["id"]) {
     const targetDepth = clickedNode.data.depth;
 
     const rootNode = nodes.find((node) => node.data.depth === 1)!;
+    const isFirstOutputColumn = targetDepth === rootNode.data.inputDepth + 1;
 
     const nodesToEvaluate = nodes.filter(
       (node) => node.data.depth === targetDepth && node.type !== "columnNode",
@@ -65,7 +66,7 @@ function useDeleteColClick(clickedNodeId: NodeProps["id"]) {
               target: edge.target ?? "",
               type: "custom",
               hidden: nodeId === clickedNodeId,
-              animated: edge.animated,
+              animated: isFirstOutputColumn ? true : edge.animated,
             },
           ];
           newEdges = newEdges.concat(newEdge);

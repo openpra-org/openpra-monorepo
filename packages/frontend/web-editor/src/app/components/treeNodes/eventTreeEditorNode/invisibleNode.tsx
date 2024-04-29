@@ -2,6 +2,7 @@ import { Handle, NodeProps, Position } from "reactflow";
 
 import React from "react";
 
+import { EuiIcon } from "@elastic/eui";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 
 import styles from "./styles/nodeTypes.module.css";
@@ -41,9 +42,12 @@ function InvisibleNode({ id, data }: NodeProps) {
         {/*<EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>Yes</EuiText>*/}
 
         {data.depth != 1 && (
-          <p onClick={onClick} className={styles.addNodeButtonText}>
-            +
-          </p>
+          <EuiIcon
+            size={"s"}
+            type={"plus"}
+            onClick={onClick}
+            className={styles.addNodeButtonText}
+          />
         )}
       </div>
 

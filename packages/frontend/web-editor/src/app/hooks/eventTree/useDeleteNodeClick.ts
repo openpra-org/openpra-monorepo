@@ -1,9 +1,14 @@
-import { NodeProps, EdgeProps, useReactFlow, Edge } from "reactflow";
+import { NodeProps, useReactFlow } from "reactflow";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeState } from "../../../utils/treeUtils";
 
+/**
+ * Custom hook for handling the deletion of a node and its descendants in a React Flow graph.
+ * @param clickedNodeId The ID of the node that was clicked for deletion.
+ * @returns A function that performs the deletion when called.
+ */
 function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };

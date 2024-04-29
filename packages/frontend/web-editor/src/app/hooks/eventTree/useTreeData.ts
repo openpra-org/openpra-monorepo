@@ -152,7 +152,8 @@ const useTreeData = (
         width: nodeWidth,
         depth: 1,
         output: false,
-        height: 1.5,
+
+        height: 33,
       },
       position: pos,
     };
@@ -166,7 +167,8 @@ const useTreeData = (
         width: nodeWidth,
         depth: column,
         output: column > inputLevels, // Check if it's an output column
-        height: 1.5,
+
+        height: 33,
       };
       const node: Node = {
         id: nodeId,

@@ -1,6 +1,15 @@
 import { Handle, NodeProps, Position, useUpdateNodeInternals } from "reactflow";
-import React, { memo, useEffect, useState } from "react";
-import { EuiText, EuiTextArea } from "@elastic/eui";
+import React, { memo, useEffect, useRef, useState } from "react";
+import {
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiFormControlLayout,
+  EuiIcon,
+  EuiSpacer,
+  EuiText,
+  EuiTextArea,
+} from "@elastic/eui";
+import { set } from "lodash";
 import useCreateColClick from "../../../hooks/eventTree/useCreateColClick";
 import useDeleteColClick from "../../../hooks/eventTree/useDeleteColClick";
 import styles from "./styles/nodeTypes.module.css";
@@ -10,18 +19,30 @@ function ColumnNode({ id, data }: NodeProps) {
   const onClickDeleteColumn = useDeleteColClick(id);
 
   const handleValueChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const newHeight = Number(Math.floor(e.target.value.length / 20) + 1.5);
-    const isIncreaseHeight = newHeight > data.height;
+    const textarea = e.target;
+    textarea.removeAttribute("rows");
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+
     data.onNodeDataChange(id, {
       ...data,
       value: e.target.value,
     });
-    console.log(newHeight, data.height);
+    const scrollHeight = textarea.scrollHeight ?? 0;
 
-    if (newHeight !== data.height) {
-      data.onAllColumnHeightChange(newHeight, isIncreaseHeight);
+    const isIncreaseHeight = scrollHeight && scrollHeight > data.height;
+
+    if (scrollHeight && scrollHeight !== data.height) {
+      data.onAllColumnHeightChange(scrollHeight, isIncreaseHeight);
     }
   };
+
+  function getInitials(text: string): string {
+    return text
+      .split(" ") // Split the text into words based on spaces.
+      .map((word) => (word[0] ? word[0].toUpperCase() : "")) // Take the first letter of each word, if it exists, and capitalize it.
+      .join(""); // Join the first letters to form the initials.
+  }
 
   return (
     <>
@@ -46,7 +67,8 @@ function ColumnNode({ id, data }: NodeProps) {
           borderBottom: "1px solid white",
           padding: "4px",
           fontSize: "0.6rem",
-          minWidth: data.width,
+          width: data.width,
+          height: data.height + 16,
         }}
       >
         <div
@@ -56,44 +78,54 @@ function ColumnNode({ id, data }: NodeProps) {
             textAlign: "center",
           }}
         >
-          <EuiTextArea
-            onChange={handleValueChange}
-            value={data.value}
-            style={{
-              fontSize: "0.6rem",
-              background: "transparent",
-              border: "none",
-              maxHeight: "10rem",
-              overflow: "auto",
-              outline: "none",
-              // boxShadow: "none",
-              padding: 4,
-              maxWidth: 100,
-              height: data.height + "rem",
+          <EuiFormControlLayout style={{ width: "75%" }}>
+            <EuiTextArea
+              onChange={handleValueChange}
+              value={data.value}
+              style={{
+                textAlign: "center",
+                fontSize: "0.9rem",
+                background: "transparent",
+                border: "none",
+                overflow: "auto",
+                outline: "none",
+                boxShadow: "none",
+                padding: 4,
 
-              scrollbarWidth: "none",
-            }}
-            resize="none"
-          />
+                scrollbarWidth: "none",
+              }}
+              resize="none"
+            />
+          </EuiFormControlLayout>
           {data.depth !== 1 && (
-            <>
-              <text
+            <EuiFlexGroup
+              gutterSize="s"
+              alignItems={"center"}
+              justifyContent={"center"}
+              direction={"column"}
+            >
+              <EuiIcon
+                size={"s"}
+                type={"plus"}
                 onClick={onClickAddColumn}
                 className={styles.addNodeButtonText}
-              >
-                +
-              </text>
-              <text
+              />
+
+              <EuiIcon
+                size={"s"}
+                type={"minus"}
                 onClick={onClickDeleteColumn}
                 className={styles.addNodeButtonText}
-              >
-                -
-              </text>
-            </>
+              />
+            </EuiFlexGroup>
           )}
         </div>
       </div>
-
+      <div style={{ width: "100%", textAlign: "center" }}>
+        <span style={{ fontSize: "0.8rem", fontWeight: "bold" }}>
+          {getInitials(data.value)}
+        </span>
+      </div>
       <Handle
         type="source"
         position={Position.Right}

@@ -51,7 +51,7 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
     const xPosition = index * col.data.width; // Assuming colWidth is defined somewhere
 
     // Update the position of the column node
-    console.log(col.data.height);
+
     col.position = {
       x: xPosition,
       y: maxYLeaf - 75 - (col.data.height ? col.data.height : 0),

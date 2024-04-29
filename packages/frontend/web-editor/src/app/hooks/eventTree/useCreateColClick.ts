@@ -83,6 +83,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
               source: newNodeId,
               target: edge.target,
               type: "custom",
+              hidden: clickedDepth > rootNode.data.inputDepth,
               animated: !(
                 edges.filter((edge) => edge.source === node.id).length > 1 ||
                 clickedNode.data.output
@@ -95,6 +96,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
           source: node.id,
           target: newNodeId,
           type: "custom",
+          hidden: clickedDepth > rootNode.data.inputDepth,
           animated: !clickedNode.data.output,
         });
 
@@ -113,7 +115,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         depth: clickedDepth + 1,
         width: clickedNode.data.width,
         output: clickedNode.data.output,
-        height: 1.5,
+        height: clickedNode.data.height,
         // Additional properties as needed
       },
       position: {
@@ -122,13 +124,14 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         y: clickedNode ? clickedNode.position.y : 0,
       },
     };
-
+    console.log(newColNode.data);
     const newColEdges: Edge[] = [
       {
         id: `${clickedNodeId}-${newColNodeId}`,
         source: clickedNodeId,
         target: newColNodeId,
         type: "custom",
+        hidden: true,
         animated: false,
       },
       {
@@ -136,6 +139,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         source: newColNodeId,
         target: clickedNodeEdge ? clickedNodeEdge.target : "",
         type: "custom",
+        hidden: true,
         animated: false,
       },
     ];

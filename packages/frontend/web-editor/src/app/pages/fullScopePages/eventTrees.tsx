@@ -14,13 +14,20 @@ import ReactFlow, {
   Node,
   NodeProps,
   NodeTypes,
+  Panel,
   ProOptions,
   ReactFlowProvider,
 } from "reactflow";
-import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
+import {
+  EuiButton,
+  EuiButtonIcon,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiPopover,
+  useGeneratedHtmlId,
+} from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { EventTreeData } from "shared-types/src/lib/types/reactflowGraph/graphData/EventTreeData";
 import useTreeData from "../../hooks/eventTree/useTreeData";
 import { EventTreeList } from "../../components/lists/nestedLists/eventTreeList";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
@@ -73,6 +80,7 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
 
   const [menu, setMenu] = useState<treeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
+
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
 
   const [nodes, setNodes] = useState<Node<CustomNodeData>[]>(nodeData);
@@ -86,12 +94,13 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
     const loadGraph = async (): Promise<void> => {
       await GraphApiManager.getEventTree(eventTreeId).then(
         (res: EventTreeGraph) => {
-          setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
-          setEdges(res.edges.length !== 0 ? res.edges : edgeData);
+          // setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
+          // setEdges(res.edges.length !== 0 ? res.edges : edgeData);
           setLoading(false);
         },
       );
     };
+
     void (loading && loadGraph());
   }, [eventTreeId, loading, nodes]);
 
@@ -146,6 +155,17 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
       // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
       deleteKeyCode={null}
     >
+      <Panel position={"top-right"}>
+        <EuiFlexGroup style={{ marginTop: "4rem" }}>
+          <EuiFlexItem>
+            <EuiButton iconType={"editorUndo"}>Undo</EuiButton>
+          </EuiFlexItem>
+          <EuiFlexItem>
+            <EuiButton iconType={"editorRedo"}>Redo</EuiButton>
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      </Panel>
+
       <Background />
       <EuiPopover
         id={headerAppPopoverId}

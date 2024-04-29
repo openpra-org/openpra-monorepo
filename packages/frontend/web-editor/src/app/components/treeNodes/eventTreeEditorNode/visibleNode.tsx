@@ -1,7 +1,16 @@
 import { Handle, NodeProps, Position } from "reactflow";
 
 import React from "react";
-import { EuiFieldText, EuiSelect, EuiFormControlLayout } from "@elastic/eui";
+import {
+  EuiFieldText,
+  EuiSelect,
+  EuiFormControlLayout,
+  EuiButton,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiButtonIcon,
+  EuiIcon,
+} from "@elastic/eui";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 import useDeleteNodeClick from "../../../hooks/eventTree/useDeleteNodeClick";
 
@@ -117,28 +126,18 @@ function VisibleNode({ id, data }: NodeProps) {
         </div>
 
         {data.depth != 1 && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+          <EuiFlexGroup
+            gutterSize={"xs"}
+            justifyContent={"center"}
+            alignItems={"center"}
           >
-            <p
-              style={{ marginRight: "0.2rem", fontSize: "1.2rem" }}
-              onClick={handleCreateClick}
-              className={styles.addNodeButtonText}
-            >
-              +
-            </p>
-            <p
-              style={{ fontSize: "1.2rem" }}
-              onClick={handleDeleteClick}
-              className={styles.addNodeButtonText}
-            >
-              -
-            </p>
-          </div>
+            <EuiFlexItem grow={false}>
+              <EuiIcon size={"s"} type={"plus"} onClick={handleCreateClick} />
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>
+              <EuiIcon size={"s"} type={"minus"} onClick={handleDeleteClick} />
+            </EuiFlexItem>
+          </EuiFlexGroup>
         )}
       </div>
 

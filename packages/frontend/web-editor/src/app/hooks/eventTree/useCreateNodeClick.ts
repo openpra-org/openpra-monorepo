@@ -109,9 +109,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
         type: "custom",
         animated:
           nodeType === "invisibleNode" ||
-          level === inputLevels - clickedNodeDepth + 1
-            ? true
-            : false,
+          level === inputLevels - clickedNodeDepth + 1,
       };
 
       newEdges.push(newEdge);

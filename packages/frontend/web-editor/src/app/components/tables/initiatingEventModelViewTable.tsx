@@ -27,9 +27,12 @@ import { useEffect } from "react";
 import { groupBy } from "lodash";
 
 import "./initiatingEventModelViewTable.css";
+import CommentLogs from "../../pages/fullScopePages/commentLogs";
+import * as diagnostics_channel from "diagnostics_channel";
 // Define the interface for a single row of data.
 type DataRow = {
-  [key: string]: string | number;
+  // [key: string]: string | number;
+  [key: string]: string | number | any[];
   id: number;
   definition: string;
   characteristics: string;
@@ -38,6 +41,7 @@ type DataRow = {
   feedwaterPump: string;
   reactorCoolantCirculator: string;
   others: string;
+  rowComments: [];
 };
 type ColumnType = "text" | "dropdown" | "number";
 type DropdownOption = { value: string; text: string };
@@ -115,6 +119,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       feedwaterPump: "no",
       reactorCoolantCirculator: "yes",
       others: "no",
+      rowComments: [],
     },
     {
       id: 2,
@@ -125,6 +130,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       feedwaterPump: "yes",
       reactorCoolantCirculator: "no",
       others: "yes",
+      rowComments: [],
     },
   ]);
 
@@ -627,7 +633,9 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       others:
         customColumns.find((col) => col.id === "others")?.dropdownOptions?.[0]
           .value || "",
+      rowComments: [],
     });
+    console.log(customColumns.find((col) => col.id === "others")?.dropdownOptions?.[0]?.value || "");
 
     setIsModalVisible(true);
   };
@@ -790,7 +798,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
             <EuiSelect
               fullWidth
               options={customColumn.dropdownOptions}
-              value={rowData[columnId]}
+              value={rowData[columnId] as string | number | undefined}
               onChange={(e) => {
                 handleDropdownChange(e.target.value);
               }}
@@ -1364,7 +1372,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                                 >
                                   <EuiSelect
                                     options={customColumn.dropdownOptions || []}
-                                    value={modalFormState[column.id]}
+                                    value={modalFormState[column.id] as string | number | undefined}
                                     onChange={(e) => {
                                       handleModalFormChange(
                                         column.id,
@@ -1438,6 +1446,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                 Close
               </EuiButton>
               {isSidePanelOpen && selectedRowData && (
+                <div>
                 <EuiForm>
                   {getMergedColumns
                     .filter(
@@ -1456,7 +1465,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                           {customColumn.inputType === "dropdown" ? (
                             <EuiSelect
                               options={customColumn.dropdownOptions || []}
-                              value={selectedRowData[customColumn.id] || ""}
+                              value={selectedRowData[customColumn.id] as string | number | undefined || ""}
                               onChange={(e) => {
                                 updateFieldInData(
                                   customColumn.id,
@@ -1479,7 +1488,10 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                       );
                     })}
                 </EuiForm>
-              )}
+                  <CommentLogs />
+
+                </div>
+            )}
             </EuiResizablePanel>
           </>
         )}

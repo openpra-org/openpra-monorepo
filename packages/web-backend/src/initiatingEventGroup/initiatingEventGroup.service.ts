@@ -1,6 +1,10 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
+import {
+  InitiatingEvent,
+  InitiatingEventDocument,
+} from "../nestedModels/schemas/initiating-event.schema";
 import {
   InitiatingEventGroup,
   InitiatingEventGroupDocument,
@@ -11,6 +15,8 @@ export class InitiatingEventGroupService {
   constructor(
     @InjectModel(InitiatingEventGroup.name)
     private readonly initiatingEventGroupModel: Model<InitiatingEventGroupDocument>,
+    @InjectModel(InitiatingEvent.name)
+    private readonly initiatingEventModel: Model<InitiatingEventDocument>,
   ) {}
 
   async getInitiatingEventGroups(): Promise<InitiatingEventGroup[] | null> {
@@ -43,9 +49,17 @@ export class InitiatingEventGroupService {
     );
   }
 
+  //delete an initiating event group
+  //also remove the group id from all initiating events in the group
   async deleteInitiatingEventGroup(
     id: string,
   ): Promise<InitiatingEventGroup | null> {
+    const initiatingEvents = await this.initiatingEventModel.find({
+      initiatingEventGroup: id,
+    });
+    for (const event of initiatingEvents) {
+      await this.removeInitiatingEventGroupFromEvent(event._id, id);
+    }
     return this.initiatingEventGroupModel.findByIdAndDelete(id);
   }
 
@@ -60,22 +74,43 @@ export class InitiatingEventGroupService {
   }
 
   //add a new initiating event to the initiating event group
+  //also adds the group id to the initiating event
   async addInitiatingEventToGroup(
     id: string,
     eventId: string,
   ): Promise<InitiatingEventGroup | null> {
-    return this.initiatingEventGroupModel.findByIdAndUpdate(
-      id,
-      { $push: { initiatingEvents: eventId } },
+    const initiatingEventGroup =
+      this.initiatingEventGroupModel.findByIdAndUpdate(
+        id,
+        { $push: { initiatingEvents: eventId } },
+        { new: true },
+      );
+    await this.initiatingEventModel.findByIdAndUpdate(
+      eventId,
+      { $push: { initiatingEventGroup: id } },
+      { new: true },
+    );
+    return initiatingEventGroup;
+  }
+
+  async removeInitiatingEventGroupFromEvent(
+    eventId: string,
+    groupId: string,
+  ): Promise<InitiatingEvent | null> {
+    return await this.initiatingEventModel.findByIdAndUpdate(
+      eventId,
+      { $pull: { initiatingEventGroup: groupId } },
       { new: true },
     );
   }
 
   //remove an initiating event from the initiating event group
+  //also removes the group id from the initiating event
   async removeInitiatingEventFromGroup(
     id: string,
     eventId: string,
   ): Promise<InitiatingEventGroup | null> {
+    this.removeInitiatingEventFromGroup(eventId, id);
     return this.initiatingEventGroupModel.findByIdAndUpdate(
       id,
       { $pull: { initiatingEvents: eventId } },

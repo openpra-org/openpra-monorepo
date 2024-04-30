@@ -12,6 +12,7 @@ import { ApiService } from "./api.service";
 import { FmeaModule } from "./fmea/fmea.module";
 import { GraphModelModule } from "./graphModels/graphModel.module";
 import { InitiatorModule } from "./initiators/initiators.module";
+import { CommentsModule } from "./comments/comments.module";
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { InitiatorModule } from "./initiators/initiators.module";
     FmeaModule,
     InitiatorModule,
     GraphModelModule,
+    CommentsModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
       isGlobal: true,
@@ -68,6 +70,10 @@ import { InitiatorModule } from "./initiators/initiators.module";
             path: "initiators",
             module: InitiatorModule,
           },
+          {
+            path: "comments",
+            module: CommentsModule,
+          }
         ],
       },
     ]),

@@ -11,6 +11,7 @@ import { ApiController } from "./api.controller";
 import { ApiService } from "./api.service";
 import { FmeaModule } from "./fmea/fmea.module";
 import { GraphModelModule } from "./graphModels/graphModel.module";
+import { InviteModule } from "./invite/invite.module";
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { GraphModelModule } from "./graphModels/graphModel.module";
     NestedModelModule,
     FmeaModule,
     GraphModelModule,
+    InviteModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
       isGlobal: true,
@@ -45,6 +47,10 @@ import { GraphModelModule } from "./graphModels/graphModel.module";
           {
             path: "collab",
             module: CollabModule,
+          },
+          {
+            path: "invite-user",
+            module: InviteModule,
           },
           {
             path: "typed-models",

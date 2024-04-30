@@ -82,16 +82,6 @@ export function SettingsNav(): JSX.Element {
           1,
         ),
         createTreeItem(
-          "Manage Permissions",
-          {
-            iconType: "usersRolesApp",
-            callback: () => {
-              navigate("permissions");
-            },
-          },
-          1,
-        ),
-        createTreeItem(
           "Preferences",
           {
             iconType: "preferences",
@@ -104,6 +94,36 @@ export function SettingsNav(): JSX.Element {
       ],
     }),
   ];
+
+  const ACCESS = [
+    createTreeItem("Access", {
+      iconType: "advancedSettingsApp",
+      callback: undefined,
+      isExpanded: true,
+      children: [
+        createTreeItem(
+          "Roles",
+          {
+            iconType: "usersRolesApp",
+            callback: () => {
+              navigate("roles");
+            },
+          },
+          1,
+        ),
+        createTreeItem(
+          "Invitations",
+          {
+            iconType: "email",
+            callback: () => {
+              navigate("invitations");
+            },
+          },
+          1,
+        ),
+      ],
+    }),
+  ]
 
   const padding = useEuiPaddingSize("s") ?? "0px";
 
@@ -152,7 +172,6 @@ export function SettingsNav(): JSX.Element {
         />
       );
     }
-
     return (
       <EuiCollapsibleNavGroup
         title={items[0].label}
@@ -170,7 +189,7 @@ export function SettingsNav(): JSX.Element {
   };
 
   //here is where we set the different options to be available depending on the type of page being accessed
-  const treeItems = [POS];
+  const treeItems = [POS, ACCESS];
 
   const createTreeViews = (items = treeItems): JSX.Element[] => {
     const viewItems: JSX.Element[] = [];

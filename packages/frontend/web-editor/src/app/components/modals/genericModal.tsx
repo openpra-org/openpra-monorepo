@@ -16,6 +16,7 @@ import { useState } from "react";
  * @param onClose - What should happen on close of the modal
  * @param onSubmit - Async function that should be trigger when submit is clicked in the modal
  * @param modalFormId - A unique identifier for the modal could be generated
+ * @param showButtons - If true will show the modal buttons
  */
 const GenericModal = ({
   title,
@@ -23,12 +24,14 @@ const GenericModal = ({
   onClose,
   onSubmit,
   modalFormId,
+  showButtons,
 }: {
   title: string;
   body: JSX.Element;
   onClose: () => void;
   onSubmit: () => Promise<void>;
   modalFormId: string;
+  showButtons: boolean;
 }): JSX.Element => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   return (
@@ -39,28 +42,30 @@ const GenericModal = ({
 
       <EuiModalBody>{body}</EuiModalBody>
 
-      <EuiModalFooter>
-        <EuiButtonEmpty onClick={onClose}>Cancel</EuiButtonEmpty>
+      {showButtons && (
+        <EuiModalFooter>
+          <EuiButtonEmpty onClick={onClose}>Cancel</EuiButtonEmpty>
 
-        <EuiButton
-          type="button"
-          form={modalFormId}
-          isLoading={isLoading}
-          onClick={(): void => {
-            setIsLoading(true);
-            onSubmit()
-              .then((_) => {
-                setIsLoading(false);
-              })
-              .catch((_) => {
-                setIsLoading(false);
-              });
-          }}
-          fill
-        >
-          Save
-        </EuiButton>
-      </EuiModalFooter>
+          <EuiButton
+            type="button"
+            form={modalFormId}
+            isLoading={isLoading}
+            onClick={(): void => {
+              setIsLoading(true);
+              onSubmit()
+                .then((_) => {
+                  setIsLoading(false);
+                })
+                .catch((_) => {
+                  setIsLoading(false);
+                });
+            }}
+            fill
+          >
+            Save
+          </EuiButton>
+        </EuiModalFooter>
+      )}
     </EuiModal>
   );
 };

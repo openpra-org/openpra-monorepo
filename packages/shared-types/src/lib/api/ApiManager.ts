@@ -1,7 +1,6 @@
 import Axios, { AxiosResponse } from "axios";
 
 import AuthToken from "../types/AuthToken";
-import User from "../types/User";
 import AuthService from "./AuthService";
 import Accounts from "./Accounts";
 import Admin from "./Admin";
@@ -251,16 +250,48 @@ export default class ApiManager {
       override,
       onSuccessCallback,
       onFailCallback,
-    ).then((response) => {
-      if (response.ok) {
-        return ApiManager.signInWithUsernameAndPassword(
-          data.username,
-          data.password,
-          onFailCallback,
-        );
-      }
-      throw new Error(response.statusText);
-    });
+    )
+      .then((response) => {
+        if (response.ok) {
+          return ApiManager.signInWithUsernameAndPassword(
+            data.username,
+            data.password,
+            onFailCallback,
+          );
+        }
+        if (response.status >= 400) {
+          throw new Error(response.statusText);
+        }
+      })
+      .catch((reason: string) => {
+        throw new Error(reason);
+      });
+  }
+
+  static signupWithoutSignIn(
+    data: SignUpCredentials,
+    override: any = null,
+    onSuccessCallback: any = ApiManager.defaultSuccessCallback,
+    onFailCallback: any = ApiManager.defaultFailCallback,
+  ): Promise<void> {
+    return ApiManager.post(
+      `${userPreferencesEndpoint}/`,
+      JSON.stringify(data),
+      override,
+      onSuccessCallback,
+      onFailCallback,
+    )
+      .then((response) => {
+        if (response.ok) {
+          return;
+        }
+        if (response.status >= 400) {
+          throw new Error(response.statusText);
+        }
+      })
+      .catch((reason: string) => {
+        throw new Error(reason);
+      });
   }
 
   signup(
@@ -1561,6 +1592,30 @@ export default class ApiManager {
       onSuccessCallback,
       onFailCallback,
     );
+  }
+
+  /**
+   * This endpoint will check if a user's email is unique
+   * @param email - Email of the user
+   */
+  static async isValidEmail(email: string): Promise<boolean> {
+    const result = await ApiManager.post(
+      `${collabEndpoint}/validateEmail`,
+      email,
+    );
+    return Boolean(await result.json());
+  }
+
+  /**
+   * This endpoint will check if user's username is unique
+   * @param username - Username of user
+   */
+  static async isValidUsername(username: string): Promise<boolean> {
+    const result = await ApiManager.post(
+      `${collabEndpoint}/validateUsername`,
+      username,
+    );
+    return Boolean(await result.json());
   }
 
   static getProject(

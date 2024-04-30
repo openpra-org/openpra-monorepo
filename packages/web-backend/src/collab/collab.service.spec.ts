@@ -5,7 +5,10 @@ import { MemberResult } from "shared-types/src/lib/api/Members";
 import { expect } from "@playwright/test";
 import * as argon2 from "argon2";
 import { CollabService } from "./collab.service";
-import { User, UserSchema } from "./schemas/user.schema";
+import {
+  User,
+  UserSchema,
+} from "./schemas/user.schema";
 import { UserCounter, UserCounterSchema } from "./schemas/user-counter.schema";
 
 import { CreateUserObject } from "./stubs/createNewUser.stub";
@@ -509,5 +512,111 @@ describe("CollabService", () => {
       expect(returnedValue.next).toBeNull(); // next page url should be null
       expect(returnedValue.previous).toBeNull(); // previous page url should be null
     }, 30000);
+  });
+
+  /**
+   * Tests for checking if email is valid service is working
+   */
+  describe("isValidUsername", () => {
+    const userObject: User = {
+      id: 1,
+      firstName: "User1",
+      lastName: "Last1",
+      email: "xyz@gmail.com",
+      username: "testUser",
+      password: "12345678",
+      preferences: {
+        theme: "string",
+        pageBreaksVisible: false,
+        nodeDescriptionEnabled: false,
+        outlineVisible: false,
+        nodeIdsVisible: false,
+        node_value_visible: false,
+        quantificationConfigurations: {
+          configurations: {},
+          currentlySelected: "yes",
+        },
+      },
+      recently_accessed: {
+        models: [],
+        projects: [],
+        subsystems: [],
+      },
+      last_login: new Date(Date.now()),
+      permissions: {},
+    };
+
+    /**
+     * Unit test for invalid email
+     */
+    it("invalid username", async () => {
+      const users = connection.collection<User>("users");
+      await users.insertOne(userObject);
+      const result = await collabService.isEmailValid("xyz@gmail.com");
+      expect(result).toBe(false);
+    });
+
+    /**
+     * Unit test for valid email
+     */
+    it("valid username", async () => {
+      const users = connection.collection<User>("users");
+      await users.insertOne(userObject);
+      const result = await collabService.isEmailValid("xyz123@gmail.com");
+      expect(result).toBe(true);
+    });
+  });
+
+  /**
+   * Tests for checking if username is valid service is working
+   */
+  describe("Valid/Invalid Emails", () => {
+    const userObject: User = {
+      id: 1,
+      firstName: "User1",
+      lastName: "Last1",
+      email: "xyz@gmail.com",
+      username: "testUser",
+      password: "12345678",
+      preferences: {
+        theme: "string",
+        pageBreaksVisible: false,
+        nodeDescriptionEnabled: false,
+        outlineVisible: false,
+        nodeIdsVisible: false,
+        node_value_visible: false,
+        quantificationConfigurations: {
+          configurations: {},
+          currentlySelected: "yes",
+        },
+      },
+      recently_accessed: {
+        models: [],
+        projects: [],
+        subsystems: [],
+      },
+      last_login: new Date(Date.now()),
+      permissions: {},
+    };
+
+    /**
+     * Unit test for invalid username
+     */
+    it("invalid email", async () => {
+      const users = connection.collection<User>("users");
+      await users.insertOne(userObject);
+      const result = await collabService.isUsernameValid("testUser");
+      expect(result).toBe(false);
+    });
+
+    /**
+     * Unit test for valid username
+     */
+    it("valid email", async () => {
+      const users = connection.collection<User>("users");
+      await users.insertOne(userObject);
+      const result = await collabService.isUsernameValid("testUser123");
+      expect(result).toBe(true);
+    });
   });
 });

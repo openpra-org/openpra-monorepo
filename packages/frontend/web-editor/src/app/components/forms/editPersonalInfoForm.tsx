@@ -7,11 +7,8 @@ import {
   EuiFormRow,
   EuiFieldText,
   EuiButton,
-  EuiSkeletonLoading,
-  EuiText,
 } from "@elastic/eui";
-import { MemberResult } from "shared-types/src/lib/api/Members";
-import { useContext, useEffect, useState } from "react";
+import { useContext } from "react";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 import {
   PreferenceContext,
@@ -22,7 +19,7 @@ import {
  * Function returns the main user profile page
  *
  */
-export function EditPersonalInfoForm({ id }: { id: number }): JSX.Element {
+export function EditPersonalInfoForm(): JSX.Element {
   const { currentUser, setCurrentUser } =
     useContext<PreferenceContextType>(PreferenceContext);
 

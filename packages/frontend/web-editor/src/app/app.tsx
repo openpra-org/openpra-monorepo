@@ -14,6 +14,9 @@ import { DataPage } from "./pages/routingPages/dataAnalysisPage";
 import { FullScopePage } from "./pages/routingPages/fullScope";
 import { LoginPage } from "./pages/LandingPage";
 import { SettingsPage } from "./pages/routingPages/settingsPage";
+import { ToastProvider } from "./providers/toastProvider";
+import { GlobalToastList } from "./components/lists/globalToastList";
+import { InvitePage } from "./pages/invitePage";
 
 const routes: RouteObject[] = [
   {
@@ -26,6 +29,10 @@ const routes: RouteObject[] = [
           {
             path: "",
             element: <LoginPage />,
+          },
+          {
+            path: "invite/:inviteId/*",
+            element: <InvitePage />,
           },
           {
             path: "internal-events/*",
@@ -79,7 +86,10 @@ const router = createBrowserRouter(routes, {
 function App(): ReactElement {
   return (
     <ThemeProvider>
-      <RouterProvider router={router} />
+      <ToastProvider>
+        <RouterProvider router={router} />
+        <GlobalToastList />
+      </ToastProvider>
     </ThemeProvider>
   );
 }

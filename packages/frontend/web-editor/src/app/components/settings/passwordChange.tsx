@@ -16,7 +16,7 @@ import ApiManager from "shared-types/src/lib/api/ApiManager";
 import moment from "moment";
 import { useContext, useEffect, useState } from "react";
 import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
-import { GenericModal } from "../modal/genericModal";
+import { GenericModal } from "../modals/genericModal";
 import { PasswordForm } from "../forms/passwordForm";
 import { PreferenceContext, PreferenceContextType } from "./preferences";
 
@@ -118,6 +118,7 @@ const PasswordChange = (): JSX.Element => {
         onClose={(): void => {
           setIsModalVisible(false);
         }}
+        showButtons={true}
         onSubmit={async (): Promise<void> => {
           setButtonClicked(true);
           const { password = "", passConfirm = "" } = signup ?? {};

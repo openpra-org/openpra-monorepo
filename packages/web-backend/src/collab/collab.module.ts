@@ -3,7 +3,10 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { CollabController } from "./collab.controller";
 import { CollabService } from "./collab.service";
 import { UserCounter, UserCounterSchema } from "./schemas/user-counter.schema";
-import { User, UserSchema } from "./schemas/user.schema";
+import {
+  User,
+  UserSchema,
+} from "./schemas/user.schema";
 
 @Module({
   imports: [

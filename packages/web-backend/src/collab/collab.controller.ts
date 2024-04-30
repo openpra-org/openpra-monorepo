@@ -4,7 +4,6 @@ import {
   Get,
   Post,
   Put,
-  Delete,
   Request,
   Param,
   Query,
@@ -14,6 +13,10 @@ import {
   HttpException,
 } from "@nestjs/common";
 import { MemberResult } from "shared-types/src/lib/api/Members";
+import {
+  EmailValidationForm,
+  UsernameValidationForm,
+} from "shared-types/src/lib/api/FormValidation";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { Public } from "../guards/public.guard";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";
@@ -85,6 +88,36 @@ export class CollabController {
 
     // User creation was successful, return the new user
     return newUser;
+  }
+
+  /**
+   * This endpoint will query the database and return true if user's email is unqiue
+   * @param body - The request body
+   * @example Request Body Example
+   * {
+   *   email : "xyz@gmail.com"
+   * }
+   */
+  @Public()
+  @Post("/validateEmail/")
+  async isValidEmail(@Body() body: EmailValidationForm): Promise<boolean> {
+    return await this.collabService.isEmailValid(body.email);
+  }
+
+  /**
+   * This endpoint will query the database and return true if user's username is unqiue
+   * @param body - The request body
+   * @example Request Body Example
+   * {
+   *   username : "sampleUsername123"
+   * }
+   */
+  @Public()
+  @Post("/validateUsername/")
+  async isValidUsername(
+    @Body() body: UsernameValidationForm,
+  ): Promise<boolean> {
+    return await this.collabService.isUsernameValid(body.username);
   }
 
   /**

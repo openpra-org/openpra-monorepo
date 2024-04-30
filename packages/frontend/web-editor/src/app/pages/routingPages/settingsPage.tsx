@@ -7,6 +7,7 @@ import { UserProfilePage } from "../../components/settings/userProfilePage";
 import { Preferences } from "../../components/settings/preferences";
 import { EditPersonalInfoForm } from "../../components/forms/editPersonalInfoForm";
 import { PasswordChange } from "../../components/settings/passwordChange";
+import { Invitations } from "../../components/settings/invitations";
 
 /**
  * This function defines the routes for settings page
@@ -27,15 +28,13 @@ export function SettingsPage(): JSX.Element {
         <Route path="preferences/:user" element={<Preferences />}>
           <Route
             path="personal-data"
-            element={<EditPersonalInfoForm id={id} />}
+            element={<EditPersonalInfoForm />}
           ></Route>
           <Route path="logins" element={<PasswordChange />}></Route>
         </Route>
 
-        <Route
-          path="permissions"
-          element={<p>Welcome to permissions section</p>}
-        />
+        <Route path="roles" element={<p>Welcome to roles section</p>} />
+        <Route path="invitations" element={<Invitations />} />
       </Route>
     </Routes>
   );

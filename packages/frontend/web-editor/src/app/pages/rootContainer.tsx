@@ -52,7 +52,10 @@ const RootContainer = (): ReactElement => {
   }, [location.pathname]);
 
   // Render only the outlet if not logged in and on the root path.
-  if (!isLoggedIn && location.pathname === "/") {
+  if (
+    !isLoggedIn &&
+    (location.pathname === "/" || location.pathname.startsWith("/invite/"))
+  ) {
     return <Outlet />;
   } else {
     // Render the header and the outlet when logged in or not on the root path.

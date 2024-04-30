@@ -255,6 +255,28 @@ export class CollabService {
   }
 
   /**
+   * This function will return true if email exists in the database
+   * @param email - email of the user
+   */
+  async isEmailValid(email: string): Promise<boolean> {
+    const response = await this.userModel.findOne({
+      email: email,
+    });
+    return !response;
+  }
+
+  /**
+   * This function will return true if username exists in the database
+   * @param username - email of the user
+   */
+  async isUsernameValid(username: string): Promise<boolean> {
+    const response = await this.userModel.findOne({
+      username: username,
+    });
+    return !response;
+  }
+
+  /**
    * @param {string} user_id Current user's ID
    * @description
    * UserID is provided as the Query filter. To show only the preferences, inside the projection option the 'preferences' is set to 1

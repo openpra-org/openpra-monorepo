@@ -28,6 +28,7 @@ import { ToastProvider } from "../../providers/toastProvider";
 import { HeatBalanceFaultTrees } from "../fullScopePages/heatBalanceFaultTree";
 import CommentLogs from "../fullScopePages/commentLogs";
 import React from "react";
+import CommentComponent from "../fullScopePages/commentLogs";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -137,10 +138,10 @@ function InternalEventsPage(): JSX.Element {
           <Route path="success-criteria/*" element={<SuccessCriteria />} />
           <Route path="systems-analysis/*" element={<SystemsAnalysis />} />
           <Route path="data-analysis/*" element={<DataAnalysis />} />
-          <Route
-            path="comment-logs/*"  // Define the path for the CommentLogs page
-            element={<CommentLogs />} // Render the CommentLogs component
-          />
+          {/*<Route*/}
+          {/*  path="comment-logs/*"  // Define the path for the CommentLogs page*/}
+          {/*  element={<CommentComponent />} // Render the CommentLogs component*/}
+          {/*/>*/}
           <Route path="settings/*" element={<ModelSettings />} />
         </Route>
         {/** everything below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested

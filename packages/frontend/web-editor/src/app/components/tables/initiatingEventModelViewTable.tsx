@@ -1,9 +1,9 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, {useCallback, useMemo, useRef, useState} from "react";
 //----------------------------EUIdatagrid---------------------
 import {
   EuiButton,
   EuiButtonIcon,
-  EuiCheckbox,
+  EuiCheckbox, EuiCommentProps,
   EuiDataGrid,
   EuiDataGridCellValueElementProps,
   EuiDataGridColumn,
@@ -22,13 +22,130 @@ import {
   EuiSearchBar,
   EuiSelect,
 } from "@elastic/eui";
+import {
+  htmlIdGenerator,
+  EuiCommentList,
+  EuiComment,
+  EuiBadge,
+  EuiMarkdownEditor,
+  EuiMarkdownFormat,
+  EuiSpacer,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiAvatar,
+} from '@elastic/eui';
 import "@elastic/eui/dist/eui_theme_light.css";
 import { useEffect } from "react";
 import { groupBy } from "lodash";
+const date = formatDate(Date.now(), 'dobLong');
 
 import "./initiatingEventModelViewTable.css";
 import CommentLogs from "../../pages/fullScopePages/commentLogs";
 import * as diagnostics_channel from "diagnostics_channel";
+import CommentComponent from "../../pages/fullScopePages/commentLogs";
+import {
+  formatDate,
+  EuiToolTip,
+} from '@elastic/eui';
+
+//Elastic Commnet Code:
+const actionButton = (
+  <EuiButtonIcon
+    title="Custom action"
+    aria-label="Custom action"
+    color="text"
+    iconType="copy"
+  />
+);
+
+
+const complexEvent = (
+  <EuiFlexGroup responsive={false} alignItems="center" gutterSize="xs" wrap>
+    <EuiFlexItem grow={false}>added tags</EuiFlexItem>
+    <EuiFlexItem grow={false}>
+      <EuiBadge>case</EuiBadge>
+    </EuiFlexItem>
+    <EuiFlexItem grow={false}>
+      <EuiBadge>phising</EuiBadge>
+    </EuiFlexItem>
+    <EuiFlexItem grow={false}>
+      <EuiBadge>security</EuiBadge>
+    </EuiFlexItem>
+  </EuiFlexGroup>
+);
+
+const UserActionUsername = ({
+                              username,
+                              fullname,
+                            }: {
+  username: string;
+  fullname: string;
+}) => {
+  return (
+    <EuiToolTip position="top" content={<p>{fullname}</p>}>
+      <strong>{username}</strong>
+    </EuiToolTip>
+  );
+};
+const initialComments: EuiCommentProps[] = [
+  {
+    username: <UserActionUsername username="emma" fullname="Emma Watson" />,
+    timelineAvatar: <EuiAvatar name="emma" />,
+    event: 'added a comment',
+    timestamp: 'on 3rd March 2022',
+    children: (
+      <EuiMarkdownFormat textSize="s">
+        Phishing emails have been on the rise since February
+      </EuiMarkdownFormat>
+    ),
+    actions: actionButton,
+  },
+  {
+    username: <UserActionUsername username="emma" fullname="Emma Watson" />,
+    timelineAvatar: <EuiAvatar name="emma" />,
+    event: complexEvent,
+    timestamp: 'on 3rd March 2022',
+    eventIcon: 'tag',
+    eventIconAriaLabel: 'tag',
+  },
+  {
+    username: 'system',
+    timelineAvatar: 'dot',
+    timelineAvatarAriaLabel: 'System',
+    event: 'pushed a new incident',
+    timestamp: 'on 4th March 2022',
+    eventColor: 'danger',
+  },
+  {
+    username: <UserActionUsername username="tiago" fullname="Tiago Pontes" />,
+    timelineAvatar: <EuiAvatar name="tiago" />,
+    event: 'added a comment',
+    timestamp: 'on 4th March 2022',
+    actions: actionButton,
+    children: (
+      <EuiMarkdownFormat textSize="s">
+        Take a look at this
+        [Office.exe](http://my-drive.elastic.co/suspicious-file)
+      </EuiMarkdownFormat>
+    ),
+  },
+  {
+    username: <UserActionUsername username="emma" fullname="Emma Watson" />,
+    timelineAvatar: <EuiAvatar name="emma" />,
+    event: (
+      <>
+        marked case as <EuiBadge color="warning">In progress</EuiBadge>
+      </>
+    ),
+    timestamp: 'on 4th March 2022',
+  },
+];
+
+const replyMsg = `Thanks, Tiago for taking a look. :tada:
+
+I also found something suspicious: [Update.exe](http://my-drive.elastic.co/suspicious-file).`;
+//Elastic Comment Code.
+
 // Define the interface for a single row of data.
 type DataRow = {
   // [key: string]: string | number;
@@ -133,7 +250,19 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       rowComments: [],
     },
   ]);
-
+  const UserActionUsername = ({
+                                username,
+                                fullname,
+                              }: {
+    username: string;
+    fullname: string;
+  }) => {
+    return (
+      <EuiToolTip position="top" content={<p>{fullname}</p>}>
+        <strong>{username}</strong>
+      </EuiToolTip>
+    );
+  };
   const [baseColumns, setBaseColumns] = useState<CustomColumn[]>([
     // ... your initial columns here
     {
@@ -915,6 +1044,64 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
 
   //open popover for groupby
   const [groupbyPopoverOpen, setGroupbyPopoverOpen] = useState(false);
+//Elastic Comment Code
+//   const errorElementIds = useRef(htmlIdGenerator()());
+  const [editorValue, setEditorValue] = useState(replyMsg);
+  const [comments, setComments] = useState(initialComments);
+  const [isLoading, setIsLoading] = useState(false);
+  const [editorError, setEditorError] = useState(true);
+  const errorElementId = useRef<HTMLElement>(null);
+
+// Update errorElementId after component is mounted
+  useEffect(() => {
+    if (errorElementId.current) {
+      // Generate the HTML element ID and assign it to the current property
+      errorElementId.current.id = htmlIdGenerator()();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (editorValue === '') {
+      setEditorError(true);
+    } else {
+      setEditorError(false);
+    }
+  }, [editorValue, editorError]);
+  const onAddComment = () => {
+    setIsLoading(true);
+
+    const date = formatDate(Date.now(), 'dobLong');
+
+    setTimeout(() => {
+      setIsLoading(false);
+      setEditorValue('');
+
+      setComments([
+        ...comments,
+        {
+          username: (
+            <UserActionUsername username="emma" fullname="Emma Watson" />
+          ),
+          timelineAvatar: <EuiAvatar name="emma" />,
+          event: 'added a comment',
+          timestamp: `on ${date}`,
+          actions: actionButton,
+          children: (
+            <EuiMarkdownFormat textSize="s">{editorValue}</EuiMarkdownFormat>
+          ),
+        },
+      ]);
+    }, 3000);}
+  const commentsList = comments.map((comment, index) => {
+    return (
+      <EuiComment key={`comment-${index}`} {...comment}>
+        {comment.children}
+      </EuiComment>
+    );
+  });
+  //Elastic Comment Code
+
+
   //close popover for groupby
   const closeGroupbyPopover = (): void => {
     setGroupbyPopoverOpen(false);
@@ -1488,7 +1675,15 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                       );
                     })}
                 </EuiForm>
-                  <CommentLogs />
+                  <CommentComponent
+                    commentsList={commentsList}
+                    errorElementId={errorElementId}
+                    editorValue={editorValue}
+                    setEditorValue={setEditorValue}
+                    isLoading={isLoading}
+                    onAddComment={onAddComment}
+                    editorError={editorError}
+                  />
 
                 </div>
             )}

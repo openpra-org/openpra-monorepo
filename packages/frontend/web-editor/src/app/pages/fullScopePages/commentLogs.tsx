@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, RefObject } from 'react';
 import {
   formatDate,
   htmlIdGenerator,
   EuiCommentList,
   EuiComment,
-  EuiCommentProps,
   EuiButtonIcon,
   EuiBadge,
   EuiMarkdownEditor,
@@ -14,156 +13,29 @@ import {
   EuiFlexItem,
   EuiButton,
   EuiToolTip,
-  EuiAvatar, EuiHorizontalRule,
+  EuiAvatar,
 } from '@elastic/eui';
-const actionButton = (
-  <EuiButtonIcon
-    title="Custom action"
-    aria-label="Custom action"
-    color="text"
-    iconType="copy"
-  />
-);
-const complexEvent = (
-  <EuiFlexGroup responsive={false} alignItems="center" gutterSize="xs" wrap>
-    <EuiFlexItem grow={false}>added tags</EuiFlexItem>
-    <EuiFlexItem grow={false}>
-      <EuiBadge>case</EuiBadge>
-    </EuiFlexItem>
-    <EuiFlexItem grow={false}>
-      <EuiBadge>phising</EuiBadge>
-    </EuiFlexItem>
-    <EuiFlexItem grow={false}>
-      <EuiBadge>security</EuiBadge>
-    </EuiFlexItem>
-  </EuiFlexGroup>
-);
-const UserActionUsername = ({
-                              username,
-                              fullname,
-                            }: {
-  username: string;
-  fullname: string;
+
+const CommentComponent = ({
+                            commentsList,
+                            errorElementId,
+                            editorValue,
+                            setEditorValue,
+                            isLoading,
+                            onAddComment,
+                            editorError,
+                          }: {
+  commentsList: React.ReactNode; // ReactNode is a suitable type for JSX elements
+  errorElementId: RefObject<HTMLElement>; // RefObject<HTMLElement> for useRef usage
+  editorValue: string;
+  setEditorValue: React.Dispatch<React.SetStateAction<string>>; // Dispatch function for state updates
+  isLoading: boolean;
+  onAddComment: () => void; // Function to handle adding a comment
+  editorError: boolean; // Boolean flag for editor error state
 }) => {
   return (
-    <EuiToolTip position="top" content={<p>{fullname}</p>}>
-      <strong>{username}</strong>
-    </EuiToolTip>
-  );
-};
-const initialComments: EuiCommentProps[] = [
-  {
-    username: <UserActionUsername username="emma" fullname="Emma Watson" />,
-    timelineAvatar: <EuiAvatar name="emma" />,
-    event: 'added a comment',
-    timestamp: 'on 3rd March 2022',
-    children: (
-      <EuiMarkdownFormat textSize="s">
-        Phishing emails have been on the rise since February
-      </EuiMarkdownFormat>
-    ),
-    actions: actionButton,
-  },
-  {
-    username: <UserActionUsername username="emma" fullname="Emma Watson" />,
-    timelineAvatar: <EuiAvatar name="emma" />,
-    event: complexEvent,
-    timestamp: 'on 3rd March 2022',
-    eventIcon: 'tag',
-    eventIconAriaLabel: 'tag',
-  },
-  {
-    username: 'system',
-    timelineAvatar: 'dot',
-    timelineAvatarAriaLabel: 'System',
-    event: 'pushed a new incident',
-    timestamp: 'on 4th March 2022',
-    eventColor: 'danger',
-  },
-  {
-    username: <UserActionUsername username="tiago" fullname="Tiago Pontes" />,
-    timelineAvatar: <EuiAvatar name="tiago" />,
-    event: 'added a comment',
-    timestamp: 'on 4th March 2022',
-    actions: actionButton,
-    children: (
-      <EuiMarkdownFormat textSize="s">
-        Take a look at this
-        [Office.exe](http://my-drive.elastic.co/suspicious-file)
-      </EuiMarkdownFormat>
-    ),
-  },
-  {
-    username: <UserActionUsername username="emma" fullname="Emma Watson" />,
-    timelineAvatar: <EuiAvatar name="emma" />,
-    event: (
-      <>
-        marked case as <EuiBadge color="warning">In progress</EuiBadge>
-      </>
-    ),
-    timestamp: 'on 4th March 2022',
-  },
-];
-const replyMsg = `Thanks, Tiago for taking a look. :tada:
-I also found something suspicious: [Update.exe](http://my-drive.elastic.co/suspicious-file).
-`;
-export default () => {
-  const errorElementId = useRef(htmlIdGenerator()());
-  const [editorValue, setEditorValue] = useState(replyMsg);
-  const [comments, setComments] = useState(initialComments);
-  const [isLoading, setIsLoading] = useState(false);
-  const [editorError, setEditorError] = useState(true);
-  useEffect(() => {
-    if (editorValue === '') {
-      setEditorError(true);
-    } else {
-      setEditorError(false);
-    }
-  }, [editorValue, editorError]);
-  const onAddComment = () => {
-    setIsLoading(true);
-    const date = formatDate(Date.now(), 'dobLong');
-    setTimeout(() => {
-      setIsLoading(false);
-      setEditorValue('');
-      setComments([
-        ...comments,
-        {
-          username: (
-            <UserActionUsername username="emma" fullname="Emma Watson" />
-          ),
-          timelineAvatar: <EuiAvatar name="emma" />,
-          event: 'added a comment',
-          timestamp: `on ${date}`,
-          actions: actionButton,
-          children: (
-            <EuiMarkdownFormat textSize="s">{editorValue}</EuiMarkdownFormat>
-          ),
-        },
-      ]);
-    }, 3000);
-  };
-  const commentsList = comments.map((comment, index) => {
-    return (
-      <EuiComment key={`comment-${index}`} {...comment}>
-        {comment.children}
-      </EuiComment>
-    );
-  });
-
-  const containerStyle = {
-    marginTop: '30px', // Adjust the value as needed
-  };
-
-  const dividerStyle = {
-    marginBottom: '30px', // Margin below the divider
-  };
-
-  return (
     <>
-      <div style={containerStyle}>
-        <EuiHorizontalRule style={dividerStyle} margin="none" /> {/* Add a horizontal rule */}
-        <EuiCommentList aria-label="Comment system example">
+      <EuiCommentList aria-label="Comment system example">
         {commentsList}
         <EuiComment
           username="juana"
@@ -171,7 +43,7 @@ export default () => {
         >
           <EuiMarkdownEditor
             aria-label="Markdown editor"
-            aria-describedby={errorElementId.current}
+            aria-describedby={errorElementId.current?.id ?? undefined} // Ensure errorElementId.current is converted to a string
             placeholder="Add a comment..."
             value={editorValue}
             onChange={setEditorValue}
@@ -179,6 +51,7 @@ export default () => {
             initialViewMode="editing"
             markdownFormatProps={{ textSize: 's' }}
           />
+
         </EuiComment>
       </EuiCommentList>
       <EuiSpacer />
@@ -195,7 +68,8 @@ export default () => {
           </div>
         </EuiFlexItem>
       </EuiFlexGroup>
-      </div>
     </>
   );
 };
+
+export default CommentComponent;

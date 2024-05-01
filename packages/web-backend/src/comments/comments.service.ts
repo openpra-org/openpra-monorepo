@@ -21,9 +21,26 @@ export class CommentsService {
     return comment;
   };
 
+  async updateCommentById(id: string, associated_with: string, comment: Comments): Promise<Comments | null> {
+    const updatedComment = await this.commentsModel.findOneAndUpdate(
+      { _id: id, associated_with: associated_with },
+      comment,
+      { new: true }
+    );
+    return updatedComment;
+  }
+
 
   async createComments(comment: Comments): Promise<Comments> {
     const newComment = new this.commentsModel(comment);
     return newComment.save();
   }
+
+  async deleteComment(associated_with: string, id: string): Promise<Comments | null> {
+    const deletedComment = await this.commentsModel.findByIdAndDelete({ associated_with: associated_with, _id: id  });
+    return deletedComment;
+  }
+
+
+
 }

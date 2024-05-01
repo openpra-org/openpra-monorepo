@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import mongoose, { Document } from "mongoose";
 
 interface UserActionUsername {
   username: string;
@@ -8,9 +8,10 @@ interface UserActionUsername {
 
 @Schema({ versionKey: false })
 export class Comments {
-  @Prop()
-  _id: string;
-
+  @Prop({unique: true})
+  id: string;
+  // @Prop({ type: mongoose.Schema.Types.ObjectId, auto: true })
+  // id: mongoose.Types.ObjectId;
   @Prop()
   associated_with: string;
 

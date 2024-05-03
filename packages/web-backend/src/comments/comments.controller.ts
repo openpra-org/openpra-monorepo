@@ -42,9 +42,7 @@ export class CommentsController {
 
   @Post("/comments/")
   async createComments(@Body() comment: Comments): Promise<Comments> {
-    // const uniqueId = uuidv4();
-    // // Assign the unique ID to the comment
-    // comment.id = uniqueId;
+
     return this.commentsService.createComments(comment);
   }
 

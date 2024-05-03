@@ -3,6 +3,8 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Comments, CommentsDocument } from "./schemas/comments.schema";
 import {Initiator} from "../initiators/schemas/initiator.schema";
+import { v4 as uuidv4 } from 'uuid';
+import {Fmea} from "../fmea/schemas/fmea.schema"; // Import UUID generator
 
 @Injectable()
 export class CommentsService {
@@ -32,15 +34,40 @@ export class CommentsService {
 
 
   async createComments(comment: Comments): Promise<Comments> {
+    const uniqueId = this.generateUniqueId();
+
+    // Assign the generated ID to the comment object
+    // const newComment = new this.commentsModel({
+    //   ...comment,
+    //   id: uniqueId
+    // });
     const newComment = new this.commentsModel(comment);
     return newComment.save();
   }
 
+  // async createFmea(body): Promise<Fmea> {
+  //   //create a new fmea using the body
+  //   const newfmea = new this.fmeaModel({
+  //     id: await this.getNextValue("FMEACounter"),
+  //     title: body.title,
+  //     description: body.description,
+  //     columns: [],
+  //     rows: [],
+  //   });
+  //   //save the fmea to the database
+  //   const newFmea = await newfmea.save();
+  //   console.log(newFmea);
+  //   return newfmea;
+  // }
+  //
   async deleteComment(associated_with: string, id: string): Promise<Comments | null> {
     const deletedComment = await this.commentsModel.findByIdAndDelete({ associated_with: associated_with, _id: id  });
     return deletedComment;
   }
+  private generateUniqueId(): string {
 
+    return uuidv4();
+  }
 
 
 }

@@ -6,12 +6,13 @@ interface UserActionUsername {
   fullname: string;
 }
 
-@Schema({ versionKey: false })
+@Schema({ versionKey: false, _id: true})
 export class Comments {
-  @Prop({unique: true})
-  id: string;
-  // @Prop({ type: mongoose.Schema.Types.ObjectId, auto: true })
-  // id: mongoose.Types.ObjectId;
+  // @Prop({ unique: true })
+  // id: string;  @Prop({ required: true, unique: true }) // Ensure each comment has a unique ID
+  @Prop({ type: mongoose.Schema.Types.ObjectId, auto: true, required: true, unique: true })
+  id: mongoose.Types.ObjectId;
+
   @Prop()
   associated_with: string;
 

@@ -57,7 +57,17 @@ const actionButton = (
     iconType="copy"
   />
 );
-
+const actionFunctions: { [key: string]: JSX.Element } = {
+  actionButton: (
+      <EuiButtonIcon
+          title="Custom action"
+          aria-label="Custom action"
+          color="text"
+          iconType="copy"
+      />
+  ),
+  // Define other action functions here...
+};
 
 const complexEvent = (
   <EuiFlexGroup responsive={false} alignItems="center" gutterSize="xs" wrap>
@@ -141,6 +151,9 @@ const initialComments: EuiCommentProps[] = [
   },
 ];
 
+
+// Log parsed comments to console
+// console.log('Parsed comments:', parsedComments);
 const replyMsg = `Thanks, Tiago for taking a look. :tada:
 
 I also found something suspicious: [Update.exe](http://my-drive.elastic.co/suspicious-file).`;
@@ -226,6 +239,65 @@ type AppProps = {
 };
 
 const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
+  const [comments, setComments] = useState<EuiCommentProps[]>([]);
+
+  interface LoadedComment {
+    _id: string;
+    id: string;
+    associated_with: string;
+    comments: {
+      username: {
+        username: string;
+        fullname: string;
+      };
+      timelineAvatar: string;
+      event: string;
+      timestamp: string;
+      actions: string;
+      children: string;
+    }[];
+  }
+
+  const [loadedComments, setLoadedComments] = useState<LoadedComment[]>([]);
+
+  useEffect(() => {
+    const fetchComments = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/comments/comments/some_associated_id/');
+        if (!response.ok) {
+          throw new Error('Failed to fetch comments');
+        }
+        const data = await response.json();
+        // Store fetched comments in loadedComments state
+        setLoadedComments(data);
+        console.log('Fetched comments:', data);
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+      }
+    };
+
+    fetchComments();
+  }, []);
+
+  useEffect(() => {
+    const storedComments: EuiCommentProps[] = loadedComments.map(comment => ({
+      username: <UserActionUsername username={comment.comments[0].username.username} fullname={comment.comments[0].username.fullname} />,
+      timelineAvatar: <EuiAvatar name={comment.comments[0].username.username} />,
+      event: comment.comments[0].event,
+      timestamp: comment.comments[0].timestamp,
+      actions: actionFunctions[comment.comments[0].actions.replace(/"/g, '')], // Get the function by name
+      children: (
+          <EuiMarkdownFormat textSize="s">
+            {comment.comments[0].children}
+          </EuiMarkdownFormat>
+      ),
+    }));
+    console.log('The stored comments are as follows:', storedComments);
+    setComments(storedComments);
+
+  }, [loadedComments]);
+
+
   const [data, setData] = useState<DataRow[]>([
     {
       id: 1,
@@ -712,6 +784,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     }
   }, [visibleColumns, groupbyColumn]);
 
+
   const [editingCell, setEditingCell] = useState<{
     rowIndex: number;
     columnId: string;
@@ -1047,7 +1120,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
 //Elastic Comment Code
 //   const errorElementIds = useRef(htmlIdGenerator()());
   const [editorValue, setEditorValue] = useState(replyMsg);
-  const [comments, setComments] = useState(initialComments);
+  // const [comments, setComments] = useState(initialComments);
   const [isLoading, setIsLoading] = useState(false);
   const [editorError, setEditorError] = useState(true);
   const errorElementId = useRef<HTMLElement>(null);

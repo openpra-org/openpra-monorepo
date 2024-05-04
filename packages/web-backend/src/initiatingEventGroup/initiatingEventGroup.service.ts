@@ -63,12 +63,11 @@ export class InitiatingEventGroupService {
     return this.initiatingEventGroupModel.findByIdAndDelete(id);
   }
 
-  async getInitiatingEventGroupIdByEventId(
+  async getInitiatingEventGroupsByEventId(
     eventId: string,
   ): Promise<InitiatingEventGroup[] | null> {
     const initiatingEventGroup = await this.initiatingEventGroupModel
       .find({ initiatingEvents: eventId })
-      .select("_id");
 
     return initiatingEventGroup;
   }

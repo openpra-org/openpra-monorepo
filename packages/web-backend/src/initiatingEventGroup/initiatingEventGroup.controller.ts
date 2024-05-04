@@ -89,10 +89,10 @@ export class InitiatingEventGroupController {
    * @returns the initiating event group with the given event id
    */
   @Get("/event/:eventId")
-  async getInitiatingEventGroupIdByEventId(
+  async getInitiatingEventGroupByEventId(
     @Param("eventId") eventId: string,
   ): Promise<InitiatingEventGroup[] | null> {
-    return this.initatingEventGroupService.getInitiatingEventGroupIdByEventId(
+    return this.initatingEventGroupService.getInitiatingEventGroupsByEventId(
       eventId,
     );
   }

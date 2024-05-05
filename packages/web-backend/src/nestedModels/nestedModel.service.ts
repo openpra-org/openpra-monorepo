@@ -1196,6 +1196,17 @@ export class NestedModelService {
     );
   }
 
+  async updateInitiatingEventState(
+    id: number,
+    newState: string,
+  ): Promise<InitiatingEvent | null> {
+    return this.initiatingEventModel.findOneAndUpdate(
+      { id: Number(id) },
+      { state: newState },
+      { new: true },
+    );
+  }
+
   /**
    * updates the label in the nested model
    * @param id the id of the nested model to be udpated

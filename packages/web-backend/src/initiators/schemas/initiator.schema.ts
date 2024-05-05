@@ -11,6 +11,9 @@ export class Initiator {
 
   @Prop()
   sources: string[];
+
+  @Prop()
+  state: string;
 }
 
 export type InitiatorDocument = Initiator & Document;

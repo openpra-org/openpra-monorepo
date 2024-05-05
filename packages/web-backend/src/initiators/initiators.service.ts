@@ -139,4 +139,16 @@ export class InitiatorService {
     //add code more models here if needed
     return null;
   }
+
+  async updateInitiatorState(
+    id: string,
+    state: string,
+  ): Promise<Initiator | null> {
+    const updatedInitiator = await this.initiatorModel.findByIdAndUpdate(
+      id,
+      { state: state },
+      { new: true },
+    );
+    return updatedInitiator;
+  }
 }

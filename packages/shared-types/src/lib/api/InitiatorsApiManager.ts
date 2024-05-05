@@ -179,6 +179,28 @@ export default class InitiatorApiManager {
     );
   }
 
+  static async setInitiatorState(
+    id: string,
+    state: string,
+    override: any = null,
+    onSuccessCallback = this.defaultSuccessCallback,
+    onFailCallback = this.defaultFailCallback,
+  ) {
+    return await fetch(`${INITIATOR_ENDPOINT}/${id}/setState/${state}`, {
+      method: "PUT",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((res) =>
+        res.ok
+          ? onSuccessCallback(res, override)
+          : onFailCallback(res, override),
+      )
+      .catch((err) => onFailCallback(err, override));
+  }
+
   static async get(
     url: string,
     override: any = null,

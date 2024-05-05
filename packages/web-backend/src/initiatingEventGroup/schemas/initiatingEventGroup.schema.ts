@@ -8,6 +8,9 @@ export class InitiatingEventGroup {
 
   @Prop()
   initiatingEvents: string[];
+
+  @Prop()
+  state: string;
 }
 
 export type InitiatingEventGroupDocument = InitiatingEventGroup & Document;

@@ -163,6 +163,28 @@ export default class InitiatingEventGroupApiManager {
       .catch((err) => onFailCallback(err, override));
   }
 
+  static async setInitiatingEventGroupState(
+    id: string,
+    state: string,
+    override: any = null,
+    onSuccessCallback = this.defaultSuccessCallback,
+    onFailCallback = this.defaultFailCallback,
+  ) {
+    return await fetch(`${INITIATINGEVENTGROUP_ENDPOINT}/${id}/setState/${state}`, {
+      method: "PUT",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((res) =>
+        res.ok
+          ? onSuccessCallback(res, override)
+          : onFailCallback(res, override),
+      )
+      .catch((err) => onFailCallback(err, override));
+  }
+
   static async get(
     url: string,
     override: any = null,

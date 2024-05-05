@@ -93,4 +93,17 @@ export class InitiatorController {
   ): Promise<Initiator[]> {
     return this.initiatorService.findInitiatorsBySourceId(sourceId);
   }
+
+  /**
+   * @param id - the id of the initiator
+   * @param newState - the new state of the initiator
+   * @returns - the updated initiator
+   */
+  @Put("/:id/setState/:newState")
+  async setInitiatorState(
+    @Param("id") id: string,
+    @Param("newState") newState: string,
+  ): Promise<Initiator | null> {
+    return this.initiatorService.updateInitiatorState(id, newState);
+  }
 }

@@ -6,6 +6,7 @@ import {
   Delete,
   Param,
   Body,
+  Patch,
 } from "@nestjs/common";
 import { InitiatingEventGroupService } from "./initiatingEventGroup.service";
 import { InitiatingEventGroup } from "./schemas/initiatingEventGroup.schema";
@@ -126,6 +127,22 @@ export class InitiatingEventGroupController {
     return this.initatingEventGroupService.removeInitiatingEventFromGroup(
       id,
       eventId,
+    );
+  }
+
+  /**
+   * @param id - the id of the initiating event group to update
+   * @param newState - the new state of the initiating event group
+   * @returns - the updated initiating event group
+   */
+  @Put(":id/setState/:newState")
+  async updateInitiatingEventGroupState(
+    @Param("id") id: string,
+    @Param("newState") newState: string,
+  ): Promise<InitiatingEventGroup | null> {
+    return this.initatingEventGroupService.updateInitiatingEventGroupState(
+      id,
+      newState,
     );
   }
 }

@@ -48,6 +48,17 @@ export class InitiatingEventGroupService {
       { new: true },
     );
   }
+  
+  async updateInitiatingEventGroupState(
+    id: string,
+    newState: string,
+  ): Promise<InitiatingEventGroup | null> {
+    return this.initiatingEventGroupModel.findByIdAndUpdate(
+    { id: id },
+    { state: newState },
+    { new: true },
+    );
+  }
 
   //delete an initiating event group
   //also remove the group id from all initiating events in the group

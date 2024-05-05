@@ -961,6 +961,14 @@ export class NestedModelController {
     return this.nestedModelService.updateInitiatingEventLabel(id, data);
   }
 
+  @Patch("/initiating-events/:id/setState/:newState")
+  async updateInitiatingEventState(
+    @Param("id") id: number,
+    @Param("newState") newState: string,
+  ): Promise<InitiatingEvent | null> {
+    return this.nestedModelService.updateInitiatingEventState(id, newState);
+  }
+
   /**
    * updates a label for the nested model type
    * @param id the id of the nested model to be updated

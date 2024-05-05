@@ -18,6 +18,12 @@ export class InitiatingEvent extends NestedModel {
 
   @Prop()
   initiatingEventGroup: string[];
+
+  @Prop()
+  description: string;
+
+  @Prop()
+  state: string;
 }
 
 export type InitiatingEventDocument = InitiatingEvent & Document;

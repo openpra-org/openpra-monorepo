@@ -755,6 +755,27 @@ export function PatchInitiatingEventLabel(
 }
 
 /**
+ * 
+ * @param id - the id of the initiating event
+ * @param newState - the new state of the initiating event
+ * @returns - a promise with the new updated initiating event
+ */
+export async function setInitiatingEventState(
+  id: number,
+  newState: string,
+): Promise<NestedModel> {
+  return await fetch(
+    `${INITIATING_EVENTS_ENDPOINT}/${id}/state/${newState}`,{
+      method: "PUT",
+      cache: 'no-cache',
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  ).then((response) => response.json() as Promise<NestedModel>);
+}
+
+/**
  * updates the label for the type of nested model
  * @param id - the id of the nested model
  * @param data - a labelJSON with a name and optional description

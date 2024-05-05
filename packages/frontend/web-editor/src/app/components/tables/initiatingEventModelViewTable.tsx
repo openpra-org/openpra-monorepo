@@ -47,6 +47,7 @@ import {
   formatDate,
   EuiToolTip,
 } from '@elastic/eui';
+import axios from "axios";
 
 //Elastic Commnet Code:
 const actionButton = (
@@ -154,9 +155,9 @@ const initialComments: EuiCommentProps[] = [
 
 // Log parsed comments to console
 // console.log('Parsed comments:', parsedComments);
-const replyMsg = `Thanks, Tiago for taking a look. :tada:
-
-I also found something suspicious: [Update.exe](http://my-drive.elastic.co/suspicious-file).`;
+// const replyMsg = `Thanks, Tiago for taking a look. :tada:
+//
+// I also found something suspicious: [Update.exe](http://my-drive.elastic.co/suspicious-file).`;
 //Elastic Comment Code.
 
 // Define the interface for a single row of data.
@@ -239,6 +240,48 @@ type AppProps = {
 };
 
 const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
+
+  // Example comment data in the desired format
+//   const commentData = {
+//     "associated_with": "some_associated_id",
+//     "comments": [
+//       {
+//         "username": {
+//           "username": "first_person",
+//           "fullname": "First Person"
+//         },
+//         "timelineAvatar": "tp",
+//         "event": "added first comment",
+//         "timestamp": "2024-05-01T12:00:00Z",
+//         "actions": "actionButton",
+//         "children": "This is comment no. 5"
+//       }
+//     ]
+//   };
+//
+// // Make an HTTP POST request to the API endpoint
+//   fetch('http://localhost:8000/api/comments/comments', {
+//     method: 'POST',
+//     headers: {
+//       'Content-Type': 'application/json',
+//     },
+//     body: JSON.stringify(commentData),
+//   })
+//       .then(response => {
+//         if (!response.ok) {
+//           throw new Error('Network response was not ok');
+//         }
+//         return response.json();
+//       })
+//       .then(data => {
+//         // Handle successful response from the backend
+//         console.log('Success:', data);
+//       })
+//       .catch(error => {
+//         // Handle errors
+//         console.error('Error:', error);
+//       });
+
   const [comments, setComments] = useState<EuiCommentProps[]>([]);
 
   interface LoadedComment {
@@ -259,24 +302,28 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   }
 
   const [loadedComments, setLoadedComments] = useState<LoadedComment[]>([]);
-
-  useEffect(() => {
-    const fetchComments = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/api/comments/comments/some_associated_id/');
-        if (!response.ok) {
-          throw new Error('Failed to fetch comments');
-        }
-        const data = await response.json();
-        // Store fetched comments in loadedComments state
-        setLoadedComments(data);
-        console.log('Fetched comments:', data);
-      } catch (error) {
-        console.error('Error fetching comments:', error);
+  const fetchComments = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/comments/comments/some_associated_id/');
+      if (!response.ok) {
+        throw new Error('Failed to fetch comments');
       }
-    };
-
-    fetchComments();
+      const data = await response.json();
+      // Store fetched comments in loadedComments state
+      setLoadedComments(data);
+      console.log('Fetched comments:', data);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    }
+  };
+  useEffect(() => {
+    fetchComments()
+        .then(() => {
+          console.log('Comments fetched successfully');
+        })
+        .catch((error) => {
+          console.error('Error fetching comments:', error);
+        });
   }, []);
 
   useEffect(() => {
@@ -1119,7 +1166,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const [groupbyPopoverOpen, setGroupbyPopoverOpen] = useState(false);
 //Elastic Comment Code
 //   const errorElementIds = useRef(htmlIdGenerator()());
-  const [editorValue, setEditorValue] = useState(replyMsg);
+  const [editorValue, setEditorValue] = useState('');
   // const [comments, setComments] = useState(initialComments);
   const [isLoading, setIsLoading] = useState(false);
   const [editorError, setEditorError] = useState(true);
@@ -1140,31 +1187,92 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       setEditorError(false);
     }
   }, [editorValue, editorError]);
-  const onAddComment = () => {
+  // const onAddComment = () => {
+  //   setIsLoading(true);
+  //
+  //   const date = formatDate(Date.now(), 'dobLong');
+  //
+  //   setTimeout(() => {
+  //     setIsLoading(false);
+  //     setEditorValue('');
+  //
+  //     setComments([
+  //       ...comments,
+  //       {
+  //         username: (
+  //           <UserActionUsername username="emma" fullname="Emma Watson" />
+  //         ),
+  //         timelineAvatar: <EuiAvatar name="emma" />,
+  //         event: 'added a comment',
+  //         timestamp: `on ${date}`,
+  //         actions: actionButton,
+  //         children: (
+  //           <EuiMarkdownFormat textSize="s">{editorValue}</EuiMarkdownFormat>
+  //         ),
+  //       },
+  //     ]);
+  //   }, 3000);}
+  const onAddComment = async () => {
     setIsLoading(true);
 
     const date = formatDate(Date.now(), 'dobLong');
 
-    setTimeout(() => {
+    const commentData = {
+      associated_with: "some_associated_id",
+      comments: [
+        {
+          username: {
+            username: "first_person",
+            fullname: "First Person"
+          },
+          timelineAvatar: "tp",
+          event: 'added a comment',
+          timestamp: `on ${date}`,
+          actions: "actionButton",
+          children: editorValue,
+        }
+      ]
+    };
+
+    try {
+      const response = await fetch('http://localhost:8000/api/comments/comments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(commentData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add comment');
+      }
+
+      // Assuming the response contains the newly created comment
+      const newComment = await response.json();
+
       setIsLoading(false);
       setEditorValue('');
 
-      setComments([
-        ...comments,
-        {
-          username: (
-            <UserActionUsername username="emma" fullname="Emma Watson" />
-          ),
-          timelineAvatar: <EuiAvatar name="emma" />,
-          event: 'added a comment',
-          timestamp: `on ${date}`,
-          actions: actionButton,
-          children: (
-            <EuiMarkdownFormat textSize="s">{editorValue}</EuiMarkdownFormat>
-          ),
-        },
-      ]);
-    }, 3000);}
+      // setComments([
+      //   ...comments,
+      //   {
+      //     username: (
+      //       <UserActionUsername username={commentData.comments[0].username.username} fullname={commentData.comments[0].username.fullname} />
+      //     ),
+      //     timelineAvatar: <EuiAvatar name={commentData.comments[0].username.username} />,
+      //     event: commentData.comments[0].event,
+      //     timestamp: commentData.comments[0].timestamp,
+      //     actions: commentData.comments[0].actions,
+      //     children: commentData.comments[0].children,
+      //   },
+      // ]);
+      await fetchComments();
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      setIsLoading(false);
+    }
+  };
+
   const commentsList = comments.map((comment, index) => {
     return (
       <EuiComment key={`comment-${index}`} {...comment}>

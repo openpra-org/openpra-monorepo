@@ -26,6 +26,7 @@
     "@swc/helpers": "0.5.3",
     "@testing-library/react": "14.1.0",
     "@tsconfig/recommended": "1.0.3",
+    "@types/cors": "^2.8.17",
     "@types/jest": "29.5.8",
     "@types/node": "20.9.0",
     "@types/react": "18.2.37",
@@ -67,7 +68,10 @@
   "dependencies": {
     "@nestjs/common": "10.2.10",
     "@nestjs/core": "10.2.10",
+    "@nestjs/platform-express": "10.2.10",
     "argon2": "0.31.2",
+    "axios": "1.6.1",
+    "cors": "^2.8.5",
     "mongodb": "6.3.0",
     "nestjs-zod": "3.0.0",
     "tslib": "2.5.2",

@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef, RefObject } from 'react';
 import {
-  formatDate,
-  htmlIdGenerator,
-  EuiCommentList,
-  EuiComment,
-  EuiButtonIcon,
-  EuiBadge,
-  EuiMarkdownEditor,
-  EuiMarkdownFormat,
-  EuiSpacer,
-  EuiFlexGroup,
-  EuiFlexItem,
-  EuiButton,
-  EuiToolTip,
-  EuiAvatar,
+    formatDate,
+    htmlIdGenerator,
+    EuiCommentList,
+    EuiComment,
+    EuiButtonIcon,
+    EuiBadge,
+    EuiMarkdownEditor,
+    EuiMarkdownFormat,
+    EuiSpacer,
+    EuiFlexGroup,
+    EuiFlexItem,
+    EuiButton,
+    EuiToolTip,
+    EuiAvatar, EuiHorizontalRule,
 } from '@elastic/eui';
 
 const CommentComponent = ({
@@ -35,7 +35,9 @@ const CommentComponent = ({
 }) => {
   return (
     <>
-      <EuiCommentList aria-label="Comment system example">
+        <div >
+            <EuiHorizontalRule margin="none" style={{ marginTop: '30px', marginBottom: '30px' }}/>
+            <EuiCommentList aria-label="Comment system example">
         {commentsList}
         <EuiComment
           username="juana"
@@ -68,6 +70,7 @@ const CommentComponent = ({
           </div>
         </EuiFlexItem>
       </EuiFlexGroup>
+        </div>
     </>
   );
 };

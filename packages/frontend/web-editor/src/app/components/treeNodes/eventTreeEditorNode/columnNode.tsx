@@ -10,12 +10,13 @@ import {
   EuiTextArea,
 } from "@elastic/eui";
 import { set } from "lodash";
-import useCreateColClick from "../../../hooks/eventTree/useCreateColClick";
+
 import useDeleteColClick from "../../../hooks/eventTree/useDeleteColClick";
+import { UseGlobalStore } from "../../../zustand/Store";
 import styles from "./styles/nodeTypes.module.css";
 
 function ColumnNode({ id, data }: NodeProps) {
-  const onClickAddColumn = useCreateColClick(id);
+  const onClickAddColumn = UseGlobalStore((state) => state.createColClick);
   const onClickDeleteColumn = useDeleteColClick(id);
 
   const handleValueChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -62,9 +63,9 @@ function ColumnNode({ id, data }: NodeProps) {
         style={{
           visibility: data.hideText ? "hidden" : "visible",
           borderColor: "white",
-          borderLeft: "1px solid white",
-          borderRight: "1px solid white",
-          borderBottom: "1px solid white",
+          borderLeft: "1px solid",
+          borderRight: "1px solid",
+          borderBottom: "1px solid",
           padding: "4px",
           fontSize: "0.6rem",
           width: data.width,
@@ -90,8 +91,8 @@ function ColumnNode({ id, data }: NodeProps) {
                 overflow: "auto",
                 outline: "none",
                 boxShadow: "none",
+                height: 46,
                 padding: 4,
-
                 scrollbarWidth: "none",
               }}
               resize="none"
@@ -107,7 +108,9 @@ function ColumnNode({ id, data }: NodeProps) {
               <EuiIcon
                 size={"s"}
                 type={"plus"}
-                onClick={onClickAddColumn}
+                onClick={(evt) => {
+                  onClickAddColumn(id);
+                }}
                 className={styles.addNodeButtonText}
               />
 

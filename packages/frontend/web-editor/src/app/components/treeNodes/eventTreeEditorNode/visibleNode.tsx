@@ -14,6 +14,7 @@ import {
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 import useDeleteNodeClick from "../../../hooks/eventTree/useDeleteNodeClick";
 
+import { UseGlobalStore } from "../../../zustand/Store";
 import styles from "./styles/nodeTypes.module.css";
 
 const options = [
@@ -25,7 +26,7 @@ const options = [
 function VisibleNode({ id, data }: NodeProps) {
   const onClickCreate = useCreateNodeClick(id);
   const onClickDelete = useDeleteNodeClick(id);
-
+  const addSnapshot = UseGlobalStore((state) => state.addSnapshot);
   const InputTextValueWidth = data.value
     ? 1 + data.value.length * 4 + "%"
     : "12%";
@@ -36,12 +37,14 @@ function VisibleNode({ id, data }: NodeProps) {
   // Wrap the original onClickCreate in a new function that stops event propagation
   const handleCreateClick = (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
+    addSnapshot();
     onClickCreate();
   };
 
   // Wrap the original onClickDelete in a new function that stops event propagation
   const handleDeleteClick = (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
+    addSnapshot();
     onClickDelete();
   };
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {

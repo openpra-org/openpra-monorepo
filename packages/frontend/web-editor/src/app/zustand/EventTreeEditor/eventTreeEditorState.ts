@@ -1,5 +1,8 @@
-// import { deleteNodeType } from "./eventTreeEditorType";
-//
-// export const eventTreeEditorState = {
-//   data: [] as deleteNodeType[],
-// };
+import { EventTreeEditorState } from "./eventTreeEditorType";
+
+export const eventTreeEditorState: EventTreeEditorState = {
+  nodes: [],
+  edges: [],
+  undoStack: [],
+  redoStack: [],
+};

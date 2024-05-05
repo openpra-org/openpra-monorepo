@@ -43,6 +43,9 @@ import { LoadingCard } from "../../components/cards/loadingCard";
 
 import nodeTypes from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
 
+import { UseGlobalStore } from "../../zustand/Store";
+import { edgeData, nodeData } from "../../../utils/EventTreeData";
+
 /**
  * Initial set of nodes to be used in the ReactFlow component.
  * @type {Node[]}
@@ -62,19 +65,10 @@ const fitViewOptions = {
  * @returns ReactElement The React Flow component with nodes and edges configured for horizontal layout.
  */
 type Props = {
-  nodeData: Node[];
-  edgeData: Edge[];
   depth: number;
 };
-type CustomNodeData = {
-  label: string;
-  depth: number;
-  width: number;
-  output: boolean;
-  inputDepth?: number;
-  outputDepth?: number;
-};
-const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
+
+const ReactFlowPro: React.FC<Props> = ({ depth }) => {
   // this hook call ensures that the layout is re-calculated every time the graph changes
   useLayout(depth);
 
@@ -83,26 +77,38 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
 
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
 
-  const [nodes, setNodes] = useState<Node<CustomNodeData>[]>(nodeData);
-  const [edges, setEdges] = useState<Edge[]>(edgeData);
-
-  const [loading, setLoading] = useState(true);
   const { eventTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
 
-  useEffect(() => {
-    const loadGraph = async (): Promise<void> => {
-      await GraphApiManager.getEventTree(eventTreeId).then(
-        (res: EventTreeGraph) => {
-          // setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
-          // setEdges(res.edges.length !== 0 ? res.edges : edgeData);
-          setLoading(false);
-        },
-      );
-    };
+  const {
+    nodes,
+    edges,
+    setNodes,
+    setEdges,
+    undo,
+    redo,
+    onNodesChange,
+    onEdgesChange,
+    onConnect,
+    loadGraph,
+    loading,
+  } = UseGlobalStore((state) => ({
+    nodes: state.nodes,
+    edges: state.edges,
+    setNodes: state.setNodes,
+    setEdges: state.setEdges,
+    undo: state.undo,
+    redo: state.redo,
+    onNodesChange: state.onNodesChange,
+    onEdgesChange: state.onEdgesChange,
+    onConnect: state.onConnect,
+    loadGraph: state.loadGraph,
+    loading: state.loading,
+  }));
 
-    void (loading && loadGraph());
-  }, [eventTreeId, loading, nodes]);
+  useEffect(() => {
+    eventTreeId && loadGraph(eventTreeId);
+  }, [eventTreeId]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -137,8 +143,11 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
   ) : (
     <ReactFlow
       ref={ref}
-      defaultNodes={nodes}
-      defaultEdges={edges}
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      onConnect={onConnect}
       proOptions={proOptions}
       fitView
       nodeTypes={nodeTypes}
@@ -158,10 +167,22 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
       <Panel position={"top-right"}>
         <EuiFlexGroup style={{ marginTop: "4rem" }}>
           <EuiFlexItem>
-            <EuiButton iconType={"editorUndo"}>Undo</EuiButton>
+            <EuiButton
+              onClick={undo}
+              disabled={!UseGlobalStore((state) => state.undoStack.length > 0)}
+              iconType={"editorUndo"}
+            >
+              Undo
+            </EuiButton>
           </EuiFlexItem>
           <EuiFlexItem>
-            <EuiButton iconType={"editorRedo"}>Redo</EuiButton>
+            <EuiButton
+              onClick={redo}
+              disabled={!UseGlobalStore((state) => state.redoStack.length > 0)}
+              iconType={"editorRedo"}
+            >
+              Redo
+            </EuiButton>
           </EuiFlexItem>
         </EuiFlexGroup>
       </Panel>
@@ -191,13 +212,12 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
  */
 
 export const EventTreeEditor = (): ReactElement => {
-  const input = 4;
+  const input = 2;
   const output = 1;
-  const { nodes, edges } = useTreeData(input, output, 140);
 
   return (
     <ReactFlowProvider>
-      <ReactFlowPro nodeData={nodes} edgeData={edges} depth={input + output} />
+      <ReactFlowPro depth={input + output} />
     </ReactFlowProvider>
   );
 };

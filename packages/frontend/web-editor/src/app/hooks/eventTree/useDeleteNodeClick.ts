@@ -3,6 +3,7 @@ import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph"
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeState } from "../../../utils/treeUtils";
+import { UseGlobalStore } from "../../zustand/Store";
 
 /**
  * Custom hook for handling the deletion of a node and its descendants in a React Flow graph.
@@ -58,7 +59,9 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
         return edge;
       });
     }
-
+    UseGlobalStore((state) => {
+      state.addSnapshot();
+    });
     setNodes(finalNodes);
     setEdges(finalEdges);
     const eventTreeCurrentState: EventTreeGraph = EventTreeState({

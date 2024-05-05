@@ -1,11 +1,17 @@
 import { Handle, NodeProps, Position } from "reactflow";
 
 import React from "react";
-import { EuiText } from "@elastic/eui";
+import { EuiFieldText, EuiFormControlLayout, EuiText } from "@elastic/eui";
 
 import styles from "./styles/nodeTypes.module.css";
 
 function OutputNode({ id, data }: NodeProps) {
+  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    data.onNodeDataChange(id, { ...data, value: e.target.value });
+  };
+  const InputTextValueWidth = data.value
+    ? 1 + data.value.length * 4 + "%"
+    : "12%";
   return (
     <div>
       <Handle
@@ -28,11 +34,34 @@ function OutputNode({ id, data }: NodeProps) {
         }}
       >
         <div className={styles.outputNode}>
-          <EuiText
-            style={{ fontSize: "0.7rem", height: "1.2rem", resize: "none" }}
+          <EuiFormControlLayout
+            style={{
+              height: "2rem",
+              textAlign: "center",
+              padding: 0,
+            }}
           >
-            0.55
-          </EuiText>
+            <EuiFieldText
+              maxLength={20}
+              compressed
+              style={{
+                fontSize: "0.7rem",
+                height: "1rem",
+                resize: "none",
+                border: "none",
+                outline: "none",
+                boxShadow: "none",
+                backgroundColor: "transparent",
+                overflow: "hidden",
+                padding: 0,
+                width: InputTextValueWidth,
+                marginTop: "0.5rem",
+                marginLeft: "0.4rem",
+              }}
+              value={data.value || "0.5"}
+              onChange={handleValueChange}
+            />
+          </EuiFormControlLayout>
         </div>
       </div>
 

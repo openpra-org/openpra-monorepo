@@ -31,13 +31,11 @@ import "./initiatingEventModelViewTable.css";
 type DataRow = {
   [key: string]: string | number;
   id: number;
-  definition: string;
-  characteristics: string;
-  processCriteriaIdentification: string;
-  controlRodInsertion: string;
-  feedwaterPump: string;
-  reactorCoolantCirculator: string;
-  others: string;
+  state: string;
+  name: string;
+  model: string;
+  created: string;
+  updated: string;
 };
 type ColumnType = "text" | "dropdown" | "number";
 type DropdownOption = { value: string; text: string };
@@ -108,50 +106,47 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const [data, setData] = useState<DataRow[]>([
     {
       id: 1,
-      definition: "Definition 1",
-      characteristics: "Characteristics 1",
-      processCriteriaIdentification: "Criteria 1",
-      controlRodInsertion: "yes",
-      feedwaterPump: "no",
-      reactorCoolantCirculator: "yes",
-      others: "no",
+      state: "Definition",
+      name: "Characteristics 1",
+      model: "Criteria 1",
+      created: "yes",
+      updated: "no",
     },
     {
       id: 2,
-      definition: "Definition 2",
-      characteristics: "Characteristics 2",
-      processCriteriaIdentification: "Criteria 2",
-      controlRodInsertion: "no",
-      feedwaterPump: "yes",
-      reactorCoolantCirculator: "no",
-      others: "yes",
+      state: "Definition",
+      name: "Characteristics 1",
+      model: "Criteria 1",
+      created: "yes",
+      updated: "no",
+    },
+    {
+      id: 3,
+      state: "Definition",
+      name: "Characteristics 1",
+      model: "Criteria 1",
+      created: "yes",
+      updated: "no",
     },
   ]);
 
   const [baseColumns, setBaseColumns] = useState<CustomColumn[]>([
     // ... your initial columns here
     {
-      id: "definition",
-      displayAsText: "Definition",
-      //display: <CustomHeader column={/* column data */} onEdit={openEditColumnModal} />
+      id: "state",
+      displayAsText: "State",
     },
-    { id: "characteristics", displayAsText: "Characteristics" },
+    { id: "name", displayAsText: "Name" },
     {
-      id: "processCriteriaIdentification",
-      displayAsText: "Process Criteria Identification",
+      id: "model",
+      displayAsText: "Model",
     },
     {
-      id: "controlRodInsertion",
-      displayAsText: "Control Rod Insertion",
+      id: "created",
+      displayAsText: "Created At",
       isSortable: true,
     },
-    { id: "feedwaterPump", displayAsText: "Feedwater Pump", isSortable: true },
-    {
-      id: "reactorCoolantCirculator",
-      displayAsText: "Reactor Coolant Circulator",
-      isExpandable: true,
-    },
-    { id: "others", displayAsText: "Others", isExpandable: true },
+    { id: "updated", displayAsText: "Updated At", isSortable: true },
   ]);
   //variable to store using which grouping should be performed
   const [groupbyColumn, setGroupbyColumn] = useState<string>("");
@@ -611,22 +606,11 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
 
     setSelectedRowData({
       id: Date.now(), // Example for a unique ID
-      definition: "",
-      characteristics: "",
-      processCriteriaIdentification: "",
-      // Initialize dropdown fields with default options or empty strings
-      controlRodInsertion:
-        customColumns.find((col) => col.id === "controlRodInsertion")
-          ?.dropdownOptions?.[0].value || "",
-      feedwaterPump:
-        customColumns.find((col) => col.id === "feedwaterPump")
-          ?.dropdownOptions?.[0].value || "",
-      reactorCoolantCirculator:
-        customColumns.find((col) => col.id === "reactorCoolantCirculator")
-          ?.dropdownOptions?.[0].value || "",
-      others:
-        customColumns.find((col) => col.id === "others")?.dropdownOptions?.[0]
-          .value || "",
+      state: "",
+      name: "",
+      model: "",
+      created: Date.now().toString(),
+      updated: Date.now().toString(),
     });
 
     setIsModalVisible(true);

@@ -832,13 +832,11 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     });
     return {
       id: 0,
-      definition: "",
-      characteristics: "",
-      processCriteriaIdentification: "",
-      controlRodInsertion: "",
-      feedwaterPump: "",
-      reactorCoolantCirculator: "",
-      others: "",
+      state: "",
+      name: "",
+      model: "",
+      created: "",
+      updated: "",
       ...initialState, // This spreads the initialized dropdowns into the final object
     } as DataRow;
   });
@@ -909,18 +907,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       });
     }
     return groupedRows;
-  }
-
-  //convert groupped data to ungrouped data
-  function ungroup(rows: any[]) {
-    const updatedData = [];
-    for (let i = 0; i < rows.length; i++) {
-      if (rows[i]?.isHeader) {
-        continue;
-      }
-      updatedData.push(rows[i]);
-    }
-    return updatedData;
   }
 
   //handle the click on column name in popover

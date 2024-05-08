@@ -325,24 +325,81 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
           console.error('Error fetching comments:', error);
         });
   }, []);
+  function formatTime(date: { getUTCHours: () => any; getUTCMinutes: () => any; }) {
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  function formatDate(date: { getUTCFullYear: () => any; getUTCMonth: () => number; getUTCDate: () => any; }) {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  function timeAgo(date: Date) {
+    const now = new Date();
+    const elapsed = now.getTime() - date.getTime(); // Convert to milliseconds
+
+    const seconds = Math.floor(elapsed / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (minutes < 60) {
+      return `${minutes} minutes ago`;
+    } else if (hours < 24) {
+      const formattedTime = formatTime(date);
+      return `${hours} hours ago (${formattedTime})`;
+    } else {
+      const formattedDate = formatDate(date);
+      return formattedDate;
+    }
+  }
+
+  // useEffect(() => {
+  //   const storedComments: EuiCommentProps[] = loadedComments.map(comment => ({
+  //     username: <UserActionUsername username={comment.comments[0].username.username} fullname={comment.comments[0].username.fullname} />,
+  //     timelineAvatar: <EuiAvatar name={comment.comments[0].username.username} />,
+  //     event: comment.comments[0].event,
+  //     timestamp: comment.comments[0].timestamp,
+  //     actions: actionFunctions[comment.comments[0].actions.replace(/"/g, '')], // Get the function by name
+  //     children: (
+  //         <EuiMarkdownFormat textSize="s">
+  //           {comment.comments[0].children}
+  //         </EuiMarkdownFormat>
+  //     ),
+  //   }));
+  //   console.log('The stored comments are as follows:', storedComments);
+  //   setComments(storedComments);
+  //
+  // }, [loadedComments]);
 
   useEffect(() => {
-    const storedComments: EuiCommentProps[] = loadedComments.map(comment => ({
-      username: <UserActionUsername username={comment.comments[0].username.username} fullname={comment.comments[0].username.fullname} />,
-      timelineAvatar: <EuiAvatar name={comment.comments[0].username.username} />,
-      event: comment.comments[0].event,
-      timestamp: comment.comments[0].timestamp,
-      actions: actionFunctions[comment.comments[0].actions.replace(/"/g, '')], // Get the function by name
-      children: (
+    const storedComments: EuiCommentProps[] = loadedComments.map(comment => {
+      const timestampString = comment.comments[0].timestamp;
+      const timestamp = new Date(timestampString.replace('on ', '')); // Remove 'on ' from the timestamp string
+
+      const formattedTimestamp = timeAgo(timestamp);
+
+      return {
+        username: <UserActionUsername username={comment.comments[0].username.username} fullname={comment.comments[0].username.fullname} />,
+        timelineAvatar: <EuiAvatar name={comment.comments[0].username.username} />,
+        event: comment.comments[0].event,
+        timestamp: formattedTimestamp,
+        actions: actionFunctions[comment.comments[0].actions.replace(/"/g, '')], // Get the function by name
+        children: (
           <EuiMarkdownFormat textSize="s">
             {comment.comments[0].children}
           </EuiMarkdownFormat>
-      ),
-    }));
+        ),
+      };
+    });
     console.log('The stored comments are as follows:', storedComments);
     setComments(storedComments);
-
   }, [loadedComments]);
+
+
 
 
   const [data, setData] = useState<DataRow[]>([
@@ -1212,10 +1269,12 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   //       },
   //     ]);
   //   }, 3000);}
+
   const onAddComment = async () => {
     setIsLoading(true);
 
-    const date = formatDate(Date.now(), 'dobLong');
+
+    const date = new Date(Date.now()).toISOString();
 
     const commentData = {
       associated_with: "some_associated_id",

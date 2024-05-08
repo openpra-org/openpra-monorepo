@@ -5,11 +5,12 @@ import React from "react";
 import { EuiIcon } from "@elastic/eui";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 
+import { UseGlobalStore } from "../../../zustand/Store";
 import styles from "./styles/nodeTypes.module.css";
 
 function InvisibleNode({ id, data }: NodeProps) {
-  const onClick = useCreateNodeClick(id);
-
+  const onClick = UseGlobalStore((state) => state.createNodeClick);
+  const addSnapshot = UseGlobalStore((state) => state.addSnapshot);
   return (
     <div style={{ opacity: data.isTentative ? "0.5" : "1" }}>
       <Handle
@@ -45,7 +46,10 @@ function InvisibleNode({ id, data }: NodeProps) {
           <EuiIcon
             size={"s"}
             type={"plus"}
-            onClick={onClick}
+            onClick={(evt) => {
+              addSnapshot();
+              onClick(id);
+            }}
             className={styles.addNodeButtonText}
           />
         )}

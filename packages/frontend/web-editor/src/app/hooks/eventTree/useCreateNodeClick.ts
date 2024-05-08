@@ -5,135 +5,113 @@ import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
 
-function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
-  const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
-  const { eventTreeId } = useParams() as { eventTreeId: string };
+function useCreateNodeClick(
+  clickedNodeId: NodeProps["id"],
+  nodes: Node[],
+  edges: Edge[],
+) {
+  // Find the root node
+  const rootNode = nodes.find((node) => node.data.depth === 1);
 
-  const addNode = () => {
-    // Get current nodes and edges
-    let nodes = getNodes();
-    const edges = getEdges();
+  // Handle potential undefined rootNode
+  if (!rootNode) {
+    // Handle the case where the root node is not found
+    throw new Error("Root node with Level 1 not found");
+  }
 
-    // Find the root node
-    const rootNode = nodes.find((node) => node.data.depth === 1);
+  // Extract the output depth from the root node
+  const [outputLevels, inputLevels] = [
+    rootNode.data?.outputDepth,
+    rootNode.data?.inputDepth,
+  ] as [number, number];
 
-    // Handle potential undefined rootNode
-    if (!rootNode) {
-      // Handle the case where the root node is not found
-      throw new Error("Root node with Level 1 not found");
-    }
+  const rightmostNodeIndices = findRightmostNodeIndicesAtEachLevel(
+    clickedNodeId,
+    nodes,
+    edges,
+    inputLevels,
+    outputLevels,
+  );
 
-    // Extract the output depth from the root node
-    const [outputLevels, inputLevels] = [
-      rootNode.data?.outputDepth,
-      rootNode.data?.inputDepth,
-    ] as [number, number];
+  // Find the clicked node
+  const clickedNodeIndex = nodes.findIndex((node) => node.id === clickedNodeId);
+  const clickedNode = clickedNodeIndex !== -1 ? nodes[clickedNodeIndex] : null;
 
-    const rightmostNodeIndices = findRightmostNodeIndicesAtEachLevel(
-      clickedNodeId,
-      nodes,
-      edges,
-      inputLevels,
-      outputLevels,
-    );
+  // put the clicked node as activated (for a dangling node)
+  if (clickedNode?.type === "invisibleNode") {
+    nodes[clickedNodeIndex].type = "visibleNode";
 
-    // Find the clicked node
-    const clickedNodeIndex = nodes.findIndex(
-      (node) => node.id === clickedNodeId,
-    );
-    const clickedNode =
-      clickedNodeIndex !== -1 ? nodes[clickedNodeIndex] : null;
+    const idx = edges.findIndex((edge) => edge.target === clickedNodeId);
+    edges[idx].animated = false;
+  }
 
-    // put the clicked node as activated (for a dangling node)
-    if (clickedNode?.type === "invisibleNode") {
-      nodes[clickedNodeIndex].type = "visibleNode";
+  // Find the edge connecting clickedNode and its parent node
+  const clickedNodeEdge = edges.find((edge) => edge.target === clickedNodeId);
 
-      const idx = edges.findIndex((edge) => edge.target === clickedNodeId);
-      edges[idx].animated = false;
-    }
+  // Determine the depth of the new node
+  const clickedNodeDepth = clickedNode?.data.depth;
 
-    // Find the edge connecting clickedNode and its parent node
-    const clickedNodeEdge = edges.find((edge) => edge.target === clickedNodeId);
+  // Initialize placeholders for new nodes and edges
 
-    // Determine the depth of the new node
-    const clickedNodeDepth = clickedNode?.data.depth;
+  const newEdges: Edge[] = [];
+  let lastNodeId = clickedNodeEdge ? clickedNodeEdge.source : "";
+  console.log(rightmostNodeIndices);
+  rightmostNodeIndices.forEach((rightmostNodeIndex, level) => {
+    // Generate a new node ID
+    const newNodeId = GenerateUUID();
 
-    // Initialize placeholders for new nodes and edges
+    // Decide the node type based on its level
+    const nodeType =
+      level === 0
+        ? "visibleNode"
+        : level <= inputLevels - clickedNodeDepth
+        ? "invisibleNode"
+        : "outputNode";
 
-    const newEdges: Edge[] = [];
-    let lastNodeId = clickedNodeEdge ? clickedNodeEdge.source : "";
-
-    rightmostNodeIndices.forEach((rightmostNodeIndex, level) => {
-      // Generate a new node ID
-      const newNodeId = GenerateUUID();
-
-      // Decide the node type based on its level
-      const nodeType =
-        level === 0
-          ? "visibleNode"
-          : level <= inputLevels - clickedNodeDepth
-          ? "invisibleNode"
-          : "outputNode";
-
-      // Create the new node based on the level and type
-      const newNode: Node = {
-        id: newNodeId,
-        type: nodeType,
-        data: {
-          label: `node at ${level + clickedNodeDepth}`,
-          depth: level + clickedNodeDepth,
-          width: rootNode.data.width,
-          output: nodeType === "outputNode",
-        },
-        position: {
-          x: clickedNode?.position.x!, // This should be calculated based on your layout logic
-          y: clickedNode?.position.y!, // This should be calculated based on your layout logic
-        },
-      };
-
-      nodes = [
-        ...nodes.slice(0, rightmostNodeIndex + 1 + level),
-        newNode,
-        ...nodes.slice(rightmostNodeIndex + 1 + level, nodes.length),
-      ];
-
-      // Determine source node for the edge
-      const sourceNodeId = lastNodeId;
-      lastNodeId = newNodeId;
-
-      // Create and add the new edge
-      const newEdge: Edge = {
-        id: GenerateUUID(),
-        source: sourceNodeId,
-        target: newNodeId,
-        type: "custom",
-        animated:
-          nodeType === "invisibleNode" ||
-          level === inputLevels - clickedNodeDepth + 1,
-      };
-
-      newEdges.push(newEdge);
-    });
-
-    // Set nodes and edges with the updated and new elements
-    const updatedEdges = edges.concat(newEdges);
-    setNodes(nodes);
-    setEdges(updatedEdges);
-
-    const eventTreeCurrentState: EventTreeGraph = EventTreeState({
-      eventTreeId: eventTreeId,
-      nodes: nodes,
-      edges: updatedEdges,
-    });
-
-    void GraphApiManager.storeEventTree(eventTreeCurrentState).then(
-      (r: EventTreeGraph) => {
-        console.log(r);
+    // Create the new node based on the level and type
+    const newNode: Node = {
+      id: newNodeId,
+      type: nodeType,
+      data: {
+        label: `node at ${level + clickedNodeDepth}`,
+        depth: level + clickedNodeDepth,
+        width: rootNode.data.width,
+        output: nodeType === "outputNode",
       },
-    );
-  };
+      position: {
+        x: clickedNode?.position.x!, // This should be calculated based on your layout logic
+        y: clickedNode?.position.y!, // This should be calculated based on your layout logic
+      },
+    };
 
-  return addNode;
+    nodes = [
+      ...nodes.slice(0, rightmostNodeIndex + 1 + level),
+      newNode,
+      ...nodes.slice(rightmostNodeIndex + 1 + level, nodes.length),
+    ];
+
+    // Determine source node for the edge
+    const sourceNodeId = lastNodeId;
+    lastNodeId = newNodeId;
+
+    // Create and add the new edge
+    const newEdge: Edge = {
+      id: GenerateUUID(),
+      source: sourceNodeId,
+      target: newNodeId,
+      type: "custom",
+      animated:
+        nodeType === "invisibleNode" ||
+        level === inputLevels - clickedNodeDepth + 1,
+    };
+
+    newEdges.push(newEdge);
+  });
+
+  // Set nodes and edges with the updated and new elements
+  const updatedEdges = edges.concat(newEdges);
+
+  return { newNodes: nodes, newEdges: updatedEdges };
 }
 
 export default useCreateNodeClick;

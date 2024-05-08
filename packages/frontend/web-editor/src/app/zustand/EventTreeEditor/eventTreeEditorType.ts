@@ -31,4 +31,5 @@ export type EventTreeEditorType = {
   createNodeClick: (clickedNodeId: string) => void;
   deleteColClick: (clickedNodeId: string) => void;
   deleteNodeClick: (clickedNodeId: string) => void;
+  //useLayout: () => void;
 };

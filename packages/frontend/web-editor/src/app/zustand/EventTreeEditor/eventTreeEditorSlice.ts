@@ -11,6 +11,9 @@ import {
 } from "reactflow";
 import { SliceResetFns, storeType } from "../Store";
 import useCreateColClick from "../../hooks/eventTree/useCreateColClick";
+import useCreateNodeClick from "../../hooks/eventTree/useCreateNodeClick";
+import useDeleteColClick from "../../hooks/eventTree/useDeleteColClick";
+import useDeleteNodeClick from "../../hooks/eventTree/useDeleteNodeClick";
 import { EventTreeEditorType } from "./eventTreeEditorType";
 import { eventTreeEditorState } from "./eventTreeEditorState";
 import { addSnapshot, undo, redo, loadGraph } from "./eventTreeEditorActions";
@@ -51,7 +54,6 @@ const eventTreeEditorSlice: StateCreator<
       });
     },
     setNodes: (nodes: Node[]) => {
-      console.log(nodes);
       set({ nodes });
     },
     setEdges: (edges: Edge[]) => {
@@ -62,21 +64,66 @@ const eventTreeEditorSlice: StateCreator<
         nodes: [],
         edges: [],
       };
-      set({ ...update, loading: false }); // Update the state with the prepared data
+      set({ ...update, loading: false, undoStack: [], redoStack: [] }); // Update the state with the prepared data
     },
     loading: false,
+
     createColClick: (clickedNodeId: string) => {
-      const nodes = get().nodes;
-      const edges = get().edges;
-      const update = useCreateColClick(clickedNodeId, nodes, edges) ?? {
+      const update = useCreateColClick(
+        clickedNodeId,
+        get().nodes,
+        get().edges,
+      ) ?? {
         newNodes: [],
         newEdges: [],
       };
-      set({ nodes: update.newNodes, edges: update.newEdges });
+      set({
+        nodes: update.newNodes,
+        edges: update.newEdges,
+      });
     },
-    createNodeClick: (clickedNodeId: string) => {},
-    deleteColClick: (clickedNodeId: string) => {},
-    deleteNodeClick: (clickedNodeId: string) => {},
+    createNodeClick: (clickedNodeId: string) => {
+      const update = useCreateNodeClick(
+        clickedNodeId,
+        get().nodes,
+        get().edges,
+      ) ?? {
+        newNodes: [],
+        newEdges: [],
+      };
+      set({
+        nodes: update.newNodes,
+        edges: update.newEdges,
+      });
+    },
+    deleteColClick: (clickedNodeId: string) => {
+      const update = useDeleteColClick(
+        clickedNodeId,
+        get().nodes,
+        get().edges,
+      ) ?? {
+        newNodes: [],
+        newEdges: [],
+      };
+      set({
+        nodes: update.newNodes,
+        edges: update.newEdges,
+      });
+    },
+    deleteNodeClick: (clickedNodeId: string) => {
+      const update = useDeleteNodeClick(
+        clickedNodeId,
+        get().nodes,
+        get().edges,
+      ) ?? {
+        newNodes: [],
+        newEdges: [],
+      };
+      set({
+        nodes: update.newNodes,
+        edges: update.newEdges,
+      });
+    },
   };
 };
 

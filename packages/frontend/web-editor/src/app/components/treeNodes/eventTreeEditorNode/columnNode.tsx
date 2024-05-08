@@ -17,7 +17,8 @@ import styles from "./styles/nodeTypes.module.css";
 
 function ColumnNode({ id, data }: NodeProps) {
   const onClickAddColumn = UseGlobalStore((state) => state.createColClick);
-  const onClickDeleteColumn = useDeleteColClick(id);
+  const onClickDeleteColumn = UseGlobalStore((state) => state.deleteColClick);
+  const addSnapshot = UseGlobalStore((state) => state.addSnapshot);
 
   const handleValueChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const textarea = e.target;
@@ -109,6 +110,7 @@ function ColumnNode({ id, data }: NodeProps) {
                 size={"s"}
                 type={"plus"}
                 onClick={(evt) => {
+                  addSnapshot();
                   onClickAddColumn(id);
                 }}
                 className={styles.addNodeButtonText}
@@ -117,7 +119,10 @@ function ColumnNode({ id, data }: NodeProps) {
               <EuiIcon
                 size={"s"}
                 type={"minus"}
-                onClick={onClickDeleteColumn}
+                onClick={(evt) => {
+                  addSnapshot();
+                  onClickDeleteColumn(id);
+                }}
                 className={styles.addNodeButtonText}
               />
             </EuiFlexGroup>

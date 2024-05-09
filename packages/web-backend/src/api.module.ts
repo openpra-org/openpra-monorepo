@@ -13,6 +13,7 @@ import { FmeaModule } from "./fmea/fmea.module";
 import { GraphModelModule } from "./graphModels/graphModel.module";
 import { InitiatorModule } from "./initiators/initiators.module";
 import { InitiatingEventGroupModule } from "./initiatingEventGroup/initiatingEventGroup.module";
+import { ModelViewColumnModule } from "./modelViewConfig/modelViewColumn.module";
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { InitiatingEventGroupModule } from "./initiatingEventGroup/initiatingEve
     InitiatorModule,
     InitiatingEventGroupModule,
     GraphModelModule,
+    ModelViewColumnModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
       isGlobal: true,
@@ -73,6 +75,10 @@ import { InitiatingEventGroupModule } from "./initiatingEventGroup/initiatingEve
           {
             path: "initiating-event-group",
             module: InitiatingEventGroupModule,
+          },
+          {
+            path: "model-view-column",
+            module: ModelViewColumnModule,
           },
         ],
       },

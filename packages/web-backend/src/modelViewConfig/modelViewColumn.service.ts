@@ -30,32 +30,49 @@ export class ModelViewColumnService {
   async addColumn(column: ModelViewColumn): Promise<ModelViewColumnDocument> {
     const allInitiators = await this.initiatorModel.find();
     const allInitiatingEvents = await this.initiatingEventModel.find();
-    allInitiators.forEach(async (initiator) => {
-      this.addKeyValueMapping(column, initiator);
-    });
-    allInitiatingEvents.forEach(async (initiatingEvent) => {
-      this.addKeyValueMapping(column, initiatingEvent);
-    });
+    const valueforColumn = this.valueforColumn(column);
+    for (const initiator of allInitiators) {
+
+      const updatedInitiator = await this.initiatorModel.findByIdAndUpdate(
+        initiator._id,
+        {
+          $set: {
+            [`customAttributes.${column.name}`]: valueforColumn,
+          },
+        },
+        { new: true },
+      );
+    }
+
+    for (const initiatingEvent of allInitiatingEvents) {
+      await this.initiatingEventModel.findByIdAndUpdate(
+        initiatingEvent._id,
+        {
+          $set: {
+            [`customAttributes.${column.name}`]: valueforColumn,
+          },
+        },
+        { new: true },
+      );
+    }
 
     return await new this.modelViewColumnModel(column).save();
   }
 
-  async addKeyValueMapping(
-    column,
-    model: InitiatingEventDocument | InitiatorDocument,
+  valueforColumn(
+    column
   ) {
     if (column.type == "string") {
-      model[column.name] = "";
+      return " ";
     } else if (column.type == "dropdown") {
-      if (column.dropdownOptions.length > 0) {
-        model[column.name] = column.dropdownOptions[0];
+      if (column.options.length > 0) {
+        return column.options[0];
       } else {
-        model[column.name] = "";
+        return " ";
       }
     } else {
-      model[column.name] = 0;
+      return 0;
     }
-    await model.save();
   }
 
   async deleteColumn(
@@ -64,21 +81,33 @@ export class ModelViewColumnService {
     const allInitiators = await this.initiatorModel.find();
     const allInitiatingEvents = await this.initiatingEventModel.find();
     allInitiators.forEach(async (initiator) => {
-      this.removeKeyValueMapping(columnName, initiator);
+      await this.initiatorModel.findByIdAndUpdate(
+        initiator._id,
+        {
+          $unset: {
+            [`customAttributes.${columnName}`]: "",
+          },
+        },
+        { new: true },
+      );
     });
 
+
     allInitiatingEvents.forEach(async (initiatingEvent) => {
-      this.removeKeyValueMapping(columnName, initiatingEvent);
+      await this.initiatingEventModel.findByIdAndUpdate(
+        initiatingEvent._id,
+        {
+          $unset: {
+            [`customAttributes.${columnName}`]: "",
+          },
+        },
+        { new: true },
+      );
     });
 
     return await this.modelViewColumnModel.findOneAndDelete({
       name: columnName,
     });
-  }
-
-  async removeKeyValueMapping(columnName, model: InitiatingEventDocument | InitiatorDocument) {
-    delete model[columnName];
-    await model.save();
   }
 
   async updateColumnName(columnName: string, newName: string) {
@@ -93,6 +122,34 @@ export class ModelViewColumnService {
     columnName: string,
     newColumnObject: ModelViewColumn,
   ): Promise<ModelViewColumn | null> {
+    if (columnName!=newColumnObject.name){
+      const allInitiators = await this.initiatorModel.find();
+      const allInitiatingEvents = await this.initiatingEventModel.find();
+      const newColumnName = newColumnObject.name;
+      for (const initiator of allInitiators) {
+        //set the new column and unset the old column
+        await this.initiatorModel.findByIdAndUpdate(
+          initiator._id,
+          {
+            $rename: {
+              ["customAttributes."+columnName]: "customAttributes."+newColumnName
+            }
+          },
+          { new: true },
+        )
+      }
+      for (const initiatingEvent of allInitiatingEvents) {
+        await this.initiatingEventModel.findByIdAndUpdate(
+          initiatingEvent._id,
+          {
+            $rename:{
+              ["customAttributes."+columnName]: "customAttributes."+newColumnName
+            }
+          }
+        );
+      }
+    }
+    
     return await this.modelViewColumnModel.findOneAndUpdate(
       { name: columnName },
       newColumnObject,

@@ -24,6 +24,9 @@ export class InitiatingEvent extends NestedModel {
 
   @Prop()
   state: string;
+
+  @Prop()
+  customAttributes: Map<string, string | number>
 }
 
 export type InitiatingEventDocument = InitiatingEvent & Document;

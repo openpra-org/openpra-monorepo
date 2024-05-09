@@ -14,6 +14,9 @@ export class Initiator {
 
   @Prop()
   state: string;
+
+  @Prop({default: new Map()})
+  customAttributes: Map<string, string | number>
 }
 
 export type InitiatorDocument = Initiator & Document;

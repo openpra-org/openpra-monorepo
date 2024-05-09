@@ -24,7 +24,7 @@ const CommentComponent = ({
                             isLoading,
                             onAddComment,
                             editorError,
-                          }: {
+                           }: {
   commentsList: React.ReactNode; // ReactNode is a suitable type for JSX elements
   errorElementId: RefObject<HTMLElement>; // RefObject<HTMLElement> for useRef usage
   editorValue: string;
@@ -40,8 +40,10 @@ const CommentComponent = ({
             <EuiCommentList aria-label="Comment system example">
         {commentsList}
         <EuiComment
-          username="juana"
-          timelineAvatar={<EuiAvatar name="juana" />}
+          username="first_person"
+          timelineAvatar={<EuiAvatar name="First" />}
+          // actions={customActions} // Use customActions prop here
+
         >
           <EuiMarkdownEditor
             aria-label="Markdown editor"

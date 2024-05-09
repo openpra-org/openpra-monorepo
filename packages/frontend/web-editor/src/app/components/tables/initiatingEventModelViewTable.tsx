@@ -3,7 +3,7 @@ import React, {useCallback, useMemo, useRef, useState} from "react";
 import {
   EuiButton,
   EuiButtonIcon,
-  EuiCheckbox, EuiCommentProps,
+  EuiCheckbox, EuiCommentProps, EuiContextMenuItem,
   EuiDataGrid,
   EuiDataGridCellValueElementProps,
   EuiDataGridColumn,
@@ -38,7 +38,15 @@ import "@elastic/eui/dist/eui_theme_light.css";
 import { useEffect } from "react";
 import { groupBy } from "lodash";
 const date = formatDate(Date.now(), 'dobLong');
-
+import {
+  EuiText,
+  EuiLink,
+  EuiFlyout,
+  EuiFlyoutHeader,
+  EuiFlyoutBody,
+  EuiTitle,
+  useGeneratedHtmlId,
+} from '@elastic/eui';
 import "./initiatingEventModelViewTable.css";
 import CommentLogs from "../../pages/fullScopePages/commentLogs";
 import * as diagnostics_channel from "diagnostics_channel";
@@ -48,8 +56,9 @@ import {
   EuiToolTip,
 } from '@elastic/eui';
 import axios from "axios";
+import { EuiContextMenuPanel } from '@elastic/eui';
 
-//Elastic Commnet Code:
+//Elastic Comment Code:
 const actionButton = (
   <EuiButtonIcon
     title="Custom action"
@@ -58,17 +67,7 @@ const actionButton = (
     iconType="copy"
   />
 );
-const actionFunctions: { [key: string]: JSX.Element } = {
-  actionButton: (
-      <EuiButtonIcon
-          title="Custom action"
-          aria-label="Custom action"
-          color="text"
-          iconType="copy"
-      />
-  ),
-  // Define other action functions here...
-};
+
 
 const complexEvent = (
   <EuiFlexGroup responsive={false} alignItems="center" gutterSize="xs" wrap>
@@ -241,46 +240,81 @@ type AppProps = {
 
 const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
 
-  // Example comment data in the desired format
-//   const commentData = {
-//     "associated_with": "some_associated_id",
-//     "comments": [
-//       {
-//         "username": {
-//           "username": "first_person",
-//           "fullname": "First Person"
-//         },
-//         "timelineAvatar": "tp",
-//         "event": "added first comment",
-//         "timestamp": "2024-05-01T12:00:00Z",
-//         "actions": "actionButton",
-//         "children": "This is comment no. 5"
-//       }
-//     ]
-//   };
-//
-// // Make an HTTP POST request to the API endpoint
-//   fetch('http://localhost:8000/api/comments/comments', {
-//     method: 'POST',
-//     headers: {
-//       'Content-Type': 'application/json',
-//     },
-//     body: JSON.stringify(commentData),
-//   })
-//       .then(response => {
-//         if (!response.ok) {
-//           throw new Error('Network response was not ok');
-//         }
-//         return response.json();
-//       })
-//       .then(data => {
-//         // Handle successful response from the backend
-//         console.log('Success:', data);
-//       })
-//       .catch(error => {
-//         // Handle errors
-//         console.error('Error:', error);
-//       });
+  const [isCommentPopoverOpen, setIsCommentPopoverOpen] = useState(false);
+  const onDeleteComment = async (commentId: string) => {
+      console.log('Delete comment triggered' + commentId);
+      setIsLoading(true);
+
+      const date = new Date(Date.now()).toISOString();
+
+      const editedCommentData = {
+          comments: [
+              {
+                  username: {
+                      username: "first_person",
+                      fullname: "First Person"
+                  },
+                  timelineAvatar: "fp",
+                  event: 'deleted comment',
+                  timestamp: `on ${date}`,
+                  eventIcon: "trash",
+                  eventIconAriaLabel: "delete"
+              }
+          ]
+      };
+
+      try {
+          const response = await fetch(`http://localhost:8000/api/comments/comments/update/some_associated_id/${commentId}`, {
+              method: 'PUT',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(editedCommentData),
+          });
+
+          if (!response.ok) {
+              throw new Error('Failed to edit comment');
+          }
+
+          setIsLoading(false);
+          await fetchComments();
+      } catch (error) {
+          console.error('Error editing comment:', error);
+          setIsLoading(false);
+      }
+  };
+
+  const actionFunctions: { [key: string]: (commentId: string) => JSX.Element } = {
+    actionButton:(commentId: string) => (
+        <React.Fragment>
+            <EuiButtonIcon
+                key="copyButton"
+                title="Copy the text"
+                aria-label="Custom action 1"
+                color="text"
+                iconType="copy"
+            />
+            <EuiButtonIcon
+                key="editButton"
+                title="Edit this comment"
+                aria-label="Custom action 2"
+                color="text"
+                iconType="pencil"
+            />
+            <EuiButtonIcon
+                key="deleteButton"
+                title="Delete this comment"
+                aria-label="Custom action 2"
+                color="text"
+                iconType="trash"
+                onClick={() => onDeleteComment(commentId)} // Assuming _id is part of comments[0]
+            />
+
+            {/* Add more button elements as needed */}
+        </React.Fragment>
+    ),
+
+  };
 
   const [comments, setComments] = useState<EuiCommentProps[]>([]);
 
@@ -289,6 +323,8 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     id: string;
     associated_with: string;
     comments: {
+        eventIconAriaLabel?: string;
+        eventIcon?: string;
       username: {
         username: string;
         fullname: string;
@@ -296,8 +332,8 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       timelineAvatar: string;
       event: string;
       timestamp: string;
-      actions: string;
-      children: string;
+      actions?: string; // Optional property
+      children?: string;
     }[];
   }
 
@@ -357,24 +393,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     }
   }
 
-  // useEffect(() => {
-  //   const storedComments: EuiCommentProps[] = loadedComments.map(comment => ({
-  //     username: <UserActionUsername username={comment.comments[0].username.username} fullname={comment.comments[0].username.fullname} />,
-  //     timelineAvatar: <EuiAvatar name={comment.comments[0].username.username} />,
-  //     event: comment.comments[0].event,
-  //     timestamp: comment.comments[0].timestamp,
-  //     actions: actionFunctions[comment.comments[0].actions.replace(/"/g, '')], // Get the function by name
-  //     children: (
-  //         <EuiMarkdownFormat textSize="s">
-  //           {comment.comments[0].children}
-  //         </EuiMarkdownFormat>
-  //     ),
-  //   }));
-  //   console.log('The stored comments are as follows:', storedComments);
-  //   setComments(storedComments);
-  //
-  // }, [loadedComments]);
-
   useEffect(() => {
     const storedComments: EuiCommentProps[] = loadedComments.map(comment => {
       const timestampString = comment.comments[0].timestamp;
@@ -387,12 +405,21 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
         timelineAvatar: <EuiAvatar name={comment.comments[0].username.username} />,
         event: comment.comments[0].event,
         timestamp: formattedTimestamp,
-        actions: actionFunctions[comment.comments[0].actions.replace(/"/g, '')], // Get the function by name
-        children: (
-          <EuiMarkdownFormat textSize="s">
-            {comment.comments[0].children}
-          </EuiMarkdownFormat>
-        ),
+          // actions: comment.comments[0].actions
+          //     ? actionFunctions[comment.comments[0].actions.replace(/"/g, '')]
+          //     : undefined,
+          actions: comment.comments[0].actions
+              ? actionFunctions[comment.comments[0].actions.replace(/"/g, '')](comment._id) // Pass commentId to action function
+              : undefined,
+          children: comment.comments[0].children
+              ? (
+                  <EuiMarkdownFormat textSize="s">
+                      {comment.comments[0].children}
+                  </EuiMarkdownFormat>
+              )
+              : null,
+          eventIcon: comment.comments[0]?.eventIcon ?? undefined,
+          eventIconAriaLabel: comment.comments[0]?.eventIconAriaLabel ?? undefined,
       };
     });
     console.log('The stored comments are as follows:', storedComments);
@@ -1244,31 +1271,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       setEditorError(false);
     }
   }, [editorValue, editorError]);
-  // const onAddComment = () => {
-  //   setIsLoading(true);
-  //
-  //   const date = formatDate(Date.now(), 'dobLong');
-  //
-  //   setTimeout(() => {
-  //     setIsLoading(false);
-  //     setEditorValue('');
-  //
-  //     setComments([
-  //       ...comments,
-  //       {
-  //         username: (
-  //           <UserActionUsername username="emma" fullname="Emma Watson" />
-  //         ),
-  //         timelineAvatar: <EuiAvatar name="emma" />,
-  //         event: 'added a comment',
-  //         timestamp: `on ${date}`,
-  //         actions: actionButton,
-  //         children: (
-  //           <EuiMarkdownFormat textSize="s">{editorValue}</EuiMarkdownFormat>
-  //         ),
-  //       },
-  //     ]);
-  //   }, 3000);}
 
   const onAddComment = async () => {
     setIsLoading(true);
@@ -1311,26 +1313,13 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
 
       setIsLoading(false);
       setEditorValue('');
-
-      // setComments([
-      //   ...comments,
-      //   {
-      //     username: (
-      //       <UserActionUsername username={commentData.comments[0].username.username} fullname={commentData.comments[0].username.fullname} />
-      //     ),
-      //     timelineAvatar: <EuiAvatar name={commentData.comments[0].username.username} />,
-      //     event: commentData.comments[0].event,
-      //     timestamp: commentData.comments[0].timestamp,
-      //     actions: commentData.comments[0].actions,
-      //     children: commentData.comments[0].children,
-      //   },
-      // ]);
       await fetchComments();
     } catch (error) {
       console.error('Error adding comment:', error);
       setIsLoading(false);
     }
   };
+
 
   const commentsList = comments.map((comment, index) => {
     return (
@@ -1924,7 +1913,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                     onAddComment={onAddComment}
                     editorError={editorError}
                   />
-
                 </div>
             )}
             </EuiResizablePanel>

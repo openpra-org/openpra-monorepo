@@ -86,6 +86,7 @@ function FMEAListView(): JSX.Element {
   return (
     <Routes>
       <Route path="" element={<FailureModesAndEffectsAnalysesList />} />
+      <Route path=":fmeaId" element={<EditableTable />} />
     </Routes>
   );
 }

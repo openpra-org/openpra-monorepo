@@ -24,7 +24,7 @@ import { Route, Routes, useParams } from "react-router-dom";
 import { Column } from "shared-types/src/lib/types/fmea/Column";
 import { Row } from "shared-types/src/lib/types/fmea/Row";
 
-import FmeaApiManager from "shared-types/src/lib/api/InitiatingEventsApiManager";
+import FmeaApiManager from "shared-types/src/lib/api/FailureModesAndEffectsAnalysesApiManager";
 
 // import InitiatorList from "../../components/lists/InitiatorList";
 import { InitiatingEventsList } from "../../components/lists/nestedLists/initiatingEventsList";

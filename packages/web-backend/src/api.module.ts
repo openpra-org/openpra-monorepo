@@ -11,6 +11,7 @@ import { ApiController } from "./api.controller";
 import { ApiService } from "./api.service";
 import { FmeaModule } from "./fmea/fmea.module";
 import { GraphModelModule } from "./graphModels/graphModel.module";
+import { FailureModesAndEffectsAnalysesModule } from "./failureModesAndEffectsAnalyses/failureModesAndEffectsAnalyses.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { GraphModelModule } from "./graphModels/graphModel.module";
     TypedModelModule,
     NestedModelModule,
     FmeaModule,
+    FailureModesAndEffectsAnalysesModule,
     GraphModelModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
@@ -57,6 +59,10 @@ import { GraphModelModule } from "./graphModels/graphModel.module";
           {
             path: "fmea",
             module: FmeaModule,
+          },
+          {
+            path: "failure-modes-and-effects-analyses",
+            module: FailureModesAndEffectsAnalysesModule,
           },
           {
             path: "graph-models",

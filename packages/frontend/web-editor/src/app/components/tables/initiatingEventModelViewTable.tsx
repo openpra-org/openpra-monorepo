@@ -3,7 +3,7 @@ import React, {useCallback, useMemo, useRef, useState} from "react";
 import {
   EuiButton,
   EuiButtonIcon,
-  EuiCheckbox, EuiCommentProps, EuiContextMenuItem,
+  EuiCheckbox, EuiCommentProps, EuiConfirmModal, EuiContextMenuItem,
   EuiDataGrid,
   EuiDataGridCellValueElementProps,
   EuiDataGridColumn,
@@ -20,7 +20,7 @@ import {
   EuiPopover,
   EuiResizableContainer,
   EuiSearchBar,
-  EuiSelect,
+  EuiSelect, useGeneratedHtmlId,
 } from "@elastic/eui";
 import {
   htmlIdGenerator,
@@ -38,25 +38,13 @@ import "@elastic/eui/dist/eui_theme_light.css";
 import { useEffect } from "react";
 import { groupBy } from "lodash";
 const date = formatDate(Date.now(), 'dobLong');
-import {
-  EuiText,
-  EuiLink,
-  EuiFlyout,
-  EuiFlyoutHeader,
-  EuiFlyoutBody,
-  EuiTitle,
-  useGeneratedHtmlId,
-} from '@elastic/eui';
+
 import "./initiatingEventModelViewTable.css";
-import CommentLogs from "../../pages/fullScopePages/commentLogs";
-import * as diagnostics_channel from "diagnostics_channel";
 import CommentComponent from "../../pages/fullScopePages/commentLogs";
 import {
   formatDate,
   EuiToolTip,
 } from '@elastic/eui';
-import axios from "axios";
-import { EuiContextMenuPanel } from '@elastic/eui';
 
 //Elastic Comment Code:
 const actionButton = (
@@ -239,11 +227,43 @@ type AppProps = {
 };
 
 const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
+  const [isDestroyModalVisible, setIsDestroyModalVisible] = useState(false);
+  const closeDestroyModal = () => setIsDestroyModalVisible(false);
+  const showDestroyModal = () => {
+    setIsDestroyModalVisible(true);
+  };
+  const destroyModalTitleId = useGeneratedHtmlId();
+  const [commentToDeleteId, setCommentToDeleteId] = useState('');
 
-  const [isCommentPopoverOpen, setIsCommentPopoverOpen] = useState(false);
-  const onDeleteComment = async (commentId: string) => {
-      console.log('Delete comment triggered' + commentId);
-      setIsLoading(true);
+  // const handleDeleteConfirmation = async () => {
+  //   setIsLoading(true);
+  //   // Perform the delete operation
+  //   try {
+  //     const response = await fetch(`http://localhost:8000/api/comments/comments/update/some_associated_id/${commentToDeleteId}`, {
+  //       method: 'PUT',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //       },
+  //       body: JSON.stringify(editedCommentData),
+  //     });
+  //
+  //     if (!response.ok) {
+  //       throw new Error('Failed to delete comment');
+  //     }
+  //
+  //     setIsLoading(false);
+  //     await fetchComments();
+  //     // Hide the confirmation modal after deletion
+  //     setIsDeleteModalVisible(false);
+  //   } catch (error) {
+  //     console.error('Error deleting comment:', error);
+  //     setIsLoading(false);
+  //     // Hide the confirmation modal if there's an error
+  //     setIsDeleteModalVisible(false);
+  //   }
+  // };
+  const onDeleteComment = async () => {
+       setIsLoading(true);
 
       const date = new Date(Date.now()).toISOString();
 
@@ -264,7 +284,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       };
 
       try {
-          const response = await fetch(`http://localhost:8000/api/comments/comments/update/some_associated_id/${commentId}`, {
+          const response = await fetch(`http://localhost:8000/api/comments/comments/update/some_associated_id/${commentToDeleteId}`, {
               method: 'PUT',
               headers: {
                   'Content-Type': 'application/json',
@@ -278,6 +298,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
 
           setIsLoading(false);
           await fetchComments();
+        closeDestroyModal();
       } catch (error) {
           console.error('Error editing comment:', error);
           setIsLoading(false);
@@ -307,7 +328,12 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                 aria-label="Custom action 2"
                 color="text"
                 iconType="trash"
-                onClick={() => onDeleteComment(commentId)} // Assuming _id is part of comments[0]
+                onClick={() => {
+                  // Show the confirmation modal and set the comment ID to be deleted
+                  setIsDestroyModalVisible(true);
+                  setCommentToDeleteId(commentId);
+                }}// Assuming _id is part of comments[0]
+                // onDeleteComment(commentId)
             />
 
             {/* Add more button elements as needed */}
@@ -1383,6 +1409,25 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       className="app-container"
       style={{ height: "100vh", display: "flex", flexDirection: "column" }}
     >
+      {isDestroyModalVisible && (
+          <EuiConfirmModal
+              aria-labelledby={destroyModalTitleId}
+              title="Delete Comment"
+              titleProps={{ id: destroyModalTitleId }}
+              onCancel={() => {
+                // Hide the confirmation modal if cancelled
+                setIsDestroyModalVisible(false);
+                setCommentToDeleteId(''); // Reset the comment ID
+              }}
+              onConfirm={onDeleteComment}
+              cancelButtonText="Cancel"
+              confirmButtonText="Delete"
+              buttonColor="danger"
+              defaultFocusedButton="confirm"
+           >
+            <p>Are you sure you want to delete this comment?</p>
+          </EuiConfirmModal>
+      )}
       <EuiResizableContainer style={{ height: "400px" }}>
         {(EuiResizablePanel, EuiResizableButton) => (
           <>

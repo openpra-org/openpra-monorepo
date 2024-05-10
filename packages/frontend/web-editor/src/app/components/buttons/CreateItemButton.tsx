@@ -11,6 +11,7 @@ import {
   PostFaultTree,
   PostFunctionalEvent,
   PostHeatBalanceFaultTree,
+  PostFailureModesAndEffectsAnalyses,
   PostHumanReliabilityAnalysis,
   PostInitiatingEvent,
   PostMarkovChain,
@@ -158,6 +159,15 @@ export function CreateFaultTreeButton(): JSX.Element {
     <CreateNestedItemButton
       itemName="fault-tree"
       postEndpoint={PostFaultTree}
+    />
+  );
+}
+
+export function CreateFailureModesAndEffectsAnalysesButton(): JSX.Element {
+  return (
+    <CreateNestedItemButton
+      itemName="failure-modes-and-effects-analyses"
+      postEndpoint={PostFailureModesAndEffectsAnalyses}
     />
   );
 }

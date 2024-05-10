@@ -15,6 +15,7 @@ import { BayesianEstimation } from "./schemas/bayesian-estimation.schema";
 import { FaultTree } from "./schemas/fault-tree.schema";
 import { HeatBalanceFaultTree } from "./schemas/heat-balance-fault-tree.schema";
 import { EventTree } from "./schemas/event-tree.schema";
+import { FailureModesAndEffectsAnalyses } from "./schemas/failure-modes-and-effects-analyses.schema";
 import { BayesianNetwork } from "./schemas/bayesian-network.schema";
 import { EventSequenceDiagram } from "./schemas/event-sequence-diagram.schema";
 import { FunctionalEvent } from "./schemas/functional-event.schema";
@@ -121,6 +122,13 @@ export class NestedModelController {
     @Body() data: Partial<NestedModel>,
   ): Promise<NestedModel> {
     return this.nestedModelService.createHeatBalanceFaultTree(data);
+  }
+
+  @Post("/failure-modes-and-effects-analyses/")
+  async createFailureModesAndEffectsAnalyses(
+    @Body() data: Partial<NestedModel>,
+  ): Promise<NestedModel> {
+    return this.nestedModelService.createFailureModesAndEffectsAnalyses(data);
   }
 
   /**
@@ -329,6 +337,12 @@ export class NestedModelController {
     return this.nestedModelService.getHeatBalanceFaultTrees(id);
   }
 
+  @Get("/failure-modes-and-effects-analyses/")
+  async getFailureModesAndEffectsAnalyses(
+    @Query("id") id: number,
+  ): Promise<FailureModesAndEffectsAnalyses[]> {
+    return this.nestedModelService.getFailureModesAndEffectsAnalyses(id);
+  }
   /**
    * grabs the colleciton of the type of nested model defined by the function call name (Functional events)
    * @param id the id of the parent model

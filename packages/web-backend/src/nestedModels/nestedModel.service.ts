@@ -26,6 +26,10 @@ import {
   InitiatingEventDocument,
 } from "./schemas/initiating-event.schema";
 import {
+  FailureModesAndEffectsAnalyses,
+  FailureModesAndEffectsAnalysesDocument,
+} from "./schemas/failure-modes-and-effects-analyses.schema";
+import {
   MarkovChain,
   MarkovChainDocument,
 } from "./schemas/markov-chain.schema";
@@ -98,6 +102,8 @@ export class NestedModelService {
     private readonly faultTreeModel: Model<FaultTreeDocument>,
     @InjectModel(HeatBalanceFaultTree.name)
     private readonly heatBalanceFaultTreeModel: Model<HeatBalanceFaultTreeDocument>,
+    @InjectModel(FailureModesAndEffectsAnalyses.name)
+    private readonly failureModesAndEffectsAnalysesModel: Model<FailureModesAndEffectsAnalysesDocument>,
     @InjectModel(FunctionalEvent.name)
     private readonly functionalEventsModel: Model<FunctionalEventDocument>,
     @InjectModel(InitiatingEvent.name)
@@ -245,6 +251,15 @@ export class NestedModelService {
     return newHeatBalanceFaultTree.save();
   }
 
+  async createFailureModesAndEffectsAnalyses(
+    body: Partial<NestedModel>,
+  ): Promise<NestedModel> {
+    const newFailureModesAndEffectsAnalyses =
+      new this.failureModesAndEffectsAnalysesModel(body);
+    newFailureModesAndEffectsAnalyses.id =
+      await this.getNextValue("nestedCounter");
+    return newFailureModesAndEffectsAnalyses.save();
+  }
   /**
    * creates the type of nestedmodel defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
@@ -523,6 +538,16 @@ export class NestedModelService {
     //typecast to a number because for some reason, it isnt a number????
 
     return this.heatBalanceFaultTreeModel.find(
+      { parentIds: Number(parentId) },
+      { _id: 0 },
+    );
+  }
+  async getFailureModesAndEffectsAnalyses(
+    parentId: number,
+  ): Promise<FailureModesAndEffectsAnalyses[]> {
+    //typecast to a number because for some reason, it isnt a number????
+
+    return this.failureModesAndEffectsAnalysesModel.find(
       { parentIds: Number(parentId) },
       { _id: 0 },
     );

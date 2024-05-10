@@ -21,6 +21,10 @@ import {
   HeatBalanceFaultTreeSchema,
 } from "./schemas/heat-balance-fault-tree.schema";
 import {
+  FailureModesAndEffectsAnalyses,
+  FailureModesAndEffectsAnalysesSchema,
+} from "./schemas/failure-modes-and-effects-analyses.schema";
+import {
   InitiatingEvent,
   InitiatingEventSchema,
 } from "./schemas/initiating-event.schema";
@@ -87,6 +91,10 @@ import {
       { name: EventTree.name, schema: EventTreeSchema },
       { name: FaultTree.name, schema: FaultTreeSchema },
       { name: HeatBalanceFaultTree.name, schema: HeatBalanceFaultTreeSchema },
+      {
+        name: FailureModesAndEffectsAnalyses.name,
+        schema: FailureModesAndEffectsAnalysesSchema,
+      },
       { name: FunctionalEvent.name, schema: FunctionalEventSchema },
       { name: InitiatingEvent.name, schema: InitiatingEventSchema },
       { name: MarkovChain.name, schema: MarkovChainSchema },

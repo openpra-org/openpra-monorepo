@@ -22,6 +22,7 @@ const API_ENDPOINT = "/api";
 const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, only-if-cached
 const NESTED_ENDPOINT = `${API_ENDPOINT}/nested-models`;
 const INITIATING_EVENTS_ENDPOINT = `${NESTED_ENDPOINT}/initiating-events`;
+const FAILURE_MODES_AND_EFFECTS_ANALYSES_ENDPOINT = `${NESTED_ENDPOINT}/failure-modes-and-effects-analyses`;
 const HEAT_BALANCE_FAULT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/heat-balance-fault-trees`;
 const EVENT_SEQUENCE_DIAGRAMS_ENDPOINT = `${NESTED_ENDPOINT}/event-sequence-diagrams`;
 const EVENT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/event-trees`;
@@ -88,7 +89,16 @@ export async function PostHeatBalanceFaultTree(
   await AddNestedModelToTypedModel("faultTrees");
   return returnResponse;
 }
-
+export async function PostFailureModesAndEffectsAnalyses(
+  data: NestedModelJSON,
+): Promise<NestedModel> {
+  const returnResponse = await Post(
+    `${FAILURE_MODES_AND_EFFECTS_ANALYSES_ENDPOINT}/`,
+    data,
+  ).then((response) => response.json() as Promise<NestedModel>);
+  await AddNestedModelToTypedModel("failureModesAndEffectsAnalyses");
+  return returnResponse;
+}
 /**
  * Posts the type of nested model, and adds its id to its parent
  * @param data - a nestedModelJSON containing a label and a parent id
@@ -379,6 +389,20 @@ export async function Post(
  */
 export function GetInitiatingEvents(id = -1): Promise<NestedModel[]> {
   return Get(`${INITIATING_EVENTS_ENDPOINT}/?id=${Number(id)}`)
+    .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
+    .catch((error) => {
+      throw error; // Re-throw the error to propagate it if needed
+    });
+}
+/**
+ * Gets the list of the type of nested model
+ * @param id - the parent model id, the parent whose list is to be retrieved
+ * @returns a list of the nested models at  endpoint in a promise
+ */
+export function GetFailureModesAndEffectsAnalyses(
+  id = -1,
+): Promise<NestedModel[]> {
+  return Get(`${FAILURE_MODES_AND_EFFECTS_ANALYSES_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
     .catch((error) => {
       throw error; // Re-throw the error to propagate it if needed
@@ -754,6 +778,15 @@ export function PatchInitiatingEventLabel(
   ).then((response) => response.json() as Promise<NestedModel>);
 }
 
+export function PatchFailureModesAndEffectsAnalysesLabel(
+  id: number,
+  data: LabelJSON,
+): Promise<NestedModel> {
+  return Patch(
+    `${FAILURE_MODES_AND_EFFECTS_ANALYSES_ENDPOINT}/${id}`,
+    JSON.stringify(data),
+  ).then((response) => response.json() as Promise<NestedModel>);
+}
 /**
  * updates the label for the type of nested model
  * @param id - the id of the nested model
@@ -920,6 +953,16 @@ export async function DeleteInitiatingEvent(id = -1): Promise<NestedModel> {
     `${INITIATING_EVENTS_ENDPOINT}/?id=${Number(id)}`,
   ).then((response) => response.json() as Promise<NestedModel>);
   await RemoveNestedIds(id, "initiatingEvents");
+  return response;
+}
+
+export async function DeleteFailureModesAndEffectsAnalyses(
+  id = -1,
+): Promise<NestedModel> {
+  const response = await Delete(
+    `${FAILURE_MODES_AND_EFFECTS_ANALYSES_ENDPOINT}/?id=${Number(id)}`,
+  ).then((response) => response.json() as Promise<NestedModel>);
+  await RemoveNestedIds(id, "failureModesAndEffectsAnalyses");
   return response;
 }
 

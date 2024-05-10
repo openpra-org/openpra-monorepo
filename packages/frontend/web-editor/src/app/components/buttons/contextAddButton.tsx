@@ -25,6 +25,7 @@ import {
   CreateSuccessCriteriaButton,
   CreateSystemsAnalysisButton,
   CreateWeibullAnalysisButton,
+  CreateFailureModesAndEffectsAnalysesButton,
 } from "./CreateItemButton";
 
 const ContextAddButton = (): JSX.Element => {
@@ -46,6 +47,8 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/fault-trees")) return <CreateFaultTreeButton />;
     if (location.endsWith("/heat-balance-fault-trees"))
       return <CreateHeatBalanceFaultTreeButton />;
+    if (location.endsWith("/failure-modes-and-effects-analyses"))
+      return <CreateFailureModesAndEffectsAnalysesButton />;
     if (location.endsWith("/markov-chains")) return <CreateMarkovChainButton />;
     if (location.endsWith("/bayesian-estimation"))
       return <CreateBayesianEstimationButton />;
@@ -87,6 +90,8 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/fault-trees")) return <CreateFaultTreeButton />;
     if (location.endsWith("/heat-balance-fault-trees"))
       return <CreateHeatBalanceFaultTreeButton />;
+    if (location.endsWith("/failure-modes-and-effects-analyses"))
+      return <CreateFailureModesAndEffectsAnalysesButton />;
     if (location.endsWith("/markov-chains")) return <CreateMarkovChainButton />;
     if (location.endsWith("/bayesian-estimations"))
       return <CreateBayesianEstimationButton />;
@@ -108,6 +113,8 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/fault-trees")) return <CreateFaultTreeButton />;
     if (location.endsWith("/heat-balance-fault-trees"))
       return <CreateHeatBalanceFaultTreeButton />;
+    if (location.endsWith("/failure-modes-and-effects-analyses"))
+      return <CreateFailureModesAndEffectsAnalysesButton />;
     if (location.endsWith("/markov-chains")) return <CreateMarkovChainButton />;
     if (location.endsWith("/bayesian-estimations"))
       return <CreateBayesianEstimationButton />;

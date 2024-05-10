@@ -45,6 +45,8 @@ import {
   formatDate,
   EuiToolTip,
 } from '@elastic/eui';
+import { EuiInlineEditText } from '@elastic/eui';
+
 
 //Elastic Comment Code:
 const actionButton = (
@@ -234,34 +236,12 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   };
   const destroyModalTitleId = useGeneratedHtmlId();
   const [commentToDeleteId, setCommentToDeleteId] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editorEditValue, setEditorEditValue] = useState('');
 
-  // const handleDeleteConfirmation = async () => {
-  //   setIsLoading(true);
-  //   // Perform the delete operation
-  //   try {
-  //     const response = await fetch(`http://localhost:8000/api/comments/comments/update/some_associated_id/${commentToDeleteId}`, {
-  //       method: 'PUT',
-  //       headers: {
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: JSON.stringify(editedCommentData),
-  //     });
-  //
-  //     if (!response.ok) {
-  //       throw new Error('Failed to delete comment');
-  //     }
-  //
-  //     setIsLoading(false);
-  //     await fetchComments();
-  //     // Hide the confirmation modal after deletion
-  //     setIsDeleteModalVisible(false);
-  //   } catch (error) {
-  //     console.error('Error deleting comment:', error);
-  //     setIsLoading(false);
-  //     // Hide the confirmation modal if there's an error
-  //     setIsDeleteModalVisible(false);
-  //   }
-  // };
+  const handleEditClick = () => {
+    setIsEditing(!isEditing);
+  };
   const onDeleteComment = async () => {
        setIsLoading(true);
 
@@ -321,6 +301,8 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                 aria-label="Custom action 2"
                 color="text"
                 iconType="pencil"
+                onClick={handleEditClick}
+
             />
             <EuiButtonIcon
                 key="deleteButton"
@@ -446,7 +428,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
               : null,
           eventIcon: comment.comments[0]?.eventIcon ?? undefined,
           eventIconAriaLabel: comment.comments[0]?.eventIconAriaLabel ?? undefined,
-      };
+       };
     });
     console.log('The stored comments are as follows:', storedComments);
     setComments(storedComments);
@@ -1277,7 +1259,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
 //Elastic Comment Code
 //   const errorElementIds = useRef(htmlIdGenerator()());
   const [editorValue, setEditorValue] = useState('');
-  // const [comments, setComments] = useState(initialComments);
   const [isLoading, setIsLoading] = useState(false);
   const [editorError, setEditorError] = useState(true);
   const errorElementId = useRef<HTMLElement>(null);
@@ -1346,12 +1327,64 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     }
   };
 
+   const [errors, setErrors] = useState<string[]>([]);
+  const isInvalid = errors.length > 0;
 
+  // const commentsList = comments.map((comment, index) => {
+  //   return (
+  //     <EuiComment key={`comment-${index}`} {...comment}>
+  //       {comment.children}
+  //     </EuiComment>
+  //   );
+  // });
+  function extractMarkdownText(jsxElement: React.ReactElement<any, string | React.JSXElementConstructor<any>> | string | number | Iterable<React.ReactNode> | React.ReactPortal | boolean) {
+    // Check if jsxElement is not null and is of type object
+    if (jsxElement && typeof jsxElement === 'object') {
+      // Check if jsxElement has props and props.children
+      if ("props" in jsxElement && jsxElement.props && jsxElement.props.children) {
+        // Return the string representation of props.children
+        return String(jsxElement.props.children);
+      }
+    }
+    // Return an empty string if jsxElement doesn't contain any valid children
+    return '';
+  }
   const commentsList = comments.map((comment, index) => {
     return (
+      comment.children==null?
       <EuiComment key={`comment-${index}`} {...comment}>
         {comment.children}
-      </EuiComment>
+      </EuiComment>:
+        <EuiComment key={`comment-${index}`} {...comment}>
+          <EuiInlineEditText
+            inputAriaLabel="This input will validate on save"
+            defaultValue={extractMarkdownText(comment.children)}
+            editModeProps={{
+              formRowProps: { error: errors },
+              cancelButtonProps: { onClick: () => setErrors([]) },
+              inputProps: { readOnly: isLoading },
+            }}
+            isInvalid={isInvalid}
+            isLoading={isLoading}
+            onSave={async (value) => {
+              // Validate edited text
+              if (!value) {
+                setErrors(['Please enter text.']);
+                return false;
+              } else if (value.length > 20) {
+                setErrors([
+                  'Your text is too long - please enter less than 20 characters',
+                ]);
+                return false;
+              }
+
+              // Clear errors, set loading state, and "call" an API
+              setErrors([]);
+              setIsLoading(false);
+              return true;
+            }}
+          />
+        </EuiComment>
     );
   });
   //Elastic Comment Code
@@ -1409,6 +1442,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       className="app-container"
       style={{ height: "100vh", display: "flex", flexDirection: "column" }}
     >
+
       {isDestroyModalVisible && (
           <EuiConfirmModal
               aria-labelledby={destroyModalTitleId}

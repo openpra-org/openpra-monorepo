@@ -236,13 +236,17 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   };
   const destroyModalTitleId = useGeneratedHtmlId();
   const [commentToDeleteId, setCommentToDeleteId] = useState('');
+  const [commentToEditId, setCommentEditId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editorEditValue, setEditorEditValue] = useState('');
     useEffect(() => {
         console.log("isEditing state has changed: ", isEditing); // Log the updated state
     }, [isEditing]);
-  const handleEditClick = () => {
-      setIsEditing((prevIsEditing) => !prevIsEditing);
+
+  const handleEditCommentId = (commentId: string) => {
+    setCommentEditId(prevId => (prevId === commentId ? null : commentId));
+    console.log("When clicked on edit Button: ", commentToEditId);
+
   };
   const onDeleteComment = async () => {
        setIsLoading(true);
@@ -286,6 +290,48 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
           setIsLoading(false);
       }
   };
+  const onEditComment = async (editedValue: string) => {
+    setIsLoading(true);
+    const date = new Date(Date.now()).toISOString();
+
+    const commentData = {
+      associated_with: "some_associated_id",
+      comments: [
+        {
+          username: {
+            username: "first_person",
+            fullname: "First Person"
+          },
+          timelineAvatar: "tp",
+          event: 'edited a comment',
+          timestamp: `on ${date}`,
+          actions: "actionButton",
+          children: editedValue,
+        }
+      ]
+    };
+    try {
+      const response = await fetch(`http://localhost:8000/api/comments/comments/update/some_associated_id/${commentToEditId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(commentData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update comment');
+      }
+
+      setIsLoading(false);
+      await fetchComments(); // Assuming fetchComments is a function to refetch comments after update
+      setCommentEditId(null);
+      // Additional actions after updating comment, if needed
+    } catch (error) {
+      console.error('Error updating comment:', error);
+      setIsLoading(false);
+    }
+  };
 
   const actionFunctions: { [key: string]: (commentId: string) => JSX.Element } = {
     actionButton:(commentId: string) => (
@@ -303,7 +349,9 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                 aria-label="Custom action 2"
                 color="text"
                 iconType="pencil"
-                onClick={handleEditClick}
+                onClick={()=>{
+                  handleEditCommentId(commentId);
+                }}
 
             />
             <EuiButtonIcon
@@ -325,8 +373,10 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     ),
 
   };
-
-  const [comments, setComments] = useState<EuiCommentProps[]>([]);
+  interface ExtendedEuiCommentProps extends EuiCommentProps {
+    _id: string;
+  }
+  const [comments, setComments] = useState<ExtendedEuiCommentProps[]>([]);
 
   interface LoadedComment {
     _id: string;
@@ -404,13 +454,14 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   }
 
   useEffect(() => {
-    const storedComments: EuiCommentProps[] = loadedComments.map(comment => {
+    const storedComments: ExtendedEuiCommentProps[] = loadedComments.map(comment => {
       const timestampString = comment.comments[0].timestamp;
       const timestamp = new Date(timestampString.replace('on ', '')); // Remove 'on ' from the timestamp string
 
       const formattedTimestamp = timeAgo(timestamp);
 
       return {
+        _id: comment._id,
         username: <UserActionUsername username={comment.comments[0].username.username} fullname={comment.comments[0].username.fullname} />,
         timelineAvatar: <EuiAvatar name={comment.comments[0].username.username} />,
         event: comment.comments[0].event,
@@ -1351,26 +1402,25 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     // Return an empty string if jsxElement doesn't contain any valid children
     return '';
   }
+
   const commentsList = comments.map((comment, index) => {
+    const commentId  = comment._id;
     return (
       comment.children==null?
       <EuiComment key={`comment-${index}`} {...comment}>
         {comment.children}
-      </EuiComment>: isEditing == true?
+      </EuiComment>:  commentToEditId===commentId ?
         <EuiComment key={`comment-${index}`} {...comment}>
           <EuiInlineEditText
             inputAriaLabel="This input will validate on save"
             defaultValue={extractMarkdownText(comment.children)}
-            startWithEditOpen={true}
             editModeProps={{
               formRowProps: { error: errors },
               cancelButtonProps: { onClick: () => setErrors([]) },
-              inputProps: { readOnly: isLoading,  },
-              saveButtonProps: {
-                color: 'primary',
-              },
+              inputProps: { readOnly: isLoading },
             }}
-
+            startWithEditOpen={true}
+            isInvalid={isInvalid}
             isLoading={isLoading}
             onSave={async (value) => {
               // Validate edited text
@@ -1386,11 +1436,11 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
 
               // Clear errors, set loading state, and "call" an API
               setErrors([]);
+              setIsLoading(true);
+              await onEditComment(value);
               setIsLoading(false);
               return true;
             }}
-            style={{ display: 'none' }} // Apply inline style to hide the edit button
-
           />
         </EuiComment>:<EuiComment key={`comment-${index}`} {...comment}>
                   {comment.children}

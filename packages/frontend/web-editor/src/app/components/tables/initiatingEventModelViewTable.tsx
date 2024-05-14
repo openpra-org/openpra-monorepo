@@ -238,9 +238,11 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const [commentToDeleteId, setCommentToDeleteId] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editorEditValue, setEditorEditValue] = useState('');
-
+    useEffect(() => {
+        console.log("isEditing state has changed: ", isEditing); // Log the updated state
+    }, [isEditing]);
   const handleEditClick = () => {
-    setIsEditing(!isEditing);
+      setIsEditing((prevIsEditing) => !prevIsEditing);
   };
   const onDeleteComment = async () => {
        setIsLoading(true);
@@ -1354,17 +1356,21 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       comment.children==null?
       <EuiComment key={`comment-${index}`} {...comment}>
         {comment.children}
-      </EuiComment>:
+      </EuiComment>: isEditing == true?
         <EuiComment key={`comment-${index}`} {...comment}>
           <EuiInlineEditText
             inputAriaLabel="This input will validate on save"
             defaultValue={extractMarkdownText(comment.children)}
+            startWithEditOpen={true}
             editModeProps={{
               formRowProps: { error: errors },
               cancelButtonProps: { onClick: () => setErrors([]) },
-              inputProps: { readOnly: isLoading },
+              inputProps: { readOnly: isLoading,  },
+              saveButtonProps: {
+                color: 'primary',
+              },
             }}
-            isInvalid={isInvalid}
+
             isLoading={isLoading}
             onSave={async (value) => {
               // Validate edited text
@@ -1383,8 +1389,12 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
               setIsLoading(false);
               return true;
             }}
+            style={{ display: 'none' }} // Apply inline style to hide the edit button
+
           />
-        </EuiComment>
+        </EuiComment>:<EuiComment key={`comment-${index}`} {...comment}>
+                  {comment.children}
+              </EuiComment>
     );
   });
   //Elastic Comment Code

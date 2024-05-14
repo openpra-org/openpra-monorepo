@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useRef, RefObject } from 'react';
 import {
-    formatDate,
-    htmlIdGenerator,
-    EuiCommentList,
-    EuiComment,
-    EuiButtonIcon,
-    EuiBadge,
-    EuiMarkdownEditor,
-    EuiMarkdownFormat,
-    EuiSpacer,
-    EuiFlexGroup,
-    EuiFlexItem,
-    EuiButton,
-    EuiToolTip,
-    EuiAvatar, EuiHorizontalRule,
+  formatDate,
+  htmlIdGenerator,
+  EuiCommentList,
+  EuiComment,
+  EuiButtonIcon,
+  EuiBadge,
+  EuiMarkdownEditor,
+  EuiMarkdownFormat,
+  EuiSpacer,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiButton,
+  EuiToolTip,
+  EuiAvatar, EuiHorizontalRule, EuiFieldText, EuiButtonEmpty,
 } from '@elastic/eui';
 
 const CommentComponent = ({
@@ -39,6 +39,7 @@ const CommentComponent = ({
             <EuiHorizontalRule margin="none" style={{ marginTop: '30px', marginBottom: '30px' }}/>
             <EuiCommentList aria-label="Comment system example">
         {commentsList}
+
         <EuiComment
           username="first_person"
           timelineAvatar={<EuiAvatar name="First" />}
@@ -54,6 +55,8 @@ const CommentComponent = ({
             readOnly={isLoading}
             initialViewMode="editing"
             markdownFormatProps={{ textSize: 's' }}
+
+
           />
 
         </EuiComment>

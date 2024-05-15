@@ -18,7 +18,7 @@ import { MemberResult, Members } from "shared-types/src/lib/api/Members";
 import { EuiBasicTableColumn } from "@elastic/eui/src/components/basic_table/basic_table";
 import { Link } from "react-router-dom";
 import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
-import { InviteIdDto } from "packages/shared-types/src/lib/types/userInvites/InvitedUser";
+import { InviteIdDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 import { GenericModal } from "../modals/genericModal";
 import { DefaultProps } from "../login/signUp";
 import { SignUpForm } from "../forms/signUpForm";

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
-import { InvitedUserDetailsDto } from "packages/shared-types/src/lib/types/userInvites/InvitedUser";
+import { InvitedUserDetailsDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 import {
   EuiButton,
   EuiPageHeader,

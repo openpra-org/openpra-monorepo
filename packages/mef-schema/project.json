@@ -14,6 +14,13 @@
         "assets": ["packages/mef-schema/*.md"]
       }
     },
+    "generate-types": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/mef-schema/src/openpra-mef",
+        "command": "nx run mef-schema:build && node ../../../../dist/packages/mef-schema/src/generate-types.js ./ ../../../shared-types/src/openpra-mef"
+      }
+    },
     "lint": {
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],

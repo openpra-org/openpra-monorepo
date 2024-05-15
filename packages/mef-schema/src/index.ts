@@ -1,1 +1,2 @@
 export * from "./lib/mef-schema";
+export * from "./generate-types";

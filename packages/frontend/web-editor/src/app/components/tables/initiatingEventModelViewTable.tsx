@@ -46,6 +46,8 @@ import {
   EuiToolTip,
 } from '@elastic/eui';
 import { EuiInlineEditText } from '@elastic/eui';
+import {MemberResult} from "shared-types/src/lib/api/Members";
+import ApiManager from "shared-types/src/lib/api/ApiManager";
 
 
 //Elastic Comment Code:
@@ -333,8 +335,16 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     }
   };
 
-  const actionFunctions: { [key: string]: (commentId: string, timeStamp: string) => JSX.Element } = {
-    actionButton:(commentId: string, timeStamp: string) => (
+  const handleCopy = (children: string | undefined) => {
+    navigator.clipboard.writeText(children?children:" ").then(() => {
+      console.log('Text copied to clipboard');
+      // Optionally, add feedback to the user here
+    }).catch(err => {
+      console.error('Failed to copy text: ', err);
+    });
+  };
+  const actionFunctions: { [key: string]: (commentId: string, timeStamp: string, children: string|undefined) => JSX.Element } = {
+    actionButton:(commentId: string, timeStamp: string, children: string|undefined) => (
         <React.Fragment>
             <EuiButtonIcon
                 key="copyButton"
@@ -342,6 +352,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                 aria-label="Custom action 1"
                 color="text"
                 iconType="copy"
+                onClick={() => handleCopy(children)}
             />
             <EuiButtonIcon
                 key="editButton"
@@ -472,7 +483,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
           //     ? actionFunctions[comment.comments[0].actions.replace(/"/g, '')]
           //     : undefined,
           actions: comment.comments[0].actions
-              ? actionFunctions[comment.comments[0].actions.replace(/"/g, '')](comment._id,comment.comments[0].timestamp) // Pass commentId to action function
+              ? actionFunctions[comment.comments[0].actions.replace(/"/g, '')](comment._id,comment.comments[0].timestamp, comment.comments[0].children) // Pass commentId to action function
               : undefined,
           children: comment.comments[0].children
               ? (

@@ -130,6 +130,12 @@ export function GetCurrentTypedModel(): Promise<TypedModel> {
     });
 }
 
+export function GetCurrentModelIdString(): string {
+  //setting up data so get current model doesn't need any parameters, as it will probably be called frequently
+  const splitPath = window.location.pathname.split("/"); // Gets the path part of the URL (/internal-events/2) // Splits the path into segments using the '/' character // The second part is "internal-events"
+  return splitPath[TYPED_MODEL_ID_LOCATION];
+}
+
 export function GetCurrentModelId(): number {
   //setting up data so get current model doesn't need any parameters, as it will probably be called frequently
   const splitPath = window.location.pathname.split("/"); // Gets the path part of the URL (/internal-events/2) // Splits the path into segments using the '/' character // The second part is "internal-events"
@@ -317,8 +323,8 @@ function Patch(
   url: string,
   data:
     | Partial<TypedModelJSON>
-    | { nestedId: number; nestedType: string }
-    | { modelId: number; nestedId: number; nestedType: string },
+    | { nestedId: number | string; nestedType: string }
+    | { modelId: number; nestedId: number | string ; nestedType: string },
 ): Promise<Response> {
   return fetch(url, {
     method: "PATCH",
@@ -499,7 +505,7 @@ export function AddNestedToFullScope(body: {
  */
 export function DeleteNestedFromInternalEvent(
   modelId: number,
-  body: { nestedId: number; nestedType: string },
+  body: { nestedId: number | string ; nestedType: string },
 ): Promise<InternalEventsModel> {
   return Patch(
     `${INTERNAL_EVENTS_ENDPOINT}/${modelId}/${DELETE_NESTED_END}`,
@@ -515,7 +521,7 @@ export function DeleteNestedFromInternalEvent(
  */
 export function DeleteNestedFromInternalHazard(
   modelId: number,
-  body: { nestedId: number; nestedType: string },
+  body: { nestedId: number | string; nestedType: string },
 ): Promise<InternalHazardsModel> {
   return Patch(
     `${INTERNAL_HAZARDS_ENDPOINT}/${modelId}/${DELETE_NESTED_END}`,
@@ -531,7 +537,7 @@ export function DeleteNestedFromInternalHazard(
  */
 export function DeleteNestedFromExternalHazard(
   modelId: number,
-  body: { nestedId: number; nestedType: string },
+  body: { nestedId: number | string; nestedType: string },
 ): Promise<ExternalHazardsModel> {
   return Patch(
     `${EXTERNAL_HAZARDS_ENDPOINT}/${modelId}/${DELETE_NESTED_END}`,
@@ -547,7 +553,7 @@ export function DeleteNestedFromExternalHazard(
  */
 export function DeleteNestedFromFullScope(
   modelId: number,
-  body: { nestedId: number; nestedType: string },
+  body: { nestedId: number | string; nestedType: string },
 ): Promise<FullScopeModel> {
   return Patch(
     `${FULL_SCOPE_ENDPOINT}/${modelId}/${DELETE_NESTED_END}`,

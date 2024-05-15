@@ -398,7 +398,7 @@ export class TypedModelController {
   @Patch("/internal-events/:id/delete-nested")
   async deleteNestedFromInternalEvent(
     @Param("id") id: string,
-    @Body() body: { nestedId: number; nestedType: string },
+    @Body() body: { nestedId: number | string; nestedType: string },
   ): Promise<TypedModelJSON> {
     return this.typedModelService.deleteNestedFromInternalEvent(
       id,

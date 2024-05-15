@@ -168,10 +168,10 @@ export class NestedModelService {
   //method calls for the post methods
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createBayesianEstimation(
     body: Partial<NestedModel>,
@@ -182,10 +182,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createBayesianNetwork(
     body: Partial<NestedModel>,
@@ -196,10 +196,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createEventSequenceDiagram(
     body: Partial<NestedModel>,
@@ -214,10 +214,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createEventTree(body: Partial<NestedModel>): Promise<NestedModel> {
     const newEventTree = new this.eventTreeModel(body);
@@ -226,10 +226,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createFaultTree(body: Partial<NestedModel>): Promise<NestedModel> {
     const newFaultTree = new this.faultTreeModel(body);
@@ -238,10 +238,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createHeatBalanceFaultTree(
     body: Partial<NestedModel>,
@@ -252,10 +252,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createFunctionalEvent(
     body: Partial<NestedModel>,
@@ -266,24 +266,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
-   */
-  async createInitiatingEvent(
-    body: Partial<NestedModel>,
-  ): Promise<NestedModel> {
-    const newInitiatingEvent = new this.initiatingEventModel(body);
-    newInitiatingEvent.id = await this.getNextValue("nestedCounter");
-    return newInitiatingEvent.save();
-  }
-
-  /**
-   * creates the type of nestedmodel defined in the function name
-   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
-   * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createMarkovChain(body: Partial<NestedModel>): Promise<NestedModel> {
     const newMarkovChain = new this.markovChainModel(body);
@@ -292,10 +278,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createWeibullAnalysis(
     body: Partial<NestedModel>,
@@ -306,10 +292,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createRiskIntegration(
     body: Partial<NestedModel>,
@@ -320,10 +306,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createRadiologicalConsequenceAnalysis(
     body: Partial<NestedModel>,
@@ -334,10 +320,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createMechanisticSourceTerm(
     body: Partial<NestedModel>,
@@ -348,10 +334,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createEventSequenceQuantificationDiagram(
     body: Partial<NestedModel>,
@@ -362,10 +348,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createDataAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
     const newDataAnalysis = new this.dataAnalysisModel(body);
@@ -374,10 +360,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createHumanReliabilityAnalysis(
     body: Partial<NestedModel>,
@@ -388,10 +374,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createSystemsAnalysis(
     body: Partial<NestedModel>,
@@ -402,10 +388,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createSuccessCriteria(
     body: Partial<NestedModel>,
@@ -416,10 +402,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createEventSequenceAnalysis(
     body: Partial<NestedModel>,
@@ -430,10 +416,10 @@ export class NestedModelService {
   }
 
   /**
-   * creates the type of nestedmodel defined in the function name
+   * creates the type of nested model defined in the function name
    * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
    * and a label object with a name string and optional description string
-   * @returns a promise with a nestmodel in it, which contains the basic data all the nested models have
+   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
   async createOperatingStateAnalysis(
     body: Partial<NestedModel>,
@@ -453,7 +439,7 @@ export class NestedModelService {
   async getBayesianEstimations(
     parentId: number,
   ): Promise<BayesianEstimation[]> {
-    //typecast to a number because for some reason, it isnt a number????
+    //typecast to a number because for some reason, it isn't a number????
 
     return this.bayesianEstimationModel.find(
       { parentIds: Number(parentId) },
@@ -467,7 +453,7 @@ export class NestedModelService {
    * @returns a promise with an array of the nested model of the type in the function name
    */
   async getBayesianNetworks(parentId: number): Promise<BayesianNetwork[]> {
-    //typecast to a number because for some reason, it isnt a number????
+    //typecast to a number because for some reason, it isn't a number????
 
     return this.bayesianNetworkModel.find(
       { parentIds: Number(parentId) },
@@ -483,7 +469,7 @@ export class NestedModelService {
   async getEventSequenceDiagrams(
     parentId: number,
   ): Promise<EventSequenceDiagram[]> {
-    //typecast to a number because for some reason, it isnt a number????
+    //typecast to a number because for some reason, it isn't a number????
     return this.eventSequenceDiagramModel.find(
       { parentIds: Number(parentId) },
       { _id: 0 },
@@ -496,7 +482,7 @@ export class NestedModelService {
    * @returns a promise with an array of the nested model of the type in the function name
    */
   async getEventTrees(parentId: number): Promise<EventTree[]> {
-    //typecast to a number because for some reason, it isnt a number????
+    //typecast to a number because for some reason, it isn't a number????
 
     return this.eventTreeModel.find(
       { parentIds: Number(parentId) },
@@ -510,7 +496,7 @@ export class NestedModelService {
    * @returns a promise with an array of the nested model of the type in the function name
    */
   async getFaultTrees(parentId: number): Promise<FaultTree[]> {
-    //typecast to a number because for some reason, it isnt a number????
+    //typecast to a number because for some reason, it isn't a number????
 
     return this.faultTreeModel.find(
       { parentIds: Number(parentId) },
@@ -526,7 +512,7 @@ export class NestedModelService {
   async getHeatBalanceFaultTrees(
     parentId: number,
   ): Promise<HeatBalanceFaultTree[]> {
-    //typecast to a number because for some reason, it isnt a number????
+    //typecast to a number because for some reason, it isn't a number????
 
     return this.heatBalanceFaultTreeModel.find(
       { parentIds: Number(parentId) },
@@ -540,7 +526,7 @@ export class NestedModelService {
    * @returns a promise with an array of the nested model of the type in the function name
    */
   async getFunctionalEvents(parentId: number): Promise<FunctionalEvent[]> {
-    //typecast to a number because for some reason, it isnt a number????
+    //typecast to a number because for some reason, it isn't a number????
 
     return this.functionalEventsModel.find(
       { parentIds: Number(parentId) },
@@ -548,22 +534,8 @@ export class NestedModelService {
     );
   }
 
-  /**
-   * gets the collection of the nested model as defined by the function name (bayesian estimations, etc.)
-   * @param parentId id of the parent model the nested model is number
-   * @returns a promise with an array of the nested model of the type in the function name
-   */
-  async getInitiatingEvents(parentId: number): Promise<InitiatingEvent[]> {
-    //typecast to a number because for some reason, it isnt a number????
-
-    return this.initiatingEventModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
-  }
-
   async getMarkovChains(parentId: number): Promise<MarkovChain[]> {
-    //typecast to a number because for some Areason, it isnt a number????
+    //typecast to a number because for some reason, it isn't a number????
 
     return this.markovChainModel.find(
       { parentIds: Number(parentId) },
@@ -577,7 +549,7 @@ export class NestedModelService {
    * @returns a promise with an array of the nested model of the type in the function name
    */
   async getWeibullAnalysis(parentId: number): Promise<WeibullAnalysis[]> {
-    //typecast to a number because for some reason, it isnt a number????
+    //typecast to a number because for some reason, it isn't a number????
 
     return this.weibullAnalysisModel.find(
       { parentIds: Number(parentId) },
@@ -813,15 +785,6 @@ export class NestedModelService {
    * @param modelId the id of the model to be retrieved
    * @returns the model which has the associated id
    */
-  async getSingleInitiatingEvent(modelId: number): Promise<InitiatingEvent> {
-    return this.initiatingEventModel.findOne({ id: modelId }, { _id: 0 });
-  }
-
-  /**
-   * gets a single model from the collection based on the id
-   * @param modelId the id of the model to be retrieved
-   * @returns the model which has the associated id
-   */
   async getSingleMarkovChain(modelId: number): Promise<MarkovChain> {
     return this.markovChainModel.findOne({ id: modelId }, { _id: 0 });
   }
@@ -953,7 +916,7 @@ export class NestedModelService {
 
   /**
    * finds and deletes the nested model in this collection with the give model id
-   * @param modelId the id of the mdoel we want to delete
+   * @param modelId the id of the model we want to delete
    * @returns a promise with the deleted model
    */
   async deleteBayesianEstimation(modelId: number): Promise<BayesianEstimation> {
@@ -962,7 +925,7 @@ export class NestedModelService {
 
   /**
    * finds and deletes the nested model in this collection with the give model id
-   * @param modelId the id of the mdoel we want to delete
+   * @param modelId the id of the model we want to delete
    * @returns a promise with the deleted model
    */
   async deleteBayesianNetwork(modelId: number): Promise<BayesianNetwork> {
@@ -971,7 +934,7 @@ export class NestedModelService {
 
   /**
    * finds and deletes the nested model in this collection with the give model id
-   * @param modelId the id of the mdoel we want to delete
+   * @param modelId the id of the model we want to delete
    * @returns a promise with the deleted model
    */
   async deleteEventSequenceDiagram(
@@ -982,7 +945,7 @@ export class NestedModelService {
 
   /**
    * finds and deletes the nested model in this collection with the give model id
-   * @param modelId the id of the mdoel we want to delete
+   * @param modelId the id of the model we want to delete
    * @returns a promise with the deleted model
    */
   async deleteEventTree(modelId: number): Promise<EventTree> {
@@ -991,7 +954,7 @@ export class NestedModelService {
 
   /**
    * finds and deletes the nested model in this collection with the give model id
-   * @param modelId the id of the mdoel we want to delete
+   * @param modelId the id of the model we want to delete
    * @returns a promise with the deleted model
    */
   async deleteFaultTree(modelId: number): Promise<FaultTree> {
@@ -1000,7 +963,7 @@ export class NestedModelService {
 
   /**
    * finds and deletes the nested model in this collection with the give model id
-   * @param modelId the id of the mdoel we want to delete
+   * @param modelId the id of the model we want to delete
    * @returns a promise with the deleted model
    */
   async deleteHeatBalanceFaultTree(
@@ -1011,7 +974,7 @@ export class NestedModelService {
 
   /**
    * finds and deletes the nested model in this collection with the give model id
-   * @param modelId the id of the mdoel we want to delete
+   * @param modelId the id of the model we want to delete
    * @returns a promise with the deleted model
    */
   async deleteFunctionalEvent(modelId: number): Promise<FunctionalEvent> {
@@ -1020,16 +983,7 @@ export class NestedModelService {
 
   /**
    * finds and deletes the nested model in this collection with the give model id
-   * @param modelId the id of the mdoel we want to delete
-   * @returns a promise with the deleted model
-   */
-  async deleteInitiatingEvent(modelId: number): Promise<InitiatingEvent> {
-    return this.initiatingEventModel.findOneAndDelete({ id: modelId });
-  }
-
-  /**
-   * finds and deletes the nested model in this collection with the give model id
-   * @param modelId the id of the mdoel we want to delete
+   * @param modelId the id of the model we want to delete
    * @returns a promise with the deleted model
    */
   async deleteMarkovChain(modelId: number): Promise<MarkovChain> {
@@ -1038,7 +992,7 @@ export class NestedModelService {
 
   /**
    * finds and deletes the nested model in this collection with the give model id
-   * @param modelId the id of the mdoel we want to delete
+   * @param modelId the id of the model we want to delete
    * @returns a promise with the deleted model
    */
   async deleteWeibullAnalysis(modelId: number): Promise<WeibullAnalysis> {
@@ -1153,7 +1107,7 @@ export class NestedModelService {
 
   /**
    * updates the label in the nested model
-   * @param id the id of the nested model to be udpated
+   * @param id the id of the nested model to be updated
    * @param body a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
@@ -1170,7 +1124,7 @@ export class NestedModelService {
 
   /**
    * updates the label in the nested model
-   * @param id the id of the nested model to be udpated
+   * @param id the id of the nested model to be updated
    * @param body a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
@@ -1187,24 +1141,7 @@ export class NestedModelService {
 
   /**
    * updates the label in the nested model
-   * @param id the id of the nested model to be udpated
-   * @param body a label with a name and description
-   * @returns a promise with the updated model with an updated label
-   */
-  async updateInitiatingEventLabel(
-    id: number,
-    body: Label,
-  ): Promise<NestedModel> {
-    return this.initiatingEventModel.findOneAndUpdate(
-      { id: Number(id) },
-      { label: body },
-      { new: true },
-    );
-  }
-
-  /**
-   * updates the label in the nested model
-   * @param id the id of the nested model to be udpated
+   * @param id the id of the nested model to be updated
    * @param body a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
@@ -1218,7 +1155,7 @@ export class NestedModelService {
 
   /**
    * updates the label in the nested model
-   * @param id the id of the nested model to be udpated
+   * @param id the id of the nested model to be updated
    * @param body a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
@@ -1235,11 +1172,11 @@ export class NestedModelService {
 
   /**
    * updates the label in the nested model
-   * @param id the id of the nested model to be udpated
+   * @param id the id of the nested model to be updated
    * @param body a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
-  async updateEventSqeuenceDiagramLabel(
+  async updateEventSequenceDiagramLabel(
     id: number,
     body: Label,
   ): Promise<NestedModel> {
@@ -1252,7 +1189,7 @@ export class NestedModelService {
 
   /**
    * updates the label in the nested model
-   * @param id the id of the nested model to be udpated
+   * @param id the id of the nested model to be updated
    * @param body a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
@@ -1266,7 +1203,7 @@ export class NestedModelService {
 
   /**
    * updates the label in the nested model
-   * @param id the id of the nested model to be udpated
+   * @param id the id of the nested model to be updated
    * @param body a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
@@ -1280,7 +1217,7 @@ export class NestedModelService {
 
   /**
    * updates the label in the nested model
-   * @param id the id of the nested model to be udpated
+   * @param id the id of the nested model to be updated
    * @param body a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
@@ -1297,7 +1234,7 @@ export class NestedModelService {
 
   /**
    * updates the label in the nested model
-   * @param id the id of the nested model to be udpated
+   * @param id the id of the nested model to be updated
    * @param body a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
@@ -1485,7 +1422,7 @@ export class NestedModelService {
   //method to remove something a single parent from a child given just the parent id
 
   /**
-   * this goes through all the nested models and removes the given parent id from them, and if something is idless, it is removed
+   * this goes through all the nested models and removes the given parent id from them, and if something is id-less, it is removed
    * @param modelId id of the parent model
    */
   async removeParentModels(modelId: number): Promise<number> {
@@ -1507,9 +1444,9 @@ export class NestedModelService {
 
     //goes through each model type, checks if the id is on any of those
     //then checks if its the *only* one, and either updates and removes or delete it accordingly
-    //when a model is permanently removed from thdatabased the removed value does up
+    //when a model is permanently removed from the database the removed value does up
     while ((result = await this.bayesianEstimationModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.bayesianEstimationModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1518,7 +1455,7 @@ export class NestedModelService {
     }
 
     while ((result = await this.bayesianNetworkModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.bayesianNetworkModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1527,7 +1464,7 @@ export class NestedModelService {
     }
 
     while ((result = await this.initiatingEventModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.initiatingEventModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1536,7 +1473,7 @@ export class NestedModelService {
     }
 
     while ((result = await this.eventSequenceDiagramModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.eventSequenceDiagramModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1548,7 +1485,7 @@ export class NestedModelService {
     }
 
     while ((result = await this.eventTreeModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.eventTreeModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1557,7 +1494,7 @@ export class NestedModelService {
     }
 
     while ((result = await this.faultTreeModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.faultTreeModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1566,7 +1503,7 @@ export class NestedModelService {
     }
 
     while ((result = await this.heatBalanceFaultTreeModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.heatBalanceFaultTreeModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1578,7 +1515,7 @@ export class NestedModelService {
     }
 
     while ((result = await this.functionalEventsModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.functionalEventsModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1587,7 +1524,7 @@ export class NestedModelService {
     }
 
     while ((result = await this.markovChainModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.markovChainModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1596,7 +1533,7 @@ export class NestedModelService {
     }
 
     while ((result = await this.weibullAnalysisModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.weibullAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1606,7 +1543,7 @@ export class NestedModelService {
 
     // For Risk Integration
     while ((result = await this.riskIntegrationModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.riskIntegrationModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1618,7 +1555,7 @@ export class NestedModelService {
     while (
       (result = await this.radiologicalConsequenceAnalysisModel.findOne(query))
     ) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.radiologicalConsequenceAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1631,7 +1568,7 @@ export class NestedModelService {
 
     // For Mechanistic Source Term
     while ((result = await this.mechanisticSourceTermModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.mechanisticSourceTermModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1647,7 +1584,7 @@ export class NestedModelService {
       (result =
         await this.eventSequenceQuantificationDiagramModel.findOne(query))
     ) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.eventSequenceQuantificationDiagramModel.findOneAndDelete(
           query,
         );
@@ -1662,7 +1599,7 @@ export class NestedModelService {
 
     // For Data Analysis
     while ((result = await this.dataAnalysisModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.dataAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1672,7 +1609,7 @@ export class NestedModelService {
 
     // For Human Reliability Analysis
     while ((result = await this.humanReliabilityAnalysisModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.humanReliabilityAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1685,7 +1622,7 @@ export class NestedModelService {
 
     // For Systems Analysis
     while ((result = await this.systemsAnalysisModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.systemsAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1695,7 +1632,7 @@ export class NestedModelService {
 
     // For Success Criteria
     while ((result = await this.successCriteriaModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.successCriteriaModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1705,7 +1642,7 @@ export class NestedModelService {
 
     // For Event Sequence Analysis
     while ((result = await this.eventSequenceAnalysisModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.eventSequenceAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1718,7 +1655,7 @@ export class NestedModelService {
 
     // For Operating State Analysis
     while ((result = await this.operatingStateAnalysisModel.findOne(query))) {
-      if (result.parentIds.length == 1) {
+      if (result.parentIds.length === 1) {
         await this.operatingStateAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {

@@ -17,6 +17,7 @@
     "classnames": "2.3.2",
     "d3-hierarchy": "3.1.2",
     "d3-timer": "3.0.1",
+    "immer": "10.0.4",
     "lodash": "4.17.21",
     "moment": "2.29.4",
     "nanoid": "4.0.0",

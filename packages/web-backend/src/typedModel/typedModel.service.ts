@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { FilterQuery, Model} from "mongoose";
 import { InternalEventsModel } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
 import { InternalHazardsModel } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
 import { FullScopeModel } from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
@@ -602,15 +602,21 @@ export class TypedModelService {
    */
   async deleteNestedFromInternalEvent(
     modelId: string,
-    nestedId: number,
+    nestedId: number | string,
     nestedType: string,
   ): Promise<TypedModelJSON> {
     // Find the document that matches the provided modelId and userId
-    const query = { id: Number(modelId) };
+    let query:FilterQuery<InternalEventsDocument>;
+
+    if (typeof nestedId === "string") {
+      query = { _id: nestedId };
+    } else {
+      query = { id: Number(nestedId) };
+    }
 
     const updateData = {
       $pull: {
-        [nestedType]: Number(nestedId),
+        [nestedType]: nestedId,
       },
     };
 

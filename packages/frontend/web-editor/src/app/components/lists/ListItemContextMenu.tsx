@@ -26,15 +26,16 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
   //TODO: Make this work correctly, the prop is bad
   const {
     id,
+    _id,
     itemName,
     endpoint,
-    deleteNestedEndpoint,
-    deleteTypedEndpoint,
     label,
-    patchFunction,
-    deleteFunction,
+    deleteTypedEndpoint,
     patchTypedEndpoint,
     patchNestedEndpoint,
+    patchNestedEndpointNew,
+    deleteNestedEndpoint,
+    deleteNestedEndpointNew,
     users,
     onCancel,
   } = props;
@@ -97,39 +98,27 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
       initialFocusedItemIndex: 1,
       title: "Quick Edit",
       content: (
-        <div style={{ padding: useEuiPaddingSize("s") || "35px" }}>
-          {patchTypedEndpoint || patchFunction ? (
-            patchFunction ? (
-              <TypedModelActionForm
-                noHeader
-                compressed
-                action="edit"
-                itemName={endpoint}
-                patchFunction={patchFunction}
-                initialFormValues={modelInfo}
-                onCancel={onCancel}
-              />
-            ) : (
-              patchTypedEndpoint && (
-                <TypedModelActionForm
-                  noHeader
-                  compressed
-                  action="edit"
-                  itemName={endpoint}
-                  patchEndpoint={patchTypedEndpoint}
-                  initialFormValues={modelInfo}
-                  onCancel={onCancel}
-                />
-              )
-            )
+        <div style={{ padding: useEuiPaddingSize("s") ?? "35px" }}>
+          {patchTypedEndpoint ? (
+            <TypedModelActionForm
+              noHeader
+              compressed
+              action="edit"
+              itemName={endpoint}
+              patchEndpoint={patchTypedEndpoint}
+              initialFormValues={modelInfo}
+              onCancel={onCancel}
+            />
           ) : (
             <NestedModelActionForm
               noHeader
               compressed
               action="edit"
-              id={Number(id)}
+              id={id}
+              _id={_id}
               itemName={endpoint}
               patchEndpoint={patchNestedEndpoint}
+              patchNestedEndpoint={patchNestedEndpointNew}
               initialFormValues={nestedInfo}
               onCancel={onCancel}
             />
@@ -142,14 +131,15 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
       initialFocusedItemIndex: 3,
       title: "Delete",
       content: (
-        <div style={{ padding: useEuiPaddingSize("s") || "35px" }}>
+        <div style={{ padding: useEuiPaddingSize("s") ?? "35px" }}>
           <DeleteItemBox
             id={id}
+            _id={_id}
             itemName={itemName}
             typeOfModel={endpoint}
-            deleteFunction={deleteFunction}
             deleteTypedEndpoint={deleteTypedEndpoint}
-            deleteNestedEndpoint={deleteNestedEndpoint}
+            deleteNestedEndpoint={deleteNestedEndpointNew}
+            deleteEndpoint={deleteNestedEndpoint}
           />
         </div>
       ),

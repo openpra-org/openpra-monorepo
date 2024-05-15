@@ -10,8 +10,8 @@ export class NestedModel {
   label: Label;
 
   @Prop()
-  parentIds: number[];
+  parentIds: number[] | string[];
 }
 
-export type TypedModelDocument = NestedModel & Document;
-export const TypedModelSchema = SchemaFactory.createForClass(NestedModel);
+export type NestedModelDocument = NestedModel & Document;
+export const NestedModelSchema = SchemaFactory.createForClass(NestedModel);

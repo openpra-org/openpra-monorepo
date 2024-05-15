@@ -1,6 +1,6 @@
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
-import { InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
 import { ReactElement, useEffect, useState } from "react";
+import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
 import { GenericItemList } from "../GenericItemList";
 import { CreateGenericList } from "../GenericList";
 import { UseGlobalStore } from "../../../zustand/Store";
@@ -24,13 +24,13 @@ function InternalHazardsList(): JSX.Element {
 
   useEffect(() => {
     setGenericListItems(
-      CreateGenericList<InternalHazardsModelType>(
-        internalHazardsList,
-        "Internal Hazards",
-        createInternalHazards,
-        editInternalHazard,
-        deleteInternalHazard,
-      ),
+      CreateGenericList<InternalEventsModelType>({
+        modelList: internalHazardsList,
+        endpoint: "Internal Hazards",
+        postTypedEndpoint: createInternalHazards,
+        patchTypedEndpoint: editInternalHazard,
+        deleteTypedEndpoint: deleteInternalHazard,
+      }),
     );
   }, [
     createInternalHazards,

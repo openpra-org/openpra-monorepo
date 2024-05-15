@@ -2,6 +2,7 @@ import { LabelJSON } from "../types/Label";
 import {
   NestedModel,
   NestedModelJSON,
+  NestedModelType,
 } from "../types/modelTypes/innerModels/nestedModel";
 import {
   AddNestedToExternalHazard,
@@ -18,10 +19,9 @@ import {
 import AuthService from "./AuthService";
 
 //used constants
-const API_ENDPOINT = "/api";
-const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, only-if-cached
-const NESTED_ENDPOINT = `${API_ENDPOINT}/nested-models`;
-const INITIATING_EVENTS_ENDPOINT = `${NESTED_ENDPOINT}/initiating-events`;
+export const API_ENDPOINT = "/api";
+export const NESTED_ENDPOINT = `${API_ENDPOINT}/nested-models`;
+export const INITIATING_EVENTS_ENDPOINT = `${NESTED_ENDPOINT}/initiating-events`;
 const HEAT_BALANCE_FAULT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/heat-balance-fault-trees`;
 const EVENT_SEQUENCE_DIAGRAMS_ENDPOINT = `${NESTED_ENDPOINT}/event-sequence-diagrams`;
 const EVENT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/event-trees`;
@@ -44,6 +44,27 @@ const OPERATING_STATE_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/operating-state-an
 //const NESTED_MODEL_TYPE_LOCATION = 3;
 //const NESTED_MODEL_ID_LOCATION = 4;
 
+const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, only-if-cached
+
+import {
+  DeleteInitiatingEvent,
+  GetInitiatingEvents,
+  PostInitiatingEvent,
+  PatchInitiatingEventLabel,
+} from "./NestedModelsAPI/InitiatingEventsApiManager";
+
+// Get Methods
+export { GetInitiatingEvents };
+
+// Post Methods
+export { PostInitiatingEvent };
+
+// Patch Methods
+export { PatchInitiatingEventLabel };
+
+// Delete Methods
+export { DeleteInitiatingEvent };
+
 //Don't use '' keyword, dynamically passing functions hates it on the frontend
 
 //method to Get past counter value
@@ -55,24 +76,6 @@ export async function GetPreviousCounterValue(): Promise<number> {
 }
 
 //Post methods
-
-/**
- * Posts the type of nested model, and adds its id to its parent
- * @param data - a nestedModelJSON containing a label and a parent id
- * @returns a promise with the nested model, containing only those features
- */
-export async function PostInitiatingEvent(
-  data: NestedModelJSON,
-): Promise<NestedModel> {
-  //makes child exist
-  const returnResponse = await Post(
-    `${INITIATING_EVENTS_ENDPOINT}/`,
-    data,
-  ).then((response) => response.json() as Promise<NestedModel>);
-  await AddNestedModelToTypedModel("initiatingEvents");
-  return returnResponse;
-}
-
 /**
  * Posts the type of nested model, and adds its id to its parent
  * @param data - a nestedModelJSON containing a label and a parent id
@@ -353,11 +356,13 @@ async function AddNestedModelToTypedModel(type: string): Promise<void> {
  * generic Post for all the types of methods
  * @param url - the url we are Posting to
  * @param data - the nested model we are using to Post
+ * @param typedModel is the typemodel to be udpated
  * @returns the nested model promise after Posting
  */
 export async function Post(
   url: string,
   data: NestedModelJSON,
+  typedModel = "",
 ): Promise<Response> {
   return fetch(url, {
     method: "POST",
@@ -366,25 +371,11 @@ export async function Post(
       "Content-Type": "application/json",
       Authorization: `JWT ${AuthService.getEncodedToken()}`,
     },
-    body: JSON.stringify(data), // body data type must match "Content-Type" header
+    body: JSON.stringify({ data, typedModel }), // body data type must match "Content-Type" header
   });
 }
 
 //Get methods
-
-/**
- * Gets the list of the type of nested model
- * @param id - the parent model id, the parent whose list is to be retrieved
- * @returns a list of the nested models at  endpoint in a promise
- */
-export function GetInitiatingEvents(id = -1): Promise<NestedModel[]> {
-  return Get(`${INITIATING_EVENTS_ENDPOINT}/?id=${Number(id)}`)
-    .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
-    .catch((error) => {
-      throw error; // Re-throw the error to propagate it if needed
-    });
-}
-
 export function GetHeatBalanceFaultTrees(id = -1): Promise<NestedModel[]> {
   return Get(`${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
@@ -744,22 +735,6 @@ export function PatchFunctionalEventLabel(
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export function PatchInitiatingEventLabel(
-  id: number,
-  data: LabelJSON,
-): Promise<NestedModel> {
-  return Patch(
-    `${INITIATING_EVENTS_ENDPOINT}/${id}`,
-    JSON.stringify(data),
-  ).then((response) => response.json() as Promise<NestedModel>);
-}
-
-/**
- * updates the label for the type of nested model
- * @param id - the id of the nested model
- * @param data - a labelJSON with a name and optional description
- * @returns a promise with the new updated model, with its label
- */
 export function PatchMarkovChainLabel(
   id: number,
   data: LabelJSON,
@@ -909,20 +884,6 @@ export function Patch(url: string, data: unknown): Promise<Response> {
 }
 
 //Delete methods
-
-/**
- * Deletes a model from the endpoint
- * @param id - the id of the model to be Deleted
- * @returns the Deleted model
- */
-export async function DeleteInitiatingEvent(id = -1): Promise<NestedModel> {
-  const response = await Delete(
-    `${INITIATING_EVENTS_ENDPOINT}/?id=${Number(id)}`,
-  ).then((response) => response.json() as Promise<NestedModel>);
-  await RemoveNestedIds(id, "initiatingEvents");
-  return response;
-}
-
 /**
  * Deletes a model from the endpoint
  * @param id - the id of the model to be Deleted
@@ -1190,7 +1151,7 @@ export function Delete(url: string): Promise<Response> {
  * @param id - the id of the nested model
  * @param type - the type of the nested model
  */
-export async function RemoveNestedIds(id: number, type: string): Promise<void> {
+export async function RemoveNestedIds(id: number | string, type: string): Promise<void> {
   const modelId = GetCurrentModelId();
   const body = {
     nestedId: id,

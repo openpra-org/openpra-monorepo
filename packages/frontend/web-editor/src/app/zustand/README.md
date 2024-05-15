@@ -12,6 +12,11 @@ This file outlines the steps to create a state for any particular part of the ap
   - [Create the slice file](#create-the-slice-file)
   - [Updating the store](#updating-the-store)
 - [Using the data in the store](#using-the-data-in-the-store)
+- [Creating Nested Models](#creating-nested-models)
+  - [Types for the nested model](#types-for-the-nested-model)
+  - [Actions for the nested model](#actions-for-the-nested-model)
+- [Using Immer Middleware](#using-immer-middleware)
+- [Zustand Dev Tools](#zustand-dev-tools)
 
 ## Files for the Zustand Implementation
 
@@ -19,7 +24,7 @@ This file outlines the steps to create a state for any particular part of the ap
 
 This folder contains everything related to the Zustand implementation
 
-- **store.tsx** (packages/frontend/web-editor/src/app/zustand/store.tsx)
+- **Store.tsx** (packages/frontend/web-editor/src/app/zustand/Store.tsx)
 - **createSelectors.tsx** (packages/frontend/web-editor/src/app/zustand/createSelectors.tsx)
 - **\<SliceName\>** (packages/frontend/web-editor/src/app/zustand/\<SliceName\>)
   - **\<sliceName\>Actions.tsx**
@@ -29,7 +34,7 @@ This folder contains everything related to the Zustand implementation
 
 ## Structure of the Zustand store
 
-- The store.tsx file is the main file where the Zustand store is created. We are using slices for various parts of the application as it is always recommended to have 1 global store for the entire application.
+- The Store.tsx file is the main file where the Zustand store is created. We are using slices for various parts of the application as it is always recommended to have 1 global store for the entire application.
 - Each part of the application is present in a separate folder inside the Zustand folder with the name of the application slice in **PascalCase** and the files inside it must be named starting with the name of the application slice in **camelCase**
 
 > Example: When creating a slice for the Internal Events, name the folder as **InternalEvents** and the files must start with **internalEvents**
@@ -124,7 +129,6 @@ const sliceName: StateCreator<
 };
 
 export default sliceName;
-
 ```
 
 ---
@@ -174,3 +178,105 @@ const stateValueName = useGlobalStore.use.stateValueName();
 ```
 
 > **useGlobalStore** is a hook and so it can be used only inside a React component
+
+## Creating Nested Models
+
+The nested models contain a number of different model types and so we do not create all the types in a single file. We still use a single slice for the nested models but all the actions and types are separated into their respective files
+
+### Types for the nested model
+All the typing required for the nested model are placed in different files with the name **[model_name]Types.ts** in the TypesHelpers folder
+> openpra-monorepo/packages/frontend/web-editor/src/app/zustand/NestedModels/TypesHelpers
+
+Once the types are exported from there, they need to be included in the overall nested models slice type and this is done in the **NestedModelsTypes.tsx** file
+
+```
+export type NestedModelsTypes = {
+  NestedModels: NestedModelsStateType;
+} & New_Type_You_Created1 & New_Type_You_Created2;
+```
+
+### Actions for the nested model
+Similar to types for indiviual models, all the actions required for the nested model are placed in different files with the name **[model_name]Actions.ts** in the ActionHelpers folder
+> openpra-monorepo/packages/frontend/web-editor/src/app/zustand/NestedModels/ActionHelpers
+
+Once the types are exported from there, they need to be included in the overall nested models slice action **NestedModelsActions.tsx**  file from which they can be used anywhere
+
+> openpra-monorepo/packages/frontend/web-editor/src/app/zustand/NestedModels/NestedModelsActions.tsx
+
+## Using Immer Middleware
+The setState function in zustand will be able to update the state on the first level of the state object. For nested state update, we have to use the spread (...) operator. But this can get messy quickly. So we use **Immer** middleware to perform nested state updates.
+
+To use Immer while creating a slice
+```
+import { StateCreator } from "zustand";
+import { immer } from "zustand/middleware/immer";
+import { sliceResetFns, storeType } from "../store";
+// Import the state from the state file
+// Import the types from the types file
+// Import the actions from the actions file
+
+const sliceName: StateCreator<
+  storeType,
+  [],
+  [["zustand/immer", never]],
+  sliceType
+> = immer((set) => {
+  sliceResetFns.add(() => {
+    set(sliceInitialState);
+  });
+  return {
+    actionName: sliceActions.action
+  };
+});
+
+export default sliceName;
+```
+
+This will add Immer to that slice. We can then use the immer function to perform nested state updates in the actions file. The **produce** function from Immer is used to perform these updates.
+
+```
+import { produce } from "immer";
+
+UseGlobalStore.setState(
+      produce((state: StoreType) => {
+        state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents.push(
+          InitiatingEvent,
+        );
+
+        state.internalEvents = state.internalEvents.map(
+          (ie: InternalEventsModelType) => {
+            if (InitiatingEvent.parentIds.includes(ie._id)) {
+              ie.initiatingEvents.push(InitiatingEvent._id);
+            }
+            return ie;
+          },
+        );
+      }),
+    );
+```
+
+As seen from the above code snippet, this produce function can be used to update multiple parts of the state at the same time.
+
+## Zustand Dev Tools
+
+We have added Dev Tools support for the Zustand store. We have added that middleware when we create the global zustand store in **Store.ts** file
+
+```
+const UseGlobalStoreBase = create<StoreType>()(
+  devtools(
+    (...args) => ({
+        ...slice1(...args),
+        ...slice2(...args),
+    }),
+    {
+      enabled: true,
+      name: "Zustand Model Store",
+    },
+  ),
+);
+```
+There are 2 parameters here:
+- enabled - Determines where to show the dev tool or not
+- name - This is the name of the store in the dev tools window
+
+To see the store, we use the **Redux DevTools** extension in chrome. Once installed, the extension should automatically display the store when the application is open.

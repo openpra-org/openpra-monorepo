@@ -1,5 +1,5 @@
 import { StateCreator } from "zustand";
-import { SliceResetFns, storeType } from "../Store";
+import { SliceResetFns, StoreType } from "../Store";
 import { ExternalHazardsType } from "./externalHazardsType";
 import {
   addExternalHazard,
@@ -10,7 +10,7 @@ import {
 import { externalHazardsState } from "./externalHazardsState";
 
 const externalHazardsSlice: StateCreator<
-  storeType,
+  StoreType,
   [],
   [],
   ExternalHazardsType

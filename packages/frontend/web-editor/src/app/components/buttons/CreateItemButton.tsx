@@ -1,5 +1,4 @@
 import { logicalStyle } from "@elastic/eui";
-import { PostFullScope } from "shared-types/src/lib/api/TypedModelApiManager";
 import {
   PostBayesianEstimation,
   PostBayesianNetwork,
@@ -12,7 +11,6 @@ import {
   PostFunctionalEvent,
   PostHeatBalanceFaultTree,
   PostHumanReliabilityAnalysis,
-  PostInitiatingEvent,
   PostMarkovChain,
   PostMechanisticSourceTerm,
   PostOperatingStateAnalysis,
@@ -85,6 +83,7 @@ export { CreateItemButton };
  */
 export function CreateNestedItemButton({
   itemName,
+  postNestedEndpoint,
   postEndpoint,
 }: CreateNestedItemButtonProps): JSX.Element {
   const popoverExtra = (child: JSX.Element): JSX.Element => (
@@ -109,6 +108,7 @@ export function CreateNestedItemButton({
         action="create"
         itemName={itemName}
         postEndpoint={postEndpoint}
+        postNestedEndpoint={postNestedEndpoint}
       />
     </ButtonWithClosablePopover>
   );
@@ -208,10 +208,11 @@ export function CreateEventTreeButton(): JSX.Element {
 }
 
 export function CreateInitiatingEventButton(): JSX.Element {
+  const AddInitiatingEvent = UseGlobalStore.use.AddInitiatingEvent();
   return (
     <CreateNestedItemButton
       itemName="initiating-event"
-      postEndpoint={PostInitiatingEvent}
+      postNestedEndpoint={AddInitiatingEvent}
     />
   );
 }

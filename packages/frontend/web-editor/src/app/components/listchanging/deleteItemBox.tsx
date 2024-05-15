@@ -13,12 +13,13 @@ import {
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
 export type DeleteItemProps = {
-  id: number;
+  id?: number;
+  _id?: string;
   itemName: string;
   typeOfModel: string;
-  deleteFunction?: (id: number) => Promise<void>;
-  deleteTypedEndpoint?: (id: number) => NonNullable<unknown>;
-  deleteNestedEndpoint?: (id: number) => NonNullable<unknown>;
+  deleteTypedEndpoint?: (id: number) => Promise<void>;
+  deleteNestedEndpoint?: (id: string) => Promise<void>;
+  deleteEndpoint?: (id: number) => NonNullable<unknown>;
 };
 
 /**
@@ -35,22 +36,30 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
   //grabbing the props
   const {
     id,
+    _id,
     itemName,
     deleteNestedEndpoint,
-    deleteFunction,
     deleteTypedEndpoint,
   } = props;
 
   //sets the data, then closes overlay
   const deleteData = (): void => {
     try {
-      if (deleteTypedEndpoint) deleteTypedEndpoint(id);
-      else if (deleteFunction)
-        deleteFunction(id).then(() => {
+      if (deleteTypedEndpoint && id) {
+        void deleteTypedEndpoint(id).then(() => {
           // TODO:: Log this right
           console.log("deleted");
         });
+      } else if (deleteNestedEndpoint && _id) {
+        void deleteNestedEndpoint(_id).then(() => {
+          // TODO:: Log this right
+          console.log('deleted nested')
+        })
+      } else {
+        // deleteEndpoint(id)
+      }
     } catch (e) {
+      // TODO:: Log this right
       console.error(e);
     }
     // TODO:: Implement delete functionality for nested models

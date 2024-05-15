@@ -7,7 +7,7 @@ export type NestedModelJSON = {
     name: string;
     description: string;
   };
-  parentIds: number[];
+  parentIds: number[] | string[];
 };
 
 //maps the json
@@ -54,3 +54,13 @@ export class NestedModel extends BasicModel {
     this.parentIds.push(parentId);
   }
 }
+
+export type NestedModelType = {
+  _id: string;
+  label: {
+    name: string;
+    description: string;
+  };
+  id: number;
+  parentIds: string[];
+};

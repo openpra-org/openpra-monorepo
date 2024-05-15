@@ -1,5 +1,5 @@
 import { StateCreator } from "zustand";
-import { SliceResetFns, storeType } from "../Store";
+import { SliceResetFns, StoreType } from "../Store";
 import { InternalEventsType } from "./internalEventsTypes";
 import { internalEventsState } from "./internalEventsState";
 import {
@@ -10,7 +10,7 @@ import {
 } from "./internalEventsActions";
 
 const internalEventsSlice: StateCreator<
-  storeType,
+  StoreType,
   [],
   [],
   InternalEventsType

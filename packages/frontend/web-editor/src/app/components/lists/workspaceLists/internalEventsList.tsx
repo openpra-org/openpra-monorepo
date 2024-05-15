@@ -1,9 +1,5 @@
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
-import {
-  ReactElement,
-  useEffect,
-  useState,
-} from "react";
+import { ReactElement, useEffect, useState } from "react";
 import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
 import { CreateGenericList } from "../GenericList";
 import { UseGlobalStore } from "../../../zustand/Store";
@@ -28,13 +24,13 @@ function InternalEventsList(): JSX.Element {
 
   useEffect(() => {
     setGenericListItems(
-      CreateGenericList<InternalEventsModelType>(
-        internalEventsList,
-        "Internal Events",
-        createInternalEvents,
-        editInternalEvent,
-        deleteInternalEvent,
-      ),
+      CreateGenericList<InternalEventsModelType>({
+        modelList: internalEventsList,
+        endpoint: "Internal Events",
+        postTypedEndpoint: createInternalEvents,
+        patchTypedEndpoint: editInternalEvent,
+        deleteTypedEndpoint: deleteInternalEvent,
+      }),
     );
   }, [
     createInternalEvents,

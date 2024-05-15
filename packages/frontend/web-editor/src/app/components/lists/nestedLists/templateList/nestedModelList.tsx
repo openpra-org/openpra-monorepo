@@ -4,24 +4,36 @@ import { ReactElement, useEffect, useState } from "react";
 import { NestedModel } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 
-import { GetCurrentModelId } from "shared-types/src/lib/api/TypedModelApiManager";
+import {
+  GetCurrentModelId,
+  GetCurrentModelIdString,
+} from "shared-types/src/lib/api/TypedModelApiManager";
 import { GenericListItem } from "../../GenericListItem";
 import { GenericItemList } from "../../GenericItemList";
+import { UseGlobalStore } from "../../../../zustand/Store";
 
 export type NestedModelListProps = {
   name: string;
-  getNestedEndpoint: (id: number) => Promise<NestedModel[]>;
+  getNestedEndpoint?: (id: number) => Promise<NestedModel[]>;
+  getNestedEndpointString?: (id: string) => Promise<NestedModel[]>;
   deleteNestedEndpoint: (id: number) => NonNullable<unknown>;
   patchNestedEndpoint: (id: number, data: LabelJSON) => NonNullable<unknown>;
 };
 
 //grabs the model List
 async function fetchModelList(
-  getNestedEndpoint: (id: number) => Promise<NestedModel[]>,
+  getNestedEndpoint?: (id: number) => Promise<NestedModel[]>,
+  getNestedEndpointString?: (id: string) => Promise<NestedModel[]>,
 ): Promise<NestedModel[]> {
-  const modelId = GetCurrentModelId();
+  // const modelId = GetCurrentModelIdString();
   try {
-    return await getNestedEndpoint(modelId);
+    const modelList = getNestedEndpoint
+      ? await getNestedEndpoint(GetCurrentModelId())
+      : getNestedEndpointString
+      ? await getNestedEndpointString(GetCurrentModelIdString())
+      : [];
+    return modelList;
+    // return await getNestedEndpointString(modelId);
   } catch (error) {
     //console.error("Error fetching internal events:", error);
     return [];
@@ -32,14 +44,19 @@ async function fetchModelList(
 //this works but poorly, need to fix how ids are done
 //I also cant really get the items to know what type they are, I'm assuming typedmodeljson
 const getFixtures = async (
-  getNestedEndpoint: (id: number) => Promise<NestedModel[]>,
   deleteNestedEndpoint: (id: number) => NonNullable<unknown>,
   patchNestedEndpoint: (id: number, data: LabelJSON) => NonNullable<unknown>,
   name: string,
+  getNestedEndpoint?: (id: number) => Promise<NestedModel[]>,
+  getNestedEndpointString?: (id: string) => Promise<NestedModel[]>,
 ): Promise<JSX.Element[]> => {
   try {
-    const modelList = await fetchModelList(getNestedEndpoint);
-
+    const modelList = getNestedEndpoint
+      ? await fetchModelList(getNestedEndpoint, undefined)
+      : getNestedEndpointString
+      ? await fetchModelList(undefined, getNestedEndpointString)
+      : [];
+    console.log(modelList);
     const nestedModelList: NestedModel[] = modelList.map(
       (item: any) =>
         new NestedModel(
@@ -76,17 +93,23 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const { name, deleteNestedEndpoint, getNestedEndpoint, patchNestedEndpoint } =
-    props;
+  const {
+    name,
+    deleteNestedEndpoint,
+    getNestedEndpoint,
+    getNestedEndpointString,
+    patchNestedEndpoint,
+  } = props;
 
   useEffect(() => {
     const fetchGenericListItems = async (): Promise<void> => {
       try {
         const items = await getFixtures(
-          getNestedEndpoint,
           deleteNestedEndpoint,
           patchNestedEndpoint,
           name,
+          getNestedEndpoint,
+          getNestedEndpointString,
         );
         setGenericListItems(items);
         setIsLoading(false);
@@ -100,6 +123,14 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
     };
     void fetchGenericListItems();
   }, [deleteNestedEndpoint, getNestedEndpoint, name, patchNestedEndpoint]);
+
+  const SetInitiatingEvents = UseGlobalStore.use.SetInitiatingEvents();
+
+  useEffect(() => {
+    void SetInitiatingEvents(GetCurrentModelIdString()).then(() => {
+      console.log("saved");
+    });
+  }, []);
 
   return (
     <EuiPageTemplate

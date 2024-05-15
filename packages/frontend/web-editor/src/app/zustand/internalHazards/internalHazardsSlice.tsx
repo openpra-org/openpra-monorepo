@@ -1,5 +1,5 @@
 import { StateCreator } from "zustand";
-import { SliceResetFns, storeType } from "../Store";
+import { SliceResetFns, StoreType } from "../Store";
 import { InternalHazardsType } from "./internalHazardsType";
 import {
   addInternalHazard,
@@ -10,7 +10,7 @@ import {
 import { internalHazardsState } from "./internalHazardsState";
 
 const internalHazardsSlice: StateCreator<
-  storeType,
+  StoreType,
   [],
   [],
   InternalHazardsType

@@ -11,6 +11,7 @@ import {
 import { Link } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+import { NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LastActionText } from "./LastActionText";
 import { ListItemContextMenuButton } from "./ListItemAction";
 
@@ -19,32 +20,29 @@ export type GenericListItemProps = {
   id: number;
   label: LabelJSON;
   endpoint: string;
-  deleteTypedEndpoint?: (id: number) => NonNullable<unknown>;
-  deleteNestedEndpoint?: (id: number) => {};
-  postFunction?: (data: Partial<TypedModelJSON>) => Promise<void>;
-  deleteFunction?: (id: number) => Promise<void>;
-  patchFunction?: (
-    modelId: number,
-    userId: number,
-    data: Partial<TypedModelJSON>,
-  ) => Promise<void>;
+  deleteTypedEndpoint?: (id: number) => Promise<void>;
+  postTypedEndpoint?: (data: Partial<TypedModelJSON>) => Promise<void>;
   patchTypedEndpoint?: (
     modelId: number,
     userId: number,
     data: Partial<TypedModelJSON>,
-  ) => NonNullable<unknown>;
+  ) => Promise<void>;
+  postNestedEndpoint?: (data: NestedModelJSON) => Promise<void>;
+  patchNestedEndpointNew?: (
+    modelId: string,
+    data: Partial<NestedModelJSON>,
+  ) => Promise<void>;
   patchNestedEndpoint?: (id: number, data: LabelJSON) => NonNullable<unknown>;
-  users?: number[];
+  deleteNestedEndpointNew?: (id: string) => Promise<void>;
+  deleteNestedEndpoint?: (id: number) => NonNullable<unknown>;
+  users?: number[] | null;
   path: string;
   itemName: string;
   _id?: string;
 };
 
 /**
- *
- * @param id - takes in the id number of the object
- * @param path - the path that the list item will send the user to after clicked
- * @param label - this is an optional prop that passes a labelJSON
+ * @param props - that contains all the input props for the component
  */
 function GenericListItem(props: GenericListItemProps): JSX.Element {
   //grabs the props

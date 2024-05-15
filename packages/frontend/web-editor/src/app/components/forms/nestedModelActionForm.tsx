@@ -12,7 +12,7 @@ import {
 } from "@elastic/eui";
 import { useState } from "react";
 
-import { GetCurrentModelId } from "shared-types/src/lib/api/TypedModelApiManager";
+import { GetCurrentModelIdString } from "shared-types/src/lib/api/TypedModelApiManager";
 import {
   DefaultNestedModelJSON,
   NestedModelJSON,
@@ -25,8 +25,14 @@ export type NestedItemFormProps = {
   itemName: string;
   // TODO:: TODO :: replace endpoint string with TypedApiManager method
   id?: number;
+  _id?: string;
   postEndpoint?: (data: NestedModelJSON) => NonNullable<unknown>;
   patchEndpoint?: (id: number, data: LabelJSON) => NonNullable<unknown>;
+  postNestedEndpoint?: (data: NestedModelJSON) => Promise<void>;
+  patchNestedEndpoint?: (
+    modelId: string,
+    data: Partial<NestedModelJSON>,
+  ) => Promise<void>;
   onSuccess?: () => NonNullable<unknown>;
   onFail?: () => NonNullable<unknown>;
   onCancel?: (func: any) => void;
@@ -45,16 +51,17 @@ function NestedModelActionForm({
   action,
   patchEndpoint,
   postEndpoint,
-  onSuccess,
-  onFail,
+  postNestedEndpoint,
+  patchNestedEndpoint,
   id,
+  _id,
 }: NestedItemFormProps): JSX.Element {
-  //setting up initial values depending on what has been send, if init form values are passed its assumed to be updating instead of adding
+  //setting up initial values depending on what has been sent, if init form values are passed it's assumed to be updating instead of adding
   const formInitials = initialFormValues
     ? initialFormValues
     : DefaultNestedModelJSON;
 
-  //sets the current typed model using our formIntials, in a react state so we can pass it around
+  //sets the current typed model using our formInitials, in a React state, so we can pass it around
   const [typedModel, setTypedModel] = useState(formInitials);
 
   //Handles the click for the submit button, functionality depends on whether initform values are passed, indicating an update
@@ -62,31 +69,34 @@ function NestedModelActionForm({
     e.preventDefault();
 
     if (typedModel.label.name !== "") {
-      //creating a partial model to pass for update, may update to work for adding later aswell
+      //creating a partial model to pass for update, may update to work for adding later as well
       const partialModel: NestedModelJSON = {
         label: typedModel.label,
-        parentIds: [GetCurrentModelId()],
+        parentIds: [GetCurrentModelIdString()],
       };
 
-      //dummied out patch functionality as I think this will be very different
-      //calls the 2 functions depending on what is passed to patch
-      // if(initialFormValues){
-      // }
-
-      //does postEndpoint if it has been passed
-      if (postEndpoint) {
-        postEndpoint(partialModel);
-      } else if (patchEndpoint) {
-        if (id) {
-          patchEndpoint(id, typedModel.label);
+      if (itemName === "initiating-event") {
+        if (initialFormValues && _id && patchNestedEndpoint) {
+          void patchNestedEndpoint(_id, partialModel).then(() => {
+            onCancel && onCancel(false);
+          });
+        } else if (postNestedEndpoint) {
+          void postNestedEndpoint(partialModel).then(() => {
+            onCancel && onCancel(false);
+          });
+        }
+      } else {
+        if (postEndpoint) {
+          postEndpoint(partialModel);
+        } else if (patchEndpoint) {
+          if (id) {
+            patchEndpoint(id, typedModel.label);
+          }
         }
       }
     } else {
       alert("Please enter a valid name");
     }
-    onSuccess?.();
-    onFail?.();
-    //location.reload();
   };
 
   //const formTouched = label.name !== DEFAULT_LABEL_JSON.name || label.description !== DEFAULT_LABEL_JSON.description;

@@ -17,6 +17,26 @@ import {
   EventTreeGraph,
   EventTreeGraphSchema,
 } from "../schemas/graphs/event-tree-graph.schema";
+import {
+  InternalEvents,
+  InternalEventsSchema,
+} from "../typedModel/schemas/internal-events.schema";
+import {
+  InternalHazards,
+  InternalHazardsSchema,
+} from "../typedModel/schemas/internal-hazards.schema";
+import {
+  ExternalHazards,
+  ExternalHazardsSchema,
+} from "../typedModel/schemas/external-hazards.schema";
+import {
+  FullScope,
+  FullScopeSchema,
+} from "../typedModel/schemas/full-scope.schema";
+import {
+  ModelCounter,
+  ModelCounterSchema,
+} from "../schemas/model-counter.schema";
 import { NestedModelService } from "./nestedModel.service";
 import { NestedModelController } from "./nestedModel.controller";
 import {
@@ -90,6 +110,8 @@ import {
   OperatingStateAnalysis,
   OperatingStateAnalysisSchema,
 } from "./schemas/operatingStateAnalysis.schema";
+import { NestedModelHelperService } from "./nested-model-helper.service";
+import { InitiatingEventsService } from "./NestedModelsHelpers/initiating-events.service";
 
 @Module({
   imports: [
@@ -133,10 +155,24 @@ import {
       },
       { name: FaultTreeGraph.name, schema: FaultTreeGraphSchema },
       { name: EventTreeGraph.name, schema: EventTreeGraphSchema },
+      { name: InternalEvents.name, schema: InternalEventsSchema },
+      { name: InternalHazards.name, schema: InternalHazardsSchema },
+      { name: ExternalHazards.name, schema: ExternalHazardsSchema },
+      { name: FullScope.name, schema: FullScopeSchema },
+      { name: ModelCounter.name, schema: ModelCounterSchema },
     ]),
   ],
   controllers: [NestedModelController],
-  providers: [NestedModelService, GraphModelService],
-  exports: [NestedModelService],
+  providers: [
+    NestedModelService,
+    GraphModelService,
+    InitiatingEventsService,
+    NestedModelHelperService,
+  ],
+  exports: [
+    NestedModelService,
+    InitiatingEventsService,
+    NestedModelHelperService,
+  ],
 })
 export class NestedModelModule {}

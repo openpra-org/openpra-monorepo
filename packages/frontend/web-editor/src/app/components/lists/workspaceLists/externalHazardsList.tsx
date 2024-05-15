@@ -24,13 +24,13 @@ function ExternalHazardsList(): JSX.Element {
 
   useEffect(() => {
     setGenericListItems(
-      CreateGenericList<ExternalHazardsModelType>(
-        externalHazardsList,
-        "External Hazards",
-        createExternalHazards,
-        editExternalHazard,
-        deleteExternalHazard,
-      ),
+      CreateGenericList<ExternalHazardsModelType>({
+        modelList: externalHazardsList,
+        endpoint: "External Hazards",
+        postTypedEndpoint: createExternalHazards,
+        patchTypedEndpoint: editExternalHazard,
+        deleteTypedEndpoint: deleteExternalHazard,
+      }),
     );
   }, [
     createExternalHazards,

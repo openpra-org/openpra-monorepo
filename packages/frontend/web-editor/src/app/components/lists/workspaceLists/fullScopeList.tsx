@@ -24,13 +24,13 @@ function FullScopeList(): JSX.Element {
 
   useEffect(() => {
     setGenericListItems(
-      CreateGenericList<FullScopeModelType>(
-        fullScopeList,
-        "Full Scope",
-        createFullScope,
-        editFullScope,
-        deleteFullScope,
-      ),
+      CreateGenericList<FullScopeModelType>({
+        modelList: fullScopeList,
+        endpoint: "Full Scope",
+        postTypedEndpoint: createFullScope,
+        patchTypedEndpoint: editFullScope,
+        deleteTypedEndpoint: deleteFullScope,
+      }),
     );
   }, [createFullScope, deleteFullScope, editFullScope, fullScopeList]);
 

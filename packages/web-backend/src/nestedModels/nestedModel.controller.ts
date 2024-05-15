@@ -31,10 +31,15 @@ import { EventSequenceQuantificationDiagram } from "./schemas/event-sequence-qua
 import { MechanisticSourceTerm } from "./schemas/mechanistic-source-term.schema";
 import { RadiologicalConsequenceAnalysis } from "./schemas/radiological-consequence-analysis.schema";
 import { RiskIntegration } from "./schemas/risk-integration.schema";
+import { TypedModelType } from "./nested-model-helper.service";
+import { InitiatingEventsService } from "./NestedModelsHelpers/initiating-events.service";
 
 @Controller()
 export class NestedModelController {
-  constructor(private readonly nestedModelService: NestedModelService) {}
+  constructor(
+    private readonly nestedModelService: NestedModelService,
+    private readonly initiatingEventsService: InitiatingEventsService,
+  ) {}
 
   //method to get counter value
 
@@ -138,15 +143,20 @@ export class NestedModelController {
 
   /**
    * posts the nested model defined in the method name
+   * @param body is the entire body of the post request
    * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
    * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
+   * @param typedModel is the typed model to be updated
    * @returns a promise with the newly created model, with the general nested model fields
    */
   @Post("/initiating-events/")
   async createInitiatingEvent(
-    @Body() data: Partial<NestedModel>,
+    @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType },
   ): Promise<NestedModel> {
-    return this.nestedModelService.createInitiatingEvent(data);
+    return this.initiatingEventsService.createInitiatingEvent(
+      body.data,
+      body.typedModel,
+    );
   }
 
   /**
@@ -262,7 +272,7 @@ export class NestedModelController {
   //get collection methods
 
   /**
-   * grabs the colleciton of the type of nested model defined by the function call name (Bayesian estimations)
+   * grabs the collection of the type of nested model defined by the function call name (Bayesian estimations)
    * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
@@ -274,7 +284,7 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the colleciton of the type of nested model defined by the function call name (Bayesian networks)
+   * grabs the collection of the type of nested model defined by the function call name (Bayesian networks)
    * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
@@ -286,7 +296,7 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the colleciton of the type of nested model defined by the function call name (Event Sequence Diagrams)
+   * grabs the collection of the type of nested model defined by the function call name (Event Sequence Diagrams)
    * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
@@ -298,7 +308,7 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the colleciton of the type of nested model defined by the function call name (Event Trees)
+   * grabs the collection of the type of nested model defined by the function call name (Event Trees)
    * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
@@ -308,7 +318,7 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the colleciton of the type of nested model defined by the function call name (Fault Trees)
+   * grabs the collection of the type of nested model defined by the function call name (Fault Trees)
    * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
@@ -318,7 +328,7 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the colleciton of the type of nested model defined by the function call name (Fault Trees)
+   * grabs the collection of the type of nested model defined by the function call name (Fault Trees)
    * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
@@ -330,7 +340,7 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the colleciton of the type of nested model defined by the function call name (Functional events)
+   * grabs the collection of the type of nested model defined by the function call name (Functional events)
    * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
@@ -342,19 +352,23 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the colleciton of the type of nested model defined by the function call name (Initiating Events)
+   * grabs the collection of the type of nested model defined by the function call name (Initiating Events)
    * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
   @Get("/initiating-events/")
   async getInitiatingEvents(
-    @Query("id") id: number,
+    @Query("id") id: number | string,
   ): Promise<InitiatingEvent[]> {
-    return this.nestedModelService.getInitiatingEvents(id);
+    if (typeof id === "number") {
+      return this.initiatingEventsService.getInitiatingEvents(id);
+    } else {
+      return this.initiatingEventsService.getInitiatingEventsString(id);
+    }
   }
 
   /**
-   * grabs the colleciton of the type of nested model defined by the function call name (Markov Chains)
+   * grabs the collection of the type of nested model defined by the function call name (Markov Chains)
    * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
@@ -364,7 +378,7 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the colleciton of the type of nested model defined by the function call name (Weibull Analysis)
+   * grabs the collection of the type of nested model defined by the function call name (Weibull Analysis)
    * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
@@ -542,9 +556,16 @@ export class NestedModelController {
    */
   @Get("/initiating-events/:id")
   async getSingleInitiatingEvent(
-    @Param("id") modelId: number,
+    @Param("id") modelId: number | string,
   ): Promise<InitiatingEvent> {
-    return this.nestedModelService.getSingleInitiatingEvent(modelId);
+    console.log(typeof modelId);
+    if (typeof modelId === "number") {
+      return this.initiatingEventsService.getSingleInitiatingEvent(modelId);
+    } else {
+      return this.initiatingEventsService.getSingleInitiatingEventString(
+        modelId,
+      );
+    }
   }
 
   /**
@@ -740,13 +761,15 @@ export class NestedModelController {
   /**
    * deletes a single nested model from the collection of that typed based on an id
    * @param id the id of the model to be deleted
+   * @param typedModel is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
    */
   @Delete("/initiating-events/")
   async deleteInitiatingEvent(
-    @Query("id") id: number,
-  ): Promise<InitiatingEvent> {
-    return this.nestedModelService.deleteInitiatingEvent(id);
+    @Query("id") id: string,
+    @Query("type") typedModel: TypedModelType,
+  ): Promise<void> {
+    await this.initiatingEventsService.deleteInitiatingEvent(id, typedModel);
   }
 
   /**
@@ -852,8 +875,8 @@ export class NestedModelController {
   /**
    * updates a label for the nested model type
    * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and descrption string
-   * @returns the updated moel
+   * @param data the new label, with a name and description string
+   * @returns the updated model
    */
   @Patch("/bayesian-estimations/:id")
   async updateBayesianEstimationLabel(
@@ -866,8 +889,8 @@ export class NestedModelController {
   /**
    * updates a label for the nested model type
    * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and descrption string
-   * @returns the updated moel
+   * @param data the new label, with a name and description string
+   * @returns the updated model
    */
   @Patch("/bayesian-networks/:id")
   async updateBayesianNetworkLabel(
@@ -880,22 +903,22 @@ export class NestedModelController {
   /**
    * updates a label for the nested model type
    * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and descrption string
-   * @returns the updated moel
+   * @param data the new label, with a name and description string
+   * @returns the updated model
    */
   @Patch("/event-sequence-diagrams/:id")
   async updateEventSequenceDiagramLabel(
     @Param("id") id: number,
     @Body() data: Label,
   ): Promise<NestedModel> {
-    return this.nestedModelService.updateEventSqeuenceDiagramLabel(id, data);
+    return this.nestedModelService.updateEventSequenceDiagramLabel(id, data);
   }
 
   /**
    * updates a label for the nested model type
    * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and descrption string
-   * @returns the updated moel
+   * @param data the new label, with a name and description string
+   * @returns the updated model
    */
   @Patch("/event-trees/:id")
   async updateEventTreeLabel(
@@ -908,8 +931,8 @@ export class NestedModelController {
   /**
    * updates a label for the nested model type
    * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and descrption string
-   * @returns the updated moel
+   * @param data the new label, with a name and description string
+   * @returns the updated model
    */
   @Patch("/fault-trees/:id")
   async updateFaultTreeLabel(
@@ -922,8 +945,8 @@ export class NestedModelController {
   /**
    * updates a label for the nested model type
    * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and descrption string
-   * @returns the updated moel
+   * @param data the new label, with a name and description string
+   * @returns the updated model
    */
   @Patch("/heat-balance-fault-trees/:id")
   async updateHeatBalanceFaultTreeLabel(
@@ -936,8 +959,8 @@ export class NestedModelController {
   /**
    * updates a label for the nested model type
    * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and descrption string
-   * @returns the updated moel
+   * @param data the new label, with a name and description string
+   * @returns the updated model
    */
   @Patch("/functional-events/:id")
   async updateFunctionalEventLabel(
@@ -950,22 +973,22 @@ export class NestedModelController {
   /**
    * updates a label for the nested model type
    * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and descrption string
-   * @returns the updated moel
+   * @param data the new label, with a name and description string
+   * @returns the updated model
    */
   @Patch("/initiating-events/:id")
   async updateInitiatingEventLabel(
-    @Param("id") id: number,
+    @Param("id") id: string,
     @Body() data: Label,
   ): Promise<NestedModel> {
-    return this.nestedModelService.updateInitiatingEventLabel(id, data);
+    return this.initiatingEventsService.updateInitiatingEventLabel(id, data);
   }
 
   /**
    * updates a label for the nested model type
    * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and descrption string
-   * @returns the updated moel
+   * @param data the new label, with a name and description string
+   * @returns the updated model
    */
   @Patch("/markov-chains/:id")
   async updateMarkovChainLabel(
@@ -978,8 +1001,8 @@ export class NestedModelController {
   /**
    * updates a label for the nested model type
    * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and descrption string
-   * @returns the updated moel
+   * @param data the new label, with a name and description string
+   * @returns the updated model
    */
   @Patch("/weibull-analysis/:id")
   async updateWeibullAnalysisLabel(

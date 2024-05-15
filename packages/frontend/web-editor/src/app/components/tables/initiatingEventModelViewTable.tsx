@@ -239,14 +239,14 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const [commentToEditId, setCommentEditId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editorEditValue, setEditorEditValue] = useState('');
+  const [originalTimestamp, setOriginalTimestamp] = useState('');
     useEffect(() => {
         console.log("isEditing state has changed: ", isEditing); // Log the updated state
     }, [isEditing]);
 
-  const handleEditCommentId = (commentId: string) => {
+  const handleEditCommentId = (commentId: string, timestamp: string) => {
     setCommentEditId(prevId => (prevId === commentId ? null : commentId));
-    console.log("When clicked on edit Button: ", commentToEditId);
-
+    setOriginalTimestamp(timestamp);
   };
   const onDeleteComment = async () => {
        setIsLoading(true);
@@ -303,8 +303,8 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
             fullname: "First Person"
           },
           timelineAvatar: "tp",
-          event: 'edited a comment',
-          timestamp: `on ${date}`,
+          event: `(edited) added a comment on`,
+          timestamp: originalTimestamp,
           actions: "actionButton",
           children: editedValue,
         }
@@ -333,8 +333,8 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     }
   };
 
-  const actionFunctions: { [key: string]: (commentId: string) => JSX.Element } = {
-    actionButton:(commentId: string) => (
+  const actionFunctions: { [key: string]: (commentId: string, timeStamp: string) => JSX.Element } = {
+    actionButton:(commentId: string, timeStamp: string) => (
         <React.Fragment>
             <EuiButtonIcon
                 key="copyButton"
@@ -350,7 +350,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                 color="text"
                 iconType="pencil"
                 onClick={()=>{
-                  handleEditCommentId(commentId);
+                  handleEditCommentId(commentId,timeStamp);
                 }}
 
             />
@@ -456,21 +456,23 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   useEffect(() => {
     const storedComments: ExtendedEuiCommentProps[] = loadedComments.map(comment => {
       const timestampString = comment.comments[0].timestamp;
-      const timestamp = new Date(timestampString.replace('on ', '')); // Remove 'on ' from the timestamp string
+      // const timestamp = new Date(timestampString.replace('on ', '')); // Remove 'on ' from the timestamp string
 
-      const formattedTimestamp = timeAgo(timestamp);
+      // const formattedTimestamp = timeAgo(timestamp);
+
+      const date = new Date(Date.now()).toISOString();
 
       return {
         _id: comment._id,
         username: <UserActionUsername username={comment.comments[0].username.username} fullname={comment.comments[0].username.fullname} />,
         timelineAvatar: <EuiAvatar name={comment.comments[0].username.username} />,
         event: comment.comments[0].event,
-        timestamp: formattedTimestamp,
+        timestamp: timestampString,
           // actions: comment.comments[0].actions
           //     ? actionFunctions[comment.comments[0].actions.replace(/"/g, '')]
           //     : undefined,
           actions: comment.comments[0].actions
-              ? actionFunctions[comment.comments[0].actions.replace(/"/g, '')](comment._id) // Pass commentId to action function
+              ? actionFunctions[comment.comments[0].actions.replace(/"/g, '')](comment._id,comment.comments[0].timestamp) // Pass commentId to action function
               : undefined,
           children: comment.comments[0].children
               ? (
@@ -1416,7 +1418,10 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
             defaultValue={extractMarkdownText(comment.children)}
             editModeProps={{
               formRowProps: { error: errors },
-              cancelButtonProps: { onClick: () => setErrors([]) },
+              cancelButtonProps: { onClick: () => {
+                  setErrors([]);
+                  setCommentEditId(null); // Clear the editing comment ID
+                }, },
               inputProps: { readOnly: isLoading },
             }}
             startWithEditOpen={true}

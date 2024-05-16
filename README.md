@@ -226,7 +226,7 @@ nx run-many -t serve --all
 
  - Serve packages individually:
 ```shell
-nx serve web-editor
+nx serve frontend-web-editor
 ```
 ```shell
 nx serve web-backend

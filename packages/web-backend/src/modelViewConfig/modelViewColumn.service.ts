@@ -92,7 +92,6 @@ export class ModelViewColumnService {
       );
     });
 
-
     allInitiatingEvents.forEach(async (initiatingEvent) => {
       await this.initiatingEventModel.findByIdAndUpdate(
         initiatingEvent._id,
@@ -127,7 +126,6 @@ export class ModelViewColumnService {
       const allInitiatingEvents = await this.initiatingEventModel.find();
       const newColumnName = newColumnObject.name;
       for (const initiator of allInitiators) {
-        //set the new column and unset the old column
         await this.initiatorModel.findByIdAndUpdate(
           initiator._id,
           {

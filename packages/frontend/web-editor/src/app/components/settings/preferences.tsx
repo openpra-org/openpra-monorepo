@@ -6,10 +6,10 @@ import ApiManager from "shared-types/src/lib/api/ApiManager";
 import React from "react";
 import { NavInsideNav } from "../sidenavs/genericNav";
 
-type PreferenceContextType = {
+interface PreferenceContextType {
   currentUser: MemberResult | undefined;
   setCurrentUser: (user: MemberResult) => void;
-};
+}
 
 const PreferenceContext = React.createContext<PreferenceContextType>({
   currentUser: undefined,
@@ -35,8 +35,14 @@ function Preferences(): JSX.Element {
     <EuiSkeletonLoading
       isLoading={isLoading}
       loadingContent={
-        <EuiPageTemplate paddingSize="none" panelled={false}>
-          <EuiPageTemplate.Sidebar paddingSize="s" sticky={true}>
+        <EuiPageTemplate
+          paddingSize="none"
+          panelled={false}
+        >
+          <EuiPageTemplate.Sidebar
+            paddingSize="s"
+            sticky={true}
+          >
             <NavInsideNav />
           </EuiPageTemplate.Sidebar>
 
@@ -46,8 +52,14 @@ function Preferences(): JSX.Element {
         </EuiPageTemplate>
       }
       loadedContent={
-        <EuiPageTemplate paddingSize="none" panelled={false}>
-          <EuiPageTemplate.Sidebar paddingSize="s" sticky={true}>
+        <EuiPageTemplate
+          paddingSize="none"
+          panelled={false}
+        >
+          <EuiPageTemplate.Sidebar
+            paddingSize="s"
+            sticky={true}
+          >
             <NavInsideNav />
           </EuiPageTemplate.Sidebar>
 

@@ -51,9 +51,7 @@ const InvitedUsersTable = ({
         enabled: () => true,
         onClick: ({ id }): void => {
           const backup = invitedUsers;
-          const newInvitedUsers = invitedUsers.filter(
-            (element, _) => element.id !== id,
-          );
+          const newInvitedUsers = invitedUsers.filter((element, _) => element.id !== id);
           setInvitedUsers(newInvitedUsers);
           UserInviteApi.deleteInviteById(id ?? "")
             .then((res) => {
@@ -116,10 +114,7 @@ const InvitedUsersTable = ({
       pageOfItems = users;
     } else {
       const startIndex = pageIndex * pageSize;
-      pageOfItems = users.slice(
-        startIndex,
-        Math.min(startIndex + pageSize, users.length),
-      );
+      pageOfItems = users.slice(startIndex, Math.min(startIndex + pageSize, users.length));
     }
     return {
       pageOfItems,
@@ -127,11 +122,7 @@ const InvitedUsersTable = ({
     };
   };
 
-  const { pageOfItems, totalItemCount } = findUsers(
-    invitedUsers,
-    pageIndex,
-    pageSize,
-  );
+  const { pageOfItems, totalItemCount } = findUsers(invitedUsers, pageIndex, pageSize);
 
   const pagination = {
     pageIndex,

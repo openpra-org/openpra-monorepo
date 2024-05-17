@@ -1,7 +1,7 @@
 /**
  * Represents the properties for the context menu options.
  */
-export type EventSequenceContextMenuOptions = {
+export interface EventSequenceContextMenuOptions {
   /**
    * @param id - option identifier
    */
@@ -22,4 +22,4 @@ export type EventSequenceContextMenuOptions = {
    * @param isDelete - show delete context menu option if applicable
    */
   isDelete: boolean;
-};
+}

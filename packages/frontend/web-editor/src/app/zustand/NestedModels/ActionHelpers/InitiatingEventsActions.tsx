@@ -4,10 +4,7 @@ import {
   PatchInitiatingEventLabel,
   DeleteInitiatingEvent as DeleteInitiatingEventApi,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import {
-  NestedModelJSON,
-  NestedModelType,
-} from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { produce } from "immer";
 import { typedModelType } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { StoreType, UseGlobalStore } from "../../Store";
@@ -20,8 +17,7 @@ export const SetInitiatingEvents = async (parentId: string): Promise<void> => {
     UseGlobalStore.setState(
       produce((state: NestedModelsTypes) => {
         state.NestedModels.parentId = parentId;
-        state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents =
-          InitiatingEvents;
+        state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents = InitiatingEvents;
       }),
     );
   } catch (error) {
@@ -29,29 +25,16 @@ export const SetInitiatingEvents = async (parentId: string): Promise<void> => {
   }
 };
 
-export const AddInitiatingEvent = async (
-  data: NestedModelJSON,
-): Promise<void> => {
+export const AddInitiatingEvent = async (data: NestedModelJSON): Promise<void> => {
   try {
     const typedModelName = GetTypedModelName();
-    const InitiatingEvent: NestedModelType = await PostInitiatingEvent(
-      data,
-      typedModelName,
-    );
+    const InitiatingEvent: NestedModelType = await PostInitiatingEvent(data, typedModelName);
 
     UseGlobalStore.setState(
       produce((state: StoreType) => {
-        state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents.push(
-          InitiatingEvent,
-        );
+        state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents.push(InitiatingEvent);
 
-        UpdateTypedModel(
-          state,
-          typedModelName,
-          InitiatingEvent.parentIds,
-          InitiatingEvent._id,
-          "post",
-        );
+        UpdateTypedModel(state, typedModelName, InitiatingEvent.parentIds, InitiatingEvent._id, "post");
       }),
     );
   } catch (error) {
@@ -59,24 +42,18 @@ export const AddInitiatingEvent = async (
   }
 };
 
-export const EditInitiatingEvent = async (
-  modelId: string,
-  data: Partial<NestedModelJSON>,
-): Promise<void> => {
+export const EditInitiatingEvent = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
   if (!data.label) {
     return;
   }
 
   try {
-    const ier: NestedModelType = await PatchInitiatingEventLabel(
-      modelId,
-      data.label,
-    );
+    const ier: NestedModelType = await PatchInitiatingEventLabel(modelId, data.label);
     UseGlobalStore.setState(
       produce((state: NestedModelsTypes) => {
         state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents =
-          state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents.map(
-            (ie: NestedModelType) => (ie._id === modelId ? ier : ie),
+          state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents.map((ie: NestedModelType) =>
+            ie._id === modelId ? ier : ie,
           );
       }),
     );
@@ -93,14 +70,10 @@ export const DeleteInitiatingEvent = async (id: string): Promise<void> => {
     UseGlobalStore.setState(
       produce((state: StoreType) => {
         const parentIds =
-          state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents.find(
-            (ie) => ie._id === id,
-          )?.parentIds ?? [];
+          state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents.find((ie) => ie._id === id)?.parentIds ?? [];
 
         state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents =
-          state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents.filter(
-            (ie: NestedModelType) => ie._id !== id,
-          );
+          state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents.filter((ie: NestedModelType) => ie._id !== id);
 
         UpdateTypedModel(state, typedModelName, parentIds, id, "delete");
       }),
@@ -148,9 +121,7 @@ const UpdateTypedModel = (
       if (parentIds.includes(tm._id)) {
         return {
           ...tm,
-          initiatingEvents: tm.initiatingEvents.filter(
-            (ie: string) => ie !== id,
-          ),
+          initiatingEvents: tm.initiatingEvents.filter((ie: string) => ie !== id),
         };
       } else {
         return tm;

@@ -2,24 +2,12 @@ import { expect } from "@playwright/test";
 import { Connection } from "mongoose";
 import { getConnectionToken, MongooseModule } from "@nestjs/mongoose";
 import { Test, TestingModule } from "@nestjs/testing";
-import {
-  ModelCounter,
-  ModelCounterSchema,
-} from "../schemas/model-counter.schema";
+import { ModelCounter, ModelCounterSchema } from "../schemas/model-counter.schema";
 import { TypedModelController } from "./typedModel.controller";
 import { TypedModelService } from "./typedModel.service";
-import {
-  InternalEvents,
-  InternalEventsSchema,
-} from "./schemas/internal-events.schema";
-import {
-  InternalHazards,
-  InternalHazardsSchema,
-} from "./schemas/internal-hazards.schema";
-import {
-  ExternalHazards,
-  ExternalHazardsSchema,
-} from "./schemas/external-hazards.schema";
+import { InternalEvents, InternalEventsSchema } from "./schemas/internal-events.schema";
+import { InternalHazards, InternalHazardsSchema } from "./schemas/internal-hazards.schema";
+import { ExternalHazards, ExternalHazardsSchema } from "./schemas/external-hazards.schema";
 import { FullScope, FullScopeSchema } from "./schemas/full-scope.schema";
 
 import { createFullScopeRequest } from "./stubs/createFullScopeRequest.stub";
@@ -53,8 +41,7 @@ describe("TypedModel Controller", () => {
       ],
       providers: [TypedModelService, TypedModelController],
     }).compile();
-    typedModelController =
-      module.get<TypedModelController>(TypedModelController);
+    typedModelController = module.get<TypedModelController>(TypedModelController);
     connection = module.get(getConnectionToken());
   });
 
@@ -82,10 +69,7 @@ describe("TypedModel Controller", () => {
      * Check if the created Internal Event has the correct properties
      */
     it("Should return the newly created Internal Event Model", async () => {
-      const createdInternalEvent =
-        await typedModelController.createInternalEvent(
-          createInternalEventRequest,
-        );
+      const createdInternalEvent = await typedModelController.createInternalEvent(createInternalEventRequest);
       expect(createdInternalEvent).toBeDefined();
       expect(createdInternalEvent).toHaveProperty("id");
       expect(createdInternalEvent.users).toEqual([1, 2, 3]);
@@ -98,14 +82,8 @@ describe("TypedModel Controller", () => {
      * check is IDs are generated incrementally
      */
     it("should create multiple internal events", async () => {
-      const createdInternalEvent =
-        await typedModelController.createInternalEvent(
-          createInternalEventRequest,
-        );
-      const createdInternalEvent2 =
-        await typedModelController.createInternalEvent(
-          createInternalEventRequest,
-        );
+      const createdInternalEvent = await typedModelController.createInternalEvent(createInternalEventRequest);
+      const createdInternalEvent2 = await typedModelController.createInternalEvent(createInternalEventRequest);
       expect(createdInternalEvent).toBeDefined();
       expect(createdInternalEvent2).toBeDefined();
       expect(createdInternalEvent.id).toEqual(1);
@@ -123,10 +101,7 @@ describe("TypedModel Controller", () => {
      * Check if the created Internal Hazard has the correct properties
      */
     it("Should return the newly created Internal Hazard Model", async () => {
-      const createdInternalHazard =
-        await typedModelController.createInternalHazard(
-          createInternalHazardRequest,
-        );
+      const createdInternalHazard = await typedModelController.createInternalHazard(createInternalHazardRequest);
 
       expect(createdInternalHazard).toBeDefined();
       expect(createdInternalHazard).toHaveProperty("id");
@@ -141,14 +116,8 @@ describe("TypedModel Controller", () => {
      * check is IDs are generated incrementally
      */
     it("should create multiple internal hazards", async () => {
-      const createdInternalHazard =
-        await typedModelController.createInternalHazard(
-          createInternalHazardRequest,
-        );
-      const createdInternalHazard2 =
-        await typedModelController.createInternalHazard(
-          createInternalHazardRequest,
-        );
+      const createdInternalHazard = await typedModelController.createInternalHazard(createInternalHazardRequest);
+      const createdInternalHazard2 = await typedModelController.createInternalHazard(createInternalHazardRequest);
       expect(createdInternalHazard).toBeDefined();
       expect(createdInternalHazard2).toBeDefined();
       expect(createdInternalHazard.id).toEqual(1);
@@ -166,10 +135,7 @@ describe("TypedModel Controller", () => {
      * Check if the created External Hazard has the correct properties
      */
     it("Should return the newly created External Hazard Model", async () => {
-      const createdExternalHazard =
-        await typedModelController.createExternalHazard(
-          createExternalHazardRequest,
-        );
+      const createdExternalHazard = await typedModelController.createExternalHazard(createExternalHazardRequest);
       expect(createdExternalHazard).toBeDefined();
       expect(createdExternalHazard).toHaveProperty("id");
       expect(createdExternalHazard.users).toEqual([1, 2, 3]);
@@ -182,14 +148,8 @@ describe("TypedModel Controller", () => {
      * check is IDs are generated incrementally
      */
     it("should create multiple external hazards", async () => {
-      const createdExternalHazard =
-        await typedModelController.createExternalHazard(
-          createExternalHazardRequest,
-        );
-      const createdExternalHazard2 =
-        await typedModelController.createExternalHazard(
-          createExternalHazardRequest,
-        );
+      const createdExternalHazard = await typedModelController.createExternalHazard(createExternalHazardRequest);
+      const createdExternalHazard2 = await typedModelController.createExternalHazard(createExternalHazardRequest);
       expect(createdExternalHazard).toBeDefined();
       expect(createdExternalHazard2).toBeDefined();
       expect(createdExternalHazard.id).toEqual(1);
@@ -207,9 +167,7 @@ describe("TypedModel Controller", () => {
      * Check if the created Full Scope has the correct properties
      */
     it("Should return the newly created Full Scope Model", async () => {
-      const createdFullScope = await typedModelController.createFullScope(
-        createFullScopeRequest,
-      );
+      const createdFullScope = await typedModelController.createFullScope(createFullScopeRequest);
       expect(createdFullScope).toBeDefined();
       expect(createdFullScope).toHaveProperty("id");
       expect(createdFullScope.users).toEqual([1, 2, 3]);
@@ -222,12 +180,8 @@ describe("TypedModel Controller", () => {
      * check is IDs are generated incrementally
      */
     it("should create multiple full scopes", async () => {
-      const createdFullScope = await typedModelController.createFullScope(
-        createFullScopeRequest,
-      );
-      const createdFullScope2 = await typedModelController.createFullScope(
-        createFullScopeRequest,
-      );
+      const createdFullScope = await typedModelController.createFullScope(createFullScopeRequest);
+      const createdFullScope2 = await typedModelController.createFullScope(createFullScopeRequest);
       expect(createdFullScope).toBeDefined();
       expect(createdFullScope2).toBeDefined();
       expect(createdFullScope.id).toEqual(1);
@@ -247,26 +201,20 @@ describe("TypedModel Controller", () => {
      * Check if the updated Internal Event has the new properties
      */
     it("Should return the updated Internal Event Model", async () => {
-      const createdInternalEvent =
-        await typedModelController.createInternalEvent(
-          createInternalEventRequest,
-        );
+      const createdInternalEvent = await typedModelController.createInternalEvent(createInternalEventRequest);
       createdInternalEvent.users = [1];
       createdInternalEvent.label.name = "Updated Internal Event Model";
 
       const modelId = createdInternalEvent.id;
-      const updatedInternalEvent =
-        await typedModelController.patchInternalEvent(
-          request,
-          String(modelId),
-          createdInternalEvent,
-        );
+      const updatedInternalEvent = await typedModelController.patchInternalEvent(
+        request,
+        String(modelId),
+        createdInternalEvent,
+      );
       expect(updatedInternalEvent).toBeDefined();
       expect(updatedInternalEvent).toHaveProperty("id");
       expect(updatedInternalEvent.users).toEqual([1]);
-      expect(updatedInternalEvent.label.name).toEqual(
-        "Updated Internal Event Model",
-      );
+      expect(updatedInternalEvent.label.name).toEqual("Updated Internal Event Model");
     });
   });
 
@@ -282,25 +230,19 @@ describe("TypedModel Controller", () => {
      * Check if the updated Internal Hazard has the new properties
      */
     it("Should return the updated Internal Hazard Model", async () => {
-      const createdInternalHazard =
-        await typedModelController.createInternalHazard(
-          createInternalHazardRequest,
-        );
+      const createdInternalHazard = await typedModelController.createInternalHazard(createInternalHazardRequest);
       createdInternalHazard.users = [1];
       createdInternalHazard.label.name = "Updated Internal Hazard Model";
       const modelId = createdInternalHazard.id;
-      const updatedInternalHazard =
-        await typedModelController.patchInternalHazard(
-          request,
-          String(modelId),
-          createdInternalHazard,
-        );
+      const updatedInternalHazard = await typedModelController.patchInternalHazard(
+        request,
+        String(modelId),
+        createdInternalHazard,
+      );
       expect(updatedInternalHazard).toBeDefined();
       expect(updatedInternalHazard).toHaveProperty("id");
       expect(updatedInternalHazard.users).toEqual([1]);
-      expect(updatedInternalHazard.label.name).toEqual(
-        "Updated Internal Hazard Model",
-      );
+      expect(updatedInternalHazard.label.name).toEqual("Updated Internal Hazard Model");
     });
   });
 
@@ -316,25 +258,19 @@ describe("TypedModel Controller", () => {
      * Check if the updated External Hazard has the new properties
      */
     it("Should return the updated External Hazard Model", async () => {
-      const createdExternalHazard =
-        await typedModelController.createExternalHazard(
-          createExternalHazardRequest,
-        );
+      const createdExternalHazard = await typedModelController.createExternalHazard(createExternalHazardRequest);
       createdExternalHazard.users = [1];
       createdExternalHazard.label.name = "Updated External Hazard Model";
       const modelId = createdExternalHazard.id;
-      const updatedExternalHazard =
-        await typedModelController.patchExternalHazard(
-          request,
-          String(modelId),
-          createdExternalHazard,
-        );
+      const updatedExternalHazard = await typedModelController.patchExternalHazard(
+        request,
+        String(modelId),
+        createdExternalHazard,
+      );
       expect(updatedExternalHazard).toBeDefined();
       expect(updatedExternalHazard).toHaveProperty("id");
       expect(updatedExternalHazard.users).toEqual([1]);
-      expect(updatedExternalHazard.label.name).toEqual(
-        "Updated External Hazard Model",
-      );
+      expect(updatedExternalHazard.label.name).toEqual("Updated External Hazard Model");
     });
   });
 
@@ -350,17 +286,11 @@ describe("TypedModel Controller", () => {
      * Check if the updated Full Scope has the new properties
      */
     it("Should return the updated Full Scope Model", async () => {
-      const createdFullScope = await typedModelController.createFullScope(
-        createFullScopeRequest,
-      );
+      const createdFullScope = await typedModelController.createFullScope(createFullScopeRequest);
       createdFullScope.users = [1];
       createdFullScope.label.name = "Updated Full Scope Model";
       const modelId = createdFullScope.id;
-      const updatedFullScope = await typedModelController.patchFullScope(
-        request,
-        String(modelId),
-        createdFullScope,
-      );
+      const updatedFullScope = await typedModelController.patchFullScope(request, String(modelId), createdFullScope);
       expect(updatedFullScope).toBeDefined();
       expect(updatedFullScope).toHaveProperty("id");
       expect(updatedFullScope.users).toEqual([1]);
@@ -379,14 +309,9 @@ describe("TypedModel Controller", () => {
      * Check if all the Internal Event models for the given user are returned correctly
      */
     it("Should return all Internal Event Models", async () => {
-      await typedModelController.createInternalEvent(
-        createInternalEventRequest,
-      );
-      await typedModelController.createInternalEvent(
-        createInternalEventRequest,
-      );
-      const internalEvents =
-        await typedModelController.getInternalEvents(request);
+      await typedModelController.createInternalEvent(createInternalEventRequest);
+      await typedModelController.createInternalEvent(createInternalEventRequest);
+      const internalEvents = await typedModelController.getInternalEvents(request);
       expect(internalEvents).toBeDefined();
       expect(internalEvents.length).toEqual(2);
       expect(internalEvents[0].id).toEqual(1);
@@ -406,14 +331,9 @@ describe("TypedModel Controller", () => {
      *
      */
     it("Should return all Internal Hazard Models", async () => {
-      await typedModelController.createInternalHazard(
-        createInternalHazardRequest,
-      );
-      await typedModelController.createInternalHazard(
-        createInternalHazardRequest,
-      );
-      const internalHazards =
-        await typedModelController.getInternalHazards(request);
+      await typedModelController.createInternalHazard(createInternalHazardRequest);
+      await typedModelController.createInternalHazard(createInternalHazardRequest);
+      const internalHazards = await typedModelController.getInternalHazards(request);
       expect(internalHazards).toBeDefined();
       expect(internalHazards.length).toEqual(2);
       expect(internalHazards[0].id).toEqual(1);
@@ -432,14 +352,9 @@ describe("TypedModel Controller", () => {
      * Check if all the External Hazard models for the given user are returned correctly
      */
     it("Should return all External Hazard Models", async () => {
-      await typedModelController.createExternalHazard(
-        createExternalHazardRequest,
-      );
-      await typedModelController.createExternalHazard(
-        createExternalHazardRequest,
-      );
-      const externalHazards =
-        await typedModelController.getExternalHazards(request);
+      await typedModelController.createExternalHazard(createExternalHazardRequest);
+      await typedModelController.createExternalHazard(createExternalHazardRequest);
+      const externalHazards = await typedModelController.getExternalHazards(request);
       expect(externalHazards).toBeDefined();
       expect(externalHazards.length).toEqual(2);
       expect(externalHazards[0].id).toEqual(1);
@@ -479,14 +394,8 @@ describe("TypedModel Controller", () => {
      * Check if the Internal Event model for the given user is returned correctly
      */
     it("Should return the Internal Event Model", async () => {
-      const createdInternalEvent =
-        await typedModelController.createInternalEvent(
-          createInternalEventRequest,
-        );
-      const internalEvent = await typedModelController.getInternalEvent(
-        request,
-        String(createdInternalEvent.id),
-      );
+      const createdInternalEvent = await typedModelController.createInternalEvent(createInternalEventRequest);
+      const internalEvent = await typedModelController.getInternalEvent(request, String(createdInternalEvent.id));
       expect(internalEvent).toBeDefined();
       expect(internalEvent.id).toEqual(1);
       expect(internalEvent.users).toEqual([1, 2, 3]);
@@ -497,15 +406,9 @@ describe("TypedModel Controller", () => {
      * Check if the getInternalEvent function returns NULL if user ID not associated with model
      */
     it("should return NULL if user ID not associated with model", async () => {
-      const createdInternalEvent =
-        await typedModelController.createInternalEvent(
-          createInternalEventRequest,
-        );
+      const createdInternalEvent = await typedModelController.createInternalEvent(createInternalEventRequest);
       const req = { user: { user_id: 4 } };
-      const internalEvent = await typedModelController.getInternalEvent(
-        req,
-        String(createdInternalEvent.id),
-      );
+      const internalEvent = await typedModelController.getInternalEvent(req, String(createdInternalEvent.id));
       expect(internalEvent).toBeNull();
     });
 
@@ -514,10 +417,7 @@ describe("TypedModel Controller", () => {
      * If the model is not found, the function should return NULL
      */
     it("should return NULL if model not found", async () => {
-      const internalEvent = await typedModelController.getInternalEvent(
-        request,
-        "1",
-      );
+      const internalEvent = await typedModelController.getInternalEvent(request, "1");
       expect(internalEvent).toBeNull();
     });
   });
@@ -533,14 +433,8 @@ describe("TypedModel Controller", () => {
      * Check if the Internal Hazard model for the given user is returned correctly
      */
     it("Should return the Internal Hazard Model", async () => {
-      const createdInternalHazard =
-        await typedModelController.createInternalHazard(
-          createInternalHazardRequest,
-        );
-      const internalHazard = await typedModelController.getInternalHazard(
-        request,
-        String(createdInternalHazard.id),
-      );
+      const createdInternalHazard = await typedModelController.createInternalHazard(createInternalHazardRequest);
+      const internalHazard = await typedModelController.getInternalHazard(request, String(createdInternalHazard.id));
       expect(internalHazard).toBeDefined();
       expect(internalHazard.id).toEqual(1);
       expect(internalHazard.users).toEqual([1, 2, 3]);
@@ -552,15 +446,9 @@ describe("TypedModel Controller", () => {
      * If the user ID is not associated with the model, the function should return NULL
      */
     it("should return NULL if user ID not associated with model", async () => {
-      const createdInternalHazard =
-        await typedModelController.createInternalHazard(
-          createInternalHazardRequest,
-        );
+      const createdInternalHazard = await typedModelController.createInternalHazard(createInternalHazardRequest);
       const req = { user: { user_id: 4 } };
-      const internalHazard = await typedModelController.getInternalHazard(
-        req,
-        String(createdInternalHazard.id),
-      );
+      const internalHazard = await typedModelController.getInternalHazard(req, String(createdInternalHazard.id));
       expect(internalHazard).toBeNull();
     });
 
@@ -569,10 +457,7 @@ describe("TypedModel Controller", () => {
      * If the model is not found, the function should return NULL
      */
     it("should return NULL if model not found", async () => {
-      const internalHazard = await typedModelController.getInternalHazard(
-        request,
-        "1",
-      );
+      const internalHazard = await typedModelController.getInternalHazard(request, "1");
       expect(internalHazard).toBeNull();
     });
   });
@@ -588,14 +473,8 @@ describe("TypedModel Controller", () => {
      * Check if the External Hazard model for the given user is returned correctly
      */
     it("Should return the External Hazard Model", async () => {
-      const createdExternalHazard =
-        await typedModelController.createExternalHazard(
-          createExternalHazardRequest,
-        );
-      const externalHazard = await typedModelController.getExternalHazard(
-        request,
-        String(createdExternalHazard.id),
-      );
+      const createdExternalHazard = await typedModelController.createExternalHazard(createExternalHazardRequest);
+      const externalHazard = await typedModelController.getExternalHazard(request, String(createdExternalHazard.id));
       expect(externalHazard).toBeDefined();
       expect(externalHazard.id).toEqual(1);
       expect(externalHazard.users).toEqual([1, 2, 3]);
@@ -607,15 +486,9 @@ describe("TypedModel Controller", () => {
      * If the user ID is not associated with the model, the function should return NULL
      */
     it("should return NULL if user ID not associated with model", async () => {
-      const createdExternalHazard =
-        await typedModelController.createExternalHazard(
-          createExternalHazardRequest,
-        );
+      const createdExternalHazard = await typedModelController.createExternalHazard(createExternalHazardRequest);
       const req = { user: { user_id: 4 } };
-      const externalHazard = await typedModelController.getExternalHazard(
-        req,
-        String(createdExternalHazard.id),
-      );
+      const externalHazard = await typedModelController.getExternalHazard(req, String(createdExternalHazard.id));
       expect(externalHazard).toBeNull();
     });
 
@@ -624,10 +497,7 @@ describe("TypedModel Controller", () => {
      * If the model is not found, the function should return NULL
      */
     it("should return NULL if model not found", async () => {
-      const externalHazard = await typedModelController.getExternalHazard(
-        request,
-        "1",
-      );
+      const externalHazard = await typedModelController.getExternalHazard(request, "1");
       expect(externalHazard).toBeNull();
     });
   });
@@ -643,13 +513,8 @@ describe("TypedModel Controller", () => {
      * Check if the Full Scope model for the given user is returned correctly
      */
     it("Should return the Full Scope Model", async () => {
-      const createdFullScope = await typedModelController.createFullScope(
-        createFullScopeRequest,
-      );
-      const fullScope = await typedModelController.getFullScope(
-        request,
-        String(createdFullScope.id),
-      );
+      const createdFullScope = await typedModelController.createFullScope(createFullScopeRequest);
+      const fullScope = await typedModelController.getFullScope(request, String(createdFullScope.id));
       expect(fullScope).toBeDefined();
       expect(fullScope.id).toEqual(1);
       expect(fullScope.users).toEqual([1, 2, 3]);
@@ -661,14 +526,9 @@ describe("TypedModel Controller", () => {
      * If the user ID is not associated with the model, the function should return NULL
      */
     it("should return NULL if user ID not associated with model", async () => {
-      const createdFullScope = await typedModelController.createFullScope(
-        createFullScopeRequest,
-      );
+      const createdFullScope = await typedModelController.createFullScope(createFullScopeRequest);
       const req = { user: { user_id: 4 } };
-      const fullScope = await typedModelController.getFullScope(
-        req,
-        String(createdFullScope.id),
-      );
+      const fullScope = await typedModelController.getFullScope(req, String(createdFullScope.id));
       expect(fullScope).toBeNull();
     });
 
@@ -693,32 +553,19 @@ describe("TypedModel Controller", () => {
      * Check if the Internal Event model for the given user is deleted. If the model is deleted, the getInternalEvent function should return NULL
      */
     it("Should remove the user from the Internal Event Model", async () => {
-      const createdInternalEvent =
-        await typedModelController.createInternalEvent(
-          createInternalEventRequest,
-        );
-      const deletedInternalEvent =
-        await typedModelController.deleteInternalEvent(
-          request,
-          String(createdInternalEvent.id),
-        );
+      const createdInternalEvent = await typedModelController.createInternalEvent(createInternalEventRequest);
+      const deletedInternalEvent = await typedModelController.deleteInternalEvent(
+        request,
+        String(createdInternalEvent.id),
+      );
       expect(deletedInternalEvent.users).toEqual([2, 3]);
     });
 
     it("should delete the model", async () => {
-      const createdInternalEvent =
-        await typedModelController.createInternalEvent(
-          createInternalEventRequest,
-        );
-      await typedModelController.deleteInternalEvent(
-        request,
-        String(createdInternalEvent.id),
-      );
+      const createdInternalEvent = await typedModelController.createInternalEvent(createInternalEventRequest);
+      await typedModelController.deleteInternalEvent(request, String(createdInternalEvent.id));
       const request2 = { user: { user_id: 2 } };
-      await typedModelController.deleteInternalEvent(
-        request2,
-        String(createdInternalEvent.id),
-      );
+      await typedModelController.deleteInternalEvent(request2, String(createdInternalEvent.id));
       const request3 = { user: { user_id: 3 } };
       const internalEventModel = await typedModelController.deleteInternalEvent(
         request3,
@@ -741,37 +588,23 @@ describe("TypedModel Controller", () => {
      * If the model is deleted, the getInternalHazard function should return NULL
      */
     it("Should remove the user from the Internal Hazard Model", async () => {
-      const createdInternalHazard =
-        await typedModelController.createInternalHazard(
-          createInternalHazardRequest,
-        );
-      const updatedInternalHazard =
-        await typedModelController.deleteInternalHazard(
-          request,
-          String(createdInternalHazard.id),
-        );
-      expect(updatedInternalHazard.users).toEqual([2, 3]);
-    });
-    it("should delete the model", async () => {
-      const createdInternalHazard =
-        await typedModelController.createInternalHazard(
-          createInternalHazardRequest,
-        );
-      await typedModelController.deleteInternalHazard(
+      const createdInternalHazard = await typedModelController.createInternalHazard(createInternalHazardRequest);
+      const updatedInternalHazard = await typedModelController.deleteInternalHazard(
         request,
         String(createdInternalHazard.id),
       );
+      expect(updatedInternalHazard.users).toEqual([2, 3]);
+    });
+    it("should delete the model", async () => {
+      const createdInternalHazard = await typedModelController.createInternalHazard(createInternalHazardRequest);
+      await typedModelController.deleteInternalHazard(request, String(createdInternalHazard.id));
       const request2 = { user: { user_id: 2 } };
-      await typedModelController.deleteInternalHazard(
-        request2,
+      await typedModelController.deleteInternalHazard(request2, String(createdInternalHazard.id));
+      const request3 = { user: { user_id: 3 } };
+      const internalHazardModel = await typedModelController.deleteInternalHazard(
+        request3,
         String(createdInternalHazard.id),
       );
-      const request3 = { user: { user_id: 3 } };
-      const internalHazardModel =
-        await typedModelController.deleteInternalHazard(
-          request3,
-          String(createdInternalHazard.id),
-        );
       expect(internalHazardModel.users).toEqual([3]);
     });
   });
@@ -788,37 +621,23 @@ describe("TypedModel Controller", () => {
      * If the model is deleted, the getExternalHazard function should return NULL
      */
     it("Should remove the user from the External Hazard Model", async () => {
-      const createdExternalHazard =
-        await typedModelController.createExternalHazard(
-          createExternalHazardRequest,
-        );
-      const updatedExternalHazard =
-        await typedModelController.deleteExternalHazard(
-          request,
-          String(createdExternalHazard.id),
-        );
-      expect(updatedExternalHazard.users).toEqual([2, 3]);
-    });
-    it("should delete the model", async () => {
-      const createdExternalHazard =
-        await typedModelController.createExternalHazard(
-          createExternalHazardRequest,
-        );
-      await typedModelController.deleteExternalHazard(
+      const createdExternalHazard = await typedModelController.createExternalHazard(createExternalHazardRequest);
+      const updatedExternalHazard = await typedModelController.deleteExternalHazard(
         request,
         String(createdExternalHazard.id),
       );
+      expect(updatedExternalHazard.users).toEqual([2, 3]);
+    });
+    it("should delete the model", async () => {
+      const createdExternalHazard = await typedModelController.createExternalHazard(createExternalHazardRequest);
+      await typedModelController.deleteExternalHazard(request, String(createdExternalHazard.id));
       const request2 = { user: { user_id: 2 } };
-      await typedModelController.deleteExternalHazard(
-        request2,
+      await typedModelController.deleteExternalHazard(request2, String(createdExternalHazard.id));
+      const request3 = { user: { user_id: 3 } };
+      const externalHazardModel = await typedModelController.deleteExternalHazard(
+        request3,
         String(createdExternalHazard.id),
       );
-      const request3 = { user: { user_id: 3 } };
-      const externalHazardModel =
-        await typedModelController.deleteExternalHazard(
-          request3,
-          String(createdExternalHazard.id),
-        );
       expect(externalHazardModel.users).toEqual([3]);
     });
   });
@@ -835,35 +654,19 @@ describe("TypedModel Controller", () => {
      * If the model is deleted, the getFullScope function should return NULL
      */
     it("Should remove the user from the Full Scope Model", async () => {
-      const createdFullScope = await typedModelController.createFullScope(
-        createFullScopeRequest,
-      );
-      const updatedModel = await typedModelController.deleteFullScope(
-        request,
-        String(createdFullScope.id),
-      );
+      const createdFullScope = await typedModelController.createFullScope(createFullScopeRequest);
+      const updatedModel = await typedModelController.deleteFullScope(request, String(createdFullScope.id));
       expect(updatedModel).toBeDefined();
       expect(updatedModel.users).toEqual([2, 3]);
     });
 
     it("should delete the model", async () => {
-      const createdFullScope = await typedModelController.createFullScope(
-        createFullScopeRequest,
-      );
-      await typedModelController.deleteFullScope(
-        request,
-        String(createdFullScope.id),
-      );
+      const createdFullScope = await typedModelController.createFullScope(createFullScopeRequest);
+      await typedModelController.deleteFullScope(request, String(createdFullScope.id));
       const request2 = { user: { user_id: 2 } };
-      await typedModelController.deleteFullScope(
-        request2,
-        String(createdFullScope.id),
-      );
+      await typedModelController.deleteFullScope(request2, String(createdFullScope.id));
       const request3 = { user: { user_id: 3 } };
-      const fullScopeModel = await typedModelController.deleteFullScope(
-        request3,
-        String(createdFullScope.id),
-      );
+      const fullScopeModel = await typedModelController.deleteFullScope(request3, String(createdFullScope.id));
       expect(fullScopeModel.users).toEqual([3]);
     });
   });
@@ -879,22 +682,14 @@ describe("TypedModel Controller", () => {
      * Check if the nested model is added to the Internal Event Model
      */
     it("Should add a nested model to the Internal Event Model", async () => {
-      const createdInternalEvent =
-        await typedModelController.createInternalEvent(
-          createInternalEventRequest,
-        );
+      const createdInternalEvent = await typedModelController.createInternalEvent(createInternalEventRequest);
       const addNestedModelRequest = {
         modelId: createdInternalEvent.id,
         nestedId: 1,
         nestedType: "initiatingEvents",
       };
-      await typedModelController.addNestedToInternalEvent(
-        addNestedModelRequest,
-      );
-      const latestInternalEvent = await typedModelController.getInternalEvent(
-        request,
-        String(createdInternalEvent.id),
-      );
+      await typedModelController.addNestedToInternalEvent(addNestedModelRequest);
+      const latestInternalEvent = await typedModelController.getInternalEvent(request, String(createdInternalEvent.id));
       expect(latestInternalEvent.initiatingEvents).toEqual([1]);
       expect(latestInternalEvent.users).toEqual([1, 2, 3]);
     });
@@ -905,24 +700,16 @@ describe("TypedModel Controller", () => {
      * Check if all the nested models are added to the Internal Event Model
      */
     it("Should add all nested models to the Internal Event Model", async () => {
-      const createdInternalEvent =
-        await typedModelController.createInternalEvent(
-          createInternalEventRequest,
-        );
+      const createdInternalEvent = await typedModelController.createInternalEvent(createInternalEventRequest);
       for (const nestedObject of nestedObjects) {
         const addNestedModelRequest = {
           modelId: createdInternalEvent.id,
           nestedId: nestedObject.nestedId,
           nestedType: nestedObject.nestedType,
         };
-        await typedModelController.addNestedToInternalEvent(
-          addNestedModelRequest,
-        );
+        await typedModelController.addNestedToInternalEvent(addNestedModelRequest);
       }
-      const latestInternalEvent = await typedModelController.getInternalEvent(
-        request,
-        String(createdInternalEvent.id),
-      );
+      const latestInternalEvent = await typedModelController.getInternalEvent(request, String(createdInternalEvent.id));
       expect(latestInternalEvent.initiatingEvents).toEqual([9]);
       expect(latestInternalEvent.eventSequenceDiagrams).toEqual([10]);
       expect(latestInternalEvent.functionalEvents).toEqual([11]);
@@ -947,18 +734,13 @@ describe("TypedModel Controller", () => {
      * Check if the nested model is added to the Internal Hazard Model
      */
     it("Should add a nested model to the Internal Hazard Model", async () => {
-      const createdInternalHazard =
-        await typedModelController.createInternalHazard(
-          createInternalHazardRequest,
-        );
+      const createdInternalHazard = await typedModelController.createInternalHazard(createInternalHazardRequest);
       const addNestedModelRequest = {
         modelId: createdInternalHazard.id,
         nestedId: 1,
         nestedType: "initiatingEvents",
       };
-      await typedModelController.addNestedToInternalHazard(
-        addNestedModelRequest,
-      );
+      await typedModelController.addNestedToInternalHazard(addNestedModelRequest);
       const latestInternalHazard = await typedModelController.getInternalHazard(
         request,
         String(createdInternalHazard.id),
@@ -974,19 +756,14 @@ describe("TypedModel Controller", () => {
      * Check if all the nested models are added to the Internal Hazard Model
      */
     it("Should add all nested models to the Internal Hazard Model", async () => {
-      const createdInternalHazard =
-        await typedModelController.createInternalHazard(
-          createInternalHazardRequest,
-        );
+      const createdInternalHazard = await typedModelController.createInternalHazard(createInternalHazardRequest);
       for (const nestedObject of nestedObjects) {
         const addNestedModelRequest = {
           modelId: createdInternalHazard.id,
           nestedId: nestedObject.nestedId,
           nestedType: nestedObject.nestedType,
         };
-        await typedModelController.addNestedToInternalHazard(
-          addNestedModelRequest,
-        );
+        await typedModelController.addNestedToInternalHazard(addNestedModelRequest);
       }
       const latestInternalHazard = await typedModelController.getInternalHazard(
         request,
@@ -1016,18 +793,13 @@ describe("TypedModel Controller", () => {
      * Check if the nested model is added to the External Hazard Model
      */
     it("Should add a nested model to the External Hazard Model", async () => {
-      const createdExternalHazard =
-        await typedModelController.createExternalHazard(
-          createExternalHazardRequest,
-        );
+      const createdExternalHazard = await typedModelController.createExternalHazard(createExternalHazardRequest);
       const addNestedModelRequest = {
         modelId: createdExternalHazard.id,
         nestedId: 1,
         nestedType: "initiatingEvents",
       };
-      await typedModelController.addNestedToExternalHazard(
-        addNestedModelRequest,
-      );
+      await typedModelController.addNestedToExternalHazard(addNestedModelRequest);
       const latestExternalHazard = await typedModelController.getExternalHazard(
         request,
         String(createdExternalHazard.id),
@@ -1042,19 +814,14 @@ describe("TypedModel Controller", () => {
      * Check if all the nested models are added to the External Hazard Model
      */
     it("Should add  all nested models to the External Hazard Model", async () => {
-      const createdExternalHazard =
-        await typedModelController.createExternalHazard(
-          createExternalHazardRequest,
-        );
+      const createdExternalHazard = await typedModelController.createExternalHazard(createExternalHazardRequest);
       for (const nestedObject of nestedObjects) {
         const addNestedModelRequest = {
           modelId: createdExternalHazard.id,
           nestedId: nestedObject.nestedId,
           nestedType: nestedObject.nestedType,
         };
-        await typedModelController.addNestedToExternalHazard(
-          addNestedModelRequest,
-        );
+        await typedModelController.addNestedToExternalHazard(addNestedModelRequest);
       }
       const latestExternalHazard = await typedModelController.getExternalHazard(
         request,
@@ -1084,19 +851,14 @@ describe("TypedModel Controller", () => {
      * Check if the nested model is added to the Full Scope Model
      */
     it("Should add a nested model to the Full Scope Model", async () => {
-      const createdFullScope = await typedModelController.createFullScope(
-        createFullScopeRequest,
-      );
+      const createdFullScope = await typedModelController.createFullScope(createFullScopeRequest);
       const addNestedModelRequest = {
         modelId: createdFullScope.id,
         nestedId: 1,
         nestedType: "initiatingEvents",
       };
       await typedModelController.addNestedToFullScope(addNestedModelRequest);
-      const latestFullScope = await typedModelController.getFullScope(
-        request,
-        String(createdFullScope.id),
-      );
+      const latestFullScope = await typedModelController.getFullScope(request, String(createdFullScope.id));
       expect(latestFullScope.initiatingEvents).toEqual([1]);
       expect(latestFullScope.users).toEqual([1, 2, 3]);
     });
@@ -1107,9 +869,7 @@ describe("TypedModel Controller", () => {
      * Check if all the nested models are added to the Full Scope Model
      */
     it("Should add  all nested models to the Full Scope Model", async () => {
-      const createdFullScope = await typedModelController.createFullScope(
-        createFullScopeRequest,
-      );
+      const createdFullScope = await typedModelController.createFullScope(createFullScopeRequest);
       for (const nestedObject of nestedObjects) {
         const addNestedModelRequest = {
           modelId: createdFullScope.id,
@@ -1118,10 +878,7 @@ describe("TypedModel Controller", () => {
         };
         await typedModelController.addNestedToFullScope(addNestedModelRequest);
       }
-      const latestFullScope = await typedModelController.getFullScope(
-        request,
-        String(createdFullScope.id),
-      );
+      const latestFullScope = await typedModelController.getFullScope(request, String(createdFullScope.id));
       expect(latestFullScope.initiatingEvents).toEqual([9]);
       expect(latestFullScope.eventSequenceDiagrams).toEqual([10]);
       expect(latestFullScope.functionalEvents).toEqual([11]);
@@ -1147,18 +904,13 @@ describe("TypedModel Controller", () => {
      * Check if the nested model is deleted from the Internal Event Model
      */
     it("Should delete a nested model from the Internal Event Model", async () => {
-      const createdInternalEvent =
-        await typedModelController.createInternalEvent(
-          createInternalEventRequest,
-        );
+      const createdInternalEvent = await typedModelController.createInternalEvent(createInternalEventRequest);
       const addNestedModelRequest = {
         modelId: createdInternalEvent.id,
         nestedId: 1,
         nestedType: "initiatingEvents",
       };
-      await typedModelController.addNestedToInternalEvent(
-        addNestedModelRequest,
-      );
+      await typedModelController.addNestedToInternalEvent(addNestedModelRequest);
 
       const deleteNestedModelRequest = {
         nestedId: 1,
@@ -1168,10 +920,7 @@ describe("TypedModel Controller", () => {
         String(createdInternalEvent.id),
         deleteNestedModelRequest,
       );
-      const latestInternalEvent = await typedModelController.getInternalEvent(
-        request,
-        String(createdInternalEvent.id),
-      );
+      const latestInternalEvent = await typedModelController.getInternalEvent(request, String(createdInternalEvent.id));
       expect(latestInternalEvent.initiatingEvents).toEqual([]);
       expect(latestInternalEvent.users).toEqual([1, 2, 3]);
     });
@@ -1183,10 +932,7 @@ describe("TypedModel Controller", () => {
      * Check if the nested models are not deleted from the Internal Event Model if the nested model does not exist
      */
     it("should not delete a nested model from the Internal Event Model if the nested model does not exist", async () => {
-      const createdInternalEvent =
-        await typedModelController.createInternalEvent(
-          createInternalEventRequest,
-        );
+      const createdInternalEvent = await typedModelController.createInternalEvent(createInternalEventRequest);
 
       const addNestedModelRequest = {
         modelId: createdInternalEvent.id,
@@ -1194,9 +940,7 @@ describe("TypedModel Controller", () => {
         nestedType: "initiatingEvents",
       };
 
-      await typedModelController.addNestedToInternalEvent(
-        addNestedModelRequest,
-      );
+      await typedModelController.addNestedToInternalEvent(addNestedModelRequest);
 
       const deleteNestedModelRequest = {
         nestedId: 2,
@@ -1206,10 +950,7 @@ describe("TypedModel Controller", () => {
         String(createdInternalEvent.id),
         deleteNestedModelRequest,
       );
-      const latestInternalEvent = await typedModelController.getInternalEvent(
-        request,
-        String(createdInternalEvent.id),
-      );
+      const latestInternalEvent = await typedModelController.getInternalEvent(request, String(createdInternalEvent.id));
       expect(latestInternalEvent.initiatingEvents).toEqual([1]);
       expect(latestInternalEvent.users).toEqual([1, 2, 3]);
     });
@@ -1227,19 +968,14 @@ describe("TypedModel Controller", () => {
      * Check if the nested model is deleted from the Internal Hazard Model
      */
     it("Should delete a nested model from the Internal Hazard Model", async () => {
-      const createdInternalHazard =
-        await typedModelController.createInternalHazard(
-          createInternalHazardRequest,
-        );
+      const createdInternalHazard = await typedModelController.createInternalHazard(createInternalHazardRequest);
 
       const addNestedModelRequest = {
         modelId: createdInternalHazard.id,
         nestedId: 1,
         nestedType: "initiatingEvents",
       };
-      await typedModelController.addNestedToInternalHazard(
-        addNestedModelRequest,
-      );
+      await typedModelController.addNestedToInternalHazard(addNestedModelRequest);
 
       createdInternalHazard.initiatingEvents = [1];
       const deleteNestedModelRequest = {
@@ -1266,19 +1002,14 @@ describe("TypedModel Controller", () => {
      * Check if the nested models are not deleted from the Internal Hazard Model if the nested model does not exist
      */
     it("should not delete a nested model from the Internal Hazard Model if the nested model does not exist", async () => {
-      const createdInternalHazard =
-        await typedModelController.createInternalHazard(
-          createInternalHazardRequest,
-        );
+      const createdInternalHazard = await typedModelController.createInternalHazard(createInternalHazardRequest);
 
       const addNestedModelRequest = {
         modelId: createdInternalHazard.id,
         nestedId: 1,
         nestedType: "initiatingEvents",
       };
-      await typedModelController.addNestedToInternalHazard(
-        addNestedModelRequest,
-      );
+      await typedModelController.addNestedToInternalHazard(addNestedModelRequest);
 
       const deleteNestedModelRequest = {
         nestedId: 2,
@@ -1309,19 +1040,14 @@ describe("TypedModel Controller", () => {
      * Check if the nested model is deleted from the External Hazard Model
      */
     it("Should delete a nested model from the External Hazard Model", async () => {
-      const createdExternalHazard =
-        await typedModelController.createExternalHazard(
-          createExternalHazardRequest,
-        );
+      const createdExternalHazard = await typedModelController.createExternalHazard(createExternalHazardRequest);
 
       const addNestedModelRequest = {
         modelId: createdExternalHazard.id,
         nestedId: 1,
         nestedType: "initiatingEvents",
       };
-      await typedModelController.addNestedToExternalHazard(
-        addNestedModelRequest,
-      );
+      await typedModelController.addNestedToExternalHazard(addNestedModelRequest);
 
       createdExternalHazard.initiatingEvents = [1];
       const deleteNestedModelRequest = {
@@ -1347,19 +1073,14 @@ describe("TypedModel Controller", () => {
      * Check if the nested models are not deleted from the External Hazard Model if the nested model does not exist
      */
     it("should not delete a nested model from the External Hazard Model if the nested model does not exist", async () => {
-      const createdExternalHazard =
-        await typedModelController.createExternalHazard(
-          createExternalHazardRequest,
-        );
+      const createdExternalHazard = await typedModelController.createExternalHazard(createExternalHazardRequest);
 
       const addNestedModelRequest = {
         modelId: createdExternalHazard.id,
         nestedId: 1,
         nestedType: "initiatingEvents",
       };
-      await typedModelController.addNestedToExternalHazard(
-        addNestedModelRequest,
-      );
+      await typedModelController.addNestedToExternalHazard(addNestedModelRequest);
 
       const deleteNestedModelRequest = {
         nestedId: 2,
@@ -1390,9 +1111,7 @@ describe("TypedModel Controller", () => {
      * Check if the nested model is deleted from the Full Scope Model
      */
     it("Should delete a nested model from the Full Scope Model", async () => {
-      const createdFullScope = await typedModelController.createFullScope(
-        createFullScopeRequest,
-      );
+      const createdFullScope = await typedModelController.createFullScope(createFullScopeRequest);
 
       const addNestedModelRequest = {
         modelId: createdFullScope.id,
@@ -1406,14 +1125,8 @@ describe("TypedModel Controller", () => {
         nestedId: 1,
         nestedType: "initiatingEvents",
       };
-      await typedModelController.deleteNestedFromFullScope(
-        String(createdFullScope.id),
-        deleteNestedModelRequest,
-      );
-      const latestFullScope = await typedModelController.getFullScope(
-        request,
-        String(createdFullScope.id),
-      );
+      await typedModelController.deleteNestedFromFullScope(String(createdFullScope.id), deleteNestedModelRequest);
+      const latestFullScope = await typedModelController.getFullScope(request, String(createdFullScope.id));
       expect(latestFullScope.initiatingEvents).toEqual([]);
       expect(latestFullScope.users).toEqual([1, 2, 3]);
     });
@@ -1425,9 +1138,7 @@ describe("TypedModel Controller", () => {
      * Check if the nested models are not deleted from the Full Scope Model if the nested model does not exist
      */
     it("should not delete a nested model from the Full Scope Model if the nested model does not exist", async () => {
-      const createdFullScope = await typedModelController.createFullScope(
-        createFullScopeRequest,
-      );
+      const createdFullScope = await typedModelController.createFullScope(createFullScopeRequest);
 
       const addNestedModelRequest = {
         modelId: createdFullScope.id,
@@ -1440,14 +1151,8 @@ describe("TypedModel Controller", () => {
         nestedId: 2,
         nestedType: "initiatingEvents",
       };
-      await typedModelController.deleteNestedFromFullScope(
-        String(createdFullScope.id),
-        deleteNestedModelRequest,
-      );
-      const latestFullScope = await typedModelController.getFullScope(
-        request,
-        String(createdFullScope.id),
-      );
+      await typedModelController.deleteNestedFromFullScope(String(createdFullScope.id), deleteNestedModelRequest);
+      const latestFullScope = await typedModelController.getFullScope(request, String(createdFullScope.id));
       expect(latestFullScope.initiatingEvents).toEqual([1]);
       expect(latestFullScope.users).toEqual([1, 2, 3]);
     });

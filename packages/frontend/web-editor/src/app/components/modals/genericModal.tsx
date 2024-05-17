@@ -35,7 +35,10 @@ const GenericModal = ({
 }): JSX.Element => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   return (
-    <EuiModal onClose={onClose} initialFocus="[name=popswitch]">
+    <EuiModal
+      onClose={onClose}
+      initialFocus="[name=popswitch]"
+    >
       <EuiModalHeader>
         <EuiModalHeaderTitle>{title}</EuiModalHeaderTitle>
       </EuiModalHeader>

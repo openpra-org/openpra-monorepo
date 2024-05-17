@@ -1,14 +1,14 @@
 import { ProxyTypes } from "./ProxyTypes";
 import ReferenceTypes from "./ReferenceTypes";
 
-export type OutcomeJSON = {
+export interface OutcomeJSON {
   name?: string;
   reference_type?: ReferenceTypes;
   tree_id?: number;
   path?: string;
   make_instance?: boolean;
   _proxy?: ProxyTypes;
-};
+}
 
 export default class Outcome {
   public name: string;
@@ -28,16 +28,8 @@ export default class Outcome {
    * @return {Outcome}
    */
   static build(obj: OutcomeJSON = {}): Outcome {
-    const makeInstance =
-      obj && "make_instance" in obj ? obj.make_instance : false;
-    return new Outcome(
-      obj.name,
-      obj.reference_type,
-      obj.tree_id,
-      obj.path,
-      obj._proxy,
-      makeInstance,
-    );
+    const makeInstance = obj && "make_instance" in obj ? obj.make_instance : false;
+    return new Outcome(obj.name, obj.reference_type, obj.tree_id, obj.path, obj._proxy, makeInstance);
   }
 
   /**

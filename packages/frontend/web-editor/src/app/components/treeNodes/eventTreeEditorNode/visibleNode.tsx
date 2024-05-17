@@ -32,11 +32,7 @@ function VisibleNode({ id, data }: NodeProps) {
         }}
       >
         <div className={styles.inputNode}>
-          <EuiText
-            style={{ fontSize: "0.7rem", height: "1.2rem", resize: "none" }}
-          >
-            0.55
-          </EuiText>
+          <EuiText style={{ fontSize: "0.7rem", height: "1.2rem", resize: "none" }}>0.55</EuiText>
         </div>
 
         <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>Yes</EuiText>
@@ -49,10 +45,16 @@ function VisibleNode({ id, data }: NodeProps) {
               justifyContent: "center",
             }}
           >
-            <p onClick={onClickCreate} className={styles.addNodeButtonText}>
+            <p
+              onClick={onClickCreate}
+              className={styles.addNodeButtonText}
+            >
               +
             </p>
-            <p onClick={onClickDelete} className={styles.addNodeButtonText}>
+            <p
+              onClick={onClickDelete}
+              className={styles.addNodeButtonText}
+            >
               -
             </p>
           </div>

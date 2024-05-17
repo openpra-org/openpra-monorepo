@@ -22,9 +22,7 @@ import MindMapNode from "../../components/treeNodes/bayesianNetwork/mindMapNode"
 import MindMapEdge from "../../components/treeEdges/bayesianNetworkEdges/mindMapEdge";
 import CustomMiniMap from "../../components/minimap/minimap";
 import BayesianNodeContextMenu from "../../components/context_menu/bayesianNodeContextMenu";
-import useStore, {
-  RFState,
-} from "../../hooks/bayesianNetwork/mindmap/useStore";
+import useStore, { RFState } from "../../hooks/bayesianNetwork/mindmap/useStore";
 
 const selector = (state: RFState) => ({
   nodes: state.nodes,
@@ -56,10 +54,7 @@ type ExtendedNode = {
 } & Node;
 
 function ReactFlowPro() {
-  const { nodes, edges, onNodesChange, onEdgesChange } = useStore(
-    selector,
-    shallow,
-  );
+  const { nodes, edges, onNodesChange, onEdgesChange } = useStore(selector, shallow);
   const reactFlow = useReactFlow();
   const connectingNodeId = useRef<string | null>(null);
   const store = useStoreApi();
@@ -69,9 +64,7 @@ function ReactFlowPro() {
     x: 0,
     y: 0,
   });
-  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(
-    null,
-  );
+  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
   const [showCycleWarning, setShowCycleWarning] = useState(false);
   const addNode = useStore((state) => state.addNode);
 
@@ -79,10 +72,7 @@ function ReactFlowPro() {
     addChildNode: state.addChildNode,
   }));
 
-  const getChildNodePosition = (
-    event: MouseEvent,
-    parentNode?: ExtendedNode,
-  ) => {
+  const getChildNodePosition = (event: MouseEvent, parentNode?: ExtendedNode) => {
     const { domNode } = store.getState();
 
     if (
@@ -112,21 +102,12 @@ function ReactFlowPro() {
   const onConnectEnd: OnConnectEnd = useCallback(
     (event: any) => {
       const { nodeInternals } = store.getState();
-      const targetIsPane = (event.target as Element).classList.contains(
-        "react-flow__pane",
-      );
+      const targetIsPane = (event.target as Element).classList.contains("react-flow__pane");
       const node = (event.target as Element).closest(".react-flow__node");
-      const targetNodeId = event.target
-        .closest(".react-flow__node")
-        ?.getAttribute("data-id");
+      const targetNodeId = event.target.closest(".react-flow__node")?.getAttribute("data-id");
 
       // Function to check for cycles
-      const hasCycles = (
-        sourceNodeId: string,
-        targetNodeId: string,
-        nodes: Node[],
-        edges: Edge[],
-      ): boolean => {
+      const hasCycles = (sourceNodeId: string, targetNodeId: string, nodes: Node[], edges: Edge[]): boolean => {
         const visited = new Set();
         const stack = [targetNodeId];
 
@@ -137,9 +118,7 @@ function ReactFlowPro() {
           }
           if (!visited.has(node)) {
             visited.add(node);
-            const children = edges
-              .filter((e) => e.source === node)
-              .map((e) => e.target);
+            const children = edges.filter((e) => e.source === node).map((e) => e.target);
             stack.push(...children);
           }
         }
@@ -172,13 +151,8 @@ function ReactFlowPro() {
           }
         }
       } else if (targetIsPane && connectingNodeId.current) {
-        const parentNode = nodeInternals.get(
-          connectingNodeId.current,
-        ) as ExtendedNode;
-        const childNodePosition = getChildNodePosition(
-          event as MouseEvent,
-          parentNode,
-        );
+        const parentNode = nodeInternals.get(connectingNodeId.current) as ExtendedNode;
+        const childNodePosition = getChildNodePosition(event as MouseEvent, parentNode);
 
         if (parentNode && childNodePosition) {
           addChildNode(parentNode, childNodePosition);
@@ -224,15 +198,12 @@ function ReactFlowPro() {
     console.log(node.id);
   }, []);
 
-  const onNodeContextMenu = useCallback(
-    (event: React.MouseEvent, node: Node) => {
-      event.preventDefault();
-      setSelectedNodeId(node.id);
-      setShowContextMenu(true);
-      setContextMenuPosition({ x: event.clientX, y: event.clientY });
-    },
-    [],
-  );
+  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+    event.preventDefault();
+    setSelectedNodeId(node.id);
+    setShowContextMenu(true);
+    setContextMenuPosition({ x: event.clientX, y: event.clientY });
+  }, []);
 
   const highlightNode = useCallback((nodeId: string) => {
     setHighlightedNodeId(nodeId); // Highlight the node
@@ -272,8 +243,7 @@ function ReactFlowPro() {
     style: {
       ...node.style,
       // Conditional styling: if this node is the one being highlighted, apply styles
-      borderColor:
-        node.id === highlightedNodeId ? "red" : node.style?.borderColor,
+      borderColor: node.id === highlightedNodeId ? "red" : node.style?.borderColor,
       borderWidth: node.id === highlightedNodeId ? 3 : node.style?.borderWidth,
     },
   }));
@@ -335,8 +305,8 @@ function ReactFlowPro() {
           }}
         >
           <p>
-            Creating this link would create a cycle, which is not allowed in a
-            directed acyclic graph (DAG). Please try a different connection.
+            Creating this link would create a cycle, which is not allowed in a directed acyclic graph (DAG). Please try
+            a different connection.
           </p>
         </EuiToast>
       )}
@@ -355,8 +325,14 @@ export function BayesianNetworkEditor() {
 function BayesianNetworks(): JSX.Element {
   return (
     <Routes>
-      <Route path="" element={<BayesianNetworkList />} />
-      <Route path=":bayesianNetworkId" element={<BayesianNetworkEditor />} />
+      <Route
+        path=""
+        element={<BayesianNetworkList />}
+      />
+      <Route
+        path=":bayesianNetworkId"
+        element={<BayesianNetworkEditor />}
+      />
     </Routes>
   );
 }

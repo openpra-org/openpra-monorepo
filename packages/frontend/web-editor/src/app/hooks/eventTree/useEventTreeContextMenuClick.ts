@@ -1,13 +1,5 @@
 import { useCallback, useState } from "react";
-import {
-  Edge,
-  getConnectedEdges,
-  getIncomers,
-  getOutgoers,
-  Node,
-  NodeProps,
-  useReactFlow,
-} from "reactflow";
+import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node, NodeProps, useReactFlow } from "reactflow";
 import _ from "lodash";
 import { useParams } from "react-router-dom";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
@@ -34,10 +26,9 @@ export function useEventTreeContextMenuClick(id: NodeProps["id"]) {
     let childEdges: Edge[] = [];
     const children = getOutgoers(parentNode, getNodes(), getEdges());
     childNodes.push(...children);
-    const childrenEdges = getConnectedEdges(
-      [parentNode, ...children],
-      getEdges(),
-    ).filter((edge) => !(edge.target === parentNode.id));
+    const childrenEdges = getConnectedEdges([parentNode, ...children], getEdges()).filter(
+      (edge) => !(edge.target === parentNode.id),
+    );
     childEdges.push(...childrenEdges);
     children.forEach((child) => {
       const { nodes, edges } = getAllChildren(child);
@@ -65,23 +56,10 @@ export function useEventTreeContextMenuClick(id: NodeProps["id"]) {
       const edgesToAdd: Edge[] = [];
 
       // get all children of the current node
-      const existingChildren = getOutgoers(
-        parentNode,
-        getNodes(),
-        getEdges(),
-      ).map((node) => node.id);
+      const existingChildren = getOutgoers(parentNode, getNodes(), getEdges()).map((node) => node.id);
 
-      const leafNodeTypes: (string | undefined)[] = [
-        "basicEvent",
-        "houseEvent",
-        "transferGate",
-      ];
-      const nonLeafNodeTypes: (string | undefined)[] = [
-        "andGate",
-        "orGate",
-        "atLeastGate",
-        "notGate",
-      ];
+      const leafNodeTypes: (string | undefined)[] = ["basicEvent", "houseEvent", "transferGate"];
+      const nonLeafNodeTypes: (string | undefined)[] = ["andGate", "orGate", "atLeastGate", "notGate"];
 
       if (
         leafNodeTypes.includes(parentNode.type) &&
@@ -167,25 +145,19 @@ export function useEventTreeContextMenuClick(id: NodeProps["id"]) {
 
         nodesToAdd.push(childNode1);
         edgesToAdd.push(childEdge1);
-      } else if (
-        leafNodeTypes.includes(contextMenuClickEvent.currentTarget.id)
-      ) {
+      } else if (leafNodeTypes.includes(contextMenuClickEvent.currentTarget.id)) {
         // case 3: current node is any type of node with children and new node is leaf node
         // delete all child nodes and edges
 
         const { nodes, edges } = getAllChildren(parentNode);
-        edgesToRemove.push(
-          ...edges.filter((edge) => !(edge.target === parentNode.id)),
-        );
+        edgesToRemove.push(...edges.filter((edge) => !(edge.target === parentNode.id)));
         nodesToRemove.push(...nodes);
       } else if (contextMenuClickEvent.currentTarget.id === "notGate") {
         // case 4: current node is of any type and new node is a not gate
         // flush the entire subtree and add a notGate with a basic event as child
 
         const { nodes, edges } = getAllChildren(parentNode);
-        edgesToRemove.push(
-          ...edges.filter((edge) => !(edge.target === parentNode.id)),
-        );
+        edgesToRemove.push(...edges.filter((edge) => !(edge.target === parentNode.id)));
         nodesToRemove.push(...nodes);
 
         const childNodeId = GenerateUUID();

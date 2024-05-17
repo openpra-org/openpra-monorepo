@@ -1,4 +1,3 @@
-
 import {
   DeleteBayesianNetwork,
   GetBayesianNetworks,

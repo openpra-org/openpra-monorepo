@@ -1,14 +1,8 @@
 import { logicalStyle } from "@elastic/eui";
 import { EuiButtonIconPropsForButton } from "@elastic/eui/src/components/button/button_icon/button_icon";
-import {
-  ButtonWithClosablePopover,
-  ButtonWithPopoverProps,
-} from "../buttons/ButtonWithPopover";
+import { ButtonWithClosablePopover, ButtonWithPopoverProps } from "../buttons/ButtonWithPopover";
 import { ToTitleCase } from "../../../utils/StringUtils";
-import {
-  TypedModelActionForm,
-  ItemFormProps,
-} from "../forms/typedModelActionForm";
+import { TypedModelActionForm, ItemFormProps } from "../forms/typedModelActionForm";
 import { GenericListItemProps } from "./GenericListItem";
 import { ListItemContextMenu } from "./ListItemContextMenu";
 
@@ -17,9 +11,7 @@ export type ListItemActionProps = NonNullable<unknown> &
   Omit<EuiButtonIconPropsForButton, "iconType"> &
   ItemFormProps;
 
-export function ListItemContextMenuButton(
-  props: GenericListItemProps,
-): JSX.Element {
+export function ListItemContextMenuButton(props: GenericListItemProps): JSX.Element {
   return (
     <ButtonWithClosablePopover
       closeProp="onCancel"
@@ -50,9 +42,7 @@ export function ListItemEditAction({
 }: ListItemActionProps): JSX.Element {
   const label = ToTitleCase(itemName);
 
-  const scaffolding = (child: JSX.Element): JSX.Element => (
-    <div style={logicalStyle("max-width", 260)}>{child}</div>
-  );
+  const scaffolding = (child: JSX.Element): JSX.Element => <div style={logicalStyle("max-width", 260)}>{child}</div>;
 
   return (
     <ButtonWithClosablePopover

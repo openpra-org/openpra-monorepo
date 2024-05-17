@@ -26,10 +26,7 @@ import { PreferenceContext, PreferenceContextType } from "./preferences";
  * @param password - The old password of the user
  * @returns - Either true or undefined depending on weather password is correct or not
  */
-const validateCurrentPassword = async (
-  username: string,
-  password: string,
-): Promise<boolean> => {
+const validateCurrentPassword = async (username: string, password: string): Promise<boolean> => {
   const val = await ApiManager.verifyPassword(username, password);
   const { match } = (await val.json()) as { match: boolean };
   return match;
@@ -70,13 +67,7 @@ const PasswordChange = (): JSX.Element => {
     <EuiForm
       id={modalFormId}
       isInvalid={showErrors}
-      error={
-        isInvalidOldPass
-          ? ["Old password is wrong"]
-          : isInvalidNewPass
-          ? ["New password is wrong"]
-          : []
-      }
+      error={isInvalidOldPass ? ["Old password is wrong"] : isInvalidNewPass ? ["New password is wrong"] : []}
       component="form"
     >
       {isActiveUser && (
@@ -129,10 +120,7 @@ const PasswordChange = (): JSX.Element => {
 
           let isPasswordValid = true;
           if (isActiveUser) {
-            isPasswordValid = await validateCurrentPassword(
-              signup.username,
-              currentPassword,
-            );
+            isPasswordValid = await validateCurrentPassword(signup.username, currentPassword);
           }
           if (!isPasswordValid) {
             setIsInvalidOldPass(true);
@@ -146,10 +134,7 @@ const PasswordChange = (): JSX.Element => {
             setShowErrors(false);
             if (currentUser) {
               currentUser.password = signup.password;
-              await ApiManager.updateUser(
-                currentUser.id,
-                JSON.stringify(currentUser),
-              );
+              await ApiManager.updateUser(currentUser.id, JSON.stringify(currentUser));
             }
             setIsModalVisible(false);
           }
@@ -172,7 +157,11 @@ const PasswordChange = (): JSX.Element => {
           data-testid="profile-name"
         ></EuiPageHeader>
         <EuiPageTemplate.Section paddingSize="l">
-          <EuiPanel paddingSize="m" hasBorder={true} grow={false}>
+          <EuiPanel
+            paddingSize="m"
+            hasBorder={true}
+            grow={false}
+          >
             <EuiFlexGroup justifyContent="spaceBetween">
               <EuiFlexItem grow={false}>
                 <EuiText>
@@ -190,9 +179,7 @@ const PasswordChange = (): JSX.Element => {
               </EuiFlexItem>
             </EuiFlexGroup>
             <EuiSpacer></EuiSpacer>
-            <EuiText>
-              {"Last Login: " + lastLogin.format("MMMM Do YYYY, h:mm:ss a")}
-            </EuiText>
+            <EuiText>{"Last Login: " + lastLogin.format("MMMM Do YYYY, h:mm:ss a")}</EuiText>
           </EuiPanel>
         </EuiPageTemplate.Section>
       </EuiPageTemplate>

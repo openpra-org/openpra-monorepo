@@ -1,6 +1,4 @@
-import AbstractDistribution, {
-  DistributionSummary,
-} from "./AbstractDistribution";
+import AbstractDistribution, { DistributionSummary } from "./AbstractDistribution";
 const linspace = require("linspace");
 
 /**

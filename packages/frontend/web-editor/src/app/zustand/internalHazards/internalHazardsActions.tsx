@@ -11,8 +11,9 @@ import { UseGlobalStore } from "../Store";
 
 export const setInternalHazards = async (): Promise<void> => {
   try {
-    const internalHazardsList: InternalHazardsModelType[] =
-      await GetInternalHazards(ApiManager.getCurrentUser().user_id);
+    const internalHazardsList: InternalHazardsModelType[] = await GetInternalHazards(
+      ApiManager.getCurrentUser().user_id,
+    );
     UseGlobalStore.setState({
       internalHazards: internalHazardsList,
     });
@@ -21,9 +22,7 @@ export const setInternalHazards = async (): Promise<void> => {
   }
 };
 
-export const addInternalHazard = async (
-  data: Partial<TypedModelJSON>,
-): Promise<void> => {
+export const addInternalHazard = async (data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const ihr: InternalHazardsModelType = await PostInternalHazard(data);
     UseGlobalStore.setState((state) => ({
@@ -40,21 +39,15 @@ export const editInternalHazard = async (
   data: Partial<TypedModelJSON>,
 ): Promise<void> => {
   try {
-    const ihr: InternalHazardsModelType = await PatchInternalHazard(
-      modelId,
-      userId,
-      data,
-    );
+    const ihr: InternalHazardsModelType = await PatchInternalHazard(modelId, userId, data);
     UseGlobalStore.setState((state) => ({
-      internalHazards: state.internalHazards.map(
-        (ih: InternalHazardsModelType) => {
-          if (ih.id === modelId) {
-            return ihr;
-          } else {
-            return ih;
-          }
-        },
-      ),
+      internalHazards: state.internalHazards.map((ih: InternalHazardsModelType) => {
+        if (ih.id === modelId) {
+          return ihr;
+        } else {
+          return ih;
+        }
+      }),
     }));
   } catch (error) {
     console.error("Error adding internal hazard:", error);
@@ -66,9 +59,7 @@ export const deleteInternalHazard = async (id: number): Promise<void> => {
     await DeleteInternalHazard(id);
 
     UseGlobalStore.setState((state) => ({
-      internalHazards: state.internalHazards.filter(
-        (ih: InternalHazardsModelType) => ih.id !== id,
-      ),
+      internalHazards: state.internalHazards.filter((ih: InternalHazardsModelType) => ih.id !== id),
     }));
   } catch (error) {
     console.error("Error deleting internal hazard:", error);

@@ -1,17 +1,8 @@
 import React from "react";
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
-import {
-  EuiFieldText,
-  EuiForm,
-  EuiButton,
-  EuiFormRow,
-  EuiFieldPassword,
-} from "@elastic/eui";
-import {
-  LoginProps,
-  LoginErrorProps,
-} from "shared-types/src/lib/api/AuthTypes";
+import { EuiFieldText, EuiForm, EuiButton, EuiFormRow, EuiFieldPassword } from "@elastic/eui";
+import { LoginProps, LoginErrorProps } from "shared-types/src/lib/api/AuthTypes";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 
 function LoginForm(): JSX.Element {
@@ -33,15 +24,13 @@ function LoginForm(): JSX.Element {
     setInvalid(false);
     const { username, password } = login;
     try {
-      await ApiManager.signInWithUsernameAndPassword(username, password).then(
-        () => {
-          if (ApiManager.isLoggedIn()) {
-            setRedirectToHomepage(true);
-          } else {
-            setInvalid(true);
-          }
-        },
-      );
+      await ApiManager.signInWithUsernameAndPassword(username, password).then(() => {
+        if (ApiManager.isLoggedIn()) {
+          setRedirectToHomepage(true);
+        } else {
+          setInvalid(true);
+        }
+      });
     } catch (error) {
       //console.error(error);
     }
@@ -84,7 +73,12 @@ function LoginForm(): JSX.Element {
           // Handle successful login
           if (redirectToHomepage) {
             // Redirect to the homepage
-            return <Navigate to="internal-events" replace={true} />;
+            return (
+              <Navigate
+                to="internal-events"
+                replace={true}
+              />
+            );
           }
         })
         .catch((error) => {
@@ -96,12 +90,23 @@ function LoginForm(): JSX.Element {
   }
 
   if (redirectToHomepage) {
-    return <Navigate to="internal-events" replace={true} />;
+    return (
+      <Navigate
+        to="internal-events"
+        replace={true}
+      />
+    );
   } else {
     return (
-      <EuiForm component="form" onSubmit={validateLogin}>
+      <EuiForm
+        component="form"
+        onSubmit={validateLogin}
+      >
         <br />
-        <EuiFormRow isInvalid={error.username} error="Invalid Username">
+        <EuiFormRow
+          isInvalid={error.username}
+          error="Invalid Username"
+        >
           <EuiFieldText
             placeholder="Username"
             isInvalid={error.username}
@@ -114,7 +119,10 @@ function LoginForm(): JSX.Element {
             }}
           />
         </EuiFormRow>
-        <EuiFormRow isInvalid={error.password} error="Invalid Password">
+        <EuiFormRow
+          isInvalid={error.password}
+          error="Invalid Password"
+        >
           <EuiFieldPassword
             type="dual"
             placeholder="Password"
@@ -128,8 +136,14 @@ function LoginForm(): JSX.Element {
             }}
           />
         </EuiFormRow>
-        <EuiFormRow isInvalid={invalid} error="Invalid username or password">
-          <EuiButton fullWidth type="submit">
+        <EuiFormRow
+          isInvalid={invalid}
+          error="Invalid username or password"
+        >
+          <EuiButton
+            fullWidth
+            type="submit"
+          >
             Login
           </EuiButton>
         </EuiFormRow>

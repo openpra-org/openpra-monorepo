@@ -1,11 +1,11 @@
 import { Toast } from "@elastic/eui/src/components/toast/global_toast_list";
 import { createContext, ReactNode, useContext, useState } from "react";
 
-type ToastContextType = {
+interface ToastContextType {
   toasts: Toast[];
   addToast: (newToast: Toast) => void;
   clearToasts: () => void;
-};
+}
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
 
@@ -17,9 +17,7 @@ export const UseToastContext = (): ToastContextType => {
   return context;
 };
 
-export const ToastProvider: React.FC<{ children: ReactNode }> = ({
-  children,
-}) => {
+export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const addToast = (newToast: Toast): void => {
@@ -30,9 +28,5 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
     setToasts([]);
   };
 
-  return (
-    <ToastContext.Provider value={{ toasts, addToast, clearToasts }}>
-      {children}
-    </ToastContext.Provider>
-  );
+  return <ToastContext.Provider value={{ toasts, addToast, clearToasts }}>{children}</ToastContext.Provider>;
 };

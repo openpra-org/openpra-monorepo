@@ -32,12 +32,7 @@ function InternalEventsList(): JSX.Element {
         deleteTypedEndpoint: deleteInternalEvent,
       }),
     );
-  }, [
-    createInternalEvents,
-    deleteInternalEvent,
-    editInternalEvent,
-    internalEventsList,
-  ]);
+  }, [createInternalEvents, deleteInternalEvent, editInternalEvent, internalEventsList]);
 
   return (
     <EuiPageTemplate

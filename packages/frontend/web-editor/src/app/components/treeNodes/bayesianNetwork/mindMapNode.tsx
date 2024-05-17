@@ -3,9 +3,9 @@ import React, { useRef, useLayoutEffect, useEffect, useState } from "react";
 import styles from "../../../components/treeNodes/bayesianNetwork/styles/nodeTypes.module.css";
 import useStore from "../../../hooks/bayesianNetwork/mindmap/useStore";
 
-export type NodeData = {
+export interface NodeData {
   label: string;
-};
+}
 
 function MindMapNode({ id, data }: NodeProps<NodeData>) {
   const updateNodeLabel = useStore((state) => state.updateNodeLabel);
@@ -27,7 +27,10 @@ function MindMapNode({ id, data }: NodeProps<NodeData>) {
   }, []);
 
   return (
-    <div className={`${styles.inputWrapper} `} style={{ position: "relative" }}>
+    <div
+      className={`${styles.inputWrapper} `}
+      style={{ position: "relative" }}
+    >
       {/*<div className={styles.inputWrapper} style={{ position: "relative" }}>*/}
       <div
         className={styles.dragHandle}

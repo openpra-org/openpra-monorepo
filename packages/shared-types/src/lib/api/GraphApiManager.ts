@@ -1,8 +1,4 @@
-import {
-  EventSequenceGraph,
-  EventTreeGraph,
-  FaultTreeGraph,
-} from "../types/reactflowGraph/Graph";
+import { EventSequenceGraph, EventTreeGraph, FaultTreeGraph } from "../types/reactflowGraph/Graph";
 import AuthService from "./AuthService";
 
 const ApiEndpoint = "/api";
@@ -36,9 +32,7 @@ export class GraphApiManager {
    * @returns Latest fault tree graph
    */
   static async getFaultTree(faultTreeId = "-1"): Promise<FaultTreeGraph> {
-    return await this.get(
-      `${FaultTreeGraphEndpoint}/?faultTreeId=${faultTreeId}`,
-    )
+    return await this.get(`${FaultTreeGraphEndpoint}/?faultTreeId=${faultTreeId}`)
       .then((res) => this.getFaultTreeResponse(res, faultTreeId))
       .catch((error) => {
         throw error;
@@ -50,12 +44,8 @@ export class GraphApiManager {
    * @param eventSequenceId - Event sequence id
    * @returns Latest event sequence graph
    */
-  static async getEventSequence(
-    eventSequenceId = "-1",
-  ): Promise<EventSequenceGraph> {
-    return await this.get(
-      `${EventSequenceDiagramEndpoint}/?eventSequenceId=${eventSequenceId}`,
-    )
+  static async getEventSequence(eventSequenceId = "-1"): Promise<EventSequenceGraph> {
+    return await this.get(`${EventSequenceDiagramEndpoint}/?eventSequenceId=${eventSequenceId}`)
       .then((res) => this.getEventSequenceResponse(res, eventSequenceId))
       .catch((error) => {
         throw error;
@@ -81,9 +71,7 @@ export class GraphApiManager {
    * @returns Latest fault tree graph
    */
   static async getEventTree(eventTreeId = "-1"): Promise<EventTreeGraph> {
-    return await this.get(
-      `${EventTreeGraphEndpoint}/?eventTreeId=${eventTreeId}`,
-    )
+    return await this.get(`${EventTreeGraphEndpoint}/?eventTreeId=${eventTreeId}`)
       .then((res) => this.getEventTreeResponse(res, eventTreeId))
       .catch((error) => {
         throw error;
@@ -97,11 +85,7 @@ export class GraphApiManager {
    * @param type - 'node' or 'edge' for which the label needs to be updated
    * @returns boolean confirmation whether update was successful or not
    */
-  static async updateESLabel(
-    id: string,
-    label: string,
-    type: string,
-  ): Promise<boolean> {
+  static async updateESLabel(id: string, label: string, type: string): Promise<boolean> {
     const url = `${EventSequenceDiagramEndpoint}/update-label/`;
     return await this.patch<{ id: string; type: string; label: string }>(url, {
       id: id,
@@ -140,10 +124,7 @@ export class GraphApiManager {
    * @param data - Graph data
    * @returns Response from API
    */
-  private static post(
-    url: string,
-    data: EventSequenceGraph | FaultTreeGraph | EventTreeGraph,
-  ): Promise<Response> {
+  private static post(url: string, data: EventSequenceGraph | FaultTreeGraph | EventTreeGraph): Promise<Response> {
     return fetch(url, this.getRequestInfo("POST", JSON.stringify(data)));
   }
 
@@ -166,10 +147,7 @@ export class GraphApiManager {
     return fetch(url, this.getRequestInfo("PATCH", JSON.stringify(data)));
   }
 
-  private static getRequestInfo(
-    method: "POST" | "GET" | "DELETE" | "PATCH" | "PUT",
-    data?: BodyInit,
-  ): RequestInit {
+  private static getRequestInfo(method: "POST" | "GET" | "DELETE" | "PATCH" | "PUT", data?: BodyInit): RequestInit {
     return {
       method: method,
       cache: "no-cache",
@@ -187,10 +165,7 @@ export class GraphApiManager {
    * @param eventSequenceId - Event sequence id
    * @returns EventSequenceGraph object, empty object if response is empty
    */
-  private static async getEventSequenceResponse(
-    res: Response,
-    eventSequenceId: string,
-  ): Promise<EventSequenceGraph> {
+  private static async getEventSequenceResponse(res: Response, eventSequenceId: string): Promise<EventSequenceGraph> {
     const response = await res.text();
     return response === ""
       ? ({
@@ -206,9 +181,7 @@ export class GraphApiManager {
    * @param res - Response from API
    * @returns boolean, false if response is empty
    */
-  private static async getEventSequenceBooleanResponse(
-    res: Response,
-  ): Promise<boolean> {
+  private static async getEventSequenceBooleanResponse(res: Response): Promise<boolean> {
     const response = await res.text();
     return response === "true";
   }
@@ -219,10 +192,7 @@ export class GraphApiManager {
    * @param faultTreeId - Fault tree id
    * @returns FaultTreeGraph object, empty object if response is empty
    */
-  private static async getFaultTreeResponse(
-    res: Response,
-    faultTreeId: string,
-  ): Promise<FaultTreeGraph> {
+  private static async getFaultTreeResponse(res: Response, faultTreeId: string): Promise<FaultTreeGraph> {
     const response = await res.text();
     return response === ""
       ? ({
@@ -239,10 +209,7 @@ export class GraphApiManager {
    * @param eventTreeId - Event tree id
    * @returns FaultTreeGraph object, empty object if response is empty
    */
-  private static async getEventTreeResponse(
-    res: Response,
-    eventTreeId: string,
-  ): Promise<EventTreeGraph> {
+  private static async getEventTreeResponse(res: Response, eventTreeId: string): Promise<EventTreeGraph> {
     const response = await res.text();
     return response === ""
       ? ({

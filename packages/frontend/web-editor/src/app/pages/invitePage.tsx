@@ -91,17 +91,13 @@ const InvitePage = (): JSX.Element => {
     if (isExpired) {
       return (
         <EuiPageTemplate panelled={true}>
-          <EuiPageTemplate.EmptyPrompt
-            title={<span>Your invite has expired</span>}
-          ></EuiPageTemplate.EmptyPrompt>
+          <EuiPageTemplate.EmptyPrompt title={<span>Your invite has expired</span>}></EuiPageTemplate.EmptyPrompt>
         </EuiPageTemplate>
       );
     }
     return (
       <EuiPageTemplate panelled={true}>
-        <EuiPageTemplate.EmptyPrompt
-          title={<span>You are invited to OpenPRA</span>}
-        >
+        <EuiPageTemplate.EmptyPrompt title={<span>You are invited to OpenPRA</span>}>
           <SignUpForm
             handleSignup={handleSignup}
             signup={signup}

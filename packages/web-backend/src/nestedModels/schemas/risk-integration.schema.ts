@@ -6,5 +6,4 @@ import { NestedModel } from "./templateSchema/nested-model.schema";
 export class RiskIntegration extends NestedModel {}
 
 export type RiskIntegrationDocument = RiskIntegration & Document;
-export const RiskIntegrationSchema =
-  SchemaFactory.createForClass(RiskIntegration);
+export const RiskIntegrationSchema = SchemaFactory.createForClass(RiskIntegration);

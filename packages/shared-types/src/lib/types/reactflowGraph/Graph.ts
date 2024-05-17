@@ -5,10 +5,10 @@ import { EventTreeData } from "./graphData/EventTreeData";
 /**
  * Graph type with list of GraphNodes and GraphEdges
  */
-export type Graph = {
+export interface Graph {
   nodes: GraphNode<object>[];
   edges: GraphEdge<object>[];
-};
+}
 
 /**
  * Event Sequence Graph, extending Graph type with event sequence id

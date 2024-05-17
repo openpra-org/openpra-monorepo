@@ -1,6 +1,4 @@
-import AbstractDistribution, {
-  DistributionSummary,
-} from "./AbstractDistribution";
+import AbstractDistribution, { DistributionSummary } from "./AbstractDistribution";
 const linspace = require("linspace");
 const erf = require("compute-erf");
 const erfinv = require("compute-erfinv");
@@ -28,10 +26,7 @@ class Exponential extends AbstractDistribution {
    * @throws Error if rate is not a positive number
    */
   setRate(rate: number) {
-    if (rate < 0)
-      throw new Error(
-        "setRate()::invalid input argument. Rate must be greater than 0.",
-      );
+    if (rate < 0) throw new Error("setRate()::invalid input argument. Rate must be greater than 0.");
     this.rate = rate;
   }
 

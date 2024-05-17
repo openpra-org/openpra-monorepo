@@ -423,7 +423,7 @@ job("Monorepo CI") {
           content = """
                         docker pull $remote:{{ branchSlug }} || true
                         docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run scram-node:build
+                        docker run --rm "$remote:{{ branchSlug }}" nx run engine-scram-node:build
                         """
         }
       }
@@ -434,7 +434,7 @@ job("Monorepo CI") {
           content = """
                         docker pull $remote:{{ branchSlug }} || true
                         docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run scram-node:test
+                        docker run --rm "$remote:{{ branchSlug }}" nx run engine-scram-node:test
                         """
         }
       }
@@ -445,7 +445,7 @@ job("Monorepo CI") {
           content = """
                         docker pull $remote:{{ branchSlug }} || true
                         docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run scram-node:lint
+                        docker run --rm "$remote:{{ branchSlug }}" nx run engine-scram-node:lint
                         """
         }
       }

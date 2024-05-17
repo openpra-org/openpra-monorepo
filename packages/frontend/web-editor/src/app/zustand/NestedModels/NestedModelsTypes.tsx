@@ -1,7 +1,7 @@
 import { NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { InitiatingEventsTypes } from "./TypesHelpers/InitiatingEventsTypes";
 
-export type NestedModelsStateType = {
+export interface NestedModelsStateType {
   parentId: string;
   // TODO:: Table of values
   OpStateAnalysis: string[];
@@ -51,7 +51,7 @@ export type NestedModelsStateType = {
   RiskIntegration: {
     RiskIntegrationList: string[];
   };
-};
+}
 
 export type NestedModelsTypes = {
   NestedModels: NestedModelsStateType;

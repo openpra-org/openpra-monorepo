@@ -1,3 +1,6 @@
+import { GateSchema } from "shared-types/src/openpra-mef/gate";
+import { UUIDSchema } from "shared-types/src/openpra-mef/identifier/uuid";
+import { TypeCodeSchema } from "shared-types/src/openpra-mef/identifier/typecode";
 import { Event } from "./Event";
 
 /**
@@ -6,31 +9,68 @@ import { Event } from "./Event";
  * @remarks A gate can have multiple arguments which can be other gates or events. It is characterized by a boolean
  * operator and can be part of a larger logical structure.
  */
-export class Gate extends Event {
-  operator: string;
-  kNum: number | null;
-  gArguments: Set<Gate>;
-  bArguments: Set<Event>; // Assuming BasicEvent extends Event
-  hArguments: Set<Event>; // Assuming HouseEvent extends Event
-  uArguments: Set<Event>;
-  mark: boolean;
+export class Gate extends Event implements GateSchema {
+  typecode?: TypeCodeSchema;
+  uuid?: UUIDSchema;
+  operator: "and" | "or" | "atleast" | "not" | "xor" | "nor" | "xnor" | "nand" | "imply";
+  kNum?: number;
+  private _gArguments: Set<Gate>;
+  private _bArguments: Set<Event>;
+  private _hArguments: Set<Event>;
+  private _uArguments: Set<Event>;
 
-  /**
-   * @remarks Initializes a gate.
-   *
-   * @param name - Identifier of the node.
-   * @param operator - Boolean operator of this formula.
-   * @param kNum - Min number for the combination operator.
-   */
-  constructor(name: string, operator: string, kNum: number | null = null) {
+  constructor(
+    name: string,
+    operator: "and" | "or" | "atleast" | "not" | "xor" | "nor" | "xnor" | "nand" | "imply",
+    typecode?: TypeCodeSchema,
+    uuid?: UUIDSchema,
+    kNum?: number,
+    gArguments?: [],
+    bArguments?: [],
+    hArguments?: [],
+    uArguments?: [],
+  ) {
     super(name);
-    this.mark = false;
+    this.typecode = typecode;
+    this.uuid = uuid;
     this.operator = operator;
     this.kNum = kNum;
-    this.gArguments = new Set<Gate>();
-    this.bArguments = new Set<Event>();
-    this.hArguments = new Set<Event>();
-    this.uArguments = new Set<Event>();
+    this._gArguments = new Set<Gate>(gArguments);
+    this._bArguments = new Set<Event>(bArguments);
+    this._hArguments = new Set<Event>(hArguments);
+    this._uArguments = new Set<Event>(uArguments);
+  }
+
+  get bArguments(): Event[] {
+    return Array.from(this._bArguments);
+  }
+
+  set bArguments(toSet) {
+    this._bArguments = new Set<Event>(toSet);
+  }
+
+  get gArguments(): Gate[] {
+    return Array.from(this._gArguments);
+  }
+
+  set gArguments(toSet) {
+    this._gArguments = new Set<Gate>(toSet);
+  }
+
+  get hArguments(): Event[] {
+    return Array.from(this._hArguments);
+  }
+
+  set hArguments(toSet) {
+    this._hArguments = new Set<Event>(toSet);
+  }
+
+  get uArguments(): Event[] {
+    return Array.from(this._uArguments);
+  }
+
+  set uArguments(toSet) {
+    this._uArguments = new Set<Event>(toSet);
   }
 
   /**
@@ -39,12 +79,7 @@ export class Gate extends Event {
    * @returns The total number of arguments.
    */
   numArguments(): number {
-    return (
-      this.gArguments.size +
-      this.bArguments.size +
-      this.hArguments.size +
-      this.uArguments.size
-    );
+    return this._gArguments.size + this._bArguments.size + this._hArguments.size + this._uArguments.size;
   }
 
   /**
@@ -57,9 +92,9 @@ export class Gate extends Event {
   addArgument(argument: Gate | Event): void {
     argument.addParent(this);
     if (argument instanceof Gate) {
-      this.gArguments.add(argument);
+      this._gArguments.add(argument);
     } else {
-      this.uArguments.add(argument);
+      this._uArguments.add(argument);
     }
   }
 

@@ -18,9 +18,7 @@ import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { NestedModelActionForm } from "../forms/nestedModelActionForm";
 import { GenericListItemProps } from "./GenericListItem";
 
-export type ListItemContextMenuProps = NonNullable<unknown> &
-  GenericListItemProps &
-  Omit<ItemFormProps, "action">;
+export type ListItemContextMenuProps = NonNullable<unknown> & GenericListItemProps & Omit<ItemFormProps, "action">;
 
 const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
   //TODO: Make this work correctly, the prop is bad
@@ -88,7 +86,13 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
         },
         {
           name: "Trash",
-          icon: <EuiIcon type="trash" size="m" color="danger" />,
+          icon: (
+            <EuiIcon
+              type="trash"
+              size="m"
+              color="danger"
+            />
+          ),
           panel: 3,
         },
       ],
@@ -149,7 +153,10 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
       title: "Embed code",
       content: (
         <div style={{ padding: 16 }}>
-          <EuiFormRow label="Generate a public snapshot?" hasChildLabel={false}>
+          <EuiFormRow
+            label="Generate a public snapshot?"
+            hasChildLabel={false}
+          >
             <EuiSwitch
               name="switch"
               id={embeddedCodeSwitchId1}
@@ -181,7 +188,13 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
     },
   ];
 
-  return <EuiContextMenu size="m" initialPanelId={0} panels={panels} />;
+  return (
+    <EuiContextMenu
+      size="m"
+      initialPanelId={0}
+      panels={panels}
+    />
+  );
 };
 
 export { ListItemContextMenu };

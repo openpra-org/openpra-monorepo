@@ -1,10 +1,10 @@
 import Outcome, { OutcomeJSON } from "./Outcome";
 import Instruction, { InstructionJSON } from "./Instruction";
 
-export type PathJSON = {
+export interface PathJSON {
   outcome?: OutcomeJSON;
   instructions?: InstructionJSON[];
-};
+}
 
 class Path {
   private outcome: Outcome;
@@ -15,9 +15,7 @@ class Path {
    */
   constructor(obj: PathJSON = {}) {
     this.outcome = Outcome.build(obj.outcome);
-    this.instructions = obj.instructions?.map(
-      (instruction) => new Instruction(instruction),
-    ) || [new Instruction()];
+    this.instructions = obj.instructions?.map((instruction) => new Instruction(instruction)) || [new Instruction()];
   }
 
   /**
@@ -54,9 +52,7 @@ class Path {
   toJSON(): PathJSON {
     return {
       outcome: this.outcome.toJSON(),
-      instructions: this.instructions.map((instruction) =>
-        instruction.toJSON(),
-      ),
+      instructions: this.instructions.map((instruction) => instruction.toJSON()),
     };
   }
 }

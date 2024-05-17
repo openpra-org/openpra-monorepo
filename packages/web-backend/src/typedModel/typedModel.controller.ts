@@ -23,10 +23,7 @@ import { InternalEvents } from "./schemas/internal-events.schema";
 import { InternalHazards } from "./schemas/internal-hazards.schema";
 import { ExternalHazards } from "./schemas/external-hazards.schema";
 import { FullScope } from "./schemas/full-scope.schema";
-import {
-  TypedModel,
-  TypedModelJSON,
-} from "./schemas/templateSchema/typed-model.schema";
+import { TypedModel, TypedModelJSON } from "./schemas/templateSchema/typed-model.schema";
 
 @Controller()
 @UseGuards(AuthGuard("jwt"))
@@ -42,9 +39,7 @@ export class TypedModelController {
    * @returns a promise of internalEventsModel
    */
   @Post("/internal-events/")
-  async createInternalEvent(
-    @Body() internalEventsModel: Partial<InternalEvents>,
-  ): Promise<TypedModel> {
+  async createInternalEvent(@Body() internalEventsModel: Partial<InternalEvents>): Promise<TypedModel> {
     return this.typedModelService.createInternalEventModel(internalEventsModel);
   }
 
@@ -54,12 +49,8 @@ export class TypedModelController {
    * @returns a promise with an internalHazardsModel
    */
   @Post("/internal-hazards/")
-  async createInternalHazard(
-    @Body() internalHazardsModel: Partial<InternalHazards>,
-  ): Promise<TypedModel> {
-    return this.typedModelService.createInternalHazardModel(
-      internalHazardsModel,
-    );
+  async createInternalHazard(@Body() internalHazardsModel: Partial<InternalHazards>): Promise<TypedModel> {
+    return this.typedModelService.createInternalHazardModel(internalHazardsModel);
   }
 
   /**
@@ -68,12 +59,8 @@ export class TypedModelController {
    * @returns promise of an externalHazardsModel
    */
   @Post("/external-hazards/")
-  async createExternalHazard(
-    @Body() externalHazardsModel: Partial<ExternalHazards>,
-  ): Promise<TypedModel> {
-    return this.typedModelService.createExternalHazardModel(
-      externalHazardsModel,
-    );
+  async createExternalHazard(@Body() externalHazardsModel: Partial<ExternalHazards>): Promise<TypedModel> {
+    return this.typedModelService.createExternalHazardModel(externalHazardsModel);
   }
 
   /**
@@ -82,9 +69,7 @@ export class TypedModelController {
    * @returns a promise of fullScopeModel
    */
   @Post("/full-scope/")
-  async createFullScope(
-    @Body() fullScopeModel: Partial<FullScope>,
-  ): Promise<TypedModel> {
+  async createFullScope(@Body() fullScopeModel: Partial<FullScope>): Promise<TypedModel> {
     return this.typedModelService.createFullScopeModel(fullScopeModel);
   }
 
@@ -102,11 +87,7 @@ export class TypedModelController {
     @Param("id") modelId: string,
     @Body() model: Partial<InternalEvents>,
   ): Promise<InternalEvents> {
-    return this.typedModelService.patchInternalEvent(
-      modelId,
-      req.user.user_id,
-      model,
-    );
+    return this.typedModelService.patchInternalEvent(modelId, req.user.user_id, model);
   }
 
   /**
@@ -121,11 +102,7 @@ export class TypedModelController {
     @Param("id") modelId: string,
     @Body() model: Partial<InternalHazards>,
   ): Promise<InternalHazards> {
-    return this.typedModelService.patchInternalHazard(
-      modelId,
-      req.user.user_id,
-      model,
-    );
+    return this.typedModelService.patchInternalHazard(modelId, req.user.user_id, model);
   }
 
   /**
@@ -140,11 +117,7 @@ export class TypedModelController {
     @Param("id") modelId: string,
     @Body() model: Partial<ExternalHazards>,
   ): Promise<ExternalHazards> {
-    return this.typedModelService.patchExternalHazard(
-      modelId,
-      req.user.user_id,
-      model,
-    );
+    return this.typedModelService.patchExternalHazard(modelId, req.user.user_id, model);
   }
 
   /**
@@ -159,11 +132,7 @@ export class TypedModelController {
     @Param("id") modelId: string,
     @Body() model: Partial<FullScope>,
   ): Promise<FullScope> {
-    return this.typedModelService.patchFullScope(
-      modelId,
-      req.user.user_id,
-      model,
-    );
+    return this.typedModelService.patchFullScope(modelId, req.user.user_id, model);
   }
 
   //get methods for collections
@@ -217,10 +186,7 @@ export class TypedModelController {
    * @returns the internal event the user has with the modelId
    */
   @Get("/internal-events/:id/")
-  async getInternalEvent(
-    @Request() req,
-    @Param("id") modelId: string,
-  ): Promise<InternalEvents> {
+  async getInternalEvent(@Request() req, @Param("id") modelId: string): Promise<InternalEvents> {
     return this.typedModelService.getInternalEvent(modelId, req.user.user_id);
   }
 
@@ -231,10 +197,7 @@ export class TypedModelController {
    * @returns the internal hazard the user has with the modelId
    */
   @Get("/internal-hazards/:id/")
-  async getInternalHazard(
-    @Request() req,
-    @Param("id") modelId: string,
-  ): Promise<InternalHazards> {
+  async getInternalHazard(@Request() req, @Param("id") modelId: string): Promise<InternalHazards> {
     return this.typedModelService.getInternalHazard(modelId, req.user.user_id);
   }
 
@@ -245,10 +208,7 @@ export class TypedModelController {
    * @returns the external hazard the user has with the modelId
    */
   @Get("/external-hazards/:id/")
-  async getExternalHazard(
-    @Request() req,
-    @Param("id") modelId: string,
-  ): Promise<ExternalHazards> {
+  async getExternalHazard(@Request() req, @Param("id") modelId: string): Promise<ExternalHazards> {
     return this.typedModelService.getExternalHazard(modelId, req.user.user_id);
   }
 
@@ -259,10 +219,7 @@ export class TypedModelController {
    * @returns the full scope the user has with the modelId
    */
   @Get("/full-scope/:id/")
-  async getFullScope(
-    @Request() req,
-    @Param("id") modelId: string,
-  ): Promise<FullScope> {
+  async getFullScope(@Request() req, @Param("id") modelId: string): Promise<FullScope> {
     return this.typedModelService.getFullScope(modelId, req.user.user_id);
   }
 
@@ -274,14 +231,8 @@ export class TypedModelController {
    * @returns the deleted model in a promise
    */
   @Delete("/internal-events/")
-  async deleteInternalEvent(
-    @Request() req,
-    @Query("modelId") modelId: string,
-  ): Promise<InternalEventsModel> {
-    return this.typedModelService.deleteInternalEvent(
-      Number(modelId),
-      req.user.user_id,
-    );
+  async deleteInternalEvent(@Request() req, @Query("modelId") modelId: string): Promise<InternalEventsModel> {
+    return this.typedModelService.deleteInternalEvent(Number(modelId), req.user.user_id);
   }
 
   /**
@@ -290,14 +241,8 @@ export class TypedModelController {
    * @returns the deleted model in a promise
    */
   @Delete("/external-hazards/")
-  async deleteExternalHazard(
-    @Request() req,
-    @Query("modelId") modelId: string,
-  ): Promise<ExternalHazardsModel> {
-    return this.typedModelService.deleteExternalHazard(
-      Number(modelId),
-      req.user.user_id,
-    );
+  async deleteExternalHazard(@Request() req, @Query("modelId") modelId: string): Promise<ExternalHazardsModel> {
+    return this.typedModelService.deleteExternalHazard(Number(modelId), req.user.user_id);
   }
 
   /**
@@ -306,25 +251,13 @@ export class TypedModelController {
    * @returns the deleted model in a promise
    */
   @Delete("/internal-hazards/")
-  async deleteInternalHazard(
-    @Request() req,
-    @Query("modelId") modelId: string,
-  ): Promise<InternalHazardsModel> {
-    return this.typedModelService.deleteInternalHazard(
-      Number(modelId),
-      req.user.user_id,
-    );
+  async deleteInternalHazard(@Request() req, @Query("modelId") modelId: string): Promise<InternalHazardsModel> {
+    return this.typedModelService.deleteInternalHazard(Number(modelId), req.user.user_id);
   }
 
   @Delete("/full-scope/")
-  async deleteFullScope(
-    @Request() req,
-    @Query("modelId") modelId: string,
-  ): Promise<FullScopeModel> {
-    return this.typedModelService.deleteFullScope(
-      Number(modelId),
-      req.user.user_id,
-    );
+  async deleteFullScope(@Request() req, @Query("modelId") modelId: string): Promise<FullScopeModel> {
+    return this.typedModelService.deleteFullScope(Number(modelId), req.user.user_id);
   }
 
   //endpoints for adding a nested model id
@@ -338,11 +271,7 @@ export class TypedModelController {
   async addNestedToInternalEvent(
     @Body() body: { modelId: number; nestedId: number; nestedType: string },
   ): Promise<TypedModelJSON> {
-    return this.typedModelService.addNestedToInternalEvent(
-      body.modelId,
-      body.nestedId,
-      body.nestedType,
-    );
+    return this.typedModelService.addNestedToInternalEvent(body.modelId, body.nestedId, body.nestedType);
   }
 
   /**
@@ -354,11 +283,7 @@ export class TypedModelController {
   async addNestedToInternalHazard(
     @Body() body: { modelId: number; nestedId: number; nestedType: string },
   ): Promise<TypedModelJSON> {
-    return this.typedModelService.addNestedToInternalHazard(
-      body.modelId,
-      body.nestedId,
-      body.nestedType,
-    );
+    return this.typedModelService.addNestedToInternalHazard(body.modelId, body.nestedId, body.nestedType);
   }
 
   /**
@@ -370,11 +295,7 @@ export class TypedModelController {
   async addNestedToExternalHazard(
     @Body() body: { modelId: number; nestedId: number; nestedType: string },
   ): Promise<TypedModelJSON> {
-    return this.typedModelService.addNestedToExternalHazard(
-      body.modelId,
-      body.nestedId,
-      body.nestedType,
-    );
+    return this.typedModelService.addNestedToExternalHazard(body.modelId, body.nestedId, body.nestedType);
   }
 
   /**
@@ -386,11 +307,7 @@ export class TypedModelController {
   async addNestedToFullScope(
     @Body() body: { modelId: number; nestedId: number; nestedType: string },
   ): Promise<TypedModelJSON> {
-    return this.typedModelService.addNestedToFullScope(
-      body.modelId,
-      body.nestedId,
-      body.nestedType,
-    );
+    return this.typedModelService.addNestedToFullScope(body.modelId, body.nestedId, body.nestedType);
   }
 
   //for deleting nested model ids
@@ -400,11 +317,7 @@ export class TypedModelController {
     @Param("id") id: string,
     @Body() body: { nestedId: number | string; nestedType: string },
   ): Promise<TypedModelJSON> {
-    return this.typedModelService.deleteNestedFromInternalEvent(
-      id,
-      body.nestedId,
-      body.nestedType,
-    );
+    return this.typedModelService.deleteNestedFromInternalEvent(id, body.nestedId, body.nestedType);
   }
 
   @Patch("/internal-hazards/:id/delete-nested")
@@ -412,11 +325,7 @@ export class TypedModelController {
     @Param("id") id: string,
     @Body() body: { nestedId: number; nestedType: string },
   ): Promise<TypedModelJSON> {
-    return this.typedModelService.deleteNestedFromInternalHazard(
-      id,
-      body.nestedId,
-      body.nestedType,
-    );
+    return this.typedModelService.deleteNestedFromInternalHazard(id, body.nestedId, body.nestedType);
   }
 
   @Patch("/external-hazards/:id/delete-nested")
@@ -424,11 +333,7 @@ export class TypedModelController {
     @Param("id") id: string,
     @Body() body: { nestedId: number; nestedType: string },
   ): Promise<TypedModelJSON> {
-    return this.typedModelService.deleteNestedFromExternalHazard(
-      id,
-      body.nestedId,
-      body.nestedType,
-    );
+    return this.typedModelService.deleteNestedFromExternalHazard(id, body.nestedId, body.nestedType);
   }
 
   @Patch("/full-scope/:id/delete-nested")
@@ -436,10 +341,6 @@ export class TypedModelController {
     @Param("id") id: string,
     @Body() body: { nestedId: number; nestedType: string },
   ): Promise<TypedModelJSON> {
-    return this.typedModelService.deleteNestedFromFullScope(
-      id,
-      body.nestedId,
-      body.nestedType,
-    );
+    return this.typedModelService.deleteNestedFromFullScope(id, body.nestedId, body.nestedType);
   }
 }

@@ -1,14 +1,5 @@
-import {
-  Delete,
-  Get,
-  INITIATING_EVENTS_ENDPOINT,
-  Patch,
-  Post,
-} from "../NestedModelApiManager";
-import {
-  NestedModelJSON,
-  NestedModelType,
-} from "../../types/modelTypes/innerModels/nestedModel";
+import { Delete, Get, INITIATING_EVENTS_ENDPOINT, Patch, Post } from "../NestedModelApiManager";
+import { NestedModelJSON, NestedModelType } from "../../types/modelTypes/innerModels/nestedModel";
 import { LabelJSON } from "../../types/Label";
 
 /**
@@ -16,9 +7,7 @@ import { LabelJSON } from "../../types/Label";
  * @param id - the parent model id, the parent whose list is to be retrieved
  * @returns a list of the nested models at  endpoint in a promise
  */
-export async function GetInitiatingEvents(
-  id: string,
-): Promise<NestedModelType[]> {
+export async function GetInitiatingEvents(id: string): Promise<NestedModelType[]> {
   try {
     const response = await Get(`${INITIATING_EVENTS_ENDPOINT}/?id=${id}`);
     return (await response.json()) as Promise<NestedModelType[]>;
@@ -35,16 +24,9 @@ export async function GetInitiatingEvents(
  * @returns a promise with the nested model, containing only those features
  */
 // TODO:: === work on changing this to Partial<NestedModelJSON> ===
-export async function PostInitiatingEvent(
-  data: NestedModelJSON,
-  typedModel: string,
-): Promise<NestedModelType> {
+export async function PostInitiatingEvent(data: NestedModelJSON, typedModel: string): Promise<NestedModelType> {
   try {
-    const response = await Post(
-      `${INITIATING_EVENTS_ENDPOINT}/`,
-      data,
-      typedModel,
-    );
+    const response = await Post(`${INITIATING_EVENTS_ENDPOINT}/`, data, typedModel);
     return (await response.json()) as Promise<NestedModelType>;
   } catch (error) {
     console.error("Failed to post initiating event:", error);
@@ -58,10 +40,7 @@ export async function PostInitiatingEvent(
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export async function PatchInitiatingEventLabel(
-  id: string,
-  data: LabelJSON,
-): Promise<NestedModelType> {
+export async function PatchInitiatingEventLabel(id: string, data: LabelJSON): Promise<NestedModelType> {
   try {
     const response = await Patch(`${INITIATING_EVENTS_ENDPOINT}/${id}`, data);
     return (await response.json()) as Promise<NestedModelType>;
@@ -77,10 +56,7 @@ export async function PatchInitiatingEventLabel(
  * @param type - the typed model that this nested model belongs to
  * @returns the Deleted model
  */
-export async function DeleteInitiatingEvent(
-  id: string,
-  type: string,
-): Promise<void> {
+export async function DeleteInitiatingEvent(id: string, type: string): Promise<void> {
   try {
     await Delete(`${INITIATING_EVENTS_ENDPOINT}/?id=${id}&type=${type}`);
   } catch (error) {

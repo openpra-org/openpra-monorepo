@@ -11,8 +11,7 @@ import { UseGlobalStore } from "../Store";
 
 export const setInternalEvents = async (): Promise<void> => {
   try {
-    const internalEventsList: InternalEventsModelType[] =
-      await GetInternalEvents(ApiManager.getCurrentUser().user_id);
+    const internalEventsList: InternalEventsModelType[] = await GetInternalEvents(ApiManager.getCurrentUser().user_id);
     UseGlobalStore.setState({
       internalEvents: internalEventsList,
     });
@@ -21,9 +20,7 @@ export const setInternalEvents = async (): Promise<void> => {
   }
 };
 
-export const addInternalEvent = async (
-  data: Partial<TypedModelJSON>,
-): Promise<void> => {
+export const addInternalEvent = async (data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const ier: InternalEventsModelType = await PostInternalEvent(data);
     UseGlobalStore.setState((state) => ({
@@ -40,21 +37,15 @@ export const editInternalEvent = async (
   data: Partial<TypedModelJSON>,
 ): Promise<void> => {
   try {
-    const ier: InternalEventsModelType = await PatchInternalEvent(
-      modelId,
-      userId,
-      data,
-    );
+    const ier: InternalEventsModelType = await PatchInternalEvent(modelId, userId, data);
     UseGlobalStore.setState((state) => ({
-      internalEvents: state.internalEvents.map(
-        (ie: InternalEventsModelType) => {
-          if (ie.id === modelId) {
-            return ier;
-          } else {
-            return ie;
-          }
-        },
-      ),
+      internalEvents: state.internalEvents.map((ie: InternalEventsModelType) => {
+        if (ie.id === modelId) {
+          return ier;
+        } else {
+          return ie;
+        }
+      }),
     }));
   } catch (error) {
     console.error("Error adding internal event:", error);
@@ -66,9 +57,7 @@ export const deleteInternalEvent = async (id: number): Promise<void> => {
     await DeleteInternalEvent(id);
 
     UseGlobalStore.setState((state) => ({
-      internalEvents: state.internalEvents.filter(
-        (ie: InternalEventsModelType) => ie.id !== id,
-      ),
+      internalEvents: state.internalEvents.filter((ie: InternalEventsModelType) => ie.id !== id),
     }));
   } catch (error) {
     console.error("Error deleting internal event:", error);

@@ -13,10 +13,7 @@ import {
   HttpException,
 } from "@nestjs/common";
 import { MemberResult } from "shared-types/src/lib/api/Members";
-import {
-  EmailValidationForm,
-  UsernameValidationForm,
-} from "shared-types/src/lib/api/FormValidation";
+import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { Public } from "../guards/public.guard";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";
@@ -40,22 +37,11 @@ export class CollabController {
    * @example GET request -> https://staging.app.openpra.org/api/collab/user/?limit=10&offset=0
    */
   @Get("/user/")
-  async getUsersList(
-    @Request() req,
-    @Query() query: { limit?: any; offset?: any },
-  ): Promise<PaginationDto> {
+  async getUsersList(@Request() req, @Query() query: { limit?: any; offset?: any }): Promise<PaginationDto> {
     if (query.limit && query.offset) {
-      return this.collabService.getUsersList(
-        req.originalUrl,
-        query.limit,
-        query.offset,
-      );
+      return this.collabService.getUsersList(req.originalUrl, query.limit, query.offset);
     }
-    return this.collabService.getUsersList(
-      req.originalUrl,
-      undefined,
-      undefined,
-    );
+    return this.collabService.getUsersList(req.originalUrl, undefined, undefined);
   }
 
   /**
@@ -114,9 +100,7 @@ export class CollabController {
    */
   @Public()
   @Post("/validateUsername/")
-  async isValidUsername(
-    @Body() body: UsernameValidationForm,
-  ): Promise<boolean> {
+  async isValidUsername(@Body() body: UsernameValidationForm): Promise<boolean> {
     return await this.collabService.isUsernameValid(body.username);
   }
 
@@ -149,10 +133,7 @@ export class CollabController {
    * @example PUT Request -> https://staging.app.openpra.org/api/collab/user/1/preferences/
    */
   @Put("/user/:user_id/preferences/")
-  async updateUserPreferences(
-    @Param("user_id") user_id: string,
-    @Body() body: UserPreferencesDto,
-  ) {
+  async updateUserPreferences(@Param("user_id") user_id: string, @Body() body: UserPreferencesDto) {
     return this.collabService.updateUserPreferences(user_id, body);
   }
 

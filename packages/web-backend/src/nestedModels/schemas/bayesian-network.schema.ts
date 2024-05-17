@@ -6,8 +6,7 @@ import { NestedModel } from "./templateSchema/nested-model.schema";
 export class BayesianNetwork extends NestedModel {}
 
 export type BayesianNetworkDocument = BayesianNetwork & Document;
-export const BayesianNetworkSchema =
-  SchemaFactory.createForClass(BayesianNetwork);
+export const BayesianNetworkSchema = SchemaFactory.createForClass(BayesianNetwork);
 
 // @Schema({ _id: false, versionKey: false })
 // class Position {

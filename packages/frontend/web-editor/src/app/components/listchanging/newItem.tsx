@@ -15,14 +15,14 @@ import {
 } from "@elastic/eui";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
-export type NewItemProps = {
+export interface NewItemProps {
   title: string;
   page?: string;
   itemTitle?: string;
   itemDescription?: string;
   users?: string[];
   toggleBox: (isVisible: boolean) => void;
-};
+}
 
 //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
 function NewItem(props: NewItemProps): JSX.Element {
@@ -52,9 +52,7 @@ function NewItem(props: NewItemProps): JSX.Element {
   }, [users]);
 
   useEffect(() => {
-    const filterOptionsElement = document.querySelector(
-      ".euiSelectableList__searchMessage",
-    );
+    const filterOptionsElement = document.querySelector(".euiSelectableList__searchMessage");
     if (filterOptionsElement) {
       filterOptionsElement.textContent = "Search users";
     }
@@ -62,9 +60,7 @@ function NewItem(props: NewItemProps): JSX.Element {
 
   //this does something if users exist, it will map the users in the new item to the selected users
   const handleOptionChange = (newOptions: EuiSelectableOption[]): void => {
-    const selectedUsers = newOptions
-      .filter((option) => option.checked)
-      .map((option) => option.label);
+    const selectedUsers = newOptions.filter((option) => option.checked).map((option) => option.label);
     setItemInfo({
       ...itemInfo,
       users: selectedUsers,
@@ -142,17 +138,17 @@ function NewItem(props: NewItemProps): JSX.Element {
       )}
       {/** the submit and also the go back buttons are right here*/}
       <EuiFormRow fullWidth={true}>
-        <EuiFlexGroup justifyContent="spaceBetween" gutterSize="xs">
+        <EuiFlexGroup
+          justifyContent="spaceBetween"
+          gutterSize="xs"
+        >
           <EuiFlexItem>
             <EuiButtonEmpty onClick={closeOverlay}>Cancel</EuiButtonEmpty>
           </EuiFlexItem>
           <EuiFlexItem>
             <EuiButton
               fill={true}
-              isDisabled={
-                (users && itemInfo.users.length === 0) ??
-                itemInfo.title.length === 0
-              }
+              isDisabled={(users && itemInfo.users.length === 0) ?? itemInfo.title.length === 0}
               onClick={setData}
             >
               Submit

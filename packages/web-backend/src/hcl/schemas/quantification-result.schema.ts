@@ -123,5 +123,4 @@ export class QuantificationResult {
 }
 
 export type QuantificationResultDocument = QuantificationResult & Document;
-export const QuantificationResultSchema =
-  SchemaFactory.createForClass(QuantificationResult);
+export const QuantificationResultSchema = SchemaFactory.createForClass(QuantificationResult);

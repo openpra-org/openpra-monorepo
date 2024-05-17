@@ -44,11 +44,7 @@ export default class FmeaApiManager {
       },
       body: JSON.stringify(data),
     })
-      .then((res) =>
-        res.ok
-          ? onSuccessCallback(res, override)
-          : onFailCallback(res, override),
-      )
+      .then((res) => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
       .catch((err) => onFailCallback(err, override));
   }
 
@@ -58,15 +54,8 @@ export default class FmeaApiManager {
     onSuccessCallback = this.defaultSuccessCallback,
     onFailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
-    return this.get(
-      `${FMEA_ENDPOINT}/${fmeaId}`,
-      override,
-      onSuccessCallback,
-      onFailCallback,
-    )
-      .then((response) =>
-        !response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea),
-      )
+    return this.get(`${FMEA_ENDPOINT}/${fmeaId}`, override, onSuccessCallback, onFailCallback)
+      .then((response) => (!response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea)))
       .catch((error) => {
         console.error("Error fetching fault tree diagram:", error);
         throw error;
@@ -88,14 +77,8 @@ export default class FmeaApiManager {
       },
       body: JSON.stringify(body),
     })
-      .then((res) =>
-        res.ok
-          ? onSuccessCallback(res.text(), override)
-          : onFailCallback(res, override),
-      )
-      .then((response) =>
-        !response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea),
-      )
+      .then((res) => (res.ok ? onSuccessCallback(res.text(), override) : onFailCallback(res, override)))
+      .then((response) => (!response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea)))
       .catch((err) => onFailCallback(err, override));
   }
 
@@ -112,14 +95,8 @@ export default class FmeaApiManager {
         "Content-Type": "application/json",
       },
     })
-      .then((res) =>
-        res.ok
-          ? onSuccessCallback(res.text(), override)
-          : onFailCallback(res, override),
-      )
-      .then((response) =>
-        !response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea),
-      )
+      .then((res) => (res.ok ? onSuccessCallback(res.text(), override) : onFailCallback(res, override)))
+      .then((response) => (!response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea)))
       .catch((err) => onFailCallback(err, override));
   }
 
@@ -138,14 +115,8 @@ export default class FmeaApiManager {
       },
       body: JSON.stringify(body),
     })
-      .then((res) =>
-        res.ok
-          ? onSuccessCallback(res.text(), override)
-          : onFailCallback(res, override),
-      )
-      .then((response) =>
-        !response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea),
-      )
+      .then((res) => (res.ok ? onSuccessCallback(res.text(), override) : onFailCallback(res, override)))
+      .then((response) => (!response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea)))
       .catch((err) => onFailCallback(err, override));
   }
 
@@ -164,11 +135,7 @@ export default class FmeaApiManager {
       },
       body: JSON.stringify(body),
     })
-      .then((res) =>
-        res.ok
-          ? onSuccessCallback(res, override)
-          : onFailCallback(res, override),
-      )
+      .then((res) => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
       .catch((err) => onFailCallback(err, override));
   }
 
@@ -179,12 +146,7 @@ export default class FmeaApiManager {
     onSuccessCallback = this.defaultSuccessCallback,
     onFailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
-    return this.put(
-      `${FMEA_ENDPOINT}/${fmeaId}/${column}/delete`,
-      override,
-      onSuccessCallback,
-      onFailCallback,
-    );
+    return this.put(`${FMEA_ENDPOINT}/${fmeaId}/${column}/delete`, override, onSuccessCallback, onFailCallback);
   }
 
   static async deleteRow(
@@ -201,14 +163,8 @@ export default class FmeaApiManager {
         "Content-Type": "application/json",
       },
     })
-      .then((res) =>
-        res.ok
-          ? onSuccessCallback(res.text(), override)
-          : onFailCallback(res, override),
-      )
-      .then((response) =>
-        !response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea),
-      )
+      .then((res) => (res.ok ? onSuccessCallback(res.text(), override) : onFailCallback(res, override)))
+      .then((response) => (!response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea)))
       .catch((err) => onFailCallback(err, override));
   }
 
@@ -225,11 +181,7 @@ export default class FmeaApiManager {
         "Content-Type": "application/json",
       },
     })
-      .then((res) =>
-        res.ok
-          ? onSuccessCallback(res, override)
-          : onFailCallback(res, override),
-      )
+      .then((res) => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
       .catch((err) => onFailCallback(err, override));
   }
 
@@ -240,25 +192,16 @@ export default class FmeaApiManager {
     onSuccessCallback = this.defaultSuccessCallback,
     onFailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
-    return await fetch(
-      `${FMEA_ENDPOINT}/${fmeaId}/${body.prev_column_name}/update`,
-      {
-        method: "PUT",
-        cache: "no-cache",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
+    return await fetch(`${FMEA_ENDPOINT}/${fmeaId}/${body.prev_column_name}/update`, {
+      method: "PUT",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "application/json",
       },
-    )
-      .then((res) =>
-        res.ok
-          ? onSuccessCallback(res.text(), override)
-          : onFailCallback(res, override),
-      )
-      .then((response) =>
-        !response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea),
-      )
+      body: JSON.stringify(body),
+    })
+      .then((res) => (res.ok ? onSuccessCallback(res.text(), override) : onFailCallback(res, override)))
+      .then((response) => (!response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea)))
       .catch((err) => onFailCallback(err, override));
   }
 
@@ -275,11 +218,7 @@ export default class FmeaApiManager {
         "Content-Type": "application/json",
       },
     })
-      .then((res) =>
-        res.ok
-          ? onSuccessCallback(res.text(), override)
-          : onFailCallback(res, override),
-      )
+      .then((res) => (res.ok ? onSuccessCallback(res.text(), override) : onFailCallback(res, override)))
       .catch((err) => onFailCallback(err, override));
   }
 
@@ -296,11 +235,7 @@ export default class FmeaApiManager {
         "Content-Type": "application/json",
       },
     })
-      .then((res) =>
-        res.ok
-          ? onSuccessCallback(res, override)
-          : onFailCallback(res, override),
-      )
+      .then((res) => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
       .catch((err) => onFailCallback(err, override));
   }
 }

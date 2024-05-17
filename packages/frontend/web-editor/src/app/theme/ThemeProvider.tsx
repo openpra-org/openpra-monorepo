@@ -6,9 +6,7 @@ import { ThemeMods } from "./ThemeMods";
 /**
  * Context for providing theme settings.
  */
-const ThemeSettingsContext = React.createContext<Partial<ThemeContextProps>>(
-  {},
-);
+const ThemeSettingsContext = React.createContext<Partial<ThemeContextProps>>({});
 
 /**
  * Type representing a non-empty array where the first element is guaranteed to exist.
@@ -42,10 +40,10 @@ const DEFAULT_MODE_KEY = PreferenceModes.AUTO;
 /**
  * Interface representing a theme configuration.
  */
-export type Theme = {
+export interface Theme {
   name: string;
   mode: PreferenceModes;
-};
+}
 
 /**
  * Default theme option used as a fallback.
@@ -63,19 +61,19 @@ const DEFAULT_LOCALSTORAGE_PREFERENCES = DEFAULT_THEME_OPTION;
 /**
  * Interface representing the props for the ThemeProvider component.
  */
-export type ThemeProviderProps = {
+export interface ThemeProviderProps {
   themeOptions: Readonly<NonEmptyArray<Theme>>;
   children?: ReactElement;
-};
+}
 
 /**
  * Interface representing the context props for the ThemeSettingsContext.
  */
-export type ThemeContextProps = {
+export interface ThemeContextProps {
   themeOptions: string[];
   changeTheme: (e: Theme) => void;
   getStoredThemePreferences(): Theme;
-};
+}
 
 /**
  * Provides a theme context to its children components.
@@ -104,14 +102,9 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
    * @param theme - The theme preferences object to store.
    * @returns The stored theme preferences.
    */
-  private static readonly storeThemePreference = (
-    theme: Readonly<Theme>,
-  ): Readonly<Theme> => {
+  private static readonly storeThemePreference = (theme: Readonly<Theme>): Readonly<Theme> => {
     try {
-      localStorage.setItem(
-        LOCALSTORAGE_KEY_THEME_PREFERENCES,
-        JSON.stringify(theme),
-      );
+      localStorage.setItem(LOCALSTORAGE_KEY_THEME_PREFERENCES, JSON.stringify(theme));
       return theme;
     } catch (e) {
       return theme;
@@ -124,9 +117,7 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
    */
   private static readonly getThemePreference = (): Theme => {
     try {
-      const storedPreferences: string | null = localStorage.getItem(
-        LOCALSTORAGE_KEY_THEME_PREFERENCES,
-      );
+      const storedPreferences: string | null = localStorage.getItem(LOCALSTORAGE_KEY_THEME_PREFERENCES);
       if (!storedPreferences) {
         return DEFAULT_LOCALSTORAGE_PREFERENCES;
       }
@@ -143,8 +134,7 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
   override render(): ReactElement {
     const { children, themeOptions } = this.props;
     const themePreference = ThemeProvider.getThemePreference();
-    const colorMode: EuiThemeColorMode =
-      themePreference.mode === PreferenceModes.DARK ? "dark" : "light";
+    const colorMode: EuiThemeColorMode = themePreference.mode === PreferenceModes.DARK ? "dark" : "light";
     if (colorMode === "dark") {
       import("../../assets/css/eui_theme_dark.css");
     } else {
@@ -159,7 +149,10 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
         }}
       >
         {
-          <EuiProvider colorMode={colorMode} modify={ThemeMods}>
+          <EuiProvider
+            colorMode={colorMode}
+            modify={ThemeMods}
+          >
             {children}
           </EuiProvider>
         }
@@ -194,11 +187,7 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
   override componentDidMount = (): void => {
     if (!this.listener) {
       this.listener = window.matchMedia("(prefers-color-scheme: dark)");
-      this.listener.addEventListener(
-        "change",
-        this.onMediaPreferenceChange,
-        false,
-      );
+      this.listener.addEventListener("change", this.onMediaPreferenceChange, false);
     }
   };
 
@@ -216,9 +205,7 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
    * Determines the current color mode based on the media query.
    * @returns The current color mode.
    */
-  private readonly getCurrentColorMode = ():
-    | PreferenceModes.LIGHT
-    | PreferenceModes.DARK => {
+  private readonly getCurrentColorMode = (): PreferenceModes.LIGHT | PreferenceModes.DARK => {
     try {
       if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
         return PreferenceModes.DARK;
@@ -237,9 +224,7 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
     const { themeOptions } = this.props;
     const preference: Theme = ThemeProvider.getThemePreference();
     const currentColorMode = this.getCurrentColorMode();
-    const themeToApply = themeOptions.find(
-      (option: Readonly<Theme>) => option.name === preference.name,
-    );
+    const themeToApply = themeOptions.find((option: Readonly<Theme>) => option.name === preference.name);
     if (!themeToApply) {
       const defaultTheme = DEFAULT_THEME_OPTION;
       defaultTheme.mode = currentColorMode;

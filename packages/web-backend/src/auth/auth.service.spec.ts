@@ -2,14 +2,11 @@ import { Test, TestingModule } from "@nestjs/testing";
 import mongoose, { Connection } from "mongoose";
 import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { JwtService } from "@nestjs/jwt";
+import { expect } from "@playwright/test";
 import { CollabService } from "../collab/collab.service";
 import { User, UserSchema } from "../collab/schemas/user.schema";
-import {
-  UserCounter,
-  UserCounterSchema,
-} from "../collab/schemas/user-counter.schema";
+import { UserCounter, UserCounterSchema } from "../collab/schemas/user-counter.schema";
 import { AuthService } from "./auth.service";
-import { expect } from "@playwright/test";
 
 describe("AuthService", () => {
   let authService: AuthService;
@@ -73,10 +70,7 @@ describe("AuthService", () => {
       };
       const correctPassword = user_object.password;
       const response = await collabService.createNewUser(user_object); // create a new user
-      const result = await authService.loginUser(
-        user_object.username,
-        correctPassword,
-      ); // call loginUser function
+      const result = await authService.loginUser(user_object.username, correctPassword); // call loginUser function
       expect(result).toBeInstanceOf(Object); //expect result to be an instance of User
     });
 
@@ -138,10 +132,7 @@ describe("AuthService", () => {
       };
       await collabService.createNewUser(userObject); // create a new user
       const correctPassword = "12345678";
-      const passwordMatch = await authService.verifyPassword(
-        userObject.username,
-        correctPassword,
-      );
+      const passwordMatch = await authService.verifyPassword(userObject.username, correctPassword);
       expect(passwordMatch).toBe(true);
     });
 
@@ -155,10 +146,7 @@ describe("AuthService", () => {
       };
       await collabService.createNewUser(userObject); // create a new user
       const correctPassword = "1234568";
-      const passwordMatch = await authService.verifyPassword(
-        userObject.username,
-        correctPassword,
-      );
+      const passwordMatch = await authService.verifyPassword(userObject.username, correctPassword);
       expect(passwordMatch).toBe(false);
     });
   });

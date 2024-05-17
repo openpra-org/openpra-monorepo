@@ -18,24 +18,19 @@ export const DistributionDictionary = {
   ],
 };
 
-const ReversedDistributionDictionary: Record<
-  string,
-  DistributionTimeDependence
-> = {};
-Object.keys(DistributionDictionary).forEach(
-  (key: DistributionTimeDependence) => {
-    DistributionDictionary[key].forEach((value) => {
-      ReversedDistributionDictionary[value] = key;
-    });
-  },
-);
+const ReversedDistributionDictionary: Record<string, DistributionTimeDependence> = {};
+Object.keys(DistributionDictionary).forEach((key: DistributionTimeDependence) => {
+  DistributionDictionary[key].forEach((value) => {
+    ReversedDistributionDictionary[value] = key;
+  });
+});
 export { ReversedDistributionDictionary };
 
-export type DistributionSummary = {
+export interface DistributionSummary {
   x: number[];
   pdf: number[];
   cdf: number[];
-};
+}
 
 export default abstract class AbstractDistribution {
   /**
@@ -101,9 +96,7 @@ export default abstract class AbstractDistribution {
     for (let i = 0; i < len; i++) {
       const val = vec[i];
       if (val < 0 || val > 1)
-        throw new Error(
-          "getQuantiles::invalid input argument. Array values must exist on the interval [0,1].",
-        );
+        throw new Error("getQuantiles::invalid input argument. Array values must exist on the interval [0,1].");
       arr[i] = quantile(val);
     }
     return arr;

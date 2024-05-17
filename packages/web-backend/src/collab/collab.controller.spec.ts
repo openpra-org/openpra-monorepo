@@ -125,10 +125,7 @@ describe("CollabController", () => {
       const userPreferenceObject = { preferences: { theme: "Dark" } };
       const response = await collabService.createNewUser(user_object);
       const userId = String(response.id);
-      const result = await collabController.updateUserPreferences(
-        userId,
-        userPreferenceObject,
-      );
+      const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
       expect(result.preferences.theme).toMatch("Dark");
     });
 
@@ -143,10 +140,7 @@ describe("CollabController", () => {
       const userPreferenceObject = { preferences: { nodeIdsVisible: false } };
       const response = await collabService.createNewUser(user_object);
       const userId = String(response.id);
-      const result = await collabController.updateUserPreferences(
-        userId,
-        userPreferenceObject,
-      );
+      const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
       expect(result.preferences.nodeIdsVisible).toBeFalsy();
     });
 
@@ -161,10 +155,7 @@ describe("CollabController", () => {
       const userPreferenceObject = { preferences: { outlineVisible: false } };
       const response = await collabService.createNewUser(user_object);
       const userId = String(response.id);
-      const result = await collabController.updateUserPreferences(
-        userId,
-        userPreferenceObject,
-      );
+      const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
       expect(result.preferences.outlineVisible).toBeFalsy();
     });
   });

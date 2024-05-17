@@ -9,12 +9,7 @@ import {
 } from "./externalHazardsActions";
 import { externalHazardsState } from "./externalHazardsState";
 
-const externalHazardsSlice: StateCreator<
-  StoreType,
-  [],
-  [],
-  ExternalHazardsType
-> = (set) => {
+const externalHazardsSlice: StateCreator<StoreType, [], [], ExternalHazardsType> = (set) => {
   SliceResetFns.add(() => {
     set(externalHazardsState);
   });

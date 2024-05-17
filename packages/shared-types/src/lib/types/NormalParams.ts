@@ -15,8 +15,6 @@ export const NormalParamsMap = {
 
 export const NormalParamsReverseMap = {
   [NormalParamsMap[NormalParams.MeanStd].toString()]: NormalParams.MeanStd,
-  [NormalParamsMap[NormalParams.MedianErrorFactor].toString()]:
-    NormalParams.MedianErrorFactor,
-  [NormalParamsMap[NormalParams.Percentiles].toString()]:
-    NormalParams.Percentiles,
+  [NormalParamsMap[NormalParams.MedianErrorFactor].toString()]: NormalParams.MedianErrorFactor,
+  [NormalParamsMap[NormalParams.Percentiles].toString()]: NormalParams.Percentiles,
 };

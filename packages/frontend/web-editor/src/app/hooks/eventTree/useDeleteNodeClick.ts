@@ -37,9 +37,7 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
 
     if (shouldDeleteSubtree && parentNodeId) {
       // Identify sibling node by checking the parent node's edges
-      const siblingEdges = edges.filter(
-        (edge) => edge.source === parentNodeId && edge.target !== clickedNodeId,
-      );
+      const siblingEdges = edges.filter((edge) => edge.source === parentNodeId && edge.target !== clickedNodeId);
       if (siblingEdges.length === 1) {
         // Update the sibling node to invisibleNode if there's exactly one sibling
         const siblingNodeId = siblingEdges[0].target;
@@ -56,13 +54,8 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
       }
 
       // Delete the node and its subtree
-      const remainingNodes = nodes.filter(
-        (node) => !nodesToDelete.has(node.id),
-      );
-      const remainingEdges = edges.filter(
-        (edge) =>
-          !nodesToDelete.has(edge.source) && !nodesToDelete.has(edge.target),
-      );
+      const remainingNodes = nodes.filter((node) => !nodesToDelete.has(node.id));
+      const remainingEdges = edges.filter((edge) => !nodesToDelete.has(edge.source) && !nodesToDelete.has(edge.target));
 
       setNodes(remainingNodes);
       setEdges(remainingEdges);
@@ -73,11 +66,9 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
         edges: remainingEdges,
       });
 
-      void GraphApiManager.storeEventTree(eventTreeCurrentState).then(
-        (r: EventTreeGraph) => {
-          console.log(r);
-        },
-      );
+      void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {
+        console.log(r);
+      });
     } else {
       // Update clicked node to invisibleNode and animate edges
       const updatedNodes = nodes.map((node) => {
@@ -103,11 +94,9 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
         edges: updatedEdges,
       });
 
-      void GraphApiManager.storeEventTree(eventTreeCurrentState).then(
-        (r: EventTreeGraph) => {
-          console.log(r);
-        },
-      );
+      void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {
+        console.log(r);
+      });
     }
   };
 

@@ -13,11 +13,11 @@ type EventTreeMxGraphJSON = {
 } & HCLTreeMxGraphJSON;
 export default EventTreeMxGraphJSON;
 
-type BranchJSON = {
+interface BranchJSON {
   [ReferenceTypes.FUNCTIONAL_EVENT]: string;
   [ReferenceTypes.PATHS]: {
     failure: PathJSON;
     success: PathJSON;
   };
   _proxy: ProxyTypes;
-};
+}

@@ -3,10 +3,7 @@ import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import mongoose, { Connection } from "mongoose";
 import { CollabService } from "../src/collab/collab.service";
 import { User, UserSchema } from "../src/collab/schemas/user.schema";
-import {
-  UserCounter,
-  UserCounterSchema,
-} from "../src/collab/schemas/user-counter.schema";
+import { UserCounter, UserCounterSchema } from "../src/collab/schemas/user-counter.schema";
 
 describe("CollabService", () => {
   let collabService: CollabService;
@@ -33,9 +30,7 @@ describe("CollabService", () => {
 
   afterEach(async () => {
     //delete test user after each test
-    await connection
-      .collection("users")
-      .findOneAndDelete({ username: "testUser" });
+    await connection.collection("users").findOneAndDelete({ username: "testUser" });
   });
 
   describe("CollabService", () => {
@@ -104,9 +99,7 @@ describe("CollabService", () => {
         password: "12345678",
       };
       const response = await collabService.createNewUser(user_object); // create a new user
-      const returnedValue = await collabService.getUserPreferences(
-        String(response.id),
-      ); // calling getUserPreferences
+      const returnedValue = await collabService.getUserPreferences(String(response.id)); // calling getUserPreferences
       expect(returnedValue).toBeDefined(); // user preferences should be defined
     });
   });
@@ -122,10 +115,7 @@ describe("CollabService", () => {
         password: "12345678",
       };
       const response = await collabService.createNewUser(user_object); // create a new user
-      const returnedValue = await collabService.updateUserPreferences(
-        String(response.id),
-        userPreferenceObject,
-      ); // calling updateUserPreferences
+      const returnedValue = await collabService.updateUserPreferences(String(response.id), userPreferenceObject); // calling updateUserPreferences
       expect(returnedValue.preferences.theme).toMatch("Dark"); // theme should be updated
     });
 
@@ -139,10 +129,7 @@ describe("CollabService", () => {
         password: "12345678",
       };
       const response = await collabService.createNewUser(user_object); // create a new user
-      const returnedValue = await collabService.updateUserPreferences(
-        String(response.id),
-        userPreferenceObject,
-      ); // calling updateUserPreferences
+      const returnedValue = await collabService.updateUserPreferences(String(response.id), userPreferenceObject); // calling updateUserPreferences
       expect(returnedValue.preferences.nodeIdsVisible).toBeFalsy(); // nodeIdsVisible should be updated
     });
 
@@ -156,10 +143,7 @@ describe("CollabService", () => {
         password: "12345678",
       };
       const response = await collabService.createNewUser(user_object); // create a new user
-      const returnedValue = await collabService.updateUserPreferences(
-        String(response.id),
-        userPreferenceObject,
-      ); // calling updateUserPreferences
+      const returnedValue = await collabService.updateUserPreferences(String(response.id), userPreferenceObject); // calling updateUserPreferences
       expect(returnedValue.preferences.outlineVisible).toBeFalsy(); // user preferences should be updated
     });
   });

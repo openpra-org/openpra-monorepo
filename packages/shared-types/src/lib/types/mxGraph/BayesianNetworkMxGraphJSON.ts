@@ -7,5 +7,4 @@ export type BayesianNetworkMxGraphJSON = {
   [ReferenceTypes.BAYESIAN_NODES]: Record<string, BayesianNodeJSON>;
 } & HCLTreeMxGraphJSON;
 
-export type BayesianNodeJSON = {} & BayesianNodeVertexValueJSON &
-  HCLTreeVertexJSON;
+export type BayesianNodeJSON = {} & BayesianNodeVertexValueJSON & HCLTreeVertexJSON;

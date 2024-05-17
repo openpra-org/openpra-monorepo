@@ -11,15 +11,9 @@ test.describe("Internal Events", () => {
   test("Can create events", async ({ page }) => {
     await page.getByRole("button", { name: "Create Internal Events" }).click();
     await page.getByLabel("Internal Events name").fill("IE 1");
-    await page
-      .getByLabel("Internal Events description")
-      .fill("IE 1 description");
+    await page.getByLabel("Internal Events description").fill("IE 1 description");
     await page.getByRole("button", { name: "Create", exact: true }).click();
     await page.locator("a").filter({ hasText: "I1" }).click();
-    await expect(
-      page
-        .locator("button")
-        .filter({ hasText: "Plant Operating State Analysis" }),
-    ).toBeVisible();
+    await expect(page.locator("button").filter({ hasText: "Plant Operating State Analysis" })).toBeVisible();
   });
 });

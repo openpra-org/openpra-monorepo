@@ -14,7 +14,7 @@ import {
 import { create } from "zustand";
 import { nanoid } from "nanoid";
 
-export type RFState = {
+export interface RFState {
   nodes: Node[];
   edges: Edge[];
   onNodesChange: OnNodesChange;
@@ -27,7 +27,7 @@ export type RFState = {
   addEdge: (newEdge: Edge) => void;
   getParent: (nodeId: string) => string | undefined;
   getChildren: (nodeId: string) => string[];
-};
+}
 
 const useStore = create<RFState>((set, get) => ({
   nodes: [

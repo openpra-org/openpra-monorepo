@@ -7,5 +7,4 @@ export type BasicEventVertexValueJSON = {
   source_type: string;
 } & HCLTreeVertexValueJSON;
 
-export type BasicEventVertexJSON = {} & BasicEventVertexValueJSON &
-  HCLTreeVertexJSON;
+export type BasicEventVertexJSON = {} & BasicEventVertexValueJSON & HCLTreeVertexJSON;

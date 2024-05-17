@@ -1,8 +1,4 @@
-import {
-  DeleteFaultTree,
-  GetFaultTrees,
-  PatchFaultTreeLabel,
-} from "shared-types/src/lib/api/NestedModelApiManager";
+import { DeleteFaultTree, GetFaultTrees, PatchFaultTreeLabel } from "shared-types/src/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
 
 function FaultTreeList(): JSX.Element {

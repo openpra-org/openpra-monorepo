@@ -1,11 +1,11 @@
 import React from "react";
 import { MiniMap, Node } from "reactflow";
 
-type CustomMiniMapProps = {
+interface CustomMiniMapProps {
   nodeColor?: (node: Node) => string;
   nodeStrokeWidth?: number;
   nodeBorderRadius?: number;
-};
+}
 
 const CustomMiniMap: React.FC<CustomMiniMapProps> = ({
   nodeColor = () => "#0984e3", // Provide a default function for nodeColor

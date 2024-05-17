@@ -308,6 +308,9 @@ importers:
 
   packages/model-generator:
     dependencies:
+      shared-types:
+        specifier: 0.0.1
+        version: link:../shared-types
       tslib:
         specifier: 2.5.2
         version: 2.5.2

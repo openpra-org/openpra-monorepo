@@ -1,18 +1,10 @@
 import { test, expect, Page } from "@playwright/test";
 
-export async function SignUp({
-  page,
-  username,
-}: {
-  page: Page;
-  username: string;
-}): Promise<void> {
+export async function SignUp({ page, username }: { page: Page; username: string }): Promise<void> {
   await page.goto("/");
   await page.getByPlaceholder("First name").fill("Playwright");
   await page.getByPlaceholder("Last name").fill("press");
-  await page
-    .getByPlaceholder("Email")
-    .fill("playwright" + Math.floor(Math.random() * 10000000) + "@gmail.com");
+  await page.getByPlaceholder("Email").fill("playwright" + Math.floor(Math.random() * 10000000) + "@gmail.com");
   await page.getByPlaceholder("Username").fill(username);
   await page.getByPlaceholder("Password", { exact: true }).fill("Playwright12");
   await page.getByPlaceholder("Confirm Password").fill("Playwright12");
@@ -44,9 +36,7 @@ test.describe("Signup", () => {
 
   test("Incorrect input", async ({ page }) => {
     await page.goto("/");
-    await page
-      .getByPlaceholder("Password", { exact: true })
-      .fill("Playwright12");
+    await page.getByPlaceholder("Password", { exact: true }).fill("Playwright12");
     await page.getByPlaceholder("Confirm Password").fill("Playwright");
     await page.getByPlaceholder("Email").fill("a");
     await page.getByRole("button", { name: "Sign Up" }).click();

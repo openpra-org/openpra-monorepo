@@ -9,5 +9,4 @@ export class InternalHazards extends TypedModel {
 }
 
 export type InternalHazardsDocument = InternalHazards & Document;
-export const InternalHazardsSchema =
-  SchemaFactory.createForClass(InternalHazards);
+export const InternalHazardsSchema = SchemaFactory.createForClass(InternalHazards);

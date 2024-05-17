@@ -190,11 +190,9 @@ const useTreeData = (
   };
 
   // Generate tree nodes and edges
-  const { nodes: generatedTreeNodes, edges: treeEdges } =
-    generateTreeNodesAndEdges();
+  const { nodes: generatedTreeNodes, edges: treeEdges } = generateTreeNodesAndEdges();
   // Generate column nodes and edges
-  const { nodes: generatedColNodes, edges: colEdges } =
-    generateColNodesAndEdges();
+  const { nodes: generatedColNodes, edges: colEdges } = generateColNodesAndEdges();
 
   const nodes = [...generatedTreeNodes, ...generatedColNodes];
   const edges = [...treeEdges, ...colEdges];

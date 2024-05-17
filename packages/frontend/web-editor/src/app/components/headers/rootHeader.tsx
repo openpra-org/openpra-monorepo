@@ -35,14 +35,10 @@ const RootHeader = (): JSX.Element => {
   const internalHazards = UseGlobalStore.use.internalHazards();
 
   const getModelName = (id: string): string => {
-    const ieName = internalEvents.find(
-      (ie: InternalEventsModelType) => ie._id === id,
-    )?.label.name;
+    const ieName = internalEvents.find((ie: InternalEventsModelType) => ie._id === id)?.label.name;
     if (ieName) return ieName;
 
-    const ihName = internalHazards.find(
-      (ih: InternalHazardsModelType) => ih._id === id,
-    )?.label.name;
+    const ihName = internalHazards.find((ih: InternalHazardsModelType) => ih._id === id)?.label.name;
     if (ihName) return ihName;
 
     return id;
@@ -97,7 +93,10 @@ const RootHeader = (): JSX.Element => {
           data-testid="search-icon"
           aria-label="Sitewide search"
         >
-          <EuiIcon type="search" size="m" />
+          <EuiIcon
+            type="search"
+            size="m"
+          />
         </EuiHeaderSectionItemButton>
       }
       emptyMessage={
@@ -156,9 +155,7 @@ const HeaderUserMenu = (): JSX.Element => {
 
   //thewse two lines grab the username so that it can be used throughout the page. Needs this because for some reason user can be undefined
   const currentUser = ApiManager.getCurrentUser();
-  const nameString = currentUser.username
-    ? currentUser.username
-    : "Unknown User";
+  const nameString = currentUser.username ? currentUser.username : "Unknown User";
 
   const closeMenu = (): void => {
     setIsOpen(false);
@@ -183,7 +180,10 @@ const HeaderUserMenu = (): JSX.Element => {
       data-testid="user-menu"
       onClick={onMenuButtonClick}
     >
-      <EuiAvatar name={nameString} size="s" />
+      <EuiAvatar
+        name={nameString}
+        size="s"
+      />
     </EuiHeaderSectionItemButton>
   );
   return (
@@ -195,14 +195,20 @@ const HeaderUserMenu = (): JSX.Element => {
       closePopover={closeMenu}
       panelPaddingSize="none"
     >
-      <div data-testid="user-menu-content" style={{ width: 320 }}>
+      <div
+        data-testid="user-menu-content"
+        style={{ width: 320 }}
+      >
         <EuiFlexGroup
           gutterSize="m"
           className="euiHeaderProfile"
           responsive={false}
         >
           <EuiFlexItem grow={false}>
-            <EuiAvatar name={nameString} size="xl" />
+            <EuiAvatar
+              name={nameString}
+              size="xl"
+            />
           </EuiFlexItem>
           <EuiFlexItem>
             <EuiText>
@@ -211,7 +217,10 @@ const HeaderUserMenu = (): JSX.Element => {
             <EuiSpacer size="m" />
             <EuiFlexGroup justifyContent="spaceBetween">
               <EuiFlexItem grow={false}>
-                <EuiLink onClick={adminFunction} data-testid="root-settings">
+                <EuiLink
+                  onClick={adminFunction}
+                  data-testid="root-settings"
+                >
                   Settings
                 </EuiLink>
               </EuiFlexItem>
@@ -248,7 +257,10 @@ const HeaderAppMenu = (): JSX.Element => {
       data-testid="app-menu"
       onClick={onMenuButtonClick}
     >
-      <EuiIcon type="apps" size="m" />
+      <EuiIcon
+        type="apps"
+        size="m"
+      />
     </EuiHeaderSectionItemButton>
   );
   return (
@@ -265,25 +277,49 @@ const HeaderAppMenu = (): JSX.Element => {
         style={{ width: 288 }}
       >
         <EuiKeyPadMenuItem label="Discover">
-          <EuiIcon type="discoverApp" size="l" />
+          <EuiIcon
+            type="discoverApp"
+            size="l"
+          />
         </EuiKeyPadMenuItem>
         <EuiKeyPadMenuItem label="Dashboard">
-          <EuiIcon type="dashboardApp" size="l" />
+          <EuiIcon
+            type="dashboardApp"
+            size="l"
+          />
         </EuiKeyPadMenuItem>
         <EuiKeyPadMenuItem label="Dev Tools">
-          <EuiIcon type="devToolsApp" size="l" />
+          <EuiIcon
+            type="devToolsApp"
+            size="l"
+          />
         </EuiKeyPadMenuItem>
         <EuiKeyPadMenuItem label="Machine Learning">
-          <EuiIcon type="machineLearningApp" size="l" />
+          <EuiIcon
+            type="machineLearningApp"
+            size="l"
+          />
         </EuiKeyPadMenuItem>
         <EuiKeyPadMenuItem label="Graph">
-          <EuiIcon type="graphApp" size="l" />
+          <EuiIcon
+            type="graphApp"
+            size="l"
+          />
         </EuiKeyPadMenuItem>
         <EuiKeyPadMenuItem label="Visualize">
-          <EuiIcon type="visualizeApp" size="l" />
+          <EuiIcon
+            type="visualizeApp"
+            size="l"
+          />
         </EuiKeyPadMenuItem>
-        <EuiKeyPadMenuItem label="Timelion" betaBadgeLabel="Beta">
-          <EuiIcon type="timelionApp" size="l" />
+        <EuiKeyPadMenuItem
+          label="Timelion"
+          betaBadgeLabel="Beta"
+        >
+          <EuiIcon
+            type="timelionApp"
+            size="l"
+          />
         </EuiKeyPadMenuItem>
       </EuiKeyPadMenu>
     </EuiPopover>

@@ -48,31 +48,21 @@ test.describe("Settings E2E", () => {
 
   test("can see the correct profile details", async ({ page }) => {
     await goToUserEditPage(page);
-    await expect(page.getByTestId("edit-user-first-name")).toHaveValue(
-      "Playwright",
-    );
+    await expect(page.getByTestId("edit-user-first-name")).toHaveValue("Playwright");
     await expect(page.getByTestId("edit-user-last-name")).toHaveValue("press");
   });
 
   test("can edit user's details", async ({ page }) => {
     await goToUserEditPage(page);
-    await expect(page.getByTestId("edit-user-first-name")).toHaveValue(
-      "Playwright",
-    );
+    await expect(page.getByTestId("edit-user-first-name")).toHaveValue("Playwright");
     await page.getByTestId("edit-user-last-name").fill("suppress");
     await page.getByTestId("edit-user-first-name").fill("Playwright Changed");
     await page.getByTestId("edit-user-username").fill("new_username");
     await page.getByTestId("edit-user-email").fill("new_email@gmail.com");
     await page.getByTestId("edit-user-submit").click();
     await goToUserProfilePage(page);
-    await expect(page.getByTestId("profile-name")).toHaveText(
-      "Playwright Changed suppress",
-    );
-    await expect(page.getByTestId("profile-username")).toHaveText(
-      "new_username",
-    );
-    await expect(page.getByTestId("profile-email")).toHaveText(
-      "new_email@gmail.com",
-    );
+    await expect(page.getByTestId("profile-name")).toHaveText("Playwright Changed suppress");
+    await expect(page.getByTestId("profile-username")).toHaveText("new_username");
+    await expect(page.getByTestId("profile-email")).toHaveText("new_email@gmail.com");
   });
 });

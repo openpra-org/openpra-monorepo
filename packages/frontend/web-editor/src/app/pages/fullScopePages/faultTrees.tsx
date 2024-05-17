@@ -22,12 +22,7 @@ import ReactFlow, {
 } from "reactflow";
 
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import {
-  EuiGlobalToastList,
-  EuiPopover,
-  EuiSkeletonRectangle,
-  useGeneratedHtmlId,
-} from "@elastic/eui";
+import { EuiGlobalToastList, EuiPopover, EuiSkeletonRectangle, useGeneratedHtmlId } from "@elastic/eui";
 import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { Route, Routes, useParams } from "react-router-dom";
 import { shallow } from "zustand/shallow";
@@ -43,11 +38,7 @@ import {
   TreeNodeContextMenuProps,
 } from "../../components/context_menu/faultTreeNodeContextMenu";
 import { GenerateUUID } from "../../../utils/treeUtils";
-import {
-  allToasts,
-  initialEdges,
-  initialNodes,
-} from "../../../utils/faultTreeData";
+import { allToasts, initialEdges, initialNodes } from "../../../utils/faultTreeData";
 import { RFState, useStore } from "../../store/faultTreeStore";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
@@ -56,13 +47,13 @@ const fitViewOptions = {
   padding: 0.95,
 };
 
-type Toast = {
+interface Toast {
   id: string;
   title: string;
   color: "warning" | "success" | "primary" | "danger" | undefined;
   iconType: string;
   type: string;
-};
+}
 
 const selector = (
   state: RFState,
@@ -91,8 +82,7 @@ function ReactFlowPro(): JSX.Element {
   const ref = useRef(document.createElement("div"));
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
 
-  const { nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges } =
-    useStore(selector, shallow);
+  const { nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges } = useStore(selector, shallow);
   const [isLoading, setIsLoading] = useState(true);
   const { faultTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
@@ -100,14 +90,12 @@ function ReactFlowPro(): JSX.Element {
 
   useEffect(() => {
     const loadGraph = async (): Promise<void> => {
-      await GraphApiManager.getFaultTree(faultTreeId).then(
-        (res: FaultTreeGraph) => {
-          setNodes(res.nodes.length !== 0 ? res.nodes : initialNodes);
-          setEdges(res.edges.length !== 0 ? res.edges : initialEdges);
+      await GraphApiManager.getFaultTree(faultTreeId).then((res: FaultTreeGraph) => {
+        setNodes(res.nodes.length !== 0 ? res.nodes : initialNodes);
+        setEdges(res.edges.length !== 0 ? res.edges : initialEdges);
 
-          setIsLoading(false);
-        },
-      );
+        setIsLoading(false);
+      });
     };
     void (isLoading && loadGraph());
   }, [faultTreeId, isLoading, nodes, toasts]);
@@ -124,12 +112,8 @@ function ReactFlowPro(): JSX.Element {
         id: node.id,
         top: event.clientY < pane.height - 200 && event.clientY,
         left: event.clientX - 320 < pane.width - 200 && event.clientX - 320,
-        right:
-          event.clientX - 320 >= pane.width - 200 &&
-          pane.width - event.clientX - 800,
-        bottom:
-          event.clientY >= pane.height - 200 &&
-          pane.height - event.clientY - 800,
+        right: event.clientX - 320 >= pane.width - 200 && pane.width - event.clientX - 800,
+        bottom: event.clientY >= pane.height - 200 && pane.height - event.clientY - 800,
       });
     },
     [setMenu, isOpen],
@@ -227,8 +211,14 @@ export function FaultTreeEditor(): JSX.Element {
 function FaultTrees(): JSX.Element {
   return (
     <Routes>
-      <Route path="" element={<FaultTreeList />} />
-      <Route path=":faultTreeId" element={<FaultTreeEditor />} />
+      <Route
+        path=""
+        element={<FaultTreeList />}
+      />
+      <Route
+        path=":faultTreeId"
+        element={<FaultTreeEditor />}
+      />
     </Routes>
   );
 }

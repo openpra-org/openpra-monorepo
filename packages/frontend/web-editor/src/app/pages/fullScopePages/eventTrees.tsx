@@ -1,20 +1,7 @@
 import { Route, Routes, useParams } from "react-router-dom";
-import React, {
-  FC,
-  ReactElement,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { FC, ReactElement, useCallback, useEffect, useRef, useState } from "react";
 
-import ReactFlow, {
-  Background,
-  Edge,
-  Node,
-  ProOptions,
-  ReactFlowProvider,
-} from "reactflow";
+import ReactFlow, { Background, Edge, Node, ProOptions, ReactFlowProvider } from "reactflow";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
@@ -27,9 +14,7 @@ import nodeTypes from "../../components/treeNodes/eventTreeEditorNode/eventTreeN
 import edgeTypes from "../../components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
 
 import useLayout from "../../hooks/eventTree/useLayout";
-import EventTreeNodeContextMenu, {
-  treeNodeContextMenuProps,
-} from "../../components/menus/eventTreeNodeContextMenu";
+import EventTreeNodeContextMenu, { treeNodeContextMenuProps } from "../../components/menus/eventTreeNodeContextMenu";
 import { LoadingCard } from "../../components/cards/loadingCard";
 
 /**
@@ -50,19 +35,19 @@ const fitViewOptions = {
  *
  * @returns ReactElement The React Flow component with nodes and edges configured for horizontal layout.
  */
-type Props = {
+interface Props {
   nodeData: Node[];
   edgeData: Edge[];
   depth: number;
-};
-type CustomNodeData = {
+}
+interface CustomNodeData {
   label: string;
   depth: number;
   width: number;
   output: boolean;
   inputDepth?: number;
   outputDepth?: number;
-};
+}
 const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
   // this hook call ensures that the layout is re-calculated every time the graph changes
   useLayout(depth);
@@ -80,13 +65,11 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
 
   useEffect(() => {
     const loadGraph = async (): Promise<void> => {
-      await GraphApiManager.getEventTree(eventTreeId).then(
-        (res: EventTreeGraph) => {
-          setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
-          setEdges(res.edges.length !== 0 ? res.edges : edgeData);
-          setLoading(false);
-        },
-      );
+      await GraphApiManager.getEventTree(eventTreeId).then((res: EventTreeGraph) => {
+        setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
+        setEdges(res.edges.length !== 0 ? res.edges : edgeData);
+        setLoading(false);
+      });
     };
     void (loading && loadGraph());
   }, [eventTreeId, loading, nodes]);
@@ -103,12 +86,8 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
         id: node.id,
         top: event.clientY < pane.height - 200 && event.clientY,
         left: event.clientX - 320 < pane.width - 200 && event.clientX - 320,
-        right:
-          event.clientX - 320 >= pane.width - 200 &&
-          pane.width - event.clientX - 800,
-        bottom:
-          event.clientY >= pane.height - 200 &&
-          pane.height - event.clientY - 800,
+        right: event.clientX - 320 >= pane.width - 200 && pane.width - event.clientX - 800,
+        bottom: event.clientY >= pane.height - 200 && pane.height - event.clientY - 800,
       });
     },
     [setMenu],
@@ -156,7 +135,12 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
         }}
         closePopover={onPaneClick}
       >
-        {menu && <EventTreeNodeContextMenu onClick={onPaneClick} {...menu} />}
+        {menu && (
+          <EventTreeNodeContextMenu
+            onClick={onPaneClick}
+            {...menu}
+          />
+        )}
       </EuiPopover>
     </ReactFlow>
   );
@@ -173,7 +157,11 @@ export const EventTreeEditor = (): ReactElement => {
 
   return (
     <ReactFlowProvider>
-      <ReactFlowPro nodeData={nodes} edgeData={edges} depth={input + output} />
+      <ReactFlowPro
+        nodeData={nodes}
+        edgeData={edges}
+        depth={input + output}
+      />
     </ReactFlowProvider>
   );
 };
@@ -185,8 +173,14 @@ export const EventTreeEditor = (): ReactElement => {
 function EventTrees(): ReactElement {
   return (
     <Routes>
-      <Route path="" element={<EventTreeList />} />
-      <Route path=":eventTreeId" element={<EventTreeEditor />}></Route>
+      <Route
+        path=""
+        element={<EventTreeList />}
+      />
+      <Route
+        path=":eventTreeId"
+        element={<EventTreeEditor />}
+      ></Route>
     </Routes>
   );
 }

@@ -10,10 +10,7 @@
 export const ToTitleCase = (str: string, stripDashes = true): string =>
   str
     .replace(/-/g, stripDashes ? " " : "-")
-    .replace(
-      /\w\S*/g,
-      (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase(),
-    );
+    .replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
 
 /**
  @remarks Tokenizes a path string into an array of individual path segments.
@@ -24,10 +21,7 @@ export const ToTitleCase = (str: string, stripDashes = true): string =>
   false, trailing slashes will be retained. Defaults to true.
  @returns An array of individual path segments extracted from the input path string.
  */
-export const TokenizePath = (
-  path: string,
-  stripTrailingSlash = true,
-): string[] => {
+export const TokenizePath = (path: string, stripTrailingSlash = true): string[] => {
   const str = stripTrailingSlash ? path.replace(/\/+$/, "") : path;
   return str.split("/").filter((value) => value !== "");
 };

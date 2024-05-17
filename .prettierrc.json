@@ -1,5 +1,8 @@
 {
-  "singleQuote": false,
+  "bracketSpacing": true,
+  "endOfLine": "lf",
   "experimentalTernaries": true,
-  "endOfLine": "lf"
+  "printWidth": 120,
+  "singleAttributePerLine": true,
+  "singleQuote": false
 }

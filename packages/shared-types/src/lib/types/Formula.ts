@@ -2,13 +2,13 @@ import Outcome, { OutcomeJSON } from "./Outcome";
 import { ProxyTypes } from "./ProxyTypes";
 import GateTypes from "./GateTypes";
 
-export type FormulaJSON = {
+export interface FormulaJSON {
   _proxy: ProxyTypes;
   outcome?: OutcomeJSON;
   expr?: GateTypes;
   formulas?: OutcomeJSON[];
   min_value?: number;
-};
+}
 
 export default class Formula {
   private proxy: ProxyTypes;
@@ -29,9 +29,7 @@ export default class Formula {
    *  Expect the format from {@link Formula#toJSON}.
    * @throws Will throw an error if the proxyTypes are not valid.
    */
-  constructor(
-    obj: FormulaJSON | OutcomeJSON = { _proxy: ProxyTypes.EVENT_REFERENCE },
-  ) {
+  constructor(obj: FormulaJSON | OutcomeJSON = { _proxy: ProxyTypes.EVENT_REFERENCE }) {
     this.proxy = obj._proxy || ProxyTypes.EVENT_REFERENCE;
     switch (this.proxy) {
       case ProxyTypes.EVENT_REFERENCE:
@@ -176,10 +174,7 @@ export default class Formula {
    * @return {Formula} - inverted formula
    */
   inverse(): Formula {
-    if (
-      this.proxy !== ProxyTypes.EVENT_REFERENCE &&
-      this.proxy !== ProxyTypes.LOGICAL_EXPRESSION
-    ) {
+    if (this.proxy !== ProxyTypes.EVENT_REFERENCE && this.proxy !== ProxyTypes.LOGICAL_EXPRESSION) {
       throw new Error(`Formula proxy "${this.proxy}" is not supported`);
     }
 

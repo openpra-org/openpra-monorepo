@@ -5,5 +5,4 @@ import { HCLTreeVertexJSON } from "./HCLTreeVertexJSON";
 export type HouseEventVertexValueJSON = {
   constant: ConstantJSON;
 } & HCLTreeVertexValueJSON;
-export type HouseEventVertexJSON = {} & HouseEventVertexValueJSON &
-  HCLTreeVertexJSON;
+export type HouseEventVertexJSON = {} & HouseEventVertexValueJSON & HCLTreeVertexJSON;

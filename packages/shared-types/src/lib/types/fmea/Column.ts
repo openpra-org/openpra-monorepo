@@ -1,4 +1,4 @@
-export type Column = {
+export interface Column {
   id: string;
   name: string;
   type: string;
@@ -6,4 +6,4 @@ export type Column = {
     number: number;
     description: string;
   }[];
-};
+}

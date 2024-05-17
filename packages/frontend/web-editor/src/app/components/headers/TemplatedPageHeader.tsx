@@ -7,12 +7,7 @@ import { EuiPageTemplate, EuiPageHeaderProps, useEuiTheme } from "@elastic/eui";
  * @param restrictWidth - restricts the width if needed
  * @returns
  */
-function TemplatedPageHeader({
-  pageTitle,
-  iconType,
-  restrictWidth,
-  ...rest
-}: EuiPageHeaderProps): JSX.Element {
+function TemplatedPageHeader({ pageTitle, iconType, restrictWidth, ...rest }: EuiPageHeaderProps): JSX.Element {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
   const restrictedWidth = restrictWidth ?? largeScreenBreakpoint;
   return (

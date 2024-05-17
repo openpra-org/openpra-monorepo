@@ -50,16 +50,16 @@ const getModelFixture = (): ModelProps => ({
   ],
 });
 
-export type FaultTreeProps = {
+export interface FaultTreeProps {
   id: string | number;
   label: LabelJSON;
-};
+}
 
-export type ModelProps = {
+export interface ModelProps {
   id: string | number;
   label: LabelJSON;
   faultTrees: FaultTreeProps[];
-};
+}
 export function LoadModel(): ModelProps {
   return getModelFixture();
 }
@@ -67,7 +67,10 @@ export function LoadModel(): ModelProps {
 function InternalHazardsPage(): JSX.Element {
   return (
     <Routes>
-      <Route path="" element={<InternalHazardsList />} />
+      <Route
+        path=""
+        element={<InternalHazardsList />}
+      />
       <Route
         path=":modelId"
         element={<InternalHazardsContainer />}
@@ -77,25 +80,58 @@ function InternalHazardsPage(): JSX.Element {
           path="plant-operating-state-analysis/*"
           element={<OperatingStateAnalysis />}
         />
-        <Route path="initiating-events/*" element={<InitiatingEvents />} />
+        <Route
+          path="initiating-events/*"
+          element={<InitiatingEvents />}
+        />
         <Route
           path="event-sequence-diagrams/*"
           element={<EventSequenceDiagrams />}
         />
-        <Route path="event-trees/*" element={<EventTrees />} />
-        <Route path="functional-events/*" element={<FunctionalEvents />} />
-        <Route path="bayesian-networks/*" element={<BayesianNetworks />} />
-        <Route path="markov-chains/*" element={<MarkovChains />} />
-        <Route path="human-reliability-analysis/*" element={<HRA />} />
-        <Route path="bayesian-estimation/*" element={<BayesianEstimation />} />
-        <Route path="weibull-analysis/*" element={<WeibullAnalysis />} />
-        <Route path="internal-flood-pra/*" element={<InternalFlood />} />
-        <Route path="internal-fire-pra/*" element={<InternalFire />} />
+        <Route
+          path="event-trees/*"
+          element={<EventTrees />}
+        />
+        <Route
+          path="functional-events/*"
+          element={<FunctionalEvents />}
+        />
+        <Route
+          path="bayesian-networks/*"
+          element={<BayesianNetworks />}
+        />
+        <Route
+          path="markov-chains/*"
+          element={<MarkovChains />}
+        />
+        <Route
+          path="human-reliability-analysis/*"
+          element={<HRA />}
+        />
+        <Route
+          path="bayesian-estimation/*"
+          element={<BayesianEstimation />}
+        />
+        <Route
+          path="weibull-analysis/*"
+          element={<WeibullAnalysis />}
+        />
+        <Route
+          path="internal-flood-pra/*"
+          element={<InternalFlood />}
+        />
+        <Route
+          path="internal-fire-pra/*"
+          element={<InternalFire />}
+        />
         <Route
           path="hazards-screening-analysis/*"
           element={<HazardsScreeningAnalysis />}
         />
-        <Route path="other-hazards-pra/*" element={<OtherHazards />} />
+        <Route
+          path="other-hazards-pra/*"
+          element={<OtherHazards />}
+        />
         <Route
           path="event-sequence-quantification-diagrams/*"
           element={<EventSequenceQuantificationDiagrams />}
@@ -108,7 +144,10 @@ function InternalHazardsPage(): JSX.Element {
           path="radiological-consequence-analysis/*"
           element={<RadiologicalConsequenceAnalysisList />}
         />
-        <Route path="risk-integration/*" element={<RiskIntegration />} />
+        <Route
+          path="risk-integration/*"
+          element={<RiskIntegration />}
+        />
         <Route
           path="operating-state-analysis/*"
           element={<OperatingStateAnalysis />}
@@ -117,10 +156,22 @@ function InternalHazardsPage(): JSX.Element {
           path="event-sequence-analysis/*"
           element={<EventSequenceAnalysis />}
         />
-        <Route path="success-criteria/*" element={<SuccessCriteria />} />
-        <Route path="systems-analysis/*" element={<SystemsAnalysis />} />
-        <Route path="data-analysis/*" element={<DataAnalysis />} />
-        <Route path="settings/*" element={<ModelSettings />} />
+        <Route
+          path="success-criteria/*"
+          element={<SuccessCriteria />}
+        />
+        <Route
+          path="systems-analysis/*"
+          element={<SystemsAnalysis />}
+        />
+        <Route
+          path="data-analysis/*"
+          element={<DataAnalysis />}
+        />
+        <Route
+          path="settings/*"
+          element={<ModelSettings />}
+        />
       </Route>
       {/** everything below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested
        * else a problem happens where the parent takes presedence and loads its content over everything else

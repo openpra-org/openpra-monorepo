@@ -2,19 +2,9 @@ import { StateCreator } from "zustand";
 import { SliceResetFns, StoreType } from "../Store";
 import { InternalEventsType } from "./internalEventsTypes";
 import { internalEventsState } from "./internalEventsState";
-import {
-  addInternalEvent,
-  deleteInternalEvent,
-  editInternalEvent,
-  setInternalEvents,
-} from "./internalEventsActions";
+import { addInternalEvent, deleteInternalEvent, editInternalEvent, setInternalEvents } from "./internalEventsActions";
 
-const internalEventsSlice: StateCreator<
-  StoreType,
-  [],
-  [],
-  InternalEventsType
-> = (set) => {
+const internalEventsSlice: StateCreator<StoreType, [], [], InternalEventsType> = (set) => {
   SliceResetFns.add(() => {
     set(internalEventsState);
   });

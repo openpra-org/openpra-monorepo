@@ -4,10 +4,7 @@ import mongoose, { Connection } from "mongoose";
 import { CollabService } from "../src/collab/collab.service";
 import { CollabController } from "../src/collab/collab.controller";
 import { User, UserSchema } from "../src/collab/schemas/user.schema";
-import {
-  UserCounter,
-  UserCounterSchema,
-} from "../src/collab/schemas/user-counter.schema";
+import { UserCounter, UserCounterSchema } from "../src/collab/schemas/user-counter.schema";
 
 describe("CollabController", () => {
   let collabService: CollabService;
@@ -29,9 +26,7 @@ describe("CollabController", () => {
     connection = await module.get(getConnectionToken());
     collabService = module.get<CollabService>(CollabService);
     collabController = module.get<CollabController>(CollabController);
-    await connection
-      .collection("users")
-      .findOneAndDelete({ username: "testUser" });
+    await connection.collection("users").findOneAndDelete({ username: "testUser" });
   });
 
   afterAll(async () => {
@@ -40,9 +35,7 @@ describe("CollabController", () => {
 
   afterEach(async () => {
     //delete test user after each test
-    await connection
-      .collection("users")
-      .findOneAndDelete({ username: "testUser" });
+    await connection.collection("users").findOneAndDelete({ username: "testUser" });
   });
 
   describe("CollabController", () => {
@@ -93,10 +86,7 @@ describe("CollabController", () => {
       const userPreferenceObject = { preferences: { theme: "Dark" } };
       const response = await collabService.createNewUser(user_object);
       const userId = String(response.id);
-      const result = await collabController.updateUserPreferences(
-        userId,
-        userPreferenceObject,
-      );
+      const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
       expect(result.preferences.theme).toMatch("Dark");
     });
 
@@ -111,10 +101,7 @@ describe("CollabController", () => {
       const userPreferenceObject = { preferences: { nodeIdsVisible: false } };
       const response = await collabService.createNewUser(user_object);
       const userId = String(response.id);
-      const result = await collabController.updateUserPreferences(
-        userId,
-        userPreferenceObject,
-      );
+      const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
       expect(result.preferences.nodeIdsVisible).toBeFalsy();
     });
 
@@ -129,10 +116,7 @@ describe("CollabController", () => {
       const userPreferenceObject = { preferences: { outlineVisible: false } };
       const response = await collabService.createNewUser(user_object);
       const userId = String(response.id);
-      const result = await collabController.updateUserPreferences(
-        userId,
-        userPreferenceObject,
-      );
+      const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
       expect(result.preferences.outlineVisible).toBeFalsy();
     });
   });

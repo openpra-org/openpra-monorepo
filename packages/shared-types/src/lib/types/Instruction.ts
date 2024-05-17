@@ -3,11 +3,11 @@ import Expression, { ExpressionJSON } from "./Expression";
 import Formula, { FormulaJSON } from "./Formula";
 import { OutcomeJSON } from "./Outcome";
 
-type InstructionJSON = {
+interface InstructionJSON {
   formula?: FormulaJSON | OutcomeJSON;
   expression?: ExpressionJSON;
   _proxy: ProxyTypes;
-};
+}
 
 class Instruction {
   private formula?: Formula;
@@ -25,9 +25,7 @@ class Instruction {
    * @throw Will throws an error if obj does not have valid
    *  _proxy field.
    */
-  constructor(
-    obj: InstructionJSON = { _proxy: ProxyTypes.COLLECT_EXPRESSION },
-  ) {
+  constructor(obj: InstructionJSON = { _proxy: ProxyTypes.COLLECT_EXPRESSION }) {
     this.proxy = obj._proxy || ProxyTypes.COLLECT_EXPRESSION;
     switch (this.proxy) {
       case ProxyTypes.COLLECT_FORMULA:
@@ -38,9 +36,7 @@ class Instruction {
         this.expression = new Expression(obj.expression);
         break;
       default:
-        throw new Error(
-          `Instruction of proxy "${this.proxy}" is not registerd`,
-        );
+        throw new Error(`Instruction of proxy "${this.proxy}" is not registerd`);
     }
   }
 
@@ -70,9 +66,7 @@ class Instruction {
           };
         }
       default:
-        throw new Error(
-          `Instruction of proxy "${this.proxy}" is not registerd`,
-        );
+        throw new Error(`Instruction of proxy "${this.proxy}" is not registerd`);
     }
   }
 
@@ -139,9 +133,7 @@ class Instruction {
           _proxy: this.proxy,
         });
       default:
-        throw new Error(
-          `Instruction of proxy "${this.proxy}" is not registered`,
-        );
+        throw new Error(`Instruction of proxy "${this.proxy}" is not registered`);
     }
   }
 

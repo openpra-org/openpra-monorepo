@@ -168,9 +168,7 @@ const InviteMultipleUsersFlyout = ({
             <>
               <EuiSpacer />
               <EuiFormRow label={"List of emails"}>
-                <EuiTextArea
-                  placeholder={"xyz@gmail.com, abc@gmail.com"}
-                ></EuiTextArea>
+                <EuiTextArea placeholder={"xyz@gmail.com, abc@gmail.com"}></EuiTextArea>
               </EuiFormRow>
             </>
           )}
@@ -180,7 +178,10 @@ const InviteMultipleUsersFlyout = ({
         <EuiFlexGroup justifyContent="spaceBetween">
           <EuiFlexItem grow={false}></EuiFlexItem>
           <EuiFlexItem grow={false}>
-            <EuiButton fill onClick={generateInvites}>
+            <EuiButton
+              fill
+              onClick={generateInvites}
+            >
               Generate Invite and copy
             </EuiButton>
           </EuiFlexItem>

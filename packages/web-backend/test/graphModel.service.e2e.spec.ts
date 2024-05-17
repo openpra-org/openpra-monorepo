@@ -9,10 +9,7 @@ import {
   EventSequenceDiagramGraphSchema,
 } from "../src/schemas/graphs/event-sequence-diagram-graph.schema";
 import { BaseGraphDocument } from "../src/schemas/graphs/base-graph.schema";
-import {
-  FaultTreeGraph,
-  FaultTreeGraphSchema,
-} from "../src/schemas/graphs/fault-tree-graph.schema";
+import { FaultTreeGraph, FaultTreeGraphSchema } from "../src/schemas/graphs/fault-tree-graph.schema";
 
 describe("GraphModelService", (): void => {
   let graphModelService: GraphModelService;
@@ -134,19 +131,13 @@ describe("GraphModelService", (): void => {
         expect(graphModelService.saveEventSequenceDiagramGraph).toBeDefined();
       });
       it("Saving an ES Graph document", async (): Promise<void> => {
-        const res: BaseGraphDocument =
-          await graphModelService.saveEventSequenceDiagramGraph(
-            eventSequenceGraph,
-          );
+        const res: BaseGraphDocument = await graphModelService.saveEventSequenceDiagramGraph(eventSequenceGraph);
         expect(res).toBeDefined();
         expect(res.nodes).toEqual([node1, node2]);
         expect(res.edges).toEqual([edge]);
       });
       it("Updating an ES Graph document", async (): Promise<void> => {
-        const res: BaseGraphDocument =
-          await graphModelService.saveEventSequenceDiagramGraph(
-            updatedEventSequenceGraph,
-          );
+        const res: BaseGraphDocument = await graphModelService.saveEventSequenceDiagramGraph(updatedEventSequenceGraph);
         expect(res).toBeDefined();
         expect(res.nodes).toEqual([node1, node2, node3]);
         expect(res.edges).toEqual([edge, anotherEdge]);
@@ -157,11 +148,8 @@ describe("GraphModelService", (): void => {
         expect(graphModelService.getEventSequenceDiagramGraph).toBeDefined();
       });
       it("Fetching an ES Graph document", async (): Promise<void> => {
-        await graphModelService.saveEventSequenceDiagramGraph(
-          eventSequenceGraph,
-        );
-        const res: EventSequenceDiagramGraph =
-          await graphModelService.getEventSequenceDiagramGraph("1");
+        await graphModelService.saveEventSequenceDiagramGraph(eventSequenceGraph);
+        const res: EventSequenceDiagramGraph = await graphModelService.getEventSequenceDiagramGraph("1");
         expect(res).toBeDefined();
         expect(res.nodes).toEqual([node1, node2]);
         expect(res.edges).toEqual([edge]);
@@ -258,15 +246,13 @@ describe("GraphModelService", (): void => {
         expect(graphModelService.saveFaultTreeGraph).toBeDefined();
       });
       it("Saving a Fault Tree document", async (): Promise<void> => {
-        const res: BaseGraphDocument =
-          await graphModelService.saveFaultTreeGraph(faultTreeGraph);
+        const res: BaseGraphDocument = await graphModelService.saveFaultTreeGraph(faultTreeGraph);
         expect(res).toBeDefined();
         expect(res.nodes).toEqual([node1, node2, node3]);
         expect(res.edges).toEqual([edge1, edge2]);
       });
       it("Updating a Fault Tree document", async (): Promise<void> => {
-        const res: BaseGraphDocument =
-          await graphModelService.saveFaultTreeGraph(updatedFaultTreeGraph);
+        const res: BaseGraphDocument = await graphModelService.saveFaultTreeGraph(updatedFaultTreeGraph);
         expect(res).toBeDefined();
         expect(res.nodes).toEqual([node0, node2, node3]);
         expect(res.edges).toEqual([updatedEdge1, updatedEdge2]);
@@ -278,8 +264,7 @@ describe("GraphModelService", (): void => {
       });
       it("Fetching a Fault Tree document", async (): Promise<void> => {
         await graphModelService.saveFaultTreeGraph(faultTreeGraph);
-        const res: FaultTreeGraph =
-          await graphModelService.getFaultTreeGraph("1");
+        const res: FaultTreeGraph = await graphModelService.getFaultTreeGraph("1");
         expect(res).toBeDefined();
         expect(res.nodes).toEqual([node1, node2, node3]);
         expect(res.edges).toEqual([edge1, edge2]);

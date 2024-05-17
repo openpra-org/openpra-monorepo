@@ -6,8 +6,7 @@ import { NestedModel } from "./templateSchema/nested-model.schema";
 export class EventSequenceDiagram extends NestedModel {}
 
 export type EventSequenceDiagramDocument = EventSequenceDiagram & Document;
-export const EventSequenceDiagramSchema =
-  SchemaFactory.createForClass(EventSequenceDiagram);
+export const EventSequenceDiagramSchema = SchemaFactory.createForClass(EventSequenceDiagram);
 
 // @Schema({ _id: false, versionKey: false })
 // class Outcome {

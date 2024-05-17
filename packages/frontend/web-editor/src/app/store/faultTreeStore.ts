@@ -14,7 +14,7 @@ import {
 } from "reactflow";
 import { initialEdges, initialNodes } from "../../utils/faultTreeData";
 
-export type RFState = {
+export interface RFState {
   nodes: Node[];
   edges: Edge[];
   onNodesChange: OnNodesChange;
@@ -22,7 +22,7 @@ export type RFState = {
   onConnect: OnConnect;
   setNodes: (nodes: Node[]) => void;
   setEdges: (edges: Edge[]) => void;
-};
+}
 /**
  * This is our useStore hook that we can use in our components to get parts of the store and call actions
  * @returns - The state and store functions

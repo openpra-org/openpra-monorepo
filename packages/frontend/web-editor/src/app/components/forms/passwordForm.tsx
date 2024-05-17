@@ -27,17 +27,13 @@ const PasswordForm = ({
       />
     </EuiFormRow>
     <EuiFormRow
-      isInvalid={
-        !(signup.passConfirm === signup.password) && signupButtonClicked
-      }
+      isInvalid={!(signup.passConfirm === signup.password) && signupButtonClicked}
       error="Passwords do not match"
     >
       <EuiFieldPassword
         type="dual"
         placeholder="Confirm Password"
-        isInvalid={
-          !(signup.passConfirm === signup.password) && signupButtonClicked
-        }
+        isInvalid={!(signup.passConfirm === signup.password) && signupButtonClicked}
         value={signup.passConfirm}
         onChange={(e): void => {
           setSignup({

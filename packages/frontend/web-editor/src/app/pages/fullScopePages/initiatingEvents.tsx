@@ -44,9 +44,9 @@ export function EditableTable(): JSX.Element | null {
   });
   const [originalColumnId, setOriginalColumnId] = useState(""); // Tracks the original id of the editing column
   const [editingColumn, setEditingColumn] = useState<Column | null>(null); // Holds the column being edited
-  const [dropdownOptions, setDropdownOptions] = useState<
-    Column["dropdownOptions"]
-  >([{ number: 1, description: "low" }]);
+  const [dropdownOptions, setDropdownOptions] = useState<Column["dropdownOptions"]>([
+    { number: 1, description: "low" },
+  ]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isInvalid, setIsInvalid] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -55,8 +55,7 @@ export function EditableTable(): JSX.Element | null {
   const [dataGridWidth, setDataGridWidth] = useState("calc(100% - 300px)");
   const [sidePanelWidth, setSidePanelWidth] = useState("300px");
   const [isSidePanelVisible, setIsSidePanelVisible] = useState(false);
-  const [selectedRowIdSidePanel, setSelectedRowIdSidePanel] =
-    useState<string>("");
+  const [selectedRowIdSidePanel, setSelectedRowIdSidePanel] = useState<string>("");
   // // Toggle the side panel and adjust the width of the data grid accordingly
   const toggleSidePanel = () => {
     setIsSidePanelVisible(!isSidePanelVisible);
@@ -76,11 +75,11 @@ export function EditableTable(): JSX.Element | null {
     setToasts(toasts.filter((toast) => toast.id !== removedToast.id));
   };
 
-  type DatagridColumn = {
+  interface DatagridColumn {
     id: string;
     display?: JSX.Element; // Assuming you're using JSX elements for the display property
     displayAsText?: string; // This could be optional based on your logic
-  };
+  }
 
   useEffect(() => {
     const loadFmea = async (): Promise<void> => {
@@ -251,10 +250,7 @@ export function EditableTable(): JSX.Element | null {
     const isInvalid = newColumn.name.trim() === "";
     setIsSubmitted(true);
     if (!isInvalid) {
-      if (
-        newColumn.type == "dropdown" &&
-        newColumn.dropdownOptions.length == 0
-      ) {
+      if (newColumn.type == "dropdown" && newColumn.dropdownOptions.length == 0) {
         showErrorToast();
       } else {
         if (editingColumn) {
@@ -365,9 +361,7 @@ export function EditableTable(): JSX.Element | null {
       <EuiOverlayMask>
         <EuiModal onClose={closeModal}>
           <EuiModalHeader>
-            <EuiModalHeaderTitle>
-              {editingColumn ? "Edit Column" : "Add a New Column"}
-            </EuiModalHeaderTitle>
+            <EuiModalHeaderTitle>{editingColumn ? "Edit Column" : "Add a New Column"}</EuiModalHeaderTitle>
           </EuiModalHeader>
           <EuiModalBody>
             <EuiForm>
@@ -397,7 +391,10 @@ export function EditableTable(): JSX.Element | null {
               </EuiFormRow>
               {newColumn.type === "dropdown" &&
                 dropdownOptions.map((option, index) => (
-                  <EuiFormRow key={index} label={`Option ${index + 1}`}>
+                  <EuiFormRow
+                    key={index}
+                    label={`Option ${index + 1}`}
+                  >
                     <div style={{ display: "flex", alignItems: "center" }}>
                       <EuiFieldNumber
                         value={option.number}
@@ -417,9 +414,7 @@ export function EditableTable(): JSX.Element | null {
                     </div>
                   </EuiFormRow>
                 ))}
-              {newColumn.type === "dropdown" && (
-                <EuiButton onClick={addDropdownOption}>Add Option</EuiButton>
-              )}
+              {newColumn.type === "dropdown" && <EuiButton onClick={addDropdownOption}>Add Option</EuiButton>}
             </EuiForm>
           </EuiModalBody>
           <EuiModalFooter>
@@ -429,7 +424,10 @@ export function EditableTable(): JSX.Element | null {
             {/*  </EuiButton>*/}
             {/*)}*/}
             <EuiButton onClick={closeModal}>Cancel</EuiButton>
-            <EuiButton fill onClick={addNewColumn}>
+            <EuiButton
+              fill
+              onClick={addNewColumn}
+            >
               {editingColumn ? "Save Changes" : "Add Column"}
             </EuiButton>
           </EuiModalFooter>
@@ -480,11 +478,7 @@ export function EditableTable(): JSX.Element | null {
                 contentEditable
                 suppressContentEditableWarning
                 onBlur={(e): void => {
-                  updateCell(
-                    rowID,
-                    column.id,
-                    e.currentTarget.textContent ?? "",
-                  );
+                  updateCell(rowID, column.id, e.currentTarget.textContent ?? "");
                 }}
                 // onDoubleClick={() => {
                 //   setEditingCell({ rowIndex, columnId });
@@ -543,9 +537,17 @@ export function EditableTable(): JSX.Element | null {
   return (
     <div>
       {isModalVisible && renderAddColumnModal()}
-      <EuiPageTemplate panelled={false} offset={48} grow={false}>
+      <EuiPageTemplate
+        panelled={false}
+        offset={48}
+        grow={false}
+      >
         <EuiPageTemplate.Section>
-          <EuiButton size={"s"} onClick={addNewRow} style={{ margin: "10px" }}>
+          <EuiButton
+            size={"s"}
+            onClick={addNewRow}
+            style={{ margin: "10px" }}
+          >
             Add Row
           </EuiButton>
           <EuiButton
@@ -571,13 +573,9 @@ export function EditableTable(): JSX.Element | null {
                     rowCount={data.length}
                     renderCellValue={renderCellValue}
                     columnVisibility={{
-                      visibleColumns: datagridColumns.map(
-                        (column: DatagridColumn) => column.id,
-                      ),
+                      visibleColumns: datagridColumns.map((column: DatagridColumn) => column.id),
                       setVisibleColumns: (): void => {
-                        datagridColumns.map(
-                          (column: DatagridColumn) => column.id,
-                        );
+                        datagridColumns.map((column: DatagridColumn) => column.id);
                       },
                     }}
                     toolbarVisibility={{
@@ -631,35 +629,26 @@ export function EditableTable(): JSX.Element | null {
                     {isSidePanelVisible && selectedRowIdSidePanel !== "" && (
                       <EuiForm>
                         {columns
-                          .filter(
-                            (column) =>
-                              column.id !== "actions" &&
-                              column.id !== "details",
-                          )
+                          .filter((column) => column.id !== "actions" && column.id !== "details")
                           .map((column) => {
-                            const row = data.filter(
-                              (r) => r.id == selectedRowIdSidePanel,
-                            );
+                            const row = data.filter((r) => r.id == selectedRowIdSidePanel);
                             console.log(row);
                             const value = row[0].row_data[column.id] as string;
                             console.log(value);
                             return (
-                              <EuiFormRow label={column.name} key={column.id}>
+                              <EuiFormRow
+                                label={column.name}
+                                key={column.id}
+                              >
                                 {column.type === "dropdown" ? (
                                   <EuiSelect
-                                    options={column.dropdownOptions.map(
-                                      (option) => ({
-                                        value: option.number.toString(),
-                                        text: option.number.toString(),
-                                      }),
-                                    )}
+                                    options={column.dropdownOptions.map((option) => ({
+                                      value: option.number.toString(),
+                                      text: option.number.toString(),
+                                    }))}
                                     value={value}
                                     onChange={(e): void => {
-                                      updateCell(
-                                        selectedRowIdSidePanel,
-                                        column.id,
-                                        e.target.value,
-                                      );
+                                      updateCell(selectedRowIdSidePanel, column.id, e.target.value);
                                     }}
                                     style={{ minWidth: "100px" }}
                                   />
@@ -667,11 +656,7 @@ export function EditableTable(): JSX.Element | null {
                                   <EuiFieldText
                                     value={value}
                                     onChange={(e): void => {
-                                      updateCell(
-                                        selectedRowIdSidePanel,
-                                        column.id,
-                                        e.target.value,
-                                      );
+                                      updateCell(selectedRowIdSidePanel, column.id, e.target.value);
                                     }}
                                   />
                                 )}
@@ -707,9 +692,18 @@ export function InitiatingEventAnalysis(): JSX.Element {
 export function InitiatingEvents(): JSX.Element {
   return (
     <Routes>
-      <Route path="" element={<InitiatingEventsList />} />
-      <Route path=":intiatingEventId" element={<InitiatorList />} />
-      <Route path=":intiatingEventId/:initiator" element={<EditableTable />} />
+      <Route
+        path=""
+        element={<InitiatingEventsList />}
+      />
+      <Route
+        path=":intiatingEventId"
+        element={<InitiatorList />}
+      />
+      <Route
+        path=":intiatingEventId/:initiator"
+        element={<EditableTable />}
+      />
     </Routes>
   );
 }

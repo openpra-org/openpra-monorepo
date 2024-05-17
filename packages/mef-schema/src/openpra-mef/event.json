@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema#",
+  "$id": "https://openpra.org/schema/v1/openpra-mef/event.json",
+  "title": "Event Schema",
+  "description": "Representation of a base class for an event in a fault tree.",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Identifier for the event node."
+    },
+    "typecode": {
+      "$ref": "./identifier/typecode.json"
+    },
+    "uuid": {
+      "$ref": "./identifier/uuid.json"
+    },
+    "parents": {
+      "type": "array",
+      "description": "List of unique parent events. This is a simplification as JSON does not support sets directly.",
+      "items": {
+        "$ref": "#"
+      },
+      "uniqueItems": true
+    }
+  },
+  "required": ["name", "parents"],
+  "examples": [
+    {
+      "name": "EventA",
+      "parents": []
+    },
+    {
+      "name": "EventB",
+      "parents": [
+        {
+          "name": "EventA",
+          "parents": []
+        }
+      ]
+    },
+    {
+      "name": "EventC",
+      "parents": [
+        {
+          "name": "EventB",
+          "parents": [
+            {
+              "name": "EventA",
+              "parents": []
+            }
+          ]
+        },
+        {
+          "name": "EventA",
+          "parents": []
+        }
+      ]
+    }
+  ]
+}

@@ -6,6 +6,4 @@ import { NestedModel } from "./templateSchema/nested-model.schema";
 export class MechanisticSourceTerm extends NestedModel {}
 
 export type MechanisticSourceTermDocument = MechanisticSourceTerm & Document;
-export const MechanisticSourceTermSchema = SchemaFactory.createForClass(
-  MechanisticSourceTerm,
-);
+export const MechanisticSourceTermSchema = SchemaFactory.createForClass(MechanisticSourceTerm);

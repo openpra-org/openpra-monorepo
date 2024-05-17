@@ -9,7 +9,7 @@ of [OpenPRA App](https://app.op), including the frontend, backend,
 wrappers for underlying C/C++ engines, shared TypeScript definitions, and
 utility packages for common functions.
 
-For instance, the `openpra-json-schema` package centralizes the
+For instance, the `mef-schema` package centralizes the
 [OpenPRA-MEF (Model Exchange Format) definitions](https://docs.openpra.org/en/model-exchange-formats),
 while the
 `shared-types` package leverages these definitions to create TypeScript types
@@ -42,6 +42,7 @@ Included within this monorepo are the following packages:
 
 - `engine-scram-node`: Node.js wrappers for the `SCRAM` C/C++ engine.
 - `frontend-web-editor`: A React v18 and TypeScript-based frontend UI.
+- `mef-schema`: OpenPRA MEF JSON Schema definitions.
 - `model-generator`: A tool for creating models from predefined schemas.
 - `shared-types`: Shared TypeScript definitions for consistent data structuring.
 - `web-backend`: A NestJS and TypeScript backend service.

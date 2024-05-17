@@ -36,7 +36,7 @@ import TransferGateIcon from "../../../assets/images/faultTreeNodeIcons/Transfer
 import BasicEventIcon from "../../../assets/images/faultTreeNodeIcons/BasicEventIcon.svg";
 import HouseEventIcon from "../../../assets/images/faultTreeNodeIcons/HouseEventIcon.svg";
 
-export type TreeNodeContextMenuProps = {
+export interface TreeNodeContextMenuProps {
   id: string;
   top: number | false | undefined;
   left: number | false | undefined;
@@ -44,7 +44,7 @@ export type TreeNodeContextMenuProps = {
   bottom: number | false | undefined;
   onClick?: () => void;
   addToastHandler?: (type: string) => void;
-};
+}
 
 const FaultTreeNodeContextMenu = ({
   id,
@@ -55,8 +55,7 @@ const FaultTreeNodeContextMenu = ({
   addToastHandler,
   ...props
 }: TreeNodeContextMenuProps): JSX.Element => {
-  const { handleContextMenuClick, validateFaultTreeContextMenuClick } =
-    UseFaultTreeContextMenuClick(id);
+  const { handleContextMenuClick, validateFaultTreeContextMenuClick } = UseFaultTreeContextMenuClick(id);
   const basePanelItems = [
     {
       name: UPDATE_NODE_TYPE,
@@ -72,7 +71,11 @@ const FaultTreeNodeContextMenu = ({
     {
       name: "Delete",
       icon: (
-        <EuiIcon type={TRASH} size={MEDIUM} color={EDITOR_BLUE_COLOR}></EuiIcon>
+        <EuiIcon
+          type={TRASH}
+          size={MEDIUM}
+          color={EDITOR_BLUE_COLOR}
+        ></EuiIcon>
       ),
       panel: 2,
     },
@@ -109,49 +112,84 @@ const FaultTreeNodeContextMenu = ({
       items: [
         {
           name: AND_GATE_LABEL,
-          icon: <EuiIcon type={AndGateIcon} size={LARGE}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={AndGateIcon}
+              size={LARGE}
+            ></EuiIcon>
+          ),
           onClick: async () => {
             await onItemClick(id, AND_GATE);
           },
         },
         {
           name: OR_GATE_LABEL,
-          icon: <EuiIcon type={OrGateIcon} size={LARGE}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={OrGateIcon}
+              size={LARGE}
+            ></EuiIcon>
+          ),
           onClick: async () => {
             await onItemClick(id, OR_GATE);
           },
         },
         {
           name: ATLEAST_GATE_LABEL,
-          icon: <EuiIcon type={AtLeastIcon} size={LARGE}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={AtLeastIcon}
+              size={LARGE}
+            ></EuiIcon>
+          ),
           onClick: async () => {
             await onItemClick(id, ATLEAST_GATE);
           },
         },
         {
           name: NOT_GATE_LABEL,
-          icon: <EuiIcon type={NotGateIcon} size={LARGE}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={NotGateIcon}
+              size={LARGE}
+            ></EuiIcon>
+          ),
           onClick: async () => {
             await onItemClick(id, NOT_GATE);
           },
         },
         {
           name: TRANSFER_GATE_LABEL,
-          icon: <EuiIcon type={TransferGateIcon} size={LARGE}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={TransferGateIcon}
+              size={LARGE}
+            ></EuiIcon>
+          ),
           onClick: async () => {
             await onItemClick(id, TRANSFER_GATE);
           },
         },
         {
           name: HOUSE_EVENT_LABEL,
-          icon: <EuiIcon type={HouseEventIcon} size={LARGE}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={HouseEventIcon}
+              size={LARGE}
+            ></EuiIcon>
+          ),
           onClick: async () => {
             await onItemClick(id, HOUSE_EVENT);
           },
         },
         {
           name: BASIC_EVENT_LABEL,
-          icon: <EuiIcon type={BasicEventIcon} size={LARGE}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={BasicEventIcon}
+              size={LARGE}
+            ></EuiIcon>
+          ),
           onClick: async () => {
             await onItemClick(id, BASIC_EVENT);
           },
@@ -177,7 +215,13 @@ const FaultTreeNodeContextMenu = ({
       ],
     },
   ];
-  return <EuiContextMenu initialPanelId={0} panels={panels} size={"s"} />;
+  return (
+    <EuiContextMenu
+      initialPanelId={0}
+      panels={panels}
+      size={"s"}
+    />
+  );
 };
 
 export { FaultTreeNodeContextMenu };

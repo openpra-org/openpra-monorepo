@@ -6,6 +6,7 @@
   "main": "./src/index.js",
   "typings": "./src/index.d.ts",
   "dependencies": {
-    "tslib": "2.5.2"
+    "tslib": "2.5.2",
+    "shared-types": "0.0.1"
   }
 }

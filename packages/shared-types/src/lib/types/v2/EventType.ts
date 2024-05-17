@@ -12,7 +12,7 @@ import { IDType } from "./IDType";
  * @remarks Type definition for EventType.
  *  It is an object type with optional id and label properties. The id is of IDType and the label is of LabelType.
  */
-export type EventType = {
+export interface EventType {
   id?: IDType;
   label?: LabelType;
-};
+}

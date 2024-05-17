@@ -39,14 +39,22 @@ export function MemberForm(): JSX.Element {
     <EuiSkeletonLoading
       isLoading={isLoading}
       loadingContent={
-        <EuiPageTemplate panelled={false} grow={false} restrictWidth={true}>
+        <EuiPageTemplate
+          panelled={false}
+          grow={false}
+          restrictWidth={true}
+        >
           <EuiPageTemplate.Section>
             <EuiText>Loading Data...</EuiText>
           </EuiPageTemplate.Section>
         </EuiPageTemplate>
       }
       loadedContent={
-        <EuiPageTemplate panelled={false} grow={false} restrictWidth={true}>
+        <EuiPageTemplate
+          panelled={false}
+          grow={false}
+          restrictWidth={true}
+        >
           <EuiPageHeader
             pageTitle="Profile"
             paddingSize="l"
@@ -61,9 +69,7 @@ export function MemberForm(): JSX.Element {
                   defaultValue={currentUer?.firstName}
                   onChange={(event): void => {
                     setCurrentUser((pastMemberState) =>
-                      pastMemberState
-                        ? { ...pastMemberState, firstName: event.target.value }
-                        : undefined,
+                      pastMemberState ? { ...pastMemberState, firstName: event.target.value } : undefined,
                     );
                   }}
                 />
@@ -75,9 +81,7 @@ export function MemberForm(): JSX.Element {
                   data-testid="edit-user-last-name"
                   onChange={(event): void => {
                     setCurrentUser((pastMemberState) =>
-                      pastMemberState
-                        ? { ...pastMemberState, lastName: event.target.value }
-                        : undefined,
+                      pastMemberState ? { ...pastMemberState, lastName: event.target.value } : undefined,
                     );
                   }}
                 />
@@ -89,9 +93,7 @@ export function MemberForm(): JSX.Element {
                   defaultValue={currentUer?.username}
                   onChange={(event): void => {
                     setCurrentUser((pastMemberState) =>
-                      pastMemberState
-                        ? { ...pastMemberState, username: event.target.value }
-                        : undefined,
+                      pastMemberState ? { ...pastMemberState, username: event.target.value } : undefined,
                     );
                   }}
                 />
@@ -103,9 +105,7 @@ export function MemberForm(): JSX.Element {
                   data-testid="edit-user-email"
                   onChange={(event): void => {
                     setCurrentUser((pastMemberState) =>
-                      pastMemberState
-                        ? { ...pastMemberState, email: event.target.value }
-                        : undefined,
+                      pastMemberState ? { ...pastMemberState, email: event.target.value } : undefined,
                     );
                   }}
                 />
@@ -131,10 +131,7 @@ export function MemberForm(): JSX.Element {
                   data-testid="edit-user-submit"
                   onClick={(): void => {
                     if (currentUer !== undefined) {
-                      void ApiManager.updateUser(
-                        currentUer.id,
-                        JSON.stringify(currentUer),
-                      );
+                      void ApiManager.updateUser(currentUer.id, JSON.stringify(currentUer));
                       // TODO: State update parent component here
                     }
                   }}

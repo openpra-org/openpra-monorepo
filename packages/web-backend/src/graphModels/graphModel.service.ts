@@ -8,18 +8,9 @@ import {
   EventSequenceDiagramGraph,
   EventSequenceDiagramGraphDocument,
 } from "../schemas/graphs/event-sequence-diagram-graph.schema";
-import {
-  FaultTreeGraph,
-  FaultTreeGraphDocument,
-} from "../schemas/graphs/fault-tree-graph.schema";
-import {
-  BaseGraph,
-  BaseGraphDocument,
-} from "../schemas/graphs/base-graph.schema";
-import {
-  EventTreeGraph,
-  EventTreeGraphDocument,
-} from "../schemas/graphs/event-tree-graph.schema";
+import { FaultTreeGraph, FaultTreeGraphDocument } from "../schemas/graphs/fault-tree-graph.schema";
+import { BaseGraph, BaseGraphDocument } from "../schemas/graphs/base-graph.schema";
+import { EventTreeGraph, EventTreeGraphDocument } from "../schemas/graphs/event-tree-graph.schema";
 
 /**
  * Enum of supported graph types
@@ -47,13 +38,8 @@ export class GraphModelService {
    * @param eventSequenceId - Event sequence ID
    * @returns A promise with the event sequence diagram graph
    */
-  async getEventSequenceDiagramGraph(
-    eventSequenceId: string,
-  ): Promise<EventSequenceDiagramGraph> {
-    const result = await this.eventSequenceDiagramGraphModel.findOne(
-      { eventSequenceId: eventSequenceId },
-      { _id: 0 },
-    );
+  async getEventSequenceDiagramGraph(eventSequenceId: string): Promise<EventSequenceDiagramGraph> {
+    const result = await this.eventSequenceDiagramGraphModel.findOne({ eventSequenceId: eventSequenceId }, { _id: 0 });
     if (result !== null) {
       return result;
     } else {
@@ -72,9 +58,7 @@ export class GraphModelService {
    * @param body - The current state of the event sequence diagram graph
    * @returns A promise with an event sequence diagram graph in it
    */
-  async saveEventSequenceDiagramGraph(
-    body: Partial<EventSequenceDiagramGraph>,
-  ): Promise<EventSequenceDiagramGraph> {
+  async saveEventSequenceDiagramGraph(body: Partial<EventSequenceDiagramGraph>): Promise<EventSequenceDiagramGraph> {
     try {
       const newGraph = new this.eventSequenceDiagramGraphModel(body);
       newGraph.eventSequenceId = body.eventSequenceId;
@@ -115,10 +99,7 @@ export class GraphModelService {
    * @returns A promise with the fault tree diagram graph
    */
   async getFaultTreeGraph(faultTreeId: string): Promise<FaultTreeGraph> {
-    const result = this.faultTreeGraphModel.findOne(
-      { faultTreeId: faultTreeId },
-      { _id: 0 },
-    );
+    const result = this.faultTreeGraphModel.findOne({ faultTreeId: faultTreeId }, { _id: 0 });
     if (result !== null) {
       return result;
     } else {
@@ -156,10 +137,7 @@ export class GraphModelService {
    * @returns A promise with the event tree diagram graph
    */
   async getEventTreeGraph(eventTreeId: string): Promise<EventTreeGraph> {
-    const result = this.eventTreeGraphModel.findOne(
-      { eventTreeId: eventTreeId },
-      { _id: 0 },
-    );
+    const result = this.eventTreeGraphModel.findOne({ eventTreeId: eventTreeId }, { _id: 0 });
     if (result !== null) {
       return result;
     } else {
@@ -180,11 +158,7 @@ export class GraphModelService {
    * @param label - New label for the node/edge
    * @returns A promise with boolean confirmation of the update operation
    */
-  async updateESLabel(
-    id: string,
-    type: string,
-    label: string,
-  ): Promise<boolean> {
+  async updateESLabel(id: string, type: string, label: string): Promise<boolean> {
     try {
       // check if type is valid
       if (!["node", "edge"].includes(type)) {
@@ -199,12 +173,9 @@ export class GraphModelService {
       filter[`${attribute}.id`] = id;
       set[`${attribute}.$.data.label`] = label;
 
-      const result = await this.eventSequenceDiagramGraphModel.updateOne(
-        filter,
-        {
-          $set: set,
-        },
-      );
+      const result = await this.eventSequenceDiagramGraphModel.updateOne(filter, {
+        $set: set,
+      });
       return result.modifiedCount > 0;
     } catch (exception) {
       const error = exception as Error;
@@ -225,20 +196,10 @@ export class GraphModelService {
       if (existingGraph === null) return false;
 
       existingGraph.nodes = existingGraph.nodes
-        .filter(
-          (node) =>
-            ![...deletedSubgraph.nodes, ...updatedSubgraph.nodes].some(
-              (n) => n.id === node.id,
-            ),
-        )
+        .filter((node) => ![...deletedSubgraph.nodes, ...updatedSubgraph.nodes].some((n) => n.id === node.id))
         .concat(...updatedSubgraph.nodes);
       existingGraph.edges = existingGraph.edges
-        .filter(
-          (edge) =>
-            ![...deletedSubgraph.edges, ...updatedSubgraph.edges].some(
-              (e) => e.id === edge.id,
-            ),
-        )
+        .filter((edge) => ![...deletedSubgraph.edges, ...updatedSubgraph.edges].some((e) => e.id === edge.id))
         .concat(...updatedSubgraph.edges);
 
       await existingGraph.save();
@@ -257,19 +218,14 @@ export class GraphModelService {
    * @param modelType - Type of graph model
    * @returns Graph document, after saving it in the database
    */
-  private async saveGraph(
-    graph: BaseGraphDocument,
-    body: Partial<BaseGraph>,
-    modelType: GraphTypes,
-  ): Promise<boolean> {
+  private async saveGraph(graph: BaseGraphDocument, body: Partial<BaseGraph>, modelType: GraphTypes): Promise<boolean> {
     if (graph !== null) {
       graph.nodes = body.nodes;
       graph.edges = body.edges;
       await graph.save();
     } else {
       const newGraph = this.getModel(modelType, body);
-      newGraph.id =
-        new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
+      newGraph.id = new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
       newGraph._id = new mongoose.Types.ObjectId();
       await newGraph.save();
     }
@@ -283,10 +239,7 @@ export class GraphModelService {
    * @returns A hydrated document of the graph document
    * @throws Error If model type is incorrect
    */
-  private getModel(
-    modelType: GraphTypes,
-    body: Partial<BaseGraph>,
-  ): HydratedDocument<BaseGraphDocument> {
+  private getModel(modelType: GraphTypes, body: Partial<BaseGraph>): HydratedDocument<BaseGraphDocument> {
     switch (modelType) {
       case GraphTypes.EventSequence:
         return new this.eventSequenceDiagramGraphModel(body);
@@ -300,9 +253,7 @@ export class GraphModelService {
   }
 
   private generateUUID(): string {
-    return (
-      new Date().getTime().toString(36) + Math.random().toString(36).slice(2)
-    );
+    return new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
   }
 
   private getDefaultEventSequenceDiagram(): Partial<EventSequenceDiagramGraphDocument> {

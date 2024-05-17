@@ -6,6 +6,4 @@ import { NestedModel } from "./templateSchema/nested-model.schema";
 export class OperatingStateAnalysis extends NestedModel {}
 
 export type OperatingStateAnalysisDocument = OperatingStateAnalysis & Document;
-export const OperatingStateAnalysisSchema = SchemaFactory.createForClass(
-  OperatingStateAnalysis,
-);
+export const OperatingStateAnalysisSchema = SchemaFactory.createForClass(OperatingStateAnalysis);

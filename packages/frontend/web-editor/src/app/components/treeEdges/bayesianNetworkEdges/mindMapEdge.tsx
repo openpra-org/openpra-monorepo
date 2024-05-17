@@ -1,10 +1,4 @@
-import {
-  BaseEdge,
-  EdgeProps,
-  getMarkerEnd,
-  getStraightPath,
-  MarkerType,
-} from "reactflow";
+import { BaseEdge, EdgeProps, getMarkerEnd, getStraightPath, MarkerType } from "reactflow";
 
 function MindMapEdge(props: EdgeProps) {
   const { sourceX, sourceY, targetX, targetY, style } = props;
@@ -25,4 +19,3 @@ function MindMapEdge(props: EdgeProps) {
 }
 
 export default MindMapEdge;
-

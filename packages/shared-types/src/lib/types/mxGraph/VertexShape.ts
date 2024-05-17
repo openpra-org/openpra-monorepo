@@ -2,14 +2,14 @@
  * Basic shape parameters, used and optionally overridden by child classes
  * {{RADIUS: number, WIDTH: number, HEIGHT: number, GATE: number}}
  */
-type VertexShape = {
+interface VertexShape {
   HEIGHT: number;
   WIDTH: number;
   RADIUS?: number;
   GATE?: number;
   SUB_LABEL_HEIGHT: number;
   SUB_LABEL_OFFSET: number;
-};
+}
 export default VertexShape;
 
 export const DEFAULT_SHAPE = {

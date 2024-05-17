@@ -3,7 +3,7 @@ import { IAdditionalIconProps } from "./additionalIconProps";
 /**
  * Represents the properties of the icon.
  */
-export type IIconProps = {
+export interface IIconProps {
   /**
    * @param width - icon width
    */
@@ -20,4 +20,4 @@ export type IIconProps = {
    * @param viewBox - set view box property of the svg
    */
   viewBox?: string;
-};
+}

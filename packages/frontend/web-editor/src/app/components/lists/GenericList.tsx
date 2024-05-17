@@ -1,31 +1,18 @@
 import { ReactElement } from "react";
-import {
-  TypedModelJSON,
-  typedModelType,
-} from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
-import {
-  NestedModelJSON,
-  NestedModelType,
-} from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+import { TypedModelJSON, typedModelType } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { GenericListItem } from "./GenericListItem";
 
-type CreateGenericListPropTypes<T> = {
+interface CreateGenericListPropTypes<T> {
   modelList: T[];
   endpoint: string;
   postTypedEndpoint?: (data: Partial<TypedModelJSON>) => Promise<void>;
-  patchTypedEndpoint?: (
-    modelId: number,
-    userId: number,
-    data: Partial<TypedModelJSON>,
-  ) => Promise<void>;
+  patchTypedEndpoint?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
   deleteTypedEndpoint?: (id: number) => Promise<void>;
   postNestedEndpoint?: (data: NestedModelJSON) => Promise<void>;
-  patchNestedEndpoint?: (
-    modelId: string,
-    data: Partial<NestedModelJSON>,
-  ) => Promise<void>;
+  patchNestedEndpoint?: (modelId: string, data: Partial<NestedModelJSON>) => Promise<void>;
   deleteNestedEndpoint?: (id: string) => Promise<void>;
-};
+}
 
 function CreateGenericList<T extends typedModelType | NestedModelType>(
   props: CreateGenericListPropTypes<T>,

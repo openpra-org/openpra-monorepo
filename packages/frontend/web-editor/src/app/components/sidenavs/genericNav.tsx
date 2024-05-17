@@ -5,9 +5,7 @@ import { useNavigate } from "react-router-dom";
 function NavInsideNav(): JSX.Element {
   const navigate = useNavigate();
   const [isSideNavOpenOnMobile, setIsSideNavOpenOnMobile] = useState(false);
-  const [selectedItemName, setSelectedItem] = useState<string | null>(
-    "Personal Data",
-  );
+  const [selectedItemName, setSelectedItem] = useState<string | null>("Personal Data");
   const toggleOpenOnMobile = (): void => {
     setIsSideNavOpenOnMobile(!isSideNavOpenOnMobile);
   };

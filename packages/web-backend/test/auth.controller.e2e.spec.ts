@@ -6,10 +6,7 @@ import { CollabService } from "../src/collab/collab.service";
 import { AuthService } from "../src/auth/auth.service";
 import { AuthController } from "../src/auth/auth.controller";
 import { User, UserSchema } from "../src/collab/schemas/user.schema";
-import {
-  UserCounter,
-  UserCounterSchema,
-} from "../src/collab/schemas/user-counter.schema";
+import { UserCounter, UserCounterSchema } from "../src/collab/schemas/user-counter.schema";
 
 describe("AuthController", () => {
   let authService: AuthService;
@@ -34,9 +31,7 @@ describe("AuthController", () => {
     authController = module.get<AuthController>(AuthController);
     collabService = module.get<CollabService>(CollabService);
     connection = await module.get(getConnectionToken());
-    await connection
-      .collection("users")
-      .findOneAndDelete({ username: "testUser" }); //delete test user before each test
+    await connection.collection("users").findOneAndDelete({ username: "testUser" }); //delete test user before each test
   });
 
   afterAll(async () => {
@@ -45,9 +40,7 @@ describe("AuthController", () => {
 
   afterEach(async () => {
     //delete test user after each test
-    await connection
-      .collection("users")
-      .findOneAndDelete({ username: "testUser" });
+    await connection.collection("users").findOneAndDelete({ username: "testUser" });
   });
 
   describe("AuthController", () => {

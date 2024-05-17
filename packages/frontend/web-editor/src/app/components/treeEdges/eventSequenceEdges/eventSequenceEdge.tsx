@@ -10,9 +10,7 @@ import { UseToastContext } from "../../../providers/toastProvider";
 import styles from "./styles/edgeType.module.css";
 import { EventSequenceEdgeProps } from "./eventSequenceEdgeType";
 
-function EventSequenceEdge(
-  type: string,
-): MemoExoticComponent<React.ComponentType<EdgeProps<EventSequenceEdgeProps>>> {
+function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentType<EdgeProps<EventSequenceEdgeProps>>> {
   return memo(
     ({
       id,
@@ -73,7 +71,12 @@ function EventSequenceEdge(
         type === "normal" ? (
           <span style={{ width: 0 }}></span>
         ) : (
-          <foreignObject x={10} y={-10} width={40} height={30}>
+          <foreignObject
+            x={10}
+            y={-10}
+            width={40}
+            height={30}
+          >
             <EuiFieldText
               className={cx(stylesMap.edge_label)}
               placeholder="Label"
@@ -97,7 +100,11 @@ function EventSequenceEdge(
             height={10}
             className={stylesMap.edgeButton}
           />
-          <text className={stylesMap.edgeButtonText} y={3} x={-3}>
+          <text
+            className={stylesMap.edgeButtonText}
+            y={3}
+            x={-3}
+          >
             +
           </text>
           {edgeLabelElement}
@@ -109,9 +116,7 @@ function EventSequenceEdge(
           <path
             id={id}
             style={style}
-            className={
-              data.tentative ? stylesMap.placeholderPath : stylesMap.edgePath
-            }
+            className={data.tentative ? stylesMap.placeholderPath : stylesMap.edgePath}
             d={edgePath}
             markerEnd={markerEnd}
           />

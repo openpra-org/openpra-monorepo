@@ -7,13 +7,7 @@ export default class User {
   private readonly email: string;
   private readonly password: string;
 
-  constructor(
-    username = "",
-    firstName = "",
-    lastName = "",
-    email = "",
-    password = "",
-  ) {
+  constructor(username = "", firstName = "", lastName = "", email = "", password = "") {
     this.username = username;
     this.firstName = firstName;
     this.lastName = lastName;

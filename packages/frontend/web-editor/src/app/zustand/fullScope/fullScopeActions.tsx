@@ -11,9 +11,7 @@ import { UseGlobalStore } from "../Store";
 
 export const setFullScope = async (): Promise<void> => {
   try {
-    const fullScopeList: FullScopeModelType[] = await GetFullScopeModels(
-      ApiManager.getCurrentUser().user_id,
-    );
+    const fullScopeList: FullScopeModelType[] = await GetFullScopeModels(ApiManager.getCurrentUser().user_id);
     UseGlobalStore.setState({
       fullScope: fullScopeList,
     });
@@ -22,9 +20,7 @@ export const setFullScope = async (): Promise<void> => {
   }
 };
 
-export const addFullScope = async (
-  data: Partial<TypedModelJSON>,
-): Promise<void> => {
+export const addFullScope = async (data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const fsr: FullScopeModelType = await PostFullScope(data);
     UseGlobalStore.setState((state) => ({
@@ -35,11 +31,7 @@ export const addFullScope = async (
   }
 };
 
-export const editFullScope = async (
-  modelId: number,
-  userId: number,
-  data: Partial<TypedModelJSON>,
-): Promise<void> => {
+export const editFullScope = async (modelId: number, userId: number, data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const fsr: FullScopeModelType = await PatchFullScope(modelId, userId, data);
     UseGlobalStore.setState((state) => ({
@@ -61,9 +53,7 @@ export const deleteFullScope = async (id: number): Promise<void> => {
     await DeleteFullScope(id);
 
     UseGlobalStore.setState((state) => ({
-      fullScope: state.fullScope.filter(
-        (fs: FullScopeModelType) => fs.id !== id,
-      ),
+      fullScope: state.fullScope.filter((fs: FullScopeModelType) => fs.id !== id),
     }));
   } catch (error) {
     console.error("Error deleting full scope:", error);

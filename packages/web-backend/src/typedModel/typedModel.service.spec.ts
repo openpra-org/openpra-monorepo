@@ -2,23 +2,11 @@ import { Connection } from "mongoose";
 import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { Test, TestingModule } from "@nestjs/testing";
 import { expect } from "@playwright/test";
-import {
-  ModelCounter,
-  ModelCounterSchema,
-} from "../schemas/model-counter.schema";
+import { ModelCounter, ModelCounterSchema } from "../schemas/model-counter.schema";
 import { TypedModelService } from "./typedModel.service";
-import {
-  InternalEvents,
-  InternalEventsSchema,
-} from "./schemas/internal-events.schema";
-import {
-  InternalHazards,
-  InternalHazardsSchema,
-} from "./schemas/internal-hazards.schema";
-import {
-  ExternalHazards,
-  ExternalHazardsSchema,
-} from "./schemas/external-hazards.schema";
+import { InternalEvents, InternalEventsSchema } from "./schemas/internal-events.schema";
+import { InternalHazards, InternalHazardsSchema } from "./schemas/internal-hazards.schema";
+import { ExternalHazards, ExternalHazardsSchema } from "./schemas/external-hazards.schema";
 import { FullScope, FullScopeSchema } from "./schemas/full-scope.schema";
 import { createFullScopeRequest } from "./stubs/createFullScopeRequest.stub";
 import { createInternalEventRequest } from "./stubs/createInternalEventRequest.stub";
@@ -82,13 +70,10 @@ describe("CollabService", () => {
 
     it("should create a new internal event model", async () => {
       const internalEventObject = createInternalEventRequest;
-      const internalEvent =
-        await typedmodelService.createInternalEventModel(internalEventObject);
+      const internalEvent = await typedmodelService.createInternalEventModel(internalEventObject);
       expect(internalEvent).toBeDefined();
       expect(internalEvent.label.name).toEqual(internalEventObject.label.name);
-      expect(internalEvent.label.description).toEqual(
-        internalEventObject.label.description,
-      );
+      expect(internalEvent.label.description).toEqual(internalEventObject.label.description);
       expect(internalEvent.users).toEqual(internalEventObject.users);
       expect(internalEvent.initiatingEvents).toEqual([]);
       expect(internalEvent.eventSequenceDiagrams).toEqual([]);
@@ -109,15 +94,10 @@ describe("CollabService", () => {
 
     it("should create a new internal hazard model", async () => {
       const internalHazardObject = createInternalHazardRequest;
-      const internalHazard =
-        await typedmodelService.createInternalHazardModel(internalHazardObject);
+      const internalHazard = await typedmodelService.createInternalHazardModel(internalHazardObject);
       expect(internalHazard).toBeDefined();
-      expect(internalHazard.label.name).toEqual(
-        internalHazardObject.label.name,
-      );
-      expect(internalHazard.label.description).toEqual(
-        internalHazardObject.label.description,
-      );
+      expect(internalHazard.label.name).toEqual(internalHazardObject.label.name);
+      expect(internalHazard.label.description).toEqual(internalHazardObject.label.description);
       expect(internalHazard.users).toEqual(internalHazardObject.users);
       expect(internalHazard.initiatingEvents).toEqual([]);
       expect(internalHazard.eventSequenceDiagrams).toEqual([]);
@@ -138,15 +118,10 @@ describe("CollabService", () => {
 
     it("should create a new external hazard model", async () => {
       const externalHazardObject = createExternalHazardRequest;
-      const externalHazard =
-        await typedmodelService.createExternalHazardModel(externalHazardObject);
+      const externalHazard = await typedmodelService.createExternalHazardModel(externalHazardObject);
       expect(externalHazard).toBeDefined();
-      expect(externalHazard.label.name).toEqual(
-        externalHazardObject.label.name,
-      );
-      expect(externalHazard.label.description).toEqual(
-        externalHazardObject.label.description,
-      );
+      expect(externalHazard.label.name).toEqual(externalHazardObject.label.name);
+      expect(externalHazard.label.description).toEqual(externalHazardObject.label.description);
       expect(externalHazard.users).toEqual(externalHazardObject.users);
       expect(externalHazard.initiatingEvents).toEqual([]);
       expect(externalHazard.eventSequenceDiagrams).toEqual([]);
@@ -167,13 +142,10 @@ describe("CollabService", () => {
 
     it("should create a new full scope model", async () => {
       const fullScopeObject = createFullScopeRequest;
-      const fullScope =
-        await typedmodelService.createFullScopeModel(fullScopeObject);
+      const fullScope = await typedmodelService.createFullScopeModel(fullScopeObject);
       expect(fullScope).toBeDefined();
       expect(fullScope.label.name).toEqual(fullScopeObject.label.name);
-      expect(fullScope.label.description).toEqual(
-        fullScopeObject.label.description,
-      );
+      expect(fullScope.label.description).toEqual(fullScopeObject.label.description);
       expect(fullScope.users).toEqual(fullScopeObject.users);
       expect(fullScope.initiatingEvents).toEqual([]);
       expect(fullScope.eventSequenceDiagrams).toEqual([]);
@@ -198,12 +170,8 @@ describe("CollabService", () => {
       const internalEvents = await typedmodelService.getInternalEvents(1);
       expect(internalEvents).toBeDefined();
       expect(internalEvents.length).toEqual(1);
-      expect(internalEvents[0].label.name).toEqual(
-        internalEventObject.label.name,
-      );
-      expect(internalEvents[0].label.description).toEqual(
-        internalEventObject.label.description,
-      );
+      expect(internalEvents[0].label.name).toEqual(internalEventObject.label.name);
+      expect(internalEvents[0].label.description).toEqual(internalEventObject.label.description);
       expect(internalEvents[0].users).toEqual(internalEventObject.users);
       expect(internalEvents[0].initiatingEvents).toEqual([]);
       expect(internalEvents[0].eventSequenceDiagrams).toEqual([]);
@@ -230,19 +198,11 @@ describe("CollabService", () => {
       const internalEvents = await typedmodelService.getInternalEvents(1);
       expect(internalEvents).toBeDefined();
       expect(internalEvents.length).toEqual(2);
-      expect(internalEvents[0].label.name).toEqual(
-        internalEventObject1.label.name,
-      );
-      expect(internalEvents[0].label.description).toEqual(
-        internalEventObject1.label.description,
-      );
+      expect(internalEvents[0].label.name).toEqual(internalEventObject1.label.name);
+      expect(internalEvents[0].label.description).toEqual(internalEventObject1.label.description);
       expect(internalEvents[0].users).toEqual(internalEventObject1.users);
-      expect(internalEvents[1].label.name).toEqual(
-        internalEventObject2.label.name,
-      );
-      expect(internalEvents[1].label.description).toEqual(
-        internalEventObject2.label.description,
-      );
+      expect(internalEvents[1].label.name).toEqual(internalEventObject2.label.name);
+      expect(internalEvents[1].label.description).toEqual(internalEventObject2.label.description);
       expect(internalEvents[1].users).toEqual(internalEventObject2.users);
     });
   });
@@ -258,12 +218,8 @@ describe("CollabService", () => {
       const internalHazards = await typedmodelService.getInternalHazards(1);
       expect(internalHazards).toBeDefined();
       expect(internalHazards.length).toEqual(1);
-      expect(internalHazards[0].label.name).toEqual(
-        internalHazardObject.label.name,
-      );
-      expect(internalHazards[0].label.description).toEqual(
-        internalHazardObject.label.description,
-      );
+      expect(internalHazards[0].label.name).toEqual(internalHazardObject.label.name);
+      expect(internalHazards[0].label.description).toEqual(internalHazardObject.label.description);
       expect(internalHazards[0].users).toEqual(internalHazardObject.users);
       expect(internalHazards[0].initiatingEvents).toEqual([]);
       expect(internalHazards[0].eventSequenceDiagrams).toEqual([]);
@@ -290,19 +246,11 @@ describe("CollabService", () => {
       const internalHazards = await typedmodelService.getInternalHazards(1);
       expect(internalHazards).toBeDefined();
       expect(internalHazards.length).toEqual(2);
-      expect(internalHazards[0].label.name).toEqual(
-        internalHazardObject1.label.name,
-      );
-      expect(internalHazards[0].label.description).toEqual(
-        internalHazardObject1.label.description,
-      );
+      expect(internalHazards[0].label.name).toEqual(internalHazardObject1.label.name);
+      expect(internalHazards[0].label.description).toEqual(internalHazardObject1.label.description);
       expect(internalHazards[0].users).toEqual(internalHazardObject1.users);
-      expect(internalHazards[1].label.name).toEqual(
-        internalHazardObject2.label.name,
-      );
-      expect(internalHazards[1].label.description).toEqual(
-        internalHazardObject2.label.description,
-      );
+      expect(internalHazards[1].label.name).toEqual(internalHazardObject2.label.name);
+      expect(internalHazards[1].label.description).toEqual(internalHazardObject2.label.description);
       expect(internalHazards[1].users).toEqual(internalHazardObject2.users);
     });
   });
@@ -318,12 +266,8 @@ describe("CollabService", () => {
       const externalHazards = await typedmodelService.getExternalHazards(1);
       expect(externalHazards).toBeDefined();
       expect(externalHazards.length).toEqual(1);
-      expect(externalHazards[0].label.name).toEqual(
-        externalHazardObject.label.name,
-      );
-      expect(externalHazards[0].label.description).toEqual(
-        externalHazardObject.label.description,
-      );
+      expect(externalHazards[0].label.name).toEqual(externalHazardObject.label.name);
+      expect(externalHazards[0].label.description).toEqual(externalHazardObject.label.description);
       expect(externalHazards[0].users).toEqual(externalHazardObject.users);
       expect(externalHazards[0].initiatingEvents).toEqual([]);
       expect(externalHazards[0].eventSequenceDiagrams).toEqual([]);
@@ -350,19 +294,11 @@ describe("CollabService", () => {
       const externalHazards = await typedmodelService.getExternalHazards(1);
       expect(externalHazards).toBeDefined();
       expect(externalHazards.length).toEqual(2);
-      expect(externalHazards[0].label.name).toEqual(
-        externalHazardObject1.label.name,
-      );
-      expect(externalHazards[0].label.description).toEqual(
-        externalHazardObject1.label.description,
-      );
+      expect(externalHazards[0].label.name).toEqual(externalHazardObject1.label.name);
+      expect(externalHazards[0].label.description).toEqual(externalHazardObject1.label.description);
       expect(externalHazards[0].users).toEqual(externalHazardObject1.users);
-      expect(externalHazards[1].label.name).toEqual(
-        externalHazardObject2.label.name,
-      );
-      expect(externalHazards[1].label.description).toEqual(
-        externalHazardObject2.label.description,
-      );
+      expect(externalHazards[1].label.name).toEqual(externalHazardObject2.label.name);
+      expect(externalHazards[1].label.description).toEqual(externalHazardObject2.label.description);
       expect(externalHazards[1].users).toEqual(externalHazardObject2.users);
     });
   });
@@ -379,9 +315,7 @@ describe("CollabService", () => {
       expect(fullScopes).toBeDefined();
       expect(fullScopes.length).toEqual(1);
       expect(fullScopes[0].label.name).toEqual(fullScopeObject.label.name);
-      expect(fullScopes[0].label.description).toEqual(
-        fullScopeObject.label.description,
-      );
+      expect(fullScopes[0].label.description).toEqual(fullScopeObject.label.description);
       expect(fullScopes[0].users).toEqual(fullScopeObject.users);
       expect(fullScopes[0].initiatingEvents).toEqual([]);
       expect(fullScopes[0].eventSequenceDiagrams).toEqual([]);
@@ -409,14 +343,10 @@ describe("CollabService", () => {
       expect(fullScopes).toBeDefined();
       expect(fullScopes.length).toEqual(2);
       expect(fullScopes[0].label.name).toEqual(fullScopeObject1.label.name);
-      expect(fullScopes[0].label.description).toEqual(
-        fullScopeObject1.label.description,
-      );
+      expect(fullScopes[0].label.description).toEqual(fullScopeObject1.label.description);
       expect(fullScopes[0].users).toEqual(fullScopeObject1.users);
       expect(fullScopes[1].label.name).toEqual(fullScopeObject2.label.name);
-      expect(fullScopes[1].label.description).toEqual(
-        fullScopeObject2.label.description,
-      );
+      expect(fullScopes[1].label.description).toEqual(fullScopeObject2.label.description);
       expect(fullScopes[1].users).toEqual(fullScopeObject2.users);
     });
   });
@@ -428,42 +358,26 @@ describe("CollabService", () => {
 
     it("should get internal event", async () => {
       const internalEventObject = createInternalEventRequest;
-      const internalEvent =
-        await typedmodelService.createInternalEventModel(internalEventObject);
+      const internalEvent = await typedmodelService.createInternalEventModel(internalEventObject);
       //convert the id to a string
       const modelId = internalEvent.id.toString();
-      const internalEventReturned = await typedmodelService.getInternalEvent(
-        modelId,
-        internalEventObject.users[0],
-      );
+      const internalEventReturned = await typedmodelService.getInternalEvent(modelId, internalEventObject.users[0]);
       expect(internalEventReturned).toBeDefined();
-      expect(internalEventReturned.label.name).toEqual(
-        internalEventObject.label.name,
-      );
-      expect(internalEventReturned.label.description).toEqual(
-        internalEventObject.label.description,
-      );
+      expect(internalEventReturned.label.name).toEqual(internalEventObject.label.name);
+      expect(internalEventReturned.label.description).toEqual(internalEventObject.label.description);
       expect(internalEventReturned.users).toEqual(internalEventObject.users);
       expect(internalEventReturned.initiatingEvents).toEqual([]);
     });
 
     it("should return null if internal event not associated with user", async () => {
-      const internalEvent = await typedmodelService.createInternalEventModel(
-        createInternalEventRequest,
-      );
+      const internalEvent = await typedmodelService.createInternalEventModel(createInternalEventRequest);
       const modelId = internalEvent.id.toString();
-      const internalEventReturned = await typedmodelService.getInternalEvent(
-        modelId,
-        4,
-      );
+      const internalEventReturned = await typedmodelService.getInternalEvent(modelId, 4);
       expect(internalEventReturned).toBeNull();
     });
 
     it("should return null if internal event not found", async () => {
-      const internalEventReturned = await typedmodelService.getInternalEvent(
-        "123",
-        1,
-      );
+      const internalEventReturned = await typedmodelService.getInternalEvent("123", 1);
       expect(internalEventReturned).toBeNull();
     });
   });
@@ -475,41 +389,25 @@ describe("CollabService", () => {
 
     it("should get internal hazard", async () => {
       const internalHazardObject = createInternalHazardRequest;
-      const internalHazard =
-        await typedmodelService.createInternalHazardModel(internalHazardObject);
+      const internalHazard = await typedmodelService.createInternalHazardModel(internalHazardObject);
       const modelId = internalHazard.id.toString();
-      const internalHazardReturned = await typedmodelService.getInternalHazard(
-        modelId,
-        internalHazardObject.users[0],
-      );
+      const internalHazardReturned = await typedmodelService.getInternalHazard(modelId, internalHazardObject.users[0]);
       expect(internalHazardReturned).toBeDefined();
-      expect(internalHazardReturned.label.name).toEqual(
-        internalHazardObject.label.name,
-      );
-      expect(internalHazardReturned.label.description).toEqual(
-        internalHazardObject.label.description,
-      );
+      expect(internalHazardReturned.label.name).toEqual(internalHazardObject.label.name);
+      expect(internalHazardReturned.label.description).toEqual(internalHazardObject.label.description);
       expect(internalHazardReturned.users).toEqual(internalHazardObject.users);
       expect(internalHazardReturned.initiatingEvents).toEqual([]);
     });
 
     it("should return null if internal hazard not associated with user", async () => {
-      const internalHazard = await typedmodelService.createInternalHazardModel(
-        createInternalHazardRequest,
-      );
+      const internalHazard = await typedmodelService.createInternalHazardModel(createInternalHazardRequest);
       const modelId = internalHazard.id.toString();
-      const internalHazardReturned = await typedmodelService.getInternalHazard(
-        modelId,
-        4,
-      );
+      const internalHazardReturned = await typedmodelService.getInternalHazard(modelId, 4);
       expect(internalHazardReturned).toBeNull();
     });
 
     it("should return null if internal hazard not found", async () => {
-      const internalHazardReturned = await typedmodelService.getInternalHazard(
-        "123",
-        1,
-      );
+      const internalHazardReturned = await typedmodelService.getInternalHazard("123", 1);
       expect(internalHazardReturned).toBeNull();
     });
   });
@@ -521,41 +419,25 @@ describe("CollabService", () => {
 
     it("should get external hazard", async () => {
       const externalHazardObject = createExternalHazardRequest;
-      const externalHazard =
-        await typedmodelService.createExternalHazardModel(externalHazardObject);
+      const externalHazard = await typedmodelService.createExternalHazardModel(externalHazardObject);
       const modelId = externalHazard.id.toString();
-      const externalHazardReturned = await typedmodelService.getExternalHazard(
-        modelId,
-        externalHazardObject.users[0],
-      );
+      const externalHazardReturned = await typedmodelService.getExternalHazard(modelId, externalHazardObject.users[0]);
       expect(externalHazardReturned).toBeDefined();
-      expect(externalHazardReturned.label.name).toEqual(
-        externalHazardObject.label.name,
-      );
-      expect(externalHazardReturned.label.description).toEqual(
-        externalHazardObject.label.description,
-      );
+      expect(externalHazardReturned.label.name).toEqual(externalHazardObject.label.name);
+      expect(externalHazardReturned.label.description).toEqual(externalHazardObject.label.description);
       expect(externalHazardReturned.users).toEqual(externalHazardObject.users);
       expect(externalHazardReturned.initiatingEvents).toEqual([]);
     });
 
     it("should return null if external hazard not associated with user", async () => {
-      const externalHazard = await typedmodelService.createExternalHazardModel(
-        createExternalHazardRequest,
-      );
+      const externalHazard = await typedmodelService.createExternalHazardModel(createExternalHazardRequest);
       const modelId = externalHazard.id.toString();
-      const externalHazardReturned = await typedmodelService.getExternalHazard(
-        modelId,
-        4,
-      );
+      const externalHazardReturned = await typedmodelService.getExternalHazard(modelId, 4);
       expect(externalHazardReturned).toBeNull();
     });
 
     it("should return null if external hazard not found", async () => {
-      const externalHazardReturned = await typedmodelService.getExternalHazard(
-        "123",
-        1,
-      );
+      const externalHazardReturned = await typedmodelService.getExternalHazard("123", 1);
       expect(externalHazardReturned).toBeNull();
     });
   });
@@ -567,31 +449,20 @@ describe("CollabService", () => {
 
     it("should get full scope", async () => {
       const fullScopeObject = createFullScopeRequest;
-      const fullScope =
-        await typedmodelService.createFullScopeModel(fullScopeObject);
+      const fullScope = await typedmodelService.createFullScopeModel(fullScopeObject);
       const modelId = fullScope.id.toString();
-      const fullScopeReturned = await typedmodelService.getFullScope(
-        modelId,
-        fullScopeObject.users[0],
-      );
+      const fullScopeReturned = await typedmodelService.getFullScope(modelId, fullScopeObject.users[0]);
       expect(fullScopeReturned).toBeDefined();
       expect(fullScopeReturned.label.name).toEqual(fullScopeObject.label.name);
-      expect(fullScopeReturned.label.description).toEqual(
-        fullScopeObject.label.description,
-      );
+      expect(fullScopeReturned.label.description).toEqual(fullScopeObject.label.description);
       expect(fullScopeReturned.users).toEqual(fullScopeObject.users);
       expect(fullScopeReturned.initiatingEvents).toEqual([]);
     });
 
     it("should return null if full scope not associated with user", async () => {
-      const fullScope = await typedmodelService.createFullScopeModel(
-        createFullScopeRequest,
-      );
+      const fullScope = await typedmodelService.createFullScopeModel(createFullScopeRequest);
       const modelId = fullScope.id.toString();
-      const fullScopeReturned = await typedmodelService.getFullScope(
-        modelId,
-        4,
-      );
+      const fullScopeReturned = await typedmodelService.getFullScope(modelId, 4);
       expect(fullScopeReturned).toBeNull();
     });
 
@@ -608,8 +479,7 @@ describe("CollabService", () => {
 
     it("should remove user when there are multiple users associated with model", async () => {
       const internalEventObject = createInternalEventRequest;
-      const internalEvent =
-        await typedmodelService.createInternalEventModel(internalEventObject);
+      const internalEvent = await typedmodelService.createInternalEventModel(internalEventObject);
       const internalEventReturned = await typedmodelService.deleteInternalEvent(
         internalEvent.id,
         internalEventObject.users[0],
@@ -625,8 +495,7 @@ describe("CollabService", () => {
 
     it("should remove model if only one user associated with model", async () => {
       const internalEventObject = createInternalEventRequest;
-      const internalEvent =
-        await typedmodelService.createInternalEventModel(internalEventObject);
+      const internalEvent = await typedmodelService.createInternalEventModel(internalEventObject);
       const returnedObject = await typedmodelService.deleteInternalEvent(
         internalEvent.id,
         internalEventObject.users[0],
@@ -645,13 +514,8 @@ describe("CollabService", () => {
       expect(typedmodelService.deleteFullScope).toBeDefined();
     });
     it("should delete Full Scope Model", async () => {
-      const fullScope = await typedmodelService.createFullScopeModel(
-        createFullScopeRequest,
-      );
-      const returnedObject = await typedmodelService.deleteFullScope(
-        fullScope.id,
-        fullScope.users[0],
-      );
+      const fullScope = await typedmodelService.createFullScopeModel(createFullScopeRequest);
+      const returnedObject = await typedmodelService.deleteFullScope(fullScope.id, fullScope.users[0]);
       expect(returnedObject).toBeDefined();
       expect(returnedObject.users).toEqual([2, 3]);
     });
@@ -664,8 +528,7 @@ describe("CollabService", () => {
 
     it("should add nested model to internal event", async () => {
       const internalEventObject = createInternalEventRequest;
-      const internalEvent =
-        await typedmodelService.createInternalEventModel(internalEventObject);
+      const internalEvent = await typedmodelService.createInternalEventModel(internalEventObject);
       const nestedObject = {
         modelId: internalEvent.id,
         nestedId: 9,
@@ -687,8 +550,7 @@ describe("CollabService", () => {
 
     it("should add events of type initiatingEvents, eventSequenceDiagrams, functionalEvents, faultTrees, eventTrees, bayesianNetworks, markovChains, bayesianEstimations, weibullAnalysis", async () => {
       const internalEventObject = createInternalEventRequest;
-      const internalEvent =
-        await typedmodelService.createInternalEventModel(internalEventObject);
+      const internalEvent = await typedmodelService.createInternalEventModel(internalEventObject);
       //create an array containing all nested objects
 
       //add each nested object to the internal event
@@ -723,8 +585,7 @@ describe("CollabService", () => {
 
     it("should add nested model to internal hazard", async () => {
       const internalHazardObject = createInternalHazardRequest;
-      const internalHazard =
-        await typedmodelService.createInternalHazardModel(internalHazardObject);
+      const internalHazard = await typedmodelService.createInternalHazardModel(internalHazardObject);
       const nestedObject = {
         modelId: internalHazard.id,
         nestedId: 9,
@@ -744,9 +605,7 @@ describe("CollabService", () => {
     });
 
     it("should add events of type initiatingEvents, eventSequenceDiagrams, functionalEvents, faultTrees, eventTrees, bayesianNetworks, markovChains, bayesianEstimations, weibullAnalysis", async () => {
-      const internalHazard = await typedmodelService.createInternalHazardModel(
-        createInternalHazardRequest,
-      );
+      const internalHazard = await typedmodelService.createInternalHazardModel(createInternalHazardRequest);
       //create an array containing all nested objects
 
       //add each nested object to the internal hazard
@@ -780,9 +639,7 @@ describe("CollabService", () => {
     });
 
     it("should add nested model to external hazard", async () => {
-      const externalHazard = await typedmodelService.createExternalHazardModel(
-        createExternalHazardRequest,
-      );
+      const externalHazard = await typedmodelService.createExternalHazardModel(createExternalHazardRequest);
       const nestedObject = {
         modelId: externalHazard.id,
         nestedId: 9,
@@ -803,9 +660,7 @@ describe("CollabService", () => {
     });
 
     it("should add events of type initiatingEvents, eventSequenceDiagrams, functionalEvents, faultTrees, eventTrees, bayesianNetworks, markovChains, bayesianEstimations, weibullAnalysis", async () => {
-      const externalHazard = await typedmodelService.createExternalHazardModel(
-        createExternalHazardRequest,
-      );
+      const externalHazard = await typedmodelService.createExternalHazardModel(createExternalHazardRequest);
       //create an array containing all nested objects
 
       //add each nested object to the external hazard
@@ -839,9 +694,7 @@ describe("CollabService", () => {
     });
 
     it("should add nested model to full scope", async () => {
-      const fullScope = await typedmodelService.createFullScopeModel(
-        createFullScopeRequest,
-      );
+      const fullScope = await typedmodelService.createFullScopeModel(createFullScopeRequest);
       const nestedObject = {
         modelId: fullScope.id,
         nestedId: 9,
@@ -854,32 +707,20 @@ describe("CollabService", () => {
       );
 
       expect(returnedObject).toBeDefined();
-      const latestFullScope = await typedmodelService.getFullScope(
-        fullScope.id.toString(),
-        fullScope.users[0],
-      );
+      const latestFullScope = await typedmodelService.getFullScope(fullScope.id.toString(), fullScope.users[0]);
       expect(latestFullScope.faultTrees).toEqual([9]);
     });
 
     it("should add events of type initiatingEvents, eventSequenceDiagrams, functionalEvents, faultTrees, eventTrees, bayesianNetworks, markovChains, bayesianEstimations, weibullAnalysis", async () => {
-      const fullScope = await typedmodelService.createFullScopeModel(
-        createFullScopeRequest,
-      );
+      const fullScope = await typedmodelService.createFullScopeModel(createFullScopeRequest);
       //create an array containing all nested objects
 
       //add each nested object to the full scope
       for (const nestedObject of nestedObjects) {
-        await typedmodelService.addNestedToFullScope(
-          fullScope.id,
-          nestedObject.nestedId,
-          nestedObject.nestedType,
-        );
+        await typedmodelService.addNestedToFullScope(fullScope.id, nestedObject.nestedId, nestedObject.nestedType);
       }
 
-      const latestFullScope = await typedmodelService.getFullScope(
-        fullScope.id.toString(),
-        fullScope.users[0],
-      );
+      const latestFullScope = await typedmodelService.getFullScope(fullScope.id.toString(), fullScope.users[0]);
       expect(latestFullScope.initiatingEvents).toEqual([9]);
       expect(latestFullScope.eventSequenceDiagrams).toEqual([10]);
       expect(latestFullScope.functionalEvents).toEqual([11]);
@@ -898,9 +739,7 @@ describe("CollabService", () => {
     });
 
     it("should remove nested model from internal event", async () => {
-      const internalEvent = await typedmodelService.createInternalEventModel(
-        createInternalEventRequest,
-      );
+      const internalEvent = await typedmodelService.createInternalEventModel(createInternalEventRequest);
       const nestedObject = {
         modelId: internalEvent.id,
         nestedId: 9,
@@ -911,12 +750,11 @@ describe("CollabService", () => {
         nestedObject.nestedId,
         nestedObject.nestedType,
       );
-      const returnedObject =
-        await typedmodelService.deleteNestedFromInternalEvent(
-          nestedObject.modelId.toString(),
-          nestedObject.nestedId,
-          nestedObject.nestedType,
-        );
+      const returnedObject = await typedmodelService.deleteNestedFromInternalEvent(
+        nestedObject.modelId.toString(),
+        nestedObject.nestedId,
+        nestedObject.nestedType,
+      );
       expect(returnedObject).toBeDefined();
       const latestInternalEvent = await typedmodelService.getInternalEvent(
         internalEvent.id.toString(),
@@ -926,9 +764,7 @@ describe("CollabService", () => {
     });
 
     it("should delete all types of nested models", async () => {
-      const internalEvent = await typedmodelService.createInternalEventModel(
-        createInternalEventRequest,
-      );
+      const internalEvent = await typedmodelService.createInternalEventModel(createInternalEventRequest);
       //create an array containing all nested objects
 
       //add each nested object to the internal event
@@ -971,9 +807,7 @@ describe("CollabService", () => {
     });
 
     it("should remove nested model from internal hazard", async () => {
-      const internalHazard = await typedmodelService.createInternalHazardModel(
-        createInternalHazardRequest,
-      );
+      const internalHazard = await typedmodelService.createInternalHazardModel(createInternalHazardRequest);
       const nestedObject = {
         modelId: internalHazard.id,
         nestedId: 9,
@@ -984,12 +818,11 @@ describe("CollabService", () => {
         nestedObject.nestedId,
         nestedObject.nestedType,
       );
-      const returnedObject =
-        await typedmodelService.deleteNestedFromInternalHazard(
-          nestedObject.modelId.toString(),
-          nestedObject.nestedId,
-          nestedObject.nestedType,
-        );
+      const returnedObject = await typedmodelService.deleteNestedFromInternalHazard(
+        nestedObject.modelId.toString(),
+        nestedObject.nestedId,
+        nestedObject.nestedType,
+      );
       expect(returnedObject).toBeDefined();
       const latestInternalHazard = await typedmodelService.getInternalHazard(
         internalHazard.id.toString(),
@@ -999,9 +832,7 @@ describe("CollabService", () => {
     });
 
     it("should delete all types of nested models", async () => {
-      const internalHazard = await typedmodelService.createInternalHazardModel(
-        createInternalHazardRequest,
-      );
+      const internalHazard = await typedmodelService.createInternalHazardModel(createInternalHazardRequest);
       //create an array containing all nested objects
 
       //add each nested object to the internal hazard
@@ -1044,9 +875,7 @@ describe("CollabService", () => {
     });
 
     it("should remove nested model from external hazard", async () => {
-      const externalHazard = await typedmodelService.createExternalHazardModel(
-        createExternalHazardRequest,
-      );
+      const externalHazard = await typedmodelService.createExternalHazardModel(createExternalHazardRequest);
       const nestedObject = {
         modelId: externalHazard.id,
         nestedId: 9,
@@ -1057,12 +886,11 @@ describe("CollabService", () => {
         nestedObject.nestedId,
         nestedObject.nestedType,
       );
-      const returnedObject =
-        await typedmodelService.deleteNestedFromExternalHazard(
-          nestedObject.modelId.toString(),
-          nestedObject.nestedId,
-          nestedObject.nestedType,
-        );
+      const returnedObject = await typedmodelService.deleteNestedFromExternalHazard(
+        nestedObject.modelId.toString(),
+        nestedObject.nestedId,
+        nestedObject.nestedType,
+      );
       expect(returnedObject).toBeDefined();
       const latestExternalHazard = await typedmodelService.getExternalHazard(
         externalHazard.id.toString(),
@@ -1072,9 +900,7 @@ describe("CollabService", () => {
     });
 
     it("should delete all types of nested models", async () => {
-      const externalHazard = await typedmodelService.createExternalHazardModel(
-        createExternalHazardRequest,
-      );
+      const externalHazard = await typedmodelService.createExternalHazardModel(createExternalHazardRequest);
       //create an array containing all nested objects
 
       //add each nested object to the external hazard
@@ -1117,9 +943,7 @@ describe("CollabService", () => {
     });
 
     it("should remove nested model from full scope", async () => {
-      const fullScope = await typedmodelService.createFullScopeModel(
-        createFullScopeRequest,
-      );
+      const fullScope = await typedmodelService.createFullScopeModel(createFullScopeRequest);
       const nestedObject = {
         modelId: fullScope.id,
         nestedId: 9,
@@ -1136,26 +960,17 @@ describe("CollabService", () => {
         nestedObject.nestedType,
       );
       expect(returnedObject).toBeDefined();
-      const latestFullScope = await typedmodelService.getFullScope(
-        fullScope.id.toString(),
-        fullScope.users[0],
-      );
+      const latestFullScope = await typedmodelService.getFullScope(fullScope.id.toString(), fullScope.users[0]);
       expect(latestFullScope.faultTrees).toEqual([]);
     });
 
     it("should delete all types of nested models", async () => {
-      const fullScope = await typedmodelService.createFullScopeModel(
-        createFullScopeRequest,
-      );
+      const fullScope = await typedmodelService.createFullScopeModel(createFullScopeRequest);
       //create an array containing all nested objects
 
       //add each nested object to the full scope
       for (const nestedObject of nestedObjects) {
-        await typedmodelService.addNestedToFullScope(
-          fullScope.id,
-          nestedObject.nestedId,
-          nestedObject.nestedType,
-        );
+        await typedmodelService.addNestedToFullScope(fullScope.id, nestedObject.nestedId, nestedObject.nestedType);
       }
 
       //delete each nested object from the full scope
@@ -1167,10 +982,7 @@ describe("CollabService", () => {
         );
       }
 
-      const latestFullScope = await typedmodelService.getFullScope(
-        fullScope.id.toString(),
-        fullScope.users[0],
-      );
+      const latestFullScope = await typedmodelService.getFullScope(fullScope.id.toString(), fullScope.users[0]);
       expect(latestFullScope.initiatingEvents).toEqual([]);
       expect(latestFullScope.eventSequenceDiagrams).toEqual([]);
       expect(latestFullScope.functionalEvents).toEqual([]);

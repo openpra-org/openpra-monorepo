@@ -24,10 +24,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     }
 
     // Extract the output depth from the root node
-    const [outputLevels, inputLevels] = [
-      rootNode.data?.outputDepth,
-      rootNode.data?.inputDepth,
-    ] as [number, number];
+    const [outputLevels, inputLevels] = [rootNode.data?.outputDepth, rootNode.data?.inputDepth] as [number, number];
 
     const rightmostNodeIndices = findRightmostNodeIndicesAtEachLevel(
       clickedNodeId,
@@ -38,11 +35,8 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     );
 
     // Find the clicked node
-    const clickedNodeIndex = nodes.findIndex(
-      (node) => node.id === clickedNodeId,
-    );
-    const clickedNode =
-      clickedNodeIndex !== -1 ? nodes[clickedNodeIndex] : null;
+    const clickedNodeIndex = nodes.findIndex((node) => node.id === clickedNodeId);
+    const clickedNode = clickedNodeIndex !== -1 ? nodes[clickedNodeIndex] : null;
 
     // put the clicked node as activated (for a dangling node)
     if (clickedNode?.type === "invisibleNode") {
@@ -69,11 +63,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
 
       // Decide the node type based on its level
       const nodeType =
-        level === 0
-          ? "visibleNode"
-          : level <= inputLevels - clickedNodeDepth
-          ? "invisibleNode"
-          : "outputNode";
+        level === 0 ? "visibleNode" : level <= inputLevels - clickedNodeDepth ? "invisibleNode" : "outputNode";
 
       // Create the new node based on the level and type
       const newNode: Node = {
@@ -107,11 +97,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
         source: sourceNodeId,
         target: newNodeId,
         type: "custom",
-        animated:
-          nodeType === "invisibleNode" ||
-          level === inputLevels - clickedNodeDepth + 1
-            ? true
-            : false,
+        animated: nodeType === "invisibleNode" || level === inputLevels - clickedNodeDepth + 1 ? true : false,
       };
 
       newEdges.push(newEdge);
@@ -128,11 +114,9 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
       edges: updatedEdges,
     });
 
-    void GraphApiManager.storeEventTree(eventTreeCurrentState).then(
-      (r: EventTreeGraph) => {
-        console.log(r);
-      },
-    );
+    void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {
+      console.log(r);
+    });
   };
 
   return addNode;

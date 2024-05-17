@@ -11,7 +11,7 @@ import {
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
 
-type TreeItem = {
+interface TreeItem {
   id: string;
   key: string;
   isExpanded?: boolean;
@@ -19,11 +19,11 @@ type TreeItem = {
   children?: TreeItem[];
   icon?: JSX.Element;
   callback?: () => NonNullable<unknown>;
-};
+}
 
-export type ScopedNavProps = {
+export interface ScopedNavProps {
   type: string;
-};
+}
 
 function ScopedNav(props: ScopedNavProps): JSX.Element {
   const { type } = props;
@@ -55,7 +55,11 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
       id: slug,
       key: slug,
       label: (
-        <EuiText size={size} color={color} title={label}>
+        <EuiText
+          size={size}
+          color={color}
+          title={label}
+        >
           {text}
         </EuiText>
       ),
@@ -160,7 +164,12 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
         createTreeItem(
           "Event Trees",
           {
-            icon: <EuiToken iconType="editorBold" shape="square" />,
+            icon: (
+              <EuiToken
+                iconType="editorBold"
+                shape="square"
+              />
+            ),
             callback: () => {
               navigate("event-trees");
             },
@@ -211,7 +220,12 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
         createTreeItem(
           "Systems Analysis",
           {
-            icon: <EuiToken iconType="aggregate" shape="square" />,
+            icon: (
+              <EuiToken
+                iconType="aggregate"
+                shape="square"
+              />
+            ),
             callback: () => {
               navigate("systems-analysis");
             },
@@ -231,7 +245,12 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
         createTreeItem(
           "Bayesian Networks",
           {
-            icon: <EuiToken iconType="editorBold" shape="square" />,
+            icon: (
+              <EuiToken
+                iconType="editorBold"
+                shape="square"
+              />
+            ),
             callback: () => {
               navigate("bayesian-networks");
             },
@@ -241,7 +260,12 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
         createTreeItem(
           "Markov Chains",
           {
-            icon: <EuiToken iconType="tokenShape" shape="square" />,
+            icon: (
+              <EuiToken
+                iconType="tokenShape"
+                shape="square"
+              />
+            ),
             callback: () => {
               navigate("markov-chains");
             },
@@ -283,7 +307,12 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
         createTreeItem(
           "Data Analysis",
           {
-            icon: <EuiToken iconType="aggregate" shape="square" />,
+            icon: (
+              <EuiToken
+                iconType="aggregate"
+                shape="square"
+              />
+            ),
             callback: () => {
               navigate("data-analysis");
             },
@@ -303,7 +332,12 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
         createTreeItem(
           "Weibull Analysis",
           {
-            icon: <EuiToken iconType="bolt" shape="square" />,
+            icon: (
+              <EuiToken
+                iconType="bolt"
+                shape="square"
+              />
+            ),
             callback: () => {
               navigate("weibull-analysis");
             },
@@ -469,11 +503,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
 
   const padding = useEuiPaddingSize("s") ?? "0px";
 
-  const createTreeView = (
-    items: TreeItem[],
-    i: number,
-    forceTreeView = false,
-  ): JSX.Element => {
+  const createTreeView = (items: TreeItem[], i: number, forceTreeView = false): JSX.Element => {
     //TODO
     if (forceTreeView) {
       const style = {
@@ -544,26 +574,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
     treeItems = [POS, IE, ES, SC, SY, HR, DA, S, HS, W, XF, O, ESQ, MS, RC, RI];
   }
   if (type === "FullScope") {
-    treeItems = [
-      POS,
-      IE,
-      ES,
-      SC,
-      SY,
-      HR,
-      DA,
-      FL,
-      F,
-      S,
-      HS,
-      W,
-      XF,
-      O,
-      ESQ,
-      MS,
-      RC,
-      RI,
-    ];
+    treeItems = [POS, IE, ES, SC, SY, HR, DA, FL, F, S, HS, W, XF, O, ESQ, MS, RC, RI];
   }
 
   treeItems.push(settings);

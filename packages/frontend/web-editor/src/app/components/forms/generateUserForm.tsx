@@ -1,18 +1,7 @@
-import {
-  EuiButton,
-  EuiFlexGroup,
-  EuiFlexItem,
-  EuiForm,
-  EuiFormRow,
-  EuiSelect,
-  EuiText,
-} from "@elastic/eui";
+import { EuiButton, EuiFlexGroup, EuiFlexItem, EuiForm, EuiFormRow, EuiSelect, EuiText } from "@elastic/eui";
 import React, { ChangeEvent, useState } from "react";
 import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
-import {
-  EmailValidationForm,
-  UsernameValidationForm,
-} from "shared-types/src/lib/api/FormValidation";
+import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 import { EuiSelectOption } from "@elastic/eui/src/components/form/select/select";
 import { UseToastContext } from "../../providers/toastProvider";
@@ -91,7 +80,10 @@ const GenerateUserForm = ({
   }
 
   return (
-    <EuiForm component="form" onSubmit={validateDetails}>
+    <EuiForm
+      component="form"
+      onSubmit={validateDetails}
+    >
       <UsernameForm
         signup={signup}
         setSignup={setSignup}
@@ -106,7 +98,10 @@ const GenerateUserForm = ({
       <EuiFormRow>
         <EuiFlexGroup alignItems={"center"}>
           <EuiFlexItem grow={false}>
-            <EuiText size={"s"} textAlign={"center"}>
+            <EuiText
+              size={"s"}
+              textAlign={"center"}
+            >
               Expires in:{" "}
             </EuiText>
           </EuiFlexItem>
@@ -121,7 +116,10 @@ const GenerateUserForm = ({
         </EuiFlexGroup>
       </EuiFormRow>
       <EuiFormRow>
-        <EuiButton fullWidth type="submit">
+        <EuiButton
+          fullWidth
+          type="submit"
+        >
           {buttonText}
         </EuiButton>
       </EuiFormRow>

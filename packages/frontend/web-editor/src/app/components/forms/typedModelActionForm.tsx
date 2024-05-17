@@ -14,29 +14,18 @@ import {
 } from "@elastic/eui";
 import React, { useEffect, useState } from "react";
 
-import {
-  DEFAULT_TYPED_MODEL_JSON,
-  TypedModelJSON,
-} from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+import { DEFAULT_TYPED_MODEL_JSON, TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 
 import { ToTitleCase } from "../../../utils/StringUtils";
 
-export type ItemFormProps = {
+export interface ItemFormProps {
   itemName: string;
   // TODO:: TODO :: replace endpoint string with TypedApiManager method
   postEndpoint?: (data: Partial<TypedModelJSON>) => NonNullable<unknown>;
   postFunction?: (data: Partial<TypedModelJSON>) => Promise<void>;
-  patchEndpoint?: (
-    modelId: number,
-    userId: number,
-    data: Partial<TypedModelJSON>,
-  ) => NonNullable<unknown>;
-  patchFunction?: (
-    modelId: number,
-    userId: number,
-    data: Partial<TypedModelJSON>,
-  ) => Promise<void>;
+  patchEndpoint?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => NonNullable<unknown>;
+  patchFunction?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
   onSuccess?: () => NonNullable<unknown>;
   onFail?: () => NonNullable<unknown>;
   onCancel?: (func: any) => void;
@@ -44,7 +33,7 @@ export type ItemFormProps = {
   initialFormValues?: TypedModelJSON;
   compressed?: boolean;
   noHeader?: boolean;
-};
+}
 
 function TypedModelActionForm({
   itemName,
@@ -61,9 +50,7 @@ function TypedModelActionForm({
   const userId = ApiManager.getCurrentUser().user_id ?? -1;
 
   //setting up initial values depending on what has been sent, if init form values are passed it's assumed to be updating instead of adding
-  const formInitials = initialFormValues
-    ? initialFormValues
-    : DEFAULT_TYPED_MODEL_JSON;
+  const formInitials = initialFormValues ? initialFormValues : DEFAULT_TYPED_MODEL_JSON;
 
   //initial users is set depending on if things are new or not, essential sets other people innately if they were already set
   const initUsers = initialFormValues ? initialFormValues.users : [userId];
@@ -72,14 +59,10 @@ function TypedModelActionForm({
   const [typedModel, setTypedModel] = useState(formInitials);
 
   //need a state for the list of user ints, going dummy it out for now
-  const [usersList, setUsersList] = useState<EuiComboBoxOptionOption<any>[]>(
-    [],
-  );
+  const [usersList, setUsersList] = useState<EuiComboBoxOptionOption<any>[]>([]);
 
   //need a state for selected list of users for the EuiComboBox
-  const [selectedUsersList, setSelectedUsersList] = useState<
-    EuiComboBoxOptionOption<any>[]
-  >([]);
+  const [selectedUsersList, setSelectedUsersList] = useState<EuiComboBoxOptionOption<any>[]>([]);
 
   //list of the user ids which we add to the api calls
   const [usersListId, setUsersListId] = useState<number[]>([]);
@@ -93,9 +76,7 @@ function TypedModelActionForm({
           const usersData = await ApiManager.getUsers();
           const resultList = usersData.results;
           // Filters out the current user from the list since it's implied that they want to see their own model
-          const results = resultList.filter(
-            (x: any) => x.id !== ApiManager.getCurrentUser().user_id,
-          );
+          const results = resultList.filter((x: any) => x.id !== ApiManager.getCurrentUser().user_id);
           // Creates the objects that will go in the EuiSelectable
           const listWithoutCurrentUser = results.map((item: any) => ({
             label: item.firstName + " " + item.lastName,
@@ -152,11 +133,9 @@ function TypedModelActionForm({
           itemName === "Full Scope"
         ) {
           if (patchFunction) {
-            void patchFunction(initialFormValues.id, userId, partialModel).then(
-              () => {
-                onCancel && onCancel(false);
-              },
-            );
+            void patchFunction(initialFormValues.id, userId, partialModel).then(() => {
+              onCancel && onCancel(false);
+            });
           }
         } else {
           if (patchEndpoint) {
@@ -195,14 +174,20 @@ function TypedModelActionForm({
             <h6> Create {itemLabel} </h6>
           </EuiTitle>
           <EuiSpacer size="s" />
-          <EuiText size="s" color="subdued">
+          <EuiText
+            size="s"
+            color="subdued"
+          >
             {" "}
             A valid {itemLabel} must have a name{" "}
           </EuiText>
           <EuiSpacer />
         </>
       )}
-      <EuiForm component="form" onSubmit={handleAction}>
+      <EuiForm
+        component="form"
+        onSubmit={handleAction}
+      >
         <EuiFlexGroup>
           <EuiFlexItem grow={true}>
             <EuiFormRow
@@ -281,7 +266,11 @@ function TypedModelActionForm({
         >
           <EuiFlexItem grow={false}>
             <EuiFormRow display={compressed ? "rowCompressed" : undefined}>
-              <EuiButton size={compressed ? "s" : "m"} type="submit" fill>
+              <EuiButton
+                size={compressed ? "s" : "m"}
+                type="submit"
+                fill
+              >
                 {actionLabel}
               </EuiButton>
             </EuiFormRow>

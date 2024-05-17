@@ -1,6 +1,4 @@
-import AbstractDistribution, {
-  DistributionSummary,
-} from "./AbstractDistribution";
+import AbstractDistribution, { DistributionSummary } from "./AbstractDistribution";
 const linspace = require("linspace");
 const erf = require("compute-erf");
 const erfinv = require("compute-erfinv");
@@ -38,10 +36,7 @@ class Normal extends AbstractDistribution {
    * @throws Error if sigma is less than 0
    */
   setSigma(sigma: number): void {
-    if (sigma <= 0)
-      throw new TypeError(
-        "setSigma()::invalid input argument. sigma must be a positive number.",
-      );
+    if (sigma <= 0) throw new TypeError("setSigma()::invalid input argument. sigma must be a positive number.");
     this.sigma = sigma;
   }
 

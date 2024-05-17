@@ -1,30 +1,19 @@
 import { EuiButtonPropsForButton } from "@elastic/eui/src/components/button/button";
 import React, { ReactElement, useEffect, useState } from "react";
-import {
-  EuiButton,
-  EuiButtonIcon,
-  EuiConfirmModal,
-  EuiPopover,
-} from "@elastic/eui";
+import { EuiButton, EuiButtonIcon, EuiConfirmModal, EuiPopover } from "@elastic/eui";
 import { EuiPopoverProps } from "@elastic/eui/src/components/popover/popover";
 
 //props for button with popover
-type ButtonWithPopoverPropsPartials = {
-  popoverProps?: Partial<
-    Omit<
-      EuiPopoverProps,
-      "button" | "focusTrapProps" | "closePopover" | "isOpen"
-    >
-  >;
+interface ButtonWithPopoverPropsPartials {
+  popoverProps?: Partial<Omit<EuiPopoverProps, "button" | "focusTrapProps" | "closePopover" | "isOpen">>;
   buttonText?: JSX.Element | string;
   confirmDiscard?: boolean;
   isIcon?: boolean;
   iconType?: string;
   onRequestClose?: boolean;
-};
+}
 
-export type ButtonWithPopoverProps = EuiButtonPropsForButton &
-  ButtonWithPopoverPropsPartials;
+export type ButtonWithPopoverProps = EuiButtonPropsForButton & ButtonWithPopoverPropsPartials;
 
 /**
  *
@@ -141,9 +130,7 @@ export type ButtonWithClosablePopoverProps = {
   closeProp: string;
   popoverExtra?: (child: JSX.Element) => JSX.Element;
 } & ButtonWithPopoverProps;
-export function ButtonWithClosablePopover(
-  props: ButtonWithClosablePopoverProps,
-): JSX.Element {
+export function ButtonWithClosablePopover(props: ButtonWithClosablePopoverProps): JSX.Element {
   const [forceClose, setForceClose] = useState(false);
 
   const { children, closeProp, popoverExtra, ...rest } = props;
@@ -168,12 +155,13 @@ export function ButtonWithClosablePopover(
     </>
   );
 
-  const content = popoverExtra
-    ? popoverExtra(modifiedPopoverContent())
-    : modifiedPopoverContent();
+  const content = popoverExtra ? popoverExtra(modifiedPopoverContent()) : modifiedPopoverContent();
 
   return (
-    <ButtonWithPopover {...rest} onRequestClose={forceClose}>
+    <ButtonWithPopover
+      {...rest}
+      onRequestClose={forceClose}
+    >
       {content}
     </ButtonWithPopover>
   );

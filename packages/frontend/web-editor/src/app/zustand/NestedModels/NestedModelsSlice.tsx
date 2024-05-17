@@ -10,12 +10,7 @@ import {
   SetInitiatingEvents,
 } from "./NestedModelsActions";
 
-const NestedModelsSlice: StateCreator<
-  StoreType,
-  [],
-  [["zustand/immer", never]],
-  NestedModelsTypes
-> = immer((set) => {
+const NestedModelsSlice: StateCreator<StoreType, [], [["zustand/immer", never]], NestedModelsTypes> = immer((set) => {
   SliceResetFns.add(() => {
     set(NestedModelsState);
   });

@@ -6,6 +6,4 @@ import { NestedModel } from "./templateSchema/nested-model.schema";
 export class EventSequenceAnalysis extends NestedModel {}
 
 export type EventSequenceAnalysisDocument = EventSequenceAnalysis & Document;
-export const EventSequenceAnalysisSchema = SchemaFactory.createForClass(
-  EventSequenceAnalysis,
-);
+export const EventSequenceAnalysisSchema = SchemaFactory.createForClass(EventSequenceAnalysis);

@@ -4,10 +4,7 @@ import { EuiContextMenuPanelDescriptor } from "@elastic/eui/src/components/conte
 import { EuiContextMenuPanelItemDescriptor } from "@elastic/eui/src/components/context_menu/context_menu";
 import { useReactFlow, Node, NodeProps } from "reactflow";
 import { useParams } from "react-router-dom";
-import {
-  EventSequenceNodeProps,
-  EventSequenceNodeTypes,
-} from "../treeNodes/eventSequenceNodes/eventSequenceNodeType";
+import { EventSequenceNodeProps, EventSequenceNodeTypes } from "../treeNodes/eventSequenceNodes/eventSequenceNodeType";
 import {
   DeleteEventSequenceNode,
   GetChildCount,
@@ -32,13 +29,8 @@ import { EventSequenceContextMenuOptions } from "./interfaces/eventSequenceConte
  * @param EventSequenceContextMenuOptions - options to load the menu
  * @returns JSX Element
  */
-function EventSequenceContextMenu({
-  id,
-  onClick,
-  isDelete = false,
-}: EventSequenceContextMenuOptions): JSX.Element {
-  const { fitView, getNode, getNodes, getEdges, setNodes, setEdges } =
-    useReactFlow();
+function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequenceContextMenuOptions): JSX.Element {
+  const { fitView, getNode, getNodes, getEdges, setNodes, setEdges } = useReactFlow();
   const { addToast } = UseToastContext();
   const { eventSequenceId } = useParams() as { eventSequenceId: string };
   const { setFocus } = UseFocusContext();
@@ -46,9 +38,7 @@ function EventSequenceContextMenu({
   const onItemClick = useCallback(
     (id: NodeProps["id"], type: "delete" | EventSequenceNodeTypes) => {
       // we need the parent node object for positioning the new child node
-      const parentNode:
-        | Node<EventSequenceNodeProps, EventSequenceNodeTypes>
-        | undefined = getNode(id) as
+      const parentNode: Node<EventSequenceNodeProps, EventSequenceNodeTypes> | undefined = getNode(id) as
         | Node<EventSequenceNodeProps, EventSequenceNodeTypes>
         | undefined;
       const currentNodes = getNodes();
@@ -61,11 +51,7 @@ function EventSequenceContextMenu({
         return;
       }
 
-      if (
-        parentNode.data.isDeleted === true ||
-        parentNode.data.tentative === true
-      )
-        return;
+      if (parentNode.data.isDeleted === true || parentNode.data.tentative === true) return;
 
       // if the event is for delete node, handle it separately
       if (type === "delete") {
@@ -78,20 +64,12 @@ function EventSequenceContextMenu({
         } else {
           setFocus(GetParentNode(parentNode, currentNodes, currentEdges).id);
         }
-        const onDeleteState = DeleteEventSequenceNode(
-          parentNode,
-          currentNodes,
-          currentEdges,
-        );
+        const onDeleteState = DeleteEventSequenceNode(parentNode, currentNodes, currentEdges);
         if (onDeleteState !== undefined) {
           setNodes(onDeleteState.updatedState.nodes);
           setEdges(onDeleteState.updatedState.edges);
           if (onDeleteState.syncState) {
-            UpdateEventSequenceDiagram(
-              eventSequenceId,
-              onDeleteState.updatedSubgraph,
-              onDeleteState.deletedSubgraph,
-            )
+            UpdateEventSequenceDiagram(eventSequenceId, onDeleteState.updatedSubgraph, onDeleteState.deletedSubgraph)
               .then((r) => {
                 if (!r) {
                   addToast(GetESToast("danger", "Something went wrong"));
@@ -108,12 +86,7 @@ function EventSequenceContextMenu({
 
       // if the selected node type is already the current node's type, simply return
       if (parentNode.type === type) {
-        addToast(
-          GetESToast(
-            "warning",
-            "The selected node type is already the current node's type.",
-          ),
-        );
+        addToast(GetESToast("warning", "The selected node type is already the current node's type."));
         return;
       }
 
@@ -123,20 +96,12 @@ function EventSequenceContextMenu({
       parentNode.type = type;
       parentNode.data.label = GetDefaultLabelOfNode(type);
 
-      const state = UpdateEventSequenceNode(
-        parentNode,
-        currentNodes,
-        currentEdges,
-      );
+      const state = UpdateEventSequenceNode(parentNode, currentNodes, currentEdges);
       if (state !== undefined) {
         setNodes(state.updatedState.nodes);
         setEdges(state.updatedState.edges);
         if (state.syncState) {
-          UpdateEventSequenceDiagram(
-            eventSequenceId,
-            state.updatedSubgraph,
-            state.deletedSubgraph,
-          )
+          UpdateEventSequenceDiagram(eventSequenceId, state.updatedSubgraph, state.deletedSubgraph)
             .then((r) => {
               if (!r) {
                 addToast(GetESToast("danger", "Something went wrong"));
@@ -158,31 +123,32 @@ function EventSequenceContextMenu({
       }
       onClick && onClick();
     },
-    [
-      addToast,
-      eventSequenceId,
-      fitView,
-      getEdges,
-      getNode,
-      getNodes,
-      onClick,
-      setEdges,
-      setFocus,
-      setNodes,
-    ],
+    [addToast, eventSequenceId, fitView, getEdges, getNode, getNodes, onClick, setEdges, setFocus, setNodes],
   );
 
   const basePanelItems: EuiContextMenuPanelItemDescriptor[] = [
     {
       name: "Update node type",
-      icon: <EuiIcon type="wrench" size={"m"} color={"#0984e3"}></EuiIcon>,
+      icon: (
+        <EuiIcon
+          type="wrench"
+          size={"m"}
+          color={"#0984e3"}
+        ></EuiIcon>
+      ),
       panel: 1,
     },
   ];
   if (isDelete) {
     basePanelItems.push({
       name: "Delete node",
-      icon: <EuiIcon type="trash" size={"m"} color={"#0984e3"}></EuiIcon>,
+      icon: (
+        <EuiIcon
+          type="trash"
+          size={"m"}
+          color={"#0984e3"}
+        ></EuiIcon>
+      ),
       onClick: (): void => {
         onItemClick(id, "delete");
       },
@@ -200,42 +166,72 @@ function EventSequenceContextMenu({
       items: [
         {
           name: "Functional",
-          icon: <EuiIcon type={FunctionalNodeIcon} size={"l"}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={FunctionalNodeIcon}
+              size={"l"}
+            ></EuiIcon>
+          ),
           onClick: (): void => {
             onItemClick(id, "functional");
           },
         },
         {
           name: "Description",
-          icon: <EuiIcon type={DescriptionNodeIcon} size={"l"}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={DescriptionNodeIcon}
+              size={"l"}
+            ></EuiIcon>
+          ),
           onClick: (): void => {
             onItemClick(id, "description");
           },
         },
         {
           name: "Intermediate",
-          icon: <EuiIcon type={IntermediateNodeIcon} size={"l"}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={IntermediateNodeIcon}
+              size={"l"}
+            ></EuiIcon>
+          ),
           onClick: (): void => {
             onItemClick(id, "intermediate");
           },
         },
         {
           name: "End State",
-          icon: <EuiIcon type={EndStateNodeIcon} size={"l"}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={EndStateNodeIcon}
+              size={"l"}
+            ></EuiIcon>
+          ),
           onClick: (): void => {
             onItemClick(id, "end");
           },
         },
         {
           name: "Transfer State",
-          icon: <EuiIcon type={TransferStateNodeIcon} size={"l"}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={TransferStateNodeIcon}
+              size={"l"}
+            ></EuiIcon>
+          ),
           onClick: (): void => {
             onItemClick(id, "transfer");
           },
         },
         {
           name: "Undeveloped",
-          icon: <EuiIcon type={UndevelopedNodeIcon} size={"l"}></EuiIcon>,
+          icon: (
+            <EuiIcon
+              type={UndevelopedNodeIcon}
+              size={"l"}
+            ></EuiIcon>
+          ),
           onClick: (): void => {
             onItemClick(id, "undeveloped");
           },
@@ -244,6 +240,12 @@ function EventSequenceContextMenu({
     },
   ];
 
-  return <EuiContextMenu initialPanelId={0} panels={panels} size={"s"} />;
+  return (
+    <EuiContextMenu
+      initialPanelId={0}
+      panels={panels}
+      size={"s"}
+    />
+  );
 }
 export { EventSequenceContextMenu };

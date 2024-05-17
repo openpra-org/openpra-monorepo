@@ -83,9 +83,7 @@ class QuantificationConfigurations {
   currentlySelected: string;
 }
 
-const QuantificationConfigurationsSchema = SchemaFactory.createForClass(
-  QuantificationConfigurations,
-);
+const QuantificationConfigurationsSchema = SchemaFactory.createForClass(QuantificationConfigurations);
 
 @Schema({ minimize: false, _id: false, versionKey: false })
 class Preferences {

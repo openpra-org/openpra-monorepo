@@ -28,11 +28,7 @@ function OutputNode({ id, data }: NodeProps) {
         }}
       >
         <div className={styles.outputNode}>
-          <EuiText
-            style={{ fontSize: "0.7rem", height: "1.2rem", resize: "none" }}
-          >
-            0.55
-          </EuiText>
+          <EuiText style={{ fontSize: "0.7rem", height: "1.2rem", resize: "none" }}>0.55</EuiText>
         </div>
       </div>
 

@@ -20,9 +20,7 @@ describe("inviteService", () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongoUri),
-        MongooseModule.forFeature([
-          { name: InvitedUser.name, schema: InvitedUserSchema },
-        ]),
+        MongooseModule.forFeature([{ name: InvitedUser.name, schema: InvitedUserSchema }]),
       ],
       providers: [InviteService],
     }).compile();

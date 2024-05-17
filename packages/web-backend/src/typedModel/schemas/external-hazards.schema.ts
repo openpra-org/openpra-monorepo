@@ -9,5 +9,4 @@ export class ExternalHazards extends TypedModel {
 }
 
 export type ExternalHazardsDocument = ExternalHazards & Document;
-export const ExternalHazardsSchema =
-  SchemaFactory.createForClass(ExternalHazards);
+export const ExternalHazardsSchema = SchemaFactory.createForClass(ExternalHazards);

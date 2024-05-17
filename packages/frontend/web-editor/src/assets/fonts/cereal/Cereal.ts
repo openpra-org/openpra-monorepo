@@ -53,11 +53,4 @@ export const CerealBlack = {
   src: `url(${CerealBlackWoff2}) format('woff2')`,
 };
 
-export const CerealAll = [
-  CerealLight,
-  CerealBook,
-  CerealMedium,
-  CerealBold,
-  CerealExtraBold,
-  CerealBlack,
-];
+export const CerealAll = [CerealLight, CerealBook, CerealMedium, CerealBold, CerealExtraBold, CerealBlack];

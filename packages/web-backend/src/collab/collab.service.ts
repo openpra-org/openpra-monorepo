@@ -8,10 +8,7 @@ import { MemberResult } from "shared-types/src/lib/api/Members";
 import { PaginationDto } from "./dtos/pagination.dto";
 import { CreateNewUserDto } from "./dtos/create-new-user.dto";
 import { UserPreferencesDto } from "./dtos/user-preferences.dto";
-import {
-  UserCounter,
-  UserCounterDocument,
-} from "./schemas/user-counter.schema";
+import { UserCounter, UserCounterDocument } from "./schemas/user-counter.schema";
 import { User, UserDocument } from "./schemas/user.schema";
 
 @Injectable()
@@ -50,11 +47,7 @@ export class CollabService {
    * @returns {number} ID number
    */
   async getNextUserValue(name: string) {
-    const record = await this.userCounterModel.findByIdAndUpdate(
-      name,
-      { $inc: { seq: 1 } },
-      { new: true },
-    );
+    const record = await this.userCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
     if (!record) {
       const newCounter = new this.userCounterModel({ _id: name, seq: 1 });
       await newCounter.save();
@@ -110,39 +103,23 @@ export class CollabService {
       return { previous, next, default_limit, default_offset };
     } else if (current_page === 1 && total_page > 1) {
       if (url.includes("limit")) {
-        next = url.replace(
-          regex,
-          `limit=${default_limit}&offset=${default_offset - -default_limit}`,
-        );
+        next = url.replace(regex, `limit=${default_limit}&offset=${default_offset - -default_limit}`);
         return { previous, next, default_limit, default_offset };
       } else {
         if (url.includes("?")) {
-          next =
-            url +
-            `limit=${default_limit}&offset=${default_offset - -default_limit}`;
+          next = url + `limit=${default_limit}&offset=${default_offset - -default_limit}`;
           return { previous, next, default_limit, default_offset };
         } else {
-          next =
-            url +
-            `?limit=${default_limit}&offset=${default_offset - -default_limit}`;
+          next = url + `?limit=${default_limit}&offset=${default_offset - -default_limit}`;
           return { previous, next, default_limit, default_offset };
         }
       }
     } else if (current_page === total_page && total_page > 1) {
-      previous = url.replace(
-        regex,
-        `limit=${default_limit}&offset=${default_offset - default_limit}`,
-      );
+      previous = url.replace(regex, `limit=${default_limit}&offset=${default_offset - default_limit}`);
       return { previous, next, default_limit, default_offset };
     } else if (current_page > 1 && current_page < total_page) {
-      previous = url.replace(
-        regex,
-        `limit=${default_limit}&offset=${default_offset - default_limit}`,
-      );
-      next = url.replace(
-        regex,
-        `limit=${default_limit}&offset=${default_offset - -default_limit}`,
-      );
+      previous = url.replace(regex, `limit=${default_limit}&offset=${default_offset - default_limit}`);
+      next = url.replace(regex, `limit=${default_limit}&offset=${default_offset - -default_limit}`);
       return { previous, next, default_limit, default_offset };
     }
   }
@@ -164,20 +141,13 @@ export class CollabService {
    *   4. Result: provides the users list. The 'result' property follows the limit and offset values to decide which users are going to be showed.
    * @returns List of all users
    */
-  async getUsersList(
-    url: string,
-    limit?: any,
-    offset?: any,
-  ): Promise<PaginationDto> {
+  async getUsersList(url: string, limit?: any, offset?: any): Promise<PaginationDto> {
     let paths = undefined;
     let result = undefined;
     const count = await this.userModel.countDocuments();
     if (limit && offset) {
       paths = this.pagination(count, url, limit, offset);
-      result = await this.userModel
-        .find()
-        .skip(paths.default_offset)
-        .limit(paths.default_limit);
+      result = await this.userModel.find().skip(paths.default_offset).limit(paths.default_limit);
     } else {
       paths = this.pagination(count, url);
       result = await this.userModel.find().limit(paths.default_limit);

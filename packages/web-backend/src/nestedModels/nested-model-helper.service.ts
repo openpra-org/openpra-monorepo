@@ -1,28 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import {
-  InternalEvents,
-  InternalEventsDocument,
-} from "../typedModel/schemas/internal-events.schema";
-import {
-  InternalHazards,
-  InternalHazardsDocument,
-} from "../typedModel/schemas/internal-hazards.schema";
-import {
-  ExternalHazards,
-  ExternalHazardsDocument,
-} from "../typedModel/schemas/external-hazards.schema";
-import {
-  FullScope,
-  FullScopeDocument,
-} from "../typedModel/schemas/full-scope.schema";
+import { InternalEvents, InternalEventsDocument } from "../typedModel/schemas/internal-events.schema";
+import { InternalHazards, InternalHazardsDocument } from "../typedModel/schemas/internal-hazards.schema";
+import { ExternalHazards, ExternalHazardsDocument } from "../typedModel/schemas/external-hazards.schema";
+import { FullScope, FullScopeDocument } from "../typedModel/schemas/full-scope.schema";
 
-export type TypedModelType =
-  | "internalEvents"
-  | "internalHazards"
-  | "externalHazards"
-  | "fullScope";
+export type TypedModelType = "internalEvents" | "internalHazards" | "externalHazards" | "fullScope";
 
 export type NestedModelType =
   | "initiatingEvents"

@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openpra.org/schema/v1/openpra-mef/event-sequence-analysis.json",
+  "title": "Event Sequence Analysis",
+  "type": "object"
+}

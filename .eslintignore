@@ -1,1 +1,10 @@
 node_modules
+dist
+coverage
+/.nx
+pnpm-lock.yaml
+tmp
+.idea
+build
+cmake-build-*
+cmake

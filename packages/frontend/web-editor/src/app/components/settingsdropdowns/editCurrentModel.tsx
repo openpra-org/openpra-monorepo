@@ -64,12 +64,7 @@ function EditCurrentModel(): JSX.Element {
 
   //this takes any type instead of what it should, I have *no* idea how to carry over the types across promises, it doesn't seem to work, and I've tinkered quite a bit
   const updateCurrentModel = (newModel: any): void => {
-    const addModel = new TypedModel(
-      newModel.id,
-      newModel.label.name,
-      newModel.label.description,
-      newModel.users,
-    );
+    const addModel = new TypedModel(newModel.id, newModel.label.name, newModel.label.description, newModel.users);
     setCurrentModel(addModel);
   };
 
@@ -90,9 +85,16 @@ function EditCurrentModel(): JSX.Element {
 
   const buttonContent = (
     <div>
-      <EuiFlexGroup gutterSize="s" alignItems="center" responsive={false}>
+      <EuiFlexGroup
+        gutterSize="s"
+        alignItems="center"
+        responsive={false}
+      >
         <EuiFlexItem grow={false}>
-          <EuiIcon type="dashboardApp" size="l" />
+          <EuiIcon
+            type="dashboardApp"
+            size="l"
+          />
         </EuiFlexItem>
         <EuiFlexItem>
           <EuiTitle size="xs">
@@ -102,9 +104,7 @@ function EditCurrentModel(): JSX.Element {
       </EuiFlexGroup>
       <EuiText size="s">
         <p>
-          <EuiTextColor color="subdued">
-            Update the model name, description, and ID.
-          </EuiTextColor>
+          <EuiTextColor color="subdued">Update the model name, description, and ID.</EuiTextColor>
         </p>
       </EuiText>
     </div>

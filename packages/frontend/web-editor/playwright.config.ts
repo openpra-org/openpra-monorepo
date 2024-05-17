@@ -10,10 +10,7 @@ const baseURL = process.env.BASE_URL ?? "http://localhost:4200";
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
-export const StorageState = path.join(
-  __dirname,
-  "packages/frontend/web-editor/e2e/.auth/user.json",
-);
+export const StorageState = path.join(__dirname, "packages/frontend/web-editor/e2e/.auth/user.json");
 
 // eslint-disable-next-line import/no-default-export
 export default defineConfig({

@@ -143,7 +143,12 @@ function InitiatingEventsTable(): JSX.Element {
     },
   ];
 
-  return <DataTable rows={rows} columns={columns} />;
+  return (
+    <DataTable
+      rows={rows}
+      columns={columns}
+    />
+  );
 }
 
 export { InitiatingEventsTable };

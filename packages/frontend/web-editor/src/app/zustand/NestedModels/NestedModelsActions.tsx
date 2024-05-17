@@ -5,9 +5,4 @@ import {
   DeleteInitiatingEvent,
 } from "./ActionHelpers/InitiatingEventsActions";
 
-export {
-  SetInitiatingEvents,
-  AddInitiatingEvent,
-  EditInitiatingEvent,
-  DeleteInitiatingEvent,
-};
+export { SetInitiatingEvents, AddInitiatingEvent, EditInitiatingEvent, DeleteInitiatingEvent };

@@ -66,20 +66,16 @@ function ReactFlowPro(): JSX.Element {
   useEffect(() => {
     fitView({ duration: 400 });
     const loadGraph = async (): Promise<void> => {
-      await GraphApiManager.getEventSequence(eventSequenceId).then(
-        (res: EventSequenceGraph) => {
-          updateNodes(res.nodes.length !== 0 ? res.nodes : []);
-          updateEdges(res.edges.length !== 0 ? res.edges : []);
-          setLoading(false);
-        },
-      );
+      await GraphApiManager.getEventSequence(eventSequenceId).then((res: EventSequenceGraph) => {
+        updateNodes(res.nodes.length !== 0 ? res.nodes : []);
+        updateEdges(res.edges.length !== 0 ? res.edges : []);
+        setLoading(false);
+      });
     };
     void (loading && loadGraph());
   }, [nodes, fitView, loading, eventSequenceId]);
 
-  const [menu, setMenu] = useState<EventSequenceContextMenuOptions | null>(
-    null,
-  );
+  const [menu, setMenu] = useState<EventSequenceContextMenuOptions | null>(null);
   const ref = useRef<HTMLDivElement>(document.createElement("div"));
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
   const [isOpen, setIsOpen] = useState(false);
@@ -122,10 +118,7 @@ function ReactFlowPro(): JSX.Element {
       const currentEdges = getEdges();
       if (IsCurrentStateTentative(currentNodes, currentEdges)) {
         addToast(GetESToast("primary", "Reverting the tentative state."));
-        const { updatedState } = RevertTentativeState(
-          currentNodes,
-          currentEdges,
-        );
+        const { updatedState } = RevertTentativeState(currentNodes, currentEdges);
         setNodes(updatedState.nodes);
         setEdges(updatedState.edges);
       }
@@ -135,10 +128,7 @@ function ReactFlowPro(): JSX.Element {
       // Calculate position of the context menu. We want to make sure it
       // doesn't get positioned off-screen.
       const left = event.clientX - 200;
-      const top =
-        event.clientY + 228 > window.innerHeight
-          ? event.clientY - 160
-          : event.clientY;
+      const top = event.clientY + 228 > window.innerHeight ? event.clientY - 160 : event.clientY;
       setMenu({
         id: node.id,
         top: top,
@@ -155,33 +145,25 @@ function ReactFlowPro(): JSX.Element {
       const currentNodes = getNodes();
       const currentEdges = getEdges();
       if (IsCurrentStateTentative(currentNodes, currentEdges)) {
-        const solidNodes: Node<EventSequenceNodeProps>[] = currentNodes.map(
-          (_node: Node<EventSequenceNodeProps>) => {
-            if (
-              _node.data.branchId !== undefined &&
-              _node.data.tentative === true &&
-              _node.data.branchId === node.data.branchId
-            ) {
-              _node.selected = true;
-              _node.data.tentative = false;
-            }
-            return _node;
-          },
-        );
+        const solidNodes: Node<EventSequenceNodeProps>[] = currentNodes.map((_node: Node<EventSequenceNodeProps>) => {
+          if (
+            _node.data.branchId !== undefined &&
+            _node.data.tentative === true &&
+            _node.data.branchId === node.data.branchId
+          ) {
+            _node.selected = true;
+            _node.data.tentative = false;
+          }
+          return _node;
+        });
 
-        const solidEdges: Edge<EventSequenceEdgeProps>[] = currentEdges.map(
-          (_edge: Edge<EventSequenceEdgeProps>) => {
-            if (
-              _edge.data &&
-              _edge.data.tentative === true &&
-              _edge.data.branchId === node.data.branchId
-            ) {
-              _edge.data.tentative = false;
-              _edge.animated = false;
-            }
-            return _edge;
-          },
-        );
+        const solidEdges: Edge<EventSequenceEdgeProps>[] = currentEdges.map((_edge: Edge<EventSequenceEdgeProps>) => {
+          if (_edge.data && _edge.data.tentative === true && _edge.data.branchId === node.data.branchId) {
+            _edge.data.tentative = false;
+            _edge.animated = false;
+          }
+          return _edge;
+        });
 
         setNodes(solidNodes);
         setEdges(solidEdges);
@@ -195,34 +177,30 @@ function ReactFlowPro(): JSX.Element {
       const currentNodes = getNodes();
       const currentEdges = getEdges();
       if (IsCurrentStateTentative(currentNodes, currentEdges)) {
-        const grayedNodes: Node<EventSequenceNodeProps>[] = currentNodes.map(
-          (_node: Node<EventSequenceNodeProps>) => {
-            if (
-              _node.data.tentative !== undefined &&
-              _node.data.branchId !== undefined &&
-              _node.data.branchId === node.data.branchId &&
-              !_node.data.tentative
-            ) {
-              _node.selected = false;
-              _node.data.tentative = true;
-            }
-            return _node;
-          },
-        );
+        const grayedNodes: Node<EventSequenceNodeProps>[] = currentNodes.map((_node: Node<EventSequenceNodeProps>) => {
+          if (
+            _node.data.tentative !== undefined &&
+            _node.data.branchId !== undefined &&
+            _node.data.branchId === node.data.branchId &&
+            !_node.data.tentative
+          ) {
+            _node.selected = false;
+            _node.data.tentative = true;
+          }
+          return _node;
+        });
 
-        const grayedEdges: Edge<EventSequenceEdgeProps>[] = currentEdges.map(
-          (_edge: Edge<EventSequenceEdgeProps>) => {
-            if (
-              _edge.data?.branchId !== undefined &&
-              _edge.data.branchId === node.data.branchId &&
-              _edge.data.tentative === false
-            ) {
-              _edge.data.tentative = true;
-              _edge.animated = true;
-            }
-            return _edge;
-          },
-        );
+        const grayedEdges: Edge<EventSequenceEdgeProps>[] = currentEdges.map((_edge: Edge<EventSequenceEdgeProps>) => {
+          if (
+            _edge.data?.branchId !== undefined &&
+            _edge.data.branchId === node.data.branchId &&
+            _edge.data.tentative === false
+          ) {
+            _edge.data.tentative = true;
+            _edge.animated = true;
+          }
+          return _edge;
+        });
 
         setNodes(grayedNodes);
         setEdges(grayedEdges);
@@ -232,26 +210,16 @@ function ReactFlowPro(): JSX.Element {
   );
 
   useEffect(() => {
-    const selectedNode:
-      | Node<EventSequenceNodeProps, EventSequenceNodeTypes>
-      | undefined = getNodes().find((node) => node.selected) as
-      | Node<EventSequenceNodeProps, EventSequenceNodeTypes>
-      | undefined;
+    const selectedNode: Node<EventSequenceNodeProps, EventSequenceNodeTypes> | undefined = getNodes().find(
+      (node) => node.selected,
+    ) as Node<EventSequenceNodeProps, EventSequenceNodeTypes> | undefined;
     if (selectedNode !== undefined) {
-      const onDeleteState = DeleteEventSequenceNode(
-        selectedNode,
-        getNodes(),
-        getEdges(),
-      );
+      const onDeleteState = DeleteEventSequenceNode(selectedNode, getNodes(), getEdges());
       if (onDeleteState !== undefined) {
         setNodes(onDeleteState.updatedState.nodes);
         setEdges(onDeleteState.updatedState.edges);
         if (onDeleteState.syncState) {
-          UpdateEventSequenceDiagram(
-            eventSequenceId,
-            onDeleteState.updatedSubgraph,
-            onDeleteState.deletedSubgraph,
-          )
+          UpdateEventSequenceDiagram(eventSequenceId, onDeleteState.updatedSubgraph, onDeleteState.deletedSubgraph)
             .then((r) => {
               if (!r) {
                 addToast(GetESToast("danger", "Something went wrong"));
@@ -263,15 +231,7 @@ function ReactFlowPro(): JSX.Element {
         }
       }
     }
-  }, [
-    addToast,
-    deleteKeyPressed,
-    eventSequenceId,
-    getEdges,
-    getNodes,
-    setEdges,
-    setNodes,
-  ]);
+  }, [addToast, deleteKeyPressed, eventSequenceId, getEdges, getNodes, setEdges, setNodes]);
 
   return loading ? (
     <LoadingCard />
@@ -313,7 +273,10 @@ function ReactFlowPro(): JSX.Element {
         closePopover={onPopoverClose}
       >
         {menu && (
-          <EventSequenceContextMenu onClick={onPopoverClose} {...menu} />
+          <EventSequenceContextMenu
+            onClick={onPopoverClose}
+            {...menu}
+          />
         )}
       </EuiPopover>
       <MiniMap
@@ -355,8 +318,14 @@ export function EventSequenceEditor(): JSX.Element {
 function EventSequenceDiagrams(): JSX.Element {
   return (
     <Routes>
-      <Route path="" element={<EventSequenceList />} />
-      <Route path=":eventSequenceId" element={<EventSequenceEditor />} />
+      <Route
+        path=""
+        element={<EventSequenceList />}
+      />
+      <Route
+        path=":eventSequenceId"
+        element={<EventSequenceEditor />}
+      />
     </Routes>
   );
 }

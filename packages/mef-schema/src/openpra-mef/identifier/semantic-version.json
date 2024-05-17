@@ -1,11 +1,11 @@
 {
-  "$schema": "https://json-schema.org/draft-07/schema#",
-  "$id": "semantic-version.json",
-  "title": "Semantic Version",
+  "$schema": "https://json-schema.org/draft/2020-12/schema#",
+  "$id": "https://openpra.org/schema/v1/openpra-mef/identifier/semantic-version.json",
+  "title": "Semantic Version Schema",
   "description": "Schema for semantic versioning",
   "type": "string",
   "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(-(0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(\\.(0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\\+[0-9a-zA-Z-]+(\\.[0-9a-zA-Z-]+)*)?$",
-  "properties": {},
+  "additionalProperties": false,
   "examples": [
     "1.0.0",
     "2.0.0-alpha",

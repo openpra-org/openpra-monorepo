@@ -1,6 +1,4 @@
-import AbstractDistribution, {
-  DistributionSummary,
-} from "./AbstractDistribution";
+import AbstractDistribution, { DistributionSummary } from "./AbstractDistribution";
 
 const linspace = require("linspace");
 const erf = require("compute-erf");
@@ -47,10 +45,7 @@ class LogNormal extends AbstractDistribution {
    * @throws Error if sigma is a negative number
    */
   setSigma(sigma: number) {
-    if (sigma <= 0)
-      throw new Error(
-        "setSigma()::invalid input argument. sigma parameter must be greater than 0.",
-      );
+    if (sigma <= 0) throw new Error("setSigma()::invalid input argument. sigma parameter must be greater than 0.");
     this.sigma = sigma;
   }
 

@@ -5,11 +5,7 @@ import { InviteController } from "./invite.controller";
 import { InviteService } from "./invite.service";
 
 @Module({
-  imports: [
-    MongooseModule.forFeature([
-      { name: InvitedUser.name, schema: InvitedUserSchema },
-    ]),
-  ],
+  imports: [MongooseModule.forFeature([{ name: InvitedUser.name, schema: InvitedUserSchema }])],
   controllers: [InviteController],
   providers: [InviteService],
   exports: [InviteService],

@@ -1,13 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  HttpException,
-  HttpStatus,
-  Patch,
-  Post,
-  Query,
-} from "@nestjs/common";
+import { Body, Controller, Get, HttpException, HttpStatus, Patch, Post, Query } from "@nestjs/common";
 import { EventSequenceDiagramGraph } from "../schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph } from "../schemas/graphs/fault-tree-graph.schema";
 import { EventTreeGraph } from "../schemas/graphs/event-tree-graph.schema";
@@ -25,16 +16,11 @@ export class GraphModelController {
    * @returns a promise with the newly created graph model
    */
   @Post("/fault-tree-graph")
-  async createFaultTreeGraph(
-    @Body() data: Partial<FaultTreeGraph>,
-  ): Promise<boolean> {
+  async createFaultTreeGraph(@Body() data: Partial<FaultTreeGraph>): Promise<boolean> {
     try {
       return this.graphModelService.saveFaultTreeGraph(data);
     } catch (_) {
-      throw new HttpException(
-        "Something went wrong",
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -45,16 +31,11 @@ export class GraphModelController {
    * @returns a promise with the newly created graph model
    */
   @Post("/event-tree-graph")
-  async createEventTreeGraph(
-    @Body() data: Partial<EventTreeGraph>,
-  ): Promise<boolean> {
+  async createEventTreeGraph(@Body() data: Partial<EventTreeGraph>): Promise<boolean> {
     try {
       return this.graphModelService.saveEventTreeGraph(data);
     } catch (_) {
-      throw new HttpException(
-        "Something went wrong",
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -76,9 +57,7 @@ export class GraphModelController {
    * @returns a promise with an object of the fault tree diagram graph
    */
   @Get("/fault-tree-graph/")
-  async getFaultTreeGraph(
-    @Query("faultTreeId") faultTreeId: string,
-  ): Promise<FaultTreeGraph> {
+  async getFaultTreeGraph(@Query("faultTreeId") faultTreeId: string): Promise<FaultTreeGraph> {
     return this.graphModelService.getFaultTreeGraph(faultTreeId);
   }
 
@@ -98,10 +77,7 @@ export class GraphModelController {
     try {
       return this.graphModelService.updateESLabel(id, type, label);
     } catch (_) {
-      throw new HttpException(
-        "Something went wrong",
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -112,16 +88,9 @@ export class GraphModelController {
     @Body("deleted") deletedSubgraph: Partial<BaseGraph>,
   ): Promise<boolean> {
     try {
-      return this.graphModelService.updateESSubgraph(
-        eventSequenceId,
-        updatedSubgraph,
-        deletedSubgraph,
-      );
+      return this.graphModelService.updateESSubgraph(eventSequenceId, updatedSubgraph, deletedSubgraph);
     } catch (_) {
-      throw new HttpException(
-        "Something went wrong",
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -131,9 +100,7 @@ export class GraphModelController {
    * @returns a promise with an object of the event tree diagram graph
    */
   @Get("/event-tree-graph/")
-  async getEventTreeGraph(
-    @Query("eventTreeId") eventTreeId: string,
-  ): Promise<EventTreeGraph> {
+  async getEventTreeGraph(@Query("eventTreeId") eventTreeId: string): Promise<EventTreeGraph> {
     return this.graphModelService.getEventTreeGraph(eventTreeId);
   }
 }

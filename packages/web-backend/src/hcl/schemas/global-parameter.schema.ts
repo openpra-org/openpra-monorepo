@@ -31,5 +31,4 @@ export class GlobalParameter {
 }
 
 export type GlobalParameterDocument = GlobalParameter & Document;
-export const GlobalParameterSchema =
-  SchemaFactory.createForClass(GlobalParameter);
+export const GlobalParameterSchema = SchemaFactory.createForClass(GlobalParameter);

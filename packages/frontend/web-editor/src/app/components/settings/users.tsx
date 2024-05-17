@@ -34,16 +34,12 @@ function constructColumns(): EuiBasicTableColumn<MemberResult>[] {
     {
       name: "Users",
       render: (item: MemberResult): JSX.Element => (
-        <Link to={"../preferences/" + item.id + "/personal-data"}>
-          {item.firstName + " " + item.lastName}
-        </Link>
+        <Link to={"../preferences/" + item.id + "/personal-data"}>{item.firstName + " " + item.lastName}</Link>
       ),
       mobileOptions: {
         render: (item: MemberResult): JSX.Element => (
           <span>
-            <Link to={"../preferences/" + item.id + "/personal-data"}>
-              {item.firstName + " " + item.lastName}
-            </Link>
+            <Link to={"../preferences/" + item.id + "/personal-data"}>{item.firstName + " " + item.lastName}</Link>
           </span>
         ),
         header: false,
@@ -68,10 +64,8 @@ export const ExpiryOptions = [
  */
 export function Users(): JSX.Element {
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isNewUserModalVisible, setIsNewUserModalVisible] =
-    useState<boolean>(false);
-  const [isInviteNewUserModalVisible, setIsInviteNewUserModalVisible] =
-    useState<boolean>(false);
+  const [isNewUserModalVisible, setIsNewUserModalVisible] = useState<boolean>(false);
+  const [isInviteNewUserModalVisible, setIsInviteNewUserModalVisible] = useState<boolean>(false);
   const [users, setUsers] = useState<MemberResult[]>([]);
   const [signup, setSignup] = useState<SignUpProps>(DefaultProps);
   const [generatedUserId, setGeneratedUserId] = useState<string>("");
@@ -167,9 +161,7 @@ export function Users(): JSX.Element {
                     aria-label="Copy url to clipboard"
                     iconType="copy"
                     onClick={(): void => {
-                      copyToClipboard(
-                        window.location.origin + "/invite/" + generatedUserId,
-                      );
+                      copyToClipboard(window.location.origin + "/invite/" + generatedUserId);
                     }}
                   ></EuiButtonIcon>
                 </EuiFlexItem>
@@ -239,7 +231,10 @@ export function Users(): JSX.Element {
             isLoading={isLoading}
             contentAriaLabel="Example description"
           >
-            <EuiBasicTable items={users} columns={constructColumns()} />
+            <EuiBasicTable
+              items={users}
+              columns={constructColumns()}
+            />
           </EuiSkeletonRectangle>
           <EuiSpacer size="s" />
         </EuiPageTemplate.Section>

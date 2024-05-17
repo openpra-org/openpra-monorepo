@@ -3,10 +3,7 @@ import React from "react";
 import { useState } from "react";
 import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
-import {
-  EmailValidationForm,
-  UsernameValidationForm,
-} from "shared-types/src/lib/api/FormValidation";
+import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { PasswordForm } from "./passwordForm";
@@ -81,7 +78,10 @@ const SignUpForm = ({
   }
 
   return (
-    <EuiForm component="form" onSubmit={validateSignup}>
+    <EuiForm
+      component="form"
+      onSubmit={validateSignup}
+    >
       <br />
       <UsernameForm
         signup={signup}
@@ -100,7 +100,10 @@ const SignUpForm = ({
         signupButtonClicked={signupButtonClicked}
       />
       <EuiFormRow>
-        <EuiButton fullWidth type="submit">
+        <EuiButton
+          fullWidth
+          type="submit"
+        >
           {buttonText}
         </EuiButton>
       </EuiFormRow>

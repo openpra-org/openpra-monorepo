@@ -1,14 +1,14 @@
 import Label from "../../Label";
 import { BasicModel } from "../basicModel";
 
-export type TypedModelJSON = {
+export interface TypedModelJSON {
   id: number;
   label: {
     name: string;
     description: string;
   };
   users: number[];
-};
+}
 
 export type TypedModelJSONMap = Record<string, TypedModelJSON>;
 
@@ -28,12 +28,7 @@ export default class TypedModel extends BasicModel /** implements Parsable<Typed
    * @param {TypedModelJSON} obj - dictionary object to parse
    */
   static build(obj: TypedModelJSON): TypedModel {
-    return new TypedModel(
-      obj.id,
-      obj.label.name,
-      obj.label.description,
-      obj.users,
-    );
+    return new TypedModel(obj.id, obj.label.name, obj.label.description, obj.users);
   }
 
   /**
@@ -103,7 +98,7 @@ export default class TypedModel extends BasicModel /** implements Parsable<Typed
   // }
 }
 
-export type typedModelType = {
+export interface typedModelType {
   _id: string;
   label: {
     name: string;
@@ -120,4 +115,4 @@ export type typedModelType = {
   bayesianEstimations?: string[];
   weibullAnalysis?: string[];
   id: number;
-};
+}

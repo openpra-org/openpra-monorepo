@@ -32,12 +32,7 @@ function ExternalHazardsList(): JSX.Element {
         deleteTypedEndpoint: deleteExternalHazard,
       }),
     );
-  }, [
-    createExternalHazards,
-    deleteExternalHazard,
-    editExternalHazard,
-    externalHazardsList,
-  ]);
+  }, [createExternalHazards, deleteExternalHazard, editExternalHazard, externalHazardsList]);
 
   return (
     <EuiPageTemplate

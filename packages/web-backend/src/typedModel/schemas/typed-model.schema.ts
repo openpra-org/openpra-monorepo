@@ -2,10 +2,10 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document } from "mongoose";
 import { Label, LabelSchema } from "../../schemas/label.schema";
 
-export type TypedModelJSON = {
+export interface TypedModelJSON {
   label: Label;
   users: number[];
-};
+}
 
 @Schema({ versionKey: false })
 export class TypedModel {

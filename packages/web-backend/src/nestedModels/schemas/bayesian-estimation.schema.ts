@@ -6,5 +6,4 @@ import { NestedModel } from "./templateSchema/nested-model.schema";
 export class BayesianEstimation extends NestedModel {}
 
 export type BayesianEstimationDocument = BayesianEstimation & Document;
-export const BayesianEstimationSchema =
-  SchemaFactory.createForClass(BayesianEstimation);
+export const BayesianEstimationSchema = SchemaFactory.createForClass(BayesianEstimation);

@@ -1,11 +1,4 @@
-import {
-  EuiFlexGroup,
-  EuiFlexItem,
-  EuiText,
-  useEuiTheme,
-  EuiHorizontalRule,
-  EuiButtonIcon,
-} from "@elastic/eui";
+import { EuiFlexGroup, EuiFlexItem, EuiText, useEuiTheme, EuiHorizontalRule, EuiButtonIcon } from "@elastic/eui";
 import { useState } from "react";
 
 function ParameterItemsList(): JSX.Element {
@@ -25,9 +18,16 @@ function ParameterItemsList(): JSX.Element {
   const { euiTheme } = useEuiTheme();
 
   return (
-    <EuiFlexGroup direction="column" alignItems="center" gutterSize="s">
+    <EuiFlexGroup
+      direction="column"
+      alignItems="center"
+      gutterSize="s"
+    >
       {/** displays the title, this is seperate from the items and has the width 47% to line up correctl, it look sright because it is in the flex group */}
-      <EuiFlexItem grow={false} style={{ marginTop: "20px", width: "1000px" }}>
+      <EuiFlexItem
+        grow={false}
+        style={{ marginTop: "20px", width: "1000px" }}
+      >
         <EuiFlexGroup>
           <EuiText style={{ fontSize: "2rem", width: "47%" }}>
             <strong>Parameter</strong>
@@ -37,9 +37,7 @@ function ParameterItemsList(): JSX.Element {
           </EuiText>
         </EuiFlexGroup>
         {/** horizontal line */}
-        <EuiHorizontalRule
-          style={{ width: "1000px", marginTop: "10px", marginBottom: "0px" }}
-        />
+        <EuiHorizontalRule style={{ width: "1000px", marginTop: "10px", marginBottom: "0px" }} />
       </EuiFlexItem>
       {/** a list that is generated through paramters and displays all the global parameters */}
       {parameters.map((param) => (
@@ -53,14 +51,8 @@ function ParameterItemsList(): JSX.Element {
           }}
         >
           <EuiFlexGroup direction="row">
-            <EuiText style={{ fontSize: "1.5rem", width: "50%" }}>
-              {" "}
-              {param.name}
-            </EuiText>
-            <EuiText style={{ fontSize: "1.5rem", width: "40%" }}>
-              {" "}
-              {param.value}{" "}
-            </EuiText>
+            <EuiText style={{ fontSize: "1.5rem", width: "50%" }}> {param.name}</EuiText>
+            <EuiText style={{ fontSize: "1.5rem", width: "40%" }}> {param.value} </EuiText>
             <EuiButtonIcon
               color="text"
               onClick={onDeleteClick}

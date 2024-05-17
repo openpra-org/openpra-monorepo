@@ -21,10 +21,7 @@ import {
   PostWeibullAnalysis,
 } from "shared-types/src/lib/api/NestedModelApiManager";
 import { ItemFormProps } from "../forms/typedModelActionForm";
-import {
-  NestedItemFormProps,
-  NestedModelActionForm,
-} from "../forms/nestedModelActionForm";
+import { NestedItemFormProps, NestedModelActionForm } from "../forms/nestedModelActionForm";
 import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { ToTitleCase } from "../../../utils/StringUtils";
 import { UseGlobalStore } from "../../zustand/Store";
@@ -41,14 +38,8 @@ export type CreateNestedItemButtonProps = Omit<NestedItemFormProps, "action">;
  * @param endpoint - endpoint that will be used to add the item
  * @returns the create item button
  */
-function CreateItemButton({
-  itemName,
-  postEndpoint,
-  postFunction,
-}: CreateItemButtonProps): JSX.Element {
-  const popoverExtra = (child: JSX.Element): JSX.Element => (
-    <div style={logicalStyle("max-width", 240)}>{child}</div>
-  );
+function CreateItemButton({ itemName, postEndpoint, postFunction }: CreateItemButtonProps): JSX.Element {
+  const popoverExtra = (child: JSX.Element): JSX.Element => <div style={logicalStyle("max-width", 240)}>{child}</div>;
   //this now checks what type of thing is being added, as adding a typed model has an extra field that isn't needed
   return (
     <ButtonWithClosablePopover
@@ -86,9 +77,7 @@ export function CreateNestedItemButton({
   postNestedEndpoint,
   postEndpoint,
 }: CreateNestedItemButtonProps): JSX.Element {
-  const popoverExtra = (child: JSX.Element): JSX.Element => (
-    <div style={logicalStyle("max-width", 240)}>{child}</div>
-  );
+  const popoverExtra = (child: JSX.Element): JSX.Element => <div style={logicalStyle("max-width", 240)}>{child}</div>;
   //this now checks what type of thing is being added, as adding a typed model has an extra field that isn't needed
   return (
     <ButtonWithClosablePopover
@@ -149,7 +138,10 @@ export function CreateExternalHazardsButton(): JSX.Element {
 export function CreateFullScopeButton(): JSX.Element {
   const createFullScope = UseGlobalStore.use.addFullScope();
   return (
-    <CreateItemButton itemName="Full Scope" postFunction={createFullScope} />
+    <CreateItemButton
+      itemName="Full Scope"
+      postFunction={createFullScope}
+    />
   );
 }
 

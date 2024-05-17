@@ -8,7 +8,11 @@ describe("DeleteItemBox", () => {
   it("renders delete {list_item} as title", () => {
     render(
       <BrowserRouter>
-        <DeleteItemBox id={1} itemName={"Test"} typeOfModel={""} />
+        <DeleteItemBox
+          id={1}
+          itemName={"Test"}
+          typeOfModel={""}
+        />
       </BrowserRouter>,
     );
     const itemTitle = screen.getByTestId("delete-item-title").innerHTML;
@@ -19,7 +23,11 @@ describe("DeleteItemBox", () => {
   it("renders input box for item name", () => {
     render(
       <BrowserRouter>
-        <DeleteItemBox id={1} itemName={"Test"} typeOfModel={""} />
+        <DeleteItemBox
+          id={1}
+          itemName={"Test"}
+          typeOfModel={""}
+        />
       </BrowserRouter>,
     );
     const inputBox = screen.getByTestId("delete-item-input");
@@ -30,7 +38,11 @@ describe("DeleteItemBox", () => {
   it("changes value of input box on input", () => {
     render(
       <BrowserRouter>
-        <DeleteItemBox id={1} itemName={"Test"} typeOfModel={""} />
+        <DeleteItemBox
+          id={1}
+          itemName={"Test"}
+          typeOfModel={""}
+        />
       </BrowserRouter>,
     );
     const inputBox: HTMLInputElement = screen.getByTestId("delete-item-input");
@@ -43,11 +55,14 @@ describe("DeleteItemBox", () => {
   it("renders disabled delete button", () => {
     render(
       <BrowserRouter>
-        <DeleteItemBox id={1} itemName={"Test"} typeOfModel={""} />
+        <DeleteItemBox
+          id={1}
+          itemName={"Test"}
+          typeOfModel={""}
+        />
       </BrowserRouter>,
     );
-    const deleteItemButton: HTMLInputElement =
-      screen.getByTestId("delete-item-button");
+    const deleteItemButton: HTMLInputElement = screen.getByTestId("delete-item-button");
     const buttonAttribute = deleteItemButton.getAttribute("disabled");
     expect(buttonAttribute).toBe("true");
   });
@@ -56,11 +71,14 @@ describe("DeleteItemBox", () => {
   it("renders enabled delete button after entering text in input box", () => {
     render(
       <BrowserRouter>
-        <DeleteItemBox id={1} itemName={"Test"} typeOfModel={""} />
+        <DeleteItemBox
+          id={1}
+          itemName={"Test"}
+          typeOfModel={""}
+        />
       </BrowserRouter>,
     );
-    const deleteItemButton: HTMLInputElement =
-      screen.getByTestId("delete-item-button");
+    const deleteItemButton: HTMLInputElement = screen.getByTestId("delete-item-button");
     const inputBox = screen.getByTestId("delete-item-input");
     fireEvent.change(inputBox, { target: { value: "yes" } });
     const buttonAttribute = deleteItemButton.getAttribute("disabled");

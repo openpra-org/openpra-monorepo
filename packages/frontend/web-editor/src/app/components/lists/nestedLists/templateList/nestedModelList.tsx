@@ -4,21 +4,18 @@ import { ReactElement, useEffect, useState } from "react";
 import { NestedModel } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 
-import {
-  GetCurrentModelId,
-  GetCurrentModelIdString,
-} from "shared-types/src/lib/api/TypedModelApiManager";
+import { GetCurrentModelId, GetCurrentModelIdString } from "shared-types/src/lib/api/TypedModelApiManager";
 import { GenericListItem } from "../../GenericListItem";
 import { GenericItemList } from "../../GenericItemList";
 import { UseGlobalStore } from "../../../../zustand/Store";
 
-export type NestedModelListProps = {
+export interface NestedModelListProps {
   name: string;
   getNestedEndpoint?: (id: number) => Promise<NestedModel[]>;
   getNestedEndpointString?: (id: string) => Promise<NestedModel[]>;
   deleteNestedEndpoint: (id: number) => NonNullable<unknown>;
   patchNestedEndpoint: (id: number, data: LabelJSON) => NonNullable<unknown>;
-};
+}
 
 //grabs the model List
 async function fetchModelList(
@@ -58,13 +55,7 @@ const getFixtures = async (
       : [];
     console.log(modelList);
     const nestedModelList: NestedModel[] = modelList.map(
-      (item: any) =>
-        new NestedModel(
-          item.label.name,
-          item.label.description,
-          item.id,
-          item.parentIds,
-        ),
+      (item: any) => new NestedModel(item.label.name, item.label.description, item.id, item.parentIds),
     );
 
     //now we map these events to what they should be and display them
@@ -93,13 +84,7 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const {
-    name,
-    deleteNestedEndpoint,
-    getNestedEndpoint,
-    getNestedEndpointString,
-    patchNestedEndpoint,
-  } = props;
+  const { name, deleteNestedEndpoint, getNestedEndpoint, getNestedEndpointString, patchNestedEndpoint } = props;
 
   useEffect(() => {
     const fetchGenericListItems = async (): Promise<void> => {

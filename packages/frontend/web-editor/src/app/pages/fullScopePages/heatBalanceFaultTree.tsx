@@ -10,8 +10,14 @@ import { FaultTreeEditor } from "./faultTrees";
 function HeatBalanceFaultTrees() {
   return (
     <Routes>
-      <Route path="" element={<HeatBalanceFaultTreeList />} />
-      <Route path=":faultTreeId" element={<FaultTreeEditor />} />
+      <Route
+        path=""
+        element={<HeatBalanceFaultTreeList />}
+      />
+      <Route
+        path=":faultTreeId"
+        element={<FaultTreeEditor />}
+      />
     </Routes>
   );
 }

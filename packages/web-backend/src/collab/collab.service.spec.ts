@@ -5,10 +5,7 @@ import { MemberResult } from "shared-types/src/lib/api/Members";
 import { expect } from "@playwright/test";
 import * as argon2 from "argon2";
 import { CollabService } from "./collab.service";
-import {
-  User,
-  UserSchema,
-} from "./schemas/user.schema";
+import { User, UserSchema } from "./schemas/user.schema";
 import { UserCounter, UserCounterSchema } from "./schemas/user-counter.schema";
 
 import { CreateUserObject } from "./stubs/createNewUser.stub";
@@ -139,9 +136,7 @@ describe("CollabService", () => {
     it("should return user preferences", async () => {
       const response = await collabService.createNewUser(CreateUserObject); // create a new user
       if (typeof response !== "string") {
-        const returnedValue = await collabService.getUserPreferences(
-          String(response.id),
-        ); // calling getUserPreferences
+        const returnedValue = await collabService.getUserPreferences(String(response.id)); // calling getUserPreferences
         expect(returnedValue).toBeDefined(); // user preferences should be defined
       }
     });
@@ -188,10 +183,7 @@ describe("CollabService", () => {
       const userPreferenceObject = { preferences: { theme: "Dark" } };
       const response = await collabService.createNewUser(CreateUserObject); // create a new user
       if (typeof response !== "string") {
-        const returnedValue = await collabService.updateUserPreferences(
-          String(response.id),
-          userPreferenceObject,
-        ); // calling updateUserPreferences
+        const returnedValue = await collabService.updateUserPreferences(String(response.id), userPreferenceObject); // calling updateUserPreferences
         expect(returnedValue).toBeDefined(); // user preferences should be defined
         expect(returnedValue.preferences.theme).toMatch("Dark"); // theme should be updated
       }
@@ -209,10 +201,7 @@ describe("CollabService", () => {
       };
       const response = await collabService.createNewUser(CreateUserObject); // create a new user
       if (typeof response !== "string") {
-        const returnedValue = await collabService.updateUserPreferences(
-          String(response.id),
-          userPreferenceObject,
-        ); // calling updateUserPreferences
+        const returnedValue = await collabService.updateUserPreferences(String(response.id), userPreferenceObject); // calling updateUserPreferences
         expect(returnedValue.preferences.nodeIdsVisible).toBeFalsy();
       } // nodeIdsVisible should be updated
     });
@@ -229,10 +218,7 @@ describe("CollabService", () => {
       };
       const response = await collabService.createNewUser(CreateUserObject); // create a new user
       if (typeof response !== "string") {
-        const returnedValue = await collabService.updateUserPreferences(
-          String(response.id),
-          userPreferenceObject,
-        ); // calling updateUserPreferences
+        const returnedValue = await collabService.updateUserPreferences(String(response.id), userPreferenceObject); // calling updateUserPreferences
         expect(returnedValue.preferences.outlineVisible).toBeFalsy(); // user preferences should be updated
       }
     });
@@ -257,9 +243,7 @@ describe("CollabService", () => {
       const dateBefore = Date.now(); //get current timestamp
       if (typeof response !== "string") {
         await collabService.updateLastLogin(response.id); // calling updateLastLogin
-        const returnedValue = await collabService.loginUser(
-          CreateUserObject.username,
-        ); // calling loginUser to get the latest user object
+        const returnedValue = await collabService.loginUser(CreateUserObject.username); // calling loginUser to get the latest user object
         const dateNumber = returnedValue.last_login.getTime(); // get Date object from returned value and convert to timestamp
         expect(dateNumber).toBeGreaterThanOrEqual(dateBefore);
       } // last_login should be greater than
@@ -306,9 +290,7 @@ describe("CollabService", () => {
       member.password = passwordChange;
       await collabService.updateUser(member);
       const foundUser: User = await users.findOne<User>({ id: 786 });
-      expect(await argon2.verify(foundUser.password, passwordChange)).toEqual(
-        true,
-      );
+      expect(await argon2.verify(foundUser.password, passwordChange)).toEqual(true);
       expect(foundUser.email).toEqual(emailChange);
       expect(foundUser.firstName).toEqual(firstNameChange);
     });
@@ -362,9 +344,7 @@ describe("CollabService", () => {
       expect(returnedValue.count).toBe(30); // users list should have 10 users
       expect(returnedValue.results.length).toBe(10); // result should have 10 user objects
       for (let i = 0; i < 10; i++) {
-        expect(returnedValue.results[i].username).toMatch(
-          "testUser" + String(i),
-        ); // first 10 users should be testUser0 to testUser9
+        expect(returnedValue.results[i].username).toMatch("testUser" + String(i)); // first 10 users should be testUser0 to testUser9
       }
       expect(returnedValue.next).toMatch("?limit=10&offset=10"); // next page url should be ?limit=10&offset=10
     }, 30000);
@@ -398,9 +378,7 @@ describe("CollabService", () => {
       expect(returnedValue.count).toBe(30); // users list should have 10 users
       expect(returnedValue.results.length).toBe(10); // users list should have 10 users
       for (let i = 0; i < 10; i++) {
-        expect(returnedValue.results[i].username).toMatch(
-          "testUser" + String(i + 10),
-        ); // last 10 users should be testUser10 to testUser19
+        expect(returnedValue.results[i].username).toMatch("testUser" + String(i + 10)); // last 10 users should be testUser10 to testUser19
       }
       expect(returnedValue.next).toMatch("limit=10&offset=20");
       expect(returnedValue.previous).toMatch("limit=10&offset=0");
@@ -436,9 +414,7 @@ describe("CollabService", () => {
       expect(returnedValue.count).toBe(30); // users list should have 10 users
       expect(returnedValue.results.length).toBe(10); // users list should have 10 users
       for (let i = 0; i < 10; i++) {
-        expect(returnedValue.results[i].username).toMatch(
-          "testUser" + String(i + 20),
-        ); // last 10 users should be testUser20to testUser29
+        expect(returnedValue.results[i].username).toMatch("testUser" + String(i + 20)); // last 10 users should be testUser20to testUser29
       }
       expect(returnedValue.next).toBeNull(); // next page url should be null
       expect(returnedValue.previous).toMatch("limit=10&offset=10"); // previous page url should be ?limit=10&offset=20
@@ -473,9 +449,7 @@ describe("CollabService", () => {
       expect(returnedValue.count).toBe(3); // users list should have 3 users
       expect(returnedValue.results.length).toBe(3); // users list should have 3 users
       for (let i = 0; i < 3; i++) {
-        expect(returnedValue.results[i].username).toMatch(
-          "testUser" + String(i),
-        );
+        expect(returnedValue.results[i].username).toMatch("testUser" + String(i));
       }
       expect(returnedValue.next).toBeNull(); // next page url should be null
       expect(returnedValue.previous).toBeNull(); // previous page url should be null

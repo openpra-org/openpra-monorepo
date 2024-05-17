@@ -17,7 +17,10 @@ const BasicEventNode = memo(() => {
 
   return (
     <div className={stylesMap.node_container}>
-      <div className={cx(stylesMap.node)} title="right click to update node">
+      <div
+        className={cx(stylesMap.node)}
+        title="right click to update node"
+      >
         {"Basic Event"}
 
         <Handle

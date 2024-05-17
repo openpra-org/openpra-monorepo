@@ -7,9 +7,7 @@ function TreeEditorSideNav(): JSX.Element {
   };
   return (
     <div className={styles.sidebar}>
-      <div className={styles.sidebarLabel}>
-        You can drag nodes from the sidebar and drop them on another node
-      </div>
+      <div className={styles.sidebarLabel}>You can drag nodes from the sidebar and drop them on another node</div>
       <div>
         <div
           onDragStart={onDragStart({})}
@@ -18,10 +16,18 @@ function TreeEditorSideNav(): JSX.Element {
         >
           Node A
         </div>
-        <div onDragStart={onDragStart} draggable className={styles.sidebarNode}>
+        <div
+          onDragStart={onDragStart}
+          draggable
+          className={styles.sidebarNode}
+        >
           Node B
         </div>
-        <div onDragStart={onDragStart} draggable className={styles.sidebarNode}>
+        <div
+          onDragStart={onDragStart}
+          draggable
+          className={styles.sidebarNode}
+        >
           Node C
         </div>
       </div>

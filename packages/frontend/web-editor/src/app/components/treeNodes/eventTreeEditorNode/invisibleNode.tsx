@@ -41,7 +41,10 @@ function InvisibleNode({ id, data }: NodeProps) {
         {/*<EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>Yes</EuiText>*/}
 
         {data.depth != 1 && (
-          <p onClick={onClick} className={styles.addNodeButtonText}>
+          <p
+            onClick={onClick}
+            className={styles.addNodeButtonText}
+          >
             +
           </p>
         )}

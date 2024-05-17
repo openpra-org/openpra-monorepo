@@ -1,12 +1,12 @@
 import { Defaults } from "../ObjectTypes";
 import { DEFAULT_SHAPE } from "./VertexShape";
 
-type VertexPositionJSON = {
+interface VertexPositionJSON {
   x?: number;
   y?: number;
   width?: number;
   height?: number;
-};
+}
 export default VertexPositionJSON;
 export const VertexPositionJSONDefaults: VertexPositionJSON = {
   x: 0,
@@ -15,9 +15,9 @@ export const VertexPositionJSONDefaults: VertexPositionJSON = {
   height: DEFAULT_SHAPE.HEIGHT,
 };
 
-export type VertexPositionJSONMap = {
+export interface VertexPositionJSONMap {
   position?: VertexPositionJSON;
-};
+}
 
 export const VertexPositionJSONDefaultsMap: Defaults<VertexPositionJSONMap> = {
   position: VertexPositionJSONDefaults,

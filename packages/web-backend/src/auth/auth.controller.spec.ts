@@ -4,10 +4,7 @@ import { JwtService } from "@nestjs/jwt";
 import { Test, TestingModule } from "@nestjs/testing";
 import { CollabService } from "../collab/collab.service";
 import { User, UserSchema } from "../collab/schemas/user.schema";
-import {
-  UserCounter,
-  UserCounterSchema,
-} from "../collab/schemas/user-counter.schema";
+import { UserCounter, UserCounterSchema } from "../collab/schemas/user-counter.schema";
 import { AuthService } from "./auth.service";
 import { AuthController } from "./auth.controller";
 
@@ -34,9 +31,7 @@ describe("AuthController", () => {
     }).compile();
     authController = module.get<AuthController>(AuthController);
     connection = await module.get(getConnectionToken());
-    await connection
-      .collection("users")
-      .findOneAndDelete({ username: "testUser" }); //delete test user before each test
+    await connection.collection("users").findOneAndDelete({ username: "testUser" }); //delete test user before each test
   });
 
   /**

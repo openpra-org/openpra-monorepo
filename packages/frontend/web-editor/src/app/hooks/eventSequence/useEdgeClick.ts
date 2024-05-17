@@ -32,8 +32,7 @@ import { UseFocusContext } from "../../providers/focusProvider";
  * ```
  */
 function UseEdgeClick(id: EdgeProps["id"]): () => void {
-  const { setEdges, setNodes, getNode, getEdge, getEdges, getNodes } =
-    useReactFlow();
+  const { setEdges, setNodes, getNode, getEdge, getEdges, getNodes } = useReactFlow();
   const { eventSequenceId } = useParams() as { eventSequenceId: string };
   const { addToast } = UseToastContext();
   const { setFocus } = UseFocusContext();
@@ -58,18 +57,14 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
       return;
     }
 
-    const sourceNode: Node<EventSequenceNodeProps> | undefined = getNode(
-      edge.source,
-    );
+    const sourceNode: Node<EventSequenceNodeProps> | undefined = getNode(edge.source);
 
     if (!sourceNode) {
       return;
     }
 
     // we retrieve the target node to get its position
-    const targetNode: Node<EventSequenceNodeProps> | undefined = getNode(
-      edge.target,
-    );
+    const targetNode: Node<EventSequenceNodeProps> | undefined = getNode(edge.target);
 
     if (!targetNode) {
       return;
@@ -90,20 +85,13 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
     };
 
     // new connection from source to new node
-    const sourceEdge: Edge = BuildAnEdge(
-      sourceNode,
-      insertNode,
-      edge.type,
-      edge.data,
-    );
+    const sourceEdge: Edge = BuildAnEdge(sourceNode, insertNode, edge.type, edge.data);
 
     // new connection from new node to target
     const targetEdge: Edge = BuildAnEdge(insertNode, targetNode, "normal", {});
 
     // insert the node between the source and target node in the react-flow state
-    const targetNodeIndex = currentNodes.findIndex(
-      (node) => node.id === edge.target,
-    );
+    const targetNodeIndex = currentNodes.findIndex((node) => node.id === edge.target);
     const nodes = [
       ...currentNodes.slice(0, targetNodeIndex),
       insertNode,
@@ -111,9 +99,7 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
     ];
 
     // remove the edge that was clicked as we have a new connection with a node in between
-    const edges = currentEdges
-      .filter((e) => e.id !== id)
-      .concat([sourceEdge, targetEdge]);
+    const edges = currentEdges.filter((e) => e.id !== id).concat([sourceEdge, targetEdge]);
 
     setFocus(insertNode.id);
 

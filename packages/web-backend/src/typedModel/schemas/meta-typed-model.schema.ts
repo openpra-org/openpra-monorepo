@@ -1,10 +1,10 @@
 import { Prop, Schema } from "@nestjs/mongoose";
 import { Label, LabelSchema } from "../../schemas/label.schema";
 
-export type TypedModelJSON = {
+export interface TypedModelJSON {
   label: Label;
   users: number[];
-};
+}
 
 @Schema({ versionKey: false })
 export class MetaTypedModel {

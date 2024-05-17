@@ -10,18 +10,14 @@ import {
 } from "@elastic/eui";
 import { useContext } from "react";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
-import {
-  PreferenceContext,
-  PreferenceContextType,
-} from "../settings/preferences";
+import { PreferenceContext, PreferenceContextType } from "../settings/preferences";
 
 /**
  * Function returns the main user profile page
  *
  */
 export function EditPersonalInfoForm(): JSX.Element {
-  const { currentUser, setCurrentUser } =
-    useContext<PreferenceContextType>(PreferenceContext);
+  const { currentUser, setCurrentUser } = useContext<PreferenceContextType>(PreferenceContext);
 
   return (
     <EuiPageTemplate
@@ -99,10 +95,7 @@ export function EditPersonalInfoForm(): JSX.Element {
               onClick={(): void => {
                 if (currentUser) {
                   setCurrentUser(currentUser);
-                  void ApiManager.updateUser(
-                    currentUser.id,
-                    JSON.stringify(currentUser),
-                  );
+                  void ApiManager.updateUser(currentUser.id, JSON.stringify(currentUser));
                 }
               }}
             >

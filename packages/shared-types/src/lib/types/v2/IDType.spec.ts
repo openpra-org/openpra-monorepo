@@ -13,13 +13,7 @@ describe("isValidIDType", () => {
    *  In this test, we pass valid IDs to the function and expect it to return true.
    */
   it("should return true for valid IDs", () => {
-    const validIDs: IDType[] = [
-      "abc123",
-      "ABC123",
-      "123abc",
-      "123ABC",
-      "abcABC123",
-    ];
+    const validIDs: IDType[] = ["abc123", "ABC123", "123abc", "123ABC", "abcABC123"];
     validIDs.forEach((id) => {
       expect(isValidIDType(id)).toBe(true);
     });
@@ -31,13 +25,7 @@ describe("isValidIDType", () => {
    *  In this test, we pass invalid IDs to the function and expect it to return false.
    */
   it("should return false for invalid IDs", () => {
-    const invalidIDs: IDType[] = [
-      "abc 123",
-      "ABC@123",
-      "123_abc",
-      "123-ABC",
-      "abc/ABC123",
-    ];
+    const invalidIDs: IDType[] = ["abc 123", "ABC@123", "123_abc", "123-ABC", "abc/ABC123"];
     invalidIDs.forEach((id) => {
       expect(isValidIDType(id)).toBe(false);
     });

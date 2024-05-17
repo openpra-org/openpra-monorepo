@@ -1,11 +1,4 @@
-import {
-  Controller,
-  Post,
-  Request,
-  UseFilters,
-  UseGuards,
-  Body,
-} from "@nestjs/common";
+import { Controller, Post, Request, UseFilters, UseGuards, Body } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { LoginErrorFilter } from "../filters/login-error.filter";
 import { AuthService } from "./auth.service";
@@ -42,13 +35,8 @@ export class AuthController {
    * }
    */
   @Post("/verify-password/")
-  async verifyPassword(
-    @Body() body: { username: string; password: string },
-  ): Promise<{ match: boolean }> {
-    const match = await this.authService.verifyPassword(
-      body.username,
-      body.password,
-    );
+  async verifyPassword(@Body() body: { username: string; password: string }): Promise<{ match: boolean }> {
+    const match = await this.authService.verifyPassword(body.username, body.password);
     return {
       match: match,
     };

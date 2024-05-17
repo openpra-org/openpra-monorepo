@@ -40,7 +40,12 @@ function AuthCard(): JSX.Element {
     <EuiCard
       style={cardStyle}
       title={`OpenPRA App`}
-      icon={<img src={OpenPRALogo} alt="OpenPRA Logo" />}
+      icon={
+        <img
+          src={OpenPRALogo}
+          alt="OpenPRA Logo"
+        />
+      }
       isDisabled={false}
       hasBorder
       description={version}

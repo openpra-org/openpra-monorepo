@@ -101,25 +101,40 @@ export function UserProfilePage({ id }: { id: number }): JSX.Element {
                     }}
                     data-testid="profile-details-pencil"
                   >
-                    <EuiIconTip type="pencil" content="Edit User" />
+                    <EuiIconTip
+                      type="pencil"
+                      content="Edit User"
+                    />
                   </EuiFlexItem>
                 )}
               </EuiFlexGroup>
               <EuiSpacer />
-              <EuiFlexGroup alignItems="flexStart" responsive={false}>
+              <EuiFlexGroup
+                alignItems="flexStart"
+                responsive={false}
+              >
                 <EuiFlexItem grow={false}>
                   <EuiIcon type="user" />
                 </EuiFlexItem>
-                <EuiFlexItem grow={false} data-testid="profile-username">
+                <EuiFlexItem
+                  grow={false}
+                  data-testid="profile-username"
+                >
                   <EuiText size="s">{currentMember?.username}</EuiText>
                 </EuiFlexItem>
               </EuiFlexGroup>
               <EuiSpacer></EuiSpacer>
-              <EuiFlexGroup alignItems="flexStart" responsive={false}>
+              <EuiFlexGroup
+                alignItems="flexStart"
+                responsive={false}
+              >
                 <EuiFlexItem grow={false}>
                   <EuiIcon type="email" />
                 </EuiFlexItem>
-                <EuiFlexItem grow={false} data-testid="profile-email">
+                <EuiFlexItem
+                  grow={false}
+                  data-testid="profile-email"
+                >
                   <EuiText size="s">{currentMember?.email}</EuiText>
                 </EuiFlexItem>
               </EuiFlexGroup>

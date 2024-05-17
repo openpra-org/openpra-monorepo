@@ -6,5 +6,4 @@ import { NestedModel } from "./templateSchema/nested-model.schema";
 export class SystemsAnalysis extends NestedModel {}
 
 export type SystemsAnalysisDocument = SystemsAnalysis & Document;
-export const SystemsAnalysisSchema =
-  SchemaFactory.createForClass(SystemsAnalysis);
+export const SystemsAnalysisSchema = SchemaFactory.createForClass(SystemsAnalysis);

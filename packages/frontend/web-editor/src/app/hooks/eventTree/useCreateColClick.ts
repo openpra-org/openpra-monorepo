@@ -77,10 +77,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
               target: edge.target,
               type: "custom",
               animated:
-                edges.filter((edge) => edge.source === node.id).length > 1 ||
-                clickedNode.data.output
-                  ? false
-                  : true,
+                edges.filter((edge) => edge.source === node.id).length > 1 || clickedNode.data.output ? false : true,
             });
           }
         });
@@ -133,9 +130,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
       },
     ];
 
-    edges = edges
-      .filter((e) => e.source !== clickedNodeId)
-      .concat([...newColEdges, ...newEdges]);
+    edges = edges.filter((e) => e.source !== clickedNodeId).concat([...newColEdges, ...newEdges]);
 
     // Determine the index of the col with the previous depth
     cols.forEach((node, index) => {
@@ -168,11 +163,9 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
       edges: edges,
     });
 
-    void GraphApiManager.storeEventTree(eventTreeCurrentState).then(
-      (r: EventTreeGraph) => {
-        console.log(r);
-      },
-    );
+    void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {
+      console.log(r);
+    });
   };
   return addCol;
 }

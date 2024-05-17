@@ -12,10 +12,10 @@ import {
   EuiTitle,
 } from "@elastic/eui";
 
-type Item = {
+interface Item {
   id: number;
   name: string;
-};
+}
 
 const items: Item[] = [
   { id: 1, name: "Item 1" },
@@ -31,19 +31,24 @@ const List: React.FC = () => {
     setIntiatingEventId(params.intiatingEventId ? params.intiatingEventId : "");
   }, []);
   return (
-    <EuiPageTemplate panelled={false} offset={48} grow={true}>
+    <EuiPageTemplate
+      panelled={false}
+      offset={48}
+      grow={true}
+    >
       <EuiPageTemplate.Section>
         <>
           <EuiTitle size="m">
             <h2>
-              <EuiTextColor color="secondary">
-                Initiators for Initiating Event ID: {intiatingEventId}
-              </EuiTextColor>
+              <EuiTextColor color="secondary">Initiators for Initiating Event ID: {intiatingEventId}</EuiTextColor>
             </h2>
           </EuiTitle>
           <EuiSpacer size="l" />
 
-          <EuiFlexGroup direction="column" gutterSize="s">
+          <EuiFlexGroup
+            direction="column"
+            gutterSize="s"
+          >
             {items.map((item) => (
               <EuiFlexItem key={`${item.id}`}>
                 <EuiPanel>
@@ -72,7 +77,10 @@ const List: React.FC = () => {
 
 const InitiatorList: React.FC = () => (
   <Routes>
-    <Route path="" element={<List />} />
+    <Route
+      path=""
+      element={<List />}
+    />
   </Routes>
 );
 

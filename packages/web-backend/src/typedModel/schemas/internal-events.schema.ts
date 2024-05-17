@@ -25,7 +25,6 @@ export class InternalEvents extends TypedModel {
 }
 
 export type InternalEventsDocument = InternalEvents & Document;
-export const InternalEventsSchema =
-  SchemaFactory.createForClass(InternalEvents);
+export const InternalEventsSchema = SchemaFactory.createForClass(InternalEvents);
 
 export class InternalEventsMetadata extends MetaTypedModel {}

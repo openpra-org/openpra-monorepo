@@ -1,6 +1,4 @@
-import AbstractDistribution, {
-  DistributionSummary,
-} from "./AbstractDistribution";
+import AbstractDistribution, { DistributionSummary } from "./AbstractDistribution";
 
 const linspace = require("linspace");
 
@@ -43,10 +41,7 @@ class Weibull extends AbstractDistribution {
    * @throws Error if shape is not a positive number
    */
   setShape(shape: number) {
-    if (shape < 0)
-      throw new TypeError(
-        "lambda()::invalid input argument. Shape parameter must be a positive number.",
-      );
+    if (shape < 0) throw new TypeError("lambda()::invalid input argument. Shape parameter must be a positive number.");
     this.shape = shape;
   }
 
@@ -55,10 +50,7 @@ class Weibull extends AbstractDistribution {
    * @return {(x: number) => number}
    */
   quantile(): (x: number) => number {
-    return (x: number) =>
-      0 <= x && x <= 1
-        ? this.scale * Math.pow(-Math.log(1 - x), 1 / this.shape)
-        : NaN;
+    return (x: number) => (0 <= x && x <= 1 ? this.scale * Math.pow(-Math.log(1 - x), 1 / this.shape) : NaN);
   }
 
   /**
@@ -70,9 +62,7 @@ class Weibull extends AbstractDistribution {
       if (x >= 0) {
         const A = this.shape / this.scale;
         const B = x / this.scale;
-        return (
-          A * Math.pow(B, this.shape - 1) * Math.exp(-Math.pow(B, this.shape))
-        );
+        return A * Math.pow(B, this.shape - 1) * Math.exp(-Math.pow(B, this.shape));
       } else {
         return 0;
       }

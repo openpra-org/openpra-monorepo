@@ -19,12 +19,7 @@ interface NestedDataModalProps {
   onSave: (data: any) => void; // Define the structure for your onSave data
 }
 
-const NestedDataModal: React.FC<NestedDataModalProps> = ({
-  isVisible,
-  onClose,
-  rowData,
-  onSave,
-}) => {
+const NestedDataModal: React.FC<NestedDataModalProps> = ({ isVisible, onClose, rowData, onSave }) => {
   // Local state for the form, initialize with rowData or defaults
   const [formState, setFormState] = useState({
     definition: rowData?.definition || "",
@@ -49,11 +44,12 @@ const NestedDataModal: React.FC<NestedDataModalProps> = ({
 
   // Form layout with fields for the properties from your schema
   return (
-    <EuiModal onClose={onClose} style={{ width: "800px" }}>
+    <EuiModal
+      onClose={onClose}
+      style={{ width: "800px" }}
+    >
       <EuiModalHeader>
-        <EuiModalHeaderTitle>
-          {rowData ? "Edit" : "Add"} Operating State
-        </EuiModalHeaderTitle>
+        <EuiModalHeaderTitle>{rowData ? "Edit" : "Add"} Operating State</EuiModalHeaderTitle>
       </EuiModalHeader>
       <EuiModalBody>
         <EuiForm component="form">
@@ -61,15 +57,17 @@ const NestedDataModal: React.FC<NestedDataModalProps> = ({
           <EuiFormRow label="Definition">
             <EuiFieldText
               value={formState.definition}
-              onChange={(e) => handleFormChange("definition", e.target.value)}
+              onChange={(e) => {
+                handleFormChange("definition", e.target.value);
+              }}
             />
           </EuiFormRow>
           <EuiFormRow label="Characteristics">
             <EuiFieldText
               value={formState.characteristics}
-              onChange={(e) =>
-                handleFormChange("characteristics", e.target.value)
-              }
+              onChange={(e) => {
+                handleFormChange("characteristics", e.target.value);
+              }}
             />
           </EuiFormRow>
           {/* Add more fields from your schema here */}
@@ -78,7 +76,10 @@ const NestedDataModal: React.FC<NestedDataModalProps> = ({
       </EuiModalBody>
       <EuiModalFooter>
         <EuiButton onClick={onClose}>Cancel</EuiButton>
-        <EuiButton onClick={handleSave} fill>
+        <EuiButton
+          onClick={handleSave}
+          fill
+        >
           Save
         </EuiButton>
       </EuiModalFooter>

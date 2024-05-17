@@ -7,8 +7,5 @@ export class EventSequenceDiagramGraph extends BaseGraph {
   eventSequenceId: string;
 }
 
-export type EventSequenceDiagramGraphDocument = EventSequenceDiagramGraph &
-  Document;
-export const EventSequenceDiagramGraphSchema = SchemaFactory.createForClass(
-  EventSequenceDiagramGraph,
-);
+export type EventSequenceDiagramGraphDocument = EventSequenceDiagramGraph & Document;
+export const EventSequenceDiagramGraphSchema = SchemaFactory.createForClass(EventSequenceDiagramGraph);

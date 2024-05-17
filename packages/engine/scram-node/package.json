@@ -4,12 +4,12 @@
   "license": "AGPL-3.0-or-later",
   "main": "./lib/index.js",
   "scripts": {
-    "install": "cmake-js -C --parallel 8 compile --target scram scram-node ",
-    "rebuild": "cmake-js -C --parallel 8 rebuild --target scram scram-node ",
-    "configure": "cmake-js -C --parallel 8 configure --target scram scram-node ",
+    "install": "cmake-js -C --parallel 32 compile --target scram scram-node ",
+    "rebuild": "cmake-js -C --parallel 32 rebuild --target scram scram-node ",
+    "configure": "cmake-js -C --parallel 32 configure --target scram scram-node ",
     "clean": "cmake-js clean",
     "test": "jest",
-    "ctest": "cmake-js -C --parallel 8 install -T test_mef"
+    "ctest": "cmake-js -C --parallel 32 install -T test_mef"
   },
   "nx": {
     "namedInputs": {

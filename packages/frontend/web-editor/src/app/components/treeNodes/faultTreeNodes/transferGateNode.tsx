@@ -14,7 +14,10 @@ import styles from "./styles/nodeTypes.module.css";
  */
 const TransferGateNode = memo(({ id, data }: NodeProps) => (
   <div className={styles.node_container}>
-    <div className={cx(styles.node)} title="click to add a child node">
+    <div
+      className={cx(styles.node)}
+      title="click to add a child node"
+    >
       {"Transfer Gate"}
 
       <Handle

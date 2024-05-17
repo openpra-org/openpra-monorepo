@@ -1,7 +1,7 @@
-export type LoginCredentials<Type> = {
+export interface LoginCredentials<Type> {
   username: Type;
   password: Type;
-};
+}
 
 export type SignUpCredentialsGeneric<Type> = {
   email: Type; //email type

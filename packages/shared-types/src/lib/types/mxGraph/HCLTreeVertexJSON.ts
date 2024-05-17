@@ -1,13 +1,10 @@
 import Label from "../Label";
 import { DEFAULT_LABEL_JSON, LabelJSON } from "../Label";
-import {
-  VertexPositionJSONDefaultsMap,
-  VertexPositionJSONMap,
-} from "./VertexPositionJSON";
+import { VertexPositionJSONDefaultsMap, VertexPositionJSONMap } from "./VertexPositionJSON";
 
-type HCLTreeVertexValueJSON = {
+interface HCLTreeVertexValueJSON {
   label: LabelJSON;
-};
+}
 export default HCLTreeVertexValueJSON;
 
 export const DEFAULT_HCLTREEVERTEXVALUE_JSON: HCLTreeVertexValueJSON = {

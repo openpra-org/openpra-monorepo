@@ -1,10 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import {
-  InvitedUserDetailsDto,
-  InvitedUserDto,
-} from "packages/shared-types/src/lib/types/userInvites/InvitedUser";
+import { InvitedUserDetailsDto, InvitedUserDto } from "packages/shared-types/src/lib/types/userInvites/InvitedUser";
 
 import { InvitedUser, InvitedUserDocument } from "./schemas/invite.schema";
 
@@ -69,11 +66,7 @@ export class InviteService {
       lastName: user.lastname,
       username: user.username,
     };
-    return this.invitedUserModel.findOneAndUpdate(
-      { id: updatedUser.id },
-      updatedUser,
-      { new: true },
-    );
+    return this.invitedUserModel.findOneAndUpdate({ id: updatedUser.id }, updatedUser, { new: true });
   }
 
   /**

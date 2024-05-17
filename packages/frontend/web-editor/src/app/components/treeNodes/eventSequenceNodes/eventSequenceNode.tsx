@@ -7,10 +7,7 @@ import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { UseNodeClick } from "../../../hooks/eventSequence/useNodeClick";
 import { GetESToast } from "../../../../utils/treeUtils";
 import { UseToastContext } from "../../../providers/toastProvider";
-import {
-  EventSequenceNodeProps,
-  EventSequenceNodeTypes,
-} from "./eventSequenceNodeType";
+import { EventSequenceNodeProps, EventSequenceNodeTypes } from "./eventSequenceNodeType";
 import styles from "./styles/nodeTypes.module.css";
 
 const stylesMap = styles as Record<string, string>;
@@ -22,11 +19,7 @@ const stylesMap = styles as Record<string, string>;
  * @param data - Node properties
  * @returns Editable Label and Handles for the node
  */
-function GetNodeElements(
-  id: NodeProps["id"],
-  type: string,
-  data: EventSequenceNodeProps,
-): JSX.Element {
+function GetNodeElements(id: NodeProps["id"], type: string, data: EventSequenceNodeProps): JSX.Element {
   let handles: JSX.Element;
   const { getNodes, setNodes } = useReactFlow();
   const [nodeLabel, setNodeLabel] = useState(data.label ?? "");
@@ -240,14 +233,7 @@ function GetNodeComponent(
     case "initiating":
       return GetNodeContainer(
         <>
-          {GetNode(
-            id,
-            type,
-            selected,
-            data,
-            cx(stylesMap.node, stylesMap.initiating_node),
-            "initiating-event-node",
-          )}
+          {GetNode(id, type, selected, data, cx(stylesMap.node, stylesMap.initiating_node), "initiating-event-node")}
           <div className={cx(stylesMap.line)} />
         </>,
         cx(stylesMap.node_container),
@@ -256,28 +242,14 @@ function GetNodeComponent(
       );
     case "functional":
       return GetNodeContainer(
-        GetNode(
-          id,
-          type,
-          selected,
-          data,
-          cx(stylesMap.node, stylesMap.functional_node),
-          "functional-node",
-        ),
+        GetNode(id, type, selected, data, cx(stylesMap.node, stylesMap.functional_node), "functional-node"),
         cx(stylesMap.node_container),
         true,
         data.tentative,
       );
     case "description":
       return GetNodeContainer(
-        GetNode(
-          id,
-          type,
-          selected,
-          data,
-          cx(stylesMap.node, stylesMap.description_node),
-          "description-node",
-        ),
+        GetNode(id, type, selected, data, cx(stylesMap.node, stylesMap.description_node), "description-node"),
         cx(stylesMap.node_container),
         true,
         data.tentative,
@@ -351,11 +323,7 @@ function EventSequenceNode(
   type: EventSequenceNodeTypes,
 ): MemoExoticComponent<React.ComponentType<NodeProps<EventSequenceNodeProps>>> {
   return memo(
-    ({
-      id,
-      selected,
-      data = {},
-    }: NodeProps<EventSequenceNodeProps>): JSX.Element =>
+    ({ id, selected, data = {} }: NodeProps<EventSequenceNodeProps>): JSX.Element =>
       GetNodeComponent(id, type, selected, data),
   );
 }

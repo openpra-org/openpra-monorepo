@@ -23,5 +23,4 @@ export class EventTreeGraph {
 }
 
 export type EventTreeGraphDocument = EventTreeGraph & Document;
-export const EventTreeGraphSchema =
-  SchemaFactory.createForClass(EventTreeGraph);
+export const EventTreeGraphSchema = SchemaFactory.createForClass(EventTreeGraph);

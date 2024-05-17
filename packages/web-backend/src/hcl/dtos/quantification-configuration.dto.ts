@@ -34,6 +34,4 @@ const hclModelQuantificationConfigurationSchema = z.object({
   }),
 });
 
-export class HclModelQuantificationConfigurationDto extends createZodDto(
-  hclModelQuantificationConfigurationSchema,
-) {}
+export class HclModelQuantificationConfigurationDto extends createZodDto(hclModelQuantificationConfigurationSchema) {}

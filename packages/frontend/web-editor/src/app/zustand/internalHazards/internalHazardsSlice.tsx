@@ -9,12 +9,7 @@ import {
 } from "./internalHazardsActions";
 import { internalHazardsState } from "./internalHazardsState";
 
-const internalHazardsSlice: StateCreator<
-  StoreType,
-  [],
-  [],
-  InternalHazardsType
-> = (set) => {
+const internalHazardsSlice: StateCreator<StoreType, [], [], InternalHazardsType> = (set) => {
   SliceResetFns.add(() => {
     set(internalHazardsState);
   });

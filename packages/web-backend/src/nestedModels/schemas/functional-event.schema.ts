@@ -6,5 +6,4 @@ import { NestedModel } from "./templateSchema/nested-model.schema";
 export class FunctionalEvent extends NestedModel {}
 
 export type FunctionalEventDocument = FunctionalEvent & Document;
-export const FunctionalEventSchema =
-  SchemaFactory.createForClass(FunctionalEvent);
+export const FunctionalEventSchema = SchemaFactory.createForClass(FunctionalEvent);

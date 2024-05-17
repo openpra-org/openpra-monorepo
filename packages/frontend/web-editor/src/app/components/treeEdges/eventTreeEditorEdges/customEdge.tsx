@@ -1,29 +1,15 @@
 import { FC } from "react";
-import {
-  BaseEdge,
-  EdgeProps,
-  getSmoothStepPath,
-  getStraightPath,
-} from "reactflow";
+import { BaseEdge, EdgeProps, getSmoothStepPath, getStraightPath } from "reactflow";
 import { memo } from "react";
 
-type CustomEdgeData = {
+interface CustomEdgeData {
   color?: string;
   text?: string;
   straight?: boolean;
-};
+}
 
 const CustomEdge: FC<EdgeProps<CustomEdgeData>> = memo(
-  ({
-    id,
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    sourcePosition,
-    targetPosition,
-    data = {},
-  }) => {
+  ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data = {} }) => {
     const [edgePath] = getSmoothStepPath({
       sourceX,
       sourceY,
@@ -34,7 +20,12 @@ const CustomEdge: FC<EdgeProps<CustomEdgeData>> = memo(
       borderRadius: 0,
     });
 
-    return <BaseEdge path={edgePath} id={id} />;
+    return (
+      <BaseEdge
+        path={edgePath}
+        id={id}
+      />
+    );
   },
 );
 export default CustomEdge;

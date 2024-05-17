@@ -51,9 +51,7 @@ describe("ContextAddButton", () => {
 
   it("Renders the event sequence diagram button", () => {
     const { getByText } = render(
-      <MemoryRouter
-        initialEntries={["/internal-events/event-sequence-diagrams"]}
-      >
+      <MemoryRouter initialEntries={["/internal-events/event-sequence-diagrams"]}>
         <ContextAddButton />
       </MemoryRouter>,
     );

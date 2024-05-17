@@ -2,14 +2,8 @@ import { Injectable } from "@nestjs/common";
 import { Model } from "mongoose";
 import { InjectModel } from "@nestjs/mongoose";
 import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
-import {
-  NestedModelHelperService,
-  TypedModelType,
-} from "../nested-model-helper.service";
-import {
-  InitiatingEvent,
-  InitiatingEventDocument,
-} from "../schemas/initiating-event.schema";
+import { NestedModelHelperService, TypedModelType } from "../nested-model-helper.service";
+import { InitiatingEvent, InitiatingEventDocument } from "../schemas/initiating-event.schema";
 import { NestedModelService } from "../nestedModel.service";
 import { Label } from "../../schemas/label.schema";
 
@@ -28,15 +22,10 @@ export class InitiatingEventsService {
    * @returns a promise with an array of the nested model of the type in the function name
    */
   async getInitiatingEvents(parentId: number): Promise<InitiatingEvent[]> {
-    return this.initiatingEventModel.find(
-      { parentIds: Number(parentId) },
-      { _id: 0 },
-    );
+    return this.initiatingEventModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
-  async getInitiatingEventsString(
-    parentId: string,
-  ): Promise<InitiatingEvent[]> {
+  async getInitiatingEventsString(parentId: string): Promise<InitiatingEvent[]> {
     return this.initiatingEventModel.find({ parentIds: parentId });
   }
 
@@ -49,9 +38,7 @@ export class InitiatingEventsService {
     return this.initiatingEventModel.findOne({ id: modelId }, { _id: 0 });
   }
 
-  async getSingleInitiatingEventString(
-    modelId: string,
-  ): Promise<InitiatingEvent> {
+  async getSingleInitiatingEventString(modelId: string): Promise<InitiatingEvent> {
     return this.initiatingEventModel.findOne({ _id: modelId });
   }
 
@@ -62,13 +49,9 @@ export class InitiatingEventsService {
    * @param typedModel - is the typed model to be updated
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createInitiatingEvent(
-    body: Partial<NestedModel>,
-    typedModel: TypedModelType,
-  ): Promise<NestedModel> {
+  async createInitiatingEvent(body: Partial<NestedModel>, typedModel: TypedModelType): Promise<NestedModel> {
     const newInitiatingEvent = new this.initiatingEventModel(body);
-    newInitiatingEvent.id =
-      await this.nestedModelService.getNextValue("nestedCounter");
+    newInitiatingEvent.id = await this.nestedModelService.getNextValue("nestedCounter");
     await newInitiatingEvent.save();
     for (const pId of newInitiatingEvent.parentIds) {
       await this.nestedModelHelperService.AddNestedModelToTypedModel(
@@ -87,15 +70,8 @@ export class InitiatingEventsService {
    * @param body - a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
-  async updateInitiatingEventLabel(
-    id: string,
-    body: Label,
-  ): Promise<NestedModel> {
-    return this.initiatingEventModel.findOneAndUpdate(
-      { _id: id },
-      { label: body },
-      { new: true },
-    );
+  async updateInitiatingEventLabel(id: string, body: Label): Promise<NestedModel> {
+    return this.initiatingEventModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
   }
 
   /**
@@ -104,10 +80,7 @@ export class InitiatingEventsService {
    * @param typedModel - is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
    */
-  async deleteInitiatingEvent(
-    modelId: string,
-    typedModel: TypedModelType,
-  ): Promise<void> {
+  async deleteInitiatingEvent(modelId: string, typedModel: TypedModelType): Promise<void> {
     const initiatingEvent = await this.initiatingEventModel.findOne({
       _id: modelId,
     });

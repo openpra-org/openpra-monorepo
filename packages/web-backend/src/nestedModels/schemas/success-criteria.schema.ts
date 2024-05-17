@@ -6,5 +6,4 @@ import { NestedModel } from "./templateSchema/nested-model.schema";
 export class SuccessCriteria extends NestedModel {}
 
 export type SuccessCriteriaDocument = SuccessCriteria & Document;
-export const SuccessCriteriaSchema =
-  SchemaFactory.createForClass(SuccessCriteria);
+export const SuccessCriteriaSchema = SchemaFactory.createForClass(SuccessCriteria);

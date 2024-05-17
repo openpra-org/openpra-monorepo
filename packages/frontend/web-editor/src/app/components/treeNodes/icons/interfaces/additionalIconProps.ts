@@ -1,7 +1,7 @@
 /**
  * Represents the additional properties of the icon - especially for elliptical svg generation.
  */
-export type IAdditionalIconProps = {
+export interface IAdditionalIconProps {
   /**
    * @param cx - center x
    */
@@ -18,4 +18,4 @@ export type IAdditionalIconProps = {
    * @param ry - radius y
    */
   ry: string;
-};
+}

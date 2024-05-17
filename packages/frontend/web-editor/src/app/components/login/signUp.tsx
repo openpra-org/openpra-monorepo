@@ -23,9 +23,7 @@ function SignUp(): JSX.Element {
   const [signup, setSignup] = useState(DefaultProps);
   const { addToast } = UseToastContext();
 
-  const [redirectToHomepage, setRedirectToHomepage] = useState(
-    ApiManager.isLoggedIn(),
-  );
+  const [redirectToHomepage, setRedirectToHomepage] = useState(ApiManager.isLoggedIn());
 
   /**
    * The function to call when user clicks on signup
@@ -49,7 +47,12 @@ function SignUp(): JSX.Element {
   }
 
   if (redirectToHomepage) {
-    return <Navigate to="/internal-events" replace={true} />;
+    return (
+      <Navigate
+        to="/internal-events"
+        replace={true}
+      />
+    );
   } else {
     return (
       <SignUpForm

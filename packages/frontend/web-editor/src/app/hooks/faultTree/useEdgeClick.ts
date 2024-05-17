@@ -76,16 +76,12 @@ function UseEdgeClick(id: EdgeProps["id"]) {
     };
 
     // remove the edge that was clicked as we have a new connection with a node in between
-    const newEdges = edges
-      .filter((e: Edge) => e.id !== id)
-      .concat([sourceEdge, targetEdge]);
+    const newEdges = edges.filter((e: Edge) => e.id !== id).concat([sourceEdge, targetEdge]);
     setEdges(newEdges);
 
     // insert the node between the source and target node in the React flow state
     const currentNodes = nodes;
-    const targetNodeIndex = currentNodes.findIndex(
-      (node: Node) => node.id === edge.target,
-    );
+    const targetNodeIndex = currentNodes.findIndex((node: Node) => node.id === edge.target);
     const newNodes = [
       ...currentNodes.slice(0, targetNodeIndex),
       insertNode,

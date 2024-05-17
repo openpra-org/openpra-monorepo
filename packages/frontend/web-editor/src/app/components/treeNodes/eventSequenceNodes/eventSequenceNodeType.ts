@@ -23,12 +23,12 @@ const ESNodeTypes: NodeTypes = {
   end: EventSequenceNode("end"),
 };
 
-export type EventSequenceNodeProps = {
+export interface EventSequenceNodeProps {
   tentative?: boolean;
   isUpdated?: boolean;
   isDeleted?: boolean;
   label?: string;
   branchId?: string;
-};
+}
 
 export { ESNodeTypes };

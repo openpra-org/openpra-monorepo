@@ -20,9 +20,16 @@ import { SettingsAccordian } from "./SettingsAccordian";
 
 const buttonContent = (
   <div>
-    <EuiFlexGroup gutterSize="s" alignItems="center" responsive={false}>
+    <EuiFlexGroup
+      gutterSize="s"
+      alignItems="center"
+      responsive={false}
+    >
       <EuiFlexItem grow={false}>
-        <EuiIcon type="graphApp" size="l" />
+        <EuiIcon
+          type="graphApp"
+          size="l"
+        />
       </EuiFlexItem>
       <EuiFlexItem>
         <EuiTitle size="xs">
@@ -32,9 +39,7 @@ const buttonContent = (
     </EuiFlexGroup>
     <EuiText size="s">
       <p>
-        <EuiTextColor color="subdued">
-          Change the diagram to displayed on the model overview page.
-        </EuiTextColor>
+        <EuiTextColor color="subdued">Change the diagram to displayed on the model overview page.</EuiTextColor>
       </p>
     </EuiText>
   </div>
@@ -63,20 +68,33 @@ function SettingsOverview(): JSX.Element {
       id="model_overview_settings"
       buttonContent={buttonContent}
     >
-      <EuiFlexGrid direction="row" responsive={true} columns={2}>
+      <EuiFlexGrid
+        direction="row"
+        responsive={true}
+        columns={2}
+      >
         <EuiFlexItem grow={false}>
           <EuiPanel paddingSize="xl">
-            <EuiTitle size="s" data-testid="title">
+            <EuiTitle
+              size="s"
+              data-testid="title"
+            >
               <h6>Overview Diagram</h6>
             </EuiTitle>
             <EuiSpacer size="s" />
-            <EuiText size="s" color="subdued" data-testid="text">
-              Overview page can display a read-only version of the chosen
-              diagram.
+            <EuiText
+              size="s"
+              color="subdued"
+              data-testid="text"
+            >
+              Overview page can display a read-only version of the chosen diagram.
             </EuiText>
             <EuiSpacer />
             <EuiForm component="form">
-              <EuiFlexGroup direction="row" justifyContent="flexStart">
+              <EuiFlexGroup
+                direction="row"
+                justifyContent="flexStart"
+              >
                 <EuiFlexItem>
                   <EuiFormRow label="Diagram type">
                     <EuiSelect

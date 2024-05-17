@@ -10,8 +10,5 @@ export class QuantificationResultCounter {
   seq: number;
 }
 
-export type QuantificationResultCounterDocument = QuantificationResultCounter &
-  Document;
-export const QuantificationResultCounterSchema = SchemaFactory.createForClass(
-  QuantificationResultCounter,
-);
+export type QuantificationResultCounterDocument = QuantificationResultCounter & Document;
+export const QuantificationResultCounterSchema = SchemaFactory.createForClass(QuantificationResultCounter);

@@ -1,7 +1,7 @@
 /**
  * Position with x and y properties
  */
-export type Position = {
+export interface Position {
   x: number;
   y: number;
-};
+}

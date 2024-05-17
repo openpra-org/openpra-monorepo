@@ -6,5 +6,4 @@ import { NestedModel } from "./templateSchema/nested-model.schema";
 export class WeibullAnalysis extends NestedModel {}
 
 export type WeibullAnalysisDocument = WeibullAnalysis & Document;
-export const WeibullAnalysisSchema =
-  SchemaFactory.createForClass(WeibullAnalysis);
+export const WeibullAnalysisSchema = SchemaFactory.createForClass(WeibullAnalysis);

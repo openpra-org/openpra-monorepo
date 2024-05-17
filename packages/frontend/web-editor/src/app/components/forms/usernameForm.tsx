@@ -67,22 +67,13 @@ const UsernameForm = ({
       />
     </EuiFormRow>
     <EuiFormRow
-      isInvalid={
-        (!isValidEmail || (!signup.email && checkEmpty)) && signupButtonClicked
-      }
-      helpText={
-        (!isValidEmail || (!signup.email && checkEmpty)) && signupButtonClicked
-          ? ""
-          : "Eg. xyz@ncsu.edu"
-      }
+      isInvalid={(!isValidEmail || (!signup.email && checkEmpty)) && signupButtonClicked}
+      helpText={(!isValidEmail || (!signup.email && checkEmpty)) && signupButtonClicked ? "" : "Eg. xyz@ncsu.edu"}
       error="Email invalid or already exists!"
     >
       <EuiFieldText
         placeholder="Email"
-        isInvalid={
-          (!isValidEmail || (!signup.email && checkEmpty)) &&
-          signupButtonClicked
-        }
+        isInvalid={(!isValidEmail || (!signup.email && checkEmpty)) && signupButtonClicked}
         value={signup.email}
         onChange={(e): void => {
           setSignup({
@@ -94,18 +85,12 @@ const UsernameForm = ({
       />
     </EuiFormRow>
     <EuiFormRow
-      isInvalid={
-        (!isValidUsername || (!signup.username && checkEmpty)) &&
-        signupButtonClicked
-      }
+      isInvalid={(!isValidUsername || (!signup.username && checkEmpty)) && signupButtonClicked}
       error="Username already exists!"
     >
       <EuiFieldText
         placeholder="Username"
-        isInvalid={
-          (!isValidUsername || (!signup.username && checkEmpty)) &&
-          signupButtonClicked
-        }
+        isInvalid={(!isValidUsername || (!signup.username && checkEmpty)) && signupButtonClicked}
         value={signup.username}
         onChange={(e): void => {
           setSignup({

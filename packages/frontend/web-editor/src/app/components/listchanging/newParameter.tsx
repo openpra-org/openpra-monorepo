@@ -12,9 +12,9 @@ import {
   EuiFieldNumber,
 } from "@elastic/eui";
 
-export type NewParameterProps = {
+export interface NewParameterProps {
   toggleBox: (isVisible: boolean) => void;
-};
+}
 
 //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
 function NewParameter(props: NewParameterProps): JSX.Element {
@@ -27,10 +27,10 @@ function NewParameter(props: NewParameterProps): JSX.Element {
   //use the theme
   const { euiTheme } = useEuiTheme();
 
-  type Item = {
+  interface Item {
     name: string;
     value?: number;
-  };
+  }
 
   //this is what is in the newItem structure, will eventually be used to actually make things
   //this is also subject tyo change, probably needs a type passed in from props eventually
@@ -42,9 +42,7 @@ function NewParameter(props: NewParameterProps): JSX.Element {
   const [itemInfo, setItemInfo] = useState(newItem);
 
   useEffect(() => {
-    const filterOptionsElement = document.querySelector(
-      ".euiSelectableList__searchMessage",
-    );
+    const filterOptionsElement = document.querySelector(".euiSelectableList__searchMessage");
     if (filterOptionsElement) {
       filterOptionsElement.textContent = "Search users";
     }
@@ -64,8 +62,7 @@ function NewParameter(props: NewParameterProps): JSX.Element {
     toggleBox(false);
   };
 
-  const isValueValidNumber =
-    typeof itemInfo.value === "number" && !isNaN(itemInfo.value);
+  const isValueValidNumber = typeof itemInfo.value === "number" && !isNaN(itemInfo.value);
 
   return (
     //this styling is so its in a nice looking box, it scales if the users tab is there or not
@@ -82,7 +79,10 @@ function NewParameter(props: NewParameterProps): JSX.Element {
       <EuiTextColor style={{ margin: "10px", fontSize: "2rem" }}>
         <strong>New Global Parameter</strong>
       </EuiTextColor>
-      <EuiFormRow fullWidth={true} style={{ margin: "10px" }}>
+      <EuiFormRow
+        fullWidth={true}
+        style={{ margin: "10px" }}
+      >
         <EuiFieldText
           fullWidth={true}
           placeholder="Title"
@@ -96,7 +96,10 @@ function NewParameter(props: NewParameterProps): JSX.Element {
         />
       </EuiFormRow>
       {/** this form row is for the description */}
-      <EuiFormRow fullWidth={true} style={{ margin: "10px" }}>
+      <EuiFormRow
+        fullWidth={true}
+        style={{ margin: "10px" }}
+      >
         <EuiFieldNumber
           fullWidth={true}
           placeholder="Value"

@@ -24,23 +24,18 @@ function layoutNodes(nodes: Node[], edges: Edge[]): Node[] {
     .id((d) => d.id)
     // get the id of each node by searching through the edges
     // this only works if every node has one connection
-    .parentId((d: Node) => edges.find((e: Edge) => e.target === d.id)?.source)(
-    nodes,
-  );
+    .parentId((d: Node) => edges.find((e: Edge) => e.target === d.id)?.source)(nodes);
 
   // run the layout algorithm with the hierarchy data structure
   const root = layout(hierarchy);
 
   // convert the hierarchy back to react flow nodes (the original node is stored as d.data)
   // we only extract the position from the d3 function
-  return root
-    .descendants()
-    .map((d) => ({ ...d.data, position: { x: d.x, y: d.y } }));
+  return root.descendants().map((d) => ({ ...d.data, position: { x: d.x, y: d.y } }));
 }
 
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change
-const nodeCountSelector = (state: ReactFlowState): number =>
-  state.nodeInternals.size;
+const nodeCountSelector = (state: ReactFlowState): number => state.nodeInternals.size;
 
 function UseLayout(): void {
   // this ref is used to fit the nodes in the first run
@@ -51,8 +46,7 @@ function UseLayout(): void {
   // whenever the nodes length changes, we calculate the new layout
   const nodeCount = useStore(nodeCountSelector);
 
-  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } =
-    useReactFlow();
+  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } = useReactFlow();
 
   useEffect(() => {
     // get the current nodes and edges
@@ -119,10 +113,10 @@ function UseLayout(): void {
       }
     });
 
-        return () => {
-            t.stop();
-        };
-    }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);
+    return () => {
+      t.stop();
+    };
+  }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);
 }
 
 export { UseLayout };

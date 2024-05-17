@@ -18,12 +18,8 @@ function WorkspaceSelectorMenu(): JSX.Element {
     prefix: "WorkspaceSelectorMenu",
   });
 
-  const [spaces, setSpaces] = useState<EuiSelectableOption[]>(
-    SelectableWorkspaceOptions,
-  );
-  const [selectedSpace, setSelectedSpace] = useState(
-    spaces.filter((option) => option.checked)[0],
-  );
+  const [spaces, setSpaces] = useState<EuiSelectableOption[]>(SelectableWorkspaceOptions);
+  const [selectedSpace, setSelectedSpace] = useState(spaces.filter((option) => option.checked)[0]);
   const [isOpen, setIsOpen] = useState(false);
 
   const onMenuButtonClick = (): void => {
@@ -81,9 +77,7 @@ function WorkspaceSelectorMenu(): JSX.Element {
       >
         {(list, search): JSX.Element => (
           <>
-            <EuiPopoverTitle paddingSize="s">
-              {search ?? "Your workspaces"}
-            </EuiPopoverTitle>
+            <EuiPopoverTitle paddingSize="s">{search ?? "Your workspaces"}</EuiPopoverTitle>
             {list}
           </>
         )}

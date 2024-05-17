@@ -16,22 +16,15 @@ import { LastActionText } from "./LastActionText";
 import { ListItemContextMenuButton } from "./ListItemAction";
 
 //title is required, description isn't required but is typically present
-export type GenericListItemProps = {
+export interface GenericListItemProps {
   id: number;
   label: LabelJSON;
   endpoint: string;
   deleteTypedEndpoint?: (id: number) => Promise<void>;
   postTypedEndpoint?: (data: Partial<TypedModelJSON>) => Promise<void>;
-  patchTypedEndpoint?: (
-    modelId: number,
-    userId: number,
-    data: Partial<TypedModelJSON>,
-  ) => Promise<void>;
+  patchTypedEndpoint?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
   postNestedEndpoint?: (data: NestedModelJSON) => Promise<void>;
-  patchNestedEndpointNew?: (
-    modelId: string,
-    data: Partial<NestedModelJSON>,
-  ) => Promise<void>;
+  patchNestedEndpointNew?: (modelId: string, data: Partial<NestedModelJSON>) => Promise<void>;
   patchNestedEndpoint?: (id: number, data: LabelJSON) => NonNullable<unknown>;
   deleteNestedEndpointNew?: (id: string) => Promise<void>;
   deleteNestedEndpoint?: (id: number) => NonNullable<unknown>;
@@ -39,7 +32,7 @@ export type GenericListItemProps = {
   path: string;
   itemName: string;
   _id?: string;
-};
+}
 
 /**
  * @param props - that contains all the input props for the component
@@ -51,14 +44,8 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
   // TODO
   //setting theming constants to be used later
   const border = useEuiTheme().euiTheme.border;
-  const borderLine = logicalStyle(
-    "border-bottom",
-    `${border.width.thin} solid ${border.color}`,
-  );
-  const paddingLine = logicalStyle(
-    "padding-vertical",
-    `${useEuiPaddingSize("s")}`,
-  );
+  const borderLine = logicalStyle("border-bottom", `${border.width.thin} solid ${border.color}`);
+  const paddingLine = logicalStyle("padding-vertical", `${useEuiPaddingSize("s")}`);
   const customStyles = { ...borderLine, ...paddingLine };
   return (
     <EuiListGroupItem
@@ -74,29 +61,50 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
         </Link>
       }
       label={
-        <EuiFlexGroup direction="row" alignItems="center" responsive={false}>
+        <EuiFlexGroup
+          direction="row"
+          alignItems="center"
+          responsive={false}
+        >
           <EuiFlexItem grow={5}>
             <Link to={path}>
               {/** this is the title for the item */}
-              <EuiText size="m" color="default" grow={false}>
+              <EuiText
+                size="m"
+                color="default"
+                grow={false}
+              >
                 <strong>{label.name}</strong>
               </EuiText>
             </Link>
             {/** this is the description for the item */}
-            <EuiText size="s" color="subdued" grow={false}>
+            <EuiText
+              size="s"
+              color="subdued"
+              grow={false}
+            >
               {label.description}
             </EuiText>
           </EuiFlexItem>
 
           <EuiFlexItem grow={false}>
-            <EuiText color="subdued" textAlign="right">
+            <EuiText
+              color="subdued"
+              textAlign="right"
+            >
               <small>
-                <LastActionText action="viewed" timestamp={Date.now()} />
+                <LastActionText
+                  action="viewed"
+                  timestamp={Date.now()}
+                />
               </small>
             </EuiText>
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
-            <EuiFlexGroup direction="row" gutterSize="s">
+            <EuiFlexGroup
+              direction="row"
+              gutterSize="s"
+            >
               <ListItemContextMenuButton {...props} />
             </EuiFlexGroup>
           </EuiFlexItem>

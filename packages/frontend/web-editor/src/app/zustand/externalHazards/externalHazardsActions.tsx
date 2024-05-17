@@ -11,8 +11,9 @@ import { UseGlobalStore } from "../Store";
 
 export const setExternalHazards = async (): Promise<void> => {
   try {
-    const externalHazardsList: ExternalHazardsModelType[] =
-      await GetExternalHazards(ApiManager.getCurrentUser().user_id);
+    const externalHazardsList: ExternalHazardsModelType[] = await GetExternalHazards(
+      ApiManager.getCurrentUser().user_id,
+    );
     UseGlobalStore.setState({
       externalHazards: externalHazardsList,
     });
@@ -21,9 +22,7 @@ export const setExternalHazards = async (): Promise<void> => {
   }
 };
 
-export const addExternalHazard = async (
-  data: Partial<TypedModelJSON>,
-): Promise<void> => {
+export const addExternalHazard = async (data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const ehr: ExternalHazardsModelType = await PostExternalHazard(data);
     UseGlobalStore.setState((state) => ({
@@ -40,21 +39,15 @@ export const editExternalHazard = async (
   data: Partial<TypedModelJSON>,
 ): Promise<void> => {
   try {
-    const ehr: ExternalHazardsModelType = await PatchExternalHazard(
-      modelId,
-      userId,
-      data,
-    );
+    const ehr: ExternalHazardsModelType = await PatchExternalHazard(modelId, userId, data);
     UseGlobalStore.setState((state) => ({
-      externalHazards: state.externalHazards.map(
-        (eh: ExternalHazardsModelType) => {
-          if (eh.id === modelId) {
-            return ehr;
-          } else {
-            return eh;
-          }
-        },
-      ),
+      externalHazards: state.externalHazards.map((eh: ExternalHazardsModelType) => {
+        if (eh.id === modelId) {
+          return ehr;
+        } else {
+          return eh;
+        }
+      }),
     }));
   } catch (error) {
     console.error("Error adding external hazard:", error);
@@ -66,9 +59,7 @@ export const deleteExternalHazard = async (id: number): Promise<void> => {
     await DeleteExternalHazard(id);
 
     UseGlobalStore.setState((state) => ({
-      externalHazards: state.externalHazards.filter(
-        (eh: ExternalHazardsModelType) => eh.id !== id,
-      ),
+      externalHazards: state.externalHazards.filter((eh: ExternalHazardsModelType) => eh.id !== id),
     }));
   } catch (error) {
     console.error("Error deleting external hazard:", error);

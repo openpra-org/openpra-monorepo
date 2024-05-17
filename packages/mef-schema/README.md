@@ -1,11 +1,5 @@
 # mef-schema
 
-This library was generated with [Nx](https://nx.dev).
+## Generate TypeScript Types
 
-## Building
-
-Run `nx build mef-schema` to build the library.
-
-## Running unit tests
-
-Run `nx test mef-schema` to execute the unit tests via [Jest](https://jestjs.io).
+Run `nx run mef-schema:generate-types` to build the types/interfaces and place them in the shared-types package folder.

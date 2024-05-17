@@ -19,7 +19,10 @@ function LoadingCard(): JSX.Element {
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 330 330"
         >
-          <g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
+          <g
+            id="SVGRepo_bgCarrier"
+            strokeWidth="0"
+          ></g>
           <g
             id="SVGRepo_tracerCarrier"
             strokeLinecap="round"

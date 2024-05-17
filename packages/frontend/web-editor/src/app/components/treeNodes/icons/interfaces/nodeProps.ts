@@ -23,7 +23,7 @@ export enum NodeTypes {
 /**
  * Represents the node properties
  */
-export type INodeProps = {
+export interface INodeProps {
   /**
    * @param nodeType - type of node (based on NodeTypes enum)
    */
@@ -32,4 +32,4 @@ export type INodeProps = {
    * @param iconProps - properties of icon associated with the node
    */
   iconProps: IIconProps;
-};
+}

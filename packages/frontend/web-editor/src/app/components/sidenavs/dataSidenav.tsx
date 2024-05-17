@@ -12,7 +12,7 @@ import {
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
 
-type TreeItem = {
+interface TreeItem {
   id: string;
   key: string;
   isExpanded?: boolean;
@@ -20,7 +20,7 @@ type TreeItem = {
   children?: TreeItem[];
   icon?: JSX.Element;
   callback?: () => NonNullable<unknown>;
-};
+}
 function DataSidenav(): JSX.Element {
   const { euiTheme } = useEuiTheme();
 
@@ -49,7 +49,11 @@ function DataSidenav(): JSX.Element {
       id: slug,
       key: slug,
       label: (
-        <EuiText size={size} color={color} title={label}>
+        <EuiText
+          size={size}
+          color={color}
+          title={label}
+        >
           {text}
         </EuiText>
       ),
@@ -122,7 +126,12 @@ function DataSidenav(): JSX.Element {
           "Train UA",
           {
             icon: (
-              <EuiAvatar size="s" color="subdued" type="space" name="U A" />
+              <EuiAvatar
+                size="s"
+                color="subdued"
+                type="space"
+                name="U A"
+              />
             ),
             callback: () => {
               navigate("train-ua");
@@ -134,7 +143,12 @@ function DataSidenav(): JSX.Element {
           "CCF",
           {
             icon: (
-              <EuiAvatar size="s" color="subdued" type="space" name="CCF" />
+              <EuiAvatar
+                size="s"
+                color="subdued"
+                type="space"
+                name="CCF"
+              />
             ),
             callback: () => {
               navigate("ccf");
@@ -149,11 +163,7 @@ function DataSidenav(): JSX.Element {
   const backgroundColor = useEuiBackgroundColor("plain");
   const padding = useEuiPaddingSize("s") ?? "0px";
 
-  const createTreeView = (
-    items: TreeItem[],
-    i: number,
-    forceTreeView = false,
-  ): JSX.Element => {
+  const createTreeView = (items: TreeItem[], i: number, forceTreeView = false): JSX.Element => {
     //TODO
     if (forceTreeView) {
       const style = {

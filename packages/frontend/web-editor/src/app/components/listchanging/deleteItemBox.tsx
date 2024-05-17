@@ -12,7 +12,7 @@ import {
 } from "@elastic/eui";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
-export type DeleteItemProps = {
+export interface DeleteItemProps {
   id?: number;
   _id?: string;
   itemName: string;
@@ -20,7 +20,7 @@ export type DeleteItemProps = {
   deleteTypedEndpoint?: (id: number) => Promise<void>;
   deleteNestedEndpoint?: (id: string) => Promise<void>;
   deleteEndpoint?: (id: number) => NonNullable<unknown>;
-};
+}
 
 /**
  *
@@ -34,13 +34,7 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
   const [confirmDelete, setConfirmDelete] = useState("");
 
   //grabbing the props
-  const {
-    id,
-    _id,
-    itemName,
-    deleteNestedEndpoint,
-    deleteTypedEndpoint,
-  } = props;
+  const { id, _id, itemName, deleteNestedEndpoint, deleteTypedEndpoint } = props;
 
   //sets the data, then closes overlay
   const deleteData = (): void => {
@@ -53,8 +47,8 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
       } else if (deleteNestedEndpoint && _id) {
         void deleteNestedEndpoint(_id).then(() => {
           // TODO:: Log this right
-          console.log('deleted nested')
-        })
+          console.log("deleted nested");
+        });
       } else {
         // deleteEndpoint(id)
       }
@@ -72,15 +66,16 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
         <EuiSpacer size="s" />
         {/** this gives the text, and then importantly sets the title of the item */}
         <EuiFormRow fullWidth={true}>
-          <EuiTitle data-testid="delete-item-title" size="m">
+          <EuiTitle
+            data-testid="delete-item-title"
+            size="m"
+          >
             <strong>Delete {itemName}</strong>
           </EuiTitle>
         </EuiFormRow>
         {/** the submit and also the go back buttons are right here*/}
         <EuiFormRow>
-          <EuiTextColor>
-            Are you sure you want to delete this model? This action is permanent
-          </EuiTextColor>
+          <EuiTextColor>Are you sure you want to delete this model? This action is permanent</EuiTextColor>
         </EuiFormRow>
         {/** confirmation text */}
         <EuiFormRow fullWidth={true}>
@@ -97,7 +92,10 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
 
         {/** button to submit is equipped with the ability to  */}
         <EuiFormRow fullWidth={true}>
-          <EuiFlexGroup justifyContent="spaceBetween" gutterSize="xs">
+          <EuiFlexGroup
+            justifyContent="spaceBetween"
+            gutterSize="xs"
+          >
             <EuiFlexItem>
               {/** This button will only be clickable when user types yes/Yes/YES/etc */}
               <EuiButton

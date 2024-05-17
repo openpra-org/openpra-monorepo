@@ -8,14 +8,14 @@ import { AtLeastGateNode } from "./atLeastGateNode";
 import { HouseEventNode } from "./houseEventNode";
 import { TransferGateNode } from "./transferGateNode";
 
-export type IFaultTreeNodeIconProps = {
+export interface IFaultTreeNodeIconProps {
   className?: string;
-};
+}
 
-export type FaultTreeNodeProps = {
+export interface FaultTreeNodeProps {
   isGrayed?: boolean;
   branchId?: string;
-};
+}
 
 // two different node types are needed for our example: workflow and placeholder nodes
 const FaultTreeNodeTypes: NodeTypes = {

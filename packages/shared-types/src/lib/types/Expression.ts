@@ -1,9 +1,5 @@
 import { ProxyTypes } from "./ProxyTypes";
-import {
-  NormalParams,
-  NormalParamsMap,
-  NormalParamsReverseMap,
-} from "./NormalParams";
+import { NormalParams, NormalParamsMap, NormalParamsReverseMap } from "./NormalParams";
 import {
   DistributionTimeDependence,
   ReversedDistributionDictionary,
@@ -18,7 +14,7 @@ import NonParametric from "./distributions/NonParametric";
 import { DistributionSummary } from "./distributions/AbstractDistribution";
 import Exponential from "./distributions/Exponential";
 
-export type ExpressionJSON = {
+export interface ExpressionJSON {
   _proxy: ProxyTypes;
 
   /**
@@ -119,7 +115,7 @@ export type ExpressionJSON = {
    */
   time_to_failure?: number[];
   estimated_reliability?: number[];
-};
+}
 
 class Expression {
   private value?: number;
@@ -202,9 +198,7 @@ class Expression {
    */
   constructor(obj: ExpressionJSON = { value: 0.5, _proxy: ProxyTypes.FLOAT }) {
     this.proxy = obj._proxy || ProxyTypes.FLOAT;
-    this.distributionTimeDependence =
-      obj.distribution_time_dependence ||
-      ReversedDistributionDictionary[obj._proxy];
+    this.distributionTimeDependence = obj.distribution_time_dependence || ReversedDistributionDictionary[obj._proxy];
     switch (this.proxy) {
       case ProxyTypes.FLOAT:
         this.value = obj.value;
@@ -213,8 +207,7 @@ class Expression {
         this.userExpression = obj.user_expression;
         break;
       case ProxyTypes.EXPONENTIAL_DISTRIBUTION:
-        this.exponentialTestInterval =
-          obj.test_interval || obj.exponential_test_interval;
+        this.exponentialTestInterval = obj.test_interval || obj.exponential_test_interval;
         this.failureRate = obj.failure_rate;
         break;
       case ProxyTypes.NORMAL_DISTRIBUTION:
@@ -224,23 +217,19 @@ class Expression {
         this.normalErrorFactor = obj.error_factor || obj.normal_error_factor;
         this.normalP5 = obj.p5 || obj.normal_p5;
         this.normalP95 = obj.p95 || obj.normal_p95;
-        this.normalParams =
-          NormalParamsReverseMap[obj._params] || obj.normal_params;
+        this.normalParams = NormalParamsReverseMap[obj._params] || obj.normal_params;
         break;
       case ProxyTypes.LOG_NORMAL_DISTRIBUTION:
         this.logNormalMean = obj.mean || obj.log_normal_mean;
         this.logNormalStd = obj.std || obj.log_normal_std;
         this.logNormalMedian = obj.median || obj.log_normal_median;
-        this.logNormalErrorFactor =
-          obj.error_factor || obj.log_normal_error_factor;
+        this.logNormalErrorFactor = obj.error_factor || obj.log_normal_error_factor;
         this.logNormalP5 = obj.p5 || obj.log_normal_p5;
         this.logNormalP95 = obj.p95 || obj.log_normal_p95;
-        this.logNormalParams =
-          NormalParamsReverseMap[obj._params] || obj.log_normal_params;
+        this.logNormalParams = NormalParamsReverseMap[obj._params] || obj.log_normal_params;
         break;
       case ProxyTypes.WEIBULL_DISTRIBUTION:
-        this.weibullTestInterval =
-          obj.test_interval || obj.weibull_test_interval;
+        this.weibullTestInterval = obj.test_interval || obj.weibull_test_interval;
         this.shape = obj.shape;
         this.scale = obj.scale;
         break;
@@ -256,8 +245,7 @@ class Expression {
         break;
       case ProxyTypes.PARTS_FIT_EXPRESSION:
         this.partId = obj.part_id;
-        this.partsFITTestInterval =
-          obj.test_interval || obj.parts_fit_test_interval;
+        this.partsFITTestInterval = obj.test_interval || obj.parts_fit_test_interval;
         break;
       case ProxyTypes.LOGICAL_EXPRESSION:
         this.expr = obj.expr;
@@ -455,11 +443,7 @@ class Expression {
     return new Expression(this.formulas[0].toJSON());
   }
 
-  toFormattedExponential(
-    decimalDigits = 3,
-    param1?: string,
-    param2?: string,
-  ): string {
+  toFormattedExponential(decimalDigits = 3, param1?: string, param2?: string): string {
     switch (this.proxy) {
       case ProxyTypes.FLOAT:
         return `${this.value?.toExponential(decimalDigits)}`;
@@ -489,9 +473,7 @@ class Expression {
           case NormalParams.Percentiles:
             return `Normal(p5=${this.normalP5}, p95=${this.normalP95})`;
           default:
-            console.error(
-              `Error: normal params "${this.normalParams}" is not supported`,
-            );
+            console.error(`Error: normal params "${this.normalParams}" is not supported`);
             return "";
         }
       case ProxyTypes.LOG_NORMAL_DISTRIBUTION:
@@ -512,9 +494,7 @@ class Expression {
             }
             return `Normal(p5=${this.logNormalP5}, p95=${this.logNormalP95})`;
           default:
-            console.error(
-              `Error: lognormal params "${this.logNormalParams}" is not supported`,
-            );
+            console.error(`Error: lognormal params "${this.logNormalParams}" is not supported`);
             return "";
         }
       case ProxyTypes.WEIBULL_DISTRIBUTION:
@@ -585,9 +565,7 @@ class Expression {
               _proxy: this.proxy,
             };
           default:
-            console.error(
-              `Erorr: normal params "${this.normalParams}" is not supported`,
-            );
+            console.error(`Erorr: normal params "${this.normalParams}" is not supported`);
             return { _proxy: this.proxy };
         }
       case ProxyTypes.LOG_NORMAL_DISTRIBUTION:
@@ -614,9 +592,7 @@ class Expression {
               _proxy: this.proxy,
             };
           default:
-            console.error(
-              `Erorr: lognormal params "${this.logNormalParams}" is not supported`,
-            );
+            console.error(`Erorr: lognormal params "${this.logNormalParams}" is not supported`);
             return { _proxy: this.proxy };
         }
       case ProxyTypes.WEIBULL_DISTRIBUTION:
@@ -778,10 +754,7 @@ class Expression {
         const normalMean = this.computeNormalMean();
         const normalStd = this.computeNormalStd();
 
-        if (
-          InputRules.isMean((normalMean || "").toString()) &&
-          InputRules.isStd((normalStd || "").toString())
-        ) {
+        if (InputRules.isMean((normalMean || "").toString()) && InputRules.isStd((normalStd || "").toString())) {
           const normal = new Normal();
           normal.setMu(Number(normalMean));
           normal.setSigma(Number(normalStd));
@@ -791,10 +764,7 @@ class Expression {
       case ProxyTypes.LOG_NORMAL_DISTRIBUTION:
         const lodNormalMean = this.computeLogNormalMean();
         const logNormalStd = this.computeLogNormalStd();
-        if (
-          InputRules.isMean((lodNormalMean || "").toString()) &&
-          InputRules.isStd((logNormalStd || "").toString())
-        ) {
+        if (InputRules.isMean((lodNormalMean || "").toString()) && InputRules.isStd((logNormalStd || "").toString())) {
           const logNormal = new LogNormal();
           logNormal.setMu(Number(lodNormalMean));
           logNormal.setSigma(Number(logNormalStd));
@@ -804,10 +774,7 @@ class Expression {
       case ProxyTypes.WEIBULL_DISTRIBUTION:
         const { shape } = this;
         const { scale } = this;
-        if (
-          InputRules.isShape((shape || "").toString()) &&
-          InputRules.isScale((scale || "").toString())
-        ) {
+        if (InputRules.isShape((shape || "").toString()) && InputRules.isScale((scale || "").toString())) {
           const weibull = new Weibull();
           weibull.setShape(Number(shape));
           weibull.setScale(Number(scale));
@@ -817,10 +784,7 @@ class Expression {
       case ProxyTypes.UNIFORM_DISTRIBUTION:
         const { max } = this;
         const { min } = this;
-        if (
-          InputRules.isMax((max || "").toString()) &&
-          InputRules.isMin((min || "").toString())
-        ) {
+        if (InputRules.isMax((max || "").toString()) && InputRules.isMin((min || "").toString())) {
           const uniform = new Uniform();
           uniform.setMax(Number(max));
           uniform.setMin(Number(min));
@@ -879,27 +843,13 @@ class Expression {
   private computeNormalMean() {
     switch (this.normalParams) {
       case NormalParams.MeanStd:
-        return this.computeMean(
-          this.normalMean,
-          this.normalStd,
-          this.normalParams,
-        );
+        return this.computeMean(this.normalMean, this.normalStd, this.normalParams);
       case NormalParams.MedianErrorFactor:
-        return this.computeMean(
-          this.normalMedian,
-          this.normalErrorFactor,
-          this.normalParams,
-        );
+        return this.computeMean(this.normalMedian, this.normalErrorFactor, this.normalParams);
       case NormalParams.Percentiles:
-        return this.computeMean(
-          this.normalP5,
-          this.normalP95,
-          this.normalParams,
-        );
+        return this.computeMean(this.normalP5, this.normalP95, this.normalParams);
       default:
-        console.error(
-          `Error: Unrecognized params "${this.normalParams}" detected`,
-        );
+        console.error(`Error: Unrecognized params "${this.normalParams}" detected`);
         return 0;
     }
   }
@@ -907,27 +857,13 @@ class Expression {
   private computeNormalStd() {
     switch (this.normalParams) {
       case NormalParams.MeanStd:
-        return this.computeStd(
-          this.normalMean,
-          this.normalStd,
-          this.normalParams,
-        );
+        return this.computeStd(this.normalMean, this.normalStd, this.normalParams);
       case NormalParams.MedianErrorFactor:
-        return this.computeStd(
-          this.normalMedian,
-          this.normalErrorFactor,
-          this.normalParams,
-        );
+        return this.computeStd(this.normalMedian, this.normalErrorFactor, this.normalParams);
       case NormalParams.Percentiles:
-        return this.computeStd(
-          this.normalP5,
-          this.normalP95,
-          this.normalParams,
-        );
+        return this.computeStd(this.normalP5, this.normalP95, this.normalParams);
       default:
-        console.error(
-          `Error: Unrecognized params "${this.normalParams}" detected`,
-        );
+        console.error(`Error: Unrecognized params "${this.normalParams}" detected`);
         return 0;
     }
   }
@@ -935,27 +871,13 @@ class Expression {
   private computeLogNormalMean() {
     switch (this.logNormalParams) {
       case NormalParams.MeanStd:
-        return this.computeMean(
-          this.logNormalMean,
-          this.logNormalStd,
-          this.logNormalParams,
-        );
+        return this.computeMean(this.logNormalMean, this.logNormalStd, this.logNormalParams);
       case NormalParams.MedianErrorFactor:
-        return this.computeMean(
-          this.logNormalMedian,
-          this.logNormalErrorFactor,
-          this.logNormalParams,
-        );
+        return this.computeMean(this.logNormalMedian, this.logNormalErrorFactor, this.logNormalParams);
       case NormalParams.Percentiles:
-        return this.computeMean(
-          this.logNormalP5,
-          this.logNormalP95,
-          this.logNormalParams,
-        );
+        return this.computeMean(this.logNormalP5, this.logNormalP95, this.logNormalParams);
       default:
-        console.error(
-          `Error: Unrecognized params "${this.normalParams}" detected`,
-        );
+        console.error(`Error: Unrecognized params "${this.normalParams}" detected`);
         return 0;
     }
   }
@@ -963,27 +885,13 @@ class Expression {
   private computeLogNormalStd() {
     switch (this.logNormalParams) {
       case NormalParams.MeanStd:
-        return this.computeStd(
-          this.logNormalMean,
-          this.logNormalStd,
-          this.logNormalParams,
-        );
+        return this.computeStd(this.logNormalMean, this.logNormalStd, this.logNormalParams);
       case NormalParams.MedianErrorFactor:
-        return this.computeStd(
-          this.logNormalMedian,
-          this.logNormalErrorFactor,
-          this.logNormalParams,
-        );
+        return this.computeStd(this.logNormalMedian, this.logNormalErrorFactor, this.logNormalParams);
       case NormalParams.Percentiles:
-        return this.computeStd(
-          this.logNormalP5,
-          this.logNormalP95,
-          this.logNormalParams,
-        );
+        return this.computeStd(this.logNormalP5, this.logNormalP95, this.logNormalParams);
       default:
-        console.error(
-          `Error: Unrecognized params "${this.normalParams}" detected`,
-        );
+        console.error(`Error: Unrecognized params "${this.normalParams}" detected`);
         return 0;
     }
   }

@@ -11,11 +11,7 @@ import {
 } from "reactflow";
 import { HierarchyNode, stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
-import {
-  AreSiblings,
-  GetIncomingEdge,
-  GetParentNode,
-} from "../../../utils/treeUtils";
+import { AreSiblings, GetIncomingEdge, GetParentNode } from "../../../utils/treeUtils";
 import { UseFocusContext } from "../../providers/focusProvider";
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
@@ -26,8 +22,7 @@ const layout = tree<Node>()
   .separation(() => 1);
 
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change
-const nodeCountSelector = (state: ReactFlowState): number =>
-  state.nodeInternals.size;
+const nodeCountSelector = (state: ReactFlowState): number => state.nodeInternals.size;
 
 const options = { duration: 200 };
 
@@ -47,8 +42,7 @@ function UseLayout(): void {
   // whenever the nodes length changes, we calculate the new layout
   const nodeCount = useStore(nodeCountSelector);
 
-  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } =
-    useReactFlow();
+  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } = useReactFlow();
   const { focusNodeId, reset } = UseFocusContext();
 
   useEffect(() => {
@@ -63,37 +57,25 @@ function UseLayout(): void {
       .id((d) => d.id)
       // get the id of each node by searching through the edges
       // this only works if every node has one connection
-      .parentId(
-        (d: Node) => edges.find((e: Edge) => e.target === d.id)?.source,
-      )(nodes);
+      .parentId((d: Node) => edges.find((e: Edge) => e.target === d.id)?.source)(nodes);
 
     // run the layout algorithm with the hierarchy data structure
     const root = layout(
-      hierarchy.sort(
-        (node1: HierarchyNode<Node>, node2: HierarchyNode<Node>) => {
-          const currentNodes = getNodes();
-          const currentEdges = getEdges();
-          if (
-            GetParentNode(node1.data, currentNodes, currentEdges).type ===
-              "functional" &&
-            AreSiblings(node1.data, node2.data, currentNodes, currentEdges)
-          ) {
-            const incomingEdge1 = GetIncomingEdge(
-              node1.data,
-              getConnectedEdges([node1.data], currentEdges),
-            );
-            const incomingEdge2 = GetIncomingEdge(
-              node2.data,
-              getConnectedEdges([node2.data], currentEdges),
-            );
-            return incomingEdge1.data?.order !== undefined &&
-              incomingEdge2.data?.order !== undefined
-              ? incomingEdge1.data.order - incomingEdge2.data.order
-              : 0;
-          }
-          return 0;
-        },
-      ),
+      hierarchy.sort((node1: HierarchyNode<Node>, node2: HierarchyNode<Node>) => {
+        const currentNodes = getNodes();
+        const currentEdges = getEdges();
+        if (
+          GetParentNode(node1.data, currentNodes, currentEdges).type === "functional" &&
+          AreSiblings(node1.data, node2.data, currentNodes, currentEdges)
+        ) {
+          const incomingEdge1 = GetIncomingEdge(node1.data, getConnectedEdges([node1.data], currentEdges));
+          const incomingEdge2 = GetIncomingEdge(node2.data, getConnectedEdges([node2.data], currentEdges));
+          return incomingEdge1.data?.order !== undefined && incomingEdge2.data?.order !== undefined
+            ? incomingEdge1.data.order - incomingEdge2.data.order
+            : 0;
+        }
+        return 0;
+      }),
     );
 
     const targetNodes = nodes.map((node) => {
@@ -151,9 +133,7 @@ function UseLayout(): void {
         }));
 
         setNodes(finalNodes);
-        setEdges((edges) =>
-          edges.map((edge) => ({ ...edge, style: { opacity: 1 } })),
-        );
+        setEdges((edges) => edges.map((edge) => ({ ...edge, style: { opacity: 1 } })));
 
         // stop the animation
         t.stop();

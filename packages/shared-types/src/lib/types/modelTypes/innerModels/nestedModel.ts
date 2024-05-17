@@ -2,13 +2,13 @@ import Label from "../../Label";
 import { BasicModel } from "../basicModel";
 
 //interface that will maybe be used to pass partials to the database
-export type NestedModelJSON = {
+export interface NestedModelJSON {
   label: {
     name: string;
     description: string;
   };
   parentIds: number[] | string[];
-};
+}
 
 //maps the json
 //export type TypedModelJSONMap = Record<string, NestedModelJSON>;
@@ -55,7 +55,7 @@ export class NestedModel extends BasicModel {
   }
 }
 
-export type NestedModelType = {
+export interface NestedModelType {
   _id: string;
   label: {
     name: string;
@@ -63,4 +63,4 @@ export type NestedModelType = {
   };
   id: number;
   parentIds: string[];
-};
+}

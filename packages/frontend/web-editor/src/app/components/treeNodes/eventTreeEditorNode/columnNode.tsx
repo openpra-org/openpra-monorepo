@@ -10,9 +10,7 @@ function ColumnNode({ id, data }: NodeProps) {
   const [textareaValue, setTextareaValue] = useState<string>(data.label);
   const updateNodeInternals = useUpdateNodeInternals();
 
-  const handleTextareaChange = (
-    event: React.ChangeEvent<HTMLTextAreaElement>,
-  ) => {
+  const handleTextareaChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     setTextareaValue(event.target.value);
     // Optionally, update the node's data in React Flow's state here
     // This might involve setting the new value in a context or state management system
@@ -71,7 +69,10 @@ function ColumnNode({ id, data }: NodeProps) {
             rows={1}
             cols={1}
           />
-          <text onClick={onClickAddColumn} className={styles.addNodeButtonText}>
+          <text
+            onClick={onClickAddColumn}
+            className={styles.addNodeButtonText}
+          >
             +
           </text>
         </div>

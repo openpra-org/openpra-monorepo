@@ -1,13 +1,7 @@
 import { useEffect, useState } from "react";
 import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
 import { InvitedUserDetailsDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
-import {
-  EuiButton,
-  EuiPageHeader,
-  EuiPageTemplate,
-  EuiSkeletonLoading,
-  EuiText,
-} from "@elastic/eui";
+import { EuiButton, EuiPageHeader, EuiPageTemplate, EuiSkeletonLoading, EuiText } from "@elastic/eui";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { InvitedUsersTable } from "../tables/invitedUsersTable";
@@ -50,16 +44,17 @@ const Invitations = (): JSX.Element => {
 
   let flyout;
   if (isFlyoutVisible) {
-    flyout = (
-      <InviteMultipleUsersFlyout setIsFlyoutVisible={setIsFlyoutVisible} />
-    );
+    flyout = <InviteMultipleUsersFlyout setIsFlyoutVisible={setIsFlyoutVisible} />;
   }
 
   return (
     <EuiSkeletonLoading
       isLoading={isLoading}
       loadingContent={
-        <EuiPageTemplate paddingSize="none" panelled={false}>
+        <EuiPageTemplate
+          paddingSize="none"
+          panelled={false}
+        >
           <EuiPageTemplate.Section>
             <EuiText>Loading...</EuiText>
           </EuiPageTemplate.Section>

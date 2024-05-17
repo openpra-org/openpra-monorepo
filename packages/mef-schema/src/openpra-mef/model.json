@@ -1,12 +1,42 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://openpra.org/schema/v1/openpra-mef/model.json",
-  "title": "OpenPRA MEF Model Schema",
+  "title": "OpenPRA Model Schema",
   "description": "JSON schema for the OpenPRA MEF Model",
   "type": "object",
   "properties": {
     "version": {
-      "$ref": "../lib/identifier/semantic-version.json"
+      "$ref": "./identifier/semantic-version.json"
+    },
+    "operating-state-analysis": {
+      "$ref": "./operating-state-analysis/operating-state-analysis.json"
+    },
+    "initiating-event-analysis": {
+      "$ref": "./initiating-event-analysis/initiating-event-analysis.json"
+    },
+    "event-sequence-analysis": {
+      "$ref": "./event-sequence-analysis/event-sequence-analysis.json"
+    },
+    "success-criteria-development": {
+      "$ref": "./success-criteria-development/success-criteria-development.json"
+    },
+    "systems-analysis": {
+      "$ref": "./systems-analysis/systems-analysis.json"
+    },
+    "human-reliability-analysis": {
+      "$ref": "./human-reliability-analysis/human-reliability-analysis.json"
+    },
+    "data-analysis": {
+      "$ref": "./data-analysis/data-analysis.json"
+    },
+    "mechanistic-source-terms": {
+      "$ref": "./mechanistic-source-terms/mechanistic-source-terms.json"
+    },
+    "consequence-analysis": {
+      "$ref": "./consequence-analysis/consequence-analysis.json"
+    },
+    "risk-integration": {
+      "$ref": "./risk-integration/risk-integration.json"
     }
   }
 }

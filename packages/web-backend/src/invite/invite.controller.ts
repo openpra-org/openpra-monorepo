@@ -39,9 +39,7 @@ export class InviteController {
    * }
    */
   @Post("/invite/")
-  async generateInvitationLink(
-    @Body() body: InvitedUserDto,
-  ): Promise<InviteIdDto> {
+  async generateInvitationLink(@Body() body: InvitedUserDto): Promise<InviteIdDto> {
     const invitedUser = await this.inviteService.generateUserInvite(body);
     return { id: invitedUser.id };
   }
@@ -51,9 +49,7 @@ export class InviteController {
    * @param body - InvitedUserDetailsDto object
    */
   @Put("/invite/")
-  async updateInvite(
-    @Body() body: InvitedUserDetailsDto,
-  ): Promise<InvitedUserDto> {
+  async updateInvite(@Body() body: InvitedUserDetailsDto): Promise<InvitedUserDto> {
     return this.inviteService.updateInvite(body);
   }
 
@@ -68,15 +64,10 @@ export class InviteController {
    */
   @Public()
   @Post("/verify-invite/")
-  async verifyInvitationLink(
-    @Body() body: InviteIdDto,
-  ): Promise<InvitedUserDto> {
+  async verifyInvitationLink(@Body() body: InviteIdDto): Promise<InvitedUserDto> {
     const invitedUser = await this.inviteService.verifyUserInvite(body.id);
     if (invitedUser === null) {
-      throw new HttpException(
-        "Invite id either invalid or expired",
-        HttpStatus.GONE,
-      );
+      throw new HttpException("Invite id either invalid or expired", HttpStatus.GONE);
     }
     return {
       email: invitedUser.email,

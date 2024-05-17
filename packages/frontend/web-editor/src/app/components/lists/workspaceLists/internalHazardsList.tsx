@@ -32,12 +32,7 @@ function InternalHazardsList(): JSX.Element {
         deleteTypedEndpoint: deleteInternalHazard,
       }),
     );
-  }, [
-    createInternalHazards,
-    deleteInternalHazard,
-    editInternalHazard,
-    internalHazardsList,
-  ]);
+  }, [createInternalHazards, deleteInternalHazard, editInternalHazard, internalHazardsList]);
 
   return (
     <EuiPageTemplate

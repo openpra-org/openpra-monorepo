@@ -8,5 +8,4 @@ export class FaultTreeGraph extends BaseGraph {
 }
 
 export type FaultTreeGraphDocument = FaultTreeGraph & Document;
-export const FaultTreeGraphSchema =
-  SchemaFactory.createForClass(FaultTreeGraph);
+export const FaultTreeGraphSchema = SchemaFactory.createForClass(FaultTreeGraph);

@@ -21,20 +21,44 @@ export function SettingsPage(): JSX.Element {
   }
   return (
     <Routes>
-      <Route path="" element={<SettingsContainer />}>
-        <Route path="" element={<UserProfilePage id={id} />}></Route>
-        <Route path="users" element={<Users />}></Route>
-        <Route path=":user" element={<MemberForm />}></Route>
-        <Route path="preferences/:user" element={<Preferences />}>
+      <Route
+        path=""
+        element={<SettingsContainer />}
+      >
+        <Route
+          path=""
+          element={<UserProfilePage id={id} />}
+        ></Route>
+        <Route
+          path="users"
+          element={<Users />}
+        ></Route>
+        <Route
+          path=":user"
+          element={<MemberForm />}
+        ></Route>
+        <Route
+          path="preferences/:user"
+          element={<Preferences />}
+        >
           <Route
             path="personal-data"
             element={<EditPersonalInfoForm />}
           ></Route>
-          <Route path="logins" element={<PasswordChange />}></Route>
+          <Route
+            path="logins"
+            element={<PasswordChange />}
+          ></Route>
         </Route>
 
-        <Route path="roles" element={<p>Welcome to roles section</p>} />
-        <Route path="invitations" element={<Invitations />} />
+        <Route
+          path="roles"
+          element={<p>Welcome to roles section</p>}
+        />
+        <Route
+          path="invitations"
+          element={<Invitations />}
+        />
       </Route>
     </Routes>
   );

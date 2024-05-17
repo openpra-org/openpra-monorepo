@@ -2,15 +2,15 @@ import { EuiDataGrid, EuiFlexGroup, EuiFlexItem } from "@elastic/eui";
 import { SetStateAction, useCallback, useState } from "react";
 import { EuiDataGridColumnSortingConfig } from "@elastic/eui/src/components/datagrid/data_grid_types";
 
-type DataTableProps = {
+interface DataTableProps {
   rows: any[];
   columns: any[];
-};
+}
 
-type CellValueProps = {
+interface CellValueProps {
   rowIndex: number;
   colIndex: number;
-};
+}
 
 /**
  * DataTable component that renders a data grid using Elastic UI components.
@@ -24,9 +24,7 @@ function DataTable({ rows, columns }: DataTableProps): JSX.Element {
   /**
    * State to manage the visibility of columns in the data grid.
    */
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(
-    columns.map((column) => column.id),
-  );
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(columns.map((column) => column.id));
 
   /**
    * Retrieves the value for a cell given its row and column index.
@@ -78,9 +76,7 @@ function DataTable({ rows, columns }: DataTableProps): JSX.Element {
   /**
    * State to manage sorting configurations for the data grid columns.
    */
-  const [sortingColumns, setSortingColumns] = useState<
-    EuiDataGridColumnSortingConfig[]
-  >([]);
+  const [sortingColumns, setSortingColumns] = useState<EuiDataGridColumnSortingConfig[]>([]);
 
   /**
    * Callback to handle sorting changes.
@@ -88,9 +84,7 @@ function DataTable({ rows, columns }: DataTableProps): JSX.Element {
    * @param newSortingColumns - The new sorting configuration for the columns.
    */
   const onSort = useCallback(
-    (
-      newSortingColumns: SetStateAction<EuiDataGridColumnSortingConfig[]>,
-    ): void => {
+    (newSortingColumns: SetStateAction<EuiDataGridColumnSortingConfig[]>): void => {
       setSortingColumns(newSortingColumns);
     },
     [setSortingColumns],

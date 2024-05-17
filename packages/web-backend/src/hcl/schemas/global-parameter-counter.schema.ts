@@ -11,6 +11,4 @@ export class GlobalParameterCounter {
 }
 
 export type GlobalParameterCounterDocument = GlobalParameterCounter & Document;
-export const GlobalParameterCounterSchema = SchemaFactory.createForClass(
-  GlobalParameterCounter,
-);
+export const GlobalParameterCounterSchema = SchemaFactory.createForClass(GlobalParameterCounter);

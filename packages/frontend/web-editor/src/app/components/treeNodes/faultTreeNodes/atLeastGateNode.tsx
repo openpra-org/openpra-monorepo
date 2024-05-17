@@ -4,8 +4,8 @@ import cx from "classnames";
 
 import { NodeIcon } from "../icons/nodeIcon";
 import { NodeTypes } from "../icons/interfaces/nodeProps";
-import styles from "./styles/nodeTypes.module.css";
 import { UseNodeDoubleClick } from "../../../hooks/faultTree/useNodeDoubleClick";
+import styles from "./styles/nodeTypes.module.css";
 
 /**
  * At Least Gate Node
@@ -20,7 +20,10 @@ const AtLeastGateNode = memo(({ id, data }: NodeProps) => {
       className={styles.node_container}
       onDoubleClick={handleNodeDoubleClick}
     >
-      <div className={cx(styles.node)} title="click to add a child node">
+      <div
+        className={cx(styles.node)}
+        title="click to add a child node"
+      >
         {"At Least Gate"}
 
         <Handle

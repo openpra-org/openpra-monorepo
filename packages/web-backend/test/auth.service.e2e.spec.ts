@@ -5,10 +5,7 @@ import { JwtService } from "@nestjs/jwt";
 import { CollabService } from "../src/collab/collab.service";
 import { AuthService } from "../src/auth/auth.service";
 import { User, UserSchema } from "../src/collab/schemas/user.schema";
-import {
-  UserCounter,
-  UserCounterSchema,
-} from "../src/collab/schemas/user-counter.schema";
+import { UserCounter, UserCounterSchema } from "../src/collab/schemas/user-counter.schema";
 
 describe("AuthService", () => {
   let authService: AuthService;
@@ -30,9 +27,7 @@ describe("AuthService", () => {
     authService = module.get<AuthService>(AuthService);
     collabService = module.get<CollabService>(CollabService);
     connection = await module.get(getConnectionToken());
-    await connection
-      .collection("users")
-      .findOneAndDelete({ username: "testUser" }); //delete test user before each test
+    await connection.collection("users").findOneAndDelete({ username: "testUser" }); //delete test user before each test
   });
 
   afterAll(async () => {
@@ -41,9 +36,7 @@ describe("AuthService", () => {
 
   afterEach(async () => {
     //delete test user after each test
-    await connection
-      .collection("users")
-      .findOneAndDelete({ username: "testUser" });
+    await connection.collection("users").findOneAndDelete({ username: "testUser" });
   });
 
   describe("AuthService", () => {
@@ -63,10 +56,7 @@ describe("AuthService", () => {
       };
       const correctPassword = user_object.password;
       const response = await collabService.createNewUser(user_object); // create a new user
-      const result = await authService.loginUser(
-        user_object.username,
-        correctPassword,
-      ); // call loginUser function
+      const result = await authService.loginUser(user_object.username, correctPassword); // call loginUser function
       expect(result).toBeInstanceOf(Object); //expect result to be an instance of User
     });
 
@@ -81,10 +71,7 @@ describe("AuthService", () => {
       const incorrectPassword = "123";
       const response = await collabService.createNewUser(user_object); // create a new user
       try {
-        const result = await authService.loginUser(
-          user_object.username,
-          incorrectPassword,
-        ); // call loginUser function
+        const result = await authService.loginUser(user_object.username, incorrectPassword); // call loginUser function
       } catch (err) {
         expect(err).toBeInstanceOf(Error); //expect result to be an instance of User
       }
@@ -101,10 +88,7 @@ describe("AuthService", () => {
       const incorrectUsername = "testUserABCD";
       const response = await collabService.createNewUser(user_object); // create a new user
       try {
-        const result = await authService.loginUser(
-          incorrectUsername,
-          user_object.password,
-        ); // call loginUser function
+        const result = await authService.loginUser(incorrectUsername, user_object.password); // call loginUser function
       } catch (err) {
         expect(err).toBeInstanceOf(Error); //expect result to be an instance of User
       }

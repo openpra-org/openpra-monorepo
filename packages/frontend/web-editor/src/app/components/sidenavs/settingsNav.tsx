@@ -1,16 +1,9 @@
-import {
-  EuiTreeView,
-  slugify,
-  useEuiTheme,
-  EuiText,
-  EuiCollapsibleNavGroup,
-  useEuiPaddingSize,
-} from "@elastic/eui";
+import { EuiTreeView, slugify, useEuiTheme, EuiText, EuiCollapsibleNavGroup, useEuiPaddingSize } from "@elastic/eui";
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 
-type TreeItem = {
+interface TreeItem {
   id: string;
   key: string;
   isExpanded?: boolean;
@@ -18,7 +11,7 @@ type TreeItem = {
   children?: TreeItem[];
   iconType?: string;
   callback?: () => void;
-};
+}
 
 /**
  * Function to export the navigation menu for the settings screen
@@ -53,7 +46,11 @@ export function SettingsNav(): JSX.Element {
       id: slug,
       key: slug,
       label: (
-        <EuiText size={size} color={color} title={label}>
+        <EuiText
+          size={size}
+          color={color}
+          title={label}
+        >
           {text}
         </EuiText>
       ),
@@ -123,15 +120,11 @@ export function SettingsNav(): JSX.Element {
         ),
       ],
     }),
-  ]
+  ];
 
   const padding = useEuiPaddingSize("s") ?? "0px";
 
-  const createTreeView = (
-    items: TreeItem[],
-    i: number,
-    forceTreeView = false,
-  ): JSX.Element => {
+  const createTreeView = (items: TreeItem[], i: number, forceTreeView = false): JSX.Element => {
     //TODO
     if (forceTreeView) {
       const style = {

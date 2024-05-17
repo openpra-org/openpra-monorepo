@@ -70,9 +70,7 @@ export class Factors {
     // AND, OR, K/N gate types can have the varying number of arguments.
     // Since the distribution is symmetric, the average is (max + min) / 2.
     return (
-      (2 * numArgs -
-        varContrib.reduce((a, b) => a + b, 0) -
-        2 * constContrib.reduce((a, b) => a + b, 0)) /
+      (2 * numArgs - varContrib.reduce((a, b) => a + b, 0) - 2 * constContrib.reduce((a, b) => a + b, 0)) /
       varWeights.reduce((a, b) => a + b, 0)
     );
   }
@@ -110,12 +108,7 @@ export class Factors {
    * @param parentsG - The average number of parents for common gates.
    * @throws FactorError Invalid values or setup.
    */
-  setCommonEventFactors(
-    commonB: number,
-    commonG: number,
-    parentsB: number,
-    parentsG: number,
-  ): void {
+  setCommonEventFactors(commonB: number, commonG: number, parentsB: number, parentsG: number): void {
     const maxCommon = 0.9; // a practical limit (not a formal constraint)
     if (commonB <= 0 || commonB > maxCommon) {
       throw new FactorError(`common_b not in (0, ${maxCommon}].`);
@@ -148,14 +141,7 @@ export class Factors {
    * @param ccfSize - Size of the CCF group
    * @throws FactorError Invalid values or setup.
    */
-  setNumFactors(
-    numArgs: number,
-    numBasic: number,
-    numHouse = 0,
-    numCcf = 0,
-    ccfModel = 0,
-    ccfSize = 0,
-  ): void {
+  setNumFactors(numArgs: number, numBasic: number, numHouse = 0, numCcf = 0, ccfModel = 0, ccfSize = 0): void {
     if (numArgs < 2) {
       throw new FactorError("avg. # of gate arguments can't be less than 2.");
     }
@@ -188,10 +174,7 @@ export class Factors {
    */
   calculate(): void {
     this.maxArgs = Factors.calculateMaxArgs(this.numArgs, this.normWeights);
-    const gFactor =
-      1 -
-      this.commonG +
-      (this.parentsG === 0 ? 0 : this.commonG / this.parentsG);
+    const gFactor = 1 - this.commonG + (this.parentsG === 0 ? 0 : this.commonG / this.parentsG);
     this.ratio = this.numArgs * gFactor - 1;
     this.percentBasic = this.ratio / (1 + this.ratio);
     this.percentGate = 1 / (1 + this.ratio);
@@ -229,10 +212,7 @@ export class Factors {
     if (weights.reduce((a, b) => a + b, 0) === 0) {
       throw new FactorError("At least one non-zero weight is needed");
     }
-    if (
-      weights.length > 3 &&
-      weights.slice(0, 3).reduce((a, b) => a + b, 0) === 0
-    ) {
+    if (weights.length > 3 && weights.slice(0, 3).reduce((a, b) => a + b, 0) === 0) {
       throw new FactorError("Cannot work with only XOR or NOT gates");
     }
 
@@ -240,9 +220,7 @@ export class Factors {
     for (let i = 0; i < Factors.operators.length - weights.length; i++) {
       this.weightsG.push(0); // padding for missing weights
     }
-    this.normWeights = this.weightsG.map(
-      (x) => x / this.weightsG.reduce((a, b) => a + b, 0),
-    );
+    this.normWeights = this.weightsG.map((x) => x / this.weightsG.reduce((a, b) => a + b, 0));
     this.cumDist = this.normWeights.slice();
     this.cumDist.unshift(0);
     for (let i = 1; i < this.cumDist.length; i++) {
@@ -315,13 +293,8 @@ export class Factors {
    * @returns The number of gates needed for the given basic events.
    */
   getNumGate(): number {
-    const bFactor =
-      1 -
-      this.commonB +
-      (this.parentsB === 0 ? 0 : this.commonB / this.parentsB);
-    return Math.floor(
-      this.numBasic / (this.percentBasic * this.numArgs * bFactor),
-    );
+    const bFactor = 1 - this.commonB + (this.parentsB === 0 ? 0 : this.commonB / this.parentsB);
+    return Math.floor(this.numBasic / (this.percentBasic * this.numArgs * bFactor));
   }
 
   /**
@@ -333,10 +306,7 @@ export class Factors {
    * @returns The estimated number of common basic events.
    */
   getNumCommonBasic(numGate: number): number {
-    return Math.floor(
-      (this.commonB * this.percentBasic * this.numArgs * numGate) /
-        this.parentsB,
-    );
+    return Math.floor((this.commonB * this.percentBasic * this.numArgs * numGate) / this.parentsB);
   }
 
   /**
@@ -347,9 +317,6 @@ export class Factors {
    * @returns The estimated number of common gates.
    */
   getNumCommonGate(numGate: number): number {
-    return Math.floor(
-      (this.commonG * this.percentGate * this.numArgs * numGate) /
-        this.parentsG,
-    );
+    return Math.floor((this.commonG * this.percentGate * this.numArgs * numGate) / this.parentsG);
   }
 }

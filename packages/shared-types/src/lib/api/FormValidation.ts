@@ -1,9 +1,9 @@
-type UsernameValidationForm = {
+interface UsernameValidationForm {
   username: string;
-};
+}
 
-type EmailValidationForm = {
+interface EmailValidationForm {
   email: string;
-};
+}
 
 export { UsernameValidationForm, EmailValidationForm };

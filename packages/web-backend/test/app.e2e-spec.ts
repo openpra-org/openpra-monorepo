@@ -27,12 +27,10 @@ describe("OpenPRA web-backend endpoints testing (e2e)", () => {
 
   describe("user login", () => {
     it("token-obtain", async () => {
-      const res = await request("http://localhost:8000/api")
-        .post("/auth/token-obtain/")
-        .send({
-          username: "test2",
-          password: "123456",
-        });
+      const res = await request("http://localhost:8000/api").post("/auth/token-obtain/").send({
+        username: "test2",
+        password: "123456",
+      });
       jwttoken = res.body.token;
       expect(res.status).toBe(200);
     });

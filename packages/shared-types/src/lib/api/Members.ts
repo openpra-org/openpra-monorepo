@@ -1,11 +1,11 @@
-export type Members = {
+export interface Members {
   count: number;
   next: any;
   previous: any;
   results: MemberResult[];
-};
+}
 
-export type MemberResult = {
+export interface MemberResult {
   firstName: string;
   lastName: string;
   username: string;
@@ -17,17 +17,17 @@ export type MemberResult = {
   account_created: string;
   last_login: string;
   password: string | undefined;
-};
+}
 
-type Permissions = {};
+interface Permissions {}
 
-type RecentlyAccessed = {
+interface RecentlyAccessed {
   models: any[];
   subsystems: any[];
   projects: any[];
-};
+}
 
-type Preferences = {
+interface Preferences {
   theme: string;
   nodeIdsVisible: boolean;
   outlineVisible: boolean;
@@ -35,11 +35,11 @@ type Preferences = {
   nodeDescriptionEnabled: boolean;
   pageBreaksVisible: boolean;
   quantificationConfigurations: QuantificationConfigurations;
-};
+}
 
-type QuantificationConfigurations = {
+interface QuantificationConfigurations {
   configurations: Configurations;
   currentlySelected: string;
-};
+}
 
-type Configurations = {};
+interface Configurations {}

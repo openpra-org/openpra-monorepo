@@ -7,11 +7,11 @@ export class InternalEventsModel extends TypedModel {}
 
 export type InternalEventsModelType = typedModelType;
 
-export type InternalEventsMetadata = {
+export interface InternalEventsMetadata {
   _id: string;
   label: {
     name: string;
     description: string;
   };
   users: number[];
-};
+}

@@ -37,10 +37,7 @@ export async function FindFilesWithExtension(
  * @param fileList - An array to accumulate the paths of found JSON files. Defaults to an empty array.
  * @returns A promise that resolves to an array of strings, each representing a path to a JSON file.
  */
-export async function FindJSONFiles(
-  dir: string,
-  fileList: string[] = [],
-): Promise<string[]> {
+export async function FindJSONFiles(dir: string, fileList: string[] = []): Promise<string[]> {
   return FindFilesWithExtension(".json", dir, fileList);
 }
 
@@ -50,15 +47,9 @@ export async function FindJSONFiles(
  * @param jsonFiles - An array of paths to JSON files.
  * @param rootDir - The root directory where the .d.ts files will be placed, maintaining the relative paths.
  */
-export async function GenerateTypescript(
-  jsonFiles: string[],
-  rootDir: string,
-): Promise<void> {
+export async function GenerateTypescript(jsonFiles: string[], rootDir: string): Promise<void> {
   for (const jsonFile of jsonFiles) {
-    const dtsRelativePath = rootDir.concat(
-      "/",
-      jsonFile.replace(".json", ".d.ts"),
-    );
+    const dtsRelativePath = rootDir.concat("/", jsonFile.replace(".json", ".d.ts"));
     // Construct the full path for the .d.ts file under the specified root directory
     const dtsFile = path.join(rootDir, dtsRelativePath);
     try {
@@ -66,7 +57,16 @@ export async function GenerateTypescript(
       await fs.mkdir(path.dirname(dtsFile), { recursive: true });
       // Generate TypeScript definition
       const ts = await compileFromFile(jsonFile, {
-        strictIndexSignatures: false,
+        bannerComment: "",
+        strictIndexSignatures: true,
+        additionalProperties: false,
+        style: {
+          bracketSpacing: true,
+          printWidth: 120,
+          singleQuote: false,
+          singleAttributePerLine: true,
+          endOfLine: "lf",
+        },
       });
       // Write .d.ts file asynchronously
       await fs.writeFile(dtsFile, ts);
@@ -81,10 +81,7 @@ export async function GenerateTypescript(
  *
  * @returns A promise that resolves when all .d.ts files have been generated or rejects if an error occurs.
  */
-export async function Generate(
-  inputDirectory: string,
-  outputDirectory: string,
-): Promise<void> {
+export async function Generate(inputDirectory: string, outputDirectory: string): Promise<void> {
   try {
     // Find all JSON files in the starting directory
     const jsonFiles = await FindJSONFiles(inputDirectory);

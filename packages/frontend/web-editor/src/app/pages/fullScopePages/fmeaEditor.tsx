@@ -16,24 +16,18 @@ import {
   EuiDataGrid,
   EuiDataGridCellValueElementProps,
   EuiResizableContainer,
-  EuiCheckbox,
 } from "@elastic/eui";
 import React, { useCallback, useEffect, useState } from "react";
-import { Route, Routes, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
 import { Column } from "shared-types/src/lib/types/fmea/Column";
 import { Row } from "shared-types/src/lib/types/fmea/Row";
 
 import FmeaApiManager from "shared-types/src/lib/api/FailureModesAndEffectsAnalysesApiManager";
 
-// import InitiatorList from "../../components/lists/InitiatorList";
-import { InitiatingEventsList } from "../../components/lists/nestedLists/initiatingEventsList";
-import { UseToastContext } from "../../providers/toastProvider";
-import { GetESToast } from "../../../utils/treeUtils";
-
 export function EditableTable(): JSX.Element | null {
   type RouteParams = Record<string, string>;
-  const { addToast } = UseToastContext();
+
   const params = useParams<RouteParams>();
   const [data, setData] = useState<Row[]>([]);
   const [columns, setColumn] = useState<Column[]>([]);

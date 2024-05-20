@@ -364,4 +364,24 @@ export default class FmeaApiManager {
       )
       .catch((err) => onFailCallback(err, override));
   }
+
+  static async getRowById(
+    fmeaId: number = -1,
+    rowId: string,
+    override: any = null,
+    onSuccessCallback = this.defaultSuccessCallback,
+    onFailCallback = this.defaultFailCallback,
+  ): Promise<{ id: string; rowData: Object }> {
+    return await fetch(`${FMEA_ENDPOINT}/${fmeaId}/row/${rowId}`, {
+      method: "GET",
+      cache: "no-cache",
+    })
+      .then((res) =>
+        res.ok
+          ? onSuccessCallback(res.text(), override)
+          : onFailCallback(res, override),
+      )
+      .then((response) => (!response.trim() ? {} : JSON.parse(response)))
+      .catch((err) => onFailCallback(err, override));
+  }
 }

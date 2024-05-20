@@ -169,4 +169,9 @@ export class FailureModesAndEffectsAnalysesController {
   ): Promise<FailureModesAndEffectsAnalyses | null> {
     return this.fmeaService.updateColumnDetails(fmeaId, prev_column_name, body);
   }
+
+  @Get("/:id/row/:rowId")
+  async getRowById(@Param("id") fmeaId: number, @Param("rowId") rowId: string) {
+    return this.fmeaService.getRowById(fmeaId, rowId);
+  }
 }

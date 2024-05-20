@@ -16,9 +16,11 @@ import {
   EuiDataGrid,
   EuiDataGridCellValueElementProps,
   EuiResizableContainer,
+  EuiButtonEmpty,
+  EuiLink,
 } from "@elastic/eui";
-import React, { useCallback, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import React, { Fragment, useCallback, useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 
 import { Column } from "shared-types/src/lib/types/fmea/Column";
 import { Row } from "shared-types/src/lib/types/fmea/Row";
@@ -27,7 +29,7 @@ import FmeaApiManager from "shared-types/src/lib/api/FailureModesAndEffectsAnaly
 
 export function EditableTable(): JSX.Element | null {
   type RouteParams = Record<string, string>;
-
+  const navigate = useNavigate();
   const params = useParams<RouteParams>();
   const [data, setData] = useState<Row[]>([]);
   const [columns, setColumn] = useState<Column[]>([]);
@@ -606,173 +608,182 @@ export function EditableTable(): JSX.Element | null {
   return (
     <div>
       {isModalVisible && renderAddColumnModal()}
-      <EuiPageTemplate panelled={false} offset={48} grow={false}>
-        <EuiPageTemplate.Section>
-          {/*<EuiButton size={"s"} onClick={addNewRow} style={{ margin: "10px" }}>*/}
-          {/*  Add Row*/}
-          {/*</EuiButton>*/}
-          {/*<EuiButton*/}
-          {/*  size={"s"}*/}
-          {/*  onClick={(): void => {*/}
-          {/*    showModal("");*/}
-          {/*  }}*/}
-          {/*  style={{ margin: "10px" }}*/}
-          {/*>*/}
-          {/*  Add Column*/}
-          {/*</EuiButton>*/}
-          <EuiResizableContainer style={{ height: "400px" }}>
-            {(EuiResizablePanel, EuiResizableButton): React.JSX.Element => (
-              <>
-                <EuiResizablePanel
-                  initialSize={isSidePanelVisible ? 70 : 100}
-                  minSize="30%"
-                  style={{ transition: "width 0.2s" }}
-                >
-                  <EuiDataGrid
-                    aria-label="Data grid for FMEA"
-                    columns={datagridColumns}
-                    rowCount={data.length}
-                    renderCellValue={renderCellValue}
-                    columnVisibility={{
-                      visibleColumns: datagridColumns.map(
-                        (column: DatagridColumn) => column.id,
-                      ),
-                      setVisibleColumns: (): void => {
-                        datagridColumns.map(
-                          (column: DatagridColumn) => column.id,
-                        );
-                      },
-                    }}
-                    toolbarVisibility={{
-                      additionalControls: (
-                        <React.Fragment>
-                          {" "}
-                          <EuiButton
-                            size={"s"}
-                            onClick={addNewRow}
-                            style={{ margin: "10px" }}
-                          >
-                            Add Row
-                          </EuiButton>
-                          <EuiButton
-                            size={"s"}
-                            onClick={(): void => {
-                              showModal("");
-                            }}
-                            style={{ margin: "10px" }}
-                          >
-                            Add Column
-                          </EuiButton>
-                          <EuiButton
-                            size={"s"}
-                            color={"danger"}
-                            onClick={(): void => {
-                              deleteRows();
-                            }}
-                            style={{ margin: "10px" }}
-                          >
-                            Delete Row
-                          </EuiButton>
-                        </React.Fragment>
-                      ),
-                    }}
-                    rowHeightsOptions={{
-                      defaultHeight: "auto", // This sets the default row height to auto-fit content
-                    }}
-                    style={{ marginBottom: "20px", height: "auto" }}
-                  />
-                </EuiResizablePanel>
-                <EuiResizableButton />
-                <EuiResizablePanel
-                  initialSize={isSidePanelVisible ? 30 : 0}
-                  minSize="200px"
-                  style={{
-                    padding: "16px",
-                    boxShadow: "inset -3px 0px 5px rgba(0,0,0,0.05)",
-                    borderLeft: "1px solid #EBEFF5",
-                    // color: "#333",
-                    fontFamily: "Arial, sans-serif",
-                    lineHeight: "1.5",
-                    marginTop: "30px", // Adjust this value as needed
-                    overflowY: isSidePanelVisible ? "auto" : "hidden", // This will create a scrollbar when the content is larger than the panel
-                    transition: "width 0.2s",
-                    height: "calc(100vh - 50px)", // Adjust the height calculation if you've changed the marginTop
-                    display: isSidePanelVisible ? "block" : "none",
-                  }}
-                >
-                  <div>
-                    {isSidePanelVisible && selectedRowIdSidePanel !== "" && (
-                      <EuiForm>
-                        {columns
-                          .filter(
-                            (column) =>
-                              column.id !== "select" &&
-                              column.id !== "actions" &&
-                              column.id !== "details",
-                          )
-                          .map((column) => {
-                            const row = data.filter(
-                              (r) => r.id === selectedRowIdSidePanel,
-                            );
-                            //console.log(row);
-                            const value = row[0].row_data[column.id] as string;
-                            //console.log(value);
-                            return (
-                              <EuiFormRow
-                                fullWidth
-                                label={column.name}
-                                key={column.id}
-                              >
-                                {column.type === "dropdown" ? (
-                                  <EuiSelect
-                                    fullWidth
-                                    options={column.dropdownOptions.map(
-                                      (option) => ({
-                                        value: option.number.toString(),
-                                        text: option.number.toString(),
-                                      }),
-                                    )}
-                                    value={value}
-                                    onChange={(e): void => {
-                                      updateCell(
-                                        selectedRowIdSidePanel,
-                                        column.id,
-                                        e.target.value,
-                                      );
-                                    }}
-                                    style={{ minWidth: "100px" }}
-                                  />
-                                ) : (
-                                  <EuiFieldText
-                                    fullWidth
-                                    style={{ maxWidth: "none", width: "100%" }}
-                                    value={value}
-                                    onChange={(e): void => {
-                                      updateCell(
-                                        selectedRowIdSidePanel,
-                                        column.id,
-                                        e.target.value,
-                                      );
-                                    }}
-                                  />
-                                )}
-                              </EuiFormRow>
-                            );
-                          })}
-                      </EuiForm>
-                    )}
-                  </div>
-                </EuiResizablePanel>
-              </>
-            )}
-          </EuiResizableContainer>
-          {/*<EuiGlobalToastList*/}
-          {/*  toasts={toasts}*/}
-          {/*  dismissToast={removeToast}*/}
-          {/*  toastLifeTimeMs={60000}*/}
-          {/*/>*/}
-        </EuiPageTemplate.Section>
-      </EuiPageTemplate>
+
+      {/*<EuiButton size={"s"} onClick={addNewRow} style={{ margin: "10px" }}>*/}
+      {/*  Add Row*/}
+      {/*</EuiButton>*/}
+      {/*<EuiButton*/}
+      {/*  size={"s"}*/}
+      {/*  onClick={(): void => {*/}
+      {/*    showModal("");*/}
+      {/*  }}*/}
+      {/*  style={{ margin: "10px" }}*/}
+      {/*>*/}
+      {/*  Add Column*/}
+      {/*</EuiButton>*/}
+      <EuiResizableContainer style={{ height: "400px" }}>
+        {(EuiResizablePanel, EuiResizableButton): React.JSX.Element => (
+          <>
+            <EuiResizablePanel
+              initialSize={isSidePanelVisible ? 70 : 100}
+              minSize="30%"
+              style={{ transition: "width 0.2s" }}
+            >
+              <EuiDataGrid
+                aria-label="Data grid for FMEA"
+                columns={datagridColumns}
+                rowCount={data.length}
+                renderCellValue={renderCellValue}
+                columnVisibility={{
+                  visibleColumns: datagridColumns.map(
+                    (column: DatagridColumn) => column.id,
+                  ),
+                  setVisibleColumns: (): void => {
+                    datagridColumns.map((column: DatagridColumn) => column.id);
+                  },
+                }}
+                toolbarVisibility={{
+                  additionalControls: (
+                    <React.Fragment>
+                      {" "}
+                      <EuiButton
+                        size={"s"}
+                        onClick={addNewRow}
+                        style={{ margin: "10px" }}
+                      >
+                        Add Row
+                      </EuiButton>
+                      <EuiButton
+                        size={"s"}
+                        onClick={(): void => {
+                          showModal("");
+                        }}
+                        style={{ margin: "10px" }}
+                      >
+                        Add Column
+                      </EuiButton>
+                      <EuiButton
+                        size={"s"}
+                        color={"danger"}
+                        onClick={(): void => {
+                          deleteRows();
+                        }}
+                        style={{ margin: "10px" }}
+                      >
+                        Delete Row
+                      </EuiButton>
+                    </React.Fragment>
+                  ),
+                }}
+                rowHeightsOptions={{
+                  defaultHeight: "auto", // This sets the default row height to auto-fit content
+                }}
+                style={{ marginBottom: "20px", height: "auto" }}
+              />
+            </EuiResizablePanel>
+            <EuiResizableButton />
+            <EuiResizablePanel
+              initialSize={isSidePanelVisible ? 30 : 0}
+              minSize="200px"
+              style={{
+                padding: "16px",
+                boxShadow: "inset -3px 0px 5px rgba(0,0,0,0.05)",
+                borderLeft: "1px solid #EBEFF5",
+                // color: "#333",
+                fontFamily: "Arial, sans-serif",
+                lineHeight: "1.5",
+                marginTop: "30px", // Adjust this value as needed
+                overflowY: isSidePanelVisible ? "auto" : "hidden", // This will create a scrollbar when the content is larger than the panel
+                transition: "width 0.2s",
+                height: "calc(100vh - 50px)", // Adjust the height calculation if you've changed the marginTop
+                display: isSidePanelVisible ? "block" : "none",
+              }}
+            >
+              <div>
+                {isSidePanelVisible && selectedRowIdSidePanel !== "" && (
+                  <Fragment>
+                    <EuiForm>
+                      <EuiFormRow fullWidth>
+                        <EuiLink
+                          onClick={() => {
+                            navigate(`${selectedRowIdSidePanel}`);
+                          }}
+                        >
+                          {selectedRowIdSidePanel}
+                        </EuiLink>
+                      </EuiFormRow>
+                      {columns
+                        .filter(
+                          (column) =>
+                            column.id !== "select" &&
+                            column.id !== "actions" &&
+                            column.id !== "details",
+                        )
+                        .map((column) => {
+                          const row = data.filter(
+                            (r) => r.id === selectedRowIdSidePanel,
+                          );
+                          //console.log(row);
+                          const value = row[0].row_data[column.id] as string;
+                          //console.log(value);
+                          return (
+                            <EuiFormRow
+                              fullWidth
+                              label={column.name}
+                              key={column.id}
+                            >
+                              {column.type === "dropdown" ? (
+                                <EuiSelect
+                                  fullWidth
+                                  options={column.dropdownOptions.map(
+                                    (option) => ({
+                                      value: option.number.toString(),
+                                      text: option.number.toString(),
+                                    }),
+                                  )}
+                                  value={value}
+                                  onChange={(e): void => {
+                                    updateCell(
+                                      selectedRowIdSidePanel,
+                                      column.id,
+                                      e.target.value,
+                                    );
+                                  }}
+                                  style={{ minWidth: "100px" }}
+                                />
+                              ) : (
+                                <EuiFieldText
+                                  fullWidth
+                                  style={{
+                                    maxWidth: "none",
+                                    width: "100%",
+                                  }}
+                                  value={value}
+                                  onChange={(e): void => {
+                                    updateCell(
+                                      selectedRowIdSidePanel,
+                                      column.id,
+                                      e.target.value,
+                                    );
+                                  }}
+                                />
+                              )}
+                            </EuiFormRow>
+                          );
+                        })}
+                    </EuiForm>
+                  </Fragment>
+                )}
+              </div>
+            </EuiResizablePanel>
+          </>
+        )}
+      </EuiResizableContainer>
+      {/*<EuiGlobalToastList*/}
+      {/*  toasts={toasts}*/}
+      {/*  dismissToast={removeToast}*/}
+      {/*  toastLifeTimeMs={60000}*/}
+      {/*/>*/}
     </div>
   );
 }

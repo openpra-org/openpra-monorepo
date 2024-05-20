@@ -408,4 +408,20 @@ export class failureModesAndEffectsAnalysesService {
     }
     return result;
   }
+
+  async getRowById(fmeaId: number, rowId: string) {
+    const document = await this.fmeaModel.findOne(
+      { id: fmeaId, "rows.id": rowId },
+      { "rows.$": 1 },
+    );
+    if (document && document.rows && document.rows.length > 0) {
+      const row = document.rows[0];
+      const result = {
+        id: row.id,
+        rowData: row.row_data,
+      };
+      console.log("Found row:", result);
+      return result;
+    }
+  }
 }

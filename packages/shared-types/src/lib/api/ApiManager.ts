@@ -140,7 +140,9 @@ export default class ApiManager {
           ? onSuccessCallback(res, override)
           : onFailCallback(res, override),
       )
-      .catch((err) => onFailCallback(err, override));
+      .catch((err) => {
+        onFailCallback(err, override);
+      });
   }
 
   static logout() {
@@ -175,7 +177,7 @@ export default class ApiManager {
   static async signInWithUsernameAndPassword(
     username: string,
     password: string,
-    onFailCallback: any = ApiManager.defaultFailCallback,
+    onFailCallback = ApiManager.defaultFailCallback,
   ) {
     return fetch(ApiManager.LOGIN_URL, {
       method: "POST",
@@ -198,7 +200,9 @@ export default class ApiManager {
       .then((data) => {
         AuthService.setEncodedToken(data.token);
       })
-      .catch(onFailCallback);
+      .catch((error) => {
+        throw error;
+      });
   }
 
   static refreshToken(onFailCallBack: any = ApiManager.defaultFailCallback) {
@@ -991,7 +995,9 @@ export default class ApiManager {
           ? onSuccessCallback(res, override)
           : onFailCallback(res, override),
       )
-      .catch((err) => onFailCallback(err, override));
+      .catch((err) => {
+        onFailCallback(err, override);
+      });
   }
 
   static emptyPost(
@@ -1033,7 +1039,9 @@ export default class ApiManager {
           ? onSuccessCallback(res, override)
           : onFailCallback(res, override),
       )
-      .catch((err) => onFailCallback(err, override));
+      .catch((err) => {
+        onFailCallback(err, override);
+      });
   }
 
   static put(
@@ -1077,7 +1085,9 @@ export default class ApiManager {
           ? onSuccessCallback(res, override)
           : onFailCallback(res, override),
       )
-      .catch((err) => onFailCallback(err, override));
+      .catch((err) => {
+        onFailCallback(err, override);
+      });
   }
 
   static delete(

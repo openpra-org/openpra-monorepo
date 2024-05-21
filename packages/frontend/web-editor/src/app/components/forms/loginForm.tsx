@@ -13,6 +13,8 @@ import {
   LoginErrorProps,
 } from "shared-types/src/lib/api/AuthTypes";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { UseToastContext } from "../../providers/toastProvider";
+import { GenerateUUID } from "../../../utils/treeUtils";
 
 function LoginForm(): JSX.Element {
   const DefaultProps: LoginProps = {
@@ -28,6 +30,7 @@ function LoginForm(): JSX.Element {
   const [error, setError] = useState(DefaultErrorProps);
   const [invalid, setInvalid] = useState(false);
   const [redirectToHomepage, setRedirectToHomepage] = useState(false);
+  const { addToast } = UseToastContext();
 
   async function handleLogin(): Promise<void> {
     setInvalid(false);
@@ -43,7 +46,22 @@ function LoginForm(): JSX.Element {
         },
       );
     } catch (error) {
-      //console.error(error);
+      if (error instanceof Error) {
+        if (error.message === "Unauthorized") setInvalid(true);
+        else {
+          addToast({
+            id: GenerateUUID(),
+            color: "danger",
+            text: error.message,
+          });
+        }
+      } else {
+        addToast({
+          id: GenerateUUID(),
+          color: "danger",
+          text: "Something went wrong while validating credentials",
+        });
+      }
     }
   }
 
@@ -89,7 +107,7 @@ function LoginForm(): JSX.Element {
         })
         .catch((error) => {
           // Handle login error
-          //console.error("Login failed:", error);
+          // console.error("Login failed:", error);
           // Optionally, you can also set an error state to display to the user
         });
     }

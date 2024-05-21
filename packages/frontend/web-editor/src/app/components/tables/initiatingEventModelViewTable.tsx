@@ -1,9 +1,11 @@
-import React, {useCallback, useMemo, useRef, useState} from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 //----------------------------EUIdatagrid---------------------
 import {
   EuiButton,
   EuiButtonIcon,
-  EuiCheckbox, EuiCommentProps, EuiConfirmModal, EuiContextMenuItem,
+  EuiCheckbox,
+  EuiCommentProps,
+  EuiConfirmModal,
   EuiDataGrid,
   EuiDataGridCellValueElementProps,
   EuiDataGridColumn,
@@ -20,141 +22,28 @@ import {
   EuiPopover,
   EuiResizableContainer,
   EuiSearchBar,
-  EuiSelect, useGeneratedHtmlId,
+  EuiSelect,
+  useGeneratedHtmlId,
 } from "@elastic/eui";
 import {
   htmlIdGenerator,
-  EuiCommentList,
   EuiComment,
-  EuiBadge,
-  EuiMarkdownEditor,
   EuiMarkdownFormat,
-  EuiSpacer,
-  EuiFlexGroup,
-  EuiFlexItem,
   EuiAvatar,
-} from '@elastic/eui';
+} from "@elastic/eui";
 import "@elastic/eui/dist/eui_theme_light.css";
 import { useEffect } from "react";
 import { groupBy } from "lodash";
-const date = formatDate(Date.now(), 'dobLong');
 
 import "./initiatingEventModelViewTable.css";
+import { EuiToolTip } from "@elastic/eui";
+import { EuiInlineEditText } from "@elastic/eui";
 import CommentComponent from "../../pages/fullScopePages/commentLogs";
-import {
-  formatDate,
-  EuiToolTip,
-} from '@elastic/eui';
-import { EuiInlineEditText } from '@elastic/eui';
-import {MemberResult} from "shared-types/src/lib/api/Members";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
-
 
 //Elastic Comment Code:
-const actionButton = (
-  <EuiButtonIcon
-    title="Custom action"
-    aria-label="Custom action"
-    color="text"
-    iconType="copy"
-  />
-);
 
-
-const complexEvent = (
-  <EuiFlexGroup responsive={false} alignItems="center" gutterSize="xs" wrap>
-    <EuiFlexItem grow={false}>added tags</EuiFlexItem>
-    <EuiFlexItem grow={false}>
-      <EuiBadge>case</EuiBadge>
-    </EuiFlexItem>
-    <EuiFlexItem grow={false}>
-      <EuiBadge>phising</EuiBadge>
-    </EuiFlexItem>
-    <EuiFlexItem grow={false}>
-      <EuiBadge>security</EuiBadge>
-    </EuiFlexItem>
-  </EuiFlexGroup>
-);
-
-const UserActionUsername = ({
-                              username,
-                              fullname,
-                            }: {
-  username: string;
-  fullname: string;
-}) => {
-  return (
-    <EuiToolTip position="top" content={<p>{fullname}</p>}>
-      <strong>{username}</strong>
-    </EuiToolTip>
-  );
-};
-const initialComments: EuiCommentProps[] = [
-  {
-    username: <UserActionUsername username="emma" fullname="Emma Watson" />,
-    timelineAvatar: <EuiAvatar name="emma" />,
-    event: 'added a comment',
-    timestamp: 'on 3rd March 2022',
-    children: (
-      <EuiMarkdownFormat textSize="s">
-        Phishing emails have been on the rise since February
-      </EuiMarkdownFormat>
-    ),
-    actions: actionButton,
-  },
-  {
-    username: <UserActionUsername username="emma" fullname="Emma Watson" />,
-    timelineAvatar: <EuiAvatar name="emma" />,
-    event: complexEvent,
-    timestamp: 'on 3rd March 2022',
-    eventIcon: 'tag',
-    eventIconAriaLabel: 'tag',
-  },
-  {
-    username: 'system',
-    timelineAvatar: 'dot',
-    timelineAvatarAriaLabel: 'System',
-    event: 'pushed a new incident',
-    timestamp: 'on 4th March 2022',
-    eventColor: 'danger',
-  },
-  {
-    username: <UserActionUsername username="tiago" fullname="Tiago Pontes" />,
-    timelineAvatar: <EuiAvatar name="tiago" />,
-    event: 'added a comment',
-    timestamp: 'on 4th March 2022',
-    actions: actionButton,
-    children: (
-      <EuiMarkdownFormat textSize="s">
-        Take a look at this
-        [Office.exe](http://my-drive.elastic.co/suspicious-file)
-      </EuiMarkdownFormat>
-    ),
-  },
-  {
-    username: <UserActionUsername username="emma" fullname="Emma Watson" />,
-    timelineAvatar: <EuiAvatar name="emma" />,
-    event: (
-      <>
-        marked case as <EuiBadge color="warning">In progress</EuiBadge>
-      </>
-    ),
-    timestamp: 'on 4th March 2022',
-  },
-];
-
-
-// Log parsed comments to console
-// console.log('Parsed comments:', parsedComments);
-// const replyMsg = `Thanks, Tiago for taking a look. :tada:
-//
-// I also found something suspicious: [Update.exe](http://my-drive.elastic.co/suspicious-file).`;
-//Elastic Comment Code.
-
-// Define the interface for a single row of data.
 type DataRow = {
-  // [key: string]: string | number;
-  [key: string]: string | number | any[];
+  [key: string]: string | number;
   id: number;
   definition: string;
   characteristics: string;
@@ -163,7 +52,6 @@ type DataRow = {
   feedwaterPump: string;
   reactorCoolantCirculator: string;
   others: string;
-  rowComments: [];
 };
 type ColumnType = "text" | "dropdown" | "number";
 type DropdownOption = { value: string; text: string };
@@ -232,69 +120,70 @@ type AppProps = {
 
 const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const [isDestroyModalVisible, setIsDestroyModalVisible] = useState(false);
-  const closeDestroyModal = () => setIsDestroyModalVisible(false);
-  const showDestroyModal = () => {
-    setIsDestroyModalVisible(true);
+  const closeDestroyModal = () => {
+    setIsDestroyModalVisible(false);
   };
+
   const destroyModalTitleId = useGeneratedHtmlId();
-  const [commentToDeleteId, setCommentToDeleteId] = useState('');
+  const [commentToDeleteId, setCommentToDeleteId] = useState("");
   const [commentToEditId, setCommentEditId] = useState<string | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [editorEditValue, setEditorEditValue] = useState('');
-  const [originalTimestamp, setOriginalTimestamp] = useState('');
-    useEffect(() => {
-        console.log("isEditing state has changed: ", isEditing); // Log the updated state
-    }, [isEditing]);
+  const [isEditing] = useState(false);
+  const [originalTimestamp, setOriginalTimestamp] = useState("");
+  useEffect(() => {
+    console.log("isEditing state has changed: ", isEditing); // Log the updated state
+  }, [isEditing]);
 
   const handleEditCommentId = (commentId: string, timestamp: string) => {
-    setCommentEditId(prevId => (prevId === commentId ? null : commentId));
+    setCommentEditId((prevId) => (prevId === commentId ? null : commentId));
     setOriginalTimestamp(timestamp);
   };
   const onDeleteComment = async () => {
-       setIsLoading(true);
+    setIsLoading(true);
 
-      const date = new Date(Date.now()).toISOString();
+    const date = new Date(Date.now()).toISOString();
 
-      const editedCommentData = {
-          comments: [
-              {
-                  username: {
-                      username: "first_person",
-                      fullname: "First Person"
-                  },
-                  timelineAvatar: "fp",
-                  event: 'deleted comment',
-                  timestamp: `on ${date}`,
-                  eventIcon: "trash",
-                  eventIconAriaLabel: "delete"
-              }
-          ]
-      };
+    const editedCommentData = {
+      comments: [
+        {
+          username: {
+            username: "first_person",
+            fullname: "First Person",
+          },
+          timelineAvatar: "fp",
+          event: "deleted comment",
+          timestamp: `on ${date}`,
+          eventIcon: "trash",
+          eventIconAriaLabel: "delete",
+        },
+      ],
+    };
 
-      try {
-          const response = await fetch(`http://localhost:8000/api/comments/comments/update/some_associated_id/${commentToDeleteId}`, {
-              method: 'PUT',
-              headers: {
-                  'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(editedCommentData),
-          });
+    try {
+      const response = await fetch(
+        `http://localhost:8000/api/comments/comments/update/some_associated_id/${commentToDeleteId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(editedCommentData),
+        },
+      );
 
-          if (!response.ok) {
-              throw new Error('Failed to edit comment');
-          }
-
-          setIsLoading(false);
-          await fetchComments();
-        closeDestroyModal();
-      } catch (error) {
-          console.error('Error editing comment:', error);
-          setIsLoading(false);
+      if (!response.ok) {
+        throw new Error("Failed to edit comment");
       }
+
+      setIsLoading(false);
+      await fetchComments();
+      closeDestroyModal();
+    } catch (error) {
+      console.error("Error editing comment:", error);
+      setIsLoading(false);
+    }
   };
   const onEditComment = async (editedValue: string) => {
     setIsLoading(true);
-    const date = new Date(Date.now()).toISOString();
 
     const commentData = {
       associated_with: "some_associated_id",
@@ -302,27 +191,30 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
         {
           username: {
             username: "first_person",
-            fullname: "First Person"
+            fullname: "First Person",
           },
           timelineAvatar: "tp",
           event: `(edited) added a comment on`,
           timestamp: originalTimestamp,
           actions: "actionButton",
           children: editedValue,
-        }
-      ]
+        },
+      ],
     };
     try {
-      const response = await fetch(`http://localhost:8000/api/comments/comments/update/some_associated_id/${commentToEditId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `http://localhost:8000/api/comments/comments/update/some_associated_id/${commentToEditId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(commentData),
         },
-        body: JSON.stringify(commentData),
-      });
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to update comment');
+        throw new Error("Failed to update comment");
       }
 
       setIsLoading(false);
@@ -330,72 +222,86 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       setCommentEditId(null);
       // Additional actions after updating comment, if needed
     } catch (error) {
-      console.error('Error updating comment:', error);
+      console.error("Error updating comment:", error);
       setIsLoading(false);
     }
   };
 
   const handleCopy = (children: string | undefined) => {
-    navigator.clipboard.writeText(children?children:" ").then(() => {
-      console.log('Text copied to clipboard');
-      // Optionally, add feedback to the user here
-    }).catch(err => {
-      console.error('Failed to copy text: ', err);
-    });
+    navigator.clipboard
+      .writeText(children ? children : " ")
+      .then(() => {
+        console.log("Text copied to clipboard");
+        // Optionally, add feedback to the user here
+      })
+      .catch((err) => {
+        console.error("Failed to copy text: ", err);
+      });
   };
-  const actionFunctions: { [key: string]: (commentId: string, timeStamp: string, children: string|undefined) => JSX.Element } = {
-    actionButton:(commentId: string, timeStamp: string, children: string|undefined) => (
-        <React.Fragment>
-            <EuiButtonIcon
-                key="copyButton"
-                title="Copy the text"
-                aria-label="Custom action 1"
-                color="text"
-                iconType="copy"
-                onClick={() => handleCopy(children)}
-            />
-            <EuiButtonIcon
-                key="editButton"
-                title="Edit this comment"
-                aria-label="Custom action 2"
-                color="text"
-                iconType="pencil"
-                onClick={()=>{
-                  handleEditCommentId(commentId,timeStamp);
-                }}
+  const actionFunctions: Record<
+    string,
+    (
+      commentId: string,
+      timeStamp: string,
+      children: string | undefined,
+    ) => JSX.Element
+  > = {
+    actionButton: (
+      commentId: string,
+      timeStamp: string,
+      children: string | undefined,
+    ) => (
+      <React.Fragment>
+        <EuiButtonIcon
+          key="copyButton"
+          title="Copy the text"
+          aria-label="Custom action 1"
+          color="text"
+          iconType="copy"
+          onClick={() => {
+            handleCopy(children);
+          }}
+        />
+        <EuiButtonIcon
+          key="editButton"
+          title="Edit this comment"
+          aria-label="Custom action 2"
+          color="text"
+          iconType="pencil"
+          onClick={() => {
+            handleEditCommentId(commentId, timeStamp);
+          }}
+        />
+        <EuiButtonIcon
+          key="deleteButton"
+          title="Delete this comment"
+          aria-label="Custom action 2"
+          color="text"
+          iconType="trash"
+          onClick={() => {
+            // Show the confirmation modal and set the comment ID to be deleted
+            setIsDestroyModalVisible(true);
+            setCommentToDeleteId(commentId);
+          }} // Assuming _id is part of comments[0]
+          // onDeleteComment(commentId)
+        />
 
-            />
-            <EuiButtonIcon
-                key="deleteButton"
-                title="Delete this comment"
-                aria-label="Custom action 2"
-                color="text"
-                iconType="trash"
-                onClick={() => {
-                  // Show the confirmation modal and set the comment ID to be deleted
-                  setIsDestroyModalVisible(true);
-                  setCommentToDeleteId(commentId);
-                }}// Assuming _id is part of comments[0]
-                // onDeleteComment(commentId)
-            />
-
-            {/* Add more button elements as needed */}
-        </React.Fragment>
+        {/* Add more button elements as needed */}
+      </React.Fragment>
     ),
-
   };
-  interface ExtendedEuiCommentProps extends EuiCommentProps {
+  type ExtendedEuiCommentProps = {
     _id: string;
-  }
+  } & EuiCommentProps;
   const [comments, setComments] = useState<ExtendedEuiCommentProps[]>([]);
 
-  interface LoadedComment {
+  type LoadedComment = {
     _id: string;
     id: string;
     associated_with: string;
     comments: {
-        eventIconAriaLabel?: string;
-        eventIcon?: string;
+      eventIconAriaLabel?: string;
+      eventIcon?: string;
       username: {
         username: string;
         fullname: string;
@@ -406,102 +312,82 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       actions?: string; // Optional property
       children?: string;
     }[];
-  }
+  };
 
   const [loadedComments, setLoadedComments] = useState<LoadedComment[]>([]);
   const fetchComments = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/comments/comments/some_associated_id/');
+      const response = await fetch(
+        "http://localhost:8000/api/comments/comments/some_associated_id/",
+      );
       if (!response.ok) {
-        throw new Error('Failed to fetch comments');
+        throw new Error("Failed to fetch comments");
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const data = await response.json();
       // Store fetched comments in loadedComments state
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       setLoadedComments(data);
-      console.log('Fetched comments:', data);
+      console.log("Fetched comments:", data);
     } catch (error) {
-      console.error('Error fetching comments:', error);
+      console.error("Error fetching comments:", error);
     }
   };
   useEffect(() => {
     fetchComments()
-        .then(() => {
-          console.log('Comments fetched successfully');
-        })
-        .catch((error) => {
-          console.error('Error fetching comments:', error);
-        });
+      .then(() => {
+        console.log("Comments fetched successfully");
+      })
+      .catch((error) => {
+        console.error("Error fetching comments:", error);
+      });
   }, []);
-  function formatTime(date: { getUTCHours: () => any; getUTCMinutes: () => any; }) {
-    const hours = String(date.getUTCHours()).padStart(2, '0');
-    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-  }
-
-  function formatDate(date: { getUTCFullYear: () => any; getUTCMonth: () => number; getUTCDate: () => any; }) {
-    const year = date.getUTCFullYear();
-    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(date.getUTCDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  }
-
-  function timeAgo(date: Date) {
-    const now = new Date();
-    const elapsed = now.getTime() - date.getTime(); // Convert to milliseconds
-
-    const seconds = Math.floor(elapsed / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-
-    if (minutes < 60) {
-      return `${minutes} minutes ago`;
-    } else if (hours < 24) {
-      const formattedTime = formatTime(date);
-      return `${hours} hours ago (${formattedTime})`;
-    } else {
-      const formattedDate = formatDate(date);
-      return formattedDate;
-    }
-  }
 
   useEffect(() => {
-    const storedComments: ExtendedEuiCommentProps[] = loadedComments.map(comment => {
-      const timestampString = comment.comments[0].timestamp;
-      // const timestamp = new Date(timestampString.replace('on ', '')); // Remove 'on ' from the timestamp string
+    const storedComments: ExtendedEuiCommentProps[] = loadedComments.map(
+      (comment) => {
+        const timestampString = comment.comments[0].timestamp;
+        // const timestamp = new Date(timestampString.replace('on ', '')); // Remove 'on ' from the timestamp string
 
-      // const formattedTimestamp = timeAgo(timestamp);
+        // const formattedTimestamp = timeAgo(timestamp);
 
-      const date = new Date(Date.now()).toISOString();
-
-      return {
-        _id: comment._id,
-        username: <UserActionUsername username={comment.comments[0].username.username} fullname={comment.comments[0].username.fullname} />,
-        timelineAvatar: <EuiAvatar name={comment.comments[0].username.username} />,
-        event: comment.comments[0].event,
-        timestamp: timestampString,
+        return {
+          _id: comment._id,
+          username: (
+            <UserActionUsername
+              username={comment.comments[0].username.username}
+              fullname={comment.comments[0].username.fullname}
+            />
+          ),
+          timelineAvatar: (
+            <EuiAvatar name={comment.comments[0].username.username} />
+          ),
+          event: comment.comments[0].event,
+          timestamp: timestampString,
           // actions: comment.comments[0].actions
           //     ? actionFunctions[comment.comments[0].actions.replace(/"/g, '')]
           //     : undefined,
           actions: comment.comments[0].actions
-              ? actionFunctions[comment.comments[0].actions.replace(/"/g, '')](comment._id,comment.comments[0].timestamp, comment.comments[0].children) // Pass commentId to action function
-              : undefined,
-          children: comment.comments[0].children
-              ? (
-                  <EuiMarkdownFormat textSize="s">
-                      {comment.comments[0].children}
-                  </EuiMarkdownFormat>
-              )
-              : null,
+            ? actionFunctions[comment.comments[0].actions.replace(/"/g, "")](
+                comment._id,
+                comment.comments[0].timestamp,
+                comment.comments[0].children,
+              ) // Pass commentId to action function
+            : undefined,
+          children: comment.comments[0].children ? (
+            <EuiMarkdownFormat textSize="s">
+              {comment.comments[0].children}
+            </EuiMarkdownFormat>
+          ) : null,
           eventIcon: comment.comments[0]?.eventIcon ?? undefined,
-          eventIconAriaLabel: comment.comments[0]?.eventIconAriaLabel ?? undefined,
-       };
-    });
-    console.log('The stored comments are as follows:', storedComments);
+          eventIconAriaLabel:
+            comment.comments[0]?.eventIconAriaLabel ?? undefined,
+        };
+      },
+    );
+    console.log("The stored comments are as follows:", storedComments);
     setComments(storedComments);
   }, [loadedComments]);
-
-
-
 
   const [data, setData] = useState<DataRow[]>([
     {
@@ -513,7 +399,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       feedwaterPump: "no",
       reactorCoolantCirculator: "yes",
       others: "no",
-      rowComments: [],
     },
     {
       id: 2,
@@ -524,22 +409,19 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       feedwaterPump: "yes",
       reactorCoolantCirculator: "no",
       others: "yes",
-      rowComments: [],
     },
   ]);
   const UserActionUsername = ({
-                                username,
-                                fullname,
-                              }: {
+    username,
+    fullname,
+  }: {
     username: string;
     fullname: string;
-  }) => {
-    return (
-      <EuiToolTip position="top" content={<p>{fullname}</p>}>
-        <strong>{username}</strong>
-      </EuiToolTip>
-    );
-  };
+  }) => (
+    <EuiToolTip position="top" content={<p>{fullname}</p>}>
+      <strong>{username}</strong>
+    </EuiToolTip>
+  );
   const [baseColumns, setBaseColumns] = useState<CustomColumn[]>([
     // ... your initial columns here
     {
@@ -569,6 +451,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const [groupbyColumn, setGroupbyColumn] = useState<string>("");
 
   // Add state to manage the width of the data grid and the side panel
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [sidePanelWidth, setSidePanelWidth] = useState("300px");
   const [isSidePanelVisible, setIsSidePanelVisible] = useState(false);
 
@@ -597,9 +480,10 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       if (column) {
         setNewColumnData({
           id: column.id,
-          displayAsText: column.displayAsText || "",
-          columnType: column.inputType || "text",
-          dropdownOptions: column.dropdownOptions || [],
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+          displayAsText: column.displayAsText ?? "",
+          columnType: column.inputType ?? "text",
+          dropdownOptions: column.dropdownOptions ?? [],
         });
         setIsColumnEditModalVisible(true);
       }
@@ -668,10 +552,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
 
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   // Function to handle the selected row for the details panel
-  const selectRowForDetails = (rowData: DataRow) => {
-    setSelectedRowData(rowData);
-    setIsSidePanelOpen(true);
-  };
 
   const [newColumnData, setNewColumnData] = useState<ColumnConfig>({
     id: "",
@@ -861,6 +741,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     };
 
     // If the column type is 'dropdown', you would set the dropdownOptions like this:
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     if (newColumnType === "dropdown") {
       columnConfig.dropdownOptions = [
         { value: "option1", text: "Option 1" },
@@ -899,13 +780,17 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   }, [selectedRowIds, groupbyColumn]);
 
   const [query, setQuery] = useState(EuiSearchBar.Query.MATCH_ALL);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [error, setError] = useState(null);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onChangeSearch = ({ query, error }: { query: any; error: any }) => {
     if (error) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       setError(error);
     } else {
       setError(null);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       setQuery(query);
     }
   };
@@ -989,7 +874,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     }
   }, [visibleColumns, groupbyColumn]);
 
-
   const [editingCell, setEditingCell] = useState<{
     rowIndex: number;
     columnId: string;
@@ -999,14 +883,18 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const handleSaveData = useCallback((editedData: DataRow) => {
     setData((currentData) => {
       const rowIndex = currentData.findIndex((row) => row.id === editedData.id);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let newData: any[];
       if (rowIndex !== -1) {
         // Edit existing row
         newData = [...currentData];
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         newData[rowIndex] = { ...newData[rowIndex], ...editedData };
       } else {
         newData = [...currentData, editedData];
       }
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return newData;
     });
     setIsModalVisible(false);
@@ -1030,19 +918,21 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       // Initialize dropdown fields with default options or empty strings
       controlRodInsertion:
         customColumns.find((col) => col.id === "controlRodInsertion")
-          ?.dropdownOptions?.[0].value || "",
+          ?.dropdownOptions?.[0].value ?? "",
       feedwaterPump:
         customColumns.find((col) => col.id === "feedwaterPump")
-          ?.dropdownOptions?.[0].value || "",
+          ?.dropdownOptions?.[0].value ?? "",
       reactorCoolantCirculator:
         customColumns.find((col) => col.id === "reactorCoolantCirculator")
-          ?.dropdownOptions?.[0].value || "",
+          ?.dropdownOptions?.[0].value ?? "",
       others:
         customColumns.find((col) => col.id === "others")?.dropdownOptions?.[0]
-          .value || "",
-      rowComments: [],
+          .value ?? "",
     });
-    console.log(customColumns.find((col) => col.id === "others")?.dropdownOptions?.[0]?.value || "");
+    console.log(
+      customColumns.find((col) => col.id === "others")?.dropdownOptions?.[0]
+        ?.value ?? "",
+    );
 
     setIsModalVisible(true);
   };
@@ -1108,6 +998,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   useEffect(() => {
     let temp = EuiSearchBar.Query.execute(query, data);
     if (groupbyColumn !== "" && enableGrouping) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       temp = makeGroups(temp, groupbyColumn);
     }
     setFilterData(temp);
@@ -1283,6 +1174,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   useEffect(() => {
     const savedSelectedRowIds = localStorage.getItem("selectedRowIds");
     if (savedSelectedRowIds) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
       setSelectedRowIds(new Set(JSON.parse(savedSelectedRowIds)));
     }
   }, []);
@@ -1310,6 +1202,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
             ""; // Fallback to the first option or an empty string if not found.
         } else {
           // For other columns, use the existing value or initialize to an empty string.
+          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
           baseState[column.id] = selectedRowData[column.id] ?? "";
         }
       });
@@ -1322,14 +1215,14 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
 
   //open popover for groupby
   const [groupbyPopoverOpen, setGroupbyPopoverOpen] = useState(false);
-//Elastic Comment Code
-//   const errorElementIds = useRef(htmlIdGenerator()());
-  const [editorValue, setEditorValue] = useState('');
+  //Elastic Comment Code
+  //   const errorElementIds = useRef(htmlIdGenerator()());
+  const [editorValue, setEditorValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [editorError, setEditorError] = useState(true);
   const errorElementId = useRef<HTMLElement>(null);
 
-// Update errorElementId after component is mounted
+  // Update errorElementId after component is mounted
   useEffect(() => {
     if (errorElementId.current) {
       // Generate the HTML element ID and assign it to the current property
@@ -1338,7 +1231,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   }, []);
 
   useEffect(() => {
-    if (editorValue === '') {
+    if (editorValue === "") {
       setEditorError(true);
     } else {
       setEditorError(false);
@@ -1348,7 +1241,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const onAddComment = async () => {
     setIsLoading(true);
 
-
     const date = new Date(Date.now()).toISOString();
 
     const commentData = {
@@ -1357,43 +1249,45 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
         {
           username: {
             username: "first_person",
-            fullname: "First Person"
+            fullname: "First Person",
           },
           timelineAvatar: "tp",
-          event: 'added a comment',
+          event: "added a comment",
           timestamp: `on ${date}`,
           actions: "actionButton",
           children: editorValue,
-        }
-      ]
+        },
+      ],
     };
 
     try {
-      const response = await fetch('http://localhost:8000/api/comments/comments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        "http://localhost:8000/api/comments/comments",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(commentData),
         },
-        body: JSON.stringify(commentData),
-      });
+      );
 
       if (!response.ok) {
-        throw new Error('Failed to add comment');
+        throw new Error("Failed to add comment");
       }
 
       // Assuming the response contains the newly created comment
-      const newComment = await response.json();
 
       setIsLoading(false);
-      setEditorValue('');
+      setEditorValue("");
       await fetchComments();
     } catch (error) {
-      console.error('Error adding comment:', error);
+      console.error("Error adding comment:", error);
       setIsLoading(false);
     }
   };
 
-   const [errors, setErrors] = useState<string[]>([]);
+  const [errors, setErrors] = useState<string[]>([]);
   const isInvalid = errors.length > 0;
 
   // const commentsList = comments.map((comment, index) => {
@@ -1403,68 +1297,81 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   //     </EuiComment>
   //   );
   // });
-  function extractMarkdownText(jsxElement: React.ReactElement<any, string | React.JSXElementConstructor<any>> | string | number | Iterable<React.ReactNode> | React.ReactPortal | boolean) {
+  function extractMarkdownText(
+    jsxElement:
+      | React.ReactElement
+      | string
+      | number
+      | Iterable<React.ReactNode>
+      | React.ReactPortal
+      | boolean,
+  ) {
     // Check if jsxElement is not null and is of type object
-    if (jsxElement && typeof jsxElement === 'object') {
+    if (jsxElement && typeof jsxElement === "object") {
       // Check if jsxElement has props and props.children
-      if ("props" in jsxElement && jsxElement.props && jsxElement.props.children) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if ("props" in jsxElement && jsxElement.props?.children) {
         // Return the string representation of props.children
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         return String(jsxElement.props.children);
       }
     }
     // Return an empty string if jsxElement doesn't contain any valid children
-    return '';
+    return "";
   }
 
   const commentsList = comments.map((comment, index) => {
-    const commentId  = comment._id;
-    return (
-      comment.children==null?
+    const commentId = comment._id;
+    return comment.children == null ? (
       <EuiComment key={`comment-${index}`} {...comment}>
         {comment.children}
-      </EuiComment>:  commentToEditId===commentId ?
-        <EuiComment key={`comment-${index}`} {...comment}>
-          <EuiInlineEditText
-            inputAriaLabel="This input will validate on save"
-            defaultValue={extractMarkdownText(comment.children)}
-            editModeProps={{
-              formRowProps: { error: errors },
-              cancelButtonProps: { onClick: () => {
-                  setErrors([]);
-                  setCommentEditId(null); // Clear the editing comment ID
-                }, },
-              inputProps: { readOnly: isLoading },
-            }}
-            startWithEditOpen={true}
-            isInvalid={isInvalid}
-            isLoading={isLoading}
-            onSave={async (value) => {
-              // Validate edited text
-              if (!value) {
-                setErrors(['Please enter text.']);
-                return false;
-              } else if (value.length > 20) {
-                setErrors([
-                  'Your text is too long - please enter less than 20 characters',
-                ]);
-                return false;
-              }
+      </EuiComment>
+    ) : commentToEditId === commentId ? (
+      <EuiComment key={`comment-${index}`} {...comment}>
+        <EuiInlineEditText
+          inputAriaLabel="This input will validate on save"
+          defaultValue={extractMarkdownText(comment.children)}
+          editModeProps={{
+            formRowProps: { error: errors },
+            cancelButtonProps: {
+              onClick: () => {
+                setErrors([]);
+                setCommentEditId(null); // Clear the editing comment ID
+              },
+            },
+            inputProps: { readOnly: isLoading },
+          }}
+          startWithEditOpen={true}
+          isInvalid={isInvalid}
+          isLoading={isLoading}
+          onSave={async (value) => {
+            // Validate edited text
+            if (!value) {
+              setErrors(["Please enter text."]);
+              return false;
+            } else if (value.length > 20) {
+              setErrors([
+                "Your text is too long - please enter less than 20 characters",
+              ]);
+              return false;
+            }
 
-              // Clear errors, set loading state, and "call" an API
-              setErrors([]);
-              setIsLoading(true);
-              await onEditComment(value);
-              setIsLoading(false);
-              return true;
-            }}
-          />
-        </EuiComment>:<EuiComment key={`comment-${index}`} {...comment}>
-                  {comment.children}
-              </EuiComment>
+            // Clear errors, set loading state, and "call" an API
+            setErrors([]);
+            setIsLoading(true);
+            await onEditComment(value);
+            setIsLoading(false);
+            return true;
+          }}
+        />
+      </EuiComment>
+    ) : (
+      <EuiComment key={`comment-${index}`} {...comment}>
+        {comment.children}
+      </EuiComment>
     );
   });
   //Elastic Comment Code
-
 
   //close popover for groupby
   const closeGroupbyPopover = (): void => {
@@ -1472,30 +1379,23 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   };
 
   // function to group the data by columnId
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function makeGroups(rows: any[], columnId: string) {
     const grouped = groupBy(rows, columnId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const groupedRows: any[] = [];
     for (const group in grouped) {
       const headerRow = { isHeader: true, group };
       groupedRows.push(headerRow);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       grouped[group].forEach((row: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         row.group = group;
         groupedRows.push(row);
       });
     }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return
     return groupedRows;
-  }
-
-  //convert groupped data to ungrouped data
-  function ungroup(rows: any[]) {
-    const updatedData = [];
-    for (let i = 0; i < rows.length; i++) {
-      if (rows[i]?.isHeader) {
-        continue;
-      }
-      updatedData.push(rows[i]);
-    }
-    return updatedData;
   }
 
   //handle the click on column name in popover
@@ -1513,30 +1413,31 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     [groupbyColumn],
   );
 
+  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
   return (
     <div
       className="app-container"
       style={{ height: "100vh", display: "flex", flexDirection: "column" }}
     >
-
       {isDestroyModalVisible && (
-          <EuiConfirmModal
-              aria-labelledby={destroyModalTitleId}
-              title="Delete Comment"
-              titleProps={{ id: destroyModalTitleId }}
-              onCancel={() => {
-                // Hide the confirmation modal if cancelled
-                setIsDestroyModalVisible(false);
-                setCommentToDeleteId(''); // Reset the comment ID
-              }}
-              onConfirm={onDeleteComment}
-              cancelButtonText="Cancel"
-              confirmButtonText="Delete"
-              buttonColor="danger"
-              defaultFocusedButton="confirm"
-           >
-            <p>Are you sure you want to delete this comment?</p>
-          </EuiConfirmModal>
+        <EuiConfirmModal
+          aria-labelledby={destroyModalTitleId}
+          title="Delete Comment"
+          titleProps={{ id: destroyModalTitleId }}
+          onCancel={() => {
+            // Hide the confirmation modal if cancelled
+            setIsDestroyModalVisible(false);
+            setCommentToDeleteId(""); // Reset the comment ID
+          }}
+          /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+          onConfirm={onDeleteComment}
+          cancelButtonText="Cancel"
+          confirmButtonText="Delete"
+          buttonColor="danger"
+          defaultFocusedButton="confirm"
+        >
+          <p>Are you sure you want to delete this comment?</p>
+        </EuiConfirmModal>
       )}
       <EuiResizableContainer style={{ height: "400px" }}>
         {(EuiResizablePanel, EuiResizableButton) => (
@@ -1942,8 +1843,13 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                                   key={column.id}
                                 >
                                   <EuiSelect
-                                    options={customColumn.dropdownOptions || []}
-                                    value={modalFormState[column.id] as string | number | undefined}
+                                    options={customColumn.dropdownOptions ?? []}
+                                    value={
+                                      modalFormState[column.id] as
+                                        | string
+                                        | number
+                                        | undefined
+                                    }
                                     onChange={(e) => {
                                       handleModalFormChange(
                                         column.id,
@@ -2018,58 +1924,66 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
               </EuiButton>
               {isSidePanelOpen && selectedRowData && (
                 <div>
-                <EuiForm>
-                  {getMergedColumns
-                    .filter(
-                      (column) =>
-                        column.id !== "select" &&
-                        column.id !== "details" &&
-                        column.id !== "delete",
-                    ) // Exclude non-data columns
-                    .map((column) => {
-                      const customColumn = column;
-                      return (
-                        <EuiFormRow
-                          label={customColumn.displayAsText || customColumn.id}
-                          key={customColumn.id}
-                        >
-                          {customColumn.inputType === "dropdown" ? (
-                            <EuiSelect
-                              options={customColumn.dropdownOptions || []}
-                              value={selectedRowData[customColumn.id] as string | number | undefined || ""}
-                              onChange={(e) => {
-                                updateFieldInData(
-                                  customColumn.id,
-                                  e.target.value,
-                                );
-                              }}
-                            />
-                          ) : (
-                            <EuiFieldText
-                              value={selectedRowData[customColumn.id] || ""}
-                              onChange={(e) => {
-                                updateFieldInData(
-                                  customColumn.id,
-                                  e.target.value,
-                                );
-                              }}
-                            />
-                          )}
-                        </EuiFormRow>
-                      );
-                    })}
-                </EuiForm>
+                  <EuiForm>
+                    {getMergedColumns
+                      .filter(
+                        (column) =>
+                          column.id !== "select" &&
+                          column.id !== "details" &&
+                          column.id !== "delete",
+                      ) // Exclude non-data columns
+                      .map((column) => {
+                        const customColumn = column;
+                        return (
+                          <EuiFormRow
+                            label={
+                              customColumn.displayAsText || customColumn.id
+                            }
+                            key={customColumn.id}
+                          >
+                            {customColumn.inputType === "dropdown" ? (
+                              <EuiSelect
+                                options={customColumn.dropdownOptions ?? []}
+                                value={
+                                  (selectedRowData[customColumn.id] as
+                                    | string
+                                    | number
+                                    | undefined) ?? ""
+                                }
+                                onChange={(e) => {
+                                  updateFieldInData(
+                                    customColumn.id,
+                                    e.target.value,
+                                  );
+                                }}
+                              />
+                            ) : (
+                              <EuiFieldText
+                                value={selectedRowData[customColumn.id] || ""}
+                                onChange={(e) => {
+                                  updateFieldInData(
+                                    customColumn.id,
+                                    e.target.value,
+                                  );
+                                }}
+                              />
+                            )}
+                          </EuiFormRow>
+                        );
+                      })}
+                  </EuiForm>
                   <CommentComponent
                     commentsList={commentsList}
                     errorElementId={errorElementId}
                     editorValue={editorValue}
                     setEditorValue={setEditorValue}
                     isLoading={isLoading}
+                    /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
                     onAddComment={onAddComment}
                     editorError={editorError}
                   />
                 </div>
-            )}
+              )}
             </EuiResizablePanel>
           </>
         )}

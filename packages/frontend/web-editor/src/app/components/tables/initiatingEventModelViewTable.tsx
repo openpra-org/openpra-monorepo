@@ -630,7 +630,8 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     if (!selectedRowData) return;
     const updatedSelectedRowData = { ...selectedRowData, [fieldKey]: value };
     setSelectedRowData(updatedSelectedRowData);
-
+    // @ts-ignore
+    debouncedUpdateFieldInData(value);
     setData((prevData) =>
       prevData.map((row) =>
         row.id === selectedRowData.id ? updatedSelectedRowData : row,
@@ -1413,7 +1414,22 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     [groupbyColumn],
   );
 
-  /* eslint-disable-next-line @typescript-eslint/no-misused-promises */
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  function debounce(func: Function, delay: number) {
+    let timeoutId: NodeJS.Timeout;
+    return function (this: any) {
+      let context = this;
+      let args = arguments;
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        func.apply(context, args);
+      }, delay);
+    };
+  }
+
+  const debouncedUpdateFieldInData = debounce((value: string | number) => {
+    console.log("debounce value:", value);
+  }, 5000);
   return (
     <div
       className="app-container"
@@ -1965,6 +1981,16 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                                     customColumn.id,
                                     e.target.value,
                                   );
+
+                                  // debouncedUpdateFieldInData(
+                                  //   // @ts-ignore
+                                  //   customColumn.id,
+                                  //   e.target.value,
+                                  // );
+                                  // console.log(
+                                  //   "debounce value: ",
+                                  //   e.target.value,
+                                  // );
                                 }}
                               />
                             )}

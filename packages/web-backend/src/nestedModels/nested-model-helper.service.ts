@@ -38,11 +38,6 @@ export class NestedModelHelperService {
     typedModelId: string,
     nestedModelId: string,
   ): Promise<void> {
-    console.log("typedModel: " + typedModel);
-    console.log("nestedModel: " + nestedModel);
-    console.log("typedModelId: " + typedModelId);
-    console.log("nestedModelId: " + nestedModelId);
-
     switch (typedModel) {
       case "internalEvents":
         await this.internalEventsModel.findOneAndUpdate(

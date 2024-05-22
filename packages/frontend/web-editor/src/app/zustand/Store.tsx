@@ -2,23 +2,29 @@ import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { createSelectors } from "./createSelectors";
 import { internalEventsSlice } from "./internalEvents/internalEventsSlice";
-import { InternalEventsType } from "./internalEvents/internalEventsTypes";
+import { InternalEventsActionsType, InternalEventsType } from "./internalEvents/internalEventsTypes";
 import { internalHazardsSlice } from "./internalHazards/internalHazardsSlice";
-import { InternalHazardsType } from "./internalHazards/internalHazardsType";
+import { InternalHazardsActionsType, InternalHazardsType } from "./internalHazards/internalHazardsType";
 import { externalHazardsSlice } from "./externalHazards/externalHazardsSlice";
-import { ExternalHazardsType } from "./externalHazards/externalHazardsType";
+import { ExternalHazardsActionsType, ExternalHazardsType } from "./externalHazards/externalHazardsType";
 import { fullScopeSlice } from "./fullScope/fullScopeSlice";
-import { FullScopeType } from "./fullScope/fullScopeTypes";
+import { FullScopeActionsType, FullScopeType } from "./fullScope/fullScopeTypes";
 import { NestedModelsSlice } from "./NestedModels/NestedModelsSlice";
-import { NestedModelsTypes } from "./NestedModels/NestedModelsTypes";
+import { NestedModelActionsType, NestedModelsType } from "./NestedModels/NestedModelsType";
 
 export const SliceResetFns = new Set<() => void>();
 
-export type StoreType = InternalEventsType &
+export type StoreStateType = InternalEventsType &
   InternalHazardsType &
   ExternalHazardsType &
   FullScopeType &
-  NestedModelsTypes;
+  NestedModelsType;
+
+export type StoreActionType = InternalEventsActionsType &
+  FullScopeActionsType &
+  ExternalHazardsActionsType &
+  InternalHazardsActionsType &
+  NestedModelActionsType;
 
 const ResetAllSlices = (): void => {
   SliceResetFns.forEach((resetFn) => {
@@ -26,7 +32,7 @@ const ResetAllSlices = (): void => {
   });
 };
 
-const UseGlobalStoreBase = create<StoreType>()(
+const UseGlobalStoreBase = create<StoreStateType & StoreActionType>()(
   devtools(
     (...args) => ({
       ...internalEventsSlice(...args),

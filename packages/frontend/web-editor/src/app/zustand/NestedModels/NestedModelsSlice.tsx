@@ -1,8 +1,8 @@
 import { StateCreator } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { SliceResetFns, StoreType } from "../Store";
+import { SliceResetFns, StoreActionType, StoreStateType } from "../Store";
 import { NestedModelsState } from "./NestedModelsState";
-import { NestedModelsTypes } from "./NestedModelsTypes";
+import { NestedModelActionsType, NestedModelsType } from "./NestedModelsType";
 import {
   AddInitiatingEvent,
   DeleteInitiatingEvent,
@@ -10,7 +10,12 @@ import {
   SetInitiatingEvents,
 } from "./NestedModelsActions";
 
-const NestedModelsSlice: StateCreator<StoreType, [], [["zustand/immer", never]], NestedModelsTypes> = immer((set) => {
+const NestedModelsSlice: StateCreator<
+  StoreStateType & StoreActionType,
+  [],
+  [["zustand/immer", never]],
+  NestedModelsType & NestedModelActionsType
+> = immer((set) => {
   SliceResetFns.add(() => {
     set(NestedModelsState);
   });

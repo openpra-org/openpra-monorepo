@@ -3,6 +3,9 @@ import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModel
 
 export interface InternalEventsType {
   internalEvents: InternalEventsModelType[];
+}
+
+export interface InternalEventsActionsType {
   setInternalEvents: () => Promise<void>;
   addInternalEvent: (data: Partial<TypedModelJSON>) => Promise<void>;
   editInternalEvent: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;

@@ -1,5 +1,5 @@
 import { LabelJSON } from "../types/Label";
-import { NestedModel, NestedModelJSON, NestedModelType } from "../types/modelTypes/innerModels/nestedModel";
+import { NestedModel, NestedModelJSON } from "../types/modelTypes/innerModels/nestedModel";
 import {
   AddNestedToExternalHazard,
   AddNestedToFullScope,
@@ -37,8 +37,14 @@ const SYSTEMS_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/systems-analysis`;
 const SUCCESS_CRITERIA_ENDPOINT = `${NESTED_ENDPOINT}/success-criteria`;
 const EVENT_SEQUENCE_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/event-sequence-analysis`;
 const OPERATING_STATE_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/operating-state-analysis`;
-//const NESTED_MODEL_TYPE_LOCATION = 3;
+const NESTED_MODEL_TYPE_LOCATION = 3;
 //const NESTED_MODEL_ID_LOCATION = 4;
+
+export function GetCurrentNestedModelType(): string {
+  //setting up data so get current nested model doesn't need any parameters, as it will probably be called frequently
+  const splitPath = window.location.pathname.split("/"); // Gets the path part of the URL (/initiating-events/2) // Splits the path into segments using the '/' character // The 4 part is "initiating-events"
+  return splitPath[NESTED_MODEL_TYPE_LOCATION];
+}
 
 const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, only-if-cached
 

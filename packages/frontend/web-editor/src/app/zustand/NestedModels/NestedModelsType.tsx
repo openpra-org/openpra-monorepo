@@ -1,5 +1,5 @@
 import { NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
-import { InitiatingEventsTypes } from "./TypesHelpers/InitiatingEventsTypes";
+import { InitiatingEventsType } from "./TypesHelpers/InitiatingEventsType";
 
 export interface NestedModelsStateType {
   parentId: string;
@@ -53,6 +53,8 @@ export interface NestedModelsStateType {
   };
 }
 
-export type NestedModelsTypes = {
+export interface NestedModelsType {
   NestedModels: NestedModelsStateType;
-} & InitiatingEventsTypes;
+}
+
+export type NestedModelActionsType = InitiatingEventsType;

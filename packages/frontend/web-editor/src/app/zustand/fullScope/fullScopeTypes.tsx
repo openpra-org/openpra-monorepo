@@ -3,6 +3,9 @@ import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModel
 
 export interface FullScopeType {
   fullScope: FullScopeModelType[];
+}
+
+export interface FullScopeActionsType {
   setFullScope: () => Promise<void>;
   addFullScope: (data: Partial<TypedModelJSON>) => Promise<void>;
   editFullScope: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;

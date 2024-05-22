@@ -46,6 +46,8 @@ This folder contains everything related to the Zustand implementation
   - Types file
     - This file contains the types for the slice
     - All the state and the action functions used in the slice should be defined in this file
+    - All the state should be defined as a type with name **<Slice_name>Type**
+    - All the actions should be defined as a type with name **<Slice_name>ActionsType**
   - State file
     - This file contains the initial state of the state
   - Actions file
@@ -115,10 +117,10 @@ import { sliceResetFns, storeType } from "../store";
 // Import the actions from the actions file
 
 const sliceName: StateCreator<
-  storeType,
+  StoreStateType & StoreActionType,
   [],
   [],
-  sliceType
+  sliceType & sliceActionType
 > = (set) => {
   sliceResetFns.add(() => {
     set(sliceInitialState);
@@ -134,10 +136,16 @@ export default sliceName;
 ---
 ### Updating the store
 
-Once the slice is created, add the type of the slice to the **storeType** types in the store file
+Once the slice is created, add the type of state of the slice to the **StoreStateType** types in the store file
 
 ```
-export type storeType = slice1Type & slice2Type;
+export type StoreStateType = slice1Type & slice2Type;
+```
+
+Add the type of state of the slice to the **StoreActionType** types in the store file
+
+```
+export type StoreActionType = slice1ActionType & slice2ActionType;
 ```
 
 Then add the slice to the store base
@@ -184,19 +192,21 @@ const stateValueName = useGlobalStore.use.stateValueName();
 The nested models contain a number of different model types and so we do not create all the types in a single file. We still use a single slice for the nested models but all the actions and types are separated into their respective files
 
 ### Types for the nested model
-All the typing required for the nested model are placed in different files with the name **[model_name]Types.ts** in the TypesHelpers folder
+All the typing required for the nested model are placed in different files with the name **[model_name]Type.ts** in the TypesHelpers folder
 > openpra-monorepo/packages/frontend/web-editor/src/app/zustand/NestedModels/TypesHelpers
 
-Once the types are exported from there, they need to be included in the overall nested models slice type and this is done in the **NestedModelsTypes.tsx** file
+Once the types are exported from there, they need to be included in the overall nested models slice type and this is done in the **NestedModelsType.tsx** file
 
 ```
-export type NestedModelsTypes = {
+export interface NestedModelsType {
   NestedModels: NestedModelsStateType;
-} & New_Type_You_Created1 & New_Type_You_Created2;
+}
+
+export type NestedModelActionsType = New_Type_You_Created1 & New_Type_You_Created2;
 ```
 
 ### Actions for the nested model
-Similar to types for indiviual models, all the actions required for the nested model are placed in different files with the name **[model_name]Actions.ts** in the ActionHelpers folder
+Similar to types for individual models, all the actions required for the nested model are placed in different files with the name **[model_name]Actions.ts** in the ActionHelpers folder
 > openpra-monorepo/packages/frontend/web-editor/src/app/zustand/NestedModels/ActionHelpers
 
 Once the types are exported from there, they need to be included in the overall nested models slice action **NestedModelsActions.tsx**  file from which they can be used anywhere
@@ -210,16 +220,16 @@ To use Immer while creating a slice
 ```
 import { StateCreator } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { sliceResetFns, storeType } from "../store";
+import { SliceResetFns, StoreActionType, StoreStateType } from "../Store";
 // Import the state from the state file
 // Import the types from the types file
 // Import the actions from the actions file
 
 const sliceName: StateCreator<
-  storeType,
+  StoreStateType & StoreActionType,
   [],
   [["zustand/immer", never]],
-  sliceType
+  sliceType & sliceActionType
 > = immer((set) => {
   sliceResetFns.add(() => {
     set(sliceInitialState);
@@ -243,19 +253,20 @@ UseGlobalStore.setState(
           InitiatingEvent,
         );
 
-        state.internalEvents = state.internalEvents.map(
-          (ie: InternalEventsModelType) => {
-            if (InitiatingEvent.parentIds.includes(ie._id)) {
-              ie.initiatingEvents.push(InitiatingEvent._id);
-            }
-            return ie;
-          },
-        );
+        state.internalEvents = state[typedModelName].map(
+            produce((tm: typedModelType) => {
+                if (parentIds.includes(tm._id)) {
+                    tm[nestedModelName].push(nestedModelId);
+                }
+            }),
+        )
       }),
     );
 ```
 
 As seen from the above code snippet, this produce function can be used to update multiple parts of the state at the same time.
+
+[Learn more about produce function in Immer](https://immerjs.github.io/immer/produce)
 
 ## Zustand Dev Tools
 

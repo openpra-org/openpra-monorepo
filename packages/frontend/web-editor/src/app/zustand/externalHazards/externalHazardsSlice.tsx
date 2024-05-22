@@ -1,6 +1,6 @@
 import { StateCreator } from "zustand";
-import { SliceResetFns, StoreType } from "../Store";
-import { ExternalHazardsType } from "./externalHazardsType";
+import { SliceResetFns, StoreActionType, StoreStateType } from "../Store";
+import { ExternalHazardsActionsType, ExternalHazardsType } from "./externalHazardsType";
 import {
   addExternalHazard,
   deleteExternalHazard,
@@ -9,7 +9,12 @@ import {
 } from "./externalHazardsActions";
 import { externalHazardsState } from "./externalHazardsState";
 
-const externalHazardsSlice: StateCreator<StoreType, [], [], ExternalHazardsType> = (set) => {
+const externalHazardsSlice: StateCreator<
+  StoreStateType & StoreActionType,
+  [],
+  [],
+  ExternalHazardsType & ExternalHazardsActionsType
+> = (set) => {
   SliceResetFns.add(() => {
     set(externalHazardsState);
   });

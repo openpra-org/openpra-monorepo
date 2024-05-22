@@ -3,6 +3,9 @@ import { ExternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/
 
 export interface ExternalHazardsType {
   externalHazards: ExternalHazardsModelType[];
+}
+
+export interface ExternalHazardsActionsType {
   setExternalHazards: () => Promise<void>;
   addExternalHazard: (data: Partial<TypedModelJSON>) => Promise<void>;
   editExternalHazard: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;

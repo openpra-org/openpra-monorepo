@@ -238,6 +238,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
         console.error("Failed to copy text: ", err);
       });
   };
+  // @ts-ignore
   const actionFunctions: Record<
     string,
     (
@@ -282,14 +283,27 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
             // Show the confirmation modal and set the comment ID to be deleted
             setIsDestroyModalVisible(true);
             setCommentToDeleteId(commentId);
-          }} // Assuming _id is part of comments[0]
-          // onDeleteComment(commentId)
+          }}
         />
-
-        {/* Add more button elements as needed */}
       </React.Fragment>
     ),
+    copyAction: (
+      commentId: string,
+      timeStamp: string,
+      children: string | undefined,
+    ) => (
+      <EuiButtonIcon
+        title="Custom action"
+        aria-label="Custom action"
+        color="text"
+        iconType="copy"
+        // onClick={() => {
+        //   handleCopy(children);
+        // }}
+      />
+    ),
   };
+
   type ExtendedEuiCommentProps = {
     _id: string;
   } & EuiCommentProps;
@@ -630,13 +644,14 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     if (!selectedRowData) return;
     const updatedSelectedRowData = { ...selectedRowData, [fieldKey]: value };
     setSelectedRowData(updatedSelectedRowData);
-    // @ts-ignore
-    debouncedUpdateFieldInData(value);
+
     setData((prevData) =>
       prevData.map((row) =>
         row.id === selectedRowData.id ? updatedSelectedRowData : row,
       ),
     );
+    // @ts-ignore
+    debouncedUpdateFieldInData(fieldKey, value);
   };
 
   const handleSidePanelClose = (): void => {
@@ -1415,21 +1430,87 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   );
 
   // eslint-disable-next-line @typescript-eslint/ban-types
-  function debounce(func: Function, delay: number) {
+  function debounce<T extends (...args: any[]) => Promise<any>>(
+    func: T,
+    delay: number,
+  ) {
     let timeoutId: NodeJS.Timeout;
-    return function (this: any) {
-      let context = this;
-      let args = arguments;
+    return function (this: any, ...args: Parameters<T>) {
       clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        func.apply(context, args);
+      timeoutId = setTimeout(async () => {
+        await func.apply(this, args);
       }, delay);
     };
   }
 
-  const debouncedUpdateFieldInData = debounce((value: string | number) => {
-    console.log("debounce value:", value);
-  }, 5000);
+  function camelCaseToNormal(input: string): string {
+    // Add a space before each uppercase letter, then capitalize the first letter of the result
+    const result = input
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (str) => str.toUpperCase());
+    return result;
+  }
+
+  const onAddLogs = async (fieldKey: keyof DataRow, value: string | number) => {
+    setIsLoading(true);
+
+    const date = new Date(Date.now()).toISOString();
+
+    const commentData = {
+      associated_with: "some_associated_id",
+      comments: [
+        {
+          username: {
+            username: "first_person",
+            fullname: "First Person",
+          },
+          timelineAvatar: "tp",
+          event: `edited the value of ${camelCaseToNormal(
+            fieldKey.toString(),
+          )} to ${value}`,
+          timestamp: `on ${date}`,
+          actions: "copyAction",
+        },
+      ],
+    };
+
+    try {
+      const response = await fetch(
+        "http://localhost:8000/api/comments/comments",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(commentData),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to add comment");
+      }
+
+      // Assuming the response contains the newly created comment
+
+      setIsLoading(false);
+      setEditorValue("");
+      await fetchComments();
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      setIsLoading(false);
+    }
+  };
+  const debouncedUpdateFieldInData = debounce(
+    async (fieldKey: keyof DataRow, value: string | number) => {
+      try {
+        await onAddLogs(fieldKey, value); // Ensure the promise is awaited
+      } catch (error) {
+        console.error("Error in onAddLogs:", error);
+      }
+    },
+    5000,
+  );
+
   return (
     <div
       className="app-container"
@@ -1981,16 +2062,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                                     customColumn.id,
                                     e.target.value,
                                   );
-
-                                  // debouncedUpdateFieldInData(
-                                  //   // @ts-ignore
-                                  //   customColumn.id,
-                                  //   e.target.value,
-                                  // );
-                                  // console.log(
-                                  //   "debounce value: ",
-                                  //   e.target.value,
-                                  // );
                                 }}
                               />
                             )}

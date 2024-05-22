@@ -39,6 +39,9 @@ import "./initiatingEventModelViewTable.css";
 import { EuiToolTip } from "@elastic/eui";
 import { EuiInlineEditText } from "@elastic/eui";
 import CommentComponent from "../../pages/fullScopePages/commentLogs";
+import { MemberResult } from "shared-types/src/lib/api/Members";
+import ApiManager from "shared-types/src/lib/api/ApiManager";
+import moment from "moment";
 
 //Elastic Comment Code:
 
@@ -141,6 +144,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     setIsLoading(true);
 
     const date = new Date(Date.now()).toISOString();
+    const momentDate = moment().format("llll");
 
     const editedCommentData = {
       comments: [
@@ -151,7 +155,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
           },
           timelineAvatar: "fp",
           event: "deleted comment",
-          timestamp: `on ${date}`,
+          timestamp: `on ${momentDate}`,
           eventIcon: "trash",
           eventIconAriaLabel: "delete",
         },
@@ -356,7 +360,23 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
         console.error("Error fetching comments:", error);
       });
   }, []);
+  const userId = ApiManager.getCurrentUser().user_id;
+  const [currentMember, setCurrentMember] = useState<MemberResult>();
+  useEffect(() => {
+    console.log("Entered useEffect successfully");
 
+    setIsLoading(true);
+    ApiManager.getUserById(String(userId))
+      .then((result) => {
+        console.log("Entered .then successfully: ", result);
+        setCurrentMember(result);
+        setIsLoading(false);
+      })
+      .catch((reason) => {
+        console.log("Entered .catch successfully: ", reason);
+        setIsLoading(false);
+      });
+  }, []);
   useEffect(() => {
     const storedComments: ExtendedEuiCommentProps[] = loadedComments.map(
       (comment) => {
@@ -1258,6 +1278,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     setIsLoading(true);
 
     const date = new Date(Date.now()).toISOString();
+    const momentDate = moment().format("llll");
 
     const commentData = {
       associated_with: "some_associated_id",
@@ -1269,7 +1290,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
           },
           timelineAvatar: "tp",
           event: "added a comment",
-          timestamp: `on ${date}`,
+          timestamp: `on ${momentDate}`,
           actions: "actionButton",
           children: editorValue,
         },
@@ -1455,6 +1476,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     setIsLoading(true);
 
     const date = new Date(Date.now()).toISOString();
+    const momentDate = moment().format("llll");
 
     const commentData = {
       associated_with: "some_associated_id",
@@ -1468,7 +1490,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
           event: `edited the value of ${camelCaseToNormal(
             fieldKey.toString(),
           )} to ${value}`,
-          timestamp: `on ${date}`,
+          timestamp: `on ${momentDate}`,
           actions: "copyAction",
         },
       ],

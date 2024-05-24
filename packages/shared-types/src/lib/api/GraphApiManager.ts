@@ -1,5 +1,5 @@
 import { EventSequenceGraph, EventTreeGraph, FaultTreeGraph } from "../types/reactflowGraph/Graph";
-import AuthService from "./AuthService";
+import { AuthService } from "./AuthService";
 
 const ApiEndpoint = "/api";
 const GraphEndpoint = `${ApiEndpoint}/graph-models`;

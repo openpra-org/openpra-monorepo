@@ -20,7 +20,7 @@ import {
   useGeneratedHtmlId,
 } from "@elastic/eui";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { EuiBreadcrumb } from "@elastic/eui/src/components/breadcrumbs";
 import { InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
 import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";

@@ -27,6 +27,7 @@ import { Row } from "shared-types/src/lib/types/fmea/Row";
 
 import FmeaApiManager from "shared-types/src/lib/api/InitiatingEventsApiManager";
 
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import InitiatorList from "../../components/lists/InitiatorList";
 import { InitiatingEventsList } from "../../components/lists/nestedLists/initiatingEventsList";
 

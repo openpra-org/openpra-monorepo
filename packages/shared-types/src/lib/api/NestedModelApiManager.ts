@@ -12,7 +12,7 @@ import {
   GetCurrentModelId,
   GetCurrentModelType,
 } from "./TypedModelApiManager";
-import AuthService from "./AuthService";
+import { AuthService } from "./AuthService";
 
 //used constants
 export const API_ENDPOINT = "/api";

@@ -2,7 +2,7 @@ import React from "react";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { SignUpForm } from "../forms/signUpForm";

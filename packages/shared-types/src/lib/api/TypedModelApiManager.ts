@@ -7,8 +7,8 @@ import { InternalHazardsModel, InternalHazardsModelType } from "../types/modelTy
 import { ExternalHazardsModel, ExternalHazardsModelType } from "../types/modelTypes/largeModels/externalHazardsModel";
 import { FullScopeModel, FullScopeModelType } from "../types/modelTypes/largeModels/fullScopeModel";
 import TypedModel, { TypedModelJSON } from "../types/modelTypes/largeModels/typedModel";
-import AuthService from "./AuthService";
-import ApiManager from "./ApiManager";
+import { AuthService } from "./AuthService";
+import { ApiManager } from "./ApiManager";
 import { RemoveParentIds } from "./NestedModelApiManager";
 const API_ENDPOINT = "/api";
 const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, only-if-cached

@@ -12,7 +12,7 @@ import {
   EuiFieldPassword,
   useGeneratedHtmlId,
 } from "@elastic/eui";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import moment from "moment";
 import { useContext, useEffect, useState } from "react";
 import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
@@ -113,7 +113,7 @@ const PasswordChange = (): JSX.Element => {
         onSubmit={async (): Promise<void> => {
           setButtonClicked(true);
           const { password = "", passConfirm = "" } = signup ?? {};
-          // eslint-disable-next-line security/detect-possible-timing-attacks
+
           if (passConfirm !== password || !signup) {
             return;
           }

@@ -1,11 +1,10 @@
-import ApiManager from "../ApiManager";
+import { ApiManager } from "../ApiManager";
 import { InvitedUserDetailsDto, InvitedUserDto } from "../../types/userInvites/InvitedUser";
 import { SignUpProps } from "../AuthTypes";
 
 const ApiEndpoint = "/api";
 const InviteEndpoint = `${ApiEndpoint}/invite-user`;
 
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
 export class UserInviteApi {
   /**
    * This function calls the backend api to invite a user

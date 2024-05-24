@@ -2,7 +2,7 @@ import { EuiPageTemplate, EuiSkeletonLoading, EuiText } from "@elastic/eui";
 import { Outlet, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { MemberResult } from "shared-types/src/lib/api/Members";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import React from "react";
 import { NavInsideNav } from "../sidenavs/genericNav";
 

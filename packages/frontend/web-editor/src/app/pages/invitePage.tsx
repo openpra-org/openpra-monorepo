@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
 import { InvitedUserDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";

@@ -1,5 +1,5 @@
 import { Route, Routes } from "react-router-dom";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { SettingsContainer } from "../../components/pageContainers/settingsContainer";
 import { Users } from "../../components/settings/users";
 import { MemberForm } from "../../components/forms/editMemberForm";

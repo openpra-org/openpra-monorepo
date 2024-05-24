@@ -4,7 +4,7 @@ import {
   PatchFullScope,
   PostFullScope,
 } from "shared-types/src/lib/api/TypedModelApiManager";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { FullScopeModelType } from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { UseGlobalStore } from "../Store";

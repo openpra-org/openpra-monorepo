@@ -12,7 +12,7 @@ import {
   copyToClipboard,
 } from "@elastic/eui";
 import { ChangeEvent, useEffect, useState } from "react";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
 import { MemberResult, Members } from "shared-types/src/lib/api/Members";
 import { EuiBasicTableColumn } from "@elastic/eui/src/components/basic_table/basic_table";

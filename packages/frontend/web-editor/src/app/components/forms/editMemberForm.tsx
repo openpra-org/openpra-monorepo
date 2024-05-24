@@ -13,7 +13,7 @@ import {
 import moment from "moment";
 import { useParams } from "react-router-dom";
 import { MemberResult } from "shared-types/src/lib/api/Members";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 
 /**
  * Main form container for editing and saving a user

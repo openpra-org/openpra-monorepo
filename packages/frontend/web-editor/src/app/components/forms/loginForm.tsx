@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { EuiFieldText, EuiForm, EuiButton, EuiFormRow, EuiFieldPassword } from "@elastic/eui";
 import { LoginProps, LoginErrorProps } from "shared-types/src/lib/api/AuthTypes";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 
 function LoginForm(): JSX.Element {
   const DefaultProps: LoginProps = {

@@ -1,7 +1,7 @@
 import { EuiTreeView, slugify, useEuiTheme, EuiText, EuiCollapsibleNavGroup, useEuiPaddingSize } from "@elastic/eui";
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 
 interface TreeItem {
   id: string;

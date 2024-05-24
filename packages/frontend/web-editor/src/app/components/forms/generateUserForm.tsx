@@ -2,7 +2,7 @@ import { EuiButton, EuiFlexGroup, EuiFlexItem, EuiForm, EuiFormRow, EuiSelect, E
 import React, { ChangeEvent, useState } from "react";
 import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
 import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
-import ApiManager from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { EuiSelectOption } from "@elastic/eui/src/components/form/select/select";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";

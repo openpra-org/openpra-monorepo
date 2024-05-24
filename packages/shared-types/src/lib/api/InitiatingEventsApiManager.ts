@@ -1,6 +1,4 @@
 import { Fmea } from "../types/fmea/Fmea";
-import { FaultTreeGraph } from "../types/reactflowGraph/Graph";
-import AuthService from "./AuthService";
 
 const API_ENDPOINT = "/api";
 const FMEA_ENDPOINT = `${API_ENDPOINT}/fmea`;

@@ -5,7 +5,7 @@ import { ScopedNav } from "../sidenavs/scopedNav";
 const FullScopeContainer = (): JSX.Element => (
   <EuiPageTemplate
     panelled={false}
-    offset={48}
+    offset={0}
     grow={true}
     restrictWidth={false}
   >

@@ -9,11 +9,11 @@ function InternalHazardsList(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
 
-  const internalHazardsList = UseGlobalStore.use.internalHazards();
-  const setInternalHazards = UseGlobalStore.use.setInternalHazards();
-  const createInternalHazards = UseGlobalStore.use.addInternalHazard();
-  const deleteInternalHazard = UseGlobalStore.use.deleteInternalHazard();
-  const editInternalHazard = UseGlobalStore.use.editInternalHazard();
+  const internalHazardsList = UseGlobalStore.use.InternalHazards();
+  const setInternalHazards = UseGlobalStore.use.SetInternalHazards();
+  const createInternalHazards = UseGlobalStore.use.AddInternalHazard();
+  const deleteInternalHazard = UseGlobalStore.use.DeleteInternalHazard();
+  const editInternalHazard = UseGlobalStore.use.EditInternalHazard();
 
   useEffect(() => {
     setIsLoading(true);

@@ -38,7 +38,7 @@ function EditCurrentModel(): JSX.Element {
   //this is also subject to change, probably needs a type passed in from props eventually
   const newItem = new TypedModel();
 
-  const editInternalEvent = UseGlobalStore.use.editInternalEvent();
+  const editInternalEvent = UseGlobalStore.use.EditInternalEvent();
 
   //grabs the current models information
   const [currentModel, setCurrentModel] = useState(newItem);

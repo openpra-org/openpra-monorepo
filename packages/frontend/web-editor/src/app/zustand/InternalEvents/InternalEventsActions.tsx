@@ -1,5 +1,5 @@
 import {
-  DeleteInternalEvent,
+  DeleteInternalEvent as DeleteInternalEventAPI,
   GetInternalEvents,
   PatchInternalEvent,
   PostInternalEvent,
@@ -9,29 +9,29 @@ import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/l
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { UseGlobalStore } from "../Store";
 
-export const setInternalEvents = async (): Promise<void> => {
+export const SetInternalEvents = async (): Promise<void> => {
   try {
     const internalEventsList: InternalEventsModelType[] = await GetInternalEvents(ApiManager.getCurrentUser().user_id);
     UseGlobalStore.setState({
-      internalEvents: internalEventsList,
+      InternalEvents: internalEventsList,
     });
   } catch (error) {
     console.error("Error fetching data:", error);
   }
 };
 
-export const addInternalEvent = async (data: Partial<TypedModelJSON>): Promise<void> => {
+export const AddInternalEvent = async (data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const ier: InternalEventsModelType = await PostInternalEvent(data);
     UseGlobalStore.setState((state) => ({
-      internalEvents: [...state.internalEvents, ier],
+      InternalEvents: [...state.InternalEvents, ier],
     }));
   } catch (error) {
     console.error("Error adding internal event:", error);
   }
 };
 
-export const editInternalEvent = async (
+export const EditInternalEvent = async (
   modelId: number,
   userId: number,
   data: Partial<TypedModelJSON>,
@@ -39,7 +39,7 @@ export const editInternalEvent = async (
   try {
     const ier: InternalEventsModelType = await PatchInternalEvent(modelId, userId, data);
     UseGlobalStore.setState((state) => ({
-      internalEvents: state.internalEvents.map((ie: InternalEventsModelType) => {
+      InternalEvents: state.InternalEvents.map((ie: InternalEventsModelType) => {
         if (ie.id === modelId) {
           return ier;
         } else {
@@ -52,12 +52,12 @@ export const editInternalEvent = async (
   }
 };
 
-export const deleteInternalEvent = async (id: number): Promise<void> => {
+export const DeleteInternalEvent = async (id: number): Promise<void> => {
   try {
-    await DeleteInternalEvent(id);
+    await DeleteInternalEventAPI(id);
 
     UseGlobalStore.setState((state) => ({
-      internalEvents: state.internalEvents.filter((ie: InternalEventsModelType) => ie.id !== id),
+      InternalEvents: state.InternalEvents.filter((ie: InternalEventsModelType) => ie.id !== id),
     }));
   } catch (error) {
     console.error("Error deleting internal event:", error);

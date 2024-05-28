@@ -6,7 +6,7 @@ import { InternalHazards, InternalHazardsDocument } from "../typedModel/schemas/
 import { ExternalHazards, ExternalHazardsDocument } from "../typedModel/schemas/external-hazards.schema";
 import { FullScope, FullScopeDocument } from "../typedModel/schemas/full-scope.schema";
 
-export type TypedModelType = "internalEvents" | "internalHazards" | "externalHazards" | "fullScope";
+export type TypedModelType = "InternalEvents" | "InternalHazards" | "ExternalHazards" | "FullScope";
 
 export type NestedModelType =
   | "initiatingEvents"
@@ -39,28 +39,28 @@ export class NestedModelHelperService {
     nestedModelId: string,
   ): Promise<void> {
     switch (typedModel) {
-      case "internalEvents":
+      case "InternalEvents":
         await this.internalEventsModel.findOneAndUpdate(
           { _id: typedModelId },
           { $push: { [nestedModel]: nestedModelId } },
           { new: true },
         );
         break;
-      case "internalHazards":
+      case "InternalHazards":
         await this.internalHazardsModel.findOneAndUpdate(
           { _id: typedModelId },
           { $push: { [nestedModel]: nestedModelId } },
           { new: true },
         );
         break;
-      case "externalHazards":
+      case "ExternalHazards":
         await this.externalHazardsModel.findOneAndUpdate(
           { _id: typedModelId },
           { $push: { [nestedModel]: nestedModelId } },
           { new: true },
         );
         break;
-      case "fullScope":
+      case "FullScope":
         await this.fullScopeModel.findOneAndUpdate(
           { _id: typedModelId },
           { $push: { [nestedModel]: nestedModelId } },
@@ -77,28 +77,28 @@ export class NestedModelHelperService {
     nestedModelId: string,
   ): Promise<void> {
     switch (typedModel) {
-      case "internalEvents":
+      case "InternalEvents":
         await this.internalEventsModel.findOneAndUpdate(
           { _id: typedModelId },
           { $pull: { [nestedModel]: nestedModelId } },
           { new: true },
         );
         break;
-      case "internalHazards":
+      case "InternalHazards":
         await this.internalHazardsModel.findOneAndUpdate(
           { _id: typedModelId },
           { $pull: { [nestedModel]: nestedModelId } },
           { new: true },
         );
         break;
-      case "externalHazards":
+      case "ExternalHazards":
         await this.externalHazardsModel.findOneAndUpdate(
           { _id: typedModelId },
           { $pull: { [nestedModel]: nestedModelId } },
           { new: true },
         );
         break;
-      case "fullScope":
+      case "FullScope":
         await this.fullScopeModel.findOneAndUpdate(
           { _id: typedModelId },
           { $pull: { [nestedModel]: nestedModelId } },

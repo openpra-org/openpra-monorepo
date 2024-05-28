@@ -1,5 +1,5 @@
 import {
-  DeleteExternalHazard,
+  DeleteExternalHazard as DeleteExternalHazardAPI,
   GetExternalHazards,
   PatchExternalHazard,
   PostExternalHazard,
@@ -9,31 +9,31 @@ import { ExternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { UseGlobalStore } from "../Store";
 
-export const setExternalHazards = async (): Promise<void> => {
+export const SetExternalHazards = async (): Promise<void> => {
   try {
     const externalHazardsList: ExternalHazardsModelType[] = await GetExternalHazards(
       ApiManager.getCurrentUser().user_id,
     );
     UseGlobalStore.setState({
-      externalHazards: externalHazardsList,
+      ExternalHazards: externalHazardsList,
     });
   } catch (error) {
     console.error("Error fetching data:", error);
   }
 };
 
-export const addExternalHazard = async (data: Partial<TypedModelJSON>): Promise<void> => {
+export const AddExternalHazard = async (data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const ehr: ExternalHazardsModelType = await PostExternalHazard(data);
     UseGlobalStore.setState((state) => ({
-      externalHazards: [...state.externalHazards, ehr],
+      ExternalHazards: [...state.ExternalHazards, ehr],
     }));
   } catch (error) {
     console.error("Error adding external hazard:", error);
   }
 };
 
-export const editExternalHazard = async (
+export const EditExternalHazard = async (
   modelId: number,
   userId: number,
   data: Partial<TypedModelJSON>,
@@ -41,7 +41,7 @@ export const editExternalHazard = async (
   try {
     const ehr: ExternalHazardsModelType = await PatchExternalHazard(modelId, userId, data);
     UseGlobalStore.setState((state) => ({
-      externalHazards: state.externalHazards.map((eh: ExternalHazardsModelType) => {
+      ExternalHazards: state.ExternalHazards.map((eh: ExternalHazardsModelType) => {
         if (eh.id === modelId) {
           return ehr;
         } else {
@@ -54,12 +54,12 @@ export const editExternalHazard = async (
   }
 };
 
-export const deleteExternalHazard = async (id: number): Promise<void> => {
+export const DeleteExternalHazard = async (id: number): Promise<void> => {
   try {
-    await DeleteExternalHazard(id);
+    await DeleteExternalHazardAPI(id);
 
     UseGlobalStore.setState((state) => ({
-      externalHazards: state.externalHazards.filter((eh: ExternalHazardsModelType) => eh.id !== id),
+      ExternalHazards: state.ExternalHazards.filter((eh: ExternalHazardsModelType) => eh.id !== id),
     }));
   } catch (error) {
     console.error("Error deleting external hazard:", error);

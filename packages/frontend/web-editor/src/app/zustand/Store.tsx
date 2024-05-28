@@ -1,14 +1,14 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { createSelectors } from "./createSelectors";
-import { internalEventsSlice } from "./internalEvents/internalEventsSlice";
-import { InternalEventsActionsType, InternalEventsType } from "./internalEvents/internalEventsTypes";
-import { internalHazardsSlice } from "./internalHazards/internalHazardsSlice";
-import { InternalHazardsActionsType, InternalHazardsType } from "./internalHazards/internalHazardsType";
-import { externalHazardsSlice } from "./externalHazards/externalHazardsSlice";
-import { ExternalHazardsActionsType, ExternalHazardsType } from "./externalHazards/externalHazardsType";
-import { fullScopeSlice } from "./fullScope/fullScopeSlice";
-import { FullScopeActionsType, FullScopeType } from "./fullScope/fullScopeTypes";
+import { CreateSelectors } from "./CreateSelectors";
+import { InternalEventsSlice } from "./InternalEvents/InternalEventsSlice";
+import { InternalEventsActionsType, InternalEventsType } from "./InternalEvents/InternalEventsTypes";
+import { InternalHazardsSlice } from "./InternalHazards/InternalHazardsSlice";
+import { InternalHazardsActionsType, InternalHazardsType } from "./InternalHazards/InternalHazardsType";
+import { ExternalHazardsSlice } from "./ExternalHazards/ExternalHazardsSlice";
+import { ExternalHazardsActionsType, ExternalHazardsType } from "./ExternalHazards/ExternalHazardsType";
+import { FullScopeSlice } from "./FullScope/FullScopeSlice";
+import { FullScopeActionsType, FullScopeType } from "./FullScope/FullScopeTypes";
 import { NestedModelsSlice } from "./NestedModels/NestedModelsSlice";
 import { NestedModelActionsType, NestedModelsType } from "./NestedModels/NestedModelsType";
 
@@ -35,10 +35,10 @@ const ResetAllSlices = (): void => {
 const UseGlobalStoreBase = create<StoreStateType & StoreActionType>()(
   devtools(
     (...args) => ({
-      ...internalEventsSlice(...args),
-      ...internalHazardsSlice(...args),
-      ...externalHazardsSlice(...args),
-      ...fullScopeSlice(...args),
+      ...InternalEventsSlice(...args),
+      ...InternalHazardsSlice(...args),
+      ...ExternalHazardsSlice(...args),
+      ...FullScopeSlice(...args),
       ...NestedModelsSlice(...args),
     }),
     {
@@ -48,6 +48,6 @@ const UseGlobalStoreBase = create<StoreStateType & StoreActionType>()(
   ),
 );
 
-const UseGlobalStore = createSelectors(UseGlobalStoreBase);
+const UseGlobalStore = CreateSelectors(UseGlobalStoreBase);
 
 export { ResetAllSlices, UseGlobalStore };

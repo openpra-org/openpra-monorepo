@@ -9,11 +9,11 @@ function FullScopeList(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
 
-  const fullScopeList = UseGlobalStore.use.fullScope();
-  const setFullScope = UseGlobalStore.use.setFullScope();
-  const createFullScope = UseGlobalStore.use.addFullScope();
-  const deleteFullScope = UseGlobalStore.use.deleteFullScope();
-  const editFullScope = UseGlobalStore.use.editFullScope();
+  const fullScopeList = UseGlobalStore.use.FullScope();
+  const setFullScope = UseGlobalStore.use.SetFullScope();
+  const createFullScope = UseGlobalStore.use.AddFullScope();
+  const deleteFullScope = UseGlobalStore.use.DeleteFullScope();
+  const editFullScope = UseGlobalStore.use.EditFullScope();
 
   useEffect(() => {
     setIsLoading(true);

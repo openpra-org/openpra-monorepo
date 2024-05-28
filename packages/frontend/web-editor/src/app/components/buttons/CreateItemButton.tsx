@@ -105,7 +105,7 @@ export function CreateNestedItemButton({
 
 //TODO: Functions have placeholders for the creates that don't exist
 export function CreateInternalEventsButton(): JSX.Element {
-  const createInternalEvent = UseGlobalStore.use.addInternalEvent();
+  const createInternalEvent = UseGlobalStore.use.AddInternalEvent();
 
   return (
     <CreateItemButton
@@ -116,7 +116,7 @@ export function CreateInternalEventsButton(): JSX.Element {
 }
 
 export function CreateInternalHazardsButton(): JSX.Element {
-  const createInternalHazard = UseGlobalStore.use.addInternalHazard();
+  const createInternalHazard = UseGlobalStore.use.AddInternalHazard();
   return (
     <CreateItemButton
       itemName="Internal Hazards"
@@ -126,7 +126,7 @@ export function CreateInternalHazardsButton(): JSX.Element {
 }
 
 export function CreateExternalHazardsButton(): JSX.Element {
-  const createExternalHazard = UseGlobalStore.use.addExternalHazard();
+  const createExternalHazard = UseGlobalStore.use.AddExternalHazard();
   return (
     <CreateItemButton
       itemName="External Hazards"
@@ -136,7 +136,7 @@ export function CreateExternalHazardsButton(): JSX.Element {
 }
 
 export function CreateFullScopeButton(): JSX.Element {
-  const createFullScope = UseGlobalStore.use.addFullScope();
+  const createFullScope = UseGlobalStore.use.AddFullScope();
   return (
     <CreateItemButton
       itemName="Full Scope"

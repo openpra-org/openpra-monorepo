@@ -4,7 +4,7 @@ import { typedModelType } from "packages/shared-types/src/lib/types/modelTypes/l
 import { GetCurrentNestedModelType } from "shared-types/src/lib/api/NestedModelApiManager";
 import { StoreStateType } from "../Store";
 
-export type TypedModelNames = "internalEvents" | "internalHazards" | "externalHazards" | "fullScope";
+export type TypedModelNames = "InternalEvents" | "InternalHazards" | "ExternalHazards" | "FullScope";
 export type NestedModelNames = "initiatingEvents";
 
 export const GetTypedModelName = (): TypedModelNames => {
@@ -12,16 +12,16 @@ export const GetTypedModelName = (): TypedModelNames => {
 
   switch (typedModel) {
     case "internal-events":
-      return "internalEvents";
+      return "InternalEvents";
     case "internal-hazards":
-      return "internalHazards";
+      return "InternalHazards";
     case "external-hazards":
-      return "externalHazards";
+      return "ExternalHazards";
     case "full-scope":
-      return "fullScope";
+      return "FullScope";
   }
 
-  return "internalEvents";
+  return "InternalEvents";
 };
 
 export const GetNestedModelName = (): NestedModelNames => {

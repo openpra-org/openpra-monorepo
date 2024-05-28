@@ -9,11 +9,11 @@ function InternalEventsList(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
 
-  const internalEventsList = UseGlobalStore.use.internalEvents();
-  const setInternalEvents = UseGlobalStore.use.setInternalEvents();
-  const createInternalEvents = UseGlobalStore.use.addInternalEvent();
-  const deleteInternalEvent = UseGlobalStore.use.deleteInternalEvent();
-  const editInternalEvent = UseGlobalStore.use.editInternalEvent();
+  const internalEventsList = UseGlobalStore.use.InternalEvents();
+  const setInternalEvents = UseGlobalStore.use.SetInternalEvents();
+  const createInternalEvents = UseGlobalStore.use.AddInternalEvent();
+  const deleteInternalEvent = UseGlobalStore.use.DeleteInternalEvent();
+  const editInternalEvent = UseGlobalStore.use.EditInternalEvent();
 
   useEffect(() => {
     setIsLoading(true);

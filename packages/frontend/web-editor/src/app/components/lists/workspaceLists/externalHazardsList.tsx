@@ -9,11 +9,11 @@ function ExternalHazardsList(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
 
-  const externalHazardsList = UseGlobalStore.use.externalHazards();
-  const setExternalHazards = UseGlobalStore.use.setExternalHazards();
-  const createExternalHazards = UseGlobalStore.use.addExternalHazard();
-  const deleteExternalHazard = UseGlobalStore.use.deleteExternalHazard();
-  const editExternalHazard = UseGlobalStore.use.editExternalHazard();
+  const externalHazardsList = UseGlobalStore.use.ExternalHazards();
+  const setExternalHazards = UseGlobalStore.use.SetExternalHazards();
+  const createExternalHazards = UseGlobalStore.use.AddExternalHazard();
+  const deleteExternalHazard = UseGlobalStore.use.DeleteExternalHazard();
+  const editExternalHazard = UseGlobalStore.use.EditExternalHazard();
 
   useEffect(() => {
     setIsLoading(true);

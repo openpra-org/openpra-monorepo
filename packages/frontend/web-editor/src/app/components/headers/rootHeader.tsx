@@ -31,8 +31,8 @@ import { WorkspaceSelectorMenu } from "./WorkspaceSelectorMenu";
 
 const RootHeader = (): JSX.Element => {
   const navigate = useNavigate();
-  const internalEvents = UseGlobalStore.use.internalEvents();
-  const internalHazards = UseGlobalStore.use.internalHazards();
+  const internalEvents = UseGlobalStore.use.InternalEvents();
+  const internalHazards = UseGlobalStore.use.InternalHazards();
 
   const getModelName = (id: string): string => {
     const ieName = internalEvents.find((ie: InternalEventsModelType) => ie._id === id)?.label.name;

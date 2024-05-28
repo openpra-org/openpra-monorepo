@@ -1,5 +1,5 @@
 import {
-  DeleteFullScope,
+  DeleteFullScope as DeleteFullScopeAPI,
   GetFullScopeModels,
   PatchFullScope,
   PostFullScope,
@@ -9,33 +9,33 @@ import { FullScopeModelType } from "shared-types/src/lib/types/modelTypes/largeM
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { UseGlobalStore } from "../Store";
 
-export const setFullScope = async (): Promise<void> => {
+export const SetFullScope = async (): Promise<void> => {
   try {
     const fullScopeList: FullScopeModelType[] = await GetFullScopeModels(ApiManager.getCurrentUser().user_id);
     UseGlobalStore.setState({
-      fullScope: fullScopeList,
+      FullScope: fullScopeList,
     });
   } catch (error) {
     console.error("Error fetching data:", error);
   }
 };
 
-export const addFullScope = async (data: Partial<TypedModelJSON>): Promise<void> => {
+export const AddFullScope = async (data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const fsr: FullScopeModelType = await PostFullScope(data);
     UseGlobalStore.setState((state) => ({
-      fullScope: [...state.fullScope, fsr],
+      FullScope: [...state.FullScope, fsr],
     }));
   } catch (error) {
     console.error("Error adding full scope:", error);
   }
 };
 
-export const editFullScope = async (modelId: number, userId: number, data: Partial<TypedModelJSON>): Promise<void> => {
+export const EditFullScope = async (modelId: number, userId: number, data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const fsr: FullScopeModelType = await PatchFullScope(modelId, userId, data);
     UseGlobalStore.setState((state) => ({
-      fullScope: state.fullScope.map((fs: FullScopeModelType) => {
+      FullScope: state.FullScope.map((fs: FullScopeModelType) => {
         if (fs.id === modelId) {
           return fsr;
         } else {
@@ -48,12 +48,12 @@ export const editFullScope = async (modelId: number, userId: number, data: Parti
   }
 };
 
-export const deleteFullScope = async (id: number): Promise<void> => {
+export const DeleteFullScope = async (id: number): Promise<void> => {
   try {
-    await DeleteFullScope(id);
+    await DeleteFullScopeAPI(id);
 
     UseGlobalStore.setState((state) => ({
-      fullScope: state.fullScope.filter((fs: FullScopeModelType) => fs.id !== id),
+      FullScope: state.FullScope.filter((fs: FullScopeModelType) => fs.id !== id),
     }));
   } catch (error) {
     console.error("Error deleting full scope:", error);

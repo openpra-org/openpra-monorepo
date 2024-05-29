@@ -91,7 +91,7 @@ function MenuSideNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("/internal-events");
+              navigate("operating-state-analysis");
             },
           },
           1,
@@ -107,7 +107,7 @@ function MenuSideNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("/internal-hazards");
+              navigate("internal-hazards");
             },
           },
           1,
@@ -124,7 +124,7 @@ function MenuSideNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("/external-hazards");
+              navigate("operating-state-analysis");
             },
           },
           1,
@@ -151,7 +151,7 @@ function MenuSideNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("/full-scope");
+              navigate("initiating-events");
             },
           },
           1,
@@ -167,7 +167,7 @@ function MenuSideNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("/data-analysis");
+              navigate("initiating-events-model-view");
             },
           },
           1,
@@ -194,7 +194,7 @@ function MenuSideNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("/physical-security");
+              navigate("event-sequence-analysis");
             },
           },
           1,
@@ -210,7 +210,7 @@ function MenuSideNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("/cybersecurity");
+              navigate("event-sequence-diagrams");
             },
           },
           1,
@@ -225,7 +225,7 @@ function MenuSideNav(props: ScopedNavProps): JSX.Element {
       {
         icon: <EuiIcon type="gear" />,
         callback: () => {
-          navigate("/settings");
+          navigate("settings");
         },
       },
       0,

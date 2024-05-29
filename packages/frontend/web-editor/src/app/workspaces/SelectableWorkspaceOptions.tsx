@@ -102,4 +102,16 @@ export const SelectableWorkspaceOptions: EuiSelectableOption<WorkspaceOption>[] 
     ),
     // ...(window.location.pathname.split('/')[1] === 'cybersecurity' && {checked: 'on'}),
   },
+  {
+    label: "Menu",
+    key: "menu",
+    prepend: (
+      <EuiAvatar
+        type="space"
+        name="Main Menu"
+        size="s"
+      />
+    ),
+    // ...(window.location.pathname.split('/')[1] === 'cybersecurity' && {checked: 'on'}),
+  },
 ];

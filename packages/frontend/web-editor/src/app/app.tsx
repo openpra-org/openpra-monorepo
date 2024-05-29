@@ -7,6 +7,7 @@ import { InternalHazardsPage } from "./pages/routingPages/internalHazardsPage";
 import { ExternalHazardsPage } from "./pages/routingPages/externalHazardsPage";
 import { RootContainer } from "./pages/rootContainer";
 import { DataPage } from "./pages/routingPages/dataAnalysisPage";
+import {MenuPage} from "./pages/routingPages/mainMenuPage";
 import { FullScopePage } from "./pages/routingPages/fullScope";
 import { LoginPage } from "./pages/LandingPage";
 import { SettingsPage } from "./pages/routingPages/settingsPage";
@@ -55,6 +56,10 @@ const routes: RouteObject[] = [
           {
             path: "data-analysis/*",
             element: <DataPage />,
+          },
+          {
+            path: "menu/*",
+            element: <MenuPage />,
           },
           {
             path: "physical-security/*",

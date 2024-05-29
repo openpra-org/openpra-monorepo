@@ -2,7 +2,7 @@ import {
   GetInitiatingEvents,
   PostInitiatingEvent,
   PatchInitiatingEventLabel,
-  DeleteInitiatingEvent as DeleteInitiatingEventApi,
+  DeleteInitiatingEvent as DeleteInitiatingEventAPI,
 } from "shared-types/src/lib/api/NestedModelApiManager";
 import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { produce } from "immer";
@@ -63,7 +63,7 @@ export const EditInitiatingEvent = async (modelId: string, data: Partial<NestedM
 export const DeleteInitiatingEvent = async (id: string): Promise<void> => {
   try {
     const typedModelName: keyof StoreStateType = GetTypedModelName();
-    await DeleteInitiatingEventApi(id, typedModelName);
+    await DeleteInitiatingEventAPI(id, typedModelName);
 
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {

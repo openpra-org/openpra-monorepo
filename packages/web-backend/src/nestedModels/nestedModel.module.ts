@@ -43,6 +43,7 @@ import { EventSequenceAnalysis, EventSequenceAnalysisSchema } from "./schemas/ev
 import { OperatingStateAnalysis, OperatingStateAnalysisSchema } from "./schemas/operatingStateAnalysis.schema";
 import { NestedModelHelperService } from "./nested-model-helper.service";
 import { InitiatingEventsService } from "./NestedModelsHelpers/initiating-events.service";
+import { EventSequenceDiagramService } from "./NestedModelsHelpers/event-sequence-diagram.service";
 
 @Module({
   imports: [
@@ -94,7 +95,13 @@ import { InitiatingEventsService } from "./NestedModelsHelpers/initiating-events
     ]),
   ],
   controllers: [NestedModelController],
-  providers: [NestedModelService, GraphModelService, InitiatingEventsService, NestedModelHelperService],
-  exports: [NestedModelService, InitiatingEventsService, NestedModelHelperService],
+  providers: [
+    NestedModelService,
+    GraphModelService,
+    InitiatingEventsService,
+    NestedModelHelperService,
+    EventSequenceDiagramService,
+  ],
+  exports: [NestedModelService, InitiatingEventsService, NestedModelHelperService, EventSequenceDiagramService],
 })
 export class NestedModelModule {}

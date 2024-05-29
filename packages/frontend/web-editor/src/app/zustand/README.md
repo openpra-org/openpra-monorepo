@@ -13,8 +13,6 @@ This file outlines the steps to create a state for any particular part of the ap
   - [Updating the store](#updating-the-store)
 - [Using the data in the store](#using-the-data-in-the-store)
 - [Creating Nested Models](#creating-nested-models)
-  - [Types for the nested model](#types-for-the-nested-model)
-  - [Actions for the nested model](#actions-for-the-nested-model)
 - [Using Immer Middleware](#using-immer-middleware)
 - [Zustand Dev Tools](#zustand-dev-tools)
 
@@ -189,29 +187,9 @@ const stateValueName = useGlobalStore.use.stateValueName();
 
 ## Creating Nested Models
 
-The nested models contain a number of different model types and so we do not create all the types in a single file. We still use a single slice for the nested models but all the actions and types are separated into their respective files
+For creating different nested models, refer to the README in the folder
 
-### Types for the nested model
-All the typing required for the nested model are placed in different files with the name **[model_name]Type.ts** in the TypesHelpers folder
-> openpra-monorepo/packages/frontend/web-editor/src/app/zustand/NestedModels/TypesHelpers
-
-Once the types are exported from there, they need to be included in the overall nested models slice type and this is done in the **NestedModelsType.tsx** file
-
-```
-export interface NestedModelsType {
-  NestedModels: NestedModelsStateType;
-}
-
-export type NestedModelActionsType = New_Type_You_Created1 & New_Type_You_Created2;
-```
-
-### Actions for the nested model
-Similar to types for individual models, all the actions required for the nested model are placed in different files with the name **[model_name]Actions.ts** in the ActionHelpers folder
-> openpra-monorepo/packages/frontend/web-editor/src/app/zustand/NestedModels/ActionHelpers
-
-Once the types are exported from there, they need to be included in the overall nested models slice action **NestedModelsActions.tsx**  file from which they can be used anywhere
-
-> openpra-monorepo/packages/frontend/web-editor/src/app/zustand/NestedModels/NestedModelsActions.tsx
+> openpra-monorepo/packages/frontend/web-editor/src/app/zustand/NestedModels
 
 ## Using Immer Middleware
 The setState function in zustand will be able to update the state on the first level of the state object. For nested state update, we have to use the spread (...) operator. But this can get messy quickly. So we use **Immer** middleware to perform nested state updates.

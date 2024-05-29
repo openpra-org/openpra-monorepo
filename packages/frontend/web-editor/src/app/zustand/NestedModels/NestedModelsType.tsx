@@ -1,5 +1,6 @@
 import { NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { InitiatingEventsType } from "./TypesHelpers/InitiatingEventsType";
+import { EventSequenceDiagramsType } from "./TypesHelpers/EventSequenceDiagramsType";
 
 export interface NestedModelsStateType {
   parentId: string;
@@ -11,7 +12,7 @@ export interface NestedModelsStateType {
   };
   EventSequenceAnalysis: {
     EventSequenceAnalysisList: string[];
-    EventSequenceDiagrams: string[];
+    EventSequenceDiagrams: NestedModelType[];
     EventTrees: string[];
   };
   SuccessCriteriaDevelopment: {
@@ -57,4 +58,4 @@ export interface NestedModelsType {
   NestedModels: NestedModelsStateType;
 }
 
-export type NestedModelActionsType = InitiatingEventsType;
+export type NestedModelActionsType = InitiatingEventsType & EventSequenceDiagramsType;

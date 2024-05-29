@@ -4,9 +4,13 @@ import { SliceResetFns, StoreActionType, StoreStateType } from "../Store";
 import { NestedModelsState } from "./NestedModelsState";
 import { NestedModelActionsType, NestedModelsType } from "./NestedModelsType";
 import {
+  AddEventSequenceDiagram,
   AddInitiatingEvent,
+  DeleteEventSequenceDiagram,
   DeleteInitiatingEvent,
+  EditEventSequenceDiagram,
   EditInitiatingEvent,
+  SetEventSequenceDiagrams,
   SetInitiatingEvents,
 } from "./NestedModelsActions";
 
@@ -21,10 +25,18 @@ const NestedModelsSlice: StateCreator<
   });
   return {
     NestedModels: NestedModelsState.NestedModels,
+
+    // Initiating Events
     SetInitiatingEvents: SetInitiatingEvents,
     AddInitiatingEvent: AddInitiatingEvent,
     EditInitiatingEvent: EditInitiatingEvent,
     DeleteInitiatingEvent: DeleteInitiatingEvent,
+
+    // Event Sequence Diagrams
+    SetEventSequenceDiagrams: SetEventSequenceDiagrams,
+    AddEventSequenceDiagram: AddEventSequenceDiagram,
+    EditEventSequenceDiagram: EditEventSequenceDiagram,
+    DeleteEventSequenceDiagram: DeleteEventSequenceDiagram,
   };
 });
 

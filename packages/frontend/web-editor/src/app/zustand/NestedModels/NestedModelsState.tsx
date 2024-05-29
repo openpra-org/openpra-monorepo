@@ -10,7 +10,7 @@ export const NestedModelsState = {
     },
     EventSequenceAnalysis: {
       EventSequenceAnalysisList: [] as string[],
-      EventSequenceDiagrams: [] as string[],
+      EventSequenceDiagrams: [] as NestedModelType[],
       EventTrees: [] as string[],
     },
     SuccessCriteriaDevelopment: {

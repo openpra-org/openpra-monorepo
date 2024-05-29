@@ -4,7 +4,6 @@ import {
   PostBayesianNetwork,
   PostDataAnalysis,
   PostEventSequenceAnalysis,
-  PostEventSequenceDiagram,
   PostEventSequenceQuantificationDiagram,
   PostEventTree,
   PostFaultTree,
@@ -182,10 +181,11 @@ export function CreateBayesianEstimationButton(): JSX.Element {
 }
 
 export function CreateEventSequenceDiagramButton(): JSX.Element {
+  const AddEventSequenceDiagram = UseGlobalStore.use.AddEventSequenceDiagram();
   return (
     <CreateNestedItemButton
       itemName="event-sequence-diagram"
-      postEndpoint={PostEventSequenceDiagram}
+      postNestedEndpoint={AddEventSequenceDiagram}
     />
   );
 }

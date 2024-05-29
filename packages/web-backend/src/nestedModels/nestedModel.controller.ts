@@ -24,12 +24,14 @@ import { RadiologicalConsequenceAnalysis } from "./schemas/radiological-conseque
 import { RiskIntegration } from "./schemas/risk-integration.schema";
 import { TypedModelType } from "./nested-model-helper.service";
 import { InitiatingEventsService } from "./NestedModelsHelpers/initiating-events.service";
+import { EventSequenceDiagramService } from "./NestedModelsHelpers/event-sequence-diagram.service";
 
 @Controller()
 export class NestedModelController {
   constructor(
     private readonly nestedModelService: NestedModelService,
     private readonly initiatingEventsService: InitiatingEventsService,
+    private readonly eventSequenceDiagramService: EventSequenceDiagramService,
   ) {}
 
   //method to get counter value
@@ -65,13 +67,17 @@ export class NestedModelController {
 
   /**
    * posts the nested model defined in the method name
+   * @param body is the entire body of the post request
    * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
    * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
+   * @param typedModel is the typed model to be updated
    * @returns a promise with the newly created model, with the general nested model fields
    */
   @Post("/event-sequence-diagrams/")
-  async createEventSequenceDiagram(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
-    return this.nestedModelService.createEventSequenceDiagram(data);
+  async createEventSequenceDiagram(
+    @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType },
+  ): Promise<NestedModel> {
+    return this.eventSequenceDiagramService.createEventSequenceDiagram(body.data, body.typedModel);
   }
 
   /**
@@ -245,8 +251,12 @@ export class NestedModelController {
    * @returns a promise with a list of the model typed defined
    */
   @Get("/event-sequence-diagrams/")
-  async getEventSequenceDiagrams(@Query("id") id: number): Promise<EventSequenceDiagram[]> {
-    return this.nestedModelService.getEventSequenceDiagrams(id);
+  async getEventSequenceDiagrams(@Query("id") id: number | string): Promise<EventSequenceDiagram[]> {
+    if (typeof id === "number") {
+      return this.eventSequenceDiagramService.getEventSequenceDiagrams(id);
+    } else {
+      return this.eventSequenceDiagramService.getEventSequenceDiagramsString(id);
+    }
   }
 
   /**
@@ -411,8 +421,12 @@ export class NestedModelController {
    * @returns a promise with the model with the given id
    */
   @Get("/event-sequence-diagrams/:id")
-  async getSingleEventSequenceDiagram(@Param("id") modelId: number): Promise<EventSequenceDiagram> {
-    return this.nestedModelService.getSingleEventSequenceDiagram(modelId);
+  async getSingleEventSequenceDiagram(@Param("id") modelId: number | string): Promise<EventSequenceDiagram> {
+    if (typeof modelId === "number") {
+      return this.eventSequenceDiagramService.getSingleEventSequenceDiagram(modelId);
+    } else {
+      return this.eventSequenceDiagramService.getSingleEventSequenceDiagramString(modelId);
+    }
   }
 
   /**
@@ -579,11 +593,12 @@ export class NestedModelController {
   /**
    * deletes a single nested model from the collection of that typed based on an id
    * @param id the id of the model to be deleted
+   * @param typedModel is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
    */
   @Delete("/event-sequence-diagrams/")
-  async deleteEventSequenceDiagram(@Query("id") id: number): Promise<EventSequenceDiagram> {
-    return this.nestedModelService.deleteEventSequenceDiagram(id);
+  async deleteEventSequenceDiagram(@Query("id") id: string, @Query("type") typedModel: TypedModelType): Promise<void> {
+    await this.eventSequenceDiagramService.deleteEventSequenceDiagram(id, typedModel);
   }
 
   /**
@@ -746,8 +761,8 @@ export class NestedModelController {
    * @returns the updated model
    */
   @Patch("/event-sequence-diagrams/:id")
-  async updateEventSequenceDiagramLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
-    return this.nestedModelService.updateEventSequenceDiagramLabel(id, data);
+  async updateEventSequenceDiagramLabel(@Param("id") id: string, @Body() data: Label): Promise<NestedModel> {
+    return this.eventSequenceDiagramService.updateEventSequenceDiagramLabel(id, data);
   }
 
   /**

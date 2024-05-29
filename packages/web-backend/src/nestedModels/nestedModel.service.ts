@@ -145,22 +145,6 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createEventSequenceDiagram(body: Partial<NestedModel>): Promise<NestedModel> {
-    const newEventSequenceDiagram = new this.eventSequenceDiagramModel(body);
-    const eventSequenceId: number = await this.getNextValue("nestedCounter");
-    newEventSequenceDiagram.id = eventSequenceId;
-    await this.graphModelService.saveEventSequenceDiagramGraph({
-      eventSequenceId: eventSequenceId.toString(),
-    });
-    return newEventSequenceDiagram.save();
-  }
-
-  /**
-   * creates the type of nested model defined in the function name
-   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
-   * and a label object with a name string and optional description string
-   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
-   */
   async createEventTree(body: Partial<NestedModel>): Promise<NestedModel> {
     const newEventTree = new this.eventTreeModel(body);
     newEventTree.id = await this.getNextValue("nestedCounter");
@@ -376,16 +360,6 @@ export class NestedModelService {
    * @param parentId id of the parent model the nested model is number
    * @returns a promise with an array of the nested model of the type in the function name
    */
-  async getEventSequenceDiagrams(parentId: number): Promise<EventSequenceDiagram[]> {
-    //typecast to a number because for some reason, it isn't a number????
-    return this.eventSequenceDiagramModel.find({ parentIds: Number(parentId) }, { _id: 0 });
-  }
-
-  /**
-   * gets the collection of the nested model as defined by the function name (bayesian estimations, etc.)
-   * @param parentId id of the parent model the nested model is number
-   * @returns a promise with an array of the nested model of the type in the function name
-   */
   async getEventTrees(parentId: number): Promise<EventTree[]> {
     //typecast to a number because for some reason, it isn't a number????
 
@@ -577,15 +551,6 @@ export class NestedModelService {
    * @param modelId the id of the model to be retrieved
    * @returns the model which has the associated id
    */
-  async getSingleEventSequenceDiagram(modelId: number): Promise<EventSequenceDiagram> {
-    return this.eventSequenceDiagramModel.findOne({ id: modelId }, { _id: 0 });
-  }
-
-  /**
-   * gets a single model from the collection based on the id
-   * @param modelId the id of the model to be retrieved
-   * @returns the model which has the associated id
-   */
   async getSingleEventTree(modelId: number): Promise<EventTree> {
     return this.eventTreeModel.findOne({ id: modelId }, { _id: 0 });
   }
@@ -743,15 +708,6 @@ export class NestedModelService {
    */
   async deleteBayesianNetwork(modelId: number): Promise<BayesianNetwork> {
     return this.bayesianNetworkModel.findOneAndDelete({ id: modelId });
-  }
-
-  /**
-   * finds and deletes the nested model in this collection with the give model id
-   * @param modelId the id of the model we want to delete
-   * @returns a promise with the deleted model
-   */
-  async deleteEventSequenceDiagram(modelId: number): Promise<EventSequenceDiagram> {
-    return this.eventSequenceDiagramModel.findOneAndDelete({ id: modelId });
   }
 
   /**
@@ -940,16 +896,6 @@ export class NestedModelService {
    */
   async updateBayesianNetworkLabel(id: number, body: Label): Promise<NestedModel> {
     return this.bayesianNetworkModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
-  }
-
-  /**
-   * updates the label in the nested model
-   * @param id the id of the nested model to be updated
-   * @param body a label with a name and description
-   * @returns a promise with the updated model with an updated label
-   */
-  async updateEventSequenceDiagramLabel(id: number, body: Label): Promise<NestedModel> {
-    return this.eventSequenceDiagramModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**

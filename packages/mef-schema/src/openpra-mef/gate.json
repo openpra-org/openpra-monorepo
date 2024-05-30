@@ -31,7 +31,7 @@
           "type": "array",
           "description": "Set of basic event arguments.",
           "items": {
-            "$ref": "./event.json"
+            "$ref": "./basic-event.json"
           },
           "uniqueItems": true
         },
@@ -39,7 +39,7 @@
           "type": "array",
           "description": "Set of house event arguments.",
           "items": {
-            "$ref": "./event.json"
+            "$ref": "./house-event.json"
           },
           "uniqueItems": true
         },

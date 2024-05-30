@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema#",
+  "$id": "https://openpra.org/schema/v1/openpra-mef/point-estimate.json",
+  "title": "Point Estimate Schema",
+  "description": "Representation of a decimal point number used for probabilities, restricted to the range (0, 1).",
+  "type": "number",
+  "exclusiveMinimum": 0,
+  "exclusiveMaximum": 1,
+  "examples": [
+    0.0,
+    0.9779,
+    1.39e-3,
+    2.03849e-1,
+    1
+  ]
+}

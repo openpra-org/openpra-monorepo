@@ -17,11 +17,11 @@ export type GateSchema = EventSchema & {
   /**
    * Set of basic event arguments.
    */
-  bArguments?: EventSchema[];
+  bArguments?: BasicEventSchema[];
   /**
    * Set of house event arguments.
    */
-  hArguments?: EventSchema[];
+  hArguments?: HouseEventSchema[];
   /**
    * Set of undefined event arguments.
    */
@@ -35,6 +35,25 @@ export type TypeCodeSchema = string;
  * A Unique Universal Identifier representation
  */
 export type UUIDSchema = string;
+/**
+ * Representation of a basic event in a fault tree, which includes a probability estimate.
+ */
+export type BasicEventSchema = EventSchema & {
+  probability: PointEstimateSchema;
+};
+/**
+ * Probability of the basic event occurring, must be between 0 and 1 exclusive.
+ */
+export type PointEstimateSchema = number;
+/**
+ * Representation of a house event in a fault tree, which contains is a boolean flag
+ */
+export type HouseEventSchema = EventSchema & {
+  /**
+   * The flag is either set or unset (true/false).
+   */
+  flag: boolean;
+};
 
 /**
  * Representation of a base class for an event in a fault tree.

@@ -2,6 +2,7 @@ import { GateSchema } from "shared-types/src/openpra-mef/gate";
 import { UUIDSchema } from "shared-types/src/openpra-mef/identifier/uuid";
 import { TypeCodeSchema } from "shared-types/src/openpra-mef/identifier/typecode";
 import { Event } from "./Event";
+import { BasicEvent } from "./BasicEvent";
 
 /**
  * @public Represents a logical gate within a system model.
@@ -15,8 +16,8 @@ export class Gate extends Event implements GateSchema {
   operator: "and" | "or" | "atleast" | "not" | "xor" | "nor" | "xnor" | "nand" | "imply";
   kNum?: number;
   private _gArguments: Set<Gate>;
-  private _bArguments: Set<Event>;
-  private _hArguments: Set<Event>;
+  private _bArguments: Set<BasicEvent>;
+  private _hArguments: Set<HouseEvent>;
   private _uArguments: Set<Event>;
 
   constructor(
@@ -36,17 +37,17 @@ export class Gate extends Event implements GateSchema {
     this.operator = operator;
     this.kNum = kNum;
     this._gArguments = new Set<Gate>(gArguments);
-    this._bArguments = new Set<Event>(bArguments);
+    this._bArguments = new Set<BasicEvent>(bArguments);
     this._hArguments = new Set<Event>(hArguments);
     this._uArguments = new Set<Event>(uArguments);
   }
 
-  get bArguments(): Event[] {
+  get bArguments(): BasicEvent[] {
     return Array.from(this._bArguments);
   }
 
   set bArguments(toSet) {
-    this._bArguments = new Set<Event>(toSet);
+    this._bArguments = new Set<BasicEvent>(toSet);
   }
 
   get gArguments(): Gate[] {

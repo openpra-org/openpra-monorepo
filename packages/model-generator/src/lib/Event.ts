@@ -1,25 +1,36 @@
 import { EventSchema } from "shared-types/src/openpra-mef/event";
+import { TypeCodeSchema } from "shared-types/src/openpra-mef/identifier/typecode";
+import { UUIDSchema } from "shared-types/src/openpra-mef/identifier/uuid";
 /**
  * @public Representation of a base class for an event in a fault tree. This class provides methods to manage and query
  * the parents of an event.
  */
 export class Event implements EventSchema {
   name: string;
-  private _parents: Set<Event>;
+  private _parents: Set<Event> = new Set<Event>();
+
+  typecode?: TypeCodeSchema;
+  uuid?: UUIDSchema;
 
   /**
-   * @remarks Constructs a new node with a unique name. Note that the tracking of parents introduces a cyclic reference.
+   * @remarks Constructs a new node with a unique name.
    * @param name - Identifier for the node.
+   * @param parents - Parents of the event.
+   * @param uuid - Unique identifier for this event
    */
-  constructor(name: string) {
+  constructor(name: string, parents: Event[] = [], uuid?: UUIDSchema) {
     this.name = name;
-    this._parents = new Set<Event>();
+    this.parents = parents;
+    this.uuid = uuid;
   }
+
+  constructor(json: EventSchema) {}
 
   get parents(): Event[] {
     return Array.from(this._parents);
   }
 
+  @Serializable
   set parents(toSet) {
     this._parents = new Set<Event>(toSet);
   }

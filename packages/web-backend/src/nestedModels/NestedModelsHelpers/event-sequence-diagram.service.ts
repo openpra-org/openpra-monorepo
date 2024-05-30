@@ -6,6 +6,7 @@ import { NestedModelHelperService, TypedModelType } from "../nested-model-helper
 import { NestedModelService } from "../nestedModel.service";
 import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
+import { GraphModelService } from "../../graphModels/graphModel.service";
 
 @Injectable()
 export class EventSequenceDiagramService {
@@ -14,6 +15,7 @@ export class EventSequenceDiagramService {
     private readonly eventSequenceDiagramModel: Model<EventSequenceDiagramDocument>,
     private readonly nestedModelService: NestedModelService,
     private readonly nestedModelHelperService: NestedModelHelperService,
+    private readonly graphModelService: GraphModelService,
   ) {}
 
   /**
@@ -53,6 +55,11 @@ export class EventSequenceDiagramService {
     const newEventSequenceDiagram = new this.eventSequenceDiagramModel(body);
     newEventSequenceDiagram.id = await this.nestedModelService.getNextValue("nestedCounter");
     await newEventSequenceDiagram.save();
+
+    await this.graphModelService.saveEventSequenceDiagramGraph({
+      eventSequenceId: newEventSequenceDiagram._id as string,
+    });
+
     for (const pId of newEventSequenceDiagram.parentIds) {
       await this.nestedModelHelperService.AddNestedModelToTypedModel(
         typedModel,

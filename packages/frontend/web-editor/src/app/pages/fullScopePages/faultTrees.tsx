@@ -12,17 +12,18 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactFlow, {
   Background,
-  Connection,
   Edge,
   EdgeChange,
+  FitViewOptions,
   Node,
   NodeChange,
+  Panel,
   ProOptions,
   ReactFlowProvider,
 } from "reactflow";
 
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { EuiGlobalToastList, EuiPopover, EuiSkeletonRectangle, useGeneratedHtmlId } from "@elastic/eui";
+import { EuiButtonIcon, EuiFlexGroup, EuiFlexItem, EuiPopover, EuiSkeletonRectangle } from "@elastic/eui";
 import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { Route, Routes, useParams } from "react-router-dom";
 import { shallow } from "zustand/shallow";
@@ -37,23 +38,19 @@ import {
   FaultTreeNodeContextMenu,
   TreeNodeContextMenuProps,
 } from "../../components/context_menu/faultTreeNodeContextMenu";
-import { GenerateUUID } from "../../../utils/treeUtils";
+import { exitGrayedState, GenerateUUID, isSubgraphGrayed } from "../../../utils/treeUtils";
 import { allToasts, initialEdges, initialNodes } from "../../../utils/faultTreeData";
 import { RFState, useStore } from "../../store/faultTreeStore";
+import { useUndoRedo } from "../../hooks/faultTree/useUndeRedo";
+import { EDITOR_REDO, EDITOR_UNDO, SMALL } from "../../../utils/constants";
+import Minimap from "../../components/minimap/minimap";
+import { UseToastContext } from "../../providers/toastProvider";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
-const fitViewOptions = {
+const fitViewOptions: FitViewOptions = {
   padding: 0.95,
 };
-
-interface Toast {
-  id: string;
-  title: string;
-  color: "warning" | "success" | "primary" | "danger" | undefined;
-  iconType: string;
-  type: string;
-}
 
 const selector = (
   state: RFState,
@@ -62,7 +59,6 @@ const selector = (
   edges: Edge[];
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
-  onConnect: (connection: Connection) => void;
   setNodes: (nodes: Node[]) => void;
   setEdges: (edges: Edge[]) => void;
 } => ({
@@ -70,7 +66,6 @@ const selector = (
   edges: state.edges,
   onNodesChange: state.onNodesChange,
   onEdgesChange: state.onEdgesChange,
-  onConnect: state.onConnect,
   setNodes: state.setNodes,
   setEdges: state.setEdges,
 });
@@ -80,13 +75,12 @@ function ReactFlowPro(): JSX.Element {
   UseLayout();
   const [menu, setMenu] = useState<TreeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
-  const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
-
+  const { undo, redo, canUndo, canRedo } = useUndoRedo();
   const { nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges } = useStore(selector, shallow);
   const [isLoading, setIsLoading] = useState(true);
   const { faultTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
-  const [toasts, setToasts] = useState<Toast[]>([]);
+  const { addToast } = UseToastContext();
 
   useEffect(() => {
     const loadGraph = async (): Promise<void> => {
@@ -98,12 +92,20 @@ function ReactFlowPro(): JSX.Element {
       });
     };
     void (isLoading && loadGraph());
-  }, [faultTreeId, isLoading, nodes, toasts]);
+  }, [faultTreeId, isLoading, nodes, setEdges, setNodes]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
       // Prevent native context menu from showing
       event.preventDefault();
+
+      //exit grayed state if present
+      if (isSubgraphGrayed(nodes, edges)) {
+        const { newNodes, newEdges } = exitGrayedState(nodes, edges);
+        setNodes(newNodes);
+        setEdges(newEdges);
+      }
+
       // Calculate position of the context menu. We want to make sure it
       // doesn't get positioned off-screen.
       setIsOpen(!isOpen);
@@ -116,27 +118,27 @@ function ReactFlowPro(): JSX.Element {
         bottom: event.clientY >= pane.height - 200 && pane.height - event.clientY - 800,
       });
     },
-    [setMenu, isOpen],
+    [nodes, edges, isOpen, setNodes, setEdges],
   );
 
   // Close the context menu if it's open whenever the window is clicked.
   const onPaneClick = useCallback(() => {
+    closePopover();
+    if (isSubgraphGrayed(nodes, edges)) {
+      const { newNodes, newEdges } = exitGrayedState(nodes, edges);
+      setNodes(newNodes);
+      setEdges(newEdges);
+    }
+  }, [edges, nodes, setEdges, setNodes]);
+
+  const closePopover = (): void => {
     setMenu(null);
     setIsOpen(false);
-  }, [setMenu]);
-
-  const removeToast = (): void => {
-    setToasts([]);
   };
 
   const addToastHandler = (type: string): void => {
     const toast = allToasts.filter((toast) => toast.type === type)[0];
-    setToasts([
-      {
-        id: GenerateUUID(),
-        ...toast,
-      },
-    ]);
+    addToast({ id: GenerateUUID(), ...toast });
   };
 
   return isLoading ? (
@@ -146,57 +148,80 @@ function ReactFlowPro(): JSX.Element {
       height={500}
     ></EuiSkeletonRectangle>
   ) : (
-    <>
-      <ReactFlow
-        ref={ref}
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        proOptions={proOptions}
-        fitView
-        nodeTypes={FaultTreeNodeTypes}
-        edgeTypes={EdgeTypes}
-        fitViewOptions={fitViewOptions}
-        onPaneClick={onPaneClick}
-        onNodeContextMenu={onNodeContextMenu}
-        minZoom={1.2}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        zoomOnDoubleClick={false}
-        // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
-        // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
-        // deleteKeyCode={"Delete"}
-      >
-        <Background />
-        <EuiPopover
-          id={headerAppPopoverId}
-          button={""}
-          isOpen={isOpen}
-          anchorPosition="downRight"
-          style={{
-            top: typeof menu?.top === "number" ? menu.top : undefined,
-            left: typeof menu?.left === "number" ? menu.left : undefined,
-            bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
-            right: typeof menu?.right === "number" ? menu.right : undefined,
-          }}
-          closePopover={onPaneClick}
+    <ReactFlow
+      ref={ref}
+      nodes={nodes}
+      edges={edges}
+      onNodesChange={onNodesChange}
+      onEdgesChange={onEdgesChange}
+      proOptions={proOptions}
+      fitView
+      nodeTypes={FaultTreeNodeTypes}
+      edgeTypes={EdgeTypes}
+      fitViewOptions={fitViewOptions}
+      onPaneClick={onPaneClick}
+      onNodeContextMenu={onNodeContextMenu}
+      minZoom={1.2}
+      nodesDraggable={false}
+      nodesConnectable={false}
+      zoomOnDoubleClick={false}
+      // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
+      // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
+      // deleteKeyCode={"Delete"}
+    >
+      <Background />
+      <Minimap />
+      <Panel position="bottom-left">
+        <EuiFlexGroup
+          responsive={false}
+          gutterSize={SMALL}
+          alignItems="center"
         >
-          {menu && (
-            <FaultTreeNodeContextMenu
-              onClick={onPaneClick}
-              addToastHandler={addToastHandler}
-              {...menu}
+          <EuiFlexItem
+            grow={false}
+            onClick={undo}
+          >
+            <EuiButtonIcon
+              isDisabled={canUndo}
+              iconType={EDITOR_UNDO}
+              display={"base"}
+              aria-label="undo"
             />
-          )}
-        </EuiPopover>
-      </ReactFlow>
-      <EuiGlobalToastList
-        toasts={toasts}
-        dismissToast={removeToast}
-        toastLifeTimeMs={3000}
-      />
-    </>
+          </EuiFlexItem>
+          <EuiFlexItem
+            grow={false}
+            onClick={redo}
+          >
+            <EuiButtonIcon
+              isDisabled={canRedo}
+              iconType={EDITOR_REDO}
+              display={"base"}
+              aria-label="redo"
+            />
+          </EuiFlexItem>
+        </EuiFlexGroup>
+      </Panel>
+      <EuiPopover
+        button={""}
+        isOpen={isOpen}
+        anchorPosition="downRight"
+        style={{
+          top: typeof menu?.top === "number" ? menu.top : undefined,
+          left: typeof menu?.left === "number" ? menu.left : undefined,
+          bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
+          right: typeof menu?.right === "number" ? menu.right : undefined,
+        }}
+        closePopover={closePopover}
+      >
+        {menu && (
+          <FaultTreeNodeContextMenu
+            onClick={closePopover}
+            addToastHandler={addToastHandler}
+            {...menu}
+          />
+        )}
+      </EuiPopover>
+    </ReactFlow>
   );
 }
 

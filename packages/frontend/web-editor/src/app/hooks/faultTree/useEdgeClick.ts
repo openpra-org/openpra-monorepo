@@ -2,9 +2,11 @@ import { Node, EdgeProps, useReactFlow, Edge } from "reactflow";
 
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
-import { FaultTreeState, GenerateUUID } from "../../../utils/treeUtils";
+import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { exitGrayedState, FaultTreeState, GenerateUUID, isSubgraphGrayed } from "../../../utils/treeUtils";
 import { NOT_GATE, WORKFLOW } from "../../../utils/constants";
 import { useStore } from "../../store/faultTreeStore";
+import { useUndoRedo } from "./useUndeRedo";
 
 /**
  * Hook for handling click events on edges in a React Flow diagram.
@@ -13,7 +15,7 @@ import { useStore } from "../../store/faultTreeStore";
  * It utilizes the React Flow library for managing nodes and edges in a flowchart-like UI.
  *
  * @param id - The unique identifier of the clicked edge.
- * @returns A function (`handleEdgeClick`) to be used as an event handler for edge click events.
+ * @returns \{Function\} A function (`handleEdgeClick`) to be used as an event handler for edge click events.
  *
  * @example
  * ```typescript
@@ -21,10 +23,16 @@ import { useStore } from "../../store/faultTreeStore";
  * <Edge onClick={handleEdgeClick} />;
  * ```
  */
-function UseEdgeClick(id: EdgeProps["id"]) {
-  const { nodes, edges, setEdges, setNodes } = useStore();
+function UseEdgeClick(id: EdgeProps["id"]): () => void {
+  let { nodes, edges } = useStore();
+  const { setNodes, setEdges, setFocusNodeId } = useStore();
+  if (isSubgraphGrayed(nodes, edges)) {
+    const { newNodes, newEdges } = exitGrayedState(nodes, edges);
+    nodes = newNodes;
+    edges = newEdges;
+  }
   const { getNode, getEdge } = useReactFlow();
-
+  const { takeSnapshot } = useUndoRedo();
   const { faultTreeId } = useParams();
 
   const handleEdgeClick = (): void => {
@@ -75,6 +83,9 @@ function UseEdgeClick(id: EdgeProps["id"]) {
       type: WORKFLOW,
     };
 
+    //take snapshot for undo redo
+    takeSnapshot();
+
     // remove the edge that was clicked as we have a new connection with a node in between
     const newEdges = edges.filter((e: Edge) => e.id !== id).concat([sourceEdge, targetEdge]);
     setEdges(newEdges);
@@ -89,14 +100,18 @@ function UseEdgeClick(id: EdgeProps["id"]) {
     ];
     setNodes(newNodes);
 
+    //set focus
+    setFocusNodeId(insertNodeId);
+
+    // fitView({ nodes: [{ id: insertNode.id }], duration: 500, maxZoom: 1.6 });
     void GraphApiManager.storeFaultTree(
       FaultTreeState({
-        faultTreeId: faultTreeId!,
-        nodes: nodes,
-        edges: edges,
+        faultTreeId: faultTreeId ?? "",
+        nodes: newNodes,
+        edges: newEdges,
       }),
-    ).then((r: any) => {
-      console.log(r);
+    ).then((r: FaultTreeGraph) => {
+      // console.log(r);
     });
   };
 

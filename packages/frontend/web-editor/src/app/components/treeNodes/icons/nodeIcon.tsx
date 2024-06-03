@@ -4,8 +4,15 @@ import { INodeProps, NodeTypes } from "./interfaces/nodeProps";
 /**
  * Represents the shape of the node based on the type of node and icon properties
  * @param nodeType - type of node
+ * @param selected - boolean for showing selected state
+ * @param isGrayed - boolean for showing grayed out state
  */
-function getNodeShape(nodeType: NodeTypes): JSX.Element {
+function getNodeShape(
+  nodeType: NodeTypes,
+  selected: boolean | undefined,
+  isGrayed: boolean,
+): JSX.Element {
+  const stroke = isGrayed ? "#bbb" : selected ? "red" : "#0984e3";
   switch (nodeType) {
     case NodeTypes.AndGate:
       return (
@@ -15,7 +22,7 @@ function getNodeShape(nodeType: NodeTypes): JSX.Element {
             fill: "#fff",
             fillOpacity: 1,
             fillRule: "evenodd",
-            stroke: "#0984e3",
+            stroke: stroke,
             strokeWidth: 3,
             strokeLinecap: "butt",
             strokeLinejoin: "round",
@@ -35,7 +42,7 @@ function getNodeShape(nodeType: NodeTypes): JSX.Element {
             fill: "#fff",
             fillOpacity: 1,
             fillRule: "evenodd",
-            stroke: "#0984e3",
+            stroke: stroke,
             strokeWidth: 4.5,
             strokeLinecap: "butt",
             strokeLinejoin: "round",
@@ -56,7 +63,7 @@ function getNodeShape(nodeType: NodeTypes): JSX.Element {
               fill: "#fff",
               fillOpacity: 1,
               fillRule: "evenodd",
-              stroke: "#0984e3",
+              stroke: stroke,
               strokeWidth: 3.5,
               strokeLinecap: "butt",
               strokeLinejoin: "round",
@@ -74,7 +81,7 @@ function getNodeShape(nodeType: NodeTypes): JSX.Element {
               fill: "#fff",
               fillOpacity: 1,
               fillRule: "evenodd",
-              stroke: "#0984e3",
+              stroke: stroke,
               strokeWidth: 3.5,
               strokeLinecap: "round",
               strokeLinejoin: "round",
@@ -97,7 +104,7 @@ function getNodeShape(nodeType: NodeTypes): JSX.Element {
             fill: "#fff",
             fillOpacity: 1,
             fillRule: "evenodd",
-            stroke: "#0984e3",
+            stroke: stroke,
             strokeWidth: 6,
             strokeLinecap: "round",
             strokeLinejoin: "round",
@@ -112,7 +119,7 @@ function getNodeShape(nodeType: NodeTypes): JSX.Element {
       return (
         <path
           fill="#fff"
-          stroke="#0984e3"
+          stroke={`${stroke}`}
           strokeWidth={1.4}
           d="m50 16 35 69H15l35-69z"
         />
@@ -121,7 +128,7 @@ function getNodeShape(nodeType: NodeTypes): JSX.Element {
       return (
         <circle
           style={{
-            stroke: "#0984e3",
+            stroke: stroke,
             strokeWidth: 2.5,
             fill: "white",
           }}
@@ -138,7 +145,7 @@ function getNodeShape(nodeType: NodeTypes): JSX.Element {
             opacity: 1,
             fill: "#fff",
             fillOpacity: 1,
-            stroke: "#0984e3",
+            stroke: stroke,
             strokeWidth: 0.8,
             strokeLinecap: "square",
             strokeLinejoin: "miter",
@@ -159,14 +166,21 @@ function getNodeShape(nodeType: NodeTypes): JSX.Element {
  * Represents the node's icon based on the type of the node
  * @param nodeType - type of node
  * @param iconProps - icon properties
+ * @param selected - boolean for showing selected state
+ * @param isGrayed - boolean for showing grayed out state
  * @returns JSX Element of the node's icon
  */
-export const NodeIcon = ({ nodeType, iconProps }: INodeProps): JSX.Element => (
+export const NodeIcon = ({
+  nodeType,
+  iconProps,
+  selected,
+  isGrayed,
+}: INodeProps): JSX.Element => (
   <svg
     viewBox={iconProps.viewBox}
     width={iconProps.width}
     height={iconProps.height}
   >
-    {getNodeShape(nodeType)}
+    {getNodeShape(nodeType, selected, isGrayed)}
   </svg>
 );

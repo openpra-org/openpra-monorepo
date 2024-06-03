@@ -7,8 +7,11 @@ export const WRENCH = "wrench";
 export const TRASH = "trash";
 export const WARNING = "warning";
 export const IMPORT_ACTION = "importAction";
+export const EDITOR_UNDO = "editorUndo";
+export const EDITOR_REDO = "editorRedo";
 
 // EUI Icon sizes
+export const SMALL = "s";
 export const MEDIUM = "m";
 export const LARGE = "l";
 
@@ -43,3 +46,18 @@ export const NODE_TYPES = "Node type";
 export const DELETE_TYPE = "Delete types";
 export const DELETE_NODE = "Delete node";
 export const DELETE_SUBTREE = "Delete subtree";
+export const SOURCE = "source";
+export const TARGET = "target";
+export const FAULT_TREE_NODE_WIDTH = 250;
+export const FAULT_TREE_NODE_HEIGHT = 165;
+export const FAULT_TREE_NODE_SEPARATION = 0.75;
+export const LEAF_NODE_TYPES: (string | undefined)[] = [
+  BASIC_EVENT,
+  HOUSE_EVENT,
+  TRANSFER_GATE,
+];
+export const LOGICAL_GATES: (string | undefined)[] = [
+  AND_GATE,
+  OR_GATE,
+  ATLEAST_GATE,
+];

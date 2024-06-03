@@ -2,13 +2,19 @@ import { useEffect, useRef } from "react";
 import { useReactFlow, useStore, Node, Edge, ReactFlowState } from "reactflow";
 import { stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
+import {
+  FAULT_TREE_NODE_HEIGHT,
+  FAULT_TREE_NODE_SEPARATION,
+  FAULT_TREE_NODE_WIDTH,
+} from "../../../utils/constants";
+import { useStore as useFaultTreeStore } from "../../store/faultTreeStore";
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
 const layout = tree<Node>()
   // the node size configures the spacing between the nodes ([width, height])
-  .nodeSize([150, 130])
+  .nodeSize([FAULT_TREE_NODE_WIDTH, FAULT_TREE_NODE_HEIGHT])
   // this is needed for creating equal space between all nodes
-  .separation(() => 0.75);
+  .separation(() => FAULT_TREE_NODE_SEPARATION);
 
 const options = { duration: 300 };
 
@@ -37,6 +43,17 @@ function layoutNodes(nodes: Node[], edges: Edge[]): Node[] {
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change
 const nodeCountSelector = (state: ReactFlowState): number => state.nodeInternals.size;
 
+/**
+ * Hook for applying a hierarchical tree layout to nodes in a React Flow diagram.
+ *
+ * This hook utilizes the D3 library for tree layout and React Flow for managing nodes and edges in a flowchart-like UI
+ * It triggers a layout re-calculation whenever the number of nodes changes and animates the nodes to their new positions.
+ *
+ * @remarks
+ * This hook is designed to work with D3's tree layout and is used for hierarchical tree-like structures.
+ * It also includes animation logic to smoothly transition nodes to their new positions.
+ * The hook ensures horizontal layout of the nodes
+ */
 function UseLayout(): void {
   // this ref is used to fit the nodes in the first run
   // after first run, this is set to false
@@ -46,7 +63,9 @@ function UseLayout(): void {
   // whenever the nodes length changes, we calculate the new layout
   const nodeCount = useStore(nodeCountSelector);
 
-  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } = useReactFlow();
+  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } =
+    useReactFlow();
+  const { focusNodeId, resetFocusNodeId } = useFaultTreeStore();
 
   useEffect(() => {
     // get the current nodes and edges
@@ -80,7 +99,7 @@ function UseLayout(): void {
           x: from.x + (to.x - from.x) * s,
           y: from.y + (to.y - from.y) * s,
         },
-        data: { ...node.data },
+        data: { ...(node.data as object) },
         type: node.type,
       }));
 
@@ -96,7 +115,7 @@ function UseLayout(): void {
             x: to.x,
             y: to.y,
           },
-          data: { ...node.data },
+          data: { ...(node.data as object) },
           type: node.type,
         }));
 
@@ -105,10 +124,15 @@ function UseLayout(): void {
         // stop the animation
         t.stop();
 
-        // in the first run, fit the view
-        if (!initial.current) {
-          fitView({ duration: 200, padding: 0.2 });
+        if (focusNodeId !== undefined) {
+          fitView({
+            nodes: [{ id: focusNodeId }],
+            duration: 500,
+            maxZoom: 1.6,
+          });
+          resetFocusNodeId();
         }
+
         initial.current = false;
       }
     });
@@ -116,7 +140,17 @@ function UseLayout(): void {
     return () => {
       t.stop();
     };
-  }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);
+  }, [
+    nodeCount,
+    getEdges,
+    getNodes,
+    getNode,
+    setNodes,
+    fitView,
+    setEdges,
+    focusNodeId,
+    resetFocusNodeId,
+  ]);
 }
 
 export { UseLayout };

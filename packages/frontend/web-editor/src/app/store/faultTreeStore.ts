@@ -1,28 +1,41 @@
 import { create } from "zustand";
 import {
-  Connection,
   Edge,
   EdgeChange,
   Node,
   NodeChange,
-  addEdge,
   OnNodesChange,
   OnEdgesChange,
-  OnConnect,
   applyNodeChanges,
   applyEdgeChanges,
+  NodeProps,
 } from "reactflow";
 import { initialEdges, initialNodes } from "../../utils/faultTreeData";
+import { FaultTreeNodeProps } from "../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 
 export interface RFState {
-  nodes: Node[];
-  edges: Edge[];
+  nodes: Node<FaultTreeNodeProps>[];
+  edges: Edge<FaultTreeNodeProps>[];
+  focusNodeId: NodeProps["id"] | undefined;
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
-  onConnect: OnConnect;
-  setNodes: (nodes: Node[]) => void;
-  setEdges: (edges: Edge[]) => void;
+  setFocusNodeId: (focusNodeId: NodeProps["id"]) => void;
+  resetFocusNodeId: () => void;
+  setNodes: (nodes: Node<FaultTreeNodeProps>[]) => void;
+  setEdges: (edges: Edge<FaultTreeNodeProps>[]) => void;
+  past: HistoryItem[];
+  future: HistoryItem[];
+  setPast: (past: HistoryItem[]) => void;
+  setFuture: (future: HistoryItem[]) => void;
 }
+
+export type HistoryItem =
+  | {
+      nodes: Node[];
+      edges: Edge[];
+    }
+  | undefined;
+
 /**
  * This is our useStore hook that we can use in our components to get parts of the store and call actions
  * @returns - The state and store functions
@@ -31,6 +44,9 @@ export interface RFState {
 const useStore = create<RFState>((set, get) => ({
   nodes: initialNodes,
   edges: initialEdges,
+  past: [],
+  future: [],
+  focusNodeId: undefined,
   onNodesChange: (changes: NodeChange[]): void => {
     set({
       nodes: applyNodeChanges(changes, get().nodes),
@@ -41,16 +57,23 @@ const useStore = create<RFState>((set, get) => ({
       edges: applyEdgeChanges(changes, get().edges),
     });
   },
-  onConnect: (connection: Connection): void => {
-    set({
-      edges: addEdge(connection, get().edges),
-    });
+  setFocusNodeId: (focusNodeId: NodeProps["id"]): void => {
+    set({ focusNodeId });
   },
-  setNodes: (nodes: Node[]): void => {
+  resetFocusNodeId: (): void => {
+    set({ focusNodeId: undefined });
+  },
+  setNodes: (nodes: Node<FaultTreeNodeProps>[]): void => {
     set({ nodes });
   },
-  setEdges: (edges: Edge[]): void => {
+  setEdges: (edges: Edge<FaultTreeNodeProps>[]): void => {
     set({ edges });
+  },
+  setPast: (past: HistoryItem[]): void => {
+    set({ past });
+  },
+  setFuture: (future: HistoryItem[]): void => {
+    set({ future });
   },
 }));
 

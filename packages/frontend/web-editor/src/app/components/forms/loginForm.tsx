@@ -106,7 +106,7 @@ function LoginForm(): JSX.Element {
   if (redirectToHomepage) {
     return (
       <Navigate
-        to="internal-events"
+        to="menu"
         replace={true}
       />
     );

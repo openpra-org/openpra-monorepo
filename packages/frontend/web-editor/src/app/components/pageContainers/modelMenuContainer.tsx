@@ -6,56 +6,68 @@ import { UseGlobalStore } from "../../zustand/Store";
 import { GenericItemList } from "../lists/GenericItemList";
 
 function ModelMenuContainer(): JSX.Element {
-    // State variables
-    const [isLoading, setIsLoading] = useState(true);
-    const [genericListItems, setGenericListItems] = useState<React.ReactElement[]>([]);
+  // State variables
+  const [isLoading, setIsLoading] = useState(true);
+  const [genericListItems, setGenericListItems] = useState<React.ReactElement[]>([]);
 
-    // Global store hooks
-    const internalEventsList = UseGlobalStore.use.InternalEvents();
-    const internalHazardsList = UseGlobalStore.use.InternalHazards();
-    const setInternalEvents = UseGlobalStore.use.SetInternalEvents();
-    const setInternalHazards = UseGlobalStore.use.SetInternalHazards();
+  // Global store hooks
+  const internalEventsList = UseGlobalStore((state) => state.InternalEvents);
+  console.log(internalEventsList);
+  const internalHazardsList = UseGlobalStore((state) => state.InternalHazards);
+  const externalHazardsList = UseGlobalStore((state) => state.ExternalHazards);
+  const fullScopeList = UseGlobalStore((state) => state.FullScope);
 
-    // Effect to set internal hazards and update generic list
-    useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            await setInternalHazards();
-            setIsLoading(false);
-        };
-        fetchData();
-    }, [setInternalHazards]);
+  // Effect to handle loading state and set generic list items
+  useEffect(() => {
+    if (
+      internalEventsList.length === 0 &&
+      internalHazardsList.length === 0 &&
+      externalHazardsList.length === 0 &&
+      fullScopeList.length === 0
+    ) {
+      setIsLoading(true);
+    } else {
+      setIsLoading(false);
+      const combinedList = [
+        ...internalEventsList,
+        ...internalHazardsList,
+        ...externalHazardsList,
+        ...fullScopeList,
+      ];
+      setGenericListItems(
+        CreateGenericList<InternalEventsModelType>({
+          modelList: combinedList,
+          endpoint: "Internal and External Events, Hazards, and Full Scope",
+        })
+      );
+    }
+  }, [
+    internalEventsList,
+    internalHazardsList,
+    externalHazardsList,
+    fullScopeList,
+  ]);
 
-    useEffect(() => {
-        const combinedList = internalEventsList.concat(internalHazardsList);
-        setGenericListItems(
-            CreateGenericList<InternalEventsModelType>({
-                modelList: combinedList,
-                endpoint: "Internal Events and Hazards",
-            })
-        );
-    }, [internalEventsList, internalHazardsList]);
-
-    return (
-        <EuiPageTemplate
-            panelled={false}
-            offset={48}
-            grow={true}
-            restrictWidth={true}
+  return (
+    <EuiPageTemplate
+      panelled={false}
+      offset={48}
+      grow={true}
+      restrictWidth={true}
+    >
+      <EuiPageTemplate.Section>
+        <EuiSkeletonRectangle
+          width="100%"
+          height={490}
+          isLoading={isLoading}
+          contentAriaLabel="Loading internal and external events, hazards, and full scope"
         >
-            <EuiPageTemplate.Section>
-                <EuiSkeletonRectangle
-                    width="100%"
-                    height={490}
-                    isLoading={isLoading}
-                    contentAriaLabel="Loading internal events and hazards"
-                >
-                    <GenericItemList>{genericListItems}</GenericItemList>
-                </EuiSkeletonRectangle>
-                <EuiSpacer size="s" />
-            </EuiPageTemplate.Section>
-        </EuiPageTemplate>
-    );
+          <GenericItemList>{genericListItems}</GenericItemList>
+        </EuiSkeletonRectangle>
+        <EuiSpacer size="s" />
+      </EuiPageTemplate.Section>
+    </EuiPageTemplate>
+  );
 }
 
 export { ModelMenuContainer };

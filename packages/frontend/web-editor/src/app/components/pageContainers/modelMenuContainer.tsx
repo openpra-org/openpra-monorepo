@@ -12,7 +12,6 @@ function ModelMenuContainer(): JSX.Element {
 
   // Global store hooks
   const internalEventsList = UseGlobalStore((state) => state.InternalEvents);
-  console.log(internalEventsList);
   const internalHazardsList = UseGlobalStore((state) => state.InternalHazards);
   const externalHazardsList = UseGlobalStore((state) => state.ExternalHazards);
   const fullScopeList = UseGlobalStore((state) => state.FullScope);

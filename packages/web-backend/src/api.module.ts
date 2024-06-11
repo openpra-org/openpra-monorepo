@@ -1,17 +1,18 @@
-import { APP_PIPE, RouterModule } from "@nestjs/core";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
+import { APP_PIPE, RouterModule } from "@nestjs/core";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ZodValidationPipe } from "nestjs-zod";
-import { AuthModule } from "./auth/auth.module";
-import { CollabModule } from "./collab/collab.module";
-import { TypedModelModule } from "./typedModel/typedModel.module";
-import { NestedModelModule } from "./nestedModels/nestedModel.module";
 import { ApiController } from "./api.controller";
 import { ApiService } from "./api.service";
+import { AuthModule } from "./auth/auth.module";
+import { CollabModule } from "./collab/collab.module";
 import { FmeaModule } from "./fmea/fmea.module";
 import { GraphModelModule } from "./graphModels/graphModel.module";
 import { InviteModule } from "./invite/invite.module";
+import { NestedModelModule } from "./nestedModels/nestedModel.module";
+import { OperatingStateModule } from "./operatingState/operatingState.module"; // Make sure this path matches your file structure
+import { TypedModelModule } from "./typedModel/typedModel.module";
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { InviteModule } from "./invite/invite.module";
     FmeaModule,
     GraphModelModule,
     InviteModule,
+    OperatingStateModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
       isGlobal: true,
@@ -67,6 +69,10 @@ import { InviteModule } from "./invite/invite.module";
           {
             path: "graph-models",
             module: GraphModelModule,
+          },
+          {
+            path: "operating-state-analysis",
+            module: OperatingStateModule,
           },
         ],
       },

@@ -39,7 +39,9 @@ export interface GenericListItemProps {
  */
 function GenericListItem(props: GenericListItemProps): JSX.Element {
   //grabs the props
+  // console.log(props);
   const { label, id, path } = props;
+
 
   // TODO
   //setting theming constants to be used later

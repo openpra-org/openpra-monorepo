@@ -48,28 +48,27 @@ class Analysis : private boost::noncopyable {
   /// @returns Time taken by the analysis.
   double analysis_time() const { return analysis_time_; }
 
- protected:
-  /// @returns Modifiable analysis settings.
-  Settings& settings() { return settings_; }
+    /// Adds time to the total analysis time.
+    ///
+    /// @param[in] time  Additional time spent on analysis.
+    void AddAnalysisTime(double time) {
+      assert(time >= 0 && "Cannot subtract time.");
+      analysis_time_ += time;
+    }
 
-  /// Appends a warning message to the analysis warnings.
-  /// Warnings are separated by spaces.
-  ///
-  /// @param[in] msg  Informative message without special characters.
-  void AddWarning(std::string msg) {
-    assert(!msg.empty() && "Warnings cannot be empty.");
-    warnings_ += (warnings_.empty() ? "" : "; ") + msg;
-  }
+/// Appends a warning message to the analysis warnings.
+/// Warnings are separated by spaces.
+///
+/// @param[in] msg  Informative message without special characters.
+void AddWarning(std::string msg) {
+  assert(!msg.empty() && "Warnings cannot be empty.");
+  warnings_ += (warnings_.empty() ? "" : "; ") + msg;
+}
 
-  /// Adds time to the total analysis time.
-  ///
-  /// @param[in] time  Additional time spent on analysis.
-  void AddAnalysisTime(double time) {
-    assert(time >= 0 && "Cannot subtract time.");
-    analysis_time_ += time;
-  }
+/// @returns Modifiable analysis settings.
+Settings& settings() { return settings_; }
 
- private:
+private:
   Settings settings_;  ///< All settings for analysis.
   double analysis_time_;  ///< Time taken by the analysis.
   std::string warnings_;  ///< Generated warnings in analysis.

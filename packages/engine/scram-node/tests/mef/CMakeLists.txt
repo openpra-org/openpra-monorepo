@@ -2,6 +2,8 @@ set(Boost_USE_STATIC_LIBS OFF)
 
 set(TEST_MEF_SOURCES
         test_mef.cpp
+        alignment_test.cpp
+        ccf_group_test.cpp
         expression_test.cpp
 )
 

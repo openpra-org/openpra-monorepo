@@ -8,6 +8,8 @@ import { Preferences } from "../../components/settings/preferences";
 import { EditPersonalInfoForm } from "../../components/forms/editPersonalInfoForm";
 import { PasswordChange } from "../../components/settings/passwordChange";
 import { Invitations } from "../../components/settings/invitations";
+import { Roles } from "../../components/settings/roles";
+import { RoleDescription } from "../../components/settings/roleDescription";
 
 /**
  * This function defines the routes for settings page
@@ -53,8 +55,13 @@ export function SettingsPage(): JSX.Element {
 
         <Route
           path="roles"
-          element={<p>Welcome to roles section</p>}
-        />
+          element={<Roles />}
+        >
+          <Route
+            path=":roleName"
+            element={<RoleDescription />}
+          />
+        </Route>
         <Route
           path="invitations"
           element={<Invitations />}

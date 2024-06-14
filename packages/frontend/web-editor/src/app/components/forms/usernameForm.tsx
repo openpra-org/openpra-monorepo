@@ -1,6 +1,6 @@
 import { EuiFieldText, EuiFormRow } from "@elastic/eui";
 import React from "react";
-import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
+import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 
 /**
  * This is form with the following details: Firstname, Lastname, Email and Username
@@ -23,8 +23,8 @@ const UsernameForm = ({
   setIsValidUsername,
   checkEmpty,
 }: {
-  signup: SignUpProps;
-  setSignup: (signup: SignUpProps) => void;
+  signup: SignUpPropsWithRole;
+  setSignup: (signup: SignUpPropsWithRole) => void;
   signupButtonClicked: boolean;
   isValidEmail: boolean;
   setIsValidEmail: (val: boolean) => void;

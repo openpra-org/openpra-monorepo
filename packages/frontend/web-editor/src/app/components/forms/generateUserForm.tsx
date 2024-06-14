@@ -1,6 +1,6 @@
 import { EuiButton, EuiFlexGroup, EuiFlexItem, EuiForm, EuiFormRow, EuiSelect, EuiText } from "@elastic/eui";
 import React, { ChangeEvent, useState } from "react";
-import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
+import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { EuiSelectOption } from "@elastic/eui/src/components/form/select/select";
@@ -29,8 +29,8 @@ const GenerateUserForm = ({
 }: {
   buttonText: string;
   handleSignup: () => void;
-  signup: SignUpProps;
-  setSignup: (val: SignUpProps) => void;
+  signup: SignUpPropsWithRole;
+  setSignup: (val: SignUpPropsWithRole) => void;
   options: EuiSelectOption[];
   expiry: number;
   onValueChange: (e: ChangeEvent<HTMLSelectElement>) => void;

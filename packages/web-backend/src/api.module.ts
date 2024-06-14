@@ -12,6 +12,7 @@ import { ApiService } from "./api.service";
 import { FmeaModule } from "./fmea/fmea.module";
 import { GraphModelModule } from "./graphModels/graphModel.module";
 import { InviteModule } from "./invite/invite.module";
+import { RolesModule } from "./roles/roles.module";
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { InviteModule } from "./invite/invite.module";
     FmeaModule,
     GraphModelModule,
     InviteModule,
+    RolesModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
       isGlobal: true,
@@ -31,7 +33,7 @@ import { InviteModule } from "./invite/invite.module";
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
+      useFactory: (config: ConfigService) => ({
         uri: config.get<string>("MONGO_URL"),
       }),
     }),
@@ -67,6 +69,10 @@ import { InviteModule } from "./invite/invite.module";
           {
             path: "graph-models",
             module: GraphModelModule,
+          },
+          {
+            path: "roles",
+            module: RolesModule,
           },
         ],
       },

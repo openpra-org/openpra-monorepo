@@ -96,6 +96,6 @@ export async function Generate(inputDirectory: string, outputDirectory: string):
 const args = process.argv; // Remove the first two elements
 
 // Check if the directory argument is provided
-if (args.length === 4) {
+if (args.length === 4 && args[1].endsWith("generate-types.js")) {
   void Generate(args[2], args[3]).then();
 }

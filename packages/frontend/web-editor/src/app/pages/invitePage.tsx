@@ -3,9 +3,10 @@ import { useEffect, useState } from "react";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
 import { InvitedUserDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
-import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
+import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { EuiPageTemplate, EuiSkeletonLoading } from "@elastic/eui";
-import { DefaultProps } from "../components/login/signUp";
+import { MemberRole } from "shared-types/src/lib/data/predefiniedRoles";
+import { DefaultSignupProps } from "../components/login/signUp";
 import { UseToastContext } from "../providers/toastProvider";
 import { GenerateUUID } from "../../utils/treeUtils";
 import { GenericModal } from "../components/modals/genericModal";
@@ -15,7 +16,7 @@ const InvitePage = (): JSX.Element => {
   const { inviteId } = useParams<{ inviteId: string | undefined }>();
   const [isLoading, setIsLoading] = useState(false);
   const [isExpired, setIsExpired] = useState(false);
-  const [signup, setSignup] = useState<SignUpProps>(DefaultProps);
+  const [signup, setSignup] = useState<SignUpPropsWithRole>(DefaultSignupProps);
   const navigate = useNavigate();
   const { addToast } = UseToastContext();
 
@@ -42,6 +43,7 @@ const InvitePage = (): JSX.Element => {
                 lastName: res.lastname ?? "",
                 firstName: res.firstname ?? "",
                 password: "",
+                roles: [MemberRole],
               });
               setIsLoading(false);
             })

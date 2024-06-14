@@ -111,11 +111,6 @@ class Preferences {
 
 const PreferencesSchema = SchemaFactory.createForClass(Preferences);
 
-@Schema({ minimize: false, _id: false, versionKey: false })
-export class Permissions {}
-
-const PermissionsSchema = SchemaFactory.createForClass(Permissions);
-
 @Schema({
   minimize: false,
   timestamps: {
@@ -155,8 +150,8 @@ export class User {
   @Prop({ type: PreferencesSchema, required: false })
   preferences: Preferences;
 
-  @Prop({ type: PermissionsSchema, default: {}, required: false })
-  permissions: Permissions;
+  @Prop({ type: Array<string>, default: {}, required: true })
+  roles: string[];
 
   @Prop({ type: Date, default: Date.now() })
   last_login: Date;

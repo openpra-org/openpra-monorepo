@@ -15,7 +15,8 @@ import {
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import moment from "moment";
 import { useContext, useEffect, useState } from "react";
-import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
+import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
+import { CollabRole } from "shared-types/src/lib/data/predefiniedRoles";
 import { GenericModal } from "../modals/genericModal";
 import { PasswordForm } from "../forms/passwordForm";
 import { PreferenceContext, PreferenceContextType } from "./preferences";
@@ -39,7 +40,7 @@ const PasswordChange = (): JSX.Element => {
   const [isModalVisible, setIsModalVisible] = useState<boolean>(false);
   const [buttonClicked, setButtonClicked] = useState<boolean>(false);
   const [currentPassword, setCurrentPassword] = useState<string>("");
-  const [signup, setSignUp] = useState<SignUpProps>();
+  const [signup, setSignUp] = useState<SignUpPropsWithRole>();
   const [isInvalidOldPass, setIsInvalidOldPass] = useState<boolean>(false);
   const [isInvalidNewPass, setIsInvalidNewPass] = useState<boolean>(false);
   const [showErrors, setShowErrors] = useState<boolean>(false);
@@ -53,6 +54,7 @@ const PasswordChange = (): JSX.Element => {
       lastName: currentUser !== undefined ? currentUser.lastName : "",
       username: currentUser !== undefined ? currentUser.username : "",
       passConfirm: "",
+      roles: [CollabRole],
     });
     if (currentUser?.id === ApiManager.getCurrentUser().user_id) {
       setIsActiveUser(true);

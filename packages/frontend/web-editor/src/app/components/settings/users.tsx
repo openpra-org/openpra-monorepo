@@ -17,14 +17,15 @@ import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
 import { MemberResult, Members } from "shared-types/src/lib/api/Members";
 import { EuiBasicTableColumn } from "@elastic/eui/src/components/basic_table/basic_table";
 import { Link } from "react-router-dom";
-import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
+import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { InviteIdDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 import { GenericModal } from "../modals/genericModal";
-import { DefaultProps } from "../login/signUp";
+import { DefaultSignupProps } from "../login/signUp";
 import { SignUpForm } from "../forms/signUpForm";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";
 import { GenerateUserForm } from "../forms/generateUserForm";
+import { Can } from "../../providers/abilityProvider";
 
 /**
  * Generate columns for table containing the names of the users
@@ -67,7 +68,7 @@ export function Users(): JSX.Element {
   const [isNewUserModalVisible, setIsNewUserModalVisible] = useState<boolean>(false);
   const [isInviteNewUserModalVisible, setIsInviteNewUserModalVisible] = useState<boolean>(false);
   const [users, setUsers] = useState<MemberResult[]>([]);
-  const [signup, setSignup] = useState<SignUpProps>(DefaultProps);
+  const [signup, setSignup] = useState<SignUpPropsWithRole>(DefaultSignupProps);
   const [generatedUserId, setGeneratedUserId] = useState<string>("");
   const { addToast } = UseToastContext();
   let modal;
@@ -207,21 +208,25 @@ export function Users(): JSX.Element {
           iconType="users"
           paddingSize="xl"
           rightSideItems={[
-            <EuiButton
-              fill
-              onClick={(): void => {
-                setIsNewUserModalVisible(true);
-              }}
-            >
-              New User
-            </EuiButton>,
-            <EuiButton
-              onClick={(): void => {
-                setIsInviteNewUserModalVisible(true);
-              }}
-            >
-              Invite Users
-            </EuiButton>,
+            <Can I="create" a="users">
+              <EuiButton
+                fill
+                onClick={(): void => {
+                  setIsNewUserModalVisible(true);
+                }}
+              >
+                New User
+              </EuiButton>
+            </Can>,
+            <Can I="create" a="users">
+              <EuiButton
+                onClick={(): void => {
+                  setIsInviteNewUserModalVisible(true);
+                }}
+              >
+                Invite Users
+              </EuiButton>
+            </Can>,
           ]}
         ></EuiPageHeader>
         <EuiPageTemplate.Section>

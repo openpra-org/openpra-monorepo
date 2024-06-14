@@ -8,7 +8,9 @@
     "strict": true
   },
   "files": [],
-  "include": [],
+  "include": [
+    "@casl/react/contextAPIPatch.d.ts",
+  ],
   "references": [
     {
       "path": "./tsconfig.app.json"

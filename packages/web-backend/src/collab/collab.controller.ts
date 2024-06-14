@@ -14,11 +14,11 @@ import {
 } from "@nestjs/common";
 import { MemberResult } from "shared-types/src/lib/api/Members";
 import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
+import { CreateNewUserSchemaDto } from "shared-types/src/openpra-zod-mef/collab/createNewUser-schema";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { Public } from "../guards/public.guard";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";
 import { CollabService } from "./collab.service";
-import { CreateNewUserDto } from "./dtos/create-new-user.dto";
 import { PaginationDto } from "./dtos/pagination.dto";
 import { UserPreferencesDto } from "./dtos/user-preferences.dto";
 import { User } from "./schemas/user.schema";
@@ -37,11 +37,19 @@ export class CollabController {
    * @example GET request -> https://staging.app.openpra.org/api/collab/user/?limit=10&offset=0
    */
   @Get("/user/")
-  async getUsersList(@Request() req, @Query() query: { limit?: any; offset?: any }): Promise<PaginationDto> {
+  async getUsersList(
+    @Request() req,
+    @Query()
+    query: {
+      limit?: number;
+      offset?: number;
+      role?: string;
+    },
+  ): Promise<PaginationDto> {
     if (query.limit && query.offset) {
-      return this.collabService.getUsersList(req.originalUrl, query.limit, query.offset);
+      return this.collabService.getUsersList(req.originalUrl, query.limit, query.offset, query.role);
     }
-    return this.collabService.getUsersList(req.originalUrl, undefined, undefined);
+    return this.collabService.getUsersList(req.originalUrl, undefined, undefined, query.role);
   }
 
   /**
@@ -59,7 +67,7 @@ export class CollabController {
    */
   @Public()
   @Post("/user/")
-  async createNewUser(@Body() body: CreateNewUserDto): Promise<User | string> {
+  async createNewUser(@Body() body: CreateNewUserSchemaDto): Promise<User | string> {
     const newUser = await this.collabService.createNewUser(body);
 
     // Check if newUser is null, indicating duplicate username

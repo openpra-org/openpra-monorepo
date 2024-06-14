@@ -8,6 +8,8 @@
     ]
   },
   "dependencies": {
+    "@casl/ability": "6.7.1",
+    "@casl/react": "3.1.0",
     "@elastic/datemath": "5.0.3",
     "@elastic/eui": "88.2.0",
     "@emotion/css": "11.11.2",

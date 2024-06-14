@@ -13,6 +13,8 @@ import { SettingsPage } from "./pages/routingPages/settingsPage";
 import { ToastProvider } from "./providers/toastProvider";
 import { GlobalToastList } from "./components/lists/globalToastList";
 import { InvitePage } from "./pages/invitePage";
+import { AbilityContext } from "./providers/abilityProvider";
+import { DefaultAbility } from "./casl/ability";
 
 const routes: RouteObject[] = [
   {
@@ -80,11 +82,14 @@ const router = createBrowserRouter(routes, {
 });
 
 function App(): ReactElement {
+  const ability = DefaultAbility();
   return (
     <ThemeProvider>
       <ToastProvider>
-        <RouterProvider router={router} />
-        <GlobalToastList />
+        <AbilityContext.Provider value={ability}>
+          <RouterProvider router={router} />
+          <GlobalToastList />
+        </AbilityContext.Provider>
       </ToastProvider>
     </ThemeProvider>
   );

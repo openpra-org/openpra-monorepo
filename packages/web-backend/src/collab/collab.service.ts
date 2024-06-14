@@ -5,8 +5,8 @@ import * as argon2 from "argon2";
 import * as dot from "dot-object";
 import { UpdateOneModel } from "mongodb";
 import { MemberResult } from "shared-types/src/lib/api/Members";
+import { CreateNewUserSchemaDto } from "shared-types/src/openpra-zod-mef/collab/createNewUser-schema";
 import { PaginationDto } from "./dtos/pagination.dto";
-import { CreateNewUserDto } from "./dtos/create-new-user.dto";
 import { UserPreferencesDto } from "./dtos/user-preferences.dto";
 import { UserCounter, UserCounterDocument } from "./schemas/user-counter.schema";
 import { User, UserDocument } from "./schemas/user.schema";
@@ -21,9 +21,8 @@ export class CollabService {
   ) {}
 
   /**
-   * @param {string} username
-   * @description
    * Assists the Local Strategy method to ensure whether a user exists in the database or not.
+   * @param {string} username - Username of the user
    * @returns A mongoose document of the user | undefined
    */
   async loginUser(username: string): Promise<User | undefined> {
@@ -31,22 +30,20 @@ export class CollabService {
   }
 
   /**
-   * @param {number} user_id Current user's ID
-   * @description
    * After each login, the last login time of the user is updated.
+   * @param {number} user_id - Current user's ID
    * @returns void
    */
-  async updateLastLogin(user_id: number) {
+  async updateLastLogin(user_id: number): Promise<void> {
     await this.userModel.updateOne({ id: user_id }, { last_login: Date.now() });
   }
 
   /**
-   * @param {string} name Name of the counter
-   * @description
    * Generates an ID for the newly created user in an incremental order of 1. Initially if no user exists, the serial ID starts from 1.
+   * @param {string} name - Name of the counter
    * @returns {number} ID number
    */
-  async getNextUserValue(name: string) {
+  async getNextUserValue(name: string): Promise<number> {
     const record = await this.userCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
     if (!record) {
       const newCounter = new this.userCounterModel({ _id: name, seq: 1 });
@@ -57,11 +54,6 @@ export class CollabService {
   }
 
   /**
-   * @param {number} count Total number of results
-   * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
-   * @param limit How many results can be seen at once
-   * @param offset How many initial results will be skipped
-   * @description
    * The pagination() method follows a very simple mechanism:
    *   1. It determines the number of pages its going to take to show all the queried results.
    *   2. It determines on which page the user is currently on.
@@ -78,6 +70,10 @@ export class CollabService {
    *   4. There's more than 1 page in total and the user is somewhere between the first and last page; in that case links for both previous and next page will be available.
    * The 4th condition suits the above example. The user is in the 3rd page which is between the first page and the last (7 number) page. The pagination() method
    * will provide the links to the 2nd (previous) and 4th (next) pages to the user.
+   * @param {number} count - Total number of results
+   * @param {string} url - Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+   * @param limit - How many results can be seen at once
+   * @param offset - How many initial results will be skipped
    * @returns 1. The links to previous and next result pages, 2. limit and offset values
    */
   pagination(count: number, url: string, limit?: any, offset?: any) {
@@ -125,10 +121,6 @@ export class CollabService {
   }
 
   /**
-   * @param {string} url Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
-   * @param limit How many results can be seen at once
-   * @param offset How many initial results will be skipped
-   * @description
    * No parameter is needed to retrieve the User list. The retrieved data is presented in a 'paginated' format:
    *   1. Count: the number of users found.
    *   2. Next: if there are additional users that couldn't be shown in the current page, then the link to the next page is shown.
@@ -139,18 +131,30 @@ export class CollabService {
    *                   an ID of 6 to 10 and skip the first 5 users. The 'previous' property in this case will provide the link for the 1st page that can show
    *                   the first 5 users.
    *   4. Result: provides the users list. The 'result' property follows the limit and offset values to decide which users are going to be showed.
+   * @param {string} url - Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+   * @param limit - How many results can be seen at once
+   * @param offset - How many initial results will be skipped
+   * @param role - The role of the user
    * @returns List of all users
    */
-  async getUsersList(url: string, limit?: any, offset?: any): Promise<PaginationDto> {
+  async getUsersList(url: string, limit?: number, offset?: number, role?: string): Promise<PaginationDto> {
     let paths = undefined;
     let result = undefined;
-    const count = await this.userModel.countDocuments();
+    const filters: Record<string, unknown> = {}; // Initialize filters as empty object
+
+    if (role) {
+      filters.roles = { $in: [role] }; // Set role in permissions if provided
+    }
+    const count = await this.userModel.countDocuments({ ...filters });
     if (limit && offset) {
       paths = this.pagination(count, url, limit, offset);
-      result = await this.userModel.find().skip(paths.default_offset).limit(paths.default_limit);
+      result = await this.userModel
+        .find({ ...filters })
+        .skip(paths.default_offset)
+        .limit(paths.default_limit);
     } else {
       paths = this.pagination(count, url);
-      result = await this.userModel.find().limit(paths.default_limit);
+      result = await this.userModel.find({ ...filters }).limit(paths.default_limit);
     }
     return {
       count: count,
@@ -170,8 +174,6 @@ export class CollabService {
   }
 
   /**
-   * @param body Request body
-   * @description
    * There are some hard-coded data provided alongside the request body for creating a 'user' document:
    *   1. The password is encrypted using the 'argon2id' method.
    *   2. The UserID is generated in an incremental order using getNextUserValue() function.
@@ -184,9 +186,10 @@ export class CollabService {
    *      are saved in the 'preferences' object. By default all the settings inside the 'preferences' are set to 'enabled' when a user is created.
    *   6. The permissions feature has not been implemented yet - so it is kept empty by default. Once implemented, a user will be able to assume
    *      one of the two roles - either the role of an administrator (with special access - such as deleting a user from the database) or the role of a general user.
+   * @param body - Request body
    * @returns A mongoose document of the new user
    */
-  async createNewUser(body: CreateNewUserDto): Promise<User | string> {
+  async createNewUser(body: CreateNewUserSchemaDto): Promise<User | string> {
     const username = body.username;
     const email = body.email;
     const response1 = await this.userModel.findOne({
@@ -221,6 +224,7 @@ export class CollabService {
         currentlySelected: " ",
       },
     };
+    newUser.roles = body.roles as string[];
     return newUser.save();
   }
 
@@ -258,9 +262,6 @@ export class CollabService {
   }
 
   /**
-   * @param {string} user_id Current user's ID
-   * @param body Request body
-   * @description
    * 1. The lean() method returns a Plain Old JS Object (POJO) instead of a Mongoose document which makes the query much faster.
    * 2. Since the 'preferences' is a nested object, 2 things are needed to be done to ensure that its properties are updated properly:
    *    a. Use the objectID (_id) of the User document instead of using normal UserID(id) inside the findByIdAndUpdate() query method.
@@ -278,9 +279,11 @@ export class CollabService {
    * 4. 'new' is set to true to ensure that the document that is returned after saving the preferences is always the updated one.
    * 5. 'upsert' is a combined action of 'Update and insert'. If a user is not found while updating the preferences with the given UserID,
    *    the upsert operation will create a new user document with the given preferences which is not desired. So the upsert is set to false.
+   * @param {string} user_id - Current user's ID
+   * @param body - Request body
    * @returns Updated preferences of the user
    */
-  async updateUserPreferences(user_id: string, body: UserPreferencesDto) {
+  async updateUserPreferences(user_id: string, body: UserPreferencesDto): Promise<void> {
     const user = await this.userModel.findOne({ id: Number(user_id) }).lean();
     return this.userModel.findByIdAndUpdate(
       user._id,
@@ -301,7 +304,7 @@ export class CollabService {
     user.lastName = member.lastName;
     user.username = member.username;
     user.preferences = member.preferences;
-    user.permissions = member.permissions;
+    user.roles = member.roles as string[];
     if (member.password !== undefined) {
       user.password = await argon2.hash(member.password);
     }
@@ -309,7 +312,7 @@ export class CollabService {
       .updateOne({ id: user.id }, user, {
         projection: {
           preferences: 1,
-          permissions: 1,
+          roles: 1,
           lastName: 1,
           email: 1,
           firstName: 1,

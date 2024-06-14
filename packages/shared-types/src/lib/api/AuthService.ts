@@ -1,7 +1,8 @@
 import { jwtDecode } from "jwt-decode";
-import AuthToken, { EMPTY_TOKEN } from "../types/AuthToken";
+import { AuthToken, EMPTY_TOKEN } from "../types/AuthToken";
+import { MemberRole } from "../data/predefiniedRoles";
 
-export class AuthService {
+class AuthService {
   static hasTokenExpired(token: string | null): boolean {
     // if token is null, it has certainly expired
     if (!token || token === "undefined") {
@@ -68,4 +69,26 @@ export class AuthService {
       return EMPTY_TOKEN;
     }
   }
+
+  /**
+   * This function gets the user role from token
+   */
+  static getRole(): string[] {
+    try {
+      const encodedToken = AuthService.getEncodedToken();
+      if (!encodedToken) {
+        return [MemberRole];
+      }
+      const decodedToken = jwtDecode<AuthToken>(encodedToken);
+      if (!decodedToken.exp) {
+        return [MemberRole];
+      }
+      return decodedToken.roles ?? [MemberRole];
+    } catch (e) {
+      // Something bad happened
+      throw new Error("The user is not logged in or token expired");
+    }
+  }
 }
+
+export { AuthService };

@@ -21,6 +21,14 @@
         "command": "nx run mef-schema:build && node ../../../../dist/packages/mef-schema/src/generate-types.js ./ ../../../shared-types/src/openpra-mef"
       }
     },
+    "generate-zod": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/mef-schema/src/openpra-zod-mef",
+        "command": "nx run mef-schema:build && node ../../../../dist/packages/mef-schema/src/generate-zod-types.js ./ ../../../shared-types/src/openpra-zod-mef"
+      },
+      "dependsOn": []
+    },
     "lint": {
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],

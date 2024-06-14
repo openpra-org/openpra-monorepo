@@ -517,7 +517,7 @@ describe("CollabService", () => {
         subsystems: [],
       },
       last_login: new Date(Date.now()),
-      permissions: {},
+      roles: [],
     };
 
     /**
@@ -570,7 +570,7 @@ describe("CollabService", () => {
         subsystems: [],
       },
       last_login: new Date(Date.now()),
-      permissions: {},
+      roles: [],
     };
 
     /**

@@ -1,10 +1,11 @@
-import { EuiPageTemplate, EuiSkeletonLoading, EuiText } from "@elastic/eui";
+import { EuiIcon, EuiPageTemplate, EuiSkeletonLoading, EuiText } from "@elastic/eui";
 import { Outlet, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { MemberResult } from "shared-types/src/lib/api/Members";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import React from "react";
 import { NavInsideNav } from "../sidenavs/genericNav";
+import { AbilityContext } from "../../providers/abilityProvider";
 
 interface PreferenceContextType {
   currentUser: MemberResult | undefined;
@@ -16,11 +17,36 @@ const PreferenceContext = React.createContext<PreferenceContextType>({
   setCurrentUser: () => {},
 });
 
+const GENERAL = {
+  name: "General",
+  id: "General",
+  icon: <EuiIcon type="gear" />,
+  items: [{ name: "Personal Data", url: "personal-data", data: {} }],
+};
+
+const AUTHENTICATION = {
+  name: "Authentication",
+  id: "Authentication",
+  icon: <EuiIcon type="gear" />,
+  items: [
+    {
+      name: "Logins",
+      url: "logins",
+      data: {},
+    },
+  ],
+};
+
 function Preferences(): JSX.Element {
   const { user } = useParams<{ user: string | undefined }>();
   const userId = Number(user);
   const [currentUser, setCurrentUser] = useState<MemberResult>();
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  let navItems = [GENERAL];
+  const ability = useContext(AbilityContext);
+  if (ability.can("create", "users")) {
+    navItems = [...navItems, AUTHENTICATION];
+  }
   useEffect(() => {
     ApiManager.getUserById(String(userId))
       .then((result) => {
@@ -43,7 +69,7 @@ function Preferences(): JSX.Element {
             paddingSize="s"
             sticky={true}
           >
-            <NavInsideNav />
+            <NavInsideNav items={navItems} />
           </EuiPageTemplate.Sidebar>
 
           <EuiPageTemplate.Section>
@@ -60,7 +86,7 @@ function Preferences(): JSX.Element {
             paddingSize="s"
             sticky={true}
           >
-            <NavInsideNav />
+            <NavInsideNav items={navItems} />
           </EuiPageTemplate.Sidebar>
 
           <EuiPageTemplate.Section>

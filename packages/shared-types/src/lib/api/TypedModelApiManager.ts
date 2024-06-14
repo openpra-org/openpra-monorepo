@@ -10,6 +10,7 @@ import TypedModel, { TypedModelJSON } from "../types/modelTypes/largeModels/type
 import { AuthService } from "./AuthService";
 import { ApiManager } from "./ApiManager";
 import { RemoveParentIds } from "./NestedModelApiManager";
+
 const API_ENDPOINT = "/api";
 const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, only-if-cached
 const TYPED_ENDPOINT = `${API_ENDPOINT}/typed-models`;

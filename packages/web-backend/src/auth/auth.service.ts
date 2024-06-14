@@ -41,11 +41,12 @@ export class AuthService {
    * 2. The userID, username, and email is extracted from the User object. Then a JWT is generated against these data.
    * @returns JWT token
    */
-  async getJwtToken(user: any) {
+  async getJwtToken(user: User) {
     const payload = {
       user_id: user.id,
       username: user.username,
       email: user.email,
+      roles: user.roles,
     };
     await this.collabService.updateLastLogin(user.id);
     return {
@@ -91,7 +92,6 @@ export class AuthService {
   async verifyPassword(username: string, password: string): Promise<boolean> {
     const user = await this.collabService.loginUser(username);
     try {
-      console.log("Here");
       await argon2.verify(user.password, password);
       return true;
     } catch (e) {

@@ -1,8 +1,21 @@
 import React, { useState } from "react";
-import { EuiIcon, EuiSideNav, EuiText, slugify } from "@elastic/eui";
+import { EuiSideNav } from "@elastic/eui";
 import { useNavigate } from "react-router-dom";
 
-function NavInsideNav(): JSX.Element {
+type NavItemHeader = {
+  name: string;
+  id: string;
+  icon: JSX.Element;
+  items: NavItem[];
+};
+
+type NavItem = {
+  name: string;
+  url: string;
+  data: object;
+};
+
+function NavInsideNav({ items }: { items: NavItemHeader[] }): JSX.Element {
   const navigate = useNavigate();
   const [isSideNavOpenOnMobile, setIsSideNavOpenOnMobile] = useState(false);
   const [selectedItemName, setSelectedItem] = useState<string | null>("Personal Data");
@@ -28,29 +41,24 @@ function NavInsideNav(): JSX.Element {
       },
       ...data,
     });
-  const sideNav = [
-    {
-      name: "General",
-      id: "General",
-      icon: <EuiIcon type="gear" />,
-      items: [createItem("Personal Data", "personal-data", {})],
-    },
-    {
-      name: "Authentication",
-      id: "Authentication",
-      icon: <EuiIcon type="gear" />,
-      items: [createItem("Logins", "logins", {})],
-    },
-  ];
+
+  const navItems = items.map((headerItem) => ({
+    name: headerItem.name,
+    id: headerItem.id,
+    icon: headerItem.icon,
+    items: headerItem.items.map((navItem) =>
+      createItem(navItem.name, navItem.url, navItem.data),
+    ),
+  }));
   return (
     <EuiSideNav
       aria-label="Force-open example"
       mobileTitle="Navigation"
       toggleOpenOnMobile={toggleOpenOnMobile}
       isOpenOnMobile={isSideNavOpenOnMobile}
-      items={sideNav}
+      items={navItems}
     />
   );
 }
 
-export { NavInsideNav };
+export { NavInsideNav, NavItem, NavItemHeader };

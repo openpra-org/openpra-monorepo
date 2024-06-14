@@ -2,6 +2,8 @@ import { EuiTreeView, slugify, useEuiTheme, EuiText, EuiCollapsibleNavGroup, use
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { useContext } from "react";
+import { AbilityContext } from "../../providers/abilityProvider";
 
 interface TreeItem {
   id: string;
@@ -19,6 +21,7 @@ interface TreeItem {
  */
 export function SettingsNav(): JSX.Element {
   const { euiTheme } = useEuiTheme();
+  const ability = useContext(AbilityContext);
   const userId = ApiManager.getCurrentUser().user_id;
 
   const createTreeItem = (label: string, data = {}, depth = 0): TreeItem => {
@@ -62,7 +65,7 @@ export function SettingsNav(): JSX.Element {
 
   //here we are listing off all the different possible options that can be in a menu
 
-  const POS = [
+  const SETTINGS = [
     createTreeItem("Settings", {
       iconType: "advancedSettingsApp",
       callback: undefined,
@@ -182,7 +185,10 @@ export function SettingsNav(): JSX.Element {
   };
 
   //here is where we set the different options to be available depending on the type of page being accessed
-  const treeItems = [POS, ACCESS];
+  let treeItems = [SETTINGS];
+  if (ability.can("create", "users")) {
+    treeItems = [...treeItems, ACCESS];
+  }
 
   const createTreeViews = (items = treeItems): JSX.Element[] => {
     const viewItems: JSX.Element[] = [];

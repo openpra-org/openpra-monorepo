@@ -1,3 +1,5 @@
+import { Role } from "../../openpra-mef/role/role-type";
+
 export interface Members {
   count: number;
   next: any;
@@ -10,7 +12,7 @@ export interface MemberResult {
   lastName: string;
   username: string;
   email: string;
-  permissions: Permissions;
+  roles: string[];
   id: number;
   recently_accessed: RecentlyAccessed;
   preferences: Preferences;
@@ -18,8 +20,6 @@ export interface MemberResult {
   last_login: string;
   password: string | undefined;
 }
-
-interface Permissions {}
 
 interface RecentlyAccessed {
   models: any[];

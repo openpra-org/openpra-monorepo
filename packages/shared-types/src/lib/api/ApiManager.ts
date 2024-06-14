@@ -1,6 +1,6 @@
-import AuthToken from "../types/AuthToken";
+import { AuthToken } from "../types/AuthToken";
 import { AuthService } from "./AuthService";
-import { SignUpCredentials } from "./AuthTypes";
+import { SignUpCredentials, SignUpCredentialsWithRole } from "./AuthTypes";
 import { MemberResult, Members } from "./Members";
 
 const API_ENDPOINT = "/api";
@@ -28,6 +28,21 @@ export class ApiManager {
 
   static logout(): boolean {
     return AuthService.logout();
+  }
+
+  static login(creds: any) {
+    return fetch(ApiManager.LOGIN_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(creds),
+    })
+      .then((res) => res.json())
+      .then((data: { token: string | null }) => {
+        AuthService.setEncodedToken(data.token);
+      });
   }
 
   /**
@@ -62,7 +77,11 @@ export class ApiManager {
       });
   }
 
-  static async signup(data: SignUpCredentials): Promise<void> {
+  signInWithUsernameAndPassword(username: any, password: any) {
+    return ApiManager.signInWithUsernameAndPassword(username, password);
+  }
+
+  static signup(data: SignUpCredentialsWithRole) {
     return ApiManager.post(`${userPreferencesEndpoint}/`, JSON.stringify(data))
       .then((response) => {
         if (response.ok) {
@@ -92,6 +111,27 @@ export class ApiManager {
       });
   }
 
+  signup(username: string, email: string, firstName: string, lastName: string, password: string, roles: string[]) {
+    const data: SignUpCredentialsWithRole = {
+      username,
+      email,
+      firstName,
+      lastName,
+      password,
+      roles,
+    };
+    return ApiManager.signup(data);
+  }
+
+  static checkStatus(response: any) {
+    // raises an error in case response status is not a success
+    if (response.status >= 200 && response.status < 300) {
+      // Success status lies between 200 to 300
+      return response;
+    }
+    throw new Error(response.statusText);
+  }
+
   static isLoggedIn(): boolean {
     // Checks if there is a saved token and it's still valid
     const token = AuthService.getEncodedToken(); // Getting token from localstorage
@@ -115,6 +155,16 @@ export class ApiManager {
   //TODO: Check if this works!
   static async getUsers(): Promise<Members> {
     return ApiManager.getWithOptions(`${collabEndpoint}/user/`).then(
+      (response: Response) => response.json() as Promise<Members>,
+    );
+  }
+
+  /**
+   * Get list of users for a role
+   * @param roleId - The roleId
+   */
+  static async getUsersWithRole(roleId: string): Promise<Members> {
+    return ApiManager.getWithOptions(`${collabEndpoint}/user?role=${roleId}`).then(
       (response: Response) => response.json() as Promise<Members>,
     );
   }

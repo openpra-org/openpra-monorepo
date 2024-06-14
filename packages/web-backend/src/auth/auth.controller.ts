@@ -1,6 +1,7 @@
 import { Controller, Post, Request, UseFilters, UseGuards, Body } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { LoginErrorFilter } from "../filters/login-error.filter";
+import { User } from "../collab/schemas/user.schema";
 import { AuthService } from "./auth.service";
 
 @Controller()
@@ -10,7 +11,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   /**
-   * @param req Express request object @see {@link https://expressjs.com/en/api.html#req}
+   * @param req - Express request object @see {@link https://expressjs.com/en/api.html#req}
    * @example Request body sample:
    * {
    *   "username": "Ed",
@@ -20,7 +21,7 @@ export class AuthController {
    * @example POST request -> https://staging.app.openpra.org/api/auth/token-obtain
    */
   @Post("/token-obtain/")
-  async loginUser(@Request() req): Promise<{ token: string }> {
+  async loginUser(@Request() req: { user: User }): Promise<{ token: string }> {
     return this.authService.getJwtToken(req.user);
   }
 

@@ -1,28 +1,33 @@
-import React from "react";
+import React, { useContext } from "react";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
-import { SignUpProps } from "shared-types/src/lib/api/AuthTypes";
+import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { AuthService } from "shared-types/src/lib/api/AuthService";
+import { MemberRole } from "shared-types/src/lib/data/predefiniedRoles";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { SignUpForm } from "../forms/signUpForm";
+import { UpdateAbility } from "../../casl/ability";
+import { AbilityContext } from "../../providers/abilityProvider";
 
-const DefaultProps: SignUpProps = {
+const DefaultSignupProps: SignUpPropsWithRole = {
   username: "",
   email: "",
   firstName: "",
   lastName: "",
   password: "",
   passConfirm: "",
+  roles: [MemberRole],
 };
 
 /**
  * This is a wrapper component for the SignUp Form. Mainly because we want to decouple the form for reuse
  */
 function SignUp(): JSX.Element {
-  const [signup, setSignup] = useState(DefaultProps);
+  const [signup, setSignup] = useState<SignUpPropsWithRole>(DefaultSignupProps);
   const { addToast } = UseToastContext();
-
+  const ability = useContext(AbilityContext);
   const [redirectToHomepage, setRedirectToHomepage] = useState(ApiManager.isLoggedIn());
 
   /**
@@ -33,6 +38,7 @@ function SignUp(): JSX.Element {
     ApiManager.signup(signupData)
       .then(() => {
         if (ApiManager.isLoggedIn()) {
+          UpdateAbility(ability, AuthService.getRole());
           setRedirectToHomepage(true);
         }
       })
@@ -65,4 +71,4 @@ function SignUp(): JSX.Element {
   }
 }
 
-export { SignUp, DefaultProps };
+export { SignUp, DefaultSignupProps };

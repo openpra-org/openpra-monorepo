@@ -1,9 +1,14 @@
-import React from "react";
+import React, { useContext } from "react";
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { EuiFieldText, EuiForm, EuiButton, EuiFormRow, EuiFieldPassword } from "@elastic/eui";
 import { LoginProps, LoginErrorProps } from "shared-types/src/lib/api/AuthTypes";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { AuthService } from "shared-types/src/lib/api/AuthService";
+import { UpdateAbility } from "../../casl/ability";
+import { AbilityContext } from "../../providers/abilityProvider";
+import { UseToastContext } from "../../providers/toastProvider";
+import { GetESToast } from "../../../utils/treeUtils";
 
 function LoginForm(): JSX.Element {
   const DefaultProps: LoginProps = {
@@ -19,6 +24,8 @@ function LoginForm(): JSX.Element {
   const [error, setError] = useState(DefaultErrorProps);
   const [invalid, setInvalid] = useState(false);
   const [redirectToHomepage, setRedirectToHomepage] = useState(false);
+  const ability = useContext(AbilityContext);
+  const { addToast } = UseToastContext();
 
   async function handleLogin(): Promise<void> {
     setInvalid(false);
@@ -26,7 +33,14 @@ function LoginForm(): JSX.Element {
     try {
       await ApiManager.signInWithUsernameAndPassword(username, password).then(() => {
         if (ApiManager.isLoggedIn()) {
-          setRedirectToHomepage(true);
+          UpdateAbility(ability, AuthService.getRole())
+            .then((res) => {
+              setRedirectToHomepage(true);
+            })
+            .catch((error) => {
+              addToast(GetESToast("danger", "Something went wrong while getting abilities"));
+              setInvalid(true);
+            });
         } else {
           setInvalid(true);
         }
@@ -151,4 +165,5 @@ function LoginForm(): JSX.Element {
     );
   }
 }
+
 export { LoginForm };

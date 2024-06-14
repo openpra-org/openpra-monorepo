@@ -6,6 +6,7 @@ import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { InvitedUsersTable } from "../tables/invitedUsersTable";
 import { InviteMultipleUsersFlyout } from "../forms/inviteMultipleUsersFlyout";
+import { Can } from "../../providers/abilityProvider";
 
 const Invitations = (): JSX.Element => {
   const [invitedUsers, setInvitedUsers] = useState<InvitedUserDetailsDto[]>();
@@ -73,13 +74,15 @@ const Invitations = (): JSX.Element => {
               pageTitle={"Invited Users"}
               paddingSize="xl"
               rightSideItems={[
-                <EuiButton
-                  onClick={(): void => {
-                    setIsFlyoutVisible(true);
-                  }}
-                >
-                  Invite Users
-                </EuiButton>,
+                <Can I={"create"} a={"users"}>
+                  <EuiButton
+                    onClick={(): void => {
+                      setIsFlyoutVisible(true);
+                    }}
+                  >
+                    Invite Users
+                  </EuiButton>
+                </Can>,
               ]}
             ></EuiPageHeader>
             <EuiPageTemplate.Section>

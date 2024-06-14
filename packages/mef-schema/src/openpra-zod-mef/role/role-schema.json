@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "openpra/roles-schema.json",
+  "title": "Role",
+  "description": "A role in the backend",
+  "type": "object",
+  "properties": {
+    "id": {
+      "description": "The unique id for role",
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 255
+    },
+    "name": {
+      "description": "The name of the role",
+      "type": "string",
+      "minLength": 5,
+      "maxLength": 255
+    },
+    "permissions": {
+      "description": "This will define the core permissions",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "action": {
+            "description": "The actions that a role can perform",
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 5,
+                "maxLength": 255
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 255
+                }
+              }
+            ]
+          },
+          "subject": {
+            "description": "The actions that a role can perform",
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 5,
+                "maxLength": 255
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 5,
+                  "maxLength": 255
+                }
+              }
+            ]
+          },
+          "fields": {
+
+          },
+          "conditionals": {
+
+          },
+          "inverted": {
+            "type": "boolean"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "action",
+          "subject"
+        ]
+      }
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "permissions"
+  ]
+}

@@ -22,7 +22,7 @@ import { ChangeEvent, useState } from "react";
 import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
 import { InviteIdDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 import { ExpiryOptions } from "../settings/users";
-import { DefaultProps } from "../login/signUp";
+import { DefaultSignupProps } from "../login/signUp";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";
 
@@ -74,7 +74,7 @@ const InviteMultipleUsersFlyout = ({
     setExpiry(Number(e.target.value));
   };
   const generateInvites = (): void => {
-    UserInviteApi.inviteUser(DefaultProps, expiry, numberOfInvites)
+    UserInviteApi.inviteUser(DefaultSignupProps, expiry, numberOfInvites)
       .then((result) => {
         result
           .json()

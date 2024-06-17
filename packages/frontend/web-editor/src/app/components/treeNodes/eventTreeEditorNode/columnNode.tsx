@@ -1,41 +1,44 @@
 import { Handle, NodeProps, Position, useUpdateNodeInternals } from "reactflow";
-import React, { memo, useEffect, useRef, useState } from "react";
+import React, { useContext } from "react";
 import {
   EuiFlexGroup,
-  EuiFlexItem,
   EuiFormControlLayout,
   EuiIcon,
-  EuiSpacer,
-  EuiText,
   EuiTextArea,
 } from "@elastic/eui";
-import { set } from "lodash";
 
-import useDeleteColClick from "../../../hooks/eventTree/useDeleteColClick";
-import { UseGlobalStore } from "../../../zustand/Store";
+import { UseEventTreeStore, UseGlobalStore } from "../../../zustand/Store";
+import { CustomStylesContext } from "../../../theme/ThemeProvider";
 import styles from "./styles/nodeTypes.module.css";
 
 function ColumnNode({ id, data }: NodeProps) {
-  const onClickAddColumn = UseGlobalStore((state) => state.createColClick);
-  const onClickDeleteColumn = UseGlobalStore((state) => state.deleteColClick);
-  const addSnapshot = UseGlobalStore((state) => state.addSnapshot);
-
+  const onClickAddColumn = UseEventTreeStore((state) => state.createColClick);
+  const onClickDeleteColumn = UseEventTreeStore(
+    (state) => state.deleteColClick,
+  );
+  const addSnapshot = UseEventTreeStore((state) => state.addSnapshot);
+  const onNodeDataChange = UseEventTreeStore((state) => state.onNodeDataChange);
+  const onAllColumnHeightChange = UseEventTreeStore(
+    (state) => state.onAllColumnHeightChange,
+  );
+  const saveGraph = UseEventTreeStore((state) => state.saveGraph);
+  const columnNodeStyles = useContext(CustomStylesContext);
   const handleValueChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const textarea = e.target;
     textarea.removeAttribute("rows");
     textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight}px`;
 
-    data.onNodeDataChange(id, {
+    onNodeDataChange(id, {
       ...data,
       value: e.target.value,
     });
     const scrollHeight = textarea.scrollHeight ?? 0;
 
-    const isIncreaseHeight = scrollHeight && scrollHeight > data.height;
+    const isIncreaseHeight = !!(scrollHeight && scrollHeight > data.height);
 
     if (scrollHeight && scrollHeight !== data.height) {
-      data.onAllColumnHeightChange(scrollHeight, isIncreaseHeight);
+      onAllColumnHeightChange(scrollHeight, isIncreaseHeight);
     }
   };
 
@@ -53,9 +56,8 @@ function ColumnNode({ id, data }: NodeProps) {
         position={Position.Left}
         id="a"
         style={{
-          position: "absolute",
-          top: "100%",
-          left: "1%",
+          top: "50%",
+          left: "20%",
           visibility: "hidden",
         }}
       />
@@ -64,9 +66,7 @@ function ColumnNode({ id, data }: NodeProps) {
         style={{
           visibility: data.hideText ? "hidden" : "visible",
           borderColor: "white",
-          borderLeft: "1px solid",
-          borderRight: "1px solid",
-          borderBottom: "1px solid",
+          border: "1px solid",
           padding: "4px",
           fontSize: "0.6rem",
           width: data.width,
@@ -140,7 +140,7 @@ function ColumnNode({ id, data }: NodeProps) {
         id="b"
         style={{
           position: "absolute",
-          top: "100%",
+          top: "50%",
           right: "-1%",
           visibility: "hidden",
         }}

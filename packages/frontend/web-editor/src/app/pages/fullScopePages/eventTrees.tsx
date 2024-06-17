@@ -3,6 +3,7 @@ import React, {
   FC,
   ReactElement,
   useCallback,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -28,6 +29,7 @@ import {
 } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { set } from "lodash";
 import useTreeData from "../../hooks/eventTree/useTreeData";
 import { EventTreeList } from "../../components/lists/nestedLists/eventTreeList";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
@@ -43,8 +45,9 @@ import { LoadingCard } from "../../components/cards/loadingCard";
 
 import nodeTypes from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
 
-import { UseGlobalStore } from "../../zustand/Store";
-import { edgeData, nodeData } from "../../../utils/EventTreeData";
+import { UseEventTreeStore } from "../../zustand/Store";
+import { UseToastContext } from "../../providers/toastProvider";
+import { GenerateUUID } from "../../../utils/treeUtils";
 
 /**
  * Initial set of nodes to be used in the ReactFlow component.
@@ -80,34 +83,53 @@ const ReactFlowPro: React.FC<Props> = ({ depth }) => {
   const { eventTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
 
+  const { addToast } = UseToastContext();
   const {
     nodes,
     edges,
     setNodes,
     setEdges,
+    undoStack,
+    redoStack,
     undo,
     redo,
+    saveGraph,
     onNodesChange,
     onEdgesChange,
     onConnect,
     loadGraph,
     loading,
-  } = UseGlobalStore((state) => ({
+    setLoading,
+    saved,
+    setSaved,
+  } = UseEventTreeStore((state) => ({
     nodes: state.nodes,
     edges: state.edges,
     setNodes: state.setNodes,
     setEdges: state.setEdges,
+    undoStack: state.undoStack,
+    redoStack: state.redoStack,
     undo: state.undo,
     redo: state.redo,
+    saveGraph: state.saveGraph,
     onNodesChange: state.onNodesChange,
     onEdgesChange: state.onEdgesChange,
     onConnect: state.onConnect,
     loadGraph: state.loadGraph,
     loading: state.loading,
+    setLoading: state.setLoading,
+    setEventTreeId: state.setEventTreeId,
+    saved: state.saved,
+    setSaved: state.setSaved,
   }));
 
+  if (saved) {
+    addToast({ id: GenerateUUID(), color: "success", text: "Saved!" });
+    setSaved(false);
+  }
+
   useEffect(() => {
-    eventTreeId && loadGraph(eventTreeId);
+    void (loading && eventTreeId && loadGraph(eventTreeId));
   }, [eventTreeId]);
 
   const onNodeContextMenu = useCallback(
@@ -169,7 +191,7 @@ const ReactFlowPro: React.FC<Props> = ({ depth }) => {
           <EuiFlexItem>
             <EuiButton
               onClick={undo}
-              disabled={!UseGlobalStore((state) => state.undoStack.length > 0)}
+              disabled={!(undoStack.length > 0)}
               iconType={"editorUndo"}
             >
               Undo
@@ -178,7 +200,7 @@ const ReactFlowPro: React.FC<Props> = ({ depth }) => {
           <EuiFlexItem>
             <EuiButton
               onClick={redo}
-              disabled={!UseGlobalStore((state) => state.redoStack.length > 0)}
+              disabled={!(redoStack.length > 0)}
               iconType={"editorRedo"}
             >
               Redo
@@ -215,6 +237,8 @@ export const EventTreeEditor = (): ReactElement => {
   const input = 2;
   const output = 1;
 
+  const resetSlice = UseEventTreeStore((state) => state.resetSlice);
+  resetSlice();
   return (
     <ReactFlowProvider>
       <ReactFlowPro depth={input + output} />

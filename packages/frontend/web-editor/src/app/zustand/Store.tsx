@@ -16,8 +16,7 @@ export const SliceResetFns = new Set<() => void>();
 export type storeType = InternalEventsType &
   InternalHazardsType &
   ExternalHazardsType &
-  FullScopeType &
-  EventTreeEditorType;
+  FullScopeType;
 
 const ResetAllSlices = (): void => {
   SliceResetFns.forEach((resetFn) => {
@@ -30,9 +29,13 @@ const UseGlobalStoreBase = create<storeType>()((...args) => ({
   ...internalHazardsSlice(...args),
   ...externalHazardsSlice(...args),
   ...fullScopeSlice(...args),
-  ...eventTreeEditorSlice(...args),
 }));
 
-const UseGlobalStore = createSelectors(UseGlobalStoreBase);
+const UseEventTreeStoreBase = create<EventTreeEditorType>((set, get, api) =>
+  eventTreeEditorSlice(set, get, api),
+);
 
-export { ResetAllSlices, UseGlobalStore };
+const UseGlobalStore = createSelectors(UseGlobalStoreBase);
+const UseEventTreeStore = createSelectors(UseEventTreeStoreBase);
+
+export { ResetAllSlices, UseGlobalStore, UseEventTreeStore };

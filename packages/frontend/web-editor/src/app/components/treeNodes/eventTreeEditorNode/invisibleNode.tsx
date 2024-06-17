@@ -2,15 +2,16 @@ import { Handle, NodeProps, Position } from "reactflow";
 
 import React from "react";
 
-import { EuiIcon } from "@elastic/eui";
+import { EuiIcon, useEuiTheme } from "@elastic/eui";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 
-import { UseGlobalStore } from "../../../zustand/Store";
+import { UseEventTreeStore, UseGlobalStore } from "../../../zustand/Store";
 import styles from "./styles/nodeTypes.module.css";
 
 function InvisibleNode({ id, data }: NodeProps) {
-  const onClick = UseGlobalStore((state) => state.createNodeClick);
-  const addSnapshot = UseGlobalStore((state) => state.addSnapshot);
+  const onClick = UseEventTreeStore((state) => state.createNodeClick);
+  const addSnapshot = UseEventTreeStore((state) => state.addSnapshot);
+
   return (
     <div style={{ opacity: data.isTentative ? "0.5" : "1" }}>
       <Handle
@@ -21,8 +22,7 @@ function InvisibleNode({ id, data }: NodeProps) {
           position: "absolute",
           top: "50%",
           left: "50%",
-
-          visibility: "hidden",
+          display: "none",
         }}
       />
       <div
@@ -32,16 +32,6 @@ function InvisibleNode({ id, data }: NodeProps) {
           textAlign: "center",
         }}
       >
-        {/*<div className={styles.inputNode}>*/}
-        {/*  <EuiText*/}
-        {/*    style={{ fontSize: "0.7rem", height: "1.2rem", resize: "none" }}*/}
-        {/*  >*/}
-        {/*    0.55*/}
-        {/*  </EuiText>*/}
-        {/*</div>*/}
-
-        {/*<EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>Yes</EuiText>*/}
-
         {data.depth != 1 && (
           <EuiIcon
             size={"s"}

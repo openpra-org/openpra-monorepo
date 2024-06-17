@@ -14,7 +14,7 @@
     "@nx/js": "17.1.2",
     "@nx/nest": "17.1.2",
     "@nx/node": "17.1.2",
-    "@nx/playwright": "17.2.8",
+    "@nx/playwrigdht": "17.2.8",
     "@nx/react": "17.1.2",
     "@nx/webpack": "17.1.2",
     "@playwright/test": "1.41.0",

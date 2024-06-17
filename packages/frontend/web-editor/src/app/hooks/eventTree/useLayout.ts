@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useReactFlow, useStore, Node, Edge, ReactFlowState } from "reactflow";
 import { cluster, partition, stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
+import { UseEventTreeStore } from "../../zustand/Store";
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
 const layout = cluster<Node>()
@@ -14,11 +15,20 @@ const options = { duration: 300 };
 
 // the layouting function
 // accepts current nodes and edges and returns the layouted nodes with their updated positions
-function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
+export function layoutNodes(nodeData: Node[], edges: Edge[]): Node[] {
   // if there are no nodes we can't calculate a layout
-  if (nodes.length === 0) {
+  if (nodeData.length === 0) {
     return [];
   }
+  const cols: Node[] = [];
+  let nodes: Node[] = [];
+  nodeData.forEach((node) => {
+    if (node.type === "columnNode") {
+      cols.push(node);
+    } else {
+      nodes.push(node);
+    }
+  });
 
   // convert nodes and edges into a hierarchical object for using it with the layout function
   const hierarchy = stratify<Node>()
@@ -83,67 +93,20 @@ function useLayout(depth: number) {
   // whenever the nodes length changes, we calculate the new layout
   const nodeCount = useStore(nodeCountSelector);
 
-  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } =
-    useReactFlow();
-
-  function onNodeDataChange(nodeId: string, newData: any) {
-    setNodes((nds) =>
-      nds.map((node) =>
-        node.id === nodeId ? { ...node, data: newData } : node,
-      ),
-    );
-  }
-
-  function onAllColumnHeightChange(
-    newHeight: number,
-    isIncreaseHeight: boolean,
-  ) {
-    setNodes((nds) =>
-      nds.map((node) =>
-        node.type === "columnNode"
-          ? {
-              ...node,
-              position: {
-                ...node.position,
-                y: isIncreaseHeight
-                  ? node.position.y - 14
-                  : node.position.y + 14,
-              },
-              data: { ...node.data, height: newHeight },
-            }
-          : node,
-      ),
-    );
-  }
+  const { nodeData, edges, setNodes, setEdges } = UseEventTreeStore(
+    (state) => ({
+      nodeData: state.nodes,
+      edges: state.edges,
+      setNodes: state.setNodes,
+      setEdges: state.setEdges,
+    }),
+  );
+  const { fitView, getNode } = useReactFlow();
 
   useEffect(() => {
-    // get the current nodes and edges
-    const nodeData = getNodes();
-    const edges = getEdges();
-
-    // splitting the nodeData into nodes and columns
-    const nodes: Node[] = [];
-    const cols: Node[] = [];
-    console.log(nodeData, edges);
-    nodeData.forEach((node) => {
-      if (node.type === "columnNode") {
-        cols.push(node);
-      } else {
-        nodes.push(node);
-      }
-    });
-
     // run the layout and get back the nodes with their updated positions
-    let targetNodes = layoutNodes(nodes, cols, edges);
-    targetNodes = targetNodes.map((node) => ({
-      ...node,
-      data: {
-        ...node.data,
-        onNodeDataChange: onNodeDataChange,
-        onAllColumnHeightChange: onAllColumnHeightChange,
-      },
-    }));
-
+    const targetNodes = layoutNodes(nodeData, edges);
+    console.log(nodeData, edges);
     // if you do not want to animate the nodes, you can uncomment the following line
     // return setNodes(targetNodes);
 
@@ -151,7 +114,7 @@ function useLayout(depth: number) {
     const transitions = targetNodes.map((node) => ({
       id: node.id,
       // this is where the node currently is placed
-      from: getNode(node.id)?.position || node.position,
+      from: getNode(node.id)?.position ?? node.position,
       // this is where we want the node to be placed
       to: node.position,
       node,
@@ -203,7 +166,7 @@ function useLayout(depth: number) {
     return () => {
       t.stop();
     };
-  }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);
+  }, [nodeCount, getNode, setNodes, fitView, setEdges]);
 }
 
 export default useLayout;

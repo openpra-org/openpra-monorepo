@@ -14,13 +14,15 @@ import {
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 import useDeleteNodeClick from "../../../hooks/eventTree/useDeleteNodeClick";
 
-import { UseGlobalStore } from "../../../zustand/Store";
+import { UseEventTreeStore, UseGlobalStore } from "../../../zustand/Store";
 import styles from "./styles/nodeTypes.module.css";
 
 function VisibleNode({ id, data }: NodeProps) {
-  const onClickCreate = UseGlobalStore((state) => state.createNodeClick);
-  const onClickDelete = UseGlobalStore((state) => state.deleteNodeClick);
-  const addSnapshot = UseGlobalStore((state) => state.addSnapshot);
+  const onClickCreate = UseEventTreeStore((state) => state.createNodeClick);
+  const onClickDelete = UseEventTreeStore((state) => state.deleteNodeClick);
+  const addSnapshot = UseEventTreeStore((state) => state.addSnapshot);
+  const onNodeDataChange = UseEventTreeStore((state) => state.onNodeDataChange);
+
   const InputTextValueWidth = data.value
     ? 1 + data.value.length * 4 + "%"
     : "12%";
@@ -42,11 +44,11 @@ function VisibleNode({ id, data }: NodeProps) {
     onClickDelete(id);
   };
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    data.onNodeDataChange(id, { ...data, value: e.target.value });
+    onNodeDataChange(id, { ...data, value: e.target.value });
   };
 
   const handleOptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    data.onNodeDataChange(id, { ...data, option: e.target.value });
+    onNodeDataChange(id, { ...data, option: e.target.value });
   };
   return (
     <div className={styles.container}>
@@ -58,8 +60,7 @@ function VisibleNode({ id, data }: NodeProps) {
           position: "absolute",
           top: "50%",
           left: "50%",
-
-          visibility: "hidden",
+          display: "none",
         }}
       />
       <div

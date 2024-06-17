@@ -1,13 +1,22 @@
 import { Handle, NodeProps, Position } from "reactflow";
 
 import React from "react";
-import { EuiFieldText, EuiFormControlLayout, EuiText } from "@elastic/eui";
+import {
+  EuiFieldText,
+  EuiFormControlLayout,
+  EuiText,
+  useEuiTheme,
+} from "@elastic/eui";
 
+import { UseEventTreeStore } from "../../../zustand/Store";
 import styles from "./styles/nodeTypes.module.css";
 
 function OutputNode({ id, data }: NodeProps) {
+  const onNodeDataChange = UseEventTreeStore((state) => state.onNodeDataChange);
+  const addSnapshot = UseEventTreeStore((state) => state.addSnapshot);
+  const { euiTheme } = useEuiTheme();
   const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    data.onNodeDataChange(id, { ...data, value: e.target.value });
+    onNodeDataChange(id, { ...data, value: e.target.value });
   };
   const InputTextValueWidth = data.value
     ? 1 + data.value.length * 4 + "%"
@@ -45,7 +54,7 @@ function OutputNode({ id, data }: NodeProps) {
               maxLength={20}
               compressed
               style={{
-                fontSize: "0.7rem",
+                fontSize: euiTheme.size.m,
                 height: "1rem",
                 resize: "none",
                 border: "none",

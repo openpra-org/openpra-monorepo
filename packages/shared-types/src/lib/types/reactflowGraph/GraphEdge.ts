@@ -8,4 +8,5 @@ export type GraphEdge<T> = {
   type: string;
   data: T;
   animated: boolean;
+  hidden: boolean;
 };

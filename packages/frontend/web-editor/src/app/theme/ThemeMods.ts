@@ -10,4 +10,18 @@ export const ThemeMods: EuiThemeModifications = {
       bold: 600,
     },
   },
+  colors: {
+    LIGHT: {
+      primary: "#0079A5",
+      text: "#000000",
+    },
+    DARK: {
+      primary: "#0A3755",
+      text: "#FFFFFF",
+    },
+  },
 };
+
+export type ColorModes = "LIGHT" | "DARK";
+export const getColorsForMode = (colorMode: ColorModes) =>
+  ThemeMods.colors ? ThemeMods.colors[colorMode] : undefined;

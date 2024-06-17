@@ -1,7 +1,8 @@
 import React, { ReactElement } from "react";
 import { EuiProvider } from "@elastic/eui";
 import { EuiThemeColorMode } from "@elastic/eui";
-import { ThemeMods } from "./ThemeMods";
+import { ColorModes, ThemeMods } from "./ThemeMods";
+import { getColumnNodeStyles } from "./EventTreeEditor/ColumnNodeStyles";
 
 /**
  * Context for providing theme settings.
@@ -9,6 +10,8 @@ import { ThemeMods } from "./ThemeMods";
 const ThemeSettingsContext = React.createContext<Partial<ThemeContextProps>>(
   {},
 );
+
+const CustomStylesContext = React.createContext({});
 
 /**
  * Type representing a non-empty array where the first element is guaranteed to exist.
@@ -145,11 +148,18 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
     const themePreference = ThemeProvider.getThemePreference();
     const colorMode: EuiThemeColorMode =
       themePreference.mode === PreferenceModes.DARK ? "dark" : "light";
+
     if (colorMode === "dark") {
       import("../../assets/css/eui_theme_dark.css");
     } else {
       import("../../assets/css/eui_theme_light.css");
     }
+    const mapColorMode = (mode: EuiThemeColorMode): ColorModes =>
+      mode === "dark" ? "DARK" : "LIGHT";
+    const customStyles = {
+      columnNode: getColumnNodeStyles(mapColorMode(colorMode)),
+    };
+
     return (
       <ThemeSettingsContext.Provider
         value={{
@@ -159,9 +169,11 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
         }}
       >
         {
-          <EuiProvider colorMode={colorMode} modify={ThemeMods}>
-            {children}
-          </EuiProvider>
+          <CustomStylesContext.Provider value={customStyles}>
+            <EuiProvider colorMode={colorMode} modify={ThemeMods}>
+              {children}
+            </EuiProvider>
+          </CustomStylesContext.Provider>
         }
       </ThemeSettingsContext.Provider>
     );
@@ -261,4 +273,4 @@ export const ThemeSettingsConsumer = ThemeSettingsContext.Consumer;
 /**
  * Default export of the ThemeProvider component.
  */
-export { ThemeProvider };
+export { ThemeProvider, CustomStylesContext };

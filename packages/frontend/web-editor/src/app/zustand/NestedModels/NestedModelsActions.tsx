@@ -1,4 +1,10 @@
 import {
+  AddEventSequenceAnalysis,
+  DeleteEventSequenceAnalysis,
+  EditEventSequenceAnalysis,
+  SetEventSequenceAnalysis,
+} from "./ActionHelpers/EventSequenceAnalysisActions";
+import {
   AddEventSequenceDiagram,
   DeleteEventSequenceDiagram,
   EditEventSequenceDiagram,
@@ -23,4 +29,10 @@ export {
   AddEventSequenceDiagram,
   EditEventSequenceDiagram,
   DeleteEventSequenceDiagram,
+
+  // Event Sequence Analysis
+  SetEventSequenceAnalysis,
+  AddEventSequenceAnalysis,
+  EditEventSequenceAnalysis,
+  DeleteEventSequenceAnalysis,
 };

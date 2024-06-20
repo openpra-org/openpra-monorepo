@@ -9,7 +9,7 @@ export const NestedModelsState = {
       HeatBalanceFaultTrees: [] as string[],
     },
     EventSequenceAnalysis: {
-      EventSequenceAnalysisList: [] as string[],
+      EventSequenceAnalysisList: [] as NestedModelType[],
       EventSequenceDiagrams: [] as NestedModelType[],
       EventTrees: [] as string[],
     },

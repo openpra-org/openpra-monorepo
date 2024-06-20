@@ -21,11 +21,8 @@ import { ToTitleCase } from "../../../utils/StringUtils";
 
 export interface ItemFormProps {
   itemName: string;
-  // TODO:: TODO :: replace endpoint string with TypedApiManager method
-  postEndpoint?: (data: Partial<TypedModelJSON>) => NonNullable<unknown>;
-  postFunction?: (data: Partial<TypedModelJSON>) => Promise<void>;
-  patchEndpoint?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => NonNullable<unknown>;
-  patchFunction?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
+  postEndpoint?: (data: Partial<TypedModelJSON>) => Promise<void>;
+  patchEndpoint?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
   onSuccess?: () => NonNullable<unknown>;
   onFail?: () => NonNullable<unknown>;
   onCancel?: (func: any) => void;
@@ -42,8 +39,6 @@ function TypedModelActionForm({
   compressed,
   initialFormValues,
   action,
-  patchFunction,
-  postFunction,
   patchEndpoint,
   postEndpoint,
 }: ItemFormProps): JSX.Element {
@@ -58,7 +53,7 @@ function TypedModelActionForm({
   //sets the current typed model using our formInitials in a React state, so we can pass it around
   const [typedModel, setTypedModel] = useState(formInitials);
 
-  //need a state for the list of user ints, going dummy it out for now
+  //need a state for the list of user ids, going dummy it out for now
   const [usersList, setUsersList] = useState<EuiComboBoxOptionOption<any>[]>([]);
 
   //need a state for selected list of users for the EuiComboBox
@@ -124,41 +119,16 @@ function TypedModelActionForm({
         users: finalIdList,
       };
 
-      //calls the 2 functions depending on what is passed to patch
-      if (initialFormValues) {
-        if (
-          itemName === "Internal Events" ||
-          itemName === "Internal Hazards" ||
-          itemName === "External Hazards" ||
-          itemName === "Full Scope"
-        ) {
-          if (patchFunction) {
-            void patchFunction(initialFormValues.id, userId, partialModel).then(() => {
-              onCancel && onCancel(false);
-            });
-          }
-        } else {
-          if (patchEndpoint) {
-            patchEndpoint(initialFormValues.id, userId, partialModel);
-          }
-        }
+      if (initialFormValues && patchEndpoint) {
+        void patchEndpoint(initialFormValues.id, userId, partialModel).then(() => {
+          onCancel && onCancel(false);
+        });
+      } else if (postEndpoint) {
+        void postEndpoint(partialModel).then(() => {
+          onCancel && onCancel(false);
+        });
       } else {
-        if (postFunction) {
-          if (
-            itemName === "Internal Events" ||
-            itemName === "Internal Hazards" ||
-            itemName === "External Hazards" ||
-            itemName === "Full Scope"
-          ) {
-            postFunction(partialModel).then(() => {
-              onCancel && onCancel(false);
-            });
-          }
-        } else if (postEndpoint) {
-          postEndpoint(partialModel);
-        } else {
-          alert("Please enter a valid name");
-        }
+        alert("Please enter a valid name");
       }
     }
   };

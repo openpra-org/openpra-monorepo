@@ -25,6 +25,7 @@ import { RiskIntegration } from "./schemas/risk-integration.schema";
 import { TypedModelType } from "./nested-model-helper.service";
 import { InitiatingEventsService } from "./NestedModelsHelpers/initiating-events.service";
 import { EventSequenceDiagramService } from "./NestedModelsHelpers/event-sequence-diagram.service";
+import { EventSequenceAnalysisService } from "./NestedModelsHelpers/event-sequence-analysis.service";
 
 @Controller()
 export class NestedModelController {
@@ -32,6 +33,7 @@ export class NestedModelController {
     private readonly nestedModelService: NestedModelService,
     private readonly initiatingEventsService: InitiatingEventsService,
     private readonly eventSequenceDiagramService: EventSequenceDiagramService,
+    private readonly eventSequenceAnalysisService: EventSequenceAnalysisService,
   ) {}
 
   //method to get counter value
@@ -126,7 +128,7 @@ export class NestedModelController {
 
   /**
    * posts the nested model defined in the method name
-   * @param body is the entire body of the post request
+   * @param body - is the entire body of the post request
    * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
    * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
    * @param typedModel is the typed model to be updated
@@ -209,10 +211,20 @@ export class NestedModelController {
     return this.nestedModelService.createSuccessCriteria(data);
   }
 
+  /**
+   * posts the nested model defined in the method name
+   * @param body - is the entire body of the post request
+   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
+   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
+   * @param typedModel is the typed model to be updated
+   * @returns a promise with the newly created model, with the general nested model fields
+   */
   // For Event Sequence Analysis
   @Post("/event-sequence-analysis/")
-  async createEventSequenceAnalysis(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
-    return this.nestedModelService.createEventSequenceAnalysis(data);
+  async createEventSequenceAnalysis(
+    @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType },
+  ): Promise<NestedModel> {
+    return this.eventSequenceAnalysisService.createEventSequenceAnalysis(body.data, body.typedModel);
   }
 
   // For Operating State Analysis
@@ -247,7 +259,7 @@ export class NestedModelController {
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Event Sequence Diagrams)
-   * @param id the id of the parent model
+   * @param id - the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
   @Get("/event-sequence-diagrams/")
@@ -301,7 +313,7 @@ export class NestedModelController {
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Initiating Events)
-   * @param id the id of the parent model
+   * @param id - the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
   @Get("/initiating-events/")
@@ -382,9 +394,18 @@ export class NestedModelController {
   }
 
   // For Event Sequence Analysis
+  /**
+   * grabs the collection of the type of nested model defined by the function call name (Initiating Events)
+   * @param id - the id of the parent model
+   * @returns a promise with a list of the model typed defined
+   */
   @Get("/event-sequence-analysis/")
   async getEventSequenceAnalysis(@Query("id") id: number): Promise<EventSequenceAnalysis[]> {
-    return this.nestedModelService.getEventSequenceAnalysis(id);
+    if (typeof id === "number") {
+      return this.eventSequenceAnalysisService.getEventSequenceAnalysis(id);
+    } else {
+      return this.eventSequenceAnalysisService.getEventSequenceAnalysisString(id);
+    }
   }
 
   // For Operating State Analysis
@@ -417,7 +438,7 @@ export class NestedModelController {
 
   /**
    * returns a single model from the given collection
-   * @param modelId the id of the model to be retrieved
+   * @param modelId - the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
   @Get("/event-sequence-diagrams/:id")
@@ -496,7 +517,7 @@ export class NestedModelController {
 
   /**
    * returns a single model from the given collection
-   * @param modelId the id of the model to be retrieved
+   * @param modelId - the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
   @Get("/weibull-analysis/:id")
@@ -557,9 +578,18 @@ export class NestedModelController {
   }
 
   // For Event Sequence Analysis
+  /**
+   * returns a single model from the given collection
+   * @param modelId - the id of the model to be retrieved
+   * @returns a promise with the model with the given id
+   */
   @Get("/event-sequence-analysis/:id")
   async getSingleEventSequenceAnalysis(@Param("id") modelId: number): Promise<EventSequenceAnalysis> {
-    return this.nestedModelService.getSingleEventSequenceAnalysis(modelId);
+    if (typeof modelId === "number") {
+      return this.eventSequenceAnalysisService.getSingleEventSequenceAnalysis(modelId);
+    } else {
+      return this.eventSequenceAnalysisService.getSingleEventSequenceAnalysisString(modelId);
+    }
   }
 
   // For Operating State Analysis
@@ -720,10 +750,16 @@ export class NestedModelController {
     return this.nestedModelService.deleteSuccessCriteria(id);
   }
 
+  /**
+   * deletes a single nested model from the collection of that typed based on an id
+   * @param id the id of the model to be deleted
+   * @param typedModel is the typed model that this nested model belongs to
+   * @returns a promise with the deleted model
+   */
   // For Event Sequence Analysis
   @Delete("/event-sequence-analysis/")
-  async deleteEventSequenceAnalysis(@Query("id") id: number): Promise<EventSequenceAnalysis> {
-    return this.nestedModelService.deleteEventSequenceAnalysis(id);
+  async deleteEventSequenceAnalysis(@Query("id") id: string, @Query("type") typedModel: TypedModelType): Promise<void> {
+    return this.eventSequenceAnalysisService.deleteEventSequenceAnalysis(id, typedModel);
   }
 
   // For Operating State Analysis
@@ -899,10 +935,16 @@ export class NestedModelController {
     return this.nestedModelService.updateSuccessCriteriaLabel(id, data);
   }
 
+  /**
+   * updates a label for the nested model type
+   * @param id the id of the nested model to be updated
+   * @param data the new label, with a name and description string
+   * @returns the updated model
+   */
   // For Event Sequence Analysis
   @Patch("/event-sequence-analysis/:id")
-  async updateEventSequenceAnalysisLabel(@Param("id") id: number, @Body() data: Label): Promise<EventSequenceAnalysis> {
-    return this.nestedModelService.updateEventSequenceAnalysisLabel(id, data);
+  async updateEventSequenceAnalysisLabel(@Param("id") id: string, @Body() data: Label): Promise<NestedModel> {
+    return this.eventSequenceAnalysisService.updateEventSequenceAnalysisLabel(id, data);
   }
 
   // For Operating State Analysis

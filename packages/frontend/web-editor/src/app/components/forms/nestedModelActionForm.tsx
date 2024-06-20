@@ -67,7 +67,11 @@ function NestedModelActionForm({
         parentIds: [GetCurrentModelIdString()],
       };
 
-      if (itemName === "initiating-event" || itemName === "event-sequence-diagram") {
+      if (
+        itemName === "initiating-event" ||
+        itemName === "event-sequence-diagram" ||
+        itemName === "event-sequence-analysis"
+      ) {
         if (initialFormValues && _id && patchNestedEndpoint) {
           void patchNestedEndpoint(_id, partialModel).then(() => {
             onCancel && onCancel(false);

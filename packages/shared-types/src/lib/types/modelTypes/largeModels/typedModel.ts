@@ -107,6 +107,7 @@ export interface typedModelType {
   users: number[];
   initiatingEvents: string[];
   eventSequenceDiagrams: string[];
+  eventSequenceAnalysis: string[];
   functionalEvents?: string[];
   eventTrees?: string[];
   faultTrees?: string[];

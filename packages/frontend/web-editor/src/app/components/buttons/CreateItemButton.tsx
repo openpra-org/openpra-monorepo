@@ -37,7 +37,7 @@ export type CreateNestedItemButtonProps = Omit<NestedItemFormProps, "action">;
  * @param endpoint - endpoint that will be used to add the item
  * @returns the create item button
  */
-function CreateItemButton({ itemName, postEndpoint, postFunction }: CreateItemButtonProps): JSX.Element {
+function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps): JSX.Element {
   const popoverExtra = (child: JSX.Element): JSX.Element => <div style={logicalStyle("max-width", 240)}>{child}</div>;
   //this now checks what type of thing is being added, as adding a typed model has an extra field that isn't needed
   return (
@@ -59,7 +59,6 @@ function CreateItemButton({ itemName, postEndpoint, postFunction }: CreateItemBu
         action="create"
         itemName={itemName}
         postEndpoint={postEndpoint}
-        postFunction={postFunction}
       />
     </ButtonWithClosablePopover>
   );
@@ -109,7 +108,7 @@ export function CreateInternalEventsButton(): JSX.Element {
   return (
     <CreateItemButton
       itemName="Internal Events"
-      postFunction={createInternalEvent}
+      postEndpoint={createInternalEvent}
     />
   );
 }
@@ -119,7 +118,7 @@ export function CreateInternalHazardsButton(): JSX.Element {
   return (
     <CreateItemButton
       itemName="Internal Hazards"
-      postFunction={createInternalHazard}
+      postEndpoint={createInternalHazard}
     />
   );
 }
@@ -129,7 +128,7 @@ export function CreateExternalHazardsButton(): JSX.Element {
   return (
     <CreateItemButton
       itemName="External Hazards"
-      postFunction={createExternalHazard}
+      postEndpoint={createExternalHazard}
     />
   );
 }
@@ -139,7 +138,7 @@ export function CreateFullScopeButton(): JSX.Element {
   return (
     <CreateItemButton
       itemName="Full Scope"
-      postFunction={createFullScope}
+      postEndpoint={createFullScope}
     />
   );
 }
@@ -300,10 +299,11 @@ export function CreateSuccessCriteriaButton(): JSX.Element {
 }
 
 export function CreateEventSequenceAnalysisButton(): JSX.Element {
+  const AddEventSequenceAnalysis = UseGlobalStore.use.AddEventSequenceAnalysis();
   return (
     <CreateNestedItemButton
       itemName="event-sequence-analysis"
-      postEndpoint={PostEventSequenceAnalysis}
+      postNestedEndpoint={AddEventSequenceAnalysis}
     />
   );
 }

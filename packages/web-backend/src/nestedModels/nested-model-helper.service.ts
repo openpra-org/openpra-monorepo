@@ -11,6 +11,7 @@ export type TypedModelType = "InternalEvents" | "InternalHazards" | "ExternalHaz
 export type NestedModelType =
   | "initiatingEvents"
   | "eventSequenceDiagrams"
+  | "eventSequenceAnalysis"
   | "functionalEvents"
   | "eventTrees"
   | "faultTrees"

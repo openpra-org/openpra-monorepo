@@ -88,17 +88,17 @@ export class EventSequenceDiagramService {
    * @returns a promise with the deleted model
    */
   async deleteEventSequenceDiagram(modelId: string, typedModel: TypedModelType): Promise<void> {
-    const initiatingEvent = await this.eventSequenceDiagramModel.findOne({
+    const eventSequenceDiagram = await this.eventSequenceDiagramModel.findOne({
       _id: modelId,
     });
     await this.eventSequenceDiagramModel.findOneAndDelete({ _id: modelId });
 
-    for (const pId of initiatingEvent.parentIds) {
+    for (const pId of eventSequenceDiagram.parentIds) {
       await this.nestedModelHelperService.RemoveNestedModelToTypedModel(
         typedModel,
         "eventSequenceDiagrams",
         pId.toString(),
-        initiatingEvent._id as string,
+        eventSequenceDiagram._id as string,
       );
     }
   }

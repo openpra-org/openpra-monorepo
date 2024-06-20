@@ -36,7 +36,7 @@ export const AddEventSequenceDiagram = async (data: NestedModelJSON): Promise<vo
       }),
     );
   } catch (error) {
-    console.error("Error adding initiating event:", error);
+    console.error("Error adding event sequence diagram:", error);
   }
 };
 
@@ -46,17 +46,17 @@ export const EditEventSequenceDiagram = async (modelId: string, data: Partial<Ne
   }
 
   try {
-    const ier: NestedModelType = await PatchEventSequenceDiagramLabel(modelId, data.label);
+    const esdr: NestedModelType = await PatchEventSequenceDiagramLabel(modelId, data.label);
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
         state.NestedModels.EventSequenceAnalysis.EventSequenceDiagrams =
-          state.NestedModels.EventSequenceAnalysis.EventSequenceDiagrams.map((ie: NestedModelType) =>
-            ie._id === modelId ? ier : ie,
+          state.NestedModels.EventSequenceAnalysis.EventSequenceDiagrams.map((esd: NestedModelType) =>
+            esd._id === modelId ? esdr : esd,
           );
       }),
     );
   } catch (error) {
-    console.error("Error adding initiating event:", error);
+    console.error("Error editing event sequence diagram:", error);
   }
 };
 
@@ -68,15 +68,17 @@ export const DeleteEventSequenceDiagram = async (id: string): Promise<void> => {
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
         const parentIds =
-          state.NestedModels.EventSequenceAnalysis.EventSequenceDiagrams.find((ie) => ie._id === id)?.parentIds ?? [];
+          state.NestedModels.EventSequenceAnalysis.EventSequenceDiagrams.find((esd) => esd._id === id)?.parentIds ?? [];
 
         state.NestedModels.EventSequenceAnalysis.EventSequenceDiagrams =
-          state.NestedModels.EventSequenceAnalysis.EventSequenceDiagrams.filter((ie: NestedModelType) => ie._id !== id);
+          state.NestedModels.EventSequenceAnalysis.EventSequenceDiagrams.filter(
+            (esd: NestedModelType) => esd._id !== id,
+          );
 
         state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
   } catch (error) {
-    console.error("Error deleting initiating event:", error);
+    console.error("Error deleting event sequence diagram:", error);
   }
 };

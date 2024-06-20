@@ -25,6 +25,9 @@ export class TypedModel {
   eventSequenceDiagrams: number[];
 
   @Prop()
+  eventSequenceAnalysis: number[];
+
+  @Prop()
   functionalEvents: number[];
 
   @Prop()

@@ -15,7 +15,9 @@ import { NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerMode
 import { LastActionText } from "./LastActionText";
 import { ListItemContextMenuButton } from "./ListItemAction";
 
-//title is required, description isn't required but is typically present
+// TODO: After all nested models are converted to use Zustand
+// TODO: Remove patchNestedEndpoint and replace it with patchNestedEndpointNew renamed to patchNestedEndpoint
+// TODO: Remove deleteNestedEndpoint and replace it with deleteNestedEndpointNew renamed to deleteNestedEndpoint
 export interface GenericListItemProps {
   id: number;
   label: LabelJSON;

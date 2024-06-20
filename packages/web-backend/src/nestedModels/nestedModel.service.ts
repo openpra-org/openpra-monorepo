@@ -3,7 +3,6 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { NestedCounter, NestedCounterDocument } from "../schemas/tree-counter.schema";
 import { Label } from "../schemas/label.schema";
-import { GraphModelService } from "../graphModels/graphModel.service";
 import { NestedModel } from "./schemas/templateSchema/nested-model.schema";
 import { BayesianEstimation, BayesianEstimationDocument } from "./schemas/bayesian-estimation.schema";
 import { EventSequenceDiagram, EventSequenceDiagramDocument } from "./schemas/event-sequence-diagram.schema";
@@ -81,7 +80,6 @@ export class NestedModelService {
     private readonly eventSequenceAnalysisModel: Model<EventSequenceAnalysisDocument>,
     @InjectModel(OperatingStateAnalysis.name)
     private readonly operatingStateAnalysisModel: Model<OperatingStateAnalysisDocument>,
-    private readonly graphModelService: GraphModelService,
   ) {}
 
   /**
@@ -313,18 +311,6 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createEventSequenceAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
-    const newESA = new this.eventSequenceAnalysisModel(body);
-    newESA.id = await this.getNextValue("nestedCounter");
-    return newESA.save();
-  }
-
-  /**
-   * creates the type of nested model defined in the function name
-   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
-   * and a label object with a name string and optional description string
-   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
-   */
   async createOperatingStateAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
     const newOSA = new this.operatingStateAnalysisModel(body);
     newOSA.id = await this.getNextValue("nestedCounter");
@@ -505,17 +491,6 @@ export class NestedModelService {
   }
 
   /**
-   * Retrieves a collection of Event Sequence Analysis models based on the parent ID.
-   * @param parentId The ID of the parent model for the nested model.
-   * @returns A promise with an array of nested Event Sequence Analysis models associated with the specified parent ID.
-   */
-  async getEventSequenceAnalysis(parentId: number): Promise<EventSequenceAnalysis[]> {
-    // Typecast to a number because for some reason, it isn't a number????
-
-    return this.eventSequenceAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
-  }
-
-  /**
    * Retrieves a collection of Operating State Analysis models based on the parent ID.
    * @param parentId The ID of the parent model for the nested model.
    * @returns A promise with an array of nested Operating State Analysis models associated with the specified parent ID.
@@ -670,15 +645,6 @@ export class NestedModelService {
    */
   async getSingleSuccessCriteria(modelId: number): Promise<SuccessCriteria> {
     return this.successCriteriaModel.findOne({ id: modelId }, { _id: 0 });
-  }
-
-  /**
-   * Retrieves a single Event Sequence Analysis model based on the ID.
-   * @param modelId The ID of the Event Sequence Analysis model to be retrieved.
-   * @returns The Event Sequence Analysis model associated with the specified ID.
-   */
-  async getSingleEventSequenceAnalysis(modelId: number): Promise<EventSequenceAnalysis> {
-    return this.eventSequenceAnalysisModel.findOne({ id: modelId }, { _id: 0 });
   }
 
   /**
@@ -838,15 +804,6 @@ export class NestedModelService {
    */
   async deleteSuccessCriteria(modelId: number): Promise<SuccessCriteria> {
     return this.successCriteriaModel.findOneAndDelete({ id: modelId });
-  }
-
-  /**
-   * Finds and deletes an Event Sequence Analysis model based on the ID.
-   * @param modelId The ID of the Event Sequence Analysis model to be deleted.
-   * @returns A promise with the deleted Event Sequence Analysis model.
-   */
-  async deleteEventSequenceAnalysis(modelId: number): Promise<EventSequenceAnalysis> {
-    return this.eventSequenceAnalysisModel.findOneAndDelete({ id: modelId });
   }
 
   /**
@@ -1027,16 +984,6 @@ export class NestedModelService {
    */
   async updateSuccessCriteriaLabel(id: number, body: Label): Promise<SuccessCriteria> {
     return this.successCriteriaModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
-  }
-
-  /**
-   * Updates the label in an Event Sequence Analysis model.
-   * @param id The ID of the Event Sequence Analysis model to be updated.
-   * @param body A label with a name and description.
-   * @returns A promise with the updated Event Sequence Analysis model with an updated label.
-   */
-  async updateEventSequenceAnalysisLabel(id: number, body: Label): Promise<EventSequenceAnalysis> {
-    return this.eventSequenceAnalysisModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**

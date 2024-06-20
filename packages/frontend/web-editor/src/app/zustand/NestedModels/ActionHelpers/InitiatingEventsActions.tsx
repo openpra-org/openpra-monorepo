@@ -56,7 +56,7 @@ export const EditInitiatingEvent = async (modelId: string, data: Partial<NestedM
       }),
     );
   } catch (error) {
-    console.error("Error adding initiating event:", error);
+    console.error("Error editing initiating event:", error);
   }
 };
 

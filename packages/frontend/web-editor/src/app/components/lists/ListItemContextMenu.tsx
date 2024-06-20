@@ -18,7 +18,7 @@ import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { NestedModelActionForm } from "../forms/nestedModelActionForm";
 import { GenericListItemProps } from "./GenericListItem";
 
-export type ListItemContextMenuProps = NonNullable<unknown> & GenericListItemProps & Omit<ItemFormProps, "action">;
+export type ListItemContextMenuProps = GenericListItemProps & Omit<ItemFormProps, "action">;
 
 const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
   //TODO: Make this work correctly, the prop is bad
@@ -114,6 +114,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
               onCancel={onCancel}
             />
           ) : (
+            // TODO: PatchNestedEndpoint should be replaced by patchEndpoint and the function of patchNestedEndpoint - patchNestedEndpointNew must be renamed and passed to it after all
             <NestedModelActionForm
               noHeader
               compressed

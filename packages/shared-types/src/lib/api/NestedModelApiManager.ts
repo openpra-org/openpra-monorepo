@@ -19,6 +19,7 @@ export const API_ENDPOINT = "/api";
 export const NESTED_ENDPOINT = `${API_ENDPOINT}/nested-models`;
 export const INITIATING_EVENTS_ENDPOINT = `${NESTED_ENDPOINT}/initiating-events`;
 export const EVENT_SEQUENCE_DIAGRAMS_ENDPOINT = `${NESTED_ENDPOINT}/event-sequence-diagrams`;
+export const EVENT_SEQUENCE_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/event-sequence-analysis`;
 
 const HEAT_BALANCE_FAULT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/heat-balance-fault-trees`;
 const EVENT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/event-trees`;
@@ -36,7 +37,6 @@ const DATA_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/data-analysis`;
 const HUMAN_RELIABILITY_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/human-reliability-analysis`;
 const SYSTEMS_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/systems-analysis`;
 const SUCCESS_CRITERIA_ENDPOINT = `${NESTED_ENDPOINT}/success-criteria`;
-const EVENT_SEQUENCE_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/event-sequence-analysis`;
 const OPERATING_STATE_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/operating-state-analysis`;
 const NESTED_MODEL_TYPE_LOCATION = 3;
 //const NESTED_MODEL_ID_LOCATION = 4;
@@ -63,17 +63,24 @@ import {
   PatchEventSequenceDiagramLabel,
 } from "./NestedModelsAPI/EventSequenceDiagramsApiManager";
 
+import {
+  DeleteEventSequenceAnalysis,
+  GetEventSequenceAnalysis,
+  PostEventSequenceAnalysis,
+  PatchEventSequenceAnalysisLabel,
+} from "./NestedModelsAPI/EventSequenceAnalysisApiManager";
+
 // Get Methods
-export { GetEventSequenceDiagrams, GetInitiatingEvents };
+export { GetEventSequenceDiagrams, GetInitiatingEvents, GetEventSequenceAnalysis };
 
 // Post Methods
-export { PostEventSequenceDiagram, PostInitiatingEvent };
+export { PostEventSequenceDiagram, PostInitiatingEvent, PostEventSequenceAnalysis };
 
 // Patch Methods
-export { PatchEventSequenceDiagramLabel, PatchInitiatingEventLabel };
+export { PatchEventSequenceDiagramLabel, PatchInitiatingEventLabel, PatchEventSequenceAnalysisLabel };
 
 // Delete Methods
-export { DeleteEventSequenceDiagram, DeleteInitiatingEvent };
+export { DeleteEventSequenceDiagram, DeleteInitiatingEvent, DeleteEventSequenceAnalysis };
 
 //Don't use '' keyword, dynamically passing functions hates it on the frontend
 
@@ -257,15 +264,6 @@ export async function PostSuccessCriteria(data: NestedModelJSON): Promise<Nested
     (response) => response.json() as Promise<NestedModel>,
   );
   await AddNestedModelToTypedModel("successCriteria");
-  return returnResponse;
-}
-
-// Event Sequence Analysis
-export async function PostEventSequenceAnalysis(data: NestedModelJSON): Promise<NestedModel> {
-  const returnResponse = await Post(`${EVENT_SEQUENCE_ANALYSIS_ENDPOINT}/`, data).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
-  await AddNestedModelToTypedModel("eventSequenceAnalysis");
   return returnResponse;
 }
 
@@ -489,15 +487,6 @@ export function GetSuccessCriteria(id = -1): Promise<NestedModel[]> {
     });
 }
 
-// Event Sequence Analysis
-export function GetEventSequenceAnalysis(id = -1): Promise<NestedModel[]> {
-  return Get(`${EVENT_SEQUENCE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
-    .then((response) => response.json() as Promise<NestedModel[]>)
-    .catch((error) => {
-      throw error;
-    });
-}
-
 // Operating State Analysis
 export function GetOperatingStateAnalysis(id = -1): Promise<NestedModel[]> {
   return Get(`${OPERATING_STATE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
@@ -690,13 +679,6 @@ export function PatchSystemsAnalysisLabel(id: number, data: LabelJSON): Promise<
 // Success Criteria
 export function PatchSuccessCriteriaLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${SUCCESS_CRITERIA_ENDPOINT}/${id}`, JSON.stringify(data)).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
-}
-
-// Event Sequence Analysis
-export function PatchEventSequenceAnalysisLabel(id: number, data: LabelJSON): Promise<NestedModel> {
-  return Patch(`${EVENT_SEQUENCE_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
@@ -901,15 +883,6 @@ export async function DeleteSuccessCriteria(id = -1): Promise<NestedModel> {
     (response) => response.json() as Promise<NestedModel>,
   );
   await RemoveNestedIds(id, "successCriteria");
-  return response;
-}
-
-// Event Sequence Analysis
-export async function DeleteEventSequenceAnalysis(id = -1): Promise<NestedModel> {
-  const response = await Delete(`${EVENT_SEQUENCE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
-  await RemoveNestedIds(id, "eventSequenceAnalysis");
   return response;
 }
 

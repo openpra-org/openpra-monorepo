@@ -1,6 +1,7 @@
 import { NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { InitiatingEventsType } from "./TypesHelpers/InitiatingEventsType";
 import { EventSequenceDiagramsType } from "./TypesHelpers/EventSequenceDiagramsType";
+import { EventSequenceAnalysisType } from "./TypesHelpers/EventSequenceAnalysisType";
 
 export interface NestedModelsStateType {
   parentId: string;
@@ -11,7 +12,7 @@ export interface NestedModelsStateType {
     HeatBalanceFaultTrees: string[];
   };
   EventSequenceAnalysis: {
-    EventSequenceAnalysisList: string[];
+    EventSequenceAnalysisList: NestedModelType[];
     EventSequenceDiagrams: NestedModelType[];
     EventTrees: string[];
   };
@@ -58,4 +59,4 @@ export interface NestedModelsType {
   NestedModels: NestedModelsStateType;
 }
 
-export type NestedModelActionsType = InitiatingEventsType & EventSequenceDiagramsType;
+export type NestedModelActionsType = InitiatingEventsType & EventSequenceDiagramsType & EventSequenceAnalysisType;

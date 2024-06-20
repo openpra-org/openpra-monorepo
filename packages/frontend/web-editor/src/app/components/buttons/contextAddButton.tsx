@@ -68,6 +68,7 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/markov-chains")) return <CreateMarkovChainButton />;
     if (location.endsWith("/bayesian-estimations")) return <CreateBayesianEstimationButton />;
     if (location.endsWith("/weibull-analysis")) return <CreateWeibullAnalysisButton />;
+    if (location.endsWith("/event-sequence-analysis")) return <CreateEventSequenceAnalysisButton />;
     return null as unknown as JSX.Element;
   } else if (location.startsWith("/external-hazards")) {
     if (location === "/external-hazards") return <CreateExternalHazardsButton />;
@@ -81,6 +82,7 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/markov-chains")) return <CreateMarkovChainButton />;
     if (location.endsWith("/bayesian-estimations")) return <CreateBayesianEstimationButton />;
     if (location.endsWith("/weibull-analysis")) return <CreateWeibullAnalysisButton />;
+    if (location.endsWith("/event-sequence-analysis")) return <CreateEventSequenceAnalysisButton />;
     return null as unknown as JSX.Element;
   } else if (location.startsWith("/full-scope")) {
     if (location === "/full-scope") return <CreateFullScopeButton />;
@@ -94,6 +96,7 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/markov-chains")) return <CreateMarkovChainButton />;
     if (location.endsWith("/bayesian-estimations")) return <CreateBayesianEstimationButton />;
     if (location.endsWith("/weibull-analysis")) return <CreateWeibullAnalysisButton />;
+    if (location.endsWith("/event-sequence-analysis")) return <CreateEventSequenceAnalysisButton />;
     return null as unknown as JSX.Element;
   } else {
     return null as unknown as JSX.Element;

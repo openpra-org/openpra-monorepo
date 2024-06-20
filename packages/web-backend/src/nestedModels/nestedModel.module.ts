@@ -44,6 +44,7 @@ import { OperatingStateAnalysis, OperatingStateAnalysisSchema } from "./schemas/
 import { NestedModelHelperService } from "./nested-model-helper.service";
 import { InitiatingEventsService } from "./NestedModelsHelpers/initiating-events.service";
 import { EventSequenceDiagramService } from "./NestedModelsHelpers/event-sequence-diagram.service";
+import { EventSequenceAnalysisService } from "./NestedModelsHelpers/event-sequence-analysis.service";
 
 @Module({
   imports: [
@@ -101,6 +102,7 @@ import { EventSequenceDiagramService } from "./NestedModelsHelpers/event-sequenc
     InitiatingEventsService,
     NestedModelHelperService,
     EventSequenceDiagramService,
+    EventSequenceAnalysisService,
   ],
   exports: [NestedModelService, InitiatingEventsService, NestedModelHelperService, EventSequenceDiagramService],
 })

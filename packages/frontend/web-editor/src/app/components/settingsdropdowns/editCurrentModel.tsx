@@ -12,12 +12,7 @@ import {
   EuiSkeletonRectangle,
 } from "@elastic/eui";
 import TypedModel from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
-import {
-  GetCurrentTypedModel,
-  PatchExternalHazard,
-  PatchFullScope,
-  PatchInternalHazard,
-} from "shared-types/src/lib/api/TypedModelApiManager";
+import { GetCurrentTypedModel } from "shared-types/src/lib/api/TypedModelApiManager";
 import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { UseGlobalStore } from "../../zustand/Store";
 import { SettingsAccordian } from "./SettingsAccordian";
@@ -39,12 +34,15 @@ function EditCurrentModel(): JSX.Element {
   const newItem = new TypedModel();
 
   const editInternalEvent = UseGlobalStore.use.EditInternalEvent();
+  const editInternalHazard = UseGlobalStore.use.EditInternalHazard();
+  const editExternalHazard = UseGlobalStore.use.EditExternalHazard();
+  const editFullScope = UseGlobalStore.use.EditFullScope();
 
   //grabs the current models information
   const [currentModel, setCurrentModel] = useState(newItem);
 
   //sets the current endpoint
-  let endpoint;
+  let endpoint = editInternalEvent;
 
   //this isLoading set is here to make sure we don't load in the other component too soon
   const [isLoaded, setIsLoaded] = useState(false);
@@ -55,19 +53,26 @@ function EditCurrentModel(): JSX.Element {
   if (currentModelType === "internal-events") {
     endpoint = editInternalEvent;
   } else if (currentModelType === "internal-hazards") {
-    endpoint = PatchInternalHazard;
+    endpoint = editInternalHazard;
   } else if (currentModelType === "external-hazards") {
-    endpoint = PatchExternalHazard;
+    endpoint = editExternalHazard;
   } else if (currentModelType === "full-scope") {
-    endpoint = PatchFullScope;
+    endpoint = editFullScope;
   }
 
-  //this takes any type instead of what it should, I have *no* idea how to carry over the types across promises, it doesn't seem to work, and I've tinkered quite a bit
-  const updateCurrentModel = (newModel: any): void => {
-    const addModel = new TypedModel(newModel.id, newModel.label.name, newModel.label.description, newModel.users);
+  // TODO: Fix this to use Zustand instead of API call
+  // this takes any type instead of what it should, I have *no* idea how to carry over the types across promises, it doesn't seem to work, and I've tinkered quite a bit
+  const updateCurrentModel = (newModel: TypedModel): void => {
+    const addModel = new TypedModel(
+      newModel.getId(),
+      newModel.getLabel().name,
+      newModel.getLabel().description,
+      newModel.getUsers(),
+    );
     setCurrentModel(addModel);
   };
 
+  // TODO: Fix this to use Zustand instead of API call
   useEffect(() => {
     const fetchModel = async (): Promise<void> => {
       try {
@@ -80,8 +85,6 @@ function EditCurrentModel(): JSX.Element {
     };
     void fetchModel();
   }, []);
-
-  //const [itemInfo, setItemInfo] = useState(newItem)
 
   const buttonContent = (
     <div>

@@ -2,12 +2,15 @@
   "extends": "../../../tsconfig.base.json",
   "compilerOptions": {
     "module": "commonjs",
-    "types": ["tape", "node"]
+    "types": ["jest", "node"]
   },
   "exclude": ["*.js"],
   "include": [
     "src/**/*.test.ts",
     "src/**/*.spec.ts",
-    "src/**/*.d.ts"
+    "src/**/*.d.ts",
+    "tests/**/*.test.ts",
+    "tests/**/*.spec.ts",
+    "tests/**/*.d.ts"
   ],
 }

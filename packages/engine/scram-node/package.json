@@ -4,9 +4,9 @@
   "license": "AGPL-3.0-or-later",
   "main": "./lib/index.js",
   "scripts": {
-    "install": "cmake-js -C --parallel 32 compile --target scram scram-node ",
-    "rebuild": "cmake-js -C --parallel 32 rebuild --target scram scram-node ",
-    "configure": "cmake-js -C --parallel 32 configure --target scram scram-node ",
+    "install": "cmake-js -C --parallel 32 compile --target scram-node ",
+    "rebuild": "cmake-js -C --parallel 32 rebuild --target scram-node ",
+    "configure": "cmake-js -C --parallel 32 configure --target scram-node ",
     "clean": "cmake-js clean",
     "test": "jest",
     "ctest": "cmake-js -C --parallel 32 install -T test_mef"
@@ -34,7 +34,7 @@
       "test": {
         "inputs": [
           "default",
-          "^production"
+          "^development"
         ],
         "outputs": [],
         "dependsOn": [
@@ -44,14 +44,14 @@
     }
   },
   "dependencies": {
-    "cmake-js": "7.2.1",
-    "node-addon-api": "7.0.0"
+    "cmake-js": "7.3.0",
+    "node-addon-api": "8.0.0"
   },
   "devDependencies": {
     "jest": "29.7.0"
   },
   "binary": {
-    "napi_versions": [7]
+    "napi_versions": [9]
   },
   "engines": {
     "node": "20.9.0"

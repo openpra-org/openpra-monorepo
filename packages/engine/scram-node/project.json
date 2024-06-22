@@ -16,6 +16,13 @@
       "options": {
         "script": "install"
       }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "packages/engine/scram-node/jest.config.ts"
+      }
     }
   },
   "tags": []

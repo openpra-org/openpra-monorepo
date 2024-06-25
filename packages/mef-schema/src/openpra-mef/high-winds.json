@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/high-winds-hazard.json",
+  "title": "High Winds PRA Schema",
+  "description": "JSON schema for the High Winds Hazard Probabilistic Risk Assessment Model",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "internal-events.json"
+    }
+  ],
+  "properties": {
+    "high-winds-hazard-analysis": {
+      "type": "object",
+      "description": "Details."
+    },
+    "high-winds-fragility-analysis": {
+      "type": "object",
+      "description": "Details."
+    },
+    "high-winds-plant-response-model": {
+      "type": "object",
+      "description": "Details."
+    }
+  }
+}

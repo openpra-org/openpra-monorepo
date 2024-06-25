@@ -1,4 +1,4 @@
-import { GateSchema } from "shared-types/src/openpra-mef/gate";
+import { GateSchema } from "shared-types/src/openpra-mef/systems-analysis/gate";
 import { UUIDSchema } from "shared-types/src/openpra-mef/identifier/uuid";
 import { TypeCodeSchema } from "shared-types/src/openpra-mef/identifier/typecode";
 import { Event } from "./Event";

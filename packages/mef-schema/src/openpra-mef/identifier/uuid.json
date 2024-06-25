@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema#",
-  "$id": "https://openpra.org/schema/v1/openpra-mef/identifier/uuid.json",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/identifier/uuid.json",
   "title": "UUID Schema",
   "description": "A Unique Universal Identifier representation",
   "type": "string",

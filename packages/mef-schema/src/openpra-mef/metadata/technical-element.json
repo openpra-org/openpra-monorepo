@@ -1,0 +1,19 @@
+{
+  "$schema": "schema-definition.json",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/metadata/technical-element.json",
+  "title": "Technical Element",
+  "description": "Schema for a technical element",
+  "definition": "",
+  "type": "object",
+  "properties": {
+    "type": {
+      "type": "string"
+    },
+    "pra-type": "string"
+  },
+  "examples": [
+    {
+      "some-field-internal-to-a-technical-element": "it's associated value"
+    }
+  ]
+}

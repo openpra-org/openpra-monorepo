@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openpra.org/schema/v1/openpra-mef/human-reliability-analysis.json",
-  "title": "Human Reliability Analysis",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/human-reliability-analysis.json",
+  "title": "Human Reliability Analysis Schema",
+  "description": "Human Reliability Analysis Schema",
   "type": "object"
 }

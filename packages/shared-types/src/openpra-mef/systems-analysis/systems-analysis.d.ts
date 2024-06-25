@@ -1,1 +1,4 @@
-export interface SystemsAnalysis {}
+/**
+ * Systems Analysis Schema
+ */
+export interface SystemsAnalysisSchema {}

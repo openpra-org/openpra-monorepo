@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema#",
-  "$id": "https://openpra.org/schema/v1/openpra-mef/event.json",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/systems-analysis/event.json",
   "title": "Event Schema",
   "description": "Representation of a base class for an event in a fault tree.",
   "type": "object",
@@ -10,10 +10,10 @@
       "description": "Identifier for the event node."
     },
     "typecode": {
-      "$ref": "./identifier/typecode.json"
+      "$ref": "../identifier/typecode.json"
     },
     "uuid": {
-      "$ref": "./identifier/uuid.json"
+      "$ref": "../identifier/uuid.json"
     },
     "parents": {
       "type": "array",

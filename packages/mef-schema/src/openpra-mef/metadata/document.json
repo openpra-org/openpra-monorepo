@@ -1,18 +1,11 @@
 {
-  "$schema": "https://json-schema.org/draft-07/schema#",
-  "$id": "https://${DOMAIN}/metadata/document.json",
+  "$schema": "schema-definition.json",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/metadata/document.json",
   "title": "DigitalDocument Adapted Document Metadata",
   "description": "AdaptedSchema.org DigitalDocument metadata for a document",
   "type": "object",
+  "definition": "",
   "properties": {
-    "@context": {
-      "type": "string",
-      "const": "https://schema.org"
-    },
-    "@type": {
-      "type": "string",
-      "const": "DigitalDocument"
-    },
     "dateCreated": {
       "type": "string",
       "format": "date-time",
@@ -24,7 +17,7 @@
       "description": "The last time the document was modified"
     },
     "version": {
-      "$ref": "https://${DOMAIN}/identifier/semantic-version.json",
+      "$ref": "../identifier/semantic-version.json",
       "description": "The version of the document"
     },
     "creator": {
@@ -53,11 +46,9 @@
       "description": "The license under which the document is released"
     }
   },
-  "required": ["@context", "@type", "dateCreated", "version"],
+  "required": ["dateCreated", "version"],
   "examples": [
     {
-      "@context": "https://schema.org",
-      "@type": "DigitalDocument",
       "dateCreated": "2022-01-01T00:00:00Z",
       "dateModified": "2022-01-02T00:00:00Z",
       "version": "1.0",
@@ -67,8 +58,6 @@
       "license": "MIT"
     },
     {
-      "@context": "https://schema.org",
-      "@type": "DigitalDocument",
       "dateCreated": "2022-03-01T00:00:00Z",
       "dateModified": "2022-03-02T00:00:00Z",
       "version": "3.0.0",
@@ -78,8 +67,6 @@
       "license": "Apache-2.0"
     },
     {
-      "@context": "https://schema.org",
-      "@type": "DigitalDocument",
       "dateCreated": "2022-02-01T00:00:00Z",
       "version": "2.0.0"
     }

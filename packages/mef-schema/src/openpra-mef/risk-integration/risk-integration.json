@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openpra.org/schema/v1/openpra-mef/risk-integration.json",
-  "title": "Risk Integration",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/risk-integration.json",
+  "title": "Risk Integration Schema",
+  "description": "Risk Integration Schema",
   "type": "object"
 }

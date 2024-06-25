@@ -1,1 +1,4 @@
-export interface SuccessCriteriaDevelopment {}
+/**
+ * Success Criteria Development Schema
+ */
+export interface SuccessCriteriaDevelopmentSchema {}

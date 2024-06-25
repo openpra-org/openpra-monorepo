@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/hazard.json",
+  "title": "Hazard PRA Schema",
+  "description": "JSON schema for a Hazard Probabilistic Risk Assessment Model",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "internal-events.json"
+    }
+  ],
+  "properties": {
+    "hazard-analysis": {
+      "type": "object",
+      "description": "Details."
+    },
+    "fragility-analysis": {
+      "type": "object",
+      "description": "Details."
+    },
+    "plant-response-model": {
+      "type": "object",
+      "description": "Details."
+    }
+  }
+}

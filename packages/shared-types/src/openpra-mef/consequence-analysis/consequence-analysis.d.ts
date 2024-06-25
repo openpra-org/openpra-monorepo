@@ -1,1 +1,4 @@
-export interface ConsequenceAnalysis {}
+/**
+ * Consequence Analysis Schema
+ */
+export interface ConsequenceAnalysisSchema {}

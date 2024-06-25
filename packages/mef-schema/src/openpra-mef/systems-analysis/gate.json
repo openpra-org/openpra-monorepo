@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema#",
-  "$id": "https://openpra.org/schema/v1/openpra-mef/gate.json",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/systems-analysis/gate.json",
   "title": "Gate Schema",
   "description": "Representation of a logical gate in a fault tree.",
   "type": "object",
   "allOf": [
     {
-      "$ref": "./event.json"
+      "$ref": "event.json"
     },
     {
       "properties": {
@@ -31,7 +31,7 @@
           "type": "array",
           "description": "Set of basic event arguments.",
           "items": {
-            "$ref": "./basic-event.json"
+            "$ref": "event.json"
           },
           "uniqueItems": true
         },
@@ -39,7 +39,7 @@
           "type": "array",
           "description": "Set of house event arguments.",
           "items": {
-            "$ref": "./house-event.json"
+            "$ref": "event.json"
           },
           "uniqueItems": true
         },
@@ -47,7 +47,7 @@
           "type": "array",
           "description": "Set of undefined event arguments.",
           "items": {
-            "$ref": "./event.json"
+            "$ref": "event.json"
           },
           "uniqueItems": true
         }

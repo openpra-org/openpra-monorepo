@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/internal-flood-pra.json",
+  "title": "Internal Flood PRA Schema",
+  "description": "JSON schema for the Internal Flood Probabilistic Risk Assessment Model",
+  "type": "object",
+  "allOf": [
+    {
+      "$ref": "internal-events.json"
+    }
+  ],
+  "properties": {
+    "internal-flood-plant-partitioning": {
+      "type": "object",
+      "description": "Details the partitioning of the plant into different zones for flood analysis."
+    },
+    "internal-flood-sources-identification-and-characterization": {
+      "type": "object",
+      "description": "Identifies and characterizes potential sources of internal flooding."
+    },
+    "internal-flood-scenarios-development": {
+      "type": "object",
+      "description": "Develops scenarios for internal flooding based on identified sources and plant partitioning."
+    },
+    "internal-flood-initiating-events": {
+      "type": "object",
+      "description": "Lists and describes initiating events for internal flood scenarios."
+    },
+    "internal-flood-plant-response": {
+      "type": "object",
+      "description": "Analyzes the response of the plant systems to internal flooding events."
+    },
+    "internal-flood-human-reliability-analysis": {
+      "type": "object",
+      "description": "Assesses the reliability of human actions in response to internal flooding."
+    },
+    "internal-flood-event-sequence-quantification": {
+      "type": "object",
+      "description": "Quantifies the event sequences resulting from internal flood initiating events."
+    }
+  }
+}

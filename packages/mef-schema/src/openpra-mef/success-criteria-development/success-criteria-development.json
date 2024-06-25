@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openpra.org/schema/v1/openpra-mef/success-criteria-development.json",
-  "title": "Success Criteria Development",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/success-criteria-development.json",
+  "title": "Success Criteria Development Schema",
+  "description": "Success Criteria Development Schema",
   "type": "object"
 }

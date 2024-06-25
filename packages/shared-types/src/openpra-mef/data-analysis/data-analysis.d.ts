@@ -1,1 +1,4 @@
-export interface DataAnalysis {}
+/**
+ * Data Analysis Schema
+ */
+export interface DataAnalysisSchema {}

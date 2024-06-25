@@ -1,1 +1,4 @@
-export interface InitiatingEventAnalysis {}
+/**
+ * Initiating Event Analysis Schema
+ */
+export interface InitiatingEventAnalysisSchema {}

@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openpra.org/schema/v1/openpra-mef/initiating-event-analysis.json",
-  "title": "Initiating Event Analysis",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/initiating-event-analysis.json",
+  "title": "Initiating Event Analysis Schema",
+  "description": "Initiating Event Analysis Schema",
   "type": "object"
 }

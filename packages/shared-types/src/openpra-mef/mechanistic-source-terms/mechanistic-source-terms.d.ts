@@ -1,1 +1,4 @@
-export interface MechanisticSourceTerms {}
+/**
+ * Mechanistic Source Terms Schema
+ */
+export interface MechanisticSourceTermsSchema {}

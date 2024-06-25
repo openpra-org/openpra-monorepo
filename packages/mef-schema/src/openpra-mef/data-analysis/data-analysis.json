@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://openpra.org/schema/v1/openpra-mef/data-analysis.json",
-  "title": "Data Analysis",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/data-analysis.json",
+  "title": "Data Analysis Schema",
+  "description": "Data Analysis Schema",
   "type": "object"
 }

@@ -1,4 +1,4 @@
 /**
  * Plant Operating State Analysis Schema
  */
-export interface OperatingStateAnalysis {}
+export interface OperatingStateAnalysisSchema {}

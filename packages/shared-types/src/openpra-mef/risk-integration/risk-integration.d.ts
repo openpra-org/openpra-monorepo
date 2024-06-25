@@ -1,1 +1,4 @@
-export interface RiskIntegration {}
+/**
+ * Risk Integration Schema
+ */
+export interface RiskIntegrationSchema {}

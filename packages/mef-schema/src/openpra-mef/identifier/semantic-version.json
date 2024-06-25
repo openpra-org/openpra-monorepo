@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema#",
-  "$id": "https://openpra.org/schema/v1/openpra-mef/identifier/semantic-version.json",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/identifier/semantic-version.json",
   "title": "Semantic Version Schema",
   "description": "Schema for semantic versioning",
   "type": "string",

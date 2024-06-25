@@ -1,1 +1,4 @@
-export interface HumanReliabilityAnalysis {}
+/**
+ * Human Reliability Analysis Schema
+ */
+export interface HumanReliabilityAnalysisSchema {}

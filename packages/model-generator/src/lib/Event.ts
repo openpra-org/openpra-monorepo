@@ -1,4 +1,4 @@
-import { EventSchema } from "shared-types/src/openpra-mef/event";
+import { EventSchema } from "shared-types/src/openpra-mef/systems-analysis/event";
 import { TypeCodeSchema } from "shared-types/src/openpra-mef/identifier/typecode";
 import { UUIDSchema } from "shared-types/src/openpra-mef/identifier/uuid";
 /**

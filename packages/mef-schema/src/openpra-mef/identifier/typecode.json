@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema#",
-  "$id": "https://openpra.org/schema/v1/openpra-mef/identifier/typecode.json",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/identifier/typecode.json",
   "title": "Type Code Schema",
   "description": "A type code consisting of three uppercase letters followed by a hyphen and three digits",
   "type": "string",

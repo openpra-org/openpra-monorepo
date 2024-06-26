@@ -1,8 +1,11 @@
+import { join } from "path";
 import { APP_PIPE, RouterModule } from "@nestjs/core";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ZodValidationPipe } from "nestjs-zod";
+import { GraphQLModule } from "@nestjs/graphql";
+import { ApolloDriver } from "@nestjs/apollo";
 import { AuthModule } from "./auth/auth.module";
 import { CollabModule } from "./collab/collab.module";
 import { TypedModelModule } from "./typedModel/typedModel.module";
@@ -12,16 +15,24 @@ import { ApiService } from "./api.service";
 import { FmeaModule } from "./fmea/fmea.module";
 import { GraphModelModule } from "./graphModels/graphModel.module";
 import { InviteModule } from "./invite/invite.module";
+import { AuthGqlModule } from "./authGql/auth-gql.module";
+import { UsersModule } from "./users/users.module";
 
 @Module({
   imports: [
-    AuthModule,
+    // AuthModule,
+    AuthGqlModule,
     CollabModule,
     TypedModelModule,
     NestedModelModule,
     FmeaModule,
     GraphModelModule,
     InviteModule,
+    GraphQLModule.forRoot({
+      driver: ApolloDriver,
+      authSchemaFile: join(process.cwd(), "src/schema.gql"),
+      sortSchema: true,
+    }),
     ConfigModule.forRoot({
       envFilePath: ".development.env",
       isGlobal: true,
@@ -71,6 +82,7 @@ import { InviteModule } from "./invite/invite.module";
         ],
       },
     ]),
+    UsersModule,
   ],
   controllers: [ApiController],
   providers: [

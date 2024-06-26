@@ -4,35 +4,62 @@ import { Route, Routes } from "react-router-dom";
 import { shallow } from "zustand/shallow";
 import ReactFlow, {
   Node,
+  Background,
   Controls,
   Panel,
   ReactFlowProvider,
+  FitViewOptions,
+  ProOptions,
   NodeOrigin,
   OnConnectStart,
   OnConnectEnd,
   useStoreApi,
   useReactFlow,
-  addEdge,
   Edge,
   MarkerType,
 } from "reactflow";
-import { EuiButton, EuiToast } from "@elastic/eui";
+import { EuiToast } from "@elastic/eui";
 import BayesianNetworkList from "../../components/lists/nestedLists/bayesianNetworkList";
-import MindMapNode from "../../components/treeNodes/bayesianNetwork/mindMapNode";
-import MindMapEdge from "../../components/treeEdges/bayesianNetworkEdges/mindMapEdge";
+import { MindMapNode } from "../../components/treeNodes/bayesianNetwork/mindMapNode";
+import { MindMapEdge } from "../../components/treeEdges/bayesianNetworkEdges/mindMapEdge";
 import CustomMiniMap from "../../components/minimap/minimap";
-import BayesianNodeContextMenu from "../../components/context_menu/bayesianNodeContextMenu";
-import useStore, { RFState } from "../../hooks/bayesianNetwork/mindmap/useStore";
+import { BayesianNodeContextMenu } from "../../components/context_menu/bayesianNodeContextMenu";
+import {
+  UseStore,
+  RFState,
+} from "../../hooks/bayesianNetwork/mindmap/useStore";
+import { GetEdgeParams } from "../../../utils/bayesianNodeIntersectionCalculator";
 
-const selector = (state: RFState) => ({
+/**
+ * Selector type defining the parts of the state to be extracted.
+ */
+type SelectorReturnType = {
+  nodes: RFState["nodes"];
+  edges: RFState["edges"];
+  onNodesChange: RFState["onNodesChange"];
+  onEdgesChange: RFState["onEdgesChange"];
+};
+
+const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
+
+/**
+ * Custom hook selector for extracting specific parts of the Bayesian network state.
+ * @param  state - The current state of the React Flow instance.
+ * @returns  Selected portions of the state including nodes, edges, and change handlers.
+ */
+const selector = (state: RFState): SelectorReturnType => ({
   nodes: state.nodes,
   edges: state.edges,
   onNodesChange: state.onNodesChange,
   onEdgesChange: state.onEdgesChange,
 });
 
-// this places the node origin in the center of a node
+// Places the node origin in the center of a node
 const nodeOrigin: NodeOrigin = [0.5, 0.5];
+
+const fitViewOptions: FitViewOptions = {
+  padding: 0.95,
+};
 
 const nodeTypes = {
   mindmap: MindMapNode,
@@ -46,15 +73,25 @@ const defaultEdgeOptions = {
   markerEnd: { type: MarkerType.ArrowClosed },
 };
 
-// Define a type for the Node that includes custom properties you are using
+/**
+ * Extended node type including custom properties for absolute positioning and optional dimensions.
+ */
 type ExtendedNode = {
   positionAbsolute: { x: number; y: number };
   width?: number;
   height?: number;
 } & Node;
 
-function ReactFlowPro() {
-  const { nodes, edges, onNodesChange, onEdgesChange } = useStore(selector, shallow);
+/**
+ * Main React component that provides an interactive environment to visualize and edit Bayesian Networks using React Flow.
+ * It includes functionality for node and edge manipulation, context menu actions, and cycle detection.
+ * @returns \{JSX.Element\} The rendered React Flow environment with nodes and edges.
+ */
+function ReactFlowPro(): JSX.Element {
+  const { nodes, edges, onNodesChange, onEdgesChange } = UseStore(
+    selector,
+    shallow,
+  );
   const reactFlow = useReactFlow();
   const connectingNodeId = useRef<string | null>(null);
   const store = useStoreApi();
@@ -64,53 +101,60 @@ function ReactFlowPro() {
     x: 0,
     y: 0,
   });
-  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
   const [showCycleWarning, setShowCycleWarning] = useState(false);
-  const addNode = useStore((state) => state.addNode);
-
-  const { addChildNode } = useStore((state) => ({
+  const { addChildNode } = UseStore((state) => ({
     addChildNode: state.addChildNode,
   }));
 
-  const getChildNodePosition = (event: MouseEvent, parentNode?: ExtendedNode) => {
-    const { domNode } = store.getState();
+  /**
+   * Callback function to calculate the position of a child node on the canvas based on a mouse event.
+   * @param event - The mouse event triggering this callback.
+   * @returns  The calculated position in the flow's coordinate system.
+   */
+  const getChildNodePosition = useCallback(
+    (event: MouseEvent): { x: number; y: number } =>
+      reactFlow.screenToFlowPosition({
+        x: event.clientX,
+        y: event.clientY,
+      }),
+    [reactFlow],
+  );
 
-    if (
-      !domNode ||
-      !parentNode?.positionAbsolute || // assuming parentNode is of type ExtendedNode
-      !parentNode.width ||
-      !parentNode.height
-    ) {
-      return;
-    }
-
-    const panePosition = reactFlow.screenToFlowPosition({
-      x: event.clientX,
-      y: event.clientY,
-    });
-
-    return {
-      x: panePosition.x - parentNode.positionAbsolute.x + parentNode.width / 2,
-      y: panePosition.y - parentNode.positionAbsolute.y + parentNode.height / 2,
-    };
-  };
-
+  /**
+   * Callback function triggered at the start of a connection event.
+   * It stores the ID of the node where the connection starts.
+   * @param event -The event triggering this callback (unused).
+   * @param params - Parameters containing the ID of the starting node.
+   */
   const onConnectStart: OnConnectStart = useCallback((_, { nodeId }) => {
     connectingNodeId.current = nodeId;
   }, []);
 
+  /**
+   * Callback function triggered at the end of a connection event.
+   * It handles the creation of new edges, checks for cycles, and manages node connections.
+   * @param  event - The event triggering this callback.
+   */
   const onConnectEnd: OnConnectEnd = useCallback(
-    (event: any) => {
+    (event): void => {
       const { nodeInternals } = store.getState();
-      const targetIsPane = (event.target as Element).classList.contains("react-flow__pane");
+      const targetIsPane = (event.target as Element).classList.contains(
+        "react-flow__pane",
+      );
       const node = (event.target as Element).closest(".react-flow__node");
-      const targetNodeId = event.target.closest(".react-flow__node")?.getAttribute("data-id");
+      const targetNodeId = (event.target as Element)
+        .closest(".react-flow__node")
+        ?.getAttribute("data-id");
 
       // Function to check for cycles
-      const hasCycles = (sourceNodeId: string, targetNodeId: string, nodes: Node[], edges: Edge[]): boolean => {
+      const hasCycles = (
+        sourceNodeId: string,
+        targetNodeId: string,
+        nodes: Node[],
+        edges: Edge[],
+      ): boolean => {
         const visited = new Set();
         const stack = [targetNodeId];
-
         while (stack.length > 0) {
           const node = stack.pop();
           if (node === sourceNodeId) {
@@ -118,7 +162,9 @@ function ReactFlowPro() {
           }
           if (!visited.has(node)) {
             visited.add(node);
-            const children = edges.filter((e) => e.source === node).map((e) => e.target);
+            const children = edges
+              .filter((e) => e.source === node)
+              .map((e) => e.target);
             stack.push(...children);
           }
         }
@@ -128,36 +174,49 @@ function ReactFlowPro() {
       if (targetNodeId && connectingNodeId.current) {
         // Only perform cycle check if we are connecting to a different node
         if (targetNodeId !== connectingNodeId.current) {
-          const sourceNode = connectingNodeId.current;
-          const targetNode = targetNodeId;
+          const sourceNode: string = connectingNodeId.current;
+          const targetNode: string = targetNodeId;
 
           // Assuming 'edges' is an array of Edge objects and 'nodes' is an array of Node objects
-          const edges = useStore.getState().edges;
-          const nodes = useStore.getState().nodes;
+          const edges = UseStore.getState().edges;
+          const nodes = UseStore.getState().nodes;
 
           if (hasCycles(sourceNode, targetNode, nodes, edges)) {
             // Display a toast message when a cycle is detected
             setShowCycleWarning(true);
           } else {
-            // Existing node connected
-            const newEdge = {
-              id: `e${connectingNodeId.current}-${targetNodeId}`,
-              source: connectingNodeId.current,
-              target: targetNodeId,
-              type: "mindmap",
-              ...defaultEdgeOptions,
-            };
-            useStore.getState().addEdge(newEdge);
+            const source = nodes.find((node) => node.id === sourceNode);
+            const target = nodes.find((node) => node.id === targetNode);
+
+            if (source && target) {
+              const edgeParams = GetEdgeParams(source, target);
+
+              const { sx, sy, tx, ty } = edgeParams;
+
+              const newEdge = {
+                id: `e${connectingNodeId.current}-${targetNodeId}`,
+                source: connectingNodeId.current,
+                target: targetNodeId,
+                type: "mindmap",
+                sourceX: sx,
+                sourceY: sy,
+                targetX: tx,
+                targetY: ty,
+                ...defaultEdgeOptions,
+              };
+              UseStore.getState().addEdge(newEdge);
+            }
           }
         }
       } else if (targetIsPane && connectingNodeId.current) {
-        const parentNode = nodeInternals.get(connectingNodeId.current) as ExtendedNode;
-        const childNodePosition = getChildNodePosition(event as MouseEvent, parentNode);
-
-        if (parentNode && childNodePosition) {
-          addChildNode(parentNode, childNodePosition);
-        }
+        const parentNode = nodeInternals.get(
+          connectingNodeId.current,
+        ) as ExtendedNode;
+        const childNodePosition = getChildNodePosition(event as MouseEvent);
+        // if (childNodePosition) {
+        addChildNode(parentNode, childNodePosition);
       }
+
       if (node) {
         node.querySelector("input")?.focus({ preventScroll: true });
       }
@@ -165,105 +224,80 @@ function ReactFlowPro() {
       // Reset connecting node id after the connection is complete
       connectingNodeId.current = null;
     },
-    [getChildNodePosition, addEdge, nodes, edges],
+    [getChildNodePosition, addChildNode, store],
   );
 
-  const handleAddNodeClick = () => {
-    const reactFlowInstance = reactFlow; // Directly from the useReactFlow hook
-    const paneElement = document.querySelector(".react-flow__pane");
-    if (!paneElement) {
-      return;
-    }
-
-    // Get the dimensions of the pane element
-    const paneRect = paneElement.getBoundingClientRect();
-
-    // Calculate the center of the pane
-    const canvasCenter = reactFlowInstance.project({
-      x: paneRect.width / Math.floor(Math.random() * 10) + 2,
-      y: paneRect.height / Math.floor(Math.random() * 10) + 2,
-    });
-
-    // You could also incorporate some offset if you want the new node to appear slightly off-center
-    addNode({
-      x: canvasCenter.x,
-      y: canvasCenter.y,
-    });
-  };
-
-  // Event handler for node selection
+  /**
+   * Event handler for selecting a node. It updates the state to reflect the currently selected node.
+   * @param event - The event object for the mouse event.
+   * @param  node - The node that was clicked.
+   */
   const onNodeSelect = useCallback((event: React.MouseEvent, node: Node) => {
     setSelectedNodeId(node.id);
-    console.log("selcted node is");
-    console.log(node.id);
   }, []);
 
-  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
-    event.preventDefault();
-    setSelectedNodeId(node.id);
-    setShowContextMenu(true);
-    setContextMenuPosition({ x: event.clientX, y: event.clientY });
-  }, []);
+  /**
+   * Event handler for opening a context menu on a node.
+   * It sets the position for the menu and marks the node as selected.
+   * @param  event - The event object for the mouse event.
+   * @param  node - The node on which the context menu is opened.
+   */
+  const onNodeContextMenu = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      event.preventDefault();
+      setSelectedNodeId(node.id);
+      setShowContextMenu(true);
+      setContextMenuPosition({ x: event.clientX, y: event.clientY });
+    },
+    [],
+  );
 
-  const highlightNode = useCallback((nodeId: string) => {
-    setHighlightedNodeId(nodeId); // Highlight the node
-
-    setTimeout(() => {
-      setHighlightedNodeId(null); // Stop highlighting after 3 seconds
-    }, 3000);
-  }, []);
-
-  // Update this inside the ReactFlowPro component
+  /**
+   * Handler for context menu actions. Depending on the action, it might delete a node, highlight it, or add a parent node.
+   * @param  action - The action to be performed.
+   * @param  nodeId - The ID of the node on which the action is to be performed.
+   */
   const handleContextMenuAction = useCallback(
     (action: string, nodeId: string) => {
+      const childNode = UseStore.getState().nodes.find((n) => n.id === nodeId);
+
       switch (action) {
         case "deleteNode":
-          // deleteNodeAndReattachChildren(nodeId);
+          UseStore.getState().deleteNodeAndReattachChildren(nodeId);
           break;
         case "highlightNode":
-          highlightNode(nodeId);
+          break;
+        case "addParent":
+          if (childNode) {
+            // Arbitrarily positioning the new parent 100 units above the child node
+            const newParentPosition = {
+              x: childNode.position.x,
+              y: childNode.position.y - 100,
+            };
+            UseStore.getState().addParentNode(childNode, newParentPosition);
+          }
           break;
         default:
-          console.log(`Action ${action} is not supported.`);
       }
       setShowContextMenu(false);
     },
-    // Include highlightNodes and deleteNodeAndReattachChildren in the dependency array
-    //[highlightNode, deleteNodeAndReattachChildren, edges],
-    [highlightNode, edges],
+    [],
   );
 
+  /**
+   * Event handler for clicking on the pane, used to close the context menu.
+   */
   const onPaneClick = useCallback(() => {
     setShowContextMenu(false);
   }, []);
 
-  // Map over your nodes to conditionally apply a highlighted style or class
-  const nodesWithHighlight = nodes.map((node) => ({
-    ...node,
-    style: {
-      ...node.style,
-      // Conditional styling: if this node is the one being highlighted, apply styles
-      borderColor: node.id === highlightedNodeId ? "red" : node.style?.borderColor,
-      borderWidth: node.id === highlightedNodeId ? 3 : node.style?.borderWidth,
-    },
-  }));
-
   return (
     <>
-      <div style={{ position: "absolute", zIndex: 10, top: 60, left: 340 }}>
-        <EuiButton
-          onClick={handleAddNodeClick}
-          iconType="plusInCircle"
-          iconSide={"left"}
-        >
-          Add Node
-        </EuiButton>
-      </div>
-
       <ReactFlow
-        nodes={nodesWithHighlight}
+        nodes={nodes}
         edges={edges}
         defaultEdgeOptions={defaultEdgeOptions}
+        proOptions={proOptions}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         nodeOrigin={nodeOrigin}
@@ -274,10 +308,13 @@ function ReactFlowPro() {
         onNodeContextMenu={onNodeContextMenu}
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
+        minZoom={1.6}
+        fitViewOptions={fitViewOptions}
         nodesDraggable={true}
         nodesConnectable={true}
         fitView
       >
+        <Background />
         <Controls showInteractive={false} />
         <Panel position="top-left">React Flow Mind Map</Panel>
         <CustomMiniMap />
@@ -286,27 +323,27 @@ function ReactFlowPro() {
         <BayesianNodeContextMenu
           nodeId={selectedNodeId}
           onActionSelect={handleContextMenuAction}
-          onClose={() => {
+          onClose={(): void => {
             setShowContextMenu(false);
           }}
           position={contextMenuPosition}
-          getParent={useStore.getState().getParent}
-          getChildren={useStore.getState().getChildren}
-          getParentLabel={useStore.getState().getParentLabel}
-          getChildrenLabels={useStore.getState().getChildrenLabels}
+          getParents={UseStore.getState().getParents}
+          getChildren={UseStore.getState().getChildren}
+          getParentLabels={UseStore.getState().getParentLabels}
+          getChildrenLabels={UseStore.getState().getChildrenLabels}
         />
       )}
       {showCycleWarning && (
         <EuiToast
           title="Invalid Operation"
           color="warning"
-          onClose={() => {
+          onClose={(): void => {
             setShowCycleWarning(false);
           }}
         >
           <p>
-            Creating this link would create a cycle, which is not allowed in a directed acyclic graph (DAG). Please try
-            a different connection.
+            Creating this link would create a cycle, which is not allowed in a
+            directed acyclic graph (DAG). Please try a different connection.
           </p>
         </EuiToast>
       )}
@@ -314,7 +351,12 @@ function ReactFlowPro() {
   );
 }
 
-export function BayesianNetworkEditor() {
+/**
+ * Top-level component that provides the context necessary for the ReactFlowPro component to function.
+ * This component wraps ReactFlowPro in a ReactFlowProvider.
+ * @returns \{JSX.Element\} The ReactFlowProvider component that contains ReactFlowPro.
+ */
+export function BayesianNetworkEditor(): JSX.Element {
   return (
     <ReactFlowProvider>
       <ReactFlowPro />
@@ -322,17 +364,16 @@ export function BayesianNetworkEditor() {
   );
 }
 
+/**
+ * Component that acts as a router for Bayesian network visualization and editing.
+ * It routes between a list of Bayesian networks and individual network editors.
+ * @returns \{JSX.Element\} The Routes component that manages navigation between different Bayesian network views.
+ */
 function BayesianNetworks(): JSX.Element {
   return (
     <Routes>
-      <Route
-        path=""
-        element={<BayesianNetworkList />}
-      />
-      <Route
-        path=":bayesianNetworkId"
-        element={<BayesianNetworkEditor />}
-      />
+      <Route path="" element={<BayesianNetworkList />} />
+      <Route path=":bayesianNetworkId" element={<BayesianNetworkEditor />} />
     </Routes>
   );
 }

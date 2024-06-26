@@ -1,25 +1,29 @@
 import React from "react";
-import { EuiContextMenuPanelDescriptor, EuiContextMenu, EuiContextMenuItem } from "@elastic/eui";
+import {
+  EuiContextMenuPanelDescriptor,
+  EuiContextMenu,
+  EuiIcon,
+} from "@elastic/eui";
+import { EDITOR_BLUE_COLOR, MEDIUM, TRASH } from "../../../utils/constants";
 
-export interface BayesianNodeContextMenuProps {
+export type BayesianNodeContextMenuProps = {
   nodeId: string;
   onActionSelect: (action: string, nodeId: string) => void;
   onClose: () => void;
   position: { x: number; y: number };
-  getParent: (nodeId: string) => string | undefined; // For a single parent
+  getParents: (nodeId: string) => string[];
   getChildren: (nodeId: string) => string[];
-  getParentLabel: (nodeId: string) => string | undefined;
+  getParentLabels: (nodeId: string) => string[];
   getChildrenLabels: (nodeId: string) => string[];
-}
+};
 
 const BayesianNodeContextMenu: React.FC<BayesianNodeContextMenuProps> = ({
   nodeId,
   onActionSelect,
-  onClose,
   position,
-  getParent,
+  getParents,
   getChildren,
-  getParentLabel,
+  getParentLabels,
   getChildrenLabels,
 }) => {
   const menuStyle: React.CSSProperties = {
@@ -30,15 +34,25 @@ const BayesianNodeContextMenu: React.FC<BayesianNodeContextMenuProps> = ({
     zIndex: 1000,
   };
 
-  const parent = getParent(nodeId); // For a single parent
+  const parents = getParents(nodeId); // For a single parent
   const children = getChildren(nodeId);
-  const parentLabel = getParentLabel(nodeId);
+  const parentLabels = getParentLabels(nodeId);
   const childrenLabels = getChildrenLabels(nodeId);
+
+  const parentItems = parentLabels.map((label, index) => {
+    const parentId = parents[index]; // Assuming parallel arrays for IDs and labels
+    return {
+      name: `Parent: ${label}`,
+      onClick: (): void => {
+        onActionSelect("highlightNode", parentId);
+      },
+    };
+  });
   const childrenItems = childrenLabels.map((label, index) => {
     const childId = children[index]; // Assuming that children IDs are in the same order as their labels
     return {
       name: `Child: ${label}`,
-      onClick: () => {
+      onClick: (): void => {
         onActionSelect("highlightNode", childId);
       },
     };
@@ -50,15 +64,44 @@ const BayesianNodeContextMenu: React.FC<BayesianNodeContextMenuProps> = ({
       id: 0,
       items: [
         {
+          name: "Add Parent",
+          icon: (
+            <EuiIcon
+              type={"plusInCircle"}
+              size={MEDIUM}
+              color={EDITOR_BLUE_COLOR}
+            >
+              {" "}
+            </EuiIcon>
+          ),
+          onClick: (): void => {
+            onActionSelect("addParent", nodeId);
+          },
+        },
+        {
           name: "Delete Node",
-          onClick: () => {
+          icon: (
+            <EuiIcon
+              type={TRASH}
+              size={MEDIUM}
+              color={EDITOR_BLUE_COLOR}
+            ></EuiIcon>
+          ),
+          onClick: (): void => {
             onActionSelect("deleteNode", nodeId);
           },
         },
-        ...(parent
+        ...(parents.length > 0
           ? [
               {
-                name: "Show Parent",
+                name: "Show Parents",
+                icon: (
+                  <EuiIcon
+                    type={"user"}
+                    size={MEDIUM}
+                    color={EDITOR_BLUE_COLOR}
+                  ></EuiIcon>
+                ),
                 panel: 1, // Panel ID for parent
               },
             ]
@@ -67,6 +110,13 @@ const BayesianNodeContextMenu: React.FC<BayesianNodeContextMenuProps> = ({
           ? [
               {
                 name: "Show Children",
+                icon: (
+                  <EuiIcon
+                    type={"users"}
+                    size={MEDIUM}
+                    color={EDITOR_BLUE_COLOR}
+                  ></EuiIcon>
+                ),
                 panel: 2, // Panel ID for children
               },
             ]
@@ -74,19 +124,12 @@ const BayesianNodeContextMenu: React.FC<BayesianNodeContextMenuProps> = ({
       ],
     },
     // Parent panel only if a parent exists
-    ...(parent
+    ...(parents.length > 0
       ? [
           {
             id: 1,
             title: "Parent",
-            items: [
-              {
-                name: `Parent: ${parentLabel}`,
-                onClick: () => {
-                  onActionSelect("highlightNode", parent);
-                },
-              },
-            ],
+            items: parentItems,
           },
         ]
       : []),
@@ -104,12 +147,9 @@ const BayesianNodeContextMenu: React.FC<BayesianNodeContextMenuProps> = ({
 
   return (
     <div style={menuStyle}>
-      <EuiContextMenu
-        initialPanelId={0}
-        panels={panels}
-      />
+      <EuiContextMenu initialPanelId={0} panels={panels} />
     </div>
   );
 };
 
-export default BayesianNodeContextMenu;
+export { BayesianNodeContextMenu };

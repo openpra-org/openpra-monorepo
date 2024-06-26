@@ -1,7 +1,6 @@
 CMakeFiles
 node_modules
 build
-*.cmake
 *.make
 Makefile
 lib

@@ -26,6 +26,7 @@ import { TypedModelType } from "./nested-model-helper.service";
 import { InitiatingEventsService } from "./NestedModelsHelpers/initiating-events.service";
 import { EventSequenceDiagramService } from "./NestedModelsHelpers/event-sequence-diagram.service";
 import { EventSequenceAnalysisService } from "./NestedModelsHelpers/event-sequence-analysis.service";
+import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
 
 @Controller()
 export class NestedModelController {
@@ -34,6 +35,7 @@ export class NestedModelController {
     private readonly initiatingEventsService: InitiatingEventsService,
     private readonly eventSequenceDiagramService: EventSequenceDiagramService,
     private readonly eventSequenceAnalysisService: EventSequenceAnalysisService,
+    private readonly eventTreeService: EventTreesService,
   ) {}
 
   //method to get counter value
@@ -84,13 +86,17 @@ export class NestedModelController {
 
   /**
    * posts the nested model defined in the method name
+   * @param body is the entire body of the post request
    * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
    * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
+   * @param typedModel is the typed model to be updated
    * @returns a promise with the newly created model, with the general nested model fields
    */
   @Post("/event-trees/")
-  async createEventTree(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
-    return this.nestedModelService.createEventTree(data);
+  async createEventTree(
+    @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType },
+  ): Promise<NestedModel> {
+    return this.eventTreeService.createEventTree(body.data, body.typedModel);
   }
 
   /**
@@ -273,12 +279,16 @@ export class NestedModelController {
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Event Trees)
-   * @param id the id of the parent model
+   * @param id - the id of the parent model
    * @returns a promise with a list of the model typed defined
    */
   @Get("/event-trees/")
-  async getEventTrees(@Query("id") id: number): Promise<EventTree[]> {
-    return this.nestedModelService.getEventTrees(id);
+  async getEventTrees(@Query("id") id: number | string): Promise<EventSequenceDiagram[]> {
+    if (typeof id === "number") {
+      return this.eventTreeService.getEventTrees(id);
+    } else {
+      return this.eventTreeService.getEventTreesString(id);
+    }
   }
 
   /**
@@ -457,7 +467,7 @@ export class NestedModelController {
    */
   @Get("/event-trees/:id")
   async getSingleEventTree(@Param("id") modelId: number): Promise<EventTree> {
-    return this.nestedModelService.getSingleEventTree(modelId);
+    return this.eventTreeService.getSingleEventTree(modelId);
   }
 
   /**
@@ -634,11 +644,12 @@ export class NestedModelController {
   /**
    * deletes a single nested model from the collection of that typed based on an id
    * @param id the id of the model to be deleted
+   * @param typedModel is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
    */
   @Delete("/event-trees/")
-  async deleteEventTree(@Query("id") id: number): Promise<EventTree> {
-    return this.nestedModelService.deleteEventTree(id);
+  async deleteEventTree(@Query("id") id: string, @Query("type") typedModel: TypedModelType): Promise<void> {
+    await this.eventTreeService.deleteEventTree(id, typedModel);
   }
 
   /**
@@ -808,8 +819,8 @@ export class NestedModelController {
    * @returns the updated model
    */
   @Patch("/event-trees/:id")
-  async updateEventTreeLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
-    return this.nestedModelService.updateEventTreeLabel(id, data);
+  async updateEventTreeLabel(@Param("id") id: string, @Body() data: Label): Promise<NestedModel> {
+    return this.eventTreeService.updateEventTreeLabel(id, data);
   }
 
   /**

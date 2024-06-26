@@ -16,6 +16,7 @@ import {
   EditInitiatingEvent,
   DeleteInitiatingEvent,
 } from "./ActionHelpers/InitiatingEventsActions";
+import { SetEventTrees, AddEventTree, EditEventTree, DeleteEventTree } from "./ActionHelpers/EventTreesActions";
 
 export {
   // Initiating Events
@@ -35,4 +36,10 @@ export {
   AddEventSequenceAnalysis,
   EditEventSequenceAnalysis,
   DeleteEventSequenceAnalysis,
+
+  // Event Trees
+  SetEventTrees,
+  AddEventTree,
+  EditEventTree,
+  DeleteEventTree,
 };

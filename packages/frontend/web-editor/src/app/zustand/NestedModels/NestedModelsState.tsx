@@ -11,7 +11,7 @@ export const NestedModelsState = {
     EventSequenceAnalysis: {
       EventSequenceAnalysisList: [] as NestedModelType[],
       EventSequenceDiagrams: [] as NestedModelType[],
-      EventTrees: [] as string[],
+      EventTrees: [] as NestedModelType[],
     },
     SuccessCriteriaDevelopment: {
       SuccessCriteria: [] as string[],

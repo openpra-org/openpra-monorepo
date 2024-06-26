@@ -14,15 +14,15 @@ import {
 } from "./TypedModelApiManager";
 import { AuthService } from "./AuthService";
 
-//used constants
+// used constants
 export const API_ENDPOINT = "/api";
 export const NESTED_ENDPOINT = `${API_ENDPOINT}/nested-models`;
 export const INITIATING_EVENTS_ENDPOINT = `${NESTED_ENDPOINT}/initiating-events`;
 export const EVENT_SEQUENCE_DIAGRAMS_ENDPOINT = `${NESTED_ENDPOINT}/event-sequence-diagrams`;
 export const EVENT_SEQUENCE_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/event-sequence-analysis`;
+export const EVENT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/event-trees`;
 
 const HEAT_BALANCE_FAULT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/heat-balance-fault-trees`;
-const EVENT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/event-trees`;
 const FUNCTIONAL_EVENTS_ENDPOINT = `${NESTED_ENDPOINT}/functional-events`;
 const FAULT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/fault-trees`;
 const BAYESIAN_NETWORKS_ENDPOINT = `${NESTED_ENDPOINT}/bayesian-networks`;
@@ -70,17 +70,29 @@ import {
   PatchEventSequenceAnalysisLabel,
 } from "./NestedModelsAPI/EventSequenceAnalysisApiManager";
 
+import {
+  DeleteEventTree,
+  GetEventTrees,
+  PostEventTree,
+  PatchEventTreeLabel,
+} from "./NestedModelsAPI/EventTreesApiManager";
+
 // Get Methods
-export { GetEventSequenceDiagrams, GetInitiatingEvents, GetEventSequenceAnalysis };
+export { GetEventSequenceDiagrams, GetInitiatingEvents, GetEventSequenceAnalysis, GetEventTrees };
 
 // Post Methods
-export { PostEventSequenceDiagram, PostInitiatingEvent, PostEventSequenceAnalysis };
+export { PostEventSequenceDiagram, PostInitiatingEvent, PostEventSequenceAnalysis, PostEventTree };
 
 // Patch Methods
-export { PatchEventSequenceDiagramLabel, PatchInitiatingEventLabel, PatchEventSequenceAnalysisLabel };
+export {
+  PatchEventSequenceDiagramLabel,
+  PatchInitiatingEventLabel,
+  PatchEventSequenceAnalysisLabel,
+  PatchEventTreeLabel,
+};
 
 // Delete Methods
-export { DeleteEventSequenceDiagram, DeleteInitiatingEvent, DeleteEventSequenceAnalysis };
+export { DeleteEventSequenceDiagram, DeleteInitiatingEvent, DeleteEventSequenceAnalysis, DeleteEventTree };
 
 //Don't use '' keyword, dynamically passing functions hates it on the frontend
 
@@ -101,19 +113,6 @@ export async function PostHeatBalanceFaultTree(data: NestedModelJSON): Promise<N
     (response) => response.json() as Promise<NestedModel>,
   );
   await AddNestedModelToTypedModel("faultTrees");
-  return returnResponse;
-}
-
-/**
- * Posts the type of nested model, and adds its id to its parent
- * @param data - a nestedModelJSON containing a label and a parent id
- * @returns a promise with the nested model, containing only those features
- */
-export async function PostEventTree(data: NestedModelJSON): Promise<NestedModel> {
-  const returnResponse = await Post(`${EVENT_TREES_ENDPOINT}/`, data).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
-  await AddNestedModelToTypedModel("eventTrees");
   return returnResponse;
 }
 
@@ -300,7 +299,7 @@ async function AddNestedModelToTypedModel(type: string): Promise<void> {
  * generic Post for all the types of methods
  * @param url - the url we are Posting to
  * @param data - the nested model we are using to Post
- * @param typedModel is the typemodel to be udpated
+ * @param typedModel is the typedmodel to be updated
  * @returns the nested model promise after Posting
  */
 export async function Post(url: string, data: NestedModelJSON, typedModel = ""): Promise<Response> {
@@ -318,19 +317,6 @@ export async function Post(url: string, data: NestedModelJSON, typedModel = ""):
 //Get methods
 export function GetHeatBalanceFaultTrees(id = -1): Promise<NestedModel[]> {
   return Get(`${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/?id=${Number(id)}`)
-    .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
-    .catch((error) => {
-      throw error; // Re-throw the error to propagate it if needed
-    });
-}
-
-/**
- * Gets the list of the type of nested model
- * @param id - the parent model id, the parent whose list is to be retrieved
- * @returns a list of the nested models at  endpoint in a promise
- */
-export function GetEventTrees(id = -1): Promise<NestedModel[]> {
-  return Get(`${EVENT_TREES_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
     .catch((error) => {
       throw error; // Re-throw the error to propagate it if needed
@@ -561,18 +547,6 @@ export function PatchBayesianNetworkLabel(id: number, data: LabelJSON): Promise<
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export function PatchEventTreeLabel(id: number, data: LabelJSON): Promise<NestedModel> {
-  return Patch(`${EVENT_TREES_ENDPOINT}/${id}`, JSON.stringify(data)).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
-}
-
-/**
- * updates the label for the type of nested model
- * @param id - the id of the nested model
- * @param data - a labelJSON with a name and optional description
- * @returns a promise with the new updated model, with its label
- */
 export function PatchFaultTreeLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${FAULT_TREES_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -709,19 +683,6 @@ export function Patch(url: string, data: unknown): Promise<Response> {
 }
 
 //Delete methods
-
-/**
- * Deletes a model from the endpoint
- * @param id - the id of the model to be Deleted
- * @returns the Deleted model
- */
-export async function DeleteEventTree(id = -1): Promise<NestedModel> {
-  const response = await Delete(`${EVENT_TREES_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
-  await RemoveNestedIds(id, "eventTrees");
-  return response;
-}
 
 /**
  * Deletes a model from the endpoint

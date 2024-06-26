@@ -3,9 +3,7 @@ import {
   PostBayesianEstimation,
   PostBayesianNetwork,
   PostDataAnalysis,
-  PostEventSequenceAnalysis,
   PostEventSequenceQuantificationDiagram,
-  PostEventTree,
   PostFaultTree,
   PostFunctionalEvent,
   PostHeatBalanceFaultTree,
@@ -190,10 +188,11 @@ export function CreateEventSequenceDiagramButton(): JSX.Element {
 }
 
 export function CreateEventTreeButton(): JSX.Element {
+  const AddEventTree = UseGlobalStore.use.AddEventTree();
   return (
     <CreateNestedItemButton
       itemName="event-tree"
-      postEndpoint={PostEventTree}
+      postNestedEndpoint={AddEventTree}
     />
   );
 }

@@ -6,15 +6,19 @@ import { NestedModelActionsType, NestedModelsType } from "./NestedModelsType";
 import {
   AddEventSequenceAnalysis,
   AddEventSequenceDiagram,
+  AddEventTree,
   AddInitiatingEvent,
   DeleteEventSequenceAnalysis,
   DeleteEventSequenceDiagram,
+  DeleteEventTree,
   DeleteInitiatingEvent,
   EditEventSequenceAnalysis,
   EditEventSequenceDiagram,
+  EditEventTree,
   EditInitiatingEvent,
   SetEventSequenceAnalysis,
   SetEventSequenceDiagrams,
+  SetEventTrees,
   SetInitiatingEvents,
 } from "./NestedModelsActions";
 
@@ -47,6 +51,12 @@ const NestedModelsSlice: StateCreator<
     AddEventSequenceAnalysis: AddEventSequenceAnalysis,
     EditEventSequenceAnalysis: EditEventSequenceAnalysis,
     DeleteEventSequenceAnalysis: DeleteEventSequenceAnalysis,
+
+    // Event Trees
+    SetEventTrees: SetEventTrees,
+    AddEventTree: AddEventTree,
+    EditEventTree: EditEventTree,
+    DeleteEventTree: DeleteEventTree,
   };
 });
 

@@ -5,7 +5,7 @@ import { GetCurrentNestedModelType } from "shared-types/src/lib/api/NestedModelA
 import { StoreStateType } from "../Store";
 
 export type TypedModelNames = "InternalEvents" | "InternalHazards" | "ExternalHazards" | "FullScope";
-export type NestedModelNames = "initiatingEvents" | "eventSequenceDiagrams" | "eventSequenceAnalysis";
+export type NestedModelNames = "initiatingEvents" | "eventSequenceDiagrams" | "eventSequenceAnalysis" | "eventTrees";
 
 export const GetTypedModelName = (): TypedModelNames => {
   const typedModel = GetCurrentModelType();
@@ -34,6 +34,8 @@ export const GetNestedModelName = (): NestedModelNames => {
       return "eventSequenceDiagrams";
     case "event-sequence-analysis":
       return "eventSequenceAnalysis";
+    case "event-trees":
+      return "eventTrees";
   }
 
   return "initiatingEvents";

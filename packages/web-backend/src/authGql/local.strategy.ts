@@ -9,7 +9,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
   constructor(private readonly authGqlService: AuthGqlService) {
     super();
   }
-  validateUser(username: string, password: string): Promise<ClientUser> {
+  validate(username: string, password: string): Promise<ClientUser> {
     const user = this.authGqlService.validateUser(username, password);
 
     if (user === undefined) {

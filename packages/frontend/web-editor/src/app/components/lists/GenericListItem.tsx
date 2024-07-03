@@ -41,12 +41,19 @@ export interface GenericListItemProps {
  */
 function GenericListItem(props: GenericListItemProps): JSX.Element {
   const { label, id, path, endpoint } = props;
+  let fullPath = path; // Default to original path if conditions aren't met
 
-  // Constructing the full path with event-type and item-id
-  const formattedEndpoint = endpoint.toLowerCase().replace(/\s+/g, '-');
-
-  // Constructing the full path with formatted endpoint and item-id
-  const fullPath = `/${formattedEndpoint}/${path}`;
+  // Check if endpoint matches specific values to format fullPath
+  if (
+    endpoint === "Internal Events" ||
+    endpoint === "Internal Hazards" ||
+    endpoint === "External Hazard" ||
+    endpoint === "Full Scope"
+  ) {
+    // Convert endpoint to lowercase and replace spaces with hyphens
+    const formattedEndpoint = endpoint.toLowerCase().replace(/\s+/g, '-');
+    fullPath = `/${formattedEndpoint}/${path}`;
+  }
 
   // Theming constants setup
   const border = useEuiTheme().euiTheme.border;

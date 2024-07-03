@@ -40,23 +40,25 @@ export interface GenericListItemProps {
  * @param props - that contains all the input props for the component
  */
 function GenericListItem(props: GenericListItemProps): JSX.Element {
-  //grabs the props
-  // console.log(props);
-  const { label, id, path } = props;
+  const { label, id, path, endpoint } = props;
 
+  // Constructing the full path with event-type and item-id
+  const formattedEndpoint = endpoint.toLowerCase().replace(/\s+/g, '-');
 
-  // TODO
-  //setting theming constants to be used later
+  // Constructing the full path with formatted endpoint and item-id
+  const fullPath = `/${formattedEndpoint}/${path}`;
+
+  // Theming constants setup
   const border = useEuiTheme().euiTheme.border;
   const borderLine = logicalStyle("border-bottom", `${border.width.thin} solid ${border.color}`);
   const paddingLine = logicalStyle("padding-vertical", `${useEuiPaddingSize("s")}`);
   const customStyles = { ...borderLine, ...paddingLine };
+
   return (
     <EuiListGroupItem
       style={customStyles}
       icon={
-        <Link to={path}>
-          {/** avatar with the abbreviation for the item, it is in a  link as is the other part so that clicks are seamless */}
+        <Link to={fullPath}>
           <EuiAvatar
             name={label.name ? label.name : ""}
             size="l"
@@ -65,50 +67,27 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
         </Link>
       }
       label={
-        <EuiFlexGroup
-          direction="row"
-          alignItems="center"
-          responsive={false}
-        >
+        <EuiFlexGroup direction="row" alignItems="center" responsive={false}>
           <EuiFlexItem grow={5}>
-            <Link to={path}>
-              {/** this is the title for the item */}
-              <EuiText
-                size="m"
-                color="default"
-                grow={false}
-              >
+            <Link to={fullPath}>
+              <EuiText size="m" color="default" grow={false}>
                 <strong>{label.name}</strong>
               </EuiText>
             </Link>
-            {/** this is the description for the item */}
-            <EuiText
-              size="s"
-              color="subdued"
-              grow={false}
-            >
+            <EuiText size="s" color="subdued" grow={false}>
               {label.description}
             </EuiText>
           </EuiFlexItem>
 
           <EuiFlexItem grow={false}>
-            <EuiText
-              color="subdued"
-              textAlign="right"
-            >
+            <EuiText color="subdued" textAlign="right">
               <small>
-                <LastActionText
-                  action="viewed"
-                  timestamp={Date.now()}
-                />
+                <LastActionText action="viewed" timestamp={Date.now()} />
               </small>
             </EuiText>
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
-            <EuiFlexGroup
-              direction="row"
-              gutterSize="s"
-            >
+            <EuiFlexGroup direction="row" gutterSize="s">
               <ListItemContextMenuButton {...props} />
             </EuiFlexGroup>
           </EuiFlexItem>
@@ -117,7 +96,7 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
       key={id}
       size="l"
       wrapText={false}
-    ></EuiListGroupItem>
+    />
   );
 }
 export { GenericListItem };

@@ -30,7 +30,7 @@ import { UsersModule } from "./users/users.module";
     InviteModule,
     GraphQLModule.forRoot({
       driver: ApolloDriver,
-      authSchemaFile: join(process.cwd(), "src/schema.gql"),
+      autoSchemaFile: join(process.cwd(), "/packages/web-backend/schema.gql"),
       sortSchema: true,
     }),
     ConfigModule.forRoot({

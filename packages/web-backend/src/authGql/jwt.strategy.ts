@@ -3,13 +3,20 @@ import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 import { ClientUser } from "../users/entities/clientUser.entity";
 
+// Setting the type of the payload passed to the validate method.
 type Payload = {
   username: string;
   sub: number;
 };
 
+/**
+ * @public JwtStrategy handles the validation of the JWT provided by the client.
+ * */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
+  /**
+   * @remarks Extracts the JWT and validates it using the secret.
+   * */
   constructor() {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -18,6 +25,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
+  /**
+   * @remarks Acts as an adapter to translate the payload given by Passport into ClientUser object
+   * @param payload - Contains the ID and username obtained from the JWT.
+   * @returns ClientUser object containing ID and username.
+   * */
   validate(payload: Payload): ClientUser {
     return { id: payload.sub, username: payload.username };
   }

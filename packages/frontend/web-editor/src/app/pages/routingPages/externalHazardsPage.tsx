@@ -26,6 +26,7 @@ import { SuccessCriteria } from "../fullScopePages/successCriteria";
 import { SystemsAnalysis } from "../fullScopePages/systemsAnalysis";
 import { EventSequenceQuantificationDiagramList } from "../../components/lists/nestedLists/eventSequenceQunatificationDiagramList";
 import { RadiologicalConsequenceAnalysis } from "../fullScopePages/radiologicalConsequenceAnalysis";
+import { FaultTrees } from "../fullScopePages/faultTrees";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -96,6 +97,10 @@ function ExternalHazardsPage(): JSX.Element {
         <Route
           path="functional-events/*"
           element={<FunctionalEvents />}
+        />
+        <Route
+          path="fault-trees/*"
+          element={<FaultTrees />}
         />
         <Route
           path="bayesian-networks/*"
@@ -179,7 +184,7 @@ function ExternalHazardsPage(): JSX.Element {
         />
       </Route>
       {/** everything below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested
-       * else a problem happens where the parent takes presedence and loads its content over everything else
+       * else a problem happens where the parent takes precedence and loads its content over everything else
        */}
     </Routes>
   );

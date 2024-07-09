@@ -17,6 +17,13 @@ import {
   DeleteInitiatingEvent,
 } from "./ActionHelpers/InitiatingEventsActions";
 import { SetEventTrees, AddEventTree, EditEventTree, DeleteEventTree } from "./ActionHelpers/EventTreesActions";
+import {
+  AddBayesianNetwork,
+  DeleteBayesianNetwork,
+  EditBayesianNetwork,
+  SetBayesianNetworks,
+} from "./ActionHelpers/BayesianNetworksActions";
+import { AddFaultTree, DeleteFaultTree, EditFaultTree, SetFaultTrees } from "./ActionHelpers/FaultTreesActions";
 
 export {
   // Initiating Events
@@ -42,4 +49,16 @@ export {
   AddEventTree,
   EditEventTree,
   DeleteEventTree,
+
+  // Bayesian Networks
+  SetBayesianNetworks,
+  AddBayesianNetwork,
+  EditBayesianNetwork,
+  DeleteBayesianNetwork,
+
+  // Fault Trees
+  SetFaultTrees,
+  AddFaultTree,
+  EditFaultTree,
+  DeleteFaultTree,
 };

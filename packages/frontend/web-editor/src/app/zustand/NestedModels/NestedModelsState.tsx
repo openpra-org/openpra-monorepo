@@ -19,8 +19,8 @@ export const NestedModelsState = {
     },
     SystemAnalysis: {
       SystemAnalysisList: [] as string[],
-      FaultTrees: [] as string[],
-      BayesianNetworks: [] as string[],
+      FaultTrees: [] as NestedModelType[],
+      BayesianNetworks: [] as NestedModelType[],
       MarkovChains: [] as string[],
     },
     HumanReliabilityAnalysis: {

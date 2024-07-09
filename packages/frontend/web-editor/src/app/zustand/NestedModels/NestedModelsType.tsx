@@ -3,6 +3,8 @@ import { InitiatingEventsType } from "./TypesHelpers/InitiatingEventsType";
 import { EventSequenceDiagramsType } from "./TypesHelpers/EventSequenceDiagramsType";
 import { EventSequenceAnalysisType } from "./TypesHelpers/EventSequenceAnalysisType";
 import { EventTreesType } from "./TypesHelpers/EventTreesType";
+import { BayesianNetworksType } from "./TypesHelpers/BayesianNetworksType";
+import { FaultTreesType } from "./TypesHelpers/FaultTreesType";
 
 export interface NestedModelsStateType {
   parentId: string;
@@ -23,8 +25,8 @@ export interface NestedModelsStateType {
   };
   SystemAnalysis: {
     SystemAnalysisList: string[];
-    FaultTrees: string[];
-    BayesianNetworks: string[];
+    FaultTrees: NestedModelType[];
+    BayesianNetworks: NestedModelType[];
     MarkovChains: string[];
   };
   HumanReliabilityAnalysis: {
@@ -60,7 +62,9 @@ export interface NestedModelsType {
   NestedModels: NestedModelsStateType;
 }
 
-export type NestedModelActionsType = InitiatingEventsType &
+export type NestedModelActionsType = BayesianNetworksType &
+  InitiatingEventsType &
   EventSequenceDiagramsType &
   EventSequenceAnalysisType &
-  EventTreesType;
+  EventTreesType &
+  FaultTreesType;

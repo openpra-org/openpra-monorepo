@@ -110,8 +110,8 @@ export interface typedModelType {
   eventSequenceAnalysis: string[];
   functionalEvents?: string[];
   eventTrees: string[];
-  faultTrees?: string[];
-  bayesianNetworks?: string[];
+  faultTrees: string[];
+  bayesianNetworks: string[];
   markovChains?: string[];
   bayesianEstimations?: string[];
   weibullAnalysis?: string[];

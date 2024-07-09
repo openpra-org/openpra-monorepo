@@ -46,6 +46,8 @@ import { InitiatingEventsService } from "./NestedModelsHelpers/initiating-events
 import { EventSequenceDiagramService } from "./NestedModelsHelpers/event-sequence-diagram.service";
 import { EventSequenceAnalysisService } from "./NestedModelsHelpers/event-sequence-analysis.service";
 import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
+import { BayesianNetworksService } from "./NestedModelsHelpers/bayesian-networks.service";
+import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
 
 @Module({
   imports: [
@@ -105,6 +107,8 @@ import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
     EventSequenceDiagramService,
     EventSequenceAnalysisService,
     EventTreesService,
+    BayesianNetworksService,
+    FaultTreesService,
   ],
   exports: [
     NestedModelService,
@@ -112,6 +116,8 @@ import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
     NestedModelHelperService,
     EventSequenceDiagramService,
     EventTreesService,
+    BayesianNetworksService,
+    FaultTreesService,
   ],
 })
 export class NestedModelModule {}

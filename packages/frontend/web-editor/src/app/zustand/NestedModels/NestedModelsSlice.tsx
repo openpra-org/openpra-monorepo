@@ -4,21 +4,29 @@ import { SliceResetFns, StoreActionType, StoreStateType } from "../Store";
 import { NestedModelsState } from "./NestedModelsState";
 import { NestedModelActionsType, NestedModelsType } from "./NestedModelsType";
 import {
+  AddBayesianNetwork,
   AddEventSequenceAnalysis,
   AddEventSequenceDiagram,
   AddEventTree,
+  AddFaultTree,
   AddInitiatingEvent,
+  DeleteBayesianNetwork,
   DeleteEventSequenceAnalysis,
   DeleteEventSequenceDiagram,
   DeleteEventTree,
+  DeleteFaultTree,
   DeleteInitiatingEvent,
+  EditBayesianNetwork,
   EditEventSequenceAnalysis,
   EditEventSequenceDiagram,
   EditEventTree,
+  EditFaultTree,
   EditInitiatingEvent,
+  SetBayesianNetworks,
   SetEventSequenceAnalysis,
   SetEventSequenceDiagrams,
   SetEventTrees,
+  SetFaultTrees,
   SetInitiatingEvents,
 } from "./NestedModelsActions";
 
@@ -57,6 +65,18 @@ const NestedModelsSlice: StateCreator<
     AddEventTree: AddEventTree,
     EditEventTree: EditEventTree,
     DeleteEventTree: DeleteEventTree,
+
+    // Bayesian Networks
+    SetBayesianNetworks: SetBayesianNetworks,
+    AddBayesianNetwork: AddBayesianNetwork,
+    EditBayesianNetwork: EditBayesianNetwork,
+    DeleteBayesianNetwork: DeleteBayesianNetwork,
+
+    // Fault Trees
+    SetFaultTrees: SetFaultTrees,
+    AddFaultTree: AddFaultTree,
+    EditFaultTree: EditFaultTree,
+    DeleteFaultTree: DeleteFaultTree,
   };
 });
 

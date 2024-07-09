@@ -19,26 +19,23 @@ import ReactFlow, {
   MarkerType,
 } from "reactflow";
 import { EuiToast } from "@elastic/eui";
-import BayesianNetworkList from "../../components/lists/nestedLists/bayesianNetworkList";
+import { BayesianNetworkList } from "../../components/lists/nestedLists/bayesianNetworkList";
 import { MindMapNode } from "../../components/treeNodes/bayesianNetwork/mindMapNode";
 import { MindMapEdge } from "../../components/treeEdges/bayesianNetworkEdges/mindMapEdge";
 import CustomMiniMap from "../../components/minimap/minimap";
 import { BayesianNodeContextMenu } from "../../components/context_menu/bayesianNodeContextMenu";
-import {
-  UseStore,
-  RFState,
-} from "../../hooks/bayesianNetwork/mindmap/useStore";
+import { UseStore, RFState } from "../../hooks/bayesianNetwork/mindmap/useStore";
 import { GetEdgeParams } from "../../../utils/bayesianNodeIntersectionCalculator";
 
 /**
  * Selector type defining the parts of the state to be extracted.
  */
-type SelectorReturnType = {
+interface SelectorReturnType {
   nodes: RFState["nodes"];
   edges: RFState["edges"];
   onNodesChange: RFState["onNodesChange"];
   onEdgesChange: RFState["onEdgesChange"];
-};
+}
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
@@ -88,10 +85,7 @@ type ExtendedNode = {
  * @returns \{JSX.Element\} The rendered React Flow environment with nodes and edges.
  */
 function ReactFlowPro(): JSX.Element {
-  const { nodes, edges, onNodesChange, onEdgesChange } = UseStore(
-    selector,
-    shallow,
-  );
+  const { nodes, edges, onNodesChange, onEdgesChange } = UseStore(selector, shallow);
   const reactFlow = useReactFlow();
   const connectingNodeId = useRef<string | null>(null);
   const store = useStoreApi();
@@ -138,21 +132,12 @@ function ReactFlowPro(): JSX.Element {
   const onConnectEnd: OnConnectEnd = useCallback(
     (event): void => {
       const { nodeInternals } = store.getState();
-      const targetIsPane = (event.target as Element).classList.contains(
-        "react-flow__pane",
-      );
+      const targetIsPane = (event.target as Element).classList.contains("react-flow__pane");
       const node = (event.target as Element).closest(".react-flow__node");
-      const targetNodeId = (event.target as Element)
-        .closest(".react-flow__node")
-        ?.getAttribute("data-id");
+      const targetNodeId = (event.target as Element).closest(".react-flow__node")?.getAttribute("data-id");
 
       // Function to check for cycles
-      const hasCycles = (
-        sourceNodeId: string,
-        targetNodeId: string,
-        nodes: Node[],
-        edges: Edge[],
-      ): boolean => {
+      const hasCycles = (sourceNodeId: string, targetNodeId: string, nodes: Node[], edges: Edge[]): boolean => {
         const visited = new Set();
         const stack = [targetNodeId];
         while (stack.length > 0) {
@@ -162,9 +147,7 @@ function ReactFlowPro(): JSX.Element {
           }
           if (!visited.has(node)) {
             visited.add(node);
-            const children = edges
-              .filter((e) => e.source === node)
-              .map((e) => e.target);
+            const children = edges.filter((e) => e.source === node).map((e) => e.target);
             stack.push(...children);
           }
         }
@@ -209,9 +192,7 @@ function ReactFlowPro(): JSX.Element {
           }
         }
       } else if (targetIsPane && connectingNodeId.current) {
-        const parentNode = nodeInternals.get(
-          connectingNodeId.current,
-        ) as ExtendedNode;
+        const parentNode = nodeInternals.get(connectingNodeId.current) as ExtendedNode;
         const childNodePosition = getChildNodePosition(event as MouseEvent);
         // if (childNodePosition) {
         addChildNode(parentNode, childNodePosition);
@@ -242,47 +223,41 @@ function ReactFlowPro(): JSX.Element {
    * @param  event - The event object for the mouse event.
    * @param  node - The node on which the context menu is opened.
    */
-  const onNodeContextMenu = useCallback(
-    (event: React.MouseEvent, node: Node) => {
-      event.preventDefault();
-      setSelectedNodeId(node.id);
-      setShowContextMenu(true);
-      setContextMenuPosition({ x: event.clientX, y: event.clientY });
-    },
-    [],
-  );
+  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
+    event.preventDefault();
+    setSelectedNodeId(node.id);
+    setShowContextMenu(true);
+    setContextMenuPosition({ x: event.clientX, y: event.clientY });
+  }, []);
 
   /**
    * Handler for context menu actions. Depending on the action, it might delete a node, highlight it, or add a parent node.
    * @param  action - The action to be performed.
    * @param  nodeId - The ID of the node on which the action is to be performed.
    */
-  const handleContextMenuAction = useCallback(
-    (action: string, nodeId: string) => {
-      const childNode = UseStore.getState().nodes.find((n) => n.id === nodeId);
+  const handleContextMenuAction = useCallback((action: string, nodeId: string) => {
+    const childNode = UseStore.getState().nodes.find((n) => n.id === nodeId);
 
-      switch (action) {
-        case "deleteNode":
-          UseStore.getState().deleteNodeAndReattachChildren(nodeId);
-          break;
-        case "highlightNode":
-          break;
-        case "addParent":
-          if (childNode) {
-            // Arbitrarily positioning the new parent 100 units above the child node
-            const newParentPosition = {
-              x: childNode.position.x,
-              y: childNode.position.y - 100,
-            };
-            UseStore.getState().addParentNode(childNode, newParentPosition);
-          }
-          break;
-        default:
-      }
-      setShowContextMenu(false);
-    },
-    [],
-  );
+    switch (action) {
+      case "deleteNode":
+        UseStore.getState().deleteNodeAndReattachChildren(nodeId);
+        break;
+      case "highlightNode":
+        break;
+      case "addParent":
+        if (childNode) {
+          // Arbitrarily positioning the new parent 100 units above the child node
+          const newParentPosition = {
+            x: childNode.position.x,
+            y: childNode.position.y - 100,
+          };
+          UseStore.getState().addParentNode(childNode, newParentPosition);
+        }
+        break;
+      default:
+    }
+    setShowContextMenu(false);
+  }, []);
 
   /**
    * Event handler for clicking on the pane, used to close the context menu.
@@ -342,8 +317,8 @@ function ReactFlowPro(): JSX.Element {
           }}
         >
           <p>
-            Creating this link would create a cycle, which is not allowed in a
-            directed acyclic graph (DAG). Please try a different connection.
+            Creating this link would create a cycle, which is not allowed in a directed acyclic graph (DAG). Please try
+            a different connection.
           </p>
         </EuiToast>
       )}
@@ -372,8 +347,14 @@ export function BayesianNetworkEditor(): JSX.Element {
 function BayesianNetworks(): JSX.Element {
   return (
     <Routes>
-      <Route path="" element={<BayesianNetworkList />} />
-      <Route path=":bayesianNetworkId" element={<BayesianNetworkEditor />} />
+      <Route
+        path=""
+        element={<BayesianNetworkList />}
+      />
+      <Route
+        path=":bayesianNetworkId"
+        element={<BayesianNetworkEditor />}
+      />
     </Routes>
   );
 }

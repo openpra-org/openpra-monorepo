@@ -199,7 +199,7 @@ function FullScopePage(): JSX.Element {
         />
       </Route>
       {/** everything below here is off of modelID, but in order to keep the desired page structure the routes need to not be nested
-       * else a problem happens where the parent takes presedence and loads its content over everything else
+       * else a problem happens where the parent takes precedence and loads its content over everything else
        */}
     </Routes>
   );

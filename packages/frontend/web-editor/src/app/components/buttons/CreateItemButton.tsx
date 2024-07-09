@@ -1,10 +1,8 @@
 import { logicalStyle } from "@elastic/eui";
 import {
   PostBayesianEstimation,
-  PostBayesianNetwork,
   PostDataAnalysis,
   PostEventSequenceQuantificationDiagram,
-  PostFaultTree,
   PostFunctionalEvent,
   PostHeatBalanceFaultTree,
   PostHumanReliabilityAnalysis,
@@ -142,10 +140,11 @@ export function CreateFullScopeButton(): JSX.Element {
 }
 
 export function CreateFaultTreeButton(): JSX.Element {
+  const AddFaultTree = UseGlobalStore.use.AddFaultTree();
   return (
     <CreateNestedItemButton
       itemName="fault-tree"
-      postEndpoint={PostFaultTree}
+      postNestedEndpoint={AddFaultTree}
     />
   );
 }
@@ -160,10 +159,11 @@ export function CreateHeatBalanceFaultTreeButton(): JSX.Element {
 }
 
 export function CreateBayesianNetworkButton(): JSX.Element {
+  const AddBayesianNetwork = UseGlobalStore.use.AddBayesianNetwork();
   return (
     <CreateNestedItemButton
       itemName="bayesian-network"
-      postEndpoint={PostBayesianNetwork}
+      postNestedEndpoint={AddBayesianNetwork}
     />
   );
 }

@@ -42,6 +42,7 @@ import CommentComponent from "../../pages/fullScopePages/commentLogs";
 import { MemberResult } from "shared-types/src/lib/api/Members";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 import moment from "moment";
+import { useDebounce } from "../../hooks/debouncer/useDebounce";
 
 //Elastic Comment Code:
 
@@ -656,13 +657,23 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     }
   };
 
-  //This function manages both selectedRowData and data states for change in sidePanel to reflect in Datagrid
+  const [inputValue, setInputValue] = useState<string | number>("");
+  const debouncedValue = useDebounce(inputValue, 5000);
+  // useEffect(() => {
+  //   if (selectedRowData && debouncedValue !== selectedRowData.yourFieldName) {
+  //     // Call the logging function here
+  //     onAddLogs("yourFieldName", debouncedValue);
+  //   }
+  // }, [debouncedValue, selectedRowData]);
   const updateFieldInData = (
     fieldKey: keyof DataRow,
     value: string | number,
   ): void => {
     if (!selectedRowData) return;
-    const updatedSelectedRowData = { ...selectedRowData, [fieldKey]: value };
+    const updatedSelectedRowData = {
+      ...selectedRowData,
+      [fieldKey]: value,
+    };
     setSelectedRowData(updatedSelectedRowData);
 
     setData((prevData) =>
@@ -670,8 +681,14 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
         row.id === selectedRowData.id ? updatedSelectedRowData : row,
       ),
     );
-    // @ts-ignore
-    debouncedUpdateFieldInData(fieldKey, value);
+
+    // Call the debounced function
+    // debouncedUpdateFieldInData(fieldKey as string, value);
+    setInputValue(value);
+  };
+  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = event.target;
+    updateFieldInData(name as keyof DataRow, value);
   };
 
   const handleSidePanelClose = (): void => {
@@ -1450,20 +1467,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     [groupbyColumn],
   );
 
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  function debounce<T extends (...args: any[]) => Promise<any>>(
-    func: T,
-    delay: number,
-  ) {
-    let timeoutId: NodeJS.Timeout;
-    return function (this: any, ...args: Parameters<T>) {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(async () => {
-        await func.apply(this, args);
-      }, delay);
-    };
-  }
-
   function camelCaseToNormal(input: string): string {
     // Add a space before each uppercase letter, then capitalize the first letter of the result
     const result = input
@@ -1475,7 +1478,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const onAddLogs = async (fieldKey: keyof DataRow, value: string | number) => {
     setIsLoading(true);
 
-    const date = new Date(Date.now()).toISOString();
     const momentDate = moment().format("llll");
 
     const commentData = {
@@ -1521,17 +1523,8 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       console.error("Error adding comment:", error);
       setIsLoading(false);
     }
+    // console.log(`Logged value: ${value}`);
   };
-  const debouncedUpdateFieldInData = debounce(
-    async (fieldKey: keyof DataRow, value: string | number) => {
-      try {
-        await onAddLogs(fieldKey, value); // Ensure the promise is awaited
-      } catch (error) {
-        console.error("Error in onAddLogs:", error);
-      }
-    },
-    5000,
-  );
 
   return (
     <div

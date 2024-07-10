@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 //----------------------------EUIdatagrid---------------------
 import {
   EuiButton,
@@ -32,7 +38,6 @@ import {
   EuiAvatar,
 } from "@elastic/eui";
 import "@elastic/eui/dist/eui_theme_light.css";
-import { useEffect } from "react";
 import { groupBy } from "lodash";
 
 import "./initiatingEventModelViewTable.css";
@@ -141,6 +146,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     setCommentEditId((prevId) => (prevId === commentId ? null : commentId));
     setOriginalTimestamp(timestamp);
   };
+
   const onDeleteComment = async () => {
     setIsLoading(true);
 
@@ -634,6 +640,7 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const [dropdownOptions, setDropdownOptions] = useState([
     { value: "", text: "" },
   ]);
+
   const [selectedColumnType, setSelectedColumnType] =
     useState<ColumnType>("text");
 
@@ -657,35 +664,51 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
     }
   };
 
-  const [inputValue, setInputValue] = useState<string | number>("");
-  const debouncedValue = useDebounce(inputValue, 5000);
-  // useEffect(() => {
-  //   if (selectedRowData && debouncedValue !== selectedRowData.yourFieldName) {
-  //     // Call the logging function here
-  //     onAddLogs("yourFieldName", debouncedValue);
-  //   }
-  // }, [debouncedValue, selectedRowData]);
-  const updateFieldInData = (
-    fieldKey: keyof DataRow,
-    value: string | number,
-  ): void => {
-    if (!selectedRowData) return;
-    const updatedSelectedRowData = {
-      ...selectedRowData,
-      [fieldKey]: value,
-    };
-    setSelectedRowData(updatedSelectedRowData);
+  const [inputValue, setInputValue] = useState<{
+    fieldKey: keyof DataRow;
+    value: string | number;
+  } | null>(null);
 
-    setData((prevData) =>
-      prevData.map((row) =>
-        row.id === selectedRowData.id ? updatedSelectedRowData : row,
-      ),
-    );
+  const [inputBlurValue, setBlurInputValue] = useState<{
+    fieldKey: keyof DataRow;
+    value: string | number;
+  } | null>(null);
 
-    // Call the debounced function
-    // debouncedUpdateFieldInData(fieldKey as string, value);
-    setInputValue(value);
+  const debouncedValue = useDebounce(inputValue);
+  const handleInputBlur = () => {
+    // @ts-ignore
+    console.log("Input blurred. Value:", debouncedValue.value);
+    // Perform any other actions you want on blur
   };
+  useEffect(() => {
+    if (debouncedValue) {
+      console.log(
+        `Field: ${String(debouncedValue.fieldKey)}, Debounced Value: ${
+          debouncedValue.value
+        }`,
+      );
+      // onAddLogs(debouncedValue.fieldKey, debouncedValue.value);
+    }
+  }, [debouncedValue]);
+
+  const updateFieldInData = useCallback(
+    (fieldKey: keyof DataRow, value: string | number): void => {
+      if (!selectedRowData) return;
+
+      const updatedSelectedRowData = { ...selectedRowData, [fieldKey]: value };
+      setSelectedRowData(updatedSelectedRowData);
+
+      setData((prevData) =>
+        prevData.map((row) =>
+          row.id === selectedRowData.id ? updatedSelectedRowData : row,
+        ),
+      );
+
+      setInputValue({ fieldKey, value });
+    },
+    [selectedRowData, setSelectedRowData, setData],
+  );
+
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     updateFieldInData(name as keyof DataRow, value);
@@ -2068,6 +2091,16 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                                     e.target.value,
                                   );
                                 }}
+                                onBlur={(e) => {
+                                  setInputValue({
+                                    fieldKey: customColumn.id,
+                                    value: e.target.value,
+                                  }); // Update input value on blur
+                                  updateFieldInData(
+                                    customColumn.id,
+                                    e.target.value,
+                                  ); // Update data on blur
+                                }}
                               />
                             ) : (
                               <EuiFieldText
@@ -2077,6 +2110,16 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                                     customColumn.id,
                                     e.target.value,
                                   );
+                                }}
+                                onBlur={(e) => {
+                                  setInputValue({
+                                    fieldKey: customColumn.id,
+                                    value: e.target.value,
+                                  }); // Update input value on blur
+                                  updateFieldInData(
+                                    customColumn.id,
+                                    e.target.value,
+                                  ); // Update data on blur
                                 }}
                               />
                             )}

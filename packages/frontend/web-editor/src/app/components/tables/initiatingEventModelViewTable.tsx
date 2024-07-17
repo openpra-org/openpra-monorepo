@@ -48,9 +48,23 @@ import { MemberResult } from "shared-types/src/lib/api/Members";
 import ApiManager from "shared-types/src/lib/api/ApiManager";
 import moment from "moment";
 import { useDebounce } from "../../hooks/debouncer/useDebounce";
-
+import axios from "axios";
 //Elastic Comment Code:
-
+// Axios interceptor setup
+axios.interceptors.request.use((req) => {
+  console.log("Inside model request interceptor: " + req);
+  return req; // Ensure the request config is returned
+});
+axios.interceptors.response.use(
+  (response) => {
+    console.log("Inside model response interceptor: ", response);
+    return response; // Ensure the response is returned
+  },
+  (error) => {
+    console.error("Response model error: ", error);
+    return Promise.reject(error); // Handle the error
+  },
+);
 type DataRow = {
   [key: string]: string | number;
   id: number;
@@ -138,9 +152,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const [commentToEditId, setCommentEditId] = useState<string | null>(null);
   const [isEditing] = useState(false);
   const [originalTimestamp, setOriginalTimestamp] = useState("");
-  useEffect(() => {
-    console.log("isEditing state has changed: ", isEditing); // Log the updated state
-  }, [isEditing]);
 
   const handleEditCommentId = (commentId: string, timestamp: string) => {
     setCommentEditId((prevId) => (prevId === commentId ? null : commentId));
@@ -370,17 +381,13 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   const userId = ApiManager.getCurrentUser().user_id;
   const [currentMember, setCurrentMember] = useState<MemberResult>();
   useEffect(() => {
-    console.log("Entered useEffect successfully");
-
     setIsLoading(true);
     ApiManager.getUserById(String(userId))
       .then((result) => {
-        console.log("Entered .then successfully: ", result);
         setCurrentMember(result);
         setIsLoading(false);
       })
       .catch((reason) => {
-        console.log("Entered .catch successfully: ", reason);
         setIsLoading(false);
       });
   }, []);
@@ -426,7 +433,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
         };
       },
     );
-    console.log("The stored comments are as follows:", storedComments);
     setComments(storedComments);
   }, [loadedComments]);
 
@@ -682,12 +688,12 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
   };
   useEffect(() => {
     if (debouncedValue) {
-      console.log(
-        `Field: ${String(debouncedValue.fieldKey)}, Debounced Value: ${
-          debouncedValue.value
-        }`,
-      );
-      // onAddLogs(debouncedValue.fieldKey, debouncedValue.value);
+      // console.log(
+      //   `Field: ${String(debouncedValue.fieldKey)}, Debounced Value: ${
+      //     debouncedValue.value
+      //   }`,
+      // );
+      onAddLogs(debouncedValue.fieldKey, debouncedValue.value);
     }
   }, [debouncedValue]);
 
@@ -1546,7 +1552,6 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
       console.error("Error adding comment:", error);
       setIsLoading(false);
     }
-    // console.log(`Logged value: ${value}`);
   };
 
   return (
@@ -2091,16 +2096,16 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                                     e.target.value,
                                   );
                                 }}
-                                onBlur={(e) => {
-                                  setInputValue({
-                                    fieldKey: customColumn.id,
-                                    value: e.target.value,
-                                  }); // Update input value on blur
-                                  updateFieldInData(
-                                    customColumn.id,
-                                    e.target.value,
-                                  ); // Update data on blur
-                                }}
+                                // onBlur={(e) => {
+                                //   setInputValue({
+                                //     fieldKey: customColumn.id,
+                                //     value: e.target.value,
+                                //   }); // Update input value on blur
+                                //   updateFieldInData(
+                                //     customColumn.id,
+                                //     e.target.value,
+                                //   ); // Update data on blur
+                                // }}
                               />
                             ) : (
                               <EuiFieldText
@@ -2111,16 +2116,16 @@ const App: React.FC<AppProps> = ({ enableGrouping = false }) => {
                                     e.target.value,
                                   );
                                 }}
-                                onBlur={(e) => {
-                                  setInputValue({
-                                    fieldKey: customColumn.id,
-                                    value: e.target.value,
-                                  }); // Update input value on blur
-                                  updateFieldInData(
-                                    customColumn.id,
-                                    e.target.value,
-                                  ); // Update data on blur
-                                }}
+                                // onBlur={(e) => {
+                                //   setInputValue({
+                                //     fieldKey: customColumn.id,
+                                //     value: e.target.value,
+                                //   }); // Update input value on blur
+                                //   updateFieldInData(
+                                //     customColumn.id,
+                                //     e.target.value,
+                                //   ); // Update data on blur
+                                // }}
                               />
                             )}
                           </EuiFormRow>

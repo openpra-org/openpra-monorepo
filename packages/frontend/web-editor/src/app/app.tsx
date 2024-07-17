@@ -1,3 +1,4 @@
+import axios from "axios";
 import {
   createBrowserRouter,
   RouteObject,
@@ -14,6 +15,26 @@ import { DataPage } from "./pages/routingPages/dataAnalysisPage";
 import { FullScopePage } from "./pages/routingPages/fullScope";
 import { LoginPage } from "./pages/LandingPage";
 import { SettingsPage } from "./pages/routingPages/settingsPage";
+
+// Axios interceptor setup
+axios.interceptors.request.use((req) => {
+  console.log("Inside request interceptor: " + req);
+  return req; // Ensure the request config is returned
+});
+axios.interceptors.response.use(
+  (response) => {
+    console.log("Inside response interceptor: ", response);
+    return response; // Ensure the response is returned
+  },
+  (error) => {
+    console.error("Response error: ", error);
+    return Promise.reject(error); // Handle the error
+  },
+);
+axios
+  .get("https://jsonplaceholder.typicode.com/todos/1")
+  .then((response) => console.log(response.data))
+  .catch((error) => console.error(error));
 
 const routes: RouteObject[] = [
   {

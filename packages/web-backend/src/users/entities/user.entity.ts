@@ -1,12 +1,12 @@
-import { ObjectType, Field, Int } from "@nestjs/graphql";
+import { ObjectType, Field, ID } from "@nestjs/graphql";
 
 /**
  * This contains all the attributes of the User entity
  * */
 @ObjectType()
-export class User {
-  @Field(() => Int)
-  id: number;
+export class UserType {
+  @Field(() => ID)
+  _id: string;
 
   @Field()
   username: string;

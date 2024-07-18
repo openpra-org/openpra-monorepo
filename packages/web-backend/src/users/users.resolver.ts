@@ -2,12 +2,13 @@ import { Resolver, Query, Args } from "@nestjs/graphql";
 import { UseGuards } from "@nestjs/common";
 import { JwtAuthGuard } from "../authGql/jwt-auth.guard";
 import { UsersService } from "./users.service";
-import { User } from "./entities/user.entity";
+import { UserType } from "./entities/user.entity";
+import { ClientUser } from "./entities/clientUser.entity";
 
 /**
  * @public Resolver class that handles queries pertaining to users.
  * */
-@Resolver(() => User)
+@Resolver(() => UserType)
 export class UsersResolver {
   /**
    * @remarks Constructs a UsersResolver object to find users.
@@ -19,9 +20,9 @@ export class UsersResolver {
    * @remarks Returns all the users present in the DB. JwtAuthGuard ensures this route is accessible ot users with valid JWT.
    * @returns An array of User objects if users exist. Undefined otherwise.
    * */
-  @Query(() => [User], { name: "users" })
+  @Query(() => [ClientUser], { name: "users" })
   @UseGuards(JwtAuthGuard)
-  findAll(): User[] | undefined {
+  async findAll(): Promise<ClientUser[]> {
     return this.usersService.findAll();
   }
 
@@ -30,8 +31,8 @@ export class UsersResolver {
    * @param username - Username provided by the client.
    * @returns User object if user with given username exists. Undefined otherwise
    * */
-  @Query(() => User, { name: "user" })
-  findOne(@Args("username") username: string): User | undefined {
+  @Query(() => UserType, { name: "user" })
+  async findOne(@Args("username") username: string): Promise<UserType> {
     return this.usersService.findOne(username);
   }
 }

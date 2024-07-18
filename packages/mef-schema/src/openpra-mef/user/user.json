@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://openpra.org/schema/v0/openpra-mef/user/user.json",
+  "title": "User Schema",
+  "description": "JSON schema for a User Model",
+  "type": "object",
+  "properties": {
+    "username": {
+      "type": "string",
+      "description": "Username."
+    },
+    "password": {
+      "type": "string",
+      "description": "Password."
+    },
+    "role": {
+      "$ref": "../role/role-type.json",
+      "description": "User's role."
+    }
+  }
+}

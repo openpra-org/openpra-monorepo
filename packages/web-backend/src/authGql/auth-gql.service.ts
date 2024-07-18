@@ -2,7 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as argon2 from "argon2";
 import { UsersService } from "../users/users.service";
-import { User } from "../users/entities/user.entity";
 import { ClientUser } from "../users/entities/clientUser.entity";
 import { LoginUserInput } from "./dto/login-user.input";
 import { LoginResponse } from "./dto/login-response";
@@ -28,19 +27,15 @@ export class AuthGqlService {
    * @param password - Password provided by the client.
    * @returns ClientUser object containing ID and username if user exists and passwords match, undefined otherwise.
    * */
-  async validateUser(
-    username: string,
-    password: string,
-  ): Promise<ClientUser> | undefined {
-    const user: User = this.usersService.findOne(username);
+  async validateUser(username: string, password: string): Promise<ClientUser | undefined> {
+    const user = await this.usersService.findOne(username);
 
-    if (user !== undefined) {
+    if (user !== null) {
       const valid: boolean = await argon2.verify(user.password, password);
       if (valid) {
         return user;
       }
     }
-
     return undefined;
   }
 
@@ -53,7 +48,7 @@ export class AuthGqlService {
     return {
       access_token: this.jwtService.sign({
         username: user.username,
-        sub: user.id,
+        sub: user._id,
       }),
       user: user,
     };
@@ -64,17 +59,13 @@ export class AuthGqlService {
    * @param loginUserInput - LoginUserInput object containing the username and password from the client.
    * @returns ClientUser object if user does not exist and new user was created successfully.
    * */
-  async signup(
-    loginUserInput: LoginUserInput,
-  ): Promise<ClientUser> | undefined {
-    const user: User = this.usersService.findOne(loginUserInput.username);
+  async signup(loginUserInput: LoginUserInput): Promise<ClientUser> {
+    const user = await this.usersService.findOne(loginUserInput.username);
 
-    if (user !== undefined) {
+    if (user !== null) {
       throw new Error("User already exists");
     }
-
     const password: string = await argon2.hash(loginUserInput.password);
-
     return this.usersService.create({
       ...loginUserInput,
       password,

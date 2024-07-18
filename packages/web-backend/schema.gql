@@ -3,7 +3,7 @@
 # ------------------------------------------------------
 
 type ClientUser {
-  id: Int!
+  _id: ID!
   username: String!
 }
 
@@ -19,16 +19,16 @@ input LoginUserInput {
 
 type Mutation {
   login(loginUserInput: LoginUserInput!): LoginResponse!
-  signup(loginUserInput: LoginUserInput!): User!
+  signup(loginUserInput: LoginUserInput!): UserType!
 }
 
 type Query {
-  user(username: String!): User!
-  users: [User!]!
+  user(username: String!): UserType!
+  users: [ClientUser!]!
 }
 
-type User {
-  id: Int!
+type UserType {
+  _id: ID!
   password: String!
   username: String!
 }

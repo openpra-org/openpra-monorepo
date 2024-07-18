@@ -4,10 +4,10 @@ import { ExtractJwt, Strategy } from "passport-jwt";
 import { ClientUser } from "../users/entities/clientUser.entity";
 
 // Setting the type of the payload passed to the validate method.
-type Payload = {
+interface Payload {
   username: string;
-  sub: number;
-};
+  sub: string;
+}
 
 /**
  * @public JwtStrategy handles the validation of the JWT provided by the client.
@@ -31,6 +31,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * @returns ClientUser object containing ID and username.
    * */
   validate(payload: Payload): ClientUser {
-    return { id: payload.sub, username: payload.username };
+    return { _id: payload.sub, username: payload.username };
   }
 }

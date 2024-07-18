@@ -1,6 +1,6 @@
 import { Args, Context, Mutation, Resolver } from "@nestjs/graphql";
-import { ExecutionContext, UseGuards } from "@nestjs/common";
-import { User } from "../users/entities/user.entity";
+import { UseGuards } from "@nestjs/common";
+import { UserType } from "../users/entities/user.entity";
 import { ClientUser } from "../users/entities/clientUser.entity";
 import { AuthGqlService } from "./auth-gql.service";
 import { LoginResponse } from "./dto/login-response";
@@ -8,9 +8,9 @@ import { LoginUserInput } from "./dto/login-user.input";
 import { AuthGqlGuard } from "./auth-gql.guard";
 
 // Setting the type of the GraphQL context to have user.
-type UserContext = {
-  user: User;
-};
+interface UserContext {
+  user: UserType;
+}
 
 /**
  * @public Handles the login and signup requests coming from the client.
@@ -31,10 +31,7 @@ export class AuthGqlResolver {
    * */
   @Mutation(() => LoginResponse)
   @UseGuards(AuthGqlGuard)
-  login(
-    @Args("loginUserInput") loginUserInput: LoginUserInput,
-    @Context() context: UserContext,
-  ): LoginResponse {
+  login(@Args("loginUserInput") loginUserInput: LoginUserInput, @Context() context: UserContext): LoginResponse {
     return this.authGqlService.login(context.user);
   }
 
@@ -43,10 +40,8 @@ export class AuthGqlResolver {
    * @param loginUserInput - Contains the username and password that client wants to create.
    * @returns ClientUser object containing the ID and username of the created User object if sign up was successful. Undefined otherwise.
    * */
-  @Mutation(() => User)
-  signup(
-    @Args("loginUserInput") loginUserInput: LoginUserInput,
-  ): Promise<ClientUser> | undefined {
+  @Mutation(() => UserType)
+  signup(@Args("loginUserInput") loginUserInput: LoginUserInput): Promise<ClientUser> | undefined {
     return this.authGqlService.signup(loginUserInput);
   }
 }

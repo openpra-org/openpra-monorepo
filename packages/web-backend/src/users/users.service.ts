@@ -1,46 +1,46 @@
 import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import mongoose, { Model } from "mongoose";
+import { UserType } from "./entities/user.entity";
 import { CreateUserInput } from "./dto/create-user.input";
-import { User } from "./entities/user.entity";
+import { UserGql } from "./interfaces/users.interface";
+import { ClientUser } from "./entities/clientUser.entity";
 
 /**
  * @public Business logic for CRUD operations on users.
  * */
 @Injectable()
 export class UsersService {
-  private readonly users = [
-    {
-      id: 1,
-      username: "demo",
-      password: "demo",
-    },
-    {
-      id: 2,
-      username: "demo2",
-      password: "demo2",
-    },
-  ];
+  // private readonly users = [
+  //   {
+  //     id: 1,
+  //     username: "demo",
+  //     password: "demo",
+  //   },
+  //   {
+  //     id: 2,
+  //     username: "demo2",
+  //     password: "demo2",
+  //   },
+  // ];
+  constructor(@InjectModel("UserGql") private readonly userGqlModel: Model<UserGql>) {}
 
   /**
    * @remarks Creates a new user based on the provided username and password.
    * @param createUserInput - InputType object containing the username and password.
    * @returns Created User object.
    * */
-  create(createUserInput: CreateUserInput): User {
-    const user = {
-      ...createUserInput,
-      id: this.users.length + 1,
-    };
-    this.users.push(user);
-
-    return user;
+  async create(createUserInput: CreateUserInput): Promise<UserType> {
+    const newUser = new this.userGqlModel(createUserInput);
+    return await newUser.save();
   }
 
   /**
    * @remarks Returns all the users present in the DB.
    * @returns An array of User objects if users exist. Undefined otherwise.
    * */
-  findAll(): User[] | undefined {
-    return this.users;
+  async findAll(): Promise<ClientUser[]> {
+    return await this.userGqlModel.find().exec();
   }
 
   /**
@@ -48,7 +48,7 @@ export class UsersService {
    * @param username - Username provided by the client.
    * @returns User object if user with given username exists. Undefined otherwise
    * */
-  findOne(username: string): User | undefined {
-    return this.users.find((user) => user.username === username);
+  async findOne(username: string): Promise<UserType> {
+    return await this.userGqlModel.findOne({ username }).exec();
   }
 }

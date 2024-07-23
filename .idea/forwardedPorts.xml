@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PortForwardingSettings">
+    <ports>
+      <entry key="4200">
+        <ForwardedPortInfo>
+          <option name="hostPort" value="4200" />
+          <option name="readOnly" value="false" />
+        </ForwardedPortInfo>
+      </entry>
+      <entry key="8000">
+        <ForwardedPortInfo>
+          <option name="hostPort" value="8000" />
+          <option name="readOnly" value="false" />
+        </ForwardedPortInfo>
+      </entry>
+      <entry key="15672">
+        <ForwardedPortInfo>
+          <option name="hostPort" value="15672" />
+          <option name="readOnly" value="false" />
+        </ForwardedPortInfo>
+      </entry>
+    </ports>
+  </component>
+</project>

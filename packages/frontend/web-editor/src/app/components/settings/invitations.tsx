@@ -74,7 +74,10 @@ const Invitations = (): JSX.Element => {
               pageTitle={"Invited Users"}
               paddingSize="xl"
               rightSideItems={[
-                <Can I={"create"} a={"users"}>
+                <Can
+                  I={"create"}
+                  a={"users"}
+                >
                   <EuiButton
                     onClick={(): void => {
                       setIsFlyoutVisible(true);

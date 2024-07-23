@@ -208,7 +208,10 @@ export function Users(): JSX.Element {
           iconType="users"
           paddingSize="xl"
           rightSideItems={[
-            <Can I="create" a="users">
+            <Can
+              I="create"
+              a="users"
+            >
               <EuiButton
                 fill
                 onClick={(): void => {
@@ -218,7 +221,10 @@ export function Users(): JSX.Element {
                 New User
               </EuiButton>
             </Can>,
-            <Can I="create" a="users">
+            <Can
+              I="create"
+              a="users"
+            >
               <EuiButton
                 onClick={(): void => {
                   setIsInviteNewUserModalVisible(true);

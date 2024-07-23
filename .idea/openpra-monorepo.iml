@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="WEB_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/.tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/temp" />
+      <excludeFolder url="file://$MODULE_DIR$/tmp" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/engine/scram-node/build" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/engine/scram-node/cmake-build-debug" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/engine/scram-node/cmake-build-release" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/engine/scram-node/lib" />
+      <excludeFolder url="file://$MODULE_DIR$/Testing" />
+      <excludeFolder url="file://$MODULE_DIR$/.nx/cache" />
+      <excludeFolder url="file://$MODULE_DIR$/dist" />
+    </content>
+    <content url="file://$MODULE_DIR$/.nx" />
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>

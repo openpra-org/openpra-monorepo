@@ -34,3 +34,6 @@ stack.yml "Project Admin"
 # CI/CD, GitLab Pipelines, Space Automations
 .space.kts
 .gitlab-ci.yml
+
+# JetBrains IDE configs
+.idea "Project Admin"

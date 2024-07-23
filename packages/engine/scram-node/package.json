@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "license": "AGPL-3.0-or-later",
   "main": "./lib/index.js",
+  "private": true,
   "scripts": {
     "install": "cmake-js -C --parallel 32 compile --target scram-node ",
     "rebuild": "cmake-js -C --parallel 32 rebuild --target scram-node ",

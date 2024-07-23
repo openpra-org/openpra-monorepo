@@ -1,5 +1,4 @@
 # See http://help.github.com/ignore-files/ for more about ignoring files.
-Testing
 
 .cache
 migrations.json
@@ -10,18 +9,11 @@ dist
 tmp
 /out-tsc
 
-cypress.config.js
-jest.config.js
-
 # dependencies
 node_modules
 
-#documentation
-packages/web-backend/documentation
-packages/wrapper
-
-# IDEs and editors
-/.idea
+# IDEs and   editors
+#/.idea
 .project
 .classpath
 .c9/
@@ -50,7 +42,7 @@ testem.log
 .DS_Store
 Thumbs.db
 
-.idea
+
 .vcs
 
 # Logs

@@ -28,7 +28,6 @@ export const AddEventSequenceAnalysis = async (data: NestedModelJSON): Promise<v
     const typedModelName: keyof StoreStateType = GetTypedModelName();
     const EventSequenceAnalysis: NestedModelType = await PostEventSequenceAnalysis(data, typedModelName);
 
-    console.log(EventSequenceAnalysis)
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
         state.NestedModels.EventSequenceAnalysis.EventSequenceAnalysisList.push(EventSequenceAnalysis);

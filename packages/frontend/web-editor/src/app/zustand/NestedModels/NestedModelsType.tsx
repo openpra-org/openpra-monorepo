@@ -1,4 +1,4 @@
-import { NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+import { InitiatingEventModel, NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { InitiatingEventsType } from "./TypesHelpers/InitiatingEventsType";
 import { EventSequenceDiagramsType } from "./TypesHelpers/EventSequenceDiagramsType";
 import { EventSequenceAnalysisType } from "./TypesHelpers/EventSequenceAnalysisType";
@@ -11,7 +11,7 @@ export interface NestedModelsStateType {
   // TODO:: Table of values
   OpStateAnalysis: string[];
   InitiatingEventsAnalysis: {
-    InitiatingEvents: NestedModelType[];
+    InitiatingEvents: InitiatingEventModel[];
     HeatBalanceFaultTrees: string[];
   };
   EventSequenceAnalysis: {

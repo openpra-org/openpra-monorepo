@@ -64,3 +64,5 @@ export interface NestedModelType {
   id: number;
   parentIds: string[];
 }
+
+export type InitiatingEventModel = NestedModelType;

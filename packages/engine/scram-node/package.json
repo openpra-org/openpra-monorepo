@@ -6,7 +6,7 @@
   "private": true,
   "scripts": {
     "install": "cmake-js -C --parallel 32 compile --target scram-node ",
-    "rebuild": "cmake-js -C --parallel 32 rebuild --target scram-node ",
+    "rebuild": "cmake-js -C --parallel 32 rebuild --debug --target scram-node ",
     "configure": "cmake-js -C --parallel 32 configure --target scram-node ",
     "clean": "cmake-js clean",
     "test": "jest",
@@ -46,7 +46,8 @@
   },
   "dependencies": {
     "cmake-js": "7.3.0",
-    "node-addon-api": "8.0.0"
+    "node-addon-api": "8.0.0",
+    "tmp": "0.2.3"
   },
   "devDependencies": {
     "jest": "29.7.0"

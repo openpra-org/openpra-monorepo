@@ -46,7 +46,6 @@
 #include "risk_analysis.h"
 #include "serialization.h"
 #include "settings.h"
-#include "version.h"
 
 namespace po = boost::program_options;
 
@@ -147,7 +146,7 @@ int ParseArguments(int argc, char* argv[], po::variables_map* vm) {
     return -1;
   }
   if (vm->count("version")) {
-    std::cout << "SCRAM " << SCRAM_VERSION << " (" << SCRAM_GIT_REVISION << ")"
+    std::cout << "SCRAM "
               << "\n\nDependencies:\n"
               << "   Boost       " << BOOST_LIB_VERSION << "\n"
               << "   libxml2     " << LIBXML_DOTTED_VERSION << std::endl;

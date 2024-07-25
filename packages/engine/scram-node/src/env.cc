@@ -32,8 +32,9 @@ const std::string& project_schema() {
 }
 
 const std::string& input_schema() {
-  static const std::string schema_path =
-      install_dir() + "/share/scram/input.rng";
+  /*static const std::string schema_path =
+      install_dir() + "/share/scram/input.rng";*/
+  static const std::string schema_path = "/home/hrashee/projects/openpra-monorepo/packages/engine/scram-node/share/input.rng";
   return schema_path;
 }
 

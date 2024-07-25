@@ -1,0 +1,22 @@
+{
+  "name": "microservice-job-broker",
+  "version": "0.0.1",
+  "license": "AGPL-3.0-or-later",
+  "private": true,
+  "nx": {
+    "tags": [
+      "scope:server"
+    ]
+  },
+  "dependencies": {
+    "@nestjs/common": "10.2.10",
+    "@nestjs/config": "3.1.1",
+    "@nestjs/core": "10.2.10",
+    "amqplib": "0.10.4",
+    "shared-types": "0.0.1"
+  },
+  "devDependencies": {
+    "@darraghor/eslint-plugin-nestjs-typed": "4.3.3",
+    "@types/amqplib": "0.10.5"
+  }
+}

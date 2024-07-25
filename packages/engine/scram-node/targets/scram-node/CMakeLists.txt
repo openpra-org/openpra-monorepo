@@ -8,8 +8,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 find_package(NodeAddonApi)
 include_directories(${CMAKE_JS_INC})
 
-set(SCRAM_NODE_SRC SimpleAsyncWorker.cpp RunSimpleAsyncWorker.cpp)
-set(SCRAM_NODE_HEADERS SimpleAsyncWorker.h)
+set(SCRAM_NODE_SRC ScramWorker.cpp RunScramCli.cpp)
+set(SCRAM_NODE_HEADERS ScramWorker.h)
 
 
 add_library(scram-node SHARED ${SCRAM_NODE_SRC})

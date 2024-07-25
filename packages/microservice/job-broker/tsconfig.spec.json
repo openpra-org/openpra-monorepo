@@ -1,0 +1,21 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "types": ["jest", "node"],
+
+    "sourceMap": true,
+    "declaration": true,
+    "esModuleInterop": true,
+    "emitDecoratorMetadata": true,
+    "target": "es2021",
+    "declarationDir": "../../../dist/types/microservice-job-broker",
+  },
+  "include": [
+    "jest.config.ts",
+    "./**/*.test.ts",
+    "./**/*.spec.ts",
+    "./**/*.e2e-spec.ts",
+    "./**/*.d.ts",
+  ]
+}

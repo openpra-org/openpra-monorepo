@@ -3,27 +3,27 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ZodValidationPipe } from "nestjs-zod";
-import { AuthModule } from "./auth/auth.module";
-import { CollabModule } from "./collab/collab.module";
-import { TypedModelModule } from "./typedModel/typedModel.module";
-import { NestedModelModule } from "./nestedModels/nestedModel.module";
 import { ApiController } from "./api.controller";
 import { ApiService } from "./api.service";
+import { AuthModule } from "./auth/auth.module";
+import { CollabModule } from "./collab/collab.module";
 import { FmeaModule } from "./fmea/fmea.module";
 import { GraphModelModule } from "./graphModels/graphModel.module";
 import { InviteModule } from "./invite/invite.module";
-import { RolesModule } from "./roles/roles.module";
+import { NestedModelModule } from "./nestedModels/nestedModel.module";
+import { QuantifyModule } from "./quantify/quantify.module";
+import { TypedModelModule } from "./typedModel/typedModel.module";
 
 @Module({
   imports: [
     AuthModule,
     CollabModule,
-    TypedModelModule,
-    NestedModelModule,
     FmeaModule,
     GraphModelModule,
     InviteModule,
-    RolesModule,
+    NestedModelModule,
+    QuantifyModule,
+    TypedModelModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
       isGlobal: true,
@@ -33,7 +33,7 @@ import { RolesModule } from "./roles/roles.module";
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService) => ({
+      useFactory: async (config: ConfigService) => ({
         uri: config.get<string>("MONGO_URL"),
       }),
     }),
@@ -51,18 +51,6 @@ import { RolesModule } from "./roles/roles.module";
             module: CollabModule,
           },
           {
-            path: "invite-user",
-            module: InviteModule,
-          },
-          {
-            path: "typed-models",
-            module: TypedModelModule,
-          },
-          {
-            path: "nested-models",
-            module: NestedModelModule,
-          },
-          {
             path: "fmea",
             module: FmeaModule,
           },
@@ -71,12 +59,24 @@ import { RolesModule } from "./roles/roles.module";
             module: GraphModelModule,
           },
           {
-            path: "roles",
-            module: RolesModule,
+            path: "invite-user",
+            module: InviteModule,
           },
-        ],
-      },
-    ]),
+          {
+            path: "nested-models",
+            module: NestedModelModule,
+          },
+          {
+            path: "quantify",
+            module: QuantifyModule,
+          },
+          {
+            path: "typed-models",
+            module: TypedModelModule,
+          }
+        ]
+      }
+    ])
   ],
   controllers: [ApiController],
   providers: [

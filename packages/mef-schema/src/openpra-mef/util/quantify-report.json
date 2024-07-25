@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema#",
+  "title": "Quantify Report",
+  "description": "Schema for the quantification report",
+  "type": "object",
+  "properties": {
+    "configuration": {
+      "$ref": "./quantify-config.json"
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "description": "String-encoded OpenPSA MEF XML quantification report"
+      },
+      "description": "String-encoded array of OpenPSA MEF XML quantification reports"
+    }
+  },
+  "required": ["results"],
+  "additionalProperties": false
+}

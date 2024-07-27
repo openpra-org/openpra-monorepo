@@ -85,63 +85,46 @@ export class ConsumerService implements OnModuleInit {
     // Establish a connection to RabbitMQ with inherent retries and create a communication channel.
     const connection = await this.connectWithRetry(url, 3);
     const channel = await connection.createChannel();
-
-    // Ensure the initial job queue exists and is durable to prevent loss of a message.
     await channel.assertQueue(initialJobQ, { durable: true });
 
-    // Begin consuming messages from the initial job queue.
+    // Workers will be able to handle only one quantification job at a time
+    await channel.prefetch(1);
+
+    // Consume the jobs from the initial queue
     await channel.consume(
       initialJobQ,
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (msg: ConsumeMessage | null): Promise<void> => {
-        // Handle the case where message retrieval is problematic.
+      (msg: ConsumeMessage | null) => {
         if (msg === null) {
-          Logger.error("Unable to parse message from initial quantification queue");
+          console.error("Unable to parse message", msg);
           return;
         }
 
-        try {
-          // Parse the message content into a QuantifyRequest object for processing.
-          const modelsWithConfigs: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
-          // Perform quantification based on the parsed request and generate a report.
-          const result: QuantifyReport = this.performQuantification(modelsWithConfigs);
-          // Serialize the quantification report and send it to the storage queue.
-          const report = typia.json.assertStringify<QuantifyReport>(result);
+        // Convert the inputs/data into a JSON object and
+        // perform the quantification using this JSON object
+        const modelsWithConfigs: QuantifyRequest = JSON.parse(msg.content.toString()) as QuantifyRequest;
+        //const output = this.performQuantification(modelsWithConfigs);
+        const result = JSON.stringify(modelsWithConfigs);
 
-          // Ensure the dead letter exchange and queue are set up for handling failed messages.
-          await channel.assertExchange(deadLetterX, "direct", { durable: true });
-          await channel.assertQueue(deadLetterQ, { durable: true });
-          await channel.bindQueue(deadLetterQ, deadLetterX, "");
-          // Configure the storage queue for storing completed jobs, including dead letter handling.
-          await channel.assertQueue(storageQ, {
-            durable: true,
-            deadLetterExchange: deadLetterX,
-            messageTtl: 60000,
-            maxLength: 10000,
-          });
-          // Send the report to the storage queue, marking the message as persistent.
-          channel.sendToQueue(storageQ, Buffer.from(report), {
-            persistent: true,
-          });
+        // Retrieve the dispatch queue name and correlation ID
+        const dispatchQ = String(msg.properties.replyTo);
+        const corrID = String(msg.properties.correlationId);
 
-          // Acknowledge the original message to indicate successful processing.
-          channel.ack(msg);
-        } catch (error) {
-          // Handle validation errors and other generic exceptions, logging details and negatively
-          // acknowledging the message.
-          if (error instanceof TypeGuardError) {
-            Logger.error(
-              `Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`,
-            );
-            channel.nack(msg, false, false);
-          } else {
-            Logger.error("Something went wrong in the quantification consumer service.");
-            channel.nack(msg, false, false);
-          }
-        }
+        // Send the quantification results to the storage/completed-job queue
+        // Attach the dispatch queue name and correlation ID with the results
+        void channel.assertQueue(storageQ, { durable: true });
+        channel.sendToQueue(storageQ, Buffer.from(result), {
+          persistent: true,
+          correlationId: corrID,
+          replyTo: dispatchQ,
+        });
+
+        // Finally acknowledge the message back to the initial queue
+        // to let the broker know that the job has been completed
+        channel.ack(msg);
       },
       {
-        noAck: false, // Disable automatic acknowledgment to allow manual control over message acknowledgment.
+        // Since we are manually acknowledging the message, turn auto acknowledging off
+        noAck: false,
       },
     );
   }

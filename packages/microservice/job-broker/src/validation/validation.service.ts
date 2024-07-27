@@ -1,8 +1,4 @@
-import { Injectable, OnApplicationBootstrap } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { Injectable } from "@nestjs/common";
 
 @Injectable()
-export class ValidationService implements OnApplicationBootstrap {
-  constructor(private configService: ConfigService) {}
-  public async onApplicationBootstrap(): Promise<void> {}
-}
+export class ValidationService {}

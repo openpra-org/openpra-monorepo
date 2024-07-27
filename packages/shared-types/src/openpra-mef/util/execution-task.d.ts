@@ -6,9 +6,9 @@ export enum ExecutableTypes {
   FTREX_CLI = "ftrex",
   XFTA = "xfta",
   XFTA2 = "xfta2",
-  "DPC" = "dpc",
-  "ACUBE" = "acube",
-  "QRECOVER" = "qrecover",
+  DPC = "dpc",
+  ACUBE = "acube",
+  QRECOVER = "qrecover",
 }
 export const ExecutableTypesSchema = typia.json.application<[ExecutableTypes], "3.0">();
 

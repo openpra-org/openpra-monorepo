@@ -11,5 +11,4 @@ export class JobBrokerService {
   createJob(): { message: string } {
     return { message: "create a new job" };
   }
-  // ... so on and so forth...
 }

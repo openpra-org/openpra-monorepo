@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
+import { ConfigModule, ConfigService } from "@nestjs/config";
 import { RouterModule } from "@nestjs/core";
+import { MongooseModule } from "@nestjs/mongoose";
 import { JobBrokerController } from "./job-broker.controller";
 import { JobBrokerService } from "./job-broker.service";
 import { QuantificationModule } from "./quantification/quantification.module";
@@ -9,15 +10,22 @@ import { ExecutableModule } from "./executable/executable.module";
 
 @Module({
   imports: [
+    QuantificationModule,
+    ValidationModule,
+    ExecutableModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
       isGlobal: true,
       cache: true,
       ignoreEnvFile: !!process.env.DEPLOYMENT,
     }),
-    QuantificationModule,
-    ValidationModule,
-    ExecutableModule,
+    MongooseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        uri: config.get<string>("MONGO_URL"),
+      }),
+    }),
     RouterModule.register([
       {
         path: "api",

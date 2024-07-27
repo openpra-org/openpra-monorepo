@@ -1,25 +1,24 @@
 import { Module } from "@nestjs/common";
-import { ConfigModule } from "@nestjs/config";
-import { RouterModule } from "@nestjs/core";
+import { MongooseModule } from "@nestjs/mongoose";
 import { ExecutableController } from "./executable.controller";
 import { ExecutableService } from "./executable.service";
+import { ExecutableWorkerService } from "./executable-worker.service";
+import { ExecutableStorageService } from "./executable-storage.service";
+import {
+  ExecutedTask,
+  ExecutedTaskSchema,
+  ExecutedResult,
+  ExecutedResultSchema,
+} from "./schemas/executed-result.schema";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      envFilePath: ".development.env",
-      isGlobal: true,
-      cache: true,
-      ignoreEnvFile: !!process.env.DEPLOYMENT,
-    }),
-    RouterModule.register([
-      {
-        path: "executable",
-        module: ExecutableModule,
-      },
+    MongooseModule.forFeature([
+      { name: ExecutedResult.name, schema: ExecutedResultSchema },
+      { name: ExecutedTask.name, schema: ExecutedTaskSchema },
     ]),
   ],
   controllers: [ExecutableController],
-  providers: [ExecutableService],
+  providers: [ExecutableService, ExecutableWorkerService, ExecutableStorageService],
 })
 export class ExecutableModule {}

@@ -1,24 +1,27 @@
 import { Injectable, OnApplicationBootstrap } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { InjectModel } from "@nestjs/mongoose";
 import * as amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
+import { Model } from "mongoose";
+import typia from "typia";
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
-import { JOB_BROKER_KEY_DEFAULTS, JobBrokerKeys } from "../../job-broker.keys";
+import { QuantifiedReport } from "../schemas/quantified-report.schema";
 
 @Injectable()
 export class StorageService implements OnApplicationBootstrap {
-  constructor(private configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    @InjectModel(QuantifiedReport.name) private readonly quantifiedReportModel: Model<QuantifiedReport>,
+  ) {}
 
   public async onApplicationBootstrap(): Promise<void> {
     // Load all the environment variables
-    const url = this.configService.get<string>(
-      JobBrokerKeys.RABBITMQ_URL,
-      JOB_BROKER_KEY_DEFAULTS[JobBrokerKeys.RABBITMQ_URL],
-    );
-    const completedQ = this.configService.get<string>(
-      JobBrokerKeys.COMPLETED_JOB_QUEUE,
-      JOB_BROKER_KEY_DEFAULTS[JobBrokerKeys.COMPLETED_JOB_QUEUE],
-    );
+    const url = this.configService.get<string>("RABBITMQ_URL");
+    const completedQ = this.configService.get<string>("QUANT_STORAGE_QUEUE_NAME");
+    if (!url || !completedQ) {
+      throw new Error("Required environment variables for quantification storage service are not set");
+    }
 
     // Connect to the RabbitMQ server, create a channel, and connect to
     // the completed job queue to collect the quantification results
@@ -27,33 +30,25 @@ export class StorageService implements OnApplicationBootstrap {
     await channel.assertQueue(completedQ, { durable: true });
 
     // Perform some sort of action on the results (e.g., store them in the database etc.)
-    // After that, send each result back to their respective local dispatch queues
     await channel.consume(
       completedQ,
       (msg: ConsumeMessage | null) => {
-        // Check if the message is not null
-        if (msg !== null) {
-          const decodedResult: QuantifyReport = JSON.parse(msg.content.toString()) as QuantifyReport;
-
-          // Retrieve the dispatch queue name and correlation ID
-          const dispatchQ = String(msg.properties.replyTo);
-          const corrId = String(msg.properties.correlationId);
-
-          // Send the result back to its local dispatch queue
-          const quantifiedResult = JSON.stringify(decodedResult);
-          void channel.assertQueue(dispatchQ, { durable: false });
-          channel.sendToQueue(dispatchQ, Buffer.from(quantifiedResult), {
-            correlationId: corrId,
-          });
-
-          // Finally, acknowledge the message
-          channel.ack(msg);
-        } else {
+        if (msg === null) {
           // Handle the case where no message was available
           console.error("No message was received.", msg);
+          return;
         }
+
+        // Convert the quantification report in a JSON object and
+        // store this JSON object in the database
+        const quantifiedReport: QuantifyReport = typia.json.assertParse<QuantifyReport>(msg.content.toString());
+        const report = new this.quantifiedReportModel(quantifiedReport);
+        void report.save();
+        // Finally, acknowledge the message
+        channel.ack(msg);
       },
       {
+        // Since we are manually acknowledging the message, turn auto acknowledging off
         noAck: false,
       },
     );

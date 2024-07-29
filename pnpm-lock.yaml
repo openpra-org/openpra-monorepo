@@ -395,6 +395,9 @@ importers:
       amqplib:
         specifier: 0.10.4
         version: 0.10.4
+      mongoose:
+        specifier: 8.5.1
+        version: 8.5.1(socks@2.7.1)
       scram-node:
         specifier: file:../../../packages/engine/scram-node
         version: link:../../engine/scram-node

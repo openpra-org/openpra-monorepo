@@ -1,6 +1,10 @@
 import typia, { tags } from "typia";
 
+// TODO: Remove TYPE, PWD, LS
 export enum ExecutableTypes {
+  LS = "ls",
+  PWD = "pwd",
+  TYPE = "type",
   SCRAM_CLI = "scram-cli",
   SAPHSOLVE_CLI = "saphsolve",
   FTREX_CLI = "ftrex",
@@ -21,6 +25,7 @@ export interface ExecutionTask {
 }
 export const ExecutionTaskSchema = typia.json.application<[ExecutionTask], "3.0">();
 
+// TODO: Change the range of the exit codes
 export interface ExecutionResult {
   task: ExecutionTask;
   /**
@@ -28,7 +33,7 @@ export interface ExecutionResult {
    *
    * Always between 0 and 255.
    */
-  exit_code: number & tags.ExclusiveMinimum<0> & tags.Maximum<255>;
+  exit_code: number & tags.Minimum<-1> & tags.Maximum<1>;
   stderr: string;
   stdout: string;
 }

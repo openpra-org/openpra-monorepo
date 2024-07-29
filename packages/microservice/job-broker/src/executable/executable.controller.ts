@@ -2,8 +2,8 @@ import { Controller } from "@nestjs/common";
 import { TypedRoute, TypedBody } from "@nestia/core";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
 import { ExecutableService } from "./executable.service";
-import { ExecutedResult } from "./schemas/executed-result.schema";
 import { ExecutableStorageService } from "./executable-storage.service";
+import { ExecutedResult } from "./schemas/executed-result.schema";
 
 @Controller()
 export class ExecutableController {

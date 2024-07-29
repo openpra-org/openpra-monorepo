@@ -1,3 +1,4 @@
+import { execSync, ExecSyncOptionsWithStringEncoding } from "node:child_process";
 import { Injectable, OnApplicationBootstrap } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as amqp from "amqplib";
@@ -40,13 +41,8 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
         // the executable task using this JSON object
         const taskData: ExecutionTask = typia.json.assertParse<ExecutionTask>(msg.content.toString());
 
-        // Instead of executing the task, an instance of executed task result will be created
-        const result: ExecutionResult = {
-          task: taskData,
-          exit_code: 1,
-          stderr: "No error",
-          stdout: "Quantification Complete",
-        };
+        // Execute the task and get the result
+        const result = this.executeCommand(taskData);
         const taskResult = typia.json.assertStringify<ExecutionResult>(result);
 
         // Send the executed task results to the completed task queue
@@ -64,5 +60,47 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
         noAck: false,
       },
     );
+  }
+
+  // Method to execute a shell command
+  private executeCommand(task: ExecutionTask): ExecutionResult {
+    try {
+      const command = `${task.executable} ${task.arguments?.join(" ") ?? ""}`;
+      const options: ExecSyncOptionsWithStringEncoding = {
+        env: task.env_vars
+          ? (Object.fromEntries(task.env_vars.map((envVar) => envVar.split("="))) as NodeJS.ProcessEnv)
+          : process.env,
+        stdio: "pipe",
+        shell: task.tty ? "/bin/bash" : undefined,
+        encoding: "utf-8",
+      };
+
+      const stdout = execSync(command, options).toString();
+
+      return {
+        task,
+        exit_code: 0,
+        stderr: "No error",
+        stdout,
+      };
+    } catch (error) {
+      if (error instanceof Error && "status" in error) {
+        const execError = error as Error & { status?: number; stderr?: Buffer; stdout?: Buffer };
+        // TODO: Implement proper exit code and error message.
+        return {
+          task,
+          exit_code: 1,
+          stderr: execError.stderr?.toString() ?? "No detailed error",
+          stdout: execError.stdout?.toString() ?? "No output",
+        };
+      }
+
+      return {
+        task,
+        exit_code: 1,
+        stderr: error instanceof Error ? error.message : "No error message",
+        stdout: "No output",
+      };
+    }
   }
 }

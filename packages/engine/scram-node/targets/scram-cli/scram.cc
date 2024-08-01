@@ -61,33 +61,33 @@ po::options_description ConstructOptions() {
   po::options_description desc("Options");
   // clang-format off
   desc.add_options()
-      ("help", "Display this help message")
-      ("version", "Display version information")
+//      ("help", "Display this help message")
+//      ("version", "Display version information")
       ("project", OPT_VALUE(path), "Project file with analysis configurations")
       ("allow-extern", "**UNSAFE** Allow external libraries")
       ("validate", "Validate input files without analysis")
-      ("bdd", "Perform qualitative analysis with BDD")
-      ("zbdd", "Perform qualitative analysis with ZBDD")
-      ("mocus", "Perform qualitative analysis with MOCUS")
+//      ("bdd", "Perform qualitative analysis with BDD")
+//      ("zbdd", "Perform qualitative analysis with ZBDD")
+//      ("mocus", "Perform qualitative analysis with MOCUS")
       ("prime-implicants", "Calculate prime implicants")
       ("probability", "Perform probability analysis")
       ("importance", "Perform importance analysis")
-      ("uncertainty", "Perform uncertainty analysis")
+//      ("uncertainty", "Perform uncertainty analysis")
       ("ccf", "Perform common-cause failure analysis")
       ("sil", "Compute the Safety Integrity Level metrics")
-      ("rare-event", "Use the rare event approximation")
-      ("mcub", "Use the MCUB approximation")
-      ("limit-order,l", OPT_VALUE(int), "Upper limit for the product order")
-      ("cut-off", OPT_VALUE(double), "Cut-off probability for products")
+//      ("rare-event", "Use the rare event approximation")
+//      ("mcub", "Use the MCUB approximation")
+//      ("limit-order,l", OPT_VALUE(int), "Upper limit for the product order")
+//      ("cut-off", OPT_VALUE(double), "Cut-off probability for products")
       ("mission-time", OPT_VALUE(double), "System mission time in hours")
       ("time-step", OPT_VALUE(double),
        "Time step in hours for probability analysis")
-      ("num-trials", OPT_VALUE(int),
-       "Number of trials for Monte Carlo simulations")
-      ("num-quantiles", OPT_VALUE(int),
-       "Number of quantiles for distributions")
-      ("num-bins", OPT_VALUE(int), "Number of bins for histograms")
-      ("seed", OPT_VALUE(int), "Seed for the pseudo-random number generator")
+//      ("num-trials", OPT_VALUE(int),
+//       "Number of trials for Monte Carlo simulations")
+//      ("num-quantiles", OPT_VALUE(int),
+//       "Number of quantiles for distributions")
+//      ("num-bins", OPT_VALUE(int), "Number of bins for histograms")
+//      ("seed", OPT_VALUE(int), "Seed for the pseudo-random number generator")
       ("output,o", OPT_VALUE(path), "Output file for reports")
       ("no-indent", "Omit indentation whitespace in output XML")
       ("verbosity", OPT_VALUE(int), "Set log verbosity");
@@ -143,14 +143,14 @@ int ParseArguments(int argc, char* argv[], po::variables_map* vm) {
   // Process command-line arguments.
   if (vm->count("help")) {
     print_help(std::cout);
-    return -1;
+    return 0;
   }
   if (vm->count("version")) {
     std::cout << "SCRAM "
               << "\n\nDependencies:\n"
               << "   Boost       " << BOOST_LIB_VERSION << "\n"
               << "   libxml2     " << LIBXML_DOTTED_VERSION << std::endl;
-    return -1;
+    return 0;
   }
 
   if (vm->count("verbosity")) {
@@ -273,7 +273,7 @@ void RunScram(const po::variables_map& vm) {
     return;
 #endif
   scram::Reporter reporter;
-  bool indent = vm.count("no-indent") ? false : true;
+  bool indent = vm.count("no-indent") == 0;
   if (vm.count("output")) {
     reporter.Report(analysis, vm["output"].as<std::string>(), indent);
   } else {
@@ -340,17 +340,18 @@ int main(int argc, char* argv[]) {
   try {
     // Parse command-line options.
     po::variables_map vm;
-    int ret = ParseArguments(argc, argv, &vm);
-    if (ret == 1)
-      return 1;
+    int returnCode = ParseArguments(argc, argv, &vm);
+    if(returnCode > 0) {
+        return returnCode;
+    }
 
     if (vm.count("verbosity")) {
       scram::Logger::report_level(
           static_cast<scram::LogLevel>(vm["verbosity"].as<int>()));
     }
 
-    if (ret == 0)
-      RunScram(vm);
+
+    RunScram(vm);
   } catch (const scram::LogicError& err) {
     LOG(scram::ERROR) << "Logic Error:\n" << boost::diagnostic_information(err);
     return 1;

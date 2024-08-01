@@ -1,5 +1,5 @@
-import { CreateNewUserSchemaDto } from "shared-types/src/openpra-zod-mef/collab/createNewUser-schema";
 import { MemberRole } from "shared-types/src/lib/data/predefiniedRoles";
+import { CreateNewUserSchemaDto } from "../dtos/createNewUser-schema";
 
 export const CreateUserObject: CreateNewUserSchemaDto = {
   firstName: "User1",

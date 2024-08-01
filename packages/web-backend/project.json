@@ -16,7 +16,17 @@
         "tsConfig": "packages/web-backend/tsconfig.app.json",
         "assets": ["packages/web-backend/src/assets"],
         "isolatedConfig": true,
-        "webpackConfig": "packages/web-backend/webpack.config.js"
+        "webpackConfig": "packages/web-backend/webpack.config.js",
+        "transformers": [
+          "typia/lib/transform",
+          {
+            "name": "@nestia/core/lib/transform",
+            "options": {
+              "validate": "assert",
+              "stringify": "assert"
+            }
+          }
+        ]
       },
       "configurations": {
         "development": {},

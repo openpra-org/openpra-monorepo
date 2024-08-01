@@ -24,13 +24,10 @@ export class Event implements EventSchema {
     this.uuid = uuid;
   }
 
-  constructor(json: EventSchema) {}
-
   get parents(): Event[] {
     return Array.from(this._parents);
   }
 
-  @Serializable
   set parents(toSet) {
     this._parents = new Set<Event>(toSet);
   }

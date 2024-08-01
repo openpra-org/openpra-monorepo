@@ -5,6 +5,7 @@ import { JobBrokerController } from "./job-broker.controller";
 import { JobBrokerService } from "./job-broker.service";
 import { QuantificationModule } from "./quantification/quantification.module";
 import { ValidationModule } from "./validation/validation.module";
+import { ExecutableModule } from "./executable/executable.module";
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ValidationModule } from "./validation/validation.module";
     }),
     QuantificationModule,
     ValidationModule,
+    ExecutableModule,
     RouterModule.register([
       {
         path: "api",
@@ -28,6 +30,10 @@ import { ValidationModule } from "./validation/validation.module";
           {
             path: "validation",
             module: ValidationModule,
+          },
+          {
+            path: "executable",
+            module: ExecutableModule,
           },
         ],
       },

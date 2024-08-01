@@ -13,7 +13,14 @@
         "tsConfig": "packages/shared-types/tsconfig.lib.json",
         "assets": ["packages/shared-types/*.md"],
         "transformers": [
-          "typia/lib/transform"
+          "typia/lib/transform",
+          {
+            "name": "@nestia/core/lib/transform",
+            "options": {
+              "validate": "assert",
+              "stringify": "assert"
+            }
+          }
         ]
       }
     },

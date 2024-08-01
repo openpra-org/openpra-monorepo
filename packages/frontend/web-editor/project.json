@@ -22,6 +22,16 @@
         "styles": ["packages/frontend/web-editor/src/styles.css"],
         "scripts": [],
         "isolatedConfig": true,
+        "transformers": [
+          "typia/lib/transform",
+          {
+            "name": "@nestia/core/lib/transform",
+            "options": {
+              "validate": "assert",
+              "stringify": "assert"
+            }
+          }
+        ],
         "webpackConfig": "packages/frontend/web-editor/webpack.config.js"
       },
       "configurations": {

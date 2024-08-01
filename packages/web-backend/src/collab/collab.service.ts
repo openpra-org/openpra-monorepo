@@ -5,7 +5,7 @@ import * as argon2 from "argon2";
 import * as dot from "dot-object";
 import { UpdateOneModel } from "mongodb";
 import { MemberResult } from "shared-types/src/lib/api/Members";
-import { CreateNewUserSchemaDto } from "shared-types/src/openpra-zod-mef/collab/createNewUser-schema";
+import { CreateNewUserSchemaDto } from "./dtos/createNewUser-schema";
 import { PaginationDto } from "./dtos/pagination.dto";
 import { UserPreferencesDto } from "./dtos/user-preferences.dto";
 import { UserCounter, UserCounterDocument } from "./schemas/user-counter.schema";
@@ -224,7 +224,7 @@ export class CollabService {
         currentlySelected: " ",
       },
     };
-    newUser.roles = body.roles as string[];
+    newUser.roles = body.roles;
     return newUser.save();
   }
 
@@ -304,7 +304,7 @@ export class CollabService {
     user.lastName = member.lastName;
     user.username = member.username;
     user.preferences = member.preferences;
-    user.roles = member.roles as string[];
+    user.roles = member.roles;
     if (member.password !== undefined) {
       user.password = await argon2.hash(member.password);
     }

@@ -7,18 +7,15 @@
     "sourceMap": true,
     "declaration": true,
     "esModuleInterop": true,
-    "emitDecoratorMetadata": true,
     "target": "es2021",
     "types": ["node"],
     "declarationDir": "../../dist/types/web-backend",
 
     // TODO:: REMOVE THESE
     "removeComments": true,
-    "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "incremental": true,
     "skipLibCheck": true,
-    "strictNullChecks": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
@@ -26,6 +23,10 @@
     "moduleResolution": "node",
     "importHelpers": true,
     "lib": ["es2020", "dom"],
-    "skipDefaultLibCheck": true
+    "skipDefaultLibCheck": true,
+    "strictNullChecks": false,
+    "strict": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   }
 }

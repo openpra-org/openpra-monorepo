@@ -14,10 +14,10 @@ import {
 } from "@nestjs/common";
 import { MemberResult } from "shared-types/src/lib/api/Members";
 import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
-import { CreateNewUserSchemaDto } from "shared-types/src/openpra-zod-mef/collab/createNewUser-schema";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { Public } from "../guards/public.guard";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";
+import { CreateNewUserSchemaDto } from "./dtos/createNewUser-schema";
 import { CollabService } from "./collab.service";
 import { PaginationDto } from "./dtos/pagination.dto";
 import { UserPreferencesDto } from "./dtos/user-preferences.dto";

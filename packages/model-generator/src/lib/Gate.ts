@@ -3,6 +3,7 @@ import { UUIDSchema } from "shared-types/src/openpra-mef/identifier/uuid";
 import { TypeCodeSchema } from "shared-types/src/openpra-mef/identifier/typecode";
 import { Event } from "./Event";
 import { BasicEvent } from "./BasicEvent";
+import { HouseEvent } from "./HouseEvent";
 
 /**
  * @public Represents a logical gate within a system model.
@@ -38,7 +39,7 @@ export class Gate extends Event implements GateSchema {
     this.kNum = kNum;
     this._gArguments = new Set<Gate>(gArguments);
     this._bArguments = new Set<BasicEvent>(bArguments);
-    this._hArguments = new Set<Event>(hArguments);
+    this._hArguments = new Set<HouseEvent>(hArguments);
     this._uArguments = new Set<Event>(uArguments);
   }
 
@@ -58,12 +59,12 @@ export class Gate extends Event implements GateSchema {
     this._gArguments = new Set<Gate>(toSet);
   }
 
-  get hArguments(): Event[] {
+  get hArguments(): HouseEvent[] {
     return Array.from(this._hArguments);
   }
 
   set hArguments(toSet) {
-    this._hArguments = new Set<Event>(toSet);
+    this._hArguments = new Set<HouseEvent>(toSet);
   }
 
   get uArguments(): Event[] {

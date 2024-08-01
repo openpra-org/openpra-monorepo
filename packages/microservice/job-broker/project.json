@@ -11,6 +11,16 @@
       "options": {
         "target": "node",
         "compiler": "tsc",
+        "transformers": [
+          "typia/lib/transform",
+          {
+            "name": "@nestia/core/lib/transform",
+            "options": {
+              "validate": "assert",
+              "stringify": "assert"
+            }
+          }
+        ],
         "outputPath": "dist/packages/microservice/job-broker",
         "main": "packages/microservice/job-broker/src/main.ts",
         "tsConfig": "packages/microservice/job-broker/tsconfig.app.json",

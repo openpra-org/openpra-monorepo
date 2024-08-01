@@ -11,7 +11,17 @@
         "outputPath": "dist/packages/mef-schema",
         "main": "packages/mef-schema/src/index.ts",
         "tsConfig": "packages/mef-schema/tsconfig.lib.json",
-        "assets": ["packages/mef-schema/*.md"]
+        "assets": ["packages/mef-schema/*.md"],
+        "transformers": [
+          "typia/lib/transform",
+          {
+            "name": "@nestia/core/lib/transform",
+            "options": {
+              "validate": "assert",
+              "stringify": "assert"
+            }
+          }
+        ]
       }
     },
     "generate-types": {

@@ -11,7 +11,17 @@
         "outputPath": "dist/packages/model-generator",
         "main": "packages/model-generator/src/index.ts",
         "tsConfig": "packages/model-generator/tsconfig.lib.json",
-        "assets": ["packages/model-generator/*.md"]
+        "assets": ["packages/model-generator/*.md"],
+        "transformers": [
+          "typia/lib/transform",
+          {
+            "name": "@nestia/core/lib/transform",
+            "options": {
+              "validate": "assert",
+              "stringify": "assert"
+            }
+          }
+        ]
       }
     },
     "lint": {

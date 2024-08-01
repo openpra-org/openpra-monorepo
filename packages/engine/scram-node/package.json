@@ -5,9 +5,9 @@
   "main": "./lib/index.js",
   "private": true,
   "scripts": {
-    "install": "cmake-js -C --parallel 32 compile --target scram-node ",
-    "rebuild": "cmake-js -C --parallel 32 rebuild --debug --target scram-node ",
-    "configure": "cmake-js -C --parallel 32 configure --target scram-node ",
+    "install": "cmake-js -C --parallel 32 compile --target scram-cli scram-node",
+    "rebuild": "cmake-js -C --parallel 32 rebuild --debug --target scram-cli scram-node ",
+    "configure": "cmake-js -C --parallel 32 configure --target scram-cli scram-node ",
     "clean": "cmake-js clean",
     "test": "jest",
     "ctest": "cmake-js -C --parallel 32 install -T test_mef"
@@ -22,6 +22,11 @@
       ]
     },
     "targets": {
+      "install": {
+        "dependsOn": [
+          "build"
+        ]
+      },
       "build": {},
       "clean": {},
       "distclean": {},

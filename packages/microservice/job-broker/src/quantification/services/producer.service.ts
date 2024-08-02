@@ -8,7 +8,7 @@ import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-requ
 export class ProducerService {
   constructor(private readonly configService: ConfigService) {}
 
-  async createAndQueueQuant(modelsWithConfigs: QuantifyRequest): Promise<boolean> {
+  public async createAndQueueQuant(modelsWithConfigs: QuantifyRequest): Promise<boolean> {
     // Load all the environment variables
     const url = this.configService.get<string>("RABBITMQ_URL");
     const initialJobQ = this.configService.get<string>("QUANT_JOB_QUEUE_NAME");

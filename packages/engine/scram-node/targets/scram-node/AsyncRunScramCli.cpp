@@ -1,6 +1,6 @@
 #include "ScramWorker.h"
 
-// Main Node.js wrapper function to run the scram CLI synchronously.
+// Main Node.js wrapper function to run the scram CLI asynchronously.
 Napi::Value RunScramCli(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
 
@@ -38,16 +38,18 @@ Napi::Value RunScramCli(const Napi::CallbackInfo& info) {
     arguments.push_back(xmlArray.Get(j).ToString().Utf8Value());
   };
 
-  try {
-    // Create a ScramWorker to execute the command synchronously.
-    ScramWorker worker(arguments);
-    worker.Execute();
-    return env.Undefined();
-  } catch (const std::exception& e) {
-    // If an exception occurs, throw a JavaScript exception with the error message.
-    Napi::Error::New(env, e.what()).ThrowAsJavaScriptException();
+  // Validate the second argument to ensure it's a callback function.
+  if (!info[1].IsFunction()) {
+    Napi::TypeError::New(env, "Function expected as second argument").ThrowAsJavaScriptException();
     return env.Null();
   }
+  Napi::Function callback = info[1].As<Napi::Function>();
+
+  // Create a ScramWorker to run the scram command asynchronously and queue it for execution.
+  ScramWorker* worker = new ScramWorker(callback, arguments);
+  worker->Queue();
+
+  return env.Undefined();
 }
 
 // Initializes the module, making the RunScramCli function available to Node.js

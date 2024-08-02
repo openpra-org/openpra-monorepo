@@ -5,9 +5,9 @@
 
 namespace po = boost::program_options;
 
-// Constructor implementation: initializes the arguments.
-ScramWorker::ScramWorker(std::vector<std::string> args)
-  : args(std::move(args)) {};
+// Constructor implementation: initializes the base class and moves the arguments.
+ScramWorker::ScramWorker(Napi::Function& callback, std::vector<std::string> args)
+  : Napi::AsyncWorker(callback), args(std::move(args)) {};
 
 // Execute method: converts arguments and runs the scram command in a try-catch block.
 void ScramWorker::Execute() {
@@ -24,7 +24,13 @@ void ScramWorker::Execute() {
     ParseArguments(argv.size()-1, argv.data(), &vm);
     RunScram(vm);
   } catch (const std::exception& e) {
-    // If an exception occurs, throw it with a specific message.
-    throw std::runtime_error(e.what());
+    // If an exception occurs, record the error message.
+    SetError(e.what());
   }
+}
+
+// OnOK method: called when Execute completes without errors, invokes the callback with no arguments.
+void ScramWorker::OnOK() {
+  Napi::HandleScope scope(Env());
+  Callback().Call({Env().Null()});
 }

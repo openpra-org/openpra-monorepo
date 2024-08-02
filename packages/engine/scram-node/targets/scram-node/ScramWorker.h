@@ -3,14 +3,17 @@
 #include <string>
 #include <vector>
 
-class ScramWorker : public Napi::AsyncWorker {
+// Defines a class ScramWorker for synchronous execution.
+class ScramWorker {
   public:
-    ScramWorker(Napi::Function& callback, std::vector<std::string> args);
+    // Constructor that takes a vector of arguments.
+    ScramWorker(std::vector<std::string> args);
+    // Virtual destructor.
     virtual ~ScramWorker() {};
 
+    // Execute method that contains the logic to be executed synchronously.
     void Execute();
-    void OnOK();
-
   private:
+    // Private member to store command-line arguments.
     std::vector<std::string> args;
 };

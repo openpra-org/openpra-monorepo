@@ -82,8 +82,9 @@ export class ConsumerService implements OnModuleInit {
       return;
     }
 
-    // Establish a connection to RabbitMQ with inherent retries and create a communication channel.
-    const connection = await this.connectWithRetry(url, 3);
+    // Connect to the RabbitMQ server, create a channel, and connect the
+    // workers to the initial queue to consume quantification jobs
+    const connection = await amqp.connect(url);
     const channel = await connection.createChannel();
     await channel.assertQueue(initialJobQ, { durable: true });
 
@@ -109,13 +110,10 @@ export class ConsumerService implements OnModuleInit {
         const dispatchQ = String(msg.properties.replyTo);
         const corrID = String(msg.properties.correlationId);
 
-        // Send the quantification results to the storage/completed-job queue
-        // Attach the dispatch queue name and correlation ID with the results
+        // Send the quantification results to the completed-job queue
         void channel.assertQueue(storageQ, { durable: true });
-        channel.sendToQueue(storageQ, Buffer.from(result), {
+        channel.sendToQueue(storageQ, Buffer.from(report), {
           persistent: true,
-          correlationId: corrID,
-          replyTo: dispatchQ,
         });
 
         // Finally acknowledge the message back to the initial queue

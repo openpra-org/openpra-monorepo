@@ -130,7 +130,7 @@ job("Monorepo Deployment") {
        interpreter = "/bin/bash"
        content = """
                              docker compose -f ${'$'}STACK_YML config
-                             docker stack deploy -c ${'$'}STACK_YML ${'$'}APP_NAME
+                             docker stack deploy -c ${'$'}STACK_YML --with-registry-auth ${'$'}APP_NAME
                              """
      }
 

@@ -1,12 +1,14 @@
-import { Injectable, OnApplicationBootstrap } from "@nestjs/common";
+import { Injectable, OnApplicationBootstrap, UseFilters } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { RpcException } from "@nestjs/microservices";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import * as amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import typia from "typia";
 import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-task";
-import { ExecutedResult } from "./schemas/executed-result.schema";
+import { ExecutedResult } from "../schemas/executed-result.schema";
+import { RmqExceptionFilter } from "../../exception-filters/rmq-exception.filter";
 
 @Injectable()
 export class ExecutableStorageService implements OnApplicationBootstrap {
@@ -15,12 +17,13 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
     @InjectModel(ExecutedResult.name) private readonly executedResultModel: Model<ExecutedResult>,
   ) {}
 
+  @UseFilters(new RmqExceptionFilter())
   public async onApplicationBootstrap(): Promise<void> {
     // Load all the environment variables
     const url = this.configService.get<string>("RABBITMQ_URL");
     const storageQ = this.configService.get<string>("EXECUTABLE_STORAGE_QUEUE_NAME");
     if (!url || !storageQ) {
-      throw new Error("Required environment variables for executable storage service are not set");
+      throw new RpcException("Required environment variables for executable storage service are not set");
     }
 
     // Connect to the RabbitMQ server, create a channel, and connect the
@@ -34,8 +37,7 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
       storageQ,
       (msg: ConsumeMessage | null) => {
         if (msg === null) {
-          console.error("Unable to parse message", msg);
-          return;
+          throw new RpcException("Executable storage service is unable to parse the consumed message.");
         }
 
         // Convert the results into a JSON object and

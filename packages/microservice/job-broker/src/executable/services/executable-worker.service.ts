@@ -1,22 +1,25 @@
 import { execSync, ExecSyncOptionsWithStringEncoding } from "node:child_process";
-import { Injectable, OnApplicationBootstrap } from "@nestjs/common";
+import { Injectable, OnApplicationBootstrap, UseFilters } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { RpcException } from "@nestjs/microservices";
 import * as amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import typia from "typia";
 import { ExecutionTask, ExecutionResult } from "shared-types/src/openpra-mef/util/execution-task";
+import { RmqExceptionFilter } from "../../exception-filters/rmq-exception.filter";
 
 @Injectable()
 export class ExecutableWorkerService implements OnApplicationBootstrap {
   constructor(private readonly configService: ConfigService) {}
 
+  @UseFilters(new RmqExceptionFilter())
   public async onApplicationBootstrap(): Promise<void> {
     // Load all the environment variables
     const url = this.configService.get<string>("RABBITMQ_URL");
     const initialJobQ = this.configService.get<string>("EXECUTABLE_TASK_QUEUE_NAME");
     const storageQ = this.configService.get<string>("EXECUTABLE_STORAGE_QUEUE_NAME");
     if (!url || !initialJobQ || !storageQ) {
-      throw new Error("Required environment variables for executable worker service are not set");
+      throw new RpcException("Required environment variables for executable worker service are not set");
     }
 
     // Connect to the RabbitMQ server, create a channel, and connect the
@@ -33,8 +36,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
       initialJobQ,
       (msg: ConsumeMessage | null) => {
         if (msg === null) {
-          console.error("Unable to parse message", msg);
-          return;
+          throw new RpcException("Executable worker service is unable to parse the consumed message.");
         }
 
         // Convert the inputs/data into a JSON object and process
@@ -80,7 +82,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
       return {
         task,
         exit_code: 0,
-        stderr: "No error",
+        stderr: "",
         stdout,
       };
     } catch (error) {
@@ -89,17 +91,17 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
         // TODO: Implement proper exit code and error message.
         return {
           task,
-          exit_code: 1,
-          stderr: execError.stderr?.toString() ?? "No detailed error",
-          stdout: execError.stdout?.toString() ?? "No output",
+          exit_code: execError.status ? execError.status : 1,
+          stderr: execError.stderr?.toString() ?? "",
+          stdout: execError.stdout?.toString() ?? "",
         };
       }
 
       return {
         task,
         exit_code: 1,
-        stderr: error instanceof Error ? error.message : "No error message",
-        stdout: "No output",
+        stderr: error instanceof Error ? error.message : "",
+        stdout: "",
       };
     }
   }

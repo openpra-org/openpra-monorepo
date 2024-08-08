@@ -1,12 +1,14 @@
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
-import { RouterModule } from "@nestjs/core";
+import { APP_FILTER, RouterModule } from "@nestjs/core";
 import { MongooseModule } from "@nestjs/mongoose";
 import { JobBrokerController } from "./job-broker.controller";
 import { JobBrokerService } from "./job-broker.service";
 import { QuantificationModule } from "./quantification/quantification.module";
 import { ValidationModule } from "./validation/validation.module";
 import { ExecutableModule } from "./executable/executable.module";
+import { HttpExceptionFilter } from "./exception-filters/http-exception.filter";
+import { RmqExceptionFilter } from "./exception-filters/rmq-exception.filter";
 
 @Module({
   imports: [
@@ -48,6 +50,16 @@ import { ExecutableModule } from "./executable/executable.module";
     ]),
   ],
   controllers: [JobBrokerController],
-  providers: [JobBrokerService],
+  providers: [
+    JobBrokerService,
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: RmqExceptionFilter,
+    },
+  ],
 })
 export class JobBrokerModule {}

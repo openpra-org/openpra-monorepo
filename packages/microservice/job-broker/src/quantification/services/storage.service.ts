@@ -1,5 +1,6 @@
-import { Injectable, OnApplicationBootstrap } from "@nestjs/common";
+import { Injectable, OnApplicationBootstrap, UseFilters } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { RpcException } from "@nestjs/microservices";
 import { InjectModel } from "@nestjs/mongoose";
 import * as amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
@@ -7,6 +8,7 @@ import { Model } from "mongoose";
 import typia from "typia";
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 import { QuantifiedReport } from "../schemas/quantified-report.schema";
+import { RmqExceptionFilter } from "../../exception-filters/rmq-exception.filter";
 
 @Injectable()
 export class StorageService implements OnApplicationBootstrap {
@@ -15,12 +17,13 @@ export class StorageService implements OnApplicationBootstrap {
     @InjectModel(QuantifiedReport.name) private readonly quantifiedReportModel: Model<QuantifiedReport>,
   ) {}
 
+  @UseFilters(new RmqExceptionFilter())
   public async onApplicationBootstrap(): Promise<void> {
     // Load all the environment variables
     const url = this.configService.get<string>("RABBITMQ_URL");
     const completedQ = this.configService.get<string>("QUANT_STORAGE_QUEUE_NAME");
     if (!url || !completedQ) {
-      throw new Error("Required environment variables for quantification storage service are not set");
+      throw new RpcException("Required environment variables for quantification storage service are not set");
     }
 
     // Connect to the RabbitMQ server, create a channel, and connect to
@@ -35,8 +38,7 @@ export class StorageService implements OnApplicationBootstrap {
       (msg: ConsumeMessage | null) => {
         if (msg === null) {
           // Handle the case where no message was available
-          console.error("No message was received.", msg);
-          return;
+          throw new RpcException("Unable to parse message from quantification storage queue");
         }
 
         // Convert the quantification report in a JSON object and

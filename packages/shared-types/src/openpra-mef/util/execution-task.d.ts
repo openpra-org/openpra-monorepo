@@ -20,3 +20,17 @@ export interface ExecutionTask {
   tty?: boolean;
 }
 export const ExecutionTaskSchema = typia.json.application<[ExecutionTask], "3.0">();
+
+// TODO: Change the range of the exit codes
+export interface ExecutionResult {
+  task: ExecutionTask;
+  /**
+   * exit code associated with the process performing this execution task.
+   *
+   * Always between 0 and 255.
+   */
+  exit_code: number;
+  stderr: string;
+  stdout: string;
+}
+export const ExecutionResultSchema = typia.json.application<[ExecutionResult], "3.0">();

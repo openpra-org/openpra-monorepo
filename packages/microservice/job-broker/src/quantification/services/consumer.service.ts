@@ -96,19 +96,15 @@ export class ConsumerService implements OnModuleInit {
       initialJobQ,
       (msg: ConsumeMessage | null) => {
         if (msg === null) {
-          console.error("Unable to parse message", msg);
+          Logger.error("Unable to parse message", msg);
           return;
         }
 
-        // Convert the inputs/data into a JSON object and
-        // perform the quantification using this JSON object
-        const modelsWithConfigs: QuantifyRequest = JSON.parse(msg.content.toString()) as QuantifyRequest;
-        //const output = this.performQuantification(modelsWithConfigs);
-        const result = JSON.stringify(modelsWithConfigs);
-
-        // Retrieve the dispatch queue name and correlation ID
-        const dispatchQ = String(msg.properties.replyTo);
-        const corrID = String(msg.properties.correlationId);
+        // Convert the inputs/data into a JSON object and perform
+        // the quantification using this JSON object
+        const modelsWithConfigs: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
+        const result: QuantifyReport = this.performQuantification(modelsWithConfigs);
+        const report = typia.json.assertStringify<QuantifyReport>(result);
 
         // Send the quantification results to the completed-job queue
         void channel.assertQueue(storageQ, { durable: true });

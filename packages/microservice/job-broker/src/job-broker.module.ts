@@ -21,9 +21,9 @@ import { ExecutableModule } from "./executable/executable.module";
 @Module({
   // Define the modules to import, including configuration, database connection, and submodules.
   imports: [
-    ExecutableModule,
     QuantificationModule,
     ValidationModule,
+    ExecutableModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env", // Specify the environment file path.
       isGlobal: true, // Make configuration globally available.

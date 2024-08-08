@@ -10,6 +10,8 @@
 // their results, schema definitions for executed tasks and their results for MongoDB.
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
+import { APP_FILTER } from "@nestjs/core";
+import { HttpExceptionFilter } from "../exception-filters/http-exception.filter";
 import { ExecutableController } from "./executable.controller";
 import { ExecutableService } from "./services/executable.service";
 import { ExecutableWorkerService } from "./services/executable-worker.service";
@@ -31,7 +33,15 @@ import {
   ],
   // Declaring the controller that exposes endpoints related to executable tasks.
   controllers: [ExecutableController],
-  // Registering services that provide business logic for managing executable tasks and their storage.
-  providers: [ExecutableService, ExecutableWorkerService, ExecutableStorageService],
+  // Registering services that provide business logic for managing executable tasks and their storage.,
+  providers: [
+    ExecutableService,
+    ExecutableWorkerService,
+    ExecutableStorageService,
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
+  ],
 })
 export class ExecutableModule {}

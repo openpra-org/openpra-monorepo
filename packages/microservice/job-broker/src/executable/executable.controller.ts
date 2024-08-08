@@ -1,4 +1,4 @@
-import { Controller } from "@nestjs/common";
+import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute, TypedBody } from "@nestia/core";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
 import { ExecutableService } from "./executable.service";
@@ -18,9 +18,13 @@ export class ExecutableController {
    * @returns Boolean representing whether task was queued.
    * @param taskRequest - The task to execute.
    */
-  @TypedRoute.Post()
-  public async createTask(@TypedBody() taskRequest: ExecutionTask): Promise<boolean> {
-    return this.executableService.createAndQueueTask(taskRequest);
+    @TypedRoute.Post()
+  public async createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): Promise<boolean> {
+    try {
+      return this.executableService.createAndQueueTask(taskRequest);
+    } catch {
+      throw new InternalServerErrorException("Server encountered a problem while queueing a binary executable task.");
+    }
   }
 
   /**
@@ -31,6 +35,10 @@ export class ExecutableController {
    */
   @TypedRoute.Get("/get-executed-tasks")
   public async getExecutedTasks(): Promise<ExecutedResult[]> {
-    return this.executableStorageService.getExecutedTasks();
+    try {
+      return this.executableStorageService.getExecutedTasks();
+    } catch {
+      throw new NotFoundException("Server was unable to find the requested list of executed tasks.");
+    }
   }
 }

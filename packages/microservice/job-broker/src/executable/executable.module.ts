@@ -1,9 +1,12 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
+import { APP_FILTER } from "@nestjs/core";
+import { HttpExceptionFilter } from "../exception-filters/http-exception.filter";
+import { RmqExceptionFilter } from "../exception-filters/rmq-exception.filter";
 import { ExecutableController } from "./executable.controller";
-import { ExecutableService } from "./executable.service";
-import { ExecutableWorkerService } from "./executable-worker.service";
-import { ExecutableStorageService } from "./executable-storage.service";
+import { ExecutableService } from "./services/executable.service";
+import { ExecutableWorkerService } from "./services/executable-worker.service";
+import { ExecutableStorageService } from "./services/executable-storage.service";
 import {
   ExecutedTask,
   ExecutedTaskSchema,
@@ -19,6 +22,18 @@ import {
     ]),
   ],
   controllers: [ExecutableController],
-  providers: [ExecutableService, ExecutableWorkerService, ExecutableStorageService],
+  providers: [
+    ExecutableService,
+    ExecutableWorkerService,
+    ExecutableStorageService,
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: RmqExceptionFilter,
+    },
+  ],
 })
 export class ExecutableModule {}

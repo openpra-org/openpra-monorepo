@@ -33,7 +33,7 @@ export interface ExecutionResult {
    *
    * Always between 0 and 255.
    */
-  exit_code: number & tags.Minimum<-1> & tags.Maximum<1>;
+  exit_code: number;
   stderr: string;
   stdout: string;
 }

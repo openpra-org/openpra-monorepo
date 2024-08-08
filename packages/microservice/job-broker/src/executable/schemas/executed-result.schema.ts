@@ -40,11 +40,11 @@ export class ExecutedResult {
   @Prop({ required: true })
   exit_code!: number;
 
-  @Prop({ required: true })
-  stderr!: string;
+  @Prop({ type: String, required: false })
+  stderr = "";
 
-  @Prop({ required: true })
-  stdout!: string;
+  @Prop({ type: String, required: false })
+  stdout = "";
 }
 
 export const ExecutedResultSchema = SchemaFactory.createForClass(ExecutedResult);

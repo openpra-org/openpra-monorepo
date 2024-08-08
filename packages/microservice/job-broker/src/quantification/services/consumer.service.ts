@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
-import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Injectable, OnModuleInit, UseFilters } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { RpcException } from "@nestjs/microservices";
 import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import tmp from "tmp";
@@ -8,6 +9,7 @@ import typia from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 import { ScramAddonType } from "shared-types/src/openpra-mef/util/scram-addon-type";
+import { RmqExceptionFilter } from "../../exception-filters/rmq-exception.filter";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const scramAddon: ScramAddonType = require("scram-node/build/Release/scram-node.node") as ScramAddonType;
 
@@ -15,13 +17,14 @@ const scramAddon: ScramAddonType = require("scram-node/build/Release/scram-node.
 export class ConsumerService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {}
 
+  @UseFilters(new RmqExceptionFilter())
   public async onModuleInit(): Promise<void> {
     // Load all the environment variables
     const url = this.configService.get<string>("RABBITMQ_URL");
     const initialJobQ = this.configService.get<string>("QUANT_JOB_QUEUE_NAME");
     const storageQ = this.configService.get<string>("QUANT_STORAGE_QUEUE_NAME");
     if (!url || !initialJobQ || !storageQ) {
-      throw new Error("Required environment variables for quantification consumer service are not set");
+      throw new RpcException("Required environment variables for quantification consumer service are not set");
     }
 
     // Connect to the RabbitMQ server, create a channel, and connect the
@@ -38,7 +41,7 @@ export class ConsumerService implements OnModuleInit {
       initialJobQ,
       (msg: ConsumeMessage | null) => {
         if (msg === null) {
-          throw new Error("Unable to parse message from initial quantification queue");
+          throw new RpcException("Unable to parse message from initial quantification queue");
         }
 
         // Convert the inputs/data into a JSON object and perform

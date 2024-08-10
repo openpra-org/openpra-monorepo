@@ -1,29 +1,33 @@
-import { Controller, Get, InternalServerErrorException, NotFoundException, Post, UseFilters } from "@nestjs/common";
+import { Controller, InternalServerErrorException, NotFoundException, UseFilters } from "@nestjs/common";
+import { TypedRoute } from "@nestia/core";
 import { JobBrokerService } from "./job-broker.service";
 import { HttpExceptionFilter } from "./exception-filters/http-exception.filter";
 
-@Controller("/job-broker")
+@Controller()
 @UseFilters(new HttpExceptionFilter())
 export class JobBrokerController {
   constructor(private readonly jobBrokerService: JobBrokerService) {}
-  @Get("/job-types")
-  getJobTypes(): { message: string } {
+
+  @TypedRoute.Get("/job-types")
+  public getJobTypes(): { message: string } {
     try {
       return this.jobBrokerService.getJobTypes();
     } catch {
       throw new NotFoundException("Server was unable to find the requested list of job types.");
     }
   }
-  @Get("/pending-jobs")
-  getPendingJobs(): { message: string } {
+
+  @TypedRoute.Get("/pending-jobs")
+  public getPendingJobs(): { message: string } {
     try {
       return this.jobBrokerService.getPendingJobs();
     } catch {
       throw new NotFoundException("Server was unable to find the requested list of pending jobs.");
     }
   }
-  @Post("/create-job")
-  createJob(): { message: string } {
+
+  @TypedRoute.Post("/create-job")
+  public createJob(): { message: string } {
     try {
       return this.jobBrokerService.createJob();
     } catch {

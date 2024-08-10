@@ -1,67 +1,74 @@
 import { execSync, ExecSyncOptionsWithStringEncoding } from "node:child_process";
-import { Injectable, OnApplicationBootstrap, UseFilters } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { RpcException } from "@nestjs/microservices";
 import * as amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
-import typia from "typia";
+import typia, { TypeGuardError } from "typia";
 import { ExecutionTask, ExecutionResult } from "shared-types/src/openpra-mef/util/execution-task";
-import { RmqExceptionFilter } from "../../exception-filters/rmq-exception.filter";
 
 @Injectable()
 export class ExecutableWorkerService implements OnApplicationBootstrap {
   constructor(private readonly configService: ConfigService) {}
 
-  @UseFilters(new RmqExceptionFilter())
   public async onApplicationBootstrap(): Promise<void> {
     // Load all the environment variables
     const url = this.configService.get<string>("RABBITMQ_URL");
     const initialJobQ = this.configService.get<string>("EXECUTABLE_TASK_QUEUE_NAME");
     const storageQ = this.configService.get<string>("EXECUTABLE_STORAGE_QUEUE_NAME");
     if (!url || !initialJobQ || !storageQ) {
-      throw new RpcException("Required environment variables for executable worker service are not set");
+      Logger.error("Required environment variables for executable worker service are not set");
+      return;
     }
 
-    // Connect to the RabbitMQ server, create a channel, and connect the
-    // workers to the initial queue to consume jobs
-    const connection = await amqp.connect(url);
-    const channel = await connection.createChannel();
-    await channel.assertQueue(initialJobQ, { durable: true });
+    try {
+      // Connect to the RabbitMQ server, create a channel, and connect the
+      // workers to the initial queue to consume jobs
+      const connection = await amqp.connect(url);
+      const channel = await connection.createChannel();
+      await channel.assertQueue(initialJobQ, { durable: true });
 
-    // Workers will be able to handle only one job at a time
-    await channel.prefetch(1);
+      // Workers will be able to handle only one job at a time
+      await channel.prefetch(1);
 
-    // Consume the jobs from the initial queue
-    await channel.consume(
-      initialJobQ,
-      (msg: ConsumeMessage | null) => {
-        if (msg === null) {
-          throw new RpcException("Executable worker service is unable to parse the consumed message.");
-        }
+      // Consume the jobs from the initial queue
+      await channel.consume(
+        initialJobQ,
+        (msg: ConsumeMessage | null) => {
+          if (msg === null) {
+            Logger.error("Executable worker service is unable to parse the consumed message.");
+            return;
+          }
 
-        // Convert the inputs/data into a JSON object and process
-        // the executable task using this JSON object
-        const taskData: ExecutionTask = typia.json.assertParse<ExecutionTask>(msg.content.toString());
+          // Convert the inputs/data into a JSON object and process
+          // the executable task using this JSON object
+          const taskData: ExecutionTask = typia.json.assertParse<ExecutionTask>(msg.content.toString());
 
-        // Execute the task and get the result
-        const result = this.executeCommand(taskData);
-        const taskResult = typia.json.assertStringify<ExecutionResult>(result);
+          // Execute the task and get the result
+          const result = this.executeCommand(taskData);
+          const taskResult = typia.json.assertStringify<ExecutionResult>(result);
 
-        // Send the executed task results to the completed task queue
-        void channel.assertQueue(storageQ, { durable: true });
-        channel.sendToQueue(storageQ, Buffer.from(taskResult), {
-          persistent: true,
-        });
+          // Send the executed task results to the completed task queue
+          void channel.assertQueue(storageQ, { durable: true });
+          channel.sendToQueue(storageQ, Buffer.from(taskResult), {
+            persistent: true,
+          });
 
-        // Finally acknowledge the message back to the initial queue
-        // to let the broker know that the task has been executed
-        channel.ack(msg);
-      },
-      {
-        // Since we are manually acknowledging the message, turn auto acknowledging off
-        noAck: false,
-      },
-    );
+          // Finally acknowledge the message back to the initial queue
+          // to let the broker know that the task has been executed
+          channel.ack(msg);
+        },
+        {
+          // Since we are manually acknowledging the message, turn auto acknowledging off
+          noAck: false,
+        },
+      );
+    } catch (error) {
+      if (error instanceof TypeGuardError) {
+        Logger.error(`Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`);
+      } else {
+        Logger.error("Something went wrong in the executable worker service.");
+      }
+    }
   }
 
   // Method to execute a shell command

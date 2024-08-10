@@ -1,34 +1,40 @@
-import { Injectable, UseFilters } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { RpcException } from "@nestjs/microservices";
 import * as amqp from "amqplib";
-import typia from "typia";
+import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-import { RmqExceptionFilter } from "../../exception-filters/rmq-exception.filter";
 
 @Injectable()
 export class ProducerService {
   constructor(private readonly configService: ConfigService) {}
 
-  @UseFilters(new RmqExceptionFilter())
-  public async createAndQueueQuant(modelsWithConfigs: QuantifyRequest): Promise<boolean> {
+  public async createAndQueueQuant(modelsWithConfigs: QuantifyRequest): Promise<void> {
     // Load all the environment variables
     const url = this.configService.get<string>("RABBITMQ_URL");
     const initialJobQ = this.configService.get<string>("QUANT_JOB_QUEUE_NAME");
     if (!url || !initialJobQ) {
-      throw new RpcException("Required environment variables for quantification producer service are not set");
+      Logger.error("Required environment variables for quantification producer service are not set");
+      return;
     }
 
-    // Connect to the RabbitMQ server, create a channel, and initiate
-    // quantification job queue
-    const connection = await amqp.connect(url);
-    const channel = await connection.createChannel();
-    await channel.assertQueue(initialJobQ, { durable: true });
+    try {
+      // Connect to the RabbitMQ server, create a channel, and initiate
+      // quantification job queue
+      const connection = await amqp.connect(url);
+      const channel = await connection.createChannel();
+      await channel.assertQueue(initialJobQ, { durable: true });
 
-    // Send the quantification request to the initial queue
-    const modelsData = typia.json.assertStringify<QuantifyRequest>(modelsWithConfigs);
-    return channel.sendToQueue(initialJobQ, Buffer.from(modelsData), {
-      persistent: true,
-    });
+      // Send the quantification request to the initial queue
+      const modelsData = typia.json.assertStringify<QuantifyRequest>(modelsWithConfigs);
+      channel.sendToQueue(initialJobQ, Buffer.from(modelsData), {
+        persistent: true,
+      });
+    } catch (error) {
+      if (error instanceof TypeGuardError) {
+        Logger.error(`Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`);
+      } else {
+        Logger.error("Something went wrong in quantification producer service.");
+      }
+    }
   }
 }

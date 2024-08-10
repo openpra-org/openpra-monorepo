@@ -1,13 +1,11 @@
-import { Controller, InternalServerErrorException, NotFoundException, UseFilters } from "@nestjs/common";
+import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute, TypedBody } from "@nestia/core";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
-import { HttpExceptionFilter } from "../exception-filters/http-exception.filter";
 import { ExecutableService } from "./services/executable.service";
 import { ExecutableStorageService } from "./services/executable-storage.service";
 import { ExecutedResult } from "./schemas/executed-result.schema";
 
 @Controller()
-@UseFilters(new HttpExceptionFilter())
 export class ExecutableController {
   constructor(
     private readonly executableService: ExecutableService,
@@ -15,7 +13,7 @@ export class ExecutableController {
   ) {}
 
   @TypedRoute.Post("/create-task")
-  public async createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): Promise<boolean> {
+  public async createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): Promise<void> {
     try {
       return this.executableService.createAndQueueTask(taskRequest);
     } catch {

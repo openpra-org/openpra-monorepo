@@ -1,15 +1,13 @@
 import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
-import { Injectable, OnModuleInit, UseFilters } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { RpcException } from "@nestjs/microservices";
 import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import tmp from "tmp";
-import typia from "typia";
+import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 import { ScramAddonType } from "shared-types/src/openpra-mef/util/scram-addon-type";
-import { RmqExceptionFilter } from "../../exception-filters/rmq-exception.filter";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const scramAddon: ScramAddonType = require("scram-node/build/Release/scram-node.node") as ScramAddonType;
 
@@ -17,54 +15,62 @@ const scramAddon: ScramAddonType = require("scram-node/build/Release/scram-node.
 export class ConsumerService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {}
 
-  @UseFilters(new RmqExceptionFilter())
   public async onModuleInit(): Promise<void> {
     // Load all the environment variables
     const url = this.configService.get<string>("RABBITMQ_URL");
     const initialJobQ = this.configService.get<string>("QUANT_JOB_QUEUE_NAME");
     const storageQ = this.configService.get<string>("QUANT_STORAGE_QUEUE_NAME");
     if (!url || !initialJobQ || !storageQ) {
-      throw new RpcException("Required environment variables for quantification consumer service are not set");
+      Logger.error("Required environment variables for quantification consumer service are not set");
+      return;
     }
 
-    // Connect to the RabbitMQ server, create a channel, and connect the
-    // workers to the initial queue to consume quantification jobs
-    const connection = await amqp.connect(url);
-    const channel = await connection.createChannel();
-    await channel.assertQueue(initialJobQ, { durable: true });
+    try {
+      // Connect to the RabbitMQ server, create a channel, and connect the
+      // workers to the initial queue to consume quantification jobs
+      const connection = await amqp.connect(url);
+      const channel = await connection.createChannel();
+      await channel.assertQueue(initialJobQ, { durable: true });
 
-    // Workers will be able to handle only one quantification job at a time
-    await channel.prefetch(1);
+      // Workers will be able to handle only one quantification job at a time
+      await channel.prefetch(1);
 
-    // Consume the jobs from the initial queue
-    await channel.consume(
-      initialJobQ,
-      (msg: ConsumeMessage | null) => {
-        if (msg === null) {
-          throw new RpcException("Unable to parse message from initial quantification queue");
-        }
+      // Consume the jobs from the initial queue
+      await channel.consume(
+        initialJobQ,
+        (msg: ConsumeMessage | null) => {
+          if (msg === null) {
+            Logger.error("Unable to parse message from initial quantification queue");
+            return;
+          }
 
-        // Convert the inputs/data into a JSON object and perform
-        // the quantification using this JSON object
-        const modelsWithConfigs: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
-        const result: QuantifyReport = this.performQuantification(modelsWithConfigs);
-        const report = typia.json.assertStringify<QuantifyReport>(result);
+          // Convert the inputs/data into a JSON object and perform
+          // the quantification using this JSON object
+          const modelsWithConfigs: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
+          const result: QuantifyReport = this.performQuantification(modelsWithConfigs);
+          const report = typia.json.assertStringify<QuantifyReport>(result);
+          // Send the quantification results to the completed-job queue
+          void channel.assertQueue(storageQ, { durable: true });
+          channel.sendToQueue(storageQ, Buffer.from(report), {
+            persistent: true,
+          });
 
-        // Send the quantification results to the completed-job queue
-        void channel.assertQueue(storageQ, { durable: true });
-        channel.sendToQueue(storageQ, Buffer.from(report), {
-          persistent: true,
-        });
-
-        // Finally acknowledge the message back to the initial queue
-        // to let the broker know that the job has been completed
-        channel.ack(msg);
-      },
-      {
-        // Since we are manually acknowledging the message, turn auto acknowledging off
-        noAck: false,
-      },
-    );
+          // Finally acknowledge the message back to the initial queue
+          // to let the broker know that the job has been completed
+          channel.ack(msg);
+        },
+        {
+          // Since we are manually acknowledging the message, turn auto acknowledging off
+          noAck: false,
+        },
+      );
+    } catch (error) {
+      if (error instanceof TypeGuardError) {
+        Logger.error(`Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`);
+      } else {
+        Logger.error("Something went wrong in the quantification consumer service.");
+      }
+    }
   }
 
   // Using scram-node-addon

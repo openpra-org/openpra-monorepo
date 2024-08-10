@@ -8,13 +8,12 @@ import { QuantificationModule } from "./quantification/quantification.module";
 import { ValidationModule } from "./validation/validation.module";
 import { ExecutableModule } from "./executable/executable.module";
 import { HttpExceptionFilter } from "./exception-filters/http-exception.filter";
-import { RmqExceptionFilter } from "./exception-filters/rmq-exception.filter";
 
 @Module({
   imports: [
+    ExecutableModule,
     QuantificationModule,
     ValidationModule,
-    ExecutableModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
       isGlobal: true,
@@ -55,10 +54,6 @@ import { RmqExceptionFilter } from "./exception-filters/rmq-exception.filter";
     {
       provide: APP_FILTER,
       useClass: HttpExceptionFilter,
-    },
-    {
-      provide: APP_FILTER,
-      useClass: RmqExceptionFilter,
     },
   ],
 })

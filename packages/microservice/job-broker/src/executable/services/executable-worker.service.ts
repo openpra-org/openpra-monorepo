@@ -1,7 +1,7 @@
 import { execSync, ExecSyncOptionsWithStringEncoding } from "node:child_process";
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as amqp from "amqplib";
+import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import typia, { TypeGuardError } from "typia";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";

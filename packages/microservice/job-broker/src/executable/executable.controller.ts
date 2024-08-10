@@ -1,8 +1,8 @@
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute, TypedBody } from "@nestia/core";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
-import { ExecutableService } from "./executable.service";
-import { ExecutableStorageService } from "./executable-storage.service";
+import { ExecutableService } from "./services/executable.service";
+import { ExecutableStorageService } from "./services/executable-storage.service";
 import { ExecutedResult } from "./schemas/executed-result.schema";
 
 @Controller()
@@ -18,7 +18,7 @@ export class ExecutableController {
    * @returns Boolean representing whether task was queued.
    * @param taskRequest - The task to execute.
    */
-    @TypedRoute.Post()
+    @TypedRoute.Post("create-task")
   public async createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): Promise<boolean> {
     try {
       return this.executableService.createAndQueueTask(taskRequest);

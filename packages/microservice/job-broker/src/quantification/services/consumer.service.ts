@@ -104,7 +104,7 @@ export class ConsumerService implements OnModuleInit {
           const result: QuantifyReport = this.performQuantification(modelsWithConfigs);
           const report = typia.json.assertStringify<QuantifyReport>(result);
           // Send the quantification results to the completed-job queue
-          void channel.assertQueue(storageQ, { durable: true });
+          await channel.assertQueue(storageQ, { durable: true });
           channel.sendToQueue(storageQ, Buffer.from(report), {
             persistent: true,
           });

@@ -63,7 +63,8 @@ export class StorageService implements OnApplicationBootstrap {
     const url = this.configService.get<string>("RABBITMQ_URL");
     const completedQ = this.configService.get<string>("QUANT_STORAGE_QUEUE_NAME");
     if (!url || !completedQ) {
-      throw new RpcException("Required environment variables for quantification storage service are not set");
+      Logger.error("Required environment variables for quantification storage service are not set");
+      return;
     }
 
     // Establish a connection to RabbitMQ and create a communication channel.

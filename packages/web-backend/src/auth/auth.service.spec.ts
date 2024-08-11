@@ -19,7 +19,7 @@ describe("AuthService", () => {
    * make connection object and authService and collabService available to all tests.
    */
   beforeAll(async () => {
-    const mongoUri = process.env.MONGO_URI; //get the URI from the environment variable
+    const mongoUri: string = process.env.MONGO_URI ? process.env.MONGO_URI : ""; //get the URI from the environment variable
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongoUri),
@@ -44,13 +44,14 @@ describe("AuthService", () => {
   });
 
   describe("AuthService", () => {
-    it("AuthService should be defined", async () => {
+    it("AuthService should be defined", () => {
       expect(authService).toBeDefined();
     });
   });
 
   describe("loginUser", () => {
     it("should be defined", () => {
+      // eslint-disable-next-line @typescript-eslint/unbound-method
       expect(authService.loginUser).toBeDefined();
     });
 
@@ -67,9 +68,10 @@ describe("AuthService", () => {
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: ["user"],
       };
       const correctPassword = user_object.password;
-      const response = await collabService.createNewUser(user_object); // create a new user
+      await collabService.createNewUser(user_object); // create a new user
       const result = await authService.loginUser(user_object.username, correctPassword); // call loginUser function
       expect(result).toBeInstanceOf(Object); //expect result to be an instance of User
     });
@@ -87,6 +89,7 @@ describe("AuthService", () => {
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: ["user"],
       };
       const incorrectPassword = "123";
       await collabService.createNewUser(user_object); // create a new user
@@ -110,6 +113,7 @@ describe("AuthService", () => {
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: ["user"],
       };
       const incorrectUsername = "testUserABCD";
       await collabService.createNewUser(user_object); // create a new user
@@ -129,6 +133,7 @@ describe("AuthService", () => {
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: ["user"],
       };
       await collabService.createNewUser(userObject); // create a new user
       const correctPassword = "12345678";
@@ -143,6 +148,7 @@ describe("AuthService", () => {
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: ["user"],
       };
       await collabService.createNewUser(userObject); // create a new user
       const correctPassword = "1234568";

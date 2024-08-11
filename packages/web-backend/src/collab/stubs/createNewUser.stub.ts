@@ -1,7 +1,7 @@
 import { MemberRole } from "shared-types/src/lib/data/predefiniedRoles";
-import { CreateNewUserSchemaDto } from "../dtos/createNewUser-schema";
+import { NewUser } from "shared-types/src/openpra-mef/collab/new-user";
 
-export const CreateUserObject: CreateNewUserSchemaDto = {
+export const CreateUserObject: NewUser = {
   firstName: "User1",
   lastName: "Last1",
   email: "xyz@gmail.com",

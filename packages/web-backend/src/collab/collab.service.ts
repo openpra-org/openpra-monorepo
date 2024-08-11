@@ -1,22 +1,27 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import * as argon2 from "argon2";
 import * as dot from "dot-object";
 import { UpdateOneModel } from "mongodb";
 import { MemberResult } from "shared-types/src/lib/api/Members";
-import { CreateNewUserSchemaDto } from "./dtos/createNewUser-schema";
-import { PaginationDto } from "./dtos/pagination.dto";
-import { UserPreferencesDto } from "./dtos/user-preferences.dto";
+import { Pagination } from "shared-types/src/openpra-mef/collab/pagination";
+import { NewUser } from "shared-types/src/openpra-mef/collab/new-user";
+import { UserPreferences } from "shared-types/src/openpra-mef/collab/user-preferences";
 import { UserCounter, UserCounterDocument } from "./schemas/user-counter.schema";
 import { User, UserDocument } from "./schemas/user.schema";
+
+interface PaginationResult {
+  next: string | null;
+  previous: string | null;
+  default_limit: number;
+  default_offset: number;
+}
 
 @Injectable()
 export class CollabService {
   constructor(
-    //private hclService: HclService,
-    @InjectModel(UserCounter.name)
-    private readonly userCounterModel: Model<UserCounterDocument>,
+    @InjectModel(UserCounter.name) private readonly userCounterModel: Model<UserCounterDocument>,
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
@@ -25,7 +30,7 @@ export class CollabService {
    * @param {string} username - Username of the user
    * @returns A mongoose document of the user | undefined
    */
-  async loginUser(username: string): Promise<User | undefined> {
+  public async loginUser(username: string): Promise<User | undefined | null> {
     return this.userModel.findOne({ username }).lean();
   }
 
@@ -34,7 +39,7 @@ export class CollabService {
    * @param {number} user_id - Current user's ID
    * @returns void
    */
-  async updateLastLogin(user_id: number): Promise<void> {
+  public async updateLastLogin(user_id: number): Promise<void> {
     await this.userModel.updateOne({ id: user_id }, { last_login: Date.now() });
   }
 
@@ -43,14 +48,16 @@ export class CollabService {
    * @param {string} name - Name of the counter
    * @returns {number} ID number
    */
-  async getNextUserValue(name: string): Promise<number> {
+  public async getNextUserValue(name: string): Promise<number> {
     const record = await this.userCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
     if (!record) {
       const newCounter = new this.userCounterModel({ _id: name, seq: 1 });
       await newCounter.save();
-      return newCounter.seq;
+      /* eslint-disable-next-line @typescript-eslint/non-nullable-type-assertion-style */
+      return newCounter.seq as number;
     }
-    return record.seq;
+    /* eslint-disable-next-line @typescript-eslint/non-nullable-type-assertion-style */
+    return record.seq as number;
   }
 
   /**
@@ -76,7 +83,8 @@ export class CollabService {
    * @param offset - How many initial results will be skipped
    * @returns 1. The links to previous and next result pages, 2. limit and offset values
    */
-  pagination(count: number, url: string, limit?: any, offset?: any) {
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  public pagination(count: number, url: string, limit?: any, offset?: any): PaginationResult {
     let previous = null;
     let next = null;
     const regex = /limit=[A-Za-z0-9]+&offset=[A-Za-z0-9]+/i;
@@ -84,10 +92,10 @@ export class CollabService {
     let default_limit = 10;
     let default_offset = 0;
     if (limit && offset) {
-      if (!isNaN(limit)) {
+      if (limit instanceof String) {
         default_limit = Number(limit);
       }
-      if (!isNaN(offset)) {
+      if (offset instanceof String) {
         default_offset = Number(offset);
       }
     }
@@ -118,6 +126,13 @@ export class CollabService {
       next = url.replace(regex, `limit=${default_limit}&offset=${default_offset - -default_limit}`);
       return { previous, next, default_limit, default_offset };
     }
+
+    return {
+      next,
+      previous,
+      default_limit,
+      default_offset,
+    };
   }
 
   /**
@@ -137,9 +152,14 @@ export class CollabService {
    * @param role - The role of the user
    * @returns List of all users
    */
-  async getUsersList(url: string, limit?: number, offset?: number, role?: string): Promise<PaginationDto> {
-    let paths = undefined;
-    let result = undefined;
+  public async getUsersList(url: string, limit?: number, offset?: number, role?: string): Promise<Pagination> {
+    let paths: PaginationResult = {
+      next: null,
+      previous: null,
+      default_limit: 10,
+      default_offset: 0,
+    };
+    let result = [];
     const filters: Record<string, unknown> = {}; // Initialize filters as empty object
 
     if (role) {
@@ -169,7 +189,7 @@ export class CollabService {
    * This function returns a user with a particular id
    * @param user_id - Id of the user you want to find
    */
-  async getUserById(user_id: string): Promise<User> {
+  public async getUserById(user_id: string): Promise<User | null> {
     return this.userModel.findOne({ id: Number(user_id) });
   }
 
@@ -189,7 +209,7 @@ export class CollabService {
    * @param body - Request body
    * @returns A mongoose document of the new user
    */
-  async createNewUser(body: CreateNewUserSchemaDto): Promise<User | string> {
+  public async createNewUser(body: NewUser): Promise<User | string> {
     const username = body.username;
     const email = body.email;
     const response1 = await this.userModel.findOne({
@@ -232,7 +252,7 @@ export class CollabService {
    * This function will return true if email exists in the database
    * @param email - email of the user
    */
-  async isEmailValid(email: string): Promise<boolean> {
+  public async isEmailValid(email: string): Promise<boolean> {
     const response = await this.userModel.findOne({
       email: email,
     });
@@ -243,7 +263,7 @@ export class CollabService {
    * This function will return true if username exists in the database
    * @param username - email of the user
    */
-  async isUsernameValid(username: string): Promise<boolean> {
+  public async isUsernameValid(username: string): Promise<boolean> {
     const response = await this.userModel.findOne({
       username: username,
     });
@@ -257,7 +277,7 @@ export class CollabService {
    * (1 for true, 0 for false).
    * @returns Preferences of the current user
    */
-  async getUserPreferences(user_id: string) {
+  public async getUserPreferences(user_id: string) {
     return this.userModel.findOne({ id: Number(user_id) }, { preferences: 1 });
   }
 
@@ -283,20 +303,25 @@ export class CollabService {
    * @param body - Request body
    * @returns Updated preferences of the user
    */
-  async updateUserPreferences(user_id: string, body: UserPreferencesDto): Promise<void> {
+  public async updateUserPreferences(user_id: string, body: UserPreferences): Promise<void> {
     const user = await this.userModel.findOne({ id: Number(user_id) }).lean();
-    return this.userModel.findByIdAndUpdate(
-      user._id,
-      { $set: dot.dot(body) },
-      { projection: { preferences: 1 }, new: true, upsert: false },
-    );
+    if (user) {
+      await this.userModel.findByIdAndUpdate(
+        user._id,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        { $set: dot.dot(body) },
+        { projection: { preferences: 1 }, new: true, upsert: false },
+      );
+    } else {
+      throw new InternalServerErrorException("Cannot update user preferences");
+    }
   }
 
   /**
    * This is a general update user function. It will allow the following updates: preferences, permissions, lastname, email, firstname, and username
    * @param member - This is the user schema object
    */
-  async updateUser(member: MemberResult): Promise<UpdateOneModel> {
+  public async updateUser(member: MemberResult): Promise<UpdateOneModel> {
     const user = new User();
     user.id = member.id;
     user.email = member.email;

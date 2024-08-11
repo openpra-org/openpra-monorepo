@@ -5,7 +5,7 @@ import mongoose, { Model } from "mongoose";
 import * as amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import typia, { TypeGuardError } from "typia";
-import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-task";
+import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
 import { ExecutedResult } from "../schemas/executed-result.schema";
 
 @Injectable()

@@ -1,8 +1,7 @@
-import { APP_PIPE, RouterModule } from "@nestjs/core";
+import { APP_FILTER, RouterModule } from "@nestjs/core";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
-import { ZodValidationPipe } from "nestjs-zod";
 import { ApiController } from "./api.controller";
 import { ApiService } from "./api.service";
 import { AuthModule } from "./auth/auth.module";
@@ -13,6 +12,7 @@ import { InviteModule } from "./invite/invite.module";
 import { NestedModelModule } from "./nestedModels/nestedModel.module";
 import { QuantifyModule } from "./quantify/quantify.module";
 import { TypedModelModule } from "./typedModel/typedModel.module";
+import { HttpExceptionFilter } from "./filters/http-exception.filter";
 
 @Module({
   imports: [
@@ -33,7 +33,7 @@ import { TypedModelModule } from "./typedModel/typedModel.module";
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
+      useFactory: (config: ConfigService) => ({
         uri: config.get<string>("MONGO_URL"),
       }),
     }),
@@ -73,17 +73,17 @@ import { TypedModelModule } from "./typedModel/typedModel.module";
           {
             path: "typed-models",
             module: TypedModelModule,
-          }
-        ]
-      }
-    ])
+          },
+        ],
+      },
+    ]),
   ],
   controllers: [ApiController],
   providers: [
     ApiService,
     {
-      provide: APP_PIPE,
-      useClass: ZodValidationPipe,
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
     },
   ],
 })

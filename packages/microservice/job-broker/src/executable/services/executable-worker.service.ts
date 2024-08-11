@@ -20,25 +20,26 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
       return;
     }
 
-    try {
-      // Connect to the RabbitMQ server, create a channel, and connect the
-      // workers to the initial queue to consume jobs
-      const connection = await amqp.connect(url);
-      const channel = await connection.createChannel();
-      await channel.assertQueue(initialJobQ, { durable: true });
+    // Connect to the RabbitMQ server, create a channel, and connect the
+    // workers to the initial queue to consume jobs
+    const connection = await amqp.connect(url);
+    const channel = await connection.createChannel();
+    await channel.assertQueue(initialJobQ, { durable: true });
 
-      // Workers will be able to handle only one job at a time
-      await channel.prefetch(1);
+    // Workers will be able to handle only one job at a time
+    await channel.prefetch(1);
 
-      // Consume the jobs from the initial queue
-      await channel.consume(
-        initialJobQ,
-        (msg: ConsumeMessage | null) => {
-          if (msg === null) {
-            Logger.error("Executable worker service is unable to parse the consumed message.");
-            return;
-          }
+    // Consume the jobs from the initial queue
+    await channel.consume(
+      initialJobQ,
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      async (msg: ConsumeMessage | null) => {
+        if (msg === null) {
+          Logger.error("Executable worker service is unable to parse the consumed message.");
+          return;
+        }
 
+        try {
           // Convert the inputs/data into a JSON object and process
           // the executable task using this JSON object
           const taskData: ExecutionTask = typia.json.assertParse<ExecutionTask>(msg.content.toString());
@@ -48,7 +49,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
           const taskResult = typia.json.assertStringify<ExecutionResult>(result);
 
           // Send the executed task results to the completed task queue
-          void channel.assertQueue(storageQ, { durable: true });
+          await channel.assertQueue(storageQ, { durable: true });
           channel.sendToQueue(storageQ, Buffer.from(taskResult), {
             persistent: true,
           });
@@ -56,19 +57,21 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
           // Finally acknowledge the message back to the initial queue
           // to let the broker know that the task has been executed
           channel.ack(msg);
-        },
-        {
-          // Since we are manually acknowledging the message, turn auto acknowledging off
-          noAck: false,
-        },
-      );
-    } catch (error) {
-      if (error instanceof TypeGuardError) {
-        Logger.error(`Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`);
-      } else {
-        Logger.error("Something went wrong in the executable worker service.");
-      }
-    }
+        } catch (error) {
+          if (error instanceof TypeGuardError) {
+            Logger.error(
+              `Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`,
+            );
+          } else {
+            Logger.error("Something went wrong in the executable worker service.");
+          }
+        }
+      },
+      {
+        // Since we are manually acknowledging the message, turn auto acknowledging off
+        noAck: false,
+      },
+    );
   }
 
   // Method to execute a shell command

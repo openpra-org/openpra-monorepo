@@ -3,11 +3,11 @@ import { Document } from "mongoose";
 
 @Schema({ versionKey: false })
 export class UserCounter {
-  @Prop()
-  _id: string;
+  @Prop({ required: false })
+  _id?: string;
 
-  @Prop({ unique: true })
-  seq: number;
+  @Prop({ required: false, unique: true })
+  seq?: number;
 }
 
 export type UserCounterDocument = UserCounter & Document;

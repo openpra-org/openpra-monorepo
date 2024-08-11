@@ -1,4 +1,4 @@
-import mongoose, { Connection } from "mongoose";
+import { Connection } from "mongoose";
 import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { JwtService } from "@nestjs/jwt";
 import { Test, TestingModule } from "@nestjs/testing";
@@ -17,7 +17,7 @@ describe("AuthController", () => {
    * make connection object and authService and authController available to all tests.
    */
   beforeAll(async () => {
-    const mongoUri = process.env.MONGO_URI; //get the URI from the environment variable
+    const mongoUri: string = process.env.MONGO_URI ? process.env.MONGO_URI : ""; //get the URI from the environment variable
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongoUri),

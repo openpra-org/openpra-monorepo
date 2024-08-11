@@ -10,37 +10,37 @@ const InstancesSchema = SchemaFactory.createForClass(Instances);
 @Schema({ minimize: false, _id: false, versionKey: false })
 class Models {
   @Prop({ required: false })
-  id: number;
+  id?: number;
 
   @Prop({ required: false })
-  creator: number;
+  creator?: number;
 
   @Prop({ required: false })
-  title: string;
+  title?: string;
 
   @Prop({ required: false })
-  description: string;
+  description?: string;
 
   @Prop({ required: false })
-  assigned_users: number[];
+  assigned_users?: number[];
 
   @Prop({ type: mongoose.Schema.Types.Date, required: false })
-  date_created: Date;
+  date_created?: Date;
 
   @Prop({ type: mongoose.Schema.Types.Date, required: false })
-  date_modified: Date;
+  date_modified?: Date;
 
   @Prop({ required: false })
-  type: string;
+  type?: string;
 
   @Prop({ required: false })
-  path: string;
+  path?: string;
 
   @Prop({ type: [{ type: ActionSchema }], required: false })
-  actions: Action[];
+  actions?: Action[];
 
   @Prop({ type: [{ type: InstancesSchema }], required: false })
-  instances: Instances[];
+  instances?: Instances[];
 }
 
 const ModelsSchema = SchemaFactory.createForClass(Models);
@@ -58,13 +58,13 @@ const ProjectsSchema = SchemaFactory.createForClass(Projects);
 @Schema({ minimize: false, _id: false, versionKey: false })
 class Recently_Accessed {
   @Prop({ type: [{ type: ModelsSchema }], required: false })
-  models: Models[];
+  models?: Models[];
 
   @Prop({ type: [{ type: SubsystemsSchema }], required: false })
-  subsystems: Subsystems[];
+  subsystems?: Subsystems[];
 
   @Prop({ type: [{ type: ProjectsSchema }], required: false })
-  projects: Projects[];
+  projects?: Projects[];
 }
 
 const RecentlyAccessedSchema = SchemaFactory.createForClass(Recently_Accessed);
@@ -77,10 +77,10 @@ const ConfigurationsSchema = SchemaFactory.createForClass(Configurations);
 @Schema({ minimize: false, _id: false, versionKey: false })
 class QuantificationConfigurations {
   @Prop({ type: ConfigurationsSchema, required: false })
-  configurations: Configurations;
+  configurations?: Configurations;
 
   @Prop({ required: false })
-  currentlySelected: string;
+  currentlySelected?: string;
 }
 
 const QuantificationConfigurationsSchema = SchemaFactory.createForClass(QuantificationConfigurations);
@@ -88,25 +88,25 @@ const QuantificationConfigurationsSchema = SchemaFactory.createForClass(Quantifi
 @Schema({ minimize: false, _id: false, versionKey: false })
 class Preferences {
   @Prop({ required: false })
-  theme: string;
+  theme?: string;
 
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  nodeIdsVisible: boolean | string;
+  nodeIdsVisible?: boolean | string;
 
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  outlineVisible: boolean | string;
+  outlineVisible?: boolean | string;
 
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  node_value_visible: boolean | string;
+  node_value_visible?: boolean | string;
 
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  nodeDescriptionEnabled: boolean | string;
+  nodeDescriptionEnabled?: boolean | string;
 
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  pageBreaksVisible: boolean | string;
+  pageBreaksVisible?: boolean | string;
 
   @Prop({ type: QuantificationConfigurationsSchema, required: false })
-  quantificationConfigurations: QuantificationConfigurations;
+  quantificationConfigurations?: QuantificationConfigurations;
 }
 
 const PreferencesSchema = SchemaFactory.createForClass(Preferences);
@@ -127,34 +127,34 @@ const PreferencesSchema = SchemaFactory.createForClass(Preferences);
 })
 export class User {
   @Prop({ required: false })
-  id: number;
+  id?: number;
 
   @Prop()
-  firstName: string;
+  firstName!: string;
 
   @Prop()
-  lastName: string;
+  lastName!: string;
 
   @Prop()
-  username: string;
+  username!: string;
 
   @Prop()
-  email: string;
+  email!: string;
 
   @Prop()
-  password: string;
+  password!: string;
 
   @Prop({ type: RecentlyAccessedSchema, required: false })
-  recently_accessed: Recently_Accessed;
+  recently_accessed?: Recently_Accessed;
 
   @Prop({ type: PreferencesSchema, required: false })
-  preferences: Preferences;
+  preferences?: Preferences;
 
   @Prop({ type: Array<string>, default: {}, required: true })
-  roles: string[];
+  roles!: string[];
 
   @Prop({ type: Date, default: Date.now() })
-  last_login: Date;
+  last_login!: Date;
 }
 
 export type UserDocument = User & Document;

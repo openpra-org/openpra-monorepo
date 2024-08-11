@@ -61,8 +61,7 @@ describe("CollabController", () => {
 
   describe("createNewUser", () => {
     it("should be defined", () => {
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(collabController.createNewUser).toBeDefined();
+      expect(collabController.createNewUser.bind(collabController)).toBeDefined();
     });
     /**
      * create user_object and pass it to createNewUser function
@@ -84,8 +83,7 @@ describe("CollabController", () => {
 
   describe("getUserPreferences", () => {
     it("should be defined", () => {
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(collabController.getUserPreferences).toBeDefined();
+      expect(collabController.getUserPreferences.bind(collabController)).toBeDefined();
     });
 
     /**
@@ -111,8 +109,7 @@ describe("CollabController", () => {
 
   describe("updateUserPreferences", () => {
     it("should be defined", () => {
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(collabController.updateUserPreferences).toBeDefined();
+      expect(collabController.updateUserPreferences.bind(collabController)).toBeDefined();
     });
 
     /**

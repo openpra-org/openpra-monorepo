@@ -1,31 +1,16 @@
-import {
-  HttpStatus,
-  Controller,
-  Get,
-  Post,
-  Put,
-  Request,
-  Param,
-  Query,
-  Body,
-  UseFilters,
-  UseGuards,
-  HttpException,
-} from "@nestjs/common";
+import { Controller, UseGuards, ConflictException, BadRequestException } from "@nestjs/common";
+import { TypedBody, TypedHeaders, TypedParam, TypedQuery, TypedRoute } from "@nestia/core";
 import { MemberResult } from "shared-types/src/lib/api/Members";
-import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
+import { Pagination } from "shared-types/src/openpra-mef/collab/pagination";
+import { NewUser } from "shared-types/src/openpra-mef/collab/new-user";
+import { UserPreferences } from "shared-types/src/openpra-mef/collab/user-preferences";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { Public } from "../guards/public.guard";
-import { InvalidTokenFilter } from "../filters/invalid-token.filter";
-import { CreateNewUserSchemaDto } from "./dtos/createNewUser-schema";
 import { CollabService } from "./collab.service";
-import { PaginationDto } from "./dtos/pagination.dto";
-import { UserPreferencesDto } from "./dtos/user-preferences.dto";
 import { User } from "./schemas/user.schema";
 
 @Controller()
 @UseGuards(JwtAuthGuard)
-@UseFilters(InvalidTokenFilter)
 export class CollabController {
   constructor(private readonly collabService: CollabService) {}
 
@@ -36,16 +21,16 @@ export class CollabController {
    * @example GET request -> https://staging.app.openpra.org/api/collab/user/
    * @example GET request -> https://staging.app.openpra.org/api/collab/user/?limit=10&offset=0
    */
-  @Get("/user/")
-  async getUsersList(
-    @Request() req,
-    @Query()
+  @TypedRoute.Get("/user/")
+  public async getUsersList(
+    @TypedHeaders() req: { originalUrl: string },
+    @TypedQuery()
     query: {
       limit?: number;
       offset?: number;
       role?: string;
     },
-  ): Promise<PaginationDto> {
+  ): Promise<Pagination> {
     if (query.limit && query.offset) {
       return this.collabService.getUsersList(req.originalUrl, query.limit, query.offset, query.role);
     }
@@ -66,18 +51,18 @@ export class CollabController {
    * @example POST request -> https://staging.app.openpra.org/api/collab/user/
    */
   @Public()
-  @Post("/user/")
-  async createNewUser(@Body() body: CreateNewUserSchemaDto): Promise<User | string> {
+  @TypedRoute.Post("/user/")
+  public async createNewUser(@TypedBody() body: NewUser): Promise<User | string> {
     const newUser = await this.collabService.createNewUser(body);
 
     // Check if newUser is null, indicating duplicate username
     if (newUser === "username already exists") {
       // Handle the case where the user already exists, for example, return an appropriate response
-      throw new HttpException("Username already exists", HttpStatus.CONFLICT);
+      throw new ConflictException("Username already exists");
     }
     if (newUser === "email already exists") {
       // Handle the case where the user already exists, for example, return an appropriate response
-      throw new HttpException("Email already exists", HttpStatus.BAD_REQUEST);
+      throw new BadRequestException("Email already exists");
     }
 
     // User creation was successful, return the new user
@@ -93,8 +78,8 @@ export class CollabController {
    * }
    */
   @Public()
-  @Post("/validateEmail/")
-  async isValidEmail(@Body() body: EmailValidationForm): Promise<boolean> {
+  @TypedRoute.Post("/validateEmail/")
+  public async isValidEmail(@TypedBody() body: { email: string }): Promise<boolean> {
     return await this.collabService.isEmailValid(body.email);
   }
 
@@ -107,8 +92,8 @@ export class CollabController {
    * }
    */
   @Public()
-  @Post("/validateUsername/")
-  async isValidUsername(@Body() body: UsernameValidationForm): Promise<boolean> {
+  @TypedRoute.Post("/validateUsername/")
+  public async isValidUsername(@TypedBody() body: { username: string }): Promise<boolean> {
     return await this.collabService.isUsernameValid(body.username);
   }
 
@@ -117,8 +102,8 @@ export class CollabController {
    * @returns {Type} Preferences of the user
    * @example GET request -> https://staging.app.openpra.org/api/collab/user/1/preferences/
    */
-  @Get("/user/:user_id/preferences/")
-  async getUserPreferences(@Param("user_id") user_id: string) {
+  @TypedRoute.Get("/user/:user_id/preferences/")
+  public async getUserPreferences(@TypedParam("user_id") user_id: string) {
     return this.collabService.getUserPreferences(user_id);
   }
 
@@ -140,8 +125,11 @@ export class CollabController {
    * @returns Updated preferences of the user
    * @example PUT Request -> https://staging.app.openpra.org/api/collab/user/1/preferences/
    */
-  @Put("/user/:user_id/preferences/")
-  async updateUserPreferences(@Param("user_id") user_id: string, @Body() body: UserPreferencesDto) {
+  @TypedRoute.Put("/user/:user_id/preferences/")
+  public async updateUserPreferences(
+    @TypedParam("user_id") user_id: string,
+    @TypedBody() body: UserPreferences,
+  ): Promise<void> {
     return this.collabService.updateUserPreferences(user_id, body);
   }
 
@@ -149,8 +137,8 @@ export class CollabController {
    * This endpoint fetches a particular user by ID
    * @param user_id - user ID of the member which you want to find
    */
-  @Get("/user/:user_id/")
-  async getUserById(@Param("user_id") user_id: string): Promise<User> {
+  @TypedRoute.Get("/user/:user_id/")
+  public async getUserById(@TypedParam("user_id") user_id: string): Promise<User> {
     return this.collabService.getUserById(user_id);
   }
 
@@ -158,8 +146,8 @@ export class CollabController {
    * This endpoint will update a user
    * @param body - The UpdateUserDto object which contains the id of the user to be updated and the updated details
    */
-  @Put("/user/:user_id/")
-  async updateUserById(@Body() body: MemberResult): Promise<void> {
+  @TypedRoute.Put("/user/:user_id/")
+  public async updateUserById(@TypedBody() body: MemberResult): Promise<void> {
     await this.collabService.updateUser(body);
   }
 }

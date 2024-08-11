@@ -4,7 +4,8 @@ import { ConfigService } from "@nestjs/config";
 import * as amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import typia, { TypeGuardError } from "typia";
-import { ExecutionTask, ExecutionResult } from "shared-types/src/openpra-mef/util/execution-task";
+import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
+import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
 
 @Injectable()
 export class ExecutableWorkerService implements OnApplicationBootstrap {

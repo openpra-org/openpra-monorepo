@@ -1,8 +1,15 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as argon2 from "argon2";
 import { CollabService } from "../collab/collab.service";
 import { User } from "../collab/schemas/user.schema";
+
+interface UserType {
+  id: number;
+  username: string;
+  email: string;
+  roles: string[];
+}
 
 @Injectable()
 export class AuthService {
@@ -20,7 +27,7 @@ export class AuthService {
    * 3. If the User exists, then the password is verified as well.
    * @returns A mongoose document of the user | 401 HTTP status
    */
-  async loginUser(username: string, password: string): Promise<User> {
+  public async loginUser(username: string, password: string): Promise<User> {
     const user = await this.collabService.loginUser(username);
     if (user) {
       const validUser = await argon2.verify(user.password, password);
@@ -41,20 +48,41 @@ export class AuthService {
    * 2. The userID, username, and email is extracted from the User object. Then a JWT is generated against these data.
    * @returns JWT token
    */
-  async getJwtToken(user: User) {
+  public async getJwtToken(user: UserType): Promise<{ token: string }> {
     const payload = {
       user_id: user.id,
       username: user.username,
       email: user.email,
       roles: user.roles,
     };
-    await this.collabService.updateLastLogin(user.id);
-    return {
-      token: this.jwtService.sign(payload),
-    };
+    if (user.id) {
+      await this.collabService.updateLastLogin(user.id);
+      return {
+        token: this.jwtService.sign(payload),
+      };
+    } else {
+      throw new BadRequestException("User ID is missing from the request body");
+    }
   }
 
-  async updateJwtToken(refreshToken: string) {
+  /**
+   * Simple function that checks if the password is correct or not (Used for verification purposes)
+   * @param username - username of the user
+   * @param password - password of the user
+   */
+  async verifyPassword(username: string, password: string): Promise<boolean> {
+    const user = await this.collabService.loginUser(username);
+    if (user) {
+      await argon2.verify(user.password, password);
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /* Unused method for updating tokens:
+  *
+  * async updateJwtToken(refreshToken: string) {
     try {
       // Verify the refresh token
       const decodedToken = this.jwtService.verify(refreshToken);
@@ -83,19 +111,5 @@ export class AuthService {
       throw new Error("Error verifying the refresh token");
     }
   }
-
-  /**
-   * Simple function that checks if the password is correct or not (Used for verification purposes)
-   * @param username - username of the user
-   * @param password - password of the user
-   */
-  async verifyPassword(username: string, password: string): Promise<boolean> {
-    const user = await this.collabService.loginUser(username);
-    try {
-      await argon2.verify(user.password, password);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
+  * */
 }

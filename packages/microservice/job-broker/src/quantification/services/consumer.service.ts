@@ -112,19 +112,23 @@ export class ConsumerService implements OnModuleInit {
           // Finally acknowledge the message back to the initial queue
           // to let the broker know that the job has been completed
           channel.ack(msg);
-        },
-        {
-          // Since we are manually acknowledging the message, turn auto acknowledging off
-          noAck: false,
-        },
-      );
-    } catch (error) {
-      if (error instanceof TypeGuardError) {
-        Logger.error(`Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`);
-      } else {
-        Logger.error("Something went wrong in the quantification consumer service.");
-      }
-    }
+        } catch (error) {
+          if (error instanceof TypeGuardError) {
+            Logger.error(
+              `Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`,
+            );
+            channel.nack(msg);
+          } else {
+            Logger.error("Something went wrong in the quantification consumer service.");
+            channel.nack(msg);
+          }
+        }
+      },
+      {
+        // Since we are manually acknowledging the message, turn auto acknowledging off
+        noAck: false,
+      },
+    );
   }
 
   /**

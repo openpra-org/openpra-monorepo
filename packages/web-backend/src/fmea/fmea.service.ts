@@ -1,11 +1,11 @@
 import crypto from "crypto";
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import mongoose from "mongoose";
-import validator from "validator";
+import { Column, DropdownOption, FmeaType, Row } from "shared-types/src/openpra-mef/fmea/fmea";
 import { ModelCounter, ModelCounterDocument } from "../schemas/model-counter.schema";
 import { Fmea, FmeaDocument } from "./schemas/fmea.schema";
-import isUUID = validator.isUUID;
+
 @Injectable()
 export class FmeaService {
   constructor(
@@ -49,9 +49,9 @@ export class FmeaService {
    * @param body containing title and description
    * @returns the FMEA object
    */
-  async createFmea(body): Promise<Fmea> {
+  async createFmea(body: { title: string; description: string }): Promise<Fmea> {
     //create a new fmea using the body
-    const newfmea = new this.fmeaModel({
+    const newFmea = new this.fmeaModel({
       id: await this.getNextValue("FMEACounter"),
       title: body.title,
       description: body.description,
@@ -59,9 +59,7 @@ export class FmeaService {
       rows: [],
     });
     //save the fmea to the database
-    const newFmea = await newfmea.save();
-    console.log(newFmea);
-    return newfmea;
+    return newFmea.save();
   }
 
   /**
@@ -90,27 +88,41 @@ export class FmeaService {
    *                            If type of column is dropdown then populated with Array containing options
    * @returns the updated FMEA
    */
-  async addColumn(fmeaId: number, body): Promise<Fmea | null> {
+  async addColumn(
+    fmeaId: number,
+    body: { name: string; type: string; dropdownOptions?: DropdownOption[] },
+  ): Promise<Fmea | null> {
     const column = {
       id: crypto.randomUUID(),
       name: body.name,
       type: body.type,
-      dropdownOptions: [],
+      dropdownOptions: [] as DropdownOption[],
     };
-    if (body.type === "dropdown") {
+
+    if (body.type === "dropdown" && body.dropdownOptions) {
       column.dropdownOptions = body.dropdownOptions;
     }
-    const fmea = await this.getFmeaById(fmeaId);
+
+    const fmea = (await this.getFmeaById(fmeaId)) as FmeaType;
+    if (!fmea) {
+      return null; // Check if fmea is null or undefined and return early if it is
+    }
+
+    // Initialize rows and columns if they are undefined
+    fmea.rows = fmea.rows || [];
+    fmea.columns = fmea.columns || [];
+
     //update the rows with the new column
     let valueToStore = "";
-    if (column.type === "dropdown") {
+    if (column.type === "dropdown" && column.dropdownOptions.length > 0) {
       valueToStore = String(column.dropdownOptions[0].number);
     }
-    const rowLength = fmea.rows ? fmea.rows.length : 0;
-    for (let i = 0; i < rowLength; i++) {
-      //add key value pair to row_data
-      fmea.rows[i].row_data[column.id] = valueToStore;
+
+    for (let i = 0; i < fmea.rows.length; i++) {
+      // Use the Map's set method to add or update key-value pairs
+      fmea.rows[i].row_data!.set(column.id, valueToStore);
     }
+
     fmea.columns.push(column);
 
     //update the columns and rows in the database
@@ -129,14 +141,17 @@ export class FmeaService {
    * @returns the FMEA with the added row
    */
   async addRow(fmeaId: number): Promise<Fmea | null> {
-    const fmea = await this.getFmeaById(fmeaId);
+    const fmea = (await this.getFmeaById(fmeaId))!;
     const row_data = new Map<string, string>();
+    if (!fmea.columns) {
+      return null;
+    }
     //loop over column of the fmea
     for (let i = 0; i < fmea.columns.length; i++) {
       if (fmea.columns[i].type === "string") {
-        row_data.set(fmea.columns[i].id, "");
+        row_data.set(fmea.columns[i].id!, "");
       } else if (fmea.columns[i].type === "dropdown") {
-        row_data.set(fmea.columns[i].id, String(fmea.columns[i].dropdownOptions[0].number));
+        row_data.set(fmea.columns[i].id!, String(fmea.columns[i].dropdownOptions![0].number));
       }
     }
     const uuid = crypto.randomUUID();
@@ -158,30 +173,36 @@ export class FmeaService {
    * If column is of type dropdown then value is only updated if found in dropdownOptions
    * @returns True if cell is updated else false
    */
-  async updateCell(fmeaId: number, rowId: number, column: string, value: string): Promise<Fmea> {
-    const fmea = await this.getFmeaById(fmeaId);
+  async updateCell(fmeaId: number, rowId: number, column: string, value: string): Promise<Fmea | null> {
+    const fmea = (await this.getFmeaById(fmeaId))!;
     const columns = fmea.columns;
-    const columnObject = columns.find((columnObject) => columnObject.id === column);
-    const row = fmea.rows.find((row) => row.id === rowId);
+    if (!columns || !fmea.rows) {
+      return null;
+    }
+    const columnObject = columns.find((columnObject) => columnObject.id === column) as Column;
+    const row = fmea.rows.find((row) => row.id === rowId) as Row;
     // if (columnObject === undefined || row === undefined) {
     //   return false;
     // }
     if (columnObject.type === "dropdown") {
       const dropdownOptions = columnObject.dropdownOptions;
-      const dropdownOption = dropdownOptions.find((dropdownOption) => dropdownOption.number === Number(value));
+      if (!dropdownOptions) {
+        return null;
+      }
+
+      dropdownOptions.find((dropdownOption) => dropdownOption.number === Number(value));
       // if (dropdownOption === undefined) {
       //   console.log("Option not found");
       //   return false;
       // }
     }
-    row.row_data[column] = value;
+    row.row_data!.set(column, value);
 
     // update the row_data for the given row in the database
-    const updateResult = await this.fmeaModel
+    await this.fmeaModel
       .updateOne({ id: fmeaId, "rows.id": rowId }, { $set: { "rows.$.row_data": row.row_data } }, { new: true })
       .lean();
-    const result = await this.getFmeaById(fmeaId);
-    return result;
+    return this.getFmeaById(fmeaId);
   }
 
   /**
@@ -192,24 +213,23 @@ export class FmeaService {
    * if column type is string then do not update options
    * @returns the updated FMEA if updated else returns the unupdated FMEA
    */
-  async updateDropdownOptions(
-    fmeaId: number,
-    column: string,
-    dropdownOptions: { number: number; description: string }[],
-  ): Promise<Fmea | null> {
-    const fmea = await this.getFmeaById(fmeaId);
+  async updateDropdownOptions(fmeaId: number, column: string, dropdownOptions: DropdownOption[]): Promise<Fmea | null> {
+    const fmea = (await this.getFmeaById(fmeaId))!;
     const columns = fmea.columns;
+    if (!columns || !fmea.rows) {
+      return null;
+    }
+
     const columnObject = columns.find((columnObject) => columnObject.id === column);
-    console.log(columnObject);
 
     //do not update dropdown if column is of type string
-    if (columnObject.type === "string") {
+    if (columnObject!.type === "string") {
       return fmea;
     }
-    columnObject.dropdownOptions = dropdownOptions;
+    columnObject!.dropdownOptions = dropdownOptions;
     for (let i = 0; i < fmea.rows.length; i++) {
       const storedValue = String(dropdownOptions[0].number);
-      fmea.rows[i].row_data[column] = storedValue;
+      fmea.rows[i].row_data!.set(column, storedValue);
     }
     return this.fmeaModel
       .findOneAndUpdate({ id: fmeaId }, { $set: { columns: columns, rows: fmea.rows } }, { new: true })

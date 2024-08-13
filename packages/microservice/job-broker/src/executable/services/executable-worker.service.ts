@@ -63,8 +63,10 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
             Logger.error(
               `Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`,
             );
+            channel.nack(msg);
           } else {
             Logger.error("Something went wrong in the executable worker service.");
+            channel.nack(msg);
           }
         }
       },

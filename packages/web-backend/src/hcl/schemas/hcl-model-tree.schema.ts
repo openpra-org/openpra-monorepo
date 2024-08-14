@@ -7,13 +7,13 @@ import { BayesianNetwork } from "../../nestedModels/schemas/bayesian-network.sch
 @Schema({ _id: false, versionKey: false })
 class Model {
   @Prop({ required: false })
-  id: number;
+  id?: number;
 
   @Prop({ required: false })
-  type: string;
+  type?: string;
 
   @Prop({ required: false })
-  model_tag: string;
+  model_tag?: string;
 }
 
 const ModelSchema = SchemaFactory.createForClass(Model);
@@ -39,34 +39,34 @@ export class HclModelTree {
     required: false,
     enum: [FaultTree.name, EventSequenceDiagram.name, BayesianNetwork.name],
   })
-  tree_name: string;
+  tree_name?: string;
 
   @Prop({ required: false })
-  model_id: number;
+  model_id?: number;
 
   @Prop({ required: false, unique: true })
-  id: number;
+  id?: number;
 
   @Prop()
-  title: string;
+  title?: string;
 
   @Prop({ required: false })
-  creator: number;
+  creator?: number;
 
   @Prop()
-  description: string;
+  description?: string;
 
   @Prop({ type: ModelSchema, required: false })
-  model: Model;
+  model?: Model;
 
   @Prop()
-  tree_type: string;
+  tree_type?: string;
 
   @Prop({ default: false, required: false })
-  valid: boolean;
+  valid?: boolean;
 
   @Prop({ type: mongoose.Schema.Types.Map })
-  tree_data;
+  tree_data?: Record<any, any>;
 }
 
 export type HclModelTreeDocument = HclModelTree & Document;

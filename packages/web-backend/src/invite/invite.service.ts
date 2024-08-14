@@ -2,7 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { InvitedUserDetailsDto, InvitedUserDto } from "packages/shared-types/src/lib/types/userInvites/InvitedUser";
-
 import { InvitedUser, InvitedUserDocument } from "./schemas/invite.schema";
 
 @Injectable()
@@ -23,15 +22,15 @@ export class InviteService {
    *   email: "sampleemail\@gmail.com",
    * \}
    */
-  async generateUserInvite(body: InvitedUserDto): Promise<InvitedUser> {
+  public async generateUserInvite(body: InvitedUserDto): Promise<InvitedUser> {
     const newInvitedUser: InvitedUserDocument = new this.invitedUserModel();
     newInvitedUser.id = crypto.randomUUID();
-    newInvitedUser.email = body.email;
-    newInvitedUser.username = body.username;
-    newInvitedUser.firstName = body.firstname;
-    newInvitedUser.lastName = body.lastname;
-    newInvitedUser.expiry = body.expiry;
-    newInvitedUser.numberOfInvites = body.numberOfInvites;
+    newInvitedUser.email = String(body.email);
+    newInvitedUser.username = String(body.username);
+    newInvitedUser.firstName = String(body.firstname);
+    newInvitedUser.lastName = String(body.lastname);
+    newInvitedUser.expiry = body.expiry!;
+    newInvitedUser.numberOfInvites = Number(body.numberOfInvites);
     return newInvitedUser.save();
   }
 
@@ -40,7 +39,7 @@ export class InviteService {
    * @param guid - The guid of the invited user
    * @returns InvitedUser | null - If the guid is valid and not expired will return InvitedUser object else returns null
    */
-  async verifyUserInvite(guid: string): Promise<InvitedUser | null> {
+  public async verifyUserInvite(guid: string): Promise<InvitedUser | null> {
     const invitedUser = await this.invitedUserModel.findOne({ id: guid });
     if (invitedUser === null) {
       return null;
@@ -56,15 +55,15 @@ export class InviteService {
    * A function to decrement invite count and return the invited user
    * @param user - The InvitedUserDetailsDto object for update
    */
-  async updateInvite(user: InvitedUserDetailsDto): Promise<InvitedUser | null> {
+  public async updateInvite(user: InvitedUserDetailsDto): Promise<InvitedUser | null> {
     const updatedUser: InvitedUser = {
-      id: user.id,
-      numberOfInvites: user.numberOfInvites,
-      email: user.email,
-      expiry: user.expiry,
-      firstName: user.firstname,
-      lastName: user.lastname,
-      username: user.username,
+      id: String(user.id),
+      numberOfInvites: Number(user.numberOfInvites),
+      email: String(user.email),
+      expiry: user.expiry!,
+      firstName: String(user.firstname),
+      lastName: String(user.lastname),
+      username: String(user.username),
     };
     return this.invitedUserModel.findOneAndUpdate({ id: updatedUser.id }, updatedUser, { new: true });
   }
@@ -72,9 +71,10 @@ export class InviteService {
   /**
    * This function will return all invited users
    */
-  async getAllInvitedUsers(): Promise<InvitedUserDetailsDto[]> {
+  public async getAllInvitedUsers(): Promise<InvitedUserDetailsDto[]> {
     const invitedUsers = await this.invitedUserModel.find();
-    const mappedUsers: InvitedUserDetailsDto[] = invitedUsers.map((x) => ({
+    let mappedUsers: InvitedUserDetailsDto[];
+    mappedUsers = invitedUsers.map((x) => ({
       id: x.id,
       username: x.username,
       email: x.email,
@@ -90,7 +90,7 @@ export class InviteService {
    * Delete a user invite by id
    * @param id - Id of the invited user
    */
-  async deleteInviteById(id: string): Promise<boolean> {
+  public async deleteInviteById(id: string): Promise<boolean> {
     const invitedUser = await this.invitedUserModel.findOne({ id: id });
     if (invitedUser === null) {
       return false;
@@ -103,7 +103,7 @@ export class InviteService {
    * Get a user invite by id
    * @param id - Id of the invited user
    */
-  async getInviteById(id: string): Promise<InvitedUserDetailsDto> {
-    return this.invitedUserModel.findOne({ id: id });
+  public async getInviteById(id: string): Promise<InvitedUserDetailsDto> {
+    return this.invitedUserModel.findOne({ id: id }) as InvitedUserDetailsDto;
   }
 }

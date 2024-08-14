@@ -38,7 +38,7 @@ export class GraphModelService {
    * @param eventSequenceId - Event sequence ID
    * @returns A promise with the event sequence diagram graph
    */
-  async getEventSequenceDiagramGraph(eventSequenceId: string): Promise<EventSequenceDiagramGraph> {
+  public async getEventSequenceDiagramGraph(eventSequenceId: string): Promise<EventSequenceDiagramGraph> {
     const result = await this.eventSequenceDiagramGraphModel.findOne({ eventSequenceId: eventSequenceId }, { _id: 0 });
     if (result !== null) {
       return result;
@@ -58,15 +58,17 @@ export class GraphModelService {
    * @param body - The current state of the event sequence diagram graph
    * @returns A promise with an event sequence diagram graph in it
    */
-  async saveEventSequenceDiagramGraph(body: Partial<EventSequenceDiagramGraph>): Promise<EventSequenceDiagramGraph> {
+  public async saveEventSequenceDiagramGraph(
+    body: Partial<EventSequenceDiagramGraph>,
+  ): Promise<EventSequenceDiagramGraph> {
     try {
       const newGraph = new this.eventSequenceDiagramGraphModel(body);
-      newGraph.eventSequenceId = body.eventSequenceId;
+      newGraph.eventSequenceId = String(body.eventSequenceId);
       newGraph.id = this.generateUUID();
       newGraph._id = new mongoose.Types.ObjectId();
       const defaultEventSequenceGraph = this.getDefaultEventSequenceDiagram();
-      newGraph.nodes = defaultEventSequenceGraph.nodes;
-      newGraph.edges = defaultEventSequenceGraph.edges;
+      newGraph.nodes = defaultEventSequenceGraph.nodes!;
+      newGraph.edges = defaultEventSequenceGraph.edges!;
       return newGraph.save();
     } catch (exception) {
       const error = exception as Error;
@@ -80,11 +82,11 @@ export class GraphModelService {
    * @param body - The current state of the fault tree diagram graph
    * @returns A promise with a fault tree diagram graph in it
    */
-  async saveFaultTreeGraph(body: Partial<FaultTreeGraph>): Promise<boolean> {
+  public async saveFaultTreeGraph(body: Partial<FaultTreeGraph>): Promise<boolean> {
     try {
-      const existingGraph = await this.faultTreeGraphModel.findOne({
+      const existingGraph = (await this.faultTreeGraphModel.findOne({
         faultTreeId: body.faultTreeId,
-      });
+      }))!;
       return this.saveGraph(existingGraph, body, GraphTypes.FaultTree);
     } catch (exception) {
       const error = exception as Error;
@@ -98,11 +100,9 @@ export class GraphModelService {
    * @param faultTreeId - Fault tree ID
    * @returns A promise with the fault tree diagram graph
    */
-  async getFaultTreeGraph(faultTreeId: string): Promise<FaultTreeGraph> {
-    const result = this.faultTreeGraphModel.findOne({ faultTreeId: faultTreeId }, { _id: 0 });
-    if (result !== null) {
-      return result;
-    } else {
+  public async getFaultTreeGraph(faultTreeId: string): Promise<FaultTreeGraph> {
+    const result = await this.faultTreeGraphModel.findOne({ faultTreeId: faultTreeId }, { _id: 0 });
+    if (!result) {
       return {
         id: "",
         _id: new mongoose.Types.ObjectId(),
@@ -111,6 +111,7 @@ export class GraphModelService {
         edges: [],
       };
     }
+    return result;
   }
 
   /**
@@ -118,11 +119,11 @@ export class GraphModelService {
    * @param body - The current state of the event tree diagram graph
    * @returns A promise with a event tree diagram graph in it
    */
-  async saveEventTreeGraph(body: Partial<EventTreeGraph>): Promise<boolean> {
+  public async saveEventTreeGraph(body: Partial<EventTreeGraph>): Promise<boolean> {
     try {
-      const existingGraph = await this.eventTreeGraphModel.findOne({
+      const existingGraph = (await this.eventTreeGraphModel.findOne({
         eventTreeId: body.eventTreeId,
-      });
+      }))!;
       return this.saveGraph(existingGraph, body, GraphTypes.EventTree);
     } catch (exception) {
       const error = exception as Error;
@@ -136,11 +137,9 @@ export class GraphModelService {
    * @param eventTreeId - Event tree ID
    * @returns A promise with the event tree diagram graph
    */
-  async getEventTreeGraph(eventTreeId: string): Promise<EventTreeGraph> {
-    const result = this.eventTreeGraphModel.findOne({ eventTreeId: eventTreeId }, { _id: 0 });
-    if (result !== null) {
-      return result;
-    } else {
+  public async getEventTreeGraph(eventTreeId: string): Promise<EventTreeGraph> {
+    const result = await this.eventTreeGraphModel.findOne({ eventTreeId: eventTreeId }, { _id: 0 });
+    if (!result) {
       return {
         id: "",
         _id: new mongoose.Types.ObjectId(),
@@ -149,6 +148,7 @@ export class GraphModelService {
         edges: [],
       };
     }
+    return result;
   }
 
   /**
@@ -158,7 +158,7 @@ export class GraphModelService {
    * @param label - New label for the node/edge
    * @returns A promise with boolean confirmation of the update operation
    */
-  async updateESLabel(id: string, type: string, label: string): Promise<boolean> {
+  public async updateESLabel(id: string, type: string, label: string): Promise<boolean> {
     try {
       // check if type is valid
       if (!["node", "edge"].includes(type)) {
@@ -168,8 +168,8 @@ export class GraphModelService {
 
       // attribute filter for node/edge
       const attribute = type === "node" ? "nodes" : "edges";
-      const filter = {};
-      const set = {};
+      const filter: Record<string, any> = {};
+      const set: Record<string, any> = {};
       filter[`${attribute}.id`] = id;
       set[`${attribute}.$.data.label`] = label;
 
@@ -184,7 +184,7 @@ export class GraphModelService {
     }
   }
 
-  async updateESSubgraph(
+  public async updateESSubgraph(
     eventSequenceId: string,
     updatedSubgraph: Partial<EventSequenceDiagramGraph>,
     deletedSubgraph: Partial<EventSequenceDiagramGraph>,
@@ -195,12 +195,12 @@ export class GraphModelService {
       });
       if (existingGraph === null) return false;
 
-      existingGraph.nodes = existingGraph.nodes
-        .filter((node) => ![...deletedSubgraph.nodes, ...updatedSubgraph.nodes].some((n) => n.id === node.id))
-        .concat(...updatedSubgraph.nodes);
-      existingGraph.edges = existingGraph.edges
-        .filter((edge) => ![...deletedSubgraph.edges, ...updatedSubgraph.edges].some((e) => e.id === edge.id))
-        .concat(...updatedSubgraph.edges);
+      existingGraph.nodes = existingGraph
+        .nodes!.filter((node) => ![...deletedSubgraph.nodes!, ...updatedSubgraph.nodes!].some((n) => n.id === node.id))
+        .concat(...updatedSubgraph.nodes!);
+      existingGraph.edges = existingGraph
+        .edges!.filter((edge) => ![...deletedSubgraph.edges!, ...updatedSubgraph.edges!].some((e) => e.id === edge.id))
+        .concat(...updatedSubgraph.edges!);
 
       await existingGraph.save();
       return true;

@@ -4,13 +4,13 @@ import mongoose, { Document } from "mongoose";
 @Schema({ _id: false, versionKey: false })
 class Model {
   @Prop({ required: false })
-  id: number;
+  id?: number;
 
   @Prop({ required: false })
-  type: string;
+  type?: string;
 
   @Prop({ required: false })
-  model_tag: string;
+  model_tag?: string;
 }
 
 const ModelSchema = SchemaFactory.createForClass(Model);
@@ -18,22 +18,22 @@ const ModelSchema = SchemaFactory.createForClass(Model);
 @Schema({ _id: false, versionKey: false })
 class Outcome {
   @Prop({ required: false })
-  name: string;
+  name?: string;
 
   @Prop({ required: false })
-  reference_type: string;
+  reference_type?: string;
 
   @Prop({ required: false })
-  tree_id: number;
+  tree_id?: number;
 
   @Prop({ required: false })
-  path: string;
+  path?: string;
 
   @Prop({ required: false })
-  make_instance: boolean;
+  make_instance?: boolean;
 
   @Prop({ required: false })
-  _proxy: string;
+  _proxy?: string;
 }
 
 const OutcomeSchema = SchemaFactory.createForClass(Outcome);
@@ -41,127 +41,127 @@ const OutcomeSchema = SchemaFactory.createForClass(Outcome);
 @Schema({ _id: false, versionKey: false })
 class Expression {
   @Prop({ required: false })
-  _proxy: string;
+  _proxy?: string;
 
   @Prop({ required: false })
-  value: number;
+  value?: number;
 
   @Prop({ required: false })
-  user_expression: string;
+  user_expression?: string;
 
   @Prop({ required: false })
-  test_interval: number;
+  test_interval?: number;
 
   @Prop({ required: false })
-  failure_rate: number;
+  failure_rate?: number;
 
   @Prop({ required: false })
-  mean: number;
+  mean?: number;
 
   @Prop({ required: false })
-  std: number;
+  std?: number;
 
   @Prop({ required: false })
-  median: number;
+  median?: number;
 
   @Prop({ required: false })
-  error_factor: number;
+  error_factor?: number;
 
   @Prop({ required: false })
-  p5: number;
+  p5?: number;
 
   @Prop({ required: false })
-  p95: number;
+  p95?: number;
 
   @Prop({ required: false })
-  _params: string[];
+  _params?: string[];
 
   @Prop({ required: false })
-  shape: number;
+  shape?: number;
 
   @Prop({ required: false })
-  scale: number;
+  scale?: number;
 
   @Prop({ required: false })
-  normal_mean: number;
+  normal_mean?: number;
 
   @Prop({ required: false })
-  normal_std: number;
+  normal_std?: number;
 
   @Prop({ required: false })
-  normal_median: number;
+  normal_median?: number;
 
   @Prop({ required: false })
-  normal_error_factor: number;
+  normal_error_factor?: number;
 
   @Prop({ required: false })
-  normal_p5: number;
+  normal_p5?: number;
 
   @Prop({ required: false })
-  normal_p95: number;
+  normal_p95?: number;
 
   @Prop({ required: false })
-  normal_params: string;
+  normal_params?: string;
 
   @Prop({ required: false })
-  log_normal_mean: number;
+  log_normal_mean?: number;
 
   @Prop({ required: false })
-  log_normal_std: number;
+  log_normal_std?: number;
 
   @Prop({ required: false })
-  log_normal_median: number;
+  log_normal_median?: number;
 
   @Prop({ required: false })
-  log_normal_error_factor: number;
+  log_normal_error_factor?: number;
 
   @Prop({ required: false })
-  log_normal_p5: number;
+  log_normal_p5?: number;
 
   @Prop({ required: false })
-  log_normal_p95: number;
+  log_normal_p95?: number;
 
   @Prop({ required: false })
-  nog_normal_params: string;
+  nog_normal_params?: string;
 
   @Prop({ required: false })
-  exponential_test_interval: number;
+  exponential_test_interval?: number;
 
   @Prop({ required: false })
-  weibull_test_interval: number;
+  weibull_test_interval?: number;
 
   @Prop({ required: false })
-  parts_fit_test_interval: number;
+  parts_fit_test_interval?: number;
 
   @Prop({ required: false })
-  distribution_time_dependence: string;
+  distribution_time_dependence?: string;
 
   @Prop({ required: false })
-  max: number;
+  max?: number;
 
   @Prop({ required: false })
-  min: number;
+  min?: number;
 
   @Prop({ type: OutcomeSchema, required: false })
-  state_ref: Outcome;
+  state_ref?: Outcome;
 
   @Prop({ required: false })
-  uncertain: boolean;
+  uncertain?: boolean;
 
   @Prop({ required: false })
-  part_id: number;
+  part_id?: number;
 
   @Prop({ type: [{ type: mongoose.Schema.Types.Mixed }], required: false })
-  formulas: Expression[];
+  formulas?: Expression[];
 
   @Prop({ required: false })
-  expr: string;
+  expr?: string;
 
   @Prop({ required: false })
-  time_to_failure: number[];
+  time_to_failure?: number[];
 
   @Prop({ required: false })
-  estimated_reliability: number[];
+  estimated_reliability?: number[];
 }
 
 const ExpressionSchema = SchemaFactory.createForClass(Expression);
@@ -169,13 +169,13 @@ const ExpressionSchema = SchemaFactory.createForClass(Expression);
 @Schema({ _id: false, versionKey: false })
 class Label {
   @Prop({ required: false })
-  name: string;
+  name?: string;
 
   @Prop({ required: false })
-  description: string;
+  description?: string;
 
   @Prop({ required: false })
-  frequency: string;
+  frequency?: string;
 }
 
 const LabelSchema = SchemaFactory.createForClass(Label);
@@ -183,16 +183,16 @@ const LabelSchema = SchemaFactory.createForClass(Label);
 @Schema({ _id: false, versionKey: false })
 class Position {
   @Prop({ required: false })
-  x: number;
+  x?: number;
 
   @Prop({ required: false })
-  y: number;
+  y?: number;
 
   @Prop({ required: false })
-  width: number;
+  width?: number;
 
   @Prop({ required: false })
-  height: number;
+  height?: number;
 }
 
 const PositionSchema = SchemaFactory.createForClass(Position);
@@ -200,7 +200,7 @@ const PositionSchema = SchemaFactory.createForClass(Position);
 @Schema({ _id: false, versionKey: false })
 class Style {
   @Prop({ type: PositionSchema, required: false })
-  position: Position;
+  position?: Position;
 }
 
 const StyleSchema = SchemaFactory.createForClass(Style);
@@ -208,7 +208,7 @@ const StyleSchema = SchemaFactory.createForClass(Style);
 @Schema({ _id: false, versionKey: false })
 class Constant {
   @Prop({ required: false })
-  value: boolean;
+  value?: boolean;
 }
 
 const ConstantSchema = SchemaFactory.createForClass(Constant);
@@ -216,79 +216,79 @@ const ConstantSchema = SchemaFactory.createForClass(Constant);
 @Schema({ _id: false, versionKey: false })
 class Formula {
   @Prop({ required: false })
-  _proxy: string;
+  _proxy?: string;
 
   @Prop({ type: OutcomeSchema, required: false })
-  outcome: Outcome;
+  outcome?: Outcome;
 
   @Prop({ required: false })
-  expr: string;
+  expr?: string;
 
   @Prop({ type: [{ type: OutcomeSchema }], required: false })
-  formulas: Outcome[];
+  formulas?: Outcome[];
 
   @Prop({ required: false })
-  min_value: number;
+  min_value?: number;
 }
 
 @Schema({ _id: false, versionKey: false })
 class Basic_Event_Properties {
   @Prop({ type: ExpressionSchema, required: false })
-  expression: Expression;
+  expression?: Expression;
 
   @Prop({ required: false })
-  source_type: string;
+  source_type?: string;
 
   @Prop({ type: LabelSchema, required: false })
-  label: Label;
+  label?: Label;
 
   @Prop({ type: StyleSchema, required: false })
-  style: Style;
+  style?: Style;
 
   @Prop({ required: false })
-  role: string;
+  role?: string;
 }
 
 @Schema({ _id: false, versionKey: false })
 class House_Event_Properties {
   @Prop({ type: ConstantSchema, required: false })
-  constant: Constant;
+  constant?: Constant;
 
   @Prop({ type: LabelSchema, required: false })
-  label: Label;
+  label?: Label;
 
   @Prop({ type: StyleSchema, required: false })
-  style: Style;
+  style?: Style;
 
   @Prop({ required: false })
-  role: string;
+  role?: string;
 }
 
 @Schema({ _id: false, versionKey: false })
 class Gate_Properties {
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  formula: Formula | Outcome;
+  formula?: Formula | Outcome;
 
   @Prop({ type: LabelSchema, required: false })
-  label: Label;
+  label?: Label;
 
   @Prop({ type: StyleSchema, required: false })
-  style: Style;
+  style?: Style;
 
   @Prop({ required: false })
-  role: string;
+  role?: string;
 }
 
 @Schema({ strict: false, _id: false, versionKey: false })
 class Component_Properties {
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  component_property: object;
+  component_property?: object;
 }
 
 @Schema({ strict: false, _id: false, versionKey: false })
 class Basic_Event {
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  index: Basic_Event_Properties;
+  index?: Basic_Event_Properties;
 }
 
 const BasicEventSchema = SchemaFactory.createForClass(Basic_Event);
@@ -296,7 +296,7 @@ const BasicEventSchema = SchemaFactory.createForClass(Basic_Event);
 @Schema({ strict: false, _id: false, versionKey: false })
 class House_Event {
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  index: House_Event_Properties;
+  index?: House_Event_Properties;
 }
 
 const HouseEventSchema = SchemaFactory.createForClass(House_Event);
@@ -304,7 +304,7 @@ const HouseEventSchema = SchemaFactory.createForClass(House_Event);
 @Schema({ strict: false, _id: false, versionKey: false })
 class Gate {
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  index: Gate_Properties;
+  index?: Gate_Properties;
 }
 
 const GateSchema = SchemaFactory.createForClass(Gate);
@@ -312,7 +312,7 @@ const GateSchema = SchemaFactory.createForClass(Gate);
 @Schema({ strict: false, _id: false, versionKey: false })
 class Component {
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  index: Component_Properties;
+  index?: Component_Properties;
 }
 
 const ComponentSchema = SchemaFactory.createForClass(Component);
@@ -320,22 +320,22 @@ const ComponentSchema = SchemaFactory.createForClass(Component);
 @Schema({ _id: false, versionKey: false })
 class Top_Node {
   @Prop({ required: false })
-  name: string;
+  name?: string;
 
   @Prop({ required: false })
-  reference_type: string;
+  reference_type?: string;
 
   @Prop({ required: false })
-  tree_id: number;
+  tree_id?: number;
 
   @Prop({ required: false })
-  path: string;
+  path?: string;
 
   @Prop({ required: false })
-  make_instance: boolean;
+  make_instance?: boolean;
 
   @Prop({ required: false })
-  _proxy: string;
+  _proxy?: string;
 }
 
 const TopNodeSchema = SchemaFactory.createForClass(Top_Node);
@@ -343,13 +343,13 @@ const TopNodeSchema = SchemaFactory.createForClass(Top_Node);
 @Schema({ _id: false, versionKey: false })
 class Instruction {
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  formula: Formula | Outcome;
+  formula?: Formula | Outcome;
 
   @Prop({ type: ExpressionSchema, required: false })
-  expression: Expression;
+  expression?: Expression;
 
   @Prop({ required: false })
-  _proxy: string;
+  _proxy?: string;
 }
 
 const InstructionSchema = SchemaFactory.createForClass(Instruction);
@@ -357,10 +357,10 @@ const InstructionSchema = SchemaFactory.createForClass(Instruction);
 @Schema({ _id: false, versionKey: false })
 class Path {
   @Prop({ type: OutcomeSchema, required: false })
-  outcome: Outcome;
+  outcome?: Outcome;
 
   @Prop({ type: [{ type: InstructionSchema }], required: false })
-  instructions: Instruction[];
+  instructions?: Instruction[];
 }
 
 const PathSchema = SchemaFactory.createForClass(Path);
@@ -368,10 +368,10 @@ const PathSchema = SchemaFactory.createForClass(Path);
 @Schema({ _id: false, versionKey: false })
 class Paths {
   @Prop({ type: PathSchema, required: false })
-  failure: Path;
+  failure?: Path;
 
   @Prop({ type: PathSchema, required: false })
-  success: Path;
+  success?: Path;
 }
 
 const PathsSchema = SchemaFactory.createForClass(Paths);
@@ -379,19 +379,19 @@ const PathsSchema = SchemaFactory.createForClass(Paths);
 @Schema({ _id: false, versionKey: false })
 class Branch {
   @Prop({ required: false })
-  functional_event: string;
+  functional_event?: string;
 
   @Prop({ type: PathsSchema, required: false })
-  paths: Paths;
+  paths?: Paths;
 
   @Prop({ required: false })
-  _proxy: string;
+  _proxy?: string;
 }
 
 @Schema({ _id: false, versionKey: false })
 class Positions {
   @Prop({ type: PositionSchema, required: false })
-  position: Position;
+  position?: Position;
 }
 
 const PositionsSchema = SchemaFactory.createForClass(Positions);
@@ -399,28 +399,28 @@ const PositionsSchema = SchemaFactory.createForClass(Positions);
 @Schema({ _id: false, versionKey: false })
 class HclTree_Vertex {
   @Prop({ type: PositionsSchema, required: false })
-  style: Positions;
+  style?: Positions;
 
   @Prop({ required: false })
-  role: string;
+  role?: string;
 
   @Prop({ type: LabelSchema, required: false })
-  label: Label;
+  label?: Label;
 }
 
 @Schema({ _id: false, versionKey: false })
 class Initial_State_Vertex {
   @Prop({ type: OutcomeSchema, required: false })
-  outcome: Outcome;
+  outcome?: Outcome;
 
   @Prop({ type: PositionsSchema, required: false })
-  style: Positions;
+  style?: Positions;
 
   @Prop({ required: false })
-  role: string;
+  role?: string;
 
   @Prop({ type: LabelSchema, required: false })
-  label: Label;
+  label?: Label;
 }
 
 const InitialStateVertexSchema = SchemaFactory.createForClass(Initial_State_Vertex);
@@ -428,7 +428,7 @@ const InitialStateVertexSchema = SchemaFactory.createForClass(Initial_State_Vert
 @Schema({ strict: false, _id: false, versionKey: false })
 class Branches {
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  index: Branch;
+  index?: Branch;
 }
 
 const BranchesSchema = SchemaFactory.createForClass(Branches);
@@ -436,7 +436,7 @@ const BranchesSchema = SchemaFactory.createForClass(Branches);
 @Schema({ strict: false, _id: false, versionKey: false })
 class Functional_Events {
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  index: HclTree_Vertex;
+  index?: HclTree_Vertex;
 }
 
 const FunctionalEventsSchema = SchemaFactory.createForClass(Functional_Events);
@@ -444,7 +444,7 @@ const FunctionalEventsSchema = SchemaFactory.createForClass(Functional_Events);
 @Schema({ strict: false, _id: false, versionKey: false })
 class Sequences {
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  index: HclTree_Vertex;
+  index?: HclTree_Vertex;
 }
 
 const SequencesSchema = SchemaFactory.createForClass(Sequences);
@@ -452,10 +452,10 @@ const SequencesSchema = SchemaFactory.createForClass(Sequences);
 @Schema({ _id: false, versionKey: false })
 class BayesianStateProbability {
   @Prop({ type: ExpressionSchema, required: false })
-  expression: Expression;
+  expression?: Expression;
 
   @Prop({ type: [{ type: OutcomeSchema }], required: false })
-  states: Outcome[];
+  states?: Outcome[];
 }
 
 const BayesianStateProbabilitySchema = SchemaFactory.createForClass(BayesianStateProbability);
@@ -463,34 +463,34 @@ const BayesianStateProbabilitySchema = SchemaFactory.createForClass(BayesianStat
 @Schema({ _id: false, versionKey: false })
 class BayesianNodeState {
   @Prop({ type: [{ type: BayesianStateProbabilitySchema }], required: false })
-  probabilities: BayesianStateProbability[];
+  probabilities?: BayesianStateProbability[];
 
   @Prop({ type: LabelSchema, required: false })
-  label: Label;
+  label?: Label;
 }
 
 @Schema({ strict: false, _id: false, versionKey: false })
 class BayesianNode {
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  states: Record<string, BayesianNodeState>;
+  states?: Record<string, BayesianNodeState>;
 
   @Prop({ type: [{ type: OutcomeSchema }], required: false })
-  dependencies: Outcome[];
+  dependencies?: Outcome[];
 
   @Prop({ type: PositionsSchema, required: false })
-  style: Positions;
+  style?: Positions;
 
   @Prop({ required: false })
-  role: string;
+  role?: string;
 
   @Prop({ type: LabelSchema, required: false })
-  label: Label;
+  label?: Label;
 }
 
 @Schema({ strict: false, _id: false, versionKey: false })
 class Bayesian_Nodes {
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  index: BayesianNode;
+  index?: BayesianNode;
 }
 
 const BayesianNodesSchema = SchemaFactory.createForClass(Bayesian_Nodes);
@@ -498,67 +498,67 @@ const BayesianNodesSchema = SchemaFactory.createForClass(Bayesian_Nodes);
 @Schema({ strict: false, minimize: false, _id: false, versionKey: false })
 class Tree_Properties {
   @Prop()
-  model_id: number;
+  model_id?: number;
 
   @Prop()
-  id: number;
+  id?: number;
 
   @Prop()
-  title: string;
+  title?: string;
 
   @Prop()
-  creator: number;
+  creator?: number;
 
   @Prop()
-  description: string;
+  description?: string;
 
   @Prop({ type: ModelSchema })
-  model: Model;
+  model?: Model;
 
   @Prop()
-  tree_type: string;
+  tree_type?: string;
 
   @Prop({ default: false })
-  valid: boolean;
+  valid?: boolean;
 
   @Prop({ type: BasicEventSchema, required: false })
-  basic_events: Basic_Event;
+  basic_events?: Basic_Event;
 
   @Prop({ type: HouseEventSchema, required: false })
-  house_events: House_Event;
+  house_events?: House_Event;
 
   @Prop({ type: GateSchema, required: false })
-  gates: Gate;
+  gates?: Gate;
 
   @Prop({ type: ComponentSchema, required: false })
-  components: Component;
+  components?: Component;
 
   @Prop({ type: TopNodeSchema, required: false })
-  top_node: Top_Node;
+  top_node?: Top_Node;
 
   @Prop({ type: BranchesSchema, required: false })
-  branches: Branches;
+  branches?: Branches;
 
   @Prop({ type: FunctionalEventsSchema, required: false })
-  functional_events: Functional_Events;
+  functional_events?: Functional_Events;
 
   @Prop({ type: InitialStateVertexSchema, required: false })
-  initial_state: Initial_State_Vertex;
+  initial_state?: Initial_State_Vertex;
 
   @Prop({ type: SequencesSchema, required: false })
-  sequences: Sequences;
+  sequences?: Sequences;
 
   @Prop({ type: BayesianNodesSchema, required: false })
-  bayesian_nodes: Bayesian_Nodes;
+  bayesian_nodes?: Bayesian_Nodes;
 
   @Prop({ required: false })
-  name: string;
+  name?: string;
 
   @Prop({ required: false })
-  model_tree_id: number;
+  model_tree_id?: number;
 
   @Prop({ type: LabelSchema, required: false })
-  label: Label;
+  label?: Label;
 }
 
 @Schema({
@@ -573,10 +573,10 @@ class Tree_Properties {
 })
 export class OverviewTree {
   @Prop()
-  overview_tree_id: number;
+  overview_tree_id?: number;
 
   @Prop({ type: mongoose.Schema.Types.Mixed, required: false })
-  index: Tree_Properties;
+  index?: Tree_Properties;
 }
 
 export type OverviewTreeDocument = OverviewTree & Document;

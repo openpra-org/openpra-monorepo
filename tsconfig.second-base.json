@@ -1,0 +1,24 @@
+/**
+ * TODO:: REMOVE
+ * needed as long as web-backend still requires `strict=True` and `strictNullChecks=false` since these properties are
+ * needed for typia support.
+ */
+{
+  "extends": "@tsconfig/recommended/tsconfig.json",
+  "compileOnSave": false,
+  // no incremental builds
+  "incremental": false,
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {},
+    "types": [
+      "jest",
+      "node",
+      "@types/jest"
+    ],
+    "strictNullChecks": true,
+    "strict": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  }
+}

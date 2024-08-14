@@ -1,5 +1,5 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "../../tsconfig.second-base.json",
   "compilerOptions": {
     "module": "commonjs",
     "types": ["jest", "node"],
@@ -15,7 +15,6 @@
     "removeComments": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "incremental": true,
     "skipLibCheck": true,
     "strictNullChecks": false,
     "noImplicitAny": false,

@@ -1,6 +1,8 @@
 {
   "extends": "@tsconfig/recommended/tsconfig.json",
   "compileOnSave": false,
+  // no incremental builds
+  "incremental": false,
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {},
@@ -17,7 +19,7 @@
         "transform": "@nestia/core/lib/transform",
         /**
          * Validate request body.
-         * 
+         *
          *   - "assert": Use typia.assert() function
          *   - "is": Use typia.is() function
          *   - "validate": Use typia.validate() function
@@ -28,7 +30,7 @@
         "validate": "assert",
         /**
          * Validate JSON typed response body.
-         * 
+         *
          *   - "assert": Use typia.assertStringify() function
          *   - "is": Use typia.isStringify() function
          *   - "validate": Use typia.validateStringify() function

@@ -2,6 +2,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose, { Connection } from "mongoose";
+import { FmeaType } from "shared-types/src/openpra-mef/fmea/fmea";
 import { ModelCounter, ModelCounterSchema } from "../schemas/model-counter.schema";
 import { Fmea, FmeaSchema } from "./schemas/fmea.schema";
 import { FmeaService } from "./fmea.service";
@@ -56,7 +57,7 @@ describe("CollabService", () => {
     /**
      * Test if FmeaService is defined
      */
-    it("FmeaService should be defined", async () => {
+    it("FmeaService should be defined", () => {
       expect(fmeaService).toBeDefined();
     });
   });
@@ -65,8 +66,8 @@ describe("CollabService", () => {
     /**
      * Test if createFmea is defined
      */
-    it("createFmea should be defined", async () => {
-      expect(fmeaService.createFmea).toBeDefined();
+    it("createFmea should be defined", () => {
+      expect(fmeaService.createFmea.bind(fmeaService)).toBeDefined();
     });
 
     /**
@@ -82,8 +83,8 @@ describe("CollabService", () => {
     /**
      * Test if getFmea is defined
      */
-    it("getFmea should be defined", async () => {
-      expect(fmeaService.getFmeaById).toBeDefined();
+    it("getFmea should be defined", () => {
+      expect(fmeaService.getFmeaById.bind(fmeaService)).toBeDefined();
     });
 
     /**
@@ -91,8 +92,7 @@ describe("CollabService", () => {
      */
     it("getFmea should return a fmea", async () => {
       const fmea = await fmeaService.createFmea({ title: "test", description: "test" });
-      const fmea2 = await fmeaService.getFmeaById(fmea.id);
-      console.log(fmea2);
+      const fmea2 = await fmeaService.getFmeaById(Number(fmea.id));
       expect(fmea2).toBeDefined();
     });
   });
@@ -101,8 +101,8 @@ describe("CollabService", () => {
     /**
      * Test if addColumn is defined
      */
-    it("addColumn should be defined", async () => {
-      expect(fmeaService.addColumn).toBeDefined();
+    it("addColumn should be defined", () => {
+      expect(fmeaService.addColumn.bind(fmeaService)).toBeDefined();
     });
 
     /**
@@ -124,8 +124,7 @@ describe("CollabService", () => {
           },
         ],
       };
-      const res = await fmeaService.addColumn(fmea.id, addColumnObject);
-      console.log(res);
+      const res = await fmeaService.addColumn(Number(fmea.id), addColumnObject);
       expect(res).toBeDefined();
     });
   });
@@ -134,8 +133,8 @@ describe("CollabService", () => {
     /**
      * Test if addRow is defined
      */
-    it("addRow should be defined", async () => {
-      expect(fmeaService.addRow).toBeDefined();
+    it("addRow should be defined", () => {
+      expect(fmeaService.addRow.bind(fmeaService)).toBeDefined();
     });
 
     /**
@@ -143,13 +142,12 @@ describe("CollabService", () => {
      */
     it("addRow should add a row to a fmea", async () => {
       const fmea = await fmeaService.createFmea({ title: "test", description: "test" });
-      const res = await fmeaService.addRow(fmea.id);
-      console.log(res);
+      const res = await fmeaService.addRow(Number(fmea.id));
       expect(res).toBeDefined();
     });
 
     it("addRow should work with existing columns", async () => {
-      const fmea = await fmeaService.createFmea({ title: "test", description: "test" });
+      const fmea = (await fmeaService.createFmea({ title: "test", description: "test" })) as FmeaType;
       const addColumnObject1 = {
         name: "test",
         type: "dropdown",
@@ -164,32 +162,32 @@ describe("CollabService", () => {
           },
         ],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject1);
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject1);
       const addColumnObject2 = {
         name: "test2",
         type: "string",
         dropdownOptions: [],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject2);
-      const res = await fmeaService.addRow(fmea.id);
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject2);
+      const res = (await fmeaService.addRow(Number(fmea.id))) as FmeaType;
       expect(res).toBeDefined();
-      expect(res.rows[0].row_data.test).toEqual(String(addColumnObject1.dropdownOptions[0].number));
-      expect(res.rows[0].row_data.test2).toEqual("");
+      expect(res.rows?.[0].row_data?.get("test")).toEqual(String(addColumnObject1.dropdownOptions[0].number));
+      expect(res.rows?.[0].row_data?.get("test2")).toEqual("");
     });
   });
   describe("updateCell", () => {
     /**
      * Test if updateRow is defined
      */
-    it("should be defined", async () => {
-      expect(fmeaService.updateCell).toBeDefined();
+    it("should be defined", () => {
+      expect(fmeaService.updateCell.bind(fmeaService)).toBeDefined();
     });
 
     /**
      * Test if updateRow updates a row
      */
     it("should update cell", async () => {
-      const fmea = await fmeaService.createFmea({ title: "test", description: "test" });
+      const fmea = (await fmeaService.createFmea({ title: "test", description: "test" })) as FmeaType;
       const addColumnObject1 = {
         name: "test",
         type: "dropdown",
@@ -204,19 +202,19 @@ describe("CollabService", () => {
           },
         ],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject1);
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject1);
       const addColumnObject2 = {
         name: "test2",
         type: "string",
         dropdownOptions: [],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject2);
-      await fmeaService.addRow(fmea.id);
-      const getFmea = await fmeaService.getFmeaById(fmea.id);
-      const rowId = getFmea.rows[0].id;
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject2);
+      await fmeaService.addRow(Number(fmea.id));
+      const getFmea = (await fmeaService.getFmeaById(Number(fmea.id))) as FmeaType;
+      const rowId = getFmea.rows?.[0].id;
 
-      await fmeaService.updateCell(fmea.id, rowId, "test2", "value1");
-      const res = await fmeaService.updateCell(fmea.id, rowId, "test2", "changed value");
+      await fmeaService.updateCell(Number(fmea.id), Number(rowId), "test2", "value1");
+      const res = await fmeaService.updateCell(Number(fmea.id), Number(rowId), "test2", "changed value");
       expect(res).toBeDefined();
       expect(res).toBeTruthy();
     });
@@ -226,15 +224,15 @@ describe("CollabService", () => {
     /**
      * Test if updateDropdownOptions is defined
      */
-    it("updateDropdownOptions should be defined", async () => {
-      expect(fmeaService.updateDropdownOptions).toBeDefined();
+    it("updateDropdownOptions should be defined", () => {
+      expect(fmeaService.updateDropdownOptions.bind(fmeaService)).toBeDefined();
     });
 
     /**
      * Test if updateDropdownOptions updates dropdownOptions
      */
     it("updateDropdownOptions should update dropdownOptions", async () => {
-      const fmea = await fmeaService.createFmea({ title: "test", description: "test" });
+      const fmea = (await fmeaService.createFmea({ title: "test", description: "test" })) as FmeaType;
       const addColumnObject1 = {
         name: "test",
         type: "dropdown",
@@ -249,21 +247,21 @@ describe("CollabService", () => {
           },
         ],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject1);
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject1);
       const addColumnObject2 = {
         name: "test2",
         type: "string",
         dropdownOptions: [],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject2);
-      const res = await fmeaService.updateDropdownOptions(fmea.id, "test", [
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject2);
+      const res = await fmeaService.updateDropdownOptions(Number(fmea.id), "test", [
         { number: 1, description: "changed description" },
       ]);
       expect(res).toBeDefined();
     });
 
     it("should not update if column of type string", async () => {
-      const fmea = await fmeaService.createFmea({ title: "test", description: "test" });
+      const fmea = (await fmeaService.createFmea({ title: "test", description: "test" })) as FmeaType;
       const addColumnObject1 = {
         name: "test",
         type: "dropdown",
@@ -278,17 +276,17 @@ describe("CollabService", () => {
           },
         ],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject1);
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject1);
       const addColumnObject2 = {
         name: "test2",
         type: "string",
         dropdownOptions: [],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject2);
-      const res = await fmeaService.updateDropdownOptions(fmea.id, "test2", [
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject2);
+      const res = (await fmeaService.updateDropdownOptions(Number(fmea.id), "test2", [
         { number: 1, description: "changed description" },
-      ]);
-      expect(res.columns[1].dropdownOptions).toEqual([]);
+      ])) as FmeaType;
+      expect(res.columns?.[1].dropdownOptions).toEqual([]);
     });
   });
 
@@ -296,8 +294,8 @@ describe("CollabService", () => {
     /**
      * Test if deleteFmea is defined
      */
-    it("deleteFmea should be defined", async () => {
-      expect(fmeaService.deleteFmea).toBeDefined();
+    it("deleteFmea should be defined", () => {
+      expect(fmeaService.deleteFmea.bind(fmeaService)).toBeDefined();
     });
 
     /**
@@ -305,7 +303,7 @@ describe("CollabService", () => {
      */
     it("deleteFmea should delete a fmea", async () => {
       const fmea = await fmeaService.createFmea({ title: "test", description: "test" });
-      const res = await fmeaService.deleteFmea(fmea.id);
+      const res = await fmeaService.deleteFmea(Number(fmea.id));
       expect(res).toBeDefined();
       expect(res).toBeTruthy();
     });
@@ -320,15 +318,15 @@ describe("CollabService", () => {
     /**
      * Test if deleteColumn is defined
      */
-    it("deleteColumn should be defined", async () => {
-      expect(fmeaService.deleteColumn).toBeDefined();
+    it("deleteColumn should be defined", () => {
+      expect(fmeaService.deleteColumn.bind(fmeaService)).toBeDefined();
     });
 
     /**
      * Test if deleteColumn deletes a column
      */
     it("deleteColumn should delete a column", async () => {
-      const fmea = await fmeaService.createFmea({ title: "test", description: "test" });
+      const fmea = (await fmeaService.createFmea({ title: "test", description: "test" })) as FmeaType;
       const addColumnObject1 = {
         name: "test",
         type: "dropdown",
@@ -343,23 +341,20 @@ describe("CollabService", () => {
           },
         ],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject1);
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject1);
       const addColumnObject2 = {
         name: "test2",
         type: "string",
         dropdownOptions: [],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject2);
-      const res = await fmeaService.deleteColumn(fmea.id, "test2");
-      console.log(res);
-      console.log(res.columns);
-      console.log(res.rows);
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject2);
+      const res = (await fmeaService.deleteColumn(Number(fmea.id), "test2")) as FmeaType;
       expect(res).toBeDefined();
-      expect(res.columns.length).toEqual(1);
+      expect(res.columns?.length).toEqual(1);
     });
 
     it("should delete column with rows", async () => {
-      const fmea = await fmeaService.createFmea({ title: "test", description: "test" });
+      const fmea = (await fmeaService.createFmea({ title: "test", description: "test" })) as FmeaType;
       const addColumnObject1 = {
         name: "test",
         type: "dropdown",
@@ -374,18 +369,18 @@ describe("CollabService", () => {
           },
         ],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject1);
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject1);
       const addColumnObject2 = {
         name: "test2",
         type: "string",
         dropdownOptions: [],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject2);
-      await fmeaService.addRow(fmea.id);
-      const res = await fmeaService.deleteColumn(fmea.id, "test");
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject2);
+      await fmeaService.addRow(Number(fmea.id));
+      const res = (await fmeaService.deleteColumn(Number(fmea.id), "test")) as FmeaType;
       expect(res).toBeDefined();
-      expect(res.columns.length).toEqual(1);
-      expect(res.rows[0].row_data.test).toBeUndefined();
+      expect(res.columns?.length).toEqual(1);
+      expect(res.rows?.[0].row_data?.get("test")).toBeUndefined();
     });
   });
 
@@ -393,8 +388,8 @@ describe("CollabService", () => {
     /**
      * Test if deleteRow is defined
      */
-    it("deleteRow should be defined", async () => {
-      expect(fmeaService.deleteRow).toBeDefined();
+    it("deleteRow should be defined", () => {
+      expect(fmeaService.deleteRow.bind(fmeaService)).toBeDefined();
     });
 
     /**
@@ -416,17 +411,17 @@ describe("CollabService", () => {
           },
         ],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject1);
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject1);
       const addColumnObject2 = {
         name: "test2",
         type: "string",
         dropdownOptions: [],
       };
-      await fmeaService.addColumn(fmea.id, addColumnObject2);
-      await fmeaService.addRow(fmea.id);
-      const res = await fmeaService.deleteRow(fmea.id, 1);
+      await fmeaService.addColumn(Number(fmea.id), addColumnObject2);
+      await fmeaService.addRow(Number(fmea.id));
+      const res = (await fmeaService.deleteRow(Number(fmea.id), 1)) as FmeaType;
       expect(res).toBeDefined();
-      expect(res.rows.length).toEqual(0);
+      expect(res.rows?.length).toEqual(0);
     });
   });
 });

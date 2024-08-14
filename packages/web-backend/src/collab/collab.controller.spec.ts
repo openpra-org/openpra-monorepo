@@ -3,12 +3,10 @@ import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { Test, TestingModule } from "@nestjs/testing";
 import { UserType } from "shared-types/src/openpra-mef/collab/user";
 import { UserPreferences } from "shared-types/src/openpra-mef/collab/user-preferences";
-import { RandomGenerator } from "@nestia/e2e";
 import { CollabService } from "./collab.service";
 import { CollabController } from "./collab.controller";
 import { User, UserSchema } from "./schemas/user.schema";
 import { UserCounter, UserCounterSchema } from "./schemas/user-counter.schema";
-import content = RandomGenerator.content;
 
 describe("CollabController", () => {
   let collabService: CollabService;

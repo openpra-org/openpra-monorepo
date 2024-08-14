@@ -1,4 +1,4 @@
-import { Controller } from "@nestjs/common";
+import { Controller, HttpStatus } from "@nestjs/common";
 import { TypedBody, TypedParam, TypedRoute } from "@nestia/core";
 import { DropdownOption } from "shared-types/src/openpra-mef/fmea/fmea";
 import { FmeaService } from "./fmea.service";
@@ -89,12 +89,18 @@ export class FmeaController {
    * @returns
    */
   @TypedRoute.Put(":fmeaid/:column/delete")
-  public async deleteColumn(@Param("fmeaid") fmeaId: number, @Param("column") column: string): Promise<Fmea | null> {
+  public async deleteColumn(
+    @TypedParam("fmeaid") fmeaId: number,
+    @TypedParam("column") column: string,
+  ): Promise<Fmea | null> {
     return this.fmeaService.deleteColumn(fmeaId, column);
   }
 
-  @Delete(":fmeaid/:rowid/delete")
-  public async deleteRow(@Param("fmeaid") fmeaId: number, @Param("rowid") rowId: number): Promise<Fmea | null> {
+  @TypedRoute.Delete(":fmeaid/:rowid/delete")
+  public async deleteRow(
+    @TypedParam("fmeaid") fmeaId: number,
+    @TypedParam("rowid") rowId: number,
+  ): Promise<Fmea | null> {
     return this.fmeaService.deleteRow(fmeaId, rowId);
   }
 
@@ -103,8 +109,8 @@ export class FmeaController {
    * @param fmeaId the FMEA ID
    * @returns
    */
-  @Put(":id/delete")
-  public async deleteFmea(@Param("id") fmeaId: number): Promise<boolean | null> {
+  @TypedRoute.Put(":id/delete")
+  public async deleteFmea(@TypedParam("id") fmeaId: number): Promise<HttpStatus | null> {
     return this.fmeaService.deleteFmea(fmeaId);
   }
 
@@ -114,8 +120,11 @@ export class FmeaController {
    * @param body contains column name and new column name
    * @returns
    */
-  @Put(":id/column/updateName")
-  public async updateColumnName(@Param("id") id: number, @Body() body): Promise<Fmea | null> {
+  @TypedRoute.Put(":id/column/updateName")
+  public async updateColumnName(
+    @TypedParam("id") id: number,
+    @TypedBody() body: { column: string; newColumnName: string },
+  ): Promise<Fmea | null> {
     return this.fmeaService.updateColumnName(id, body.column, body.newColumnName);
   }
 
@@ -125,22 +134,25 @@ export class FmeaController {
    * @param body oldColumn: column name, newColumn: new column name, dropdownOptions: sdropdown options, type: type of new column
    * @returns
    */
-  @Put(":id/column/updateType")
-  public async updateColumnType(@Param("id") id: number, @Body() body): Promise<Fmea | null> {
+  @TypedRoute.Put(":id/column/updateType")
+  public async updateColumnType(
+    @TypedParam("id") id: number,
+    @TypedBody() body: { id: number; name: string; type: string; dropdownOptions: DropdownOption[] },
+  ): Promise<Fmea | null> {
     return this.fmeaService.updateColumnType(id, body);
   }
 
   /**
-   *
-   * @param column the column name
+   * @param fmeaId
+   * @param prev_column_name
    * @param body contains new column name, type of column, dropdown options
    * @returns
    */
-  @Put(":id/:column/update")
+  @TypedRoute.Put(":id/:column/update")
   public async updateColumn(
-    @Param("id") fmeaId: number,
-    @Param("column") prev_column_name: string,
-    @Body() body,
+    @TypedParam("id") fmeaId: number,
+    @TypedParam("column") prev_column_name: string,
+    @TypedBody() body: { id: number; name: string; type: string; dropdownOptions: DropdownOption[] },
   ): Promise<Fmea | null> {
     return this.fmeaService.updateColumnDetails(fmeaId, prev_column_name, body);
   }

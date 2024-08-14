@@ -2,13 +2,13 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose, { Connection } from "mongoose";
+import { FmeaType } from "shared-types/src/openpra-mef/fmea/fmea";
 import { ModelCounter, ModelCounterSchema } from "../schemas/model-counter.schema";
 import { FmeaController } from "./fmea.controller";
 import { FmeaService } from "./fmea.service";
 import { Fmea, FmeaSchema } from "./schemas/fmea.schema";
 
 describe("FmeaController", () => {
-  let fmeaService: FmeaService;
   let fmeaController: FmeaController;
   let mongoServer: MongoMemoryServer;
   let connection: Connection;
@@ -29,7 +29,6 @@ describe("FmeaController", () => {
       providers: [FmeaService],
     }).compile();
     connection = await module.get(getConnectionToken());
-    fmeaService = module.get<FmeaService>(FmeaService);
     fmeaController = module.get<FmeaController>(FmeaController);
   });
   /**
@@ -60,25 +59,25 @@ describe("FmeaController", () => {
 
   describe("getFmea", () => {
     it("should be defined", () => {
-      expect(fmeaController.getFmea).toBeDefined();
+      expect(fmeaController.getFmea.bind(fmeaController)).toBeDefined();
     });
     it("should return a FMEA object", async () => {
       const body = { title: "test fmea1", description: "for test" };
       const createdFmea = await fmeaController.createFmea(body);
-      const fmea = await fmeaController.getFmea(createdFmea.id);
+      const fmea = await fmeaController.getFmea(Number(createdFmea.id));
       expect(fmea).toBeDefined();
     });
   });
 
   describe("addColumn", () => {
     it("should be defined", () => {
-      expect(fmeaController.addColumn).toBeDefined();
+      expect(fmeaController.addColumn.bind(fmeaController)).toBeDefined();
     });
     it("should add string column", async () => {
       const body = { title: "test fmea1", description: "for test" };
       const createdFmea = await fmeaController.createFmea(body);
       const addColumnObject = { name: "test", type: "string" };
-      const fmea = await fmeaController.addColumn(createdFmea.id, addColumnObject);
+      const fmea = await fmeaController.addColumn(Number(createdFmea.id), addColumnObject);
       expect(fmea).toBeDefined();
     });
     it("should add dropdown column", async () => {
@@ -98,50 +97,50 @@ describe("FmeaController", () => {
           },
         ],
       };
-      const fmea = await fmeaController.addColumn(createdFmea.id, addColumnObject);
+      const fmea = (await fmeaController.addColumn(Number(createdFmea.id), addColumnObject)) as FmeaType;
       expect(fmea).toBeDefined();
-      expect(fmea.columns[0].dropdownOptions[0].number).toEqual(1);
-      expect(fmea.columns[0].dropdownOptions[0].description).toEqual("test");
-      expect(fmea.columns[0].dropdownOptions[1].number).toEqual(2);
-      expect(fmea.columns[0].dropdownOptions[1].description).toEqual("test2");
+      expect(fmea.columns?.[0].dropdownOptions?.[0].number).toEqual(1);
+      expect(fmea.columns?.[0].dropdownOptions?.[0].description).toEqual("test");
+      expect(fmea.columns?.[0].dropdownOptions?.[1].number).toEqual(2);
+      expect(fmea.columns?.[0].dropdownOptions?.[1].description).toEqual("test2");
     });
   });
 
   describe("addRow", () => {
     it("should be defined", () => {
-      expect(fmeaController.addRow).toBeDefined();
+      expect(fmeaController.addRow.bind(fmeaController)).toBeDefined();
     });
     it("should return a FMEA object", async () => {
       const body = { title: "test fmea1", description: "for test" };
       const createdFmea = await fmeaController.createFmea(body);
       const addColumnObject = { name: "test", type: "string" };
-      await fmeaController.addColumn(createdFmea.id, addColumnObject);
-      const fmea = await fmeaController.addRow(createdFmea.id);
+      await fmeaController.addColumn(Number(createdFmea.id), addColumnObject);
+      const fmea = (await fmeaController.addRow(Number(createdFmea.id))) as FmeaType;
       expect(fmea).toBeDefined();
-      expect(fmea.rows[0].row_data.test).toEqual("");
+      expect(fmea.rows?.[0].row_data?.get("test")).toEqual("");
     });
   });
 
   describe("updateCell", () => {
     it("should be defined", () => {
-      expect(fmeaController.updateCell).toBeDefined();
+      expect(fmeaController.updateCell.bind(fmeaController)).toBeDefined();
     });
     it("should update the cell value", async () => {
       const body = { title: "test fmea1", description: "for test" };
       const createdFmea = await fmeaController.createFmea(body);
       const addColumnObject = { name: "test", type: "string" };
-      await fmeaController.addColumn(createdFmea.id, addColumnObject);
-      const returned_fmea = await fmeaController.addRow(createdFmea.id);
-      expect(returned_fmea.rows[0].row_data.test).toEqual("");
-      const updateCellObject = { rowId: returned_fmea.rows[0].id, column: "test", value: "test" };
-      const updateResult = await fmeaController.updateCell(createdFmea.id, updateCellObject);
+      await fmeaController.addColumn(Number(createdFmea.id), addColumnObject);
+      const returnedFmea = (await fmeaController.addRow(Number(createdFmea.id))) as FmeaType;
+      expect(returnedFmea.rows?.[0].row_data?.get("test")).toEqual("");
+      const updateCellObject = { rowId: Number(returnedFmea.rows?.[0].id), column: "test", value: "test" };
+      const updateResult = await fmeaController.updateCell(Number(createdFmea.id), updateCellObject);
       expect(updateResult).toEqual(true);
     });
   });
 
   describe("updateDropdownOptions", () => {
     it("should be defined", () => {
-      expect(fmeaController.updateDropdownOptions).toBeDefined();
+      expect(fmeaController.updateDropdownOptions.bind(fmeaController)).toBeDefined();
     });
     it("should update the dropdown options", async () => {
       const body = { title: "test fmea1", description: "for test" };
@@ -169,9 +168,9 @@ describe("FmeaController", () => {
           { number: 20, description: "test20" },
         ],
       };
-      await fmeaController.addColumn(createdFmea.id, addColumnObject);
-      await fmeaController.addColumn(createdFmea.id, addColumnObject2);
-      await fmeaController.addColumn(createdFmea.id, addColumnObject3);
+      await fmeaController.addColumn(Number(createdFmea.id), addColumnObject);
+      await fmeaController.addColumn(Number(createdFmea.id), addColumnObject2);
+      await fmeaController.addColumn(Number(createdFmea.id), addColumnObject3);
       const updateDropdownOptionsObject = {
         column: "test",
         dropdownOptions: [
@@ -180,26 +179,28 @@ describe("FmeaController", () => {
           { number: 3, description: "test3" },
         ],
       };
-      const fmea = await fmeaController.updateDropdownOptions(createdFmea.id, updateDropdownOptionsObject);
+      const fmea = (await fmeaController.updateDropdownOptions(
+        Number(createdFmea.id),
+        updateDropdownOptionsObject,
+      )) as FmeaType;
       expect(fmea).toBeDefined();
-      expect(fmea.columns[0].dropdownOptions[0].number).toEqual(1);
-      expect(fmea.columns[0].dropdownOptions[0].description).toEqual("test");
-      expect(fmea.columns[0].dropdownOptions[1].number).toEqual(2);
-      expect(fmea.columns[0].dropdownOptions[1].description).toEqual("test2");
-      expect(fmea.columns[0].dropdownOptions[2].number).toEqual(3);
-      expect(fmea.columns[0].dropdownOptions[2].description).toEqual("test3");
+      expect(fmea.columns?.[0].dropdownOptions?.[0].number).toEqual(1);
+      expect(fmea.columns?.[0].dropdownOptions?.[0].description).toEqual("test");
+      expect(fmea.columns?.[0].dropdownOptions?.[1].number).toEqual(2);
+      expect(fmea.columns?.[0].dropdownOptions?.[1].description).toEqual("test2");
+      expect(fmea.columns?.[0].dropdownOptions?.[2].number).toEqual(3);
+      expect(fmea.columns?.[0].dropdownOptions?.[2].description).toEqual("test3");
     });
   });
 
   describe("deleteFmea", () => {
     it("should be defined", () => {
-      expect(fmeaController.deleteFmea).toBeDefined();
+      expect(fmeaController.deleteFmea.bind(fmeaController)).toBeDefined();
     });
     it("should delete the FMEA object", async () => {
       const body = { title: "test fmea1", description: "for test" };
       const createdFmea = await fmeaController.createFmea(body);
-      const result = await fmeaController.deleteFmea(createdFmea.id);
-      console.log(result);
+      const result = await fmeaController.deleteFmea(Number(createdFmea.id));
       expect(result).toEqual(true);
     });
 
@@ -211,7 +212,7 @@ describe("FmeaController", () => {
 
   describe("deleteColumn", () => {
     it("should be defined", () => {
-      expect(fmeaController.deleteColumn).toBeDefined();
+      expect(fmeaController.deleteColumn.bind(fmeaController)).toBeDefined();
     });
     it("should delete the column", async () => {
       const body = { title: "test fmea1", description: "for test" };
@@ -230,25 +231,28 @@ describe("FmeaController", () => {
           },
         ],
       };
-      await fmeaController.addColumn(createdFmea.id, addColumnObject);
-      const result = await fmeaController.deleteColumn(createdFmea.id, "test");
+      await fmeaController.addColumn(Number(createdFmea.id), addColumnObject);
+      const result = await fmeaController.deleteColumn(Number(createdFmea.id), "test");
       expect(result).toBeDefined();
     });
   });
 
   describe("deleteRow", () => {
     it("should be defined", () => {
-      expect(fmeaController.deleteRow).toBeDefined();
+      expect(fmeaController.deleteRow.bind(fmeaController)).toBeDefined();
     });
     it("should delete the row", async () => {
       const body = { title: "test fmea1", description: "for test" };
       const createdFmea = await fmeaController.createFmea(body);
       const addColumnObject = { name: "test", type: "string" };
-      await fmeaController.addColumn(createdFmea.id, addColumnObject);
-      const returned_fmea = await fmeaController.addRow(createdFmea.id);
-      const result = await fmeaController.deleteRow(createdFmea.id, returned_fmea.rows[0].id);
+      await fmeaController.addColumn(Number(createdFmea.id), addColumnObject);
+      const returnedFmea = (await fmeaController.addRow(Number(createdFmea.id))) as FmeaType;
+      const result = (await fmeaController.deleteRow(
+        Number(createdFmea.id),
+        Number(returnedFmea.rows?.[0].id),
+      )) as FmeaType;
       expect(result).toBeDefined();
-      expect(result.rows.length).toEqual(0);
+      expect(result.rows?.length).toEqual(0);
     });
   });
 });

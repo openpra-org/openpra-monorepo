@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Patch, Post, Query } from "@nestjs/common";
+import { Controller, HttpException, HttpStatus } from "@nestjs/common";
+import { TypedBody, TypedQuery, TypedRoute } from "@nestia/core";
 import { EventSequenceDiagramGraph } from "../schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph } from "../schemas/graphs/fault-tree-graph.schema";
 import { EventTreeGraph } from "../schemas/graphs/event-tree-graph.schema";
@@ -15,11 +16,11 @@ export class GraphModelController {
    * as well as the faultTreeId, if the id is missing - a new graph document will be created.
    * @returns a promise with the newly created graph model
    */
-  @Post("/fault-tree-graph")
-  async createFaultTreeGraph(@Body() data: Partial<FaultTreeGraph>): Promise<boolean> {
+  @TypedRoute.Post("/fault-tree-graph")
+  public async createFaultTreeGraph(@TypedBody() data: Partial<FaultTreeGraph>): Promise<boolean> {
     try {
       return this.graphModelService.saveFaultTreeGraph(data);
-    } catch (_) {
+    } catch {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -30,77 +31,74 @@ export class GraphModelController {
    * as well as the eventTreeId, if the id is missing - a new graph document will be created.
    * @returns a promise with the newly created graph model
    */
-  @Post("/event-tree-graph")
-  async createEventTreeGraph(@Body() data: Partial<EventTreeGraph>): Promise<boolean> {
+  @TypedRoute.Post("/event-tree-graph")
+  public async createEventTreeGraph(@TypedBody() data: Partial<EventTreeGraph>): Promise<boolean> {
     try {
       return this.graphModelService.saveEventTreeGraph(data);
-    } catch (_) {
+    } catch {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   /**
    * fetches the event sequence graph model for a particular diagram, based on its id
-   * @param eventSequenceId - the id of the event sequence diagram
    * @returns a promise with an object of the event sequence diagram graph
+   * @param query
    */
-  @Get("/event-sequence-diagram-graph/")
-  async getEventSequenceDiagramGraph(
-    @Query("eventSequenceId") eventSequenceId: string,
+  @TypedRoute.Get("/event-sequence-diagram-graph/")
+  public async getEventSequenceDiagramGraph(
+    @TypedQuery() query: { eventSequenceId: string },
   ): Promise<EventSequenceDiagramGraph> {
-    return this.graphModelService.getEventSequenceDiagramGraph(eventSequenceId);
+    return this.graphModelService.getEventSequenceDiagramGraph(query.eventSequenceId);
   }
 
   /**
    * fetches the fault tree graph model for a particular diagram, based on its id
-   * @param faultTreeId - the id of the fault tree diagram
    * @returns a promise with an object of the fault tree diagram graph
+   * @param query
    */
-  @Get("/fault-tree-graph/")
-  async getFaultTreeGraph(@Query("faultTreeId") faultTreeId: string): Promise<FaultTreeGraph> {
-    return this.graphModelService.getFaultTreeGraph(faultTreeId);
+  @TypedRoute.Get("/fault-tree-graph/")
+  public async getFaultTreeGraph(@TypedQuery() query: { faultTreeId: string }): Promise<FaultTreeGraph> {
+    return this.graphModelService.getFaultTreeGraph(query.faultTreeId);
   }
 
   /**
    * Update the label of node/edge of an event sequence diagram
-   * @param id - Node/Edge ID
-   * @param type - 'node' or 'edge'
-   * @param label - New label for the node/edge
    * @returns a promise with boolean confirmation whether update was successful or not
+   * @param body
    */
-  @Patch("/event-sequence-diagram-graph/update-label/")
-  async updateESNodeLabel(
-    @Body("id") id: string,
-    @Body("type") type: string,
-    @Body("label") label: string,
-  ): Promise<boolean> {
+  @TypedRoute.Patch("/event-sequence-diagram-graph/update-label/")
+  public async updateESNodeLabel(@TypedBody() body: { id: string; type: string; label: string }): Promise<boolean> {
     try {
-      return this.graphModelService.updateESLabel(id, type, label);
+      return this.graphModelService.updateESLabel(body.id, body.type, body.label);
     } catch (_) {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
-  @Patch("/event-sequence-diagram-graph")
-  async updateESSubgraph(
-    @Body("eventSequenceId") eventSequenceId: string,
-    @Body("updated") updatedSubgraph: Partial<BaseGraph>,
-    @Body("deleted") deletedSubgraph: Partial<BaseGraph>,
+  @TypedRoute.Patch("/event-sequence-diagram-graph")
+  public async updateESSubgraph(
+    @TypedBody()
+    body: {
+      eventSequenceId: string;
+      updatedSubgraph: Partial<BaseGraph>;
+      deletedSubgraph: Partial<BaseGraph>;
+    },
   ): Promise<boolean> {
     try {
-      return this.graphModelService.updateESSubgraph(eventSequenceId, updatedSubgraph, deletedSubgraph);
-    } catch (_) {
+      return this.graphModelService.updateESSubgraph(body.eventSequenceId, body.updatedSubgraph, body.deletedSubgraph);
+    } catch {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   /**
    * fetches the event tree graph model for a particular diagram, based on its id
-   * @param eventTreeId - the id of the event tree diagram
    * @returns a promise with an object of the event tree diagram graph
+   * @param query
    */
-  @Get("/event-tree-graph/")
-  async getEventTreeGraph(@Query("eventTreeId") eventTreeId: string): Promise<EventTreeGraph> {
-    return this.graphModelService.getEventTreeGraph(eventTreeId);
+  @TypedRoute.Get("/event-tree-graph/")
+  public async getEventTreeGraph(@TypedQuery() query: { eventTreeId: string }): Promise<EventTreeGraph> {
+    return this.graphModelService.getEventTreeGraph(query.eventTreeId);
   }
 }

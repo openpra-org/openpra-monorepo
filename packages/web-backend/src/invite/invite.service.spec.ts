@@ -16,7 +16,7 @@ describe("inviteService", () => {
    * define connection and inviteService
    */
   beforeAll(async () => {
-    const mongoUri = process.env.MONGO_URI; //get the URI from the environment variable
+    const mongoUri = process.env.MONGO_URI ? process.env.MONGO_URI : ""; //get the URI from the environment variable
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongoUri),
@@ -55,7 +55,7 @@ describe("inviteService", () => {
         numberOfInvites: 1,
         expiry: date,
       });
-      const res = await invitedUsers.findOne({ id: result.id });
+      const res = (await invitedUsers.findOne({ id: result.id })) as InvitedUser;
       expect(res).not.toBeNull();
       expect(res.numberOfInvites).toBe(1);
       expect(res.expiry).toStrictEqual(date);
@@ -72,7 +72,7 @@ describe("inviteService", () => {
         numberOfInvites: 3,
         expiry: date,
       });
-      const res = await invitedUsers.findOne({ id: result.id });
+      const res = (await invitedUsers.findOne({ id: result.id })) as InvitedUser;
       expect(res).not.toBeNull();
       expect(res.numberOfInvites).toBe(3);
       expect(res.expiry).toStrictEqual(date);
@@ -89,7 +89,7 @@ describe("inviteService", () => {
         expiry: new Date(new Date().getTime() + 24 * 60 * 60 * 1000),
         numberOfInvites: 1,
       });
-      const result = await inviteService.verifyUserInvite("SampleID");
+      const result = (await inviteService.verifyUserInvite("SampleID"))!;
       expect(result).not.toBeNull();
       expect(result.numberOfInvites).toBe(1);
     });
@@ -115,7 +115,7 @@ describe("inviteService", () => {
         numberOfInvites: 1,
       };
       const result = await inviteService.updateInvite(updatedUser);
-      const iUsers = await invitedUsers.findOne({ id: "SampleID" });
+      const iUsers = (await invitedUsers.findOne({ id: "SampleID" })) as InvitedUser;
       expect(iUsers.numberOfInvites).toBe(1);
       expect(iUsers.email).toBe("emailChange");
       expect(iUsers.lastName).toBe("lastNameChange");
@@ -246,7 +246,7 @@ describe("inviteService", () => {
         numberOfInvites: 3,
       };
       const user = await inviteService.generateUserInvite(userObj);
-      const invitedUser = await invitedUsers.findOne({ id: user.id });
+      const invitedUser = (await invitedUsers.findOne({ id: user.id })) as InvitedUser;
       expect(invitedUser.numberOfInvites).toBe(3);
     });
 

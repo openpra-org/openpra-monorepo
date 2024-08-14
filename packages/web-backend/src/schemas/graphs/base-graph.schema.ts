@@ -6,15 +6,15 @@ import { Document } from "mongoose";
 
 export class BaseGraph {
   @Prop({ unique: true, required: true })
-  id: string;
+  id!: string;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId })
-  _id: mongoose.Types.ObjectId;
+  _id?: mongoose.Types.ObjectId;
 
-  @Prop()
-  nodes: GraphNode<object>[];
+  @Prop({ required: false })
+  nodes?: GraphNode<object>[];
 
-  @Prop()
-  edges: GraphEdge<object>[];
+  @Prop({ required: false })
+  edges?: GraphEdge<object>[];
 }
 export type BaseGraphDocument = BaseGraph & Document;

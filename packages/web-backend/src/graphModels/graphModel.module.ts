@@ -5,9 +5,7 @@ import {
   EventSequenceDiagramGraphSchema,
 } from "../schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph, FaultTreeGraphSchema } from "../schemas/graphs/fault-tree-graph.schema";
-
 import { EventTreeGraph, EventTreeGraphSchema } from "../schemas/graphs/event-tree-graph.schema";
-
 import { GraphModelController } from "./graphModel.controller";
 import { GraphModelService } from "./graphModel.service";
 

@@ -3,10 +3,10 @@ import { Schema, Prop, SchemaFactory } from "@nestjs/mongoose";
 @Schema({ _id: false, versionKey: false })
 class User {
   @Prop({ required: false })
-  id: number;
+  id?: number;
 
   @Prop({ required: false })
-  username: string;
+  username?: string;
 }
 
 const UserSchema = SchemaFactory.createForClass(User);
@@ -25,13 +25,13 @@ const UserSchema = SchemaFactory.createForClass(User);
 })
 export class Action {
   @Prop({ required: false })
-  tree_id: number;
+  tree_id?: number;
 
   @Prop({ type: UserSchema, required: false })
-  user: User;
+  user?: User;
 
   @Prop({ required: false })
-  type: string;
+  type?: string;
 }
 
 export type ActionDocument = Action & Document;

@@ -4,10 +4,10 @@ import { Document } from "mongoose";
 @Schema({ versionKey: false })
 export class QuantificationResultCounter {
   @Prop()
-  _id: string;
+  _id?: string;
 
   @Prop({ unique: true })
-  seq: number;
+  seq?: number;
 }
 
 export type QuantificationResultCounterDocument = QuantificationResultCounter & Document;

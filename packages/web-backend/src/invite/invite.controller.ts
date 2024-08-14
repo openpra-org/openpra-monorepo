@@ -1,29 +1,17 @@
-import {
-  HttpStatus,
-  Controller,
-  Get,
-  Post,
-  Put,
-  Param,
-  Body,
-  Delete,
-  UseFilters,
-  UseGuards,
-  HttpException,
-} from "@nestjs/common";
+import { Controller, HttpStatus, UseGuards, HttpException } from "@nestjs/common";
 import {
   InvitedUserDetailsDto,
   InvitedUserDto,
   InviteIdDto,
 } from "packages/shared-types/src/lib/types/userInvites/InvitedUser";
+import { TypedBody, TypedParam, TypedRoute } from "@nestia/core";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { Public } from "../guards/public.guard";
-import { InvalidTokenFilter } from "../filters/invalid-token.filter";
 import { InviteService } from "./invite.service";
+import { InvitedUser } from "./schemas/invite.schema";
 
 @Controller()
 @UseGuards(JwtAuthGuard)
-@UseFilters(InvalidTokenFilter)
 export class InviteController {
   constructor(private readonly inviteService: InviteService) {}
 
@@ -38,8 +26,8 @@ export class InviteController {
    *   "username" : "xyzabc"
    * }
    */
-  @Post("/invite/")
-  async generateInvitationLink(@Body() body: InvitedUserDto): Promise<InviteIdDto> {
+  @TypedRoute.Post("/invite/")
+  public async generateInvitationLink(@TypedBody() body: InvitedUserDto): Promise<InviteIdDto> {
     const invitedUser = await this.inviteService.generateUserInvite(body);
     return { id: invitedUser.id };
   }
@@ -48,8 +36,8 @@ export class InviteController {
    * This endpoint will update an invite
    * @param body - InvitedUserDetailsDto object
    */
-  @Put("/invite/")
-  async updateInvite(@Body() body: InvitedUserDetailsDto): Promise<InvitedUserDto> {
+  @TypedRoute.Put("/invite/")
+  public async updateInvite(@TypedBody() body: InvitedUserDetailsDto): Promise<InvitedUser | null> {
     return this.inviteService.updateInvite(body);
   }
 
@@ -63,9 +51,9 @@ export class InviteController {
    * }
    */
   @Public()
-  @Post("/verify-invite/")
-  async verifyInvitationLink(@Body() body: InviteIdDto): Promise<InvitedUserDto> {
-    const invitedUser = await this.inviteService.verifyUserInvite(body.id);
+  @TypedRoute.Post("/verify-invite/")
+  public async verifyInvitationLink(@TypedBody() body: InviteIdDto): Promise<InvitedUserDto> {
+    const invitedUser = await this.inviteService.verifyUserInvite(String(body.id));
     if (invitedUser === null) {
       throw new HttpException("Invite id either invalid or expired", HttpStatus.GONE);
     }
@@ -80,24 +68,24 @@ export class InviteController {
   /**
    * This endpoint will return all the invites that were generated
    */
-  @Get("/invites/")
-  async getAllInvites(): Promise<InvitedUserDetailsDto[]> {
+  @TypedRoute.Get("/invites/")
+  public async getAllInvites(): Promise<InvitedUserDetailsDto[]> {
     return this.inviteService.getAllInvitedUsers();
   }
 
   /**
    * This endpoint will delete invitedUser by id
    */
-  @Delete("/invite/:id")
-  async deleteInvite(@Param("id") id: string): Promise<boolean> {
+  @TypedRoute.Delete("/invite/:id")
+  public async deleteInvite(@TypedParam("id") id: string): Promise<boolean> {
     return this.inviteService.deleteInviteById(id);
   }
 
   /**
    * This endpoint will get invitedUser by id
    */
-  @Get("/invite/:id")
-  async getInvite(@Param("id") id: string): Promise<InvitedUserDetailsDto> {
+  @TypedRoute.Get("/invite/:id")
+  public async getInvite(@TypedParam("id") id: string): Promise<InvitedUserDetailsDto> {
     return this.inviteService.getInviteById(id);
   }
 }

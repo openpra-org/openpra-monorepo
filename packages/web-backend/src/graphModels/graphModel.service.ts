@@ -11,6 +11,7 @@ import {
 import { FaultTreeGraph, FaultTreeGraphDocument } from "../schemas/graphs/fault-tree-graph.schema";
 import { BaseGraph, BaseGraphDocument } from "../schemas/graphs/base-graph.schema";
 import { EventTreeGraph, EventTreeGraphDocument } from "../schemas/graphs/event-tree-graph.schema";
+import { BayesianNetworkGraph, BayesianNetworkGraphDocument } from "../schemas/graphs/bayesian-network-graph.schema";
 
 /**
  * Enum of supported graph types
@@ -19,6 +20,7 @@ enum GraphTypes {
   EventSequence = "event-sequence",
   FaultTree = "fault-tree",
   EventTree = "event-tree",
+  BayesianNetwork = "bayesian-network",
 }
 
 @Injectable()
@@ -31,6 +33,8 @@ export class GraphModelService {
     private readonly faultTreeGraphModel: Model<FaultTreeGraphDocument>,
     @InjectModel(EventTreeGraph.name)
     private readonly eventTreeGraphModel: Model<EventTreeGraphDocument>,
+    @InjectModel(BayesianNetworkGraph.name)
+    private readonly bayesianNetworkGraphModel: Model<BayesianNetworkGraphDocument>,
   ) {}
 
   /**
@@ -152,6 +156,44 @@ export class GraphModelService {
   }
 
   /**
+   * Saves the bayesian network diagram graph
+   * @param body - The current state of the bayesian network diagram graph
+   * @returns A promise with a bayesian network diagram graph in it
+   */
+  async saveBayesianNetworkGraph(body: Partial<BayesianNetworkGraph>): Promise<boolean> {
+    try {
+      const existingGraph = await this.bayesianNetworkGraphModel.findOne({
+        bayesianNetworkId: body.bayesianNetworkId,
+      });
+      return this.saveGraph(existingGraph, body, GraphTypes.BayesianNetwork);
+    } catch (exception) {
+      const error = exception as Error;
+      this.logger.error(error.message, error.stack);
+      throw new Error();
+    }
+  }
+
+  /**
+   * Sets the bayesian network diagram graph for the given event tree ID
+   * @param bayesianNetworkId - Bayesian network ID
+   * @returns A promise with the bayesian network diagram graph
+   */
+  async getBayesianNetworkGraph(bayesianNetworkId: string): Promise<BayesianNetworkGraph> {
+    const result = this.bayesianNetworkGraphModel.findOne({ bayesianNetworkId: bayesianNetworkId }, { _id: 0 });
+    if (result !== null) {
+      return result;
+    } else {
+      return {
+        id: "",
+        _id: new mongoose.Types.ObjectId(),
+        bayesianNetworkId: bayesianNetworkId,
+        nodes: [],
+        edges: [],
+      };
+    }
+  }
+
+  /**
    * Updates the label of the node/edge present in the data attribute
    * @param id - Node/Edge ID
    * @param type - 'node' or 'edge'
@@ -247,6 +289,8 @@ export class GraphModelService {
         return new this.faultTreeGraphModel(body);
       case GraphTypes.EventTree:
         return new this.eventTreeGraphModel(body);
+      case GraphTypes.BayesianNetwork:
+        return new this.bayesianNetworkGraphModel(body);
       default:
         throw new Error("model type not found");
     }

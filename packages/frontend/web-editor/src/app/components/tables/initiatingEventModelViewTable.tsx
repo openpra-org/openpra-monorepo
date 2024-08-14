@@ -651,7 +651,6 @@ const App: React.FC = () => {
             // aria-label={`Select row ${rowId}`}
 
             label={""} // Since we don't need a label next to each checkbox, we can leave this empty
-            compressed // Use the compressed style if space is limited
           />
         );
       },

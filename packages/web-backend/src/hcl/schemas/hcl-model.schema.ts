@@ -5,16 +5,16 @@ import { Action, ActionSchema } from "./action.schema";
 @Schema({ _id: false, versionKey: false })
 class Model_Data {
   @Prop({ required: false })
-  bayesian_networks: number[];
+  bayesian_networks?: number[];
 
   @Prop({ required: false })
-  event_trees: number[];
+  event_trees?: number[];
 
   @Prop({ required: false })
-  fault_trees: number[];
+  fault_trees?: number[];
 
   @Prop({ required: false })
-  init_events: number[];
+  init_events?: number[];
 }
 
 const ModelDataSchema = SchemaFactory.createForClass(Model_Data);
@@ -38,43 +38,43 @@ const InstancesSchema = SchemaFactory.createForClass(Instances);
 })
 export class HclModel {
   @Prop({ required: false })
-  id: number;
+  id?: number;
 
   @Prop({ required: false })
-  creator: number;
+  creator?: number;
 
   @Prop()
-  title: string;
+  title?: string;
 
   @Prop()
-  description: string;
+  description?: string;
 
   @Prop()
-  assigned_users: number[];
+  assigned_users?: number[];
 
   @Prop({ required: false })
-  overview_tree: number;
+  overview_tree?: number;
 
   @Prop({ default: "CO", required: false })
-  tag: string;
+  tag?: string;
 
   @Prop({ required: false })
-  path: string;
+  path?: string;
 
   @Prop({ default: "hcl", required: false })
-  type: string;
+  type?: string;
 
   @Prop({ type: ModelDataSchema, required: false })
-  model_data: Model_Data;
+  model_data?: Model_Data;
 
   @Prop({ type: [{ type: ActionSchema }], required: false })
-  actions: Action[];
+  actions?: Action[];
 
   @Prop({ default: [], required: false })
-  results: string[];
+  results?: string[];
 
   @Prop({ type: [{ type: InstancesSchema }], default: [], required: false })
-  instances: Instances[];
+  instances?: Instances[];
 }
 
 export type HclModelDocument = HclModel & Document;

@@ -12,22 +12,22 @@ import { Document } from "mongoose";
 })
 export class GlobalParameter {
   @Prop({ unique: false })
-  model_id: number;
+  model_id?: number;
 
   @Prop({ unique: true })
-  pk: number;
+  pk?: number;
 
   @Prop()
-  parameter_name: string;
+  parameter_name?: string;
 
   @Prop({ required: false })
-  parameter_type: string;
+  parameter_type?: string;
 
   @Prop()
-  double_value: number;
+  double_value?: number;
 
   @Prop({ required: false })
-  string_value: string;
+  string_value?: string;
 }
 
 export type GlobalParameterDocument = GlobalParameter & Document;

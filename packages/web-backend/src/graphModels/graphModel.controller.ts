@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpException, HttpStatus, Patch, Post, Query } 
 import { EventSequenceDiagramGraph } from "../schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph } from "../schemas/graphs/fault-tree-graph.schema";
 import { EventTreeGraph } from "../schemas/graphs/event-tree-graph.schema";
+import { BayesianNetworkGraph } from "../schemas/graphs/bayesian-network-graph.schema";
 import { BaseGraph } from "../schemas/graphs/base-graph.schema";
 import { GraphModelService } from "./graphModel.service";
 
@@ -40,6 +41,21 @@ export class GraphModelController {
   }
 
   /**
+   * stores/creates a bayesian network diagram graph
+   * @param data - takes in a partial of a bayesian network diagram model
+   * as well as the bayesianNetworkId, if the id is missing - a new graph document will be created.
+   * @returns a promise with the newly created graph model
+   */
+  @Post("/bayesian-network-graph")
+  async createBayesianNetworkGraph(@Body() data: Partial<BayesianNetworkGraph>): Promise<boolean> {
+    try {
+      return this.graphModelService.saveBayesianNetworkGraph(data);
+    } catch (_) {
+      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
    * fetches the event sequence graph model for a particular diagram, based on its id
    * @param eventSequenceId - the id of the event sequence diagram
    * @returns a promise with an object of the event sequence diagram graph
@@ -59,6 +75,26 @@ export class GraphModelController {
   @Get("/fault-tree-graph/")
   async getFaultTreeGraph(@Query("faultTreeId") faultTreeId: string): Promise<FaultTreeGraph> {
     return this.graphModelService.getFaultTreeGraph(faultTreeId);
+  }
+
+  /**
+   * fetches the event tree graph model for a particular diagram, based on its id
+   * @param eventTreeId - the id of the event tree diagram
+   * @returns a promise with an object of the event tree diagram graph
+   */
+  @Get("/event-tree-graph/")
+  async getEventTreeGraph(@Query("eventTreeId") eventTreeId: string): Promise<EventTreeGraph> {
+    return this.graphModelService.getEventTreeGraph(eventTreeId);
+  }
+
+  /**
+   * fetches the bayesian network graph model for a particular diagram, based on its id
+   * @param bayesianNetworkId - the id of the bayesian network diagram
+   * @returns a promise with an object of the bayesian network diagram graph
+   */
+  @Get("/bayesian-network-graph/")
+  async getBayesianNetworkGraph(@Query("bayesianNetworkId") bayesianNetworkId: string): Promise<BayesianNetworkGraph> {
+    return this.graphModelService.getBayesianNetworkGraph(bayesianNetworkId);
   }
 
   /**
@@ -92,15 +128,5 @@ export class GraphModelController {
     } catch (_) {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
-  }
-
-  /**
-   * fetches the event tree graph model for a particular diagram, based on its id
-   * @param eventTreeId - the id of the event tree diagram
-   * @returns a promise with an object of the event tree diagram graph
-   */
-  @Get("/event-tree-graph/")
-  async getEventTreeGraph(@Query("eventTreeId") eventTreeId: string): Promise<EventTreeGraph> {
-    return this.graphModelService.getEventTreeGraph(eventTreeId);
   }
 }

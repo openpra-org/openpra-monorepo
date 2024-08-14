@@ -25,6 +25,13 @@ export type FaultTreeGraph = {
 } & Graph;
 
 /**
+ * Bayesian Network Graph, extending Graph type with bayesian network id
+ */
+export type BayesianNetworkGraph = {
+  bayesianNetworkId: string;
+} & Graph;
+
+/**
  * Event Tree Graph, extending Graph type with event tree id
  */
 export type EventTreeGraph = {

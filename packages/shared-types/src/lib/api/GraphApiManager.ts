@@ -1,4 +1,9 @@
-import { EventSequenceGraph, EventTreeGraph, FaultTreeGraph } from "../types/reactflowGraph/Graph";
+import {
+  EventSequenceGraph,
+  EventTreeGraph,
+  FaultTreeGraph,
+  BayesianNetworkGraph,
+} from "../types/reactflowGraph/Graph";
 import { AuthService } from "./AuthService";
 
 const ApiEndpoint = "/api";
@@ -6,6 +11,7 @@ const GraphEndpoint = `${ApiEndpoint}/graph-models`;
 const EventSequenceDiagramEndpoint = `${GraphEndpoint}/event-sequence-diagram-graph`;
 const FaultTreeGraphEndpoint = `${GraphEndpoint}/fault-tree-graph`;
 const EventTreeGraphEndpoint = `${GraphEndpoint}/event-tree-graph`;
+const BayesianNetworkGraphEndpoint = `${GraphEndpoint}/bayesian-network-graph`;
 
 /**
  * Manager class to manage API calls of graph related endpoints
@@ -79,6 +85,32 @@ export class GraphApiManager {
   }
 
   /**
+   * Store (create/update) the bayesian network graph based on the latest state of the graph
+   * @param data - Current state of bayesian network graph
+   * @returns Updated bayesian network graph
+   */
+  static async storeBayesianNetwork(data: BayesianNetworkGraph): Promise<BayesianNetworkGraph> {
+    return await this.post(`${FaultTreeGraphEndpoint}`, data)
+      .then((res) => this.getBayesianNetworkResponse(res, data.bayesianNetworkId))
+      .catch((err) => {
+        throw err;
+      });
+  }
+
+  /**
+   * Fetch the bayesian network graph based on the bayesian network id
+   * @param bayesianNetworkId - Bayesian network id
+   * @returns Latest bayesian network graph
+   */
+  static async getBayesianNetwork(bayesianNetworkId = "-1"): Promise<BayesianNetworkGraph> {
+    return await this.get(`${BayesianNetworkGraphEndpoint}/?bayesianNetworkId=${bayesianNetworkId}`)
+      .then((res) => this.getBayesianNetworkResponse(res, bayesianNetworkId))
+      .catch((error) => {
+        throw error;
+      });
+  }
+
+  /**
    * Update the label of a node or edge for an event sequence diagram
    * @param id - Node/Edge ID
    * @param label - New label
@@ -124,7 +156,10 @@ export class GraphApiManager {
    * @param data - Graph data
    * @returns Response from API
    */
-  private static post(url: string, data: EventSequenceGraph | FaultTreeGraph | EventTreeGraph): Promise<Response> {
+  private static post(
+    url: string,
+    data: EventSequenceGraph | FaultTreeGraph | EventTreeGraph | BayesianNetworkGraph,
+  ): Promise<Response> {
     return fetch(url, this.getRequestInfo("POST", JSON.stringify(data)));
   }
 
@@ -218,5 +253,25 @@ export class GraphApiManager {
           edges: [],
         } as EventTreeGraph)
       : (JSON.parse(response) as EventTreeGraph);
+  }
+
+  /**
+   * Read the API response and parse the bayesian network data
+   * @param res - Response from API
+   * @param bayesianNetworkId - Bayesian Network id
+   * @returns BayesianNetwork object, empty object if response is empty
+   */
+  private static async getBayesianNetworkResponse(
+    res: Response,
+    bayesianNetworkId: string,
+  ): Promise<BayesianNetworkGraph> {
+    const response = await res.text();
+    return response === ""
+      ? ({
+          bayesianNetworkId: bayesianNetworkId,
+          nodes: [],
+          edges: [],
+        } as BayesianNetworkGraph)
+      : (JSON.parse(response) as BayesianNetworkGraph);
   }
 }

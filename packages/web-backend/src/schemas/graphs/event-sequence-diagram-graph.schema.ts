@@ -4,7 +4,7 @@ import { BaseGraph } from "./base-graph.schema";
 @Schema({ versionKey: false })
 export class EventSequenceDiagramGraph extends BaseGraph {
   @Prop({ type: String, unique: true, required: true })
-  eventSequenceId: string;
+  eventSequenceId!: string;
 }
 
 export type EventSequenceDiagramGraphDocument = EventSequenceDiagramGraph & Document;

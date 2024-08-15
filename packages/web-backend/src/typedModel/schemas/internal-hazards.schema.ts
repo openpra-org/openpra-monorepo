@@ -4,8 +4,8 @@ import { TypedModel } from "./templateSchema/typed-model.schema";
 
 @Schema({ versionKey: false })
 export class InternalHazards extends TypedModel {
-  @Prop({ default: [] })
-  parentIds: number[];
+  @Prop({ required: false, default: [] })
+  parentIds?: number[];
 }
 
 export type InternalHazardsDocument = InternalHazards & Document;

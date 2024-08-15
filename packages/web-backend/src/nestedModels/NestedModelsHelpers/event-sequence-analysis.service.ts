@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { EventSequenceAnalysis, EventSequenceAnalysisDocument } from "../schemas/event-sequence-analysis.schema";
@@ -35,11 +35,21 @@ export class EventSequenceAnalysisService {
    * @returns the model which has the associated id
    */
   async getSingleEventSequenceAnalysis(modelId: number): Promise<EventSequenceAnalysis> {
-    return this.eventSequenceAnalysisModel.findOne({ id: modelId }, { _id: 0 });
+    const esa = await this.eventSequenceAnalysisModel.findOne({ id: modelId }, { _id: 0 });
+    if (!esa) {
+      throw new InternalServerErrorException("Event sequence analysis cannot be found");
+    }
+
+    return esa;
   }
 
   async getSingleEventSequenceAnalysisString(modelId: string): Promise<EventSequenceAnalysis> {
-    return this.eventSequenceAnalysisModel.findOne({ _id: modelId });
+    const esa = await this.eventSequenceAnalysisModel.findOne({ _id: modelId });
+    if (!esa) {
+      throw new InternalServerErrorException("Event sequence analysis cannot be found");
+    }
+
+    return esa;
   }
 
   /**
@@ -53,6 +63,9 @@ export class EventSequenceAnalysisService {
     const newEventSequenceAnalysis = new this.eventSequenceAnalysisModel(body);
     newEventSequenceAnalysis.id = await this.nestedModelService.getNextValue("nestedCounter");
     await newEventSequenceAnalysis.save();
+    if (!newEventSequenceAnalysis.parentIds) {
+      throw new InternalServerErrorException("Parent IDs of event sequence analysis cannot be found");
+    }
 
     for (const pId of newEventSequenceAnalysis.parentIds) {
       await this.nestedModelHelperService.AddNestedModelToTypedModel(
@@ -72,7 +85,12 @@ export class EventSequenceAnalysisService {
    * @returns a promise with the updated model with an updated label
    */
   async updateEventSequenceAnalysisLabel(id: string, body: Label): Promise<NestedModel> {
-    return this.eventSequenceAnalysisModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
+    const esa = await this.eventSequenceAnalysisModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
+    if (!esa) {
+      throw new InternalServerErrorException("Event sequence analysis cannot be updated");
+    }
+
+    return esa;
   }
 
   /**
@@ -86,6 +104,9 @@ export class EventSequenceAnalysisService {
       _id: modelId,
     });
     await this.eventSequenceAnalysisModel.findOneAndDelete({ _id: modelId });
+    if (!eventSequenceAnalysis || !eventSequenceAnalysis.parentIds) {
+      throw new InternalServerErrorException("Parent IDs of event sequence analysis cannot be found");
+    }
 
     for (const pId of eventSequenceAnalysis.parentIds) {
       await this.nestedModelHelperService.RemoveNestedModelToTypedModel(

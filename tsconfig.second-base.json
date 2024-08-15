@@ -16,8 +16,8 @@
       "node",
       "@types/jest"
     ],
-    "strictNullChecks": true,
-    "strict": true,
+    "strictNullChecks": false,
+    "strict": false,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   }

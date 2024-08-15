@@ -85,8 +85,8 @@ export class CollabService {
    */
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   public pagination(count: number, url: string, limit?: any, offset?: any): PaginationResult {
-    let previous = null;
-    let next = null;
+    let previous: string | null = null;
+    let next: string | null = null;
     const regex = /limit=[A-Za-z0-9]+&offset=[A-Za-z0-9]+/i;
 
     let default_limit = 10;
@@ -159,7 +159,7 @@ export class CollabService {
       default_limit: 10,
       default_offset: 0,
     };
-    let result = [];
+    let result: User[];
     const filters: Record<string, unknown> = {}; // Initialize filters as empty object
 
     if (role) {

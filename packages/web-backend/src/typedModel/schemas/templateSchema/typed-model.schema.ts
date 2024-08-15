@@ -10,43 +10,43 @@ export interface TypedModelJSON {
 @Schema({ _id: false, versionKey: false })
 export class TypedModel {
   @Prop({ required: true, unique: true })
-  id: number;
+  id!: number;
 
   @Prop({ type: LabelSchema, required: false })
-  label: Label;
+  label?: Label;
 
-  @Prop()
-  users: number[];
+  @Prop({ required: false })
+  users?: number[];
 
-  @Prop()
-  initiatingEvents: number[];
+  @Prop({ required: false })
+  initiatingEvents?: number[];
 
-  @Prop()
-  eventSequenceDiagrams: number[];
+  @Prop({ required: false })
+  eventSequenceDiagrams?: number[];
 
-  @Prop()
-  eventSequenceAnalysis: number[];
+  @Prop({ required: false })
+  eventSequenceAnalysis?: number[];
 
-  @Prop()
-  functionalEvents: number[];
+  @Prop({ required: false })
+  functionalEvents?: number[];
 
-  @Prop()
-  eventTrees: number[];
+  @Prop({ required: false })
+  eventTrees?: number[];
 
-  @Prop()
-  faultTrees: number[];
+  @Prop({ required: false })
+  faultTrees?: number[];
 
-  @Prop()
-  bayesianNetworks: number[];
+  @Prop({ required: false })
+  bayesianNetworks?: number[];
 
-  @Prop()
-  markovChains: number[];
+  @Prop({ required: false })
+  markovChains?: number[];
 
-  @Prop()
-  bayesianEstimations: number[];
+  @Prop({ required: false })
+  bayesianEstimations?: number[];
 
-  @Prop()
-  weibullAnalysis: number[];
+  @Prop({ required: false })
+  weibullAnalysis?: number[];
 }
 
 export type TypedModelDocument = TypedModel & Document;

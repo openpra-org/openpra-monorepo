@@ -4,8 +4,8 @@ import { TypedModel } from "./templateSchema/typed-model.schema";
 
 @Schema({ versionKey: false })
 export class FullScope extends TypedModel {
-  @Prop({ default: [] })
-  parentIds: number[];
+  @Prop({ required: false, default: [] })
+  parentIds?: number[];
 }
 
 export type FullScopeDocument = FullScope & Document;

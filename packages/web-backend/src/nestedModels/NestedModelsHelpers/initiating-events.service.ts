@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { Model } from "mongoose";
 import { InjectModel } from "@nestjs/mongoose";
 import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
@@ -35,11 +35,21 @@ export class InitiatingEventsService {
    * @returns the model which has the associated id
    */
   async getSingleInitiatingEvent(modelId: number): Promise<InitiatingEvent> {
-    return this.initiatingEventModel.findOne({ id: modelId }, { _id: 0 });
+    const initiatingEvent = await this.initiatingEventModel.findOne({ id: modelId }, { _id: 0 });
+    if (!initiatingEvent) {
+      throw new InternalServerErrorException("Initiating event cannot be found");
+    }
+
+    return initiatingEvent;
   }
 
   async getSingleInitiatingEventString(modelId: string): Promise<InitiatingEvent> {
-    return this.initiatingEventModel.findOne({ _id: modelId });
+    const initiatingEvent = await this.initiatingEventModel.findOne({ _id: modelId });
+    if (!initiatingEvent) {
+      throw new InternalServerErrorException("Initiating event cannot be found");
+    }
+
+    return initiatingEvent;
   }
 
   /**
@@ -53,6 +63,10 @@ export class InitiatingEventsService {
     const newInitiatingEvent = new this.initiatingEventModel(body);
     newInitiatingEvent.id = await this.nestedModelService.getNextValue("nestedCounter");
     await newInitiatingEvent.save();
+    if (!newInitiatingEvent.parentIds) {
+      throw new InternalServerErrorException("Parent IDs of the initiating event cannot be found");
+    }
+
     for (const pId of newInitiatingEvent.parentIds) {
       await this.nestedModelHelperService.AddNestedModelToTypedModel(
         typedModel,
@@ -71,7 +85,16 @@ export class InitiatingEventsService {
    * @returns a promise with the updated model with an updated label
    */
   async updateInitiatingEventLabel(id: string, body: Label): Promise<NestedModel> {
-    return this.initiatingEventModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
+    const initiatingEvent = await this.initiatingEventModel.findOneAndUpdate(
+      { _id: id },
+      { label: body },
+      { new: true },
+    );
+    if (!initiatingEvent) {
+      throw new InternalServerErrorException("Initiating event label cannot be updated");
+    }
+
+    return initiatingEvent;
   }
 
   /**
@@ -85,6 +108,9 @@ export class InitiatingEventsService {
       _id: modelId,
     });
     await this.initiatingEventModel.findOneAndDelete({ _id: modelId });
+    if (!initiatingEvent || !initiatingEvent.parentIds) {
+      throw new InternalServerErrorException("Parent IDs of the initiating events cannot be updated");
+    }
 
     for (const pId of initiatingEvent.parentIds) {
       await this.nestedModelHelperService.RemoveNestedModelToTypedModel(

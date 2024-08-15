@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { NestedModelService } from "../nestedModel.service";
@@ -35,11 +35,21 @@ export class EventTreesService {
    * @returns the model which has the associated id
    */
   async getSingleEventTree(modelId: number): Promise<EventTree> {
-    return this.eventTreeModel.findOne({ id: modelId }, { _id: 0 });
+    const eventTree = await this.eventTreeModel.findOne({ id: modelId }, { _id: 0 });
+    if (!eventTree) {
+      throw new InternalServerErrorException("Event tree cannot be found");
+    }
+
+    return eventTree;
   }
 
   async getSingleEventTreeString(modelId: string): Promise<EventTree> {
-    return this.eventTreeModel.findOne({ _id: modelId });
+    const eventTree = await this.eventTreeModel.findOne({ _id: modelId });
+    if (!eventTree) {
+      throw new InternalServerErrorException("Event tree cannot be found");
+    }
+
+    return eventTree;
   }
 
   /**
@@ -53,6 +63,10 @@ export class EventTreesService {
     const newEventTree = new this.eventTreeModel(body);
     newEventTree.id = await this.nestedModelService.getNextValue("nestedCounter");
     await newEventTree.save();
+    if (!newEventTree.parentIds) {
+      throw new InternalServerErrorException("Parent IDs of event tree cannot be found");
+    }
+
     for (const pId of newEventTree.parentIds) {
       await this.nestedModelHelperService.AddNestedModelToTypedModel(
         typedModel,
@@ -71,7 +85,12 @@ export class EventTreesService {
    * @returns a promise with the updated model with an updated label
    */
   async updateEventTreeLabel(id: string, body: Label): Promise<NestedModel> {
-    return this.eventTreeModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
+    const eventTree = await this.eventTreeModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
+    if (!eventTree) {
+      throw new InternalServerErrorException("Event tree cannot be updated");
+    }
+
+    return eventTree;
   }
 
   /**
@@ -85,6 +104,9 @@ export class EventTreesService {
       _id: modelId,
     });
     await this.eventTreeModel.findOneAndDelete({ _id: modelId });
+    if (!eventTree || !eventTree.parentIds) {
+      throw new InternalServerErrorException("Parent IDs of event tree cannot be found");
+    }
 
     for (const pId of eventTree.parentIds) {
       await this.nestedModelHelperService.RemoveNestedModelToTypedModel(

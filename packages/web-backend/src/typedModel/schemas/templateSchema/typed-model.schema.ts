@@ -47,6 +47,12 @@ export class TypedModel {
 
   @Prop()
   weibullAnalysis: number[];
+
+  @Prop()
+  createdAt: Date;
+
+  @Prop()
+  lastModifiedAt: Date;
 }
 
 export type TypedModelDocument = TypedModel & Document;

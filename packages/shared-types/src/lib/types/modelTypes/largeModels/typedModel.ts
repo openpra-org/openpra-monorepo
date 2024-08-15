@@ -52,50 +52,6 @@ export default class TypedModel extends BasicModel /** implements Parsable<Typed
   setUsers(users: number[]): void {
     this.users = users;
   }
-
-  // getTypeString(): string {
-  //   if (this instanceof ExternalHazardsModel) {
-  //     return "external-hazards";
-  //   } else if (this instanceof InternalEventsModel) {
-  //     return 'internal-events';
-  //   } else if (this instanceof FullScopeModel) {
-  //     return 'full-scope';
-  //   } else if (this instanceof InternalHazardsModel) {
-  //     return 'internal-hazards'
-  //   } else {
-  //     return "No Type";
-  //   }
-  // }
-
-  // toJSON(): TypedModelJSON {
-  //   return {
-  //     name: this.getName(),
-  //     description: this.getDescription(),
-  //     users: this.getUsers()
-  //   };
-  // }
-
-  // getDefaultJSON(): TypedModelJSON {
-  //   return DEFAULT_TYPED_MODEL_JSON;
-  // }
-
-  // clone(): TypedModel {
-  //   return TypedModel.build(this.toJSON());
-  // }
-
-  // getDefaultMappedJSON(): Defaults<TypedModelJSONMap> {
-  //   return {
-  //     "typedModel": DEFAULT_TYPED_MODEL_JSON,
-  //   };
-  // }
-
-  // toPartialMappedJSON(): Partial<TypedModelJSONMap> {
-  //   return {
-  //     "typedModel": {
-  //       ...this.toJSON(),
-  //     },
-  //   };
-  // }
 }
 
 export interface typedModelType {

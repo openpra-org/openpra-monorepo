@@ -43,161 +43,180 @@ export class TypedModelService {
     }
     return record.seq;
   }
-
-  //first we are going to put the 4 put requests for each of the 4 types of model
+  /**
+   * Creates a new model document in the database.
+   *
+   * @template T - The type of the model, extending the TypedModel interface.
+   * @param {Model<T>} modelClass - The Mongoose model class used to create the document.
+   * @param {Partial<T>} body - A partial object containing the fields for the new document.
+   * @returns {Promise<T>} - A promise that resolves to the created model document.
+   *
+   * This function performs the following steps:
+   * 1. Creates a new instance of the provided `modelClass`, spreading the `body` data into it.
+   * 2. Adds `createdAt` and `lastModifiedAt` timestamps, both set to the current time.
+   * 3. Generates a new `id` for the model by invoking `getNextModelValue("ModelCounter")`.
+   * 4. Saves the newly created model document to the database.
+   */
+  async createModel<T extends TypedModel>(modelClass: Model<T>, body: Partial<T>): Promise<T> {
+    const newModel = new modelClass({
+      ...body,
+      createdAt: Date.now(),
+      lastModifiedAt: Date.now(),
+    });
+    newModel.id = await this.getNextModelValue("ModelCounter");
+    return newModel.save();
+  }
 
   /**
-   * method for creating a new internal evnet model in the database
-   * @param body - takes in the model type that is requested in the name
-   * @returns promise with the model type
+   * Creates a new Internal Event model document in the database.
+   *
+   * @param {Partial<InternalEvents>} body - A partial object containing the fields for the new Internal Event document.
+   * @returns {Promise<TypedModel>} - A promise that resolves to the created Internal Event model document.
+   *
+   * This function delegates the creation of the document to the `createModel` method, passing in
+   * the `internalEventsModel` class and the provided `body` data.
    */
   async createInternalEventModel(body: Partial<InternalEvents>): Promise<TypedModel> {
-    const newInternalEvent = new this.internalEventsModel(body);
-    newInternalEvent.id = await this.getNextModelValue("ModelCounter");
-    return newInternalEvent.save();
+    return this.createModel(this.internalEventsModel, body);
   }
 
   /**
-   * method for creating a new internal evnet model in the database
-   * @param body - takes in the model type that is requested in the name
-   * @returns promise with the model type
+   * Creates a new Internal Hazard model document in the database.
+   *
+   * @param {Partial<InternalHazards>} body - A partial object containing the fields for the new Internal Hazard document.
+   * @returns {Promise<TypedModel>} - A promise that resolves to the created Internal Hazard model document.
+   *
+   * This function delegates the creation of the document to the `createModel` method, passing in
+   * the `internalHazardsModel` class and the provided `body` data.
    */
   async createInternalHazardModel(body: Partial<InternalHazards>): Promise<TypedModel> {
-    const newInternalHazard = new this.internalHazardsModel(body);
-    newInternalHazard.id = await this.getNextModelValue("ModelCounter");
-    return newInternalHazard.save();
+    return this.createModel(this.internalHazardsModel, body);
   }
 
   /**
-   * method for creating a new internal evnet model in the database
-   * @param body takes in the model type that is requested in the name
-   * @returns promise with the model type
+   * Creates a new External Hazard model document in the database.
+   *
+   * @param {Partial<ExternalHazards>} body - A partial object containing the fields for the new External Hazard document.
+   * @returns {Promise<TypedModel>} - A promise that resolves to the created External Hazard model document.
+   *
+   * This function delegates the creation of the document to the `createModel` method, passing in
+   * the `externalHazardsModel` class and the provided `body` data.
    */
   async createExternalHazardModel(body: Partial<ExternalHazards>): Promise<TypedModel> {
-    const newExternalHazard = new this.externalHazardsModel(body);
-    newExternalHazard.id = await this.getNextModelValue("ModelCounter");
-    return newExternalHazard.save();
+    return this.createModel(this.externalHazardsModel, body);
   }
 
   /**
-   * method for creating a new internal event model in the database
-   * @param body takes in the model type that is requested in the name
-   * @returns promise with the model type
+   * Creates a new Full Scope model document in the database.
+   *
+   * @param {Partial<FullScope>} body - A partial object containing the fields for the new Full Scope document.
+   * @returns {Promise<TypedModel>} - A promise that resolves to the created Full Scope model document.
+   *
+   * This function delegates the creation of the document to the `createModel` method, passing in
+   * the `fullScopeModel` class and the provided `body` data.
    */
   async createFullScopeModel(body: Partial<FullScope>): Promise<TypedModel> {
-    const newFullScope = new this.fullScopeModel(body);
-    newFullScope.id = await this.getNextModelValue("ModelCounter");
-    return newFullScope.save();
+    return this.createModel(this.fullScopeModel, body);
   }
 
   //put functions
 
   /**
-   * updates a single model at the given id, replacing it with a new one
-   * @param modelId the id of the model to be updated
-   * @param userId the user who must be on the model
-   * @param model the new model we want to put at the id
-   * @returns the new InternalEventsModel
+   * Updates a specific model document in the database by applying partial updates.
+   *
+   * @param {Model<T>} modelClass - The Mongoose model class representing the document to update.
+   * @param {string} modelId - The ID of the model document to be updated.
+   * @param {number} userId - The ID of the user associated with the model document.
+   * @param {Partial<T>} updateData - An object containing the fields to update in the model document.
+   * @returns {Promise<T>} - A promise that resolves to the updated model document.
+   *
+   * This function performs the following actions:
+   * 1. Constructs a query to find the document that matches the provided `modelId` and `userId`.
+   * 2. Adds a `lastModifiedAt` field to the update data, setting it to the current timestamp.
+   * 3. Executes the update operation using `findOneAndUpdate`, which updates the document based on the query.
+   * 4. The `new` option ensures that the updated document is returned instead of the original one.
    */
-  async patchInternalEvent(modelId: string, userId: number, model: Partial<InternalEvents>): Promise<InternalEvents> {
+  async patchModel<T extends TypedModel>(
+    modelClass: Model<T>,
+    modelId: string,
+    userId: number,
+    updateData: Partial<T>,
+  ): Promise<T> {
     // Find the document that matches the provided modelId and userId
     const query = { id: Number(modelId), users: userId };
-
-    const newInternalEvent = new this.internalEventsModel(model);
-
-    const updateData = {
-      users: newInternalEvent.users,
-      label: newInternalEvent.label,
+    // Add modifiedAt to the updateData
+    const updatePayload: Partial<T> = {
+      ...updateData,
+      lastModifiedAt: Date.now(), // Set modifiedAt to the current timestamp
     };
-
     // The `new` option returns the updated document instead of the original one
     const options = { new: true };
-
     // Update the document with the provided model data
-    return await this.internalEventsModel.findOneAndUpdate(query, updateData, options);
+    return await modelClass.findOneAndUpdate(query, updatePayload, options);
   }
 
   /**
-   * updates a single model at the given id, replacing it with a new one
-   * @param modelId the id of the model to be updated
-   * @param userId the user who must be on the model
-   * @param model the new model we want to put at the id
-   * @returns the new InternalHazardsModel
+   * Updates an Internal Event model document in the database.
+   *
+   * @param {string} modelId - The ID of the Internal Event model document to be updated.
+   * @param {number} userId - The ID of the user associated with the model document.
+   * @param {Partial<InternalEvents>} model - An object containing the fields to update in the Internal Event model document.
+   * @returns {Promise<InternalEvents>} - A promise that resolves to the updated Internal Event model document.
+   *
+   * This function delegates the update operation to the `patchModel` function for Internal Events.
+   */
+  async patchInternalEvent(modelId: string, userId: number, model: Partial<InternalEvents>): Promise<InternalEvents> {
+    return this.patchModel(this.internalEventsModel, modelId, userId, model);
+  }
+
+  /**
+   * Updates an Internal Hazard model document in the database.
+   *
+   * @param {string} modelId - The ID of the Internal Hazard model document to be updated.
+   * @param {number} userId - The ID of the user associated with the model document.
+   * @param {Partial<InternalHazards>} model - An object containing the fields to update in the Internal Hazard model document.
+   * @returns {Promise<InternalHazards>} - A promise that resolves to the updated Internal Hazard model document.
+   *
+   * This function delegates the update operation to the `patchModel` function for Internal Hazards.
    */
   async patchInternalHazard(
     modelId: string,
     userId: number,
     model: Partial<InternalHazards>,
   ): Promise<InternalHazards> {
-    // Find the document that matches the provided modelId and userId
-    const query = { id: Number(modelId), users: userId };
-
-    const newInternalHazard = new this.internalHazardsModel(model);
-
-    const updateData = {
-      users: newInternalHazard.users,
-      label: newInternalHazard.label,
-    };
-
-    // The `new` option returns the updated document instead of the original one
-    const options = { new: true };
-
-    // Update the document with the provided model data
-    return await this.internalHazardsModel.findOneAndUpdate(query, updateData, options);
+    return this.patchModel(this.internalHazardsModel, modelId, userId, model);
   }
 
   /**
-   * updates a single model at the given id, replacing it with a new one
-   * @param modelId the id of the model to be updated
-   * @param userId the user who must be on the model
-   * @param model the new model we want to put at the id
-   * @returns the new ExternalHazardsModel
+   * Updates an External Hazard model document in the database.
+   *
+   * @param {string} modelId - The ID of the External Hazard model document to be updated.
+   * @param {number} userId - The ID of the user associated with the model document.
+   * @param {Partial<ExternalHazards>} model - An object containing the fields to update in the External Hazard model document.
+   * @returns {Promise<ExternalHazards>} - A promise that resolves to the updated External Hazard model document.
+   *
+   * This function delegates the update operation to the `patchModel` function for External Hazards.
    */
   async patchExternalHazard(
     modelId: string,
     userId: number,
     model: Partial<ExternalHazards>,
   ): Promise<ExternalHazards> {
-    // Find the document that matches the provided modelId and userId
-    const query = { id: Number(modelId), users: userId };
-
-    const newExternalHazard = new this.externalHazardsModel(model);
-
-    const updateData = {
-      users: newExternalHazard.users,
-      label: newExternalHazard.label,
-    };
-
-    // The `new` option returns the updated document instead of the original one
-    const options = { new: true };
-
-    // Update the document with the provided model data
-    return await this.externalHazardsModel.findOneAndUpdate(query, updateData, options);
+    return this.patchModel(this.externalHazardsModel, modelId, userId, model);
   }
 
   /**
-   * updates a single model at the given id, replacing it with a new one
-   * @param modelId the id of the model to be updated
-   * @param userId the user who must be on the model
-   * @param model the new model we want to put at the id
-   * @returns the new FulLScopeModel
+   * Updates a Full Scope model document in the database.
+   *
+   * @param {string} modelId - The ID of the Full Scope model document to be updated.
+   * @param {number} userId - The ID of the user associated with the model document.
+   * @param {Partial<FullScope>} model - An object containing the fields to update in the Full Scope model document.
+   * @returns {Promise<FullScope>} - A promise that resolves to the updated Full Scope model document.
+   *
+   * This function delegates the update operation to the `patchModel` function for Full Scope models.
    */
   async patchFullScope(modelId: string, userId: number, model: Partial<FullScope>): Promise<FullScope> {
-    // Find the document that matches the provided modelId and userId
-    const query = { id: Number(modelId), users: userId };
-
-    const newFullScope = new this.fullScopeModel(model);
-
-    const updateData = {
-      users: newFullScope.users,
-      label: newFullScope.label,
-    };
-
-    // The `new` option returns the updated document instead of the original one
-    const options = { new: true };
-
-    // Update the document with the provided model data
-    return await this.fullScopeModel.findOneAndUpdate(query, updateData, options);
+    return this.patchModel(this.fullScopeModel, modelId, userId, model);
   }
 
   //get functions

@@ -9,7 +9,7 @@
   "targetDefaults": {
     "test": {
       "inputs": ["default", "^default", "{workspaceRoot}/jest.preset.js"],
-      "cache": true
+      "cache": false
     },
     "lint": {
       "inputs": [
@@ -17,13 +17,13 @@
         "{workspaceRoot}/.eslintrc.json",
         "{workspaceRoot}/.eslintignore"
       ],
-      "cache": true
+      "cache": false
     },
     "build": {
-      "cache": true
+      "cache": false
     },
     "@nx/jest:jest": {
-      "cache": true,
+      "cache": false,
       "inputs": ["default", "^default", "{workspaceRoot}/jest.preset.js"],
       "options": {
         "passWithNoTests": true,
@@ -37,7 +37,7 @@
       }
     },
     "component-test": {
-      "cache": true
+      "cache": false
     }
   },
   "generators": {

@@ -85,7 +85,7 @@ export class InviteController {
    * This endpoint will get invitedUser by id
    */
   @TypedRoute.Get("/invite/:id")
-  public async getInvite(@TypedParam("id") id: string): Promise<InvitedUserDetailsDto> {
+  public async getInvite(@TypedParam("id") id: string): Promise<InvitedUserDetailsDto | null> {
     return this.inviteService.getInviteById(id);
   }
 }

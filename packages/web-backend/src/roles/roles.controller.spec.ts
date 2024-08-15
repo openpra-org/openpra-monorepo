@@ -15,7 +15,7 @@ describe("Roles Controller", () => {
    * make connection object and inviteService and inviteController available to all tests.
    */
   beforeAll(async () => {
-    const mongoUri = process.env.MONGO_URI; //get the URI from the environment variable
+    const mongoUri = process.env.MONGO_URI ? process.env.MONGO_URI : ""; //get the URI from the environment variable
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongoUri),

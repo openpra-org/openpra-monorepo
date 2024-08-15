@@ -7,19 +7,19 @@ import { EventTreeData } from "shared-types/src/lib/types/reactflowGraph/graphDa
 @Schema({ versionKey: false })
 export class EventTreeGraph {
   @Prop({ unique: true, required: true })
-  id: string;
+  id!: string;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId })
-  _id: mongoose.Types.ObjectId;
+  @Prop({ required: false, type: mongoose.Schema.Types.ObjectId })
+  _id?: mongoose.Types.ObjectId;
 
-  @Prop()
-  nodes: GraphNode<EventTreeData>[];
+  @Prop({ required: false })
+  nodes?: GraphNode<EventTreeData>[];
 
-  @Prop()
-  edges: GraphEdge<EventTreeData>[];
+  @Prop({ required: false })
+  edges?: GraphEdge<EventTreeData>[];
 
   @Prop({ type: String, unique: true, required: true })
-  eventTreeId: string;
+  eventTreeId!: string;
 }
 
 export type EventTreeGraphDocument = EventTreeGraph & Document;

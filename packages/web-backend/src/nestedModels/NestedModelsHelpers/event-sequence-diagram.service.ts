@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { EventSequenceDiagram, EventSequenceDiagramDocument } from "../schemas/event-sequence-diagram.schema";
@@ -37,11 +37,21 @@ export class EventSequenceDiagramService {
    * @returns the model which has the associated id
    */
   async getSingleEventSequenceDiagram(modelId: number): Promise<EventSequenceDiagram> {
-    return this.eventSequenceDiagramModel.findOne({ id: modelId }, { _id: 0 });
+    const eventTree = await this.eventSequenceDiagramModel.findOne({ id: modelId }, { _id: 0 });
+    if (!eventTree) {
+      throw new InternalServerErrorException("Event sequence diagram cannot be found");
+    }
+
+    return eventTree;
   }
 
   async getSingleEventSequenceDiagramString(modelId: string): Promise<EventSequenceDiagram> {
-    return this.eventSequenceDiagramModel.findOne({ _id: modelId });
+    const eventTree = await this.eventSequenceDiagramModel.findOne({ _id: modelId });
+    if (!eventTree) {
+      throw new InternalServerErrorException("Event sequence diagram cannot be found");
+    }
+
+    return eventTree;
   }
 
   /**
@@ -59,6 +69,10 @@ export class EventSequenceDiagramService {
     await this.graphModelService.saveEventSequenceDiagramGraph({
       eventSequenceId: newEventSequenceDiagram._id as string,
     });
+
+    if (!newEventSequenceDiagram.parentIds) {
+      throw new InternalServerErrorException("Parent IDs of event sequence diagram cannot be found");
+    }
 
     for (const pId of newEventSequenceDiagram.parentIds) {
       await this.nestedModelHelperService.AddNestedModelToTypedModel(
@@ -78,7 +92,16 @@ export class EventSequenceDiagramService {
    * @returns a promise with the updated model with an updated label
    */
   async updateEventSequenceDiagramLabel(id: string, body: Label): Promise<NestedModel> {
-    return this.eventSequenceDiagramModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
+    const eventTree = await this.eventSequenceDiagramModel.findOneAndUpdate(
+      { _id: id },
+      { label: body },
+      { new: true },
+    );
+    if (!eventTree) {
+      throw new InternalServerErrorException("Event sequence diagram cannot be updated");
+    }
+
+    return eventTree;
   }
 
   /**
@@ -92,6 +115,10 @@ export class EventSequenceDiagramService {
       _id: modelId,
     });
     await this.eventSequenceDiagramModel.findOneAndDelete({ _id: modelId });
+
+    if (!eventSequenceDiagram || !eventSequenceDiagram.parentIds) {
+      throw new InternalServerErrorException("Parent IDs of event sequence diagram cannot be found");
+    }
 
     for (const pId of eventSequenceDiagram.parentIds) {
       await this.nestedModelHelperService.RemoveNestedModelToTypedModel(

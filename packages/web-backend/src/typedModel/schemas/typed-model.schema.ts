@@ -10,13 +10,13 @@ export interface TypedModelJSON {
 @Schema({ versionKey: false })
 export class TypedModel {
   @Prop({ required: true, unique: true })
-  id: number;
+  id!: number;
 
   @Prop({ type: LabelSchema, required: false })
-  label: Label;
+  label?: Label;
 
-  @Prop()
-  users: number[];
+  @Prop({ required: false })
+  users?: number[];
 }
 
 export type TypedModelDocument = TypedModel & Document;

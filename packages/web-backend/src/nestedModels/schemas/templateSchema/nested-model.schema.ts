@@ -4,13 +4,13 @@ import { Label, LabelSchema } from "../../../schemas/label.schema";
 @Schema({ _id: false, versionKey: false })
 export class NestedModel {
   @Prop({ required: true, unique: true })
-  id: number;
+  id!: number;
 
   @Prop({ type: LabelSchema, required: false })
-  label: Label;
+  label?: Label;
 
   @Prop()
-  parentIds: number[] | string[];
+  parentIds?: number[] | string[];
 }
 
 export type NestedModelDocument = NestedModel & Document;

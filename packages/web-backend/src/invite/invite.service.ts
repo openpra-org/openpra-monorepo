@@ -29,7 +29,7 @@ export class InviteService {
     newInvitedUser.username = String(body.username);
     newInvitedUser.firstName = String(body.firstname);
     newInvitedUser.lastName = String(body.lastname);
-    newInvitedUser.expiry = body.expiry!;
+    newInvitedUser.expiry = body.expiry;
     newInvitedUser.numberOfInvites = Number(body.numberOfInvites);
     return newInvitedUser.save();
   }
@@ -41,7 +41,7 @@ export class InviteService {
    */
   public async verifyUserInvite(guid: string): Promise<InvitedUser | null> {
     const invitedUser = await this.invitedUserModel.findOne({ id: guid });
-    if (invitedUser === null) {
+    if (!invitedUser || !invitedUser.expiry || !invitedUser.numberOfInvites) {
       return null;
     }
     if (new Date() > invitedUser.expiry || invitedUser.numberOfInvites < 1) {
@@ -60,7 +60,7 @@ export class InviteService {
       id: String(user.id),
       numberOfInvites: Number(user.numberOfInvites),
       email: String(user.email),
-      expiry: user.expiry!,
+      expiry: user.expiry,
       firstName: String(user.firstname),
       lastName: String(user.lastname),
       username: String(user.username),
@@ -73,9 +73,8 @@ export class InviteService {
    */
   public async getAllInvitedUsers(): Promise<InvitedUserDetailsDto[]> {
     const invitedUsers = await this.invitedUserModel.find();
-    let mappedUsers: InvitedUserDetailsDto[];
-    mappedUsers = invitedUsers.map((x) => ({
-      id: x.id,
+    return invitedUsers.map((x) => ({
+      id: String(x.id),
       username: x.username,
       email: x.email,
       firstName: x.firstName,
@@ -83,7 +82,6 @@ export class InviteService {
       expiry: x.expiry,
       numberOfInvites: x.numberOfInvites,
     }));
-    return mappedUsers;
   }
 
   /**
@@ -103,7 +101,7 @@ export class InviteService {
    * Get a user invite by id
    * @param id - Id of the invited user
    */
-  public async getInviteById(id: string): Promise<InvitedUserDetailsDto> {
-    return this.invitedUserModel.findOne({ id: id }) as InvitedUserDetailsDto;
+  public async getInviteById(id: string): Promise<InvitedUserDetailsDto | null> {
+    return this.invitedUserModel.findOne({ id: id });
   }
 }

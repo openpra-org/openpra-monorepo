@@ -10,25 +10,25 @@ import { Document } from "mongoose";
 })
 export class InvitedUser {
   @Prop({ required: false })
-  id: string;
+  id?: string;
 
   @Prop({ required: false })
-  firstName: string;
+  firstName?: string;
 
   @Prop({ required: false })
-  lastName: string;
+  lastName?: string;
 
   @Prop({ required: false })
-  username: string;
+  username?: string;
 
   @Prop({ required: false })
-  email: string;
+  email?: string;
 
   @Prop({ required: false })
-  expiry: Date;
+  expiry?: Date;
 
   @Prop({ required: false })
-  numberOfInvites: number;
+  numberOfInvites?: number;
 }
 
 export type InvitedUserDocument = InvitedUser & Document;

@@ -138,7 +138,7 @@ export class CollabController {
    * @param user_id - user ID of the member which you want to find
    */
   @TypedRoute.Get("/user/:user_id/")
-  public async getUserById(@TypedParam("user_id") user_id: string): Promise<User> {
+  public async getUserById(@TypedParam("user_id") user_id: string): Promise<User | null> {
     return this.collabService.getUserById(user_id);
   }
 

@@ -19,13 +19,15 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderWithScheme("JWT"),
       ignoreExpiration: false,
-      secretOrKey: process.env.DEPLOYMENT
-        ? fs.readFileSync(configService.get<string>("JWT_SECRET_KEY"))
-        : configService.get<string>("JWT_SECRET_KEY"),
+      secretOrKey: configService.get<string>("JWT_SECRET_KEY"),
     });
   }
 
-  async validate(payload: any) {
+  validate(payload: { user_id: number; username: string; email: string }): {
+    user_id: number;
+    username: string;
+    email: string;
+  } {
     return {
       user_id: payload.user_id,
       username: payload.username,

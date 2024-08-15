@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { NestedModelService } from "../nestedModel.service";
@@ -35,11 +35,21 @@ export class BayesianNetworksService {
    * @returns the model which has the associated id
    */
   async getSingleBayesianNetwork(modelId: number): Promise<BayesianNetwork> {
-    return this.bayesianNetworkModel.findOne({ id: modelId }, { _id: 0 });
+    const bayesianNetwork = await this.bayesianNetworkModel.findOne({ id: modelId }, { _id: 0 });
+    if (!bayesianNetwork) {
+      throw new InternalServerErrorException("Bayesian network cannot be found");
+    }
+
+    return bayesianNetwork;
   }
 
   async getSingleBayesianNetworkString(modelId: string): Promise<BayesianNetwork> {
-    return this.bayesianNetworkModel.findOne({ _id: modelId });
+    const bayesianNetwork = await this.bayesianNetworkModel.findOne({ _id: modelId });
+    if (!bayesianNetwork) {
+      throw new InternalServerErrorException("Bayesian network cannot be found");
+    }
+
+    return bayesianNetwork;
   }
 
   /**
@@ -53,6 +63,10 @@ export class BayesianNetworksService {
     const newBayesianNetwork = new this.bayesianNetworkModel(body);
     newBayesianNetwork.id = await this.nestedModelService.getNextValue("nestedCounter");
     await newBayesianNetwork.save();
+
+    if (!newBayesianNetwork.parentIds) {
+      throw new InternalServerErrorException("Parent IDs of Bayesian network cannot be found");
+    }
 
     for (const pId of newBayesianNetwork.parentIds) {
       await this.nestedModelHelperService.AddNestedModelToTypedModel(
@@ -72,7 +86,16 @@ export class BayesianNetworksService {
    * @returns a promise with the updated model with an updated label
    */
   async updateBayesianNetworkLabel(id: string, body: Label): Promise<NestedModel> {
-    return this.bayesianNetworkModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
+    const bayesianNetwork = await this.bayesianNetworkModel.findOneAndUpdate(
+      { _id: id },
+      { label: body },
+      { new: true },
+    );
+    if (!bayesianNetwork) {
+      throw new InternalServerErrorException("Bayesian network cannot be updated");
+    }
+
+    return bayesianNetwork;
   }
 
   /**
@@ -86,6 +109,9 @@ export class BayesianNetworksService {
       _id: modelId,
     });
     await this.bayesianNetworkModel.findOneAndDelete({ _id: modelId });
+    if (!bayesianNetwork || !bayesianNetwork.parentIds) {
+      throw new InternalServerErrorException("Bayesian network cannot be found");
+    }
 
     for (const pId of bayesianNetwork.parentIds) {
       await this.nestedModelHelperService.RemoveNestedModelToTypedModel(

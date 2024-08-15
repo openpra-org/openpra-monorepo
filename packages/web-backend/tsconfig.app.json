@@ -1,5 +1,5 @@
 {
-  "extends": "../../tsconfig.second-base.json",
+  "extends": "../../tsconfig.base.json",
   "include": ["src/**/*.ts"],
   "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts", "*.e2e-spec.ts"],
   "compilerOptions": {
@@ -23,8 +23,6 @@
     "importHelpers": true,
     "lib": ["es2020", "dom"],
     "skipDefaultLibCheck": true,
-    "strictNullChecks": false,
-    "strict": false,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   }

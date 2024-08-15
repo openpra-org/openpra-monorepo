@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, InternalServerErrorException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { NestedModelService } from "../nestedModel.service";
@@ -35,11 +35,21 @@ export class FaultTreesService {
    * @returns the model which has the associated id
    */
   async getSingleFaultTree(modelId: number): Promise<FaultTree> {
-    return this.FaultTreeModel.findOne({ id: modelId }, { _id: 0 });
+    const faultTree = await this.FaultTreeModel.findOne({ id: modelId }, { _id: 0 });
+    if (!faultTree) {
+      throw new InternalServerErrorException("Fault tree cannot be found");
+    }
+
+    return faultTree;
   }
 
   async getSingleFaultTreeString(modelId: string): Promise<FaultTree> {
-    return this.FaultTreeModel.findOne({ _id: modelId });
+    const faultTree = await this.FaultTreeModel.findOne({ _id: modelId });
+    if (!faultTree) {
+      throw new InternalServerErrorException("Fault tree cannot be found");
+    }
+
+    return faultTree;
   }
 
   /**
@@ -53,6 +63,9 @@ export class FaultTreesService {
     const newFaultTree = new this.FaultTreeModel(body);
     newFaultTree.id = await this.nestedModelService.getNextValue("nestedCounter");
     await newFaultTree.save();
+    if (!newFaultTree.parentIds) {
+      throw new InternalServerErrorException("Parent IDs of the fault tree cannot be found");
+    }
 
     for (const pId of newFaultTree.parentIds) {
       await this.nestedModelHelperService.AddNestedModelToTypedModel(
@@ -72,7 +85,12 @@ export class FaultTreesService {
    * @returns a promise with the updated model with an updated label
    */
   async updateFaultTreeLabel(id: string, body: Label): Promise<NestedModel> {
-    return this.FaultTreeModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
+    const faultTree = await this.FaultTreeModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
+    if (!faultTree) {
+      throw new InternalServerErrorException("Fault tree cannot be updated");
+    }
+
+    return faultTree;
   }
 
   /**
@@ -86,6 +104,9 @@ export class FaultTreesService {
       _id: modelId,
     });
     await this.FaultTreeModel.findOneAndDelete({ _id: modelId });
+    if (!faultTree || !faultTree.parentIds) {
+      throw new InternalServerErrorException("Parent IDs of the fault tree cannot be found");
+    }
 
     for (const pId of faultTree.parentIds) {
       await this.nestedModelHelperService.RemoveNestedModelToTypedModel(

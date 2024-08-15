@@ -145,9 +145,9 @@ export class QuantifyService {
 
     return new Promise((resolve, reject) => {
       const scramProcess = spawn(
-          "/home/arjun/projects/openpra-monorepo/packages/engine/scram-node/cmake-build-debug/targets/scram-cli/scram-cli",
-          args,
-          { shell: true },
+        "/home/arjun/projects/openpra-monorepo/packages/engine/scram-node/cmake-build-debug/targets/scram-cli/scram-cli",
+        args,
+        { shell: true },
       );
 
       // Stream for capturing standard error
@@ -186,5 +186,5 @@ export class QuantifyService {
     } catch (error) {
       throw new Error(`Failed to read report file at ${filePath}.`);
     }
-  };
+  }
 }

@@ -4,7 +4,7 @@ import { Document, SchemaTypes } from "mongoose";
 @Schema({ minimize: false, _id: false, versionKey: false })
 class RawRule {
   @Prop({ required: true, type: SchemaTypes.Mixed })
-  action: string | string[];
+  action!: string | string[];
 
   @Prop({ required: false, type: SchemaTypes.Mixed })
   subject?: string | string[];
@@ -31,13 +31,13 @@ class RawRule {
 })
 export class Roles {
   @Prop({ required: false, unique: true })
-  id: string;
+  id?: string;
 
   @Prop({ required: false })
-  name: string;
+  name?: string;
 
   @Prop({ required: true })
-  permissions: RawRule[];
+  permissions!: RawRule[];
 }
 
 export type RolesDocument = Roles & Document;

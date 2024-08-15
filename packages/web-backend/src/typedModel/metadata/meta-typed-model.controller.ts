@@ -1,12 +1,10 @@
-import { Controller, Get, Request, UseFilters, UseGuards } from "@nestjs/common";
+import { Controller, Get, Request, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { InternalEventsMetadata } from "../schemas/internal-events.schema";
-import { InvalidTokenFilter } from "../../filters/invalid-token.filter";
 import { MetaTypedModelService } from "./meta-typed-model.service";
 
 @Controller()
 @UseGuards(AuthGuard("jwt"))
-@UseFilters(InvalidTokenFilter)
 export class MetaTypedModelController {
   constructor(private readonly metaTypedModelService: MetaTypedModelService) {}
   //get methods for collections

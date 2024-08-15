@@ -1,37 +1,37 @@
-import { Controller, Get, Post, Param, Body, UseFilters, UseGuards, Put, Delete, Query } from "@nestjs/common";
+import { Controller, UseGuards } from "@nestjs/common";
 import { RoleSchemaDto } from "shared-types/src/openpra-zod-mef/role/role-schema";
+import { TypedBody, TypedParam, TypedQuery, TypedRoute } from "@nestia/core";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
-import { InvalidTokenFilter } from "../filters/invalid-token.filter";
 import { RolesService } from "./roles.service";
+import { Roles } from "./schemas/roles.schema";
 
 @Controller()
 @UseGuards(JwtAuthGuard)
-@UseFilters(InvalidTokenFilter)
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
-  @Get("/roles/")
-  async getAllRoles(@Query() query: { id?: string[] }): Promise<RoleSchemaDto[]> {
+  @TypedRoute.Get("/roles/")
+  async getAllRoles(@TypedQuery() query: { id?: string[] }): Promise<Roles[]> {
     return this.rolesService.getAllRoles(query.id);
   }
 
-  @Get("/role/:roleId")
-  async getRoleById(@Param("roleId") roleId: string): Promise<RoleSchemaDto> {
+  @TypedRoute.Get("/role/:roleId")
+  async getRoleById(@TypedParam("roleId") roleId: string): Promise<Roles> {
     return this.rolesService.getRole(roleId);
   }
 
-  @Post("/role/")
-  createRole(@Body() body: RoleSchemaDto): Promise<void> {
+  @TypedRoute.Post("/role/")
+  createRole(@TypedBody() body: RoleSchemaDto): Promise<void> {
     return this.rolesService.createRole(body);
   }
 
-  @Put("/role/")
-  async updateRole(@Body() body: RoleSchemaDto): Promise<void> {
+  @TypedRoute.Put("/role/")
+  async updateRole(@TypedBody() body: RoleSchemaDto): Promise<void> {
     return this.rolesService.updateRole(body);
   }
 
-  @Delete("/role/:roleId")
-  async removeRole(@Param("roleId") roleId: string): Promise<void> {
+  @TypedRoute.Delete("/role/:roleId")
+  async removeRole(@TypedParam("roleId") roleId: string): Promise<void> {
     return this.rolesService.deleteRole(roleId);
   }
 }

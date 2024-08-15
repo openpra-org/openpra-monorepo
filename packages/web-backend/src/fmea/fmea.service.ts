@@ -354,6 +354,7 @@ export class FmeaService {
 
   /**
    *
+   * @param fmeaId
    * @param prev_name name of column previously stored
    * @param column_body updated details of the column
    * @returns updated FMEA object
@@ -369,23 +370,22 @@ export class FmeaService {
     }
     const columns = fmea.columns;
 
-    let result = null;
     const column = columns.find((column) => column.id === prev_name);
     if (!column) {
       return null;
     }
 
     if (column_body.name !== column.name) {
-      result = await this.updateColumnName(Number(fmea.id), String(column.id), column_body.name);
+      return this.updateColumnName(Number(fmea.id), String(column.id), column_body.name);
     }
     if (column_body.type !== column.type) {
-      result = await this.updateColumnType(Number(fmea.id), column_body);
+      return this.updateColumnType(Number(fmea.id), column_body);
     }
     if (column_body.type === "dropdown" && column_body.dropdownOptions !== column.dropdownOptions) {
-      result = await this.updateDropdownOptions(Number(fmea.id), String(column_body.id), column_body.dropdownOptions);
+      return this.updateDropdownOptions(Number(fmea.id), String(column_body.id), column_body.dropdownOptions);
     }
 
-    return result;
+    return null;
   }
 }
 

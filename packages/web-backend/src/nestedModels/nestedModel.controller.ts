@@ -1,5 +1,5 @@
-import { Controller } from "@nestjs/common";
-import { TypedBody, TypedRoute } from "@nestia/core";
+import { Controller, HttpStatus } from "@nestjs/common";
+import { TypedBody, TypedParam, TypedQuery, TypedRoute } from "@nestia/core";
 import { Label } from "../schemas/label.schema";
 import { NestedModel } from "./schemas/templateSchema/nested-model.schema";
 import { NestedModelService } from "./nestedModel.service";
@@ -165,8 +165,8 @@ export class NestedModelController {
    * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
    * @returns a promise with the newly created model, with the general nested model fields
    */
-  @Post("/markov-chains/")
-  public async createMarkovChain(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+  @TypedRoute.Post("/markov-chains/")
+  public async createMarkovChain(@TypedBody() data: Partial<NestedModel>): Promise<NestedModel> {
     return this.nestedModelService.createMarkovChain(data);
   }
 
@@ -176,56 +176,56 @@ export class NestedModelController {
    * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
    * @returns a promise with the newly created model, with the general nested model fields
    */
-  @Post("/weibull-analysis/")
-  public async createWeibullAnalysis(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+  @TypedRoute.Post("/weibull-analysis/")
+  public async createWeibullAnalysis(@TypedBody() data: Partial<NestedModel>): Promise<NestedModel> {
     return this.nestedModelService.createWeibullAnalysis(data);
   }
 
   // For Risk Integration
-  @Post("/risk-integration/")
-  public async createRiskIntegration(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+  @TypedRoute.Post("/risk-integration/")
+  public async createRiskIntegration(@TypedBody() data: Partial<NestedModel>): Promise<NestedModel> {
     return this.nestedModelService.createRiskIntegration(data);
   }
 
   // For Radiological Consequence Analysis
-  @Post("/radiological-consequence-analysis/")
-  public async createRadiologicalConsequenceAnalysis(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+  @TypedRoute.Post("/radiological-consequence-analysis/")
+  public async createRadiologicalConsequenceAnalysis(@TypedBody() data: Partial<NestedModel>): Promise<NestedModel> {
     return this.nestedModelService.createRadiologicalConsequenceAnalysis(data);
   }
 
   // For Mechanistic Source Term
-  @Post("/mechanistic-source-term/")
-  public async createMechanisticSourceTerm(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+  @TypedRoute.Post("/mechanistic-source-term/")
+  public async createMechanisticSourceTerm(@TypedBody() data: Partial<NestedModel>): Promise<NestedModel> {
     return this.nestedModelService.createMechanisticSourceTerm(data);
   }
 
   // For Event Sequence Quantification Diagram
-  @Post("/event-sequence-quantification-diagram/")
-  public async createEventSequenceQuantificationDiagram(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+  @TypedRoute.Post("/event-sequence-quantification-diagram/")
+  public async createEventSequenceQuantificationDiagram(@TypedBody() data: Partial<NestedModel>): Promise<NestedModel> {
     return this.nestedModelService.createEventSequenceQuantificationDiagram(data);
   }
 
   // For Data Analysis
-  @Post("/data-analysis/")
-  public async createDataAnalysis(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+  @TypedRoute.Post("/data-analysis/")
+  public async createDataAnalysis(@TypedBody() data: Partial<NestedModel>): Promise<NestedModel> {
     return this.nestedModelService.createDataAnalysis(data);
   }
 
   // For Human Reliability Analysis
-  @Post("/human-reliability-analysis/")
-  public async createHumanReliabilityAnalysis(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+  @TypedRoute.Post("/human-reliability-analysis/")
+  public async createHumanReliabilityAnalysis(@TypedBody() data: Partial<NestedModel>): Promise<NestedModel> {
     return this.nestedModelService.createHumanReliabilityAnalysis(data);
   }
 
   // For Systems Analysis
-  @Post("/systems-analysis/")
-  public async createSystemsAnalysis(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+  @TypedRoute.Post("/systems-analysis/")
+  public async createSystemsAnalysis(@TypedBody() data: Partial<NestedModel>): Promise<NestedModel> {
     return this.nestedModelService.createSystemsAnalysis(data);
   }
 
   // For Success Criteria
-  @Post("/success-criteria/")
-  public async createSuccessCriteria(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+  @TypedRoute.Post("/success-criteria/")
+  public async createSuccessCriteria(@TypedBody() data: Partial<NestedModel>): Promise<NestedModel> {
     return this.nestedModelService.createSuccessCriteria(data);
   }
 
@@ -238,16 +238,16 @@ export class NestedModelController {
    * @returns a promise with the newly created model, with the general nested model fields
    */
   // For Event Sequence Analysis
-  @Post("/event-sequence-analysis/")
+  @TypedRoute.Post("/event-sequence-analysis/")
   public async createEventSequenceAnalysis(
-    @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType },
+    @TypedBody() body: { data: Partial<NestedModel>; typedModel: TypedModelType },
   ): Promise<NestedModel> {
     return this.eventSequenceAnalysisService.createEventSequenceAnalysis(body.data, body.typedModel);
   }
 
   // For Operating State Analysis
-  @Post("/operating-state-analysis/")
-  public async createOperatingStateAnalysis(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+  @TypedRoute.Post("/operating-state-analysis/")
+  public async createOperatingStateAnalysis(@TypedBody() data: Partial<NestedModel>): Promise<NestedModel> {
     return this.nestedModelService.createOperatingStateAnalysis(data);
   }
 
@@ -257,193 +257,195 @@ export class NestedModelController {
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Bayesian estimations)
-   * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
+   * @param query
    */
-  @Get("/bayesian-estimations/")
-  public async getBayesianEstimations(@Query("id") id: number): Promise<BayesianEstimation[]> {
-    return this.nestedModelService.getBayesianEstimations(id);
+  @TypedRoute.Get("/bayesian-estimations/")
+  public async getBayesianEstimations(@TypedQuery() query: { id: number }): Promise<BayesianEstimation[]> {
+    return this.nestedModelService.getBayesianEstimations(query.id);
   }
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Event Sequence Diagrams)
-   * @param id - the id of the parent model
    * @returns a promise with a list of the model typed defined
+   * @param query
    */
-  @Get("/bayesian-networks/")
-  public async getBayesianNetworks(@Query("id") id: number | string): Promise<EventSequenceDiagram[]> {
-    if (typeof id === "number") {
-      return this.bayesianNetworkService.getBayesianNetwork(id);
+  @TypedRoute.Get("/bayesian-networks/")
+  public async getBayesianNetworks(@TypedQuery() query: { id: number | string }): Promise<EventSequenceDiagram[]> {
+    if (typeof query.id === "number") {
+      return this.bayesianNetworkService.getBayesianNetwork(query.id);
     } else {
-      return this.bayesianNetworkService.getBayesianNetworkString(id);
+      return this.bayesianNetworkService.getBayesianNetworkString(query.id);
     }
   }
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Event Sequence Diagrams)
-   * @param id - the id of the parent model
    * @returns a promise with a list of the model typed defined
+   * @param query
    */
-  @Get("/event-sequence-diagrams/")
-  public async getEventSequenceDiagrams(@Query("id") id: number | string): Promise<EventSequenceDiagram[]> {
-    if (typeof id === "number") {
-      return this.eventSequenceDiagramService.getEventSequenceDiagrams(id);
+  @TypedRoute.Get("/event-sequence-diagrams/")
+  public async getEventSequenceDiagrams(@TypedQuery() query: { id: number | string }): Promise<EventSequenceDiagram[]> {
+    if (typeof query.id === "number") {
+      return this.eventSequenceDiagramService.getEventSequenceDiagrams(query.id);
     } else {
-      return this.eventSequenceDiagramService.getEventSequenceDiagramsString(id);
+      return this.eventSequenceDiagramService.getEventSequenceDiagramsString(query.id);
     }
   }
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Event Trees)
-   * @param id - the id of the parent model
    * @returns a promise with a list of the model typed defined
+   * @param query
    */
-  @Get("/event-trees/")
-  public async getEventTrees(@Query("id") id: number | string): Promise<EventSequenceDiagram[]> {
-    if (typeof id === "number") {
-      return this.eventTreeService.getEventTrees(id);
+  @TypedRoute.Get("/event-trees/")
+  public async getEventTrees(@TypedQuery() query: { id: number | string }): Promise<EventSequenceDiagram[]> {
+    if (typeof query.id === "number") {
+      return this.eventTreeService.getEventTrees(query.id);
     } else {
-      return this.eventTreeService.getEventTreesString(id);
+      return this.eventTreeService.getEventTreesString(query.id);
     }
   }
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Event Trees)
-   * @param id - the id of the parent model
    * @returns a promise with a list of the model typed defined
+   * @param query
    */
-  @Get("/fault-trees/")
-  public async getFaultTrees(@Query("id") id: number | string): Promise<FaultTree[]> {
-    if (typeof id === "number") {
-      return this.faultTreesService.getFaultTree(id);
+  @TypedRoute.Get("/fault-trees/")
+  public async getFaultTrees(@TypedQuery() query: { id: number | string }): Promise<FaultTree[]> {
+    if (typeof query.id === "number") {
+      return this.faultTreesService.getFaultTree(query.id);
     } else {
-      return this.faultTreesService.getFaultTreeString(id);
+      return this.faultTreesService.getFaultTreeString(query.id);
     }
   }
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Fault Trees)
-   * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
+   * @param query
    */
-  @Get("/heat-balance-fault-trees/")
-  public async getHeatBalanceFaultTrees(@Query("id") id: number): Promise<HeatBalanceFaultTree[]> {
-    return this.nestedModelService.getHeatBalanceFaultTrees(id);
+  @TypedRoute.Get("/heat-balance-fault-trees/")
+  public async getHeatBalanceFaultTrees(@TypedQuery() query: { id: number }): Promise<HeatBalanceFaultTree[]> {
+    return this.nestedModelService.getHeatBalanceFaultTrees(query.id);
   }
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Functional events)
-   * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
+   * @param query
    */
-  @Get("/functional-events/")
-  public async getFunctionalEvents(@Query("id") id: number): Promise<FunctionalEvent[]> {
-    return this.nestedModelService.getFunctionalEvents(id);
+  @TypedRoute.Get("/functional-events/")
+  public async getFunctionalEvents(@TypedQuery() query: { id: number }): Promise<FunctionalEvent[]> {
+    return this.nestedModelService.getFunctionalEvents(query.id);
   }
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Initiating Events)
-   * @param id - the id of the parent model
    * @returns a promise with a list of the model typed defined
+   * @param query
    */
-  @Get("/initiating-events/")
-  public async getInitiatingEvents(@Query("id") id: number | string): Promise<InitiatingEvent[]> {
-    if (typeof id === "number") {
-      return this.initiatingEventsService.getInitiatingEvents(id);
+  @TypedRoute.Get("/initiating-events/")
+  public async getInitiatingEvents(@TypedQuery() query: { id: number | string }): Promise<InitiatingEvent[]> {
+    if (typeof query.id === "number") {
+      return this.initiatingEventsService.getInitiatingEvents(query.id);
     } else {
-      return this.initiatingEventsService.getInitiatingEventsString(id);
+      return this.initiatingEventsService.getInitiatingEventsString(query.id);
     }
   }
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Markov Chains)
-   * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
+   * @param query
    */
-  @Get("/markov-chains/")
-  public async getMarkovChains(@Query("id") id: number): Promise<MarkovChain[]> {
-    return this.nestedModelService.getMarkovChains(id);
+  @TypedRoute.Get("/markov-chains/")
+  public async getMarkovChains(@TypedQuery() query: { id: number }): Promise<MarkovChain[]> {
+    return this.nestedModelService.getMarkovChains(query.id);
   }
 
   /**
    * grabs the collection of the type of nested model defined by the function call name (Weibull Analysis)
-   * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
+   * @param query
    */
-  @Get("/weibull-analysis/")
-  public async getWeibullAnalysis(@Query("id") id: number): Promise<WeibullAnalysis[]> {
-    return this.nestedModelService.getWeibullAnalysis(id);
+  @TypedRoute.Get("/weibull-analysis/")
+  public async getWeibullAnalysis(@TypedQuery() query: { id: number }): Promise<WeibullAnalysis[]> {
+    return this.nestedModelService.getWeibullAnalysis(query.id);
   }
 
   // For Risk Integration
-  @Get("/risk-integration/")
-  public async getRiskIntegration(@Query("id") id: number): Promise<RiskIntegration[]> {
-    return this.nestedModelService.getRiskIntegration(id);
+  @TypedRoute.Get("/risk-integration/")
+  public async getRiskIntegration(@TypedQuery() query: { id: number }): Promise<RiskIntegration[]> {
+    return this.nestedModelService.getRiskIntegration(query.id);
   }
 
   // For Radiological Consequence Analysis
-  @Get("/radiological-consequence-analysis/")
-  public async getRadiologicalConsequenceAnalysis(@Query("id") id: number): Promise<RadiologicalConsequenceAnalysis[]> {
-    return this.nestedModelService.getRadiologicalConsequenceAnalysis(id);
+  @TypedRoute.Get("/radiological-consequence-analysis/")
+  public async getRadiologicalConsequenceAnalysis(
+    @TypedQuery() query: { id: number },
+  ): Promise<RadiologicalConsequenceAnalysis[]> {
+    return this.nestedModelService.getRadiologicalConsequenceAnalysis(query.id);
   }
 
   // For Mechanistic Source Term
-  @Get("/mechanistic-source-term/")
-  public async getMechanisticSourceTerm(@Query("id") id: number): Promise<MechanisticSourceTerm[]> {
-    return this.nestedModelService.getMechanisticSourceTerm(id);
+  @TypedRoute.Get("/mechanistic-source-term/")
+  public async getMechanisticSourceTerm(@TypedQuery() query: { id: number }): Promise<MechanisticSourceTerm[]> {
+    return this.nestedModelService.getMechanisticSourceTerm(query.id);
   }
 
   // For Event Sequence Quantification Diagram
-  @Get("/event-sequence-quantification-diagram/")
+  @TypedRoute.Get("/event-sequence-quantification-diagram/")
   public async getEventSequenceQuantificationDiagram(
-    @Query("id") id: number,
+    @TypedQuery() query: { id: number },
   ): Promise<EventSequenceQuantificationDiagram[]> {
-    return this.nestedModelService.getEventSequenceQuantificationDiagram(id);
+    return this.nestedModelService.getEventSequenceQuantificationDiagram(query.id);
   }
 
   // For Data Analysis
-  @Get("/data-analysis/")
-  public async getDataAnalysis(@Query("id") id: number): Promise<DataAnalysis[]> {
-    return this.nestedModelService.getDataAnalysis(id);
+  @TypedRoute.Get("/data-analysis/")
+  public async getDataAnalysis(@TypedQuery() query: { id: number }): Promise<DataAnalysis[]> {
+    return this.nestedModelService.getDataAnalysis(query.id);
   }
 
   // For Human Reliability Analysis
-  @Get("/human-reliability-analysis/")
-  public async getHumanReliabilityAnalysis(@Query("id") id: number): Promise<HumanReliabilityAnalysis[]> {
-    return this.nestedModelService.getHumanReliabilityAnalysis(id);
+  @TypedRoute.Get("/human-reliability-analysis/")
+  public async getHumanReliabilityAnalysis(@TypedQuery() query: { id: number }): Promise<HumanReliabilityAnalysis[]> {
+    return this.nestedModelService.getHumanReliabilityAnalysis(query.id);
   }
 
   // For Systems Analysis
-  @Get("/systems-analysis/")
-  public async getSystemsAnalysis(@Query("id") id: number): Promise<SystemsAnalysis[]> {
-    return this.nestedModelService.getSystemsAnalysis(id);
+  @TypedRoute.Get("/systems-analysis/")
+  public async getSystemsAnalysis(@TypedQuery() query: { id: number }): Promise<SystemsAnalysis[]> {
+    return this.nestedModelService.getSystemsAnalysis(query.id);
   }
 
   // For Success Criteria
-  @Get("/success-criteria/")
-  public async getSuccessCriteria(@Query("id") id: number): Promise<SuccessCriteria[]> {
-    return this.nestedModelService.getSuccessCriteria(id);
+  @TypedRoute.Get("/success-criteria/")
+  public async getSuccessCriteria(@TypedQuery() query: { id: number }): Promise<SuccessCriteria[]> {
+    return this.nestedModelService.getSuccessCriteria(query.id);
   }
 
   // For Event Sequence Analysis
   /**
    * grabs the collection of the type of nested model defined by the function call name (Initiating Events)
-   * @param id - the id of the parent model
    * @returns a promise with a list of the model typed defined
+   * @param query
    */
-  @Get("/event-sequence-analysis/")
-  public async getEventSequenceAnalysis(@Query("id") id: number): Promise<EventSequenceAnalysis[]> {
-    if (typeof id === "number") {
-      return this.eventSequenceAnalysisService.getEventSequenceAnalysis(id);
+  @TypedRoute.Get("/event-sequence-analysis/")
+  public async getEventSequenceAnalysis(@TypedQuery() query: { id: number }): Promise<EventSequenceAnalysis[]> {
+    if (typeof query.id === "number") {
+      return this.eventSequenceAnalysisService.getEventSequenceAnalysis(query.id);
     } else {
-      return this.eventSequenceAnalysisService.getEventSequenceAnalysisString(id);
+      return this.eventSequenceAnalysisService.getEventSequenceAnalysisString(query.id);
     }
   }
 
   // For Operating State Analysis
-  @Get("/operating-state-analysis/")
-  public async getOperatingStateAnalysis(@Query("id") id: number): Promise<OperatingStateAnalysis[]> {
-    return this.nestedModelService.getOperatingStateAnalysis(id);
+  @TypedRoute.Get("/operating-state-analysis/")
+  public async getOperatingStateAnalysis(@TypedQuery() query: { id: number }): Promise<OperatingStateAnalysis[]> {
+    return this.nestedModelService.getOperatingStateAnalysis(query.id);
   }
 
   //singular get endpoints
@@ -453,8 +455,8 @@ export class NestedModelController {
    * @param modelId the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
-  @Get("/bayesian-estimations/:id")
-  public async getSingleBayesianEstimation(@Param("id") modelId: number): Promise<BayesianEstimation> {
+  @TypedRoute.Get("/bayesian-estimations/:id")
+  public async getSingleBayesianEstimation(@TypedParam("id") modelId: number): Promise<BayesianEstimation> {
     return this.nestedModelService.getSingleBayesianEstimation(modelId);
   }
 
@@ -463,8 +465,8 @@ export class NestedModelController {
    * @param modelId - the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
-  @Get("/bayesian-networks/:id")
-  public async getSingleBayesianNetwork(@Param("id") modelId: number | string): Promise<EventSequenceDiagram> {
+  @TypedRoute.Get("/bayesian-networks/:id")
+  public async getSingleBayesianNetwork(@TypedParam("id") modelId: number | string): Promise<EventSequenceDiagram> {
     if (typeof modelId === "number") {
       return this.bayesianNetworkService.getSingleBayesianNetwork(modelId);
     } else {
@@ -477,8 +479,10 @@ export class NestedModelController {
    * @param modelId - the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
-  @Get("/event-sequence-diagrams/:id")
-  public async getSingleEventSequenceDiagram(@Param("id") modelId: number | string): Promise<EventSequenceDiagram> {
+  @TypedRoute.Get("/event-sequence-diagrams/:id")
+  public async getSingleEventSequenceDiagram(
+    @TypedParam("id") modelId: number | string,
+  ): Promise<EventSequenceDiagram> {
     if (typeof modelId === "number") {
       return this.eventSequenceDiagramService.getSingleEventSequenceDiagram(modelId);
     } else {
@@ -491,8 +495,8 @@ export class NestedModelController {
    * @param modelId the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
-  @Get("/event-trees/:id")
-  public async getSingleEventTree(@Param("id") modelId: number | string): Promise<EventTree> {
+  @TypedRoute.Get("/event-trees/:id")
+  public async getSingleEventTree(@TypedParam("id") modelId: number | string): Promise<EventTree> {
     if (typeof modelId === "number") {
       return this.eventTreeService.getSingleEventTree(modelId);
     } else {
@@ -505,8 +509,8 @@ export class NestedModelController {
    * @param modelId the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
-  @Get("/fault-trees/:id")
-  public async getSingleFaultTree(@Param("id") modelId: number | string): Promise<EventTree> {
+  @TypedRoute.Get("/fault-trees/:id")
+  public async getSingleFaultTree(@TypedParam("id") modelId: number | string): Promise<EventTree> {
     if (typeof modelId === "number") {
       return this.faultTreesService.getSingleFaultTree(modelId);
     } else {
@@ -519,8 +523,8 @@ export class NestedModelController {
    * @param modelId the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
-  @Get("/heat-balance-fault-trees/:id")
-  public async getSingleHeatBalanceFaultTree(@Param("id") modelId: number): Promise<HeatBalanceFaultTree> {
+  @TypedRoute.Get("/heat-balance-fault-trees/:id")
+  public async getSingleHeatBalanceFaultTree(@TypedParam("id") modelId: number): Promise<HeatBalanceFaultTree> {
     return this.nestedModelService.getSingleHeatBalanceFaultTree(modelId);
   }
 
@@ -529,8 +533,8 @@ export class NestedModelController {
    * @param modelId the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
-  @Get("/functional-events/:id")
-  public async getSingleFunctionalEvent(@Param("id") modelId: number): Promise<FunctionalEvent> {
+  @TypedRoute.Get("/functional-events/:id")
+  public async getSingleFunctionalEvent(@TypedParam("id") modelId: number): Promise<FunctionalEvent> {
     return this.nestedModelService.getSingleFunctionalEvent(modelId);
   }
 
@@ -539,8 +543,8 @@ export class NestedModelController {
    * @param modelId the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
-  @Get("/initiating-events/:id")
-  public async getSingleInitiatingEvent(@Param("id") modelId: number | string): Promise<InitiatingEvent> {
+  @TypedRoute.Get("/initiating-events/:id")
+  public async getSingleInitiatingEvent(@TypedParam("id") modelId: number | string): Promise<InitiatingEvent> {
     console.log(typeof modelId);
     if (typeof modelId === "number") {
       return this.initiatingEventsService.getSingleInitiatingEvent(modelId);
@@ -554,8 +558,8 @@ export class NestedModelController {
    * @param modelId the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
-  @Get("/markov-chains/:id")
-  public async getSingleMarkovChain(@Param("id") modelId: number): Promise<MarkovChain> {
+  @TypedRoute.Get("/markov-chains/:id")
+  public async getSingleMarkovChain(@TypedParam("id") modelId: number): Promise<MarkovChain> {
     return this.nestedModelService.getSingleMarkovChain(modelId);
   }
 
@@ -564,60 +568,60 @@ export class NestedModelController {
    * @param modelId - the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
-  @Get("/weibull-analysis/:id")
-  public async getSingleWeibullAnalysis(@Param("id") modelId: number): Promise<WeibullAnalysis> {
+  @TypedRoute.Get("/weibull-analysis/:id")
+  public async getSingleWeibullAnalysis(@TypedParam("id") modelId: number): Promise<WeibullAnalysis> {
     return this.nestedModelService.getSingleWeibullAnalysis(modelId);
   }
 
   // For Risk Integration
-  @Get("/risk-integration/:id")
-  public async getSingleRiskIntegration(@Param("id") modelId: number): Promise<RiskIntegration> {
+  @TypedRoute.Get("/risk-integration/:id")
+  public async getSingleRiskIntegration(@TypedParam("id") modelId: number): Promise<RiskIntegration> {
     return this.nestedModelService.getSingleRiskIntegration(modelId);
   }
 
   // For Radiological Consequence Analysis
-  @Get("/radiological-consequence-analysis/:id")
+  @TypedRoute.Get("/radiological-consequence-analysis/:id")
   public async getSingleRadiologicalConsequenceAnalysis(
-    @Param("id") modelId: number,
+    @TypedParam("id") modelId: number,
   ): Promise<RadiologicalConsequenceAnalysis> {
     return this.nestedModelService.getSingleRadiologicalConsequenceAnalysis(modelId);
   }
 
   // For Mechanistic Source Term
-  @Get("/mechanistic-source-term/:id")
-  public async getSingleMechanisticSourceTerm(@Param("id") modelId: number): Promise<MechanisticSourceTerm> {
+  @TypedRoute.Get("/mechanistic-source-term/:id")
+  public async getSingleMechanisticSourceTerm(@TypedParam("id") modelId: number): Promise<MechanisticSourceTerm> {
     return this.nestedModelService.getSingleMechanisticSourceTerm(modelId);
   }
 
   // For Event Sequence Quantification Diagram
-  @Get("/event-sequence-quantification-diagram/:id")
+  @TypedRoute.Get("/event-sequence-quantification-diagram/:id")
   public async getSingleEventSequenceQuantificationDiagram(
-    @Param("id") modelId: number,
+    @TypedParam("id") modelId: number,
   ): Promise<EventSequenceQuantificationDiagram> {
     return this.nestedModelService.getSingleEventSequenceQuantificationDiagram(modelId);
   }
 
   // For Data Analysis
-  @Get("/data-analysis/:id")
-  public async getSingleDataAnalysis(@Param("id") modelId: number): Promise<DataAnalysis> {
+  @TypedRoute.Get("/data-analysis/:id")
+  public async getSingleDataAnalysis(@TypedParam("id") modelId: number): Promise<DataAnalysis> {
     return this.nestedModelService.getSingleDataAnalysis(modelId);
   }
 
   // For Human Reliability Analysis
-  @Get("/human-reliability-analysis/:id")
-  public async getSingleHumanReliabilityAnalysis(@Param("id") modelId: number): Promise<HumanReliabilityAnalysis> {
+  @TypedRoute.Get("/human-reliability-analysis/:id")
+  public async getSingleHumanReliabilityAnalysis(@TypedParam("id") modelId: number): Promise<HumanReliabilityAnalysis> {
     return this.nestedModelService.getSingleHumanReliabilityAnalysis(modelId);
   }
 
   // For Systems Analysis
-  @Get("/systems-analysis/:id")
-  public async getSingleSystemsAnalysis(@Param("id") modelId: number): Promise<SystemsAnalysis> {
+  @TypedRoute.Get("/systems-analysis/:id")
+  public async getSingleSystemsAnalysis(@TypedParam("id") modelId: number): Promise<SystemsAnalysis> {
     return this.nestedModelService.getSingleSystemsAnalysis(modelId);
   }
 
   // For Success Criteria
-  @Get("/success-criteria/:id")
-  public async getSingleSuccessCriteria(@Param("id") modelId: number): Promise<SuccessCriteria> {
+  @TypedRoute.Get("/success-criteria/:id")
+  public async getSingleSuccessCriteria(@TypedParam("id") modelId: number): Promise<SuccessCriteria> {
     return this.nestedModelService.getSingleSuccessCriteria(modelId);
   }
 
@@ -627,8 +631,8 @@ export class NestedModelController {
    * @param modelId - the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
-  @Get("/event-sequence-analysis/:id")
-  public async getSingleEventSequenceAnalysis(@Param("id") modelId: number): Promise<EventSequenceAnalysis> {
+  @TypedRoute.Get("/event-sequence-analysis/:id")
+  public async getSingleEventSequenceAnalysis(@TypedParam("id") modelId: number): Promise<EventSequenceAnalysis> {
     if (typeof modelId === "number") {
       return this.eventSequenceAnalysisService.getSingleEventSequenceAnalysis(modelId);
     } else {
@@ -637,8 +641,8 @@ export class NestedModelController {
   }
 
   // For Operating State Analysis
-  @Get("/operating-state-analysis/:id")
-  public async getSingleOperatingStateAnalysis(@Param("id") modelId: number): Promise<OperatingStateAnalysis> {
+  @TypedRoute.Get("/operating-state-analysis/:id")
+  public async getSingleOperatingStateAnalysis(@TypedParam("id") modelId: number): Promise<OperatingStateAnalysis> {
     return this.nestedModelService.getSingleOperatingStateAnalysis(modelId);
   }
 
@@ -646,189 +650,171 @@ export class NestedModelController {
 
   /**
    * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
    * @returns a promise with the deleted model
+   * @param query
    */
-  @Delete("/bayesian-estimations/")
-  public async deleteBayesianEstimation(@Query("id") id: number): Promise<BayesianEstimation> {
-    return this.nestedModelService.deleteBayesianEstimation(id);
+  @TypedRoute.Delete("/bayesian-estimations/")
+  public async deleteBayesianEstimation(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteBayesianEstimation(query.id);
   }
 
   /**
    * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @param typedModel is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
+   * @param query
    */
-  @Delete("/bayesian-networks/")
-  public async deleteBayesianNetwork(
-    @Query("id") id: string,
-    @Query("type") typedModel: TypedModelType,
-  ): Promise<void> {
-    await this.bayesianNetworkService.deleteBayesianNetwork(id, typedModel);
+  @TypedRoute.Delete("/bayesian-networks/")
+  public async deleteBayesianNetwork(@TypedQuery() query: { id: string; typedModel: TypedModelType }): Promise<void> {
+    await this.bayesianNetworkService.deleteBayesianNetwork(query.id, query.typedModel);
   }
 
   /**
    * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @param typedModel is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
+   * @param query
    */
-  @Delete("/event-sequence-diagrams/")
+  @TypedRoute.Delete("/event-sequence-diagrams/")
   public async deleteEventSequenceDiagram(
-    @Query("id") id: string,
-    @Query("type") typedModel: TypedModelType,
+    @TypedQuery() query: { id: string; typedModel: TypedModelType },
   ): Promise<void> {
-    await this.eventSequenceDiagramService.deleteEventSequenceDiagram(id, typedModel);
+    await this.eventSequenceDiagramService.deleteEventSequenceDiagram(query.id, query.typedModel);
   }
 
   /**
    * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @param typedModel is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
+   * @param query
    */
-  @Delete("/event-trees/")
-  public async deleteEventTree(@Query("id") id: string, @Query("type") typedModel: TypedModelType): Promise<void> {
-    await this.eventTreeService.deleteEventTree(id, typedModel);
+  @TypedRoute.Delete("/event-trees/")
+  public async deleteEventTree(@TypedQuery() query: { id: string; typedModel: TypedModelType }): Promise<void> {
+    await this.eventTreeService.deleteEventTree(query.id, query.typedModel);
   }
 
   /**
    * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @param typedModel is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
+   * @param query
    */
-  @Delete("/fault-trees/")
-  public async deleteFaultTree(@Query("id") id: string, @Query("type") typedModel: TypedModelType): Promise<void> {
-    await this.faultTreesService.deleteFaultTree(id, typedModel);
+  @TypedRoute.Delete("/fault-trees/")
+  public async deleteFaultTree(@TypedQuery() query: { id: string; typedModel: TypedModelType }): Promise<void> {
+    await this.faultTreesService.deleteFaultTree(query.id, query.typedModel);
   }
 
   /**
    * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
    * @returns a promise with the deleted model
+   * @param query
    */
-  @Delete("/heat-balance-fault-trees/")
-  public async deleteHeatBalanceFaultTree(@Query("id") id: number): Promise<HeatBalanceFaultTree> {
-    return this.nestedModelService.deleteHeatBalanceFaultTree(id);
+  @TypedRoute.Delete("/heat-balance-fault-trees/")
+  public async deleteHeatBalanceFaultTree(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteHeatBalanceFaultTree(query.id);
   }
 
   /**
    * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
    * @returns a promise with the deleted model
+   * @param query
    */
-  @Delete("/functional-events/")
-  public async deleteFunctionalEvent(@Query("id") id: number): Promise<FunctionalEvent> {
-    return this.nestedModelService.deleteFunctionalEvent(id);
+  @TypedRoute.Delete("/functional-events/")
+  public async deleteFunctionalEvent(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteFunctionalEvent(query.id);
   }
 
   /**
    * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @param typedModel is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
+   * @param query
    */
-  @Delete("/initiating-events/")
-  public async deleteInitiatingEvent(
-    @Query("id") id: string,
-    @Query("type") typedModel: TypedModelType,
-  ): Promise<void> {
-    await this.initiatingEventsService.deleteInitiatingEvent(id, typedModel);
+  @TypedRoute.Delete("/initiating-events/")
+  public async deleteInitiatingEvent(@TypedQuery() query: { id: string; typedModel: TypedModelType }): Promise<void> {
+    await this.initiatingEventsService.deleteInitiatingEvent(query.id, query.typedModel);
   }
 
   /**
    * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
    * @returns a promise with the deleted model
+   * @param query
    */
-  @Delete("/markov-chains/")
-  public async deleteMarkovChain(@Query("id") id: number): Promise<MarkovChain> {
-    return this.nestedModelService.deleteMarkovChain(id);
+  @TypedRoute.Delete("/markov-chains/")
+  public async deleteMarkovChain(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteMarkovChain(query.id);
   }
 
   /**
    * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
    * @returns a promise with the deleted model
+   * @param query
    */
-  @Delete("/weibull-analysis/")
-  public async deleteWeibullAnalysis(@Query("id") id: number): Promise<WeibullAnalysis> {
-    return this.nestedModelService.deleteWeibullAnalysis(id);
+  @TypedRoute.Delete("/weibull-analysis/")
+  public async deleteWeibullAnalysis(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteWeibullAnalysis(query.id);
   }
 
   // For Risk Integration
-  @Delete("/risk-integration/")
-  public async deleteRiskIntegration(@Query("id") id: number): Promise<RiskIntegration> {
-    return this.nestedModelService.deleteRiskIntegration(id);
+  @TypedRoute.Delete("/risk-integration/")
+  public async deleteRiskIntegration(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteRiskIntegration(query.id);
   }
 
   // For Radiological Consequence Analysis
-  @Delete("/radiological-consequence-analysis/")
-  public async deleteRadiologicalConsequenceAnalysis(
-    @Query("id") id: number,
-  ): Promise<RadiologicalConsequenceAnalysis> {
-    return this.nestedModelService.deleteRadiologicalConsequenceAnalysis(id);
+  @TypedRoute.Delete("/radiological-consequence-analysis/")
+  public async deleteRadiologicalConsequenceAnalysis(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteRadiologicalConsequenceAnalysis(query.id);
   }
 
   // For Mechanistic Source Term
-  @Delete("/mechanistic-source-term/")
-  public async deleteMechanisticSourceTerm(@Query("id") id: number): Promise<MechanisticSourceTerm> {
-    return this.nestedModelService.deleteMechanisticSourceTerm(id);
+  @TypedRoute.Delete("/mechanistic-source-term/")
+  public async deleteMechanisticSourceTerm(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteMechanisticSourceTerm(query.id);
   }
 
   // For Event Sequence Quantification Diagram
-  @Delete("/event-sequence-quantification-diagram/")
-  public async deleteEventSequenceQuantificationDiagram(
-    @Query("id") id: number,
-  ): Promise<EventSequenceQuantificationDiagram> {
-    return this.nestedModelService.deleteEventSequenceQuantificationDiagram(id);
+  @TypedRoute.Delete("/event-sequence-quantification-diagram/")
+  public async deleteEventSequenceQuantificationDiagram(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteEventSequenceQuantificationDiagram(query.id);
   }
 
   // For Data Analysis
-  @Delete("/data-analysis/")
-  public async deleteDataAnalysis(@Query("id") id: number): Promise<DataAnalysis> {
-    return this.nestedModelService.deleteDataAnalysis(id);
+  @TypedRoute.Delete("/data-analysis/")
+  public async deleteDataAnalysis(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteDataAnalysis(query.id);
   }
 
   // For Human Reliability Analysis
-  @Delete("/human-reliability-analysis/")
-  public async deleteHumanReliabilityAnalysis(@Query("id") id: number): Promise<HumanReliabilityAnalysis> {
-    return this.nestedModelService.deleteHumanReliabilityAnalysis(id);
+  @TypedRoute.Delete("/human-reliability-analysis/")
+  public async deleteHumanReliabilityAnalysis(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteHumanReliabilityAnalysis(query.id);
   }
 
   // For Systems Analysis
-  @Delete("/systems-analysis/")
-  public async deleteSystemsAnalysis(@Query("id") id: number): Promise<SystemsAnalysis> {
-    return this.nestedModelService.deleteSystemsAnalysis(id);
+  @TypedRoute.Delete("/systems-analysis/")
+  public async deleteSystemsAnalysis(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteSystemsAnalysis(query.id);
   }
 
   // For Success Criteria
-  @Delete("/success-criteria/")
-  public async deleteSuccessCriteria(@Query("id") id: number): Promise<SuccessCriteria> {
-    return this.nestedModelService.deleteSuccessCriteria(id);
+  @TypedRoute.Delete("/success-criteria/")
+  public async deleteSuccessCriteria(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteSuccessCriteria(query.id);
   }
 
   /**
    * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @param typedModel is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
+   * @param query
    */
   // For Event Sequence Analysis
-  @Delete("/event-sequence-analysis/")
+  @TypedRoute.Delete("/event-sequence-analysis/")
   public async deleteEventSequenceAnalysis(
-    @Query("id") id: string,
-    @Query("type") typedModel: TypedModelType,
+    @TypedQuery() query: { id: string; typedModel: TypedModelType },
   ): Promise<void> {
-    return this.eventSequenceAnalysisService.deleteEventSequenceAnalysis(id, typedModel);
+    return this.eventSequenceAnalysisService.deleteEventSequenceAnalysis(query.id, query.typedModel);
   }
 
   // For Operating State Analysis
-  @Delete("/operating-state-analysis/")
-  public async deleteOperatingStateAnalysis(@Query("id") id: number): Promise<OperatingStateAnalysis> {
-    return this.nestedModelService.deleteOperatingStateAnalysis(id);
+  @TypedRoute.Delete("/operating-state-analysis/")
+  public async deleteOperatingStateAnalysis(@TypedQuery() query: { id: number }): Promise<HttpStatus> {
+    return this.nestedModelService.deleteOperatingStateAnalysis(query.id);
   }
 
   /**
@@ -837,8 +823,11 @@ export class NestedModelController {
    * @param data the new label, with a name and description string
    * @returns the updated model
    */
-  @Patch("/bayesian-estimations/:id")
-  public async updateBayesianEstimationLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
+  @TypedRoute.Patch("/bayesian-estimations/:id")
+  public async updateBayesianEstimationLabel(
+    @TypedParam("id") id: number,
+    @TypedBody() data: Label,
+  ): Promise<NestedModel> {
     return this.nestedModelService.updateBayesianEstimationLabel(id, data);
   }
 
@@ -848,8 +837,11 @@ export class NestedModelController {
    * @param data the new label, with a name and description string
    * @returns the updated model
    */
-  @Patch("/bayesian-networks/:id")
-  public async updateBayesianNetworkLabel(@Param("id") id: string, @Body() data: Label): Promise<NestedModel> {
+  @TypedRoute.Patch("/bayesian-networks/:id")
+  public async updateBayesianNetworkLabel(
+    @TypedParam("id") id: string,
+    @TypedBody() data: Label,
+  ): Promise<NestedModel> {
     return this.bayesianNetworkService.updateBayesianNetworkLabel(id, data);
   }
 
@@ -859,8 +851,11 @@ export class NestedModelController {
    * @param data the new label, with a name and description string
    * @returns the updated model
    */
-  @Patch("/event-sequence-diagrams/:id")
-  public async updateEventSequenceDiagramLabel(@Param("id") id: string, @Body() data: Label): Promise<NestedModel> {
+  @TypedRoute.Patch("/event-sequence-diagrams/:id")
+  public async updateEventSequenceDiagramLabel(
+    @TypedParam("id") id: string,
+    @TypedBody() data: Label,
+  ): Promise<NestedModel> {
     return this.eventSequenceDiagramService.updateEventSequenceDiagramLabel(id, data);
   }
 
@@ -870,8 +865,8 @@ export class NestedModelController {
    * @param data the new label, with a name and description string
    * @returns the updated model
    */
-  @Patch("/event-trees/:id")
-  public async updateEventTreeLabel(@Param("id") id: string, @Body() data: Label): Promise<NestedModel> {
+  @TypedRoute.Patch("/event-trees/:id")
+  public async updateEventTreeLabel(@TypedParam("id") id: string, @TypedBody() data: Label): Promise<NestedModel> {
     return this.eventTreeService.updateEventTreeLabel(id, data);
   }
 
@@ -881,8 +876,8 @@ export class NestedModelController {
    * @param data the new label, with a name and description string
    * @returns the updated model
    */
-  @Patch("/fault-trees/:id")
-  public async updateFaultTreeLabel(@Param("id") id: string, @Body() data: Label): Promise<NestedModel> {
+  @TypedRoute.Patch("/fault-trees/:id")
+  public async updateFaultTreeLabel(@TypedParam("id") id: string, @TypedBody() data: Label): Promise<NestedModel> {
     return this.faultTreesService.updateFaultTreeLabel(id, data);
   }
 
@@ -892,8 +887,11 @@ export class NestedModelController {
    * @param data the new label, with a name and description string
    * @returns the updated model
    */
-  @Patch("/heat-balance-fault-trees/:id")
-  public async updateHeatBalanceFaultTreeLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
+  @TypedRoute.Patch("/heat-balance-fault-trees/:id")
+  public async updateHeatBalanceFaultTreeLabel(
+    @TypedParam("id") id: number,
+    @TypedBody() data: Label,
+  ): Promise<NestedModel> {
     return this.nestedModelService.updateHeatBalanceFaultTreeLabel(id, data);
   }
 
@@ -903,8 +901,11 @@ export class NestedModelController {
    * @param data the new label, with a name and description string
    * @returns the updated model
    */
-  @Patch("/functional-events/:id")
-  public async updateFunctionalEventLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
+  @TypedRoute.Patch("/functional-events/:id")
+  public async updateFunctionalEventLabel(
+    @TypedParam("id") id: number,
+    @TypedBody() data: Label,
+  ): Promise<NestedModel> {
     return this.nestedModelService.updateFunctionalEventLabel(id, data);
   }
 
@@ -914,8 +915,11 @@ export class NestedModelController {
    * @param data the new label, with a name and description string
    * @returns the updated model
    */
-  @Patch("/initiating-events/:id")
-  public async updateInitiatingEventLabel(@Param("id") id: string, @Body() data: Label): Promise<NestedModel> {
+  @TypedRoute.Patch("/initiating-events/:id")
+  public async updateInitiatingEventLabel(
+    @TypedParam("id") id: string,
+    @TypedBody() data: Label,
+  ): Promise<NestedModel> {
     return this.initiatingEventsService.updateInitiatingEventLabel(id, data);
   }
 
@@ -925,8 +929,8 @@ export class NestedModelController {
    * @param data the new label, with a name and description string
    * @returns the updated model
    */
-  @Patch("/markov-chains/:id")
-  public async updateMarkovChainLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
+  @TypedRoute.Patch("/markov-chains/:id")
+  public async updateMarkovChainLabel(@TypedParam("id") id: number, @TypedBody() data: Label): Promise<NestedModel> {
     return this.nestedModelService.updateMarkovChainLabel(id, data);
   }
 
@@ -936,68 +940,80 @@ export class NestedModelController {
    * @param data the new label, with a name and description string
    * @returns the updated model
    */
-  @Patch("/weibull-analysis/:id")
-  public async updateWeibullAnalysisLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
+  @TypedRoute.Patch("/weibull-analysis/:id")
+  public async updateWeibullAnalysisLabel(
+    @TypedParam("id") id: number,
+    @TypedBody() data: Label,
+  ): Promise<NestedModel> {
     return this.nestedModelService.updateWeibullAnalysisLabel(id, data);
   }
 
   // For Risk Integration
-  @Patch("/risk-integration/:id")
-  public async updateRiskIntegrationLabel(@Param("id") id: number, @Body() data: Label): Promise<RiskIntegration> {
+  @TypedRoute.Patch("/risk-integration/:id")
+  public async updateRiskIntegrationLabel(
+    @TypedParam("id") id: number,
+    @TypedBody() data: Label,
+  ): Promise<RiskIntegration> {
     return this.nestedModelService.updateRiskIntegrationLabel(id, data);
   }
 
   // For Radiological Consequence Analysis
-  @Patch("/radiological-consequence-analysis/:id")
+  @TypedRoute.Patch("/radiological-consequence-analysis/:id")
   public async updateRadiologicalConsequenceAnalysisLabel(
-    @Param("id") id: number,
-    @Body() data: Label,
+    @TypedParam("id") id: number,
+    @TypedBody() data: Label,
   ): Promise<RadiologicalConsequenceAnalysis> {
     return this.nestedModelService.updateRadiologicalConsequenceAnalysisLabel(id, data);
   }
 
   // For Mechanistic Source Term
-  @Patch("/mechanistic-source-term/:id")
+  @TypedRoute.Patch("/mechanistic-source-term/:id")
   public async updateMechanisticSourceTermLabel(
-    @Param("id") id: number,
-    @Body() data: Label,
+    @TypedParam("id") id: number,
+    @TypedBody() data: Label,
   ): Promise<MechanisticSourceTerm> {
     return this.nestedModelService.updateMechanisticSourceTermLabel(id, data);
   }
 
   // For Event Sequence Quantification Diagram
-  @Patch("/event-sequence-quantification-diagram/:id")
+  @TypedRoute.Patch("/event-sequence-quantification-diagram/:id")
   public async updateEventSequenceQuantificationDiagramLabel(
-    @Param("id") id: number,
-    @Body() data: Label,
+    @TypedParam("id") id: number,
+    @TypedBody() data: Label,
   ): Promise<EventSequenceQuantificationDiagram> {
     return this.nestedModelService.updateEventSequenceQuantificationDiagramLabel(id, data);
   }
 
   // For Data Analysis
-  @Patch("/data-analysis/:id")
-  public async updateDataAnalysisLabel(@Param("id") id: number, @Body() data: Label): Promise<DataAnalysis> {
+  @TypedRoute.Patch("/data-analysis/:id")
+  public async updateDataAnalysisLabel(@TypedParam("id") id: number, @TypedBody() data: Label): Promise<DataAnalysis> {
     return this.nestedModelService.updateDataAnalysisLabel(id, data);
   }
 
   // For Human Reliability Analysis
-  @Patch("/human-reliability-analysis/:id")
+  @TypedRoute.Patch("/human-reliability-analysis/:id")
   public async updateHumanReliabilityAnalysisLabel(
-    @Param("id") id: number,
-    @Body() data: Label,
+    @TypedParam("id") id: number,
+    @TypedBody() data: Label,
   ): Promise<HumanReliabilityAnalysis> {
     return this.nestedModelService.updateHumanReliabilityAnalysisLabel(id, data);
   }
 
   // For Systems Analysis
-  @Patch("/systems-analysis/:id")
-  public async updateSystemsAnalysisLabel(@Param("id") id: number, @Body() data: Label): Promise<SystemsAnalysis> {
+  @TypedRoute.Patch("/systems-analysis/:id")
+  public async updateSystemsAnalysisLabel(
+    @TypedParam("id") id: number,
+    @TypedBody() data: Label,
+  ): Promise<SystemsAnalysis> {
     return this.nestedModelService.updateSystemsAnalysisLabel(id, data);
   }
 
   // For Success Criteria
-  @Patch("/success-criteria/:id")
-  public async updateSuccessCriteriaLabel(@Param("id") id: number, @Body() data: Label): Promise<SuccessCriteria> {
+  @TypedRoute.Patch("/success-criteria/:id")
+  public async updateSuccessCriteriaLabel(
+    @TypedParam("id") id: number,
+    @TypedBody() data: Label,
+  ): Promise<SuccessCriteria> {
     return this.nestedModelService.updateSuccessCriteriaLabel(id, data);
   }
 
@@ -1008,16 +1024,19 @@ export class NestedModelController {
    * @returns the updated model
    */
   // For Event Sequence Analysis
-  @Patch("/event-sequence-analysis/:id")
-  public async updateEventSequenceAnalysisLabel(@Param("id") id: string, @Body() data: Label): Promise<NestedModel> {
+  @TypedRoute.Patch("/event-sequence-analysis/:id")
+  public async updateEventSequenceAnalysisLabel(
+    @TypedParam("id") id: string,
+    @TypedBody() data: Label,
+  ): Promise<NestedModel> {
     return this.eventSequenceAnalysisService.updateEventSequenceAnalysisLabel(id, data);
   }
 
   // For Operating State Analysis
-  @Patch("/operating-state-analysis/:id")
+  @TypedRoute.Patch("/operating-state-analysis/:id")
   public async updateOperatingStateAnalysisLabel(
-    @Param("id") id: number,
-    @Body() data: Label,
+    @TypedParam("id") id: number,
+    @TypedBody() data: Label,
   ): Promise<OperatingStateAnalysis> {
     return this.nestedModelService.updateOperatingStateAnalysisLabel(id, data);
   }
@@ -1026,11 +1045,11 @@ export class NestedModelController {
 
   /**
    * removes parentId from all nested models. If the model has no parentIds it is removed
-   * @param id the parent id to be removed
    * @returns a promise with the number of totally deleted nested models
+   * @param query
    */
-  @Delete()
-  public async removeParentIds(@Query("modelId") modelId: number): Promise<number> {
-    return this.nestedModelService.removeParentModels(modelId);
+  @TypedRoute.Delete()
+  public async removeParentIds(@TypedQuery() query: { modelId: number }): Promise<number> {
+    return this.nestedModelService.removeParentModels(query.modelId);
   }
 }

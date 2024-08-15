@@ -6,10 +6,11 @@
     "module": "commonjs",
     "sourceMap": true,
     "declaration": true,
+    "declarationDir": "../../dist/types",
     "esModuleInterop": true,
     "target": "es2021",
     "types": ["node"],
-    "declarationDir": "../../dist/types/web-backend",
+
 
     // TODO:: REMOVE THESE
     "removeComments": true,

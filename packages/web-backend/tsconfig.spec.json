@@ -9,7 +9,7 @@
     "esModuleInterop": true,
     "emitDecoratorMetadata": true,
     "target": "es2021",
-    "declarationDir": "../../dist/types/web-backend",
+    "declarationDir": "../../dist/types",
 
     // TODO:: REMOVE THESE
     "removeComments": true,

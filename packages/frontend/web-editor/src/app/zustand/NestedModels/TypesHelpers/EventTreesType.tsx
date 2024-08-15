@@ -1,4 +1,4 @@
-import { NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+import { NestedModelJSON } from "@openpra/shared-types/src/index";
 
 export interface EventTreesType {
   SetEventTrees: (parentId: string) => Promise<void>;

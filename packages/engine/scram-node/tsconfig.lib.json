@@ -4,7 +4,7 @@
     "module": "commonjs",
     "sourceMap": true,
     "declaration": true,
-    "declarationDir": "../../../dist/types/engine-scram-node"
+    "declarationDir": "../../../dist/types/engine/scram-node"
   },
   "include": ["src/**/*.ts"],
   "exclude": [

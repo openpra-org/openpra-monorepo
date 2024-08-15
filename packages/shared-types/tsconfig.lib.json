@@ -4,8 +4,9 @@
     "module": "commonjs",
     "sourceMap": true,
     "declaration": true,
-    "declarationDir": "../../dist/types/shared-types",
+    "declarationDir": "dist",
+    "outDir": "dist"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/*.ts", "src/**/*.ts", "src/*.d.ts", "src/**/*.d.ts"],
   "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"],
 }

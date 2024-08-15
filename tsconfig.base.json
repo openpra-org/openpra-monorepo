@@ -5,7 +5,9 @@
   "incremental": false,
   "compilerOptions": {
     "baseUrl": ".",
-    "paths": {},
+    "paths": {
+      "@openpra/*": ["dist/packages/*"]
+    },
     "types": [
       "jest",
       "node",

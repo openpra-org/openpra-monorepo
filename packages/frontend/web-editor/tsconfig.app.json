@@ -1,7 +1,9 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    //"outDir": "../dist/out-tsc",
+    "sourceMap": true,
+    "declaration": true,
+    "declarationDir": "../../../dist/types/frontend/web-editor",
     "types": [
       "node",
       "@nx/react/typings/cssmodule.d.ts",

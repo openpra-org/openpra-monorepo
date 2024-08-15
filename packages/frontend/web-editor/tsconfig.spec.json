@@ -4,8 +4,6 @@
   "compilerOptions": {
     "jsx": "react-jsx",
     "module": "commonjs",
-    //"baseUrl": ".",
-    //"outDir": "../dist/out-tsc",
     "types": [
       "jest",
       "cypress",

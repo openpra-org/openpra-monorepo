@@ -111,6 +111,7 @@ job("Monorepo Deployment") {
 
      // secrets
      env["DSF_JWT_SECRET_KEY"] = "{{ project:APP_JWT_SECRET_KEY }}"
+     env["DSF_MONGO_EXPRESS_AUTH_TOKEN"] = "{{ project:APP_MONGO_EXPRESS_AUTH_TOKEN }}"
 
      shellScript("create directories"){
        interpreter = "/bin/bash"
@@ -123,6 +124,7 @@ job("Monorepo Deployment") {
        interpreter = "/bin/bash"
        content = """
                          echo ${'$'}DSF_JWT_SECRET_KEY > docker/secrets/DSF_JWT_SECRET_KEY.secret
+                         echo ${'$'}DSF_MONGO_EXPRESS_AUTH_TOKEN > docker/secrets/DSF_MONGO_EXPRESS_AUTH_TOKEN.secret
                          """
      }
 

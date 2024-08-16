@@ -27,7 +27,7 @@ RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
     npm install --global pnpm nx@$NX_VERSION && \
     SHELL=bash pnpm setup
 
-COPY .. .
+COPY . .
 RUN source /root/.bashrc \
     && pnpm install
 
@@ -47,7 +47,6 @@ RUN source /root/.bashrc && \
 
 FROM nginx:latest AS frontend
 WORKDIR /usr/share/nginx/html/web-editor
-COPY docker/default.conf /etc/nginx/nginx.conf
 COPY --from=frontend_builder /data/project/dist/packages/frontend/web-editor/ ./
 
 FROM base AS backend

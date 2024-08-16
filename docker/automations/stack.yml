@@ -1,28 +1,40 @@
-version: '3.3'
-
 networks:
-  db_net:
+  net_db:
     driver: overlay
     attachable: true
-  backend:
+  net_backend:
+    driver: overlay
+    attachable: true
+  net_rabbitmq:
     driver: overlay
     attachable: true
   traefik-public:
     external: true
 
 secrets:
-  CI_JWT_SECRET_KEY:
+  ci_jwt_secret_key:
     file: secrets/DSF_JWT_SECRET_KEY.secret
+  ci_mongo_express_auth_token:
+    file: secrets/DSF_MONGO_EXPRESS_AUTH_TOKEN.secret
+
+x-log-defaults: &x-log-defaults
+  logging:
+    options:
+      max-size: "1m"
+
+x-base-volumes: &x-base-volumes
+  volumes:
+    - "/etc/localtime:/etc/localtime:ro"
+    - "/etc/timezone:/etc/timezone:ro"
 
 services:
   frontend:
     image: ${IMAGE_FRONTEND}
+    <<: *x-base-volumes
+    <<: *x-log-defaults
     networks:
       - traefik-public
-      - backend
-    volumes:
-      - "/etc/localtime:/etc/localtime:ro"
-      - "/etc/timezone:/etc/timezone:ro"
+      - net_backend
     deploy:
       labels:
         - traefik.enable=true
@@ -42,24 +54,21 @@ services:
 
   backend:
     image: ${IMAGE_BACKEND}
+    <<: *x-base-volumes
+    <<: *x-log-defaults
     networks:
       - traefik-public
-      - backend
-      - db_net
+      - net_backend
+      - net_db
     secrets:
-      - CI_JWT_SECRET_KEY
+      - ci_jwt_secret_key
     environment:
       MONGO_URL: mongodb://mongodb:27017
-      JWT_SECRET_KEY: /run/secrets/CI_JWT_SECRET_KEY
+      JWT_SECRET_KEY: /run/secrets/ci_jwt_secret_key
       SENTRY_DSN: ${CI_SENTRY_DSN}
       SENTRY_ENV: ${CI_SENTRY_ENV}
       DEBUG: ${CI_DEBUG}
       DEPLOYMENT: 'true'
-    depends_on:
-      - mongodb
-    volumes:
-      - "/etc/localtime:/etc/localtime:ro"
-      - "/etc/timezone:/etc/timezone:ro"
     deploy:
       labels:
         - traefik.enable=true
@@ -81,16 +90,16 @@ services:
     image: mongo-express:latest
     networks:
       - traefik-public
-      - db_net
-    volumes:
-      - "/etc/localtime:/etc/localtime:ro"
-      - "/etc/timezone:/etc/timezone:ro"
+      - net_db
+    <<: *x-base-volumes
+    <<: *x-log-defaults
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb
       ME_CONFIG_MONGODB_ENABLE_ADMIN: 'true'
       ME_CONFIG_SITE_BASEURL: /mongo/
-    depends_on:
-      - mongodb
+      ME_CONFIG_BASICAUTH_PASSWORD_FILE: /run/secrets/ci_mongo_express_auth_token
+    secrets:
+      - ci_mongo_express_auth_token
     deploy:
       labels:
         - traefik.enable=true
@@ -111,8 +120,50 @@ services:
   mongodb:
     image: mongo:latest
     networks:
-      - db_net
+      - net_db
+    <<: *x-log-defaults
     volumes:
       - "$ENV_SHARED_VOLUME_PATH/mongodb:/data/db"
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
+
+  executable_service:
+    deploy:
+      replicas: 10
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    <<: *x-log-defaults
+    volumes:
+      - "$ENV_SHARED_VOLUME_PATH/rabbitmq:/var/lib/rabbitmq"
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    networks:
+      - traefik-public
+      - net_rabbitmq
+    configs:
+      - source: rabbitmq_plugins
+        target: /etc/rabbitmq/enabled_plugins
+      - source: rabbitmq_conf
+        target: /etc/rabbitmq/rabbitmq.conf
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.${APP_NAME}-rabbitmq-http.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/mq`)
+        - traefik.http.routers.${APP_NAME}-rabbitmq-http.entrypoints=http
+        - traefik.http.routers.${APP_NAME}-rabbitmq-http.middlewares=https-redirect,gzip
+        - traefik.http.routers.${APP_NAME}-rabbitmq-http.service=${APP_NAME}-express
+        - traefik.http.routers.${APP_NAME}-rabbitmq-https.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/mq`)
+        - traefik.http.routers.${APP_NAME}-rabbitmq-https.entrypoints=https
+        - traefik.http.routers.${APP_NAME}-rabbitmq-https.tls=true
+        - traefik.http.routers.${APP_NAME}-rabbitmq-https.tls.certresolver=le
+        - traefik.http.routers.${APP_NAME}-rabbitmq-https.middlewares=gzip
+        - traefik.http.routers.${APP_NAME}-rabbitmq-https.service=${APP_NAME}-rabbitmq
+        - traefik.http.services.${APP_NAME}-rabbitmq.loadbalancer.server.port=15672
+
+configs:
+  rabbitmq_plugins:
+    file: configs/rabbitmq/enabled_plugins
+  rabbitmq_conf:
+    file: configs/rabbitmq/rabbitmq.conf

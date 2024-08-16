@@ -1,0 +1,57 @@
+volumes:
+  data_db:
+  data_rmq:
+
+networks:
+  net_db:
+  net_rmq:
+
+x-base: &x-base
+  restart: unless-stopped
+
+services:
+  mongodb:
+    <<: *x-base
+    image: mongo:latest
+    ports:
+      - '27017:27017'
+    volumes:
+      - data_db:/data/db
+    networks:
+      - net_db
+
+  mongo-express:
+    <<: *x-base
+    image: mongo-express:latest
+    ports:
+      - '8081:8081'
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+    depends_on:
+      - mongodb
+    networks:
+      - net_db
+
+  rabbitmq:
+    <<: *x-base
+    image: rabbitmq:management-alpine
+    ports:
+      - '5672:5672'   # tcp socket
+      - '15672:15672' # http management console
+      - '15692:15692' # prometheus metrics
+    volumes:
+      - data_rmq:/var/lib/rabbitmq
+    networks:
+      - net_rmq
+    configs:
+      - source: rabbitmq_plugins
+        target: /etc/rabbitmq/enabled_plugins
+      - source: rabbitmq_conf
+        target: /etc/rabbitmq/rabbitmq.conf
+
+configs:
+  rabbitmq_plugins:
+    file: configs/rabbitmq/enabled_plugins
+  rabbitmq_conf:
+    file: configs/rabbitmq/rabbitmq.conf
+

@@ -8,12 +8,12 @@ networks:
   net_rmq:
 
 configs:
-  nginx_conf:
-    file: docker/development/configs/nginx/default.conf
   rabbitmq_plugins:
     file: docker/development/configs/rabbitmq/enabled_plugins
   rabbitmq_conf:
     file: docker/development/configs/rabbitmq/rabbitmq.conf
+  proxy_conf:
+    file: docker/development/configs/frontend-web-editor/proxy.conf.json
 
 services:
   mongodb:
@@ -25,6 +25,8 @@ services:
     extends:
       file: docker/development/docker-compose.dev.yml
       service: mongo-express
+    depends_on:
+      - mongodb
 
   rabbitmq:
     extends:
@@ -36,23 +38,21 @@ services:
       dockerfile: docker/development/Dockerfile
       context: .
       target: base
-    command:
-      - nx serve frontend-web-editor
+    command: bash -c "nx serve frontend-web-editor --host=0.0.0.0"
     ports:
-      - '4200:80'
+      - '4200:4200'
     networks:
       - net_db
     configs:
-      - source: nginx_conf
-        target: /etc/nginx/nginx.conf
+      - source: proxy_conf
+        target: /data/project/packages/frontend/web-editor/proxy.conf.json
 
   web_backend:
     build:
       dockerfile: docker/development/Dockerfile
       context: .
       target: base
-    command:
-      - nx serve web-backend
+    command: bash -c "nx serve web-backend"
     ports:
       - '8000:8000'
     networks:
@@ -63,5 +63,4 @@ services:
     environment:
       MONGO_URL: mongodb://mongodb:27017
       DEBUG: 'true'
-      DEPLOYMENT: 'false'
-
+      JWT_SECRET_KEY: 'no-secret'

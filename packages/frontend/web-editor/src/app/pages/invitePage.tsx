@@ -104,7 +104,7 @@ const InvitePage = (): JSX.Element => {
             handleSignup={handleSignup}
             signup={signup}
             setSignup={setSignup}
-            buttonText={"Sign In"}
+            buttonText={"Sign Up"}
           />
         </EuiPageTemplate.EmptyPrompt>
       </EuiPageTemplate>

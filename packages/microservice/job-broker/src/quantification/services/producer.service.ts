@@ -13,15 +13,19 @@ export class ProducerService {
     while (attempt < retryCount) {
       try {
         const connection = await amqp.connect(url);
-        Logger.log("Successfully connected to the RabbitMQ broker.");
+        Logger.log("Quantification-producer successfully connected to the RabbitMQ broker.");
         return connection;
       } catch {
         attempt++;
-        Logger.error(`Attemp ${attempt}: Failed to connect to RabbitMQ broker. Retrying in 10 seconds...`);
+        Logger.error(
+          `Attempt ${attempt}: Failed to connect to RabbitMQ broker from quantification-producer side. Retrying in 10 seconds...`,
+        );
         await new Promise((resolve) => setTimeout(resolve, 10000));
       }
     }
-    throw new Error("Failed to connect to the RabbitMQ broker after several attempts");
+    throw new Error(
+      "Failed to connect to the RabbitMQ broker after several attempts from quantification-producer side.",
+    );
   }
 
   public async createAndQueueQuant(modelsWithConfigs: QuantifyRequest): Promise<void> {

@@ -103,8 +103,17 @@ export class ConsumerService implements OnModuleInit {
           const modelsWithConfigs: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
           const result: QuantifyReport = this.performQuantification(modelsWithConfigs);
           const report = typia.json.assertStringify<QuantifyReport>(result);
+
           // Send the quantification results to the completed-job queue
-          await channel.assertQueue(storageQ, { durable: true });
+          await channel.assertExchange(deadLetterX, "direct", { durable: true });
+          await channel.assertQueue(deadLetterQ, { durable: true });
+          await channel.bindQueue(deadLetterQ, deadLetterX, "");
+          await channel.assertQueue(storageQ, {
+            durable: true,
+            deadLetterExchange: deadLetterX,
+            messageTtl: 60000,
+            maxLength: 10000,
+          });
           channel.sendToQueue(storageQ, Buffer.from(report), {
             persistent: true,
           });

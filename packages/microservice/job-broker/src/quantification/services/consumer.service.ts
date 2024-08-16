@@ -15,6 +15,26 @@ const scramAddon: ScramAddonType = require("scram-node/build/Release/scram-node.
 export class ConsumerService implements OnModuleInit {
   constructor(private readonly configService: ConfigService) {}
 
+  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.Connection> {
+    let attempt = 0;
+    while (attempt < retryCount) {
+      try {
+        const connection = await amqp.connect(url);
+        Logger.log("Quantification-consumer successfully connected to the RabbitMQ broker.");
+        return connection;
+      } catch {
+        attempt++;
+        Logger.error(
+          `Attempt ${attempt}: Failed to connect to RabbitMQ broker from quantification-consumer side. Retrying in 10 seconds...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+      }
+    }
+    throw new Error(
+      "Failed to connect to the RabbitMQ broker after several attempts from quantification-consumer side.",
+    );
+  }
+
   public async onModuleInit(): Promise<void> {
     // Load all the environment variables
     const url = this.configService.get<string>("RABBITMQ_URL");
@@ -29,18 +49,9 @@ export class ConsumerService implements OnModuleInit {
 
     // Connect to the RabbitMQ server, create a channel, and connect the
     // workers to the initial queue to consume quantification jobs
-    const connection = await amqp.connect(url);
+    const connection = await this.connectWithRetry(url, 3);
     const channel = await connection.createChannel();
-
-    await channel.assertExchange(deadLetterX, "direct", { durable: true });
-    await channel.assertQueue(deadLetterQ, { durable: true });
-    await channel.bindQueue(deadLetterQ, deadLetterX, "");
-    await channel.assertQueue(initialJobQ, {
-      durable: true,
-      deadLetterExchange: deadLetterX,
-      messageTtl: 30000,
-      maxLength: 10000,
-    });
+    await channel.assertQueue(initialJobQ, { durable: true });
 
     // Consume the jobs from the initial queue
     await channel.consume(
@@ -58,8 +69,17 @@ export class ConsumerService implements OnModuleInit {
           const modelsWithConfigs: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
           const result: QuantifyReport = this.performQuantification(modelsWithConfigs);
           const report = typia.json.assertStringify<QuantifyReport>(result);
+
           // Send the quantification results to the completed-job queue
-          await channel.assertQueue(storageQ, { durable: true });
+          await channel.assertExchange(deadLetterX, "direct", { durable: true });
+          await channel.assertQueue(deadLetterQ, { durable: true });
+          await channel.bindQueue(deadLetterQ, deadLetterX, "");
+          await channel.assertQueue(storageQ, {
+            durable: true,
+            deadLetterExchange: deadLetterX,
+            messageTtl: 60000,
+            maxLength: 10000,
+          });
           channel.sendToQueue(storageQ, Buffer.from(report), {
             persistent: true,
           });

@@ -15,6 +15,26 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
     @InjectModel(ExecutedResult.name) private readonly executedResultModel: Model<ExecutedResult>,
   ) {}
 
+  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.Connection> {
+    let attempt = 0;
+    while (attempt < retryCount) {
+      try {
+        const connection = await amqp.connect(url);
+        Logger.log("Executable-task-storage successfully connected to the RabbitMQ broker.");
+        return connection;
+      } catch {
+        attempt++;
+        Logger.error(
+          `Attempt ${attempt}: Failed to connect to RabbitMQ broker from executable-task-storage side. Retrying in 10 seconds...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+      }
+    }
+    throw new Error(
+      "Failed to connect to the RabbitMQ broker after several attempts from executable-task-storage side",
+    );
+  }
+
   public async onApplicationBootstrap(): Promise<void> {
     // Load all the environment variables
     const url = this.configService.get<string>("RABBITMQ_URL");
@@ -26,7 +46,7 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
 
     // Connect to the RabbitMQ server, create a channel, and connect the
     // database to the executed task result queue
-    const connection = await amqp.connect(url);
+    const connection = await this.connectWithRetry(url, 3);
     const channel = await connection.createChannel();
     await channel.assertQueue(storageQ, { durable: true });
 
@@ -54,12 +74,15 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
             Logger.error(
               `Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`,
             );
+            channel.nack(msg, false, false);
           } else if (error instanceof mongoose.Error.ValidationError) {
             for (const field in error.errors) {
               Logger.error(error.errors[field].message);
+              channel.nack(msg, false, false);
             }
           } else {
             Logger.error("Something went wrong in the executable storage service.");
+            channel.nack(msg, false, false);
           }
         }
       },

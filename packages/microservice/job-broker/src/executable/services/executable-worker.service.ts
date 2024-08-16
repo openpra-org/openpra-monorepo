@@ -11,24 +11,43 @@ import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-res
 export class ExecutableWorkerService implements OnApplicationBootstrap {
   constructor(private readonly configService: ConfigService) {}
 
+  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.Connection> {
+    let attempt = 0;
+    while (attempt < retryCount) {
+      try {
+        const connection = await amqp.connect(url);
+        Logger.log("Executable-task-worker successfully connected to the RabbitMQ broker.");
+        return connection;
+      } catch {
+        attempt++;
+        Logger.error(
+          `Attempt ${attempt}: Failed to connect to RabbitMQ broker from executable-task-worker side. Retrying in 10 seconds...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+      }
+    }
+    throw new Error(
+      "Failed to connect to the RabbitMQ broker after several attempts from executable-task-worker side.",
+    );
+  }
+
   public async onApplicationBootstrap(): Promise<void> {
     // Load all the environment variables
     const url = this.configService.get<string>("RABBITMQ_URL");
     const initialJobQ = this.configService.get<string>("EXECUTABLE_TASK_QUEUE_NAME");
     const storageQ = this.configService.get<string>("EXECUTABLE_STORAGE_QUEUE_NAME");
-    if (!url || !initialJobQ || !storageQ) {
+    const deadLetterQ = this.configService.get<string>("DEAD_LETTER_QUEUE_NAME");
+    const deadLetterX = this.configService.get<string>("DEAD_LETTER_EXCHANGE_NAME");
+    if (!url || !initialJobQ || !storageQ || !deadLetterQ || !deadLetterX) {
       Logger.error("Required environment variables for executable worker service are not set");
       return;
     }
 
     // Connect to the RabbitMQ server, create a channel, and connect the
     // workers to the initial queue to consume jobs
-    const connection = await amqp.connect(url);
+    const connection = await this.connectWithRetry(url, 3);
     const channel = await connection.createChannel();
     await channel.assertQueue(initialJobQ, { durable: true });
-
-    // Workers will be able to handle only one job at a time
-    await channel.prefetch(1);
 
     // Consume the jobs from the initial queue
     await channel.consume(
@@ -50,7 +69,15 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
           const taskResult = typia.json.assertStringify<ExecutionResult>(result);
 
           // Send the executed task results to the completed task queue
-          await channel.assertQueue(storageQ, { durable: true });
+          await channel.assertExchange(deadLetterX, "direct", { durable: true });
+          await channel.assertQueue(deadLetterQ, { durable: true });
+          await channel.bindQueue(deadLetterQ, deadLetterX, "");
+          await channel.assertQueue(storageQ, {
+            durable: true,
+            deadLetterExchange: deadLetterX,
+            messageTtl: 60000,
+            maxLength: 10000,
+          });
           channel.sendToQueue(storageQ, Buffer.from(taskResult), {
             persistent: true,
           });
@@ -63,10 +90,10 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
             Logger.error(
               `Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`,
             );
-            channel.nack(msg);
+            channel.nack(msg, false, false);
           } else {
             Logger.error("Something went wrong in the executable worker service.");
-            channel.nack(msg);
+            channel.nack(msg, false, false);
           }
         }
       },

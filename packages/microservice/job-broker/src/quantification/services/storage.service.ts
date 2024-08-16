@@ -15,6 +15,26 @@ export class StorageService implements OnApplicationBootstrap {
     @InjectModel(QuantifiedReport.name) private readonly quantifiedReportModel: Model<QuantifiedReport>,
   ) {}
 
+  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.Connection> {
+    let attempt = 0;
+    while (attempt < retryCount) {
+      try {
+        const connection = await amqp.connect(url);
+        Logger.log("Quantification-storage-service successfully connected to the RabbitMQ broker.");
+        return connection;
+      } catch {
+        attempt++;
+        Logger.error(
+          `Attempt ${attempt}: Failed to connect to RabbitMQ broker from quantification-storage-service side. Retrying in 10 seconds...`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10000));
+      }
+    }
+    throw new Error(
+      "Failed to connect to the RabbitMQ broker after several attempts from quantification-storage-service side",
+    );
+  }
+
   public async onApplicationBootstrap(): Promise<void> {
     // Load all the environment variables
     const url = this.configService.get<string>("RABBITMQ_URL");
@@ -26,7 +46,7 @@ export class StorageService implements OnApplicationBootstrap {
 
     // Connect to the RabbitMQ server, create a channel, and connect to
     // the completed job queue to collect the quantification results
-    const connection = await amqp.connect(url);
+    const connection = await this.connectWithRetry(url, 3);
     const channel = await connection.createChannel();
     await channel.assertQueue(completedQ, { durable: true });
 

@@ -1,0 +1,67 @@
+volumes:
+  data_db:
+  data_rmq:
+
+networks:
+  net_backend:
+  net_db:
+  net_rmq:
+
+configs:
+  nginx_conf:
+    file: docker/development/configs/nginx/default.conf
+  rabbitmq_plugins:
+    file: docker/development/configs/rabbitmq/enabled_plugins
+  rabbitmq_conf:
+    file: docker/development/configs/rabbitmq/rabbitmq.conf
+
+services:
+  mongodb:
+    extends:
+      file: docker/development/docker-compose.dev.yml
+      service: mongodb
+
+  mongo-express:
+    extends:
+      file: docker/development/docker-compose.dev.yml
+      service: mongo-express
+
+  rabbitmq:
+    extends:
+      file: docker/development/docker-compose.dev.yml
+      service: rabbitmq
+
+  frontend_web_editor:
+    build:
+      dockerfile: docker/development/Dockerfile
+      context: .
+      target: base
+    command:
+      - nx serve frontend-web-editor
+    ports:
+      - '4200:80'
+    networks:
+      - net_db
+    configs:
+      - source: nginx_conf
+        target: /etc/nginx/nginx.conf
+
+  web_backend:
+    build:
+      dockerfile: docker/development/Dockerfile
+      context: .
+      target: base
+    command:
+      - nx serve web-backend
+    ports:
+      - '8000:8000'
+    networks:
+      - net_db
+    depends_on:
+      - rabbitmq
+      - mongodb
+    environment:
+      MONGO_URL: mongodb://mongodb:27017
+      DEBUG: 'true'
+      DEPLOYMENT: 'false'
+

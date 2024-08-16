@@ -24,12 +24,12 @@ RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
     npm install --global nx@$NX_VERSION
 
 WORKDIR /data/project
-COPY .. .
+COPY ../../.. .
 
 RUN SHELL=bash pnpm setup && \
     source /root/.bashrc && \
     pnpm install
 
-COPY ../docker/qodana-entrypoint.sh /docker-entrypoint.d/
+COPY qodana-entrypoint.sh /docker-entrypoint.d/
 RUN chmod +x /docker-entrypoint.d/qodana-entrypoint.sh
 ENTRYPOINT ["/bin/bash", "/docker-entrypoint.d/qodana-entrypoint.sh"]

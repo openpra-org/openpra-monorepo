@@ -11,7 +11,7 @@ The Docker setup is divided into several components:
 - **docker-compose.yml**: A Docker Compose file for local development, setting up the MongoDB and Mongo Express services.
 - **stack.yml**: A Docker Stack deployment file for deploying the services using Docker Swarm, with Traefik as a reverse proxy and load balancer.
 
-## [Dockerfile](Dockerfile)
+## [Dockerfile](development/Dockerfile)
 
 The `Dockerfile` is a multi-stage build file that creates separate images for
 the frontend and backend services.
@@ -28,7 +28,7 @@ sets up the server to listen on port 80 and serve files from
 the `/usr/share/nginx/html/web-editor` directory, with a fallback to
 `index.html` for single-page application routing.
 
-## [docker-compose.yml](docker-compose.yml)
+## [docker-compose.yml](development/docker-compose.yml)
 
 The `docker-compose.yml` file is used for local development. It defines two
 services:
@@ -36,7 +36,7 @@ services:
 - **mongo**: The MongoDB database service.
 - **mongo-express**: A web-based MongoDB administration interface.
 
-## [stack.yml](stack.yml)
+## [stack.yml](automations/stack.yml)
 
 The `stack.yml` file is used for deploying the application stack to a Docker
 Swarm cluster. It includes service definitions for the frontend, backend,

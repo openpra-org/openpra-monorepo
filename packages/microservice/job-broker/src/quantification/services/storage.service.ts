@@ -54,15 +54,15 @@ export class StorageService implements OnApplicationBootstrap {
             Logger.error(
               `Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`,
             );
-            channel.nack(msg);
+            channel.nack(msg, false, false);
           } else if (error instanceof mongoose.Error.ValidationError) {
             for (const field in error.errors) {
               Logger.error(error.errors[field].message);
             }
-            channel.nack(msg);
+            channel.nack(msg, false, false);
           } else {
             Logger.error("Something went wrong in the quantification storage service.");
-            channel.nack(msg);
+            channel.nack(msg, false, false);
           }
         }
       },

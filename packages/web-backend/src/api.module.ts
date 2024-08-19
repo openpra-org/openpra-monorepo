@@ -2,6 +2,7 @@ import { APP_FILTER, RouterModule } from "@nestjs/core";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
+import { HttpExceptionFilter } from "shared-types/src/lib/errors/http-exception.filter";
 import { ApiController } from "./api.controller";
 import { ApiService } from "./api.service";
 import { AuthModule } from "./auth/auth.module";
@@ -12,7 +13,6 @@ import { InviteModule } from "./invite/invite.module";
 import { NestedModelModule } from "./nestedModels/nestedModel.module";
 import { QuantifyModule } from "./quantify/quantify.module";
 import { TypedModelModule } from "./typedModel/typedModel.module";
-import { HttpExceptionFilter } from "./filters/http-exception.filter";
 
 @Module({
   imports: [

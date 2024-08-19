@@ -426,9 +426,15 @@ importers:
 
   packages/shared-types:
     dependencies:
+      '@types/express':
+        specifier: 4.17.21
+        version: 4.17.21
       axios:
         specifier: 1.6.1
         version: 1.6.1
+      express:
+        specifier: 4.19.2
+        version: 4.19.2
       jwt-decode:
         specifier: 4.0.0
         version: 4.0.0

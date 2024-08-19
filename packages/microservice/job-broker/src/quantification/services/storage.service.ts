@@ -8,6 +8,13 @@ import typia, { TypeGuardError } from "typia";
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 import { QuantifiedReport } from "../schemas/quantified-report.schema";
 
+/**
+ * Service responsible for storing quantification results into a database upon application startup.
+ *
+ * This service listens to a RabbitMQ queue for completed quantification jobs, processes each message
+ * by parsing and validating the quantification report, and then stores the report into a MongoDB collection
+ * using Mongoose. It handles connection retries to RabbitMQ and implements error handling for message processing.
+ */
 @Injectable()
 export class StorageService implements OnApplicationBootstrap {
   constructor(
@@ -15,6 +22,15 @@ export class StorageService implements OnApplicationBootstrap {
     @InjectModel(QuantifiedReport.name) private readonly quantifiedReportModel: Model<QuantifiedReport>,
   ) {}
 
+  /**
+   * Attempts to establish a connection to the RabbitMQ server with retry logic.
+   * Logs each attempt and waits 10 seconds before retrying.
+   *
+   * @param url - The URL of the RabbitMQ server to connect to.
+   * @param retryCount - The maximum number of connection attempts.
+   * @returns A promise that resolves to the RabbitMQ connection object upon successful connection.
+   * @throws {@link Error} if unable to connect after the specified number of retries.
+   */
   private async connectWithRetry(url: string, retryCount: number): Promise<amqp.Connection> {
     let attempt = 0;
     while (attempt < retryCount) {
@@ -35,8 +51,15 @@ export class StorageService implements OnApplicationBootstrap {
     );
   }
 
+  /**
+   * Initializes the storage service by setting up RabbitMQ connections and starting to consume messages.
+   *
+   * This method is automatically called when the application boots up. It ensures that all required environment
+   * variables are set, connects to RabbitMQ with retry logic, and sets up message consumption from the completed
+   * job queue. Each message is processed to store the quantification report in the database.
+   */
   public async onApplicationBootstrap(): Promise<void> {
-    // Load all the environment variables
+    // Verify that all required environment variables are available, logging an error and exiting if any are missing.
     const url = this.configService.get<string>("RABBITMQ_URL");
     const completedQ = this.configService.get<string>("QUANT_STORAGE_QUEUE_NAME");
     if (!url || !completedQ) {
@@ -44,41 +67,44 @@ export class StorageService implements OnApplicationBootstrap {
       return;
     }
 
-    // Connect to the RabbitMQ server, create a channel, and connect to
-    // the completed job queue to collect the quantification results
+    // Establish a connection to RabbitMQ and create a communication channel.
     const connection = await this.connectWithRetry(url, 3);
     const channel = await connection.createChannel();
+    // Ensure the completed job queue exists and is durable to prevent message loss.
     await channel.assertQueue(completedQ, { durable: true });
 
-    // Perform some sort of action on the results (e.g., store them in the database etc.)
+    // Begin consuming messages from the completed job queue.
     await channel.consume(
       completedQ,
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
+        // Handle the case where the message is invalid.
         if (msg === null) {
-          // Handle the case where no message was available
           Logger.error("Unable to parse message from quantification storage queue");
           return;
         }
 
         try {
-          // Convert the quantification report in a JSON object and
-          // store this JSON object in the database
+          // Serialize the message content into a QuantifyReport object for processing.
           const quantifiedReport: QuantifyReport = typia.json.assertParse<QuantifyReport>(msg.content.toString());
+          // Create a new document from the parsed report and save it to the database.
           const report = new this.quantifiedReportModel(quantifiedReport);
           await report.save();
-          // Finally, acknowledge the message
+
+          // Acknowledge the original message to indicate successful processing.
           channel.ack(msg);
         } catch (error) {
+          // Handle type validation errors, Mongoose validation errors, and other generic exceptions,
+          // logging details and negatively acknowledging the message.
           if (error instanceof TypeGuardError) {
             Logger.error(
               `Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`,
             );
             channel.nack(msg, false, false);
           } else if (error instanceof mongoose.Error.ValidationError) {
-            for (const field in error.errors) {
-              Logger.error(error.errors[field].message);
-            }
+            Object.values(error.errors).forEach((err) => {
+              Logger.error(err.message);
+            });
             channel.nack(msg, false, false);
           } else {
             Logger.error("Something went wrong in the quantification storage service.");
@@ -87,7 +113,7 @@ export class StorageService implements OnApplicationBootstrap {
         }
       },
       {
-        // Since we are manually acknowledging the message, turn auto acknowledging off
+        // Disable automatic acknowledgment to allow manual control over message acknowledgment.
         noAck: false,
       },
     );

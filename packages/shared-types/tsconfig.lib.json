@@ -4,6 +4,8 @@
     "module": "commonjs",
     "sourceMap": true,
     "declaration": true,
+    "target": "es2021",
+    "types": ["express"],
     "declarationDir": "../../dist/types/shared-types",
   },
   "include": ["src/**/*.ts"],

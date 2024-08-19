@@ -101,27 +101,32 @@ export class ConsumerService implements OnModuleInit {
           // Convert the inputs/data into a JSON object and perform
           // the quantification using this JSON object
           const modelsWithConfigs: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
+          // Perform quantification based on the parsed request and generate a report.
           const result: QuantifyReport = this.performQuantification(modelsWithConfigs);
+          // Serialize the quantification report and send it to the storage queue.
           const report = typia.json.assertStringify<QuantifyReport>(result);
 
-          // Send the quantification results to the completed-job queue
+          // Ensure the dead letter exchange and queue are set up for handling failed messages.
           await channel.assertExchange(deadLetterX, "direct", { durable: true });
           await channel.assertQueue(deadLetterQ, { durable: true });
           await channel.bindQueue(deadLetterQ, deadLetterX, "");
+          // Configure the storage queue for storing completed jobs, including dead letter handling.
           await channel.assertQueue(storageQ, {
             durable: true,
             deadLetterExchange: deadLetterX,
             messageTtl: 60000,
             maxLength: 10000,
           });
+          // Send the report to the storage queue, marking the message as persistent.
           channel.sendToQueue(storageQ, Buffer.from(report), {
             persistent: true,
           });
 
-          // Finally acknowledge the message back to the initial queue
-          // to let the broker know that the job has been completed
+          // Acknowledge the original message to indicate successful processing.
           channel.ack(msg);
         } catch (error) {
+          // Handle validation errors and other generic exceptions, logging details and negatively
+          // acknowledging the message.
           if (error instanceof TypeGuardError) {
             Logger.error(
               `Validation failed: ${error.path} is invalid. Expected ${error.expected} but got ${error.value}`,
@@ -134,8 +139,7 @@ export class ConsumerService implements OnModuleInit {
         }
       },
       {
-        // Since we are manually acknowledging the message, turn auto acknowledging off
-        noAck: false,
+        noAck: false, // Disable automatic acknowledgment to allow manual control over message acknowledgment.
       },
     );
   }

@@ -5,8 +5,8 @@ import { EuiFieldText, EuiForm, EuiButton, EuiFormRow, EuiFieldPassword } from "
 import { LoginProps, LoginErrorProps } from "shared-types/src/lib/api/AuthTypes";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { AuthService } from "shared-types/src/lib/api/AuthService";
-import { UpdateAbility } from "../../casl/ability";
-import { AbilityContext } from "../../providers/abilityProvider";
+import { UpdateAbility } from "../../providers/ability/Ability";
+import { AbilityContext } from "../../providers/ability/AbilityProvider";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";
 

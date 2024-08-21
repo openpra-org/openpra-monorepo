@@ -5,7 +5,7 @@ import { MemberResult } from "shared-types/src/lib/api/Members";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import React from "react";
 import { NavInsideNav } from "../sidenavs/genericNav";
-import { AbilityContext } from "../../providers/abilityProvider";
+import { AbilityContext } from "../../providers/ability/AbilityProvider";
 
 interface PreferenceContextType {
   currentUser: MemberResult | undefined;

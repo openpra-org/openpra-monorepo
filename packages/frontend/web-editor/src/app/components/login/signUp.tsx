@@ -8,8 +8,8 @@ import { MemberRole } from "shared-types/src/lib/data/predefiniedRoles";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { SignUpForm } from "../forms/signUpForm";
-import { UpdateAbility } from "../../casl/ability";
-import { AbilityContext } from "../../providers/abilityProvider";
+import { UpdateAbility } from "../../providers/ability/Ability";
+import { AbilityContext } from "../../providers/ability/AbilityProvider";
 
 const DefaultSignupProps: SignUpPropsWithRole = {
   username: "",
@@ -65,7 +65,7 @@ function SignUp(): JSX.Element {
         handleSignup={handleSignup}
         signup={signup}
         setSignup={setSignup}
-        buttonText={"Sign In"}
+        buttonText={"Sign Up"}
       />
     );
   }

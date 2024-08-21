@@ -15,7 +15,7 @@ import {
 } from "@elastic/eui";
 import { GetRoleById } from "shared-types/src/lib/api/roles/rolesApi";
 import { RoleSchemaDto } from "shared-types/src/openpra-zod-mef/role/role-schema";
-import { Can } from "../../providers/abilityProvider";
+import { Can } from "../../providers/ability/AbilityProvider";
 import { GenericModal } from "../modals/genericModal";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";

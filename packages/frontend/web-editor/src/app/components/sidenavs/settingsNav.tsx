@@ -3,7 +3,7 @@ import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { useContext } from "react";
-import { AbilityContext } from "../../providers/abilityProvider";
+import { AbilityContext } from "../../providers/ability/AbilityProvider";
 
 interface TreeItem {
   id: string;

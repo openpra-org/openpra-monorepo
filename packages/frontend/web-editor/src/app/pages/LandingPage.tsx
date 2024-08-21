@@ -61,7 +61,8 @@ function LoginPage(): JSX.Element {
         </EuiFlexItem>
       </EuiHideFor>
       <EuiFlexItem css={smallScreen ? undefined : containterCss}>
-        <AuthCard />
+        {/*<AuthCard />*/}
+        {"AuthCard"}
       </EuiFlexItem>
     </EuiFlexGroup>
   );

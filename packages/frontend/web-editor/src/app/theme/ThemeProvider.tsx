@@ -1,4 +1,4 @@
-import React, { ReactElement } from "react";
+import React, { ReactElement, ReactNode } from "react";
 import { EuiProvider } from "@elastic/eui";
 import { EuiThemeColorMode } from "@elastic/eui";
 import { ThemeMods } from "./ThemeMods";
@@ -63,7 +63,7 @@ const DEFAULT_LOCALSTORAGE_PREFERENCES = DEFAULT_THEME_OPTION;
  */
 export interface ThemeProviderProps {
   themeOptions: Readonly<NonEmptyArray<Theme>>;
-  children?: ReactElement;
+  children?: ReactNode;
 }
 
 /**

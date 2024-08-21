@@ -6,7 +6,7 @@ import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { InvitedUsersTable } from "../tables/invitedUsersTable";
 import { InviteMultipleUsersFlyout } from "../forms/inviteMultipleUsersFlyout";
-import { Can } from "../../providers/abilityProvider";
+import { Can } from "../../providers/ability/AbilityProvider";
 
 const Invitations = (): JSX.Element => {
   const [invitedUsers, setInvitedUsers] = useState<InvitedUserDetailsDto[]>();

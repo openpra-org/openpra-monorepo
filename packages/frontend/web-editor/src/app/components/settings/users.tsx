@@ -25,7 +25,7 @@ import { SignUpForm } from "../forms/signUpForm";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";
 import { GenerateUserForm } from "../forms/generateUserForm";
-import { Can } from "../../providers/abilityProvider";
+import { Can } from "../../providers/ability/AbilityProvider";
 
 /**
  * Generate columns for table containing the names of the users

@@ -2,7 +2,7 @@ import { APP_FILTER, RouterModule } from "@nestjs/core";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
-import { HttpExceptionFilter } from "shared-types/src/lib/errors/http-exception.filter";
+import { HttpExceptionFilter } from "./http-exception.filter";
 import { ApiController } from "./api.controller";
 import { ApiService } from "./api.service";
 import { AuthModule } from "./auth/auth.module";

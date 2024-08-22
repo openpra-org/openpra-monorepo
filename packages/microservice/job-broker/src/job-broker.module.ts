@@ -11,7 +11,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_FILTER, RouterModule } from "@nestjs/core";
 import { MongooseModule } from "@nestjs/mongoose";
-import { HttpExceptionFilter } from "shared-types/src/lib/errors/http-exception.filter";
+import { HttpExceptionFilter } from "./http-exception.filter";
 import { JobBrokerController } from "./job-broker.controller";
 import { JobBrokerService } from "./job-broker.service";
 import { QuantificationModule } from "./quantification/quantification.module";

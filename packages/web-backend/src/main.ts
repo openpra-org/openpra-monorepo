@@ -1,5 +1,5 @@
 import { NestFactory } from "@nestjs/core";
-import { HttpExceptionFilter } from "shared-types/src/lib/errors/http-exception.filter";
+import { HttpExceptionFilter } from "./http-exception.filter";
 import { CorsConfig } from "./cors";
 import { ApiModule } from "./api.module";
 

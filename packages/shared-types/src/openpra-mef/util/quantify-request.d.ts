@@ -23,7 +23,7 @@ export interface CommandLineOptions {
   /**
    * Calculate prime implicants
    */
-  "prime-implicants"?: boolean;
+  primeImplicants?: boolean;
   /**
    * Perform probability analysis
    */
@@ -47,7 +47,7 @@ export interface CommandLineOptions {
   /**
    * Use the rare event approximation
    */
-  "rare-event"?: boolean;
+  rareEvent?: boolean;
   /**
    * Use the MCUB approximation
    */
@@ -55,31 +55,31 @@ export interface CommandLineOptions {
   /**
    * Upper limit for the product order
    */
-  "limit-order"?: number;
+  limitOrder?: number;
   /**
    * Cut-off probability for products
    */
-  "cut-off"?: number;
+  cutOff?: number;
   /**
    * System mission time in hours
    */
-  "mission-time"?: number;
+  missionTime?: number;
   /**
    * Time step in hours for probability analysis
    */
-  "time-step"?: number;
+  timeStep?: number;
   /**
    * Number of trials for Monte Carlo simulations
    */
-  "num-trials"?: number;
+  numTrials?: number;
   /**
    * Number of quantiles for distributions
    */
-  "num-quantiles"?: number;
+  numQuantiles?: number;
   /**
    * Number of bins for histograms
    */
-  "num-bins"?: number;
+  numBins?: number;
   /**
    * Seed for the pseudo-random number generator
    */
@@ -87,7 +87,7 @@ export interface CommandLineOptions {
   /**
    * Omit indentation whitespace in output XML
    */
-  "no-indent"?: boolean;
+  noIndent?: boolean;
   /**
    * Set log verbosity
    */
@@ -95,12 +95,13 @@ export interface CommandLineOptions {
   /**
    * Don't generate analysis report
    */
-  "no-report"?: boolean;
+  noReport?: boolean;
   /**
    * Path for the output/report file
    */
   output?: string;
 }
+
 export interface QuantifyRequest2 {
   /**
    * String-encoded array of OpenPSA MEF XMLs

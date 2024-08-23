@@ -10,6 +10,12 @@
 import { Controller, InternalServerErrorException } from "@nestjs/common";
 import { TypedRoute, TypedBody } from "@nestia/core";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import {
+  ApiBadRequestResponse,
+  ApiCreatedResponse,
+  ApiInternalServerErrorResponse,
+  ApiOperation,
+} from "@nestjs/swagger";
 import { ProducerService } from "../services/producer.service";
 
 @Controller()
@@ -28,6 +34,10 @@ export class FtrexController {
    * @throws {@link InternalServerErrorException} When there is a problem queueing the quantification job.
    */
   @TypedRoute.Post("/ftrex-quantification")
+  @ApiOperation({ summary: "Create and queue ftrex quantification jobs" })
+  @ApiCreatedResponse({ description: "FTREX quantification request has been successfully queued" })
+  @ApiBadRequestResponse({ description: "The request body is invalid" })
+  @ApiInternalServerErrorResponse({ description: "Server was unable to queue the job" })
   public async createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): Promise<void> {
     try {
       return this.producerService.createAndQueueQuant(quantRequest);

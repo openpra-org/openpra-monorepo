@@ -9,8 +9,18 @@
 // Import necessary decorators and services from NestJS and custom modules.
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute } from "@nestia/core";
+import {
+  ApiBody,
+  ApiCreatedResponse,
+  ApiInternalServerErrorResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from "@nestjs/swagger";
 import { JobBrokerService } from "./job-broker.service";
 
+@ApiTags("jobs")
 @Controller()
 export class JobBrokerController {
   /**
@@ -26,6 +36,9 @@ export class JobBrokerController {
    * @throws {@link NotFoundException} When the list of job types cannot be found.
    */
   @TypedRoute.Get("/job-types")
+  @ApiOperation({ summary: "Get job types" })
+  @ApiOkResponse({ description: "Returns the type of the jobs" })
+  @ApiNotFoundResponse({ status: 404, description: "Job types not found" })
   public getJobTypes(): { message: string } {
     try {
       return this.jobBrokerService.getJobTypes();
@@ -41,6 +54,9 @@ export class JobBrokerController {
    * @throws {@link NotFoundException} When the list of pending jobs cannot be found.
    */
   @TypedRoute.Get("/pending-jobs")
+  @ApiOperation({ summary: "Get pending jobs" })
+  @ApiOkResponse({ description: "Returns the pending jobs" })
+  @ApiNotFoundResponse({ status: 404, description: "Pending jobs not found" })
   public getPendingJobs(): { message: string } {
     try {
       return this.jobBrokerService.getPendingJobs();
@@ -56,6 +72,10 @@ export class JobBrokerController {
    * @throws {@link InternalServerErrorException} When there is a problem creating the job.
    */
   @TypedRoute.Post("/create-job")
+  @ApiOperation({ summary: "Create a new job" })
+  @ApiCreatedResponse({ description: "The job has been successfully created" })
+  @ApiInternalServerErrorResponse({ status: 500, description: "Job cannot be created due to internal server error" })
+  @ApiBody({ schema: {} })
   public createJob(): { message: string } {
     try {
       return this.jobBrokerService.createJob();

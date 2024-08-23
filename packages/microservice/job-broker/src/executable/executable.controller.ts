@@ -11,6 +11,7 @@
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute, TypedBody } from "@nestia/core";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
+import { ApiBody, ApiCreatedResponse, ApiInternalServerErrorResponse, ApiOperation } from "@nestjs/swagger";
 import { ExecutableService } from "./services/executable.service";
 import { ExecutableStorageService } from "./services/executable-storage.service";
 import { ExecutedResult } from "./schemas/executed-result.schema";
@@ -31,6 +32,10 @@ export class ExecutableController {
    * @throws {@link InternalServerErrorException} When there is a problem queueing the executable task.
    */
   @TypedRoute.Post("/create-task")
+  @ApiOperation({ summary: "Create a new job" })
+  @ApiCreatedResponse({ description: "The job has been successfully created" })
+  @ApiInternalServerErrorResponse({ status: 500, description: "Job cannot be created due to internal server error" })
+  @ApiBody({ schema: {} })
   public async createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): Promise<void> {
     try {
       return this.executableService.createAndQueueTask(taskRequest);

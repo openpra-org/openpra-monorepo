@@ -6,6 +6,7 @@
 
 // Import necessary modules and components from NestJS and local files.
 import { NestFactory } from "@nestjs/core";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import { HttpExceptionFilter } from "./http-exception.filter";
 import { JobBrokerModule } from "./job-broker.module";
 
@@ -24,6 +25,16 @@ async function bootstrap(): Promise<void> {
 
   // Apply the HttpExceptionFilter globally to handle all HTTP exceptions.
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Add configurations for generating automated Swagger documentation
+  const config = new DocumentBuilder()
+    .setTitle("Job-Broker Microservice")
+    .setDescription("UI for interacting with the job-broker APIs")
+    .setVersion("1.0")
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup("docs", app, document);
 
   // Start listening for incoming requests on port 3000.
   await app.listen(3000);

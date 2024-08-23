@@ -61,8 +61,7 @@
       "options": {
         "buildTarget": "frontend-web-editor:build",
         "hmr": true,
-        "host": "127.0.0.1",
-        "proxyConfig": "packages/frontend/web-editor/proxy.conf.json"
+        "host": "127.0.0.1"
       },
       "configurations": {
         "development": {

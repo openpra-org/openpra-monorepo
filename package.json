@@ -68,10 +68,6 @@
     "typescript": "5.5.2",
     "url-loader": "4.1.1"
   },
-  "workspaces": [
-    "packages/*",
-    "packages/*/*"
-  ],
   "dependencies": {
     "@nestia/core": "3.8.1",
     "@nestia/e2e": "0.7.0",

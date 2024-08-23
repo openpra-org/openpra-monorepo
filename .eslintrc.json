@@ -1,14 +1,7 @@
 {
   "root": true,
   "ignorePatterns": ["!**/*"],
-  "plugins": [
-    "@nx",
-    "import",
-    "@typescript-eslint/eslint-plugin",
-    "eslint-plugin-tsdoc",
-    "jest",
-    "security"
-  ],
+  "plugins": ["@nx", "import", "@typescript-eslint/eslint-plugin", "eslint-plugin-tsdoc", "jest", "security"],
   "extends": [
     // https://github.com/typescript-eslint/typescript-eslint/blob/main/packages/eslint-plugin/src/configs/strict-type-checked.ts
     "plugin:@typescript-eslint/strict-type-checked",
@@ -43,12 +36,22 @@
       "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
       "rules": {
         "eqeqeq": ["warn", "always"],
-        "no-unused-vars": ["warn", { "vars": "all", "args": "after-used", "ignoreRestSiblings": false }],
+        "no-unused-vars": [
+          "warn",
+          {
+            "vars": "all",
+            "args": "after-used",
+            "ignoreRestSiblings": false
+          }
+        ],
         "no-var": "warn",
-        "prefer-const": ["warn", {
-          "destructuring": "any",
-          "ignoreReadBeforeAssign": false
-        }],
+        "prefer-const": [
+          "warn",
+          {
+            "destructuring": "any",
+            "ignoreReadBeforeAssign": false
+          }
+        ],
         "prettier/prettier": [
           "warn",
           {
@@ -127,22 +130,25 @@
         "tsdoc/syntax": "warn",
         // Override false positives
         "security/detect-object-injection": "off",
-        "security/detect-non-literal-fs-filename": "off"
+        "security/detect-non-literal-fs-filename": "off",
+        "@typescript-eslint/no-extra-semi": "error",
+        "no-extra-semi": "off"
       }
     },
     {
       "files": ["*.js", "*.jsx"],
       "extends": ["plugin:@nx/javascript"],
-      "rules": {}
+      "rules": {
+        "@typescript-eslint/no-extra-semi": "error",
+        "no-extra-semi": "off"
+      }
     },
     {
       "files": ["*.spec.ts", "*.spec.tsx", "*.spec.js", "*.spec.jsx"],
       "env": {
         "jest": true
       },
-      "extends": [
-        "plugin:jest/recommended" // Add the Jest recommended configuration here
-      ],
+      "extends": ["plugin:jest/recommended"],
       "rules": {}
     },
     {

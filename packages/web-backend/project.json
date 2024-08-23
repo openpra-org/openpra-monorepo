@@ -1,6 +1,7 @@
 {
   "name": "web-backend",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "tags": ["scope:server"],
   "sourceRoot": "packages/web-backend/src",
   "projectType": "application",
   "targets": {
@@ -49,11 +50,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["packages/web-backend/**/*.ts"]
-      }
+      "executor": "@nx/eslint:lint"
     },
     "test": {
       "executor": "@nx/jest:jest",
@@ -69,6 +66,5 @@
         "passWithNoTests": false
       }
     }
-  },
-  "tags": []
+  }
 }

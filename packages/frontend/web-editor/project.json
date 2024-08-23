@@ -1,6 +1,7 @@
 {
   "name": "frontend-web-editor",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "tags": ["scope:client"],
   "sourceRoot": "packages/frontend/web-editor/src",
   "projectType": "application",
   "targets": {
@@ -15,10 +16,7 @@
         "baseHref": "/",
         "main": "packages/frontend/web-editor/src/main.tsx",
         "tsConfig": "packages/frontend/web-editor/tsconfig.app.json",
-        "assets": [
-          "packages/frontend/web-editor/src/favicon.ico",
-          "packages/frontend/web-editor/src/assets"
-        ],
+        "assets": ["packages/frontend/web-editor/src/favicon.ico", "packages/frontend/web-editor/src/assets"],
         "styles": ["packages/frontend/web-editor/src/styles.css"],
         "scripts": [],
         "isolatedConfig": true,
@@ -77,13 +75,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": [
-          "packages/frontend/web-editor/**/*.{ts,tsx,js,jsx}"
-        ]
-      }
+      "executor": "@nx/eslint:lint"
     },
     "serve-static": {
       "executor": "@nx/web:file-server",
@@ -100,25 +92,20 @@
     },
     "e2e": {
       "executor": "@nx/playwright:playwright",
-      "outputs": [
-        "{workspaceRoot}/dist/.playwright/packages/frontend/web-editor"
-      ],
+      "outputs": ["{workspaceRoot}/dist/.playwright/packages/frontend/web-editor"],
       "options": {
         "config": "packages/frontend/web-editor/playwright.config.ts",
         "uiPort": "8080",
         "ui": true
       }
     },
-  "e2e-cli": {
-        "executor": "@nx/playwright:playwright",
-        "outputs": [
-          "{workspaceRoot}/dist/.playwright/packages/frontend/web-editor"
-        ],
-        "options": {
-          "config": "packages/frontend/web-editor/playwright.config.ts",
-          "ui": false
-        }
+    "e2e-cli": {
+      "executor": "@nx/playwright:playwright",
+      "outputs": ["{workspaceRoot}/dist/.playwright/packages/frontend/web-editor"],
+      "options": {
+        "config": "packages/frontend/web-editor/playwright.config.ts",
+        "ui": false
       }
-  },
-  "tags": []
+    }
+  }
 }

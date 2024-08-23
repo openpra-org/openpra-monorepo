@@ -1,6 +1,7 @@
 {
   "name": "microservice-job-broker",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "tags": ["scope:server"],
   "sourceRoot": "packages/microservice/job-broker/src",
   "projectType": "application",
   "targets": {
@@ -49,11 +50,7 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"],
-      "options": {
-        "lintFilePatterns": ["packages/microservice/job-broker/**/*.ts"]
-      }
+      "executor": "@nx/eslint:lint"
     },
     "test": {
       "executor": "@nx/jest:jest",
@@ -69,6 +66,5 @@
         "passWithNoTests": false
       }
     }
-  },
-  "tags": []
+  }
 }

@@ -11,6 +11,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_FILTER, RouterModule } from "@nestjs/core";
 import { MongooseModule } from "@nestjs/mongoose";
+import { SwaggerModule } from "@nestjs/swagger";
 import { HttpExceptionFilter } from "./http-exception.filter";
 import { JobBrokerController } from "./job-broker.controller";
 import { JobBrokerService } from "./job-broker.service";
@@ -40,7 +41,7 @@ import { ExecutableModule } from "./executable/executable.module";
     RouterModule.register([
       {
         path: "api", // Define the base path for the API.
-        module: JobBrokerModule, // Register the Job Broker module as the root module.
+        module: JobBrokerModule,
         children: [
           // Define child modules for specific endpoint prefixes.
           {
@@ -58,6 +59,7 @@ import { ExecutableModule } from "./executable/executable.module";
         ],
       },
     ]),
+    SwaggerModule,
   ],
   controllers: [JobBrokerController], // Register the controller for this module.
   providers: [

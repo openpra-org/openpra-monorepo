@@ -28,8 +28,8 @@ export class ExecutableController {
    * @returns Boolean representing whether task was queued.
    * @param taskRequest - The task to execute.
    */
-    @TypedRoute.Post("create-task")
-  public async createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): Promise<boolean> {
+  @TypedRoute.Post("create-task")
+  public async createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): Promise<void> {
     try {
       return this.executableService.createAndQueueTask(taskRequest);
     } catch {

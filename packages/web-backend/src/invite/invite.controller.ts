@@ -1,10 +1,9 @@
-import { Controller, HttpStatus, UseGuards, HttpException } from "@nestjs/common";
+import { HttpStatus, Controller, Get, Post, Put, Param, Body, Delete, UseGuards, HttpException } from "@nestjs/common";
 import {
   InvitedUserDetailsDto,
   InvitedUserDto,
   InviteIdDto,
 } from "packages/shared-types/src/lib/types/userInvites/InvitedUser";
-import { TypedBody, TypedParam, TypedRoute } from "@nestia/core";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { Public } from "../guards/public.guard";
 import { InviteService } from "./invite.service";
@@ -26,8 +25,8 @@ export class InviteController {
    *   "username" : "xyzabc"
    * }
    */
-  @TypedRoute.Post("/invite/")
-  public async generateInvitationLink(@TypedBody() body: InvitedUserDto): Promise<InviteIdDto> {
+  @Post("/invite/")
+  public async generateInvitationLink(@Body() body: InvitedUserDto): Promise<InviteIdDto> {
     const invitedUser = await this.inviteService.generateUserInvite(body);
     return { id: invitedUser.id };
   }
@@ -36,8 +35,8 @@ export class InviteController {
    * This endpoint will update an invite
    * @param body - InvitedUserDetailsDto object
    */
-  @TypedRoute.Put("/invite/")
-  public async updateInvite(@TypedBody() body: InvitedUserDetailsDto): Promise<InvitedUser | null> {
+  @Put("/invite/")
+  public async updateInvite(@Body() body: InvitedUserDetailsDto): Promise<InvitedUser | null> {
     return this.inviteService.updateInvite(body);
   }
 
@@ -51,8 +50,8 @@ export class InviteController {
    * }
    */
   @Public()
-  @TypedRoute.Post("/verify-invite/")
-  public async verifyInvitationLink(@TypedBody() body: InviteIdDto): Promise<InvitedUserDto> {
+  @Post("/verify-invite/")
+  public async verifyInvitationLink(@Body() body: InviteIdDto): Promise<InvitedUserDto> {
     const invitedUser = await this.inviteService.verifyUserInvite(String(body.id));
     if (invitedUser === null) {
       throw new HttpException("Invite id either invalid or expired", HttpStatus.GONE);
@@ -68,7 +67,7 @@ export class InviteController {
   /**
    * This endpoint will return all the invites that were generated
    */
-  @TypedRoute.Get("/invites/")
+  @Get("/invites/")
   public async getAllInvites(): Promise<InvitedUserDetailsDto[]> {
     return this.inviteService.getAllInvitedUsers();
   }
@@ -76,16 +75,16 @@ export class InviteController {
   /**
    * This endpoint will delete invitedUser by id
    */
-  @TypedRoute.Delete("/invite/:id")
-  public async deleteInvite(@TypedParam("id") id: string): Promise<boolean> {
+  @Delete("/invite/:id")
+  public async deleteInvite(@Param("id") id: string): Promise<boolean> {
     return this.inviteService.deleteInviteById(id);
   }
 
   /**
    * This endpoint will get invitedUser by id
    */
-  @TypedRoute.Get("/invite/:id")
-  public async getInvite(@TypedParam("id") id: string): Promise<InvitedUserDetailsDto | null> {
+  @Get("/invite/:id")
+  public async getInvite(@Param("id") id: string): Promise<InvitedUserDetailsDto | null> {
     return this.inviteService.getInviteById(id);
   }
 }

@@ -1,4 +1,4 @@
-export class InvitedUserDto {
+class InvitedUserDto {
   firstname?: string;
   lastname?: string;
   username?: string;
@@ -7,13 +7,15 @@ export class InvitedUserDto {
   expiry?: Date;
 }
 
-export class InvitedUserDetail {
+class InvitedUserDetail {
   id?: string;
   expiryDate?: Date;
 }
 
-export class InviteIdDto {
+class InviteIdDto {
   id?: string;
 }
 
-export type InvitedUserDetailsDto = InvitedUserDto & InvitedUserDetail;
+type InvitedUserDetailsDto = InvitedUserDto & InvitedUserDetail;
+
+export { InvitedUserDto, InviteIdDto, InvitedUserDetailsDto };

@@ -1,6 +1,5 @@
-import { Controller, UseGuards } from "@nestjs/common";
+import { Controller, Post, Request, UseGuards, Body } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
-import { TypedRoute, TypedHeaders, TypedBody } from "@nestia/core";
 import { UserType } from "shared-types/src/openpra-mef/collab/user";
 import { AuthService } from "./auth.service";
 
@@ -19,8 +18,8 @@ export class AuthController {
    * @returns JWT token
    * @example POST request -> https://staging.app.openpra.org/api/auth/token-obtain
    */
-  @TypedRoute.Post("/token-obtain/")
-  public async loginUser(@TypedHeaders() req: { user: UserType }): Promise<{ token: string }> {
+  @Post("/token-obtain/")
+  public async loginUser(@Request() req: { user: UserType }): Promise<{ token: string }> {
     return this.authService.getJwtToken(req.user);
   }
 
@@ -34,8 +33,8 @@ export class AuthController {
    *   "password" : "FullMetalAlchemist"
    * }
    */
-  @TypedRoute.Post("/verify-password/")
-  public async verifyPassword(@TypedBody() body: { username: string; password: string }): Promise<{ match: boolean }> {
+  @Post("/verify-password/")
+  public async verifyPassword(@Body() body: { username: string; password: string }): Promise<{ match: boolean }> {
     const match = await this.authService.verifyPassword(body.username, body.password);
     return {
       match: match,

@@ -70,14 +70,13 @@ export class AuthService {
    * @param username - username of the user
    * @param password - password of the user
    */
-  async verifyPassword(username: string, password: string): Promise<boolean> {
+  public async verifyPassword(username: string, password: string): Promise<boolean> {
     const user = await this.collabService.loginUser(username);
-    if (user) {
-      await argon2.verify(user.password, password);
-      return true;
-    } else {
+    if (!user) {
       return false;
     }
+    await argon2.verify(user.password, password);
+    return true;
   }
 
   /* Unused method for updating tokens:

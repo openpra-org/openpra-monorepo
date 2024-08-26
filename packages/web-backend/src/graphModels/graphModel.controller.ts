@@ -1,5 +1,4 @@
-import { Controller, HttpException, HttpStatus } from "@nestjs/common";
-import { TypedBody, TypedQuery, TypedRoute } from "@nestia/core";
+import { Body, Controller, Get, HttpException, HttpStatus, Patch, Post, Query } from "@nestjs/common";
 import { EventSequenceDiagramGraph } from "../schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph } from "../schemas/graphs/fault-tree-graph.schema";
 import { EventTreeGraph } from "../schemas/graphs/event-tree-graph.schema";
@@ -16,8 +15,8 @@ export class GraphModelController {
    * as well as the faultTreeId, if the id is missing - a new graph document will be created.
    * @returns a promise with the newly created graph model
    */
-  @TypedRoute.Post("/fault-tree-graph")
-  public async createFaultTreeGraph(@TypedBody() data: Partial<FaultTreeGraph>): Promise<boolean> {
+  @Post("/fault-tree-graph")
+  public async createFaultTreeGraph(@Body() data: Partial<FaultTreeGraph>): Promise<boolean> {
     try {
       return this.graphModelService.saveFaultTreeGraph(data);
     } catch {
@@ -31,8 +30,8 @@ export class GraphModelController {
    * as well as the eventTreeId, if the id is missing - a new graph document will be created.
    * @returns a promise with the newly created graph model
    */
-  @TypedRoute.Post("/event-tree-graph")
-  public async createEventTreeGraph(@TypedBody() data: Partial<EventTreeGraph>): Promise<boolean> {
+  @Post("/event-tree-graph")
+  public async createEventTreeGraph(@Body() data: Partial<EventTreeGraph>): Promise<boolean> {
     try {
       return this.graphModelService.saveEventTreeGraph(data);
     } catch {
@@ -45,9 +44,9 @@ export class GraphModelController {
    * @returns a promise with an object of the event sequence diagram graph
    * @param query
    */
-  @TypedRoute.Get("/event-sequence-diagram-graph/")
+  @Get("/event-sequence-diagram-graph/")
   public async getEventSequenceDiagramGraph(
-    @TypedQuery() query: { eventSequenceId: string },
+    @Query() query: { eventSequenceId: string },
   ): Promise<EventSequenceDiagramGraph> {
     return this.graphModelService.getEventSequenceDiagramGraph(query.eventSequenceId);
   }
@@ -57,8 +56,8 @@ export class GraphModelController {
    * @returns a promise with an object of the fault tree diagram graph
    * @param query
    */
-  @TypedRoute.Get("/fault-tree-graph/")
-  public async getFaultTreeGraph(@TypedQuery() query: { faultTreeId: string }): Promise<FaultTreeGraph> {
+  @Get("/fault-tree-graph/")
+  public async getFaultTreeGraph(@Query() query: { faultTreeId: string }): Promise<FaultTreeGraph> {
     return this.graphModelService.getFaultTreeGraph(query.faultTreeId);
   }
 
@@ -67,8 +66,8 @@ export class GraphModelController {
    * @returns a promise with boolean confirmation whether update was successful or not
    * @param body
    */
-  @TypedRoute.Patch("/event-sequence-diagram-graph/update-label/")
-  public async updateESNodeLabel(@TypedBody() body: { id: string; type: string; label: string }): Promise<boolean> {
+  @Patch("/event-sequence-diagram-graph/update-label/")
+  public async updateESNodeLabel(@Body() body: { id: string; type: string; label: string }): Promise<boolean> {
     try {
       return this.graphModelService.updateESLabel(body.id, body.type, body.label);
     } catch (_) {
@@ -76,9 +75,9 @@ export class GraphModelController {
     }
   }
 
-  @TypedRoute.Patch("/event-sequence-diagram-graph")
+  @Patch("/event-sequence-diagram-graph")
   public async updateESSubgraph(
-    @TypedBody()
+    @Body()
     body: {
       eventSequenceId: string;
       updatedSubgraph: Partial<BaseGraph>;
@@ -97,8 +96,8 @@ export class GraphModelController {
    * @returns a promise with an object of the event tree diagram graph
    * @param query
    */
-  @TypedRoute.Get("/event-tree-graph/")
-  public async getEventTreeGraph(@TypedQuery() query: { eventTreeId: string }): Promise<EventTreeGraph> {
+  @Get("/event-tree-graph/")
+  public async getEventTreeGraph(@Query() query: { eventTreeId: string }): Promise<EventTreeGraph> {
     return this.graphModelService.getEventTreeGraph(query.eventTreeId);
   }
 }

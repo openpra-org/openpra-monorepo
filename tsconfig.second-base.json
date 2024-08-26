@@ -11,13 +11,23 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {},
+    "plugins": [
+      {
+        "transform": "@nestia/core/lib/transform",
+        "validate": "assert",
+        "stringify": "assert"
+      },
+      {
+        "transform": "typia/lib/transform"
+      }
+    ],
     "types": [
       "jest",
       "node",
       "@types/jest"
     ],
-    "strictNullChecks": false,
-    "strict": false,
+    "strictNullChecks": true,
+    "strict": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true
   }

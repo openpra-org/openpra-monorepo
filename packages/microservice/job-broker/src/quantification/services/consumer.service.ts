@@ -82,22 +82,23 @@ export class ConsumerService implements OnModuleInit {
       return;
     }
 
-    try {
-      // Connect to the RabbitMQ server, create a channel, and connect the
-      // workers to the initial queue to consume quantification jobs
-      const connection = await amqp.connect(url);
-      const channel = await connection.createChannel();
-      await channel.assertQueue(initialJobQ, { durable: true });
+    // Connect to the RabbitMQ server, create a channel, and connect the
+    // workers to the initial queue to consume quantification jobs
+    const connection = await this.connectWithRetry(url, 3);
+    const channel = await connection.createChannel();
+    await channel.assertQueue(initialJobQ, { durable: true });
 
-      // Consume the jobs from the initial queue
-      await channel.consume(
-        initialJobQ,
-        (msg: ConsumeMessage | null) => {
-          if (msg === null) {
-            Logger.error("Unable to parse message from initial quantification queue");
-            return;
-          }
+    // Consume the jobs from the initial queue
+    await channel.consume(
+      initialJobQ,
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      async (msg: ConsumeMessage | null) => {
+        if (msg === null) {
+          Logger.error("Unable to parse message from initial quantification queue");
+          return;
+        }
 
+        try {
           // Convert the inputs/data into a JSON object and perform
           // the quantification using this JSON object
           const modelsWithConfigs: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());

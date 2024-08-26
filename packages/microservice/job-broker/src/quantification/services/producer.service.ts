@@ -10,7 +10,7 @@
 // and TypeGuardError for error handling, and shared types for quantification request validation.
 import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as amqp from "amqplib";
+import amqp from "amqplib";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 

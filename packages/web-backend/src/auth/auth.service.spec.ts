@@ -51,8 +51,7 @@ describe("AuthService", () => {
 
   describe("loginUser", () => {
     it("should be defined", () => {
-      // eslint-disable-next-line @typescript-eslint/unbound-method
-      expect(authService.loginUser).toBeDefined();
+      expect(authService.loginUser.bind(authService)).toBeDefined();
     });
 
     /**

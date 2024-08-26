@@ -1,5 +1,16 @@
-import { Controller, UseGuards, ConflictException, BadRequestException } from "@nestjs/common";
-import { TypedBody, TypedHeaders, TypedParam, TypedQuery, TypedRoute } from "@nestia/core";
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Request,
+  Param,
+  Query,
+  Body,
+  UseGuards,
+  BadRequestException,
+  ConflictException,
+} from "@nestjs/common";
 import { MemberResult } from "shared-types/src/lib/api/Members";
 import { Pagination } from "shared-types/src/openpra-mef/collab/pagination";
 import { NewUser } from "shared-types/src/openpra-mef/collab/new-user";
@@ -21,10 +32,10 @@ export class CollabController {
    * @example GET request -> https://staging.app.openpra.org/api/collab/user/
    * @example GET request -> https://staging.app.openpra.org/api/collab/user/?limit=10&offset=0
    */
-  @TypedRoute.Get("/user/")
+  @Get("/user/")
   public async getUsersList(
-    @TypedHeaders() req: { originalUrl: string },
-    @TypedQuery()
+    @Request() req: { originalUrl: string },
+    @Query()
     query: {
       limit?: number;
       offset?: number;
@@ -51,8 +62,8 @@ export class CollabController {
    * @example POST request -> https://staging.app.openpra.org/api/collab/user/
    */
   @Public()
-  @TypedRoute.Post("/user/")
-  public async createNewUser(@TypedBody() body: NewUser): Promise<User | string> {
+  @Post("/user/")
+  public async createNewUser(@Body() body: NewUser): Promise<User | string> {
     const newUser = await this.collabService.createNewUser(body);
 
     // Check if newUser is null, indicating duplicate username
@@ -78,8 +89,8 @@ export class CollabController {
    * }
    */
   @Public()
-  @TypedRoute.Post("/validateEmail/")
-  public async isValidEmail(@TypedBody() body: { email: string }): Promise<boolean> {
+  @Post("/validateEmail/")
+  public async isValidEmail(@Body() body: { email: string }): Promise<boolean> {
     return await this.collabService.isEmailValid(body.email);
   }
 
@@ -92,8 +103,8 @@ export class CollabController {
    * }
    */
   @Public()
-  @TypedRoute.Post("/validateUsername/")
-  public async isValidUsername(@TypedBody() body: { username: string }): Promise<boolean> {
+  @Post("/validateUsername/")
+  public async isValidUsername(@Body() body: { username: string }): Promise<boolean> {
     return await this.collabService.isUsernameValid(body.username);
   }
 
@@ -102,8 +113,8 @@ export class CollabController {
    * @returns {Type} Preferences of the user
    * @example GET request -> https://staging.app.openpra.org/api/collab/user/1/preferences/
    */
-  @TypedRoute.Get("/user/:user_id/preferences/")
-  public async getUserPreferences(@TypedParam("user_id") user_id: string) {
+  @Get("/user/:user_id/preferences/")
+  public async getUserPreferences(@Param("user_id") user_id: string) {
     return this.collabService.getUserPreferences(user_id);
   }
 
@@ -125,11 +136,8 @@ export class CollabController {
    * @returns Updated preferences of the user
    * @example PUT Request -> https://staging.app.openpra.org/api/collab/user/1/preferences/
    */
-  @TypedRoute.Put("/user/:user_id/preferences/")
-  public async updateUserPreferences(
-    @TypedParam("user_id") user_id: string,
-    @TypedBody() body: UserPreferences,
-  ): Promise<void> {
+  @Put("/user/:user_id/preferences/")
+  public async updateUserPreferences(@Param("user_id") user_id: string, @Body() body: UserPreferences): Promise<void> {
     return this.collabService.updateUserPreferences(user_id, body);
   }
 
@@ -137,8 +145,8 @@ export class CollabController {
    * This endpoint fetches a particular user by ID
    * @param user_id - user ID of the member which you want to find
    */
-  @TypedRoute.Get("/user/:user_id/")
-  public async getUserById(@TypedParam("user_id") user_id: string): Promise<User | null> {
+  @Get("/user/:user_id/")
+  public async getUserById(@Param("user_id") user_id: string): Promise<User | null> {
     return this.collabService.getUserById(user_id);
   }
 
@@ -146,8 +154,8 @@ export class CollabController {
    * This endpoint will update a user
    * @param body - The UpdateUserDto object which contains the id of the user to be updated and the updated details
    */
-  @TypedRoute.Put("/user/:user_id/")
-  public async updateUserById(@TypedBody() body: MemberResult): Promise<void> {
+  @Put("/user/:user_id/")
+  public async updateUserById(@Body() body: MemberResult): Promise<void> {
     await this.collabService.updateUser(body);
   }
 }

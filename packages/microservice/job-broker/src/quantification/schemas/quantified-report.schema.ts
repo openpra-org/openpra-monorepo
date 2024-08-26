@@ -30,7 +30,7 @@ export class QuantifiedRequest {
   mocus?: boolean;
 
   @Prop({ required: false })
-  "prime-implicants"?: boolean;
+  primeImplicants?: boolean;
 
   @Prop({ required: false })
   probability?: boolean;
@@ -48,43 +48,43 @@ export class QuantifiedRequest {
   sil?: boolean;
 
   @Prop({ required: false })
-  "rare-event"?: boolean;
+  rareEvent?: boolean;
 
   @Prop({ required: false })
   mcub?: boolean;
 
   @Prop({ required: false })
-  "limit-order"?: number;
+  limitOrder?: number;
 
   @Prop({ required: false })
-  "cut-off"?: number;
+  cutOff?: number;
 
   @Prop({ required: false })
-  "mission-time"?: number;
+  missionTime?: number;
 
   @Prop({ required: false })
-  "time-step"?: number;
+  timeStep?: number;
 
   @Prop({ required: false })
-  "num-trials"?: number;
+  numTrials?: number;
 
   @Prop({ required: false })
-  "num-quantiles"?: number;
+  numQuantiles?: number;
 
   @Prop({ required: false })
-  "num-bins"?: number;
+  numBins?: number;
 
   @Prop({ required: false })
   seed?: number;
 
   @Prop({ required: false })
-  "no-indent"?: boolean;
+  noIndent?: boolean;
 
   @Prop({ required: false })
   verbosity?: number;
 
   @Prop({ required: false })
-  "no-report"?: boolean;
+  noReport?: boolean;
 
   @Prop({ required: false })
   output?: string;

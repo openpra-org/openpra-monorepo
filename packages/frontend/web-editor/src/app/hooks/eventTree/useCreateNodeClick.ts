@@ -114,9 +114,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
       edges: updatedEdges,
     });
 
-    void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {
-      console.log(r);
-    });
+    void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {});
   };
 
   return addNode;
@@ -134,7 +132,6 @@ function findRightmostNodeIndicesAtEachLevel(
   // Find the clicked node to get its depth
   const clickedNode = nodes.find((node) => node.id === clickedNodeId);
   if (!clickedNode) {
-    console.error("Clicked node not found");
     return [];
   }
   const clickedNodeDepth = clickedNode.data.depth;

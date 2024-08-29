@@ -111,17 +111,17 @@ export class Factors {
   setCommonEventFactors(commonB: number, commonG: number, parentsB: number, parentsG: number): void {
     const maxCommon = 0.9; // a practical limit (not a formal constraint)
     if (commonB <= 0 || commonB > maxCommon) {
-      throw new FactorError(`common_b not in (0, ${maxCommon}].`);
+      throw new FactorError(`common_b not in (0, ${String(maxCommon)}].`);
     }
     if (commonG <= 0 || commonG > maxCommon) {
-      throw new FactorError(`common_g not in (0, ${maxCommon}]..`);
+      throw new FactorError(`common_g not in (0, ${String(maxCommon)}]..`);
     }
     const maxParent = 100; // also a practical limit
     if (parentsB < 2 || parentsB > maxParent) {
-      throw new FactorError(`parents_b not in [2, ${maxParent}].`);
+      throw new FactorError(`parents_b not in [2, ${String(maxParent)}].`);
     }
     if (parentsG < 2 || parentsG > maxParent) {
-      throw new FactorError(`parents_g not in [2, ${maxParent}].`);
+      throw new FactorError(`parents_g not in [2, ${String(maxParent)}].`);
     }
     this.commonB = commonB;
     this.commonG = commonG;

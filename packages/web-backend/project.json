@@ -50,7 +50,13 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint"
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": [
+          "{projectRoot}/**/*.ts"
+        ]
+      }
     },
     "test": {
       "executor": "@nx/jest:jest",
@@ -62,7 +68,7 @@
     "e2e": {
       "executor": "@nx/jest:jest",
       "options": {
-        "jestConfig": "packages/web-backend/test/jest-e2e.json",
+        "jestConfig": "packages/web-backend/tests/jest-e2e.json",
         "passWithNoTests": false
       }
     }

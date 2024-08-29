@@ -42,19 +42,16 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
       if (deleteTypedEndpoint && id) {
         void deleteTypedEndpoint(id).then(() => {
           // TODO:: Log this right
-          console.log("deleted");
         });
       } else if (deleteNestedEndpoint && _id) {
         void deleteNestedEndpoint(_id).then(() => {
           // TODO:: Log this right
-          console.log("deleted nested");
         });
       } else {
         // deleteEndpoint(id)
       }
     } catch (e) {
       // TODO:: Log this right
-      console.error(e);
     }
     // TODO:: Implement delete functionality for nested models
   };

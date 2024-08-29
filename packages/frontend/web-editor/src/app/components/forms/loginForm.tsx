@@ -45,9 +45,7 @@ function LoginForm(): JSX.Element {
           setInvalid(true);
         }
       });
-    } catch (error) {
-      //console.error(error);
-    }
+    } catch (error) {}
   }
 
   //Corrects the isInvalid when a user types something in a blank input field
@@ -97,7 +95,6 @@ function LoginForm(): JSX.Element {
         })
         .catch((error) => {
           // Handle login error
-          //console.error("Login failed:", error);
           // Optionally, you can also set an error state to display to the user
         });
     }

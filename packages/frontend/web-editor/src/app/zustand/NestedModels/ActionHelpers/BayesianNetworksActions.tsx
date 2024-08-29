@@ -18,9 +18,7 @@ export const SetBayesianNetworks = async (parentId: string): Promise<void> => {
         state.NestedModels.SystemAnalysis.BayesianNetworks = BayesianNetworks;
       }),
     );
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
+  } catch (error) {}
 };
 
 export const AddBayesianNetwork = async (data: NestedModelJSON): Promise<void> => {
@@ -35,9 +33,7 @@ export const AddBayesianNetwork = async (data: NestedModelJSON): Promise<void> =
         state[typedModelName] = AddToParentModel(state, BayesianNetwork._id, BayesianNetwork.parentIds);
       }),
     );
-  } catch (error) {
-    console.error("Error adding bayesian network:", error);
-  }
+  } catch (error) {}
 };
 
 export const EditBayesianNetwork = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
@@ -54,9 +50,7 @@ export const EditBayesianNetwork = async (modelId: string, data: Partial<NestedM
         );
       }),
     );
-  } catch (error) {
-    console.error("Error editing bayesian network:", error);
-  }
+  } catch (error) {}
 };
 
 export const DeleteBayesianNetwork = async (id: string): Promise<void> => {
@@ -76,7 +70,5 @@ export const DeleteBayesianNetwork = async (id: string): Promise<void> => {
         state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
-  } catch (error) {
-    console.error("Error deleting bayesian network:", error);
-  }
+  } catch (error) {}
 };

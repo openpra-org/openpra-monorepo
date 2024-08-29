@@ -66,9 +66,7 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
         edges: remainingEdges,
       });
 
-      void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {
-        console.log(r);
-      });
+      void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {});
     } else {
       // Update clicked node to invisibleNode and animate edges
       const updatedNodes = nodes.map((node) => {
@@ -94,9 +92,7 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
         edges: updatedEdges,
       });
 
-      void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {
-        console.log(r);
-      });
+      void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {});
     }
   };
 

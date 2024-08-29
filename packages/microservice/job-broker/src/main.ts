@@ -8,6 +8,7 @@
  */
 
 import { NestFactory } from "@nestjs/core";
+import { HttpExceptionFilter } from "./http-exception.filter";
 import { JobBrokerModule } from "./job-broker.module";
 
 /**
@@ -28,8 +29,10 @@ async function bootstrap(): Promise<void> {
   // Creating an instance of the application by passing the root module (`JobBrokerModule`) to the `NestFactory.create` method.
   const app = await NestFactory.create(JobBrokerModule);
 
-  // Instructing the application to start listening for incoming HTTP requests on port 3000.
-  // This effectively starts the web server and makes the application accessible.
+  // Apply the HttpExceptionFilter globally to handle all HTTP exceptions.
+  app.useGlobalFilters(new HttpExceptionFilter());
+
+  // Start listening for incoming requests on port 3000.
   await app.listen(3000);
 }
 

@@ -280,7 +280,6 @@ export class FmeaService {
     //remove the row from the rows array
     const rows = fmea.rows.filter((row) => row.id != rowId);
 
-    console.log(rows);
     //update the rows in the database
     return this.fmeaModel.findOneAndUpdate({ id: fmeaId }, { $set: { rows: rows } }, { new: true }).lean();
   }

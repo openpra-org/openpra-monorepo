@@ -289,7 +289,7 @@ const App: React.FC = () => {
             return {
               ...col,
               displayAsText: newColumnData.displayAsText,
-              inputType: newColumnData.columnType as ColumnType,
+              inputType: newColumnData.columnType,
               dropdownOptions: newColumnData.dropdownOptions,
             };
           }
@@ -302,7 +302,7 @@ const App: React.FC = () => {
         return {
           ...col,
           displayAsText: newColumnData.displayAsText,
-          inputType: newColumnData.columnType as ColumnType,
+          inputType: newColumnData.columnType,
           dropdownOptions: newColumnData.dropdownOptions,
         };
       }
@@ -316,12 +316,12 @@ const App: React.FC = () => {
           const previousType = col.inputType;
 
           // Call updateColumnType to update the type and possibly clear data
-          updateColumnType(newColumnData.id, newColumnData.columnType as ColumnType);
+          updateColumnType(newColumnData.id, newColumnData.columnType);
 
           return {
             ...col,
             displayAsText: newColumnData.displayAsText,
-            inputType: newColumnData.columnType as ColumnType,
+            inputType: newColumnData.columnType,
             dropdownOptions: newColumnData.dropdownOptions,
           };
         }
@@ -360,7 +360,6 @@ const App: React.FC = () => {
 
   const handleCreateColumn = () => {
     if (!newColumnData.id || !newColumnData.displayAsText) {
-      console.error("Both Column ID and Display Text are required.");
       return;
     }
 
@@ -479,12 +478,10 @@ const App: React.FC = () => {
   const handleAddNewColumn = () => {
     // we are making sure that new column has an ID and a display text
     if (!newColumnDetails.id || !newColumnDetails.displayAsText) {
-      console.error("Both Column ID and Display Text are required.");
       return;
     }
     // Omit the delete column from being added again
     if (newColumnDetails.id === "delete") {
-      console.error("The 'delete' column ID is reserved and cannot be used for new columns.");
       return;
     }
 
@@ -585,8 +582,6 @@ const App: React.FC = () => {
       } else {
         newSelectedRowIds.add(rowId);
       }
-      console.log("In setSelectedRowId");
-      console.log(newSelectedRowIds);
       localStorage.setItem("selectedRowIds", JSON.stringify([...newSelectedRowIds]));
       return newSelectedRowIds;
     });
@@ -643,12 +638,6 @@ const App: React.FC = () => {
         const rowId = data[rowIndex].id;
         const isChecked = selectedRowIds.has(rowId);
         const optionId = `checkbox_${rowId}`;
-
-        // const handleCheckboxChange = (rowId: number) => {
-        //   // Toggle the selection on change
-        //   handleRowSelectionChange(rowId);
-        // };
-        console.log(`Row ${rowId} checked: ${isChecked}`);
 
         // Return a checkbox with the correct 'checked' state and an onChange handler
         return (

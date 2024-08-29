@@ -17,9 +17,7 @@ export const SetExternalHazards = async (): Promise<void> => {
     UseGlobalStore.setState({
       ExternalHazards: externalHazardsList,
     });
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
+  } catch (error) {}
 };
 
 export const AddExternalHazard = async (data: Partial<TypedModelJSON>): Promise<void> => {
@@ -28,9 +26,7 @@ export const AddExternalHazard = async (data: Partial<TypedModelJSON>): Promise<
     UseGlobalStore.setState((state) => ({
       ExternalHazards: [...state.ExternalHazards, ehr],
     }));
-  } catch (error) {
-    console.error("Error adding external hazard:", error);
-  }
+  } catch (error) {}
 };
 
 export const EditExternalHazard = async (
@@ -49,9 +45,7 @@ export const EditExternalHazard = async (
         }
       }),
     }));
-  } catch (error) {
-    console.error("Error adding external hazard:", error);
-  }
+  } catch (error) {}
 };
 
 export const DeleteExternalHazard = async (id: number): Promise<void> => {
@@ -61,7 +55,5 @@ export const DeleteExternalHazard = async (id: number): Promise<void> => {
     UseGlobalStore.setState((state) => ({
       ExternalHazards: state.ExternalHazards.filter((eh: ExternalHazardsModelType) => eh.id !== id),
     }));
-  } catch (error) {
-    console.error("Error deleting external hazard:", error);
-  }
+  } catch (error) {}
 };

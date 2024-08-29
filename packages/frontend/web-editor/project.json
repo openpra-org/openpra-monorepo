@@ -74,7 +74,13 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint"
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": [
+          "{projectRoot}/**/*.{ts,tsx,js,jsx}"
+        ]
+      }
     },
     "serve-static": {
       "executor": "@nx/web:file-server",

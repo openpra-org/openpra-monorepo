@@ -1,8 +1,7 @@
-import { MongoMemoryServer } from 'mongodb-memory-server';
+import { MongoMemoryServer } from "mongodb-memory-server";
 
 //global variable to store the mongo server
 let mongoServer: MongoMemoryServer;
-
 
 mongoServer = new MongoMemoryServer();
 

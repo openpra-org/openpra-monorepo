@@ -163,9 +163,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
       edges: edges,
     });
 
-    void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {
-      console.log(r);
-    });
+    void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {});
   };
   return addCol;
 }

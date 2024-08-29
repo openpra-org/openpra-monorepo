@@ -31,7 +31,13 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint"
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": [
+          "{projectRoot}/tests/**/*.{ts,js}"
+        ]
+      }
     }
   },
   "sourceRoot": "packages/engine/scram-node/src",

@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema#",
   "$id": "https://openpra.org/schema/v1/openpra-mef/basic-event.json",
   "title": "Basic Event Schema",
   "description": "Representation of a basic event in a fault tree, which includes a probability estimate.",

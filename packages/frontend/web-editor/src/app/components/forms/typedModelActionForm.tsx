@@ -89,9 +89,7 @@ function TypedModelActionForm({
           });
           setSelectedUsersList(selectedList);
           setUsersList(listWithoutCurrentUser);
-        } catch (error) {
-          //console.error("Error fetching data:", error);
-        }
+        } catch (error) {}
       };
       void logFetchedData();
     }, [initUsers]);

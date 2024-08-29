@@ -85,7 +85,6 @@ export function EditableTable(): JSX.Element | null {
   useEffect(() => {
     const loadFmea = async (): Promise<void> => {
       const res = await FmeaApiManager.getFmea(3);
-      //console.log(res);
 
       // Modify the columns as needed
       const modifiedColumns = [
@@ -110,7 +109,6 @@ export function EditableTable(): JSX.Element | null {
     };
 
     void loadFmea();
-    console.log(data);
   }, []);
 
   function showModal(columnName: string): void {
@@ -148,7 +146,6 @@ export function EditableTable(): JSX.Element | null {
         column,
         value,
       });
-      //console.log(res);
 
       // Create a new object/array that includes the modifications you want to make.
       const updatedColumns = [
@@ -203,7 +200,6 @@ export function EditableTable(): JSX.Element | null {
   function deleteRow(id: string): void {
     const del = async (): Promise<void> => {
       const res = await FmeaApiManager.deleteRow(3, id);
-      //console.log(res);
 
       // Assuming res.columns is mutable and you're okay with modifying it directly
       const updatedColumns = [
@@ -226,7 +222,6 @@ export function EditableTable(): JSX.Element | null {
   const addNewRow = (): void => {
     const callAddRow = async (): Promise<void> => {
       await FmeaApiManager.addRow(3).then((resposne) => {
-        //console.log(resposne);
         setData(resposne.rows);
       });
     };
@@ -259,7 +254,6 @@ export function EditableTable(): JSX.Element | null {
           const updateColumn = async (): Promise<void> => {
             const body = { ...newColumn, prev_column_name: originalColumnId };
             await FmeaApiManager.updateColumnDetails(3, body).then((res) => {
-              //console.log(res);
               res.columns.push({
                 id: "actions",
                 name: "actions",
@@ -275,7 +269,6 @@ export function EditableTable(): JSX.Element | null {
               setColumn(res.columns);
               setData(res.rows);
             });
-            //console.log(body);
           };
           void updateColumn();
         } else {
@@ -286,9 +279,7 @@ export function EditableTable(): JSX.Element | null {
               type: newColumn.type,
               dropdownOptions: newColumn.dropdownOptions,
             };
-            //console.log(body);
             await FmeaApiManager.addColumn(3, body).then((res) => {
-              //console.log(res);
               res.columns.push({
                 id: "actions",
                 name: "actions",
@@ -450,7 +441,6 @@ export function EditableTable(): JSX.Element | null {
   type RowData = Record<string, unknown>;
   const renderCellValue = useCallback(
     ({ rowIndex, columnId }: EuiDataGridCellValueElementProps) => {
-      console.log(columnId);
       const column = columns.find((col) => col.id === columnId);
 
       const item: RowData = data[rowIndex].row_data;
@@ -458,7 +448,6 @@ export function EditableTable(): JSX.Element | null {
       if (column !== undefined) {
         const value = item[column.id] as string;
         // Use `value` here within the if block
-        //console.log(column);
         if (columnId == "id") {
           const id = data[rowIndex].id;
           return (
@@ -484,14 +473,14 @@ export function EditableTable(): JSX.Element | null {
                 // onDoubleClick={() => {
                 //   setEditingCell({ rowIndex, columnId });
                 // }}
-                data-testid={`${column.name}`}
+                data-testid={column.name}
               >
                 <span>{value}</span>
               </div>
             );
           } else {
             return (
-              <div data-testid={`${column.name}`}>
+              <div data-testid={column.name}>
                 <EuiSelect
                   options={column.dropdownOptions.map((option) => ({
                     value: option.number.toString(),
@@ -633,9 +622,7 @@ export function EditableTable(): JSX.Element | null {
                           .filter((column) => column.id !== "actions" && column.id !== "details")
                           .map((column) => {
                             const row = data.filter((r) => r.id == selectedRowIdSidePanel);
-                            console.log(row);
                             const value = row[0].row_data[column.id] as string;
-                            console.log(value);
                             return (
                               <EuiFormRow
                                 label={column.name}

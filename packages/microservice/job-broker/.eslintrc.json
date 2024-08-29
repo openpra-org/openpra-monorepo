@@ -1,6 +1,11 @@
 {
   // https://github.com/darraghoriordan/eslint-plugin-nestjs-typed
-  "extends": ["../../../.eslintrc.json", "plugin:@darraghor/nestjs-typed/recommended", "plugin:@darraghor/nestjs-typed/no-swagger"],
+  "extends": [
+    "../../../.eslintrc.json",
+    "plugin:@darraghor/nestjs-typed/recommended",
+    "plugin:@darraghor/nestjs-typed/no-swagger",
+    "plugin:playwright/recommended"
+  ],
   "plugins": ["@darraghor/nestjs-typed"],
   "parserOptions": {
     "project": ["packages/microservice/job-broker/tsconfig.*?.json"]

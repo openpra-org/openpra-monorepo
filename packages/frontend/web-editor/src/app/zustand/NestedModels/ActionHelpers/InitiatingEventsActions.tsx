@@ -18,9 +18,7 @@ export const SetInitiatingEvents = async (parentId: string): Promise<void> => {
         state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents = InitiatingEvents;
       }),
     );
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
+  } catch (error) {}
 };
 
 export const AddInitiatingEvent = async (data: NestedModelJSON): Promise<void> => {
@@ -35,9 +33,7 @@ export const AddInitiatingEvent = async (data: NestedModelJSON): Promise<void> =
         state[typedModelName] = AddToParentModel(state, InitiatingEvent._id, InitiatingEvent.parentIds);
       }),
     );
-  } catch (error) {
-    console.error("Error adding initiating event:", error);
-  }
+  } catch (error) {}
 };
 
 export const EditInitiatingEvent = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
@@ -55,9 +51,7 @@ export const EditInitiatingEvent = async (modelId: string, data: Partial<NestedM
           );
       }),
     );
-  } catch (error) {
-    console.error("Error editing initiating event:", error);
-  }
+  } catch (error) {}
 };
 
 export const DeleteInitiatingEvent = async (id: string): Promise<void> => {
@@ -76,7 +70,5 @@ export const DeleteInitiatingEvent = async (id: string): Promise<void> => {
         state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
-  } catch (error) {
-    console.error("Error deleting initiating event:", error);
-  }
+  } catch (error) {}
 };

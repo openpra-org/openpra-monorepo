@@ -18,9 +18,7 @@ export const SetFaultTrees = async (parentId: string): Promise<void> => {
         state.NestedModels.SystemAnalysis.FaultTrees = FaultTrees;
       }),
     );
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
+  } catch (error) {}
 };
 
 export const AddFaultTree = async (data: NestedModelJSON): Promise<void> => {
@@ -35,9 +33,7 @@ export const AddFaultTree = async (data: NestedModelJSON): Promise<void> => {
         state[typedModelName] = AddToParentModel(state, FaultTree._id, FaultTree.parentIds);
       }),
     );
-  } catch (error) {
-    console.error("Error adding fault tree:", error);
-  }
+  } catch (error) {}
 };
 
 export const EditFaultTree = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
@@ -54,9 +50,7 @@ export const EditFaultTree = async (modelId: string, data: Partial<NestedModelJS
         );
       }),
     );
-  } catch (error) {
-    console.error("Error editing fault tree:", error);
-  }
+  } catch (error) {}
 };
 
 export const DeleteFaultTree = async (id: string): Promise<void> => {
@@ -75,7 +69,5 @@ export const DeleteFaultTree = async (id: string): Promise<void> => {
         state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
-  } catch (error) {
-    console.error("Error deleting fault tree:", error);
-  }
+  } catch (error) {}
 };

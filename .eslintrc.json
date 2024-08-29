@@ -1,7 +1,14 @@
 {
   "root": true,
   "ignorePatterns": ["!**/*"],
-  "plugins": ["@nx", "import", "@typescript-eslint/eslint-plugin", "eslint-plugin-tsdoc", "jest", "security"],
+  "plugins": [
+    "@nx",
+    "import",
+    "@typescript-eslint/eslint-plugin",
+    "eslint-plugin-tsdoc",
+    "jest",
+    "security"
+  ],
   "extends": [
     // https://github.com/typescript-eslint/typescript-eslint/blob/main/packages/eslint-plugin/src/configs/strict-type-checked.ts
     "plugin:@typescript-eslint/strict-type-checked",

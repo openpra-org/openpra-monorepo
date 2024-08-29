@@ -136,7 +136,7 @@ export {
 //method to Get past counter value
 
 export async function GetPreviousCounterValue(): Promise<number> {
-  return await Get(`${NESTED_ENDPOINT}`).then((response) => response.json() as Promise<number>);
+  return await Get(NESTED_ENDPOINT).then((response) => response.json() as Promise<number>);
 }
 
 //Post methods
@@ -817,18 +817,6 @@ export function Delete(url: string): Promise<Response> {
     },
   });
 }
-
-// /**
-//  * Gets the current model id, will not be used later in development
-//  */
-// export function GetCurrentNestedModelId(): number {
-//   const splitPath = window.location.pathname.split("/"); // Gets the path part of the URL (/internal-events/2) // Splits the path into segments using the '/' character
-//   const modelId = parseInt(splitPath[NESTED_MODEL_ID_LOCATION]);
-//   if (modelId) {
-//     return modelId;
-//   }
-//   return -1;
-// }
 
 /**
  * decouples nested ids from a parent

@@ -13,16 +13,10 @@ const RoleSchema = z
       .array(
         z.object({
           action: z
-            .union([
-              z.string().min(5).max(255),
-              z.array(z.string().min(5).max(255)),
-            ])
+            .union([z.string().min(5).max(255), z.array(z.string().min(5).max(255))])
             .describe("The actions that a role can perform"),
           subject: z
-            .union([
-              z.string().min(5).max(255),
-              z.array(z.string().min(5).max(255)),
-            ])
+            .union([z.string().min(5).max(255), z.array(z.string().min(5).max(255))])
             .describe("The actions that a role can perform"),
           fields: z.any().optional(),
           conditionals: z.any().optional(),

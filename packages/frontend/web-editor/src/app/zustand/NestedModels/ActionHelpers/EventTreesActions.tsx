@@ -18,9 +18,7 @@ export const SetEventTrees = async (parentId: string): Promise<void> => {
         state.NestedModels.EventSequenceAnalysis.EventTrees = EventTrees;
       }),
     );
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
+  } catch (error) {}
 };
 
 export const AddEventTree = async (data: NestedModelJSON): Promise<void> => {
@@ -35,9 +33,7 @@ export const AddEventTree = async (data: NestedModelJSON): Promise<void> => {
         state[typedModelName] = AddToParentModel(state, EventTree._id, EventTree.parentIds);
       }),
     );
-  } catch (error) {
-    console.error("Error adding event tree:", error);
-  }
+  } catch (error) {}
 };
 
 export const EditEventTree = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
@@ -54,9 +50,7 @@ export const EditEventTree = async (modelId: string, data: Partial<NestedModelJS
         );
       }),
     );
-  } catch (error) {
-    console.error("Error editing event tree:", error);
-  }
+  } catch (error) {}
 };
 
 export const DeleteEventTree = async (id: string): Promise<void> => {
@@ -75,7 +69,5 @@ export const DeleteEventTree = async (id: string): Promise<void> => {
         state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
-  } catch (error) {
-    console.error("Error deleting event tree:", error);
-  }
+  } catch (error) {}
 };

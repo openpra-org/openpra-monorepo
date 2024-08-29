@@ -12,9 +12,7 @@ const CreateNewUserSchema = z
     username: z.string().min(1).max(255).describe("Username"),
     email: z.string().min(5).max(255).describe("Email of user"),
     password: z.string().min(1).max(255).describe("Password of user"),
-    roles: z
-      .array(z.string().min(5).max(255))
-      .describe("An array of role ids for the user"),
+    roles: z.array(z.string().min(5).max(255)).describe("An array of role ids for the user"),
   })
   .describe("A new user in the backend");
 

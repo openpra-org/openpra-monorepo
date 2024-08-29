@@ -388,7 +388,7 @@ export function AddNestedToInternalEvent(body: {
   nestedId: number;
   nestedType: string;
 }): Promise<InternalEventsModel> {
-  return Patch(`${INTERNAL_EVENTS_ENDPOINT}`, body).then((response) => response.json() as Promise<InternalEventsModel>);
+  return Patch(INTERNAL_EVENTS_ENDPOINT, body).then((response) => response.json() as Promise<InternalEventsModel>);
 }
 
 /**
@@ -401,9 +401,7 @@ export function AddNestedToInternalHazard(body: {
   nestedId: number;
   nestedType: string;
 }): Promise<InternalHazardsModel> {
-  return Patch(`${INTERNAL_HAZARDS_ENDPOINT}`, body).then(
-    (response) => response.json() as Promise<InternalHazardsModel>,
-  );
+  return Patch(INTERNAL_HAZARDS_ENDPOINT, body).then((response) => response.json() as Promise<InternalHazardsModel>);
 }
 
 /**
@@ -416,9 +414,7 @@ export function AddNestedToExternalHazard(body: {
   nestedId: number;
   nestedType: string;
 }): Promise<ExternalHazardsModel> {
-  return Patch(`${EXTERNAL_HAZARDS_ENDPOINT}`, body).then(
-    (response) => response.json() as Promise<ExternalHazardsModel>,
-  );
+  return Patch(EXTERNAL_HAZARDS_ENDPOINT, body).then((response) => response.json() as Promise<ExternalHazardsModel>);
 }
 
 /**
@@ -431,7 +427,7 @@ export function AddNestedToFullScope(body: {
   nestedId: number;
   nestedType: string;
 }): Promise<FullScopeModel> {
-  return Patch(`${FULL_SCOPE_ENDPOINT}`, body).then((response) => response.json() as Promise<FullScopeModel>);
+  return Patch(FULL_SCOPE_ENDPOINT, body).then((response) => response.json() as Promise<FullScopeModel>);
 }
 
 //deleting nested models

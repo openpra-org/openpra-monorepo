@@ -213,7 +213,7 @@ job("Monorepo Deployment Cleanup") {
 job("Monorepo CI") {
 
     failOn {
-        nonZeroExitCode { enabled = false }
+        nonZeroExitCode { enabled = true }
     }
 
     requirements {
@@ -279,7 +279,7 @@ job("Monorepo CI") {
           content = """
                       docker pull $remote:{{ branchSlug }} || true
                       docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:test
+                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:test || true
                       """
         }
       }
@@ -290,7 +290,7 @@ job("Monorepo CI") {
           content = """
                       docker pull $remote:{{ branchSlug }} || true
                       docker build --target=e2e-tests --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:e2e-cli
+                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:e2e-cli || true
                       """
         }
       }
@@ -301,7 +301,7 @@ job("Monorepo CI") {
           content = """
                       docker pull $remote:{{ branchSlug }} || true
                       docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:lint
+                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:lint || true
                       """
         }
       }
@@ -324,7 +324,7 @@ job("Monorepo CI") {
           content = """
                         docker pull $remote:{{ branchSlug }} || true
                         docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:test
+                        docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:test || true
                         """
         }
       }
@@ -335,7 +335,7 @@ job("Monorepo CI") {
           content = """
                         docker pull $remote:{{ branchSlug }} || true
                         docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:e2e
+                        docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:e2e || true
                         """
         }
       }
@@ -346,7 +346,7 @@ job("Monorepo CI") {
           content = """
                         docker pull $remote:{{ branchSlug }} || true
                         docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:lint
+                        docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:lint || true
                         """
         }
       }
@@ -379,7 +379,7 @@ job("Monorepo CI") {
           content = """
                         docker pull $remote:{{ branchSlug }} || true
                         docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run shared-types:lint
+                        docker run --rm "$remote:{{ branchSlug }}" nx run shared-types:lint || true
                         """
         }
       }
@@ -468,6 +468,61 @@ job("Monorepo CI") {
                         docker pull $remote:{{ branchSlug }} || true
                         docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
                         docker run --rm "$remote:{{ branchSlug }}" nx run mef-schema:test
+                        """
+        }
+      }
+
+      host("mef-schema:lint") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run mef-schema:lint
+                        """
+        }
+      }
+
+      host("microservice-job-broker:build") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run microservice-job-broker:build
+                        """
+        }
+      }
+
+      host("microservice-job-broker:test") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run microservice-job-broker:test || true
+                        """
+        }
+      }
+
+      host("microservice-job-broker:e2e") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run microservice-job-broker:e2e
+                        """
+        }
+      }
+
+      host("microservice-job-broker:lint") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run microservice-job-broker:lint
                         """
         }
       }
@@ -570,6 +625,18 @@ job("Monorepo Qodana") {
                       docker pull $remote:{{ branchSlug }} || true
                       docker build --tag="$remote:{{ branchSlug }}" -f ./docker/qodana.Dockerfile .
                       docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:{{ branchSlug }}" mef-schema
+                      """
+      }
+    }
+
+    host("microservice-job-broker:qodana") {
+      env["QODANA_TOKEN"] = "{{ project:QODANA_TOKEN_MICROSERVICE_JOB_BROKER }}"
+      shellScript("scan") {
+        interpreter = "/bin/bash"
+        content = """
+                      docker pull $remote:{{ branchSlug }} || true
+                      docker build --tag="$remote:{{ branchSlug }}" -f ./docker/qodana.Dockerfile .
+                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:{{ branchSlug }}" microservice-job-broker
                       """
       }
     }

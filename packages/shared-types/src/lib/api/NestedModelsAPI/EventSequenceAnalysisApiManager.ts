@@ -26,8 +26,8 @@ export async function GetEventSequenceAnalysis(id: string): Promise<NestedModelT
 // TODO:: === work on changing this to Partial<NestedModelJSON> ===
 export async function PostEventSequenceAnalysis(data: NestedModelJSON, typedModel: string): Promise<NestedModelType> {
   try {
-    console.log(data)
-    console.log(typedModel)
+    console.log(data);
+    console.log(typedModel);
     const response = await Post(`${EVENT_SEQUENCE_ANALYSIS_ENDPOINT}/`, data, typedModel);
     return (await response.json()) as Promise<NestedModelType>;
   } catch (error) {

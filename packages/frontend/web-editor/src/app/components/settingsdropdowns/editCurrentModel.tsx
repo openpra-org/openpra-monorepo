@@ -79,9 +79,7 @@ function EditCurrentModel(): JSX.Element {
         const model = await fetchCurrentTypedModel();
         updateCurrentModel(model);
         setIsLoaded(true);
-      } catch (error) {
-        //console.error("Error fetching fixtures:", error);
-      }
+      } catch (error) {}
     };
     void fetchModel();
   }, []);

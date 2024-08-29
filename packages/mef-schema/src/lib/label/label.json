@@ -12,7 +12,7 @@
       "$ref": "description.json"
     },
     "uuid": {
-      "$ref": "../identifier/uuid.json"
+      "$ref": "../../openpra-mef/identifier/uuid.json"
     }
   },
   "required": ["name", "description"],

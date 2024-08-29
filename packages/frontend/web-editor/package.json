@@ -36,7 +36,7 @@
     "@testing-library/react": "14.1.2",
     "@types/d3-hierarchy": "3.1.6",
     "@types/d3-timer": "3.0.2",
-    "@types/jest": "^29.5.11",
+    "@types/jest": "29.5.12",
     "@types/lodash": "4.14.202",
     "@types/node": "20.9.0",
     "@types/react": "18.2.38",

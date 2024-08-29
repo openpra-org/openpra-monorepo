@@ -19,7 +19,7 @@ export class GraphApiManager {
    * @returns Updated fault tree graph
    */
   static async storeFaultTree(data: FaultTreeGraph): Promise<FaultTreeGraph> {
-    return await this.post(`${FaultTreeGraphEndpoint}`, data)
+    return await this.post(FaultTreeGraphEndpoint, data)
       .then((res) => this.getFaultTreeResponse(res, data.faultTreeId))
       .catch((err) => {
         throw err;
@@ -58,7 +58,7 @@ export class GraphApiManager {
    * @returns Updated fault tree graph
    */
   static async storeEventTree(data: EventTreeGraph): Promise<EventTreeGraph> {
-    return await this.post(`${EventTreeGraphEndpoint}`, data)
+    return await this.post(EventTreeGraphEndpoint, data)
       .then((res) => this.getEventTreeResponse(res, data.eventTreeId))
       .catch((err) => {
         throw err;
@@ -107,7 +107,7 @@ export class GraphApiManager {
       eventSequenceId: string;
       updated: EventSequenceGraph;
       deleted: EventSequenceGraph;
-    }>(`${EventSequenceDiagramEndpoint}`, {
+    }>(EventSequenceDiagramEndpoint, {
       eventSequenceId: eventSequenceId,
       updated: updatedSubgraph,
       deleted: deletedSubgraph,

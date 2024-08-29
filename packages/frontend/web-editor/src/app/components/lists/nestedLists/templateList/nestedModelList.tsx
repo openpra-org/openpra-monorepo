@@ -32,7 +32,6 @@ async function fetchModelList(
     return modelList;
     // return await getNestedEndpointString(modelId);
   } catch (error) {
-    //console.error("Error fetching internal events:", error);
     return [];
   }
 }
@@ -53,7 +52,6 @@ const getFixtures = async (
       : getNestedEndpointString
       ? await fetchModelList(undefined, getNestedEndpointString)
       : [];
-    console.log(modelList);
     const nestedModelList: NestedModel[] = modelList.map(
       (item: any) => new NestedModel(item.label.name, item.label.description, item.id, item.parentIds),
     );
@@ -75,7 +73,6 @@ const getFixtures = async (
       />
     ));
   } catch (error) {
-    //console.error("Error fetching internal events:", error);
     return []; // Return an empty array or handle the error as needed
   }
 };
@@ -99,7 +96,6 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
         setGenericListItems(items);
         setIsLoading(false);
       } catch (error) {
-        //console.error("Error fetching fixtures:", error);
         setGenericListItems([]); // Set empty array or handle the error as needed
         if (error) {
           setIsLoading(true);
@@ -112,9 +108,7 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
   const SetInitiatingEvents = UseGlobalStore.use.SetInitiatingEvents();
 
   useEffect(() => {
-    void SetInitiatingEvents(GetCurrentModelIdString()).then(() => {
-      console.log("saved");
-    });
+    void SetInitiatingEvents(GetCurrentModelIdString()).then(() => {});
   }, []);
 
   return (

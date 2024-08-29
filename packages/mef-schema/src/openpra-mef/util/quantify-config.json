@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema#",
   "title": "Command-line Options",
   "description": "Schema for command-line options",
   "type": "object",

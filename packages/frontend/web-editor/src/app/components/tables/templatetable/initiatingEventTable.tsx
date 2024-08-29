@@ -159,7 +159,6 @@ function DataTable({ rows, columns, onRowClick }: DataTableProps): JSX.Element {
       } else {
         setHiddenGroups([...hiddenGroups, group]);
       }
-      console.log(hiddenGroups);
     },
     [hiddenGroups, groupbyColumn, groupedRows],
   );

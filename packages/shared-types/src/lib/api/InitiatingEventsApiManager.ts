@@ -34,7 +34,7 @@ export default class FmeaApiManager {
     onSuccessCallback = this.defaultSuccessCallback,
     onFailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
-    return await fetch(`${FMEA_ENDPOINT}`, {
+    return await fetch(FMEA_ENDPOINT, {
       method: "POST",
       cache: "no-cache",
       headers: {

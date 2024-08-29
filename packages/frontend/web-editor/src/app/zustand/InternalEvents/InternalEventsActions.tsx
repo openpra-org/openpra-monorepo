@@ -15,9 +15,7 @@ export const SetInternalEvents = async (): Promise<void> => {
     UseGlobalStore.setState({
       InternalEvents: internalEventsList,
     });
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
+  } catch (error) {}
 };
 
 export const AddInternalEvent = async (data: Partial<TypedModelJSON>): Promise<void> => {
@@ -26,9 +24,7 @@ export const AddInternalEvent = async (data: Partial<TypedModelJSON>): Promise<v
     UseGlobalStore.setState((state) => ({
       InternalEvents: [...state.InternalEvents, ier],
     }));
-  } catch (error) {
-    console.error("Error adding internal event:", error);
-  }
+  } catch (error) {}
 };
 
 export const EditInternalEvent = async (
@@ -47,9 +43,7 @@ export const EditInternalEvent = async (
         }
       }),
     }));
-  } catch (error) {
-    console.error("Error adding internal event:", error);
-  }
+  } catch (error) {}
 };
 
 export const DeleteInternalEvent = async (id: number): Promise<void> => {
@@ -59,7 +53,5 @@ export const DeleteInternalEvent = async (id: number): Promise<void> => {
     UseGlobalStore.setState((state) => ({
       InternalEvents: state.InternalEvents.filter((ie: InternalEventsModelType) => ie.id !== id),
     }));
-  } catch (error) {
-    console.error("Error deleting internal event:", error);
-  }
+  } catch (error) {}
 };

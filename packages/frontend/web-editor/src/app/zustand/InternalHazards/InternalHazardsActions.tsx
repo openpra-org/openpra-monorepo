@@ -17,9 +17,7 @@ export const SetInternalHazards = async (): Promise<void> => {
     UseGlobalStore.setState({
       InternalHazards: internalHazardsList,
     });
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
+  } catch (error) {}
 };
 
 export const AddInternalHazard = async (data: Partial<TypedModelJSON>): Promise<void> => {
@@ -28,9 +26,7 @@ export const AddInternalHazard = async (data: Partial<TypedModelJSON>): Promise<
     UseGlobalStore.setState((state) => ({
       InternalHazards: [...state.InternalHazards, ihr],
     }));
-  } catch (error) {
-    console.error("Error adding internal hazard:", error);
-  }
+  } catch (error) {}
 };
 
 export const EditInternalHazard = async (
@@ -49,9 +45,7 @@ export const EditInternalHazard = async (
         }
       }),
     }));
-  } catch (error) {
-    console.error("Error adding internal hazard:", error);
-  }
+  } catch (error) {}
 };
 
 export const DeleteInternalHazard = async (id: number): Promise<void> => {
@@ -61,7 +55,5 @@ export const DeleteInternalHazard = async (id: number): Promise<void> => {
     UseGlobalStore.setState((state) => ({
       InternalHazards: state.InternalHazards.filter((ih: InternalHazardsModelType) => ih.id !== id),
     }));
-  } catch (error) {
-    console.error("Error deleting internal hazard:", error);
-  }
+  } catch (error) {}
 };

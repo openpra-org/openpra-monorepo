@@ -18,9 +18,7 @@ export const SetEventSequenceDiagrams = async (parentId: string): Promise<void> 
         state.NestedModels.EventSequenceAnalysis.EventSequenceDiagrams = EventSequenceDiagrams;
       }),
     );
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
+  } catch (error) {}
 };
 
 export const AddEventSequenceDiagram = async (data: NestedModelJSON): Promise<void> => {
@@ -35,9 +33,7 @@ export const AddEventSequenceDiagram = async (data: NestedModelJSON): Promise<vo
         state[typedModelName] = AddToParentModel(state, EventSequenceDiagram._id, EventSequenceDiagram.parentIds);
       }),
     );
-  } catch (error) {
-    console.error("Error adding event sequence diagram:", error);
-  }
+  } catch (error) {}
 };
 
 export const EditEventSequenceDiagram = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
@@ -55,9 +51,7 @@ export const EditEventSequenceDiagram = async (modelId: string, data: Partial<Ne
           );
       }),
     );
-  } catch (error) {
-    console.error("Error editing event sequence diagram:", error);
-  }
+  } catch (error) {}
 };
 
 export const DeleteEventSequenceDiagram = async (id: string): Promise<void> => {
@@ -78,7 +72,5 @@ export const DeleteEventSequenceDiagram = async (id: string): Promise<void> => {
         state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
-  } catch (error) {
-    console.error("Error deleting event sequence diagram:", error);
-  }
+  } catch (error) {}
 };

@@ -1,6 +1,6 @@
-import {Controller, Post, Body } from "@nestjs/common";
-import { QuantifyService } from "./quantify.service";
+import { Controller, Post, Body } from "@nestjs/common";
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
+import { QuantifyService } from "./quantify.service";
 
 @Controller()
 export class QuantifyController {

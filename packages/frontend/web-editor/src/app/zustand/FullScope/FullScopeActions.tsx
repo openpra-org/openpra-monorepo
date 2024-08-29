@@ -15,9 +15,7 @@ export const SetFullScope = async (): Promise<void> => {
     UseGlobalStore.setState({
       FullScope: fullScopeList,
     });
-  } catch (error) {
-    console.error("Error fetching data:", error);
-  }
+  } catch (error) {}
 };
 
 export const AddFullScope = async (data: Partial<TypedModelJSON>): Promise<void> => {
@@ -26,9 +24,7 @@ export const AddFullScope = async (data: Partial<TypedModelJSON>): Promise<void>
     UseGlobalStore.setState((state) => ({
       FullScope: [...state.FullScope, fsr],
     }));
-  } catch (error) {
-    console.error("Error adding full scope:", error);
-  }
+  } catch (error) {}
 };
 
 export const EditFullScope = async (modelId: number, userId: number, data: Partial<TypedModelJSON>): Promise<void> => {
@@ -43,9 +39,7 @@ export const EditFullScope = async (modelId: number, userId: number, data: Parti
         }
       }),
     }));
-  } catch (error) {
-    console.error("Error adding full scope:", error);
-  }
+  } catch (error) {}
 };
 
 export const DeleteFullScope = async (id: number): Promise<void> => {
@@ -55,7 +49,5 @@ export const DeleteFullScope = async (id: number): Promise<void> => {
     UseGlobalStore.setState((state) => ({
       FullScope: state.FullScope.filter((fs: FullScopeModelType) => fs.id !== id),
     }));
-  } catch (error) {
-    console.error("Error deleting full scope:", error);
-  }
+  } catch (error) {}
 };

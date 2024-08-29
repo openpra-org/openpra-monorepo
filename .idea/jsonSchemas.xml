@@ -18,6 +18,9 @@
                   <Item>
                     <option name="path" value="packages/mef-schema/src/openpra-mef/util/quantify-request.json" />
                   </Item>
+                  <Item>
+                    <option name="path" value="packages/mef-schema/src/openpra-zod-mef/role/role-schema.json" />
+                  </Item>
                 </list>
               </option>
             </SchemaInfo>

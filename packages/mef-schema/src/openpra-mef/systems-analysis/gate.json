@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema#",
   "$id": "https://openpra.org/schema/v0/openpra-mef/systems-analysis/gate.json",
   "title": "Gate Schema",
   "description": "Representation of a logical gate in a fault tree.",

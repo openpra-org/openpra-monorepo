@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$schema": "https://json-schema.org/draft-07/schema",
   "$id": "openpra/roles-schema.json",
   "title": "Role",
   "description": "A role in the backend",
@@ -59,12 +59,8 @@
               }
             ]
           },
-          "fields": {
-
-          },
-          "conditionals": {
-
-          },
+          "fields": {},
+          "conditionals": {},
           "inverted": {
             "type": "boolean"
           },
@@ -74,16 +70,9 @@
             "maxLength": 255
           }
         },
-        "required": [
-          "action",
-          "subject"
-        ]
+        "required": ["action", "subject"]
       }
     }
   },
-  "required": [
-    "id",
-    "name",
-    "permissions"
-  ]
+  "required": ["id", "name", "permissions"]
 }

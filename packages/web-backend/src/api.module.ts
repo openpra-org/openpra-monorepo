@@ -73,10 +73,10 @@ import { TypedModelModule } from "./typedModel/typedModel.module";
           {
             path: "typed-models",
             module: TypedModelModule,
-          }
-        ]
-      }
-    ])
+          },
+        ],
+      },
+    ]),
   ],
   controllers: [ApiController],
   providers: [

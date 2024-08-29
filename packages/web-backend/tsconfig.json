@@ -1,0 +1,37 @@
+{
+  "extends": "../../tsconfig.second-base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "sourceMap": true,
+    "declaration": true,
+    "esModuleInterop": true,
+    "emitDecoratorMetadata": true,
+    "target": "es2021",
+    "declarationDir": "../../dist/types/web-backend",
+
+    // TODO:: REMOVE THESE
+    "strict": false,
+    "removeComments": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "forceConsistentCasingInFileNames": false,
+    "noFallthroughCasesInSwitch": false,
+    "moduleResolution": "node",
+    "importHelpers": true,
+    "lib": ["es2020", "dom"],
+    "skipDefaultLibCheck": true,
+  },
+
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}

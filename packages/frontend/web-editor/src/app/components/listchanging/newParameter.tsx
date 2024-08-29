@@ -48,9 +48,7 @@ function NewParameter(props: NewParameterProps): JSX.Element {
     }
   }, []);
 
-  useEffect(() => {
-    // console.log(itemInfo.value)
-  }, [itemInfo]);
+  useEffect(() => {}, [itemInfo]);
 
   //sets the data, then closes overlay
   const setData = (): void => {

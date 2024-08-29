@@ -1,6 +1,10 @@
 {
   // https://github.com/darraghoriordan/eslint-plugin-nestjs-typed
-  "extends": ["../../.eslintrc.json", "plugin:@darraghor/nestjs-typed/recommended", "plugin:@darraghor/nestjs-typed/no-swagger"],
+  "extends": [
+    "../../.eslintrc.json",
+    "plugin:@darraghor/nestjs-typed/recommended",
+    "plugin:@darraghor/nestjs-typed/no-swagger"
+  ],
   "plugins": ["@darraghor/nestjs-typed"],
   "parserOptions": {
     "project": ["packages/web-backend/tsconfig.*?.json"]

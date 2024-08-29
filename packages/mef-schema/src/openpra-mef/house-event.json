@@ -1,5 +1,5 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema#",
+  "$schema": "https://json-schema.org/draft-07/schema#",
   "$id": "https://openpra.org/schema/v1/openpra-mef/house-event.json",
   "title": "House Event Schema",
   "description": "Representation of a house event in a fault tree, which contains is a boolean flag",

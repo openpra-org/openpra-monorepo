@@ -7,6 +7,7 @@ CODEOWNERS "Project Admin"
 # Code Sanitization
 *eslint* "Project Admin"
 *prettier* "Project Admin"
+.editorconfig "Project Admin"
 
 # Repo Sanitization
 *.gitignore "Project Admin"
@@ -30,6 +31,7 @@ CODEOWNERS "Project Admin"
 *Dockerfile "Project Admin"
 docker-compose*.yml "Project Admin"
 stack.yml "Project Admin"
+.dockerignore "Project Admin"
 
 # CI/CD, GitLab Pipelines, Space Automations
 .space.kts

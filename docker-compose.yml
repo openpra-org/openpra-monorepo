@@ -15,6 +15,12 @@ configs:
   proxy_conf:
     file: docker/development/configs/frontend-web-editor/proxy.conf.json
 
+x-build-base: &x-build-base
+  build:
+    dockerfile: docker/development/Dockerfile
+    context: .
+    target: base
+
 services:
   mongo:
     extends:
@@ -34,10 +40,7 @@ services:
       service: rabbitmq
 
   frontend_web_editor:
-    build:
-      dockerfile: docker/development/Dockerfile
-      context: .
-      target: base
+    <<: *x-build-base
     command: bash -c "nx serve frontend-web-editor --host=0.0.0.0"
     ports:
       - '4200:4200'
@@ -48,10 +51,7 @@ services:
         target: /data/project/packages/frontend/web-editor/proxy.conf.json
 
   web_backend:
-    build:
-      dockerfile: docker/development/Dockerfile
-      context: .
-      target: base
+    <<: *x-build-base
     command: bash -c "nx serve web-backend"
     ports:
       - '8000:8000'
@@ -61,15 +61,12 @@ services:
       - rabbitmq
       - mongo
     environment:
-      MONGO_URL: mongodb://mongodb:27017
+      MONGO_URL: mongodb://mongo:27017
       DEBUG: 'true'
       JWT_SECRET_KEY: 'no-secret'
 
   job_broker:
-    build:
-      dockerfile: docker/development/Dockerfile
-      context: .
-      target: base
+    <<: *x-build-base
     command: bash -c "nx serve microservice-job-broker"
     ports:
       - '3000:3000'
@@ -79,6 +76,6 @@ services:
       - rabbitmq
       - mongo
     environment:
-      MONGO_URL: mongodb://mongodb:27017
+      MONGO_URL: mongodb://mongo:27017
       DEBUG: 'true'
       JWT_SECRET_KEY: 'no-secret'

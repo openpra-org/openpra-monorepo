@@ -10,7 +10,7 @@ x-base: &x-base
   restart: unless-stopped
 
 services:
-  mongodb:
+  mongo:
     <<: *x-base
     image: mongo:latest
     ports:
@@ -20,15 +20,18 @@ services:
     networks:
       - net_db
 
-  mongo-express:
+  mongo_express:
     <<: *x-base
     image: mongo-express:latest
     ports:
       - '8081:8081'
     environment:
-      - ME_CONFIG_MONGODB_SERVER=mongodb
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: true
+      ME_CONFIG_MONGODB_ADMINUSERNAME: "admin"
+      ME_CONFIG_MONGODB_ADMINPASSWORD: "pass"
+      ME_CONFIG_OPTIONS_EDITORTHEME: "material-ocean"
     depends_on:
-      - mongodb
+      - mongo
     networks:
       - net_db
 

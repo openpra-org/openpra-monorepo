@@ -64,3 +64,21 @@ services:
       MONGO_URL: mongodb://mongodb:27017
       DEBUG: 'true'
       JWT_SECRET_KEY: 'no-secret'
+
+  job_broker:
+    build:
+      dockerfile: docker/development/Dockerfile
+      context: .
+      target: base
+    command: bash -c "nx serve microservice-job-broker"
+    ports:
+      - '3000:3000'
+    networks:
+      - net_db
+    depends_on:
+      - rabbitmq
+      - mongodb
+    environment:
+      MONGO_URL: mongodb://mongodb:27017
+      DEBUG: 'true'
+      JWT_SECRET_KEY: 'no-secret'

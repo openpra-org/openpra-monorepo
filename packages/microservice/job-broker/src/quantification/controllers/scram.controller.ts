@@ -28,7 +28,7 @@ export class ScramController {
    * @returns A promise that resolves to void.
    * @throws {@link InternalServerErrorException} When there is a problem queueing the quantification job.
    */
-  @TypedRoute.Post("/scram-quantification")
+  @TypedRoute.Post("/scram")
   public async createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): Promise<void> {
     try {
       return this.producerService.createAndQueueQuant(quantRequest);

@@ -4,6 +4,16 @@
  */
 
 const { composePlugins, withNx } = require("@nx/webpack");
+const CopyWebpackPlugin = require("copy-webpack-plugin");
+const webpack = require("webpack");
+
+// Tell webpack to ignore specific imports that aren't
+// used by this package, but imported by NestJS (can cause packing errors).
+const lazyImports = [
+  "class-transformer",
+  "class-transformer/storage", // https://github.com/nestjs/mapped-types/issues/486#issuecomment-932715880
+  "class-transformer/cjs/storage",
+];
 
 /**
  * Webpack configuration function.
@@ -30,6 +40,34 @@ module.exports = composePlugins(withNx(), (config) => {
     test: /\.node$/,
     loader: "node-loader",
   });
+
+  // Add CopyWebpackPlugin to the plugins array
+  config.plugins.push(
+    new CopyWebpackPlugin({
+      patterns: [
+        { from: "./node_modules/swagger-ui-dist/swagger-ui.css", to: "." },
+        { from: "./node_modules/swagger-ui-dist/swagger-ui-bundle.js", to: "." },
+        { from: "./node_modules/swagger-ui-dist/swagger-ui-standalone-preset.js", to: "." },
+        { from: "./node_modules/swagger-ui-dist/favicon-16x16.png", to: "." },
+        { from: "./node_modules/swagger-ui-dist/favicon-32x32.png", to: "." },
+      ],
+    }),
+  );
+
+  config.plugins.push(
+    new webpack.IgnorePlugin({
+      checkResource(resource) {
+        if (lazyImports.includes(resource)) {
+          try {
+            require.resolve(resource);
+          } catch (err) {
+            return true;
+          }
+        }
+        return false;
+      },
+    }),
+  );
 
   return config;
 });

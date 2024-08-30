@@ -8,6 +8,7 @@
 
 // Import the Injectable decorator from NestJS to mark the class as a service that can be injected.
 import { Injectable } from "@nestjs/common";
+import { JobResponse } from "./job-broker.controller";
 
 @Injectable()
 export class JobBrokerService {
@@ -16,7 +17,7 @@ export class JobBrokerService {
    *
    * @returns An object containing a message describing the types of jobs.
    */
-  public getJobTypes(): { message: string } {
+  public getJobTypes(): JobResponse {
     return { message: "return the types of jobs" };
   }
 
@@ -25,7 +26,7 @@ export class JobBrokerService {
    *
    * @returns An object containing a message describing the pending jobs.
    */
-  public getPendingJobs(): { message: string } {
+  public getPendingJobs(): JobResponse {
     return { message: "return the pending jobs" };
   }
 
@@ -34,7 +35,7 @@ export class JobBrokerService {
    *
    * @returns An object containing a message confirming the creation of a new job.
    */
-  public createJob(): { message: string } {
+  public createJob(): JobResponse {
     return { message: "create a new job" };
   }
 }

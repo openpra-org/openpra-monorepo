@@ -27,7 +27,7 @@ export class FtrexController {
    * @returns A promise that resolves to void.
    * @throws {@link InternalServerErrorException} When there is a problem queueing the quantification job.
    */
-  @TypedRoute.Post("/ftrex-quantification")
+  @TypedRoute.Post("/ftrex")
   public async createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): Promise<void> {
     try {
       return this.producerService.createAndQueueQuant(quantRequest);

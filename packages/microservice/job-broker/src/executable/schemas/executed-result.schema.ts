@@ -1,19 +1,5 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 
-/**
- * Enum representing the different types of binary executables / PRA solvers that can be run.
- */
-export enum ExecutableTypes {
-  SCRAM_CLI = "scram-cli",
-  SAPHSOLVE_CLI = "saphsolve",
-  FTREX_CLI = "ftrex",
-  XFTA = "xfta",
-  XFTA2 = "xfta2",
-  DPC = "dpc",
-  ACUBE = "acube",
-  QRECOVER = "qrecover",
-}
-
 // TODO: executable can only be of type ExecutableTypes
 
 /**

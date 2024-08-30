@@ -28,7 +28,7 @@ export class ExecutableController {
    * @returns Boolean representing whether task was queued.
    * @param taskRequest - The task to execute.
    */
-  @TypedRoute.Post("create-task")
+  @TypedRoute.Post("tasks")
   public async createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): Promise<void> {
     try {
       return this.executableService.createAndQueueTask(taskRequest);
@@ -43,7 +43,7 @@ export class ExecutableController {
    * @returns A promise that resolves to an array of {@link ExecutedResult}, each representing an executed task.
    * @throws {@link NotFoundException} When the executed tasks cannot be found or retrieved.
    */
-  @TypedRoute.Get("/get-executed-tasks")
+  @TypedRoute.Get("tasks")
   public async getExecutedTasks(): Promise<ExecutedResult[]> {
     try {
       return this.executableStorageService.getExecutedTasks();

@@ -6,8 +6,10 @@
  * application's web server.
  *
  */
-
 import { NestFactory } from "@nestjs/core";
+import { NestiaSwaggerComposer } from "@nestia/sdk";
+import { OpenAPIObject, SwaggerModule } from "@nestjs/swagger";
+import { INestApplication } from "@nestjs/common";
 import { HttpExceptionFilter } from "./http-exception.filter";
 import { JobBrokerModule } from "./job-broker.module";
 
@@ -26,14 +28,48 @@ import { JobBrokerModule } from "./job-broker.module";
  *          listening for incoming connections.
  */
 async function bootstrap(): Promise<void> {
-  // Creating an instance of the application by passing the root module (`JobBrokerModule`) to the `NestFactory.create` method.
-  const app = await NestFactory.create(JobBrokerModule);
+  // Creating an instance of the application by passing the root module (`JobBrokerModule`) to `NestFactory.create`.
+  const app: INestApplication = await NestFactory.create(JobBrokerModule);
 
   // Apply the HttpExceptionFilter globally to handle all HTTP exceptions.
   app.useGlobalFilters(new HttpExceptionFilter());
 
+  const document: OpenAPIObject = (await NestiaSwaggerComposer.document(app, {
+    // The OpenAPI specification version used for the generated documentation.
+    openapi: "3.0",
+
+    // Provides general information about the API including title, description, and version.
+    info: {
+      title: "OpenPRA Distributed Multi-Queue API",
+      description: "PRA quantification and task execution message-broker",
+      version: "0.0.1",
+      license: {
+        name: "AGPL-3.0-or-later",
+        identifier: "AGPL3",
+        url: "https://www.gnu.org/licenses/agpl-3.0.en.html#license-text",
+      },
+    },
+
+    // Include the url where the app is being hosted
+    servers: [],
+
+    // Indicates whether the output JSON should be beautified.
+    beautify: true,
+
+    // decompose the query parameters into individual ones
+    decompose: true,
+
+    additional: true,
+  })) as OpenAPIObject;
+
+  SwaggerModule.setup("/api/docs", app, document, {
+    customSiteTitle: "OpenPRA-MQ API Docs",
+    explorer: true,
+    swaggerOptions: {},
+  });
+
   // Start listening for incoming requests on port 3000.
-  await app.listen(3000);
+  await app.listen(3_000);
 }
 
 // Executing the `bootstrap` function to start the application.

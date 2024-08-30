@@ -44,15 +44,15 @@ import { ExecutableModule } from "./executable/executable.module";
         children: [
           // Define child modules for specific endpoint prefixes.
           {
-            path: "quantification",
+            path: "quantify",
             module: QuantificationModule,
           },
           {
-            path: "validation",
+            path: "validate",
             module: ValidationModule,
           },
           {
-            path: "executable",
+            path: "execute",
             module: ExecutableModule,
           },
         ],

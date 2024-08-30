@@ -16,17 +16,17 @@ configs:
     file: docker/development/configs/frontend-web-editor/proxy.conf.json
 
 services:
-  mongodb:
+  mongo:
     extends:
       file: docker/development/docker-compose.dev.yml
-      service: mongodb
+      service: mongo
 
-  mongo-express:
+  mongo_express:
     extends:
       file: docker/development/docker-compose.dev.yml
-      service: mongo-express
+      service: mongo_express
     depends_on:
-      - mongodb
+      - mongo
 
   rabbitmq:
     extends:
@@ -59,7 +59,7 @@ services:
       - net_db
     depends_on:
       - rabbitmq
-      - mongodb
+      - mongo
     environment:
       MONGO_URL: mongodb://mongodb:27017
       DEBUG: 'true'
@@ -77,7 +77,7 @@ services:
       - net_db
     depends_on:
       - rabbitmq
-      - mongodb
+      - mongo
     environment:
       MONGO_URL: mongodb://mongodb:27017
       DEBUG: 'true'

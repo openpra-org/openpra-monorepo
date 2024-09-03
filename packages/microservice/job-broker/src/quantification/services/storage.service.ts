@@ -135,4 +135,8 @@ export class StorageService implements OnApplicationBootstrap {
       },
     );
   }
+
+  public async getQuantifiedReports(): Promise<QuantifiedReport[]> {
+    return this.quantifiedReportModel.find();
+  }
 }

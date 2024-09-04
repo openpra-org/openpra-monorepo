@@ -11,6 +11,7 @@ import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_FILTER, RouterModule } from "@nestjs/core";
 import { MongooseModule } from "@nestjs/mongoose";
+import { EnvVarKeys } from "../config/env_vars.config";
 import { HttpExceptionFilter } from "./http-exception.filter";
 import { JobBrokerController } from "./job-broker.controller";
 import { JobBrokerService } from "./job-broker.service";
@@ -34,7 +35,7 @@ import { ExecutableModule } from "./executable/executable.module";
       imports: [ConfigModule], // Import ConfigModule for database configuration.
       inject: [ConfigService], // Inject ConfigService to use the preset env variable for the database URI.
       useFactory: (config: ConfigService) => ({
-        uri: config.get<string>("MONGO_URL"), // Get the MongoDB URL variable from the env file.
+        uri: config.getOrThrow(EnvVarKeys.MONGODB_URI),
       }),
     }),
     RouterModule.register([

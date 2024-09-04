@@ -11,16 +11,16 @@ export const RootRoute: RouteObject[] = [
     element: <RootContainer />,
     errorElement: <ErrorPage />,
     children: [
-      ...PublicRoutes,
-      ...AnalysisRoutes,
-      {
-        children: [
-          {
-            path: "settings/*",
-            element: <SettingsPage />,
-          },
-        ],
-      },
+      // ...PublicRoutes,
+      // ...AnalysisRoutes,
+      // {
+      //   children: [
+      //     {
+      //       path: "settings/*",
+      //       element: <SettingsPage />,
+      //     },
+      //   ],
+      // },
     ],
   },
 ];
@@ -31,3 +31,5 @@ export const BrowserRouter = createBrowserRouter(RootRoute, {
     v7_normalizeFormMethod: true,
   },
 });
+
+BrowserRouter;

@@ -10,12 +10,15 @@ module.exports = composePlugins(
   (config) => {
     config.devServer = {
       port: 4200,
+      // https://webpack.js.org/configuration/dev-server/#devserverhistoryapifallback
+      // lets the react app render the 404-page when there is no exect URL match.
+      historyApiFallback: true,
       proxy: [
         {
           context: ["/api"],
           target: "http://localhost:8000",
-          secure: true,
-          changeOrigin: true,
+          secure: false,
+          changeOrigin: false,
         },
       ],
     };

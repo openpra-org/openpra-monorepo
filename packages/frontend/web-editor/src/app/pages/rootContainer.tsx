@@ -1,6 +1,5 @@
-import { Outlet, useLocation } from "react-router-dom";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
-import { ReactElement, useEffect, useRef, useState } from "react";
+import { Outlet } from "react-router-dom";
+import { ReactElement } from "react";
 import { RootHeader } from "../components/headers/rootHeader";
 
 /**
@@ -13,7 +12,8 @@ import { RootHeader } from "../components/headers/rootHeader";
 const RootContainer = (): ReactElement => {
   return (
     <>
-      <RootHeader />
+      {/*<RootHeader />*/}
+      <h2>i am root</h2>
       <Outlet />
     </>
   );

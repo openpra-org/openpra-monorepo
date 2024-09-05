@@ -1,6 +1,6 @@
 import { createBrowserRouter, RouteObject } from "react-router-dom";
 import { RootContainer } from "../pages/rootContainer";
-import { ErrorPage } from "../pages/errorPage";
+import { ErrorPage } from "../pages/ErrorPage";
 import { SettingsPage } from "../pages/routingPages/settingsPage";
 import { PublicRoutes } from "./PublicRoutes";
 import { AnalysisRoutes } from "./AnalysisRoutes";
@@ -11,7 +11,7 @@ export const RootRoute: RouteObject[] = [
     element: <RootContainer />,
     errorElement: <ErrorPage />,
     children: [
-      // ...PublicRoutes,
+      ...PublicRoutes,
       // ...AnalysisRoutes,
       // {
       //   children: [
@@ -31,5 +31,3 @@ export const BrowserRouter = createBrowserRouter(RootRoute, {
     v7_normalizeFormMethod: true,
   },
 });
-
-BrowserRouter;

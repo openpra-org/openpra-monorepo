@@ -1,14 +1,19 @@
+import React from "react";
 import {
-  EuiText,
-  EuiHideFor,
+  EuiEmptyPrompt,
+  EuiButton,
+  useIsWithinBreakpoints,
+  EuiTitle,
+  EuiLink,
+  EuiImage,
+  useEuiTheme,
+  useEuiPaddingCSS,
   EuiFlexGroup,
   EuiFlexItem,
-  useIsWithinBreakpoints,
-  useEuiPaddingCSS,
-  useEuiTheme,
 } from "@elastic/eui";
-import { AuthCard } from "../components/cards/authCard";
-function LoginPage(): JSX.Element {
+import illustration from "../../assets/images/logos/logo-bw.png";
+
+const LoginPage = () => {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
   const textCss = [useEuiPaddingCSS("horizontal").m];
   const containterCss = [useEuiPaddingCSS().m];
@@ -20,52 +25,60 @@ function LoginPage(): JSX.Element {
     margin: "auto",
     maxWidth: largeScreenBreakpoint,
   };
+
   return (
     <EuiFlexGroup
       style={flexGroupStyles}
       alignItems="center"
       gutterSize="none"
     >
-      <EuiHideFor sizes={smallSizes}>
-        <EuiFlexItem css={textCss}>
-          <EuiText>
-            <h1>Welcome to OpenPRA</h1>
-            <p>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-            </p>
-            <p>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-            </p>
-            <p>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-            </p>
-          </EuiText>
-        </EuiFlexItem>
-      </EuiHideFor>
-      <EuiFlexItem css={smallScreen ? undefined : containterCss}>
-        {/*<AuthCard />*/}
-        {"AuthCard"}
+      <EuiFlexItem grow>
+        <EuiEmptyPrompt
+          hasShadow
+          icon={
+            <EuiImage
+              size="fullWidth"
+              src={illustration}
+              alt=""
+            />
+          }
+          title={<h2>Create your first visualization</h2>}
+          layout="horizontal"
+          color="plain"
+          body={
+            <>
+              <p>
+                There are no visualizations to display. This tool allows you to create a wide range of charts, graphs,
+                maps, and other graphics.
+              </p>
+              <p>The visualizations you create can be easily shared with your peers.</p>
+            </>
+          }
+          actions={
+            <EuiButton
+              color="primary"
+              fill
+            >
+              Create visualization
+            </EuiButton>
+          }
+          footer={
+            <>
+              <EuiTitle size="xxs">
+                <span>Want to learn more?</span>
+              </EuiTitle>{" "}
+              <EuiLink
+                href="#"
+                target="_blank"
+              >
+                Read the docs
+              </EuiLink>
+            </>
+          }
+        />
       </EuiFlexItem>
     </EuiFlexGroup>
   );
-}
+};
 
 export { LoginPage };

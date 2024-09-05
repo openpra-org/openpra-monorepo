@@ -13,7 +13,6 @@ const RootContainer = (): ReactElement => {
   return (
     <>
       {/*<RootHeader />*/}
-      <h2>i am root</h2>
       <Outlet />
     </>
   );

@@ -14,7 +14,6 @@
     "@elastic/eui": "95.10.1",
     "@emotion/css": "11.13.0",
     "@emotion/react": "11.13.3",
-    "@sentry/react": "7.119.0",
     "@testing-library/jest-dom": "6.5.0",
     "classnames": "2.5.1",
     "d3-hierarchy": "3.1.2",

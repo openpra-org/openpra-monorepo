@@ -1,15 +1,7 @@
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { init } from "@sentry/react";
 
 import { App } from "./app/app";
-import { SentryOptions } from "./plugins/SentryOptions";
-
-/**
- * Initializes Sentry with the specified options to automatically track errors and performance issues.
- * @param SentryOptions - Configuration options for Sentry initialization.
- */
-init(SentryOptions);
 
 /**
  * The DOM element identifier where the React application will be mounted.
@@ -33,11 +25,7 @@ if (container instanceof HTMLElement) {
    * This example uses `StrictMode` which will help in identifying components with unsafe lifecycles,
    * legacy string ref API usage, deprecated findDOMNode usage, and unexpected side effects in the component tree.
    */
-  root.render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
+  root.render(<App />);
 } else {
   /**
    * Throws an error if the root element is not found in the document.

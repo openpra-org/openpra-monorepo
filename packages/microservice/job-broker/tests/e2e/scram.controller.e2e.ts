@@ -11,7 +11,6 @@ import {
   InvalidKeyType,
   MissingRequiredKey,
   MultipleInvalidKeyTypes,
-  ServerExceptionRequest,
   InvalidLimits1,
   InvalidLimits2,
   InvalidLimits3,
@@ -21,9 +20,38 @@ import {
   InvalidLimits7,
   InvalidLimits8,
   InvalidLimits9,
-} from "../input/quantification-controller/invalid-request-body";
-import { ValidRequestBody } from "../input/quantification-controller/valid-request-body";
-import { QuantifiedReports } from "../input/quantification-controller/quantified-reports";
+} from "../input/quantification/invalid-request";
+import { ValidQuantifyRequest } from "../input/quantification/valid-request";
+import { QuantifiedReports } from "../output/quantification/quantified-reports";
+
+/**
+ * End-to-end tests for the ScramController.
+ *
+ * These tests cover the following cases:
+ *
+ * POST /scram:
+ * - Should return 201 Created response when the request body is valid.
+ * - Should return 400 Bad Request when a key in the request body has the wrong type.
+ * - Should return 400 Bad Request when multiple keys in the request body have the wrong types.
+ * - Should return 400 Bad Request when the request body is missing a required key.
+ * - Should return 400 Bad Request when the request body contains an additional key.
+ * - Should return 400 Bad Request when the request body contains multiple algorithms (bdd, zbdd, and mocus).
+ * - Should return 400 Bad Request when the request body contains multiple approximations (rare-event and mcub).
+ * - Should return 400 Bad Request when the request body contains invalid limit-order.
+ * - Should return 400 Bad Request when the request body contains invalid cut-off.
+ * - Should return 400 Bad Request when the request body contains invalid num-trials.
+ * - Should return 400 Bad Request when the request body contains invalid num-quantiles.
+ * - Should return 400 Bad Request when the request body contains invalid num-bins.
+ * - Should return 400 Bad Request when the request body contains invalid seed.
+ * - Should return 400 Bad Request when the request body contains invalid mission-time.
+ * - Should return 400 Bad Request when the request body contains invalid time-step.
+ * - Should return 400 Bad Request when the request body contains invalid verbosity.
+ * - Should return 500 Internal Server Error when the service throws an error.
+ *
+ * GET /scram:
+ * - Should return 200 OK response if the service is able to retrieve the list of quantified reports.
+ * - Should return 404 Not Found Error when the service is unable to retrieve the list of quantified reports.
+ */
 
 describe("ScramController (e2e)", () => {
   let app: INestApplication;
@@ -57,7 +85,7 @@ describe("ScramController (e2e)", () => {
 
   describe("POST /scram", () => {
     it("should return 201 Created response when the request body is valid", () => {
-      return request(app.getHttpServer()).post("/scram").send(ValidRequestBody).expect(201);
+      return request(app.getHttpServer()).post("/scram").send(ValidQuantifyRequest).expect(201);
     });
 
     it("should return 400 Bad Request when a key in the request body has wrong type", () => {
@@ -130,7 +158,7 @@ describe("ScramController (e2e)", () => {
         .spyOn(producerService, "createAndQueueQuant")
         .mockRejectedValue(new InternalServerErrorException("Some error"));
 
-      return request(app.getHttpServer()).post("/scram").send(ServerExceptionRequest).expect(500);
+      return request(app.getHttpServer()).post("/scram").send(ValidQuantifyRequest).expect(500);
     });
   });
 

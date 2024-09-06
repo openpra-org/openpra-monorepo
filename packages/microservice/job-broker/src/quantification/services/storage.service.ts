@@ -17,6 +17,7 @@ import { QuantifiedReport } from "../schemas/quantified-report.schema";
  */
 @Injectable()
 export class StorageService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(StorageService.name);
   constructor(
     private readonly configService: ConfigService,
     @InjectModel(QuantifiedReport.name) private readonly quantifiedReportModel: Model<QuantifiedReport>,
@@ -36,11 +37,11 @@ export class StorageService implements OnApplicationBootstrap {
     while (attempt < retryCount) {
       try {
         const connection = await amqp.connect(url);
-        Logger.log("Quantification-storage-service successfully connected to the RabbitMQ broker.");
+        this.logger.log("Quantification-storage-service successfully connected to the RabbitMQ broker.");
         return connection;
       } catch {
         attempt++;
-        Logger.error(
+        this.logger.error(
           `Attempt ${String(
             attempt,
           )}: Failed to connect to RabbitMQ broker from quantification-storage-service side. Retrying in 10 seconds...`,
@@ -67,7 +68,7 @@ export class StorageService implements OnApplicationBootstrap {
     const deadLetterQ = this.configService.get<string>("DEAD_LETTER_QUEUE_NAME");
     const deadLetterX = this.configService.get<string>("DEAD_LETTER_EXCHANGE_NAME");
     if (!url || !completedQ || !deadLetterQ || !deadLetterX) {
-      Logger.error("Required environment variables for quantification storage service are not set");
+      this.logger.error("Required environment variables for quantification storage service are not set");
       return;
     }
 
@@ -95,7 +96,7 @@ export class StorageService implements OnApplicationBootstrap {
       async (msg: ConsumeMessage | null) => {
         // Handle the case where the message is invalid.
         if (msg === null) {
-          Logger.error("Unable to parse message from quantification storage queue");
+          this.logger.error("Unable to parse message from quantification storage queue");
           return;
         }
 
@@ -112,7 +113,7 @@ export class StorageService implements OnApplicationBootstrap {
           // Handle type validation errors, Mongoose validation errors, and other generic exceptions,
           // logging details and negatively acknowledging the message.
           if (error instanceof TypeGuardError) {
-            Logger.error(
+            this.logger.error(
               `Validation failed: ${String(error.path)} is invalid. Expected ${error.expected} but got ${String(
                 error.value,
               )}`,
@@ -120,11 +121,11 @@ export class StorageService implements OnApplicationBootstrap {
             channel.nack(msg, false, false);
           } else if (error instanceof mongoose.Error.ValidationError) {
             Object.values(error.errors).forEach((err) => {
-              Logger.error(err.message);
+              this.logger.error(err.message);
             });
             channel.nack(msg, false, false);
           } else {
-            Logger.error("Something went wrong in the quantification storage service.");
+            this.logger.error(error);
             channel.nack(msg, false, false);
           }
         }

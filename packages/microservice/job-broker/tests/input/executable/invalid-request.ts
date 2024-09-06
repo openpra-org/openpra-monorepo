@@ -34,11 +34,3 @@ export const InvalidAdditionalKey = {
   tty: false,
   cwd: "/home/user/project", // Additional key not in the interface
 };
-
-export const ServerExceptionRequest = {
-  executable: "scram-cli",
-  arguments: ["--bdd", "--probability", "--mcub", "input1.xml"],
-  env_vars: ["DEBUG=true"],
-  stdin: "Some input data for the program",
-  tty: false,
-};

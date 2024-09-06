@@ -9,10 +9,27 @@ import {
   InvalidKeyType,
   MissingRequiredKey,
   MultipleInvalidKeyTypes,
-  ServerExceptionRequest,
-} from "../input/executable-controller/invalid-request-body";
-import { ValidRequestBody } from "../input/executable-controller/valid-request-body";
-import { ExecutedResults } from "../input/executable-controller/executed-results";
+} from "../input/executable/invalid-request";
+import { ValidExecuteRequest } from "../input/executable/valid-request";
+import { ExecutedResults } from "../output/executable/executed-results";
+
+/**
+ * End-to-end tests for the ExecutableController.
+ *
+ * These tests cover the following cases:
+ *
+ * POST /tasks:
+ * - Should return 201 Created response when the request body is valid.
+ * - Should return 400 Bad Request when a key in the request body has the wrong type.
+ * - Should return 400 Bad Request when multiple keys in the request body have the wrong types.
+ * - Should return 400 Bad Request when the request body is missing a required key.
+ * - Should return 400 Bad Request when the request body contains an additional key.
+ * - Should return 500 Internal Server Error when the service throws an error.
+ *
+ * GET /tasks:
+ * - Should return 200 OK response if the service is able to retrieve the list of executed tasks.
+ * - Should return 404 Not Found Error when the service throws an error.
+ */
 
 describe("ExecutableController (e2e)", () => {
   let app: INestApplication;
@@ -46,7 +63,7 @@ describe("ExecutableController (e2e)", () => {
 
   describe("POST /tasks", () => {
     it("should return 201 Created response when the request body is valid", () => {
-      return request(app.getHttpServer()).post("/tasks").send(ValidRequestBody).expect(201);
+      return request(app.getHttpServer()).post("/tasks").send(ValidExecuteRequest).expect(201);
     });
 
     it("should return 400 Bad Request when a key in the request body has wrong type", () => {
@@ -71,7 +88,7 @@ describe("ExecutableController (e2e)", () => {
         .spyOn(executableService, "createAndQueueTask")
         .mockRejectedValue(new InternalServerErrorException("Some error"));
 
-      return request(app.getHttpServer()).post("/tasks").send(ServerExceptionRequest).expect(500);
+      return request(app.getHttpServer()).post("/tasks").send(ValidExecuteRequest).expect(500);
     });
   });
 

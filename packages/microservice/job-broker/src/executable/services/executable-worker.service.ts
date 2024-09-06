@@ -14,6 +14,7 @@ import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-res
  */
 @Injectable()
 export class ExecutableWorkerService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(ExecutableWorkerService.name);
   constructor(private readonly configService: ConfigService) {}
 
   /**
@@ -29,11 +30,11 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
     while (attempt < retryCount) {
       try {
         const connection = await amqp.connect(url);
-        Logger.log("Executable-task-worker successfully connected to the RabbitMQ broker.");
+        this.logger.log("Executable-task-worker successfully connected to the RabbitMQ broker.");
         return connection;
       } catch {
         attempt++;
-        Logger.error(
+        this.logger.error(
           `Attempt ${String(
             attempt,
           )}: Failed to connect to RabbitMQ broker from executable-task-worker side. Retrying in 10 seconds...`,
@@ -60,7 +61,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
 
     // Check if all required environment variables are found. Log an error and exit if that is not the case.
     if (!url || !initialJobQ || !storageQ || !deadLetterQ || !deadLetterX) {
-      Logger.error("Required environment variables for executable worker service are not set");
+      this.logger.error("Required environment variables for executable worker service are not set");
       return;
     }
 
@@ -91,7 +92,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
       async (msg: ConsumeMessage | null) => {
         // Check if the consumed message is null, indicating an error in message retrieval.
         if (msg === null) {
-          Logger.error("Executable worker service is unable to parse the consumed message.");
+          this.logger.error("Executable worker service is unable to parse the consumed message.");
           return;
         }
 
@@ -121,7 +122,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
         } catch (error) {
           // Handle validation errors specifically, logging the path and expected vs actual values.
           if (error instanceof TypeGuardError) {
-            Logger.error(
+            this.logger.error(
               `Validation failed: ${String(error.path)} is invalid. Expected ${error.expected} but got ${String(
                 error.value,
               )}`,
@@ -129,7 +130,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
             channel.nack(msg, false, false);
           } else {
             // Log a generic error message for other types of errors.
-            Logger.error("Something went wrong in the executable worker service.");
+            this.logger.error(error);
             channel.nack(msg, false, false);
           }
         }
@@ -174,7 +175,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
     } catch (error) {
       // Handle errors that occur during command execution.
       const execError = error as Error & { status?: number; stderr?: Buffer; stdout?: Buffer };
-      Logger.error(execError);
+      this.logger.error(execError);
 
       return {
         task,

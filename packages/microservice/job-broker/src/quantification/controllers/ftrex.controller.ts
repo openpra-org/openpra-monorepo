@@ -42,6 +42,12 @@ export class FtrexController {
     }
   }
 
+  /**
+   * Controller method to handle GET requests for quantified reports at the "/ftrex" endpoint.
+   *
+   * @returns A promise that resolves to an array of QuantifiedReport objects.
+   * @throws {@link NotFoundException} Throws an exception if the server is unable to find the requested list of quantified reports.
+   */
   @TypedRoute.Get("/ftrex")
   public async getQuantifiedReports(): Promise<QuantifiedReport[]> {
     try {

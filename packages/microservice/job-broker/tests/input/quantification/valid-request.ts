@@ -28,7 +28,7 @@
  * - `output`: Output file name.
  * - `models`: Array of models in XML format.
  */
-export const ValidRequestBody = {
+export const ValidQuantifyRequest = {
   bdd: true,
   zbdd: false,
   mocus: true,

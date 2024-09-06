@@ -24,6 +24,7 @@ const scramAddon: ScramAddonType = require("scram-node/build/Release/scram-node.
 @Injectable()
 export class ConsumerService implements OnModuleInit {
   // Importing ConfigService for accessing environment variables.
+  private readonly logger = new Logger(ConsumerService.name);
   constructor(private readonly configService: ConfigService) {}
 
   /**
@@ -44,11 +45,11 @@ export class ConsumerService implements OnModuleInit {
       // Continue trying until the retry count is reached.
       try {
         const connection = await amqp.connect(url); // Attempt to connect to RabbitMQ.
-        Logger.log("Quantification-consumer successfully connected to the RabbitMQ broker."); // Log successful connection.
+        this.logger.log("Quantification-consumer successfully connected to the RabbitMQ broker."); // Log successful connection.
         return connection; // Return the established connection.
       } catch {
         attempt++; // Increase the attempt count upon failure.
-        Logger.error(
+        this.logger.error(
           `Attempt ${String(
             attempt,
           )}: Failed to connect to RabbitMQ broker from quantification-consumer side. Retrying in 10 seconds...`, // Log the failure and retry intention.
@@ -80,7 +81,7 @@ export class ConsumerService implements OnModuleInit {
     const deadLetterQ = this.configService.get<string>("DEAD_LETTER_QUEUE_NAME");
     const deadLetterX = this.configService.get<string>("DEAD_LETTER_EXCHANGE_NAME");
     if (!url || !initialJobQ || !storageQ || !deadLetterQ || !deadLetterX) {
-      Logger.error("Required environment variables for quantification consumer service are not set");
+      this.logger.error("Required environment variables for quantification consumer service are not set");
       return;
     }
 
@@ -107,7 +108,7 @@ export class ConsumerService implements OnModuleInit {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
         if (msg === null) {
-          Logger.error("Unable to parse message from initial quantification queue");
+          this.logger.error("Unable to parse message from initial quantification queue");
           return;
         }
 
@@ -139,14 +140,14 @@ export class ConsumerService implements OnModuleInit {
           // Handle validation errors and other generic exceptions, logging details and negatively
           // acknowledging the message.
           if (error instanceof TypeGuardError) {
-            Logger.error(
+            this.logger.error(
               `Validation failed: ${String(error.path)} is invalid. Expected ${error.expected} but got ${String(
                 error.value,
               )}`,
             );
             channel.nack(msg, false, false);
           } else {
-            Logger.error("Something went wrong in the quantification consumer service.");
+            this.logger.error(error);
             channel.nack(msg, false, false);
           }
         }
@@ -193,7 +194,7 @@ export class ConsumerService implements OnModuleInit {
       };
     } catch (error) {
       // In case of an error during quantification, return a report indicating the failure.
-      Logger.error(error);
+      this.logger.error(error);
       return {
         configuration: modelsWithConfigs,
         results: ["Error during SCRAM CLI operation"],

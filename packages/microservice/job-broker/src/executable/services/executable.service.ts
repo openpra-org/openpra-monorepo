@@ -9,6 +9,7 @@ import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task"
  */
 @Injectable()
 export class ExecutableService {
+  private readonly logger = new Logger(ExecutableService.name);
   constructor(private readonly configService: ConfigService) {}
 
   /**
@@ -28,11 +29,11 @@ export class ExecutableService {
     while (attempt < retryCount) {
       try {
         const connection = await amqp.connect(url);
-        Logger.log("Executable-task-producer successfully connected to the RabbitMQ broker.");
+        this.logger.log("Executable-task-producer successfully connected to the RabbitMQ broker.");
         return connection;
       } catch {
         attempt++;
-        Logger.error(
+        this.logger.error(
           `Attempt ${String(
             attempt,
           )}: Failed to connect to RabbitMQ broker from executable-task-producer side. Retrying in 10 seconds...`,
@@ -65,7 +66,7 @@ export class ExecutableService {
     const deadLetterX = this.configService.get<string>("DEAD_LETTER_EXCHANGE_NAME");
 
     if (!url || !queue || !deadLetterQ || !deadLetterX) {
-      Logger.error("Required environment variables for executable service are not set");
+      this.logger.error("Required environment variables for executable service are not set");
       return;
     }
 
@@ -102,14 +103,14 @@ export class ExecutableService {
     } catch (error) {
       // Handle validation errors specifically, logging the path and expected vs actual values.
       if (error instanceof TypeGuardError) {
-        Logger.error(
+        this.logger.error(
           `Validation failed: ${String(error.path)} is invalid. Expected ${error.expected} but got ${String(
             error.value,
           )}`,
         );
       } else {
         // Log a generic error message for other types of errors.
-        Logger.error("Something went wrong in the executable service.");
+        this.logger.error(error);
       }
     }
   }

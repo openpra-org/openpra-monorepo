@@ -15,6 +15,7 @@ import { ExecutedResult } from "../schemas/executed-result.schema";
  */
 @Injectable()
 export class ExecutableStorageService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(ExecutableStorageService.name);
   constructor(
     private readonly configService: ConfigService,
     @InjectModel(ExecutedResult.name) private readonly executedResultModel: Model<ExecutedResult>,
@@ -33,11 +34,11 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
     while (attempt < retryCount) {
       try {
         const connection = await amqp.connect(url);
-        Logger.log("Executable-task-storage successfully connected to the RabbitMQ broker.");
+        this.logger.log("Executable-task-storage successfully connected to the RabbitMQ broker.");
         return connection;
       } catch {
         attempt++;
-        Logger.error(
+        this.logger.error(
           `Attempt ${String(
             attempt,
           )}: Failed to connect to RabbitMQ broker from executable-task-storage side. Retrying in 10 seconds...`,
@@ -63,7 +64,7 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
 
     // Check if all required environment variables are set. Log the error and exit otherwise.
     if (!url || !storageQ || !deadLetterQ || !deadLetterX) {
-      Logger.error("Required environment variables for executable storage service are not set");
+      this.logger.error("Required environment variables for executable storage service are not set");
       return;
     }
 
@@ -94,7 +95,7 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
       async (msg: ConsumeMessage | null) => {
         // Check if the consumed message is null, indicating an error in message retrieval.
         if (msg === null) {
-          Logger.error("Executable storage service is unable to parse the consumed message.");
+          this.logger.error("Executable storage service is unable to parse the consumed message.");
           return;
         }
 
@@ -111,7 +112,7 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
         } catch (error) {
           // Handle validation errors specifically, logging the path and expected vs actual values.
           if (error instanceof TypeGuardError) {
-            Logger.error(
+            this.logger.error(
               `Validation failed: ${String(error.path)} is invalid. Expected ${error.expected} but got ${String(
                 error.value,
               )}`,
@@ -120,12 +121,12 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
           } else if (error instanceof mongoose.Error.ValidationError) {
             // Log validation errors from Mongoose and negatively acknowledge the message.
             for (const field in error.errors) {
-              Logger.error(error.errors[field].message);
+              this.logger.error(error.errors[field].message);
               channel.nack(msg, false, false);
             }
           } else {
             // Log a generic error message for other types of errors.
-            Logger.error("Something went wrong in the executable storage service.");
+            this.logger.error(error);
             channel.nack(msg, false, false);
           }
         }

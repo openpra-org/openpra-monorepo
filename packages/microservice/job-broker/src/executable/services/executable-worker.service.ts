@@ -122,11 +122,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
         } catch (error) {
           // Handle validation errors specifically, logging the path and expected vs actual values.
           if (error instanceof TypeGuardError) {
-            this.logger.error(
-              `Validation failed: ${String(error.path)} is invalid. Expected ${error.expected} but got ${String(
-                error.value,
-              )}`,
-            );
+            this.logger.error(error);
             channel.nack(msg, false, false);
           } else {
             // Log a generic error message for other types of errors.

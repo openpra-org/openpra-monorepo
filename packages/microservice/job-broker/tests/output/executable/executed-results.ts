@@ -1,3 +1,5 @@
+import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
+
 /**
  * Represents a collection of executed results.
  * Each result contains a task object, exit code, standard error, and standard output.
@@ -8,7 +10,7 @@
  * - `stderr`: The standard error output from the executed task.
  * - `stdout`: The standard output from the executed task.
  */
-export const ExecutedResults = [
+export const ExecutedResults: ExecutionResult[] = [
   {
     task: {
       executable: "scram-cli",
@@ -23,7 +25,7 @@ export const ExecutedResults = [
   },
   {
     task: {
-      executable: "--scram-cli",
+      executable: "scram-cli",
       arguments: ["--bdd", "--probability", "--mcub", "input2.xml"],
       env_vars: ["DEBUG=false"],
       stdin: "",
@@ -34,3 +36,16 @@ export const ExecutedResults = [
     stdout: "",
   },
 ];
+
+export const ExecutedResult1: ExecutionResult = {
+  task: {
+    executable: "scram-cli",
+    arguments: ["--bdd", "--probability", "--mcub", "input1.xml"],
+    env_vars: ["DEBUG=true"],
+    stdin: "",
+    tty: true,
+  },
+  exit_code: 0,
+  stderr: "",
+  stdout: "SCRAM quantification successful",
+};

@@ -104,19 +104,14 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
           const executedResult: ExecutionResult = typia.json.assertParse<ExecutionResult>(msg.content.toString());
 
           // Create a new instance of the executed result model and save it to the database.
-          const result = new this.executedResultModel(executedResult);
-          await result.save();
+          await this.executedResultModel.create(executedResult);
 
           // Acknowledge the message back to the completed task queue to indicate successful processing.
           channel.ack(msg);
         } catch (error) {
           // Handle validation errors specifically, logging the path and expected vs actual values.
           if (error instanceof TypeGuardError) {
-            this.logger.error(
-              `Validation failed: ${String(error.path)} is invalid. Expected ${error.expected} but got ${String(
-                error.value,
-              )}`,
-            );
+            this.logger.error(error);
             channel.nack(msg, false, false);
           } else if (error instanceof mongoose.Error.ValidationError) {
             // Log validation errors from Mongoose and negatively acknowledge the message.

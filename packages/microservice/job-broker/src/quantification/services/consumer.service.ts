@@ -140,11 +140,7 @@ export class ConsumerService implements OnModuleInit {
           // Handle validation errors and other generic exceptions, logging details and negatively
           // acknowledging the message.
           if (error instanceof TypeGuardError) {
-            this.logger.error(
-              `Validation failed: ${String(error.path)} is invalid. Expected ${error.expected} but got ${String(
-                error.value,
-              )}`,
-            );
+            this.logger.error(error);
             channel.nack(msg, false, false);
           } else {
             this.logger.error(error);

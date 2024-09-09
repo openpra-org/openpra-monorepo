@@ -111,3 +111,4 @@ export class QuantifiedReport {
 
 // Generate a Mongoose schema for the QuantifiedReport class.
 export const QuantifiedReportSchema = SchemaFactory.createForClass(QuantifiedReport);
+export type QuantifiedReportDocument = QuantifiedReport & Document;

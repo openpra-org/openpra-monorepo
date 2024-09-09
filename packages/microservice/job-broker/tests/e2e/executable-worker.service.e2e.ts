@@ -107,7 +107,9 @@ describe("ExecutableWorkerService", () => {
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
     expect(loggerSpyError).toHaveBeenCalledWith(
-      'Validation failed: $input.executable is invalid. Expected ("acube" | "dpc" | "ftrex" | "qrecover" | "saphsolve" | "scram-cli" | "xfta" | "xfta2") but got undefined',
+      new Error(
+        `Error on typia.json.assertParse(): invalid type on $input.executable, expect to be ("acube" | "dpc" | "ftrex" | "qrecover" | "saphsolve" | "scram-cli" | "xfta" | "xfta2")`,
+      ),
     );
   });
 
@@ -118,7 +120,7 @@ describe("ExecutableWorkerService", () => {
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
     expect(loggerSpyError).toHaveBeenCalledWith(
-      "Validation failed: $input.stderr is invalid. Expected string but got undefined",
+      new Error("Error on typia.json.assertStringify(): invalid type on $input.stderr, expect to be string"),
     );
   });
 

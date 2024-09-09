@@ -28,6 +28,7 @@ export const InvalidReport = {
     verbosity: 2,
     "no-report": true,
     output: "output.xml",
+    models: ["input1.xml", "input2.xml"],
   },
   results: "This should be an array of strings, but it's a single string.",
 };

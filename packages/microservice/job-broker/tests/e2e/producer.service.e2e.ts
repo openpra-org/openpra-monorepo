@@ -119,7 +119,7 @@ describe("ProducerService", () => {
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
     expect(loggerSpyError).toHaveBeenCalledWith(
-      "Validation failed: $input.models is invalid. Expected Array<string> but got undefined",
+      new Error("Error on typia.json.assertStringify(): invalid type on $input.models, expect to be Array<string>"),
     );
   });
 

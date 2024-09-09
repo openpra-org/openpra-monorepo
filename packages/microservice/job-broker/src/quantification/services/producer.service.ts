@@ -107,11 +107,7 @@ export class ProducerService {
       // Handle specific TypeGuardError for validation issues, logging the detailed path and expected type.
       // Log a generic error message for any other types of errors encountered during the process.
       if (error instanceof TypeGuardError) {
-        this.logger.error(
-          `Validation failed: ${String(error.path)} is invalid. Expected ${error.expected} but got ${String(
-            error.value,
-          )}`,
-        );
+        this.logger.error(error);
       } else {
         this.logger.error(error);
       }

@@ -106,7 +106,7 @@ describe("ConsumerService", () => {
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
     expect(loggerSpyError).toHaveBeenCalledWith(
-      "Validation failed: $input.models is invalid. Expected array but got undefined",
+      new Error("Error on typia.json.assertParse(): invalid type on $input.models, expect to be Array<string>"),
     );
   });
 
@@ -117,7 +117,7 @@ describe("ConsumerService", () => {
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
     expect(loggerSpyError).toHaveBeenCalledWith(
-      "Validation failed: $input.results is invalid. Expected array but got string",
+      new Error("Error on typia.json.assertStringify(): invalid type on $input.results, expect to be Array<string>"),
     );
   });
 

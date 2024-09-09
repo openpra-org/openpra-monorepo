@@ -104,8 +104,7 @@ export class StorageService implements OnApplicationBootstrap {
           // Serialize the message content into a QuantifyReport object for processing.
           const quantifiedReport: QuantifyReport = typia.json.assertParse<QuantifyReport>(msg.content.toString());
           // Create a new document from the parsed report and save it to the database.
-          const report = new this.quantifiedReportModel(quantifiedReport);
-          await report.save();
+          await this.quantifiedReportModel.create(quantifiedReport);
 
           // Acknowledge the original message to indicate successful processing.
           channel.ack(msg);
@@ -113,11 +112,7 @@ export class StorageService implements OnApplicationBootstrap {
           // Handle type validation errors, Mongoose validation errors, and other generic exceptions,
           // logging details and negatively acknowledging the message.
           if (error instanceof TypeGuardError) {
-            this.logger.error(
-              `Validation failed: ${String(error.path)} is invalid. Expected ${error.expected} but got ${String(
-                error.value,
-              )}`,
-            );
+            this.logger.error(error);
             channel.nack(msg, false, false);
           } else if (error instanceof mongoose.Error.ValidationError) {
             Object.values(error.errors).forEach((err) => {

@@ -7,23 +7,22 @@ import { ConsumeMessage } from "amqplib/properties";
 import { MongoClient } from "mongodb";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose, { Model } from "mongoose";
-import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
-import { ExecutableStorageService } from "../../src/executable/services/executable-storage.service";
-import { InvalidResult } from "../output/executable/invalid-result";
-import { ExecutedResult1, ExecutedResults } from "../output/executable/executed-results";
-import { ExecutedResult, ExecutedResultDocument } from "../../src/executable/schemas/executed-result.schema";
+import { StorageService } from "../../src/quantification/services/storage.service";
+import { QuantifiedReport, QuantifiedReportDocument } from "../../src/quantification/schemas/quantified-report.schema";
+import { InvalidReport } from "../output/quantification/invalid-report";
+import { QuantifiedReport1, QuantifiedReports } from "../output/quantification/quantified-reports";
 
 jest.mock("amqplib");
 
-describe("ExecutableStorageService", () => {
-  let service: ExecutableStorageService;
+describe("StorageService", () => {
+  let service: StorageService;
   let configService: ConfigService;
   const loggerSpyError = jest.spyOn(Logger.prototype, "error");
   let mockConnection: Partial<amqp.Connection>;
   let mockChannel: Partial<amqp.Channel>;
   let client: MongoClient;
   let mongoServer: MongoMemoryServer;
-  let mockExecutedResultDocument: Model<ExecutedResultDocument>;
+  let mockQuantifiedReportModel: Model<QuantifiedReportDocument>;
 
   beforeAll(async () => {
     mongoServer = await MongoMemoryServer.create();
@@ -41,7 +40,7 @@ describe("ExecutableStorageService", () => {
       assertQueue: jest.fn().mockResolvedValue(undefined),
       bindQueue: jest.fn().mockResolvedValue(undefined),
       consume: jest.fn().mockImplementation((queue: string, onMessage: (msg: ConsumeMessage | null) => void) => {
-        onMessage({ content: Buffer.from(JSON.stringify(ExecutedResult1)) } as ConsumeMessage);
+        onMessage({ content: Buffer.from(JSON.stringify(QuantifiedReport1)) } as ConsumeMessage);
       }),
       ack: jest.fn().mockResolvedValue(undefined),
       nack: jest.fn().mockResolvedValue(undefined),
@@ -55,7 +54,7 @@ describe("ExecutableStorageService", () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ExecutableStorageService,
+        StorageService,
         {
           provide: ConfigService,
           useValue: {
@@ -63,7 +62,7 @@ describe("ExecutableStorageService", () => {
               switch (key) {
                 case "RABBITMQ_URL":
                   return "some-rabbitmq-url";
-                case "EXECUTABLE_STORAGE_QUEUE_NAME":
+                case "QUANT_STORAGE_QUEUE_NAME":
                   return "some-storage-queue";
                 case "DEAD_LETTER_QUEUE_NAME":
                   return "some-dead-letter-queue";
@@ -76,15 +75,15 @@ describe("ExecutableStorageService", () => {
           },
         },
         {
-          provide: getModelToken(ExecutedResult.name),
+          provide: getModelToken(QuantifiedReport.name),
           useValue: Model,
         },
       ],
     }).compile();
 
-    service = module.get<ExecutableStorageService>(ExecutableStorageService);
+    service = module.get<StorageService>(StorageService);
     configService = module.get<ConfigService>(ConfigService);
-    mockExecutedResultDocument = module.get<Model<ExecutedResultDocument>>(getModelToken(ExecutedResult.name));
+    mockQuantifiedReportModel = module.get<Model<QuantifiedReportDocument>>(getModelToken(QuantifiedReport.name));
   });
 
   afterEach(() => {
@@ -98,7 +97,7 @@ describe("ExecutableStorageService", () => {
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
     expect(loggerSpyError).toHaveBeenCalledWith(
-      "Required environment variables for executable storage service are not set",
+      "Required environment variables for quantification storage service are not set",
     );
   });
 
@@ -112,13 +111,13 @@ describe("ExecutableStorageService", () => {
     await service.onApplicationBootstrap();
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
-    expect(loggerSpyError).toHaveBeenCalledWith("Executable storage service is unable to parse the consumed message.");
+    expect(loggerSpyError).toHaveBeenCalledWith("Unable to parse message from quantification storage queue");
   });
 
   it("should throw a validation error if consumed data is invalid", async () => {
     (mockChannel.consume as jest.Mock).mockImplementation(
       (queue: string, onMessage: (msg: ConsumeMessage | null) => void) => {
-        onMessage({ content: Buffer.from(JSON.stringify(InvalidResult as ExecutionResult)) } as ConsumeMessage);
+        onMessage({ content: Buffer.from(JSON.stringify(InvalidReport)) } as ConsumeMessage);
       },
     );
 
@@ -126,45 +125,39 @@ describe("ExecutableStorageService", () => {
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
     expect(loggerSpyError).toHaveBeenCalledWith(
-      new Error("Error on typia.json.assertParse(): invalid type on $input.stderr, expect to be string"),
+      new Error("Error on typia.json.assertParse(): invalid type on $input.results, expect to be Array<string>"),
     );
   });
 
   it("should connect to MongoDB server", async () => {
-    const db = client.db("ExecutedResult");
+    const db = client.db("QuantifiedReport");
     const collections = await db.collections();
     expect(collections).toBeDefined();
   });
 
-  it("should return the executed results", async () => {
-    const spy = jest.spyOn(mockExecutedResultDocument, "find").mockResolvedValue(ExecutedResults);
+  it("should return the quantified reports", async () => {
+    const spy = jest.spyOn(mockQuantifiedReportModel, "find").mockResolvedValue(QuantifiedReports);
 
-    const results = await service.getExecutedTasks();
+    const results = await service.getQuantifiedReports();
     expect(spy).toHaveBeenCalled();
-    expect(results).toEqual(ExecutedResults);
+    expect(results).toEqual(QuantifiedReports);
   });
 
-  it("should save a valid result", async () => {
-    const saveSpy = jest.spyOn(mockExecutedResultDocument, "create");
+  it("should save a valid report", async () => {
+    const saveSpy = jest.spyOn(mockQuantifiedReportModel, "create");
     await service.onApplicationBootstrap();
 
     expect(saveSpy).toHaveBeenCalled();
   });
 
-  it("should throw error if the saved result is invalid", async () => {
-    const validationErrors = [
-      new mongoose.Error.ValidationError(),
-      new mongoose.Error.ValidationError(),
-      new mongoose.Error.ValidationError(),
-    ];
+  it("should throw error if the saved report is invalid", async () => {
+    const validationErrors = [new mongoose.Error.ValidationError()];
 
-    validationErrors[0].errors.exit = new mongoose.Error.ValidatorError({
-      message: "should be between -255 and 255",
+    validationErrors[0].errors.results = new mongoose.Error.ValidatorError({
+      message: "should be Array<string>, not string",
     });
-    validationErrors[1].errors.stderr = new mongoose.Error.ValidatorError({ message: "stderr cannot be empty" });
-    validationErrors[2].errors.field3 = new mongoose.Error.ValidatorError({ message: "stdout cannot be empty" });
 
-    (mockExecutedResultDocument.create as jest.Mock).mockRejectedValue(validationErrors);
+    (mockQuantifiedReportModel.create as jest.Mock).mockRejectedValue(validationErrors);
     await service.onApplicationBootstrap();
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
@@ -174,7 +167,7 @@ describe("ExecutableStorageService", () => {
     (amqp.connect as jest.Mock).mockRejectedValue(new Error("Connection failed"));
 
     await expect(service.onApplicationBootstrap()).rejects.toThrow(
-      "Failed to connect to the RabbitMQ broker after several attempts from executable-task-storage side",
+      "Failed to connect to the RabbitMQ broker after several attempts from quantification-storage-service side",
     );
 
     expect(amqp.connect).toHaveBeenCalledTimes(3);

@@ -1,3 +1,5 @@
+import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
+
 /**
  * Represents a collection of quantified reports.
  * Each report contains a configuration object and an array of results.
@@ -6,7 +8,7 @@
  * - `configuration`: An object containing various configuration options and parameters for the analysis.
  * - `results`: An array of results generated from the analysis.
  */
-export const QuantifiedReports = [
+export const QuantifiedReports: QuantifyReport[] = [
   {
     configuration: {
       bdd: true,
@@ -153,3 +155,33 @@ export const QuantifiedReports = [
     results: ["result9", "result10"],
   },
 ];
+
+export const QuantifiedReport1: QuantifyReport = {
+  configuration: {
+    bdd: true,
+    zbdd: false,
+    mocus: true,
+    "prime-implicants": false,
+    probability: true,
+    importance: false,
+    uncertainty: true,
+    ccf: false,
+    sil: true,
+    "rare-event": false,
+    mcub: true,
+    "limit-order": 50,
+    "cut-off": 0.05,
+    "mission-time": 500,
+    "time-step": 5,
+    "num-trials": 5000,
+    "num-quantiles": 50,
+    "num-bins": 60,
+    seed: 11223,
+    "no-indent": false,
+    verbosity: 6,
+    "no-report": false,
+    output: "output/path5",
+    models: ["model9", "model10"],
+  },
+  results: ["result9", "result10"],
+};

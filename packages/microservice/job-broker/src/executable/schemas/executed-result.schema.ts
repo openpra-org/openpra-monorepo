@@ -60,3 +60,4 @@ export class ExecutedResult {
 
 // Create a Mongoose schema for the ExecutedResult class.
 export const ExecutedResultSchema = SchemaFactory.createForClass(ExecutedResult);
+export type ExecutedResultDocument = ExecutedResult & Document;

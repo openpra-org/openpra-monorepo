@@ -13,6 +13,22 @@ import { InvalidResult } from "../output/executable/invalid-result";
 import { ExecutedResult1, ExecutedResults } from "../output/executable/executed-results";
 import { ExecutedResult, ExecutedResultDocument } from "../../src/executable/schemas/executed-result.schema";
 
+/**
+ * End-to-end tests for the ExecutableStorageService.
+ *
+ * These tests cover the following cases:
+ *
+ * - Should log an error if environment variables are not set.
+ * - Should log an error if consumed message is null.
+ * - Should throw a validation error if consumed data is invalid.
+ * - Should connect to MongoDB server.
+ * - Should return the executed results.
+ * - Should save a valid result.
+ * - Should throw error if the saved result is invalid.
+ * - Should retry connecting to RabbitMQ broker and throw an error after 3 attempts.
+ */
+
+// Mock the RabbitMQ library.
 jest.mock("amqplib");
 
 describe("ExecutableStorageService", () => {
@@ -26,16 +42,19 @@ describe("ExecutableStorageService", () => {
   let mockExecutedResultDocument: Model<ExecutedResultDocument>;
 
   beforeAll(async () => {
+    // Set up an in-memory MongoDB server.
     mongoServer = await MongoMemoryServer.create();
     client = await MongoClient.connect(mongoServer.getUri(), {});
   });
 
   afterAll(async () => {
+    // Close the MongoDB client and stop the in-memory server.
     await client.close();
     await mongoServer.stop();
   });
 
   beforeEach(async () => {
+    // Mock the RabbitMQ methods.
     mockChannel = {
       assertExchange: jest.fn().mockResolvedValue(undefined),
       assertQueue: jest.fn().mockResolvedValue(undefined),
@@ -47,12 +66,15 @@ describe("ExecutableStorageService", () => {
       nack: jest.fn().mockResolvedValue(undefined),
     };
 
+    // Mock the RabbitMQ method.
     mockConnection = {
       createChannel: jest.fn().mockResolvedValue(mockChannel),
     };
 
+    // Mock the RabbitMQ connect method.
     (amqp.connect as jest.Mock).mockResolvedValue(mockConnection);
 
+    // Create the testing module.
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ExecutableStorageService,
@@ -88,6 +110,7 @@ describe("ExecutableStorageService", () => {
   });
 
   afterEach(() => {
+    // Clear all mocks after each test.
     jest.clearAllMocks();
   });
 

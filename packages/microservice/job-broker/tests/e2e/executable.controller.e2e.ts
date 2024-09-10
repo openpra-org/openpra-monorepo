@@ -35,6 +35,7 @@ describe("ExecutableController (e2e)", () => {
   let app: INestApplication;
 
   beforeEach(async () => {
+    // Create the testing module.
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [ExecutableController],
       providers: [
@@ -58,6 +59,7 @@ describe("ExecutableController (e2e)", () => {
   });
 
   afterEach(async () => {
+    // Close the application after each test.
     await app.close();
   });
 

@@ -12,7 +12,6 @@ import { MissingRequiredKey } from "../input/executable/invalid-request";
  *
  * These tests cover the following cases:
  *
- * createAndQueueTask:
  * - Should successfully queue a valid task.
  * - Should have the initial queue length equal to the number of messages sent.
  * - Should log an error if environment variables are not set.
@@ -24,6 +23,7 @@ import { MissingRequiredKey } from "../input/executable/invalid-request";
  * - Should retry connecting to RabbitMQ broker and throw an error after 3 attempts.
  */
 
+// Mock the RabbitMQ library.
 jest.mock("amqplib");
 
 describe("ExecutableService", () => {
@@ -34,6 +34,7 @@ describe("ExecutableService", () => {
   let mockChannel: Partial<amqp.Channel>;
 
   beforeEach(async () => {
+    // Mock the RabbitMQ channel methods.
     mockChannel = {
       assertExchange: jest.fn().mockResolvedValue(undefined),
       assertQueue: jest.fn().mockResolvedValue(undefined),
@@ -41,12 +42,15 @@ describe("ExecutableService", () => {
       sendToQueue: jest.fn().mockResolvedValue(undefined),
     };
 
+    // Mock the RabbitMQ connection method.
     mockConnection = {
       createChannel: jest.fn().mockResolvedValue(mockChannel),
     };
 
+    // Mock the RabbitMQ connect method.
     (amqp.connect as jest.Mock).mockResolvedValue(mockConnection);
 
+    // Create the testing module.
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ExecutableService,
@@ -77,6 +81,7 @@ describe("ExecutableService", () => {
   });
 
   afterEach(() => {
+    // Clear all mocks after each test.
     jest.clearAllMocks();
   });
 

@@ -9,6 +9,19 @@ import { ValidQuantifyRequest } from "../input/quantification/valid-request";
 import { MissingRequiredKey } from "../input/quantification/invalid-request";
 import { InvalidReport } from "../output/quantification/invalid-report";
 
+/**
+ * Tests for the ConsumerService.
+ *
+ * These tests cover the following cases:
+ *
+ * - should log an error if environment variables are not set
+ * - should log an error if consumed message is null
+ * - should throw a validation error if input data is invalid
+ * - should throw a validation error if output data is invalid
+ * - should retry connecting to RabbitMQ broker and throw an error after 3 attempts
+ */
+
+// Mock the RabbitMQ library.
 jest.mock("amqplib");
 
 describe("ConsumerService", () => {
@@ -19,6 +32,7 @@ describe("ConsumerService", () => {
   let mockChannel: Partial<amqp.Channel>;
 
   beforeEach(async () => {
+    // Mock the channel methods of the RabbitMQ library.
     mockChannel = {
       assertExchange: jest.fn().mockResolvedValue(undefined),
       assertQueue: jest.fn().mockResolvedValue(undefined),
@@ -30,12 +44,15 @@ describe("ConsumerService", () => {
       nack: jest.fn().mockResolvedValue(undefined),
     };
 
+    // Mock the connection method of the RabbitMQ library.
     mockConnection = {
       createChannel: jest.fn().mockResolvedValue(mockChannel),
     };
 
+    // Mock the RabbitMQ connect method.
     (amqp.connect as jest.Mock).mockResolvedValue(mockConnection);
 
+    // Create the testing module.
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ConsumerService,
@@ -68,6 +85,7 @@ describe("ConsumerService", () => {
   });
 
   afterEach(() => {
+    // Clear all mocks after each test.
     jest.clearAllMocks();
   });
 

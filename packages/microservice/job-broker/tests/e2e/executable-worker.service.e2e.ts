@@ -10,6 +10,19 @@ import { ValidExecuteRequest } from "../input/executable/valid-request";
 import { MissingRequiredKey } from "../input/executable/invalid-request";
 import { InvalidResult } from "../output/executable/invalid-result";
 
+/**
+ * End-to-end tests for the ExecutableWorkerService.
+ *
+ * These tests cover the following cases:
+ *
+ * - Should log an error if environment variables are not set.
+ * - Should log an error if consumed message is null.
+ * - Should throw a validation error if input data is invalid.
+ * - Should throw a validation error if output data is invalid.
+ * - Should retry connecting to RabbitMQ broker and throw an error after 3 attempts.
+ */
+
+// Mock the RabbitMQ library.
 jest.mock("amqplib");
 
 describe("ExecutableWorkerService", () => {
@@ -20,6 +33,7 @@ describe("ExecutableWorkerService", () => {
   let mockChannel: Partial<amqp.Channel>;
 
   beforeEach(async () => {
+    // Mock the RabbitMQ channel methods.
     mockChannel = {
       assertExchange: jest.fn().mockResolvedValue(undefined),
       assertQueue: jest.fn().mockResolvedValue(undefined),
@@ -31,12 +45,15 @@ describe("ExecutableWorkerService", () => {
       nack: jest.fn().mockResolvedValue(undefined),
     };
 
+    // Mock the RabbitMQ connection method.
     mockConnection = {
       createChannel: jest.fn().mockResolvedValue(mockChannel),
     };
 
+    // Mock the RabbitMQ connect method.
     (amqp.connect as jest.Mock).mockResolvedValue(mockConnection);
 
+    // Create the testing module.
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ExecutableWorkerService,
@@ -69,6 +86,7 @@ describe("ExecutableWorkerService", () => {
   });
 
   afterEach(() => {
+    // Clear all mocks after each test.
     jest.clearAllMocks();
   });
 

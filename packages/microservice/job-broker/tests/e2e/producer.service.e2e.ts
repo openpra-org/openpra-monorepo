@@ -7,6 +7,22 @@ import { ProducerService } from "../../src/quantification/services/producer.serv
 import { ValidQuantifyRequest } from "../input/quantification/valid-request";
 import { MissingRequiredKey } from "../input/quantification/invalid-request";
 
+/**
+ * End-to-end tests for the ProducerService.
+ *
+ * These tests cover the following cases:
+ *
+ * - Should successfully queue a valid quantification request.
+ * - Should have the initial queue length equal to the number of messages sent.
+ * - Should log an error if environment variables are not set.
+ * - Should throw a validation error if input data is invalid.
+ * - Should log an error if unable to create a RabbitMQ channel.
+ * - Should log an error if unable to create the initial queue.
+ * - Should log an error if unable to create the dead letter queue.
+ * - Should retry connecting to RabbitMQ broker and throw an error after 3 attempts.
+ */
+
+// Mock the RabbitMQ library.
 jest.mock("amqplib");
 
 describe("ProducerService", () => {
@@ -17,6 +33,7 @@ describe("ProducerService", () => {
   let mockChannel: Partial<amqp.Channel>;
 
   beforeEach(async () => {
+    // Mock the RabbitMQ channel methods.
     mockChannel = {
       assertExchange: jest.fn().mockResolvedValue(undefined),
       assertQueue: jest.fn().mockResolvedValue(undefined),
@@ -24,12 +41,15 @@ describe("ProducerService", () => {
       sendToQueue: jest.fn().mockResolvedValue(undefined),
     };
 
+    // Mock the RabbitMQ connection method.
     mockConnection = {
       createChannel: jest.fn().mockResolvedValue(mockChannel),
     };
 
+    // Mock the RabbitMQ connect method.
     (amqp.connect as jest.Mock).mockResolvedValue(mockConnection);
 
+    // Create the testing module.
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProducerService,
@@ -60,6 +80,7 @@ describe("ProducerService", () => {
   });
 
   afterEach(() => {
+    // Clear all mocks after each test.
     jest.clearAllMocks();
   });
 

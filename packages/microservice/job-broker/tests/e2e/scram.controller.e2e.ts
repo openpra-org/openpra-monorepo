@@ -104,8 +104,9 @@ describe("ScramController (e2e)", () => {
       return request(app.getHttpServer()).post("/scram").send(InvalidAdditionalKey).expect(400);
     });
 
-    /* These 2 tests are only valid for scram-cpp
-     * */
+    /*
+     *These 2 tests are only valid for scram-cpp
+     */
     it("should return 400 Bad Request when the request body contains mutually exclusive keys (bdd and zbdd)", () => {
       return request(app.getHttpServer()).post("/scram").send(InvalidCombination1).expect(400);
     });

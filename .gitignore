@@ -65,3 +65,7 @@ lerna-debug.log*
 **/coverage/**/*
 /packages/frontend/web-editor/e2e/.auth/
 /fixtures/
+
+pnpm-lock.yaml
+packages/engine/scram-node/package.json
+packages/engine/scram-node/package-lock.json

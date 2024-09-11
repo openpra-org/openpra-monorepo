@@ -5,7 +5,66 @@ set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Detect compiler before project() call
+if(APPLE)
+  execute_process(
+    COMMAND brew --prefix llvm
+    OUTPUT_VARIABLE HOMEBREW_LLVM_PATH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  message(STATUS "Homebrew LLVM path: ${HOMEBREW_LLVM_PATH}")
+  
+  if(HOMEBREW_LLVM_PATH AND EXISTS "${HOMEBREW_LLVM_PATH}/bin/clang++")
+    set(CMAKE_C_COMPILER "${HOMEBREW_LLVM_PATH}/bin/clang")
+    set(CMAKE_CXX_COMPILER "${HOMEBREW_LLVM_PATH}/bin/clang++")
+    message(STATUS "Using Clang/Clang++ from Homebrew LLVM")
+    
+    # Add LLVM bin directory to PATH for other LLVM tools
+    set(ENV{PATH} "${HOMEBREW_LLVM_PATH}/bin:$ENV{PATH}")
+  else()
+    message(FATAL_ERROR "Homebrew LLVM Clang++ not found. Please check your LLVM installation.")
+  endif()
+endif()
+
 project(scram-engine VERSION 0.16.2 LANGUAGES CXX)
+
+# Add these lines for Node.js configuration
+execute_process(COMMAND node -p "require('node-addon-api').include"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE NODE_ADDON_API_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+string(REPLACE "\"" "" NODE_ADDON_API_DIR ${NODE_ADDON_API_DIR})
+
+execute_process(COMMAND node -p "process.versions.node"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE NODE_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(COMMAND node -p "process.release.libpath"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE NODE_LIBPATH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+include_directories(${NODE_ADDON_API_DIR} ${CMAKE_JS_INC})
+add_definitions(-DNAPI_VERSION=3)
+
+# Print compiler information
+message(STATUS "C compiler: ${CMAKE_C_COMPILER}")
+message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER}")
+message(STATUS "C++ compiler version: ${CMAKE_CXX_COMPILER_VERSION}")
+
+# Address CMP0144 policy warning
+if(POLICY CMP0144)
+  cmake_policy(SET CMP0144 NEW)
+endif()
+
+# Address CMP0167 policy warning
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
 
 ####################### Begin Options ################### {{{
 
@@ -20,15 +79,47 @@ option(OPTIMIZE_FOR_NATIVE "Build with -march=native" OFF)
 ####################### End Options ##################### }}}
 
 ####################### Begin compiler configurations ################### {{{
-# Include FindOpenMP module to enable OpenMP support.
-include(FindOpenMP)
-if(OPENMP_FOUND)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+# OpenMP Configuration
+if(APPLE)
+  execute_process(
+    COMMAND brew --prefix libomp
+    OUTPUT_VARIABLE HOMEBREW_LIBOMP_PATH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  if(HOMEBREW_LIBOMP_PATH)
+    set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp")
+    set(OpenMP_CXX_LIB_NAMES "omp")
+    set(OpenMP_omp_LIBRARY "${HOMEBREW_LIBOMP_PATH}/lib/libomp.dylib")
+    
+    # Set include and library directories
+    include_directories(SYSTEM "${HOMEBREW_LIBOMP_PATH}/include")
+    link_directories("${HOMEBREW_LIBOMP_PATH}/lib")
+    
+    # Set LDFLAGS and CPPFLAGS as suggested by brew
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${HOMEBREW_LIBOMP_PATH}/include")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${HOMEBREW_LIBOMP_PATH}/lib")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -L${HOMEBREW_LIBOMP_PATH}/lib")
+    
+    message(STATUS "Using Homebrew libomp: ${HOMEBREW_LIBOMP_PATH}")
+  else()
+    message(WARNING "Homebrew libomp not found. OpenMP support may be limited.")
+  endif()
 endif()
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)  # Needed for Clang Tooling.
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    message(STATUS "OpenMP found:")
+    message(STATUS "    OpenMP_CXX_VERSION: ${OpenMP_CXX_VERSION}")
+    message(STATUS "    OpenMP_CXX_FLAGS: ${OpenMP_CXX_FLAGS}")
+    message(STATUS "    OpenMP_CXX_INCLUDE_DIRS: ${OpenMP_CXX_INCLUDE_DIRS}")
+    message(STATUS "    OpenMP_CXX_LIBRARIES: ${OpenMP_CXX_LIBRARIES}")
+
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    include_directories(${OpenMP_CXX_INCLUDE_DIRS})
+    link_libraries(${OpenMP_CXX_LIBRARIES})
+else()
+    message(WARNING "OpenMP not found. Continuing without OpenMP support.")
+endif()
 
 # Default to C++17.
 set(CMAKE_CXX_STANDARD 17)
@@ -94,6 +185,10 @@ endif()
 
 ######################## End compiler configurations #################### }}}
 
+# ... (rest of the file remains unchanged)
+
+######################## End compiler configurations #################### }}}
+
 ##################### Begin cmake configuration ################### {{{
 
 include(CTest)
@@ -122,7 +217,7 @@ endif()
 
 # Tell CMake where the modules are.
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-message(${CMAKE_MODULE_PATH})
+message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
 ######################## Begin find libraries ###################### {{{
 
@@ -179,6 +274,11 @@ if(NOT WIN32)
   set(Boost_USE_MULTITHREADED OFF)
 endif()
 
+# Set Boost paths explicitly
+set(BOOST_ROOT "/opt/homebrew/opt/boost")
+set(BOOST_INCLUDEDIR "${BOOST_ROOT}/include")
+set(BOOST_LIBRARYDIR "${BOOST_ROOT}/lib")
+
 find_package(Boost ${BOOST_MIN_VERSION} REQUIRED COMPONENTS
         program_options filesystem system random
 )
@@ -192,9 +292,17 @@ message(STATUS "Libraries: ${LIBS}")
 ########################## End of find libraries ######################## }}}
 ########################## Begin includes ############################### {{{
 
+# Debug output
+message(STATUS "Boost_INCLUDE_DIR: ${Boost_INCLUDE_DIR}")
+message(STATUS "LIBXML2_INCLUDE_DIR: ${LIBXML2_INCLUDE_DIR}")
+
 # Include all the discovered system directories.
-include_directories(SYSTEM "${Boost_INCLUDE_DIR}")
-include_directories(SYSTEM "${LIBXML2_INCLUDE_DIR}")
+if(Boost_INCLUDE_DIR)
+  include_directories(SYSTEM "${Boost_INCLUDE_DIR}")
+endif()
+if(LIBXML2_INCLUDE_DIR)
+  include_directories(SYSTEM "${LIBXML2_INCLUDE_DIR}")
+endif()
 
 include_directories("${CMAKE_SOURCE_DIR}")  # Include the core headers via "src".
 include_directories("src")  # Include the core headers via "src".
@@ -202,6 +310,10 @@ include_directories("src")  # Include the core headers via "src".
 add_subdirectory(src)
 add_subdirectory(targets/scram-cli)
 add_subdirectory(targets/scram-node)
+
+target_link_libraries(scram-node PRIVATE ${CMAKE_JS_LIB})
+set_target_properties(scram-node PROPERTIES PREFIX "" SUFFIX ".node")
+target_include_directories(scram-node PRIVATE ${CMAKE_JS_INC})
 
 if(BUILD_TESTS)
   add_subdirectory(tests)

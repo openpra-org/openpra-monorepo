@@ -46,14 +46,16 @@
   },
   "dependencies": {
     "cmake-js": "7.3.0",
-    "node-addon-api": "8.1.0",
+    "node-addon-api": "^8.1.0",
     "tmp": "0.2.3"
   },
   "devDependencies": {
     "jest": "29.7.0"
   },
   "binary": {
-    "napi_versions": [9]
+    "napi_versions": [
+      9
+    ]
   },
   "engines": {
     "node": "20.17.0"

@@ -1,3 +1,4 @@
+import type { Server } from "net";
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import request from "supertest";
@@ -32,7 +33,7 @@ import { ExecutedResults } from "../output/executable/executed-results";
  */
 
 describe("ExecutableController (e2e)", () => {
-  let app: INestApplication;
+  let app: INestApplication<Server>;
 
   beforeEach(async () => {
     // Create the testing module.

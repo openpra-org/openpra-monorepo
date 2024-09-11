@@ -144,7 +144,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
    * @param task - The task containing the command and its arguments to be executed.
    * @returns The result of the execution, including exit code, stdout, and stderr.
    */
-  private executeCommand(task: ExecutionTask): ExecutionResult {
+  public executeCommand(task: ExecutionTask): ExecutionResult {
     try {
       // Construct the command to be executed, including the provided arguments.
       const command = `${task.executable} ${task.arguments?.join(" ") ?? ""}`;

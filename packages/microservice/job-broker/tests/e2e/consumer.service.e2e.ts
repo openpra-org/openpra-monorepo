@@ -4,6 +4,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 import { ConsumerService } from "../../src/quantification/services/consumer.service";
 import { ValidQuantifyRequest } from "../input/quantification/valid-request";
 import { MissingRequiredKey } from "../input/quantification/invalid-request";
@@ -129,7 +130,7 @@ describe("ConsumerService", () => {
   });
 
   it("should throw a validation error if output data is invalid", async () => {
-    jest.spyOn(service as any, "performQuantification").mockReturnValueOnce(InvalidReport);
+    jest.spyOn(service, "performQuantification").mockReturnValueOnce(InvalidReport as unknown as QuantifyReport);
 
     await service.onModuleInit();
 

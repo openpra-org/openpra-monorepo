@@ -132,7 +132,7 @@ describe("ExecutableWorkerService", () => {
   });
 
   it("should throw a validation error if output data is invalid", async () => {
-    jest.spyOn(service as any, "executeCommand").mockReturnValueOnce(InvalidResult as ExecutionResult);
+    jest.spyOn(service, "executeCommand").mockReturnValueOnce(InvalidResult as unknown as ExecutionResult);
 
     await service.onApplicationBootstrap();
 

@@ -1,3 +1,4 @@
+import type { Server } from "net";
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import request from "supertest";
@@ -54,7 +55,7 @@ import { QuantifiedReports } from "../output/quantification/quantified-reports";
  */
 
 describe("ScramController (e2e)", () => {
-  let app: INestApplication;
+  let app: INestApplication<Server>;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({

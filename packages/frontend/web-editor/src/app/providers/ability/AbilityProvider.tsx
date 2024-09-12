@@ -1,18 +1,62 @@
-import { createContext } from "react";
+import { createContext, useContext } from "react";
 import { createContextualCan } from "@casl/react";
 import { AppAbility, DefaultAbility } from "./Ability";
 
 /**
- * Creates a React context for the `AppAbility` instance.
- * This context will provide the ability throughout the React component tree.
+ * Context for providing `AppAbility` instance across the React component tree.
+ *
+ * @remarks
+ * This context is used to provide a single instance of `AppAbility` throughout the application,
+ * allowing components to consume the ability and enforce access control.
+ *
+ * @example
+ * ```tsx
+ * // In your component tree root
+ * <AbilityContext.Provider value={userAbility}>
+ *   <App />
+ * </AbilityContext.Provider>
+ * ```
+ *
+ * @typeParam AppAbility - The application's ability type.
  */
-const AbilityContext = createContext<AppAbility>(DefaultAbility());
+export const AbilityContext = createContext<AppAbility>(DefaultAbility());
 
 /**
- * Creates a contextual `Can` component that uses the `AbilityContext` to check permissions.
- * This component can be used in the React component tree to conditionally render elements
- * based on the user's permissions.
+ * A higher-order component that creates a contextual `Can` component.
+ *
+ * @remarks
+ * The `Can` component is used within the React component tree to conditionally render elements
+ * based on the user's permissions. It leverages the `AbilityContext` to access the current user's
+ * permissions and evaluate them against the required permissions to render a component.
+ *
+ * @example
+ * ```tsx
+ * // In a component
+ * <Can I="edit" a="Post">
+ *   <EditButton />
+ * </Can>
+ * ```
  */
-const Can = createContextualCan(AbilityContext.Consumer);
+export const Can = createContextualCan(AbilityContext.Consumer);
 
-export { AbilityContext, Can };
+/**
+ * Custom hook to use the `AppAbility` context.
+ *
+ * @remarks
+ * This hook simplifies the consumption of `AppAbility` context within components,
+ * providing a clean and easy way to access the user's permissions.
+ *
+ * @returns The `AppAbility` instance from the context.
+ *
+ * @example
+ * ```tsx
+ * // In a component
+ * const ability = UseAbilityContext();
+ * if (ability.can("read", "Article")) {
+ *   // render something
+ * }
+ * ```
+ */
+export const UseAbilityContext = (): AppAbility => {
+  return useContext(AbilityContext);
+};

@@ -25,7 +25,11 @@ if (container instanceof HTMLElement) {
    * This example uses `StrictMode` which will help in identifying components with unsafe lifecycles,
    * legacy string ref API usage, deprecated findDOMNode usage, and unexpected side effects in the component tree.
    */
-  root.render(<App />);
+  root.render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
 } else {
   /**
    * Throws an error if the root element is not found in the document.

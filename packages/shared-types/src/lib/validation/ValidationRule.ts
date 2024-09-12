@@ -12,3 +12,8 @@ export const EmailValidationRule: ValidationRule = {
   regex: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
   error: "Invalid email format.",
 };
+
+export const EmptyStringValidationRule: ValidationRule = {
+  regex: "^[\\s]*$",
+  error: "String must not be empty.",
+};

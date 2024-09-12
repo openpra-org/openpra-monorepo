@@ -1,10 +1,11 @@
 import { ApplyValidationRules } from "./ValidationRules";
-import { ValidationRule } from "./ValidationRule";
+import { EmailValidationRule, ValidationRule } from "./ValidationRule";
 
 describe("ApplyValidationRules", () => {
   it("validates email addresses correctly", () => {
     const emailValidation: ValidationRule[] = [
       { regex: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$", error: "Invalid email format." },
+      EmailValidationRule,
     ];
 
     const validEmail = "test@example.com";
@@ -13,7 +14,7 @@ describe("ApplyValidationRules", () => {
     expect(ApplyValidationRules(validEmail, emailValidation)).toEqual({ valid: true, errors: [] });
     expect(ApplyValidationRules(invalidEmail, emailValidation)).toEqual({
       valid: false,
-      errors: ["Invalid email format."],
+      errors: ["Invalid email format.", EmailValidationRule.error],
     });
   });
 

@@ -7,3 +7,8 @@ export interface ValidationRule {
   /** The error message to display if the validation fails. */
   error: string;
 }
+
+export const EmailValidationRule: ValidationRule = {
+  regex: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
+  error: "Invalid email format.",
+};

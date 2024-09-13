@@ -22,7 +22,7 @@ import { ChangeEvent, useState } from "react";
 import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
 import { InviteIdDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 import { ExpiryOptions } from "../settings/users";
-import { DefaultSignupProps } from "../login/signUp";
+import { DefaultSignupProps } from "../../auth/signup/SignUp";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";
 

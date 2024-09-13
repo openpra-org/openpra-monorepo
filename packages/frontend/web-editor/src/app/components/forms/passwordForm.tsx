@@ -1,5 +1,5 @@
 import { EuiFieldPassword, EuiFormRow } from "@elastic/eui";
-import React from "react";
+import React, { ReactElement } from "react";
 import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 
 const PasswordForm = ({
@@ -10,7 +10,7 @@ const PasswordForm = ({
   signup: SignUpPropsWithRole;
   setSignup: (signup: SignUpPropsWithRole) => void;
   signupButtonClicked: boolean;
-}): JSX.Element => (
+}): ReactElement => (
   <>
     <EuiFormRow>
       <EuiFieldPassword

@@ -1,13 +1,14 @@
 import { EuiButton, EuiForm, EuiFormRow } from "@elastic/eui";
-import React from "react";
+import React, { ReactElement } from "react";
 import { useState } from "react";
 import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
-import { PasswordForm } from "./passwordForm";
-import { UsernameForm } from "./usernameForm";
+import { PasswordForm } from "../../components/forms/passwordForm";
+import { UsernameForm } from "../../components/forms/usernameForm";
+import { SignUpEmailForm } from "./SignUpEmailForm";
 
 /**
  * The main signup Form component
@@ -26,7 +27,7 @@ const SignUpForm = ({
   signup: SignUpPropsWithRole;
   setSignup: (signupProps: SignUpPropsWithRole) => void;
   buttonText: string;
-}): JSX.Element => {
+}): ReactElement => {
   const [signupButtonClicked, setSignupButtonClicked] = useState(false);
   const [isValidUsername, setIsValidUsername] = useState(true);
   const [isValidEmail, setIsValidEmail] = useState(true);
@@ -80,6 +81,15 @@ const SignUpForm = ({
   return (
     <EuiForm
       component="form"
+      fullWidth
+      isInvalid
+      invalidCallout="above"
+      error={
+        <>
+          <div>error</div>
+          <div>error</div>
+        </>
+      }
       onSubmit={validateSignup}
     >
       <br />
@@ -91,8 +101,11 @@ const SignUpForm = ({
         setIsValidEmail={setIsValidEmail}
         isValidUsername={isValidUsername}
         setIsValidUsername={setIsValidUsername}
-        buttonText={buttonText}
         checkEmpty={true}
+      />
+      <SignUpEmailForm
+        setValid={setIsValidEmail}
+        setValue={() => {}}
       />
       <PasswordForm
         signup={signup}
@@ -103,6 +116,7 @@ const SignUpForm = ({
         <EuiButton
           fullWidth
           type="submit"
+          disabled
         >
           {buttonText}
         </EuiButton>

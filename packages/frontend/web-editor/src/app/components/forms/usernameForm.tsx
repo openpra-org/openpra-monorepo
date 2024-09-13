@@ -1,19 +1,35 @@
 import { EuiFieldText, EuiFormRow } from "@elastic/eui";
-import React from "react";
+import React, { ReactElement } from "react";
 import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 
 /**
- * This is form with the following details: Firstname, Lastname, Email and Username
- * @param signup - The SignUpProps state object
- * @param setSignup - The function to update singup state object
- * @param signupButtonClicked - The function callback when signup is clicked
- * @param isValidEmail - boolean state object to check if email is valid
- * @param setIsValidEmail - isValidEmail state object update function
- * @param isValidUsername - boolean state object to check if username is valid
- * @param setIsValidUsername - isValidUsername state object update function
- * @param checkEmpty - If true, will add empty form field validation else will not check empty fields
+ * Properties for the UsernameForm component.
  */
-const UsernameForm = ({
+export interface UsernameFormProps {
+  /** The current sign-up state object. */
+  signup: SignUpPropsWithRole;
+  /** Function to update the sign-up state object. */
+  setSignup: (signup: SignUpPropsWithRole) => void;
+  /** Indicates if the signup button has been clicked. */
+  signupButtonClicked: boolean;
+  /** Indicates if the email is valid. */
+  isValidEmail: boolean;
+  /** Function to set the email validity state. */
+  setIsValidEmail: (val: boolean) => void;
+  /** Indicates if the username is valid. */
+  isValidUsername: boolean;
+  /** Function to set the username validity state. */
+  setIsValidUsername: (val: boolean) => void;
+  /** If true, empty form fields will be validated; otherwise, they will not. */
+  checkEmpty: boolean;
+}
+
+/**
+ * Renders a form with fields for first name, last name, email, and username.
+ * @param props - The properties for the UsernameForm.
+ * @returns A ReactElement representing the form.
+ */
+export const UsernameForm = ({
   signup,
   setSignup,
   signupButtonClicked,
@@ -22,17 +38,7 @@ const UsernameForm = ({
   isValidUsername,
   setIsValidUsername,
   checkEmpty,
-}: {
-  signup: SignUpPropsWithRole;
-  setSignup: (signup: SignUpPropsWithRole) => void;
-  signupButtonClicked: boolean;
-  isValidEmail: boolean;
-  setIsValidEmail: (val: boolean) => void;
-  isValidUsername: boolean;
-  setIsValidUsername: (val: boolean) => void;
-  buttonText: string;
-  checkEmpty: boolean;
-}): JSX.Element => (
+}: UsernameFormProps): ReactElement => (
   <>
     <EuiFormRow
       isInvalid={!signup.firstName && checkEmpty && signupButtonClicked}
@@ -68,7 +74,6 @@ const UsernameForm = ({
     </EuiFormRow>
     <EuiFormRow
       isInvalid={(!isValidEmail || (!signup.email && checkEmpty)) && signupButtonClicked}
-      helpText={(!isValidEmail || (!signup.email && checkEmpty)) && signupButtonClicked ? "" : "Eg. xyz@ncsu.edu"}
       error="Email invalid or already exists!"
     >
       <EuiFieldText
@@ -103,5 +108,3 @@ const UsernameForm = ({
     </EuiFormRow>
   </>
 );
-
-export { UsernameForm };

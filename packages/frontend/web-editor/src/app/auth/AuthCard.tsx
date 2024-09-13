@@ -1,27 +1,11 @@
-import {
-  EuiCard,
-  logicalStyle,
-  EuiTabbedContent,
-  EuiImage,
-  EuiSplitPanel,
-  EuiHideFor,
-  EuiButton,
-  EuiCode,
-  EuiText,
-  EuiTitle,
-  EuiLink,
-  EuiEmptyPrompt,
-  useIsWithinBreakpoints,
-  EuiPanel,
-} from "@elastic/eui";
+import { logicalStyle, EuiTabbedContent, EuiPanel } from "@elastic/eui";
 import React, { ReactElement } from "react";
-import { LoginForm } from "../components/forms/loginForm";
-import { SignUp } from "../components/login/signUp";
-import OpenPRALogo from "../../assets/images/logos/OpenPRA_vs_0.1x.png";
+import { SignUp } from "./signup/SignUp";
+import { LoginForm } from "./LoginForm";
 
-//required to show version number!
-const packageJson = require("../../../../../../package.json");
-
+/**
+ * Defines the structure of each tab used in the `AuthCardContent` component.
+ */
 const tabs = [
   {
     id: "signup",
@@ -35,7 +19,13 @@ const tabs = [
   },
 ];
 
-function AuthCardContent(): JSX.Element {
+/**
+ * A functional component that renders tabbed content for authentication purposes.
+ * It utilizes `EuiTabbedContent` to switch between Login and Sign Up forms.
+ *
+ * @returns A `ReactElement` representing the tabbed content for authentication.
+ */
+function AuthCardContent(): ReactElement {
   return (
     <EuiTabbedContent
       tabs={tabs}
@@ -46,13 +36,20 @@ function AuthCardContent(): JSX.Element {
   );
 }
 
-export function AuthCard(): JSX.Element {
+/**
+ * A functional component that renders an `EuiPanel` containing the `AuthCardContent`.
+ * It applies custom styling to ensure the panel is appropriately sized and centered.
+ *
+ * @returns A `ReactElement` representing a styled panel that contains the authentication forms.
+ */
+export function AuthCard(): ReactElement {
+  // Applies logical styles for maximum and minimum width, and horizontal margin for centering.
   const cardStyle = {
     ...logicalStyle("max-width", 420),
     ...logicalStyle("min-width", 300),
     ...logicalStyle("margin-horizontal", "auto"),
   };
-  const version = "v0.1";
+
   return (
     <EuiPanel
       hasBorder

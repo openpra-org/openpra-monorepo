@@ -5,10 +5,10 @@ import { EuiFieldText, EuiForm, EuiButton, EuiFormRow, EuiFieldPassword } from "
 import { LoginProps, LoginErrorProps } from "shared-types/src/lib/api/AuthTypes";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { AuthService } from "shared-types/src/lib/api/AuthService";
-import { UpdateAbility } from "../../providers/ability/Ability";
-import { AbilityContext } from "../../providers/ability/AbilityProvider";
-import { UseToastContext } from "../../providers/toastProvider";
-import { GetESToast } from "../../../utils/treeUtils";
+import { UpdateAbility } from "../providers/ability/Ability";
+import { AbilityContext } from "../providers/ability/AbilityProvider";
+import { UseToastContext } from "../providers/toastProvider";
+import { GetESToast } from "../../utils/treeUtils";
 
 function LoginForm(): JSX.Element {
   const DefaultProps: LoginProps = {

@@ -6,11 +6,11 @@ import { InvitedUserDto } from "shared-types/src/lib/types/userInvites/InvitedUs
 import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { EuiPageTemplate, EuiSkeletonLoading } from "@elastic/eui";
 import { MemberRole } from "shared-types/src/lib/data/predefiniedRoles";
-import { DefaultSignupProps } from "../components/login/signUp";
+import { DefaultSignupProps } from "../auth/signup/SignUp";
 import { UseToastContext } from "../providers/toastProvider";
 import { GenerateUUID } from "../../utils/treeUtils";
 import { GenericModal } from "../components/modals/genericModal";
-import { SignUpForm } from "../components/forms/signUpForm";
+import { SignUpForm } from "../auth/signup/SignUpForm";
 
 const InvitePage = (): JSX.Element => {
   const { inviteId } = useParams<{ inviteId: string | undefined }>();

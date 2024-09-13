@@ -19,6 +19,12 @@ export const ThemeMods: EuiThemeModifications = {
     //   bold: 600,
     // },
   },
+  border: {
+    radius: {
+      medium: 0,
+      small: 0,
+    },
+  },
 };
 
 export enum MediaQueryListEventColorSchemeKey {

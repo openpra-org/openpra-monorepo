@@ -92,7 +92,6 @@ const GenerateUserForm = ({
         setIsValidEmail={setIsValidEmail}
         isValidUsername={isValidUsername}
         setIsValidUsername={setIsValidUsername}
-        buttonText={buttonText}
         checkEmpty={false}
       />
       <EuiFormRow>

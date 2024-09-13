@@ -45,7 +45,7 @@ describe("Microservice", () => {
   let mongod: MongoMemoryServer;
   const scramUrl = "/api/quantify/scram";
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         QuantificationModule,
@@ -90,29 +90,34 @@ describe("Microservice", () => {
     }).compile();
 
     app = module.createNestApplication();
+    app.enableShutdownHooks();
     await app.init();
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    //jest.clearAllMocks();
   });
 
   afterAll(async () => {
+    await app.close();
     await mongod.stop();
   });
 
   test.each(quantifyRequests)(
     "should create and queue a new quantification job for each job",
     async (quantifyRequest) => {
-      for (let i = 0; i < 100; i++) {
-        const response = await request(app.getHttpServer())
+      const requests = Array.from({ length: 100 }, () =>
+        request(app.getHttpServer())
           .post(scramUrl)
           .send(quantifyRequest)
           .set("Content-Type", "application/json")
-          .set("Accept", "application/json");
+          .set("Accept", "application/json"),
+      );
 
+      const responses = await Promise.all(requests);
+      responses.forEach((response) => {
         expect(response.status).toBe(201);
-      }
+      });
     },
   );
 });

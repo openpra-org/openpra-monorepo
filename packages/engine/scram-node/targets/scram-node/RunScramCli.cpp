@@ -29,9 +29,16 @@ Napi::Value RunScramCli(const Napi::CallbackInfo& info) {
     if (keyStr == "models") {
       xmlArray = value.As<Napi::Array>();
     } else {
-      arguments.push_back("--" + keyStr);
-      if (!value.IsBoolean()) {
-          arguments.push_back(value.ToString().Utf8Value());
+      if (value.IsBoolean()) {
+        // Check if the boolean value is true
+        if (value.As<Napi::Boolean>().Value()) {
+          arguments.push_back("--" + keyStr);
+        }
+        // If false, do not add to arguments
+      } else {
+        // For non-boolean values, add both the key and value
+        arguments.push_back("--" + keyStr);
+        arguments.push_back(value.ToString().Utf8Value());
       }
     }
   };

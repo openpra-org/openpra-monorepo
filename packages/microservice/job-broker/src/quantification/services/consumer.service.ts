@@ -219,7 +219,7 @@ export class ConsumerService implements OnModuleInit {
 
     for (const model of models) {
       // Iterate over each model in the provided array.
-      const tempFile = tmp.fileSync({ prefix: "models-", postfix: ".xml" }); // Create a temporary file for each model.
+      const tempFile = tmp.fileSync({ prefix: "models", postfix: ".xml" }); // Create a temporary file for each model.
 
       // Decode the Base64 encoded model string to UTF-8.
       const modelContent = Buffer.from(model, "base64").toString("utf8");

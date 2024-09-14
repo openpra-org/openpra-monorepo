@@ -1,0 +1,383 @@
+<?xml version="1.0"?>
+<!--
+This input uses expression in valid ways.
+The input tries to utilize all the functionality including optional cases.
+-->
+
+<opsa-mef>
+  <define-fault-tree name="ExpressionsTree">
+    <define-gate name="TopEvent">
+      <or>
+        <house-event name="BooleanConstant"/>
+        <basic-event name="ConstantExpressionFloat"/>
+        <basic-event name="ConstantExpressionInt"/>
+        <basic-event name="ConstantExpressionBool"/>
+      </or>
+    </define-gate>
+    <define-house-event name="BooleanConstant">
+      <constant value="true"/>
+    </define-house-event>
+    <define-basic-event name="ConstantExpressionFloat">
+      <float value="0.5"/>
+    </define-basic-event>
+    <define-basic-event name="ConstantExpressionInt">
+      <int value="1"/>
+    </define-basic-event>
+    <define-basic-event name="ConstantExpressionBool">
+      <bool value="false"/>
+    </define-basic-event>
+    <define-parameter name="PreDefinedParameter" unit="int">
+      <int value="0"/>
+    </define-parameter>
+    <define-basic-event name="UsePreDefinedParameter">
+      <parameter name="PreDefinedParameter"/>
+    </define-basic-event>
+    <define-basic-event name="UsePostDefinedParameter">
+      <parameter name="PostDefinedParameter"/>
+    </define-basic-event>
+    <define-basic-event name="ReUsePostDefinedParameter">
+      <parameter name="PostDefinedParameter"/>
+    </define-basic-event>
+    <define-parameter name="PostDefinedParameter">
+      <float value="0.5"/>
+    </define-parameter>
+  </define-fault-tree>
+  <model-data>
+    <define-parameter name="UnusedParameter">
+      <int value="1000"/>
+    </define-parameter>
+    <define-parameter name="MissionTimeParameter">
+      <system-mission-time/>
+    </define-parameter>
+    <define-basic-event name="Exponential">
+      <exponential>
+        <float value="1"/>
+        <system-mission-time/>
+      </exponential>
+    </define-basic-event>
+    <define-basic-event name="FourArgumentExponential">
+      <GLM>
+        <float value="0.3"/>
+        <float value="10"/>
+        <float value="100"/>
+        <system-mission-time/>
+      </GLM>
+    </define-basic-event>
+    <define-basic-event name="Weibull">
+      <Weibull>
+        <float value="0.3"/>
+        <float value="10"/>
+        <float value="100"/>
+        <system-mission-time/>
+      </Weibull>
+    </define-basic-event>
+    <define-basic-event name="PeriodicTest4">
+      <periodic-test>
+        <float value="0.3"/>
+        <float value="100"/>
+        <float value="200"/>
+        <system-mission-time/>
+      </periodic-test>
+    </define-basic-event>
+    <define-basic-event name="PeriodicTest5">
+      <periodic-test>
+        <float value="0.3"/>
+        <float value="0.5"/>
+        <float value="100"/>
+        <float value="200"/>
+        <system-mission-time/>
+      </periodic-test>
+    </define-basic-event>
+    <define-basic-event name="PeriodicTest11">
+      <periodic-test>
+        <float value="0.3"/>
+        <float value="0.4"/>
+        <float value="0.5"/>
+        <float value="100"/>
+        <float value="200"/>
+        <float value="0.1"/>
+        <float value="10"/>
+        <bool value="true"/>
+        <float value="0.9"/>
+        <float value="0.1"/>
+        <system-mission-time/>
+      </periodic-test>
+    </define-basic-event>
+    <define-basic-event name="UniformDeviate">
+      <uniform-deviate>
+        <float value="0"/>
+        <float value="1"/>
+      </uniform-deviate>
+    </define-basic-event>
+    <define-basic-event name="NormalDeviate">
+      <normal-deviate>
+        <float value="0.5"/>
+        <float value="0.02"/>
+      </normal-deviate>
+    </define-basic-event>
+    <define-basic-event name="LogNormalDeviate3">
+      <lognormal-deviate>
+        <float value="2e-3"/>
+        <float value="2"/>
+        <float value="0.95"/>
+      </lognormal-deviate>
+    </define-basic-event>
+    <define-basic-event name="LogNormalDeviate2">
+      <lognormal-deviate>
+        <float value="-10"/>
+        <float value="2"/>
+      </lognormal-deviate>
+    </define-basic-event>
+    <define-basic-event name="GammaDeviate">
+      <gamma-deviate>
+        <float value="0.2"/>
+        <float value="0.3"/>
+      </gamma-deviate>
+    </define-basic-event>
+    <define-basic-event name="BetaDeviate">
+      <beta-deviate>
+        <float value="3"/>
+        <float value="400"/>
+      </beta-deviate>
+    </define-basic-event>
+    <define-basic-event name="Histogram">
+      <histogram>
+        <float value="0"/>
+        <bin>
+          <float value="0.1"/>
+          <float value="2"/>
+        </bin>
+        <bin>
+          <float value="0.3"/>
+          <float value="4"/>
+        </bin>
+        <bin>
+          <float value="0.5"/>
+          <float value="1"/>
+        </bin>
+      </histogram>
+    </define-basic-event>
+    <define-basic-event name="Negative">
+      <neg><neg><float value="0.5"/></neg></neg>
+    </define-basic-event>
+    <define-basic-event name="Add">
+      <add>
+        <float value="0.1"/>
+        <float value="0.2"/>
+      </add>
+    </define-basic-event>
+    <define-basic-event name="Sub">
+      <sub>
+        <float value="0.2"/>
+        <float value="0.1"/>
+      </sub>
+    </define-basic-event>
+    <define-basic-event name="Mul">
+      <mul>
+        <float value="0.1"/>
+        <float value="0.2"/>
+      </mul>
+    </define-basic-event>
+    <define-basic-event name="Div">
+      <div>
+        <float value="0.5"/>
+        <int value="5"/>
+      </div>
+    </define-basic-event>
+    <define-parameter name="Pi">
+      <pi/>
+    </define-parameter>
+    <define-parameter name="Abs">
+      <abs>
+        <float value="-1"/>
+      </abs>
+    </define-parameter>
+    <define-parameter name="Acos">
+      <acos>
+        <float value="-1"/>
+      </acos>
+    </define-parameter>
+    <define-parameter name="Asin">
+      <asin>
+        <float value="-1"/>
+      </asin>
+    </define-parameter>
+    <define-parameter name="Atan">
+      <atan>
+        <float value="0"/>
+      </atan>
+    </define-parameter>
+    <define-parameter name="Cosine">
+      <cos>
+        <float value="0"/>
+      </cos>
+    </define-parameter>
+    <define-parameter name="Sine">
+      <sin>
+        <float value="0"/>
+      </sin>
+    </define-parameter>
+    <define-parameter name="Tangent">
+      <tan>
+        <float value="0"/>
+      </tan>
+    </define-parameter>
+    <define-parameter name="Cosh">
+      <cosh>
+        <float value="0"/>
+      </cosh>
+    </define-parameter>
+    <define-parameter name="Sinh">
+      <sinh>
+        <float value="0"/>
+      </sinh>
+    </define-parameter>
+    <define-parameter name="Tanh">
+      <tanh>
+        <float value="0"/>
+      </tanh>
+    </define-parameter>
+    <define-parameter name="Exp">
+      <exp>
+        <float value="0"/>
+      </exp>
+    </define-parameter>
+    <define-parameter name="Log">
+      <log>
+        <float value="1"/>
+      </log>
+    </define-parameter>
+    <define-parameter name="Log10">
+      <log10>
+        <float value="1"/>
+      </log10>
+    </define-parameter>
+    <define-parameter name="Modulo">
+      <mod>
+        <int value="4"/>
+        <int value="2"/>
+      </mod>
+    </define-parameter>
+    <define-parameter name="Pow">
+      <pow>
+        <int value="4"/>
+        <int value="2"/>
+      </pow>
+    </define-parameter>
+    <define-parameter name="Sqrt">
+      <sqrt>
+        <int value="4"/>
+      </sqrt>
+    </define-parameter>
+    <define-parameter name="Ceil">
+      <ceil>
+        <float value="0.25"/>
+      </ceil>
+    </define-parameter>
+    <define-parameter name="Floor">
+      <floor>
+        <float value="0.25"/>
+      </floor>
+    </define-parameter>
+    <define-parameter name="Min">
+      <min>
+        <float value="0.25"/>
+        <int value="100"/>
+      </min>
+    </define-parameter>
+    <define-parameter name="Max">
+      <max>
+        <float value="0.25"/>
+        <int value="100"/>
+      </max>
+    </define-parameter>
+    <define-parameter name="Mean">
+      <mean>
+        <float value="0.25"/>
+        <int value="100"/>
+        <int value="-10"/>
+      </mean>
+    </define-parameter>
+    <define-parameter name="Not">
+      <not>
+        <bool value="true"/>
+      </not>
+    </define-parameter>
+    <define-parameter name="And">
+      <and>
+        <bool value="true"/>
+        <bool value="false"/>
+        <bool value="true"/>
+      </and>
+    </define-parameter>
+    <define-parameter name="Or">
+      <or>
+        <bool value="true"/>
+        <bool value="false"/>
+        <bool value="true"/>
+      </or>
+    </define-parameter>
+    <define-parameter name="Equal">
+      <eq>
+        <float value="10"/>
+        <bool value="false"/>
+      </eq>
+    </define-parameter>
+    <define-parameter name="Not-Equal">
+      <df>
+        <float value="10"/>
+        <bool value="false"/>
+      </df>
+    </define-parameter>
+    <define-parameter name="Less-than">
+      <lt>
+        <float value="10"/>
+        <bool value="false"/>
+      </lt>
+    </define-parameter>
+    <define-parameter name="Greater-than">
+      <gt>
+        <float value="10"/>
+        <bool value="false"/>
+      </gt>
+    </define-parameter>
+    <define-parameter name="LEQ">
+      <leq>
+        <float value="10"/>
+        <bool value="false"/>
+      </leq>
+    </define-parameter>
+    <define-parameter name="GEQ">
+      <geq>
+        <float value="10"/>
+        <bool value="false"/>
+      </geq>
+    </define-parameter>
+    <define-parameter name="if-then-else">
+      <ite>
+        <bool value="true"/>
+        <int value="42"/>
+        <float value="-42"/>
+      </ite>
+    </define-parameter>
+    <define-parameter name="switch">
+      <switch>
+        <case>
+          <eq>
+            <parameter name="if-then-else"/>
+            <int value="1"/>
+          </eq>
+          <float value="1.0e-4"/>
+        </case>
+        <case>
+          <eq>
+            <parameter name="Modulo"/>
+            <int value="2"/>
+          </eq>
+          <float value="2.5e-4"/>
+        </case>
+        <float value="1.0e-3"/>
+      </switch>
+    </define-parameter>
+  </model-data>
+</opsa-mef>

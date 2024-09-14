@@ -439,6 +439,17 @@ job("Monorepo CI") {
         }
       }
 
+      host("scram-node:ctest") {
+        shellScript {
+          interpreter = "/bin/bash"
+          content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker run --rm "$remote:{{ branchSlug }}" nx run engine-scram-node:ctest
+                        """
+        }
+      }
+
       host("scram-node:lint") {
         shellScript {
           interpreter = "/bin/bash"

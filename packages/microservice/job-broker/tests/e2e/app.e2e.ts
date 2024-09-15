@@ -15,8 +15,6 @@ import { ExecutableModule } from "../../src/executable/executable.module";
 import { JobBrokerController } from "../../src/job-broker.controller";
 import { JobBrokerService } from "../../src/job-broker.service";
 
-const sleep = (ms: number): Promise<unknown> => new Promise((resolve) => setTimeout(resolve, ms));
-
 // Root directory of the input files: relative to /openpra-monorepo
 const rootDir = "./packages/microservice/job-broker/tests/input/aralia/baobab";
 
@@ -45,7 +43,7 @@ describe("Microservice", () => {
   let mongod: MongoMemoryServer;
   const scramUrl = "/api/quantify/scram";
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         QuantificationModule,
@@ -91,10 +89,6 @@ describe("Microservice", () => {
 
     app = module.createNestApplication();
     await app.init();
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
   });
 
   afterAll(async () => {

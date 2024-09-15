@@ -2,7 +2,7 @@ const nxPreset = require("@nx/jest/preset").default;
 
 module.exports = {
   ...nxPreset,
-  testMatch: ["**/+(*.)+(spec|test).+(ts|js)?(x)"],
+  testMatch: ["**/+(*.)+(spec|test|e2e).+(ts|js)?(x)"],
   transform: {
     "^.+\\.(ts|js|html)$": "ts-jest",
   },

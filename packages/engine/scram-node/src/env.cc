@@ -21,35 +21,32 @@
 
 #include "env.h"
 
-#include <boost/dll/runtime_symbol_info.hpp>
+#include <cstdlib>
+#include <stdexcept>
 
 namespace scram::env {
 
 const std::string& project_schema() {
-  static const std::string schema_path =
-      install_dir() + "/share/scram/project.rng";
+  static const std::string schema_path = install_dir() + "/share/scram/project.rng";
   return schema_path;
 }
 
 const std::string& input_schema() {
-  /*static const std::string schema_path =
-      install_dir() + "/share/scram/input.rng";*/
-  static const std::string schema_path = "/home/hrashee/projects/openpra-monorepo/packages/engine/scram-node/share/input.rng";
+  static const std::string schema_path = install_dir() + "/share/scram/input.rng";
   return schema_path;
 }
 
 const std::string& report_schema() {
-  static const std::string schema_path =
-      install_dir() + "/share/scram/report.rng";
+  static const std::string schema_path = install_dir() + "/share/scram/report.rng";
   return schema_path;
 }
 
 const std::string& install_dir() {
-  static const std::string install_path =
-      boost::dll::program_location()  // executable
-          .parent_path()  // bin
-          .parent_path()  // install
-          .generic_string();  // POSIX format.
+  static const char* home = std::getenv("HOME");
+  if (!home) {
+    throw std::runtime_error("Environment variable HOME is not set.");
+  }
+  static const std::string install_path = std::string(home) + "/.local";
   return install_path;
 }
 

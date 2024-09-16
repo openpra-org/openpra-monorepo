@@ -14,6 +14,8 @@ ENV SCRAM_RUNTIME_PACKAGES="libxml2 \
     libboost-filesystem1.74.0 libboost-program-options1.74.0 \
     libtcmalloc-minimal4 libjemalloc2"
 
+ENV PATH="/root/.local/bin:${PATH}"
+
 WORKDIR /data/project
 SHELL ["/bin/bash", "-c"]
 RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \

@@ -21,3 +21,13 @@ target_include_directories(scram-node PRIVATE ${CMAKE_JS_INC})
 if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)
    execute_process(COMMAND ${CMAKE_AR} /def:${CMAKE_JS_NODELIB_DEF} /out:${CMAKE_JS_NODELIB_TARGET} ${CMAKE_STATIC_LINKER_FLAGS})
 endif()
+
+# Define a variable for the installation base directory
+set(INSTALL_BASE_DIR "$ENV{HOME}/.local")
+
+# Install share directory files to ~/.local/share
+install(
+        DIRECTORY ${CMAKE_SOURCE_DIR}/share/
+        DESTINATION ${INSTALL_BASE_DIR}/share/scram
+        FILES_MATCHING PATTERN "*.rng"
+)

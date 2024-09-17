@@ -58,6 +58,7 @@
   },
   "devDependencies": {
     "jest": "29.7.0",
+    "shared-types": "0.0.1",
     "@types/glob": "8.1.0"
   },
   "binary": {

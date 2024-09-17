@@ -24,7 +24,6 @@ export const InvalidKeyType = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
 };
@@ -51,7 +50,6 @@ export const MultipleInvalidKeyTypes = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: "<xml>model1</xml>", // Wrong type, should be an array of strings
 };
@@ -78,7 +76,6 @@ export const MissingRequiredKey = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   // Missing 'models' key
 };
@@ -105,7 +102,6 @@ export const InvalidAdditionalKey = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
   extraKey: "extraValue", // Additional key not in the interface
@@ -133,7 +129,6 @@ export const InvalidCombination1 = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
 };
@@ -160,7 +155,6 @@ export const InvalidCombination2 = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
 };
@@ -187,7 +181,6 @@ export const InvalidLimits1 = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
 };
@@ -214,7 +207,6 @@ export const InvalidLimits2 = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
 };
@@ -241,7 +233,6 @@ export const InvalidLimits3 = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
 };
@@ -268,7 +259,6 @@ export const InvalidLimits4 = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
 };
@@ -295,7 +285,6 @@ export const InvalidLimits5 = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
 };
@@ -322,7 +311,6 @@ export const InvalidLimits6 = {
   seed: -1, // Invalid: must be 0 or greater
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
 };
@@ -349,7 +337,6 @@ export const InvalidLimits7 = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
 };
@@ -376,7 +363,6 @@ export const InvalidLimits8 = {
   seed: 12345,
   "no-indent": true,
   verbosity: 2,
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
 };
@@ -403,7 +389,6 @@ export const InvalidLimits9 = {
   seed: 12345,
   "no-indent": true,
   verbosity: 8, // Invalid: must be between 0 and 7
-  "no-report": true,
   output: "output.xml",
   models: ["<xml>model1</xml>", "<xml>model2</xml>"],
 };

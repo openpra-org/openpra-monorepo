@@ -14,6 +14,12 @@
           <option name="readOnly" value="false" />
         </ForwardedPortInfo>
       </entry>
+      <entry key="4211">
+        <ForwardedPortInfo>
+          <option name="hostPort" value="4211" />
+          <option name="readOnly" value="false" />
+        </ForwardedPortInfo>
+      </entry>
       <entry key="8000">
         <ForwardedPortInfo>
           <option name="hostPort" value="8000" />

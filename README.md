@@ -288,6 +288,13 @@ README.md file.
 
 - [`frontend-web-editor`](packages/frontend/web-editor/README.md#Testing)
 
+## Creating Packages
+
+### React App using Webpack
+```bash
+nx g @nx/react:app frontend-primitives --directory packages/frontend/primitives --bundler=webpack
+nx show project frontend-primitives
+```
 ## Troubleshooting
 
 - If dependency issues arise, check for proper camel casing in frontend

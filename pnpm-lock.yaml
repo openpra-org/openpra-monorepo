@@ -290,8 +290,8 @@ importers:
         specifier: 5.0.3
         version: 5.0.3(moment@2.30.1)
       '@elastic/eui':
-        specifier: 95.10.1
-        version: 95.10.1(@elastic/datemath@5.0.3(moment@2.30.1))(@emotion/css@11.13.0)(@emotion/react@11.13.3(@types/react@18.3.5)(react@18.3.1))(@types/react-dom@18.3.0)(@types/react@18.3.5)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.5.2)
+        specifier: 95.11.0
+        version: 95.11.0(@elastic/datemath@5.0.3(moment@2.30.1))(@emotion/css@11.13.0)(@emotion/react@11.13.3(@types/react@18.3.5)(react@18.3.1))(@types/react-dom@18.3.0)(@types/react@18.3.5)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.5.2)
       '@emotion/css':
         specifier: 11.13.0
         version: 11.13.0
@@ -1357,8 +1357,8 @@ packages:
     peerDependencies:
       moment: ^2.24.0
 
-  '@elastic/eui@95.10.1':
-    resolution: {integrity: sha512-1kqyx/NfiQE/bKMf1E3uJEpYZnQnPBrI5zO0l2FB+fs7Naf7wT7zq1VFRzNLn/r1x6mnou8wJ+VlouHCI+prLw==}
+  '@elastic/eui@95.11.0':
+    resolution: {integrity: sha512-O688EbhrgSrV9j54mnK4xLyhv+imkBv5ti7isqLxJtd0L7Fe2A1d6EaA11Qv5plOwwC+cGsrkrDnlSqi1MtNoQ==}
     engines: {node: 16.x || 18.x || >=20.x}
     peerDependencies:
       '@elastic/datemath': ^5.0.2
@@ -10334,7 +10334,7 @@ snapshots:
       moment: 2.30.1
       tslib: 1.14.1
 
-  '@elastic/eui@95.10.1(@elastic/datemath@5.0.3(moment@2.30.1))(@emotion/css@11.13.0)(@emotion/react@11.13.3(@types/react@18.3.5)(react@18.3.1))(@types/react-dom@18.3.0)(@types/react@18.3.5)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.5.2)':
+  '@elastic/eui@95.11.0(@elastic/datemath@5.0.3(moment@2.30.1))(@emotion/css@11.13.0)(@emotion/react@11.13.3(@types/react@18.3.5)(react@18.3.1))(@types/react-dom@18.3.0)(@types/react@18.3.5)(moment@2.30.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(typescript@5.5.2)':
     dependencies:
       '@elastic/datemath': 5.0.3(moment@2.30.1)
       '@emotion/css': 11.13.0

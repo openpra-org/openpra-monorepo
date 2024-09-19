@@ -10,7 +10,7 @@ import { DefaultSignupProps } from "../auth/signup/SignUp";
 import { UseToastContext } from "../providers/toastProvider";
 import { GenerateUUID } from "../../utils/treeUtils";
 import { GenericModal } from "../components/modals/genericModal";
-import { SignUpForm } from "../auth/signup/SignUpForm";
+import { EmailPasswordSignUpForm } from "../auth/signup/EmailPasswordSignUpForm";
 
 const InvitePage = (): JSX.Element => {
   const { inviteId } = useParams<{ inviteId: string | undefined }>();
@@ -100,7 +100,7 @@ const InvitePage = (): JSX.Element => {
     return (
       <EuiPageTemplate panelled={true}>
         <EuiPageTemplate.EmptyPrompt title={<span>You are invited to OpenPRA</span>}>
-          <SignUpForm
+          <EmailPasswordSignUpForm
             handleSignup={handleSignup}
             signup={signup}
             setSignup={setSignup}

@@ -6,9 +6,8 @@ import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
-import { PasswordForm } from "../../components/forms/passwordForm";
-import { UsernameForm } from "../../components/forms/usernameForm";
-import { SignUpEmailForm } from "./SignUpEmailForm";
+import { MatchPasswordsFieldText } from "./MatchPasswordsFieldText";
+import { EmailFieldText } from "./EmailFieldText";
 
 /**
  * The main signup Form component
@@ -17,7 +16,7 @@ import { SignUpEmailForm } from "./SignUpEmailForm";
  * @param setSignup - The function which will change the state object
  * @param buttonText - The text which should be shown on the button
  */
-const SignUpForm = ({
+const EmailPasswordSignUpForm = ({
   handleSignup,
   signup,
   setSignup,
@@ -93,21 +92,18 @@ const SignUpForm = ({
       onSubmit={validateSignup}
     >
       <br />
-      <UsernameForm
-        signup={signup}
-        setSignup={setSignup}
-        signupButtonClicked={signupButtonClicked}
-        isValidEmail={isValidEmail}
-        setIsValidEmail={setIsValidEmail}
-        isValidUsername={isValidUsername}
-        setIsValidUsername={setIsValidUsername}
-        checkEmpty={true}
-      />
-      <SignUpEmailForm
-        setValid={setIsValidEmail}
-        setValue={() => {}}
-      />
-      <PasswordForm
+      {/*<UsernameForm*/}
+      {/*  signup={signup}*/}
+      {/*  setSignup={setSignup}*/}
+      {/*  signupButtonClicked={signupButtonClicked}*/}
+      {/*  isValidEmail={isValidEmail}*/}
+      {/*  setIsValidEmail={setIsValidEmail}*/}
+      {/*  isValidUsername={isValidUsername}*/}
+      {/*  setIsValidUsername={setIsValidUsername}*/}
+      {/*  checkEmpty={true}*/}
+      {/*/>*/}
+      <EmailFieldText />
+      <MatchPasswordsFieldText
         signup={signup}
         setSignup={setSignup}
         signupButtonClicked={signupButtonClicked}
@@ -125,4 +121,4 @@ const SignUpForm = ({
   );
 };
 
-export { SignUpForm };
+export { EmailPasswordSignUpForm };

@@ -21,7 +21,7 @@ import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { InviteIdDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 import { GenericModal } from "../modals/genericModal";
 import { DefaultSignupProps } from "../../auth/signup/SignUp";
-import { SignUpForm } from "../../auth/signup/SignUpForm";
+import { EmailPasswordSignUpForm } from "../../auth/signup/EmailPasswordSignUpForm";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";
 import { GenerateUserForm } from "../forms/generateUserForm";
@@ -120,7 +120,7 @@ export function Users(): JSX.Element {
         title="New User"
         showButtons={false}
         body={
-          <SignUpForm
+          <EmailPasswordSignUpForm
             handleSignup={handleSignup}
             signup={signup}
             setSignup={setSignup}

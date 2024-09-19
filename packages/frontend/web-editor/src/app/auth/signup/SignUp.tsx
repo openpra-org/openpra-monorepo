@@ -8,7 +8,7 @@ import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { UpdateAbility } from "../../providers/ability/Ability";
 import { UseAbilityContext } from "../../providers/ability/AbilityProvider";
-import { SignUpForm } from "./SignUpForm";
+import { EmailPasswordSignUpForm } from "./EmailPasswordSignUpForm";
 
 const DefaultSignupProps: SignUpPropsWithRole = {
   username: "",
@@ -47,7 +47,7 @@ function SignUp(): ReactElement {
   console.log(signup);
 
   return (
-    <SignUpForm
+    <EmailPasswordSignUpForm
       handleSignup={handleSignup}
       signup={signup}
       setSignup={setSignup}

@@ -2,7 +2,7 @@ import { EuiFieldPassword, EuiFormRow } from "@elastic/eui";
 import React, { ReactElement } from "react";
 import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 
-const PasswordForm = ({
+const MatchPasswordsFieldText = ({
   signup,
   setSignup,
   signupButtonClicked,
@@ -46,4 +46,4 @@ const PasswordForm = ({
   </>
 );
 
-export { PasswordForm };
+export { MatchPasswordsFieldText };

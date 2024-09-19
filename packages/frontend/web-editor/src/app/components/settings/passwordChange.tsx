@@ -18,7 +18,7 @@ import { useContext, useEffect, useState } from "react";
 import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { CollabRole } from "shared-types/src/lib/data/predefiniedRoles";
 import { GenericModal } from "../modals/genericModal";
-import { PasswordForm } from "../forms/passwordForm";
+import { MatchPasswordsFieldText } from "../../auth/signup/MatchPasswordsFieldText";
 import { PreferenceContext, PreferenceContextType } from "./preferences";
 
 /**
@@ -90,7 +90,7 @@ const PasswordChange = (): JSX.Element => {
         </EuiFormRow>
       )}
       {signup && (
-        <PasswordForm
+        <MatchPasswordsFieldText
           signup={signup}
           setSignup={setSignUp}
           signupButtonClicked={buttonClicked}

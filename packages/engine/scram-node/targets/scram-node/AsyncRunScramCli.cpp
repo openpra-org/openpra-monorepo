@@ -1,4 +1,4 @@
-#include "ScramWorker.h"
+#include "AsyncScramWorker.h"
 
 /**
  * @brief Main Node.js wrapper function to run the SCRAM CLI asynchronously.

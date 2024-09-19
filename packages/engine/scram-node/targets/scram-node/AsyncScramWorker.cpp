@@ -1,6 +1,6 @@
 #include <boost/program_options.hpp>
 #include <exception>
-#include "ScramWorker.h"
+#include "AsyncScramWorker.h"
 #include "scram.cc"
 
 namespace po = boost::program_options;

@@ -1,3 +1,8 @@
+#pragma once
+#include <napi.h>
+#include <string>
+#include <vector>
+
 /**
  * @class ScramWorker
  * @brief Defines a class for asynchronous execution of SCRAM engine.

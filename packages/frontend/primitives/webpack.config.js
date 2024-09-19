@@ -10,8 +10,17 @@ module.exports = composePlugins(
     // svgr: false
   }),
   (config) => {
-    // Update the webpack config as needed here.
-    // e.g. `config.plugins.push(new MyPlugin())`
+    config.devServer = {
+      port: 4200,
+      proxy: [
+        {
+          context: ["/api"],
+          target: "http://localhost:8000",
+          secure: true,
+          changeOrigin: true,
+        },
+      ],
+    };
     return config;
   },
 );

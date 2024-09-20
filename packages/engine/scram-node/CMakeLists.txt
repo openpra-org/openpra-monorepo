@@ -13,12 +13,12 @@ if(APPLE)
     OUTPUT_STRIP_TRAILING_WHITESPACE
   )
   message(STATUS "Homebrew LLVM path: ${HOMEBREW_LLVM_PATH}")
-  
+
   if(HOMEBREW_LLVM_PATH AND EXISTS "${HOMEBREW_LLVM_PATH}/bin/clang++")
     set(CMAKE_C_COMPILER "${HOMEBREW_LLVM_PATH}/bin/clang")
     set(CMAKE_CXX_COMPILER "${HOMEBREW_LLVM_PATH}/bin/clang++")
     message(STATUS "Using Clang/Clang++ from Homebrew LLVM")
-    
+
     # Add LLVM bin directory to PATH for other LLVM tools
     set(ENV{PATH} "${HOMEBREW_LLVM_PATH}/bin:$ENV{PATH}")
   else()
@@ -27,6 +27,10 @@ if(APPLE)
 endif()
 
 project(scram-engine VERSION 0.16.2 LANGUAGES CXX)
+
+# Tell CMake where the modules are.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
 # Add these lines for Node.js configuration
 execute_process(COMMAND node -p "require('node-addon-api').include"
@@ -79,47 +83,9 @@ option(OPTIMIZE_FOR_NATIVE "Build with -march=native" OFF)
 ####################### End Options ##################### }}}
 
 ####################### Begin compiler configurations ################### {{{
-# OpenMP Configuration
-if(APPLE)
-  execute_process(
-    COMMAND brew --prefix libomp
-    OUTPUT_VARIABLE HOMEBREW_LIBOMP_PATH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  if(HOMEBREW_LIBOMP_PATH)
-    set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp")
-    set(OpenMP_CXX_LIB_NAMES "omp")
-    set(OpenMP_omp_LIBRARY "${HOMEBREW_LIBOMP_PATH}/lib/libomp.dylib")
-    
-    # Set include and library directories
-    include_directories(SYSTEM "${HOMEBREW_LIBOMP_PATH}/include")
-    link_directories("${HOMEBREW_LIBOMP_PATH}/lib")
-    
-    # Set LDFLAGS and CPPFLAGS as suggested by brew
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -I${HOMEBREW_LIBOMP_PATH}/include")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${HOMEBREW_LIBOMP_PATH}/lib")
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -L${HOMEBREW_LIBOMP_PATH}/lib")
-    
-    message(STATUS "Using Homebrew libomp: ${HOMEBREW_LIBOMP_PATH}")
-  else()
-    message(WARNING "Homebrew libomp not found. OpenMP support may be limited.")
-  endif()
-endif()
-
-find_package(OpenMP)
-if(OpenMP_CXX_FOUND)
-    message(STATUS "OpenMP found:")
-    message(STATUS "    OpenMP_CXX_VERSION: ${OpenMP_CXX_VERSION}")
-    message(STATUS "    OpenMP_CXX_FLAGS: ${OpenMP_CXX_FLAGS}")
-    message(STATUS "    OpenMP_CXX_INCLUDE_DIRS: ${OpenMP_CXX_INCLUDE_DIRS}")
-    message(STATUS "    OpenMP_CXX_LIBRARIES: ${OpenMP_CXX_LIBRARIES}")
-
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-    include_directories(${OpenMP_CXX_INCLUDE_DIRS})
-    link_libraries(${OpenMP_CXX_LIBRARIES})
-else()
-    message(WARNING "OpenMP not found. Continuing without OpenMP support.")
-endif()
+find_package(_boost REQUIRED)
+find_package(_openmp)
+find_package(_libxml2 REQUIRED)
 
 # Default to C++20.
 set(CMAKE_CXX_STANDARD 20)
@@ -185,10 +151,6 @@ endif()
 
 ######################## End compiler configurations #################### }}}
 
-# ... (rest of the file remains unchanged)
-
-######################## End compiler configurations #################### }}}
-
 ##################### Begin cmake configuration ################### {{{
 
 include(CTest)
@@ -214,10 +176,6 @@ else()
 endif()
 
 ######################## End cmake configuration ################### }}}
-
-# Tell CMake where the modules are.
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
 ######################## Begin find libraries ###################### {{{
 
@@ -262,47 +220,12 @@ else()
   message(STATUS "memory allocator: ${MALLOC_TYPE}")
 endif()
 
-# Find LibXML2 and dependencies.
-find_package(LibXml2 REQUIRED)
-list(APPEND LIBS ${LIBXML2_LIBRARIES})
-
-# Include the boost header files and the program_options library.
-# Please be sure to use Boost rather than BOOST.
-set(BOOST_MIN_VERSION "1.61.0")
-
-if(NOT WIN32)
-  set(Boost_USE_MULTITHREADED OFF)
-endif()
-
-# Set Boost paths explicitly
-set(BOOST_ROOT "/opt/homebrew/opt/boost")
-set(BOOST_INCLUDEDIR "${BOOST_ROOT}/include")
-set(BOOST_LIBRARYDIR "${BOOST_ROOT}/lib")
-
-find_package(Boost ${BOOST_MIN_VERSION} REQUIRED COMPONENTS
-        program_options filesystem system random
-)
-message(STATUS "Boost Include directory: ${Boost_INCLUDE_DIR}")
-message(STATUS "Boost Library directories: ${Boost_LIBRARY_DIRS}")
-list(APPEND LIBS ${Boost_LIBRARIES})
-
 list(APPEND LIBS ${CMAKE_DL_LIBS})
 
 message(STATUS "Libraries: ${LIBS}")
 ########################## End of find libraries ######################## }}}
 ########################## Begin includes ############################### {{{
 
-# Debug output
-message(STATUS "Boost_INCLUDE_DIR: ${Boost_INCLUDE_DIR}")
-message(STATUS "LIBXML2_INCLUDE_DIR: ${LIBXML2_INCLUDE_DIR}")
-
-# Include all the discovered system directories.
-if(Boost_INCLUDE_DIR)
-  include_directories(SYSTEM "${Boost_INCLUDE_DIR}")
-endif()
-if(LIBXML2_INCLUDE_DIR)
-  include_directories(SYSTEM "${LIBXML2_INCLUDE_DIR}")
-endif()
 
 include_directories("${CMAKE_SOURCE_DIR}")  # Include the core headers via "src".
 include_directories("src")  # Include the core headers via "src".

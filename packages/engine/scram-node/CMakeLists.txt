@@ -6,68 +6,34 @@ set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Detect compiler before project() call
-if(APPLE)
-  execute_process(
-    COMMAND brew --prefix llvm
-    OUTPUT_VARIABLE HOMEBREW_LLVM_PATH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-  )
-  message(STATUS "Homebrew LLVM path: ${HOMEBREW_LLVM_PATH}")
-
-  if(HOMEBREW_LLVM_PATH AND EXISTS "${HOMEBREW_LLVM_PATH}/bin/clang++")
-    set(CMAKE_C_COMPILER "${HOMEBREW_LLVM_PATH}/bin/clang")
-    set(CMAKE_CXX_COMPILER "${HOMEBREW_LLVM_PATH}/bin/clang++")
-    message(STATUS "Using Clang/Clang++ from Homebrew LLVM")
-
-    # Add LLVM bin directory to PATH for other LLVM tools
-    set(ENV{PATH} "${HOMEBREW_LLVM_PATH}/bin:$ENV{PATH}")
-  else()
-    message(FATAL_ERROR "Homebrew LLVM Clang++ not found. Please check your LLVM installation.")
-  endif()
-endif()
-
-project(scram-engine VERSION 0.16.2 LANGUAGES CXX)
+project(scram-engine VERSION 0.17.0 LANGUAGES CXX)
 
 # Tell CMake where the modules are.
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
-
-# Add these lines for Node.js configuration
-execute_process(COMMAND node -p "require('node-addon-api').include"
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE NODE_ADDON_API_DIR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-string(REPLACE "\"" "" NODE_ADDON_API_DIR ${NODE_ADDON_API_DIR})
-
-execute_process(COMMAND node -p "process.versions.node"
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE NODE_VERSION
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-execute_process(COMMAND node -p "process.release.libpath"
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE NODE_LIBPATH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-include_directories(${NODE_ADDON_API_DIR} ${CMAKE_JS_INC})
-add_definitions(-DNAPI_VERSION=3)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/_cmake")
+message(DEBUG "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 
 # Print compiler information
 message(STATUS "C compiler: ${CMAKE_C_COMPILER}")
 message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER}")
-message(STATUS "C++ compiler version: ${CMAKE_CXX_COMPILER_VERSION}")
+message(DEBUG "C++ compiler version: ${CMAKE_CXX_COMPILER_VERSION}")
 
-# Address CMP0144 policy warning
+# CMake 3.27 - Address CMP0144 policy warning
+# @link https://cmake.org/cmake/help/latest/policy/CMP0167.html#policy:CMP0144
+#
+# find_package() uses upper-case <PACKAGENAME>_ROOT variables.
+#
+# In CMake 3.27 and above the find_package(<PackageName>) command now searches prefixes specified by the upper-case
+# <PACKAGENAME>_ROOT CMake variable and the <PACKAGENAME>_ROOT environment variable in addition to the case-preserved
+# <PackageName>_ROOT and <PackageName>_ROOT variables used since policy CMP0074. This policy provides compatibility with
+# projects that have not been updated to avoid using <PACKAGENAME>_ROOT variables for other purposes.
+#
+# The OLD behavior for this policy is to ignore <PACKAGENAME>_ROOT variables if the original <PackageName> has
+# lower-case characters. The NEW behavior for this policy is to use <PACKAGENAME>_ROOT variables.
+#
+# This policy was introduced in CMake version 3.27. It may be set by cmake_policy() or cmake_minimum_required(). If it
+# is not set, CMake warns, and uses OLD behavior.
 if(POLICY CMP0144)
   cmake_policy(SET CMP0144 NEW)
-endif()
-
-# Address CMP0167 policy warning
-if(POLICY CMP0167)
-  cmake_policy(SET CMP0167 NEW)
 endif()
 
 ####################### Begin Options ################### {{{
@@ -78,7 +44,8 @@ set(MALLOC_TYPE "tcmalloc" CACHE STRING "Select the memory allocator type (tcmal
 option(WITH_COVERAGE "Instrument for coverage analysis" OFF)
 option(WITH_PROFILE "Instrument for performance profiling" OFF)
 option(BUILD_TESTS "Build the tests" ON)  # Influences CTest.
-option(OPTIMIZE_FOR_NATIVE "Build with -march=native" OFF)
+option(BUILD_NODE_TARGETS "Build the Node.js targets" OFF)
+option(OPTIMIZE_FOR_NATIVE "Build with -march=native" ON)
 
 ####################### End Options ##################### }}}
 
@@ -161,17 +128,19 @@ else()
   # Use, i.e. don't skip the full RPATH for the build tree.
   set(CMAKE_SKIP_BUILD_RPATH FALSE)
 
-  # When building,
-  # don't use the install RPATH already
-  # (but later on when installing).
+  # When building, don't use the install RPATH already (but later on when installing).
   set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
+  # Set the RPATH to be used when installing.
   set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/scram")
-  set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib/scram")
+
+  # Set the install name dir for macOS.
+  if(APPLE)
+      set(CMAKE_INSTALL_NAME_DIR "@rpath")
+  endif()
 
   # Add the automatically determined parts of the RPATH,
-  # which point to directories outside the build tree
-  # to the install RPATH.
+  # which point to directories outside the build tree to the install RPATH.
   set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 endif()
 
@@ -232,11 +201,12 @@ include_directories("src")  # Include the core headers via "src".
 
 add_subdirectory(src)
 add_subdirectory(targets/scram-cli)
+
 add_subdirectory(targets/scram-node)
 
-target_link_libraries(scram-node PRIVATE ${CMAKE_JS_LIB})
-set_target_properties(scram-node PROPERTIES PREFIX "" SUFFIX ".node")
-target_include_directories(scram-node PRIVATE ${CMAKE_JS_INC})
+if(BUILD_NODE_TARGETS)
+
+endif()
 
 if(BUILD_TESTS)
   add_subdirectory(tests)

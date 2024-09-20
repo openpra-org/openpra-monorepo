@@ -12,6 +12,7 @@
       <excludeFolder url="file://$MODULE_DIR$/Testing" />
       <excludeFolder url="file://$MODULE_DIR$/.nx/cache" />
       <excludeFolder url="file://$MODULE_DIR$/dist" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/engine/scram-node/cmake-build-debug-system" />
     </content>
     <content url="file://$MODULE_DIR$/.nx" />
     <orderEntry type="inheritedJdk" />

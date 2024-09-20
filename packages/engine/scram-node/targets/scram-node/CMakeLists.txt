@@ -12,9 +12,9 @@ set(SCRAM_NODE_SRC ScramWorker.cpp RunScramCli.cpp)
 set(SCRAM_NODE_HEADERS ScramWorker.h)
 
 
-add_library(scram-node SHARED ${SCRAM_NODE_SRC})
+add_library(scram-node SHARED ${SCRAM_NODE_SRC} ${CMAKE_JS_SRC})
 set_target_properties(scram-node PROPERTIES PREFIX "" SUFFIX ".node")
-target_link_libraries(scram-node scram ${Boost_LIBRARIES})
+target_link_libraries(scram-node scram ${Boost_LIBRARIES} ${CMAKE_JS_LIB})
 target_include_directories(scram-node PRIVATE ${CMAKE_JS_INC})
 
 

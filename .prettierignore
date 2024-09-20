@@ -8,6 +8,6 @@ tmp
 .idea
 build
 cmake-build-*
-cmake
+packages/engine/scram-node/_cmake
 
 /.nx/workspace-data

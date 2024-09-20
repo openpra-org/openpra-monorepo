@@ -2,16 +2,17 @@
   "name": "scram-node",
   "version": "0.0.1",
   "license": "AGPL-3.0-or-later",
-  "main": "scram-node.node",
+  "main": "build/Release/scram-node.node",
   "private": true,
   "scripts": {
-    "postinstall": "cd build && make install && ../scripts/inform_update_paths.sh",
-    "install": "cmake-js -C --parallel 32 compile",
-    "rebuild": "cmake-js -C --parallel 32 rebuild",
-    "configure": "cmake-js -C --parallel 32 configure",
+    "postinstall": "cd build && make -j32 install && ../scripts/inform_update_paths.sh",
+    "preinstall": "export NUM_CORES=$(cross-env-shell scripts/get_cpus.sh)",
+    "install": "cmake-js --parallel 32 compile",
+    "rebuild": "cmake-js --parallel 32 rebuild",
+    "configure": "cmake-js --parallel 32 configure",
     "clean": "cmake-js clean",
     "test": "jest",
-    "ctest": "cmake-js -C --parallel 32 compile && cd build && make test"
+    "ctest": "cmake-js --parallel 32 compile && cd build && make -j32 test"
   },
   "nx": {
     "namedInputs": {
@@ -57,8 +58,9 @@
     "tmp": "0.2.3"
   },
   "devDependencies": {
-    "jest": "29.7.0",
-    "@types/glob": "8.1.0"
+    "@types/glob": "8.1.0",
+    "cross-env": "7.0.3",
+    "jest": "29.7.0"
   },
   "binary": {
     "napi_versions": [

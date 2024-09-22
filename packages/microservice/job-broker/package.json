@@ -23,8 +23,8 @@
     "amqplib": "0.10.4",
     "express": "4.19.2",
     "mongoose": "8.5.1",
-    "scram-node": "0.0.1",
-    "shared-types": "0.0.1",
+    "engine-scram-node": "workspace:^",
+    "shared-types": "workspace:^",
     "tmp": "0.2.3",
     "typia": "6.9.0",
     "webpack": "5.94.0"

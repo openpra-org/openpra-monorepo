@@ -23,8 +23,8 @@ import { ExecutedResults } from "../output/executable/executed-results";
  * - Should return 201 Created response when the request body is valid.
  * - Should return 400 Bad Request when a key in the request body has the wrong type.
  * - Should return 400 Bad Request when multiple keys in the request body have the wrong types.
- * TODO: Should return 400 Bad Request when the request body is missing a required key.
- * - Should return 400 Bad Request when the request body contains an additional key.
+ * - Should return 400 Bad Request when the request body is missing a required key.
+ * - TODO: Should return 400 Bad Request when the request body contains an additional key.
  * - Should return 500 Internal Server Error when the service throws an error.
  *
  * GET /tasks:

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { AsyncScramAddonType } from "shared-types/src/openpra-mef/util/scram-addon-type";
+import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import {
   InvalidLimits1,
   InvalidLimits2,
@@ -16,148 +17,93 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const scramAddon: AsyncScramAddonType = require("../../build/Release/scram-node.node") as AsyncScramAddonType;
 
-// Create a temporary xml file for storing a model from the aralia folder
+/**
+ * Asynchronous scram-node-addon tests:
+ * 1. Invalid limit-order in request body
+ * 2. Invalid cut-off in request body
+ * 3. Invalid num-trials in request body
+ * 4. Invalid num-quantiles in request body
+ * 5. Invalid num-bins in request body
+ * 6. Invalid seed in request body
+ * 7. Invalid mission-time in request body
+ * 8. Invalid time-step in request body
+ * 9. Approximation used while evaluating prime implicants
+ * 10. Prime implicants evaluated without BDD algorithm
+ * 11. Safety integrity levels evaluated without providing time step
+ * TODO: Include testing for all the exceptions thrown from scram.cc file.
+ *
+ * All tests expect the RunScramCli() method to throw an error when given invalid input.
+ * The tests use a Promise-based approach to handle the asynchronous nature of the RunScramCli function.
+ */
+
+/*
+ * Create a temporary xml file for storing a model from the aralia folder.
+ * If generic strings are passed in the "models" array, then the error will be
+ * thrown for invalid input files, not for the invalid key types. So we want to
+ * pass valid input files so that we can test invalid key inputs.
+ */
 const model = fs.readFileSync("./packages/microservice/job-broker/tests/input/aralia/xml/chinese.xml");
 if (!fs.existsSync("/tmp/model1.xml")) {
   fs.writeFileSync("/tmp/model1.xml", model);
 }
 
-// TODO: migrate tests from `microservice-job-broker`
-test("stub", () => {
-  expect(true).toBeTruthy();
-});
+/**
+ * Helper function to test invalid inputs for scramAddon.RunScramCli
+ * @param invalidInput - The invalid input to test
+ * @returns A promise that rejects with an error
+ */
+const testInvalidInput = async (invalidInput: QuantifyRequest): Promise<void> => {
+  invalidInput.models = ["/tmp/model1.xml"];
+  return new Promise<void>((resolve, reject) => {
+    scramAddon.RunScramCli(invalidInput, (err: Error | null) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+};
 
 describe("asynchronous scram-node-wrapper tests", () => {
   it("should throw an error when the request body contains invalid limit-order", async () => {
-    InvalidLimits1.models = ["/tmp/model1.xml"];
-    await expect(
-      new Promise<void>((resolve, reject) => {
-        scramAddon.RunScramCli(InvalidLimits1, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-    ).rejects.toThrow();
+    await expect(testInvalidInput(InvalidLimits1)).rejects.toThrow();
   });
 
-  // Repeat the above pattern for each test case
   it("should throw an error when the request body contains invalid cut-off", async () => {
-    InvalidLimits2.models = ["/tmp/model1.xml"];
-    await expect(
-      new Promise<void>((resolve, reject) => {
-        scramAddon.RunScramCli(InvalidLimits2, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-    ).rejects.toThrow();
+    await expect(testInvalidInput(InvalidLimits2)).rejects.toThrow();
   });
 
   it("should throw an error when the request body contains invalid num-trials", async () => {
-    InvalidLimits3.models = ["/tmp/model1.xml"];
-    await expect(
-      new Promise<void>((resolve, reject) => {
-        scramAddon.RunScramCli(InvalidLimits3, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-    ).rejects.toThrow();
+    await expect(testInvalidInput(InvalidLimits3)).rejects.toThrow();
   });
 
   it("should throw an error when the request body contains invalid num-quantiles", async () => {
-    InvalidLimits4.models = ["/tmp/model1.xml"];
-    await expect(
-      new Promise<void>((resolve, reject) => {
-        scramAddon.RunScramCli(InvalidLimits4, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-    ).rejects.toThrow();
+    await expect(testInvalidInput(InvalidLimits4)).rejects.toThrow();
   });
 
   it("should throw an error when the request body contains invalid num-bins", async () => {
-    InvalidLimits5.models = ["/tmp/model1.xml"];
-    await expect(
-      new Promise<void>((resolve, reject) => {
-        scramAddon.RunScramCli(InvalidLimits5, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-    ).rejects.toThrow();
+    await expect(testInvalidInput(InvalidLimits5)).rejects.toThrow();
   });
 
   it("should throw an error when the request body contains invalid seed", async () => {
-    InvalidLimits6.models = ["/tmp/model1.xml"];
-    await expect(
-      new Promise<void>((resolve, reject) => {
-        scramAddon.RunScramCli(InvalidLimits6, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-    ).rejects.toThrow();
+    await expect(testInvalidInput(InvalidLimits6)).rejects.toThrow();
   });
 
   it("should throw an error when the request body contains invalid mission-time", async () => {
-    InvalidLimits7.models = ["/tmp/model1.xml"];
-    await expect(
-      new Promise<void>((resolve, reject) => {
-        scramAddon.RunScramCli(InvalidLimits7, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-    ).rejects.toThrow();
+    await expect(testInvalidInput(InvalidLimits7)).rejects.toThrow();
   });
 
   it("should throw an error when the request body contains invalid time-step", async () => {
-    InvalidLimits8.models = ["/tmp/model1.xml"];
-    await expect(
-      new Promise<void>((resolve, reject) => {
-        scramAddon.RunScramCli(InvalidLimits8, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-    ).rejects.toThrow();
+    await expect(testInvalidInput(InvalidLimits8)).rejects.toThrow();
   });
 
   it("should throw an error if any approximation is used while evaluating the prime implicants", async () => {
-    InvalidCombination3.models = ["/tmp/model1.xml"];
-    await expect(
-      new Promise<void>((resolve, reject) => {
-        scramAddon.RunScramCli(InvalidCombination3, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-    ).rejects.toThrow();
+    await expect(testInvalidInput(InvalidCombination3)).rejects.toThrow();
   });
 
   it("should throw an error if prime implicants are being evaluated without BDD algorithm", async () => {
-    InvalidCombination4.models = ["/tmp/model1.xml"];
-    await expect(
-      new Promise<void>((resolve, reject) => {
-        scramAddon.RunScramCli(InvalidCombination4, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-    ).rejects.toThrow();
+    await expect(testInvalidInput(InvalidCombination4)).rejects.toThrow();
   });
 
   it("should throw an error if safety integrity levels are being evaluated without providing time step", async () => {
-    InvalidCombination5.models = ["/tmp/model1.xml"];
-    await expect(
-      new Promise<void>((resolve, reject) => {
-        scramAddon.RunScramCli(InvalidCombination5, (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      }),
-    ).rejects.toThrow();
+    await expect(testInvalidInput(InvalidCombination5)).rejects.toThrow();
   });
 });

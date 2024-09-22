@@ -13,7 +13,7 @@ import {
   InvalidCombination3,
   InvalidCombination4,
   InvalidCombination5,
-} from "../../../../microservice/job-broker/tests/input/quantification/invalid-request";
+} from "microservice-job-broker/tests/input/quantification/invalid-request";
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const scramAddon: ScramAddonType = require("../../build/Release/scram-node.node") as ScramAddonType;

@@ -274,8 +274,11 @@ importers:
       jest:
         specifier: 29.7.0
         version: 29.7.0(@types/node@20.9.0)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@20.9.0)(typescript@5.5.2))
+      microservice-job-broker:
+        specifier: workspace:^
+        version: link:../../microservice/job-broker
       shared-types:
-        specifier: 0.0.1
+        specifier: workspace:^
         version: link:../../shared-types
 
   packages/frontend/web-editor:
@@ -341,7 +344,7 @@ importers:
         specifier: 11.10.1
         version: 11.10.1(@types/react@18.2.38)(immer@10.0.4)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       shared-types:
-        specifier: 0.0.1
+        specifier: workspace:^
         version: link:../../shared-types
       zustand:
         specifier: 4.5.1
@@ -422,17 +425,17 @@ importers:
       amqplib:
         specifier: 0.10.4
         version: 0.10.4
+      engine-scram-node:
+        specifier: workspace:^
+        version: link:../../engine/scram-node
       express:
         specifier: 4.19.2
         version: 4.19.2
       mongoose:
         specifier: 8.5.1
         version: 8.5.1(socks@2.8.3)
-      scram-node:
-        specifier: 0.0.1
-        version: link:../../engine/scram-node
       shared-types:
-        specifier: 0.0.1
+        specifier: workspace:^
         version: link:../../shared-types
       tmp:
         specifier: 0.2.3
@@ -478,7 +481,7 @@ importers:
   packages/model-generator:
     dependencies:
       shared-types:
-        specifier: 0.0.1
+        specifier: workspace:^
         version: link:../shared-types
       tslib:
         specifier: 2.5.2
@@ -556,7 +559,7 @@ importers:
         specifier: 7.8.1
         version: 7.8.1
       shared-types:
-        specifier: 0.0.1
+        specifier: workspace:^
         version: link:../shared-types
       supertest:
         specifier: 6.3.3

@@ -1,6 +1,5 @@
-import { EuiButton, EuiForm, EuiFormRow } from "@elastic/eui";
-import React from "react";
-import { useState } from "react";
+import { EuiForm, EuiFormRow, EuiButton, EuiFlexGroup, EuiFlexItem, EuiText } from "@elastic/eui";
+import React, { useState } from "react";
 import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
@@ -77,6 +76,10 @@ const SignUpForm = ({
       });
   }
 
+  function handleOpenPRAHubSignup() {
+    console.log("OpenPRA Hub signup button clicked");
+  }
+
   return (
     <EuiForm
       component="form"
@@ -105,6 +108,46 @@ const SignUpForm = ({
           type="submit"
         >
           {buttonText}
+        </EuiButton>
+      </EuiFormRow>
+      <EuiFlexGroup
+        gutterSize="none"
+        alignItems="center"
+      >
+        <EuiFlexItem>
+          <hr style={{ border: "none", borderTop: "1px solid #d3dae6", margin: "1" }} />
+        </EuiFlexItem>
+        <EuiFlexItem
+          grow={false}
+          style={{ padding: "0 20px" }}
+        >
+          <EuiText size="s">OR</EuiText>
+        </EuiFlexItem>
+        <EuiFlexItem>
+          <hr style={{ border: "none", borderTop: "1px solid #d3dae6", margin: "0" }} />
+        </EuiFlexItem>
+      </EuiFlexGroup>
+
+      <EuiFormRow>
+        <EuiButton
+          fullWidth
+          size="m"
+          onClick={handleOpenPRAHubSignup}
+        >
+          <EuiFlexGroup
+            justifyContent="center"
+            alignItems="center"
+            gutterSize="xs"
+          >
+            <EuiFlexItem grow={false}>
+              <img
+                src="https://hub.openpra.org/hub/auth/favicon.ico"
+                alt="OpenPRA Hub"
+                style={{ width: "20px", height: "20px", marginRight: "5px" }}
+              />
+            </EuiFlexItem>
+            <EuiFlexItem grow={false}>Sign up using OpenPRA Hub</EuiFlexItem>
+          </EuiFlexGroup>
         </EuiButton>
       </EuiFormRow>
     </EuiForm>

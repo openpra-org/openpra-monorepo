@@ -8,6 +8,7 @@ import {
 } from "../schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph, FaultTreeGraphSchema } from "../schemas/graphs/fault-tree-graph.schema";
 import { EventTreeGraph, EventTreeGraphSchema } from "../schemas/graphs/event-tree-graph.schema";
+import { BayesianNetworkGraph, BayesianNetworkGraphSchema } from "../schemas/graphs/bayesian-network-graph.schema";
 import { InternalEvents, InternalEventsSchema } from "../typedModel/schemas/internal-events.schema";
 import { InternalHazards, InternalHazardsSchema } from "../typedModel/schemas/internal-hazards.schema";
 import { ExternalHazards, ExternalHazardsSchema } from "../typedModel/schemas/external-hazards.schema";
@@ -91,6 +92,7 @@ import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
       },
       { name: FaultTreeGraph.name, schema: FaultTreeGraphSchema },
       { name: EventTreeGraph.name, schema: EventTreeGraphSchema },
+      { name: BayesianNetworkGraph.name, schema: BayesianNetworkGraphSchema },
       { name: InternalEvents.name, schema: InternalEventsSchema },
       { name: InternalHazards.name, schema: InternalHazardsSchema },
       { name: ExternalHazards.name, schema: ExternalHazardsSchema },

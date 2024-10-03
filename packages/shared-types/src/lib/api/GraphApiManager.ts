@@ -90,7 +90,7 @@ export class GraphApiManager {
    * @returns Updated bayesian network graph
    */
   static async storeBayesianNetwork(data: BayesianNetworkGraph): Promise<BayesianNetworkGraph> {
-    return await this.post(`${FaultTreeGraphEndpoint}`, data)
+    return await this.post(BayesianNetworkGraphEndpoint, data)
       .then((res) => this.getBayesianNetworkResponse(res, data.bayesianNetworkId))
       .catch((err) => {
         throw err;

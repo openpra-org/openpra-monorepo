@@ -1,10 +1,11 @@
-import { Body, Controller, Get, HttpException, HttpStatus, Patch, Post, Query } from "@nestjs/common";
+import { Body, Controller, Get, HttpException, HttpStatus, Patch, Post, Query, Delete } from "@nestjs/common";
 import { EventSequenceDiagramGraph } from "../schemas/graphs/event-sequence-diagram-graph.schema";
 import { FaultTreeGraph } from "../schemas/graphs/fault-tree-graph.schema";
 import { EventTreeGraph } from "../schemas/graphs/event-tree-graph.schema";
 import { BayesianNetworkGraph } from "../schemas/graphs/bayesian-network-graph.schema";
 import { BaseGraph } from "../schemas/graphs/base-graph.schema";
 import { GraphModelService } from "./graphModel.service";
+import { GraphTypes } from "./graphModel.service";
 
 @Controller()
 export class GraphModelController {
@@ -95,6 +96,42 @@ export class GraphModelController {
   @Get("/bayesian-network-graph/")
   async getBayesianNetworkGraph(@Query("bayesianNetworkId") bayesianNetworkId: string): Promise<BayesianNetworkGraph> {
     return this.graphModelService.getBayesianNetworkGraph(bayesianNetworkId);
+  }
+
+  /**
+   * Update the label of node/edge of a bayesian network node diagram
+   * @param id - Node/Edge ID
+   * @param type - 'node' or 'edge'
+   * @param label - New label for the node/edge
+   * @returns a promise with boolean confirmation whether update was successful or not
+   */
+  @Patch("/bayesian-network-graph/update-node-label")
+  async updateBayesianNodeLabel(@Body("nodeId") nodeId: string, @Body("label") label: string): Promise<boolean> {
+    try {
+      return this.graphModelService.updateBNLabel(nodeId, label);
+    } catch (_) {
+      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * Deletes a node from a Bayesian Network graph.
+   *
+   * @param bayesianNetworkId - The ID of the Bayesian Network graph from which the node will be deleted.
+   * @param nodeId - The ID of the node to be deleted.
+   * @returns A promise that resolves to true if the node was successfully deleted, false otherwise.
+   * @throws HttpException if an error occurs while deleting the node.
+   */
+  @Delete("/bayesian-network-graph/delete-node")
+  async deleteNodeFromBayesianNetwork(
+    @Body("bayesianNetworkId") bayesianNetworkId: string,
+    @Body("nodeId") nodeId: string,
+  ): Promise<boolean> {
+    try {
+      return this.graphModelService.deleteNodeFromGraph(GraphTypes.BayesianNetwork, bayesianNetworkId, nodeId);
+    } catch (_) {
+      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   /**

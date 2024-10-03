@@ -16,7 +16,7 @@ import { BayesianNetworkGraph, BayesianNetworkGraphDocument } from "../schemas/g
 /**
  * Enum of supported graph types
  */
-enum GraphTypes {
+export enum GraphTypes {
   EventSequence = "event-sequence",
   FaultTree = "fault-tree",
   EventTree = "event-tree",
@@ -190,6 +190,47 @@ export class GraphModelService {
         nodes: [],
         edges: [],
       };
+    }
+  }
+  /**
+   * Updates the label of the node/edge present in the data attribute
+   * @param id - Node/Edge ID
+   * @param type - 'node' or 'edge'
+   * @param label - New label for the node/edge
+   * @returns A promise with boolean confirmation of the update operation
+   */
+  async updateBNLabel(nodeId: string, label: string): Promise<boolean> {
+    try {
+      const filter = { "nodes.id": nodeId };
+      const update = { $set: { "nodes.$.data.label": label } };
+      const result = await this.bayesianNetworkGraphModel.updateOne(filter, update);
+
+      return result.modifiedCount > 0;
+    } catch (error) {
+      this.logger.error(`Failed to update label for node ${nodeId}: ${error}`);
+      throw new Error();
+    }
+  }
+
+  /**
+   * Deletes a node from a specified graph by its node ID.
+   *
+   * @param graphType - The type of graph from which the node will be deleted. It can be any of the GraphTypes enums.
+   * @param graphId - The ID of the graph (e.g., the bayesianNetworkId) from which the node will be removed.
+   * @param nodeId - The ID of the node to be deleted from the graph.
+   * @returns A promise that resolves to true if the node was successfully deleted, false otherwise.
+   * @throws Error if an issue occurs during the node deletion process.
+   */
+  async deleteNodeFromGraph(graphType: GraphTypes, graphId: string, nodeId: string): Promise<boolean> {
+    try {
+      const filter = { bayesianNetworkId: graphId };
+      const update = { $pull: { nodes: { id: nodeId } } };
+      const result = await this.bayesianNetworkGraphModel.updateOne(filter, update);
+
+      return result.modifiedCount > 0;
+    } catch (error) {
+      this.logger.error(`Failed to delete node ${nodeId} from ${graphType} graph: ${error}`);
+      throw new Error();
     }
   }
 

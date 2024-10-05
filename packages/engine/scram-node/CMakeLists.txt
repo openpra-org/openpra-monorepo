@@ -109,8 +109,8 @@ else()
   # (but later on when installing).
   set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
-  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/scram")
-  set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib/scram")
+  #set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/scram")
+  #set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib/scram")
 
   # Add the automatically determined parts of the RPATH,
   # which point to directories outside the build tree

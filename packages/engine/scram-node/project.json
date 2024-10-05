@@ -22,7 +22,7 @@
     "release": {},
     "sanitize": {},
     "test": {
-      "inputs": ["default", "^development"],
+      "inputs": ["default"],
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "dependsOn": ["build"],
       "executor": "@nx/jest:jest",

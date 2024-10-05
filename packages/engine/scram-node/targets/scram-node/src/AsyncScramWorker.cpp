@@ -1,7 +1,9 @@
 #include <boost/program_options.hpp>
 #include <exception>
-#include "ScramWorker.h"
-#include "scram.cc"
+#include "AsyncScramWorker.h"
+
+#include "targets/scram-cli/utils/RunScram.h"
+#include "targets/scram-cli/utils/ParseArguments.h"
 
 namespace po = boost::program_options;
 
@@ -10,7 +12,7 @@ namespace po = boost::program_options;
  * @param callback A Napi::Function reference for asynchronous callback.
  * @param args A vector of command-line arguments for the SCRAM engine.
  */
-ScramWorker::ScramWorker(Napi::Function& callback, std::vector<std::string> args)
+AsyncScramWorker::AsyncScramWorker(Napi::Function& callback, std::vector<std::string> args)
   : Napi::AsyncWorker(callback), args(std::move(args)) {};
 
 /**
@@ -20,7 +22,7 @@ ScramWorker::ScramWorker(Napi::Function& callback, std::vector<std::string> args
  * parses the arguments, and runs the SCRAM analysis. Any exceptions are
  * caught and recorded as errors.
  */
-void ScramWorker::Execute() {
+void AsyncScramWorker::Execute() {
   // Convert vector of strings to argc and argv format for command-line parsing.
   std::vector<char*> argv;
   for(std::string &s: args) {
@@ -31,8 +33,8 @@ void ScramWorker::Execute() {
   try {
     // Parse arguments and run the scram command, catching any exceptions.
     po::variables_map vm;
-    ParseArguments(argv.size()-1, argv.data(), &vm);
-    RunScram(vm);
+    ScramCLI::ParseArguments(argv.size() - 1, argv.data(), &vm);
+    ScramCLI::RunScram(vm);
   } catch (const std::exception& e) {
     // If an exception occurs, record the error message.
     SetError(e.what());
@@ -46,7 +48,7 @@ void ScramWorker::Execute() {
  * It calls the JavaScript callback function with a null argument, indicating
  * successful completion.
  */
-void ScramWorker::OnOK() {
+void AsyncScramWorker::OnOK() {
   Napi::HandleScope scope(Env());
   Callback().Call({Env().Null()});
 }

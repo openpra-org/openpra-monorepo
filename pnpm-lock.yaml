@@ -267,6 +267,9 @@ importers:
       node-addon-api:
         specifier: 8.1.0
         version: 8.1.0
+      shared-types:
+        specifier: 0.0.1
+        version: link:../../shared-types
       tmp:
         specifier: 0.2.3
         version: 0.2.3

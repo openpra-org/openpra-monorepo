@@ -8,13 +8,23 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 find_package(NodeAddonApi)
 include_directories(${CMAKE_JS_INC})
 
-set(SCRAM_NODE_SRC ScramWorker.cpp RunScramCli.cpp)
-set(SCRAM_NODE_HEADERS ScramWorker.h)
+set(SCRAM_NODE_SRC
+    src/AsyncScramWorker.cpp
+    src/ScramWorker.cpp
+    src/InitModule.cpp
+)
+
+set(SCRAM_NODE_HEADERS
+    src/ScramWorker.h
+    src/RunScramCli.h
+    src/AsyncScramWorker.h
+    src/AsyncRunScramCli.h
+)
 
 
 add_library(scram-node SHARED ${SCRAM_NODE_SRC})
 set_target_properties(scram-node PROPERTIES PREFIX "" SUFFIX ".node")
-target_link_libraries(scram-node scram ${Boost_LIBRARIES})
+target_link_libraries(scram-node scram scram-cli-utils ${LIBS} ${CMAKE_JS_LIB})
 target_include_directories(scram-node PRIVATE ${CMAKE_JS_INC})
 
 
@@ -30,4 +40,12 @@ install(
         DIRECTORY ${CMAKE_SOURCE_DIR}/share/
         DESTINATION ${INSTALL_BASE_DIR}/share/scram
         FILES_MATCHING PATTERN "*.rng"
+)
+
+install(
+        TARGETS scram-node
+        LIBRARY DESTINATION ${INSTALL_BASE_DIR}/lib/scram
+        ARCHIVE DESTINATION ${INSTALL_BASE_DIR}/lib/scram/static
+        RUNTIME DESTINATION ${INSTALL_BASE_DIR}/bin
+        COMPONENT scram-node
 )

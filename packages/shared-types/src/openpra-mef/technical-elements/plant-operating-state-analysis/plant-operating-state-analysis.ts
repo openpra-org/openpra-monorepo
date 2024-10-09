@@ -9,11 +9,25 @@ import { Unique } from "../meta";
  * ```
  * const table: PlantOperatingStatesTable = {
  *   uuid: "123e4567-e89b-12d3-a456-426614174000",
- *   state_fields: []
+ *   state_fields: [
+ *     { state: "Normal Operation", duration: 8760 }, // hours per year
+ *     { state: "Shutdown", duration: 720 } // hours per year
+ *   ]
  * };
  * ```
  */
 export interface PlantOperatingStatesTable extends Unique {
+  /**
+   * An array of state fields representing different operating states of the plant.
+   *
+   * @example
+   * ```
+   * const stateFields: unknown[] = [
+   *   { state: "Normal Operation", duration: 8760 },
+   *   { state: "Shutdown", duration: 720 }
+   * ];
+   * ```
+   */
   state_fields: unknown[];
 }
 
@@ -26,7 +40,10 @@ export interface PlantOperatingStatesTable extends Unique {
  *   "technical-element-type": TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS,
  *   states: {
  *     uuid: "123e4567-e89b-12d3-a456-426614174000",
- *     state_fields: []
+ *     state_fields: [
+ *       { state: "Normal Operation", duration: 8760 },
+ *       { state: "Shutdown", duration: 720 }
+ *     ]
  *   }
  * };
  * ```

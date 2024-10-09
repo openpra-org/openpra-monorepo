@@ -1,7 +1,12 @@
 import typia from "typia";
 
 /**
- * enums describing types of PRA technical elements
+ * Enum representing the types of PRA (Probabilistic Risk Assessment) technical elements.
+ *
+ * @example
+ * ```
+ * const type: TechnicalElementTypes = TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS;
+ * ```
  */
 export enum TechnicalElementTypes {
   UNKNOWN = "unknown",
@@ -18,8 +23,28 @@ export enum TechnicalElementTypes {
   RISK_INTEGRATION = "risk-integration",
 }
 
+/**
+ * Interface representing a technical element with a specific type.
+ *
+ * @typeparam TechnicalElementType - The type of the technical element.
+ *
+ * @example
+ * ```
+ * const element: TechnicalElement<TechnicalElementTypes> = {
+ *   "technical-element-type": TechnicalElementTypes.DATA_ANALYSIS
+ * };
+ * ```
+ */
 export interface TechnicalElement<TechnicalElementType> {
   "technical-element-type": TechnicalElementType;
 }
 
+/**
+ * JSON schema for validating {@link TechnicalElementTypes}.
+ *
+ * @example
+ * ```
+ * const isValid = TechnicalElementTypesSchema.validate(someData);
+ * ```
+ */
 export const TechnicalElementTypesSchema = typia.json.application<[TechnicalElementTypes], "3.0">();

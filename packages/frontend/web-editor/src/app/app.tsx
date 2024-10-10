@@ -50,7 +50,7 @@ const routes: RouteObject[] = [
           },
           {
             path: "about",
-            element: <>about</>,
+            element: <>WIP</>,
           },
           {
             path: "data-analysis/*",
@@ -76,7 +76,7 @@ const routes: RouteObject[] = [
 
 const router = createBrowserRouter(routes, {
   future: {
-    // Normalize `useNavigation()`/`useFetcher()` `formMethod` to uppercase
+    // Normalize `useNavigation()`/`useFetcher()`/`formMethod` to uppercase
     v7_normalizeFormMethod: true,
   },
 });

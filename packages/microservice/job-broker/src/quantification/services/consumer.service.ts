@@ -19,7 +19,7 @@ import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-requ
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 import { ScramAddonType } from "shared-types/src/openpra-mef/util/scram-addon-type";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const scramAddon: ScramAddonType = require("scram-node/build/Release/scram-node.node") as ScramAddonType;
+const scramAddon: ScramAddonType = require("engine-scram-node/build/Release/scram-node.node") as ScramAddonType;
 
 @Injectable()
 export class ConsumerService implements OnModuleInit {

@@ -23,39 +23,17 @@ function LoginPage(): JSX.Element {
   return (
     <EuiFlexGroup
       style={flexGroupStyles}
-      alignItems="center"
+      alignItems="baseline"
       gutterSize="none"
     >
       <EuiHideFor sizes={smallSizes}>
         <EuiFlexItem css={textCss}>
           <EuiText>
-            <h1>Welcome to OpenPRA</h1>
+            <h1>Welcome to OpenPRA!</h1>
             <p>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-            </p>
-            <p>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-            </p>
-            <p>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
-              Far out in the uncharted backwaters of the unfashionable end of the western spiral arm of the Galaxy lies
-              a small unregarded yellow sun. When suddenly some wild JavaScript code appeared!{" "}
-              <code>const whoa = &quot;!&quot;</code>
+              Welcome to <b>OpenPRA</b>, an open-source framework for advanced Probabilistic Risk Assessment (PRA). Our
+              platform integrates cutting-edge PRA methods, solvers, and tools to help you model and analyze the
+              dependability of complex systems across various safety-critical domains.
             </p>
           </EuiText>
         </EuiFlexItem>

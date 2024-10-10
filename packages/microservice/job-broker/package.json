@@ -30,6 +30,7 @@
     "webpack": "5.94.0"
   },
   "devDependencies": {
+    "@compodoc/compodoc": "1.1.25",
     "@darraghor/eslint-plugin-nestjs-typed": "5.0.18",
     "@types/amqplib": "0.10.5",
     "@types/supertest": "6.0.2",

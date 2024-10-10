@@ -144,11 +144,9 @@ export class QuantifyService {
     const args = optionsString.split(" ").concat(modelFilePaths);
 
     return new Promise((resolve, reject) => {
-      const scramProcess = spawn(
-        "/home/arjun/projects/openpra-monorepo/packages/engine/scram-node/cmake-build-debug/targets/scram-cli/scram-cli",
-        args,
-        { shell: true },
-      );
+      const scramProcess = spawn("/home/hrashee/projects/openpra-monorepo/node_modules/.bin/scram-cli", args, {
+        shell: true,
+      });
 
       // Stream for capturing standard error
       const errorStream = fs.createWriteStream(errorLogPath);

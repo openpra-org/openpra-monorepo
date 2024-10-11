@@ -55,7 +55,7 @@ function SignUp(): JSX.Element {
   if (redirectToHomepage) {
     return (
       <Navigate
-        to="/internal-events"
+        to="/"
         replace={true}
       />
     );
@@ -65,7 +65,7 @@ function SignUp(): JSX.Element {
         handleSignup={handleSignup}
         signup={signup}
         setSignup={setSignup}
-        buttonText={"Sign In"}
+        buttonText={"Sign Up"}
       />
     );
   }

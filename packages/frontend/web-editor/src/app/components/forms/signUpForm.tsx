@@ -5,7 +5,7 @@ import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
 import { UseToastContext } from "../../providers/toastProvider";
-import { GenerateUUID } from "../../../utils/treeUtils";
+import { GenerateUUID, GetESToast } from "../../../utils/treeUtils";
 import { PasswordForm } from "./passwordForm";
 import { UsernameForm } from "./usernameForm";
 
@@ -32,6 +32,13 @@ const SignUpForm = ({
   const [isValidEmail, setIsValidEmail] = useState(true);
   const { addToast } = UseToastContext();
 
+  const handleOIDCLogin = async () => {
+    try {
+      await ApiManager.signInWithOIDC(); // Call the APIManager function
+    } catch (error) {
+      addToast(GetESToast("danger", "Something went wrong with OIDC login"));
+    }
+  };
   /**
    * This function will validate form validation
    * @param e - The form component
@@ -105,6 +112,16 @@ const SignUpForm = ({
           type="submit"
         >
           {buttonText}
+        </EuiButton>
+      </EuiFormRow>
+      OR
+      {/* OIDC Button */}
+      <EuiFormRow>
+        <EuiButton
+          fullWidth
+          onClick={handleOIDCLogin}
+        >
+          Sign in with OpenPRA
         </EuiButton>
       </EuiFormRow>
     </EuiForm>

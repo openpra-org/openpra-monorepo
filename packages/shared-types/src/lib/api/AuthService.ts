@@ -42,50 +42,65 @@ class AuthService {
     }
   }
 
+  // Store the ID token in session storage.
   static setEncodedToken(idToken: string | null): void {
     if (idToken) {
-      localStorage.setItem("id_token", idToken);
+      sessionStorage.setItem("id_token", idToken);
     }
   }
 
+  // Retrieve the ID token from session storage.
   static getEncodedToken(): string | null {
-    const idToken = localStorage.getItem("id_token");
+    const idToken = sessionStorage.getItem("id_token");
     return idToken === "undefined" ? null : idToken;
   }
 
-  static logout(): boolean {
-    localStorage.removeItem("id_token");
-    return AuthService.getEncodedToken() === null;
+  // Store access token in session storage.
+  static setAccessToken(accessToken: string | null): void {
+    if (accessToken) {
+      sessionStorage.setItem("access_token", accessToken);
+    }
   }
 
+  // Retrieve access token from session storage.
+  static getAccessToken(): string | null {
+    const accessToken = sessionStorage.getItem("access_token");
+    return accessToken === "undefined" ? null : accessToken;
+  }
+
+  // Clear tokens from session storage on logout.
+  static logout(): boolean {
+    sessionStorage.removeItem("access_token");
+    sessionStorage.removeItem("id_token");
+    return AuthService.getEncodedToken() === null && AuthService.getAccessToken() === null;
+  }
+
+  // Decode the ID token to extract user profile data.
   static getProfile(): AuthToken {
     try {
-      const encodedToken = AuthService.getEncodedToken();
-      if (!encodedToken) {
+      const idToken = AuthService.getEncodedToken();
+      if (!idToken) {
         return EMPTY_TOKEN;
       }
-      return jwtDecode<AuthToken>(encodedToken);
+      return jwtDecode<AuthToken>(idToken);
     } catch (e) {
       return EMPTY_TOKEN;
     }
   }
 
-  /**
-   * This function gets the user role from token
-   */
+  // Retrieve user roles from the ID token.
   static getRole(): string[] {
     try {
-      const encodedToken = AuthService.getEncodedToken();
-      if (!encodedToken) {
+      const idToken = AuthService.getEncodedToken();
+      if (!idToken) {
         return [MemberRole];
       }
-      const decodedToken = jwtDecode<AuthToken>(encodedToken);
+      const decodedToken = jwtDecode<AuthToken>(idToken);
       if (!decodedToken.exp) {
         return [MemberRole];
       }
       return decodedToken.roles ?? [MemberRole];
     } catch (e) {
-      // Something bad happened
       throw new Error("The user is not logged in or token expired");
     }
   }

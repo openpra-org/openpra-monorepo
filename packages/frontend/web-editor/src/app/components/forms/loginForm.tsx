@@ -103,6 +103,14 @@ function LoginForm(): JSX.Element {
     }
   }
 
+  const handleOIDCLogin = async () => {
+    try {
+      await ApiManager.signInWithOIDC(); // Call the APIManager function
+    } catch (error) {
+      addToast(GetESToast("danger", "Something went wrong with OIDC login"));
+    }
+  };
+
   if (redirectToHomepage) {
     return (
       <Navigate
@@ -159,6 +167,16 @@ function LoginForm(): JSX.Element {
             type="submit"
           >
             Login
+          </EuiButton>
+        </EuiFormRow>
+        OR
+        {/* OIDC Button */}
+        <EuiFormRow>
+          <EuiButton
+            fullWidth
+            onClick={handleOIDCLogin}
+          >
+            Login with OpenPRA
           </EuiButton>
         </EuiFormRow>
       </EuiForm>

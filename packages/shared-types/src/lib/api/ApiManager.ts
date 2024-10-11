@@ -1,3 +1,4 @@
+import axios from "axios";
 import { AuthToken } from "../types/AuthToken";
 import { AuthService } from "./AuthService";
 import { SignUpCredentials, SignUpCredentialsWithRole } from "./AuthTypes";
@@ -11,10 +12,78 @@ const userPreferencesEndpoint = `${collabEndpoint}/user`;
 
 const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, only-if-cached
 
+const OIDC_CONFIG = {
+  issuer: "https://hub.openpra.org/hub",
+  authorizationEndpoint: "https://hub.openpra.org/hub/api/rest/oauth2/auth",
+  tokenEndpoint: "https://hub.openpra.org/hub/api/rest/oauth2/token",
+  userinfoEndpoint: "https://hub.openpra.org/hub/api/rest/oauth2/userinfo",
+  clientId: "da279c72-26ea-49d9-8ec6-ab3ef5584752",
+  redirectUri: "http://localhost:4200/callback",
+  scopes: ["openid", "profile", "email"],
+};
+
 export class ApiManager {
   static API_ENDPOINT = API_ENDPOINT;
 
   static LOGIN_URL = `${authEndpoint}/token-obtain/`;
+
+  static async signInWithOIDC(): Promise<void> {
+    // eslint-disable-next-line no-console
+    console.log("Calling OIDC Provider");
+    const authUrl = `${OIDC_CONFIG.authorizationEndpoint}?client_id=${
+      OIDC_CONFIG.clientId
+    }&redirect_uri=${encodeURIComponent(OIDC_CONFIG.redirectUri)}&response_type=code&scope=${OIDC_CONFIG.scopes.join(
+      " ",
+    )}`;
+    window.location.href = authUrl;
+  }
+
+  static async fetchUserInfo(): Promise<void> {
+    const accessToken = AuthService.getAccessToken();
+    if (!accessToken) return;
+
+    try {
+      const response = await axios.get(OIDC_CONFIG.userinfoEndpoint, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+
+      console.log("User Info:", response.data);
+    } catch (error) {
+      console.error("Error fetching user info:", error);
+    }
+  }
+
+  static async handleCallback(code: string): Promise<void> {
+    console.log("Handling callback: ");
+    try {
+      const response = await axios.post(
+        OIDC_CONFIG.tokenEndpoint,
+        {
+          client_id: OIDC_CONFIG.clientId,
+          code,
+          grant_type: "authorization_code",
+          redirect_uri: OIDC_CONFIG.redirectUri,
+        },
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        },
+      );
+
+      const { accessToken = null, idToken = null } = response.data;
+
+      console.log("Access Token", accessToken);
+      console.log("ID Token", idToken);
+      // Use AuthService methods to store tokens
+      AuthService.setAccessToken(accessToken);
+      AuthService.setEncodedToken(idToken);
+    } catch (error) {
+      console.error("Error exchanging code for tokens:", error);
+    }
+  }
 
   /* base GET request */
   static async getWithOptions(url: string): Promise<Response> {

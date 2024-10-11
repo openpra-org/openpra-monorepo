@@ -15,6 +15,7 @@ import { GlobalToastList } from "./components/lists/globalToastList";
 import { InvitePage } from "./pages/invitePage";
 import { AbilityContext } from "./providers/abilityProvider";
 import { DefaultAbility } from "./casl/ability";
+import { OidcCallback } from "./components/login/OidcCallback";
 
 const routes: RouteObject[] = [
   {
@@ -27,6 +28,10 @@ const routes: RouteObject[] = [
           {
             path: "",
             element: <LoginPage />,
+          },
+          {
+            path: "callback",
+            element: <OidcCallback />,
           },
           {
             path: "invite/:inviteId/*",

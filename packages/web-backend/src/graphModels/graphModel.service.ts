@@ -192,47 +192,6 @@ export class GraphModelService {
       };
     }
   }
-  /**
-   * Updates the label of the node/edge present in the data attribute
-   * @param id - Node/Edge ID
-   * @param type - 'node' or 'edge'
-   * @param label - New label for the node/edge
-   * @returns A promise with boolean confirmation of the update operation
-   */
-  async updateBNLabel(nodeId: string, label: string): Promise<boolean> {
-    try {
-      const filter = { "nodes.id": nodeId };
-      const update = { $set: { "nodes.$.data.label": label } };
-      const result = await this.bayesianNetworkGraphModel.updateOne(filter, update);
-
-      return result.modifiedCount > 0;
-    } catch (error) {
-      this.logger.error(`Failed to update label for node ${nodeId}: ${error}`);
-      throw new Error();
-    }
-  }
-
-  /**
-   * Deletes a node from a specified graph by its node ID.
-   *
-   * @param graphType - The type of graph from which the node will be deleted. It can be any of the GraphTypes enums.
-   * @param graphId - The ID of the graph (e.g., the bayesianNetworkId) from which the node will be removed.
-   * @param nodeId - The ID of the node to be deleted from the graph.
-   * @returns A promise that resolves to true if the node was successfully deleted, false otherwise.
-   * @throws Error if an issue occurs during the node deletion process.
-   */
-  async deleteNodeFromGraph(graphType: GraphTypes, graphId: string, nodeId: string): Promise<boolean> {
-    try {
-      const filter = { bayesianNetworkId: graphId };
-      const update = { $pull: { nodes: { id: nodeId } } };
-      const result = await this.bayesianNetworkGraphModel.updateOne(filter, update);
-
-      return result.modifiedCount > 0;
-    } catch (error) {
-      this.logger.error(`Failed to delete node ${nodeId} from ${graphType} graph: ${error}`);
-      throw new Error();
-    }
-  }
 
   /**
    * Updates the label of the node/edge present in the data attribute
@@ -410,5 +369,174 @@ export class GraphModelService {
     ];
 
     return { nodes: defaultNodes, edges: defaultEdges };
+  }
+  /**
+   * Updates the label of the bayesian node/edge present in the data attribute
+   * @param id - Node/Edge ID
+   * @param type - 'node' or 'edge'
+   * @param label - New label for the node/edge
+   * @returns A promise with boolean confirmation of the update operation
+   */
+  async updateBNLabel(nodeId: string, label: string): Promise<boolean> {
+    try {
+      const filter = { "nodes.id": nodeId };
+      const update = { $set: { "nodes.$.data.label": label } };
+      const result = await this.bayesianNetworkGraphModel.updateOne(filter, update);
+
+      return result.modifiedCount > 0;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      this.logger.error(`Failed to update label for node ${nodeId}: ${errorMessage}`);
+      throw new Error();
+    }
+  }
+
+  /**
+   * Adds a new node from a parent in the Bayesian Network
+   * @param bayesianNetworkId - The ID of the Bayesian Network
+   * @param parentId - The ID of the parent node
+   * @param newNode - The new node object
+   * @returns A promise with boolean confirmation
+   */
+  async addNodeFromParent(
+    bayesianNetworkId: string,
+    parentId: string,
+    newNode: { id: string; label?: string; position: { x: number; y: number } },
+  ): Promise<boolean> {
+    try {
+      const graph = await this.bayesianNetworkGraphModel.findOne({ bayesianNetworkId });
+
+      // Explicit null check
+      if (graph == null) {
+        this.logger.error(`Graph with ID ${bayesianNetworkId} not found`);
+        throw new Error(`Graph with ID ${bayesianNetworkId} not found`);
+      }
+
+      // Ensure parent exists
+      const parentNode = graph.nodes.find((node) => node.id === parentId);
+      if (parentNode == null) {
+        this.logger.error(`Parent node with ID ${parentId} not found`);
+        throw new Error(`Parent node with ID ${parentId} not found`);
+      }
+
+      // Default label for the new node inside the `data` field, not directly as `label`
+      const newGraphNode: GraphNode<object> = {
+        id: newNode.id,
+        position: newNode.position,
+        data: { label: newNode.label || "New Node" }, // Use the data property for the label
+        type: "default", // Assuming this is the node type you're using
+      };
+
+      // Add the new node to the graph
+      graph.nodes.push(newGraphNode);
+
+      // Create an edge from the parent to the new node
+      const newEdge: GraphEdge<object> = {
+        id: `${parentId}->${newNode.id}`,
+        source: parentId,
+        target: newNode.id,
+        data: { label: `Edge from ${parentId} to ${newNode.id}` },
+        animated: false,
+        type: "default",
+      };
+
+      // Add the new edge to the graph
+      graph.edges.push(newEdge);
+
+      // Save the updated graph
+      await graph.save();
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      this.logger.error(`Failed to add node: ${errorMessage}`);
+      throw new Error(`Failed to add node: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Deletes a node and reconnects its children to its parent(s)
+   * @param bayesianNetworkId - The ID of the Bayesian Network
+   * @param nodeId - The ID of the node to be deleted
+   * @returns A promise with boolean confirmation
+   */
+  async deleteNodeAndReconnect(bayesianNetworkId: string, nodeId: string): Promise<boolean> {
+    try {
+      const graph = await this.bayesianNetworkGraphModel.findOne({ bayesianNetworkId });
+
+      if (graph == null) {
+        this.logger.error(`Graph with ID ${bayesianNetworkId} not found`);
+        throw new Error(`Graph with ID ${bayesianNetworkId} not found`);
+      }
+
+      // Find the node's parents and children
+      const parentEdges = graph.edges.filter((edge) => edge.target === nodeId);
+      const childEdges = graph.edges.filter((edge) => edge.source === nodeId);
+
+      if (parentEdges.length === 0 || childEdges.length === 0) {
+        this.logger.error(`No parents or children found for node ${nodeId}`);
+        throw new Error(`No parents or children found for node ${nodeId}`);
+      }
+
+      const parentIds = parentEdges.map((edge) => edge.source);
+      const childIds = childEdges.map((edge) => edge.target);
+
+      // Reconnect child nodes to parent nodes
+      parentIds.forEach((parentId) => {
+        childIds.forEach((childId) => {
+          graph.edges.push({
+            id: `${parentId}->${childId}`,
+            source: parentId,
+            target: childId,
+            data: { label: `Reconnected ${parentId} to ${childId}` },
+            animated: false,
+            type: "default",
+          });
+        });
+      });
+
+      // Remove the node and its edges
+      graph.nodes = graph.nodes.filter((node) => node.id !== nodeId);
+      graph.edges = graph.edges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId);
+
+      await graph.save();
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      this.logger.error(`Failed to delete node and reconnect: ${errorMessage}`);
+      throw new Error(`Failed to delete node and reconnect: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Updates the position of a bayesian node
+   * @param nodeId - Node ID
+   * @param position - New position of the node
+   * @returns A promise with boolean confirmation
+   */
+  async updateNodePosition(nodeId: string, position: { x: number; y: number }): Promise<boolean> {
+    try {
+      const graph = await this.bayesianNetworkGraphModel.findOne({ "nodes.id": nodeId });
+
+      if (graph == null) {
+        this.logger.error(`Graph with node ${nodeId} not found`);
+        throw new Error(`Graph with node ${nodeId} not found`);
+      }
+
+      const node = graph.nodes.find((node) => node.id === nodeId);
+      if (node == null) {
+        this.logger.error(`Node ${nodeId} not found`);
+        throw new Error(`Node ${nodeId} not found`);
+      }
+
+      // Update the node position
+      node.position = position;
+
+      await graph.save();
+      return true;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      this.logger.error(`Failed to update node position: ${errorMessage}`);
+      throw new Error(`Failed to update node position: ${errorMessage}`);
+    }
   }
 }

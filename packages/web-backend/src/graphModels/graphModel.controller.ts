@@ -42,21 +42,6 @@ export class GraphModelController {
   }
 
   /**
-   * stores/creates a bayesian network diagram graph
-   * @param data - takes in a partial of a bayesian network diagram model
-   * as well as the bayesianNetworkId, if the id is missing - a new graph document will be created.
-   * @returns a promise with the newly created graph model
-   */
-  @Post("/bayesian-network-graph")
-  async createBayesianNetworkGraph(@Body() data: Partial<BayesianNetworkGraph>): Promise<boolean> {
-    try {
-      return this.graphModelService.saveBayesianNetworkGraph(data);
-    } catch (_) {
-      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  /**
    * fetches the event sequence graph model for a particular diagram, based on its id
    * @param eventSequenceId - the id of the event sequence diagram
    * @returns a promise with an object of the event sequence diagram graph
@@ -89,6 +74,39 @@ export class GraphModelController {
   }
 
   /**
+   * Update the label of node/edge of an event sequence diagram
+   * @param id - Node/Edge ID
+   * @param type - 'node' or 'edge'
+   * @param label - New label for the node/edge
+   * @returns a promise with boolean confirmation whether update was successful or not
+   */
+  @Patch("/event-sequence-diagram-graph/update-label/")
+  async updateESNodeLabel(
+    @Body("id") id: string,
+    @Body("type") type: string,
+    @Body("label") label: string,
+  ): Promise<boolean> {
+    try {
+      return this.graphModelService.updateESLabel(id, type, label);
+    } catch (_) {
+      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  @Patch("/event-sequence-diagram-graph")
+  async updateESSubgraph(
+    @Body("eventSequenceId") eventSequenceId: string,
+    @Body("updated") updatedSubgraph: Partial<BaseGraph>,
+    @Body("deleted") deletedSubgraph: Partial<BaseGraph>,
+  ): Promise<boolean> {
+    try {
+      return this.graphModelService.updateESSubgraph(eventSequenceId, updatedSubgraph, deletedSubgraph);
+    } catch (_) {
+      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
    * fetches the bayesian network graph model for a particular diagram, based on its id
    * @param bayesianNetworkId - the id of the bayesian network diagram
    * @returns a promise with an object of the bayesian network diagram graph
@@ -96,6 +114,21 @@ export class GraphModelController {
   @Get("/bayesian-network-graph/")
   async getBayesianNetworkGraph(@Query("bayesianNetworkId") bayesianNetworkId: string): Promise<BayesianNetworkGraph> {
     return this.graphModelService.getBayesianNetworkGraph(bayesianNetworkId);
+  }
+
+  /**
+   * stores/creates a bayesian network diagram graph
+   * @param data - takes in a partial of a bayesian network diagram model
+   * as well as the bayesianNetworkId, if the id is missing - a new graph document will be created.
+   * @returns a promise with the newly created graph model
+   */
+  @Post("/bayesian-network-graph")
+  async createBayesianNetworkGraph(@Body() data: Partial<BayesianNetworkGraph>): Promise<boolean> {
+    try {
+      return this.graphModelService.saveBayesianNetworkGraph(data);
+    } catch (_) {
+      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
   }
 
   /**
@@ -128,42 +161,59 @@ export class GraphModelController {
     @Body("nodeId") nodeId: string,
   ): Promise<boolean> {
     try {
-      return this.graphModelService.deleteNodeFromGraph(GraphTypes.BayesianNetwork, bayesianNetworkId, nodeId);
-    } catch (_) {
-      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+      return await this.graphModelService.deleteNodeAndReconnect(bayesianNetworkId, nodeId);
+    } catch (error) {
+      throw new HttpException("Error deleting node", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+  /**
+   * Adds a new node to a Bayesian network graph.
+   * The new node is created as a child of an existing parent node.
+   *
+   * @param bayesianNetworkId - The ID of the Bayesian network graph.
+   * @param parentId - The ID of the parent node to which the new node will be connected.
+   * @param newNode - An object containing the properties of the new node:
+   * - id: The unique identifier for the new node.
+   * - label: (Optional) The label for the new node (defaults to "New Node" if not provided).
+   * - position: The position coordinates (x, y) for the new node on the canvas.
+   *
+   * @returns A promise that resolves to true if the node is successfully added, otherwise false.
+   * @throws HttpException - Throws an Internal Server Error if the node cannot be added.
+   */
+  @Post("/bayesian-network-graph/add-node")
+  async addNodeToBayesianNetwork(
+    @Body("bayesianNetworkId") bayesianNetworkId: string,
+    @Body("parentId") parentId: string,
+    @Body("newNode") newNode: { id: string; label?: string; position: { x: number; y: number } },
+  ): Promise<boolean> {
+    try {
+      return await this.graphModelService.addNodeFromParent(bayesianNetworkId, parentId, newNode);
+    } catch (error) {
+      throw new HttpException("Error adding node", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   /**
-   * Update the label of node/edge of an event sequence diagram
-   * @param id - Node/Edge ID
-   * @param type - 'node' or 'edge'
-   * @param label - New label for the node/edge
-   * @returns a promise with boolean confirmation whether update was successful or not
+   * Updates the position of an existing node in the Bayesian network graph.
+   * The position of the node is updated based on the new coordinates provided.
+   *
+   * @param nodeId - The unique ID of the node to be updated.
+   * @param position - An object containing the new position coordinates:
+   * - x: The new X-coordinate of the node.
+   * - y: The new Y-coordinate of the node.
+   *
+   * @returns A promise that resolves to true if the node's position is successfully updated, otherwise false.
+   * @throws HttpException - Throws an Internal Server Error if the position cannot be updated.
    */
-  @Patch("/event-sequence-diagram-graph/update-label/")
-  async updateESNodeLabel(
-    @Body("id") id: string,
-    @Body("type") type: string,
-    @Body("label") label: string,
+  @Patch("/bayesian-network-graph/update-node-position")
+  async updateNodePosition(
+    @Body("nodeId") nodeId: string,
+    @Body("position") position: { x: number; y: number },
   ): Promise<boolean> {
     try {
-      return this.graphModelService.updateESLabel(id, type, label);
-    } catch (_) {
-      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  @Patch("/event-sequence-diagram-graph")
-  async updateESSubgraph(
-    @Body("eventSequenceId") eventSequenceId: string,
-    @Body("updated") updatedSubgraph: Partial<BaseGraph>,
-    @Body("deleted") deletedSubgraph: Partial<BaseGraph>,
-  ): Promise<boolean> {
-    try {
-      return this.graphModelService.updateESSubgraph(eventSequenceId, updatedSubgraph, deletedSubgraph);
-    } catch (_) {
-      throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
+      return await this.graphModelService.updateNodePosition(nodeId, position);
+    } catch (error) {
+      throw new HttpException("Error updating node position", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

@@ -16,7 +16,7 @@ import * as glob from "glob";
  * ```
  */
 const execPromise = (cmd: string): Promise<number> => {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     exec(cmd, (error, stdout, stderr) => {
       if (stdout) {
         //console.log(stdout);
@@ -24,7 +24,7 @@ const execPromise = (cmd: string): Promise<number> => {
       if (stderr) {
         //console.error(stderr);
       }
-      if (error?.code) {
+      if (error?.code != null) {
         resolve(error.code);
       } else {
         resolve(0);

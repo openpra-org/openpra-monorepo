@@ -1,8 +1,9 @@
 {
-  "name": "engine-scram-node",
+  "name": "scram-node",
   "version": "0.0.1",
   "license": "AGPL-3.0-or-later",
-  "main": "scram-node.node",
+  "main": "./build/Release/scram-node.node",
+  "types": "./targets/scram-node/lib/index.d.ts",
   "private": true,
   "scripts": {
     "postinstall": "cd build && make install && ../scripts/inform_update_paths.sh",
@@ -40,8 +41,7 @@
       "sanitize": {},
       "test": {
         "inputs": [
-          "default",
-          "^production"
+          "default"
         ],
         "outputs": [],
         "dependsOn": [
@@ -54,13 +54,12 @@
     "cmake-js": "7.3.0",
     "glob": "11.0.0",
     "node-addon-api": "8.1.0",
+    "shared-types": "0.0.1",
     "tmp": "0.2.3"
   },
   "devDependencies": {
-    "@types/glob": "8.1.0",
     "jest": "29.7.0",
-    "shared-types": "workspace:^",
-    "microservice-job-broker": "workspace:^"
+    "@types/glob": "8.1.0"
   },
   "binary": {
     "napi_versions": [

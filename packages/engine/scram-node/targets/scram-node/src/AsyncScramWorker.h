@@ -4,26 +4,26 @@
 #include <vector>
 
 /**
- * @class ScramWorker
+ * @class AsyncScramWorker
  * @brief Defines a class for asynchronous execution of SCRAM engine.
  *
  * This class inherits from Napi::AsyncWorker to perform tasks in a separate thread
  * and notify upon completion. It's designed to execute SCRAM-related operations
  * asynchronously in a Node.js environment.
  */
-class ScramWorker : public Napi::AsyncWorker {
-  public:
+class AsyncScramWorker : public Napi::AsyncWorker {
+public:
     /**
      * @brief Constructor for ScramWorker.
      * @param callback A Napi::Function reference for asynchronous callback.
      * @param args A vector of command-line arguments for the SCRAM engine.
      */
-    ScramWorker(Napi::Function& callback, std::vector<std::string> args);
+    explicit AsyncScramWorker(Napi::Function &callback, std::vector<std::string> args);
 
     /**
      * @brief Virtual destructor for ScramWorker.
      */
-    virtual ~ScramWorker() {};
+    ~AsyncScramWorker() override= default;
 
     /**
      * @brief Executes the main logic of the worker.
@@ -41,7 +41,7 @@ class ScramWorker : public Napi::AsyncWorker {
      */
     void OnOK() override;
 
-  private:
+private:
     /**
      * @brief Stores the command-line arguments for the SCRAM engine.
      */

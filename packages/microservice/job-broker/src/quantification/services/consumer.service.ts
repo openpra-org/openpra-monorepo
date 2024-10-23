@@ -17,9 +17,8 @@ import tmp from "tmp";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
-import { ScramAddonType } from "shared-types/src/openpra-mef/util/scram-addon-type";
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const scramAddon: ScramAddonType = require("engine-scram-node/build/Release/scram-node.node") as ScramAddonType;
+
+import { RunScramCli } from "scram-node";
 
 @Injectable()
 export class ConsumerService implements OnModuleInit {
@@ -178,7 +177,7 @@ export class ConsumerService implements OnModuleInit {
     try {
       // Invoke the SCRAM CLI with the updated request, which now includes file paths
       // to the input model and output files.
-      scramAddon.RunScramCli(modelsWithConfigs);
+      RunScramCli(modelsWithConfigs);
 
       // Read the quantification results from the output file.
       const outputContent = readFileSync(outputFilePath, "utf8");

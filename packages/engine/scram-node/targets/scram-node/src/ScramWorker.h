@@ -1,5 +1,4 @@
 #pragma once
-#include <napi.h>
 #include <string>
 #include <vector>
 
@@ -11,17 +10,17 @@
  * based on command-line arguments.
  */
 class ScramWorker {
-  public:
+public:
     /**
      * @brief Constructor for ScramWorker.
      * @param args A vector of command-line arguments.
      */
-    ScramWorker(std::vector<std::string> args);
+    explicit ScramWorker(std::vector<std::string> args);
 
     /**
      * @brief Virtual destructor for ScramWorker.
      */
-    virtual ~ScramWorker() {};
+    virtual ~ScramWorker()= default;
 
     /**
      * @brief Executes the main logic of the worker.
@@ -31,7 +30,7 @@ class ScramWorker {
      */
     void Execute();
 
-  private:
+private:
     /**
      * @brief Stores the command-line arguments.
      */

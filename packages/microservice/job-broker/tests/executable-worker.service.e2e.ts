@@ -3,49 +3,49 @@ import { ConfigService } from "@nestjs/config";
 import { Test, TestingModule } from "@nestjs/testing";
 import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
-import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
-import { ConsumerService } from "../../src/quantification/services/consumer.service";
-import { ValidQuantifyRequest } from "../input/quantification/valid-request";
-import { MissingRequiredKey } from "../input/quantification/invalid-request";
-import { InvalidReport } from "../output/quantification/invalid-report";
+import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
+import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
+import { ExecutableWorkerService } from "../src/executable/services/executable-worker.service";
+import { ValidExecuteRequest } from "./input/executable/valid-request";
+import { MissingRequiredKey } from "./input/executable/invalid-request";
+import { InvalidResult } from "./output/executable/invalid-result";
 
 /**
- * Tests for the ConsumerService.
+ * End-to-end tests for the ExecutableWorkerService.
  *
  * These tests cover the following cases:
  *
- * - should log an error if environment variables are not set
- * - should log an error if consumed message is null
- * - should throw a validation error if input data is invalid
- * - should throw a validation error if output data is invalid
- * - should retry connecting to RabbitMQ broker and throw an error after 3 attempts
+ * - Should log an error if environment variables are not set.
+ * - Should log an error if consumed message is null.
+ * - Should throw a validation error if input data is invalid.
+ * - Should throw a validation error if output data is invalid.
+ * - Should retry connecting to RabbitMQ broker and throw an error after 3 attempts.
  */
 
 // Mock the RabbitMQ library.
 jest.mock("amqplib");
 
-describe("ConsumerService", () => {
-  let service: ConsumerService;
+describe("ExecutableWorkerService", () => {
+  let service: ExecutableWorkerService;
   let configService: ConfigService;
   const loggerSpyError = jest.spyOn(Logger.prototype, "error");
   let mockConnection: Partial<amqp.Connection>;
   let mockChannel: Partial<amqp.Channel>;
 
   beforeEach(async () => {
-    // Mock the channel methods of the RabbitMQ library.
+    // Mock the RabbitMQ channel methods.
     mockChannel = {
       assertExchange: jest.fn().mockResolvedValue(undefined),
       assertQueue: jest.fn().mockResolvedValue(undefined),
       bindQueue: jest.fn().mockResolvedValue(undefined),
       consume: jest.fn().mockImplementation((queue: string, onMessage: (msg: ConsumeMessage | null) => void) => {
-        onMessage({ content: Buffer.from(JSON.stringify(ValidQuantifyRequest)) } as ConsumeMessage);
+        onMessage({ content: Buffer.from(JSON.stringify(ValidExecuteRequest)) } as ConsumeMessage);
       }),
       ack: jest.fn().mockResolvedValue(undefined),
       nack: jest.fn().mockResolvedValue(undefined),
     };
 
-    // Mock the connection method of the RabbitMQ library.
+    // Mock the RabbitMQ connection method.
     mockConnection = {
       createChannel: jest.fn().mockResolvedValue(mockChannel),
     };
@@ -56,7 +56,7 @@ describe("ConsumerService", () => {
     // Create the testing module.
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        ConsumerService,
+        ExecutableWorkerService,
         {
           provide: ConfigService,
           useValue: {
@@ -64,9 +64,9 @@ describe("ConsumerService", () => {
               switch (key) {
                 case "RABBITMQ_URL":
                   return "some-rabbitmq-url";
-                case "QUANT_JOB_QUEUE_NAME":
+                case "EXECUTABLE_TASK_QUEUE_NAME":
                   return "some-queue-name";
-                case "QUANT_STORAGE_QUEUE_NAME":
+                case "EXECUTABLE_STORAGE_QUEUE_NAME":
                   return "some-storage-queue";
                 case "DEAD_LETTER_QUEUE_NAME":
                   return "some-dead-letter-queue";
@@ -81,7 +81,7 @@ describe("ConsumerService", () => {
       ],
     }).compile();
 
-    service = module.get<ConsumerService>(ConsumerService);
+    service = module.get<ExecutableWorkerService>(ExecutableWorkerService);
     configService = module.get<ConfigService>(ConfigService);
   });
 
@@ -93,11 +93,11 @@ describe("ConsumerService", () => {
   it("should log an error if environment variables are not set", async () => {
     jest.spyOn(configService, "get").mockReturnValueOnce(undefined);
 
-    await service.onModuleInit();
+    await service.onApplicationBootstrap();
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
     expect(loggerSpyError).toHaveBeenCalledWith(
-      "Required environment variables for quantification consumer service are not set",
+      "Required environment variables for executable worker service are not set",
     );
   });
 
@@ -108,43 +108,45 @@ describe("ConsumerService", () => {
       },
     );
 
-    await service.onModuleInit();
+    await service.onApplicationBootstrap();
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
-    expect(loggerSpyError).toHaveBeenCalledWith("Unable to parse message from initial quantification queue");
+    expect(loggerSpyError).toHaveBeenCalledWith("Executable worker service is unable to parse the consumed message.");
   });
 
   it("should throw a validation error if input data is invalid", async () => {
     (mockChannel.consume as jest.Mock).mockImplementation(
       (queue: string, onMessage: (msg: ConsumeMessage | null) => void) => {
-        onMessage({ content: Buffer.from(JSON.stringify(MissingRequiredKey as QuantifyRequest)) } as ConsumeMessage);
+        onMessage({ content: Buffer.from(JSON.stringify(MissingRequiredKey as ExecutionTask)) } as ConsumeMessage);
       },
     );
 
-    await service.onModuleInit();
+    await service.onApplicationBootstrap();
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
     expect(loggerSpyError).toHaveBeenCalledWith(
-      new Error("Error on typia.json.assertParse(): invalid type on $input.models, expect to be Array<string>"),
+      new Error(
+        `Error on typia.json.assertParse(): invalid type on $input.executable, expect to be ("acube" | "dpc" | "ftrex" | "qrecover" | "saphsolve" | "scram-cli" | "xfta" | "xfta2")`,
+      ),
     );
   });
 
   it("should throw a validation error if output data is invalid", async () => {
-    jest.spyOn(service, "performQuantification").mockReturnValueOnce(InvalidReport as unknown as QuantifyReport);
+    jest.spyOn(service, "executeCommand").mockReturnValueOnce(InvalidResult as unknown as ExecutionResult);
 
-    await service.onModuleInit();
+    await service.onApplicationBootstrap();
 
     expect(loggerSpyError).toHaveBeenCalledTimes(1);
     expect(loggerSpyError).toHaveBeenCalledWith(
-      new Error("Error on typia.json.assertStringify(): invalid type on $input.results, expect to be Array<string>"),
+      new Error("Error on typia.json.assertStringify(): invalid type on $input.stderr, expect to be string"),
     );
   });
 
   it("should retry connecting to RabbitMQ broker and throw an error after 3 attempts", async () => {
     (amqp.connect as jest.Mock).mockRejectedValue(new Error("Connection failed"));
 
-    await expect(service.onModuleInit()).rejects.toThrow(
-      "Failed to connect to the RabbitMQ broker after several attempts from quantification-consumer side.",
+    await expect(service.onApplicationBootstrap()).rejects.toThrow(
+      "Failed to connect to the RabbitMQ broker after several attempts from executable-task-worker side.",
     );
 
     expect(amqp.connect).toHaveBeenCalledTimes(3);

@@ -2,17 +2,12 @@ import type { Server } from "net";
 import { Test, TestingModule } from "@nestjs/testing";
 import { INestApplication, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import request from "supertest";
-import { ExecutableController } from "../../src/executable/executable.controller";
-import { ExecutableService } from "../../src/executable/services/executable.service";
-import { ExecutableStorageService } from "../../src/executable/services/executable-storage.service";
-import {
-  InvalidAdditionalKey,
-  InvalidKeyType,
-  MissingRequiredKey,
-  MultipleInvalidKeyTypes,
-} from "../input/executable/invalid-request";
-import { ValidExecuteRequest } from "../input/executable/valid-request";
-import { ExecutedResults } from "../output/executable/executed-results";
+import { ExecutableController } from "../src/executable/executable.controller";
+import { ExecutableService } from "../src/executable/services/executable.service";
+import { ExecutableStorageService } from "../src/executable/services/executable-storage.service";
+import { InvalidKeyType, MissingRequiredKey, MultipleInvalidKeyTypes } from "./input/executable/invalid-request";
+import { ValidExecuteRequest } from "./input/executable/valid-request";
+import { ExecutedResults } from "./output/executable/executed-results";
 
 /**
  * End-to-end tests for the ExecutableController.

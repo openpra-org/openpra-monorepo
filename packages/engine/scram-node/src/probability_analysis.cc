@@ -186,7 +186,7 @@ double McubCalculator::Calculate(
   for (const std::vector<int>& cut_set : cut_sets) {
     m *= 1 - CutSetProbabilityCalculator::Calculate(cut_set, p_vars);
   }
-  std::cout<<"Mcubcalculator elapsed time:"<<(omp_get_wtime() - mcub_start_time)*1000<<" milliseconds"<<std::endl;
+  // std::cout<<"Mcubcalculator elapsed time:"<<(omp_get_wtime() - mcub_start_time)*1000<<" milliseconds"<<std::endl;
   return 1 - m;
 }
 //alternative #2

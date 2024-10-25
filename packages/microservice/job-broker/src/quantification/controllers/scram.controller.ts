@@ -9,6 +9,7 @@
 // Importing NestJS common module, TypedRoute and TypedBody decorators from @nestia/core for route and type handling,
 // shared types for request validation, and the ProducerService.
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
+import { MessagePattern, RmqContext, Ctx, Payload } from "@nestjs/microservices";
 import { TypedRoute, TypedBody } from "@nestia/core";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { ProducerService } from "../services/producer.service";
@@ -41,6 +42,13 @@ export class ScramController {
     } catch {
       throw new InternalServerErrorException("Server encountered a problem while queueing SCRAM quantification job.");
     }
+  }
+
+  @MessagePattern("")
+  public async getMessage(@Payload() data: number[], @Ctx() context: RmqContext) {
+    const channel = context.getChannelRef();
+    const orginalMessage = context.getMessage();
+    await this.
   }
 
   /**

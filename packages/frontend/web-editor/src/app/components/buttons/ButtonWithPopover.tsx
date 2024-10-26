@@ -2,6 +2,8 @@ import { EuiButtonPropsForButton } from "@elastic/eui/src/components/button/butt
 import React, { ReactElement, useEffect, useState } from "react";
 import { EuiButton, EuiButtonIcon, EuiConfirmModal, EuiPopover } from "@elastic/eui";
 import { EuiPopoverProps } from "@elastic/eui/src/components/popover/popover";
+import { useLocation } from "react-router-dom";
+import { UseGlobalStore } from "../../zustand/Store";
 
 //props for button with popover
 interface ButtonWithPopoverPropsPartials {
@@ -34,10 +36,27 @@ function ButtonWithPopover({
   confirmDiscard,
   ...rest
 }: ButtonWithPopoverProps): JSX.Element {
+  const location = useLocation().pathname;
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const togglePopover = (): void => {
     setIsPopoverOpen((isPopoverOpen) => !isPopoverOpen);
   };
+  const [isLoading, setIsLoading] = useState(true);
+  const InternalEvents = UseGlobalStore.use.InternalEvents();
+  const setInternalEvents = UseGlobalStore.use.SetInternalEvents();
+  useEffect(() => {
+    if (location === "/internal-events") {
+      void setInternalEvents().then(() => {
+        setIsLoading(false);
+      });
+      if (!isLoading && InternalEvents.length === 0) {
+        setIsPopoverOpen(true);
+      } else {
+        setIsPopoverOpen(false);
+      }
+    }
+  }, [isLoading, setInternalEvents, InternalEvents.length, location]);
+
   const onButtonClick = (event: React.MouseEvent<HTMLButtonElement>): void => {
     event.preventDefault();
     togglePopover();

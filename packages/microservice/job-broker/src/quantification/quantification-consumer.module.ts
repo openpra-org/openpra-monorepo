@@ -1,18 +1,5 @@
-/**
- * Defines the Quantification module for the application.
- *
- * This module is responsible for handling all quantification-related operations, including
- * managing quantified reports and providing endpoints for SCRAM and FTREX functionalities.
- * It integrates MongoDB for data persistence using Mongoose and defines the necessary
- * controllers and services for quantification processes.
- */
-
-// // Importing NestJS common and Mongoose modules, controllers for SCRAM and FTREX, services
-// for business logic, and schema for quantified reports.
 import { Module } from "@nestjs/common";
-import { ConfigModule, ConfigService } from "@nestjs/config";
-import { MongooseModule } from "@nestjs/mongoose";
-import { EnvVarKeys } from "../../config/env_vars.config";
+import { ConfigModule } from "@nestjs/config";
 import { ConsumerService } from "./services/consumer.service";
 
 @Module({

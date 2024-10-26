@@ -181,6 +181,7 @@ export class ConsumerService implements OnModuleInit {
 
       // Read the quantification results from the output file.
       const outputContent = readFileSync(outputFilePath, "utf8");
+      this.logger.log(outputContent);
 
       // Construct and return the quantification report along with the configurations.
       return {

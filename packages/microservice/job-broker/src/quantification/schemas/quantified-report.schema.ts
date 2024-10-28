@@ -1,13 +1,3 @@
-/**
- * Mongoose schema definitions for quantified requests and reports.
- *
- * These schemas define the structure of quantified requests and reports, specifying the data
- * types and required fields for storing quantification-related data in MongoDB. The `QuantifiedRequest`
- * schema outlines the options and parameters for a quantification request, while the `QuantifiedReport`
- * schema outlines the results of a quantification process along with its configurations.
- */
-
-// Importing decorators from @nestjs/mongoose to define Mongoose schemas.
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 
 /**
@@ -109,6 +99,6 @@ export class QuantifiedReport {
   results!: string[];
 }
 
-// Generate a Mongoose schema for the QuantifiedReport class.
+// Generate Mongoose schema and MongoDB document for the QuantifiedReport class.
 export const QuantifiedReportSchema = SchemaFactory.createForClass(QuantifiedReport);
 export type QuantifiedReportDocument = QuantifiedReport & Document;

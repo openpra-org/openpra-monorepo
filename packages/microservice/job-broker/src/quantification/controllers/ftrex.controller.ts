@@ -1,12 +1,3 @@
-/**
- * Controller for handling FTREX quantification requests.
- *
- * Provides endpoints for creating and queueing quantification jobs specific to FTREX.
- * Utilizes the `ProducerService` to manage the creation and queueing of these jobs.
- */
-
-// Importing NestJS common module, TypedRoute and TypedBody decorators from @nestia/core for route and type
-// handling, shared types for request validation, and the ProducerService.
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute, TypedBody } from "@nestia/core";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";

@@ -1,12 +1,3 @@
-/**
- * Service responsible for handling job broker operations.
- *
- * Provides functionality to retrieve job types, pending jobs, and to create new jobs.
- * This service acts as a layer between the controller and the database,
- * encapsulating the business logic of the job broker.
- */
-
-// Import the Injectable decorator from NestJS to mark the class as a service that can be injected.
 import { Injectable } from "@nestjs/common";
 import { JobResponse } from "./job-broker.controller";
 

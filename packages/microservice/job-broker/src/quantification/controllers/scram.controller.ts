@@ -1,13 +1,3 @@
-/**
- * Controller for handling SCRAM quantification requests.
- *
- * Provides endpoints for creating and queueing quantification jobs specific to SCRAM.
- * Utilizes the `ProducerService` to manage the creation and queueing of these jobs,
- * ensuring that any request for SCRAM quantification is processed accordingly.
- */
-
-// Importing NestJS common module, TypedRoute and TypedBody decorators from @nestia/core for route and type handling,
-// shared types for request validation, and the ProducerService.
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute, TypedBody } from "@nestia/core";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
@@ -17,6 +7,10 @@ import { StorageService } from "../services/storage.service";
 
 @Controller()
 export class ScramController {
+  private scramLatency = 0;
+  private scramMemoryUsage = 0;
+  private scramCpuUsage = 0;
+
   /**
    * Constructs the ScramController with the necessary service.
    * @param producerService - The service to handle creation and queueing of quantification jobs.
@@ -36,10 +30,26 @@ export class ScramController {
    */
   @TypedRoute.Post("/scram")
   public createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): void {
+    const startTime = performance.now();
+    const startCpuUsage = process.cpuUsage();
+    const startMemoryUsage = process.memoryUsage().heapUsed;
+
     try {
       this.producerService.createAndQueueQuant(quantRequest);
     } catch {
       throw new InternalServerErrorException("Server encountered a problem while queueing SCRAM quantification job.");
+    } finally {
+      const endTime = performance.now();
+      const endCpuUsage = process.cpuUsage();
+      const endMemoryUsage = process.memoryUsage().heapUsed;
+
+      const latency = endTime - startTime;
+      const cpuUsage = (endCpuUsage.user + endCpuUsage.system - startCpuUsage.user - startCpuUsage.system) / 1000; // in milliseconds
+      const memoryUsage = (endMemoryUsage - startMemoryUsage) / (1024 * 1024); // in MB
+
+      this.setScramLatency(latency);
+      this.setScramCpuUsage(cpuUsage);
+      this.setScramMemoryUsage(memoryUsage);
     }
   }
 
@@ -56,5 +66,32 @@ export class ScramController {
     } catch {
       throw new NotFoundException("Server was unable to find the requested list of quantified reports.");
     }
+  }
+
+  // Getter and Setter for scramControllerLatency
+  public getScramLatency(): number {
+    return this.scramLatency;
+  }
+
+  private setScramLatency(latency: number): void {
+    this.scramLatency = latency;
+  }
+
+  // Getter and Setter for scramControllerCpuUsage
+  public getScramCpuUsage(): number {
+    return this.scramCpuUsage;
+  }
+
+  private setScramCpuUsage(cpuUsage: number): void {
+    this.scramCpuUsage = cpuUsage;
+  }
+
+  // Getter and Setter for scramControllerMemoryUsage
+  public getScramMemoryUsage(): number {
+    return this.scramMemoryUsage;
+  }
+
+  private setScramMemoryUsage(memoryUsage: number): void {
+    this.scramMemoryUsage = memoryUsage;
   }
 }

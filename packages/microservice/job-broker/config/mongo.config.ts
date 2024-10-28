@@ -5,7 +5,8 @@ export enum MongoDBConfigKeys {
   /**
    * MongoDB URI key.
    */
-  MONGODB_URI = "MONGO_URL",
+  MONGODB_URI = "mongodb://localhost:27017",
+  MONGODB_TEST_URI = "mongodb://localhost:27017/test",
 }
 
 /**
@@ -16,4 +17,5 @@ export interface MongoDBEnvVars {
    * MongoDB URI.
    */
   [MongoDBConfigKeys.MONGODB_URI]: string;
+  [MongoDBConfigKeys.MONGODB_TEST_URI]: string;
 }

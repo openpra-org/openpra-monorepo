@@ -1,16 +1,5 @@
-/**
- * Service responsible for consuming quantification jobs from RabbitMQ and processing them.
- *
- * Implements `OnModuleInit` to automatically start consuming messages upon module initialization.
- * Handles connection to RabbitMQ with retry logic, consumes messages from the quantification job queue,
- * processes them using the scram-node-addon, and forwards the results to a storage queue.
- */
-
-// Importing necessary modules and services from NestJS, amqplib for RabbitMQ operations,
-// and libraries for temporary file handling.
 import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import tmp from "tmp";
@@ -19,12 +8,12 @@ import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-requ
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 
 import { RunScramCli } from "scram-node";
+import { EnvVarKeys } from "../../../config/env_vars.config";
 
 @Injectable()
 export class ConsumerService implements OnModuleInit {
   // Importing ConfigService for accessing environment variables.
   private readonly logger = new Logger(ConsumerService.name);
-  constructor(private readonly configService: ConfigService) {}
 
   /**
    * Attempts to establish a connection to the RabbitMQ server with retry logic.
@@ -74,15 +63,11 @@ export class ConsumerService implements OnModuleInit {
    */
   public async onModuleInit(): Promise<void> {
     // Verify that all required environment variables are available, logging an error and exiting if any are missing.
-    const url = this.configService.get<string>("RABBITMQ_URL");
-    const initialJobQ = this.configService.get<string>("QUANT_JOB_QUEUE_NAME");
-    const storageQ = this.configService.get<string>("QUANT_STORAGE_QUEUE_NAME");
-    const deadLetterQ = this.configService.get<string>("DEAD_LETTER_QUEUE_NAME");
-    const deadLetterX = this.configService.get<string>("DEAD_LETTER_EXCHANGE_NAME");
-    if (!url || !initialJobQ || !storageQ || !deadLetterQ || !deadLetterX) {
-      this.logger.error("Required environment variables for quantification consumer service are not set");
-      return;
-    }
+    const url: string = EnvVarKeys.RABBITMQ_URL;
+    const initialJobQ: string = EnvVarKeys.QUANT_JOB_QUEUE_NAME;
+    const storageQ: string = EnvVarKeys.QUANT_STORAGE_QUEUE_NAME;
+    const deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
+    const deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;
 
     // Connect to the RabbitMQ server and create a channel.
     const connection = await this.connectWithRetry(url, 3);

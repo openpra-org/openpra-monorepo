@@ -1,12 +1,3 @@
-/**
- * Defines the Job Broker module for the application.
- *
- * This module integrates various submodules, configurations, and services necessary for the Job Broker application,
- * including the connection to MongoDB via Mongoose, environment configuration, and routing for different endpoint
- * prefixes such as quantification, validation, and executable tasks. It also sets up global exception handling.
- */
-
-// Import necessary modules, services, and controllers from NestJS, Mongoose, and local files.
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { APP_FILTER, RouterModule } from "@nestjs/core";

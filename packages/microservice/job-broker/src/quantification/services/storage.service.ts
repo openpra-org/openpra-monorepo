@@ -1,5 +1,4 @@
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { InjectModel } from "@nestjs/mongoose";
 import * as amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
@@ -7,6 +6,7 @@ import mongoose, { Model } from "mongoose";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 import { QuantifiedReport } from "../schemas/quantified-report.schema";
+import { EnvVarKeys } from "../../../config/env_vars.config";
 
 /**
  * Service responsible for storing quantification results into a database upon application startup.
@@ -18,10 +18,7 @@ import { QuantifiedReport } from "../schemas/quantified-report.schema";
 @Injectable()
 export class StorageService implements OnApplicationBootstrap {
   private readonly logger = new Logger(StorageService.name);
-  constructor(
-    private readonly configService: ConfigService,
-    @InjectModel(QuantifiedReport.name) private readonly quantifiedReportModel: Model<QuantifiedReport>,
-  ) {}
+  constructor(@InjectModel(QuantifiedReport.name) private readonly quantifiedReportModel: Model<QuantifiedReport>) {}
 
   /**
    * Attempts to establish a connection to the RabbitMQ server with retry logic.
@@ -63,14 +60,10 @@ export class StorageService implements OnApplicationBootstrap {
    */
   public async onApplicationBootstrap(): Promise<void> {
     // Verify that all required environment variables are available, logging an error and exiting if any are missing.
-    const url = this.configService.get<string>("RABBITMQ_URL");
-    const completedQ = this.configService.get<string>("QUANT_STORAGE_QUEUE_NAME");
-    const deadLetterQ = this.configService.get<string>("DEAD_LETTER_QUEUE_NAME");
-    const deadLetterX = this.configService.get<string>("DEAD_LETTER_EXCHANGE_NAME");
-    if (!url || !completedQ || !deadLetterQ || !deadLetterX) {
-      this.logger.error("Required environment variables for quantification storage service are not set");
-      return;
-    }
+    const url: string = EnvVarKeys.RABBITMQ_URL;
+    const completedQ: string = EnvVarKeys.QUANT_STORAGE_QUEUE_NAME;
+    const deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
+    const deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;
 
     // Establish a connection to RabbitMQ and create a communication channel.
     const connection = await this.connectWithRetry(url, 3);

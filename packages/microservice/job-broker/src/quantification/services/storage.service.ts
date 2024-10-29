@@ -18,6 +18,11 @@ import { EnvVarKeys } from "../../../config/env_vars.config";
 @Injectable()
 export class StorageService implements OnApplicationBootstrap {
   private readonly logger = new Logger(StorageService.name);
+
+  private quantifyStorageLatency = 0;
+  private quantifyStorageMemoryUsage = 0;
+  private quantifyStorageCpuUsage = 0;
+
   constructor(@InjectModel(QuantifiedReport.name) private readonly quantifiedReportModel: Model<QuantifiedReport>) {}
 
   /**
@@ -87,6 +92,10 @@ export class StorageService implements OnApplicationBootstrap {
       completedQ,
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
+        const startTime = performance.now();
+        const startCpuUsage = process.cpuUsage();
+        const startMemoryUsage = process.memoryUsage().heapUsed;
+
         // Handle the case where the message is invalid.
         if (msg === null) {
           this.logger.error("Unable to parse message from quantification storage queue");
@@ -116,6 +125,18 @@ export class StorageService implements OnApplicationBootstrap {
             this.logger.error(error);
             channel.nack(msg, false, false);
           }
+        } finally {
+          const endTime = performance.now();
+          const endCpuUsage = process.cpuUsage();
+          const endMemoryUsage = process.memoryUsage().heapUsed;
+
+          const latency = endTime - startTime;
+          const cpuUsage = (endCpuUsage.user + endCpuUsage.system - startCpuUsage.user - startCpuUsage.system) / 1000; // in milliseconds
+          const memoryUsage = (endMemoryUsage - startMemoryUsage) / (1024 * 1024); // in MB
+
+          this.setQuantifyStorageLatency(latency);
+          this.setQuantifyStorageCpuUsage(cpuUsage);
+          this.setQuantifyStorageMemoryUsage(memoryUsage);
         }
       },
       {
@@ -127,5 +148,29 @@ export class StorageService implements OnApplicationBootstrap {
 
   public async getQuantifiedReports(): Promise<QuantifiedReport[]> {
     return this.quantifiedReportModel.find();
+  }
+
+  public getQuantifyStorageLatency(): number {
+    return this.quantifyStorageLatency;
+  }
+
+  private setQuantifyStorageLatency(latency: number): void {
+    this.quantifyStorageLatency = latency;
+  }
+
+  public getQuantifyStorageCpuUsage(): number {
+    return this.quantifyStorageCpuUsage;
+  }
+
+  private setQuantifyStorageCpuUsage(cpuUsage: number): void {
+    this.quantifyStorageCpuUsage = cpuUsage;
+  }
+
+  public getQuantifyStorageMemoryUsage(): number {
+    return this.quantifyStorageMemoryUsage;
+  }
+
+  private setQuantifyStorageMemoryUsage(memoryUsage: number): void {
+    this.quantifyStorageMemoryUsage = memoryUsage;
   }
 }

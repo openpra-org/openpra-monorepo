@@ -68,7 +68,6 @@ export class ScramController {
     }
   }
 
-  // Getter and Setter for scramControllerLatency
   public getScramLatency(): number {
     return this.scramLatency;
   }
@@ -77,7 +76,6 @@ export class ScramController {
     this.scramLatency = latency;
   }
 
-  // Getter and Setter for scramControllerCpuUsage
   public getScramCpuUsage(): number {
     return this.scramCpuUsage;
   }
@@ -86,7 +84,6 @@ export class ScramController {
     this.scramCpuUsage = cpuUsage;
   }
 
-  // Getter and Setter for scramControllerMemoryUsage
   public getScramMemoryUsage(): number {
     return this.scramMemoryUsage;
   }

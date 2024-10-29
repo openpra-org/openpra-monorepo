@@ -8,6 +8,10 @@ import { EnvVarKeys } from "../../../config/env_vars.config";
 export class ProducerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ProducerService.name);
 
+  private quantifyProducerLatency = 0;
+  private quantifyProducerMemoryUsage = 0;
+  private quantifyProducerCpuUsage = 0;
+
   private connection: amqp.Connection | null = null;
   private channel: amqp.Channel | null = null;
   private readonly url: string = EnvVarKeys.RABBITMQ_URL;
@@ -35,6 +39,18 @@ export class ProducerService implements OnApplicationBootstrap {
     );
   }
 
+  async onApplicationBootstrap(): Promise<void> {
+    try {
+      this.connection = await this.connectWithRetry(this.url, 3);
+      this.channel = await this.connection.createChannel();
+
+      await this.setupQueuesAndExchanges();
+      this.logger.log("ProducerService initialized and ready to send messages.");
+    } catch (error) {
+      this.logger.error("Failed to initialize ProducerService:", error);
+    }
+  }
+
   private async setupQueuesAndExchanges(): Promise<void> {
     if (!this.channel) {
       this.logger.error("Channel is not available. Cannot set up queues and exchanges.");
@@ -53,19 +69,11 @@ export class ProducerService implements OnApplicationBootstrap {
     });
   }
 
-  async onApplicationBootstrap(): Promise<void> {
-    try {
-      this.connection = await this.connectWithRetry(this.url, 3);
-      this.channel = await this.connection.createChannel();
-
-      await this.setupQueuesAndExchanges();
-      this.logger.log("ProducerService initialized and ready to send messages.");
-    } catch (error) {
-      this.logger.error("Failed to initialize ProducerService:", error);
-    }
-  }
-
   public createAndQueueQuant(modelsWithConfigs: QuantifyRequest): void {
+    const startTime = performance.now();
+    const startCpuUsage = process.cpuUsage();
+    const startMemoryUsage = process.memoryUsage().heapUsed;
+
     try {
       if (!this.channel) {
         this.logger.error("Channel is not available. Cannot send message.");
@@ -82,6 +90,42 @@ export class ProducerService implements OnApplicationBootstrap {
       } else {
         this.logger.error("Error sending message to queue:", error);
       }
+    } finally {
+      const endTime = performance.now();
+      const endCpuUsage = process.cpuUsage();
+      const endMemoryUsage = process.memoryUsage().heapUsed;
+
+      const latency = endTime - startTime;
+      const cpuUsage = (endCpuUsage.user + endCpuUsage.system - startCpuUsage.user - startCpuUsage.system) / 1000; // in milliseconds
+      const memoryUsage = (endMemoryUsage - startMemoryUsage) / (1024 * 1024); // in MB
+
+      this.setQuantifyProducerLatency(latency);
+      this.setQuantifyProducerCpuUsage(cpuUsage);
+      this.setQuantifyProducerMemoryUsage(memoryUsage);
     }
+  }
+
+  public getQuantifyProducerLatency(): number {
+    return this.quantifyProducerLatency;
+  }
+
+  private setQuantifyProducerLatency(latency: number): void {
+    this.quantifyProducerLatency = latency;
+  }
+
+  public getQuantifyProducerCpuUsage(): number {
+    return this.quantifyProducerCpuUsage;
+  }
+
+  private setQuantifyProducerCpuUsage(cpuUsage: number): void {
+    this.quantifyProducerCpuUsage = cpuUsage;
+  }
+
+  public getQuantifyProducerMemoryUsage(): number {
+    return this.quantifyProducerMemoryUsage;
+  }
+
+  private setQuantifyProducerMemoryUsage(memoryUsage: number): void {
+    this.quantifyProducerMemoryUsage = memoryUsage;
   }
 }

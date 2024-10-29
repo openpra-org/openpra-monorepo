@@ -6,7 +6,6 @@ import tmp from "tmp";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
-
 import { RunScramCli } from "scram-node";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 
@@ -14,6 +13,10 @@ import { EnvVarKeys } from "../../../config/env_vars.config";
 export class ConsumerService implements OnModuleInit {
   // Importing ConfigService for accessing environment variables.
   private readonly logger = new Logger(ConsumerService.name);
+
+  private quantifyConsumerLatency = 0;
+  private quantifyConsumerMemoryUsage = 0;
+  private quantifyConsumerCpuUsage = 0;
 
   /**
    * Attempts to establish a connection to the RabbitMQ server with retry logic.
@@ -91,6 +94,10 @@ export class ConsumerService implements OnModuleInit {
       initialJobQ,
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
+        const startTime = performance.now();
+        const startCpuUsage = process.cpuUsage();
+        const startMemoryUsage = process.memoryUsage().heapUsed;
+
         if (msg === null) {
           this.logger.error("Unable to parse message from initial quantification queue");
           return;
@@ -130,6 +137,18 @@ export class ConsumerService implements OnModuleInit {
             this.logger.error(error);
             channel.nack(msg, false, false);
           }
+        } finally {
+          const endTime = performance.now();
+          const endCpuUsage = process.cpuUsage();
+          const endMemoryUsage = process.memoryUsage().heapUsed;
+
+          const latency = endTime - startTime;
+          const cpuUsage = (endCpuUsage.user + endCpuUsage.system - startCpuUsage.user - startCpuUsage.system) / 1000; // in milliseconds
+          const memoryUsage = (endMemoryUsage - startMemoryUsage) / (1024 * 1024); // in MB
+
+          this.setQuantifyConsumerLatency(latency);
+          this.setQuantifyConsumerCpuUsage(cpuUsage);
+          this.setQuantifyConsumerMemoryUsage(memoryUsage);
         }
       },
       {
@@ -212,5 +231,29 @@ export class ConsumerService implements OnModuleInit {
       files.push(tempFile.name); // Add the path of the temporary file to the array.
     }
     return files; // Return the array containing the paths of all temporary files created.
+  }
+
+  public getQuantifyConsumerLatency(): number {
+    return this.quantifyConsumerLatency;
+  }
+
+  private setQuantifyConsumerLatency(latency: number): void {
+    this.quantifyConsumerLatency = latency;
+  }
+
+  public getQuantifyConsumerCpuUsage(): number {
+    return this.quantifyConsumerCpuUsage;
+  }
+
+  private setQuantifyConsumerCpuUsage(cpuUsage: number): void {
+    this.quantifyConsumerCpuUsage = cpuUsage;
+  }
+
+  public getQuantifyConsumerMemoryUsage(): number {
+    return this.quantifyConsumerMemoryUsage;
+  }
+
+  private setQuantifyConsumerMemoryUsage(memoryUsage: number): void {
+    this.quantifyConsumerMemoryUsage = memoryUsage;
   }
 }

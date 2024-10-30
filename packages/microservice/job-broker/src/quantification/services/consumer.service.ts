@@ -96,7 +96,6 @@ export class ConsumerService implements OnModuleInit {
       async (msg: ConsumeMessage | null) => {
         const startTime = performance.now();
         const startCpuUsage = process.cpuUsage();
-        const startMemoryUsage = process.memoryUsage().heapUsed;
 
         if (msg === null) {
           this.logger.error("Unable to parse message from initial quantification queue");
@@ -139,12 +138,11 @@ export class ConsumerService implements OnModuleInit {
           }
         } finally {
           const endTime = performance.now();
-          const endCpuUsage = process.cpuUsage();
-          const endMemoryUsage = process.memoryUsage().heapUsed;
+          const endCpuUsage = process.cpuUsage(startCpuUsage);
 
           const latency = endTime - startTime;
-          const cpuUsage = (endCpuUsage.user + endCpuUsage.system - startCpuUsage.user - startCpuUsage.system) / 1000; // in milliseconds
-          const memoryUsage = (endMemoryUsage - startMemoryUsage) / (1024 * 1024); // in MB
+          const cpuUsage = (endCpuUsage.user + endCpuUsage.system) / (latency * 1000);
+          const memoryUsage = process.memoryUsage().heapUsed / (1024 * 1024); // in MB
 
           this.setQuantifyConsumerLatency(latency);
           this.setQuantifyConsumerCpuUsage(cpuUsage);
@@ -185,7 +183,6 @@ export class ConsumerService implements OnModuleInit {
 
       // Read the quantification results from the output file.
       const outputContent = readFileSync(outputFilePath, "utf8");
-      this.logger.log(outputContent);
 
       // Construct and return the quantification report along with the configurations.
       return {

@@ -94,7 +94,6 @@ export class StorageService implements OnApplicationBootstrap {
       async (msg: ConsumeMessage | null) => {
         const startTime = performance.now();
         const startCpuUsage = process.cpuUsage();
-        const startMemoryUsage = process.memoryUsage().heapUsed;
 
         // Handle the case where the message is invalid.
         if (msg === null) {
@@ -127,12 +126,11 @@ export class StorageService implements OnApplicationBootstrap {
           }
         } finally {
           const endTime = performance.now();
-          const endCpuUsage = process.cpuUsage();
-          const endMemoryUsage = process.memoryUsage().heapUsed;
+          const endCpuUsage = process.cpuUsage(startCpuUsage);
 
           const latency = endTime - startTime;
-          const cpuUsage = (endCpuUsage.user + endCpuUsage.system - startCpuUsage.user - startCpuUsage.system) / 1000; // in milliseconds
-          const memoryUsage = (endMemoryUsage - startMemoryUsage) / (1024 * 1024); // in MB
+          const cpuUsage = (endCpuUsage.user + endCpuUsage.system) / (latency * 1000);
+          const memoryUsage = process.memoryUsage().heapUsed / (1024 * 1024); // in MB
 
           this.setQuantifyStorageLatency(latency);
           this.setQuantifyStorageCpuUsage(cpuUsage);

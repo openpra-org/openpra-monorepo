@@ -28,7 +28,7 @@
     "react-dom": "18.2.0",
     "react-router-dom": "6.19.0",
     "reactflow": "11.10.1",
-    "shared-types": "0.0.1",
+    "shared-types": "workspace:^",
     "zustand": "4.5.1"
   },
   "devDependencies": {

@@ -143,6 +143,7 @@ export class QuantifyService {
     // Prepare the scram command arguments
     const args = optionsString.split(" ").concat(modelFilePaths);
 
+    // TODO: Remove this
     return new Promise((resolve, reject) => {
       const scramProcess = spawn(
         "/home/arjun/projects/openpra-monorepo/packages/engine/scram-node/cmake-build-debug/targets/scram-cli/scram-cli",

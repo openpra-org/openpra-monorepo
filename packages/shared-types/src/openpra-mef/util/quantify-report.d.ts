@@ -104,4 +104,9 @@ export interface CommandLineOptions {
    * Path for the output/report file
    */
   output?: string;
+
+  /**
+   * List of input models
+   */
+  models: string[];
 }

@@ -54,7 +54,7 @@
     "cmake-js": "7.3.0",
     "glob": "11.0.0",
     "node-addon-api": "8.1.0",
-    "shared-types": "0.0.1",
+    "shared-types": "workspace:^",
     "tmp": "0.2.3"
   },
   "devDependencies": {

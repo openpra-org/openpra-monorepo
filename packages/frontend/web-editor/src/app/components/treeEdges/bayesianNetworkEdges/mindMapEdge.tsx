@@ -45,7 +45,11 @@ const MindMapEdge: React.FC<EdgeProps> = (props: EdgeProps) => {
 
   return (
     <>
-      <svg width="0" height="0" style={{ overflow: "visible" }}>
+      <svg
+        width="0"
+        height="0"
+        style={{ overflow: "visible" }}
+      >
         <defs>
           <marker
             id={`react-flow__arrow-${id}`}
@@ -56,7 +60,10 @@ const MindMapEdge: React.FC<EdgeProps> = (props: EdgeProps) => {
             orient="auto-start-reverse"
             markerUnits="strokeWidth"
           >
-            <path d="M0,0 L0,6 L6,3 z" fill="#0984e3" />
+            <path
+              d="M0,0 L0,6 L6,3 z"
+              fill="#0984e3"
+            />
           </marker>
         </defs>
       </svg>

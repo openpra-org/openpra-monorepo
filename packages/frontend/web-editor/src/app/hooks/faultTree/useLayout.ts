@@ -2,11 +2,7 @@ import { useEffect, useRef } from "react";
 import { useReactFlow, useStore, Node, Edge, ReactFlowState } from "reactflow";
 import { stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
-import {
-  FAULT_TREE_NODE_HEIGHT,
-  FAULT_TREE_NODE_SEPARATION,
-  FAULT_TREE_NODE_WIDTH,
-} from "../../../utils/constants";
+import { FAULT_TREE_NODE_HEIGHT, FAULT_TREE_NODE_SEPARATION, FAULT_TREE_NODE_WIDTH } from "../../../utils/constants";
 import { useStore as useFaultTreeStore } from "../../store/faultTreeStore";
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
@@ -63,8 +59,7 @@ function UseLayout(): void {
   // whenever the nodes length changes, we calculate the new layout
   const nodeCount = useStore(nodeCountSelector);
 
-  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } =
-    useReactFlow();
+  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } = useReactFlow();
   const { focusNodeId, resetFocusNodeId } = useFaultTreeStore();
 
   useEffect(() => {
@@ -140,17 +135,7 @@ function UseLayout(): void {
     return () => {
       t.stop();
     };
-  }, [
-    nodeCount,
-    getEdges,
-    getNodes,
-    getNode,
-    setNodes,
-    fitView,
-    setEdges,
-    focusNodeId,
-    resetFocusNodeId,
-  ]);
+  }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges, focusNodeId, resetFocusNodeId]);
 }
 
 export { UseLayout };

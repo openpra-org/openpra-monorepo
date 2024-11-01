@@ -1,12 +1,8 @@
 import React from "react";
-import {
-  EuiContextMenuPanelDescriptor,
-  EuiContextMenu,
-  EuiIcon,
-} from "@elastic/eui";
+import { EuiContextMenuPanelDescriptor, EuiContextMenu, EuiIcon } from "@elastic/eui";
 import { EDITOR_BLUE_COLOR, MEDIUM, TRASH } from "../../../utils/constants";
 
-export type BayesianNodeContextMenuProps = {
+export interface BayesianNodeContextMenuProps {
   nodeId: string;
   onActionSelect: (action: string, nodeId: string) => void;
   onClose: () => void;
@@ -15,7 +11,7 @@ export type BayesianNodeContextMenuProps = {
   getChildren: (nodeId: string) => string[];
   getParentLabels: (nodeId: string) => string[];
   getChildrenLabels: (nodeId: string) => string[];
-};
+}
 
 const BayesianNodeContextMenu: React.FC<BayesianNodeContextMenuProps> = ({
   nodeId,
@@ -147,7 +143,10 @@ const BayesianNodeContextMenu: React.FC<BayesianNodeContextMenuProps> = ({
 
   return (
     <div style={menuStyle}>
-      <EuiContextMenu initialPanelId={0} panels={panels} />
+      <EuiContextMenu
+        initialPanelId={0}
+        panels={panels}
+      />
     </div>
   );
 };

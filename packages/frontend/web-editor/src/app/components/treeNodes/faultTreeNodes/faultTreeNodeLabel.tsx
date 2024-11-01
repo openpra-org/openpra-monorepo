@@ -1,9 +1,9 @@
 import React, { useState } from "react";
 import styles from "./styles/faultTreeNodeStyles.module.css";
 
-type FaultTreeNodeLabelProps = {
+interface FaultTreeNodeLabelProps {
   label: string;
-};
+}
 
 const stylesMap = styles as Record<string, string>;
 

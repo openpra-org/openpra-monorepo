@@ -15,7 +15,9 @@ import { nanoid } from "nanoid";
 /**
  * Type definition for additional data to be stored within each node.
  */
-type NodeData = { label: string | undefined };
+interface NodeData {
+  label: string | undefined;
+}
 
 /**
  * Extends the basic Node type to include custom data and an optional list of parent node IDs,
@@ -44,7 +46,7 @@ type EdgeWithData = Edge & {
  * State structure for the React Flow instance, including arrays of nodes and edges,
  * and functions to manipulate these arrays.
  */
-export type RFState = {
+export interface RFState {
   nodes: NodeWithData[];
   edges: Edge[];
   onNodesChange: OnNodesChange;
@@ -58,7 +60,7 @@ export type RFState = {
   addEdge: (newEdge: EdgeWithData) => void;
   getParents: (nodeId: string) => string[];
   getChildren: (nodeId: string) => string[];
-};
+}
 
 /**
  * Creates and manages the state for the React Flow instance using the zustand library.
@@ -117,9 +119,7 @@ const UseStore = create<RFState>((set, get) => ({
       node.id === childNode.id
         ? {
             ...node,
-            parentNodes: node.parentNodes
-              ? [...node.parentNodes, newParentNode.id]
-              : [newParentNode.id],
+            parentNodes: node.parentNodes ? [...node.parentNodes, newParentNode.id] : [newParentNode.id],
           }
         : node,
     );
@@ -150,9 +150,7 @@ const UseStore = create<RFState>((set, get) => ({
     if (parentIds.length === 0) {
       set({
         nodes: currentNodes.filter((node) => node.id !== nodeId),
-        edges: currentEdges.filter(
-          (edge) => edge.source !== nodeId && edge.target !== nodeId,
-        ),
+        edges: currentEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
       });
       return;
     }
@@ -172,9 +170,7 @@ const UseStore = create<RFState>((set, get) => ({
     const updatedNodes = currentNodes.map((node) => {
       if (childEdges.some((edge) => edge.target === node.id)) {
         // For nodes that are children of the deleted node, update their parentNodes
-        const existingParents = node.parentNodes
-          ? node.parentNodes.filter((pid) => pid !== nodeId)
-          : []; // Remove the deleted node from their parentNodes
+        const existingParents = node.parentNodes ? node.parentNodes.filter((pid) => pid !== nodeId) : []; // Remove the deleted node from their parentNodes
         return {
           ...node,
           parentNodes: [...new Set([...existingParents, ...parentIds])], // Merge and deduplicate
@@ -187,9 +183,7 @@ const UseStore = create<RFState>((set, get) => ({
     set({
       nodes: updatedNodes.filter((n) => n.id !== nodeId), // remove the node
       edges: [
-        ...currentEdges.filter(
-          (e) => e.source !== nodeId && e.target !== nodeId,
-        ), // remove all edges of the node
+        ...currentEdges.filter((e) => e.source !== nodeId && e.target !== nodeId), // remove all edges of the node
         ...newEdges, // add new edges to reattach children
       ],
     });

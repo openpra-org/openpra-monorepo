@@ -51,13 +51,5 @@ export const TARGET = "target";
 export const FAULT_TREE_NODE_WIDTH = 250;
 export const FAULT_TREE_NODE_HEIGHT = 165;
 export const FAULT_TREE_NODE_SEPARATION = 0.75;
-export const LEAF_NODE_TYPES: (string | undefined)[] = [
-  BASIC_EVENT,
-  HOUSE_EVENT,
-  TRANSFER_GATE,
-];
-export const LOGICAL_GATES: (string | undefined)[] = [
-  AND_GATE,
-  OR_GATE,
-  ATLEAST_GATE,
-];
+export const LEAF_NODE_TYPES: (string | undefined)[] = [BASIC_EVENT, HOUSE_EVENT, TRANSFER_GATE];
+export const LOGICAL_GATES: (string | undefined)[] = [AND_GATE, OR_GATE, ATLEAST_GATE];

@@ -11,16 +11,8 @@ import { Node, XYPosition, Position } from "reactflow";
  * @param targetNode - The target node at which the edge ends.
  * @returns The intersection point as an XYPosition object if both nodes have dimensions and position defined, otherwise null.
  */
-export function GetNodeIntersection(
-  sourceNode: Node,
-  targetNode: Node,
-): XYPosition | null {
-  if (
-    !sourceNode.width ||
-    !sourceNode.height ||
-    !targetNode.width ||
-    !targetNode.height
-  ) {
+export function GetNodeIntersection(sourceNode: Node, targetNode: Node): XYPosition | null {
+  if (!sourceNode.width || !sourceNode.height || !targetNode.width || !targetNode.height) {
     //console.log("Node properties are not fully defined");
     return null;
   }
@@ -52,10 +44,7 @@ export function GetNodeIntersection(
  * @param intersectionPoint - The calculated intersection point where the edge meets the node's boundary.
  * @returns The position (Position) on the node's edge where the edge should connect, or null if the node's properties are not fully defined.
  */
-export function GetEdgePosition(
-  node: Node,
-  intersectionPoint: XYPosition,
-): Position | null {
+export function GetEdgePosition(node: Node, intersectionPoint: XYPosition): Position | null {
   if (!node.width || !node.height) {
     // Handle this error case as appropriate
     //console.log("Node or intersection point properties are not fully defined");

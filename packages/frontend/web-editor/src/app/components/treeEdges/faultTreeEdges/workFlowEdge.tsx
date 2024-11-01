@@ -2,8 +2,8 @@ import React from "react";
 import { EdgeProps, getSmoothStepPath } from "reactflow";
 
 import { UseEdgeClick } from "../../../hooks/faultTree/useEdgeClick";
-import styles from "./styles/edgeType.module.css";
 import { FaultTreeNodeProps } from "../../treeNodes/faultTreeNodes/faultTreeNodeType";
+import styles from "./styles/edgeType.module.css";
 
 function WorkFlowEdge({
   id,
@@ -36,9 +36,7 @@ function WorkFlowEdge({
       <path
         id={id}
         style={style}
-        className={
-          data?.isGrayed ? stylesMap.placeholderPath : stylesMap.edgePath
-        }
+        className={data?.isGrayed ? stylesMap.placeholderPath : stylesMap.edgePath}
         d={edgePath}
         markerEnd={markerEnd}
       />
@@ -56,7 +54,11 @@ function WorkFlowEdge({
             height={10}
             className={stylesMap.edgeButton}
           />
-          <text className={stylesMap.edgeButtonText} y={3.5} x={-4}>
+          <text
+            className={stylesMap.edgeButtonText}
+            y={3.5}
+            x={-4}
+          >
             +
           </text>
         </g>

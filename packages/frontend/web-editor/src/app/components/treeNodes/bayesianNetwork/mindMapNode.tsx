@@ -7,9 +7,9 @@ import { UseStore } from "../../../hooks/bayesianNetwork/mindmap/useStore";
  * Type definition for the props expected by the MindMapNode component,
  * specifically including a label for the node.
  */
-export type NodeData = {
+export interface NodeData {
   label: string;
-};
+}
 
 /**
  * A functional component that renders a single node within the mind map.
@@ -40,10 +40,11 @@ const MindMapNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
     }, 1);
   }, []);
 
-
-
   return (
-    <div className={stylesMap.inputWrapper} tabIndex={0}>
+    <div
+      className={stylesMap.inputWrapper}
+      tabIndex={0}
+    >
       <div
         className={stylesMap.dragHandle}
         onMouseDown={(e): void => {

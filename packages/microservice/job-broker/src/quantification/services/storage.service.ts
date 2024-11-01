@@ -84,7 +84,7 @@ export class StorageService implements OnApplicationBootstrap {
       durable: true,
       deadLetterExchange: deadLetterX,
       messageTtl: 60000,
-      maxLength: 10000,
+      maxLength: 100000,
     });
 
     // Begin consuming messages from the completed job queue.

@@ -8,6 +8,7 @@ import { MicroserviceOptions, Transport } from "@nestjs/microservices";
 import request from "supertest";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { MongooseModule } from "@nestjs/mongoose";
+import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { QuantificationConsumerModule } from "../src/quantification/quantification-consumer.module";
 import { ScramController } from "../src/quantification/controllers/scram.controller";
 import { ProducerService } from "../src/quantification/services/producer.service";
@@ -65,7 +66,7 @@ describe("Microservice Benchmark Test", () => {
       await consumerApp.listen();
       consumers.push(consumerApp);
     }
-  });
+  }, 60000);
 
   afterAll(async () => {
     // Close the producer+storage application
@@ -79,7 +80,7 @@ describe("Microservice Benchmark Test", () => {
   });
 
   it("should process requests and collect metrics", async () => {
-    const numberOfRequests = 100; // Total number of requests to send
+    const numberOfRequests = 10000; // Total number of requests to send
 
     // Arrays to store metrics
     const scramLatencies: number[] = [];
@@ -107,7 +108,7 @@ describe("Microservice Benchmark Test", () => {
     const base64Model = Buffer.from(xmlContent, "utf-8").toString("base64");
 
     // Prepare the QuantifyRequest object
-    const quantifyRequest = {
+    const quantifyRequest: QuantifyRequest = {
       mocus: true,
       mcub: true,
       probability: true,
@@ -118,56 +119,62 @@ describe("Microservice Benchmark Test", () => {
     const startTime = performance.now();
 
     // Send requests sequentially (or adjust to send them concurrently)
+    const requests: Promise<void>[] = [];
     for (let i = 0; i < numberOfRequests; i++) {
       totalRequestsSent++;
-      try {
-        await request(app.getHttpServer())
-          .post("/api/quantify/scram")
-          .send(quantifyRequest)
-          .set("Content-Type", "application/json")
-          .set("Accept", "application/json")
-          .expect(201);
+      const reqPromise = request(app.getHttpServer())
+        .post("/api/quantify/scram")
+        .send(quantifyRequest)
+        .set("Content-Type", "application/json")
+        .set("Accept", "application/json")
+        .then((response) => {
+          totalResponsesReceived++;
+          expect(response.status).toBe(201);
+          logger.log(`Test ${String(totalRequestsSent)} done!`);
 
-        totalResponsesReceived++;
-        logger.log(`Request ${String(totalRequestsSent)} processed successfully.`);
-      } catch (error) {
-        totalResponsesReceived++;
-        logger.error(`Request ${String(totalRequestsSent)} failed:`, error);
-      }
+          // After each request, collect the metrics from the services
 
-      // After each request, collect the metrics from the services
+          // ScramController metrics
+          scramLatencies.push(scramController.getScramLatency());
+          scramCpuUsages.push(scramController.getScramCpuUsage());
+          scramMemoryUsages.push(scramController.getScramMemoryUsage());
 
-      // ScramController metrics
-      scramLatencies.push(scramController.getScramLatency());
-      scramCpuUsages.push(scramController.getScramCpuUsage());
-      scramMemoryUsages.push(scramController.getScramMemoryUsage());
+          // ProducerService metrics
+          producerLatencies.push(producerService.getQuantifyProducerLatency());
+          producerCpuUsages.push(producerService.getQuantifyProducerCpuUsage());
+          producerMemoryUsages.push(producerService.getQuantifyProducerMemoryUsage());
 
-      // ProducerService metrics
-      producerLatencies.push(producerService.getQuantifyProducerLatency());
-      producerCpuUsages.push(producerService.getQuantifyProducerCpuUsage());
-      producerMemoryUsages.push(producerService.getQuantifyProducerMemoryUsage());
+          // StorageService metrics
+          storageLatencies.push(storageService.getQuantifyStorageLatency());
+          storageCpuUsages.push(storageService.getQuantifyStorageCpuUsage());
+          storageMemoryUsages.push(storageService.getQuantifyStorageMemoryUsage());
 
-      // StorageService metrics
-      storageLatencies.push(storageService.getQuantifyStorageLatency());
-      storageCpuUsages.push(storageService.getQuantifyStorageCpuUsage());
-      storageMemoryUsages.push(storageService.getQuantifyStorageMemoryUsage());
+          // ConsumerService metrics
+          // Collect metrics from all consumer services
+          let totalConsumerLatency = 0;
+          let totalConsumerCpuUsage = 0;
+          let totalConsumerMemoryUsage = 0;
 
-      // ConsumerService metrics
-      // Collect metrics from all consumer services
-      let totalConsumerLatency = 0;
-      let totalConsumerCpuUsage = 0;
-      let totalConsumerMemoryUsage = 0;
+          for (const consumerService of consumerServices) {
+            totalConsumerLatency += consumerService.getQuantifyConsumerLatency();
+            totalConsumerCpuUsage += consumerService.getQuantifyConsumerCpuUsage();
+            totalConsumerMemoryUsage += consumerService.getQuantifyConsumerMemoryUsage();
+          }
 
-      for (const consumerService of consumerServices) {
-        totalConsumerLatency += consumerService.getQuantifyConsumerLatency();
-        totalConsumerCpuUsage += consumerService.getQuantifyConsumerCpuUsage();
-        totalConsumerMemoryUsage += consumerService.getQuantifyConsumerMemoryUsage();
-      }
-
-      consumerLatencies.push(totalConsumerLatency);
-      consumerCpuUsages.push(totalConsumerCpuUsage);
-      consumerMemoryUsages.push(totalConsumerMemoryUsage);
+          consumerLatencies.push(totalConsumerLatency);
+          consumerCpuUsages.push(totalConsumerCpuUsage);
+          consumerMemoryUsages.push(totalConsumerMemoryUsage);
+        })
+        .catch((error: unknown) => {
+          totalResponsesReceived++;
+          logger.log(`Test ${String(totalRequestsSent)} done but it failed :(`);
+          logger.error("Request failed:", error);
+        });
+      requests.push(reqPromise);
     }
+
+    // Execute all requests concurrently
+    await Promise.all(requests);
 
     const endTime = performance.now();
     const totalTime = (endTime - startTime) / 1000; // Total time in seconds

@@ -86,7 +86,7 @@ export class ConsumerService implements OnModuleInit {
       durable: true,
       deadLetterExchange: deadLetterX,
       messageTtl: 60000,
-      maxLength: 10000,
+      maxLength: 100000,
     });
 
     // Consume the jobs from the initial queue
@@ -116,7 +116,7 @@ export class ConsumerService implements OnModuleInit {
             durable: true,
             deadLetterExchange: deadLetterX,
             messageTtl: 60000,
-            maxLength: 10000,
+            maxLength: 100000,
           });
 
           // Send the report to the storage queue, marking the message as persistent.

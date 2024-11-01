@@ -1,7 +1,7 @@
 {
   "name": "scram-node",
   "version": "0.0.1",
-  "license": "AGPL-3.0-or-later",
+  "license": "MIT",
   "main": "./build/Release/scram-node.node",
   "types": "./targets/scram-node/lib/index.d.ts",
   "private": true,

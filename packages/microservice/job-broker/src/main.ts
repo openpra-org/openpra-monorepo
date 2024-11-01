@@ -44,9 +44,8 @@ async function bootstrap(): Promise<void> {
       description: "PRA quantification and task execution message-broker",
       version: "0.0.1",
       license: {
-        name: "AGPL-3.0-or-later",
-        identifier: "AGPL3",
-        url: "https://www.gnu.org/licenses/agpl-3.0.en.html#license-text",
+        name: "MIT",
+        identifier: "MIT",
       },
     },
 

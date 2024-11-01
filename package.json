@@ -1,7 +1,7 @@
 {
   "name": "openpra-monorepo",
   "version": "0.1.2",
-  "license": "AGPL-3.0-or-later",
+  "license": "MIT",
   "private": true,
   "devDependencies": {
     "@babel/core": "7.23.3",

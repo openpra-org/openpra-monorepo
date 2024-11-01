@@ -1,7 +1,7 @@
 {
   "name": "frontend-web-editor",
   "version": "0.0.2",
-  "license": "AGPL-3.0-or-later",
+  "license": "MIT",
   "nx": {
     "tags": [
       "scope:client"

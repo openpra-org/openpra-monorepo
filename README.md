@@ -1,5 +1,7 @@
 # OpenPRA MonoRepo
 
+<a href="https://doi.org/10.5281/zenodo.10891407"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.10891407.svg" alt="DOI"></a>
+
 Welcome to the OpenPRA Monorepo, the unified codebase for
 the [OpenPRA application suite](https://docs.openpra.org/).
 This repository uses the [Nx](https://nx.dev) build system, which encapsulates
@@ -295,9 +297,19 @@ README.md file.
 - If `docker compose` fails to work, you can confirm that your configuration is
   valid by running `docker compose -f docker/docker-compose.yml config`
 
+## Citation
+```json
+@software{openpra_initiative_2024_10891408,
+  author       = {OpenPRA Initiative},
+  title        = {openpra-org/openpra-monorepo},
+  month        = mar,
+  year         = 2024,
+  publisher    = {Zenodo},
+  version      = {v0.1.1},
+  doi          = {10.5281/zenodo.10891408},
+  url          = {https://doi.org/10.5281/zenodo.10891408}
+}
+```
 ## License
 
-This project is under the [GNU AGPLv3 license](LICENSE.md), which requires that
-any networked use of a modified version
-of the software must make the source code available. For more information,
-visit [AGPL-3.0 license details](https://choosealicense.com/licenses/agpl-3.0/).
+MIT

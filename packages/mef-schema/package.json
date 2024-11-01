@@ -4,7 +4,7 @@
   "dependencies": {
     "tslib": "2.5.2"
   },
-  "license": "AGPL-3.0-or-later",
+  "license": "MIT",
   "type": "commonjs",
   "main": "./src/index.js",
   "typings": "./src/index.d.ts"

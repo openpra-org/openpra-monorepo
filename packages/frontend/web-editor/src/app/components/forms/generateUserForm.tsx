@@ -1,11 +1,12 @@
 import { EuiButton, EuiFlexGroup, EuiFlexItem, EuiForm, EuiFormRow, EuiSelect, EuiText } from "@elastic/eui";
-import React, { ChangeEvent, useState } from "react";
+import React, { ChangeEvent, useCallback, useEffect, useState } from "react";
 import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { EuiSelectOption } from "@elastic/eui/src/components/form/select/select";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
+import { checkUserName } from "../../../utils/authUtils";
 import { UsernameForm } from "./usernameForm";
 
 /**
@@ -39,6 +40,7 @@ const GenerateUserForm = ({
   const [isValidUsername, setIsValidUsername] = useState(true);
   const [isValidEmail, setIsValidEmail] = useState(true);
   const { addToast } = UseToastContext();
+  const [isUserNameValid, setIsUserNameValid] = useState(true);
 
   function validateDetails(e: React.FormEvent<HTMLFormElement>): void {
     const emailValidation: EmailValidationForm = {
@@ -78,6 +80,17 @@ const GenerateUserForm = ({
         });
       });
   }
+
+  const debouncedCheckUserName = useCallback(
+    checkUserName((validationResult) => {
+      setIsUserNameValid(validationResult);
+    }),
+    [],
+  );
+
+  useEffect(() => {
+    debouncedCheckUserName(signup);
+  }, [signup.username]);
 
   return (
     <EuiForm

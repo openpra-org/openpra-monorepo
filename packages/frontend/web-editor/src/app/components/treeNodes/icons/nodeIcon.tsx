@@ -7,11 +7,7 @@ import { INodeProps, NodeTypes } from "./interfaces/nodeProps";
  * @param selected - boolean for showing selected state
  * @param isGrayed - boolean for showing grayed out state
  */
-function getNodeShape(
-  nodeType: NodeTypes,
-  selected: boolean | undefined,
-  isGrayed: boolean,
-): JSX.Element {
+function getNodeShape(nodeType: NodeTypes, selected: boolean | undefined, isGrayed: boolean): JSX.Element {
   const stroke = isGrayed ? "#bbb" : selected ? "red" : "#0984e3";
   switch (nodeType) {
     case NodeTypes.AndGate:
@@ -119,7 +115,7 @@ function getNodeShape(
       return (
         <path
           fill="#fff"
-          stroke={`${stroke}`}
+          stroke={stroke}
           strokeWidth={1.4}
           d="m50 16 35 69H15l35-69z"
         />
@@ -170,12 +166,7 @@ function getNodeShape(
  * @param isGrayed - boolean for showing grayed out state
  * @returns JSX Element of the node's icon
  */
-export const NodeIcon = ({
-  nodeType,
-  iconProps,
-  selected,
-  isGrayed,
-}: INodeProps): JSX.Element => (
+export const NodeIcon = ({ nodeType, iconProps, selected, isGrayed }: INodeProps): JSX.Element => (
   <svg
     viewBox={iconProps.viewBox}
     width={iconProps.width}

@@ -38,12 +38,7 @@ export type FaultTreeNodeTypes =
   | "houseEvent"
   | "basicEvent";
 
-function getNodeIcon(
-  type: string,
-  id: string,
-  selected: boolean | undefined,
-  data: FaultTreeNodeProps,
-): JSX.Element {
+function getNodeIcon(type: string, id: string, selected: boolean | undefined, data: FaultTreeNodeProps): JSX.Element {
   switch (type) {
     case AND_GATE:
       return (
@@ -179,9 +174,7 @@ function FaultTreeNode(
       <div
         className={stylesMap.node_container}
         onDoubleClick={(event) => void handleNodeDoubleClick(event)}
-        onClick={
-          data.branchId !== undefined ? grayedNodeClickHandler : undefined
-        }
+        onClick={data.branchId !== undefined ? grayedNodeClickHandler : undefined}
         onMouseEnter={mouseEnterHandler}
         onMouseLeave={mouseLeaveHandler}
       >

@@ -37,7 +37,7 @@ function CreateGenericList<T extends typedModelType | NestedModelType>(
         name: modelItem.label.name,
         description: modelItem.label.description,
       }}
-      path={`${modelItem._id}`}
+      path={modelItem._id}
       endpoint={endpoint} // Adjust this based on your model's structure
       postTypedEndpoint={postTypedEndpoint}
       deleteTypedEndpoint={deleteTypedEndpoint}

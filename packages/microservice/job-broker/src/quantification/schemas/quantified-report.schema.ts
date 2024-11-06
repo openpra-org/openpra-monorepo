@@ -30,7 +30,7 @@ export class QuantifiedRequest {
   mocus?: boolean;
 
   @Prop({ required: false })
-  primeImplicants?: boolean;
+  "prime-implicants"?: boolean;
 
   @Prop({ required: false })
   probability?: boolean;
@@ -48,43 +48,43 @@ export class QuantifiedRequest {
   sil?: boolean;
 
   @Prop({ required: false })
-  rareEvent?: boolean;
+  "rare-event"?: boolean;
 
   @Prop({ required: false })
   mcub?: boolean;
 
   @Prop({ required: false })
-  limitOrder?: number;
+  "limit-order"?: number;
 
   @Prop({ required: false })
-  cutOff?: number;
+  "cut-off"?: number;
 
   @Prop({ required: false })
-  missionTime?: number;
+  "mission-time"?: number;
 
   @Prop({ required: false })
-  timeStep?: number;
+  "time-step"?: number;
 
   @Prop({ required: false })
-  numTrials?: number;
+  "num-trials"?: number;
 
   @Prop({ required: false })
-  numQuantiles?: number;
+  "num-quantiles"?: number;
 
   @Prop({ required: false })
-  numBins?: number;
+  "num-bins"?: number;
 
   @Prop({ required: false })
   seed?: number;
 
   @Prop({ required: false })
-  noIndent?: boolean;
+  "no-indent"?: boolean;
 
   @Prop({ required: false })
   verbosity?: number;
 
   @Prop({ required: false })
-  noReport?: boolean;
+  "no-report"?: boolean;
 
   @Prop({ required: false })
   output?: string;
@@ -111,3 +111,4 @@ export class QuantifiedReport {
 
 // Generate a Mongoose schema for the QuantifiedReport class.
 export const QuantifiedReportSchema = SchemaFactory.createForClass(QuantifiedReport);
+export type QuantifiedReportDocument = QuantifiedReport & Document;

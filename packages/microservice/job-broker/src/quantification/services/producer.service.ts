@@ -17,6 +17,7 @@ import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-requ
 @Injectable()
 export class ProducerService {
   // Importing ConfigService for environment variable access.
+  private readonly logger = new Logger(ProducerService.name);
   constructor(private readonly configService: ConfigService) {}
 
   /**
@@ -35,11 +36,11 @@ export class ProducerService {
     while (attempt < retryCount) {
       try {
         const connection = await amqp.connect(url);
-        Logger.log("Quantification-producer successfully connected to the RabbitMQ broker.");
+        this.logger.log("Quantification-producer successfully connected to the RabbitMQ broker.");
         return connection;
       } catch {
         attempt++;
-        Logger.error(
+        this.logger.error(
           `Attempt ${String(
             attempt,
           )}: Failed to connect to RabbitMQ broker from quantification-producer side. Retrying in 10 seconds...`,
@@ -70,7 +71,7 @@ export class ProducerService {
     const deadLetterQ = this.configService.get<string>("DEAD_LETTER_QUEUE_NAME");
     const deadLetterX = this.configService.get<string>("DEAD_LETTER_EXCHANGE_NAME");
     if (!url || !initialJobQ || !deadLetterQ || !deadLetterX) {
-      Logger.error("Required environment variables for quantification producer service are not set");
+      this.logger.error("Required environment variables for quantification producer service are not set");
       return;
     }
 
@@ -106,13 +107,9 @@ export class ProducerService {
       // Handle specific TypeGuardError for validation issues, logging the detailed path and expected type.
       // Log a generic error message for any other types of errors encountered during the process.
       if (error instanceof TypeGuardError) {
-        Logger.error(
-          `Validation failed: ${String(error.path)} is invalid. Expected ${error.expected} but got ${String(
-            error.value,
-          )}`,
-        );
+        this.logger.error(error);
       } else {
-        Logger.error("Something went wrong in quantification producer service.");
+        this.logger.error(error);
       }
     }
   }

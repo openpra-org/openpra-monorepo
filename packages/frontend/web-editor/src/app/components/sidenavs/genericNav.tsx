@@ -2,18 +2,18 @@ import React, { useState } from "react";
 import { EuiSideNav } from "@elastic/eui";
 import { useNavigate } from "react-router-dom";
 
-type NavItemHeader = {
+interface NavItemHeader {
   name: string;
   id: string;
   icon: JSX.Element;
   items: NavItem[];
-};
+}
 
-type NavItem = {
+interface NavItem {
   name: string;
   url: string;
   data: object;
-};
+}
 
 function NavInsideNav({ items }: { items: NavItemHeader[] }): JSX.Element {
   const navigate = useNavigate();
@@ -46,9 +46,7 @@ function NavInsideNav({ items }: { items: NavItemHeader[] }): JSX.Element {
     name: headerItem.name,
     id: headerItem.id,
     icon: headerItem.icon,
-    items: headerItem.items.map((navItem) =>
-      createItem(navItem.name, navItem.url, navItem.data),
-    ),
+    items: headerItem.items.map((navItem) => createItem(navItem.name, navItem.url, navItem.data)),
   }));
   return (
     <EuiSideNav

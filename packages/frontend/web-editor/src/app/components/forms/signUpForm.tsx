@@ -10,13 +10,6 @@ import { checkEmail, checkUserName } from "../../../utils/authUtils";
 import { PasswordForm } from "./passwordForm";
 import { UsernameForm } from "./usernameForm";
 
-/**
- * The main signup Form component
- * @param handleSignup - This function will be called when user clicks on the button in the form
- * @param signup - The state object which holds the user object
- * @param setSignup - The function which will change the state object
- * @param buttonText - The text which should be shown on the button
- */
 const SignUpForm = ({
   handleSignup,
   signup,

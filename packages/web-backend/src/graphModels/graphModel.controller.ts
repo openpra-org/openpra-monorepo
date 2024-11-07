@@ -105,7 +105,6 @@ export class GraphModelController {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
-
   /**
    * fetches the bayesian network graph model for a particular diagram, based on its id
    * @param bayesianNetworkId - the id of the bayesian network diagram
@@ -134,7 +133,6 @@ export class GraphModelController {
   /**
    * Update the label of node/edge of a bayesian network node diagram
    * @param id - Node/Edge ID
-   * @param type - 'node' or 'edge'
    * @param label - New label for the node/edge
    * @returns a promise with boolean confirmation whether update was successful or not
    */
@@ -187,8 +185,13 @@ export class GraphModelController {
     @Body("newNode") newNode: { id: string; label?: string; position: { x: number; y: number } },
   ): Promise<boolean> {
     try {
-      return await this.graphModelService.addNodeFromParent(bayesianNetworkId, parentId, newNode);
+      console.log("Adding Node with data:", newNode);
+      // return await this.graphModelService.addNodeFromParent(bayesianNetworkId, parentId, newNode);
+      const result = await this.graphModelService.addNodeFromParent(bayesianNetworkId, parentId, newNode);
+      console.log("Node added with response:", result);
+      return result;
     } catch (error) {
+      console.error("Error adding node to Bayesian Network(controller):", error);
       throw new HttpException("Error adding node", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }

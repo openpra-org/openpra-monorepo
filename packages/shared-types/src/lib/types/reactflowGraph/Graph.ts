@@ -29,6 +29,7 @@ export type FaultTreeGraph = {
  */
 export type BayesianNetworkGraph = {
   bayesianNetworkId: string;
+  parentNodeIds?: string[];
 } & Graph;
 
 /**

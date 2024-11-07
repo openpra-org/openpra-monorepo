@@ -1,6 +1,6 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useEffect, useCallback, useRef, useState } from "react";
 import "reactflow/dist/style.css";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, useParams } from "react-router-dom";
 import { shallow } from "zustand/shallow";
 import ReactFlow, {
   Node,
@@ -19,13 +19,27 @@ import ReactFlow, {
   MarkerType,
 } from "reactflow";
 import { EuiToast } from "@elastic/eui";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { BayesianNetworkGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
 import { BayesianNetworkList } from "../../components/lists/nestedLists/bayesianNetworkList";
 import { MindMapNode } from "../../components/treeNodes/bayesianNetwork/mindMapNode";
 import { MindMapEdge } from "../../components/treeEdges/bayesianNetworkEdges/mindMapEdge";
 import CustomMiniMap from "../../components/minimap/minimap";
 import { BayesianNodeContextMenu } from "../../components/context_menu/bayesianNodeContextMenu";
 import { UseStore, RFState } from "../../hooks/bayesianNetwork/mindmap/useStore";
+import { NodeData, NodeWithData } from "../../hooks/bayesianNetwork/mindmap/useStore";
 import { GetEdgeParams } from "../../../utils/bayesianNodeIntersectionCalculator";
+
+/**
+ * Extended node type including custom properties for absolute positioning and optional dimensions.
+ */
+type ExtendedNode = {
+  parentNodes?: string[];
+  positionAbsolute?: { x: number; y: number };
+  width?: number;
+  height?: number;
+} & Node;
 
 /**
  * Selector type defining the parts of the state to be extracted.
@@ -35,6 +49,8 @@ interface SelectorReturnType {
   edges: RFState["edges"];
   onNodesChange: RFState["onNodesChange"];
   onEdgesChange: RFState["onEdgesChange"];
+  setNodes: RFState["setNodes"];
+  setEdges: RFState["setEdges"];
 }
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
@@ -49,7 +65,26 @@ const selector = (state: RFState): SelectorReturnType => ({
   edges: state.edges,
   onNodesChange: state.onNodesChange,
   onEdgesChange: state.onEdgesChange,
+  setNodes: state.setNodes,
+  setEdges: state.setEdges,
 });
+
+/**
+ * Converts GraphNode<object>[] to NodeWithData[] by adding necessary fields
+ * @param graphNodes - Array of nodes from API response
+ * @returns Array of nodes with required NodeWithData structure
+ */
+function convertGraphNodesToNodeWithData(graphNodes: GraphNode<object>[]): NodeWithData[] {
+  return graphNodes.map((node) => {
+    const castNode = node as GraphNode<NodeData>; // Cast node data to NodeData type
+
+    return {
+      ...node,
+      data: { label: castNode.data.label || "Default Label" }, // Access label safely
+      parentNodes: [], // Default to empty array if undefined
+    };
+  });
+}
 
 // Places the node origin in the center of a node
 const nodeOrigin: NodeOrigin = [0.5, 0.5];
@@ -71,15 +106,6 @@ const defaultEdgeOptions = {
 };
 
 /**
- * Extended node type including custom properties for absolute positioning and optional dimensions.
- */
-type ExtendedNode = {
-  positionAbsolute: { x: number; y: number };
-  width?: number;
-  height?: number;
-} & Node;
-
-/**
  * Main React component that provides an interactive environment to visualize and edit Bayesian Networks using React Flow.
  * It includes functionality for node and edge manipulation, context menu actions, and cycle detection.
  * @returns \{JSX.Element\} The rendered React Flow environment with nodes and edges.
@@ -89,6 +115,8 @@ function ReactFlowPro(): JSX.Element {
   const reactFlow = useReactFlow();
   const connectingNodeId = useRef<string | null>(null);
   const store = useStoreApi();
+  const { bayesianNetworkId } = useParams();
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({
@@ -100,6 +128,30 @@ function ReactFlowPro(): JSX.Element {
     addChildNode: state.addChildNode,
   }));
 
+  // useEffect to load Bayesian Network data when the component mounts
+  useEffect(() => {
+    const loadGraph = async (): Promise<void> => {
+      if (!bayesianNetworkId) return;
+
+      // // Set the bayesianNetworkId in the store state here
+      UseStore.getState().setBayesianNetworkId(bayesianNetworkId);
+
+      const response: BayesianNetworkGraph = await GraphApiManager.getBayesianNetwork(bayesianNetworkId);
+
+      // Convert nodes to the correct type
+      const convertedNodes = convertGraphNodesToNodeWithData(response.nodes);
+
+      // Access setNodes and setEdges directly from UseStore
+      const { setNodes, setEdges, nodes: defaultNodes } = UseStore.getState();
+
+      // Use setNodes and setEdges from the store
+      setNodes(convertedNodes.length > 0 ? convertedNodes : defaultNodes);
+      setEdges(response.edges.length > 0 ? response.edges : UseStore.getState().edges);
+      setIsLoading(false);
+    };
+
+    void (isLoading && loadGraph());
+  }, [bayesianNetworkId, isLoading, nodes, edges]);
   /**
    * Callback function to calculate the position of a child node on the canvas based on a mouse event.
    * @param event - The mouse event triggering this callback.

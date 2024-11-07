@@ -156,44 +156,6 @@ export class GraphModelService {
   }
 
   /**
-   * Saves the bayesian network diagram graph
-   * @param body - The current state of the bayesian network diagram graph
-   * @returns A promise with a bayesian network diagram graph in it
-   */
-  async saveBayesianNetworkGraph(body: Partial<BayesianNetworkGraph>): Promise<boolean> {
-    try {
-      const existingGraph = await this.bayesianNetworkGraphModel.findOne({
-        bayesianNetworkId: body.bayesianNetworkId,
-      });
-      return this.saveGraph(existingGraph, body, GraphTypes.BayesianNetwork);
-    } catch (exception) {
-      const error = exception as Error;
-      this.logger.error(error.message, error.stack);
-      throw new Error();
-    }
-  }
-
-  /**
-   * Sets the bayesian network diagram graph for the given event tree ID
-   * @param bayesianNetworkId - Bayesian network ID
-   * @returns A promise with the bayesian network diagram graph
-   */
-  async getBayesianNetworkGraph(bayesianNetworkId: string): Promise<BayesianNetworkGraph> {
-    const result = this.bayesianNetworkGraphModel.findOne({ bayesianNetworkId: bayesianNetworkId }, { _id: 0 });
-    if (result !== null) {
-      return result;
-    } else {
-      return {
-        id: "",
-        _id: new mongoose.Types.ObjectId(),
-        bayesianNetworkId: bayesianNetworkId,
-        nodes: [],
-        edges: [],
-      };
-    }
-  }
-
-  /**
    * Updates the label of the node/edge present in the data attribute
    * @param id - Node/Edge ID
    * @param type - 'node' or 'edge'
@@ -252,124 +214,44 @@ export class GraphModelService {
       throw new Error();
     }
   }
+  /**
+   * Saves the bayesian network diagram graph
+   * @param body - The current state of the bayesian network diagram graph
+   * @returns A promise with a bayesian network diagram graph in it
+   */
+  async saveBayesianNetworkGraph(body: Partial<BayesianNetworkGraph>): Promise<boolean> {
+    try {
+      const existingGraph = await this.bayesianNetworkGraphModel.findOne({
+        bayesianNetworkId: body.bayesianNetworkId,
+      });
+      return this.saveGraph(existingGraph, body, GraphTypes.BayesianNetwork);
+    } catch (exception) {
+      const error = exception as Error;
+      this.logger.error(error.message, error.stack);
+      throw new Error();
+    }
+  }
 
   /**
-   * Save the graph document
-   * @param graph - Graph document
-   * @param body - Model data
-   * @param modelType - Type of graph model
-   * @returns Graph document, after saving it in the database
+   * Sets the bayesian network diagram graph for the given event tree ID
+   * @param bayesianNetworkId - Bayesian network ID
+   * @returns A promise with the bayesian network diagram graph
    */
-  private async saveGraph(graph: BaseGraphDocument, body: Partial<BaseGraph>, modelType: GraphTypes): Promise<boolean> {
-    if (graph !== null) {
-      graph.nodes = body.nodes;
-      graph.edges = body.edges;
-      await graph.save();
+  async getBayesianNetworkGraph(bayesianNetworkId: string): Promise<BayesianNetworkGraph> {
+    const result = this.bayesianNetworkGraphModel.findOne({ bayesianNetworkId: bayesianNetworkId }, { _id: 0 });
+    if (result !== null) {
+      return result;
     } else {
-      const newGraph = this.getModel(modelType, body);
-      newGraph.id = new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
-      newGraph._id = new mongoose.Types.ObjectId();
-      await newGraph.save();
-    }
-    return true;
-  }
-
-  /**
-   * Get the newly created schema model according to the type of model
-   * @param modelType - Graph model type
-   * @param body - Model data
-   * @returns A hydrated document of the graph document
-   * @throws Error If model type is incorrect
-   */
-  private getModel(modelType: GraphTypes, body: Partial<BaseGraph>): HydratedDocument<BaseGraphDocument> {
-    switch (modelType) {
-      case GraphTypes.EventSequence:
-        return new this.eventSequenceDiagramGraphModel(body);
-      case GraphTypes.FaultTree:
-        return new this.faultTreeGraphModel(body);
-      case GraphTypes.EventTree:
-        return new this.eventTreeGraphModel(body);
-      case GraphTypes.BayesianNetwork:
-        return new this.bayesianNetworkGraphModel(body);
-      default:
-        throw new Error("model type not found");
+      return {
+        id: "",
+        _id: new mongoose.Types.ObjectId(),
+        bayesianNetworkId: bayesianNetworkId,
+        nodes: [],
+        edges: [],
+      };
     }
   }
 
-  private generateUUID(): string {
-    return new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
-  }
-
-  private getDefaultEventSequenceDiagram(): Partial<EventSequenceDiagramGraphDocument> {
-    const initiatingEventId = this.generateUUID();
-    const functionalEventId = this.generateUUID();
-    const firstEndStateId = this.generateUUID();
-    const secondEndStateId = this.generateUUID();
-
-    const defaultNodes: GraphNode<object>[] = [
-      {
-        id: initiatingEventId,
-        data: {
-          label: "Initiating Event",
-        },
-        position: { x: 0, y: 0 },
-        type: "initiating",
-      },
-      {
-        id: functionalEventId,
-        data: {
-          label: "Functional",
-        },
-        position: { x: 0, y: 0 },
-        type: "functional",
-      },
-      {
-        id: firstEndStateId,
-        data: {
-          label: "End State",
-        },
-        position: { x: 0, y: 0 },
-        type: "end",
-      },
-      {
-        id: secondEndStateId,
-        data: {
-          label: "End State",
-        },
-        position: { x: 0, y: 0 },
-        type: "end",
-      },
-    ];
-
-    const defaultEdges: GraphEdge<object>[] = [
-      {
-        id: `${initiatingEventId}->${functionalEventId}`,
-        source: initiatingEventId,
-        target: functionalEventId,
-        type: "normal",
-        animated: false,
-        data: {},
-      },
-      {
-        id: `${functionalEventId}->${firstEndStateId}`,
-        source: functionalEventId,
-        target: firstEndStateId,
-        type: "functional",
-        data: { label: "Yes", order: 1 },
-        animated: false,
-      },
-      {
-        id: `${functionalEventId}->${secondEndStateId}`,
-        source: functionalEventId,
-        target: secondEndStateId,
-        type: "functional",
-        data: { label: "No", order: 2 },
-        animated: false,
-      },
-    ];
-
-    return { nodes: defaultNodes, edges: defaultEdges };
-  }
   /**
    * Updates the label of the bayesian node/edge present in the data attribute
    * @param id - Node/Edge ID
@@ -405,12 +287,13 @@ export class GraphModelService {
   ): Promise<boolean> {
     try {
       const graph = await this.bayesianNetworkGraphModel.findOne({ bayesianNetworkId });
-
+      console.log("hi from serivce");
       // Explicit null check
       if (graph == null) {
         this.logger.error(`Graph with ID ${bayesianNetworkId} not found`);
         throw new Error(`Graph with ID ${bayesianNetworkId} not found`);
       }
+      console.log("Found graph (from service):", graph);
 
       // Ensure parent exists
       const parentNode = graph.nodes.find((node) => node.id === parentId);
@@ -418,6 +301,7 @@ export class GraphModelService {
         this.logger.error(`Parent node with ID ${parentId} not found`);
         throw new Error(`Parent node with ID ${parentId} not found`);
       }
+      console.log("Found parent node(from service):", parentNode);
 
       // Default label for the new node inside the `data` field, not directly as `label`
       const newGraphNode: GraphNode<object> = {
@@ -538,5 +422,123 @@ export class GraphModelService {
       this.logger.error(`Failed to update node position: ${errorMessage}`);
       throw new Error(`Failed to update node position: ${errorMessage}`);
     }
+  }
+
+  /**
+   * Save the graph document
+   * @param graph - Graph document
+   * @param body - Model data
+   * @param modelType - Type of graph model
+   * @returns Graph document, after saving it in the database
+   */
+  private async saveGraph(graph: BaseGraphDocument, body: Partial<BaseGraph>, modelType: GraphTypes): Promise<boolean> {
+    if (graph !== null) {
+      graph.nodes = body.nodes;
+      graph.edges = body.edges;
+      await graph.save();
+    } else {
+      const newGraph = this.getModel(modelType, body);
+      newGraph.id = new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
+      newGraph._id = new mongoose.Types.ObjectId();
+      await newGraph.save();
+    }
+    return true;
+  }
+
+  /**
+   * Get the newly created schema model according to the type of model
+   * @param modelType - Graph model type
+   * @param body - Model data
+   * @returns A hydrated document of the graph document
+   * @throws Error If model type is incorrect
+   */
+  private getModel(modelType: GraphTypes, body: Partial<BaseGraph>): HydratedDocument<BaseGraphDocument> {
+    switch (modelType) {
+      case GraphTypes.EventSequence:
+        return new this.eventSequenceDiagramGraphModel(body);
+      case GraphTypes.FaultTree:
+        return new this.faultTreeGraphModel(body);
+      case GraphTypes.EventTree:
+        return new this.eventTreeGraphModel(body);
+      case GraphTypes.BayesianNetwork:
+        return new this.bayesianNetworkGraphModel(body);
+      default:
+        throw new Error("model type not found");
+    }
+  }
+
+  private generateUUID(): string {
+    return new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
+  }
+
+  private getDefaultEventSequenceDiagram(): Partial<EventSequenceDiagramGraphDocument> {
+    const initiatingEventId = this.generateUUID();
+    const functionalEventId = this.generateUUID();
+    const firstEndStateId = this.generateUUID();
+    const secondEndStateId = this.generateUUID();
+
+    const defaultNodes: GraphNode<object>[] = [
+      {
+        id: initiatingEventId,
+        data: {
+          label: "Initiating Event",
+        },
+        position: { x: 0, y: 0 },
+        type: "initiating",
+      },
+      {
+        id: functionalEventId,
+        data: {
+          label: "Functional",
+        },
+        position: { x: 0, y: 0 },
+        type: "functional",
+      },
+      {
+        id: firstEndStateId,
+        data: {
+          label: "End State",
+        },
+        position: { x: 0, y: 0 },
+        type: "end",
+      },
+      {
+        id: secondEndStateId,
+        data: {
+          label: "End State",
+        },
+        position: { x: 0, y: 0 },
+        type: "end",
+      },
+    ];
+
+    const defaultEdges: GraphEdge<object>[] = [
+      {
+        id: `${initiatingEventId}->${functionalEventId}`,
+        source: initiatingEventId,
+        target: functionalEventId,
+        type: "normal",
+        animated: false,
+        data: {},
+      },
+      {
+        id: `${functionalEventId}->${firstEndStateId}`,
+        source: functionalEventId,
+        target: firstEndStateId,
+        type: "functional",
+        data: { label: "Yes", order: 1 },
+        animated: false,
+      },
+      {
+        id: `${functionalEventId}->${secondEndStateId}`,
+        source: functionalEventId,
+        target: secondEndStateId,
+        type: "functional",
+        data: { label: "No", order: 2 },
+        animated: false,
+      },
+    ];
+
+    return { nodes: defaultNodes, edges: defaultEdges };
   }
 }

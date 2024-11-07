@@ -1,3 +1,13 @@
+interface AddNodePayload {
+  bayesianNetworkId: string;
+  parentNodeId: string;
+  newNode: {
+    id: string;
+    label?: string;
+    position: { x: number; y: number };
+  };
+}
+
 import {
   EventSequenceGraph,
   EventTreeGraph,
@@ -109,6 +119,75 @@ export class GraphApiManager {
         throw error;
       });
   }
+  /**
+   * Updates the label of a node in the bayesian network.
+   * @param nodeId - ID of the node to update.
+   * @param label - New label for the node.
+   * @returns A boolean indicating if the update was successful.
+   */
+  static async updateBayesianNodeLabel(nodeId: string, label: string): Promise<boolean> {
+    const url = `${BayesianNetworkGraphEndpoint}/update-node-label`;
+    return await this.patch<{ nodeId: string; label: string }>(url, { nodeId, label })
+      .then((res) => res.ok)
+      .catch((error) => {
+        throw error;
+      });
+  }
+  /**
+   * Deletes a node from the bayesian network graph.
+   * @param bayesianNetworkId - ID of the bayesian network graph.
+   * @param nodeId - ID of the node to delete.
+   * @returns A boolean indicating if the deletion was successful.
+   */
+  static async deleteNodeFromBayesianNetwork(bayesianNetworkId: string, nodeId: string): Promise<boolean> {
+    const url = `${BayesianNetworkGraphEndpoint}/delete-node`;
+    return await this.delete<{ bayesianNetworkId: string; nodeId: string }>(url, { bayesianNetworkId, nodeId })
+      .then((res) => res.ok)
+      .catch((error) => {
+        throw error;
+      });
+  }
+
+  /**
+   * Adds a new node to the bayesian network graph.
+   * @param bayesianNetworkId - ID of the bayesian network graph.
+   * @param parentId - ID of the parent node.
+   * @param newNode - Object with node details.
+   * @returns A boolean indicating if the node was added successfully.
+   */
+  static async addNodeToBayesianNetwork(
+    bayesianNetworkId: string,
+    parentId: string,
+    newNode: { id: string; label?: string; position: { x: number; y: number } },
+  ): Promise<boolean> {
+    const url = `${BayesianNetworkGraphEndpoint}/add-node`;
+    const payload: AddNodePayload = {
+      bayesianNetworkId,
+      parentNodeId: parentId,
+      newNode,
+    };
+
+    return await this.post(url, payload)
+      .then((res) => res.ok)
+      .catch((error) => {
+        throw error;
+      });
+  }
+
+  /**
+   * Updates the position of a node in the bayesian network graph.
+   * @param nodeId - ID of the node.
+   * @param position - New position for the node.
+   * @returns A boolean indicating if the update was successful.
+   */
+  static async updateNodePosition(nodeId: string, position: { x: number; y: number }): Promise<boolean> {
+    const url = `${BayesianNetworkGraphEndpoint}/update-node-position`;
+    return await this.patch(url, { nodeId, position })
+      .then((res) => res.ok)
+      .catch((error) => {
+        throw error;
+      });
+  }
 
   /**
    * Update the label of a node or edge for an event sequence diagram
@@ -158,7 +237,7 @@ export class GraphApiManager {
    */
   private static post(
     url: string,
-    data: EventSequenceGraph | FaultTreeGraph | EventTreeGraph | BayesianNetworkGraph,
+    data: EventSequenceGraph | FaultTreeGraph | EventTreeGraph | BayesianNetworkGraph | AddNodePayload,
   ): Promise<Response> {
     return fetch(url, this.getRequestInfo("POST", JSON.stringify(data)));
   }
@@ -180,6 +259,17 @@ export class GraphApiManager {
    */
   private static patch<T>(url: string, data: T): Promise<Response> {
     return fetch(url, this.getRequestInfo("PATCH", JSON.stringify(data)));
+  }
+
+  /**
+   * Makes a DELETE call to the specified URL with the provided data.
+   * @param url - The URL endpoint for the DELETE request.
+   * @param data - The data to be sent in the request body.
+   * @returns The response from the API.
+   */
+
+  private static delete<T>(url: string, data: T): Promise<Response> {
+    return fetch(url, this.getRequestInfo("DELETE", JSON.stringify(data)));
   }
 
   private static getRequestInfo(method: "POST" | "GET" | "DELETE" | "PATCH" | "PUT", data?: BodyInit): RequestInit {

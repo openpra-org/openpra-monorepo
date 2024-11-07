@@ -11,11 +11,12 @@ import {
 } from "reactflow";
 import { create } from "zustand";
 import { nanoid } from "nanoid";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 
 /**
  * Type definition for additional data to be stored within each node.
  */
-interface NodeData {
+export interface NodeData {
   label: string | undefined;
 }
 
@@ -23,7 +24,7 @@ interface NodeData {
  * Extends the basic Node type to include custom data and an optional list of parent node IDs,
  * which are useful for maintaining complex relationships within the graph.
  */
-type NodeWithData = Node & { data: NodeData; parentNodes?: string[] };
+export type NodeWithData = Node & { data: NodeData; parentNodes?: string[] };
 
 /**
  * Extends the basic Edge type to include custom identifiers and positional attributes,
@@ -49,17 +50,21 @@ type EdgeWithData = Edge & {
 export interface RFState {
   nodes: NodeWithData[];
   edges: Edge[];
+  bayesianNetworkId?: string;
   onNodesChange: OnNodesChange;
   onEdgesChange: OnEdgesChange;
-  addChildNode: (parentNode: NodeWithData, position: XYPosition) => void;
+  addChildNode: (parentNode: NodeWithData, position: XYPosition) => Promise<void>;
   addParentNode: (childNode: NodeWithData, position: XYPosition) => void;
-  deleteNodeAndReattachChildren: (nodeId: string) => void;
-  updateNodeLabel: (nodeId: string, newLabel: string | undefined) => void;
+  deleteNodeAndReattachChildren: (nodeId: string) => Promise<void>;
+  updateNodeLabel: (nodeId: string, newLabel: string) => Promise<void>;
   getParentLabels: (nodeId: string) => string[];
   getChildrenLabels: (nodeId: string) => string[];
   addEdge: (newEdge: EdgeWithData) => void;
   getParents: (nodeId: string) => string[];
   getChildren: (nodeId: string) => string[];
+  setBayesianNetworkId: (id: string) => void;
+  setNodes: (newNodes: NodeWithData[]) => void;
+  setEdges: (newEdges: Edge[]) => void;
 }
 
 /**
@@ -85,7 +90,20 @@ const UseStore = create<RFState>((set, get) => ({
 
   edges: [],
 
-  addChildNode: (parentNode: NodeWithData, position: XYPosition): void => {
+  setNodes: (newNodes: NodeWithData[]): void => {
+    set({ nodes: newNodes });
+  },
+
+  setEdges: (newEdges: Edge[]): void => {
+    set({ edges: newEdges });
+  },
+
+  setBayesianNetworkId: (id: string) => {
+    console.log("Setting bayesianNetworkId:", id); // Debug log
+    set({ bayesianNetworkId: id });
+  },
+
+  addChildNode: async (parentNode: NodeWithData, position: XYPosition) => {
     const newNode: NodeWithData = {
       id: nanoid(),
       type: "mindmap",
@@ -100,11 +118,22 @@ const UseStore = create<RFState>((set, get) => ({
       target: newNode.id,
       type: "mindmap",
     };
+    set((state) => ({
+      nodes: [...state.nodes, newNode],
+      edges: [...state.edges, newEdge],
+    }));
 
-    set({
-      nodes: [...get().nodes, newNode],
-      edges: [...get().edges, newEdge],
-    });
+    try {
+      const bayesianNetworkId = get().bayesianNetworkId;
+      if (!bayesianNetworkId) throw new Error("Bayesian Network ID is not set");
+
+      const response = await GraphApiManager.addNodeToBayesianNetwork(bayesianNetworkId, parentNode.id, newNode);
+      if (!response) {
+        console.error("Failed to add node on the backend.");
+      }
+    } catch (error) {
+      console.error("Error adding child node:", error);
+    }
   },
 
   addParentNode: (childNode: NodeWithData, position: XYPosition): void => {
@@ -137,67 +166,83 @@ const UseStore = create<RFState>((set, get) => ({
     });
   },
 
-  deleteNodeAndReattachChildren: (nodeId: string): void => {
-    // Directly fetch the current state for nodes and edges
-    const currentNodes = get().nodes;
-    const currentEdges = get().edges;
+  deleteNodeAndReattachChildren: async (nodeId: string) => {
+    try {
+      const bayesianNetworkId = get().bayesianNetworkId;
+      if (!bayesianNetworkId) throw new Error("Bayesian Network ID is not set");
 
-    // Find the incoming edge for the node to get the parent's ID
-    const parentEdges = currentEdges.filter((edge) => edge.target === nodeId);
-    const parentIds = parentEdges.map((edge) => edge.source);
+      await GraphApiManager.deleteNodeFromBayesianNetwork(bayesianNetworkId, nodeId);
+      // Directly fetch the current state for nodes and edges
+      const currentNodes = get().nodes;
+      const currentEdges = get().edges;
 
-    // If the node has no parents (orphan or root), remove it and its outbound edges
-    if (parentIds.length === 0) {
-      set({
-        nodes: currentNodes.filter((node) => node.id !== nodeId),
-        edges: currentEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
-      });
-      return;
-    }
+      // Find the incoming edge for the node to get the parent's ID
+      const parentEdges = currentEdges.filter((edge) => edge.target === nodeId);
+      const parentIds = parentEdges.map((edge) => edge.source);
 
-    // Find all child edges
-    const childEdges = currentEdges.filter((e) => e.source === nodeId);
-
-    const newEdges = childEdges.flatMap((childEdge) =>
-      parentIds.map((parentId) => ({
-        ...childEdge,
-        id: nanoid(), // Generate a new ID for each new edge
-        source: parentId, // The source is now one of the original node's parents
-      })),
-    );
-
-    // Update child nodes to include all new parents in their parentNodes field
-    const updatedNodes = currentNodes.map((node) => {
-      if (childEdges.some((edge) => edge.target === node.id)) {
-        // For nodes that are children of the deleted node, update their parentNodes
-        const existingParents = node.parentNodes ? node.parentNodes.filter((pid) => pid !== nodeId) : []; // Remove the deleted node from their parentNodes
-        return {
-          ...node,
-          parentNodes: [...new Set([...existingParents, ...parentIds])], // Merge and deduplicate
-        };
+      // If the node has no parents (orphan or root), remove it and its outbound edges
+      if (parentIds.length === 0) {
+        set({
+          nodes: currentNodes.filter((node) => node.id !== nodeId),
+          edges: currentEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
+        });
+        return;
       }
-      return node;
-    });
 
-    // Apply the changes in an atomic update
-    set({
-      nodes: updatedNodes.filter((n) => n.id !== nodeId), // remove the node
-      edges: [
-        ...currentEdges.filter((e) => e.source !== nodeId && e.target !== nodeId), // remove all edges of the node
-        ...newEdges, // add new edges to reattach children
-      ],
-    });
-  },
+      // Find all child edges
+      const childEdges = currentEdges.filter((e) => e.source === nodeId);
 
-  updateNodeLabel: (nodeId: string, newLabel: string | undefined): void => {
-    set({
-      nodes: get().nodes.map((node): NodeWithData => {
-        if (node.id === nodeId) {
-          return { ...node, data: { label: newLabel } };
+      const newEdges = childEdges.flatMap((childEdge) =>
+        parentIds.map((parentId) => ({
+          ...childEdge,
+          id: nanoid(), // Generate a new ID for each new edge
+          source: parentId, // The source is now one of the original node's parents
+        })),
+      );
+
+      // Update child nodes to include all new parents in their parentNodes field
+      const updatedNodes = currentNodes.map((node) => {
+        if (childEdges.some((edge) => edge.target === node.id)) {
+          // For nodes that are children of the deleted node, update their parentNodes
+          const existingParents = node.parentNodes ? node.parentNodes.filter((pid) => pid !== nodeId) : []; // Remove the deleted node from their parentNodes
+          return {
+            ...node,
+            parentNodes: [...new Set([...existingParents, ...parentIds])], // Merge and deduplicate
+          };
         }
         return node;
-      }),
-    });
+      });
+
+      // Apply the changes in an atomic update
+      set({
+        nodes: updatedNodes.filter((n) => n.id !== nodeId), // remove the node
+        edges: [
+          ...currentEdges.filter((e) => e.source !== nodeId && e.target !== nodeId), // remove all edges of the node
+          ...newEdges, // add new edges to reattach children
+        ],
+      });
+    } catch (error) {
+      console.error("Error deleting node:", error);
+    }
+  },
+
+  updateNodeLabel: async (nodeId: string, newLabel: string) => {
+    try {
+      const bayesianNetworkId = get().bayesianNetworkId;
+      if (!bayesianNetworkId) throw new Error("Bayesian Network ID is not set");
+
+      await GraphApiManager.updateBayesianNodeLabel(nodeId, newLabel);
+      set({
+        nodes: get().nodes.map((node): NodeWithData => {
+          if (node.id === nodeId) {
+            return { ...node, data: { label: newLabel } };
+          }
+          return node;
+        }),
+      });
+    } catch (error) {
+      console.error("Error updating node label:", error);
+    }
   },
 
   getParentLabels: (nodeId: string): string[] => {
@@ -233,15 +278,15 @@ const UseStore = create<RFState>((set, get) => ({
       .map((e) => e.target),
 
   onNodesChange: (changes: NodeChange[]): void => {
-    set({
-      nodes: applyNodeChanges(changes, get().nodes),
-    });
+    set((state) => ({
+      nodes: applyNodeChanges(changes, state.nodes),
+    }));
   },
 
   onEdgesChange: (changes: EdgeChange[]): void => {
-    set({
-      edges: applyEdgeChanges(changes, get().edges),
-    });
+    set((state) => ({
+      edges: applyEdgeChanges(changes, state.edges),
+    }));
   },
 }));
 

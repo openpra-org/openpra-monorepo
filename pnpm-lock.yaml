@@ -268,7 +268,7 @@ importers:
         specifier: 8.1.0
         version: 8.1.0
       shared-types:
-        specifier: workspace:^
+        specifier: 0.0.1
         version: link:../../shared-types
       tmp:
         specifier: 0.2.3
@@ -344,7 +344,7 @@ importers:
         specifier: 11.10.1
         version: 11.10.1(@types/react@18.2.38)(immer@10.0.4)(react-dom@18.2.0(react@18.2.0))(react@18.2.0)
       shared-types:
-        specifier: workspace:^
+        specifier: 0.0.1
         version: link:../../shared-types
       zustand:
         specifier: 4.5.1
@@ -472,7 +472,7 @@ importers:
   packages/model-generator:
     dependencies:
       shared-types:
-        specifier: workspace:^
+        specifier: 0.0.1
         version: link:../shared-types
       tslib:
         specifier: 2.5.2
@@ -550,7 +550,7 @@ importers:
         specifier: 7.8.1
         version: 7.8.1
       shared-types:
-        specifier: workspace:^
+        specifier: 0.0.1
         version: link:../shared-types
       supertest:
         specifier: 6.3.3

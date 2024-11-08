@@ -2,7 +2,7 @@ FROM node:20.17.0-slim AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NX_VERSION=19.6.2
-ENV BUILD_PACKAGES="make cmake g++ python3 curl ca-certificates"
+ENV BUILD_PACKAGES="make cmake g++ git python3 curl ca-certificates"
 
 ENV SCRAM_BUILD_PACKAGES="libxml2-dev libomp-dev \
     libxml2-dev libomp-dev \
@@ -28,8 +28,9 @@ RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
     SHELL=bash pnpm setup
 
 COPY .. .
-RUN source /root/.bashrc \
-    && pnpm install
+RUN source /root/.bashrc && \
+    git submodule update --init --recursive && \
+    pnpm install
 
 FROM base AS e2e-tests
 RUN source /root/.bashrc && \

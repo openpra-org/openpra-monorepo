@@ -1,0 +1,3 @@
+[submodule "fixtures/models/synthetic-openpsa-models"]
+	path = fixtures/models/synthetic-openpsa-models
+	url = https://github.com/openpra-org/synthetic-openpsa-models.git

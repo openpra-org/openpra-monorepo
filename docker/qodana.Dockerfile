@@ -3,7 +3,7 @@ FROM jetbrains/qodana-js:latest as BASE
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NX_VERSION=17.1.2
 ENV BUILD_PACKAGES \
-    make cmake g++ python3
+    make cmake g++ git python3
 
 ENV SCRAM_BUILD_PACKAGES \
     libxml2-dev libomp-dev \
@@ -28,6 +28,7 @@ COPY .. .
 
 RUN SHELL=bash pnpm setup && \
     source /root/.bashrc && \
+    git submodule update --init --recursive && \
     pnpm install
 
 COPY ../docker/qodana-entrypoint.sh /docker-entrypoint.d/

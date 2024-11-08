@@ -1,11 +1,3 @@
-/**
- * Main entry point for the Job Broker application.
- *
- * This file is responsible for bootstrapping the NestJS application, which includes
- * initializing the application's root module (`JobBrokerModule`) and starting the
- * application's web server.
- *
- */
 import { NestFactory } from "@nestjs/core";
 import { NestiaSwaggerComposer } from "@nestia/sdk";
 import { OpenAPIObject, SwaggerModule } from "@nestjs/swagger";

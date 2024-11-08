@@ -429,10 +429,10 @@ importers:
         specifier: 8.5.1
         version: 8.5.1(socks@2.8.3)
       scram-node:
-        specifier: 0.0.1
+        specifier: workspace:^
         version: link:../../engine/scram-node
       shared-types:
-        specifier: 0.0.1
+        specifier: workspace:^
         version: link:../../shared-types
       tmp:
         specifier: 0.2.3

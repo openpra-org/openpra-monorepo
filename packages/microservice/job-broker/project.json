@@ -49,6 +49,50 @@
         }
       }
     },
+    "build-consumer": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "transformers": [
+          "typia/lib/transform",
+          {
+            "name": "@nestia/core/lib/transform",
+            "options": {
+              "validate": "assert",
+              "stringify": "assert"
+            }
+          }
+        ],
+        "outputPath": "dist/packages/microservice/job-broker/consumer",
+        "main": "packages/microservice/job-broker/src/main-consumer.ts",
+        "tsConfig": "packages/microservice/job-broker/tsconfig.app.json",
+        "assets": ["packages/microservice/job-broker/src/assets"],
+        "isolatedConfig": true,
+        "webpackConfig": "packages/microservice/job-broker/webpack.config.js"
+      },
+      "configurations": {
+        "development": {},
+        "production": {}
+      }
+    },
+    "serve-consumer": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "microservice-job-broker:build-consumer"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "microservice-job-broker:build-consumer:development"
+        },
+        "production": {
+          "buildTarget": "microservice-job-broker:build-consumer:production"
+        }
+      }
+    },
     "lint": {
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],

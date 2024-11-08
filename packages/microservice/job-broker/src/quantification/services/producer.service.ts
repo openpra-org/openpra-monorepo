@@ -1,36 +1,20 @@
-/**
- * Service responsible for producing and queueing quantification jobs in RabbitMQ.
- *
- * This service handles the connection to RabbitMQ, queue setup, and message publishing
- * for quantification requests. It includes robust connection handling with retries and
- * utilizes environment variables for configuration.
- */
-
-// Importing Logger for logging, amqplib for RabbitMQ connection and operations, typia for type validation
-// and TypeGuardError for error handling, and shared types for quantification request validation.
-import { Injectable, Logger } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
+import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import amqp from "amqplib";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { EnvVarKeys } from "../../../config/env_vars.config";
 
 @Injectable()
-export class ProducerService {
-  // Importing ConfigService for environment variable access.
+export class ProducerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ProducerService.name);
-  constructor(private readonly configService: ConfigService) {}
 
-  /**
-   * Establishes a connection to RabbitMQ with retry logic.
-   *
-   * Attempts to connect to RabbitMQ using the provided URL and retries upon failure
-   * up to the specified retry count. Logs connection attempts and failures.
-   *
-   * @param url - The RabbitMQ server URL.
-   * @param retryCount - The number of connection attempts before failing.
-   * @returns A promise that resolves to the RabbitMQ connection.
-   * @throws {@link Error} if unable to connect after the specified number of retries.
-   */
+  private connection: amqp.Connection | null = null;
+  private channel: amqp.Channel | null = null;
+  private readonly url: string = EnvVarKeys.RABBITMQ_URL;
+  private readonly initialJobQ: string = EnvVarKeys.QUANT_JOB_QUEUE_NAME;
+  private readonly deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
+  private readonly deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;
+
   private async connectWithRetry(url: string, retryCount: number): Promise<amqp.Connection> {
     let attempt = 0;
     while (attempt < retryCount) {
@@ -53,54 +37,45 @@ export class ProducerService {
     );
   }
 
-  /**
-   * Creates and queues a quantification job in RabbitMQ.
-   *
-   * Validates and serializes the quantification request, connects to RabbitMQ,
-   * sets up the necessary queues and exchange, and publishes the request to the queue.
-   * Handles connection retries and logs the process throughout.
-   *
-   * @param modelsWithConfigs - The model data extracted from the request body.
-   * @returns A promise that resolves to void.
-   */
-  public async createAndQueueQuant(modelsWithConfigs: QuantifyRequest): Promise<void> {
-    // Load all the environment variables necessary for RabbitMQ connection and queue configuration.
-    // If any of the required environment variables are missing, log an error and exit the function.
-    const url = this.configService.get<string>("RABBITMQ_URL");
-    const initialJobQ = this.configService.get<string>("QUANT_JOB_QUEUE_NAME");
-    const deadLetterQ = this.configService.get<string>("DEAD_LETTER_QUEUE_NAME");
-    const deadLetterX = this.configService.get<string>("DEAD_LETTER_EXCHANGE_NAME");
-    if (!url || !initialJobQ || !deadLetterQ || !deadLetterX) {
-      this.logger.error("Required environment variables for quantification producer service are not set");
+  async onApplicationBootstrap(): Promise<void> {
+    try {
+      this.connection = await this.connectWithRetry(this.url, 3);
+      this.channel = await this.connection.createChannel();
+
+      await this.setupQueuesAndExchanges();
+      this.logger.log("ProducerService initialized and ready to send messages.");
+    } catch (error) {
+      this.logger.error("Failed to initialize ProducerService:", error);
+    }
+  }
+
+  private async setupQueuesAndExchanges(): Promise<void> {
+    if (!this.channel) {
+      this.logger.error("Channel is not available. Cannot set up queues and exchanges.");
       return;
     }
 
+    await this.channel.assertExchange(this.deadLetterX, "direct", { durable: true });
+    await this.channel.assertQueue(this.deadLetterQ, { durable: true });
+    await this.channel.bindQueue(this.deadLetterQ, this.deadLetterX, "");
+
+    await this.channel.assertQueue(this.initialJobQ, {
+      durable: true,
+      deadLetterExchange: this.deadLetterX,
+      messageTtl: 60000,
+      maxLength: 10000,
+    });
+  }
+
+  public createAndQueueQuant(modelsWithConfigs: QuantifyRequest): void {
     try {
-      // Attempt to connect to the RabbitMQ server with a retry mechanism.
-      // On successful connection, create a RabbitMQ channel for placing messages in a queue.
-      const connection = await this.connectWithRetry(url, 3);
-      const channel = await connection.createChannel();
+      if (!this.channel) {
+        this.logger.error("Channel is not available. Cannot send message.");
+        return;
+      }
 
-      // Set up the dead letter exchange and queue, and bind them together.
-      // This is used for messages that are either invalid or could not be processed
-      // in time.
-      await channel.assertExchange(deadLetterX, "direct", { durable: true });
-      await channel.assertQueue(deadLetterQ, { durable: true });
-      await channel.bindQueue(deadLetterQ, deadLetterX, "");
-
-      // Assert the existence of the initial job queue with specific configurations,
-      // including durability, dead letter exchange, time-to-live duration, and maximum queue length.
-      await channel.assertQueue(initialJobQ, {
-        durable: true,
-        deadLetterExchange: deadLetterX,
-        messageTtl: 60000,
-        maxLength: 10000,
-      });
-
-      // Serialize the quantification request data and send it to the initial job queue.
-      // Mark the message as persistent to ensure it is not lost in case the broker restarts.
       const modelsData = typia.json.assertStringify<QuantifyRequest>(modelsWithConfigs);
-      channel.sendToQueue(initialJobQ, Buffer.from(modelsData), {
+      this.channel.sendToQueue(this.initialJobQ, Buffer.from(modelsData), {
         persistent: true,
       });
     } catch (error) {

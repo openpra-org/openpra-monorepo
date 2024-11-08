@@ -1,13 +1,3 @@
-/**
- * Custom exception filter for handling all HTTP exceptions across the application.
- *
- * This filter catches any `HttpException` thrown within the application and formats
- * the response to include relevant error details such as the path, status code, message,
- * and timestamp of the error. It ensures a consistent error response structure throughout
- * the application.
- */
-
-// Import necessary decorators and interfaces from NestJS and types from Express for request and response handling.
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from "@nestjs/common";
 import { Request, Response } from "express";
 

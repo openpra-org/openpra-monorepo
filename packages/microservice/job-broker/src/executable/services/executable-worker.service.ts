@@ -1,11 +1,11 @@
 import { execSync, ExecSyncOptionsWithStringEncoding } from "node:child_process";
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import typia, { TypeGuardError } from "typia";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
 import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
+import { EnvVarKeys } from "../../../config/env_vars.config";
 
 /**
  * Service for executing tasks received from the initial executable task queue.
@@ -15,7 +15,6 @@ import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-res
 @Injectable()
 export class ExecutableWorkerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableWorkerService.name);
-  constructor(private readonly configService: ConfigService) {}
 
   /**
    * Establishes a connection to the RabbitMQ broker with retry logic.
@@ -53,17 +52,11 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
    */
   public async onApplicationBootstrap(): Promise<void> {
     // Load all the environment variables required for RabbitMQ and task execution.
-    const url = this.configService.get<string>("RABBITMQ_URL");
-    const initialJobQ = this.configService.get<string>("EXECUTABLE_TASK_QUEUE_NAME");
-    const storageQ = this.configService.get<string>("EXECUTABLE_STORAGE_QUEUE_NAME");
-    const deadLetterQ = this.configService.get<string>("DEAD_LETTER_QUEUE_NAME");
-    const deadLetterX = this.configService.get<string>("DEAD_LETTER_EXCHANGE_NAME");
-
-    // Check if all required environment variables are found. Log an error and exit if that is not the case.
-    if (!url || !initialJobQ || !storageQ || !deadLetterQ || !deadLetterX) {
-      this.logger.error("Required environment variables for executable worker service are not set");
-      return;
-    }
+    const url: string = EnvVarKeys.RABBITMQ_URL;
+    const initialJobQ: string = EnvVarKeys.EXECUTABLE_TASK_QUEUE_NAME;
+    const storageQ: string = EnvVarKeys.EXECUTABLE_STORAGE_QUEUE_NAME;
+    const deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
+    const deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;
 
     // Connect to the RabbitMQ server, create a channel, and connect the
     // workers to the initial queue to consume jobs.

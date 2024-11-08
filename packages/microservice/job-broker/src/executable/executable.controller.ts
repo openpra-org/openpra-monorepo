@@ -1,13 +1,3 @@
-/**
- * Controller for executable task related endpoints.
- *
- * Provides endpoints for creating new executable tasks and retrieving the list of executed tasks.
- * Utilizes services for task creation, queueing, and retrieval of execution results.
- */
-
-// Importing core NestJS functionalities along with typed route handling from Nestia,
-// shared types for execution task structure and services for task management and storage, and
-// schemas for executed results to define the return type of one of the endpoints.
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute, TypedBody } from "@nestia/core";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
@@ -29,9 +19,9 @@ export class ExecutableController {
    * @param taskRequest - The task to execute.
    */
   @TypedRoute.Post("/tasks")
-  public async createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): Promise<void> {
+  public createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): void {
     try {
-      return this.executableService.createAndQueueTask(taskRequest);
+      this.executableService.createAndQueueTask(taskRequest);
     } catch {
       throw new InternalServerErrorException("Server encountered a problem while queueing a binary executable task.");
     }

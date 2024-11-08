@@ -1,12 +1,3 @@
-/**
- * Controller for handling job broker related requests.
- *
- * This controller provides endpoints for retrieving job types, pending jobs,
- * and creating a new job. It uses the `JobBrokerService` for business logic
- * and data retrieval.
- */
-
-// Import necessary decorators and services from NestJS and custom modules.
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute } from "@nestia/core";
 import { JobBrokerService } from "./job-broker.service";

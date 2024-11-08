@@ -4,7 +4,6 @@
 
 .cache
 migrations.json
-*.tsbuildinfo
 
 logs.txt
 # compiled output

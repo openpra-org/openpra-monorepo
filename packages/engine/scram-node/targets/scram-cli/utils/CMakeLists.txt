@@ -3,7 +3,7 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(SCRAM_CLI_UTILS_HEADERS
         ConstructOptions.h
         ConstructSettings.h
-        Logger.h
+        XmlLogger.h
         ParseArguments.h
         RunScram.h
 )

@@ -42,7 +42,7 @@
 #include "reporter.h"
 #include "risk_analysis.h"
 
-#include "utils/Logger.h"
+#include "utils/XmlLogger.h"
 #include "utils/ParseArguments.h"
 #include "utils/RunScram.h"
 

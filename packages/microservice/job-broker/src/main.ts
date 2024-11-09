@@ -53,7 +53,7 @@ async function bootstrap(): Promise<void> {
     additional: true,
   })) as OpenAPIObject;
 
-  SwaggerModule.setup("/api/docs", app, document, {
+  SwaggerModule.setup("/q/docs", app, document, {
     customSiteTitle: "OpenPRA-MQ API Docs",
     explorer: true,
     swaggerOptions: {},

@@ -28,7 +28,7 @@ sets up the server to listen on port 80 and serve files from
 the `/usr/share/nginx/html/web-editor` directory, with a fallback to
 `index.html` for single-page application routing.
 
-## [docker-compose.yml](docker-compose.yml)
+## [docker-compose.yml](../docker-compose.yml)
 
 The `docker-compose.yml` file is used for local development. It defines two
 services:

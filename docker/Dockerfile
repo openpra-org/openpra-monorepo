@@ -2,6 +2,7 @@ FROM node:20.17.0-slim AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NX_VERSION=19.6.2
+ENV NX_SOCKET_DIR="/tmp/nx"
 ENV BUILD_PACKAGES="make cmake g++ git python3 curl ca-certificates"
 
 ENV SCRAM_BUILD_PACKAGES="libxml2-dev libomp-dev \
@@ -32,28 +33,11 @@ RUN source /root/.bashrc && \
     git submodule update --init --recursive && \
     pnpm install
 
-FROM base AS e2e-tests
-RUN source /root/.bashrc && \
-    pnpm playwright install-deps
+FROM base AS serve
+COPY ../docker/entrypoint.sh /
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 
-FROM base AS frontend_builder
-ARG BUILD_TYPE=development
-ARG BRANCH_SLUG=""
-ARG ENABLE_SENTRY=1
-
-WORKDIR /data/project
-SHELL ["/bin/bash", "-c"]
-RUN source /root/.bashrc && \
-    BRANCH_SLUG=$BRANCH_SLUG NODE_ENV=$BUILD_TYPE ENABLE_SENTRY=$ENABLE_SENTRY nx run frontend-web-editor:build:$BUILD_TYPE
-
-FROM nginx:latest AS frontend
-WORKDIR /usr/share/nginx/html/web-editor
-COPY docker/default.conf /etc/nginx/nginx.conf
-COPY --from=frontend_builder /data/project/dist/packages/frontend/web-editor/ ./
-
-FROM base AS backend
-WORKDIR /data/project
-SHELL ["/bin/bash", "-c"]
-CMD source /root/.bashrc && nx run --verbose web-backend:serve:$BUILD_TYPE
-
-
+EXPOSE 4200
+EXPOSE 3000
+EXPOSE 8000

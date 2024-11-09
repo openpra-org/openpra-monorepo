@@ -1,0 +1,61 @@
+volumes:
+  mongo_data:
+
+networks:
+  db_net:
+  backend:
+
+x-vols: &base-vols
+  volumes:
+    - "/etc/localtime:/etc/localtime:ro"
+    - "/etc/timezone:/etc/timezone:ro"
+
+x-base-image: &base-image
+  build:
+     context: .
+     dockerfile: docker/Dockerfile
+  <<: *base-vols
+  networks:
+    - backend
+    - db_net
+
+services:
+  frontend:
+    <<: *base-image
+    ports:
+      - "4200:4200"
+    command: "nx run --verbose frontend-web-editor:serve:development"
+
+  job-broker:
+    <<: *base-image
+    ports:
+      - "3000:3000"
+    command: "nx run --verbose microservice-job-broker:serve:development"
+    environment:
+      MONGO_URL: "mongodb://mongodb:27017"
+    depends_on:
+      - mongodb
+
+  backend:
+    <<: *base-image
+    ports:
+      - "8001:8000"
+    command: "nx run --verbose web-backend:serve:development"
+    environment:
+      MONGO_URL: "mongodb://mongodb:27017"
+      JWT_SECRET_KEY: "/dev/null"
+      DEBUG: "true"
+      DEPLOYMENT: "false"
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    networks:
+      - db_net
+    volumes:
+      - mongo_data:/data/db
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro

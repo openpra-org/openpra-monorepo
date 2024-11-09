@@ -10,6 +10,7 @@ module.exports = composePlugins(
   (config) => {
     config.devServer = {
       port: 4200,
+      allowedHosts: [".app.openpra.org"],
       proxy: [
         {
           context: ["/api"],
@@ -21,6 +22,5 @@ module.exports = composePlugins(
     };
     return config;
   },
-  // Update the webpack config as needed here.
-  // e.g. `config.plugins.push(new MyPlugin())`
+  // e.g. `config.plugins.push(new MyPlugin())`   // Update the webpack config as needed here.
 );

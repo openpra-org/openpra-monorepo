@@ -18,7 +18,7 @@ import { ExecutableModule } from "./executable/executable.module";
     MongooseModule.forRoot(EnvVarKeys.MONGODB_URI),
     RouterModule.register([
       {
-        path: "api", // Define the base path for the API.
+        path: "q", // Define the base path for the API.
         module: JobBrokerModule,
         children: [
           // Define child modules for specific endpoint prefixes.

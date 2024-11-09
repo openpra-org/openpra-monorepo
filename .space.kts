@@ -39,53 +39,19 @@ job("Monorepo Deployment") {
      }
    }
 
-   /**
-    * https://www.jetbrains.com/help/space/automation-dsl.html#job-parallel
-    */
-   parallel {
+   host("Build") {
 
-     host("Build Frontend") {
-
-       requirements {
-         workerTags("swarm-worker")
-       }
-
-       shellScript("docker build frontend"){
-         interpreter = "/bin/bash"
-         content = """
-                           docker pull $remote:frontend-{{ branchSlug }} || true
-                           docker build --target frontend --build-arg BRANCH_SLUG="{{ branchSlug }}" --build-arg BUILD_TYPE="{{ buildType }}" --tag="$remote:frontend-{{ branchSlug }}" -f ./docker/Dockerfile .
-                           """
-       }
-
-       shellScript("docker push frontend"){
-         interpreter = "/bin/bash"
-         content = """
-                           docker push "$remote:frontend-{{ branchSlug }}"
-                           """
-       }
+     requirements {
+       workerTags("swarm-worker")
      }
 
-     host("Build Backend") {
-
-       requirements {
-         workerTags("swarm-worker")
-       }
-
-       shellScript("docker build backend"){
-         interpreter = "/bin/bash"
-         content = """
-                             docker pull $remote:backend-{{ branchSlug }} || true
-                             docker build --target backend --build-arg BUILD_TYPE="{{ buildType }}" --tag="$remote:backend-{{ branchSlug }}" -f ./docker/Dockerfile .
-                             """
-       }
-
-       shellScript("docker push backend"){
-         interpreter = "/bin/bash"
-         content = """
-                             docker push "$remote:backend-{{ branchSlug }}"
-                             """
-       }
+     shellScript("build-image"){
+       interpreter = "/bin/bash"
+       content = """
+                           docker pull $remote:deploy-{{ branchSlug }} || true
+                           docker build --build-arg BUILD_TYPE="{{ buildType }}" --tag="$remote:deploy-{{ branchSlug }}" -f ./docker/Dockerfile .
+                           docker push "$remote:deploy-{{ branchSlug }}"
+                           """
      }
    }
 
@@ -97,8 +63,7 @@ job("Monorepo Deployment") {
 
      env["STACK_YML"] = "docker/stack.yml"
 
-     env["IMAGE_FRONTEND"] = "$remote:frontend-{{ branchSlug }}"
-     env["IMAGE_BACKEND"] = "$remote:backend-{{ branchSlug }}"
+     env["IMAGE_BACKEND"] = "$remote:deploy-{{ branchSlug }}"
 
      env["APP_NAME"] = "v2-app-{{ branchSlug }}"
      env["HOST_URL"] = "{{ branchSlug }}.{{ project:APP_DOMAIN }}"
@@ -259,6 +224,16 @@ job("Monorepo CI") {
        }
      }
 
+    host("build-image") {
+      shellScript {
+        interpreter = "/bin/bash"
+        content = """
+                        docker pull $remote:{{ branchSlug }} || true
+                        docker build --tag="$remote:{{ branchSlug }}" --tag="$remote:ci-{{ run:number }}-{{ branchSlug }}" -f ./docker/Dockerfile .
+                        docker push "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                        """
+      }
+    }
 
     parallel {
 
@@ -266,9 +241,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                      docker pull $remote:{{ branchSlug }} || true
-                      docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:build
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run frontend-web-editor:build
                       """
         }
       }
@@ -277,9 +251,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                      docker pull $remote:{{ branchSlug }} || true
-                      docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:test || true
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run frontend-web-editor:test || true
                       """
         }
       }
@@ -288,9 +261,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                      docker pull $remote:{{ branchSlug }} || true
-                      docker build --target=e2e-tests --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:e2e-cli || true
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run frontend-web-editor:e2e-cli || true
                       """
         }
       }
@@ -299,9 +271,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                      docker pull $remote:{{ branchSlug }} || true
-                      docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                      docker run --rm "$remote:{{ branchSlug }}" nx run frontend-web-editor:lint || true
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run frontend-web-editor:lint || true
                       """
         }
       }
@@ -311,9 +282,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:build
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run web-backend:build
                         """
         }
       }
@@ -322,9 +292,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:test || true
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run web-backend:test || true
                         """
         }
       }
@@ -333,9 +302,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:e2e || true
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run web-backend:e2e || true
                         """
         }
       }
@@ -344,9 +312,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run web-backend:lint || true
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run web-backend:lint || true
                         """
         }
       }
@@ -355,9 +322,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run shared-types:build
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run shared-types:build
                         """
         }
       }
@@ -366,9 +332,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run shared-types:test
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run shared-types:test
                         """
         }
       }
@@ -377,9 +342,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run shared-types:lint || true
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run shared-types:lint || true
                         """
         }
       }
@@ -388,9 +352,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run model-generator:build
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run model-generator:build
                         """
         }
       }
@@ -399,9 +362,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run model-generator:test
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run model-generator:test
                         """
         }
       }
@@ -410,9 +372,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run model-generator:lint
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run model-generator:lint
                         """
         }
       }
@@ -421,9 +382,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run engine-scram-node:build
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run engine-scram-node:build
                         """
         }
       }
@@ -432,9 +392,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run engine-scram-node:test
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run engine-scram-node:test
                         """
         }
       }
@@ -443,9 +402,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run engine-scram-node:ctest
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run engine-scram-node:ctest
                         """
         }
       }
@@ -454,9 +412,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run engine-scram-node:lint
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run engine-scram-node:lint
                         """
         }
       }
@@ -465,9 +422,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run mef-schema:build
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run mef-schema:build
                         """
         }
       }
@@ -476,9 +432,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run mef-schema:test
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run mef-schema:test
                         """
         }
       }
@@ -487,9 +442,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run mef-schema:lint
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run mef-schema:lint
                         """
         }
       }
@@ -498,9 +452,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run microservice-job-broker:build
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run microservice-job-broker:build
                         """
         }
       }
@@ -509,9 +462,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run microservice-job-broker:test || true
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run microservice-job-broker:test
                         """
         }
       }
@@ -520,9 +472,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run microservice-job-broker:e2e
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run microservice-job-broker:e2e
                         """
         }
       }
@@ -531,9 +482,8 @@ job("Monorepo CI") {
         shellScript {
           interpreter = "/bin/bash"
           content = """
-                        docker pull $remote:{{ branchSlug }} || true
-                        docker build --target=base --tag="$remote:{{ branchSlug }}" -f ./docker/Dockerfile .
-                        docker run --rm "$remote:{{ branchSlug }}" nx run microservice-job-broker:lint
+                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run microservice-job-broker:lint
                         """
         }
       }
@@ -589,6 +539,16 @@ job("Monorepo Qodana") {
     }
   }
 
+  host("build-qodana-image") {
+    shellScript {
+      interpreter = "/bin/bash"
+      content = """
+                        docker pull $remote:qo-{{ branchSlug }} || true
+                        docker build --tag="$remote:qo-{{ branchSlug }}" --tag="$remote:qo-{{ run:number }}-{{ branchSlug }}" -f ./docker/qodana.Dockerfile .
+                        docker push "$remote:qo-{{ run:number }}-{{ branchSlug }}"
+                        """
+    }
+  }
 
   parallel {
 
@@ -597,9 +557,8 @@ job("Monorepo Qodana") {
       shellScript("scan") {
         interpreter = "/bin/bash"
         content = """
-                      docker pull $remote:{{ branchSlug }} || true
-                      docker build --tag="$remote:{{ branchSlug }}" -f ./docker/qodana.Dockerfile .
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:{{ branchSlug }}"
+                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}"
                       """
       }
     }
@@ -609,9 +568,8 @@ job("Monorepo Qodana") {
       shellScript("scan") {
         interpreter = "/bin/bash"
         content = """
-                      docker pull $remote:{{ branchSlug }} || true
-                      docker build --tag="$remote:{{ branchSlug }}" -f ./docker/qodana.Dockerfile .
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:{{ branchSlug }}" engine/scram-node
+                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" engine/scram-node
                       """
       }
     }
@@ -621,9 +579,8 @@ job("Monorepo Qodana") {
       shellScript("scan") {
         interpreter = "/bin/bash"
         content = """
-                      docker pull $remote:{{ branchSlug }} || true
-                      docker build --tag="$remote:{{ branchSlug }}" -f ./docker/qodana.Dockerfile .
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:{{ branchSlug }}" frontend/web-editor
+                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" frontend/web-editor
                       """
       }
     }
@@ -633,9 +590,8 @@ job("Monorepo Qodana") {
       shellScript("scan") {
         interpreter = "/bin/bash"
         content = """
-                      docker pull $remote:{{ branchSlug }} || true
-                      docker build --tag="$remote:{{ branchSlug }}" -f ./docker/qodana.Dockerfile .
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:{{ branchSlug }}" mef-schema
+                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" mef-schema
                       """
       }
     }
@@ -645,9 +601,8 @@ job("Monorepo Qodana") {
       shellScript("scan") {
         interpreter = "/bin/bash"
         content = """
-                      docker pull $remote:{{ branchSlug }} || true
-                      docker build --tag="$remote:{{ branchSlug }}" -f ./docker/qodana.Dockerfile .
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:{{ branchSlug }}" microservice-job-broker
+                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" microservice-job-broker
                       """
       }
     }
@@ -657,9 +612,8 @@ job("Monorepo Qodana") {
       shellScript("scan") {
         interpreter = "/bin/bash"
         content = """
-                      docker pull $remote:{{ branchSlug }} || true
-                      docker build --tag="$remote:{{ branchSlug }}" -f ./docker/qodana.Dockerfile .
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:{{ branchSlug }}" model-generator
+                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" model-generator
                       """
       }
     }
@@ -669,9 +623,8 @@ job("Monorepo Qodana") {
       shellScript("scan") {
         interpreter = "/bin/bash"
         content = """
-                      docker pull $remote:{{ branchSlug }} || true
-                      docker build --tag="$remote:{{ branchSlug }}" -f ./docker/qodana.Dockerfile .
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:{{ branchSlug }}" shared-types
+                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" shared-types
                       """
       }
     }
@@ -681,9 +634,8 @@ job("Monorepo Qodana") {
       shellScript("scan") {
         interpreter = "/bin/bash"
         content = """
-                      docker pull $remote:{{ branchSlug }} || true
-                      docker build --tag="$remote:{{ branchSlug }}" -f ./docker/qodana.Dockerfile .
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:{{ branchSlug }}" web-backend
+                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
+                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" web-backend
                       """
       }
     }

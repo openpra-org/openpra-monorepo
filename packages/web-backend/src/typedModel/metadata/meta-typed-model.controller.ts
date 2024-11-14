@@ -1,4 +1,4 @@
-import { Controller, Get, Request, UseFilters, UseGuards } from "@nestjs/common";
+import { Controller, Get, Post, Request, UseFilters, UseGuards, Body } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { InternalEventsMetadata } from "../schemas/internal-events.schema";
 import { InvalidTokenFilter } from "../../filters/invalid-token.filter";
@@ -20,5 +20,13 @@ export class MetaTypedModelController {
   async getInternalEvents(@Request() req): Promise<InternalEventsMetadata[]> {
     console.log("here");
     return this.metaTypedModelService.getInternalEventsMetaData(req.user.user_id);
+  }
+  // New POST method to save internal event metadata
+  @Post("/metadata/internal-events/")
+  async saveInternalEventMetadata(
+    @Body() metadata: InternalEventsMetadata,
+    @Request() req,
+  ): Promise<InternalEventsMetadata> {
+    return this.metaTypedModelService.saveInternalEventMetadata(req.user.user_id, metadata);
   }
 }

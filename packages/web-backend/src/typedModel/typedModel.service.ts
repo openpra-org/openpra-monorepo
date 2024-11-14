@@ -11,6 +11,7 @@ import { InternalHazards, InternalHazardsDocument } from "./schemas/internal-haz
 import { ExternalHazards, ExternalHazardsDocument } from "./schemas/external-hazards.schema";
 import { FullScope, FullScopeDocument } from "./schemas/full-scope.schema";
 import { TypedModel, TypedModelJSON } from "./schemas/templateSchema/typed-model.schema";
+import { MetaTypedModelService } from "./metadata/meta-typed-model.service";
 
 @Injectable()
 export class TypedModelService {
@@ -25,6 +26,7 @@ export class TypedModelService {
     private readonly externalHazardsModel: Model<ExternalHazardsDocument>,
     @InjectModel(FullScope.name)
     private readonly fullScopeModel: Model<FullScopeDocument>,
+    private readonly metaTypedModelService: MetaTypedModelService,
   ) {}
 
   /**
@@ -51,10 +53,32 @@ export class TypedModelService {
    * @param body - takes in the model type that is requested in the name
    * @returns promise with the model type
    */
-  async createInternalEventModel(body: Partial<InternalEvents>): Promise<TypedModel> {
+  //Create an Internal Event and trigger metadata save
+  async createInternalEventModel(body: Partial<InternalEvents>): Promise<InternalEvents> {
     const newInternalEvent = new this.internalEventsModel(body);
     newInternalEvent.id = await this.getNextModelValue("ModelCounter");
-    return newInternalEvent.save();
+
+    console.log("Generated ID:", newInternalEvent.id);
+    const savedEvent = await newInternalEvent.save();
+
+    // Detailed logging for debugging
+    console.log("Saved Event:", savedEvent);
+    console.log("Saved Event[0]", savedEvent.users[0]);
+    console.log("Saved Event - Users:", savedEvent.users);
+    console.log("Saved Event - Label:", savedEvent.label);
+
+    // Check if the users array is not empty to prevent metadata update errors
+    if (savedEvent.users && savedEvent.users.length > 0) {
+      // Trigger metadata update
+      await this.metaTypedModelService.saveInternalEventMetadata(savedEvent.users[0], {
+        label: savedEvent.label,
+        users: savedEvent.users,
+      });
+    } else {
+      console.warn("No users found in savedEvent, skipping metadata update.");
+    }
+
+    return savedEvent;
   }
 
   /**
@@ -100,21 +124,19 @@ export class TypedModelService {
    * @returns the new InternalEventsModel
    */
   async patchInternalEvent(modelId: string, userId: number, model: Partial<InternalEvents>): Promise<InternalEvents> {
-    // Find the document that matches the provided modelId and userId
     const query = { id: Number(modelId), users: userId };
-
-    const newInternalEvent = new this.internalEventsModel(model);
-
-    const updateData = {
-      users: newInternalEvent.users,
-      label: newInternalEvent.label,
-    };
-
-    // The `new` option returns the updated document instead of the original one
     const options = { new: true };
+    const updatedEvent = await this.internalEventsModel.findOneAndUpdate(query, model, options);
 
-    // Update the document with the provided model data
-    return await this.internalEventsModel.findOneAndUpdate(query, updateData, options);
+    // Trigger metadata update
+    if (updatedEvent) {
+      await this.metaTypedModelService.saveInternalEventMetadata(userId, {
+        label: updatedEvent.label,
+        users: updatedEvent.users,
+      });
+    }
+
+    return updatedEvent;
   }
 
   /**

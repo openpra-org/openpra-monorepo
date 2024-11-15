@@ -6,7 +6,6 @@ import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
-import { checkEmail, checkUserName } from "../../../utils/authUtils";
 import { PasswordForm } from "./passwordForm";
 import { UsernameForm } from "./usernameForm";
 
@@ -78,21 +77,22 @@ const SignUpForm = ({
       });
   }
 
-  const debouncedCheckUserName = useMemo(
-    () =>
-      checkUserName((validationResult) => {
-        setIsValidUsername(validationResult);
-      }),
-    [],
-  );
+  type CheckEmailFunction = (callback: (validationResult: boolean) => void) => (signup: SignUpPropsWithRole) => void;
+  type CheckUserNameFunction = (callback: (validationResult: boolean) => void) => (signup: SignUpPropsWithRole) => void;
 
-  const debouncedCheckEmail = useMemo(
-    () =>
-      checkEmail((validationResult) => {
-        setIsValidEmail(validationResult);
-      }),
-    [],
-  );
+  const debouncedCheckUserName: (signup: SignUpPropsWithRole) => void = useMemo(() => {
+    const checkUserName: CheckUserNameFunction = ApiManager.checkUserName;
+    return checkUserName((validationResult: boolean) => {
+      setIsValidUsername(validationResult);
+    });
+  }, []);
+
+  const debouncedCheckEmail = useMemo(() => {
+    const checkEmail: CheckEmailFunction = ApiManager.checkEmail;
+    return checkEmail((validationResult: boolean) => {
+      setIsValidEmail(validationResult);
+    });
+  }, []);
 
   useEffect(() => {
     debouncedCheckUserName(signup);

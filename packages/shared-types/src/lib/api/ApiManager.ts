@@ -1,7 +1,8 @@
 import { AuthToken } from "../types/AuthToken";
 import { AuthService } from "./AuthService";
-import { SignUpCredentials, SignUpCredentialsWithRole } from "./AuthTypes";
+import { SignUpCredentials, SignUpCredentialsWithRole, SignUpPropsWithRole } from "./AuthTypes";
 import { MemberResult, Members } from "./Members";
+import { EmailValidationForm, UsernameValidationForm } from "./FormValidation";
 
 const API_ENDPOINT = "/api";
 
@@ -10,6 +11,9 @@ const authEndpoint = `${API_ENDPOINT}/auth`;
 const userPreferencesEndpoint = `${collabEndpoint}/user`;
 
 const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, only-if-cached
+
+// Regex for basic email validation
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Z|a-z]{2,}$/;
 
 export class ApiManager {
   static API_ENDPOINT = API_ENDPOINT;
@@ -254,4 +258,117 @@ export class ApiManager {
     };
     return ApiManager.post(`${authEndpoint}/verify-password`, JSON.stringify(data));
   }
+
+  /**
+   * This function validates the username for a signup attempt
+   * @param signup - The signup data containing the username to validate
+   * @returns A Promise that resolves to true if the username is valid, false otherwise
+   */
+  static validUserName = (signup: SignUpPropsWithRole): Promise<boolean> => {
+    const usernameValidation: UsernameValidationForm = {
+      username: signup.username,
+    };
+    return ApiManager.isValidUsername(JSON.stringify(usernameValidation))
+      .then((isValidUsername: boolean) => {
+        return isValidUsername;
+      })
+      .catch((error: unknown) => {
+        return false;
+      });
+  };
+
+  /**
+   * This function creates a debounced username checker
+   * @param onValidationComplete - Callback function to be called with the validation result
+   * @returns A function that takes signup data and initiates a debounced username validation
+   */
+  static checkUserName = (
+    onValidationComplete: (isValid: boolean) => void,
+  ): ((signup: SignUpPropsWithRole) => void) => {
+    let timer: NodeJS.Timeout | null = null;
+
+    return function (signup: SignUpPropsWithRole): void {
+      if (timer) {
+        clearTimeout(timer);
+      }
+
+      timer = setTimeout(() => {
+        ApiManager.validUserName(signup)
+          .then((isValid) => {
+            onValidationComplete(isValid);
+          })
+          .catch((error: unknown) => {
+            onValidationComplete(false);
+          });
+      }, 400);
+    };
+  };
+
+  /**
+   * This static function checks if an email address has a valid format
+   * @param email - The email address to validate
+   * @returns true if the email format is valid, false otherwise
+   */
+  static isValidEmailFormat(email: string): boolean {
+    return EMAIL_REGEX.test(email);
+  }
+
+  /**
+   * This function validates the email for a signup attempt
+   * @param signup - The signup data containing the email to validate
+   * @returns A Promise that resolves to true if the email is valid, false otherwise
+   */
+  static validEmail = (signup: SignUpPropsWithRole): Promise<boolean> => {
+    // Check the email format
+    if (!ApiManager.isValidEmailFormat(signup.email)) {
+      return Promise.resolve(false);
+    }
+
+    // If the format is valid, check with the backend
+    const emailValidation: EmailValidationForm = {
+      email: signup.email,
+    };
+
+    return ApiManager.isValidEmail(JSON.stringify(emailValidation))
+      .then((isValidEmail: boolean) => {
+        return isValidEmail;
+      })
+      .catch((error: unknown) => {
+        console.error("Error validating email:", error);
+        return false;
+      });
+  };
+
+  /**
+   * This function creates a debounced email checker
+   * @param onValidationComplete - Callback function to be called with the validation result
+   * @returns A function that takes signup data and initiates a debounced email validation
+   */
+  static checkEmail = (onValidationComplete: (isValid: boolean) => void): ((signup: SignUpPropsWithRole) => void) => {
+    let timer: NodeJS.Timeout | null = null;
+
+    return function (signup: SignUpPropsWithRole): void {
+      if (timer) {
+        clearTimeout(timer);
+      }
+
+      timer = setTimeout(() => {
+        // First, check the email format
+        if (!ApiManager.isValidEmailFormat(signup.email)) {
+          onValidationComplete(false);
+          return;
+        }
+
+        // If the format is valid, proceed with backend validation
+        ApiManager.validEmail(signup)
+          .then((isValid) => {
+            onValidationComplete(isValid);
+          })
+          .catch((error: unknown) => {
+            console.error("Error in email validation:", error);
+            onValidationComplete(false);
+          });
+      }, 700);
+    };
+  };
 }

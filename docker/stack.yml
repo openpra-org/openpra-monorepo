@@ -6,6 +6,9 @@ networks:
   backend:
     driver: overlay
     attachable: true
+  rmq_net:
+    driver: overlay
+    attachable: true
   traefik-public:
     external: true
 
@@ -13,25 +16,21 @@ secrets:
   CI_JWT_SECRET_KEY:
     file: secrets/DSF_JWT_SECRET_KEY.secret
 
-x-vols: &base-vols
-  volumes:
-    - "/etc/localtime:/etc/localtime:ro"
-    - "/etc/timezone:/etc/timezone:ro"
+configs:
+  rabbitmq_plugins:
+    file: configs/rabbitmq/enabled_plugins
+  rabbitmq_conf:
+    file: configs/rabbitmq/rabbitmq.conf
 
-x-nets: &base-nets
-  networks:
-    - traefik-public
-    - backend
-    - db_net
-
-x-base-image: &base-image
-  image: ${IMAGE_BACKEND}
-  <<: *base-vols
-  <<: *base-nets
 
 services:
   frontend:
-    <<: *base-image
+    image: ${IMAGE_BACKEND}
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    networks:
+      - traefik-public
     command: "nx run --verbose frontend-web-editor:serve:development"
     deploy:
       labels:
@@ -51,8 +50,17 @@ services:
         - traefik.http.services.${APP_NAME}-frontend.loadbalancer.server.port=4200
 
   job-broker:
-    <<: *base-image
+    image: ${IMAGE_BACKEND}
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
     command: "nx run --verbose microservice-job-broker:serve:development"
+    environment:
+      RABBITMQ_URL: "amqp://rabbitmq:5672"
+    networks:
+      - traefik-public
+      - rmq_net
+      - db_net
     deploy:
       labels:
         - traefik.enable=true
@@ -70,8 +78,27 @@ services:
         - traefik.http.routers.${APP_NAME}-job-broker-https.service=${APP_NAME}-job-broker
         - traefik.http.services.${APP_NAME}-job-broker.loadbalancer.server.port=3000
 
+  job-worker:
+    image: ${IMAGE_BACKEND}
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    command: "nx run --verbose microservice-job-broker:serve-consumer:development"
+    environment:
+      RABBITMQ_URL: "amqp://rabbitmq:5672"
+    networks:
+      - rmq_net
+    deploy:
+      replicas: ${NUM_WORKERS}
+
   backend:
-    <<: *base-image
+    image: ${IMAGE_BACKEND}
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    networks:
+      - traefik-public
+      - db_net
     command: "nx run --verbose web-backend:serve:development"
     secrets:
       - CI_JWT_SECRET_KEY
@@ -104,7 +131,9 @@ services:
     networks:
       - traefik-public
       - db_net
-    <<: *base-vols
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb
       ME_CONFIG_MONGODB_ENABLE_ADMIN: 'true'
@@ -126,6 +155,36 @@ services:
         - traefik.http.routers.${APP_NAME}-express-https.service=${APP_NAME}-express
         - traefik.http.services.${APP_NAME}-express.loadbalancer.server.port=8081
 
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    volumes:
+      - "$ENV_SHARED_VOLUME_PATH/rabbitmq:/var/lib/rabbitmq"
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    networks:
+      - traefik-public
+      - rmq_net
+    configs:
+      - source: rabbitmq_plugins
+        target: /etc/rabbitmq/enabled_plugins
+      - source: rabbitmq_conf
+        target: /etc/rabbitmq/rabbitmq.conf
+    deploy:
+      labels:
+        - traefik.enable=true
+        - traefik.docker.network=traefik-public
+        - traefik.constraint-label=traefik-public
+        - traefik.http.routers.${APP_NAME}-rabbitmq-http.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/mq`)
+        - traefik.http.routers.${APP_NAME}-rabbitmq-http.entrypoints=http
+        - traefik.http.routers.${APP_NAME}-rabbitmq-http.middlewares=https-redirect,gzip
+        - traefik.http.routers.${APP_NAME}-rabbitmq-http.service=${APP_NAME}-express
+        - traefik.http.routers.${APP_NAME}-rabbitmq-https.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/mq`)
+        - traefik.http.routers.${APP_NAME}-rabbitmq-https.entrypoints=https
+        - traefik.http.routers.${APP_NAME}-rabbitmq-https.tls=true
+        - traefik.http.routers.${APP_NAME}-rabbitmq-https.tls.certresolver=le
+        - traefik.http.routers.${APP_NAME}-rabbitmq-https.middlewares=gzip
+        - traefik.http.routers.${APP_NAME}-rabbitmq-https.service=${APP_NAME}-rabbitmq
+        - traefik.http.services.${APP_NAME}-rabbitmq.loadbalancer.server.port=15672
   mongodb:
     image: mongo:latest
     networks:

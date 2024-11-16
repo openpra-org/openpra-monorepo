@@ -1,0 +1,7 @@
+[
+  rabbitmq_federation,
+  rabbitmq_web_dispatch,
+  rabbitmq_management,
+  rabbitmq_management_visualiser,
+  rabbitmq_prometheus
+].

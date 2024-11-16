@@ -26,11 +26,13 @@ job("Monorepo Deployment") {
          api.parameters["buildType"] = "production"
          api.parameters["debugMode"] = "false"
          api.parameters["isReview"] = "false"
+         api.parameters["numWorkers"] = "32"
        } else {
          branchSlug = "review-$branchSlug"
          api.parameters["buildType"] = "development"
          api.parameters["debugMode"] = "true"
          api.parameters["isReview"] = "true"
+         api.parameters["numWorkers"] = "2"
        }
 
        api.parameters["branchSlug"] = branchSlug
@@ -67,6 +69,7 @@ job("Monorepo Deployment") {
 
      env["APP_NAME"] = "v2-app-{{ branchSlug }}"
      env["HOST_URL"] = "{{ branchSlug }}.{{ project:APP_DOMAIN }}"
+     env["NUM_WORKERS"] = "{{ numWorkers }}"
 
      env["CI_SENTRY_DSN"] = "{{ project:APP_SENTRY_DSN }}"
      env["CI_SENTRY_ENV"] = "{{ project:APP_SENTRY_ENV }}"
@@ -80,7 +83,7 @@ job("Monorepo Deployment") {
      shellScript("create directories"){
        interpreter = "/bin/bash"
        content = """
-                         mkdir -p ${'$'}ENV_SHARED_VOLUME_PATH/mongodb docker/secrets
+                         mkdir -p ${'$'}ENV_SHARED_VOLUME_PATH/mongodb ${'$'}ENV_SHARED_VOLUME_PATH/rabbitmq docker/secrets
                          """
      }
 

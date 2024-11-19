@@ -30,7 +30,7 @@ export class RolesService implements OnApplicationBootstrap {
   /**
    * This function returns all the roles from the database
    */
-  async getAllRoles(roleId: string[] | null): Promise<RoleSchemaDto[]> {
+  async getAllRoles(roleId: string[] | null): Promise<Roles[]> {
     let roles: Roles[];
     if (roleId !== undefined && roleId.length > 0) {
       roles = await this.roleModel.find({ id: { $in: roleId } }).exec();
@@ -48,7 +48,7 @@ export class RolesService implements OnApplicationBootstrap {
    * Get a single role by Id or return NotFoundException if id doesnt exist
    * @param id - The unique Id for the role
    */
-  async getRole(id: string): Promise<RoleSchemaDto> {
+  async getRole(id: string): Promise<Roles> {
     const role = await this.roleModel.findOne({ id: id }).exec();
     if (role === null) {
       throw new NotFoundException(`Role with ID ${id} not found`);

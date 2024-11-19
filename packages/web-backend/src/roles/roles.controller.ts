@@ -3,6 +3,7 @@ import { RoleSchemaDto } from "shared-types/src/openpra-zod-mef/role/role-schema
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";
 import { RolesService } from "./roles.service";
+import { Roles } from "./schemas/roles.schema";
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -10,27 +11,27 @@ import { RolesService } from "./roles.service";
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
-  @Get("/roles/")
-  async getAllRoles(@Query() query: { id?: string[] }): Promise<RoleSchemaDto[]> {
+  @Get()
+  async getAllRoles(@Query() query: { id?: string[] }): Promise<Roles[]> {
     return this.rolesService.getAllRoles(query.id);
   }
 
-  @Get("/role/:roleId")
-  async getRoleById(@Param("roleId") roleId: string): Promise<RoleSchemaDto> {
+  @Get("/:roleId")
+  async getRoleById(@Param("roleId") roleId: string): Promise<Roles> {
     return this.rolesService.getRole(roleId);
   }
 
-  @Post("/role/")
+  @Post()
   createRole(@Body() body: RoleSchemaDto): Promise<void> {
     return this.rolesService.createRole(body);
   }
 
-  @Put("/role/")
+  @Put()
   async updateRole(@Body() body: RoleSchemaDto): Promise<void> {
     return this.rolesService.updateRole(body);
   }
 
-  @Delete("/role/:roleId")
+  @Delete("/:roleId")
   async removeRole(@Param("roleId") roleId: string): Promise<void> {
     return this.rolesService.deleteRole(roleId);
   }

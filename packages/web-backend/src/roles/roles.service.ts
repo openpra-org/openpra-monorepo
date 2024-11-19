@@ -1,9 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException, OnApplicationBootstrap } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { RoleSchemaDto } from "shared-types/src/openpra-zod-mef/role/role-schema";
-import { PredefinedRoles } from "shared-types/src/lib/data/predefiniedRoles";
 import { Roles, RolesDocument } from "./schemas/roles.schema";
+import { PredefinedRoles, Role } from "./schemas/predefined-roles";
 
 @Injectable()
 export class RolesService implements OnApplicationBootstrap {
@@ -60,7 +59,7 @@ export class RolesService implements OnApplicationBootstrap {
    * Create a single role from a RoleDTO object
    * @param role - The RoleDTO object
    */
-  async createRole(role: RoleSchemaDto): Promise<void> {
+  async createRole(role: Role): Promise<void> {
     const checkRole = await this.roleModel.findOne({ id: role.id }).exec();
     if (checkRole !== null) {
       throw new BadRequestException(`Role with Id ${role.id} already exists`);
@@ -72,7 +71,7 @@ export class RolesService implements OnApplicationBootstrap {
    * Update an existing role in the database
    * @param role - The RoleDTO object
    */
-  async updateRole(role: RoleSchemaDto): Promise<void> {
+  async updateRole(role: Role): Promise<void> {
     const checkRole = await this.roleModel.findOne({ id: role.id }).exec();
     if (checkRole === null) {
       throw new BadRequestException(`Role with Id ${role.id} not found`);

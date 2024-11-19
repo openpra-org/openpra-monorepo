@@ -1,9 +1,9 @@
 import { Controller, Get, Post, Param, Body, UseFilters, UseGuards, Put, Delete, Query } from "@nestjs/common";
-import { RoleSchemaDto } from "shared-types/src/openpra-zod-mef/role/role-schema";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";
 import { RolesService } from "./roles.service";
 import { Roles } from "./schemas/roles.schema";
+import { Role } from "./schemas/predefined-roles";
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -22,12 +22,12 @@ export class RolesController {
   }
 
   @Post()
-  createRole(@Body() body: RoleSchemaDto): Promise<void> {
+  createRole(@Body() body: Role): Promise<void> {
     return this.rolesService.createRole(body);
   }
 
   @Put()
-  async updateRole(@Body() body: RoleSchemaDto): Promise<void> {
+  async updateRole(@Body() body: Role): Promise<void> {
     return this.rolesService.updateRole(body);
   }
 

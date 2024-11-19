@@ -1,10 +1,23 @@
-import { RoleSchemaDto } from "packages/shared-types/src/openpra-zod-mef/role/role-schema";
-
 const AdminRole = "admin-role";
 const MemberRole = "member-role";
 const CollabRole = "collab-role";
 
-const PredefinedRoles: RoleSchemaDto[] = [
+interface Role {
+  id: string;
+  name: string;
+  permissions: Permission[];
+}
+
+interface Permission {
+  action: string | string[];
+  subject: string | string[];
+  fields?: any;
+  conditionals?: any;
+  inverted?: boolean;
+  reason?: string;
+}
+
+const PredefinedRoles: Role[] = [
   {
     id: AdminRole,
     name: "Admin",

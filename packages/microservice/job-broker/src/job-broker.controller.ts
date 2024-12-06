@@ -1,6 +1,7 @@
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute } from "@nestia/core";
 import { JobBrokerService } from "./job-broker.service";
+import { ExecuteJobBrokerTask, QuantifyJobBrokerRequest } from "./middleware/schemas/job-broker.schema";
 
 export interface JobResponse {
   message: string;
@@ -36,7 +37,7 @@ export class JobBrokerController {
    * @throws {@link NotFoundException} When the list of pending jobs cannot be found.
    */
   @TypedRoute.Get("/pending-jobs")
-  public getPendingJobs(): JobResponse {
+  public getPendingJobs(): Promise<{ jobs: QuantifyJobBrokerRequest[]; tasks: ExecuteJobBrokerTask[] }> {
     try {
       return this.jobBrokerService.getPendingJobs();
     } catch {

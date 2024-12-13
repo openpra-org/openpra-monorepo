@@ -4,6 +4,13 @@ import { Model } from "mongoose";
 
 @Injectable()
 export class MetaTypedModelService {
+  /**
+   * Constructor to inject metadata models for all supported types.
+   * @param internalEventsMetadataModel - Mongoose model for `InternalEventsMetadata`.
+   * @param internalHazardsMetadataModel - Mongoose model for `InternalHazardsMetadata`.
+   * @param externalHazardsMetadataModel - Mongoose model for `ExternalHazardsMetadata`.
+   * @param fullScopeMetadataModel - Mongoose model for `FullScopeMetadata`.
+   */
   constructor(
     @InjectModel("InternalEventsMetadata") private readonly internalEventsMetadataModel: Model<any>,
     @InjectModel("InternalHazardsMetadata") private readonly internalHazardsMetadataModel: Model<any>,
@@ -11,6 +18,12 @@ export class MetaTypedModelService {
     @InjectModel("FullScopeMetadata") private readonly fullScopeMetadataModel: Model<any>,
   ) {}
 
+  /**
+   * Retrieves the appropriate metadata model based on the type of the model.
+   * @param type - The type of model (e.g., "internal-events", "internal-hazards").
+   * @returns The Mongoose model corresponding to the provided type.
+   * @throws Error if the provided type is invalid.
+   */
   private getMetadataModelByType(type: string): Model<any> {
     switch (type) {
       case "internal-events":
@@ -26,6 +39,15 @@ export class MetaTypedModelService {
     }
   }
 
+  /**
+   * Saves metadata for a specific model type.
+   * @param type - The type of the model (e.g., "internal-events", "external-hazards").
+   * @param modelId - The ID of the model for which metadata is being saved.
+   * @param userId - The user ID associated with the metadata.
+   * @param label - An object containing the label's name and optional description.
+   * @param users - A list of users associated with the metadata.
+   * @returns The saved metadata document.
+   */
   async saveMetadata(
     type: string,
     modelId: string,
@@ -42,6 +64,15 @@ export class MetaTypedModelService {
     return newMetadata.save();
   }
 
+  /**
+   * Updates metadata for a specific model type.
+   * @param type - The type of the model (e.g., "internal-events", "external-hazards").
+   * @param modelId - The ID of the model for which metadata is being updated.
+   * @param updates - Partial updates to be applied to the metadata.
+   * @param updates.label - Optional updated label details (name and description).
+   * @param updates.users - Optional updated list of users associated with the metadata.
+   * @returns The updated metadata document.
+   */
   async updateMetadata(
     type: string,
     modelId: string,
@@ -51,6 +82,14 @@ export class MetaTypedModelService {
     return metadataModel.findOneAndUpdate({ id: modelId }, updates, { new: true }).exec();
   }
 
+  /**
+   * Deletes metadata for a specific model type.
+   * @param type - The type of the model (e.g., "internal-events", "external-hazards").
+   * @param modelId - The ID of the model for which metadata is being deleted.
+   * @param userId - The user ID used for validation and deletion.
+   * @returns The deleted metadata document or the updated document if the user was removed from the users list.
+   * Returns `null` if no metadata is found.
+   */
   async deleteMetadata(type: string, modelId: string, userId: number): Promise<any> {
     const metadataModel = this.getMetadataModelByType(type);
     const document = await metadataModel.findOne({ id: modelId, users: userId }).exec();

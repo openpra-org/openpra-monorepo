@@ -5,7 +5,17 @@ import { MetaTypedModelService } from "./meta-typed-model.service";
 export class MetaTypedModelController {
   constructor(private readonly metaTypedModelService: MetaTypedModelService) {}
 
-  // Save metadata for a specific model
+  /**
+   * Saves metadata for a specific typed model.
+   * @param type - The type of the model (e.g., "internal-events", "external-hazards").
+   * @param modelId - The ID of the model for which metadata is being saved.
+   * @param body - The body containing metadata details.
+   * @param body.user_id - The user ID of the metadata owner.
+   * @param body.label - The label details (name and optional description).
+   * @param body.users - A list of users associated with the metadata.
+   * @throws Error if `user_id` is not provided in the body.
+   * @returns The saved metadata.
+   */
   @Post("/:type/:modelId")
   async saveMetadata(
     @Param("type") type: string,
@@ -19,7 +29,16 @@ export class MetaTypedModelController {
     return this.metaTypedModelService.saveMetadata(type, modelId, user_id, label, users);
   }
 
-  // Update metadata for a specific model
+  /**
+   * Updates metadata for a specific typed model.
+   * @param type - The type of the model (e.g., "internal-events", "external-hazards").
+   * @param modelId - The ID of the model for which metadata is being updated.
+   * @param body - The body containing partial metadata details for update.
+   * @param body.label - Optional updated label details (name and description).
+   * @param body.users - Optional updated list of users associated with the metadata.
+   * @param req - The request object containing user information.
+   * @returns The updated metadata.
+   */
   @Put("/:type/:modelId")
   async updateMetadata(
     @Param("type") type: string,
@@ -30,7 +49,15 @@ export class MetaTypedModelController {
     return this.metaTypedModelService.updateMetadata(type, modelId, body); // Pass three arguments
   }
 
-  // Delete metadata for a specific model
+  /**
+   * Deletes metadata for a specific typed model.
+   * @param type - The type of the model (e.g., "internal-events", "external-hazards").
+   * @param modelId - The ID of the model for which metadata is being deleted.
+   * @param body - The body containing the user ID for deletion validation.
+   * @param body.user_id - The user ID associated with the metadata to be deleted.
+   * @throws Error if `user_id` is not provided in the body.
+   * @returns The deleted metadata or null if no metadata is found.
+   */
   @Delete("/:type/:modelId")
   async deleteMetadata(
     @Param("type") type: string,

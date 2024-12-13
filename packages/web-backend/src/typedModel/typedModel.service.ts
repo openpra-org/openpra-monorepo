@@ -56,7 +56,12 @@ export class TypedModelService {
     return result.seq;
   }
 
-  // Create a model
+  /**
+   * Creates a new model of the specified type.
+   * @param type - The type of the model (e.g., "internal-events", "external-hazards").
+   * @param modelData - The data for creating the model.
+   * @returns The created model.
+   */
   async createModel(type: string, modelData: Record<string, any>): Promise<any> {
     const model = this.getModelByType(type);
     const id = await this.getNextModelValue("ModelCounter");
@@ -77,7 +82,14 @@ export class TypedModelService {
     return savedModel;
   }
 
-  // Update a model
+  /**
+   * Updates an existing model.
+   * @param type - The type of the model.
+   * @param modelId - The ID of the model to update.
+   * @param userId - The ID of the user performing the update.
+   * @param modelData - The data to update the model with.
+   * @returns The updated model.
+   */
   async patchModel(type: string, modelId: string, userId: number, modelData: Record<string, any>): Promise<any> {
     const model = this.getModelByType(type);
     const query = { id: Number(modelId), users: userId };
@@ -99,40 +111,37 @@ export class TypedModelService {
     return updatedModel;
   }
 
-  // Fetch all models of a type
+  /**
+   * Fetches all models of a specified type for a user.
+   * @param type - The type of the model.
+   * @param userId - The user's ID.
+   * @returns An array of models.
+   */
   async getModels(type: string, userId: number): Promise<any[]> {
     const model = this.getModelByType(type);
     return model.find({ users: userId });
   }
 
-  // Fetch a single model by ID
+  /**
+   * Fetches a specific model by ID for a user.
+   * @param type - The type of the model.
+   * @param modelId - The ID of the model to fetch.
+   * @param userId - The user's ID.
+   * @returns The requested model, if found.
+   */
   async getModel(type: string, modelId: string, userId: number): Promise<any> {
     const model = this.getModelByType(type);
     return model.findOne({ id: modelId, users: userId });
   }
 
-  // // Delete a model
-  // async deleteModel(type: string, modelId: string, userId: number): Promise<any> {
-  //   const model = this.getModelByType(type);
-  //   const query = { id: Number(modelId), users: userId };
-  //   const existingModel = await model.findOne(query);
-  //
-  //   if (!existingModel) {
-  //     throw new Error(`Model with ID "${modelId}" not found for user "${userId}".`);
-  //   }
-  //
-  //   if (existingModel.users.length === 1) {
-  //     const deletedModel = await model.findOneAndDelete(query);
-  //     await this.metaTypedModelService.deleteMetadata(type, modelId, userId);
-  //     return deletedModel;
-  //   }
-  //
-  //   const updatedModel = await model.findOneAndUpdate(query, { $pull: { users: userId } }, { new: true });
-  //   await this.metaTypedModelService.updateMetadata(type, modelId, {
-  //     users: updatedModel.users,
-  //   });
-  //   return updatedModel;
-  // }
+  /**
+   * Deletes a model by ID for a user.
+   * Handles metadata deletion as well.
+   * @param type - The type of the model.
+   * @param modelId - The ID of the model to delete.
+   * @param userId - The user's ID.
+   * @returns The deleted model or the updated model after removing the user.
+   */
   async deleteModel(type: string, modelId: string, userId: number): Promise<any> {
     const model = this.getModelByType(type);
     const existingModel = await model.findOne({ id: Number(modelId), users: userId });
@@ -158,14 +167,28 @@ export class TypedModelService {
     return updatedModel;
   }
 
-  // Add a nested model
+  /**
+   * Adds a nested model to a parent model.
+   * @param type - The type of the parent model.
+   * @param modelId - The ID of the parent model.
+   * @param nestedId - The ID of the nested model.
+   * @param nestedType - The type of the nested model.
+   * @returns The updated parent model.
+   */
   async addNestedModel(type: string, modelId: string, nestedId: number, nestedType: string): Promise<any> {
     const model = this.getModelByType(type);
     const update = { $push: { [nestedType]: nestedId } };
     return model.findOneAndUpdate({ id: modelId }, update, { new: true });
   }
 
-  // Delete a nested model
+  /**
+   * Deletes a nested model from a parent model.
+   * @param type - The type of the parent model.
+   * @param modelId - The ID of the parent model.
+   * @param nestedId - The ID of the nested model.
+   * @param nestedType - The type of the nested model.
+   * @returns The updated parent model.
+   */
   async deleteNestedModel(type: string, modelId: string, nestedId: number, nestedType: string): Promise<any> {
     const model = this.getModelByType(type);
     const update = { $pull: { [nestedType]: nestedId } };

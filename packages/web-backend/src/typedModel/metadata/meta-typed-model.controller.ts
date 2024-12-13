@@ -1,32 +1,40 @@
-import { Controller, Get, Post, Request, UseFilters, UseGuards, Body } from "@nestjs/common";
-import { AuthGuard } from "@nestjs/passport";
-import { InternalEventsMetadata } from "../schemas/internal-events.schema";
-import { InvalidTokenFilter } from "../../filters/invalid-token.filter";
+import { Controller, Post, Put, Delete, Body, Param, Request } from "@nestjs/common";
 import { MetaTypedModelService } from "./meta-typed-model.service";
 
-@Controller()
-@UseGuards(AuthGuard("jwt"))
-@UseFilters(InvalidTokenFilter)
+@Controller("metadata")
 export class MetaTypedModelController {
   constructor(private readonly metaTypedModelService: MetaTypedModelService) {}
-  //get methods for collections
 
-  /**
-   *
-   * @param id the id of the user whose models you want to retrieve
-   * @returns a list of the internal hazards moodels the user is on
-   */
-  @Get("/metadata/internal-events/")
-  async getInternalEvents(@Request() req): Promise<InternalEventsMetadata[]> {
-    console.log("here");
-    return this.metaTypedModelService.getInternalEventsMetaData(req.user.user_id);
+  // Save metadata for a specific model
+  @Post("/:type/:modelId")
+  async saveMetadata(
+    @Param("type") type: string,
+    @Param("modelId") modelId: string,
+    @Body() body: { label: { name: string; description?: string }; users: number[] },
+    @Request() req: { user: { user_id: number } },
+  ) {
+    const { label, users } = body;
+    return this.metaTypedModelService.saveMetadata(type, modelId, req.user.user_id, label, users);
   }
-  // New POST method to save internal event metadata
-  @Post("/metadata/internal-events/")
-  async saveInternalEventMetadata(
-    @Body() metadata: InternalEventsMetadata,
-    @Request() req,
-  ): Promise<InternalEventsMetadata> {
-    return this.metaTypedModelService.saveInternalEventMetadata(req.user.user_id, metadata);
+
+  // Update metadata for a specific model
+  @Put("/:type/:modelId")
+  async updateMetadata(
+    @Param("type") type: string,
+    @Param("modelId") modelId: string,
+    @Body() body: Partial<{ label: { name: string; description?: string }; users: number[] }>,
+    @Request() req: { user: { user_id: number } },
+  ) {
+    return this.metaTypedModelService.updateMetadata(type, modelId, body); // Pass three arguments
+  }
+
+  // Delete metadata for a specific model
+  @Delete("/:type/:modelId")
+  async deleteMetadata(
+    @Param("type") type: string,
+    @Param("modelId") modelId: string,
+    @Request() req: { user: { user_id: number } },
+  ) {
+    return this.metaTypedModelService.deleteMetadata(type, modelId, req.user.user_id);
   }
 }

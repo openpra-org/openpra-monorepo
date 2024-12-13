@@ -8,7 +8,7 @@ export interface TypedModelJSON {
 
 @Schema({ versionKey: false })
 export class MetaTypedModel {
-  @Prop({ type: LabelSchema, required: false })
+  @Prop({ type: LabelSchema, required: true })
   label: Label;
 
   @Prop()

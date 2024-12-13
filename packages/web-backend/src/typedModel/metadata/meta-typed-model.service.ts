@@ -53,12 +53,16 @@ export class MetaTypedModelService {
 
   async deleteMetadata(type: string, modelId: string, userId: number): Promise<any> {
     const metadataModel = this.getMetadataModelByType(type);
-    const document = await metadataModel.findOne({ id: modelId }).exec();
+    const document = await metadataModel.findOne({ id: modelId, users: userId }).exec();
+
     if (!document) return null;
 
     if (document.users.length === 1) {
-      return metadataModel.findByIdAndDelete(modelId).exec();
+      // Delete the entire metadata if no users remain
+      return metadataModel.findOneAndDelete({ id: modelId }).exec();
     }
+
+    // Remove user from the list and update the document
     document.users = document.users.filter((user) => user !== userId);
     return document.save();
   }

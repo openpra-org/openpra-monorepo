@@ -112,25 +112,49 @@ export class TypedModelService {
   }
 
   // // Delete a model
+  // async deleteModel(type: string, modelId: string, userId: number): Promise<any> {
+  //   const model = this.getModelByType(type);
+  //   const query = { id: Number(modelId), users: userId };
+  //   const existingModel = await model.findOne(query);
+  //
+  //   if (!existingModel) {
+  //     throw new Error(`Model with ID "${modelId}" not found for user "${userId}".`);
+  //   }
+  //
+  //   if (existingModel.users.length === 1) {
+  //     const deletedModel = await model.findOneAndDelete(query);
+  //     await this.metaTypedModelService.deleteMetadata(type, modelId, userId);
+  //     return deletedModel;
+  //   }
+  //
+  //   const updatedModel = await model.findOneAndUpdate(query, { $pull: { users: userId } }, { new: true });
+  //   await this.metaTypedModelService.updateMetadata(type, modelId, {
+  //     users: updatedModel.users,
+  //   });
+  //   return updatedModel;
+  // }
   async deleteModel(type: string, modelId: string, userId: number): Promise<any> {
     const model = this.getModelByType(type);
-    const query = { id: Number(modelId), users: userId };
-    const existingModel = await model.findOne(query);
-
-    if (!existingModel) {
-      throw new Error(`Model with ID "${modelId}" not found for user "${userId}".`);
-    }
+    const existingModel = await model.findOne({ id: Number(modelId), users: userId });
+    if (!existingModel) throw new Error(`Model not found`);
 
     if (existingModel.users.length === 1) {
-      const deletedModel = await model.findOneAndDelete(query);
-      await this.metaTypedModelService.deleteMetadata(type, modelId, userId);
+      const deletedModel = await model.findOneAndDelete({ id: Number(modelId) });
+      await this.metaTypedModelService.deleteMetadata(type, String(modelId), userId);
       return deletedModel;
     }
 
-    const updatedModel = await model.findOneAndUpdate(query, { $pull: { users: userId } }, { new: true });
-    await this.metaTypedModelService.updateMetadata(type, modelId, {
-      users: updatedModel.users,
-    });
+    const updatedModel = await model.findOneAndUpdate(
+      { id: Number(modelId), users: userId },
+      { $pull: { users: userId } },
+      { new: true },
+    );
+
+    if (updatedModel) {
+      await this.metaTypedModelService.updateMetadata(type, String(modelId), {
+        users: updatedModel.users,
+      });
+    }
     return updatedModel;
   }
 

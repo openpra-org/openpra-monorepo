@@ -10,11 +10,13 @@ export class MetaTypedModelController {
   async saveMetadata(
     @Param("type") type: string,
     @Param("modelId") modelId: string,
-    @Body() body: { label: { name: string; description?: string }; users: number[] },
-    @Request() req: { user: { user_id: number } },
+    @Body() body: { user_id: number; label: { name: string; description?: string }; users: number[] },
   ) {
-    const { label, users } = body;
-    return this.metaTypedModelService.saveMetadata(type, modelId, req.user.user_id, label, users);
+    const { user_id, label, users } = body;
+    if (!user_id) {
+      throw new Error("User ID is required.");
+    }
+    return this.metaTypedModelService.saveMetadata(type, modelId, user_id, label, users);
   }
 
   // Update metadata for a specific model
@@ -33,8 +35,13 @@ export class MetaTypedModelController {
   async deleteMetadata(
     @Param("type") type: string,
     @Param("modelId") modelId: string,
-    @Request() req: { user: { user_id: number } },
+    @Body() body: { user_id: number },
   ) {
-    return this.metaTypedModelService.deleteMetadata(type, modelId, req.user.user_id);
+    const { user_id } = body;
+
+    if (!user_id) {
+      throw new Error("User ID is required.");
+    }
+    return this.metaTypedModelService.deleteMetadata(type, modelId, user_id);
   }
 }

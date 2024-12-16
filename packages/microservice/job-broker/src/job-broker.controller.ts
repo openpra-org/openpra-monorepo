@@ -1,7 +1,8 @@
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute } from "@nestia/core";
 import { JobBrokerService } from "./job-broker.service";
-import { ExecuteJobBrokerTask, QuantifyJobBrokerRequest } from "./middleware/schemas/job-broker.schema";
+import { QuantificationJobReport } from "./middleware/schemas/quantification-job.schema";
+import { ExecutableJobReport } from "./middleware/schemas/executable-job.schema";
 
 export interface JobResponse {
   message: string;
@@ -37,11 +38,29 @@ export class JobBrokerController {
    * @throws {@link NotFoundException} When the list of pending jobs cannot be found.
    */
   @TypedRoute.Get("/pending-jobs")
-  public getPendingJobs(): Promise<{ jobs: QuantifyJobBrokerRequest[]; tasks: ExecuteJobBrokerTask[] }> {
+  public async getPendingJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
     try {
       return this.jobBrokerService.getPendingJobs();
     } catch {
       throw new NotFoundException("Server was unable to find the requested list of pending jobs.");
+    }
+  }
+
+  @TypedRoute.Get("/queued-jobs")
+  public async getQueuedJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
+    try {
+      return this.jobBrokerService.getQueuedJobs();
+    } catch {
+      throw new NotFoundException("Server was unable to find the requested list of queued jobs.");
+    }
+  }
+
+  @TypedRoute.Get("/completed-jobs")
+  public async getCompletedJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
+    try {
+      return this.jobBrokerService.getCompletedJobs();
+    } catch {
+      throw new NotFoundException("Server was unable to find the requested list of completed jobs.");
     }
   }
 

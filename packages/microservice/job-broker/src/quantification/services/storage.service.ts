@@ -5,7 +5,7 @@ import { ConsumeMessage } from "amqplib/properties";
 import mongoose, { Model } from "mongoose";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
-import { QuantifiedReport } from "../schemas/quantified-report.schema";
+import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 
 /**
@@ -18,7 +18,9 @@ import { EnvVarKeys } from "../../../config/env_vars.config";
 @Injectable()
 export class StorageService implements OnApplicationBootstrap {
   private readonly logger = new Logger(StorageService.name);
-  constructor(@InjectModel(QuantifiedReport.name) private readonly quantifiedReportModel: Model<QuantifiedReport>) {}
+  constructor(
+    @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
+  ) {}
 
   /**
    * Attempts to establish a connection to the RabbitMQ server with retry logic.
@@ -97,7 +99,10 @@ export class StorageService implements OnApplicationBootstrap {
           // Serialize the message content into a QuantifyReport object for processing.
           const quantifiedReport: QuantifyReport = typia.json.assertParse<QuantifyReport>(msg.content.toString());
           // Create a new document from the parsed report and save it to the database.
-          await this.quantifiedReportModel.create(quantifiedReport);
+          await this.quantificationJobModel.updateOne(
+            { _id: quantifiedReport._id },
+            { $set: { status: "completed", results: quantifiedReport.results } },
+          );
 
           // Acknowledge the original message to indicate successful processing.
           channel.ack(msg);
@@ -125,7 +130,7 @@ export class StorageService implements OnApplicationBootstrap {
     );
   }
 
-  public async getQuantifiedReports(): Promise<QuantifiedReport[]> {
-    return this.quantifiedReportModel.find();
+  public async getQuantifiedReports(): Promise<QuantificationJobReport[]> {
+    return this.quantificationJobModel.find();
   }
 }

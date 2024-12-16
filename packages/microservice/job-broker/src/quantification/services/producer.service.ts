@@ -2,11 +2,17 @@ import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import amqp from "amqplib";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
 import { EnvVarKeys } from "../../../config/env_vars.config";
+import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 
 @Injectable()
 export class ProducerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ProducerService.name);
+  constructor(
+    @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
+  ) {}
 
   private connection: amqp.Connection | null = null;
   private channel: amqp.Channel | null = null;
@@ -67,7 +73,7 @@ export class ProducerService implements OnApplicationBootstrap {
     });
   }
 
-  public createAndQueueQuant(modelsWithConfigs: QuantifyRequest): void {
+  public async createAndQueueQuant(modelsWithConfigs: QuantifyRequest): Promise<void> {
     try {
       if (!this.channel) {
         this.logger.error("Channel is not available. Cannot send message.");
@@ -78,6 +84,7 @@ export class ProducerService implements OnApplicationBootstrap {
       this.channel.sendToQueue(this.initialJobQ, Buffer.from(modelsData), {
         persistent: true,
       });
+      await this.quantificationJobModel.updateOne({ _id: modelsWithConfigs._id }, { $set: { status: "queued" } });
     } catch (error) {
       // Handle specific TypeGuardError for validation issues, logging the detailed path and expected type.
       // Log a generic error message for any other types of errors encountered during the process.

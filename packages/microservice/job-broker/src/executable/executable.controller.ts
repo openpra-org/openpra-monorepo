@@ -1,9 +1,9 @@
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute, TypedBody } from "@nestia/core";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
+import { ExecutableJobReport } from "../middleware/schemas/executable-job.schema";
 import { ExecutableService } from "./services/executable.service";
 import { ExecutableStorageService } from "./services/executable-storage.service";
-import { ExecutedResult } from "./schemas/executed-result.schema";
 
 @Controller()
 export class ExecutableController {
@@ -19,9 +19,9 @@ export class ExecutableController {
    * @param taskRequest - The task to execute.
    */
   @TypedRoute.Post("/tasks")
-  public createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): void {
+  public async createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): Promise<void> {
     try {
-      this.executableService.createAndQueueTask(taskRequest);
+      await this.executableService.createAndQueueTask(taskRequest);
     } catch {
       throw new InternalServerErrorException("Server encountered a problem while queueing a binary executable task.");
     }
@@ -30,11 +30,11 @@ export class ExecutableController {
   /**
    * Endpoint to retrieve a list of executed tasks and their results.
    *
-   * @returns A promise that resolves to an array of {@link ExecutedResult}, each representing an executed task.
+   * @returns A promise that resolves to an array of {@link ExecutableJobReport}, each representing an executed task.
    * @throws {@link NotFoundException} When the executed tasks cannot be found or retrieved.
    */
   @TypedRoute.Get("/tasks")
-  public async getExecutedTasks(): Promise<ExecutedResult[]> {
+  public async getExecutedTasks(): Promise<ExecutableJobReport[]> {
     try {
       return this.executableStorageService.getExecutedTasks();
     } catch {

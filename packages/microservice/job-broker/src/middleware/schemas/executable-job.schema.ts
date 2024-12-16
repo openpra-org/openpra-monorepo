@@ -9,7 +9,7 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
  * standard input, and whether it should run in a TTY.
  */
 @Schema()
-export class ExecutedTask {
+export class ExecutableJobRequest {
   // The name of the executable that was run.
   @Prop({ required: true })
   executable!: string;
@@ -31,23 +31,26 @@ export class ExecutedTask {
   tty?: boolean;
 }
 
-// Create a Mongoose schema for the ExecutedTask class.
-export const ExecutedTaskSchema = SchemaFactory.createForClass(ExecutedTask);
-
 /**
  * Schema representing the result of an executed task.
  * This schema defines the structure of the result, including the executed
  * task, the exit code, and any standard error or output generated during execution.
  */
 @Schema()
-export class ExecutedResult {
+export class ExecutableJobReport {
+  @Prop({ required: false, default: "pending" })
+  status?: string;
+
+  @Prop({ required: false, default: "executable" })
+  jobType?: string;
+
   // The executed task associated with this result.
   @Prop({ required: true })
-  task!: ExecutedTask;
+  task!: ExecutableJobRequest;
 
   // The exit code returned by the executable.
-  @Prop({ required: true })
-  exit_code!: number;
+  @Prop({ required: false })
+  exit_code?: number;
 
   // Standard error output from the executable.
   @Prop({ required: false, default: "" })
@@ -59,5 +62,4 @@ export class ExecutedResult {
 }
 
 // Create a Mongoose schema for the ExecutedResult class.
-export const ExecutedResultSchema = SchemaFactory.createForClass(ExecutedResult);
-export type ExecutedResultDocument = ExecutedResult & Document;
+export const ExecutableJobSchema = SchemaFactory.createForClass(ExecutableJobReport);

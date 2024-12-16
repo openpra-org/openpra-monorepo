@@ -8,12 +8,8 @@ import { JobBrokerService } from "./job-broker.service";
 import { QuantificationModule } from "./quantification/quantification.module";
 import { ValidationModule } from "./validation/validation.module";
 import { ExecutableModule } from "./executable/executable.module";
-import {
-  QuantifyJobBrokerRequest,
-  QuantifyJobBrokerSchema,
-  ExecuteJobBrokerTask,
-  ExecuteJobBrokerSchema,
-} from "./middleware/schemas/job-broker.schema";
+import { QuantificationJobReport, QuantificationJobSchema } from "./middleware/schemas/quantification-job.schema";
+import { ExecutableJobReport, ExecutableJobSchema } from "./middleware/schemas/executable-job.schema";
 
 @Module({
   // Define the modules to import, including configuration, database connection, and submodules.
@@ -23,8 +19,8 @@ import {
     ExecutableModule,
     MongooseModule.forRoot(EnvVarKeys.MONGODB_URI),
     MongooseModule.forFeature([
-      { name: QuantifyJobBrokerRequest.name, schema: QuantifyJobBrokerSchema },
-      { name: ExecuteJobBrokerTask.name, schema: ExecuteJobBrokerSchema },
+      { name: QuantificationJobReport.name, schema: QuantificationJobSchema },
+      { name: ExecutableJobReport.name, schema: ExecutableJobSchema },
     ]),
     RouterModule.register([
       {

@@ -5,8 +5,8 @@ export enum MongoDBConfigKeys {
   /**
    * MongoDB URI key.
    */
-  MONGODB_URI = "mongodb://mongodb:27017",
-  MONGODB_TEST_URI = "mongodb://mongodb:27017/test",
+  MONGODB_URI = "mongodb://mongodb:27017", // TODO:: READ AS ENV_VAR
+  MONGODB_TEST_URI = "mongodb://mongodb:27017/test", // TODO:: READ AS ENV_VAR
 }
 
 /**

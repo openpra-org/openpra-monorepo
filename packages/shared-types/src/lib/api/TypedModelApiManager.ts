@@ -134,12 +134,14 @@ export function GetCurrentModelType(): string {
  * @returns a promise with a list of a type of models
  */
 export function Get(url: string): Promise<Response> {
+  const accessToken = AuthService.getAccessToken();
+  const idToken = AuthService.getEncodedToken();
   return fetch(url, {
     method: "GET",
     cache: OPTION_CACHE,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `JWT ${AuthService.getEncodedToken()}`,
+      Authorization: accessToken ? `JWT ${accessToken}` : `JWT ${idToken}`,
     },
   });
 }

@@ -30,7 +30,7 @@ const routes: RouteObject[] = [
             element: <LoginPage />,
           },
           {
-            path: "callback",
+            path: "/callback",
             element: <OidcCallback />,
           },
           {

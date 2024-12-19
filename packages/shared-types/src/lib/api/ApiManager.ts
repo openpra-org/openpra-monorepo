@@ -18,6 +18,8 @@ const OIDC_CONFIG = {
   tokenEndpoint: "https://hub.openpra.org/hub/api/rest/oauth2/token",
   userinfoEndpoint: "https://hub.openpra.org/hub/api/rest/oauth2/userinfo",
   clientId: "da279c72-26ea-49d9-8ec6-ab3ef5584752",
+  clientSecret: "RG5vQUr9bfUv",
+  grantType: "authorization_code",
   redirectUri: "http://localhost:4200/callback",
   scopes: ["openid", "profile", "email"],
 };
@@ -58,28 +60,29 @@ export class ApiManager {
   static async handleCallback(code: string): Promise<void> {
     console.log("Handling callback: ");
     try {
-      const response = await axios.post(
-        OIDC_CONFIG.tokenEndpoint,
-        {
-          client_id: OIDC_CONFIG.clientId,
-          code,
-          grant_type: "authorization_code",
-          redirect_uri: OIDC_CONFIG.redirectUri,
+      const params = new URLSearchParams();
+      params.append("client_id", OIDC_CONFIG.clientId);
+      params.append("client_secret", OIDC_CONFIG.clientSecret);
+      params.append("code", code);
+      params.append("grant_type", OIDC_CONFIG.grantType);
+      params.append("redirect_uri", OIDC_CONFIG.redirectUri);
+      const response = await axios.post(OIDC_CONFIG.tokenEndpoint, params, {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
         },
-        {
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-        },
-      );
+      });
 
-      const { accessToken = null, idToken = null } = response.data;
+      console.log("Token response:", response.data);
+
+      const { access_token: accessToken = null, id_token: idToken = null } = response.data;
 
       console.log("Access Token", accessToken);
       console.log("ID Token", idToken);
       // Use AuthService methods to store tokens
       AuthService.setAccessToken(accessToken);
       AuthService.setEncodedToken(idToken);
+      console.log("Session storage access token: ", AuthService.getAccessToken());
+      console.log("Session storage ID token: ", AuthService.getEncodedToken());
     } catch (error) {
       console.error("Error exchanging code for tokens:", error);
     }
@@ -87,10 +90,12 @@ export class ApiManager {
 
   /* base GET request */
   static async getWithOptions(url: string): Promise<Response> {
+    const accessToken = AuthService.getAccessToken();
+    const idToken = AuthService.getEncodedToken();
     return fetch(url, {
       method: "GET", // *GET, POST, PUT, DELETE, etc.
       headers: {
-        Authorization: `JWT ${AuthService.getEncodedToken()}`,
+        Authorization: accessToken ? `Bearer ${accessToken}` : `JWT ${idToken}`,
       },
     });
   }
@@ -239,36 +244,42 @@ export class ApiManager {
   }
 
   static post(url: string, data: BodyInit): Promise<Response> {
+    const accessToken = AuthService.getAccessToken();
+    const idToken = AuthService.getEncodedToken();
     return fetch(url, {
       method: "POST",
       cache: OPTION_CACHE,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `JWT ${AuthService.getEncodedToken()}`,
+        Authorization: accessToken ? `Bearer ${accessToken}` : `JWT ${idToken}`,
       },
       body: data, // body data type must match "Content-Type" header
     });
   }
 
   static put<DataType>(url: string, data: DataType): Promise<Response> {
+    const accessToken = AuthService.getAccessToken();
+    const idToken = AuthService.getEncodedToken();
     return fetch(url, {
       method: "PUT",
       cache: OPTION_CACHE,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `JWT ${AuthService.getEncodedToken()}`,
+        Authorization: accessToken ? `Bearer ${accessToken}` : `JWT ${idToken}`,
       },
       body: data as BodyInit, // body data type must match "Content-Type" header
     });
   }
 
   static delete(url: RequestInfo | URL | string): Promise<Response> {
+    const accessToken = AuthService.getAccessToken();
+    const idToken = AuthService.getEncodedToken();
     return fetch(url, {
       method: "DELETE",
       cache: OPTION_CACHE,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `JWT ${AuthService.getEncodedToken()}`,
+        Authorization: accessToken ? `Bearer ${accessToken}` : `JWT ${idToken}`,
       },
     });
   }

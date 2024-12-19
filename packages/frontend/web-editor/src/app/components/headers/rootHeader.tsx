@@ -66,7 +66,7 @@ const RootHeader = (): JSX.Element => {
 
   //redirects to the auth page if the user is not logged in
   useEffect(() => {
-    if (!ApiManager.isLoggedIn() && location.pathname !== "/") {
+    if (!ApiManager.isLoggedIn() && location.pathname !== "/" && location.pathname !== "/callback") {
       navigate("/");
     }
   }, [location.pathname, navigate]);

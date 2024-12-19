@@ -1,12 +1,12 @@
 import { test, expect } from "@playwright/test";
-import { signUp } from "../../e2e/tests/signup.spec";
+import { SignUp } from "../../e2e/tests/signup.spec";
 
 test.describe("event sequence test", () => {
   const internalEvent = "IE" + Math.floor(Math.random() * 1000);
   test.beforeEach(async ({ page }) => {
     // sign up with a test user
     const username = "test" + Math.floor(Math.random() * 1000);
-    await signUp({ page, username });
+    await SignUp({ page, username });
 
     // create a test internal event
     await page.getByRole("button", { name: "Create Internal Events" }).click();

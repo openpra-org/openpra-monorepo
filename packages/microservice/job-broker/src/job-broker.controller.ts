@@ -1,4 +1,4 @@
-import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
+import { Controller, Query, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute } from "@nestia/core";
 import { JobBrokerService } from "./job-broker.service";
 import { QuantificationJobReport } from "./middleware/schemas/quantification-job.schema";
@@ -28,6 +28,23 @@ export class JobBrokerController {
       return this.jobBrokerService.getJobTypes();
     } catch {
       throw new NotFoundException("Server was unable to find the requested list of job types.");
+    }
+  }
+
+  /**
+   * Retrieves a list of jobs based on the status.
+   *
+   * @returns An object containing a message with the list of pending jobs.
+   * @throws {@link NotFoundException} When the list of pending jobs cannot be found.
+   */
+  @TypedRoute.Get("/jobs")
+  public async getJobs(
+    @Query("status") status: string,
+  ): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
+    try {
+      return this.jobBrokerService.getJobs(status);
+    } catch {
+      throw new NotFoundException("Server was unable to find the requested list of pending jobs.");
     }
   }
 

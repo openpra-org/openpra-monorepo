@@ -25,6 +25,21 @@ export class JobBrokerService {
    *
    * @returns An object containing a message describing the pending jobs.
    */
+  public async getJobs(status: string): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
+    const quantifyJobs = await this.quantificationJobModel.find({ status: status }).lean();
+    const executeTasks = await this.executableJobModel.find({ status: status }).lean();
+
+    return {
+      jobs: quantifyJobs,
+      tasks: executeTasks,
+    };
+  }
+
+  /**
+   * Retrieves the list of pending jobs.
+   *
+   * @returns An object containing a message describing the pending jobs.
+   */
   public async getPendingJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
     const pendingQuantifyJobs = await this.quantificationJobModel.find({ status: "pending" }).lean();
     const pendingExecuteTasks = await this.executableJobModel.find({ status: "pending" }).lean();

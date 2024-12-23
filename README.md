@@ -86,7 +86,7 @@ npm install -g pnpm
 
 ### 4. Install **MongoDB**
 
-Follow the official MongoDB installation guide for your operating system:
+Follow the official MongoDB installation guide for your operating system*:
 
 - **macOS**: [Install MongoDB on macOS](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-os-x/)
 - **Windows**: [Install MongoDB on Windows](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-windows/)

@@ -35,17 +35,30 @@ Make sure you have the following tools installed on your system:
 - **Node.js v20.17.0** (managed via **nvm**)
 - **pnpm** (Package Manager)
 - **MongoDB**
+- **RabbitMQ**
 
 ## Installation
 
-### 1. Install **nvm** (Node Version Manager)
+1. **Install Homebrew** (if not already installed):
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+2. **Install nvm** (Node Version Manager):
 
 #### macOS and Linux
 
-Run the following command in your terminal:
-
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+```
+
+Once installed, `nvm` can be used to download and use the `node` version of choice. Install it using `nvm` with the
+following commands:
+
+```bash
+source ~/.zshrc  # or source ~/.bashrc
+nvm install 20.17.0
+nvm use 20.17.0
 ```
 
 After installation, restart your terminal or run `source ~/.bashrc` (or `source ~/.zshrc` for Zsh).
@@ -54,15 +67,6 @@ After installation, restart your terminal or run `source ~/.bashrc` (or `source 
 
 Download and run the [nvm Windows installer](https://github.com/coreybutler/nvm-windows/releases/latest/download/nvm-setup.zip).
 
-### 2. Install **`node`**
-
-Once installed, `nvm` can be used to download and use the `node` version of choice. Install it using `nvm` with the
-following commands:
-
-```shell
-nvm install 20.17.0
-nvm use 20.17.0
-```
 
 ### 3. Install **pnpm** (Package Manager)
 
@@ -74,7 +78,7 @@ Run:
 curl -fsSL https://get.pnpm.io/install.sh | sh -
 ```
 
-Ensure `pnpm` is added to your `PATH`. You may need to restart your terminal or run `source ~/.bashrc`.
+Ensure `pnpm` is added to your `PATH`. You may need to restart your terminal or run `source ~/.bashrc` or `source ~/.zshrc`.
 
 #### Windows
 
@@ -84,7 +88,17 @@ Run:
 npm install -g pnpm
 ```
 
-### 4. Install **MongoDB**
+### 4. **Install MongoDB and RabbitMQ**:
+
+```bash
+brew tap mongodb/brew
+brew install mongodb-community
+brew install rabbitmq
+
+# Start services
+brew services start mongodb-community
+brew services start rabbitmq
+```
 
 Follow the official MongoDB installation guide for your operating system:
 
@@ -96,7 +110,9 @@ Follow the official MongoDB installation guide for your operating system:
 
 Once prerequisites are installed, initialize the project with these commands:
 
-```shell
+```bash
+git clone https://github.com/your-repo/openpra-monorepo.git
+cd openpra-monorepo
 pnpm setup
 pnpm install
 pnpm install --global nx@19.6.2
@@ -110,6 +126,36 @@ To serve all packages at once, run:
 
 ```bash
 nx run-many -t serve --all
+```
+
+Start all services with minimal logging:
+```bash
+nx run-many -t serve --all --skip-nx-cache --verbose=false
+```
+
+The application will be available at:
+- Frontend: http://localhost:4200
+- Backend: http://localhost:3000
+- RabbitMQ Management: http://localhost:15672 (guest/guest)
+
+
+### Troubleshooting
+
+If you encounter service connection errors:
+
+1. **Verify services are running**:
+```bash
+brew services list
+```
+
+2. **Check MongoDB connection**:
+```bash
+mongosh --eval "db.version()"
+```
+
+3. **Check RabbitMQ**:
+```bash
+rabbitmqctl status
 ```
 
 ### Start Individual Services

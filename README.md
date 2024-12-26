@@ -174,23 +174,41 @@ To serve a specific package, run:
   nx serve web-backend
   ```
 
-## Testing and Linting
+## Development and Testing
 
-### Run Tests
+### Making Changes
 
-Execute Jest unit tests:
-
+1. Create a new feature branch:
 ```bash
-nx run-many -t test
+git checkout -b feature/your-feature-name
 ```
 
-### Run Linting
+2. Make your changes and verify locally using one of these approaches:
 
-Check code quality with ESLint:
-
+Test and lint all packages:
 ```bash
+# Run all tests
+nx run-many -t test
+
+# Run all linting
 nx run-many -t lint
 ```
+
+Or test only affected packages:
+```bash
+# Test only changed packages
+nx affected:test
+
+# Lint only changed packages
+nx affected:lint
+```
+
+3. Push your changes:
+```bash
+git push origin feature/your-feature-name
+```
+
+4. Create a pull request from your feature branch to `main`
 
 ## Additional Documentation
 

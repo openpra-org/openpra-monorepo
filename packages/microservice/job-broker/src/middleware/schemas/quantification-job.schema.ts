@@ -9,7 +9,7 @@ import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
  */
 
 @Schema()
-export class QuantifiedRequest {
+export class QuantificationJobRequest {
   @Prop({ required: false })
   bdd?: boolean;
 
@@ -87,18 +87,21 @@ export class QuantifiedRequest {
  * Schema definition for a quantified report.
  *
  * This class captures the results of a quantification process, including the configuration used for the
- * quantification and the results of the quantification. It allows for the storage and retrieval of quantification
- * results and their associated configurations.
+ * quantification and the results of the quantification.
  */
 @Schema()
-export class QuantifiedReport {
-  @Prop({ required: false })
-  configuration?: QuantifiedRequest;
+export class QuantificationJobReport {
+  @Prop({ required: false, default: "pending" })
+  status?: string;
 
-  @Prop({ required: true })
-  results!: string[];
+  @Prop({ required: false, default: "quantification" })
+  jobType?: string;
+
+  @Prop({ required: false })
+  configuration?: QuantificationJobRequest;
+
+  @Prop({ required: false })
+  results?: string[];
 }
 
-// Generate a Mongoose schema for the QuantifiedReport class.
-export const QuantifiedReportSchema = SchemaFactory.createForClass(QuantifiedReport);
-export type QuantifiedReportDocument = QuantifiedReport & Document;
+export const QuantificationJobSchema = SchemaFactory.createForClass(QuantificationJobReport);

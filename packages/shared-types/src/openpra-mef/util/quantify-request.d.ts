@@ -1,10 +1,4 @@
 /**
- * Schema for the quantification request
- */
-export type QuantifyRequest = QuantifyRequest1 & QuantifyRequest2;
-export type QuantifyRequest1 = CommandLineOptions;
-
-/**
  * Schema for command-line options
  */
 export interface CommandLineOptions {
@@ -104,7 +98,14 @@ export interface CommandLineOptions {
 
 export interface QuantifyRequest2 {
   /**
+   * BSON type ID of the MongoDB document
+   */
+  _id?: string;
+  /**
    * String-encoded array of OpenPSA MEF XMLs
    */
   models: string[];
 }
+
+export type QuantifyRequest = QuantifyRequest1 & QuantifyRequest2;
+export type QuantifyRequest1 = CommandLineOptions;

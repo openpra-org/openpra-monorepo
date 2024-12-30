@@ -5,9 +5,9 @@ import { tmpdir } from "os";
 import { spawn } from "child_process";
 
 import { Injectable } from "@nestjs/common";
-import { CommandLineOptions } from "shared-types/src/openpra-mef/util/quantify-config";
+import { CommandLineOptions } from "shared-types/src/openpra-mef/util/quantify-request";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
+import { BinaryQuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 
 @Injectable()
 export class QuantifyService {
@@ -61,7 +61,7 @@ export class QuantifyService {
    * @param modelsWithConfig - The quantification request containing models and command-line options.
    * @returns A promise that resolves with the quantification report.
    */
-  public async usingScramBinary(modelsWithConfig: QuantifyRequest): Promise<QuantifyReport> {
+  public async usingScramBinary(modelsWithConfig: QuantifyRequest): Promise<BinaryQuantifyReport> {
     const { models, ...options } = modelsWithConfig;
     // Step 1: Write the model data XMLs to a set of files
     const modelFilePaths = await this.writeModelFilesBase64(models);

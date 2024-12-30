@@ -2,7 +2,7 @@ import { Controller, InternalServerErrorException, NotFoundException } from "@ne
 import { TypedRoute, TypedBody } from "@nestia/core";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { ProducerService } from "../services/producer.service";
-import { QuantifiedReport } from "../schemas/quantified-report.schema";
+import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 import { StorageService } from "../services/storage.service";
 
 @Controller()
@@ -25,9 +25,9 @@ export class ScramController {
    * @throws {@link InternalServerErrorException} When there is a problem queueing the quantification job.
    */
   @TypedRoute.Post("/scram")
-  public createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): void {
+  public async createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): Promise<void> {
     try {
-      this.producerService.createAndQueueQuant(quantRequest);
+      await this.producerService.createAndQueueQuant(quantRequest);
     } catch {
       throw new InternalServerErrorException("Server encountered a problem while queueing SCRAM quantification job.");
     }
@@ -40,7 +40,7 @@ export class ScramController {
    * @throws {@link NotFoundException} Throws an exception if the server is unable to find the requested list of quantified reports.
    */
   @TypedRoute.Get("/scram")
-  public async getQuantifiedReports(): Promise<QuantifiedReport[]> {
+  public async getQuantifiedReports(): Promise<QuantificationJobReport[]> {
     try {
       return this.storageService.getQuantifiedReports();
     } catch {

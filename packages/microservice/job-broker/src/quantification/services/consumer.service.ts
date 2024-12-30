@@ -100,7 +100,9 @@ export class ConsumerService implements OnModuleInit {
           // the quantification using this JSON object
           const modelsWithConfigs: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
           // Perform quantification based on the parsed request and generate a report.
-          const result: QuantifyReport = this.performQuantification(modelsWithConfigs);
+          const { _id, ...configs } = modelsWithConfigs;
+          const result: QuantifyReport = this.performQuantification(configs);
+          result._id = _id;
           // Serialize the quantification report and send it to the storage queue.
           const report = typia.json.assertStringify<QuantifyReport>(result);
 
@@ -146,7 +148,7 @@ export class ConsumerService implements OnModuleInit {
    * @param modelsWithConfigs - The quantification request containing model data and configurations.
    * @returns A `QuantifyReport` object containing the results of the quantification process.
    */
-  public performQuantification(modelsWithConfigs: QuantifyRequest): QuantifyReport {
+  public performQuantification(modelsWithConfigs: QuantifyRequest): { results: string[] } {
     // Extract model data from the request.
     const models = modelsWithConfigs.models;
 
@@ -168,14 +170,12 @@ export class ConsumerService implements OnModuleInit {
 
       // Construct and return the quantification report along with the configurations.
       return {
-        configuration: modelsWithConfigs, // Include the configuration for reference.
         results: [outputContent], // The quantification results.
       };
     } catch (error) {
       // In case of an error during quantification, return a report indicating the failure.
       this.logger.error(error);
       return {
-        configuration: modelsWithConfigs,
         results: ["Error during SCRAM CLI operation"],
       };
     } finally {

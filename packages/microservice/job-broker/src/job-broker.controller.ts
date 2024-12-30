@@ -1,6 +1,8 @@
-import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
+import { Controller, Query, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute } from "@nestia/core";
 import { JobBrokerService } from "./job-broker.service";
+import { QuantificationJobReport } from "./middleware/schemas/quantification-job.schema";
+import { ExecutableJobReport } from "./middleware/schemas/executable-job.schema";
 
 export interface JobResponse {
   message: string;
@@ -30,17 +32,52 @@ export class JobBrokerController {
   }
 
   /**
+   * Retrieves a list of jobs based on the status.
+   *
+   * @returns An object containing a message with the list of pending jobs.
+   * @throws {@link NotFoundException} When the list of pending jobs cannot be found.
+   */
+  @TypedRoute.Get("/jobs")
+  public async getJobs(
+    @Query("status") status: string,
+  ): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
+    try {
+      return this.jobBrokerService.getJobs(status);
+    } catch {
+      throw new NotFoundException("Server was unable to find the requested list of pending jobs.");
+    }
+  }
+
+  /**
    * Retrieves a list of pending jobs.
    *
    * @returns An object containing a message with the list of pending jobs.
    * @throws {@link NotFoundException} When the list of pending jobs cannot be found.
    */
   @TypedRoute.Get("/pending-jobs")
-  public getPendingJobs(): JobResponse {
+  public async getPendingJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
     try {
       return this.jobBrokerService.getPendingJobs();
     } catch {
       throw new NotFoundException("Server was unable to find the requested list of pending jobs.");
+    }
+  }
+
+  @TypedRoute.Get("/queued-jobs")
+  public async getQueuedJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
+    try {
+      return this.jobBrokerService.getQueuedJobs();
+    } catch {
+      throw new NotFoundException("Server was unable to find the requested list of queued jobs.");
+    }
+  }
+
+  @TypedRoute.Get("/completed-jobs")
+  public async getCompletedJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
+    try {
+      return this.jobBrokerService.getCompletedJobs();
+    } catch {
+      throw new NotFoundException("Server was unable to find the requested list of completed jobs.");
     }
   }
 

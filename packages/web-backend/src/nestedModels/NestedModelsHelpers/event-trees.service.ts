@@ -6,6 +6,7 @@ import { NestedModelHelperService, TypedModelType } from "../nested-model-helper
 import { EventTree, EventTreeDocument } from "../schemas/event-tree.schema";
 import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
+import { EventTreeGraph } from "../../schemas/graphs/event-tree-graph.schema";
 
 @Injectable()
 export class EventTreesService {

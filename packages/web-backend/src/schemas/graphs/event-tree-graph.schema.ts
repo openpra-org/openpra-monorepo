@@ -1,8 +1,6 @@
 import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
 import mongoose, { Document } from "mongoose";
-import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
-import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
-import { EventTreeData } from "shared-types/src/lib/types/reactflowGraph/graphData/EventTreeData";
+import { GraphNode, GraphEdge, EventTreeData } from "shared-types/src/lib/types/graph";
 
 @Schema({ versionKey: false })
 export class EventTreeGraph {

@@ -111,12 +111,18 @@ importers:
       '@nx/node':
         specifier: 19.6.2
         version: 19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(@zkochan/js-yaml@0.0.7)(babel-plugin-macros@3.1.0)(eslint@8.57.0)(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(ts-node@10.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(typescript@5.5.2))(typescript@5.5.2)
+      '@nx/playwright':
+        specifier: 19.6.2
+        version: 19.6.2(@babel/traverse@7.25.4)(@playwright/test@1.49.1)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(@zkochan/js-yaml@0.0.7)(eslint@8.57.0)(html-webpack-plugin@5.5.0(webpack@5.94.0(@swc/core@1.5.7(@swc/helpers@0.5.12))))(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)(vite@5.4.2(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))(vitest@2.0.5(@types/node@18.19.9)(jsdom@20.0.3)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))
       '@nx/react':
         specifier: 19.6.2
         version: 19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(@zkochan/js-yaml@0.0.7)(eslint@8.57.0)(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)(webpack@5.94.0(@swc/core@1.5.7(@swc/helpers@0.5.12)))
       '@nx/webpack':
         specifier: 19.6.2
         version: 19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(html-webpack-plugin@5.5.0(webpack@5.94.0(@swc/core@1.5.7(@swc/helpers@0.5.12))))(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)
+      '@playwright/test':
+        specifier: ^1.36.0
+        version: 1.49.1
       '@pmmmwh/react-refresh-webpack-plugin':
         specifier: 0.5.11
         version: 0.5.11(react-refresh@0.14.0)(type-fest@0.21.3)(webpack@5.94.0(@swc/core@1.5.7(@swc/helpers@0.5.12)))
@@ -2202,6 +2208,9 @@ packages:
     resolution: {integrity: sha512-DcqpaKpkUbF+J2kVRoLtYZOFpr8mu4+fHiKIjrdliKVabSOzekwRAx0DN+VZdpUoaZ2+5W+F8RFhSak1216ZCg==}
     hasBin: true
 
+  '@nrwl/vite@19.6.2':
+    resolution: {integrity: sha512-cypqdNXsszdI4xf9T6hHhAAwNrJcwNjelck4cCEFMFLo3pGf/lOOHIoOcBHkw/Lm9wFD3YirEKtXUr95K7erjw==}
+
   '@nrwl/web@19.6.2':
     resolution: {integrity: sha512-wWCVg+YhOVvbRDHDsed+Qc2O5kgqVvmjMuCebABjTRvFD8h3MTxazCW6jcIIQjTTIs031QIm2pe/3ctctXbvpQ==}
 
@@ -2401,6 +2410,14 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@nx/playwright@19.6.2':
+    resolution: {integrity: sha512-SqXFwbY28ilZMDri8pnD8lBicRFtUTOIviGR+0S6Vowq9RfCUsAVT2t5OV4fGvy5DgKjNcf4y1CQ1LToqvOcNg==}
+    peerDependencies:
+      '@playwright/test': ^1.36.0
+    peerDependenciesMeta:
+      '@playwright/test':
+        optional: true
+
   '@nx/playwright@20.2.2':
     resolution: {integrity: sha512-vCIKU0XVo74C7OqCxZBNlZXshYbyTDxDuOIEbxdO8JMyFnHeyg91Z5ezxwHvIpxzwyFX1pdNz6W++RETTXYUTw==}
     peerDependencies:
@@ -2411,6 +2428,12 @@ packages:
 
   '@nx/react@19.6.2':
     resolution: {integrity: sha512-vmpHljRlnsw3M8bbAPKKyraTiuFGPPTnWFO11qcu76h8OQM9t2N6ipDD9O4NGRDKpLwXb2RgFfWpygGwSxTqxg==}
+
+  '@nx/vite@19.6.2':
+    resolution: {integrity: sha512-gkw+1mWplcdcuHAwCfSWi5YRWGsf+fzxWUSldqJb9rVk3Zo+EujjEVSRuqzZpWZ+uHaKDmXsL4sQSga1TJZLEg==}
+    peerDependencies:
+      vite: ^5.0.0
+      vitest: ^1.3.1 || ^2.0.0
 
   '@nx/vite@20.2.2':
     resolution: {integrity: sha512-PckVgTNPkOr2E752L4EEZv7C/Twtx/vuGBpfVw58f7rVuz6hpVFnMTm4eqatImsBmNoHCpHrJ3rJTT1ov45gUQ==}
@@ -5093,6 +5116,7 @@ packages:
   eslint@8.57.0:
     resolution: {integrity: sha512-dZ6+mexnaTIbSBZWgou51U6OmzIhYM2VcNdtiTtI7qPNZm35Akpr0f6vtw3w1Kmn5PYo+tZVfh13WrhpS6oLqQ==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
 
   esniff@2.0.1:
@@ -12020,6 +12044,23 @@ snapshots:
       - '@swc/core'
       - debug
 
+  '@nrwl/vite@19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)(vite@5.4.2(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))(vitest@2.0.5(@types/node@18.19.9)(jsdom@20.0.3)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))':
+    dependencies:
+      '@nx/vite': 19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)(vite@5.4.2(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))(vitest@2.0.5(@types/node@18.19.9)(jsdom@20.0.3)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))
+    transitivePeerDependencies:
+      - '@babel/traverse'
+      - '@swc-node/register'
+      - '@swc/core'
+      - '@swc/wasm'
+      - '@types/node'
+      - debug
+      - nx
+      - supports-color
+      - typescript
+      - verdaccio
+      - vite
+      - vitest
+
   '@nrwl/web@19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)':
     dependencies:
       '@nx/web': 19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)
@@ -12470,6 +12511,51 @@ snapshots:
   '@nx/nx-win32-x64-msvc@20.2.2':
     optional: true
 
+  '@nx/playwright@19.6.2(@babel/traverse@7.25.4)(@playwright/test@1.49.1)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(@zkochan/js-yaml@0.0.7)(eslint@8.57.0)(html-webpack-plugin@5.5.0(webpack@5.94.0(@swc/core@1.5.7(@swc/helpers@0.5.12))))(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)(vite@5.4.2(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))(vitest@2.0.5(@types/node@18.19.9)(jsdom@20.0.3)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))':
+    dependencies:
+      '@nx/devkit': 19.6.2(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))
+      '@nx/eslint': 19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(@zkochan/js-yaml@0.0.7)(eslint@8.57.0)(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))
+      '@nx/js': 19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)
+      '@nx/vite': 19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)(vite@5.4.2(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))(vitest@2.0.5(@types/node@18.19.9)(jsdom@20.0.3)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))
+      '@nx/webpack': 19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(html-webpack-plugin@5.5.0(webpack@5.94.0(@swc/core@1.5.7(@swc/helpers@0.5.12))))(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)
+      '@phenomnomnominal/tsquery': 5.0.1(typescript@5.5.2)
+      minimatch: 9.0.3
+      tslib: 2.5.2
+    optionalDependencies:
+      '@playwright/test': 1.49.1
+    transitivePeerDependencies:
+      - '@babel/traverse'
+      - '@parcel/css'
+      - '@rspack/core'
+      - '@swc-node/register'
+      - '@swc/core'
+      - '@swc/css'
+      - '@swc/wasm'
+      - '@types/node'
+      - '@zkochan/js-yaml'
+      - bufferutil
+      - clean-css
+      - csso
+      - debug
+      - esbuild
+      - eslint
+      - fibers
+      - html-webpack-plugin
+      - lightningcss
+      - node-sass
+      - nx
+      - sass-embedded
+      - supports-color
+      - typescript
+      - uglify-js
+      - utf-8-validate
+      - verdaccio
+      - vite
+      - vitest
+      - vue-template-compiler
+      - vue-tsc
+      - webpack-cli
+
   '@nx/playwright@20.2.2(@babel/traverse@7.25.4)(@playwright/test@1.49.1)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.6.3))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@20.9.0)(@zkochan/js-yaml@0.0.7)(eslint@8.57.0)(html-webpack-plugin@5.5.0(webpack@5.94.0(@swc/core@1.5.7(@swc/helpers@0.5.12))))(nx@20.2.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.6.3))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.6.3)(vite@5.4.2(@types/node@20.9.0)(less@4.1.3)(sass@1.77.8)(stylus@0.64.0)(terser@5.31.6))(vitest@2.0.5(@types/node@20.9.0)(jsdom@20.0.3)(less@4.1.3)(sass@1.77.8)(stylus@0.64.0)(terser@5.31.6))':
     dependencies:
       '@nx/devkit': 20.2.2(nx@20.2.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.6.3))(@swc/core@1.5.7(@swc/helpers@0.5.12)))
@@ -12545,6 +12631,30 @@ snapshots:
       - verdaccio
       - vue-tsc
       - webpack
+
+  '@nx/vite@19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)(vite@5.4.2(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))(vitest@2.0.5(@types/node@18.19.9)(jsdom@20.0.3)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))':
+    dependencies:
+      '@nrwl/vite': 19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)(vite@5.4.2(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))(vitest@2.0.5(@types/node@18.19.9)(jsdom@20.0.3)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6))
+      '@nx/devkit': 19.6.2(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))
+      '@nx/js': 19.6.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@18.19.9)(nx@19.6.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.5.2))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.5.2)
+      '@phenomnomnominal/tsquery': 5.0.1(typescript@5.5.2)
+      '@swc/helpers': 0.5.12
+      enquirer: 2.3.6
+      minimatch: 9.0.3
+      tsconfig-paths: 4.2.0
+      vite: 5.4.2(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6)
+      vitest: 2.0.5(@types/node@18.19.9)(jsdom@20.0.3)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6)
+    transitivePeerDependencies:
+      - '@babel/traverse'
+      - '@swc-node/register'
+      - '@swc/core'
+      - '@swc/wasm'
+      - '@types/node'
+      - debug
+      - nx
+      - supports-color
+      - typescript
+      - verdaccio
 
   '@nx/vite@20.2.2(@babel/traverse@7.25.4)(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.6.3))(@swc/core@1.5.7(@swc/helpers@0.5.12))(@types/node@20.9.0)(nx@20.2.2(@swc-node/register@1.9.2(@swc/core@1.5.7(@swc/helpers@0.5.12))(@swc/types@0.1.7)(typescript@5.6.3))(@swc/core@1.5.7(@swc/helpers@0.5.12)))(typescript@5.6.3)(vite@5.4.2(@types/node@20.9.0)(less@4.1.3)(sass@1.77.8)(stylus@0.64.0)(terser@5.31.6))(vitest@2.0.5(@types/node@20.9.0)(jsdom@20.0.3)(less@4.1.3)(sass@1.77.8)(stylus@0.64.0)(terser@5.31.6))':
     dependencies:
@@ -20940,6 +21050,24 @@ snapshots:
       unist-util-stringify-position: 2.0.3
       vfile-message: 2.0.4
 
+  vite-node@2.0.5(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6):
+    dependencies:
+      cac: 6.7.14
+      debug: 4.3.6
+      pathe: 1.1.2
+      tinyrainbow: 1.2.0
+      vite: 5.4.2(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6)
+    transitivePeerDependencies:
+      - '@types/node'
+      - less
+      - lightningcss
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+
   vite-node@2.0.5(@types/node@20.9.0)(less@4.1.3)(sass@1.77.8)(stylus@0.64.0)(terser@5.31.6):
     dependencies:
       cac: 6.7.14
@@ -20971,6 +21099,19 @@ snapshots:
       stylus: 0.64.0
       terser: 5.31.6
 
+  vite@5.4.2(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6):
+    dependencies:
+      esbuild: 0.21.5
+      postcss: 8.4.41
+      rollup: 4.21.1
+    optionalDependencies:
+      '@types/node': 18.19.9
+      fsevents: 2.3.3
+      less: 4.1.3
+      sass: 1.77.8
+      stylus: 0.59.0
+      terser: 5.31.6
+
   vite@5.4.2(@types/node@20.9.0)(less@4.1.3)(sass@1.77.8)(stylus@0.64.0)(terser@5.31.6):
     dependencies:
       esbuild: 0.21.5
@@ -20983,6 +21124,40 @@ snapshots:
       sass: 1.77.8
       stylus: 0.64.0
       terser: 5.31.6
+
+  vitest@2.0.5(@types/node@18.19.9)(jsdom@20.0.3)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6):
+    dependencies:
+      '@ampproject/remapping': 2.3.0
+      '@vitest/expect': 2.0.5
+      '@vitest/pretty-format': 2.0.5
+      '@vitest/runner': 2.0.5
+      '@vitest/snapshot': 2.0.5
+      '@vitest/spy': 2.0.5
+      '@vitest/utils': 2.0.5
+      chai: 5.1.1
+      debug: 4.3.6
+      execa: 8.0.1
+      magic-string: 0.30.11
+      pathe: 1.1.2
+      std-env: 3.7.0
+      tinybench: 2.9.0
+      tinypool: 1.0.1
+      tinyrainbow: 1.2.0
+      vite: 5.4.2(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6)
+      vite-node: 2.0.5(@types/node@18.19.9)(less@4.1.3)(sass@1.77.8)(stylus@0.59.0)(terser@5.31.6)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@types/node': 18.19.9
+      jsdom: 20.0.3
+    transitivePeerDependencies:
+      - less
+      - lightningcss
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
 
   vitest@2.0.5(@types/node@20.9.0)(jsdom@20.0.3)(less@4.1.3)(sass@1.77.8)(stylus@0.64.0)(terser@5.31.6):
     dependencies:

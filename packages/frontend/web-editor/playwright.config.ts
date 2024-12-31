@@ -19,10 +19,11 @@ export default defineConfig({
     baseURL,
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
+    headless: true,
   },
   // Run your local dev server before starting the tests
   webServer: {
-    command: "nx run-many -t serve",
+    command: "nx run-many -t serve -p frontend-web-editor web-backend",
     url: "http://localhost:8000/api",
     reuseExistingServer: false,
     cwd: workspaceRoot,

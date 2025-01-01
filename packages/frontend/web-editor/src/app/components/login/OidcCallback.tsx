@@ -19,6 +19,7 @@ function OidcCallback(): JSX.Element {
       if (code) {
         try {
           await ApiManager.handleCallback(code); // Exchange code for tokens
+          await ApiManager.fetchUserInfo();
           navigate("/internal-events"); // Redirect after successful login
         } catch (error) {
           console.error("Error during OIDC callback handling", error);
@@ -29,10 +30,8 @@ function OidcCallback(): JSX.Element {
         const accessToken = AuthService.getAccessToken();
         if (accessToken && !AuthService.hasTokenExpired(accessToken)) {
           // If there's a valid token, redirect to internal-events
-          console.log("Token Found!");
           navigate("/internal-events");
         } else {
-          console.log("Token API Hit");
           addToast(GetESToast("danger", "Authorization code not found."));
           navigate("/"); // Redirect back to login if no valid token
         }

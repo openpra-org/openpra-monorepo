@@ -75,6 +75,25 @@ class AuthService {
     return AuthService.getEncodedToken() === null && AuthService.getAccessToken() === null;
   }
 
+  static mapToAuthToken(jwtPayload: any): AuthToken {
+    const isOidcResponse = jwtPayload.sub && jwtPayload.groupNames !== undefined;
+    if (isOidcResponse) {
+      return {
+        sub: jwtPayload.sub,
+        iat: jwtPayload.iat,
+        exp: jwtPayload.exp,
+        user_id: jwtPayload.sub,
+        username: jwtPayload.preferred_username,
+        email: jwtPayload.email,
+        orig_iat: jwtPayload.auth_time,
+        roles: jwtPayload.groupNames,
+      };
+    } else {
+      // For standard JWT response, return the payload directly
+      return jwtPayload as AuthToken;
+    }
+  }
+
   // Decode the ID token to extract user profile data.
   static getProfile(): AuthToken {
     try {
@@ -82,7 +101,7 @@ class AuthService {
       if (!idToken) {
         return EMPTY_TOKEN;
       }
-      return jwtDecode<AuthToken>(idToken);
+      return AuthService.mapToAuthToken(jwtDecode<any>(idToken));
     } catch (e) {
       return EMPTY_TOKEN;
     }

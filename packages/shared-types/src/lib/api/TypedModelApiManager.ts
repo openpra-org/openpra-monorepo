@@ -44,7 +44,7 @@ export function GetInternalEventsMetadata(id = -1): Promise<InternalEventsMetada
  * @returns a promise with an internal event list
  */
 export function GetInternalEvents(id = -1): Promise<InternalEventsModelType[]> {
-  return Get(`${INTERNAL_EVENTS_ENDPOINT}/?id=${Number(id)}`)
+  return Get(`${INTERNAL_EVENTS_ENDPOINT}/?id=${id}`)
     .then((response) => response.json() as Promise<InternalEventsModelType[]>) // Parse the response as JSON
     .catch((error) => {
       throw error; // Re-throw the error to propagate it if needed
@@ -134,14 +134,14 @@ export function GetCurrentModelType(): string {
  * @returns a promise with a list of a type of models
  */
 export function Get(url: string): Promise<Response> {
-  const accessToken = AuthService.getAccessToken();
-  const idToken = AuthService.getEncodedToken();
+  // const accessToken = AuthService.getAccessToken();
+  // const idToken = AuthService.getEncodedToken();
   return fetch(url, {
     method: "GET",
     cache: OPTION_CACHE,
     headers: {
       "Content-Type": "application/json",
-      Authorization: accessToken ? `JWT ${accessToken}` : `JWT ${idToken}`,
+      Authorization: `JWT ${AuthService.getEncodedToken()}`,
     },
   });
 }

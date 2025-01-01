@@ -25,8 +25,15 @@ export type SignUpProps = SignUpPropsGeneric<string>;
 export type SignUpPropsWithRole = SignUpWithRole<string>;
 export type SignUpErrorProps = SignUpPropsGeneric<boolean>;
 export type SignUpCredentials = SignUpCredentialsGeneric<string>;
-export type SignUpCredentialsWithRole =
-  SignUpCredentialsGenericWithRole<string>;
+export type SignUpCredentialsWithRole = SignUpCredentialsGenericWithRole<string>;
 
 export type LoginProps = LoginCredentials<string>;
 export type LoginErrorProps = LoginCredentials<boolean>;
+
+export interface TokenResponse {
+  access_token: string;
+  id_token: string;
+  expires_in?: number;
+  scope?: string;
+  token_type?: string;
+}

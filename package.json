@@ -78,6 +78,8 @@
     "amqplib": "0.10.4",
     "argon2": "0.31.2",
     "axios": "^1.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0",
     "mongodb": "6.3.0",
     "nestjs-zod": "3.0.0",
     "reflect-metadata": "^0.1.13",

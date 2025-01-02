@@ -1,6 +1,6 @@
 job("Monorepo Deployment") {
 
-   val registry = "packages.space.openpra.org/p/openpra/containers/"
+   val registry = "packages-space.openpra.org/p/openpra/containers/"
    val image = "openpra-monorepo"
    val remote = "$registry$image"
 
@@ -188,7 +188,7 @@ job("Monorepo CI") {
       workerTags("swarm-worker")
     }
 
-    val registry = "packages.space.openpra.org/p/openpra/containers/"
+    val registry = "packages-space.openpra.org/p/openpra/containers/"
     val image = "openpra-monorepo"
     val remote = "$registry$image"
 
@@ -491,156 +491,4 @@ job("Monorepo CI") {
         }
       }
     }
-}
-
-job("Monorepo Qodana") {
-
-  failOn {
-    nonZeroExitCode { enabled = false }
-  }
-
-  requirements {
-    workerTags("swarm-worker")
-  }
-
-  val registry = "packages.space.openpra.org/p/openpra/containers/"
-  val image = "monorepo-qodana"
-  val remote = "$registry$image"
-
-  host("Image Tags") {
-    // use kotlinScript blocks for usage of parameters
-    kotlinScript("Generate slugs") { api ->
-
-      api.parameters["commitRef"] = api.gitRevision()
-      api.parameters["gitBranch"] = api.gitBranch()
-
-      val branchName = api.gitBranch()
-        .removePrefix("refs/heads/")
-        .replace(Regex("[^A-Za-z0-9-]"), "-") // Replace all non-alphanumeric characters except hyphens with hyphens
-        .replace(Regex("-+"), "-") // Replace multiple consecutive hyphens with a single hyphen
-        .lowercase() // Convert to lower case for consistency
-
-      val maxSlugLength = if (branchName.length > 32) 32 else branchName.length
-
-      var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
-
-      if (branchName == "main") {
-        branchSlug = "v2"
-        api.parameters["buildType"] = "production"
-        api.parameters["debugMode"] = "false"
-        api.parameters["isReview"] = "false"
-      } else {
-        branchSlug = "review-$branchSlug"
-        api.parameters["buildType"] = "development"
-        api.parameters["debugMode"] = "true"
-        api.parameters["isReview"] = "true"
-      }
-
-      api.parameters["branchSlug"] = branchSlug
-      api.parameters["externalLinkLabel"] = branchSlug
-      api.parameters["externalLinkUrl"] = "$branchSlug.app.openpra.org"
-    }
-  }
-
-  host("build-qodana-image") {
-    shellScript {
-      interpreter = "/bin/bash"
-      content = """
-                        docker pull $remote:qo-{{ branchSlug }} || true
-                        docker build --tag="$remote:qo-{{ branchSlug }}" --tag="$remote:qo-{{ run:number }}-{{ branchSlug }}" -f ./docker/qodana.Dockerfile .
-                        docker push "$remote:qo-{{ run:number }}-{{ branchSlug }}"
-                        """
-    }
-  }
-
-  parallel {
-
-    host("monorepo:qodana") {
-      env["QODANA_TOKEN"] = "{{ project:QODANA_TOKEN }}"
-      shellScript("scan") {
-        interpreter = "/bin/bash"
-        content = """
-                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}"
-                      """
-      }
-    }
-
-    host("engine-scram-node:qodana") {
-      env["QODANA_TOKEN"] = "{{ project:QODANA_TOKEN_ENGINE_SCRAM_NODE }}"
-      shellScript("scan") {
-        interpreter = "/bin/bash"
-        content = """
-                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" engine/scram-node
-                      """
-      }
-    }
-
-    host("frontend-web-editor:qodana") {
-      env["QODANA_TOKEN"] = "{{ project:QODANA_TOKEN_FRONTEND_WEB_EDITOR }}"
-      shellScript("scan") {
-        interpreter = "/bin/bash"
-        content = """
-                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" frontend/web-editor
-                      """
-      }
-    }
-
-    host("mef-schema:qodana") {
-      env["QODANA_TOKEN"] = "{{ project:QODANA_TOKEN_MEF_SCHEMA }}"
-      shellScript("scan") {
-        interpreter = "/bin/bash"
-        content = """
-                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" mef-schema
-                      """
-      }
-    }
-
-    host("microservice-job-broker:qodana") {
-      env["QODANA_TOKEN"] = "{{ project:QODANA_TOKEN_MICROSERVICE_JOB_BROKER }}"
-      shellScript("scan") {
-        interpreter = "/bin/bash"
-        content = """
-                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" microservice-job-broker
-                      """
-      }
-    }
-
-    host("model-generator:qodana") {
-      env["QODANA_TOKEN"] = "{{ project:QODANA_TOKEN_MODEL_GENERATOR }}"
-      shellScript("scan") {
-        interpreter = "/bin/bash"
-        content = """
-                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" model-generator
-                      """
-      }
-    }
-
-    host("shared-types:qodana") {
-      env["QODANA_TOKEN"] = "{{ project:QODANA_TOKEN_SHARED_TYPES }}"
-      shellScript("scan") {
-        interpreter = "/bin/bash"
-        content = """
-                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" shared-types
-                      """
-      }
-    }
-
-    host("web-backend:qodana") {
-      env["QODANA_TOKEN"] = "{{ project:QODANA_TOKEN_WEB_BACKEND }}"
-      shellScript("scan") {
-        interpreter = "/bin/bash"
-        content = """
-                      docker pull "$remote:qo-{{ run:number }}-{{ branchSlug }}"
-                      docker run --rm -e QODANA_TOKEN=${'$'}QODANA_TOKEN "$remote:qo-{{ run:number }}-{{ branchSlug }}" web-backend
-                      """
-      }
-    }
-  }
 }

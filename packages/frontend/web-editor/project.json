@@ -96,12 +96,12 @@
       }
     },
     "e2e": {
-      "executor": "@nx/playwright:playwright",
-      "outputs": ["{workspaceRoot}/dist/.playwright/packages/frontend/web-editor"],
+      "executor": "nx:run-commands",
       "options": {
-        "config": "packages/frontend/web-editor/playwright.config.ts",
-        "uiPort": "8080",
-        "ui": true
+        "commands": [
+          "nx e2e-cli frontend-web-editor -- --project=setup"
+        ],
+        "parallel": false
       }
     },
     "e2e-cli": {

@@ -152,11 +152,11 @@ void RiskAnalysis::RunAnalysis(const mef::Gate& target,
 
           // Process the node
           if (auto gate = std::dynamic_pointer_cast<const scram::core::Gate>(node)) {
-              LOG(DEBUG1) << "Visited Gate G" << gate->index();
+              LOG(DEBUG1) << "Visited Gate G" << gate->index() << ", order " <<gate->order();
           } else if (auto variable = std::dynamic_pointer_cast<const scram::core::Variable>(node)) {
-              LOG(DEBUG1) << "Visited Variable B" << variable->index();
+              LOG(DEBUG1) << "Visited Variable B" << variable->index() << ", order " <<variable->order();
           } else if (auto constant = std::dynamic_pointer_cast<const scram::core::Constant>(node)) {
-              LOG(DEBUG1) << "Visited Constant H" << constant->index();
+              LOG(DEBUG1) << "Visited Constant H" << constant->index()<< ", order " <<constant->order();
           }
       }
       exit(0);

@@ -27,6 +27,8 @@ set(SCRAM_CORE_SRC
   model.cc
   cycle.cc
   pdag.cc
+  pdag_iterator.h
+  pdag_iterator.cc
   preprocessor.cc
   mocus.cc
   bdd.cc

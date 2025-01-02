@@ -135,25 +135,6 @@ void RiskAnalysis::RunAnalysis(const mef::Gate& target,
   }
 }
 
-    void TraversePdagUpwards(const scram::core::Pdag& pdag) {
-    scram::core::PdagUpwardIterator it(pdag);
-    scram::core::PdagUpwardIterator end;
-
-    for (; it != end; ++it) {
-        scram::core::NodePtr node = *it;
-
-        // Process the node
-        // For example, print node type and index
-        if (auto gate = std::dynamic_pointer_cast<scram::core::Gate>(node)) {
-            LOG(DEBUG1) << "Visited Gate G" << gate->index() << std::endl;
-        } else if (auto variable = std::dynamic_pointer_cast<scram::core::Variable>(node)) {
-            LOG(DEBUG1) << "Visited Variable B" << variable->index() << std::endl;
-        } else if (auto constant = std::dynamic_pointer_cast<scram::core::Constant>(node)) {
-           LOG(DEBUG1) << "Visited Constant H" << constant->index() << std::endl;
-        }
-    }
-}
-
 template <class Algorithm>
 void RiskAnalysis::RunAnalysis(const mef::Gate& target,
                                Result* result) noexcept {
@@ -162,9 +143,22 @@ void RiskAnalysis::RunAnalysis(const mef::Gate& target,
   fta->Analyze();
   if (Analysis::settings().preprocessor) {
       LOG(INFO) << "Running custom pdag implementation: ";
-      auto pdag = fta->graph();
-      LOG(DEBUG1) << "pdag root: "<<pdag;
-      TraversePdagUpwards(pdag);
+      const scram::core::Pdag* pdag_ptr = fta->graph();
+      scram::core::PdagUpwardIterator it(*pdag_ptr);
+      scram::core::PdagUpwardIterator end;
+
+      for (; it != end; ++it) {
+          scram::core::NodePtr node = *it;
+
+          // Process the node
+          if (auto gate = std::dynamic_pointer_cast<const scram::core::Gate>(node)) {
+              LOG(DEBUG1) << "Visited Gate G" << gate->index();
+          } else if (auto variable = std::dynamic_pointer_cast<const scram::core::Variable>(node)) {
+              LOG(DEBUG1) << "Visited Variable B" << variable->index();
+          } else if (auto constant = std::dynamic_pointer_cast<const scram::core::Constant>(node)) {
+              LOG(DEBUG1) << "Visited Constant H" << constant->index();
+          }
+      }
       exit(0);
   }
   if (Analysis::settings().probability_analysis()) {

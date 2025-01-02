@@ -2,7 +2,7 @@
 
 namespace scram::core {
 
-PdagUpwardIterator::PdagUpwardIterator(Pdag& pdag) {
+PdagUpwardIterator::PdagUpwardIterator(const Pdag& pdag) {
     Initialize(pdag);
     Advance(); // Advance to the first node
 }
@@ -12,15 +12,19 @@ PdagUpwardIterator::PdagUpwardIterator()
     // End iterator
 }
 
-void PdagUpwardIterator::Initialize(Pdag& pdag) {
+void PdagUpwardIterator::Initialize(const Pdag& pdag) {
     // Collect all variables (basic events)
     // Since we cannot modify the PDAG (e.g., by marking nodes), we'll use our own visited set
 
     // Define a lambda to collect variables
     std::function<void(const GatePtr&)> collect_variables = [&](const GatePtr& gate) {
-        if (visited_nodes_.count(gate->index()))
+        if (!gate) return;
+
+        int gate_index = gate->index();
+
+        if (visited_nodes_.count(gate_index))
             return;
-        visited_nodes_.insert(gate->index());
+        visited_nodes_.insert(gate_index);
 
         // Process variable arguments
         for (const auto& arg : gate->args<Variable>()) {
@@ -41,7 +45,7 @@ void PdagUpwardIterator::Initialize(Pdag& pdag) {
     visited_nodes_.clear();
 }
 
-NodePtr PdagUpwardIterator::operator*() const {
+PdagUpwardIterator::NodePtr PdagUpwardIterator::operator*() const {
     return current_node_;
 }
 
@@ -73,7 +77,9 @@ void PdagUpwardIterator::Advance() {
 
         // Enqueue parents for upward traversal
         for (const auto& parent_pair : node->parents()) {
-            GatePtr parent = parent_pair.second.lock();
+            auto parent_weak = parent_pair.second;
+            GatePtr parent = parent_weak.lock();
+
             if (parent && !visited_nodes_.count(parent->index())) {
                 node_queue_.push(parent);
             }

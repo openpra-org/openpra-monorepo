@@ -241,7 +241,7 @@ class FaultTreeAnalysis : public Analysis {
 
  protected:
   /// @returns Pointer to the PDAG representing the fault tree.
-  const Pdag* graph() const { return graph_.get(); }
+  [[nodiscard]] const Pdag* graph() const { return graph_.get(); }
 
  private:
   /// Preprocesses a PDAG for future analysis with a specific algorithm.

@@ -3,7 +3,6 @@
 #include <memory>
 #include <unordered_set>
 #include <queue>
-#include <vector>
 
 #include "pdag.h"
 
@@ -19,11 +18,11 @@ namespace scram::core {
         using iterator_category = std::input_iterator_tag;
         using value_type = NodePtr;
         using difference_type = std::ptrdiff_t;
-        using pointer = NodePtr*;
-        using reference = NodePtr&;
+        using pointer = NodePtr;
+        using reference = NodePtr;
 
         // Constructor
-        explicit PdagUpwardIterator(Pdag& pdag);
+        explicit PdagUpwardIterator(const Pdag& pdag);
 
         // End iterator constructor
         PdagUpwardIterator();
@@ -45,7 +44,7 @@ namespace scram::core {
         NodePtr current_node_;
 
         // Helper methods
-        void Initialize(Pdag& pdag);
+        void Initialize(const Pdag& pdag);
         void Advance();
     };
 

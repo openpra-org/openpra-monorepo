@@ -74,6 +74,9 @@ test.describe("SignUp Form Tests", () => {
     const username = "playwright" + Math.floor(Math.random() * 1000);
     const email = username + "@gmail.com";
 
+    // const username = testUser.username;
+    // const email = testUser.email;
+
     await page.getByPlaceholder("First name").fill("Playwright");
     await page.getByPlaceholder("Last name").fill("Test");
     await page.getByPlaceholder("Email").fill(email);
@@ -95,10 +98,12 @@ test.describe("SignUp Form Tests", () => {
     await page.goto("/");
     await page.getByPlaceholder("First name").fill(testUser.firstName);
     await page.getByPlaceholder("Last name").fill(testUser.lastName);
-    await page.getByPlaceholder("Email").fill(testUser.email);
-    await page.getByPlaceholder("Username").fill(testUser.username);
+    await page.getByPlaceholder("Email").fill(email);
+    await page.getByPlaceholder("Username").fill(username);
     await page.getByPlaceholder("Password", { exact: true }).fill(testUser.password);
     await page.getByPlaceholder("Confirm Password").fill(testUser.password);
+
+    await page.waitForTimeout(5000);
 
     // Check for error messages
     await expect(page.getByText(/email.*exists/i)).toBeVisible();

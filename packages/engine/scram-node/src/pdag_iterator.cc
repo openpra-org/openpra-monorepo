@@ -39,7 +39,7 @@ void PdagUpwardIterator::Initialize(const Pdag& pdag) {
     };
 
     visited_nodes_.clear();
-    collect_variables(pdag.root());
+    collect_variables(pdag.root_ptr());
 
     // Reset visited nodes for upward traversal
     visited_nodes_.clear();

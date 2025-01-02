@@ -891,6 +891,8 @@ class Pdag : private boost::noncopyable {
   /// @pre The graph has been constructed with a root gate.
   const Gate& root() const { return *root_; }
 
+  const GatePtr& root_ptr() const { return root_; }
+
   /// Sets the root gate.
   /// This function is helpful for transformations.
   ///

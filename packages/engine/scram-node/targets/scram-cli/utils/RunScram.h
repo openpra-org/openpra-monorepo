@@ -60,9 +60,11 @@ namespace ScramCLI {
         // Process input files
         // into valid analysis containers and constructs.
         // Throws if anything is invalid.
-        std::unique_ptr<scram::mef::Model> model =
-                scram::mef::Initializer(input_files, settings, vm.count("allow-extern"))
-                        .model();
+        // Step 1: Create an Initializer instance with the provided parameters
+        scram::mef::Initializer initializer(input_files, settings, vm.count("allow-extern"));
+
+        // Step 2: Use the initializer to build and retrieve the Model
+        std::unique_ptr<scram::mef::Model> model = std::move(initializer).model();
 #ifndef NDEBUG
         if (vm.count("serialize"))
             return Serialize(*model, stdout);

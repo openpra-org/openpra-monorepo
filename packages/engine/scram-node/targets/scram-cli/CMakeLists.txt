@@ -16,11 +16,11 @@ if (NOT TARGET scram-cli)
 endif ()
 
 
-set_target_properties(scram-cli PROPERTIES
-    INSTALL_RPATH "${INSTALL_BASE_DIR}/lib/scram"
-    BUILD_WITH_INSTALL_RPATH TRUE
-    OUTPUT_NAME scram-cli
-)
+#set_target_properties(scram-cli PROPERTIES
+#    INSTALL_RPATH "${INSTALL_BASE_DIR}/lib/scram"
+#    BUILD_WITH_INSTALL_RPATH TRUE
+#    OUTPUT_NAME scram-cli
+#)
 target_link_libraries(scram-cli scram-cli-utils scram ${Boost_LIBRARIES})
 #target_compile_options(scram-cli PRIVATE $<$<CONFIG:DEBUG>:${SCRAM_CXX_FLAGS_DEBUG}>)
 

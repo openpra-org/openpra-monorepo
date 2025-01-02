@@ -23,7 +23,7 @@ export default defineConfig({
   },
   // Run your local dev server before starting the tests
   webServer: {
-    command: "nx run-many -t serve -p frontend-web-editor web-backend",
+    command: "npx playwright install-deps && nx run-many -t serve -p frontend-web-editor web-backend",
     url: "http://localhost:8000/api",
     reuseExistingServer: false,
     cwd: workspaceRoot,

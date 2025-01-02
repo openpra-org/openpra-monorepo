@@ -29,6 +29,8 @@
 #include "mocus.h"
 #include "zbdd.h"
 
+#include "pdag_iterator.h"
+
 namespace scram::core {
 
 RiskAnalysis::RiskAnalysis(mef::Model* model, const Settings& settings)
@@ -133,12 +135,38 @@ void RiskAnalysis::RunAnalysis(const mef::Gate& target,
   }
 }
 
+    void TraversePdagUpwards(const scram::core::Pdag& pdag) {
+    scram::core::PdagUpwardIterator it(pdag);
+    scram::core::PdagUpwardIterator end;
+
+    for (; it != end; ++it) {
+        scram::core::NodePtr node = *it;
+
+        // Process the node
+        // For example, print node type and index
+        if (auto gate = std::dynamic_pointer_cast<scram::core::Gate>(node)) {
+            LOG(DEBUG1) << "Visited Gate G" << gate->index() << std::endl;
+        } else if (auto variable = std::dynamic_pointer_cast<scram::core::Variable>(node)) {
+            LOG(DEBUG1) << "Visited Variable B" << variable->index() << std::endl;
+        } else if (auto constant = std::dynamic_pointer_cast<scram::core::Constant>(node)) {
+           LOG(DEBUG1) << "Visited Constant H" << constant->index() << std::endl;
+        }
+    }
+}
+
 template <class Algorithm>
 void RiskAnalysis::RunAnalysis(const mef::Gate& target,
                                Result* result) noexcept {
   auto fta = std::make_unique<FaultTreeAnalyzer<Algorithm>>(
       target, Analysis::settings(), model_);
   fta->Analyze();
+  if (Analysis::settings().preprocessor) {
+      LOG(INFO) << "Running custom pdag implementation: ";
+      auto pdag = fta->graph();
+      LOG(DEBUG1) << "pdag root: "<<pdag;
+      TraversePdagUpwards(pdag);
+      exit(0);
+  }
   if (Analysis::settings().probability_analysis()) {
     switch (Analysis::settings().approximation()) {
       case Approximation::kNone:

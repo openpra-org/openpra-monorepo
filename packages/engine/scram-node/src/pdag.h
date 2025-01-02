@@ -43,7 +43,6 @@
 #include <vector>
 
 #include <boost/container/flat_set.hpp>
-#include <boost/noncopyable.hpp>
 #include <boost/range/adaptor/transformed.hpp>
 
 #include "ext/find_iterator.h"

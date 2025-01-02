@@ -287,11 +287,8 @@ class Settings {
     ccf_analysis_ = flag;
     return *this;
   }
-
-#ifndef NDEBUG
-  bool preprocessor = false;  ///< Stop analysis after preprocessor.
+ bool preprocessor = false;  ///< Stop analysis after preprocessor.
   bool print = false;  ///< Print analysis results in a terminal friendly way.
-#endif
 
  private:
   bool probability_analysis_ = false;  ///< A flag for probability analysis.

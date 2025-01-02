@@ -43,7 +43,8 @@ set(SCRAM_CORE_SRC
   serialization.cc
   initializer.cc
   risk_analysis.cc
-  )
+  canopy/toposort_pdag.h
+)
 ### End SCRAM core source list ### }}}
 
 add_library(scram SHARED ${SCRAM_CORE_SRC})

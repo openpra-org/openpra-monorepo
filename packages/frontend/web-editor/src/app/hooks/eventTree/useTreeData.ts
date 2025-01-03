@@ -92,53 +92,6 @@ const useTreeData = (
       prevNodes = currentNodes; // Update previous nodes for the next depth
     }
 
-    //   // Connect each leaf node of input to its own sequence of output nodes
-    //   const outputStartDepth = inputLevels + 1; // Depth of the first output level
-    //   let prevNodeId = "";
-    //
-    //   currentNodes.forEach((inputLeafNode) => {
-    //     for (let j = 0; j < outputLevels; j++) {
-    //       const outputNodeId = GenerateUUID();
-    //       const outputNode: Node = {
-    //         id: outputNodeId,
-    //         type: "outputNode",
-    //         data: {
-    //           label: `Output ${outputNodeId}`,
-    //           depth: outputStartDepth + j,
-    //           width: nodeWidth,
-    //           output: true,
-    //         },
-    //         position: pos,
-    //       };
-    //       nodes.push(outputNode);
-    //
-    //       let edge: Edge;
-    //       if (j == 0) {
-    //         edge = {
-    //           id: `${inputLeafNode.id}-${outputNodeId}`,
-    //           source: inputLeafNode.id,
-    //           target: outputNodeId,
-    //           type: "custom",
-    //           animated: true,
-    //         };
-    //       } else {
-    //         edge = {
-    //           id: `${prevNodeId}-${outputNodeId}`,
-    //           source: prevNodeId,
-    //           target: outputNodeId,
-    //           type: "custom",
-    //           animated: false,
-    //         };
-    //       }
-    //
-    //       edges.push(edge);
-    //       prevNodeId = outputNodeId;
-    //     }
-    //   });
-    //
-    //   return { nodes, edges };
-    // };
-
     // Connect leaf nodes to end states
     currentNodes.forEach((leafNode) => {
       // Connect Sequence ID

@@ -69,13 +69,6 @@ function ColumnNode({ id, data }: NodeProps) {
             rows={1}
             cols={1}
           />
-          {/*<text*/}
-          {/*  onClick={onClickAddColumn}*/}
-          {/*  className={styles.addNodeButtonText}*/}
-          {/*>*/}
-          {/*  +*/}
-          {/*</text>*/}
-          {/* "+" Button - Only Render if allowAdd is true */}
           {allowAdd && (
             <text
               onClick={onClickAddColumn}

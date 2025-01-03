@@ -53,17 +53,18 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
   });
 
   // Handle output nodes for end states (Sequence ID, Frequency, Release Category)
+  const totalCols = cols.length;
   nodes.forEach((node) => {
     if (node.type === "outputNode") {
       let columnIndex = -1;
 
       // Map node values to columns
       if (node.data.label.length > 10) {
-        columnIndex = 3; // Sequence ID Column
+        columnIndex = totalCols - 2;
       } else if (node.data.label === "0.55") {
-        columnIndex = 4; // Frequency Column
+        columnIndex = totalCols - 1;
       } else if (node.data.label.includes("Category")) {
-        columnIndex = 5; // Release Category Column
+        columnIndex = totalCols;
       }
 
       // Align nodes to columns

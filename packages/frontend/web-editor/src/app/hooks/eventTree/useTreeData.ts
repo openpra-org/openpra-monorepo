@@ -138,6 +138,7 @@ const useTreeData = (
     //
     //   return { nodes, edges };
     // };
+
     // Connect leaf nodes to end states
     currentNodes.forEach((leafNode) => {
       // Connect Sequence ID
@@ -169,6 +170,7 @@ const useTreeData = (
         source: sequenceIdNode,
         target: frequencyNode,
         type: "custom",
+        hidden: true,
         animated: false,
       });
 
@@ -185,6 +187,7 @@ const useTreeData = (
         source: frequencyNode,
         target: releaseCategoryNode,
         type: "custom",
+        hidden: true,
         animated: false,
       });
     });

@@ -64,7 +64,6 @@ namespace ScramCLI {
         }
         SET("time-step", double, time_step);
         settings->safety_integrity_levels(vm.count("sil"));
-
         settings->probability_analysis(vm.count("probability"));
         settings->importance_analysis(vm.count("importance"));
         settings->uncertainty_analysis(vm.count("uncertainty"));
@@ -76,10 +75,8 @@ namespace ScramCLI {
         SET("num-trials", int, num_trials);
         SET("num-quantiles", int, num_quantiles);
         SET("num-bins", int, num_bins);
-#ifndef NDEBUG
         settings->preprocessor = vm.count("preprocessor");
         settings->print = vm.count("print");
-#endif
     }
 #undef SET
 

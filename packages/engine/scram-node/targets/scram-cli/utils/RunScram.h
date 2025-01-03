@@ -63,20 +63,16 @@ namespace ScramCLI {
         std::unique_ptr<scram::mef::Model> model =
                 scram::mef::Initializer(input_files, settings, vm.count("allow-extern"))
                         .model();
-#ifndef NDEBUG
         if (vm.count("serialize"))
             return Serialize(*model, stdout);
-#endif
         if (vm.count("validate"))
             return;// Stop if only validation is requested.
 
         // Initiate risk analysis with the given information.
         scram::core::RiskAnalysis analysis(model.get(), settings);
         analysis.Analyze();
-#ifndef NDEBUG
         if (vm.count("no-report") || vm.count("preprocessor") || vm.count("print"))
             return;
-#endif
         scram::Reporter reporter;
         bool indent = vm.count("no-indent") ? false : true;
         if (vm.count("output")) {

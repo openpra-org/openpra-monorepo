@@ -218,32 +218,15 @@ else()
 endif()
 
 # Find LibXML2 and dependencies.
+find_package(_boost)
 find_package(LibXml2 REQUIRED)
 list(APPEND LIBS ${LIBXML2_LIBRARIES})
-
-# Include the boost header files and the program_options library.
-# Please be sure to use Boost rather than BOOST.
-set(BOOST_MIN_VERSION "1.61.0")
-
-if(NOT WIN32)
-  set(Boost_USE_MULTITHREADED OFF)
-endif()
-
-find_package(Boost ${BOOST_MIN_VERSION} REQUIRED COMPONENTS
-        program_options filesystem system random
-)
-message(STATUS "Boost Include directory: ${Boost_INCLUDE_DIR}")
-message(STATUS "Boost Library directories: ${Boost_LIBRARY_DIRS}")
-list(APPEND LIBS ${Boost_LIBRARIES})
-
 list(APPEND LIBS ${CMAKE_DL_LIBS})
 
 message(STATUS "Libraries: ${LIBS}")
 ########################## End of find libraries ######################## }}}
 ########################## Begin includes ############################### {{{
 
-# Include all the discovered system directories.
-include_directories(SYSTEM "${Boost_INCLUDE_DIR}")
 include_directories(SYSTEM "${LIBXML2_INCLUDE_DIR}")
 
 include_directories("${CMAKE_SOURCE_DIR}")  # Include the core headers via "src".

@@ -287,7 +287,8 @@ class Settings {
     ccf_analysis_ = flag;
     return *this;
   }
- bool preprocessor = false;  ///< Stop analysis after preprocessor.
+
+  bool preprocessor = false;  ///< Stop analysis after preprocessor.
   bool print = false;  ///< Print analysis results in a terminal friendly way.
 
  private:

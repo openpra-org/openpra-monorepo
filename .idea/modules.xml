@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/openpra-monorepo.iml" filepath="$PROJECT_DIR$/.idea/openpra-monorepo.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/scram-engine.iml" filepath="$PROJECT_DIR$/.idea/scram-engine.iml" />
     </modules>
   </component>
 </project>

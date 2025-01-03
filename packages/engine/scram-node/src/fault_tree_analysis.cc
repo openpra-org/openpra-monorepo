@@ -123,10 +123,8 @@ void FaultTreeAnalysis::Analyze() noexcept {
   graph_ = std::make_unique<Pdag>(top_event_,
                                   Analysis::settings().ccf_analysis(), model_);
   this->Preprocess(graph_.get());
-#ifndef NDEBUG
   if (Analysis::settings().preprocessor)
     return;  // Preprocessor only option.
-#endif
   CLOCK(algo_time);
   LOG(DEBUG2) << "Launching the algorithm...";
   const Zbdd& products = this->GenerateProducts(graph_.get());

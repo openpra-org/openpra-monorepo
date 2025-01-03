@@ -68,7 +68,7 @@ namespace ScramCLI {
             ("output,o", OPT_VALUE(path), "Output file for reports")
             ("no-indent", "Omit indentation whitespace in output XML")
             ("verbosity", OPT_VALUE(int), "Set log verbosity");
-#ifndef NDEBUG
+
         po::options_description debug("Debug Options");
         debug.add_options()
             ("serialize", "Serialize the input model without further analysis")
@@ -76,7 +76,6 @@ namespace ScramCLI {
             ("print", "Print analysis results in a terminal friendly way")
             ("no-report", "Don't generate analysis report");
         desc.add(debug);
-#endif
         // clang-format on
         return desc;
     }

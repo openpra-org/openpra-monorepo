@@ -44,6 +44,7 @@ set(SCRAM_CORE_SRC
   initializer.cc
   risk_analysis.cc
   canopy/toposort_pdag.h
+  canopy/sampler.h
 )
 ### End SCRAM core source list ### }}}
 

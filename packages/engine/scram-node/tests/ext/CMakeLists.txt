@@ -13,7 +13,7 @@ set(TEST_EXT_SOURCES
 )
 
 # Locate the Boost library for unit testing
-find_package(Boost REQUIRED COMPONENTS unit_test_framework)
+find_package(_boost REQUIRED COMPONENTS unit_test_framework)
 
 # Include directories for the test
 include_directories(${Boost_INCLUDE_DIRS})

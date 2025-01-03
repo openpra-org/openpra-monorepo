@@ -104,6 +104,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         depth: clickedDepth + 1,
         width: clickedNode.data.width,
         output: clickedNode.data.output,
+        allowAdd: true, // New column should always allow "+" button
         // Additional properties as needed
       },
       position: {

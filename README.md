@@ -117,12 +117,36 @@ git clone https://github.com/your-repo/openpra-monorepo.git
 cd openpra-monorepo
 pnpm setup
 pnpm install
-```
-> [!NOTE]  
-> You might get an error at the end of the above command. You can skip ahead to the next step to run the app, but you will not be able to use the SCRAM engine. (Active Issue being investigated)
-```bash
 pnpm install --global nx@19.6.2
 ```
+
+## Getting Access to SCRAM CLI
+Check your architecture
+```bash
+uname -m
+```
+For Apple Silicon the steps are as follows: 
+
+add library path
+```bash
+echo 'export DYLD_LIBRARY_PATH="$HOME/.local/lib/scram:$DYLD_LIBRARY_PATH"' >> ~/.zshrc
+```
+
+reload profile
+```bash
+source ~/.zshrc
+```
+
+verify env variable is set
+```bash
+echo $DYLD_LIBRARY_PATH
+```
+
+Access SCRAM-CLI
+```bash
+scram-cli --help
+```
+
 
 ### Running the App
 
@@ -130,8 +154,6 @@ Start all services with minimal logging:
 ```bash
 nx run-many -t serve --all --skip-nx-cache --verbose=false
 ```
-> [!NOTE]  
-> You will get a RabbitMQ related error which you can ignore and move ahead to use the app at port 4200. But you will not be able to use the SCRAM quantification engine. An active issue being looked at.
 To serve all packages at once, with logging:
 
 ```bash
@@ -178,6 +200,15 @@ Query collection: db.<collection_name>.find()
 rabbitmqctl status
 ```
 
+4. Try nuking your pnpm setup and try again
+
+Run the following script
+> [!NOTE]  - this is destructive behaviour, use with caution
+
+
+```bash
+openpra-monorepo/scripts/rm_node_modules.sh
+```
 ### Start Individual Services
 
 To serve a specific package, run:

@@ -148,56 +148,6 @@ const useTreeData = (
     return { nodes, edges };
   };
 
-  // Function to generate column nodes and edges
-  // const generateColNodesAndEdges = (): { nodes: Node[]; edges: Edge[] } => {
-  //   const nodes: Node[] = [];
-  //   const edges: Edge[] = [];
-  //
-  //   const rootColNode = GenerateUUID();
-  //   const node: Node = {
-  //     id: rootColNode,
-  //     type: "columnNode",
-  //     data: {
-  //       label: `Initiating Event`,
-  //       width: nodeWidth,
-  //       depth: 1,
-  //       output: false,
-  //     },
-  //     position: pos,
-  //   };
-  //   nodes.push(node);
-  //   let prevNode = rootColNode;
-  //
-  //   for (let column = 2; column <= verticalLevels; column++) {
-  //     const nodeId = GenerateUUID();
-  //     const nodeData = {
-  //       label: column > inputLevels ? `End State` : `Functional Event`,
-  //       width: nodeWidth,
-  //       depth: column,
-  //       output: column > inputLevels, // Check if it's an output column
-  //     };
-  //     const node: Node = {
-  //       id: nodeId,
-  //       type: "columnNode",
-  //       data: nodeData,
-  //       position: pos,
-  //     };
-  //     nodes.push(node);
-  //
-  //     const edge: Edge = {
-  //       id: `${prevNode}--${nodeId}`,
-  //       source: prevNode,
-  //       target: nodeId,
-  //       type: "custom",
-  //       hidden: true,
-  //       animated: false,
-  //     };
-  //     edges.push(edge);
-  //     prevNode = nodeId;
-  //   }
-  //
-  //   return { nodes, edges };
-  // };
   const generateColNodesAndEdges = (): { nodes: Node[]; edges: Edge[] } => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];

@@ -1,30 +1,30 @@
 import { Handle, NodeProps, Position } from "reactflow";
 import React, { useState } from "react";
 import { EuiText, EuiSelect } from "@elastic/eui";
-
+import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCategory";
 import styles from "./styles/nodeTypes.module.css";
 
 function OutputNode({ id, data }: NodeProps) {
+  const { categories, addCategory } = useCategoryContext();
   const [releaseCategory, setReleaseCategory] = useState(data.label);
 
-  const categories = [
-    { value: "Category A", text: "Category A" },
-    { value: "Category B", text: "Category B" },
-    { value: "Create New", text: "Create New..." },
-  ];
+  // Static "Create new" option
+  const staticOptions = [{ value: "Create new", text: "Create new .." }];
 
+  // Handle category selection
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
-    if (value === "Create New") {
-      const newCategory = prompt("Enter new category:");
+    if (value === "Create new") {
+      const newCategory = prompt("Enter new Release Category:");
       if (newCategory) {
-        categories.push({ value: newCategory, text: newCategory });
-        setReleaseCategory(newCategory);
+        addCategory(newCategory); // Add new category globally
+        setReleaseCategory(newCategory); // Set selected category
       }
     } else {
       setReleaseCategory(value);
     }
   };
+
   return (
     <div>
       <Handle
@@ -55,7 +55,7 @@ function OutputNode({ id, data }: NodeProps) {
         {/* Show dropdown for Release Category */}
         {data.label === "Category A" || data.label === "Category B" ? (
           <EuiSelect
-            options={categories}
+            options={[...categories, ...staticOptions]}
             value={releaseCategory}
             onChange={handleCategoryChange}
             compressed={true} // Makes dropdown smaller

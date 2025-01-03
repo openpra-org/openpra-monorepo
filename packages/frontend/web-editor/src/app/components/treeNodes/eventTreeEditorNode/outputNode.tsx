@@ -48,6 +48,8 @@ function OutputNode({ id, data }: NodeProps) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          padding: "5px",
+          boxSizing: "border-box",
         }}
       >
         {/* Show dropdown for Release Category */}
@@ -58,9 +60,11 @@ function OutputNode({ id, data }: NodeProps) {
             onChange={handleCategoryChange}
             compressed={true} // Makes dropdown smaller
             style={{
-              width: "100px", // Smaller dropdown width
-              height: "25px", // Smaller dropdown height
+              width: "115px", // Smaller dropdown width
+              height: "30px", // Smaller dropdown height
               fontSize: "0.7rem", // Smaller font size
+              padding: "0 5px",
+              boxSizing: "border-box",
             }}
           />
         ) : (

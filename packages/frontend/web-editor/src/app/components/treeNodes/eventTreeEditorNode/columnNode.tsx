@@ -6,7 +6,7 @@ import styles from "./styles/nodeTypes.module.css";
 
 function ColumnNode({ id, data }: NodeProps) {
   const onClickAddColumn = useCreateColClick(id);
-
+  const { label, allowAdd } = data;
   const [textareaValue, setTextareaValue] = useState<string>(data.label);
   const updateNodeInternals = useUpdateNodeInternals();
 
@@ -69,12 +69,26 @@ function ColumnNode({ id, data }: NodeProps) {
             rows={1}
             cols={1}
           />
-          <text
-            onClick={onClickAddColumn}
-            className={styles.addNodeButtonText}
-          >
-            +
-          </text>
+          {/*<text*/}
+          {/*  onClick={onClickAddColumn}*/}
+          {/*  className={styles.addNodeButtonText}*/}
+          {/*>*/}
+          {/*  +*/}
+          {/*</text>*/}
+          {/* "+" Button - Only Render if allowAdd is true */}
+          {allowAdd && (
+            <text
+              onClick={onClickAddColumn}
+              className={styles.addNodeButtonText}
+              style={{
+                cursor: "pointer",
+                marginLeft: "4px",
+                fontSize: "0.8rem",
+              }}
+            >
+              +
+            </text>
+          )}
         </div>
       </div>
 

@@ -80,11 +80,6 @@ function ColumnNode({ id, data }: NodeProps) {
             <text
               onClick={onClickAddColumn}
               className={styles.addNodeButtonText}
-              style={{
-                cursor: "pointer",
-                marginLeft: "4px",
-                fontSize: "0.8rem",
-              }}
             >
               +
             </text>

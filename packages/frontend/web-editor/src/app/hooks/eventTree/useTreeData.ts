@@ -249,12 +249,12 @@ const useTreeData = (
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
-    const createColumn = (label: string, depth: number) => {
+    const createColumn = (label: string, depth: number, allowAdd = true) => {
       const id = GenerateUUID();
       nodes.push({
         id,
         type: "columnNode",
-        data: { label, width: nodeWidth, depth },
+        data: { label, width: nodeWidth, depth, allowAdd },
         position: pos,
       });
       return id;
@@ -262,9 +262,9 @@ const useTreeData = (
 
     const col1 = createColumn("Initiating Event", 1);
     const col2 = createColumn("Functional Event", 2);
-    const col3 = createColumn("Sequence ID", verticalLevels - 2);
-    const col4 = createColumn("Frequency", verticalLevels - 1);
-    const col5 = createColumn("Release Category", verticalLevels);
+    const col3 = createColumn("Sequence ID", verticalLevels - 2, false);
+    const col4 = createColumn("Frequency", verticalLevels - 1, false);
+    const col5 = createColumn("Release Category", verticalLevels, false);
 
     return { nodes, edges };
   };

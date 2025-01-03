@@ -3,6 +3,7 @@ import amqp from "amqplib";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { EnvVarKeys } from "../../../config/env_vars.config";
+import { getRabbitMQConfig } from "../../../config/rabbitmq.config";
 
 @Injectable()
 export class ProducerService implements OnApplicationBootstrap {
@@ -10,7 +11,7 @@ export class ProducerService implements OnApplicationBootstrap {
 
   private connection: amqp.Connection | null = null;
   private channel: amqp.Channel | null = null;
-  private readonly url: string = EnvVarKeys.RABBITMQ_URL;
+  private readonly url: string = getRabbitMQConfig()[EnvVarKeys.RABBITMQ_URL];
   private readonly initialJobQ: string = EnvVarKeys.QUANT_JOB_QUEUE_NAME;
   private readonly deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
   private readonly deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;

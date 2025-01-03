@@ -6,6 +6,7 @@ import typia, { TypeGuardError } from "typia";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
 import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
 import { EnvVarKeys } from "../../../config/env_vars.config";
+import { getRabbitMQConfig } from "../../../config/rabbitmq.config";
 
 /**
  * Service for executing tasks received from the initial executable task queue.
@@ -52,7 +53,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
    */
   public async onApplicationBootstrap(): Promise<void> {
     // Load all the environment variables required for RabbitMQ and task execution.
-    const url: string = EnvVarKeys.RABBITMQ_URL;
+    const url: string = getRabbitMQConfig()[EnvVarKeys.RABBITMQ_URL];
     const initialJobQ: string = EnvVarKeys.EXECUTABLE_TASK_QUEUE_NAME;
     const storageQ: string = EnvVarKeys.EXECUTABLE_STORAGE_QUEUE_NAME;
     const deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;

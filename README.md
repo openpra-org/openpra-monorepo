@@ -37,7 +37,7 @@ Make sure you have the following tools installed on your system:
 - **MongoDB**
 - **RabbitMQ**
 
-## Installation
+### Installation
 
 1. **Install Homebrew** (if not already installed):
 ```bash
@@ -68,7 +68,7 @@ After installation, restart your terminal or run `source ~/.bashrc` (or `source 
 Download and run the [nvm Windows installer](https://github.com/coreybutler/nvm-windows/releases/latest/download/nvm-setup.zip).
 
 
-### 3. Install **pnpm** (Package Manager)
+3. Install **pnpm** (Package Manager)
 
 #### macOS and Linux
 
@@ -94,10 +94,6 @@ npm install -g pnpm
 brew tap mongodb/brew
 brew install mongodb-community
 brew install rabbitmq
-
-# Start services
-brew services start mongodb-community
-brew services start rabbitmq
 ```
 
 Follow the official MongoDB installation guide for your operating system:
@@ -106,38 +102,52 @@ Follow the official MongoDB installation guide for your operating system:
 - **Windows**: [Install MongoDB on Windows](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-windows/)
 - **Linux**: [Install MongoDB on Linux](https://docs.mongodb.com/manual/administration/install-on-linux/)
 
-## Setup
+## Start Services
 
 Once prerequisites are installed, initialize the project with these commands:
+
+```bash
+# Start services
+brew services start mongodb-community
+brew services start rabbitmq
+```
 
 ```bash
 git clone https://github.com/your-repo/openpra-monorepo.git
 cd openpra-monorepo
 pnpm setup
 pnpm install
+```
+> [!NOTE]  
+> You might get an error at the end of the above command. You can skip ahead to the next step to run the app, but you will not be able to use the SCRAM engine. (Active Issue being investigated)
+```bash
 pnpm install --global nx@19.6.2
 ```
 
-## Running the Project
-
-### Start All Services Concurrently
-
-To serve all packages at once, run:
-
-```bash
-nx run-many -t serve --all
-```
+### Running the App
 
 Start all services with minimal logging:
 ```bash
 nx run-many -t serve --all --skip-nx-cache --verbose=false
+```
+> [!NOTE]  
+> You will get a RabbitMQ related error which you can ignore and move ahead to use the app at port 4200. But you will not be able to use the SCRAM quantification engine. An active issue being looked at.
+To serve all packages at once, with logging:
+
+```bash
+nx run-many -t serve --all
 ```
 
 The application will be available at:
 - Frontend: http://localhost:4200
 - Backend: http://localhost:3000
 - RabbitMQ Management: http://localhost:15672 (guest/guest)
+- MongoDb: http://localhost:27017
 
+> [!NOTE]  
+> When you signup at http://localhost:4200, you will get the following error
+![alt text](image.png)
+> This a known routing issue in the app. To proceed forward truncate http://localhost:4200/internal-events to http://localhost:4200 in the browser and you will enter the app. After entering the app click on "Create Internal Events" to proceed
 
 ### Troubleshooting
 
@@ -151,6 +161,15 @@ brew services list
 2. **Check MongoDB connection**:
 ```bash
 mongosh --eval "db.version()"
+```
+
+Other MongoDB related commands
+```bash
+mongosh "mongodb://localhost:27017"
+List databases: show dbs
+Use database: use <database_name>
+Show collections: show collections
+Query collection: db.<collection_name>.find()
 ```
 
 3. **Check RabbitMQ**:

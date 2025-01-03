@@ -52,11 +52,25 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
     col.position = { x: xPosition, y: maxYLeaf - 75 };
   });
 
-  // Update the x position of the tree nodes with the same number as the column nodes
+  // Handle output nodes for end states (Sequence ID, Frequency, Release Category)
   nodes.forEach((node) => {
-    const correspondingColNode = cols.find((col) => col.data.depth === node.data.depth);
-    if (correspondingColNode) {
-      node.position.x = correspondingColNode.position.x;
+    if (node.type === "outputNode") {
+      let columnIndex = -1;
+
+      // Map node values to columns
+      if (node.data.label.length > 10) {
+        columnIndex = 3; // Sequence ID Column
+      } else if (node.data.label === "0.55") {
+        columnIndex = 4; // Frequency Column
+      } else if (node.data.label.includes("Category")) {
+        columnIndex = 5; // Release Category Column
+      }
+
+      // Align nodes to columns
+      if (columnIndex !== -1) {
+        const col = cols[columnIndex - 1]; // Adjust for 0-based index
+        node.position.x = col.position.x; // Align x-coordinate
+      }
     }
   });
 

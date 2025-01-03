@@ -1,11 +1,30 @@
 import { Handle, NodeProps, Position } from "reactflow";
-
-import React from "react";
-import { EuiText } from "@elastic/eui";
+import React, { useState } from "react";
+import { EuiText, EuiSelect } from "@elastic/eui";
 
 import styles from "./styles/nodeTypes.module.css";
 
 function OutputNode({ id, data }: NodeProps) {
+  const [releaseCategory, setReleaseCategory] = useState(data.label);
+
+  const categories = [
+    { value: "Category A", text: "Category A" },
+    { value: "Category B", text: "Category B" },
+    { value: "Create New", text: "Create New..." },
+  ];
+
+  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    if (value === "Create New") {
+      const newCategory = prompt("Enter new category:");
+      if (newCategory) {
+        categories.push({ value: newCategory, text: newCategory });
+        setReleaseCategory(newCategory);
+      }
+    } else {
+      setReleaseCategory(value);
+    }
+  };
   return (
     <div>
       <Handle
@@ -25,11 +44,28 @@ function OutputNode({ id, data }: NodeProps) {
           width: data.width,
           height: 40,
           textAlign: "center",
+          border: "1px solid black",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
         }}
       >
-        <div className={styles.outputNode}>
-          <EuiText style={{ fontSize: "0.7rem", height: "1.2rem", resize: "none" }}>0.55</EuiText>
-        </div>
+        {/* Show dropdown for Release Category */}
+        {data.label === "Category A" || data.label === "Category B" ? (
+          <EuiSelect
+            options={categories}
+            value={releaseCategory}
+            onChange={handleCategoryChange}
+            compressed={true} // Makes dropdown smaller
+            style={{
+              width: "100px", // Smaller dropdown width
+              height: "25px", // Smaller dropdown height
+              fontSize: "0.7rem", // Smaller font size
+            }}
+          />
+        ) : (
+          <EuiText style={{ fontSize: "0.7rem" }}>{data.label}</EuiText>
+        )}
       </div>
 
       <Handle

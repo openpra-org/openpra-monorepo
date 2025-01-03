@@ -52,7 +52,7 @@ if(NOT _boost_FOUND)
     endif()
 
     find_package(Boost ${BOOST_MIN_VERSION} REQUIRED COMPONENTS
-            program_options filesystem system random
+            program_options filesystem system random unit_test_framework
     )
 
     if(Boost_FOUND)
@@ -64,7 +64,6 @@ if(NOT _boost_FOUND)
         message(DEBUG "Boost Library directories: ${Boost_LIBRARY_DIRS}")
         include_directories(SYSTEM ${Boost_INCLUDE_DIR})
         link_libraries(${Boost_LIBRARIES})
-        list(APPEND LIBS ${Boost_LIBRARIES})
     else()
         message(FATAL_ERROR "Boost not found. Please install Boost.")
     endif()

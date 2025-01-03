@@ -219,6 +219,7 @@ endif()
 
 # Find LibXML2 and dependencies.
 find_package(_boost)
+list(APPEND LIBS ${Boost_LIBRARIES})
 find_package(LibXml2 REQUIRED)
 list(APPEND LIBS ${LIBXML2_LIBRARIES})
 list(APPEND LIBS ${CMAKE_DL_LIBS})
@@ -237,5 +238,8 @@ add_subdirectory(targets/scram-cli)
 #add_subdirectory(targets/scram-node)
 
 if(BUILD_TESTS)
+  include(CTest)
+  find_package(_boost COMPONENTS unit_test_framework REQUIRED)
+  enable_testing()
   add_subdirectory(tests)
 endif()

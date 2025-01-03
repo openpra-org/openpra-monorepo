@@ -88,7 +88,7 @@ Run:
 npm install -g pnpm
 ```
 
-### 4. **Install MongoDB and RabbitMQ**:
+4. Install MongoDB and RabbitMQ:
 
 ```bash
 brew tap mongodb/brew
@@ -147,6 +147,7 @@ The application will be available at:
 > [!NOTE]  
 > When you signup at http://localhost:4200, you will get the following error
 ![alt text](image.png)
+> 
 > This a known routing issue in the app. To proceed forward truncate http://localhost:4200/internal-events to http://localhost:4200 in the browser and you will enter the app. After entering the app click on "Create Internal Events" to proceed
 
 ### Troubleshooting

@@ -225,7 +225,12 @@ const HeaderUserMenu = (): JSX.Element => {
                 </EuiLink>
               </EuiFlexItem>
               <EuiFlexItem grow={false}>
-                <EuiLink onClick={logoutFunction}>Log out</EuiLink>
+                <EuiLink
+                  data-testid="logout-button"
+                  onClick={logoutFunction}
+                >
+                  Log out
+                </EuiLink>
               </EuiFlexItem>
             </EuiFlexGroup>
           </EuiFlexItem>

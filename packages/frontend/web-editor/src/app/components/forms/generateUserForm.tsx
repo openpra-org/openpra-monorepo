@@ -1,5 +1,5 @@
 import { EuiButton, EuiFlexGroup, EuiFlexItem, EuiForm, EuiFormRow, EuiSelect, EuiText } from "@elastic/eui";
-import React, { ChangeEvent, useState } from "react";
+import React, { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
@@ -78,6 +78,35 @@ const GenerateUserForm = ({
         });
       });
   }
+
+  type CheckEmailFunction = (callback: (validationResult: boolean) => void) => (signup: SignUpPropsWithRole) => void;
+  type CheckUserNameFunction = (callback: (validationResult: boolean) => void) => (signup: SignUpPropsWithRole) => void;
+
+  const debouncedCheckUserName: (signup: SignUpPropsWithRole) => void = useMemo(() => {
+    const checkUserName: CheckUserNameFunction = ApiManager.checkUserName;
+    return checkUserName((validationResult: boolean) => {
+      setIsValidUsername(validationResult);
+    });
+  }, []);
+
+  const debouncedCheckEmail = useMemo(() => {
+    const checkEmail: CheckEmailFunction = ApiManager.checkEmail;
+    return checkEmail((validationResult: boolean) => {
+      setIsValidEmail(validationResult);
+    });
+  }, []);
+
+  useEffect(() => {
+    debouncedCheckUserName(signup);
+  }, [signup.username, debouncedCheckUserName]);
+
+  useEffect(() => {
+    if (signup.email.length === 0 && !signupButtonClicked) {
+      setIsValidEmail(true);
+      return;
+    }
+    debouncedCheckEmail(signup);
+  }, [signup.email, debouncedCheckEmail]);
 
   return (
     <EuiForm

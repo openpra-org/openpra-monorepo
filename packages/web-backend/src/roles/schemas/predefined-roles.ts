@@ -1,14 +1,14 @@
-const AdminRole = "admin-role";
-const MemberRole = "member-role";
-const CollabRole = "collab-role";
+export const AdminRole = "admin-role";
+export const MemberRole = "member-role";
+export const CollabRole = "collab-role";
 
-interface Role {
+export interface Role {
   id: string;
   name: string;
   permissions: Permission[];
 }
 
-interface Permission {
+export interface Permission {
   action: string | string[];
   subject: string | string[];
   fields?: any;
@@ -17,7 +17,7 @@ interface Permission {
   reason?: string;
 }
 
-const PredefinedRoles: Role[] = [
+export const PredefinedRoles: Role[] = [
   {
     id: AdminRole,
     name: "Admin",
@@ -57,5 +57,3 @@ const PredefinedRoles: Role[] = [
     ],
   },
 ];
-
-export { PredefinedRoles, AdminRole, CollabRole, MemberRole };

@@ -3,7 +3,6 @@ import { ApiManager } from "../ApiManager";
 import { RoleSchemaDto } from "../../../openpra-zod-mef/role/role-schema";
 
 const ApiEndpoint = "/api";
-const RoleEndpoint = `${ApiEndpoint}/roles`;
 
 const GetRole = (): string[] => {
   try {
@@ -14,13 +13,10 @@ const GetRole = (): string[] => {
 };
 
 const GetAllRoles = async (ids: string[]): Promise<RoleSchemaDto[]> => {
-  let url = `${RoleEndpoint}/roles/`;
+  let url = `${ApiEndpoint}/roles/`;
   if (ids.length > 0) {
-    let queryParams = "?";
-    for (const id of ids) {
-      queryParams += `id=${id}&`;
-    }
-    url += queryParams;
+    const queryParams = ids.map((id) => `id=${encodeURIComponent(id)}`).join("&");
+    url += `?${queryParams}`;
   }
   const response = await ApiManager.getWithOptions(url);
   if (response.ok) {
@@ -30,7 +26,7 @@ const GetAllRoles = async (ids: string[]): Promise<RoleSchemaDto[]> => {
 };
 
 const GetRoleById = async (roleId: string): Promise<RoleSchemaDto | null> => {
-  const response = await ApiManager.getWithOptions(`${RoleEndpoint}/role/${roleId}`);
+  const response = await ApiManager.getWithOptions(`${ApiEndpoint}/roles/${roleId}`);
   if (response.ok) {
     return (await response.json()) as RoleSchemaDto;
   }
@@ -38,7 +34,7 @@ const GetRoleById = async (roleId: string): Promise<RoleSchemaDto | null> => {
 };
 
 const CreateRole = async (role: RoleSchemaDto): Promise<void> => {
-  const response = await ApiManager.post(`${RoleEndpoint}/role/`, JSON.stringify(role));
+  const response = await ApiManager.post(`${ApiEndpoint}/roles/`, JSON.stringify(role));
   if (response.ok) {
     return;
   }
@@ -46,7 +42,7 @@ const CreateRole = async (role: RoleSchemaDto): Promise<void> => {
 };
 
 const UpdateRole = async (role: RoleSchemaDto): Promise<void> => {
-  const response = await ApiManager.put(`${RoleEndpoint}/role/`, JSON.stringify(role));
+  const response = await ApiManager.put(`${ApiEndpoint}/roles/`, JSON.stringify(role));
   if (response.ok) {
     return;
   }
@@ -54,7 +50,7 @@ const UpdateRole = async (role: RoleSchemaDto): Promise<void> => {
 };
 
 const DeleteRole = async (roleId: string): Promise<void> => {
-  const response = await ApiManager.delete(`${RoleEndpoint}/role/${roleId}`);
+  const response = await ApiManager.delete(`${ApiEndpoint}/roles/${roleId}`);
   if (response.ok) {
     return;
   }

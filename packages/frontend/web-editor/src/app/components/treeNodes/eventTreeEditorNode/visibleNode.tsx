@@ -35,7 +35,7 @@ function VisibleNode({ id, data }: NodeProps) {
           <EuiText style={{ fontSize: "0.7rem", height: "1.2rem", resize: "none" }}>0.55</EuiText>
         </div>
 
-        <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>Yes</EuiText>
+        <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>{data.label}</EuiText>
 
         {data.depth != 1 && (
           <div

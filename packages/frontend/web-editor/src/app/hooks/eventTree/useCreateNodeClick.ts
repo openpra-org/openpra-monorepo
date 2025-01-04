@@ -58,6 +58,8 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
 
     // Collect all end states related to the parent node
     const { nodes: endStateNodes, edges: endStateEdges } = collectEndStates(parentNode.id);
+    console.log("End state nodes", endStateNodes);
+    console.log("End state edges", endStateEdges);
 
     // Remove collected end states and edges
     nodes = nodes.filter((node) => !endStateNodes.includes(node));
@@ -100,20 +102,27 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
         animated: false,
       },
     ];
+    edges.push(...newEdges);
 
     // Add End States for YES Node
     const { nodes: yesEndStates, edges: yesEndEdges } = createEndStates(yesNode, width, pos);
     nodes.push(...yesEndStates);
-    newEdges.push(...yesEndEdges);
+    // newEdges.push(...yesEndEdges);
+    edges.push(...yesEndEdges);
 
     // Add End States for NO Node
     const { nodes: noEndStates, edges: noEndEdges } = createEndStates(noNode, width, pos);
     nodes.push(...noEndStates);
-    newEdges.push(...noEndEdges);
+    // newEdges.push(...noEndEdges);
+    edges.push(...noEndEdges);
 
     // Update ReactFlow
     setNodes(nodes);
-    setEdges(edges.concat(newEdges));
+    // setEdges(edges.concat(newEdges));
+    setEdges(edges);
+
+    console.log("final nodes", nodes);
+    console.log("final edges", edges);
 
     const eventTreeCurrentState: EventTreeGraph = EventTreeState({
       eventTreeId: eventTreeId,

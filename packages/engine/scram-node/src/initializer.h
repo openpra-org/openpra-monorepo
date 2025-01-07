@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2014-2018 Olzhas Rakhimov
  * Copyright (C) 2023 OpenPRA Initiative
+ * Copyright (C) 2025 Arjun Earthperson
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,7 +34,6 @@
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/mem_fun.hpp>
 #include <boost/multi_index_container.hpp>
-#include <boost/noncopyable.hpp>
 
 #include "alignment.h"
 #include "ccf_group.h"
@@ -41,7 +41,6 @@
 #include "event.h"
 #include "event_tree.h"
 #include "expression.h"
-#include "expression/constant.h"
 #include "fault_tree.h"
 #include "instruction.h"
 #include "model.h"
@@ -64,7 +63,7 @@ class Initializer : private boost::noncopyable {
   /// Initializes the analysis model from the given input files.
   /// Puts all events into their appropriate containers in the model.
   ///
-  /// @param[in] xml_files  The MEF XML input files.
+  /// @param[in] xml_files  The MEF XML input files, possibly containing wildcards.
   /// @param[in] settings  Analysis settings.
   /// @param[in] allow_extern  Allow external libraries in the input.
   /// @param[in] extra_validator  Additional XML validator to be run
@@ -72,7 +71,8 @@ class Initializer : private boost::noncopyable {
   ///
   /// @throws IOError  Input contains duplicate files.
   /// @throws IOError  One of the input files is not accessible.
-  /// @throws xml::Error  The xml files contain errors or malformed.
+  /// @throws IOError             No files match the provided wildcard patterns.
+  /// @throws xml::Error          The xml files contain errors or malformed.
   /// @throws xml::ValidityError  The xml files are not valid for schema.
   /// @throws mef::ValidityError  The input model contains errors.
   ///
@@ -131,6 +131,22 @@ class Initializer : private boost::noncopyable {
                                              const std::string& base_path,
                                              Initializer* init);
 
+  /// Expands wildcard patterns in file paths to a list of matching files.
+  ///
+  /// @param[in] xml_files  The XML input files, possibly containing wildcards.
+  ///
+  /// @throws IOError  If no files match the provided patterns.
+  ///
+  /// @return A vector of expanded file paths.
+  std::vector<std::string> ExpandWildcards(const std::vector<std::string>& xml_files);
+
+  /// Converts a glob pattern to a regular expression string.
+  ///
+  /// @param[in] glob  The glob pattern to convert.
+  ///
+  /// @return A regex string equivalent to the glob pattern.
+  std::string GlobToRegex(const std::string& glob);
+
   /// Checks if all input files exist on the system.
   ///
   /// @param[in] xml_files  The XML input files.
@@ -149,13 +165,17 @@ class Initializer : private boost::noncopyable {
 
   /// @copybrief Initializer::Initializer
   ///
-  /// @param[in] xml_files  The formatted XML input files.
+  /// Processes the input files, including expanding wildcards,
+  /// checking for existence and duplicates, and parsing the files.
   ///
-  /// @throws xml::Error  The xml files are erroneous or malformed.
-  /// @throws xml::ValidityError The xml files do not pass validation.
-  /// @throws mef::ValidityError  The input model contains errors.
-  /// @throws IOError  One of the input files is not accessible.
-  /// @throws IOError  Input contains duplicate files.
+  /// @param[in] xml_files  The XML input files, possibly containing wildcards.
+  ///
+  /// @throws xml::Error           If XML files are erroneous or malformed.
+  /// @throws xml::ValidityError   If XML files do not pass validation.
+  /// @throws mef::ValidityError   If the input model contains errors.
+  /// @throws IOError              If input files are missing or duplicate.
+  /// @throws IOError              If no files match the provided wildcard patterns.
+  /// @throws IllegalOperation     If loading external libraries is disallowed.
   void ProcessInputFiles(const std::vector<std::string>& xml_files);
 
   /// Reads one input XML file document with the structure of analysis entities.

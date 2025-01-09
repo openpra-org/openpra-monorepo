@@ -111,7 +111,7 @@ const useTreeData = (
           id: leftChildId,
           type: "visibleNode",
           data: {
-            label: `Node ${leftChildId}`,
+            label: `Success`,
             depth: depth,
             width: nodeWidth,
             output: false,
@@ -126,7 +126,7 @@ const useTreeData = (
           id: rightChildId,
           type: "visibleNode",
           data: {
-            label: `Node ${rightChildId}`,
+            label: `Failure`,
             depth: depth,
             width: nodeWidth,
             output: false,

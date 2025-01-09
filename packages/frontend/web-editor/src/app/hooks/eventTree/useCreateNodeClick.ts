@@ -38,7 +38,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     const clickedNodeIndex = nodes.findIndex((node) => node.id === clickedNodeId);
     const clickedNode = clickedNodeIndex !== -1 ? nodes[clickedNodeIndex] : null;
 
-    // put the clicked node as activated (for a dangling node)
+    // put the clicked node as activated (for an invisible node)
     if (clickedNode?.type === "invisibleNode") {
       nodes[clickedNodeIndex].type = "visibleNode";
 
@@ -58,19 +58,22 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     let lastNodeId = clickedNodeEdge ? clickedNodeEdge.source : "";
 
     rightmostNodeIndices.forEach((rightmostNodeIndex, level) => {
+      // Skip invalid levels
+      if (level > inputLevels - clickedNodeDepth) return;
+
       // Generate a new node ID
       const newNodeId = GenerateUUID();
 
       // Decide the node type based on its level
-      // const nodeType = level === 0 ? "visibleNode" : level <= inputLevels - clickedNodeDepth ? "invisibleNode" : "outputNode";
-      const nodeType = level === 0 ? "visibleNode" : "invisibleNode";
+      const nodeType =
+        level === 0 ? "visibleNode" : level <= inputLevels - clickedNodeDepth ? "invisibleNode" : "outputNode";
 
       // Create the new node based on the level and type
       const newNode: Node = {
         id: newNodeId,
         type: nodeType,
         data: {
-          label: `node at ${level + clickedNodeDepth}`,
+          label: `New Node(${level + clickedNodeDepth})`,
           depth: level + clickedNodeDepth,
           width: rootNode.data.width,
           output: false,
@@ -101,8 +104,8 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
       };
 
       newEdges.push(newEdge);
-      // Replace Output Node Logic with End States
 
+      // Replace Output Node Logic with End States
       if (level >= inputLevels - clickedNodeDepth) {
         const { nodes: endNodes, edges: endEdges } = createEndStates(newNode, rootNode.data.width, newNode.position);
 

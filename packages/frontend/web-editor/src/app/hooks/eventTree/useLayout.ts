@@ -52,6 +52,14 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
     col.position = { x: xPosition, y: maxYLeaf - 75 };
   });
 
+  // Update the x position of the tree nodes with the same number as the column nodes
+  nodes.forEach((node) => {
+    const correspondingColNode = cols.find((col) => col.data.depth === node.data.depth);
+    if (correspondingColNode) {
+      node.position.x = correspondingColNode.position.x;
+    }
+  });
+
   // Handle output nodes for end states (Sequence ID, Frequency, Release Category)
   const totalCols = cols.length;
   nodes.forEach((node) => {

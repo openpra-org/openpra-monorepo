@@ -83,6 +83,7 @@ export class StorageService implements OnApplicationBootstrap {
       messageTtl: 60000,
       maxLength: 10000,
     });
+    await channel.prefetch(1);
 
     // Begin consuming messages from the completed job queue.
     await channel.consume(

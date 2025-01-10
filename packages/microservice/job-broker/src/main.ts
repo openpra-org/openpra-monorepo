@@ -2,6 +2,7 @@ import { NestFactory } from "@nestjs/core";
 import { NestiaSwaggerComposer } from "@nestia/sdk";
 import { OpenAPIObject, SwaggerModule } from "@nestjs/swagger";
 import { INestApplication } from "@nestjs/common";
+import { json, urlencoded } from "express";
 import { HttpExceptionFilter } from "./http-exception.filter";
 import { JobBrokerModule } from "./job-broker.module";
 
@@ -58,6 +59,10 @@ async function bootstrap(): Promise<void> {
     explorer: true,
     swaggerOptions: {},
   });
+
+  // Increase the maximum request body limit to 50 MB.
+  app.use(json({ limit: "50mb" }));
+  app.use(urlencoded({ extended: true, limit: "50mb" }));
 
   // Start listening for incoming requests on port 3000.
   await app.listen(3_000);

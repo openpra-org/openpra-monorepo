@@ -84,6 +84,7 @@ export class ConsumerService implements OnModuleInit {
       messageTtl: 60000,
       maxLength: 10000,
     });
+    await channel.prefetch(1);
 
     // Consume the jobs from the initial queue
     await channel.consume(

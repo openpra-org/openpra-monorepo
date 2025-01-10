@@ -77,6 +77,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
       messageTtl: 60000,
       maxLength: 10000,
     });
+    await channel.prefetch(1);
 
     // Start consuming jobs from the initial queue.
     await channel.consume(

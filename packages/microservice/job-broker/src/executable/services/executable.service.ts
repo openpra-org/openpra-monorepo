@@ -2,12 +2,15 @@ import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import amqp from "amqplib";
 import typia, { TypeGuardError } from "typia";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 import { getRabbitMQConfig } from "../../../config/rabbitmq.config";
 
 @Injectable()
 export class ExecutableService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableService.name);
+  constructor(@InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>) {}
 
   private connection: amqp.Connection | null = null;
   private channel: amqp.Channel | null = null;
@@ -68,7 +71,7 @@ export class ExecutableService implements OnApplicationBootstrap {
     });
   }
 
-  public createAndQueueTask(task: ExecutionTask): void {
+  public async createAndQueueTask(task: ExecutionTask): Promise<void> {
     try {
       if (!this.channel) {
         this.logger.error("Channel is not available. Cannot send message.");
@@ -79,6 +82,7 @@ export class ExecutableService implements OnApplicationBootstrap {
       this.channel.sendToQueue(this.queue, Buffer.from(taskData), {
         persistent: true,
       });
+      await this.executableJobModel.updateOne({ _id: task._id }, { $set: { status: "queued" } });
     } catch (error) {
       // Handle validation errors specifically, logging the path and expected vs actual values.
       if (error instanceof TypeGuardError) {

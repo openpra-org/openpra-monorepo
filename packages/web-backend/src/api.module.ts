@@ -13,6 +13,7 @@ import { InviteModule } from "./invite/invite.module";
 import { NestedModelModule } from "./nestedModels/nestedModel.module";
 import { QuantifyModule } from "./quantify/quantify.module";
 import { TypedModelModule } from "./typedModel/typedModel.module";
+import { RolesModule } from "./roles/roles.module";
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { TypedModelModule } from "./typedModel/typedModel.module";
     NestedModelModule,
     QuantifyModule,
     TypedModelModule,
+    RolesModule,
     ConfigModule.forRoot({
       envFilePath: ".development.env",
       isGlobal: true,
@@ -73,6 +75,10 @@ import { TypedModelModule } from "./typedModel/typedModel.module";
           {
             path: "typed-models",
             module: TypedModelModule,
+          },
+          {
+            path: "roles",
+            module: RolesModule,
           },
         ],
       },

@@ -9,6 +9,8 @@ import { JobBrokerService } from "./job-broker.service";
 import { QuantificationModule } from "./quantification/quantification.module";
 import { ValidationModule } from "./validation/validation.module";
 import { ExecutableModule } from "./executable/executable.module";
+import { QuantificationJobReport, QuantificationJobSchema } from "./middleware/schemas/quantification-job.schema";
+import { ExecutableJobReport, ExecutableJobSchema } from "./middleware/schemas/executable-job.schema";
 
 @Module({
   // Define the modules to import, including configuration, database connection, and submodules.

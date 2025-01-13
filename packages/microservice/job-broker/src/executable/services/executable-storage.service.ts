@@ -5,7 +5,7 @@ import * as amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import typia, { TypeGuardError } from "typia";
 import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
-import { ExecutedResult } from "../schemas/executed-result.schema";
+import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 import { getRabbitMQConfig } from "../../../config/rabbitmq.config";
 
@@ -17,7 +17,7 @@ import { getRabbitMQConfig } from "../../../config/rabbitmq.config";
 @Injectable()
 export class ExecutableStorageService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableStorageService.name);
-  constructor(@InjectModel(ExecutedResult.name) private readonly executedResultModel: Model<ExecutedResult>) {}
+  constructor(@InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>) {}
 
   /**
    * Establishes a connection to the RabbitMQ broker with retry logic.
@@ -102,7 +102,17 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
           const executedResult: ExecutionResult = typia.json.assertParse<ExecutionResult>(msg.content.toString());
 
           // Create a new instance of the executed result model and save it to the database.
-          await this.executedResultModel.create(executedResult);
+          await this.executableJobModel.updateOne(
+            { _id: executedResult._id },
+            {
+              $set: {
+                status: "completed",
+                exit_code: executedResult.exit_code,
+                stdout: executedResult.stdout,
+                stderr: executedResult.stderr,
+              },
+            },
+          );
 
           // Acknowledge the message back to the completed task queue to indicate successful processing.
           channel.ack(msg);
@@ -136,7 +146,7 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
    *
    * @returns A promise that resolves to an array of executed results.
    */
-  async getExecutedTasks(): Promise<ExecutedResult[]> {
-    return this.executedResultModel.find();
+  async getExecutedTasks(): Promise<ExecutableJobReport[]> {
+    return this.executableJobModel.find();
   }
 }

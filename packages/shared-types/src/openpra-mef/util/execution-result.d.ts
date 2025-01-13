@@ -1,8 +1,7 @@
 import typia from "typia";
-import { ExecutionTask } from "./execution-task";
 
 export interface ExecutionResult {
-  task: ExecutionTask;
+  _id?: string;
   /**
    * exit code associated with the process performing this execution task.
    *

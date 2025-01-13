@@ -96,6 +96,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
 
           // Execute the task and get the result.
           const result = this.executeCommand(taskData);
+          result._id = taskData._id;
           const taskResult = typia.json.assertStringify<ExecutionResult>(result);
 
           // Assert and configure a durable queue with dead-letter exchange, message TTL, and max length.
@@ -157,7 +158,6 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
 
       // Return the execution result with a successful exit code.
       return {
-        task,
         exit_code: 0,
         stderr: "",
         stdout,
@@ -168,7 +168,6 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
       this.logger.error(execError);
 
       return {
-        task,
         exit_code: execError.status ? execError.status : 1,
         stderr: execError.stderr?.toString() ?? "",
         stdout: execError.stdout?.toString() ?? "",

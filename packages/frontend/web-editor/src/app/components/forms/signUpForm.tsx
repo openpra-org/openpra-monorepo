@@ -1,5 +1,5 @@
 import { EuiButton, EuiForm, EuiFormRow } from "@elastic/eui";
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import { useState } from "react";
 import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
@@ -14,7 +14,7 @@ import { UsernameForm } from "./usernameForm";
  * @param handleSignup - This function will be called when user clicks on the button in the form
  * @param signup - The state object which holds the user object
  * @param setSignup - The function which will change the state object
- * @param buttonText - The text which should be shown on the button
+ * @param buttonText - The text which should be shown on the button.
  */
 const SignUpForm = ({
   handleSignup,
@@ -76,6 +76,35 @@ const SignUpForm = ({
         });
       });
   }
+
+  type CheckEmailFunction = (callback: (validationResult: boolean) => void) => (signup: SignUpPropsWithRole) => void;
+  type CheckUserNameFunction = (callback: (validationResult: boolean) => void) => (signup: SignUpPropsWithRole) => void;
+
+  const debouncedCheckUserName: (signup: SignUpPropsWithRole) => void = useMemo(() => {
+    const checkUserName: CheckUserNameFunction = ApiManager.checkUserName;
+    return checkUserName((validationResult: boolean) => {
+      setIsValidUsername(validationResult);
+    });
+  }, []);
+
+  const debouncedCheckEmail = useMemo(() => {
+    const checkEmail: CheckEmailFunction = ApiManager.checkEmail;
+    return checkEmail((validationResult: boolean) => {
+      setIsValidEmail(validationResult);
+    });
+  }, []);
+
+  useEffect(() => {
+    debouncedCheckUserName(signup);
+  }, [signup.username, debouncedCheckUserName]);
+
+  useEffect(() => {
+    if (signup.email.length === 0 && !signupButtonClicked) {
+      setIsValidEmail(true);
+      return;
+    }
+    debouncedCheckEmail(signup);
+  }, [signup.email, debouncedCheckEmail]);
 
   return (
     <EuiForm

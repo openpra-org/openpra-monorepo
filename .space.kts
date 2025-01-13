@@ -32,7 +32,7 @@ job("Monorepo Deployment") {
          api.parameters["buildType"] = "development"
          api.parameters["debugMode"] = "true"
          api.parameters["isReview"] = "true"
-         api.parameters["numWorkers"] = "2"
+         api.parameters["numWorkers"] = "32"
        }
 
        api.parameters["branchSlug"] = branchSlug

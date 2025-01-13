@@ -19,6 +19,10 @@ import { ExecutableJobReport, ExecutableJobSchema } from "./middleware/schemas/e
     ValidationModule,
     ExecutableModule,
     MongooseModule.forRoot(getMongoConfig()[MongoDBConfigKeys.MONGODB_URI]),
+    MongooseModule.forFeature([
+      { name: QuantificationJobReport.name, schema: QuantificationJobSchema },
+      { name: ExecutableJobReport.name, schema: ExecutableJobSchema }
+    ]),
     RouterModule.register([
       {
         path: "q", // Define the base path for the API.
@@ -49,5 +53,6 @@ import { ExecutableJobReport, ExecutableJobSchema } from "./middleware/schemas/e
       useClass: HttpExceptionFilter,
     },
   ],
+  exports: [JobBrokerService]
 })
 export class JobBrokerModule {}

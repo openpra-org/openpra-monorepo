@@ -6,6 +6,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 import { getRabbitMQConfig } from "../../../config/rabbitmq.config";
+import { ExecutableJobReport } from '../../schemas/job-reports.schema';
 
 @Injectable()
 export class ExecutableService implements OnApplicationBootstrap {

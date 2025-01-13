@@ -27,6 +27,7 @@
     "rxjs": "7.8.1",
     "scram-node": "workspace:^",
     "shared-types": "workspace:^",
+    "superagent": "10.1.1",
     "tmp": "0.2.3",
     "typia": "6.9.0",
     "webpack": "5.94.0"
@@ -36,6 +37,7 @@
     "@types/amqplib": "0.10.5",
     "@types/async": "3.2.24",
     "@types/supertest": "6.0.2",
+    "@types/superagent": "8.1.9",
     "@types/swagger-ui-express": "4.1.6",
     "copy-webpack-plugin": "12.0.2",
     "mongodb-memory-server": "9.1.1",

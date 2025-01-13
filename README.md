@@ -120,7 +120,29 @@ pnpm install
 pnpm install --global nx@19.6.2
 ```
 
-## Getting Access to SCRAM CLI
+
+### Running the App
+
+Start all services with minimal logging:
+```bash
+nx run-many -t serve --all --skip-nx-cache --verbose=false
+```
+To serve all packages at once, with logging:
+
+```bash
+nx run-many -t serve --all
+```
+
+The application will be available at:
+- Frontend: http://localhost:4200
+- Backend: http://localhost:3000
+- RabbitMQ Management: http://localhost:15672 (guest/guest)
+- MongoDb: http://localhost:27017
+
+### Working with SCRAM
+
+#### Installing SCRAM CLI
+
 Check your architecture
 ```bash
 uname -m
@@ -147,30 +169,21 @@ Access SCRAM-CLI
 scram-cli --help
 ```
 
+#### Quanitification with SCRAM
 
-### Running the App
+Following are steps to quantify a real life event tree.
+Please note that all event trees cannot be quantified at the moment and is an area of active research.
 
-Start all services with minimal logging:
+Save this [file](https://github.com/openpra-org/generic-pwr-openpsa-model/blob/a795d2c3ae5fd153d03475c1a15660cc90f33b44/models/converted_EQK-BIN1_et_Grp-4_24-02-26_15-57-18.xml ) as event.xml
+
+Then run the following command
 ```bash
-nx run-many -t serve --all --skip-nx-cache --verbose=false
-```
-To serve all packages at once, with logging:
-
-```bash
-nx run-many -t serve --all
+scram-cli --mocus --probability --mcub --o eventoutput.xml event.xml 
 ```
 
-The application will be available at:
-- Frontend: http://localhost:4200
-- Backend: http://localhost:3000
-- RabbitMQ Management: http://localhost:15672 (guest/guest)
-- MongoDb: http://localhost:27017
+All the probabilities will be calculated in the new file that will be generated.
 
-> [!NOTE]  
-> When you signup at http://localhost:4200, you will get the following error
-![alt text](image.png)
-> 
-> This a known routing issue in the app. To proceed forward truncate http://localhost:4200/internal-events to http://localhost:4200 in the browser and you will enter the app. After entering the app click on "Create Internal Events" to proceed
+To see other real life models - check [event tree folder](https://github.com/openpra-org/generic-pwr-openpsa-model/tree/a795d2c3ae5fd153d03475c1a15660cc90f33b44/models) and [fault tree folder](https://github.com/openpra-org/generic-openpsa-models/blob/241b5dbc2961b4830745cd2e7ae65b08f543e88d/models/Aralia/baobab1.xml)
 
 ### Troubleshooting
 

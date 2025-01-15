@@ -1,4 +1,4 @@
-import { NodeProps, EdgeProps, useReactFlow, Edge } from "reactflow";
+import { NodeProps, useReactFlow } from "reactflow";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
@@ -12,72 +12,71 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
     const nodes = getNodes();
     const edges = getEdges();
 
-    let shouldDeleteSubtree = true;
-    const nodesToDelete = new Set([clickedNodeId]);
-    const stack = [clickedNodeId];
-    let parentNodeId: string | null = null;
+    // Helper function to check if a node is an output node
+    const isOutputNode = (nodeId: string): boolean => {
+      const node = nodes.find(n => n.id === nodeId);
+      return node?.type === 'outputNode';
+    };
 
-    while (stack.length > 0 && shouldDeleteSubtree) {
-      const nodeId = stack.pop();
-      edges.forEach((edge) => {
-        if (nodeId === clickedNodeId && edge.target === nodeId) {
-          parentNodeId = edge.source; // Find the parent node ID
-        }
-        if (edge.source === nodeId) {
-          const targetNode = nodes.find((node) => node.id === edge.target);
-          if (targetNode && targetNode.type === "visibleNode") {
-            shouldDeleteSubtree = false;
-          } else {
-            stack.push(edge.target);
-            nodesToDelete.add(edge.target);
-          }
-        }
-      });
+    // Get all connected output nodes that need to be deleted
+    const getConnectedOutputNodes = (nodeId: string): string[] => {
+      const outputNodes: string[] = [];
+      const stack = [nodeId];
+      
+      while (stack.length > 0) {
+        const currentId = stack.pop()!;
+        const connectedNodes = edges
+          .filter(edge => edge.source === currentId && isOutputNode(edge.target))
+          .map(edge => edge.target);
+        
+        outputNodes.push(...connectedNodes);
+        stack.push(...connectedNodes);
+      }
+      
+      return outputNodes;
+    };
+
+    // Check if node has non-output children
+    const hasChildren = edges.some(edge => 
+      edge.source === clickedNodeId && !isOutputNode(edge.target)
+    );
+
+    if (hasChildren) {
+      alert("Cannot delete this node. Please delete all child nodes first.");
+      return;
     }
 
-    if (shouldDeleteSubtree && parentNodeId) {
-      // Identify sibling node by checking the parent node's edges
-      const siblingEdges = edges.filter((edge) => edge.source === parentNodeId && edge.target !== clickedNodeId);
-      if (siblingEdges.length === 1) {
-        // Update the sibling node to invisibleNode if there's exactly one sibling
-        const siblingNodeId = siblingEdges[0].target;
-        nodes.forEach((node) => {
-          if (node.id === siblingNodeId) {
-            node.type = "invisibleNode"; // TypeScript will not show an error if 'type' is a valid property of Node
-          }
-        });
-        edges.forEach((edge) => {
-          if (edge.target === siblingNodeId) {
-            edge.animated = true; // Animate edges connected to the sibling node
-          }
-        });
-      }
+    // Find parent and check for siblings
+    const parentEdge = edges.find(edge => 
+      edge.target === clickedNodeId && !isOutputNode(edge.source)
+    );
 
-      // Delete the node and its subtree
-      const remainingNodes = nodes.filter((node) => !nodesToDelete.has(node.id));
-      const remainingEdges = edges.filter((edge) => !nodesToDelete.has(edge.source) && !nodesToDelete.has(edge.target));
+    if (!parentEdge) {
+      alert("Cannot delete the root node");
+      return;
+    }
 
-      setNodes(remainingNodes);
-      setEdges(remainingEdges);
+    const parentId = parentEdge.source;
+    const siblingEdges = edges.filter(edge => 
+      edge.source === parentId && 
+      edge.target !== clickedNodeId &&
+      !isOutputNode(edge.target)
+    );
 
-      const eventTreeCurrentState: EventTreeGraph = EventTreeState({
-        eventTreeId: eventTreeId,
-        nodes: remainingNodes,
-        edges: remainingEdges,
-      });
+    // Get all output nodes that need to be handled
+    const connectedOutputNodes = getConnectedOutputNodes(clickedNodeId);
 
-      void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {});
-    } else {
-      // Update clicked node to invisibleNode and animate edges
-      const updatedNodes = nodes.map((node) => {
+    if (siblingEdges.length === 0) {
+      // No siblings - convert to invisible node
+      const updatedNodes = nodes.map(node => {
         if (node.id === clickedNodeId) {
           return { ...node, type: "invisibleNode" };
         }
         return node;
       });
 
-      const updatedEdges = edges.map((edge) => {
-        if (edge.target === clickedNodeId) {
+      const updatedEdges = edges.map(edge => {
+        if (edge.target === clickedNodeId || connectedOutputNodes.includes(edge.target)) {
           return { ...edge, animated: true };
         }
         return edge;
@@ -85,15 +84,26 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
 
       setNodes(updatedNodes);
       setEdges(updatedEdges);
+    } else {
+      // Has siblings - remove node and its output nodes completely
+      const nodesToRemove = [clickedNodeId, ...connectedOutputNodes];
+      const remainingNodes = nodes.filter(node => !nodesToRemove.includes(node.id));
+      const remainingEdges = edges.filter(edge => 
+        !nodesToRemove.includes(edge.source) && !nodesToRemove.includes(edge.target)
+      );
 
-      const eventTreeCurrentState: EventTreeGraph = EventTreeState({
-        eventTreeId: eventTreeId,
-        nodes: updatedNodes,
-        edges: updatedEdges,
-      });
-
-      void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {});
+      setNodes(remainingNodes);
+      setEdges(remainingEdges);
     }
+
+    // Store the updated state
+    void GraphApiManager.storeEventTree(
+      EventTreeState({
+        eventTreeId,
+        nodes: getNodes(),
+        edges: getEdges(),
+      })
+    );
   };
 
   return deleteNode;

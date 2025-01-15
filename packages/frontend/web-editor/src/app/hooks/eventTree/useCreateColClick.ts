@@ -104,11 +104,13 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         depth: clickedDepth + 1,
         width: clickedNode.data.width,
         output: clickedNode.data.output,
-        allowAdd: true, // New column should always allow "+" button
-        // Additional properties as needed
+        allowAdd: true,
+        allowDelete: !clickedNode.data.output &&
+                    (clickedDepth + 1) !== 1 &&
+                    (clickedDepth + 1) !== 2 &&
+                    true,
       },
       position: {
-        // Define the position for the column node
         x: clickedNode ? clickedNode.position.x : 0,
         y: clickedNode ? clickedNode.position.y : 0,
       },
@@ -121,6 +123,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         target: newColNodeId,
         type: "custom",
         animated: false,
+        hidden: true,
       },
       {
         id: clickedNodeEdge ? `${newColNodeId}-${clickedNodeEdge.target}` : "",
@@ -128,6 +131,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         target: clickedNodeEdge ? clickedNodeEdge.target : "",
         type: "custom",
         animated: false,
+        hidden: true,
       },
     ];
 

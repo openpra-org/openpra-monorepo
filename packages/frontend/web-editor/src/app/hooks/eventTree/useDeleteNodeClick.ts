@@ -12,10 +12,10 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
     const nodes = getNodes();
     const edges = getEdges();
 
-    // Helper function to check if a node is an output node
-    const isOutputNode = (nodeId: string): boolean => {
+    // Helper function to check if a node is an output node or invisible node
+    const isOutputOrInvisibleNode = (nodeId: string): boolean => {
       const node = nodes.find(n => n.id === nodeId);
-      return node?.type === 'outputNode';
+      return node?.type === 'outputNode' || node?.type === 'invisibleNode';
     };
 
     // Get all connected output nodes that need to be deleted
@@ -26,7 +26,7 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
       while (stack.length > 0) {
         const currentId = stack.pop()!;
         const connectedNodes = edges
-          .filter(edge => edge.source === currentId && isOutputNode(edge.target))
+          .filter(edge => edge.source === currentId && isOutputOrInvisibleNode(edge.target))
           .map(edge => edge.target);
         
         outputNodes.push(...connectedNodes);
@@ -36,9 +36,10 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
       return outputNodes;
     };
 
-    // Check if node has non-output children
+    // Check if node has non-output, non-invisible children
     const hasChildren = edges.some(edge => 
-      edge.source === clickedNodeId && !isOutputNode(edge.target)
+      edge.source === clickedNodeId && 
+      !isOutputOrInvisibleNode(edge.target)
     );
 
     if (hasChildren) {
@@ -48,7 +49,8 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
 
     // Find parent and check for siblings
     const parentEdge = edges.find(edge => 
-      edge.target === clickedNodeId && !isOutputNode(edge.source)
+      edge.target === clickedNodeId && 
+      !isOutputOrInvisibleNode(edge.source)
     );
 
     if (!parentEdge) {
@@ -60,7 +62,7 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
     const siblingEdges = edges.filter(edge => 
       edge.source === parentId && 
       edge.target !== clickedNodeId &&
-      !isOutputNode(edge.target)
+      !isOutputOrInvisibleNode(edge.target)
     );
 
     // Get all output nodes that need to be handled

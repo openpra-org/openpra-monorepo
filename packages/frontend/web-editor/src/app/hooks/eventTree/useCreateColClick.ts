@@ -96,8 +96,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
               source: newNodeId,
               target: edge.target,
               type: "custom",
-              animated:
-                edges.filter((edge) => edge.source === node.id).length > 1 || clickedNode.data.output ? false : true,
+              animated:false
             });
           }
         });
@@ -106,7 +105,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
           source: node.id,
           target: newNodeId,
           type: "custom",
-          animated: clickedNode.data.output ? false : true,
+          animated: false,
         });
 
         edges = edges.filter((e) => e.source !== node.id);

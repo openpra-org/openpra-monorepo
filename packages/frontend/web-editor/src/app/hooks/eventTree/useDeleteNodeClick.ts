@@ -78,7 +78,7 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
 
       const updatedEdges = edges.map(edge => {
         if (edge.target === clickedNodeId || connectedOutputNodes.includes(edge.target)) {
-          return { ...edge, animated: true };
+          return { ...edge, animated: false };
         }
         return edge;
       });

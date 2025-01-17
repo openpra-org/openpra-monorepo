@@ -35,7 +35,7 @@ describe("Quantify", () => {
     app.use(urlencoded({ extended: true, limit: "50mb" }));
     await app.init();
 
-    // // Initialize the consumer app
+    // Initialize the consumer app
     worker = workerModuleRef.createNestApplication();
     workerLogger = new Logger("Consumer");
     worker.useLogger(workerLogger);

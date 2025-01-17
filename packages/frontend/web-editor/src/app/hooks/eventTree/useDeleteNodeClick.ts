@@ -3,10 +3,13 @@ import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph"
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeState } from "../../../utils/treeUtils";
+import { UseToastContext } from "../../providers/toastProvider";
+import { GenerateUUID } from "../../../utils/treeUtils";
 
 function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
+  const { addToast } = UseToastContext();
 
   const deleteNode = () => {
     const nodes = getNodes();
@@ -43,7 +46,12 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
     );
 
     if (hasChildren) {
-      alert("Cannot delete this node. Please delete all child nodes first.");
+      addToast({
+        id: GenerateUUID(),
+        title: "Warning",
+        color: "warning",
+        text: "Cannot delete this node. Please delete all child nodes first."
+      });
       return;
     }
 

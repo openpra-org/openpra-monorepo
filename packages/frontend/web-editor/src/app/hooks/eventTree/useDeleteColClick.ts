@@ -2,10 +2,13 @@ import { useReactFlow, Node, Edge } from "reactflow";
 import { useParams } from "react-router-dom";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { EventTreeState } from "../../../utils/treeUtils";
+import { UseToastContext } from "../../providers/toastProvider";
+import { GenerateUUID } from "../../../utils/treeUtils";
 
 function useDeleteColClick(clickedColumnId: string) {
   const { setNodes, setEdges, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
+  const { addToast } = UseToastContext();
 
   const deleteColumn = () => {
     const nodes = getNodes();
@@ -20,7 +23,12 @@ function useDeleteColClick(clickedColumnId: string) {
     const hasVisibleNodes = nodesInColumn.some(node => node.type === 'visibleNode');
 
     if (hasVisibleNodes) {
-      alert("Cannot delete functional event with visible nodes. Please delete all nodes first.");
+      addToast({
+        id: GenerateUUID(),
+        title: "Warning",
+        color: "warning",
+        text: "Cannot delete a non-empty functional event"
+      });      
       return;
     }
 

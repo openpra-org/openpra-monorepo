@@ -45,9 +45,11 @@ export class ProducerService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap(): Promise<void> {
     try {
+      console.log("Producer is connecting to the broker");
       this.connection = await this.connectWithRetry(this.url, 3);
       this.channel = await this.connection.createChannel();
 
+      console.log("Producer is initializing the queues");
       await this.setupQueuesAndExchanges();
       this.logger.log("ProducerService initialized and ready to send messages.");
     } catch (error) {
@@ -80,11 +82,16 @@ export class ProducerService implements OnApplicationBootstrap {
         return;
       }
 
+      console.log("Producer gets the request body from the Quantification controller");
       const modelsData = typia.json.assertStringify<QuantifyRequest>(modelsWithConfigs);
+
+      console.log("Producer is queueing the quantification job");
       this.channel.sendToQueue(this.initialJobQ, Buffer.from(modelsData), {
         persistent: true,
       });
-      await this.quantificationJobModel.updateOne({ _id: modelsWithConfigs._id }, { $set: { status: "queued" } });
+      console.log("Producer has queued the quantification job");
+
+      //await this.quantificationJobModel.updateOne({ _id: modelsWithConfigs._id }, { $set: { status: "queued" } });
     } catch (error) {
       // Handle specific TypeGuardError for validation issues, logging the detailed path and expected type.
       // Log a generic error message for any other types of errors encountered during the process.

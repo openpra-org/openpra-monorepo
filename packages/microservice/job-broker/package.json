@@ -43,6 +43,7 @@
     "mongodb-memory-server": "9.1.1",
     "node-loader": "2.0.0",
     "swagger-ui-dist": "5.17.14",
-    "swagger-ui-express": "5.0.1"
+    "swagger-ui-express": "5.0.1",
+    "tsconfig-paths": "4.2.0"
   }
 }

@@ -21,9 +21,11 @@ import { JobBrokerModule } from "./job-broker.module";
  *          listening for incoming connections.
  */
 async function bootstrap(): Promise<void> {
+  console.log("Creating the app");
   // Creating an instance of the application by passing the root module (`JobBrokerModule`) to `NestFactory.create`.
   const app: INestApplication = await NestFactory.create(JobBrokerModule);
 
+  console.log("Attaching the exception filter");
   // Apply the HttpExceptionFilter globally to handle all HTTP exceptions.
   app.useGlobalFilters(new HttpExceptionFilter());
 
@@ -54,6 +56,7 @@ async function bootstrap(): Promise<void> {
     additional: true,
   })) as OpenAPIObject;
 
+  console.log("Exposing the API for documentation");
   SwaggerModule.setup("/q/docs", app, document, {
     customSiteTitle: "OpenPRA-MQ API Docs",
     explorer: true,
@@ -65,6 +68,7 @@ async function bootstrap(): Promise<void> {
   app.use(urlencoded({ extended: true, limit: "50mb" }));
 
   // Start listening for incoming requests on port 3000.
+  console.log("Starting the server");
   await app.listen(3_000);
 }
 

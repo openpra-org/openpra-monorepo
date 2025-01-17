@@ -98,6 +98,7 @@ export class StorageService implements OnApplicationBootstrap {
 
         try {
           // Serialize the message content into a QuantifyReport object for processing.
+          console.log("Storage service gets the result from the queue");
           const quantifiedReport: QuantifyReport = typia.json.assertParse<QuantifyReport>(msg.content.toString());
           // Create a new document from the parsed report and save it to the database.
           await this.quantificationJobModel.updateOne(
@@ -106,6 +107,7 @@ export class StorageService implements OnApplicationBootstrap {
           );
 
           // Acknowledge the original message to indicate successful processing.
+          console.log("Storage service is acknowledging the message");
           channel.ack(msg);
         } catch (error) {
           // Handle type validation errors, Mongoose validation errors, and other generic exceptions,

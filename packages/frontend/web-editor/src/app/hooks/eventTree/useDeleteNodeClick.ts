@@ -47,26 +47,17 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
       return;
     }
 
-    // Find parent and check for siblings
-    const parentEdge = edges.find(edge => 
-      edge.target === clickedNodeId && 
-      !isOutputOrInvisibleNode(edge.source)
-    );
+    // Get all output nodes that need to be handled
+    const connectedOutputNodes = getConnectedOutputNodes(clickedNodeId);
 
-    if (!parentEdge) {
-      alert("Cannot delete the root node");
-      return;
-    }
-
-    const parentId = parentEdge.source;
-    const siblingEdges = edges.filter(edge => 
+    // Find siblings (if any)
+    const parentEdge = edges.find(edge => edge.target === clickedNodeId);
+    const parentId = parentEdge?.source;
+    const siblingEdges = parentId ? edges.filter(edge => 
       edge.source === parentId && 
       edge.target !== clickedNodeId &&
       !isOutputOrInvisibleNode(edge.target)
-    );
-
-    // Get all output nodes that need to be handled
-    const connectedOutputNodes = getConnectedOutputNodes(clickedNodeId);
+    ) : [];
 
     if (siblingEdges.length === 0) {
       // No siblings - convert to invisible node

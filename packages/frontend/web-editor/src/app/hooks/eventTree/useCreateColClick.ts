@@ -3,15 +3,36 @@ import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
+import { UseToastContext } from "../../providers/toastProvider";
 
 function useCreateColClick(clickedNodeId: NodeProps["id"]) {
   const { setNodes, setEdges, getNodes, getEdges, getNode } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
+  const { addToast } = UseToastContext();
 
   const addCol = () => {
     // Get current nodes and edges
     const nodeData = getNodes();
     let edges = getEdges();
+    const clickedNode = getNode(clickedNodeId);
+    if (!clickedNode) return;
+
+    // Check if there are any visible nodes in the clicked column
+    const hasVisibleNodesInColumn = nodeData.some(node => 
+      node.type !== "columnNode" && 
+      node.type !== "invisibleNode" && 
+      node.data.depth === clickedNode.data.depth
+    );
+
+    if (!hasVisibleNodesInColumn) {
+      addToast({
+        id: GenerateUUID(),
+        title: "Warning",
+        color: "warning",
+        text: "At least one branch should exist in the current functional event to create a new one"
+      });
+      return;
+    }
 
     // splitting the nodeData into nodes and columns
     const nodes: Node[] = [];
@@ -31,8 +52,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
     let lastIndexOfPrevDepth = -1;
     let indexOfPrevCol = -1;
     const clickedNodeEdge = edges.find((edge) => edge.source === clickedNodeId);
-    const clickedNode = getNode(clickedNodeId);
-    if (!clickedNode) return; // Guard clause if clickedNode is not found
+   
 
     const clickedDepth = clickedNode.data.depth;
 

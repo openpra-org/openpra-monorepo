@@ -61,6 +61,7 @@ export class ConsumerService implements OnModuleInit {
    * @returns A promise that resolves when the module initialization process is complete.
    */
   public async onModuleInit(): Promise<void> {
+    console.log("Settings environment variables for the Consumer");
     // Verify that all required environment variables are available, logging an error and exiting if any are missing.
     const url: string = EnvVarKeys.RABBITMQ_URL;
     const initialJobQ: string = EnvVarKeys.QUANT_JOB_QUEUE_NAME;
@@ -99,10 +100,14 @@ export class ConsumerService implements OnModuleInit {
         try {
           // Convert the inputs/data into a JSON object and perform
           // the quantification using this JSON object
+          console.log("Consumer consumes the job from the queue");
           const modelsWithConfigs: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
           // Perform quantification based on the parsed request and generate a report.
           const { _id, ...configs } = modelsWithConfigs;
+
+          console.log("Consumer is performing the quantification");
           const result: QuantifyReport = this.performQuantification(configs);
+          console.log("Consumer is done with performing the quantification");
           result._id = _id;
           // Serialize the quantification report and send it to the storage queue.
           const report = typia.json.assertStringify<QuantifyReport>(result);
@@ -116,12 +121,14 @@ export class ConsumerService implements OnModuleInit {
           });
 
           // Send the report to the storage queue, marking the message as persistent.
+          console.log("Consumer is queueing the result");
           channel.sendToQueue(storageQ, Buffer.from(report), {
             persistent: true,
           });
 
           // Acknowledge the original message to indicate successful processing.
           channel.ack(msg);
+          console.log("Consumer has acknowledged");
         } catch (error) {
           // Handle validation errors and other generic exceptions, logging details and negatively
           // acknowledging the message.

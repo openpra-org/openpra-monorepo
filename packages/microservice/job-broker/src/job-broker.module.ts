@@ -1,7 +1,6 @@
 import { Module } from "@nestjs/common";
 import { APP_FILTER, RouterModule } from "@nestjs/core";
 import { MongooseModule } from "@nestjs/mongoose";
-import { ConfigModule, ConfigService } from "@nestjs/config";
 import { EnvVarKeys } from "../config/env_vars.config";
 import { HttpExceptionFilter } from "./http-exception.filter";
 import { JobBrokerController } from "./job-broker.controller";
@@ -18,13 +17,7 @@ import { ExecutableJobReport, ExecutableJobSchema } from "./middleware/schemas/e
     QuantificationModule,
     ValidationModule,
     ExecutableModule,
-    MongooseModule.forRootAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
-        uri: config.get<string>("MONGO_URL"),
-      }),
-    }),
+    MongooseModule.forRoot(EnvVarKeys.MONGODB_URI),
     MongooseModule.forFeature([
       { name: QuantificationJobReport.name, schema: QuantificationJobSchema },
       { name: ExecutableJobReport.name, schema: ExecutableJobSchema },

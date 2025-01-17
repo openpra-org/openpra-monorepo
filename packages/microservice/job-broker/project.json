@@ -26,7 +26,6 @@
         "main": "packages/microservice/job-broker/src/main.ts",
         "tsConfig": "packages/microservice/job-broker/tsconfig.app.json",
         "assets": ["packages/microservice/job-broker/src/assets"],
-        "isolatedConfig": true,
         "webpackConfig": "packages/microservice/job-broker/webpack.config.js"
       },
       "configurations": {
@@ -38,6 +37,8 @@
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
       "options": {
+        "inspect": true,
+        "port": 9229,
         "buildTarget": "microservice-job-broker:build"
       },
       "configurations": {
@@ -66,11 +67,10 @@
             }
           }
         ],
-        "outputPath": "dist/packages/microservice/job-broker/consumer",
+        "outputPath": "dist/packages/microservice/job-broker-consumer",
         "main": "packages/microservice/job-broker/src/main-consumer.ts",
         "tsConfig": "packages/microservice/job-broker/tsconfig.app.json",
         "assets": ["packages/microservice/job-broker/src/assets"],
-        "isolatedConfig": true,
         "webpackConfig": "packages/microservice/job-broker/webpack.config.js"
       },
       "configurations": {
@@ -82,6 +82,8 @@
       "executor": "@nx/js:node",
       "defaultConfiguration": "development",
       "options": {
+        "inspect": true,
+        "port": 9230,
         "buildTarget": "microservice-job-broker:build-consumer"
       },
       "configurations": {

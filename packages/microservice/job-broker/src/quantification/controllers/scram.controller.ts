@@ -27,6 +27,7 @@ export class ScramController {
   @TypedRoute.Post("/scram")
   public async createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): Promise<void> {
     try {
+      console.log("Sending the request to the producer");
       await this.producerService.createAndQueueQuant(quantRequest);
     } catch {
       throw new InternalServerErrorException("Server encountered a problem while queueing SCRAM quantification job.");

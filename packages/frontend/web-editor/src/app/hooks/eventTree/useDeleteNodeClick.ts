@@ -2,9 +2,8 @@ import { NodeProps, useReactFlow } from "reactflow";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
-import { EventTreeState } from "../../../utils/treeUtils";
+import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";
-import { GenerateUUID } from "../../../utils/treeUtils";
 
 function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
@@ -14,6 +13,25 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
   const deleteNode = () => {
     const nodes = getNodes();
     const edges = getEdges();
+
+     // Get the node to be deleted
+     const nodeToDelete = nodes.find(node => node.id === clickedNodeId);
+     if (!nodeToDelete) return;
+
+     // Check if it's a default success/failure node (depth 2 AND specific labels)
+     const isDefaultNode = 
+     nodeToDelete.data.depth === 2 && 
+     (nodeToDelete.data.label === "Success" || nodeToDelete.data.label === "Failure");
+
+   if (isDefaultNode) {
+     addToast({
+       id: GenerateUUID(),
+       title: "Warning",
+       color: "warning",
+       text: "Cannot delete default Success/Failure nodes of this functional event."
+     });
+     return;
+   }
 
     // Helper function to check if a node is an output node or invisible node
     const isOutputOrInvisibleNode = (nodeId: string): boolean => {

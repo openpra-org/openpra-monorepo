@@ -17,19 +17,41 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
     const clickedNode = getNode(clickedNodeId);
     if (!clickedNode) return;
 
+    const currentDepth = clickedNode.data.depth;
+
     // Check if there are any visible nodes in the clicked column
-    const hasVisibleNodesInColumn = nodeData.some(node => 
+    const hasVisibleNodesInCurrentColumn = nodeData.some(node => 
       node.type !== "columnNode" && 
       node.type !== "invisibleNode" && 
-      node.data.depth === clickedNode.data.depth
+      node.data.depth === currentDepth
     );
 
-    if (!hasVisibleNodesInColumn) {
+    if (!hasVisibleNodesInCurrentColumn) {
       addToast({
         id: GenerateUUID(),
         title: "Warning",
         color: "warning",
         text: "At least one branch should exist in the current functional event to create a new one"
+      });
+      return;
+    }
+
+    // Get nodes in the next column
+    const nextColumnNodes = nodeData.filter(node => 
+      node.type !== "columnNode" && 
+      node.data.depth === currentDepth + 1
+    );
+
+    // Check if next column has only invisible nodes (no output nodes)
+    const hasOnlyInvisibleNodes = nextColumnNodes.length > 0 && 
+      nextColumnNodes.every(node => node.type === "invisibleNode");
+
+    if (hasOnlyInvisibleNodes) {
+      addToast({
+        id: GenerateUUID(),
+        title: "Warning",
+        color: "warning",
+        text: "Cannot create a new functional event with an existing empty functional event"
       });
       return;
     }

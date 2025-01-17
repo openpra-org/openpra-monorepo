@@ -5,6 +5,7 @@ import { json, urlencoded } from "express";
 import request from "supertest";
 import { JobBrokerModule } from "../../src/job-broker.module";
 import { QuantificationConsumerModule } from "../../src/quantification/quantification-consumer.module";
+import { App } from "supertest/types";
 
 describe("Quantify", () => {
   let app: INestApplication;
@@ -13,7 +14,7 @@ describe("Quantify", () => {
   let workerLogger: Logger;
 
   // Read the data from XML file and convert it to base64 string
-  const xmlContent = fs.readFileSync("./fixtures/models/generic-openpsa-models/models/Aralia/ftr10.xml", {
+  const xmlContent = fs.readFileSync("./fixtures/models/generic-openpsa-models/models/Aralia/baobab3.xml", {
     encoding: "utf8",
   });
   const model = Buffer.from(xmlContent, "utf-8").toString("base64");
@@ -35,11 +36,11 @@ describe("Quantify", () => {
     app.use(urlencoded({ extended: true, limit: "50mb" }));
     await app.init();
 
-    // Initialize the consumer app
-    worker = workerModuleRef.createNestApplication();
-    workerLogger = new Logger("Consumer");
-    worker.useLogger(workerLogger);
-    await worker.init();
+    // // Initialize the consumer app
+    // worker = workerModuleRef.createNestApplication();
+    // workerLogger = new Logger("Consumer");
+    // worker.useLogger(workerLogger);
+    // await worker.init();
   });
 
   afterAll(async () => {
@@ -48,12 +49,12 @@ describe("Quantify", () => {
 
   for (let i = 0; i < 1000; i++) {
     it("Should queue a quantification job", () => {
-      return request(app.getHttpServer())
-        .post("/q/quantify/scram")
+      return request(https://review-cherry-pick-tests-openpra-169.app.openpra.org)
+        .post("https://review-cherry-pick-tests-openpra-169.app.openpra.org/q/quantify/scram")
         .send({
-          bdd: true,
-          "limit-order": 1000,
+          mocus: true,
           probability: true,
+          mcub: true,
           models: [model],
         })
         .set("Accept", "application/json")

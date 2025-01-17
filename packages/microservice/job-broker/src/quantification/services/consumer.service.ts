@@ -105,9 +105,9 @@ export class ConsumerService implements OnModuleInit {
           // Perform quantification based on the parsed request and generate a report.
           const { _id, ...configs } = modelsWithConfigs;
 
-          console.log("Consumer is performing the quantification");
+          console.log(`${String(_id)}: Consumer is performing the quantification`);
           const result: QuantifyReport = this.performQuantification(configs);
-          console.log("Consumer is done with performing the quantification");
+          console.log(`${String(_id)}: Consumer is done with performing the quantification`);
           result._id = _id;
           // Serialize the quantification report and send it to the storage queue.
           const report = typia.json.assertStringify<QuantifyReport>(result);
@@ -121,14 +121,14 @@ export class ConsumerService implements OnModuleInit {
           });
 
           // Send the report to the storage queue, marking the message as persistent.
-          console.log("Consumer is queueing the result");
+          console.log(`${String(_id)}: Consumer is queueing the result`);
           channel.sendToQueue(storageQ, Buffer.from(report), {
             persistent: true,
           });
 
           // Acknowledge the original message to indicate successful processing.
           channel.ack(msg);
-          console.log("Consumer has acknowledged");
+          console.log(`${String(_id)}: Consumer has acknowledged`);
         } catch (error) {
           // Handle validation errors and other generic exceptions, logging details and negatively
           // acknowledging the message.
@@ -171,7 +171,9 @@ export class ConsumerService implements OnModuleInit {
     try {
       // Invoke the SCRAM CLI with the updated request, which now includes file paths
       // to the input model and output files.
+      console.log(`${JSON.stringify(modelsWithConfigs)} is running`);
       RunScramCli(modelsWithConfigs);
+      console.log(`${JSON.stringify(modelsWithConfigs)} has been quantified`);
 
       // Read the quantification results from the output file.
       const outputContent = readFileSync(outputFilePath, "utf8");
@@ -183,6 +185,7 @@ export class ConsumerService implements OnModuleInit {
     } catch (error) {
       // In case of an error during quantification, return a report indicating the failure.
       this.logger.error(error);
+      console.log(error);
       return {
         results: ["Error during SCRAM CLI operation"],
       };

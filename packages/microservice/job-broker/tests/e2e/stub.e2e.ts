@@ -5,7 +5,6 @@ import { json, urlencoded } from "express";
 import request from "supertest";
 import { JobBrokerModule } from "../../src/job-broker.module";
 import { QuantificationConsumerModule } from "../../src/quantification/quantification-consumer.module";
-import { App } from "supertest/types";
 
 describe("Quantify", () => {
   let app: INestApplication;
@@ -37,10 +36,10 @@ describe("Quantify", () => {
     await app.init();
 
     // // Initialize the consumer app
-    // worker = workerModuleRef.createNestApplication();
-    // workerLogger = new Logger("Consumer");
-    // worker.useLogger(workerLogger);
-    // await worker.init();
+    worker = workerModuleRef.createNestApplication();
+    workerLogger = new Logger("Consumer");
+    worker.useLogger(workerLogger);
+    await worker.init();
   });
 
   afterAll(async () => {
@@ -49,7 +48,7 @@ describe("Quantify", () => {
 
   for (let i = 0; i < 1000; i++) {
     it("Should queue a quantification job", () => {
-      return request(https://review-cherry-pick-tests-openpra-169.app.openpra.org)
+      return request(app.getHttpServer())
         .post("https://review-cherry-pick-tests-openpra-169.app.openpra.org/q/quantify/scram")
         .send({
           mocus: true,

@@ -4,15 +4,20 @@ import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import tmp from "tmp";
 import typia, { TypeGuardError } from "typia";
-import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 import { RunScramCli } from "scram-node";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { EnvVarKeys } from "../../../config/env_vars.config";
+import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 
 @Injectable()
 export class ConsumerService implements OnModuleInit {
   // Importing ConfigService for accessing environment variables.
   private readonly logger = new Logger(ConsumerService.name);
+  constructor(
+    @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
+  ) {}
 
   /**
    * Attempts to establish a connection to the RabbitMQ server with retry logic.
@@ -65,7 +70,6 @@ export class ConsumerService implements OnModuleInit {
     // Verify that all required environment variables are available, logging an error and exiting if any are missing.
     const url: string = EnvVarKeys.RABBITMQ_URL;
     const initialJobQ: string = EnvVarKeys.QUANT_JOB_QUEUE_NAME;
-    const storageQ: string = EnvVarKeys.QUANT_STORAGE_QUEUE_NAME;
     const deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
     const deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;
 
@@ -98,35 +102,11 @@ export class ConsumerService implements OnModuleInit {
         }
 
         try {
-          // Convert the inputs/data into a JSON object and perform
-          // the quantification using this JSON object
-          console.log("Consumer consumes the job from the queue");
-          const modelsWithConfigs: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
-          // Perform quantification based on the parsed request and generate a report.
-          const { _id, ...configs } = modelsWithConfigs;
+          const modelsData: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
+          const { _id, ...modelsWithConfigs } = modelsData;
+          const result: string[] = this.performQuantification(modelsWithConfigs);
+          await this.quantificationJobModel.findByIdAndUpdate(_id, { $set: { results: result, status: "completed" } });
 
-          console.log(`${String(_id)}: Consumer is performing the quantification`);
-          const result: QuantifyReport = this.performQuantification(configs);
-          console.log(`${String(_id)}: Consumer is done with performing the quantification`);
-          result._id = _id;
-          // Serialize the quantification report and send it to the storage queue.
-          const report = typia.json.assertStringify<QuantifyReport>(result);
-
-          // Configure the storage queue for storing completed jobs, including dead letter handling.
-          await channel.assertQueue(storageQ, {
-            durable: true,
-            deadLetterExchange: deadLetterX,
-            messageTtl: 60000,
-            maxLength: 10000,
-          });
-
-          // Send the report to the storage queue, marking the message as persistent.
-          console.log(`${String(_id)}: Consumer is queueing the result`);
-          channel.sendToQueue(storageQ, Buffer.from(report), {
-            persistent: true,
-          });
-
-          // Acknowledge the original message to indicate successful processing.
           channel.ack(msg);
           console.log(`${String(_id)}: Consumer has acknowledged`);
         } catch (error) {
@@ -156,7 +136,7 @@ export class ConsumerService implements OnModuleInit {
    * @param modelsWithConfigs - The quantification request containing model data and configurations.
    * @returns A `QuantifyReport` object containing the results of the quantification process.
    */
-  public performQuantification(modelsWithConfigs: QuantifyRequest): { results: string[] } {
+  public performQuantification(modelsWithConfigs: QuantifyRequest): string[] {
     // Extract model data from the request.
     const models = modelsWithConfigs.models;
 
@@ -179,16 +159,11 @@ export class ConsumerService implements OnModuleInit {
       const outputContent = readFileSync(outputFilePath, "utf8");
 
       // Construct and return the quantification report along with the configurations.
-      return {
-        results: [outputContent], // The quantification results.
-      };
+      return [outputContent]; // The quantification results.
     } catch (error) {
       // In case of an error during quantification, return a report indicating the failure.
       this.logger.error(error);
-      console.log(error);
-      return {
-        results: ["Error during SCRAM CLI operation"],
-      };
+      return ["Error during scram-cli operation"];
     } finally {
       // Cleanup: Remove all temporary files created during the process.
       modelFilePaths.forEach(unlinkSync); // Remove model data files.

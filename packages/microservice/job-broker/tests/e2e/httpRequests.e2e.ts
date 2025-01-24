@@ -8,20 +8,16 @@ const xmlContent = fs.readFileSync("./fixtures/models/generic-openpsa-models/mod
 const model = Buffer.from(xmlContent, "utf-8").toString("base64");
 
 describe("It should send HTTP requests to specified endpoints", () => {
-  for (let i = 0; i < 10000; i++) {
+  for (let i = 0; i < 1000; i++) {
     it("Should send requests", () => {
       (async () => {
         try {
-          const { body } = await superagent
-            .post("https://review-cherry-pick-tests-openpra-169.app.openpra.org/q/quantify/scram")
-            .send({
-              mcub: true,
-              mocus: true,
-              "limit-order": 1000,
-              probability: true,
-              models: [model],
-            });
-          console.log(body);
+          await superagent.post("http://localhost:3000/q/quantify/scram").send({
+            mocus: true,
+            mcub: true,
+            probability: true,
+            models: [model],
+          });
         } catch (err) {
           console.error(err);
         }

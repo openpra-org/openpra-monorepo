@@ -86,8 +86,7 @@ export class ConsumerService implements OnModuleInit {
     await channel.assertQueue(initialJobQ, {
       durable: true,
       deadLetterExchange: deadLetterX,
-      messageTtl: 60000,
-      maxLength: 10000,
+      messageTtl: 30000,
     });
     await channel.prefetch(1);
 

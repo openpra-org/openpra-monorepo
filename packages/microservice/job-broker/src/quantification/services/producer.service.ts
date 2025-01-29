@@ -64,8 +64,7 @@ export class ProducerService implements OnApplicationBootstrap {
     await this.channel.assertQueue(this.initialJobQ, {
       durable: true,
       deadLetterExchange: this.deadLetterX,
-      messageTtl: 60000,
-      maxLength: 10000,
+      messageTtl: 30000,
     });
   }
 

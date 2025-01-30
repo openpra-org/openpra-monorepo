@@ -78,9 +78,6 @@ export class QuantificationJobRequest {
 
   @Prop({ required: false })
   output?: string;
-
-  @Prop({ required: true })
-  models!: string[];
 }
 
 @Schema({
@@ -93,6 +90,9 @@ class ExecutionTime {
 
   @Prop({ required: false })
   http_request_processing?: number;
+
+  @Prop({ required: false })
+  latency?: number;
 
   @Prop({ required: false })
   perform_quantification?: number;
@@ -120,9 +120,6 @@ export class QuantificationJobReport {
 
   @Prop({ required: false })
   configuration?: QuantificationJobRequest;
-
-  @Prop({ required: false })
-  results?: string[];
 
   @Prop({ required: false })
   execution_time?: ExecutionTime;

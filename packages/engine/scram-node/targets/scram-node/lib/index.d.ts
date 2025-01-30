@@ -1,6 +1,6 @@
 declare module "scram-node" {
   import { Callback } from "napi";
-  import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+  import { PerformQuantificationBody, QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
   /**
    * @remarks Defines a class for asynchronous execution of SCRAM engine.
    *
@@ -23,7 +23,6 @@ declare module "scram-node" {
      * It's called automatically by the Node.js event loop.
      */
     execute(): void;
-
 
     /**
      * @remarks - Callback method called upon successful execution.
@@ -71,5 +70,5 @@ declare module "scram-node" {
    * @param info - The callback info from Node.js, containing the input arguments.
    * @returns Returns undefined on success, or throws a JavaScript exception on error.
    */
-  export function RunScramCli(info: QuantifyRequest): void;
+  export function RunScramCli(info: PerformQuantificationBody): void;
 }

@@ -7,7 +7,7 @@ import typia, { TypeGuardError } from "typia";
 import { RunScramCli } from "scram-node";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { PerformQuantificationBody, QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 
@@ -101,7 +101,13 @@ export class ConsumerService implements OnModuleInit {
 
         try {
           const modelsData: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
-          const { model_name, _id, ...modelsWithConfigs } = modelsData;
+          const latencyEndTime = Date.now();
+          const latency = latencyEndTime - modelsData.latencyStartTime!;
+          await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
+            $set: { "execution_time.latency": latency },
+          });
+
+          const modelsWithConfigs = { ...modelsData.configuration, models: modelsData.models };
 
           const result:
             | { results: string[]; preProcessing: number; quantification: number; postProcessing: number }
@@ -109,15 +115,15 @@ export class ConsumerService implements OnModuleInit {
           if (result instanceof Error) {
             channel.nack(msg);
           } else {
-            await this.quantificationJobModel.findByIdAndUpdate(_id, {
-              $set: { model_name: model_name, results: result.results, status: "completed" },
+            await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
+              $set: { model_name: modelsData.model_name, status: "completed" },
             });
 
             const postProcessingEnd = performance.now();
             const postProcessingTime = postProcessingEnd - result.postProcessing;
             const preProcessingAndPostProcessing = result.preProcessing + postProcessingTime;
 
-            await this.quantificationJobModel.findByIdAndUpdate(_id, {
+            await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
               $set: {
                 "execution_time.perform_quantification": result.quantification,
                 "execution_time.preprocessing_and_postprocessing": preProcessingAndPostProcessing,
@@ -154,7 +160,7 @@ export class ConsumerService implements OnModuleInit {
    * @returns A `QuantifyReport` object containing the results of the quantification process.
    */
   public performQuantification(
-    modelsWithConfigs: QuantifyRequest,
+    modelsWithConfigs: PerformQuantificationBody,
   ): { results: string[]; preProcessing: number; quantification: number; postProcessing: number } | Error {
     let startTime = performance.now();
 

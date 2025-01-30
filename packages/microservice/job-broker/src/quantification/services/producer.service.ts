@@ -72,6 +72,8 @@ export class ProducerService implements OnApplicationBootstrap {
         return;
       }
 
+      const latencyStartTime = Date.now();
+      quantRequest.latencyStartTime = latencyStartTime;
       const modelsData = typia.json.assertStringify<QuantifyRequest>(quantRequest);
       this.channel.sendToQueue(this.initialJobQ, Buffer.from(modelsData), {
         persistent: true,

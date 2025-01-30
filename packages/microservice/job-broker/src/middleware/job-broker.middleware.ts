@@ -28,15 +28,14 @@ export class JobBrokerMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     if (this.isQuantifyRequest(req.body)) {
       const startTime = performance.now();
-      const quantificationJob = await this.quantificationJobModel.create({ configuration: req.body });
+      const quantificationJob = await this.quantificationJobModel.create({ configuration: req.body.configuration });
       const jobId = quantificationJob._id.toString();
+      req.body._id = jobId;
       const endTime = performance.now();
 
       await this.quantificationJobModel.findByIdAndUpdate(jobId, {
         $set: { "execution_time.mongodb_crud": endTime - startTime },
       });
-
-      req.body._id = jobId;
     } else if (this.isExecutionTask(req.body)) {
       const executableJob = await this.executableJobModel.create({ task: req.body });
       req.body._id = executableJob._id.toString();

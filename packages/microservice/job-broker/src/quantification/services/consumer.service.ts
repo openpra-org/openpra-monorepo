@@ -66,7 +66,6 @@ export class ConsumerService implements OnModuleInit {
    * @returns A promise that resolves when the module initialization process is complete.
    */
   public async onModuleInit(): Promise<void> {
-    console.log("Settings environment variables for the Consumer");
     // Verify that all required environment variables are available, logging an error and exiting if any are missing.
     const url: string = EnvVarKeys.RABBITMQ_URL;
     const initialJobQ: string = EnvVarKeys.QUANT_JOB_QUEUE_NAME;
@@ -102,12 +101,31 @@ export class ConsumerService implements OnModuleInit {
 
         try {
           const modelsData: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
-          const { _id, ...modelsWithConfigs } = modelsData;
-          const result: string[] = this.performQuantification(modelsWithConfigs);
-          await this.quantificationJobModel.findByIdAndUpdate(_id, { $set: { results: result, status: "completed" } });
+          const { model_name, _id, ...modelsWithConfigs } = modelsData;
 
-          channel.ack(msg);
-          console.log(`${String(_id)}: Consumer has acknowledged`);
+          const result:
+            | { results: string[]; preProcessing: number; quantification: number; postProcessing: number }
+            | Error = this.performQuantification(modelsWithConfigs);
+          if (result instanceof Error) {
+            channel.nack(msg);
+          } else {
+            await this.quantificationJobModel.findByIdAndUpdate(_id, {
+              $set: { model_name: model_name, results: result.results, status: "completed" },
+            });
+
+            const postProcessingEnd = performance.now();
+            const postProcessingTime = postProcessingEnd - result.postProcessing;
+            const preProcessingAndPostProcessing = result.preProcessing + postProcessingTime;
+
+            await this.quantificationJobModel.findByIdAndUpdate(_id, {
+              $set: {
+                "execution_time.perform_quantification": result.quantification,
+                "execution_time.preprocessing_and_postprocessing": preProcessingAndPostProcessing,
+              },
+            });
+
+            channel.ack(msg);
+          }
         } catch (error) {
           // Handle validation errors and other generic exceptions, logging details and negatively
           // acknowledging the message.
@@ -135,7 +153,11 @@ export class ConsumerService implements OnModuleInit {
    * @param modelsWithConfigs - The quantification request containing model data and configurations.
    * @returns A `QuantifyReport` object containing the results of the quantification process.
    */
-  public performQuantification(modelsWithConfigs: QuantifyRequest): string[] {
+  public performQuantification(
+    modelsWithConfigs: QuantifyRequest,
+  ): { results: string[]; preProcessing: number; quantification: number; postProcessing: number } | Error {
+    let startTime = performance.now();
+
     // Extract model data from the request.
     const models = modelsWithConfigs.models;
 
@@ -147,22 +169,32 @@ export class ConsumerService implements OnModuleInit {
     const outputFilePath = String(tmp.fileSync({ prefix: "result", postfix: ".xml" }).name);
     modelsWithConfigs.output = outputFilePath;
 
+    let endTime = performance.now();
+    const preProcessingTime = endTime - startTime;
+
     try {
       // Invoke the SCRAM CLI with the updated request, which now includes file paths
       // to the input model and output files.
-      console.log(`${JSON.stringify(modelsWithConfigs)} is running`);
+      startTime = performance.now();
       RunScramCli(modelsWithConfigs);
-      console.log(`${JSON.stringify(modelsWithConfigs)} has been quantified`);
+      endTime = performance.now();
+      const quantificationTime = endTime - startTime;
 
+      const postProcessingStart = performance.now();
       // Read the quantification results from the output file.
       const outputContent = readFileSync(outputFilePath, "utf8");
 
       // Construct and return the quantification report along with the configurations.
-      return [outputContent]; // The quantification results.
+      return {
+        results: [outputContent],
+        preProcessing: preProcessingTime,
+        quantification: quantificationTime,
+        postProcessing: postProcessingStart,
+      }; // The quantification results.
     } catch (error) {
       // In case of an error during quantification, return a report indicating the failure.
       this.logger.error(error);
-      return ["Error during scram-cli operation"];
+      return error as Error;
     } finally {
       // Cleanup: Remove all temporary files created during the process.
       modelFilePaths.forEach(unlinkSync); // Remove model data files.

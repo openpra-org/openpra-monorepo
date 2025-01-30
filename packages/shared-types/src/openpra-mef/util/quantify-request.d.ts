@@ -98,6 +98,11 @@ export interface CommandLineOptions {
 
 export interface QuantifyRequest2 {
   /**
+   * Name of the model followed by the number of requests sent
+   * For example: "baobab3-500" means we are quantifying 500 requests containing baobab3 model
+   */
+  model_name?: string;
+  /**
    * BSON type ID of the MongoDB document
    */
   _id?: string;

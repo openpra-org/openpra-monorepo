@@ -83,6 +83,24 @@ export class QuantificationJobRequest {
   models!: string[];
 }
 
+@Schema({
+  _id: false,
+  versionKey: false,
+})
+class ExecutionTime {
+  @Prop({ required: false })
+  mongodb_crud?: number;
+
+  @Prop({ required: false })
+  http_request_processing?: number;
+
+  @Prop({ required: false })
+  perform_quantification?: number;
+
+  @Prop({ required: false })
+  preprocessing_and_postprocessing?: number;
+}
+
 /**
  * Schema definition for a quantified report.
  *
@@ -91,6 +109,9 @@ export class QuantificationJobRequest {
  */
 @Schema()
 export class QuantificationJobReport {
+  @Prop({ required: false })
+  model_name?: string;
+
   @Prop({ required: false, default: "pending" })
   status?: string;
 
@@ -102,6 +123,9 @@ export class QuantificationJobReport {
 
   @Prop({ required: false })
   results?: string[];
+
+  @Prop({ required: false })
+  execution_time?: ExecutionTime;
 }
 
 export const QuantificationJobSchema = SchemaFactory.createForClass(QuantificationJobReport);

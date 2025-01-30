@@ -9,7 +9,7 @@ export class StorageService {
     @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
   ) {}
 
-  public async getQuantifiedReports(): Promise<QuantificationJobReport[]> {
-    return this.quantificationJobModel.find();
+  public async getQuantifiedReports(modelName: string): Promise<QuantificationJobReport[]> {
+    return this.quantificationJobModel.find({ model_name: modelName });
   }
 }

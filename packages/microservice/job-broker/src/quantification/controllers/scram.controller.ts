@@ -1,6 +1,8 @@
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
-import { TypedRoute, TypedBody } from "@nestia/core";
+import { TypedRoute, TypedBody, TypedParam } from "@nestia/core";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
 import { ProducerService } from "../services/producer.service";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 import { StorageService } from "../services/storage.service";
@@ -11,10 +13,12 @@ export class ScramController {
    * Constructs the ScramController with the necessary service.
    * @param producerService - The service to handle creation and queueing of quantification jobs.
    * @param storageService - The service to retrieve quantified reports
+   * @param quantificationJobModel
    */
   constructor(
     private readonly producerService: ProducerService,
     private readonly storageService: StorageService,
+    @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
   ) {}
 
   /**
@@ -25,9 +29,15 @@ export class ScramController {
    * @throws {@link InternalServerErrorException} When there is a problem queueing the quantification job.
    */
   @TypedRoute.Post("/scram")
-  public createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): void {
+  public async createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): Promise<void> {
     try {
+      const startTime = performance.now();
       this.producerService.createAndQueueQuant(quantRequest);
+      const endTime = performance.now();
+
+      await this.quantificationJobModel.findByIdAndUpdate(quantRequest._id, {
+        $set: { "execution_time.http_request_processing": endTime - startTime },
+      });
     } catch {
       throw new InternalServerErrorException("Server encountered a problem while queueing SCRAM quantification job.");
     }
@@ -39,10 +49,10 @@ export class ScramController {
    * @returns A promise that resolves to an array of QuantifiedReport objects.
    * @throws {@link NotFoundException} Throws an exception if the server is unable to find the requested list of quantified reports.
    */
-  @TypedRoute.Get("/scram")
-  public async getQuantifiedReports(): Promise<QuantificationJobReport[]> {
+  @TypedRoute.Get("/scram/:model_name")
+  public async getQuantifiedReports(@TypedParam("model_name") model_name: string): Promise<QuantificationJobReport[]> {
     try {
-      return this.storageService.getQuantifiedReports();
+      return this.storageService.getQuantifiedReports(model_name);
     } catch {
       throw new NotFoundException("Server was unable to find the requested list of quantified reports.");
     }

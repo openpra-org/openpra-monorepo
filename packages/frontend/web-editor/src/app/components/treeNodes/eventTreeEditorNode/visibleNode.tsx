@@ -32,22 +32,24 @@ function VisibleNode({ id, data }: NodeProps) {
           textAlign: "center",
         }}
       >
-        <div 
+        <div
           className={styles.inputNode}
-          onDoubleClick={() => setIsEditingProb(true)}
+          onDoubleClick={() => {
+            setIsEditingProb(true);
+          }}
         >
           {isEditingProb ? (
             <input
               type="text"
               defaultValue={data.probability?.toFixed(2) || "0.55"}
-              style={{ 
-                fontSize: "0.7rem", 
+              style={{
+                fontSize: "0.7rem",
                 width: "100%",
                 height: "1.2rem",
                 textAlign: "center",
                 border: "none",
                 background: "transparent",
-                outline: "none"
+                outline: "none",
               }}
               onBlur={(e) => {
                 const value = Math.min(1, Math.max(0, parseFloat(e.target.value) || 0));
@@ -57,25 +59,27 @@ function VisibleNode({ id, data }: NodeProps) {
               autoFocus
             />
           ) : (
-            <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>
-              {data.probability?.toFixed(2) || "0.55"}
-            </EuiText>
+            <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>{data.probability?.toFixed(2) || "0.55"}</EuiText>
           )}
         </div>
 
-        <div onDoubleClick={() => setIsEditingLabel(true)}>
+        <div
+          onDoubleClick={() => {
+            setIsEditingLabel(true);
+          }}
+        >
           {isEditingLabel ? (
             <input
               type="text"
               defaultValue={data.label}
-              style={{ 
+              style={{
                 fontSize: "0.7rem",
                 width: "100%",
                 height: "1.2rem",
                 textAlign: "center",
                 border: "none",
                 background: "transparent",
-                outline: "none"
+                outline: "none",
               }}
               onBlur={(e) => {
                 data.label = e.target.value;
@@ -84,9 +88,7 @@ function VisibleNode({ id, data }: NodeProps) {
               autoFocus
             />
           ) : (
-            <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>
-              {data.label}
-            </EuiText>
+            <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>{data.label}</EuiText>
           )}
         </div>
 

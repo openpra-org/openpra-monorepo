@@ -27,10 +27,12 @@ function ColumnNode({ id, data }: NodeProps) {
   }, [textareaValue, updateNodeInternals, id]);
 
   const canShowDeleteButton = (): boolean => {
-    return !data.output && // not an output column
-           data.depth !== 1 && // not initiating event
-           data.depth !== 2 && // not first functional event
-           data.allowDelete; // controlled by parent based on node visibility
+    return (
+      !data.output && // not an output column
+      data.depth !== 1 && // not initiating event
+      data.depth !== 2 && // not first functional event
+      data.allowDelete
+    ); // controlled by parent based on node visibility
   };
 
   return (
@@ -77,7 +79,7 @@ function ColumnNode({ id, data }: NodeProps) {
             rows={1}
             cols={1}
           />
-          
+
           <div className={styles.columnButtons}>
             {allowAdd && (
               <span

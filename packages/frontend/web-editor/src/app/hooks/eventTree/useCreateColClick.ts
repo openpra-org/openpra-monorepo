@@ -20,10 +20,8 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
     const currentDepth = clickedNode.data.depth;
 
     // Check if there are any visible nodes in the clicked column
-    const hasVisibleNodesInCurrentColumn = nodeData.some(node => 
-      node.type !== "columnNode" && 
-      node.type !== "invisibleNode" && 
-      node.data.depth === currentDepth
+    const hasVisibleNodesInCurrentColumn = nodeData.some(
+      (node) => node.type !== "columnNode" && node.type !== "invisibleNode" && node.data.depth === currentDepth,
     );
 
     if (!hasVisibleNodesInCurrentColumn) {
@@ -31,27 +29,26 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         id: GenerateUUID(),
         title: "Warning",
         color: "warning",
-        text: "At least one branch should exist in the current functional event to create a new one"
+        text: "At least one branch should exist in the current functional event to create a new one",
       });
       return;
     }
 
     // Get nodes in the next column
-    const nextColumnNodes = nodeData.filter(node => 
-      node.type !== "columnNode" && 
-      node.data.depth === currentDepth + 1
+    const nextColumnNodes = nodeData.filter(
+      (node) => node.type !== "columnNode" && node.data.depth === currentDepth + 1,
     );
 
     // Check if next column has only invisible nodes (no output nodes)
-    const hasOnlyInvisibleNodes = nextColumnNodes.length > 0 && 
-      nextColumnNodes.every(node => node.type === "invisibleNode");
+    const hasOnlyInvisibleNodes =
+      nextColumnNodes.length > 0 && nextColumnNodes.every((node) => node.type === "invisibleNode");
 
     if (hasOnlyInvisibleNodes) {
       addToast({
         id: GenerateUUID(),
         title: "Warning",
         color: "warning",
-        text: "Cannot create a new functional event with an existing empty functional event"
+        text: "Cannot create a new functional event with an existing empty functional event",
       });
       return;
     }
@@ -74,7 +71,6 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
     let lastIndexOfPrevDepth = -1;
     let indexOfPrevCol = -1;
     const clickedNodeEdge = edges.find((edge) => edge.source === clickedNodeId);
-   
 
     const clickedDepth = clickedNode.data.depth;
 
@@ -118,7 +114,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
               source: newNodeId,
               target: edge.target,
               type: "custom",
-              animated:false
+              animated: false,
             });
           }
         });
@@ -146,10 +142,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         width: clickedNode.data.width,
         output: clickedNode.data.output,
         allowAdd: true,
-        allowDelete: !clickedNode.data.output &&
-                    (clickedDepth + 1) !== 1 &&
-                    (clickedDepth + 1) !== 2 &&
-                    true,
+        allowDelete: !clickedNode.data.output && clickedDepth + 1 !== 1 && clickedDepth + 1 !== 2 && true,
       },
       position: {
         x: clickedNode ? clickedNode.position.x : 0,

@@ -1,0 +1,17 @@
+{
+  "name": "schema-viewer",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "prebuild": "node scripts/build.js",
+    "build": "tsc",
+    "serve": "http-server dist -o -c-1",
+    "watch": "tsc-watch --onSuccess \"node scripts/build.js\""
+  },
+  "devDependencies": {
+    "typescript": "^4.9.5",
+    "tsc-watch": "^6.0.4",
+    "http-server": "^14.1.1",
+    "@types/node": "^18.0.0"
+  }
+} 

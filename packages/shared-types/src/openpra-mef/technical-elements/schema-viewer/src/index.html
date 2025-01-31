@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technical Elements Schema Viewer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app">
+        <header>
+            <h1>Technical Elements Schema Viewer</h1>
+            <div class="search-container">
+                <input type="text" id="search" placeholder="Search schemas...">
+            </div>
+        </header>
+        
+        <main>
+            <nav class="schema-tree">
+                <h2>Schema Files</h2>
+                <div id="fileTree"></div>
+            </nav>
+            
+            <section class="schema-content">
+                <div id="schemaDetails"></div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module">
+        import { SchemaViewer } from './main.js';
+        window.addEventListener('DOMContentLoaded', () => {
+            new SchemaViewer();
+        });
+    </script>
+</body>
+</html> 

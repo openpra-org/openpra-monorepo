@@ -3,35 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Technical Elements Schema Viewer</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Technical Elements Schema Documentation</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --background-color: #f8f9fa;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--background-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .content {
+            flex: 1;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .type-list {
+            margin-bottom: 2rem;
+        }
+
+        .type-list select {
+            width: 100%;
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+
+        .schema-viewer {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .schema-section {
+            margin-bottom: 2rem;
+        }
+
+        .schema-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        .property {
+            margin: 1rem 0;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
+        }
+
+        .property-name {
+            font-weight: 600;
+            color: var(--secondary-color);
+        }
+
+        .property-type {
+            color: #e83e8c;
+            font-family: monospace;
+        }
+
+        .property-required {
+            color: #dc3545;
+            font-size: 0.875rem;
+            margin-left: 0.5rem;
+        }
+
+        .property-description {
+            margin-top: 0.5rem;
+            color: #666;
+        }
+
+        .property-ref {
+            color: var(--secondary-color);
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .property-ref:hover {
+            text-decoration: underline;
+        }
+
+        .error {
+            color: #dc3545;
+            padding: 1rem;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+    </style>
 </head>
 <body>
-    <div class="app">
-        <header>
-            <h1>Technical Elements Schema Viewer</h1>
-            <div class="search-container">
-                <input type="text" id="search" placeholder="Search schemas...">
-            </div>
-        </header>
-        
-        <main>
-            <nav class="schema-tree">
-                <h2>Schema Files</h2>
-                <div id="fileTree"></div>
-            </nav>
-            
-            <section class="schema-content">
-                <div id="schemaDetails"></div>
-            </section>
-        </main>
-    </div>
+    <header class="header">
+        <h1>Technical Elements Schema Documentation</h1>
+    </header>
+    
+    <main class="content">
+        <div class="type-list">
+            <select id="type-selector">
+                <option value="">Loading types...</option>
+            </select>
+        </div>
+        <div id="schema-viewer" class="schema-viewer"></div>
+    </main>
 
-    <script type="module">
-        import { SchemaViewer } from './main.js';
-        window.addEventListener('DOMContentLoaded', () => {
-            new SchemaViewer();
-        });
+    <script>
+        function renderType(type, schema, definitions) {
+            if (type.startsWith('#/definitions/')) {
+                const refType = type.replace('#/definitions/', '');
+                return `<a class="property-ref" onclick="selectType('${refType}')">${refType}</a>`;
+            }
+            return type;
+        }
+
+        function renderProperty(name, prop, required = []) {
+            const isRequired = required.includes(name);
+            const type = prop.$ref ? renderType(prop.$ref, null, null) : prop.type;
+            
+            return `
+                <div class="property">
+                    <div>
+                        <span class="property-name">${name}</span>
+                        <span class="property-type">${type}</span>
+                        ${isRequired ? '<span class="property-required">required</span>' : ''}
+                    </div>
+                    ${prop.description ? `<div class="property-description">${prop.description}</div>` : ''}
+                </div>
+            `;
+        }
+
+        function renderSchema(name, schema) {
+            const properties = schema.properties || {};
+            const required = schema.required || [];
+            
+            return `
+                <div class="schema-section">
+                    <div class="schema-title">${name}</div>
+                    ${schema.description ? `<div class="property-description">${schema.description}</div>` : ''}
+                    ${Object.entries(properties)
+                        .map(([propName, prop]) => renderProperty(propName, prop, required))
+                        .join('')}
+                </div>
+            `;
+        }
+
+        async function init() {
+            try {
+                const response = await fetch('schema.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const schema = await response.json();
+                const definitions = schema.definitions || {};
+                const types = Object.keys(definitions).sort();
+                
+                // Setup type selector
+                const selector = document.getElementById('type-selector');
+                selector.innerHTML = types.map(type => 
+                    `<option value="${type}">${type}</option>`
+                ).join('');
+                
+                if (types.length > 0) {
+                    selector.value = types[0];
+                }
+
+                // Initialize schema viewer
+                function updateViewer() {
+                    const selectedType = selector.value;
+                    const viewer = document.getElementById('schema-viewer');
+                    
+                    if (selectedType && definitions[selectedType]) {
+                        viewer.innerHTML = renderSchema(selectedType, definitions[selectedType]);
+                    }
+                }
+
+                // Make selectType available globally
+                window.selectType = (type) => {
+                    selector.value = type;
+                    updateViewer();
+                };
+
+                selector.addEventListener('change', updateViewer);
+                updateViewer();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('schema-viewer').innerHTML = `
+                    <div class="error">
+                        <h3>Error loading schema</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html> 

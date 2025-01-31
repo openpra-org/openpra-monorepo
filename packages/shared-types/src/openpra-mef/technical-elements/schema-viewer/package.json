@@ -1,15 +1,18 @@
 {
   "name": "schema-viewer",
   "version": "1.0.0",
-  "private": true,
   "scripts": {
-    "build": "node scripts/build.js",
-    "serve": "http-server dist -o -c-1",
-    "watch": "nodemon --watch ../../ --ext ts --exec 'npm run build'"
+    "clean": "rm -rf dist",
+    "build": "npm run clean && node scripts/build.js",
+    "serve": "npx http-server dist -o -c-1",
+    "dev": "npm run build && npm run serve",
+    "watch": "nodemon --watch ../../../**/*.ts --ext ts --exec 'npm run build'"
+  },
+  "dependencies": {
+    "typescript": "^5.0.0",
+    "typescript-json-schema": "^0.62.0"
   },
   "devDependencies": {
-    "typescript": "^4.9.5",
-    "typescript-json-schema": "^0.62.0",
     "http-server": "^14.1.1",
     "nodemon": "^3.0.3"
   }

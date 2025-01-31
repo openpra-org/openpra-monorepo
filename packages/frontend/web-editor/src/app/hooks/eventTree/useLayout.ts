@@ -60,6 +60,29 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
     }
   });
 
+  // Handle output nodes for end states (Sequence ID, Frequency, Release Category)
+  const totalCols = cols.length;
+  nodes.forEach((node) => {
+    if (node.type === "outputNode") {
+      let columnIndex = -1;
+
+      // Map node values to columns
+      if (node.data.label.length > 10) {
+        columnIndex = totalCols - 2;
+      } else if (node.data.label === "0.55") {
+        columnIndex = totalCols - 1;
+      } else if (node.data.label.includes("Category")) {
+        columnIndex = totalCols;
+      }
+
+      // Align nodes to columns
+      if (columnIndex !== -1) {
+        const col = cols[columnIndex - 1]; // Adjust for 0-based index
+        node.position.x = col.position.x; // Align x-coordinate
+      }
+    }
+  });
+
   return [...nodes, ...cols];
 }
 

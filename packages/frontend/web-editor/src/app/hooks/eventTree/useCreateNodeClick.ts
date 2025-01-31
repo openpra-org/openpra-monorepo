@@ -1,9 +1,9 @@
 import { Edge, NodeProps, Node, useReactFlow } from "reactflow";
-import { last } from "lodash";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
+import { createEndStates } from "./useTreeData";
 
 function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
@@ -38,7 +38,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     const clickedNodeIndex = nodes.findIndex((node) => node.id === clickedNodeId);
     const clickedNode = clickedNodeIndex !== -1 ? nodes[clickedNodeIndex] : null;
 
-    // put the clicked node as activated (for a dangling node)
+    // put the clicked node as activated (for an invisible node)
     if (clickedNode?.type === "invisibleNode") {
       nodes[clickedNodeIndex].type = "visibleNode";
 
@@ -58,6 +58,9 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     let lastNodeId = clickedNodeEdge ? clickedNodeEdge.source : "";
 
     rightmostNodeIndices.forEach((rightmostNodeIndex, level) => {
+      // Skip invalid levels
+      if (level > inputLevels - clickedNodeDepth) return;
+
       // Generate a new node ID
       const newNodeId = GenerateUUID();
 
@@ -70,14 +73,14 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
         id: newNodeId,
         type: nodeType,
         data: {
-          label: `node at ${level + clickedNodeDepth}`,
+          label: `New Node(${level + clickedNodeDepth})`,
           depth: level + clickedNodeDepth,
           width: rootNode.data.width,
-          output: nodeType === "outputNode",
+          output: false,
         },
         position: {
-          x: clickedNode?.position.x!, // This should be calculated based on your layout logic
-          y: clickedNode?.position.y!, // This should be calculated based on your layout logic
+          x: clickedNode?.position.x!,
+          y: clickedNode?.position.y!,
         },
       };
 
@@ -97,10 +100,19 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
         source: sourceNodeId,
         target: newNodeId,
         type: "custom",
-        animated: nodeType === "invisibleNode" || level === inputLevels - clickedNodeDepth + 1 ? true : false,
+        animated: false,
       };
 
       newEdges.push(newEdge);
+
+      // Replace Output Node Logic with End States
+      if (level >= inputLevels - clickedNodeDepth) {
+        const { nodes: endNodes, edges: endEdges } = createEndStates(newNode, rootNode.data.width, newNode.position);
+
+        nodes.push(...endNodes);
+
+        newEdges.push(...endEdges);
+      }
     });
 
     // Set nodes and edges with the updated and new elements

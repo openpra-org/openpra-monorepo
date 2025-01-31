@@ -26,6 +26,7 @@ export class JobBrokerMiddleware implements NestMiddleware {
   /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
+    console.log("Checking whether it is a quantification or executable request");
     if (this.isQuantifyRequest(req.body)) {
       const startTime = performance.now();
       const quantificationJob = await this.quantificationJobModel.create({ configuration: req.body.configuration });

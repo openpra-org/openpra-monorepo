@@ -66,6 +66,7 @@ export class ConsumerService implements OnModuleInit {
    * @returns A promise that resolves when the module initialization process is complete.
    */
   public async onModuleInit(): Promise<void> {
+    console.log("Settings environment variables for the Consumer");
     // Verify that all required environment variables are available, logging an error and exiting if any are missing.
     const url: string = EnvVarKeys.RABBITMQ_URL;
     const initialJobQ: string = EnvVarKeys.QUANT_JOB_QUEUE_NAME;

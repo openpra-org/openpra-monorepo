@@ -34,7 +34,7 @@ export class CollabService {
    * @param {number} user_id - Current user's ID
    * @returns void
    */
-  async updateLastLogin(user_id: number): Promise<void> {
+  async updateLastLogin(user_id: string): Promise<void> {
     await this.userModel.updateOne({ id: user_id }, { last_login: Date.now() });
   }
 
@@ -170,7 +170,7 @@ export class CollabService {
    * @param user_id - Id of the user you want to find
    */
   async getUserById(user_id: string): Promise<User> {
-    return this.userModel.findOne({ id: Number(user_id) });
+    return this.userModel.findOne({ id: user_id });
   }
 
   /**
@@ -204,9 +204,15 @@ export class CollabService {
     if (response2) {
       return "email already exists";
     }
-    body.password = await argon2.hash(body.password);
+    if (body.password) {
+      body.password = await argon2.hash("body.password");
+    }
     const newUser = new this.userModel(body);
-    newUser.id = await this.getNextUserValue("UserCounter");
+    if (body.id) {
+      newUser.id = String(body.id);
+    } else {
+      newUser.id = String(await this.getNextUserValue("UserCounter"));
+    }
     newUser.recently_accessed = {
       models: [],
       subsystems: [],
@@ -224,7 +230,7 @@ export class CollabService {
         currentlySelected: " ",
       },
     };
-    newUser.roles = body.roles as string[];
+    newUser.roles = body.roles;
     return newUser.save();
   }
 
@@ -258,7 +264,7 @@ export class CollabService {
    * @returns Preferences of the current user
    */
   async getUserPreferences(user_id: string) {
-    return this.userModel.findOne({ id: Number(user_id) }, { preferences: 1 });
+    return this.userModel.findOne({ id: user_id }, { preferences: 1 });
   }
 
   /**
@@ -284,7 +290,7 @@ export class CollabService {
    * @returns Updated preferences of the user
    */
   async updateUserPreferences(user_id: string, body: UserPreferencesDto): Promise<void> {
-    const user = await this.userModel.findOne({ id: Number(user_id) }).lean();
+    const user = await this.userModel.findOne({ id: user_id }).lean();
     return this.userModel.findByIdAndUpdate(
       user._id,
       { $set: dot.dot(body) },
@@ -304,7 +310,7 @@ export class CollabService {
     user.lastName = member.lastName;
     user.username = member.username;
     user.preferences = member.preferences;
-    user.roles = member.roles as string[];
+    user.roles = member.roles;
     if (member.password !== undefined) {
       user.password = await argon2.hash(member.password);
     }

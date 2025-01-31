@@ -39,7 +39,7 @@ const AUTHENTICATION = {
 
 function Preferences(): JSX.Element {
   const { user } = useParams<{ user: string | undefined }>();
-  const userId = Number(user);
+  const userId = user;
   const [currentUser, setCurrentUser] = useState<MemberResult>();
   const [isLoading, setIsLoading] = useState<boolean>(true);
   let navItems = [GENERAL];

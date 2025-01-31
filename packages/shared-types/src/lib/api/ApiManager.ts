@@ -1,7 +1,13 @@
 import axios from "axios";
 import { AuthToken } from "../types/AuthToken";
 import { AuthService } from "./AuthService";
-import { SignUpCredentials, SignUpCredentialsWithRole, TokenResponse } from "./AuthTypes";
+import {
+  ResponseData,
+  SignUpCredentials,
+  SignUpCredentialsOIDC,
+  SignUpCredentialsWithRole,
+  TokenResponse,
+} from "./AuthTypes";
 import { MemberResult, Members } from "./Members";
 
 const API_ENDPOINT = "/api";
@@ -29,14 +35,12 @@ export class ApiManager {
 
   static LOGIN_URL = `${authEndpoint}/token-obtain/`;
 
-  static async signInWithOIDC(): Promise<void> {
-    // eslint-disable-next-line no-console
-    console.log("Calling OIDC Provider");
+  static async signInWithOIDC(isSignUp: boolean): Promise<void> {
     const authUrl = `${OIDC_CONFIG.authorizationEndpoint}?client_id=${
       OIDC_CONFIG.clientId
     }&redirect_uri=${encodeURIComponent(OIDC_CONFIG.redirectUri)}&response_type=code&scope=${OIDC_CONFIG.scopes.join(
       " ",
-    )}`;
+    )}&state=${isSignUp ? "signup" : "login"}`;
     window.location.href = authUrl;
   }
 
@@ -45,13 +49,22 @@ export class ApiManager {
     if (!accessToken) return;
 
     try {
-      const response = await axios.get(OIDC_CONFIG.userinfoEndpoint, {
+      const response = await axios.get<ResponseData>(OIDC_CONFIG.userinfoEndpoint, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       });
 
-      console.log("User Info:", response.data);
+      const signupData: SignUpCredentialsOIDC = {
+        username: response.data.preferred_username,
+        email: response.data.email,
+        firstName: response.data.name.split(" ")[0] || "",
+        lastName: response.data.name.split(" ")[1] || "",
+        roles: ["member-role"],
+        id: response.data.sub,
+      };
+      // const resp = await ApiManager.getUserById(response.data.sub);
+      await ApiManager.registerOidcUser(signupData);
     } catch (error) {
       console.error("Error fetching user info:", error);
     }
@@ -60,14 +73,15 @@ export class ApiManager {
   static async handleCallback(code: string): Promise<void> {
     try {
       const params = new URLSearchParams();
-      params.append("client_id", OIDC_CONFIG.clientId);
-      params.append("client_secret", OIDC_CONFIG.clientSecret);
       params.append("code", code);
       params.append("grant_type", OIDC_CONFIG.grantType);
       params.append("redirect_uri", OIDC_CONFIG.redirectUri);
+      const credentials = `${OIDC_CONFIG.clientId}:${OIDC_CONFIG.clientSecret}`;
+      const base64Credentials = btoa(credentials);
       const response = await axios.post<TokenResponse>(OIDC_CONFIG.tokenEndpoint, params, {
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${base64Credentials}`,
         },
       });
 
@@ -116,7 +130,7 @@ export class ApiManager {
    * Returns a promise of a non-null User object (newly signed in)
    * @throws - A possible authentication error
    */
-  static async signInWithUsernameAndPassword(username: string, password: string): Promise<void> {
+  static async signInWithUsernameAndPassword(username: string, password: string | undefined): Promise<void> {
     return fetch(ApiManager.LOGIN_URL, {
       method: "POST",
       headers: {
@@ -142,6 +156,23 @@ export class ApiManager {
 
   signInWithUsernameAndPassword(username: any, password: any) {
     return ApiManager.signInWithUsernameAndPassword(username, password);
+  }
+
+  static async registerOidcUser(data: SignUpCredentialsOIDC) {
+    // const resp = await ApiManager.getUserById(data.username);
+    // console.log("Found User: ", resp)  ;
+    return ApiManager.post(`${userPreferencesEndpoint}/`, JSON.stringify(data))
+      .then((response) => {
+        if (response.ok) {
+          return response;
+        }
+        if (response.status >= 400) {
+          throw new Error(response.statusText);
+        }
+      })
+      .catch((reason: string) => {
+        throw new Error(reason);
+      });
   }
 
   static signup(data: SignUpCredentialsWithRole) {

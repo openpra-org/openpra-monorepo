@@ -13,12 +13,12 @@ export interface MemberResult {
   username: string;
   email: string;
   roles: string[];
-  id: number;
+  id: string;
   recently_accessed: RecentlyAccessed;
   preferences: Preferences;
   account_created: string;
   last_login: string;
-  password: string | undefined;
+  password?: string | undefined;
 }
 
 interface RecentlyAccessed {

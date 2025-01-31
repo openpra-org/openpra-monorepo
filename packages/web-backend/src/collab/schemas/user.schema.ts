@@ -127,7 +127,7 @@ const PreferencesSchema = SchemaFactory.createForClass(Preferences);
 })
 export class User {
   @Prop({ required: false })
-  id: number;
+  id: string;
 
   @Prop()
   firstName: string;
@@ -141,8 +141,8 @@ export class User {
   @Prop()
   email: string;
 
-  @Prop()
-  password: string;
+  @Prop({ required: false })
+  password: string | undefined;
 
   @Prop({ type: RecentlyAccessedSchema, required: false })
   recently_accessed: Recently_Accessed;

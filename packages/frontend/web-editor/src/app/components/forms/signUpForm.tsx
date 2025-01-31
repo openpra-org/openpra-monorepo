@@ -32,9 +32,9 @@ const SignUpForm = ({
   const [isValidEmail, setIsValidEmail] = useState(true);
   const { addToast } = UseToastContext();
 
-  const handleOIDCLogin = async () => {
+  const handleOIDCLogin = async (isSignUp: boolean) => {
     try {
-      await ApiManager.signInWithOIDC(); // Call the APIManager function
+      await ApiManager.signInWithOIDC(isSignUp); // Call the APIManager function
     } catch (error) {
       addToast(GetESToast("danger", "Something went wrong with OIDC login"));
     }
@@ -119,7 +119,7 @@ const SignUpForm = ({
       <EuiFormRow>
         <EuiButton
           fullWidth
-          onClick={handleOIDCLogin}
+          onClick={() => handleOIDCLogin(true)}
         >
           Sign in with OpenPRA
         </EuiButton>

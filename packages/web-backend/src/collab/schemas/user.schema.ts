@@ -155,6 +155,12 @@ export class User {
 
   @Prop({ type: Date, default: Date.now() })
   last_login: Date;
+
+  @Prop()
+  forgotPasswordToken: string;
+
+  @Prop({ default: false })
+  emailVerified: boolean;
 }
 
 export type UserDocument = User & Document;

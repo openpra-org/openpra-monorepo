@@ -1,11 +1,15 @@
-import { Controller, Post, Request, UseFilters, UseGuards, Body } from "@nestjs/common";
+import { Controller, Post, Request, UseFilters, UseGuards, Body, Get, Param } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { LoginErrorFilter } from "../filters/login-error.filter";
 import { User } from "../collab/schemas/user.schema";
+import { ResetPasswordDto } from "../collab/dtos/reset-password.dto";
+import { Public } from "../guards/public.guard";
+import { LocalAuthGuard } from "../guards/local-auth.guard";
 import { AuthService } from "./auth.service";
 
 @Controller()
-@UseGuards(AuthGuard("local"))
+// @UseGuards(AuthGuard("local"))
+@UseGuards(LocalAuthGuard)
 @UseFilters(LoginErrorFilter)
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -41,5 +45,23 @@ export class AuthController {
     return {
       match: match,
     };
+  }
+
+  @Public()
+  @Post("/email/forgot-password")
+  async forgotPassword(@Body("email") email: string) {
+    return this.authService.forgotPassword(email);
+  }
+
+  @Public()
+  @Post("/email/reset-password")
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Public()
+  @Get("/email/verify/:token")
+  async verifyEmail(@Param("token") token: string) {
+    return this.authService.verifyEmail(token);
   }
 }

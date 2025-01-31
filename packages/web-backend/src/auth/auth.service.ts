@@ -1,14 +1,17 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable, UnauthorizedException, NotFoundException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import * as argon2 from "argon2";
+import { MailerService } from "@nestjs-modules/mailer";
 import { CollabService } from "../collab/collab.service";
 import { User } from "../collab/schemas/user.schema";
+import { ResetPasswordDto } from "../collab/dtos/reset-password.dto";
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly collabService: CollabService,
     private readonly jwtService: JwtService,
+    private readonly mailerService: MailerService,
   ) {}
 
   /**
@@ -96,6 +99,73 @@ export class AuthService {
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.collabService.getUserByEmail(email);
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const token = this.jwtService.sign({ email }, { expiresIn: "1h" });
+    await this.collabService.saveForgotPasswordToken(user.id, token);
+
+    // const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const resetLink = `http://localhost:4200/reset-password?token=${token}`;
+    const htmlContent = `
+      <html>
+        <body>
+          <h1>Password Reset</h1>
+          <p>Hello,</p>
+          <p>You have requested to reset your password. Please click the link below to reset your password:</p>
+          <p><a href="${resetLink}">Reset Password</a></p>
+          <p>If you did not request this, please ignore this email.</p>
+          <p>This link will expire in 1 hour.</p>
+        </body>
+      </html>
+    `;
+
+    await this.mailerService.sendMail({
+      to: email,
+      subject: "Password Reset",
+      html: htmlContent,
+    });
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto): Promise<void> {
+    const { token, newPassword } = resetPasswordDto;
+    const decodedToken = this.jwtService.verify(token);
+    const user = await this.collabService.getUserByEmail(decodedToken.email);
+
+    if (!user || user.forgotPasswordToken !== token) {
+      throw new UnauthorizedException("Invalid or expired token");
+    }
+
+    const hashedPassword = await argon2.hash(newPassword);
+    await this.collabService.updateUserPassword(user.id, hashedPassword);
+    await this.collabService.clearForgotPasswordToken(user.id);
+  }
+
+  async verifyEmail(token: string): Promise<void> {
+    try {
+      const decodedToken = this.jwtService.verify(token);
+      const user = await this.collabService.getUserByEmail(decodedToken.email);
+
+      if (!user) {
+        throw new NotFoundException("User not found");
+      }
+
+      if (user.forgotPasswordToken !== token) {
+        throw new UnauthorizedException("Invalid token");
+      }
+
+      await this.collabService.verifyUserEmail(user.id);
+    } catch (error) {
+      if (error) {
+        throw new UnauthorizedException("Invalid token");
+      }
+      throw error;
     }
   }
 }

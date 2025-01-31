@@ -324,4 +324,24 @@ export class CollabService {
       })
       .lean();
   }
+
+  async getUserByEmail(email: string): Promise<User> {
+    return this.userModel.findOne({ email });
+  }
+
+  async saveForgotPasswordToken(userId: number, token: string): Promise<void> {
+    await this.userModel.updateOne({ id: userId }, { forgotPasswordToken: token });
+  }
+
+  async updateUserPassword(userId: number, newPassword: string): Promise<void> {
+    await this.userModel.updateOne({ id: userId }, { password: newPassword });
+  }
+
+  async clearForgotPasswordToken(userId: number): Promise<void> {
+    await this.userModel.updateOne({ id: userId }, { forgotPasswordToken: null });
+  }
+
+  async verifyUserEmail(userId: number): Promise<void> {
+    await this.userModel.updateOne({ id: userId }, { emailVerified: true });
+  }
 }

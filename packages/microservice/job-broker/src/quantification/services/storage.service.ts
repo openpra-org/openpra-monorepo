@@ -10,6 +10,7 @@ export class StorageService {
   ) {}
 
   public async getQuantifiedReports(modelName: string): Promise<QuantificationJobReport[]> {
+    console.log("Trying to find the metrics of the specified model");
     return this.quantificationJobModel.find({ model_name: modelName });
   }
 }

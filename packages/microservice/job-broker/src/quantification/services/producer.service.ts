@@ -77,6 +77,7 @@ export class ProducerService implements OnApplicationBootstrap {
 
       const latencyStartTime = Date.now();
       quantRequest.latencyStartTime = latencyStartTime;
+      console.log("Producer is saving the performance related stats");
       const modelsData = typia.json.assertStringify<QuantifyRequest>(quantRequest);
 
       console.log("Producer is queueing the quantification job");

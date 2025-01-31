@@ -101,21 +101,30 @@ export class ConsumerService implements OnModuleInit {
         }
 
         try {
+          console.log("Parsing the quantification request");
           const modelsData: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
+          console.log("Calculating the latency");
           const latencyEndTime = Date.now();
           const latency = latencyEndTime - modelsData.latencyStartTime!;
+          console.log("Updating the latency time in the database");
           await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
             $set: { "execution_time.latency": latency },
           });
 
+          console.log("Preparing the models and the configurations");
           const modelsWithConfigs = { ...modelsData.configuration, models: modelsData.models };
 
+          console.log("Performing quantification right now");
           const result:
             | { results: string[]; preProcessing: number; quantification: number; postProcessing: number }
             | Error = this.performQuantification(modelsWithConfigs);
+          console.log("Done with performing quantification");
           if (result instanceof Error) {
+            console.log("scram did not run");
+            console.log(result.message);
             channel.nack(msg);
           } else {
+            console.log("Updating the status of the job");
             await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
               $set: { model_name: modelsData.model_name, status: "completed" },
             });
@@ -124,6 +133,7 @@ export class ConsumerService implements OnModuleInit {
             const postProcessingTime = postProcessingEnd - result.postProcessing;
             const preProcessingAndPostProcessing = result.preProcessing + postProcessingTime;
 
+            console.log("Updating the rest of the properties");
             await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
               $set: {
                 "execution_time.perform_quantification": result.quantification,

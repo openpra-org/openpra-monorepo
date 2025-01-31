@@ -52,6 +52,7 @@ export class ScramController {
   @TypedRoute.Get("/scram/:model_name")
   public async getQuantifiedReports(@TypedParam("model_name") model_name: string): Promise<QuantificationJobReport[]> {
     try {
+      console.log("Querying the stats of the specified model");
       return this.storageService.getQuantifiedReports(model_name);
     } catch {
       throw new NotFoundException("Server was unable to find the requested list of quantified reports.");

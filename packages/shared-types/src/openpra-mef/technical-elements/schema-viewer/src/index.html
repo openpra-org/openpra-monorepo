@@ -160,6 +160,41 @@
             margin: 1rem 0;
         }
 
+        .warning-section {
+            padding: 1rem;
+            background: #fff3cd;
+            border: 1px solid #ffeeba;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .warning {
+            color: #856404;
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            padding: 0.75rem 1.25rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        .error-details {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 0.875rem;
+            margin-top: 1rem;
+        }
+
+        .draft-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            background: #ffc107;
+            color: #000;
+            border-radius: 4px;
+            margin-left: 0.5rem;
+        }
+
         @media (max-width: 768px) {
             .content {
                 grid-template-columns: 1fr;
@@ -254,6 +289,17 @@
         }
 
         function renderSchema(name, schema) {
+            if (!schema) {
+                return `
+                    <div class="schema-section">
+                        <div class="schema-title">${name}</div>
+                        <div class="warning">
+                            This type is currently in draft/incomplete state.
+                        </div>
+                    </div>
+                `;
+            }
+
             const properties = schema.properties || {};
             const required = schema.required || [];
             
@@ -276,6 +322,20 @@
                 }
                 
                 const schema = await response.json();
+                
+                // Handle schema with errors
+                if (schema.errors) {
+                    const hierarchy = document.getElementById('type-hierarchy');
+                    hierarchy.innerHTML = `
+                        <div class="warning-section">
+                            <h3>Schema Generation Warnings</h3>
+                            <p>The schema is currently in development. Some types may be incomplete or have issues:</p>
+                            <pre class="error-details">${schema.errors}</pre>
+                        </div>
+                    `;
+                    return;
+                }
+
                 currentDefinitions = schema.definitions || {};
                 const groups = groupTypes(currentDefinitions);
 
@@ -290,6 +350,7 @@
                                 ${types.map(type => `
                                     <div class="type-item" onclick="selectType('${type}')">
                                         ${type}
+                                        ${currentDefinitions[type] ? '' : '<span class="draft-badge">Draft</span>'}
                                     </div>
                                 `).join('')}
                             </div>

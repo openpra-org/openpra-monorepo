@@ -9,6 +9,7 @@
             --primary-color: #2c3e50;
             --secondary-color: #3498db;
             --background-color: #f8f9fa;
+            --border-color: #dee2e6;
         }
         
         body {
@@ -35,23 +36,23 @@
 
         .content {
             flex: 1;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
             padding: 2rem;
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             width: 100%;
             box-sizing: border-box;
         }
 
-        .type-list {
-            margin-bottom: 2rem;
-        }
-
-        .type-list select {
-            width: 100%;
-            padding: 0.5rem;
-            font-size: 1rem;
-            border: 1px solid #dee2e6;
-            border-radius: 4px;
+        .sidebar {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
         }
 
         .schema-viewer {
@@ -59,6 +60,43 @@
             padding: 2rem;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+        }
+
+        .type-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .type-group-title {
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .type-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .type-item {
+            padding: 0.5rem;
+            cursor: pointer;
+            border-radius: 4px;
+            margin: 0.25rem 0;
+            color: var(--secondary-color);
+        }
+
+        .type-item:hover {
+            background: var(--background-color);
+        }
+
+        .type-item.active {
+            background: var(--secondary-color);
+            color: white;
         }
 
         .schema-section {
@@ -70,6 +108,8 @@
             font-weight: 600;
             margin-bottom: 1rem;
             color: var(--primary-color);
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
         }
 
         .property {
@@ -77,7 +117,7 @@
             padding: 1rem;
             background: #f8f9fa;
             border-radius: 4px;
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--border-color);
         }
 
         .property-name {
@@ -119,6 +159,12 @@
             border-radius: 4px;
             margin: 1rem 0;
         }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -127,15 +173,62 @@
     </header>
     
     <main class="content">
-        <div class="type-list">
-            <select id="type-selector">
-                <option value="">Loading types...</option>
-            </select>
-        </div>
+        <nav class="sidebar">
+            <div id="type-hierarchy"></div>
+        </nav>
         <div id="schema-viewer" class="schema-viewer"></div>
     </main>
 
     <script>
+        // Global state
+        let currentDefinitions = null;
+
+        // Define selectType globally first
+        window.selectType = function(type) {
+            if (!currentDefinitions || !currentDefinitions[type]) return;
+
+            // Update active state
+            document.querySelectorAll('.type-item').forEach(item => {
+                item.classList.toggle('active', item.textContent.trim() === type);
+            });
+
+            // Update viewer
+            const viewer = document.getElementById('schema-viewer');
+            viewer.innerHTML = renderSchema(type, currentDefinitions[type]);
+        };
+
+        // Group types by their category
+        function groupTypes(definitions) {
+            const groups = {
+                'Core Types': [],
+                'Analysis Types': [],
+                'Event Types': [],
+                'Parameter Types': [],
+                'Other Types': []
+            };
+
+            Object.keys(definitions).forEach(type => {
+                if (type.includes('Analysis')) {
+                    groups['Analysis Types'].push(type);
+                } else if (type.includes('Event')) {
+                    groups['Event Types'].push(type);
+                } else if (type.includes('Parameter') || type.includes('Type') || type.includes('Source')) {
+                    groups['Parameter Types'].push(type);
+                } else if (['TechnicalElement', 'Unique', 'Named'].includes(type)) {
+                    groups['Core Types'].push(type);
+                } else {
+                    groups['Other Types'].push(type);
+                }
+            });
+
+            // Sort types within each group
+            Object.keys(groups).forEach(group => {
+                groups[group].sort();
+            });
+
+            return groups;
+        }
+
         function renderType(type, schema, definitions) {
             if (type.startsWith('#/definitions/')) {
                 const refType = type.replace('#/definitions/', '');
@@ -183,37 +276,31 @@
                 }
                 
                 const schema = await response.json();
-                const definitions = schema.definitions || {};
-                const types = Object.keys(definitions).sort();
-                
-                // Setup type selector
-                const selector = document.getElementById('type-selector');
-                selector.innerHTML = types.map(type => 
-                    `<option value="${type}">${type}</option>`
-                ).join('');
-                
-                if (types.length > 0) {
-                    selector.value = types[0];
+                currentDefinitions = schema.definitions || {};
+                const groups = groupTypes(currentDefinitions);
+
+                // Render type hierarchy
+                const hierarchy = document.getElementById('type-hierarchy');
+                hierarchy.innerHTML = Object.entries(groups)
+                    .filter(([_, types]) => types.length > 0)
+                    .map(([group, types]) => `
+                        <div class="type-group">
+                            <div class="type-group-title">${group}</div>
+                            <div class="type-list">
+                                ${types.map(type => `
+                                    <div class="type-item" onclick="selectType('${type}')">
+                                        ${type}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `).join('');
+
+                // Initialize viewer with first type
+                const firstType = Object.values(groups).find(types => types.length > 0)?.[0];
+                if (firstType) {
+                    selectType(firstType);
                 }
-
-                // Initialize schema viewer
-                function updateViewer() {
-                    const selectedType = selector.value;
-                    const viewer = document.getElementById('schema-viewer');
-                    
-                    if (selectedType && definitions[selectedType]) {
-                        viewer.innerHTML = renderSchema(selectedType, definitions[selectedType]);
-                    }
-                }
-
-                // Make selectType available globally
-                window.selectType = (type) => {
-                    selector.value = type;
-                    updateViewer();
-                };
-
-                selector.addEventListener('change', updateViewer);
-                updateViewer();
                 
             } catch (error) {
                 console.error('Error:', error);
@@ -221,6 +308,7 @@
                     <div class="error">
                         <h3>Error loading schema</h3>
                         <p>${error.message}</p>
+                        <pre>${error.stack}</pre>
                     </div>
                 `;
             }

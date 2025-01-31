@@ -9,7 +9,6 @@ export interface BaseEvent extends Unique, Named {
 // Basic Event branch
 export interface BasicEvent extends BaseEvent {
     eventType: "BASIC";
-    probability: number & tags.Minimum<0>;
 }
 
 export interface LicensingBasisEvent extends BasicEvent {
@@ -28,7 +27,6 @@ export interface TopEvent extends FunctionalEvent {
 // Initiating Event branch (keeping your existing structure)
 export interface InitiatingEvent extends BaseEvent {
     eventType: "INITIATING";
-    frequency: number & tags.Minimum<0>;
 }
 
 // Schema validation

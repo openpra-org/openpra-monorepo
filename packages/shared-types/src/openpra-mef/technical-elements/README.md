@@ -23,6 +23,37 @@ npm run serve  # Serves documentation at http://localhost:8080
 
 The documentation will be available at `http://localhost:8080`.
 
+### Ensuring New Files are Documented
+1. **File Visibility**
+   - Ensure your TypeScript file has proper export statements
+   - Add an `index.ts` in the directory if not present:
+     ```typescript
+     export * from './risk-integration/risk-integration';
+     ```
+   - Check that the file is included in `tsconfig.json`'s `include` paths
+
+2. **Documentation Comments**
+   - Add TSDoc comments to all exports using `/** */` syntax
+   - Include a brief description for each interface, type, and function
+   - Example:
+     ```typescript
+     /** 
+      * Represents the risk integration configuration
+      * @interface RiskIntegration
+      */
+     export interface RiskIntegration {
+       // ... properties
+     }
+     ```
+
+3. **Verify Documentation**
+   - After adding new files, run:
+     ```bash
+     npm run docs
+     ```
+   - Check the generated documentation to confirm your new content appears
+   - If missing, verify the export paths and TSDoc comments
+
 ## Troubleshooting
 
 ### Reset Environment

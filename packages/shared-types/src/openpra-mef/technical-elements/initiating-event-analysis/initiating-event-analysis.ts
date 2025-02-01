@@ -6,6 +6,10 @@ import { Named, Unique } from "../meta";
 /**
  * Interface representing an initiating event, which is both unique and named.
  *
+ * @interface
+ * @extends {Unique}
+ * @extends {Named}
+ *
  * @example
  * ```
  * const event: InitiatingEvent = {
@@ -32,6 +36,9 @@ export interface InitiatingEvent extends Unique, Named {
 
 /**
  * Interface representing an analysis of initiating events, which is a type of technical element.
+ *
+ * @interface
+ * @extends {TechnicalElement<TechnicalElementTypes.INITIATING_EVENT_ANALYSIS>}
  *
  * @example
  * ```

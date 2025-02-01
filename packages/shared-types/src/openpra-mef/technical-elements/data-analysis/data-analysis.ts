@@ -147,6 +147,39 @@ export enum DistributionType {
  * The structure of the uncertainty changes based on the distribution type.
  * 
  * @memberof Probability
+ * @example
+ * ```typescript
+ * const edgFailureUncertainty: Uncertainty = {
+ *   distribution: DistributionType.LOGNORMAL,
+ *   parameters: {
+ *     mean: 1.2e-3,
+ *     errorFactor: 3
+ *   },
+ *   model_uncertainty_sources: [
+ *     "Limited operational data",
+ *     "Environmental factors not fully characterized"
+ *   ],
+ *   riskImplications: {
+ *     affectedMetrics: ["CDF", "LERF"],
+ *     significanceLevel: "high",
+ *     propagationNotes: "Major impact on SBO sequences"
+ *   },
+ *   correlations: [
+ *     {
+ *       parameterId: "DA-EDG-B-FR",
+ *       correlationType: "common_cause",
+ *       correlationFactor: 0.8
+ *     }
+ *   ],
+ *   sensitivityStudies: [
+ *     {
+ *       description: "Impact of maintenance practices",
+ *       variationRange: { min: 0.5, max: 2.0 },
+ *       results: "Linear impact on CDF"
+ *     }
+ *   ]
+ * };
+ * ```
  */
 export interface Uncertainty {
     distribution: DistributionType;
@@ -155,6 +188,47 @@ export interface Uncertainty {
      * Sources of uncertainty in the model.
      */
     model_uncertainty_sources?: string[];
+
+    /**
+     * Risk assessment implications of this uncertainty
+     */
+    riskImplications?: {
+        /** References to risk metrics affected by this uncertainty */
+        affectedMetrics: string[];
+        /** Qualitative assessment of uncertainty significance */
+        significanceLevel: "high" | "medium" | "low";
+        /** Notes on how this uncertainty propagates through the risk model */
+        propagationNotes?: string;
+    };
+
+    /**
+     * Correlations with other parameters
+     */
+    correlations?: {
+        /** Reference to correlated parameter */
+        parameterId: string;
+        /** Type of correlation */
+        correlationType: "common_cause" | "environmental" | "operational" | "other";
+        /** Correlation coefficient or factor */
+        correlationFactor: number;
+        /** Description of correlation basis */
+        description?: string;
+    }[];
+
+    /**
+     * Results of sensitivity studies
+     */
+    sensitivityStudies?: {
+        /** Description of the sensitivity study */
+        description: string;
+        /** Range of parameter variation */
+        variationRange: {
+            min: number;
+            max: number;
+        };
+        /** Qualitative or quantitative results */
+        results: string;
+    }[];
 }
 
 /**

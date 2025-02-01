@@ -23,6 +23,12 @@ export * as initiating_event from './initiating-event-analysis/initiating-event-
 export * as systems_analysis from './systems-analysis/systems-analysis';
 
 /**
+ * @module risk_integration
+ * @description Risk Integration types and interfaces
+ */
+export * as risk_integration from './risk-integration/risk-integration';
+
+/**
  * @module meta
  * @description Core metadata types and interfaces
  */

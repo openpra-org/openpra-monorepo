@@ -1,1 +1,0 @@
-export { SchemaViewer } from './SchemaViewer'; 

@@ -1,30 +1,51 @@
 import typia, { tags } from "typia";
 import { Named, Unique } from "./meta";
 
-// Base Event - parent of all events
+/**
+ * @interface
+ * @extends {Unique}
+ * @extends {Named}
+ */
 export interface BaseEvent extends Unique, Named {
     description?: string;
 }
 
-// Basic Event branch
+/**
+ * @interface
+ * @extends {BaseEvent}
+ */
 export interface BasicEvent extends BaseEvent {
     eventType: "BASIC";
 }
 
+/**
+ * @interface
+ * @extends {BasicEvent}
+ */
 export interface LicensingBasisEvent extends BasicEvent {
     eventSubType: "LICENSING_BASIS";
 }
 
-// Functional Event branch
+/**
+ * @interface
+ * @extends {BaseEvent}
+ */
 export interface FunctionalEvent extends BaseEvent {
     eventType: "FUNCTIONAL";
 }
 
+/**
+ * @interface
+ * @extends {FunctionalEvent}
+ */
 export interface TopEvent extends FunctionalEvent {
-    eventSubtType: "TOP";
+    eventSubType: "TOP";
 }
 
-// Initiating Event branch (keeping your existing structure)
+/**
+ * @interface
+ * @extends {BaseEvent}
+ */
 export interface InitiatingEvent extends BaseEvent {
     eventType: "INITIATING";
 }

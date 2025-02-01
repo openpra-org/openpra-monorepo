@@ -91,6 +91,10 @@ export interface Uncertainty {
  * - DA-A4: IDENTIFY the parameter to be estimated
  * - DA-A5: IDENTIFY the sources of model uncertainty, related assumptions
  * - DA-A6: IDENTIFY assumptions made due to lack of as-built details
+ * 
+ * @interface
+ * @extends {Unique}
+ * @extends {Named}
  */
 export interface BaseDataAnalysisParameter extends Unique, Named {
     description?: string;
@@ -124,6 +128,9 @@ export interface BaseDataAnalysisParameter extends Unique, Named {
  * - DA-A2: DEFINE failure modes and success criteria
  * - DA-A3: USE an appropriate probability model for each basic event
  * - HLR-DA-B: Grouping components into a homogeneous population
+ * 
+ * @interface
+ * @extends {BaseDataAnalysisParameter}
  */
 export interface DataAnalysisParameter extends BaseDataAnalysisParameter {
     /**
@@ -257,6 +264,10 @@ export interface DataAnalysisParameter extends BaseDataAnalysisParameter {
  *   ]
  * };
  * ```
+ */
+/**
+ * @interface
+ * @extends {TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS>}
  */
 export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS> {
     /**

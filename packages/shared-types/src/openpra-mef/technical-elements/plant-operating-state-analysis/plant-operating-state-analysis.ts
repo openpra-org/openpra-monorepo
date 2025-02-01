@@ -31,6 +31,9 @@ interface StateField {
  * Interface representing a table of plant operating states, which is unique.
  * Improved type safety for state_fields using StateField interface.
  * 
+ * @interface
+ * @extends {Unique}
+ * 
  * @example
  * ```
  * const table: PlantOperatingStatesTable = {
@@ -53,6 +56,9 @@ export interface PlantOperatingStatesTable extends Unique {
 /**
  * Interface representing an analysis of plant operating states with strict typing.
  * Now uses properly typed PlantOperatingStatesTable for states property.
+ * 
+ * @interface
+ * @extends {TechnicalElement<TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS>}
  * 
  * @example
  * ```

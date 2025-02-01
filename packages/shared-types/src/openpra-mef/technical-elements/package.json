@@ -1,6 +1,7 @@
 {
     "name": "technical-elements-docs",
     "version": "0.0.1",
+    "homepage": "https://openpra.github.io/OpenPRA/",
     "devDependencies": {
         "http-server": "^14.1.1",
         "typedoc": "^0.25.7",
@@ -8,9 +9,12 @@
     },
     "scripts": {
         "docs": "typedoc --options typedoc.json",
-        "serve": "http-server docs -o -c-1"
+        "serve": "http-server docs -o -c-1",
+        "predeploy": "npm run docs",
+        "deploy": "gh-pages -b gh-pages -d docs"
     },
     "dependencies": {
-        "typia": "^7.6.0"
+        "typia": "^7.6.0",
+        "gh-pages": "^6.1.0"
     }
 }

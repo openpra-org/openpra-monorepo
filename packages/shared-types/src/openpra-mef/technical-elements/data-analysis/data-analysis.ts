@@ -6,9 +6,16 @@ import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, Sys
 import { PlantOperatingStatesTable } from "../plant-operating-state-analysis/plant-operating-state-analysis";
 
 /**
+ * @namespace Parameters
+ * @description Types and interfaces for data analysis parameters
+ */
+
+/**
  * Interface representing the types of parameters used in data analysis.
  * The parameter type determines the type of data analysis that can be performed.
  * The parameter type must be one of the types defined in `ParameterType` enum.
+ * 
+ * @memberof Parameters
  */
 export type ParameterType =
     | "FREQUENCY"
@@ -19,72 +26,6 @@ export type ParameterType =
     | "OTHER";
 
 /**
- * Enum representing the types of probability models used in data analysis.
- */
-export enum DistributionType {
-    EXPONENTIAL = "exponential",
-    BINOMIAL = "binomial",
-    NORMAL = "normal",
-    LOGNORMAL = "lognormal",
-    WEIBULL = "weibull",
-    POISSON = "poisson",
-    UNIFORM = "uniform",
-    BETA = "beta",
-    GAMMA = "gamma",
-    POINT_ESTIMATE = "point_estimate",
-    // Add other probability models as needed
-}
-
-/**
- * Interface representing data sources and their context
- */
-export interface DataSource {
-    /**
-     * The source of the data (e.g., "Plant maintenance records 2020-2023")
-     */
-    source: string;
-    /**
-     * The context or type of the data source (e.g., "Industry standard", "Plant specific")
-     */
-    context?: string;
-    /**
-     * Any additional notes about the data source
-     */
-    notes?: string;
-}
-
-/**
- * Interface representing an assumption and its context
- */
-export interface Assumption {
-    /**
-     * The assumption statement
-     */
-    statement: string;
-    /**
-     * The context or type of the assumption (e.g., "General", "Value-specific")
-     */
-    context?: string;
-    /**
-     * Any additional notes about the assumption
-     */
-    notes?: string;
-}
-
-/**
- * Interface representing the uncertainty associated with a parameter.
- * The structure of the uncertainty changes based on the distribution type.
- */
-export interface Uncertainty {
-    distribution: DistributionType;
-    parameters: Record<string, number>;
-    /**
-     * Sources of uncertainty in the model.
-     */
-    model_uncertainty_sources?: string[];
-}
-
-/**
  * Base Data Analysis Parameter - parent of all data analysis parameters
  * 
  * This interface implements several PRA standard requirements:
@@ -92,7 +33,7 @@ export interface Uncertainty {
  * - DA-A5: IDENTIFY the sources of model uncertainty, related assumptions
  * - DA-A6: IDENTIFY assumptions made due to lack of as-built details
  * 
- * @interface
+ * @memberof Parameters
  * @extends {Unique}
  * @extends {Named}
  */
@@ -122,14 +63,14 @@ export interface BaseDataAnalysisParameter extends Unique, Named {
 }
 
 /**
- * Data Analysis parameter
+ * Data Analysis parameter with specific requirements
  * 
  * This interface implements several PRA standard requirements:
  * - DA-A2: DEFINE failure modes and success criteria
  * - DA-A3: USE an appropriate probability model for each basic event
  * - HLR-DA-B: Grouping components into a homogeneous population
  * 
- * @interface
+ * @memberof Parameters
  * @extends {BaseDataAnalysisParameter}
  */
 export interface DataAnalysisParameter extends BaseDataAnalysisParameter {
@@ -180,8 +121,96 @@ export interface DataAnalysisParameter extends BaseDataAnalysisParameter {
 }
 
 /**
+ * @namespace Probability
+ * @description Probability and uncertainty modeling
+ */
+
+/**
+ * Enum representing the types of probability models used in data analysis.
+ * @memberof Probability
+ */
+export enum DistributionType {
+    EXPONENTIAL = "exponential",
+    BINOMIAL = "binomial",
+    NORMAL = "normal",
+    LOGNORMAL = "lognormal",
+    WEIBULL = "weibull",
+    POISSON = "poisson",
+    UNIFORM = "uniform",
+    BETA = "beta",
+    GAMMA = "gamma",
+    POINT_ESTIMATE = "point_estimate"
+}
+
+/**
+ * Interface representing the uncertainty associated with a parameter.
+ * The structure of the uncertainty changes based on the distribution type.
+ * 
+ * @memberof Probability
+ */
+export interface Uncertainty {
+    distribution: DistributionType;
+    parameters: Record<string, number>;
+    /**
+     * Sources of uncertainty in the model.
+     */
+    model_uncertainty_sources?: string[];
+}
+
+/**
+ * @namespace Sources
+ * @description Data sources and assumptions
+ */
+
+/**
+ * Interface representing data sources and their context
+ * @memberof Sources
+ */
+export interface DataSource {
+    /**
+     * The source of the data (e.g., "Plant maintenance records 2020-2023")
+     */
+    source: string;
+    /**
+     * The context or type of the data source (e.g., "Industry standard", "Plant specific")
+     */
+    context?: string;
+    /**
+     * Any additional notes about the data source
+     */
+    notes?: string;
+}
+
+/**
+ * Interface representing an assumption and its context
+ * @memberof Sources
+ */
+export interface Assumption {
+    /**
+     * The assumption statement
+     */
+    statement: string;
+    /**
+     * The context or type of the assumption (e.g., "General", "Value-specific")
+     */
+    context?: string;
+    /**
+     * Any additional notes about the assumption
+     */
+    notes?: string;
+}
+
+/**
+ * @namespace DataAnalysis
+ * @description Main data analysis interfaces and types
+ */
+
+/**
  * Interface representing an analysis of data parameters, which is a type of technical element.
- *
+ * 
+ * @memberof DataAnalysis
+ * @extends {TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS>}
+ * 
  * @example
  * ```typescript
  * const analysis: DataAnalysis = {
@@ -265,10 +294,6 @@ export interface DataAnalysisParameter extends BaseDataAnalysisParameter {
  * };
  * ```
  */
-/**
- * @interface
- * @extends {TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS>}
- */
 export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS> {
     /**
      * Array of data analysis parameters that are part of this analysis.
@@ -279,7 +304,8 @@ export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DAT
 
 /**
  * JSON schema for validating {@link DataAnalysis} entities.
- *
+ * 
+ * @memberof DataAnalysis
  * @example
  * ```typescript
  * const isValid = DataAnalysisSchema.validate(someData);

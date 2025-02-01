@@ -6,17 +6,11 @@
   "theme": "default",
   "plugin": ["typedoc-plugin-merge-modules"],
   "sort": ["source-order"],
-  "navigationLinks": {
-    "Data Analysis": "modules/data_analysis.html",
-    "Plant Operating State": "modules/plant_operating_state.html",
-    "Initiating Event": "modules/initiating_event.html",
-    "Systems Analysis": "modules/systems_analysis.html",
-    "Meta": "modules/meta.html",
-    "Events": "modules/events.html"
-  },
   "validation": {
     "notExported": true,
     "invalidLink": true,
     "notDocumented": false
-  }
+  },
+  "mergeModulesMergeMode": "module",
+  "mergeModulesRenameDefaults": true
 } 

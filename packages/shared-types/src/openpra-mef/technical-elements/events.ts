@@ -1,8 +1,14 @@
-import typia, { tags } from "typia";
+import typia from "typia";
 import { Named, Unique } from "./meta";
 
 /**
- * @interface
+ * @namespace BaseEvents
+ * @description Base event types and interfaces
+ */
+
+/**
+ * Base Event - parent of all events
+ * @memberof BaseEvents
  * @extends {Unique}
  * @extends {Named}
  */
@@ -11,7 +17,13 @@ export interface BaseEvent extends Unique, Named {
 }
 
 /**
- * @interface
+ * @namespace BasicEvents
+ * @description Basic event types and their specializations
+ */
+
+/**
+ * Basic Event type
+ * @memberof BasicEvents
  * @extends {BaseEvent}
  */
 export interface BasicEvent extends BaseEvent {
@@ -19,7 +31,8 @@ export interface BasicEvent extends BaseEvent {
 }
 
 /**
- * @interface
+ * Licensing Basis Event
+ * @memberof BasicEvents
  * @extends {BasicEvent}
  */
 export interface LicensingBasisEvent extends BasicEvent {
@@ -27,7 +40,13 @@ export interface LicensingBasisEvent extends BasicEvent {
 }
 
 /**
- * @interface
+ * @namespace FunctionalEvents
+ * @description Functional event types and their specializations
+ */
+
+/**
+ * Functional Event type
+ * @memberof FunctionalEvents
  * @extends {BaseEvent}
  */
 export interface FunctionalEvent extends BaseEvent {
@@ -35,7 +54,8 @@ export interface FunctionalEvent extends BaseEvent {
 }
 
 /**
- * @interface
+ * Top Event
+ * @memberof FunctionalEvents
  * @extends {FunctionalEvent}
  */
 export interface TopEvent extends FunctionalEvent {
@@ -43,14 +63,28 @@ export interface TopEvent extends FunctionalEvent {
 }
 
 /**
- * @interface
+ * @namespace InitiatingEvents
+ * @description Initiating event types
+ */
+
+/**
+ * Initiating Event type
+ * @memberof InitiatingEvents
  * @extends {BaseEvent}
  */
 export interface InitiatingEvent extends BaseEvent {
     eventType: "INITIATING";
 }
 
-// Schema validation
+/**
+ * @namespace Validation
+ * @description Schema validation for events
+ */
+
+/**
+ * Event validation schemas
+ * @memberof Validation
+ */
 export const EventSchemas = {
     base: typia.json.application<[BaseEvent], "3.0">(),
     basic: typia.json.application<[BasicEvent], "3.0">(),

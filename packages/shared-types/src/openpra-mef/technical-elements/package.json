@@ -5,16 +5,16 @@
     "devDependencies": {
         "http-server": "^14.1.1",
         "typedoc": "^0.25.7",
-        "typedoc-plugin-merge-modules": "^5.1.0"
+        "typedoc-plugin-merge-modules": "^5.1.0",
+        "gh-pages": "^6.1.0"
     },
     "scripts": {
         "docs": "typedoc --options typedoc.json",
         "serve": "http-server docs -o -c-1",
         "predeploy": "npm run docs",
-        "deploy": "gh-pages -b gh-pages -d docs"
+        "deploy": "gh-pages -d docs -b gh-pages -m 'Deploy documentation from rahul/tech-elements'"
     },
     "dependencies": {
-        "typia": "^7.6.0",
-        "gh-pages": "^6.1.0"
+        "typia": "^7.6.0"
     }
 }

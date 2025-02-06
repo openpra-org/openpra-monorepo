@@ -46,11 +46,14 @@ jobs:
 
       - name: Install dependencies
         working-directory: packages/shared-types/src/openpra-mef/technical-elements
-        run: npm install
+        run: |
+          npm install
+          npm list typedoc || true
+          npm list typedoc-plugin-merge-modules || true
 
       - name: Generate TypeDoc
         working-directory: packages/shared-types/src/openpra-mef/technical-elements
-        run: npx typedoc
+        run: npm run docs
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

@@ -1,4 +1,4 @@
-name: Deploy TypeDoc to GitHub Pages
+name: TypeDoc Pages Deploy
 
 # Workflow for generating and deploying TypeDoc documentation to GitHub Pages
 # This workflow must be triggered manually with specific branch and commit inputs

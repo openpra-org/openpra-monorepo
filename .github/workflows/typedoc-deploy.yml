@@ -1,5 +1,8 @@
 name: Deploy TypeDoc to GitHub Pages
 
+# Workflow for generating and deploying TypeDoc documentation to GitHub Pages
+# This will run on every push to the technical-elements directory and can be manually triggered
+
 on:
   workflow_dispatch:
     inputs:

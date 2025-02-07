@@ -44,7 +44,7 @@ export class FtrexController {
    * @throws {@link NotFoundException} Throws an exception if the server is unable to find the requested list of quantified reports.
    */
   @TypedRoute.Get("/ftrex/:model_name")
-  public async getQuantifiedReports(@TypedParam("model_name") modelName: string): Promise<QuantificationJobReport[]> {
+  public async getQuantifiedReports(@TypedParam("model_name") modelName: string): Promise<number> {
     try {
       return this.storageService.getQuantifiedReports(modelName);
     } catch {

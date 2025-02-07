@@ -130,6 +130,7 @@ export class ConsumerService implements OnModuleInit {
               $set: { model_name: modelsData.model_name, status: "completed" },
             });
 
+            const experimentEndTime = Date.now();
             const postProcessingEnd = performance.now();
             const postProcessingTime = postProcessingEnd - result.postProcessing;
             const preProcessingAndPostProcessing = result.preProcessing + postProcessingTime;
@@ -137,6 +138,7 @@ export class ConsumerService implements OnModuleInit {
             console.log("Updating the rest of the properties");
             await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
               $set: {
+                "execution_time.experimentEndTime": experimentEndTime,
                 "execution_time.perform_quantification": result.quantification,
                 "execution_time.preprocessing_and_postprocessing": preProcessingAndPostProcessing,
               },

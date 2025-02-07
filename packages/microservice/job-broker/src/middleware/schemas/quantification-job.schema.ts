@@ -86,6 +86,9 @@ export class QuantificationJobRequest {
 })
 class ExecutionTime {
   @Prop({ required: false })
+  experimentStartTime?: number;
+
+  @Prop({ required: false })
   mongodb_crud?: number;
 
   @Prop({ required: false })
@@ -99,6 +102,9 @@ class ExecutionTime {
 
   @Prop({ required: false })
   preprocessing_and_postprocessing?: number;
+
+  @Prop({ required: false })
+  experimentEndTime?: number;
 }
 
 /**

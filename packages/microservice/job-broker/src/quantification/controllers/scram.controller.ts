@@ -50,12 +50,11 @@ export class ScramController {
    * @throws {@link NotFoundException} Throws an exception if the server is unable to find the requested list of quantified reports.
    */
   @TypedRoute.Get("/scram/:model_name")
-  public async getQuantifiedReports(@TypedParam("model_name") model_name: string): Promise<QuantificationJobReport[]> {
+  public async getQuantifiedReports(@TypedParam("model_name") model_name: string): Promise<number> {
     try {
-      console.log("Querying the stats of the specified model");
-      return this.storageService.getQuantifiedReports(model_name);
+      return await this.storageService.getQuantifiedReports(model_name);
     } catch {
-      throw new NotFoundException("Server was unable to find the requested list of quantified reports.");
+      throw new NotFoundException("No quantified reports found for this model.");
     }
   }
 }

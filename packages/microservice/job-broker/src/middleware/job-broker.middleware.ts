@@ -28,6 +28,7 @@ export class JobBrokerMiddleware implements NestMiddleware {
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     console.log("Checking whether it is a quantification or executable request");
     if (this.isQuantifyRequest(req.body)) {
+      const experimentStartTime = Date.now();
       const startTime = performance.now();
       const quantificationJob = await this.quantificationJobModel.create({ configuration: req.body.configuration });
       const jobId = quantificationJob._id.toString();
@@ -35,7 +36,10 @@ export class JobBrokerMiddleware implements NestMiddleware {
       const endTime = performance.now();
 
       await this.quantificationJobModel.findByIdAndUpdate(jobId, {
-        $set: { "execution_time.mongodb_crud": endTime - startTime },
+        $set: {
+          "execution_time.experimentStartTime": experimentStartTime,
+          "execution_time.mongodb_crud": endTime - startTime,
+        },
       });
     } else if (this.isExecutionTask(req.body)) {
       const executableJob = await this.executableJobModel.create({ task: req.body });

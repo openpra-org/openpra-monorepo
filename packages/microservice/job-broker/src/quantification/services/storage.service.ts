@@ -9,8 +9,17 @@ export class StorageService {
     @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
   ) {}
 
-  public async getQuantifiedReports(modelName: string): Promise<QuantificationJobReport[]> {
-    console.log("Trying to find the metrics of the specified model");
-    return this.quantificationJobModel.find({ model_name: modelName });
+  public async getQuantifiedReports(modelName: string): Promise<number> {
+    const reports = await this.quantificationJobModel.find({ model_name: modelName });
+    if (!reports || reports.length === 0) {
+      throw new Error("No reports found");
+    }
+
+    const startTimes = reports.map((r) => Number(r.execution_time!.experimentStartTime));
+    const endTimes = reports.map((r) => Number(r.execution_time!.experimentEndTime));
+    const minStart = Math.min(...startTimes);
+    const maxEnd = Math.max(...endTimes);
+
+    return maxEnd - minStart;
   }
 }

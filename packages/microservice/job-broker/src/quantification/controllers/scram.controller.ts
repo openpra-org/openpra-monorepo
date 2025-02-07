@@ -57,4 +57,9 @@ export class ScramController {
       throw new NotFoundException("No quantified reports found for this model.");
     }
   }
+
+  @TypedRoute.Post("/scram/:num_runs")
+  public runSerializedExperiment(@TypedParam("num_runs") num_runs: string): void {
+    this.storageService.runSerializedExperiment(num_runs);
+  }
 }

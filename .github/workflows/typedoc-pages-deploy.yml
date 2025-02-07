@@ -1,58 +1,70 @@
 name: Deploy TypeDoc to GitHub Pages
 
 # Workflow for generating and deploying TypeDoc documentation to GitHub Pages
-# This will run on every push to the technical-elements directory and can be manually triggered
+# This workflow must be triggered manually with specific branch and commit inputs
 
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to generate docs from'
+        description: 'Branch to generate docs from (e.g., rahul/tech-elements)'
         required: true
-        default: 'main'
+        type: string
       commit:
-        description: 'Specific commit SHA (optional)'
-        required: false
-  push:
-    paths:
-      - 'packages/shared-types/src/openpra-mef/technical-elements/**'
-    branches:
-      - '**'
+        description: 'Commit SHA to generate docs from'
+        required: true
+        type: string
 
+# Giving all required permissions
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
-
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  actions: write
 
 jobs:
+  debug:
+    name: Debug Information
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit }}
+        
+      - name: Debug Info
+        run: |
+          echo "GitHub Workspace: $GITHUB_WORKSPACE"
+          echo "Current Directory:"
+          pwd
+          echo "Repository Contents:"
+          ls -la
+          echo "Git Status:"
+          git status
+          echo "Git Branch:"
+          git branch
+          echo "Requested Branch: ${{ github.event.inputs.branch }}"
+          echo "Requested Commit: ${{ github.event.inputs.commit }}"
+          echo "Environment Variables:"
+          env
+
   build:
+    needs: debug
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.branch || github.ref }}
+          ref: ${{ github.event.inputs.commit }}
           fetch-depth: 0
-
-      - name: Checkout specific commit if provided
-        if: github.event.inputs.commit
-        run: git checkout ${{ github.event.inputs.commit }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
 
       - name: Install dependencies
         working-directory: packages/shared-types/src/openpra-mef/technical-elements
-        run: |
-          npm install
-          npm list typedoc || true
-          npm list typedoc-plugin-merge-modules || true
+        run: npm install
 
       - name: Generate TypeDoc
         working-directory: packages/shared-types/src/openpra-mef/technical-elements

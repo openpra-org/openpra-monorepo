@@ -70,8 +70,15 @@ jobs:
         working-directory: packages/shared-types/src/openpra-mef/technical-elements
         run: npm run docs
 
-      - name: Setup Pages
+      - name: Disable Jekyll
+        run: |
+          cd packages/shared-types/src/openpra-mef/technical-elements/docs
+          touch .nojekyll
+
+      - name: Configure Pages
         uses: actions/configure-pages@v4
+        with:
+          static_site_generator: "null"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

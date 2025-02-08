@@ -1,7 +1,8 @@
 import { Module } from "@nestjs/common";
 import { APP_FILTER, RouterModule } from "@nestjs/core";
 import { MongooseModule } from "@nestjs/mongoose";
-import { EnvVarKeys } from "../config/env_vars.config";
+import { getMongoConfig } from "../config/mongo.config";
+import { MongoDBConfigKeys } from "../config/mongo.config";
 import { HttpExceptionFilter } from "./http-exception.filter";
 import { JobBrokerController } from "./job-broker.controller";
 import { JobBrokerService } from "./job-broker.service";
@@ -17,10 +18,10 @@ import { ExecutableJobReport, ExecutableJobSchema } from "./middleware/schemas/e
     QuantificationModule,
     ValidationModule,
     ExecutableModule,
-    MongooseModule.forRoot(EnvVarKeys.MONGODB_URI),
+    MongooseModule.forRoot(getMongoConfig()[MongoDBConfigKeys.MONGODB_URI]),
     MongooseModule.forFeature([
       { name: QuantificationJobReport.name, schema: QuantificationJobSchema },
-      { name: ExecutableJobReport.name, schema: ExecutableJobSchema },
+      { name: ExecutableJobReport.name, schema: ExecutableJobSchema }
     ]),
     RouterModule.register([
       {
@@ -52,5 +53,6 @@ import { ExecutableJobReport, ExecutableJobSchema } from "./middleware/schemas/e
       useClass: HttpExceptionFilter,
     },
   ],
+  exports: [JobBrokerService]
 })
 export class JobBrokerModule {}

@@ -35,17 +35,30 @@ Make sure you have the following tools installed on your system:
 - **Node.js v20.17.0** (managed via **nvm**)
 - **pnpm** (Package Manager)
 - **MongoDB**
+- **RabbitMQ**
 
-## Installation
+### Installation
 
-### 1. Install **nvm** (Node Version Manager)
+1. **Install Homebrew** (if not already installed):
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+2. **Install nvm** (Node Version Manager):
 
 #### macOS and Linux
 
-Run the following command in your terminal:
-
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+```
+
+Once installed, `nvm` can be used to download and use the `node` version of choice. Install it using `nvm` with the
+following commands:
+
+```bash
+source ~/.zshrc  # or source ~/.bashrc
+nvm install 20.17.0
+nvm use 20.17.0
 ```
 
 After installation, restart your terminal or run `source ~/.bashrc` (or `source ~/.zshrc` for Zsh).
@@ -54,17 +67,8 @@ After installation, restart your terminal or run `source ~/.bashrc` (or `source 
 
 Download and run the [nvm Windows installer](https://github.com/coreybutler/nvm-windows/releases/latest/download/nvm-setup.zip).
 
-### 2. Install **`node`**
 
-Once installed, `nvm` can be used to download and use the `node` version of choice. Install it using `nvm` with the
-following commands:
-
-```shell
-nvm install 20.17.0
-nvm use 20.17.0
-```
-
-### 3. Install **pnpm** (Package Manager)
+3. Install **pnpm** (Package Manager)
 
 #### macOS and Linux
 
@@ -74,7 +78,7 @@ Run:
 curl -fsSL https://get.pnpm.io/install.sh | sh -
 ```
 
-Ensure `pnpm` is added to your `PATH`. You may need to restart your terminal or run `source ~/.bashrc`.
+Ensure `pnpm` is added to your `PATH`. You may need to restart your terminal or run `source ~/.bashrc` or `source ~/.zshrc`.
 
 #### Windows
 
@@ -84,7 +88,13 @@ Run:
 npm install -g pnpm
 ```
 
-### 4. Install **MongoDB**
+4. Install MongoDB and RabbitMQ:
+
+```bash
+brew tap mongodb/brew
+brew install mongodb-community
+brew install rabbitmq
+```
 
 Follow the official MongoDB installation guide for your operating system:
 
@@ -92,26 +102,126 @@ Follow the official MongoDB installation guide for your operating system:
 - **Windows**: [Install MongoDB on Windows](https://docs.mongodb.com/manual/tutorial/install-mongodb-on-windows/)
 - **Linux**: [Install MongoDB on Linux](https://docs.mongodb.com/manual/administration/install-on-linux/)
 
-## Setup
+## Start Services
 
 Once prerequisites are installed, initialize the project with these commands:
 
-```shell
+```bash
+# Start services
+brew services start mongodb-community
+brew services start rabbitmq
+```
+
+```bash
+git clone https://github.com/your-repo/openpra-monorepo.git
+cd openpra-monorepo
 pnpm setup
 pnpm install
 pnpm install --global nx@19.6.2
 ```
 
-## Running the Project
 
-### Start All Services Concurrently
+### Running the App
 
-To serve all packages at once, run:
+Start all services with minimal logging:
+```bash
+nx run-many -t serve --all --skip-nx-cache --verbose=false
+```
+To serve all packages at once, with logging:
 
 ```bash
 nx run-many -t serve --all
 ```
 
+The application will be available at:
+- Frontend: http://localhost:4200
+- Backend: http://localhost:3000
+- RabbitMQ Management: http://localhost:15672 (guest/guest)
+- MongoDb: http://localhost:27017
+
+### Working with SCRAM
+
+#### Installing SCRAM CLI
+
+Check your architecture
+```bash
+uname -m
+```
+For Apple Silicon the steps are as follows: 
+
+add library path
+```bash
+echo 'export DYLD_LIBRARY_PATH="$HOME/.local/lib/scram:$DYLD_LIBRARY_PATH"' >> ~/.zshrc
+```
+
+reload profile
+```bash
+source ~/.zshrc
+```
+
+verify env variable is set
+```bash
+echo $DYLD_LIBRARY_PATH
+```
+
+Access SCRAM-CLI
+```bash
+scram-cli --help
+```
+
+#### Quanitification with SCRAM
+
+Following are steps to quantify a real life event tree.
+Please note that all event trees cannot be quantified at the moment and is an area of active research.
+
+Save this [file](https://github.com/openpra-org/generic-pwr-openpsa-model/blob/a795d2c3ae5fd153d03475c1a15660cc90f33b44/models/converted_EQK-BIN1_et_Grp-4_24-02-26_15-57-18.xml ) as event.xml
+
+Then run the following command
+```bash
+scram-cli --mocus --probability --mcub --o eventoutput.xml event.xml 
+```
+
+All the probabilities will be calculated in the new file that will be generated.
+
+To see other real life models - check [event tree folder](https://github.com/openpra-org/generic-pwr-openpsa-model/tree/a795d2c3ae5fd153d03475c1a15660cc90f33b44/models) and [fault tree folder](https://github.com/openpra-org/generic-openpsa-models/blob/241b5dbc2961b4830745cd2e7ae65b08f543e88d/models/Aralia/baobab1.xml)
+
+### Troubleshooting
+
+If you encounter service connection errors:
+
+1. **Verify services are running**:
+```bash
+brew services list
+```
+
+2. **Check MongoDB connection**:
+```bash
+mongosh --eval "db.version()"
+```
+
+Other MongoDB related commands
+```bash
+mongosh "mongodb://localhost:27017"
+List databases: show dbs
+Use database: use <database_name>
+Show collections: show collections
+Query collection: db.<collection_name>.find()
+```
+
+3. **Check RabbitMQ**:
+```bash
+rabbitmqctl status
+```
+
+4. Try nuking your pnpm setup and try again
+
+Run the following script
+> [!NOTE]  - this is destructive behaviour, use with caution
+
+
+```bash
+openpra-monorepo/scripts/rm_node_modules.sh
+```
 ### Start Individual Services
 
 To serve a specific package, run:
@@ -128,23 +238,41 @@ To serve a specific package, run:
   nx serve web-backend
   ```
 
-## Testing and Linting
+## Development and Testing
 
-### Run Tests
+### Making Changes
 
-Execute Jest unit tests:
-
+1. Create a new feature branch:
 ```bash
-nx run-many -t test
+git checkout -b feature/your-feature-name
 ```
 
-### Run Linting
+2. Make your changes and verify locally using one of these approaches:
 
-Check code quality with ESLint:
-
+Test and lint all packages:
 ```bash
+# Run all tests
+nx run-many -t test
+
+# Run all linting
 nx run-many -t lint
 ```
+
+Or test only affected packages:
+```bash
+# Test only changed packages
+nx affected:test
+
+# Lint only changed packages
+nx affected:lint
+```
+
+3. Push your changes:
+```bash
+git push origin feature/your-feature-name
+```
+
+4. Create a pull request from your feature branch to `main`
 
 ## Additional Documentation
 

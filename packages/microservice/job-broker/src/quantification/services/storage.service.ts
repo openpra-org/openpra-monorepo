@@ -7,6 +7,7 @@ import typia, { TypeGuardError } from "typia";
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 import { EnvVarKeys } from "../../../config/env_vars.config";
+import { getRabbitMQConfig } from "../../../config/rabbitmq.config";
 
 /**
  * Service responsible for storing quantification results into a database upon application startup.
@@ -62,7 +63,7 @@ export class StorageService implements OnApplicationBootstrap {
    */
   public async onApplicationBootstrap(): Promise<void> {
     // Verify that all required environment variables are available, logging an error and exiting if any are missing.
-    const url: string = EnvVarKeys.RABBITMQ_URL;
+    const url: string = getRabbitMQConfig()[EnvVarKeys.RABBITMQ_URL];
     const completedQ: string = EnvVarKeys.QUANT_STORAGE_QUEUE_NAME;
     const deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
     const deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;

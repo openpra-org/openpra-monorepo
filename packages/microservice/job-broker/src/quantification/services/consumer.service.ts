@@ -8,6 +8,7 @@ import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-requ
 import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 import { RunScramCli } from "scram-node";
 import { EnvVarKeys } from "../../../config/env_vars.config";
+import { getRabbitMQConfig } from "../../../config/rabbitmq.config";
 
 @Injectable()
 export class ConsumerService implements OnModuleInit {
@@ -62,7 +63,7 @@ export class ConsumerService implements OnModuleInit {
    */
   public async onModuleInit(): Promise<void> {
     // Verify that all required environment variables are available, logging an error and exiting if any are missing.
-    const url: string = EnvVarKeys.RABBITMQ_URL;
+    const url: string = getRabbitMQConfig()[EnvVarKeys.RABBITMQ_URL];
     const initialJobQ: string = EnvVarKeys.QUANT_JOB_QUEUE_NAME;
     const storageQ: string = EnvVarKeys.QUANT_STORAGE_QUEUE_NAME;
     const deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;

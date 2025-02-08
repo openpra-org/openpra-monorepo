@@ -5,7 +5,8 @@ import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-requ
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { EnvVarKeys } from "../../../config/env_vars.config";
-import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
+import { getRabbitMQConfig } from "../../../config/rabbitmq.config";
+import { QuantificationJobReport } from '../../schemas/job-reports.schema';
 
 @Injectable()
 export class ProducerService implements OnApplicationBootstrap {
@@ -16,7 +17,7 @@ export class ProducerService implements OnApplicationBootstrap {
 
   private connection: amqp.Connection | null = null;
   private channel: amqp.Channel | null = null;
-  private readonly url: string = EnvVarKeys.RABBITMQ_URL;
+  private readonly url: string = getRabbitMQConfig()[EnvVarKeys.RABBITMQ_URL];
   private readonly initialJobQ: string = EnvVarKeys.QUANT_JOB_QUEUE_NAME;
   private readonly deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
   private readonly deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;

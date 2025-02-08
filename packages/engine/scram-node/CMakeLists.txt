@@ -5,7 +5,70 @@ set(CMAKE_DISABLE_SOURCE_CHANGES ON)
 set(CMAKE_DISABLE_IN_SOURCE_BUILD ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Detect compiler before project() call
+if(APPLE)
+  execute_process(
+    COMMAND brew --prefix llvm
+    OUTPUT_VARIABLE HOMEBREW_LLVM_PATH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  message(STATUS "Homebrew LLVM path: ${HOMEBREW_LLVM_PATH}")
+
+  if(HOMEBREW_LLVM_PATH AND EXISTS "${HOMEBREW_LLVM_PATH}/bin/clang++")
+    set(CMAKE_C_COMPILER "${HOMEBREW_LLVM_PATH}/bin/clang")
+    set(CMAKE_CXX_COMPILER "${HOMEBREW_LLVM_PATH}/bin/clang++")
+    message(STATUS "Using Clang/Clang++ from Homebrew LLVM")
+
+    # Add LLVM bin directory to PATH for other LLVM tools
+    set(ENV{PATH} "${HOMEBREW_LLVM_PATH}/bin:$ENV{PATH}")
+  else()
+    message(FATAL_ERROR "Homebrew LLVM Clang++ not found. Please check your LLVM installation.")
+  endif()
+endif()
+
 project(scram-engine VERSION 0.16.2 LANGUAGES CXX)
+
+# Tell CMake where the modules are.
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
+
+# Add these lines for Node.js configuration
+execute_process(COMMAND node -p "require('node-addon-api').include"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE NODE_ADDON_API_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+string(REPLACE "\"" "" NODE_ADDON_API_DIR ${NODE_ADDON_API_DIR})
+
+execute_process(COMMAND node -p "process.versions.node"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE NODE_VERSION
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+execute_process(COMMAND node -p "process.release.libpath"
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE NODE_LIBPATH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+include_directories(${NODE_ADDON_API_DIR} ${CMAKE_JS_INC})
+add_definitions(-DNAPI_VERSION=3)
+
+# Print compiler information
+message(STATUS "C compiler: ${CMAKE_C_COMPILER}")
+message(STATUS "C++ compiler: ${CMAKE_CXX_COMPILER}")
+message(STATUS "C++ compiler version: ${CMAKE_CXX_COMPILER_VERSION}")
+
+# Address CMP0144 policy warning
+if(POLICY CMP0144)
+  cmake_policy(SET CMP0144 NEW)
+endif()
+
+# Address CMP0167 policy warning
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
 
 ####################### Begin Options ################### {{{
 
@@ -20,15 +83,9 @@ option(OPTIMIZE_FOR_NATIVE "Build with -march=native" OFF)
 ####################### End Options ##################### }}}
 
 ####################### Begin compiler configurations ################### {{{
-# Include FindOpenMP module to enable OpenMP support.
-include(FindOpenMP)
-if(OPENMP_FOUND)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-endif()
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)  # Needed for Clang Tooling.
+find_package(_boost REQUIRED)
+find_package(_openmp)
+find_package(_libxml2 REQUIRED)
 
 # Default to C++20.
 set(CMAKE_CXX_STANDARD 20)
@@ -107,10 +164,10 @@ else()
   # When building,
   # don't use the install RPATH already
   # (but later on when installing).
-  set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+  set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 
-  #set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/scram")
-  #set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib/scram")
+  set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib/scram")
+  set(CMAKE_INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/lib/scram")
 
   # Add the automatically determined parts of the RPATH,
   # which point to directories outside the build tree
@@ -119,10 +176,6 @@ else()
 endif()
 
 ######################## End cmake configuration ################### }}}
-
-# Tell CMake where the modules are.
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-message(${CMAKE_MODULE_PATH})
 
 ######################## Begin find libraries ###################### {{{
 
@@ -167,34 +220,12 @@ else()
   message(STATUS "memory allocator: ${MALLOC_TYPE}")
 endif()
 
-# Find LibXML2 and dependencies.
-find_package(LibXml2 REQUIRED)
-list(APPEND LIBS ${LIBXML2_LIBRARIES})
-
-# Include the boost header files and the program_options library.
-# Please be sure to use Boost rather than BOOST.
-set(BOOST_MIN_VERSION "1.61.0")
-
-if(NOT WIN32)
-  set(Boost_USE_MULTITHREADED OFF)
-endif()
-
-find_package(Boost ${BOOST_MIN_VERSION} REQUIRED COMPONENTS
-        program_options filesystem system random
-)
-message(STATUS "Boost Include directory: ${Boost_INCLUDE_DIR}")
-message(STATUS "Boost Library directories: ${Boost_LIBRARY_DIRS}")
-list(APPEND LIBS ${Boost_LIBRARIES})
-
 list(APPEND LIBS ${CMAKE_DL_LIBS})
 
 message(STATUS "Libraries: ${LIBS}")
 ########################## End of find libraries ######################## }}}
 ########################## Begin includes ############################### {{{
 
-# Include all the discovered system directories.
-include_directories(SYSTEM "${Boost_INCLUDE_DIR}")
-include_directories(SYSTEM "${LIBXML2_INCLUDE_DIR}")
 
 include_directories("${CMAKE_SOURCE_DIR}")  # Include the core headers via "src".
 include_directories("src")  # Include the core headers via "src".
@@ -202,6 +233,10 @@ include_directories("src")  # Include the core headers via "src".
 add_subdirectory(src)
 add_subdirectory(targets/scram-cli)
 add_subdirectory(targets/scram-node)
+
+target_link_libraries(scram-node PRIVATE ${CMAKE_JS_LIB})
+set_target_properties(scram-node PROPERTIES PREFIX "" SUFFIX ".node")
+target_include_directories(scram-node PRIVATE ${CMAKE_JS_INC})
 
 if(BUILD_TESTS)
   add_subdirectory(tests)

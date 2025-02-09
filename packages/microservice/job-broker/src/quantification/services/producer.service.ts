@@ -65,7 +65,6 @@ export class ProducerService implements OnApplicationBootstrap {
       durable: true,
       deadLetterExchange: this.deadLetterX,
       messageTtl: 60000,
-      maxLength: 10000,
     });
   }
 

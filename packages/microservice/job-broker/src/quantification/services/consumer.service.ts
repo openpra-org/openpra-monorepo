@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import tmp from "tmp";
@@ -12,7 +12,7 @@ import { EnvVarKeys } from "../../../config/env_vars.config";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 
 @Injectable()
-export class ConsumerService implements OnModuleInit {
+export class ConsumerService implements OnApplicationBootstrap {
   // Importing ConfigService for accessing environment variables.
   private readonly logger = new Logger(ConsumerService.name);
   constructor(
@@ -65,7 +65,7 @@ export class ConsumerService implements OnModuleInit {
    *
    * @returns A promise that resolves when the module initialization process is complete.
    */
-  public async onModuleInit(): Promise<void> {
+  public async onApplicationBootstrap(): Promise<void> {
     console.log("Settings environment variables for the Consumer");
     // Verify that all required environment variables are available, logging an error and exiting if any are missing.
     const url: string = EnvVarKeys.RABBITMQ_URL;
@@ -87,9 +87,8 @@ export class ConsumerService implements OnModuleInit {
       durable: true,
       deadLetterExchange: deadLetterX,
       messageTtl: 60000,
-      maxLength: 10000,
     });
-    await channel.prefetch(1);
+    await channel.prefetch(32);
 
     // Consume the jobs from the initial queue
     await channel.consume(

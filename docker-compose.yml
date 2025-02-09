@@ -60,7 +60,7 @@ services:
       - mongodb
       - rabbitmq
     deploy:
-      replicas: 8
+      replicas: 4
 
   backend:
     <<: *base-image
@@ -95,6 +95,7 @@ services:
 
   mongodb:
     image: mongo:latest
+    restart: unless-stopped
     ports:
       - "27017:27017"
     networks:

@@ -10,7 +10,8 @@ module.exports = composePlugins(
   (config) => {
     config.devServer = {
       port: 4200,
-      allowedHosts: [".app.openpra.org"],
+      allowedHosts: [".openpra.org"],
+      historyApiFallback: true, // enable history API fallback for SPA routing.
       proxy: [
         {
           context: ["/api"],

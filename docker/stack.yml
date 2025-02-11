@@ -1,4 +1,3 @@
-
 networks:
   db_net:
     driver: overlay
@@ -22,7 +21,6 @@ configs:
   rabbitmq_conf:
     file: configs/rabbitmq/rabbitmq.conf
 
-
 services:
   frontend:
     image: ${IMAGE_BACKEND}
@@ -31,8 +29,14 @@ services:
       - "/etc/timezone:/etc/timezone:ro"
     networks:
       - traefik-public
-    command: "nx run --verbose frontend-web-editor:serve:development"
+    command: "nx run --verbose frontend-web-editor:serve:$CI_BUILD_TYPE"
+    environment:
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
     deploy:
+      placement:
+        constraints:
+          - node.labels.host_performance != low
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public
@@ -48,20 +52,32 @@ services:
         - traefik.http.routers.${APP_NAME}-frontend-https.middlewares=gzip
         - traefik.http.routers.${APP_NAME}-frontend-https.service=${APP_NAME}-frontend
         - traefik.http.services.${APP_NAME}-frontend.loadbalancer.server.port=4200
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4200/"]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 90s
+      start_interval: 2s
 
   job-broker:
     image: ${IMAGE_BACKEND}
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
-    command: "nx run --verbose microservice-job-broker:serve:development"
+    command: "nx run --verbose microservice-job-broker:serve:$CI_BUILD_TYPE"
     environment:
       RABBITMQ_URL: "amqp://rabbitmq:5672"
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
     networks:
       - traefik-public
       - rmq_net
       - db_net
     deploy:
+      placement:
+        constraints:
+          - node.labels.host_performance != low
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public
@@ -77,15 +93,24 @@ services:
         - traefik.http.routers.${APP_NAME}-job-broker-https.middlewares=gzip
         - traefik.http.routers.${APP_NAME}-job-broker-https.service=${APP_NAME}-job-broker
         - traefik.http.services.${APP_NAME}-job-broker.loadbalancer.server.port=3000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 90s
+      start_interval: 2s
 
   job-worker:
     image: ${IMAGE_BACKEND}
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
-    command: "nx run --verbose microservice-job-broker:serve-consumer:development"
+    command: "nx run --verbose microservice-job-broker:serve-consumer:$CI_BUILD_TYPE"
     environment:
       RABBITMQ_URL: "amqp://rabbitmq:5672"
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
     networks:
       - rmq_net
     deploy:
@@ -99,7 +124,7 @@ services:
     networks:
       - traefik-public
       - db_net
-    command: "nx run --verbose web-backend:serve:development"
+    command: "nx run --verbose web-backend:serve:$CI_BUILD_TYPE"
     secrets:
       - CI_JWT_SECRET_KEY
     environment:
@@ -107,9 +132,13 @@ services:
       JWT_SECRET_KEY: /run/secrets/CI_JWT_SECRET_KEY
       SENTRY_DSN: ${CI_SENTRY_DSN}
       SENTRY_ENV: ${CI_SENTRY_ENV}
-      DEBUG: ${CI_DEBUG}
       DEPLOYMENT: 'true'
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
     deploy:
+      placement:
+        constraints:
+          - node.labels.host_performance != low
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public
@@ -125,6 +154,13 @@ services:
         - traefik.http.routers.${APP_NAME}-backend-https.middlewares=gzip
         - traefik.http.routers.${APP_NAME}-backend-https.service=${APP_NAME}-backend
         - traefik.http.services.${APP_NAME}-backend.loadbalancer.server.port=8000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
+      interval: 10s
+      timeout: 2s
+      retries: 5
+      start_period: 90s
+      start_interval: 2s
 
   mongodb-express:
     image: mongo-express:latest
@@ -137,23 +173,24 @@ services:
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb
       ME_CONFIG_MONGODB_ENABLE_ADMIN: 'true'
+      ME_CONFIG_BASICAUTH_ENABLED: 'false'
       ME_CONFIG_SITE_BASEURL: /mongo/
     deploy:
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public
         - traefik.constraint-label=traefik-public
-        - traefik.http.routers.${APP_NAME}-express-http.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/mongo`)
-        - traefik.http.routers.${APP_NAME}-express-http.entrypoints=http
-        - traefik.http.routers.${APP_NAME}-express-http.middlewares=https-redirect,gzip
-        - traefik.http.routers.${APP_NAME}-express-http.service=${APP_NAME}-express
-        - traefik.http.routers.${APP_NAME}-express-https.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/mongo`)
-        - traefik.http.routers.${APP_NAME}-express-https.entrypoints=https
-        - traefik.http.routers.${APP_NAME}-express-https.tls=true
-        - traefik.http.routers.${APP_NAME}-express-https.tls.certresolver=le
-        - traefik.http.routers.${APP_NAME}-express-https.middlewares=gzip
-        - traefik.http.routers.${APP_NAME}-express-https.service=${APP_NAME}-express
-        - traefik.http.services.${APP_NAME}-express.loadbalancer.server.port=8081
+        - traefik.http.routers.${APP_NAME}-mx-http.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/mongo`)
+        - traefik.http.routers.${APP_NAME}-mx-http.entrypoints=http
+        - traefik.http.routers.${APP_NAME}-mx-http.middlewares=https-redirect,gzip
+        - traefik.http.routers.${APP_NAME}-mx-http.service=${APP_NAME}-mx
+        - traefik.http.routers.${APP_NAME}-mx-https.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/mongo`)
+        - traefik.http.routers.${APP_NAME}-mx-https.entrypoints=https
+        - traefik.http.routers.${APP_NAME}-mx-https.tls=true
+        - traefik.http.routers.${APP_NAME}-mx-https.tls.certresolver=le
+        - traefik.http.routers.${APP_NAME}-mx-https.middlewares=gzip,traefik-forward-auth
+        - traefik.http.routers.${APP_NAME}-mx-https.service=${APP_NAME}-mx
+        - traefik.http.services.${APP_NAME}-mx.loadbalancer.server.port=8081
 
   rabbitmq:
     image: rabbitmq:management-alpine
@@ -170,21 +207,24 @@ services:
       - source: rabbitmq_conf
         target: /etc/rabbitmq/rabbitmq.conf
     deploy:
+      placement:
+        constraints:
+          - node.labels.host_performance != low
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public
         - traefik.constraint-label=traefik-public
-        - traefik.http.routers.${APP_NAME}-rabbitmq-http.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/mq`)
-        - traefik.http.routers.${APP_NAME}-rabbitmq-http.entrypoints=http
-        - traefik.http.routers.${APP_NAME}-rabbitmq-http.middlewares=https-redirect,gzip
-        - traefik.http.routers.${APP_NAME}-rabbitmq-http.service=${APP_NAME}-express
-        - traefik.http.routers.${APP_NAME}-rabbitmq-https.rule=Host(`${HOST_URL?Variable not set}`) && PathPrefix(`/mq`)
-        - traefik.http.routers.${APP_NAME}-rabbitmq-https.entrypoints=https
-        - traefik.http.routers.${APP_NAME}-rabbitmq-https.tls=true
-        - traefik.http.routers.${APP_NAME}-rabbitmq-https.tls.certresolver=le
-        - traefik.http.routers.${APP_NAME}-rabbitmq-https.middlewares=gzip
-        - traefik.http.routers.${APP_NAME}-rabbitmq-https.service=${APP_NAME}-rabbitmq
-        - traefik.http.services.${APP_NAME}-rabbitmq.loadbalancer.server.port=15672
+        - traefik.http.routers.${APP_NAME}-rmq-http.rule=Host(`rmq-${HOST_URL?Variable not set}`)
+        - traefik.http.routers.${APP_NAME}-rmq-http.entrypoints=http
+        - traefik.http.routers.${APP_NAME}-rmq-http.middlewares=https-redirect,gzip
+        - traefik.http.routers.${APP_NAME}-rmq-http.service=${APP_NAME}-rmq
+        - traefik.http.routers.${APP_NAME}-rmq-https.rule=Host(`rmq-${HOST_URL?Variable not set}`)
+        - traefik.http.routers.${APP_NAME}-rmq-https.entrypoints=https
+        - traefik.http.routers.${APP_NAME}-rmq-https.tls=true
+        - traefik.http.routers.${APP_NAME}-rmq-https.tls.certresolver=le
+        - traefik.http.routers.${APP_NAME}-rmq-https.middlewares=gzip,traefik-forward-auth
+        - traefik.http.routers.${APP_NAME}-rmq-https.service=${APP_NAME}-rmq
+        - traefik.http.services.${APP_NAME}-rmq.loadbalancer.server.port=15672
   mongodb:
     image: mongo:latest
     networks:
@@ -193,3 +233,7 @@ services:
       - "$ENV_SHARED_VOLUME_PATH/mongodb:/data/db"
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
+    deploy:
+      placement:
+        constraints:
+          - node.labels.host_performance != low

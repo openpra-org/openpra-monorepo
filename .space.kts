@@ -1,4 +1,4 @@
-job("Monorepo Deployment") {
+job("Monorepo CD") {
 
    val registry = "packages-space.openpra.org/p/openpra/containers/"
    val image = "openpra-monorepo"
@@ -22,13 +22,13 @@ job("Monorepo Deployment") {
        var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
 
        if (branchName == "main") {
-         branchSlug = "v2"
+         branchSlug = "v2-app"
          api.parameters["buildType"] = "production"
          api.parameters["debugMode"] = "false"
          api.parameters["isReview"] = "false"
          api.parameters["numWorkers"] = "32"
        } else {
-         branchSlug = "review-$branchSlug"
+         branchSlug = "app-review-$branchSlug"
          api.parameters["buildType"] = "development"
          api.parameters["debugMode"] = "true"
          api.parameters["isReview"] = "true"
@@ -37,7 +37,7 @@ job("Monorepo Deployment") {
 
        api.parameters["branchSlug"] = branchSlug
        api.parameters["externalLinkLabel"] = branchSlug
-       api.parameters["externalLinkUrl"] = "$branchSlug.app.openpra.org"
+       api.parameters["externalLinkUrl"] = "$branchSlug.openpra.org"
      }
    }
 
@@ -67,13 +67,15 @@ job("Monorepo Deployment") {
 
      env["IMAGE_BACKEND"] = "$remote:deploy-{{ branchSlug }}"
 
-     env["APP_NAME"] = "v2-app-{{ branchSlug }}"
+     env["APP_NAME"] = "v2-{{ branchSlug }}"
      env["HOST_URL"] = "{{ branchSlug }}.{{ project:APP_DOMAIN }}"
      env["NUM_WORKERS"] = "{{ numWorkers }}"
 
      env["CI_SENTRY_DSN"] = "{{ project:APP_SENTRY_DSN }}"
      env["CI_SENTRY_ENV"] = "{{ project:APP_SENTRY_ENV }}"
      env["CI_DEBUG"] = "{{ project:APP_DEBUG_MODE }}"
+
+     env["CI_BUILD_TYPE"] = "{{ buildType }}"
 
      env["ENV_SHARED_VOLUME_PATH"] = "{{ project:SHARED_VOLUME_PATH }}/openpra-app/v2/{{ branchSlug }}/volumes"
 
@@ -119,7 +121,7 @@ job("Monorepo Deployment") {
    }
  }
 
-job("Monorepo Deployment Cleanup") {
+job("Monorepo CD Cleanup") {
 
   startOn {
     codeReviewClosed{
@@ -145,12 +147,12 @@ job("Monorepo Deployment Cleanup") {
       var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
 
       if (branchName == "main") {
-        branchSlug = "v2"
+        branchSlug = "v2-app"
         api.parameters["buildType"] = "production"
         api.parameters["debugMode"] = "false"
         api.parameters["isReview"] = "false"
       } else {
-        branchSlug = "review-$branchSlug"
+        branchSlug = "app-review-$branchSlug"
         api.parameters["buildType"] = "development"
         api.parameters["debugMode"] = "true"
         api.parameters["isReview"] = "true"
@@ -158,7 +160,7 @@ job("Monorepo Deployment Cleanup") {
 
       api.parameters["branchSlug"] = branchSlug
       api.parameters["externalLinkLabel"] = branchSlug
-      api.parameters["externalLinkUrl"] = "$branchSlug.app.openpra.org"
+      api.parameters["externalLinkUrl"] = "$branchSlug.openpra.org"
     }
   }
 
@@ -167,7 +169,7 @@ job("Monorepo Deployment Cleanup") {
       workerTags("swarm-manager")
     }
 
-    env["APP_NAME"] = "v2-app-{{ branchSlug }}"
+    env["APP_NAME"] = "v2-{{ branchSlug }}"
 
     shellScript("docker stack rm"){
       interpreter = "/bin/bash"
@@ -210,12 +212,12 @@ job("Monorepo CI") {
          var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
 
          if (branchName == "main") {
-           branchSlug = "v2"
+           branchSlug = "v2-app"
            api.parameters["buildType"] = "production"
            api.parameters["debugMode"] = "false"
            api.parameters["isReview"] = "false"
          } else {
-           branchSlug = "review-$branchSlug"
+           branchSlug = "app-review-$branchSlug"
            api.parameters["buildType"] = "development"
            api.parameters["debugMode"] = "true"
            api.parameters["isReview"] = "true"
@@ -223,7 +225,7 @@ job("Monorepo CI") {
 
          api.parameters["branchSlug"] = branchSlug
          api.parameters["externalLinkLabel"] = branchSlug
-         api.parameters["externalLinkUrl"] = "$branchSlug.app.openpra.org"
+         api.parameters["externalLinkUrl"] = "$branchSlug.openpra.org"
        }
      }
 

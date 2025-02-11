@@ -84,8 +84,26 @@
     },
     "serve-static": {
       "executor": "@nx/web:file-server",
+      "defaultConfiguration": "production",
       "options": {
-        "buildTarget": "frontend-web-editor:build"
+        "spa": true,
+        "brotli": true,
+        "gzip": true,
+        "parallel": true,
+        "maxParallel": 32,
+        "host": "0.0.0.0"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "frontend-web-editor:build:development",
+          "cacheSeconds": -1,
+          "watch": true
+        },
+        "production": {
+          "buildTarget": "frontend-web-editor:build:production",
+          "cacheSeconds": 43200,
+          "watch": false
+        }
       }
     },
     "test": {

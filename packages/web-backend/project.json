@@ -49,6 +49,23 @@
         }
       }
     },
+    "deploy": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "web-backend:build",
+        "watch": false,
+        "inspect": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "web-backend:build:development"
+        },
+        "production": {
+          "buildTarget": "web-backend:build:production"
+        }
+      }
+    },
     "lint": {
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],

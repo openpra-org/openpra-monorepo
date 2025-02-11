@@ -29,14 +29,11 @@ services:
       - "/etc/timezone:/etc/timezone:ro"
     networks:
       - traefik-public
-    command: "nx run --verbose frontend-web-editor:serve:$CI_BUILD_TYPE"
+    command: "nx run --verbose frontend-web-editor:serve-static:$CI_BUILD_TYPE"
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
     deploy:
-      placement:
-        constraints:
-          - node.labels.host_performance != low
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public
@@ -65,7 +62,7 @@ services:
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
-    command: "nx run --verbose microservice-job-broker:serve:$CI_BUILD_TYPE"
+    command: "nx run --verbose microservice-job-broker:deploy:$CI_BUILD_TYPE"
     environment:
       RABBITMQ_URL: "amqp://rabbitmq:5672"
       NODE_ENV: ${CI_BUILD_TYPE}
@@ -106,7 +103,7 @@ services:
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
-    command: "nx run --verbose microservice-job-broker:serve-consumer:$CI_BUILD_TYPE"
+    command: "nx run --verbose microservice-job-broker:deploy-consumer:$CI_BUILD_TYPE"
     environment:
       RABBITMQ_URL: "amqp://rabbitmq:5672"
       NODE_ENV: ${CI_BUILD_TYPE}
@@ -114,7 +111,10 @@ services:
     networks:
       - rmq_net
     deploy:
+      mode: replicated
       replicas: ${NUM_WORKERS}
+      placement:
+        max_replicas_per_node: 128
 
   backend:
     image: ${IMAGE_BACKEND}
@@ -124,7 +124,7 @@ services:
     networks:
       - traefik-public
       - db_net
-    command: "nx run --verbose web-backend:serve:$CI_BUILD_TYPE"
+    command: "nx run --verbose web-backend:deploy:$CI_BUILD_TYPE"
     secrets:
       - CI_JWT_SECRET_KEY
     environment:

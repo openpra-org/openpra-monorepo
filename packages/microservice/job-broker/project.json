@@ -49,6 +49,23 @@
         }
       }
     },
+    "deploy": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "microservice-job-broker:build",
+        "watch": false,
+        "inspect": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "microservice-job-broker:build:development"
+        },
+        "production": {
+          "buildTarget": "microservice-job-broker:build:production"
+        }
+      }
+    },
     "build-consumer": {
       "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],
@@ -83,6 +100,27 @@
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "microservice-job-broker:build-consumer"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "microservice-job-broker:build-consumer:development",
+          "watch": true,
+          "inspect": true
+        },
+        "production": {
+          "buildTarget": "microservice-job-broker:build-consumer:production",
+          "watch": false,
+          "inspect": false
+        }
+      }
+    },
+    "deploy-consumer": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "microservice-job-broker:build-consumer",
+        "watch": false,
+        "inspect": false
       },
       "configurations": {
         "development": {

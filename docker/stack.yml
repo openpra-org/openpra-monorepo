@@ -54,7 +54,7 @@ services:
       interval: 10s
       timeout: 2s
       retries: 5
-      start_period: 90s
+      start_period: 150s
       start_interval: 2s
 
   job-broker:
@@ -95,7 +95,7 @@ services:
       interval: 10s
       timeout: 2s
       retries: 5
-      start_period: 90s
+      start_period: 150s
       start_interval: 2s
 
   job-worker:
@@ -159,7 +159,7 @@ services:
       interval: 10s
       timeout: 2s
       retries: 5
-      start_period: 90s
+      start_period: 150s
       start_interval: 2s
 
   mongodb-express:

@@ -4,6 +4,15 @@ job("Monorepo CD") {
    val image = "openpra-monorepo"
    val remote = "$registry$image"
 
+    // Users will be able to redefine these parameters in custom job run.
+    // See the 'Customize job run' section
+    parameters {
+        text("Host-Performance", value = "any") {
+            options("any", "low", "medium", "high")
+        }
+        text("Worker-Count", value = "1", description = "min: 1, max: 1024")
+    }
+
    host("Deployment Tags") {
      // use kotlinScript blocks for usage of parameters
      kotlinScript("Generate slugs") { api ->
@@ -18,21 +27,23 @@ job("Monorepo CD") {
          .lowercase() // Convert to lower case for consistency
 
        val maxSlugLength = if (branchName.length > 32) 32 else branchName.length
-
        var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
+
+       var numWorkers = (api.parameters["Worker-Count"] ?: "0").toInt()
+       numWorkers = if (numWorkers > 1024) 1024 else numWorkers // never more than 1024
 
        if (branchName == "main") {
          branchSlug = "v2-app"
          api.parameters["buildType"] = "production"
          api.parameters["debugMode"] = "false"
          api.parameters["isReview"] = "false"
-         api.parameters["numWorkers"] = "32"
+         api.parameters["numWorkers"] = if (numWorkers < 1) "32" else numWorkers.toString() // 32 if unset
        } else {
          branchSlug = "app-review-$branchSlug"
          api.parameters["buildType"] = "development"
          api.parameters["debugMode"] = "true"
          api.parameters["isReview"] = "true"
-         api.parameters["numWorkers"] = "2"
+         api.parameters["numWorkers"] = if (numWorkers < 1) "2" else numWorkers.toString() // 2 if unset
        }
 
        api.parameters["branchSlug"] = branchSlug

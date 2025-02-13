@@ -18,16 +18,31 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
     const nodeToDelete = nodes.find((node) => node.id === clickedNodeId);
     if (!nodeToDelete) return;
 
-    // Check if it's a default success/failure node (depth 2 AND specific labels)
-    const isDefaultNode =
-      nodeToDelete.data.depth === 2 && (nodeToDelete.data.label === "Success" || nodeToDelete.data.label === "Failure");
+    // Find the root node
+    const rootNode = nodes.find((node) => node.data.depth === 1);
+    if (!rootNode) return;
 
-    if (isDefaultNode) {
+    // Find the first two nodes that were connected to root
+    // We can use edges to determine this as the first two edges from root
+    // would have been to Success and Failure nodes
+    const rootEdges = edges
+      .filter((edge) => edge.source === rootNode.id)
+      .sort((a, b) => {
+        // Sort by creation time if you have it in edge data
+        // or by edge ID which might preserve creation order
+        return a.id.localeCompare(b.id);
+      });
+
+    // Get the first two target node IDs (original Success/Failure nodes)
+    const originalNodeIds = rootEdges.slice(0, 2).map((edge) => edge.target);
+
+    // Check if the node to delete is one of the original nodes
+    if (originalNodeIds.includes(clickedNodeId)) {
       addToast({
         id: GenerateUUID(),
         title: "Warning",
         color: "warning",
-        text: "Cannot delete default Success/Failure nodes of this functional event.",
+        text: "Cannot delete the original nodes of the first functional event.",
       });
       return;
     }

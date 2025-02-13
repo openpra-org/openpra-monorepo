@@ -41,8 +41,10 @@ export const createEndStates = (
     source: sequenceIdNode,
     target: frequencyNode,
     type: "custom",
-    hidden: true,
     animated: false,
+    data: {
+      hidden: true,
+    },
   });
 
   // Release Category Node
@@ -58,8 +60,10 @@ export const createEndStates = (
     source: frequencyNode,
     target: releaseCategoryNode,
     type: "custom",
-    hidden: true,
     animated: false,
+    data: {
+      hidden: true,
+    },
   });
 
   return { nodes, edges };
@@ -185,7 +189,7 @@ const useTreeData = (
         width: nodeWidth,
         depth: 1,
         output: false,
-        allowAdd: true,
+        allowAdd: false,
       },
       position: pos,
     };
@@ -231,8 +235,10 @@ const useTreeData = (
         source: prevNode,
         target: nodeId,
         type: "custom",
-        hidden: true,
         animated: false,
+        data: {
+          hidden: true,
+        },
       };
       edges.push(edge);
 

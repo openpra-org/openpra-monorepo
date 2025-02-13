@@ -111,7 +111,28 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
 
         nodes.push(...endNodes);
 
-        newEdges.push(...endEdges);
+        // Modify the edges before adding them
+        const modifiedEndEdges = endEdges.map((edge) => {
+          // Check if both source and target are end states
+          const sourceNode = endNodes.find((node) => node.id === edge.source);
+          const targetNode = endNodes.find((node) => node.id === edge.target);
+
+          if (sourceNode && targetNode) {
+            // If both nodes are end states, make the edge hidden
+            return {
+              ...edge,
+              data: { hidden: true },
+            };
+          } else {
+            // If either node is not an end state (e.g., connection from leaf to first end state)
+            return {
+              ...edge,
+              data: { hidden: false },
+            };
+          }
+        });
+
+        newEdges.push(...modifiedEndEdges);
       }
     });
 

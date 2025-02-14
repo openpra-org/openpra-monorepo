@@ -1,4 +1,4 @@
-import { Handle, NodeProps, Position } from "reactflow";
+import { Handle, NodeProps, Position, useReactFlow } from "reactflow";
 import React, { useState } from "react";
 import { EuiText } from "@elastic/eui";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
@@ -10,6 +10,41 @@ function VisibleNode({ id, data }: NodeProps) {
   const onClickDelete = useDeleteNodeClick(id);
   const [isEditingProb, setIsEditingProb] = useState(false);
   const [isEditingLabel, setIsEditingLabel] = useState(false);
+  const { setNodes } = useReactFlow();
+
+  const updateNodeLabel = (newValue: string) => {
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id === id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              label: newValue,
+            },
+          };
+        }
+        return node;
+      }),
+    );
+  };
+
+  const updateNodeProbability = (newValue: number) => {
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id === id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              probability: newValue,
+            },
+          };
+        }
+        return node;
+      }),
+    );
+  };
 
   return (
     <div>
@@ -53,7 +88,8 @@ function VisibleNode({ id, data }: NodeProps) {
               }}
               onBlur={(e) => {
                 const value = Math.min(1, Math.max(0, parseFloat(e.target.value) || 0));
-                data.probability = parseFloat(value.toFixed(2));
+                const parsedValue = parseFloat(value.toFixed(2));
+                updateNodeProbability(parsedValue);
                 setIsEditingProb(false);
               }}
               autoFocus
@@ -82,7 +118,7 @@ function VisibleNode({ id, data }: NodeProps) {
                 outline: "none",
               }}
               onBlur={(e) => {
-                data.label = e.target.value;
+                updateNodeLabel(e.target.value);
                 setIsEditingLabel(false);
               }}
               autoFocus

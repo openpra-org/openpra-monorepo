@@ -1,4 +1,4 @@
-import { Handle, NodeProps, Position, useUpdateNodeInternals } from "reactflow";
+import { Handle, NodeProps, Position, useReactFlow, useUpdateNodeInternals } from "reactflow";
 import React, { memo, useEffect, useState } from "react";
 import { EuiText, EuiTextArea } from "@elastic/eui";
 import useCreateColClick from "../../../hooks/eventTree/useCreateColClick";
@@ -11,12 +11,27 @@ function ColumnNode({ id, data }: NodeProps) {
   const { label, allowAdd } = data;
   const [textareaValue, setTextareaValue] = useState<string>(data.label);
   const updateNodeInternals = useUpdateNodeInternals();
+  const { setNodes } = useReactFlow();
 
   const handleTextareaChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setTextareaValue(event.target.value);
-    // Optionally, update the node's data in React Flow's state here
-    // This might involve setting the new value in a context or state management system
-    // and then updating React Flow's representation of the node.
+    const newValue = event.target.value;
+    setTextareaValue(newValue);
+
+    // Update the node data in React Flow's state
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id === id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              label: newValue,
+            },
+          };
+        }
+        return node;
+      }),
+    );
     updateNodeInternals(id);
   };
 

@@ -33,6 +33,8 @@
   "devDependencies": {
     "@darraghor/eslint-plugin-nestjs-typed": "5.0.18",
     "@types/amqplib": "0.10.5",
+    "@types/supertest": "6.0.2",
+    "@types/superagent": "8.1.9",
     "@types/swagger-ui-express": "4.1.6",
     "copy-webpack-plugin": "12.0.2",
     "mongodb-memory-server": "9.1.1",

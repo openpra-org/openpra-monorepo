@@ -2,6 +2,12 @@ name: TypeDoc Documentation
 
 on:
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to generate documentation from'
+        required: true
+        type: string
+        default: 'main'
 
 permissions:
   contents: read
@@ -15,7 +21,24 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 1
+
+      - name: Debug Directory Structure
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Directory contents:"
+          ls -la
+          echo "Packages directory contents:"
+          ls -la packages || echo "No packages directory"
+          echo "Git status:"
+          git status
+          echo "Git branch:"
+          git branch
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -40,4 +63,4 @@ jobs:
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4 
+        uses: actions/deploy-pages@v4

@@ -38,4 +38,10 @@ export * as meta from './meta';
  * @module events
  * @description Event types and hierarchies
  */
-export * as events from './events'; 
+export * as events from './events';
+
+/**
+ * @module event_sequence_analysis
+ * @description Event Sequence Analysis types and interfaces
+ */
+export * as event_sequence_analysis from './event-sequence-analysis/event-sequence-analysis'; 

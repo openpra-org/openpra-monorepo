@@ -1,4 +1,4 @@
-import typia from "typia";
+import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Unique } from "../meta";
 
@@ -13,7 +13,7 @@ import { Unique } from "../meta";
  * };
  * ```
  */
-interface StateField {
+export interface StateField {
   /** 
    * The name/identifier of the operating state
    * @pattern ^[A-Za-z ]+$  // Enforces alphabetical characters and spaces
@@ -23,8 +23,9 @@ interface StateField {
   /**
    * Duration in hours for this state
    * @minimum 0  // Ensures non-negative values
+   * @maximum 8760  // Max 1 year
    */
-  duration: number;
+  duration: number & tags.Minimum<0> & tags.Maximum<8760>;
 }
 
 /**
@@ -47,8 +48,10 @@ interface StateField {
  */
 export interface PlantOperatingStatesTable extends Unique {
   /**
-   * Array of validated state entries
+   * Array of validated state entries.
+   * Each state name must be unique within the array.
    * @minItems 1  // Requires at least one state entry
+   * @uniqueItems true  // Ensures no duplicate state entries
    */
   state_fields: StateField[];
 }

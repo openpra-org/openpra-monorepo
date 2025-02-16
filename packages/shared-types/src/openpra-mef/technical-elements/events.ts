@@ -9,7 +9,7 @@ import { Named, Unique } from "./meta";
 /**
  * Base Event - parent of all events
  * @memberof BaseEvents
- * @extends {Unique}
+ * @extends {Unique}`
  * @extends {Named}
  */
 export interface BaseEvent extends Unique, Named {
@@ -28,15 +28,6 @@ export interface BaseEvent extends Unique, Named {
  */
 export interface BasicEvent extends BaseEvent {
     eventType: "BASIC";
-}
-
-/**
- * Licensing Basis Event
- * @memberof BasicEvents
- * @extends {BasicEvent}
- */
-export interface LicensingBasisEvent extends BasicEvent {
-    eventSubType: "LICENSING_BASIS";
 }
 
 /**
@@ -88,7 +79,6 @@ export interface InitiatingEvent extends BaseEvent {
 export const EventSchemas = {
     base: typia.json.application<[BaseEvent], "3.0">(),
     basic: typia.json.application<[BasicEvent], "3.0">(),
-    licensing: typia.json.application<[LicensingBasisEvent], "3.0">(),
     functional: typia.json.application<[FunctionalEvent], "3.0">(),
     top: typia.json.application<[TopEvent], "3.0">(),
     initiating: typia.json.application<[InitiatingEvent], "3.0">()

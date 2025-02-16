@@ -1,0 +1,52 @@
+/* Enhanced styling for typia runtime types */
+.tsd-signature .typia-runtime {
+  color: #0077c2;
+  font-weight: 500;
+}
+
+/* Better hierarchy display */
+.tsd-navigation.primary li.current > a {
+  font-weight: 600;
+  color: #0077c2;
+}
+
+/* Improved code block styling */
+.tsd-typography pre {
+  background-color: #f5f8fa;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 16px;
+}
+
+/* Better type signature display */
+.tsd-signature {
+  background-color: #f8f9fa;
+  padding: 12px;
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+/* Highlight runtime validations */
+.tsd-description .runtime-validation {
+  background-color: #e8f5e9;
+  border-left: 4px solid #4caf50;
+  padding: 12px;
+  margin: 12px 0;
+  border-radius: 0 4px 4px 0;
+}
+
+/* Technical element specific styling */
+.technical-element {
+  border-left: 4px solid #2196f3;
+  padding-left: 16px;
+  margin: 24px 0;
+}
+
+/* Better navigation */
+.col-menu {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding-right: 16px;
+} 

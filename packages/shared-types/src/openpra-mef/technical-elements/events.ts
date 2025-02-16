@@ -1,10 +1,16 @@
-import typia from "typia";
+import typia, { tags } from "typia";
 import { Named, Unique } from "./meta";
 
 /**
  * @namespace BaseEvents
  * @description Base event types and interfaces
  */
+
+/**
+ * Represents a frequency value that must be non-negative
+ * @description Used for event frequencies across different event types
+ */
+export type Frequency = number & tags.Minimum<0>;
 
 /**
  * Base Event - parent of all events
@@ -65,6 +71,7 @@ export interface TopEvent extends FunctionalEvent {
  */
 export interface InitiatingEvent extends BaseEvent {
     eventType: "INITIATING";
+    frequency: Frequency;
 }
 
 /**

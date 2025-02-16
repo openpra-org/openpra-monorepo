@@ -6,6 +6,19 @@
     import { PlantOperatingStatesTable } from "../plant-operating-state-analysis/plant-operating-state-analysis";
 
     /**
+     * @module DataAnalysis
+     * @description The objectives of Data Analysis ensure that:
+     * - (a) parameter boundaries are defined;
+     * - (b) components are appropriately grouped;
+     * - (c) parameter data are consistent with parameter definitions;
+     * - (d) relevant generic industry and plant-specific evidence are represented in the parameter estimation, including addressing uncertainties;
+     * - (e) the Data Analysis is documented to provide traceability of the work.
+     * 
+     * @preferred
+     * @category Technical Elements
+     */
+
+    /**
      * @namespace Parameters
      * @description Types and interfaces for data analysis parameters
      */
@@ -156,7 +169,7 @@
      * @memberof Probability
      * @example
      * ```typescript
-     * const edgFailureUncertainty: Uncertainty = {
+     * const emergencyDieselGeneratorFailureUncertainty: Uncertainty = {
      *   distribution: DistributionType.LOGNORMAL,
      *   parameters: {
      *     mean: 1.2e-3,
@@ -322,8 +335,13 @@
     }
 
     /**
-     * @namespace DataAnalysis
-     * @description Main data analysis interfaces and types
+     * The objectives of Data Analysis ensure that:
+     * - (a) parameter boundaries are defined;
+     * - (b) components are appropriately grouped;
+     * - (c) parameter data are consistent with parameter definitions;
+     * - (d) relevant generic industry and plant-specific evidence are represented in the parameter estimation, including addressing uncertainties;
+     * - (e) the Data Analysis is documented to provide traceability of the work.
+     * @packageDocumentation
      */
 
     /**

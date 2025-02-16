@@ -1,7 +1,7 @@
 import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Named, Unique } from "../meta";
-import { BaseEvent, FunctionalEvent, InitiatingEvent } from "../events";
+import { BaseEvent, FunctionalEvent, InitiatingEvent, Frequency } from "../events";
 import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
 import { PlantOperatingStatesTable, StateField } from "../plant-operating-state-analysis/plant-operating-state-analysis";
 import { Uncertainty } from "../data-analysis/data-analysis";
@@ -13,10 +13,14 @@ import { ComponentTimeline } from "../systems-analysis/temporal-modeling";
  */
 
 /**
- * Type representing different levels of prevention/mitigation success
+ * Enum representing different levels of prevention/mitigation success
  * @memberof EventSequenceAnalysis
  */
-export type PreventionMitigationLevel = "FULL" | "PARTIAL" | "NONE";
+export enum PreventionMitigationLevel {
+    FULL = "FULL",
+    PARTIAL = "PARTIAL",
+    NONE = "NONE"
+}
 
 /**
  * Type representing dependency types with examples
@@ -179,8 +183,8 @@ export interface EndState {
     releaseType?: string;
     classification?: string;
     damageState?: string;
-    preventionLevel: PreventionMitigationLevel;
-    mitigationLevel: PreventionMitigationLevel;
+    preventionLevel?: PreventionMitigationLevel;
+    mitigationLevel?: PreventionMitigationLevel;
     // TODO: Add mechanistic source term linkage
     // mechanisticSourceTermId?: string;
 }
@@ -334,7 +338,7 @@ export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElement
  *
  * @implements RA-S-1.4-2021 Section 4.3.3
  */
-export interface EventSequence {
+export interface EventSequence extends Unique, Named {
     /**
      * Unique identifier for the event sequence.
      */
@@ -371,7 +375,7 @@ export interface EventSequence {
     /**
      * Frequency of the event sequence
      */
-    frequency?: number;
+    frequency?: Frequency;
 
     /**
      * End state of the sequence including release category

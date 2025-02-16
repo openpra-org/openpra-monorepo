@@ -1,7 +1,7 @@
 import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
-import { Named, Unique } from "../meta";
-import { BaseEvent, FunctionalEvent, InitiatingEvent, Frequency } from "../events";
+import { Named, Unique } from "../core/meta";
+import { BaseEvent, FunctionalEvent, InitiatingEvent, Frequency } from "../core/events";
 import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
 import { PlantOperatingStatesTable, StateField } from "../plant-operating-state-analysis/plant-operating-state-analysis";
 import { Uncertainty } from "../data-analysis/data-analysis";

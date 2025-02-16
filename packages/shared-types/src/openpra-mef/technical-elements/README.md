@@ -1,6 +1,75 @@
-# Technical Elements Documentation
+# PRA Technical Elements Documentation
 
-This directory contains the TypeScript type definitions and documentation for OpenPRA's technical elements.
+OpenPRA technical schema is based on the ASME/ANS RA-S-1.4-2021 standard for Advanced Non-Light Water Reactor Nuclear Power Plants. This directory provides the formal definitions, examples, and documentation of the OpenPRA schema, enabling its use in both OpenPRA applications and other related applications in the nuclear domain.
+
+## Understanding TypeScript Types and Interfaces
+
+The documentation uses several TypeScript concepts to define and organize the PRA technical elements:
+
+### Namespace
+A way to logically group related code elements. These namespaces reflect the PRA Elements in the standard.
+```typescript
+namespace EventSequenceAnalysis {
+    // Contains all event sequence related types
+}
+```
+
+### Interface
+A contract that defines the structure of an object, specifying what properties and methods it must have.
+```typescript
+interface EventSequence {
+    sequenceId: string;
+    description: string;
+    initiatingEventId: string;
+    // ... other properties
+}
+```
+
+### Properties
+Individual fields within an interface or type that define what data can be stored.
+```typescript
+interface DesignInformation {
+    sourceId: string;  // A property of type string
+}
+```
+
+### Variable
+A named storage location for data that can hold values of specific types.
+```typescript
+const EventSequenceAnalysisSchema = typia.json.application<[EventSequenceAnalysis]>();
+// Stores the JSON validation schema for event sequences
+```
+
+### Type Alias
+A name given to a specific type or combination of types, making complex types more readable and reusable.
+```typescript
+interface EndState {
+    name: "Controlled Release";
+    category: string;
+    releaseType: string;
+    classification: string;
+}
+```
+
+### Enumeration
+A set of named constants that represent distinct values.
+```typescript
+enum PreventionMitigationLevel {
+    FULL = "FULL",
+    PARTIAL = "PARTIAL",
+    NONE = "NONE"
+}
+```
+### Function
+A reusable block of code that performs a specific task, can accept parameters and return values.
+```typescript
+function validateTemporalPhase(phase: TemporalPhase): boolean {
+    // Validates the timing and sequence of component states
+    return true;
+}
+```
+
+Each of these concepts is used throughout the documentation to create a type-safe representation of PRA technical elements.
 
 ## Running the Documentation
 
@@ -12,6 +81,9 @@ This directory contains the TypeScript type definitions and documentation for Op
 ```bash
 # Install dependencies
 npm install
+# Install Typedoc for documentation generation
+npm install typedoc --save-dev
+
 ```
 
 ### Serving Documentation
@@ -23,38 +95,21 @@ npm run serve  # Serves documentation at http://localhost:8080
 
 The documentation will be available at `http://localhost:8080`.
 
-### Ensuring New Files are Documented
-1. **File Visibility**
-   - Ensure your TypeScript file has proper export statements
-   - Add an `index.ts` in the directory if not present:
-     ```typescript
-     export * from './risk-integration/risk-integration';
-     ```
-   - Check that the file is included in `tsconfig.json`'s `include` paths
-
-2. **Documentation Comments**
-   - Add TSDoc comments to all exports using `/** */` syntax
-   - Include a brief description for each interface, type, and function
-   - Example:
-     ```typescript
-     /** 
-      * Represents the risk integration configuration
-      * @interface RiskIntegration
-      */
-     export interface RiskIntegration {
-       // ... properties
-     }
-     ```
-
-3. **Verify Documentation**
-   - After adding new files, run:
-     ```bash
-     npm run docs
-     ```
-   - Check the generated documentation to confirm your new content appears
-   - If missing, verify the export paths and TSDoc comments
-
 ## Troubleshooting
+
+### Common Issues
+
+1. **404 Errors**: If you see 404 errors for module pages, try:
+   - Clearing the docs directory: `rm -rf docs`
+   - Regenerating documentation: `npm run docs`
+
+2. **TypeDoc Warnings**: Some warnings about undefined types are expected and won't affect the documentation generation.
+
+3. **Port Conflict Resolution**: If you encounter a port conflict while serving documentation, you can specify a different port using the `--port` option with `npm run serve`. For example, to serve on port 8081 instead of the default 8080:
+```bash
+npm run serve -- --port 8081
+```
+
 
 ### Reset Environment
 If you encounter any issues with the documentation generation or serving:
@@ -78,13 +133,6 @@ npm run docs
 npm run serve
 ```
 
-### Common Issues
-
-1. **404 Errors**: If you see 404 errors for module pages, try:
-   - Clearing the docs directory: `rm -rf docs`
-   - Regenerating documentation: `npm run docs`
-
-2. **TypeDoc Warnings**: Some warnings about undefined types are expected and won't affect the documentation generation.
 
 ## Contributing
 
@@ -121,6 +169,37 @@ npm run serve
    - Provide clear description of changes
    - Reference any related issues
    - Include before/after documentation examples if applicable
+
+### Ensuring New Files are Documented
+1. **File Visibility**
+   - Ensure your TypeScript file has proper export statements
+   - Add an `index.ts` in the directory if not present:
+     ```typescript
+     export * from './risk-integration/risk-integration';
+     ```
+   - Check that the file is included in `tsconfig.json`'s `include` paths
+
+2. **Documentation Comments**
+   - Add TSDoc comments to all exports using `/** */` syntax
+   - Include a brief description for each interface, type, and function
+   - Example:
+     ```typescript
+     /** 
+      * Represents the risk integration configuration
+      * @interface RiskIntegration
+      */
+     export interface RiskIntegration {
+       // ... properties
+     }
+     ```
+
+3. **Verify Documentation**
+   - After adding new files, run:
+     ```bash
+     npm run docs
+     ```
+   - Check the generated documentation to confirm your new content appears
+   - If missing, verify the export paths and TSDoc comments
 
 ### Schema Update Guidelines
 1. Follow TypeScript best practices

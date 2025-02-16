@@ -2,18 +2,19 @@ import { SystemComponent, FailureMode, SuccessCriteria } from "./systems-analysi
 import { tags } from "typia";
 
 /**
- * @namespace Temporal
- * @description Time-dependent component behaviors and phase modeling
+ * @namespace Systems.Temporal
+ * @description Time-dependent component behaviors and phase modeling, aligned with
+ * ASME/ANS RA-S-1.4-2021 System Analysis requirements.
  * 
  * This module provides types and interfaces for modeling how components behave over time
  * during an event sequence. It captures:
- * - Time-based phase transitions
- * - Component state changes
+ * - Time-based phase transitions (HLR-ES-A)
+ * - Component state changes (HLR-SY-A)
  * - Active failure modes in different phases
  * - Resource depletion (e.g., fuel, battery)
  * - Success criteria that must be met
  * 
- * @example Complex Component Timeline
+ * @example Complex Component Timeline with Multiple Phases
  * ```typescript
  * const emergencyDieselGeneratorTimeline: ComponentTimeline = {
  *   component: {
@@ -23,7 +24,7 @@ import { tags } from "typia";
  *   },
  *   phases: [
  *     {
- *       // Initial start phase
+ *       // Start-up phase with specific success criteria
  *       startTime: 0,
  *       endTime: 0.5, // 30 minutes
  *       state: "operational",
@@ -31,21 +32,27 @@ import { tags } from "typia";
  *         { id: "FM-EDG-FTS", name: "Failure to Start" }
  *       ],
  *       requiredSuccessCriteria: [
- *         { id: "SC-EDG-START", description: "Start and reach rated speed within 10 seconds" }
+ *         { 
+ *           id: "SC-EDG-START", 
+ *           description: "Start and reach rated speed/voltage within 10 seconds",
+ *           reference: "Tech Spec 3.8.1.2"
+ *         }
  *       ]
  *     },
  *     {
- *       // Extended operation phase
+ *       // Extended operation with different failure modes
  *       startTime: 0.5,
  *       endTime: 24,
  *       state: "operational",
  *       activeFailureModes: [
- *         { id: "FM-EDG-FTR", name: "Failure to Run" },
- *         { id: "FM-EDG-OVH", name: "Overheating" }
+ *         { id: "FM-EDG-FTR", name: "Failure to Run" }
  *       ],
  *       requiredSuccessCriteria: [
- *         { id: "SC-EDG-VOLT", description: "Maintain voltage within ±5% of nominal" },
- *         { id: "SC-EDG-FREQ", description: "Maintain frequency within ±2% of 60Hz" }
+ *         {
+ *           id: "SC-EDG-VOLT",
+ *           description: "Maintain voltage within ±5% of nominal",
+ *           reference: "IEEE-308"
+ *         }
  *       ]
  *     }
  *   ],
@@ -57,11 +64,14 @@ import { tags } from "typia";
  *   }
  * };
  * ```
+ * 
+ * @see ASME/ANS RA-S-1.4-2021 Table 4.3.5.1-2 Supporting Requirements for HLR-SY-A
+ * @see ASME/ANS RA-S-1.4-2021 Table 4.3.3.1-2 Supporting Requirements for HLR-ES-A
  */
 
 /**
  * Interface representing a component's behavior over time
- * @memberof Temporal
+ * @memberof Systems.Temporal
  * 
  * @example Battery-Powered Component
  * ```typescript
@@ -107,7 +117,7 @@ export interface ComponentTimeline {
 
 /**
  * Interface representing a time phase in a component's timeline
- * @memberof Temporal
+ * @memberof Systems.Temporal
  * 
  * @example Multiple Success Criteria
  * ```typescript
@@ -200,27 +210,35 @@ export const validateTemporalPhase = (phase: TemporalPhase): string[] => {
 
 /**
  * Interface for modeling resource depletion over time
- * @memberof Temporal
+ * @memberof Systems.Temporal
  * 
- * @example Coolant System
+ * @example Safety System Battery Depletion
  * ```typescript
- * const coolantDepletion: DepletionModel = {
+ * const batteryDepletionModel: DepletionModel = {
+ *   resourceType: "battery",
+ *   initialQuantity: 250,  // Battery capacity in kWh
+ *   consumptionRate: 5,    // Discharge rate
+ *   units: "kWh"
+ * };
+ * ```
+ * 
+ * @example Emergency Cooling System
+ * ```typescript
+ * const coolantDepletionModel: DepletionModel = {
  *   resourceType: "coolant",
- *   initialQuantity: 5000,
- *   consumptionRate: 10,
+ *   initialQuantity: 5000,  // RWST inventory
+ *   consumptionRate: 10,    // Injection flow rate
  *   units: "liters/minute"
  * };
  * ```
  * 
- * @example Battery System
- * ```typescript
- * const batteryDepletion: DepletionModel = {
- *   resourceType: "battery",
- *   initialQuantity: 250,
- *   consumptionRate: 5,
- *   units: "kWh"
- * };
- * ```
+ * @remarks
+ * Resource depletion modeling is crucial for:
+ * - Mission time calculations
+ * - Success criteria validation
+ * - System availability assessment
+ * 
+ * @see ASME/ANS RA-S-1.4-2021 SR-SY-A11 for treatment of support system dependencies
  */
 export interface DepletionModel {
   resourceType: "fuel" | "coolant" | "battery";
@@ -231,7 +249,7 @@ export interface DepletionModel {
 
 /**
  * Possible states a component can be in during a phase
- * @memberof Temporal
+ * @memberof Systems.Temporal
  * 
  * @example State Transitions
  * ```typescript
@@ -250,42 +268,3 @@ export type ComponentState =
   | "failed"
   | "recovering"
   | "maintenance";
-
-
-
-//   // In event sequence analysis
-// import { ComponentTimeline } from "@/systems-analysis/temporal-modeling";
-
-// const sequence: EventSequence = {
-//   componentTimelines: [
-//     {
-//       component: { $ref: "components/EDG-A" }, // Reference to core component
-//       phases: [
-//         {
-//           startTime: 0,
-//           endTime: 600,
-//           state: "operational",
-//           activeFailureModes: [{ $ref: "failure-modes/EDG-START-FAIL" }]
-//         }
-//       ],
-//       depletionModel: {
-//         resourceType: "fuel",
-//         initialQuantity: 2000,
-//         consumptionRate: 3.2,
-//         units: "kg/hour"
-//       }
-//     }
-//   ]
-// };
-
-const phase: TemporalPhase = {
-    startTime: 0,
-    endTime: -1, // This will fail both type and runtime validation
-    state: "operational"
-};
-
-// Runtime validation
-const errors = validateTemporalPhase(phase);
-if (errors.length > 0) {
-    console.error("Invalid temporal phase:", errors);
-}

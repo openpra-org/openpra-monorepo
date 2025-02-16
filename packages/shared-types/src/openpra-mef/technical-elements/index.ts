@@ -1,4 +1,11 @@
 /**
+ * @module technical-elements
+ * @description OpenPRA Technical Elements Schema - Types and interfaces for PRA technical elements based on ASME/ANS RA-S-1.4-2021
+ * 
+ * > [View Documentation Guide](./index.html)
+ */
+
+/**
  * @module plant_operating_state
  * @description Plant Operating State Analysis types and interfaces
  */
@@ -18,15 +25,9 @@ export * as initiating_event from './initiating-event-analysis/initiating-event-
 
 /**
  * @module systems_analysis
- * @description Systems Analysis types and interfaces
+ * @description Systems Analysis types and interfaces, including temporal modeling capabilities
  */
 export * as systems_analysis from './systems-analysis/systems-analysis';
-
-/**
- * @module temporal_modeling
- * @description Time-dependent component behaviors and phase modeling
- */
-export * as temporal_modeling from './systems-analysis/temporal-modeling';
 
 /**
  * @module risk_integration
@@ -35,21 +36,13 @@ export * as temporal_modeling from './systems-analysis/temporal-modeling';
 export * as risk_integration from './risk-integration/risk-integration';
 
 /**
- * @module meta
- * @description Core metadata types and interfaces
+ * @module core
+ * @description Core types, patterns, and metadata
  */
-export * as meta from './meta';
-
-/**
- * @module events
- * @description Event types and hierarchies
- */
-export * as events from './events';
+export * as core from './core';
 
 /**
  * @module event_sequence_analysis
  * @description Event Sequence Analysis types and interfaces
  */
-export * as event_sequence_analysis from './event-sequence-analysis/event-sequence-analysis';
-
-export * from './shared-patterns'; 
+export * as event_sequence_analysis from './event-sequence-analysis/event-sequence-analysis'; 

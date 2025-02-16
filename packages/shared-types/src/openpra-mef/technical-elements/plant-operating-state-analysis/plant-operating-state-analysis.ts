@@ -1,6 +1,6 @@
 import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
-import { Unique } from "../meta";
+import { Unique } from "../core/meta";
 
 /**
  * Interface representing a single plant operating state entry

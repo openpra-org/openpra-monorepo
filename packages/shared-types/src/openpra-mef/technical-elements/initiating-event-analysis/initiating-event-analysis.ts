@@ -1,8 +1,8 @@
 import typia from "typia";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
-import { Named, Unique } from "../meta";
+import { Named, Unique } from "../core/meta";
 import { Uncertainty, DataSource, Assumption } from "../data-analysis/data-analysis";
-import { Frequency } from "../events";
+import { Frequency } from "../core/events";
 
 /**
  * @module InitiatingEvents

@@ -1,10 +1,14 @@
-import { Unique, Named } from "../meta";
+import { Unique, Named } from "../core/meta";
 import { PlantOperatingStatesTable } from "../plant-operating-state-analysis/plant-operating-state-analysis";
+import * as temporal from './temporal-modeling';
 
 /**
  * @namespace Systems
- * @description Core system types and interfaces
+ * @description Core system types and interfaces, including temporal modeling capabilities
  */
+
+// Re-export temporal modeling as part of Systems namespace
+export { temporal };
 
 /**
  * Interface representing a system.

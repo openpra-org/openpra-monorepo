@@ -1,0 +1,16 @@
+{
+    "name": "technical-elements-docs",
+    "version": "0.0.1",
+    "devDependencies": {
+        "http-server": "^14.1.1",
+        "typedoc": "^0.25.7",
+        "typedoc-plugin-merge-modules": "^5.1.0"
+    },
+    "scripts": {
+        "docs": "typedoc --options typedoc.json",
+        "serve": "http-server docs -o -c-1"
+    },
+    "dependencies": {
+        "typia": "^7.6.0"
+    }
+}

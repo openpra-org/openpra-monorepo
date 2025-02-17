@@ -44,7 +44,7 @@ const ContextAddButton = (): JSX.Element => {
     if (location.endsWith("/markov-chains")) return <CreateMarkovChainButton />;
     if (location.endsWith("/bayesian-estimation")) return <CreateBayesianEstimationButton />;
     if (location.endsWith("/weibull-analysis")) return <CreateWeibullAnalysisButton />;
-    if (location.endsWith("/plant-operating-state-analysis")) return <CreateOperatingStateAnalysisButton />;
+    if (location.endsWith("/operating-state-analysis")) return <CreateOperatingStateAnalysisButton />;
     if (location.endsWith("/risk-integration")) return <CreateRiskIntegrationButton />;
     if (location.endsWith("/radiological-consequence-analysis")) return <CreateRadiologicalConsequenceAnalysisButton />;
     if (location.endsWith("/mechanistic-source-terms")) return <CreateMechanisticSourceTermButton />;

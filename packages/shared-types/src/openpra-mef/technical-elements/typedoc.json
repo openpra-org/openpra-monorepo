@@ -1,0 +1,16 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./index.ts"],
+  "entryPointStrategy": "resolve",
+  "out": "docs",
+  "theme": "default",
+  "plugin": ["typedoc-plugin-merge-modules"],
+  "sort": ["source-order"],
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "mergeModulesMergeMode": "module",
+  "mergeModulesRenameDefaults": true
+} 

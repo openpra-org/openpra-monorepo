@@ -2,17 +2,11 @@ import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import amqp from "amqplib";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
 import { EnvVarKeys } from "../../../config/env_vars.config";
-import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 
 @Injectable()
 export class ProducerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ProducerService.name);
-  constructor(
-    @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
-  ) {}
 
   private connection: amqp.Connection | null = null;
   private channel: amqp.Channel | null = null;
@@ -45,9 +39,11 @@ export class ProducerService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap(): Promise<void> {
     try {
+      console.log("Producer is connecting to the broker");
       this.connection = await this.connectWithRetry(this.url, 3);
       this.channel = await this.connection.createChannel();
 
+      console.log("Producer is initializing the queues");
       await this.setupQueuesAndExchanges();
       this.logger.log("ProducerService initialized and ready to send messages.");
     } catch (error) {
@@ -69,22 +65,24 @@ export class ProducerService implements OnApplicationBootstrap {
       durable: true,
       deadLetterExchange: this.deadLetterX,
       messageTtl: 60000,
-      maxLength: 10000,
     });
   }
 
-  public async createAndQueueQuant(modelsWithConfigs: QuantifyRequest): Promise<void> {
+  public createAndQueueQuant(quantRequest: QuantifyRequest): void {
     try {
       if (!this.channel) {
         this.logger.error("Channel is not available. Cannot send message.");
         return;
       }
 
-      const modelsData = typia.json.assertStringify<QuantifyRequest>(modelsWithConfigs);
+      console.log("Producer gets the request body from the Quantification controller");
+      const modelsData = typia.json.assertStringify<QuantifyRequest>(quantRequest);
+
+      console.log("Producer is queueing the quantification job");
       this.channel.sendToQueue(this.initialJobQ, Buffer.from(modelsData), {
         persistent: true,
       });
-      await this.quantificationJobModel.updateOne({ _id: modelsWithConfigs._id }, { $set: { status: "queued" } });
+      console.log("Producer has queued the quantification job");
     } catch (error) {
       // Handle specific TypeGuardError for validation issues, logging the detailed path and expected type.
       // Log a generic error message for any other types of errors encountered during the process.

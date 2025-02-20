@@ -83,7 +83,7 @@
             }
           }
         ],
-        "outputPath": "dist/packages/microservice/job-broker/consumer",
+        "outputPath": "dist/packages/microservice/job-broker-consumer",
         "main": "packages/microservice/job-broker/src/main-consumer.ts",
         "tsConfig": "packages/microservice/job-broker/tsconfig.app.json",
         "assets": ["packages/microservice/job-broker/src/assets"],

@@ -84,6 +84,7 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
       messageTtl: 60000,
       maxLength: 10000,
     });
+    await channel.prefetch(1);
 
     // Start consuming task results from the executed task result queue.
     await channel.consume(

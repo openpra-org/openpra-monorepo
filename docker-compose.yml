@@ -4,6 +4,13 @@ volumes:
 networks:
   db_net:
   backend:
+  rmq_net:
+
+configs:
+  rabbitmq_plugins:
+    file: docker/configs/rabbitmq/enabled_plugins
+  rabbitmq_conf:
+    file: docker/configs/rabbitmq/rabbitmq.conf
 
 x-vols: &base-vols
   volumes:
@@ -15,15 +22,14 @@ x-base-image: &base-image
      context: .
      dockerfile: docker/Dockerfile
   <<: *base-vols
-  networks:
-    - backend
-    - db_net
 
 services:
   frontend:
     <<: *base-image
     ports:
       - "4200:4200"
+    networks:
+      - backend
     command: "nx run --verbose frontend-web-editor:serve:development"
 
   job-broker:
@@ -32,14 +38,34 @@ services:
       - "3000:3000"
     command: "nx run --verbose microservice-job-broker:serve:development"
     environment:
+      RABBITMQ_URL: "amqp://rabbitmq:5672"
       MONGO_URL: "mongodb://mongodb:27017"
+    networks:
+      - db_net
+      - rmq_net
     depends_on:
       - mongodb
+      - rabbitmq
+
+  job-worker:
+    <<: *base-image
+    command: "nx run --verbose microservice-job-broker:serve-consumer:development"
+    environment:
+      RABBITMQ_URL: "amqp://rabbitmq:5672"
+      MONGO_URL: "mongodb://mongodb:27017"
+    networks:
+      - db_net
+      - rmq_net
+    depends_on:
+      - mongodb
+      - rabbitmq
+    deploy:
+      replicas: 4
 
   backend:
     <<: *base-image
     ports:
-      - "8001:8000"
+      - "8000:8000"
     command: "nx run --verbose web-backend:serve:development"
     environment:
       MONGO_URL: "mongodb://mongodb:27017"
@@ -48,9 +74,28 @@ services:
       DEPLOYMENT: "false"
     depends_on:
       - mongodb
+    networks:
+      - db_net
+
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    networks:
+      - rmq_net
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    configs:
+      - source: rabbitmq_plugins
+        target: /etc/rabbitmq/enabled_plugins
+      - source: rabbitmq_conf
+        target: /etc/rabbitmq/rabbitmq.conf
 
   mongodb:
     image: mongo:latest
+    restart: unless-stopped
     ports:
       - "27017:27017"
     networks:

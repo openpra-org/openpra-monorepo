@@ -1,20 +1,37 @@
-import { Handle, NodeProps, Position, useUpdateNodeInternals } from "reactflow";
+import { Handle, NodeProps, Position, useReactFlow, useUpdateNodeInternals } from "reactflow";
 import React, { memo, useEffect, useState } from "react";
 import { EuiText, EuiTextArea } from "@elastic/eui";
 import useCreateColClick from "../../../hooks/eventTree/useCreateColClick";
+import useDeleteColClick from "../../../hooks/eventTree/useDeleteColClick";
 import styles from "./styles/nodeTypes.module.css";
 
 function ColumnNode({ id, data }: NodeProps) {
   const onClickAddColumn = useCreateColClick(id);
-
+  const onClickDeleteColumn = useDeleteColClick(id);
+  const { label, allowAdd } = data;
   const [textareaValue, setTextareaValue] = useState<string>(data.label);
   const updateNodeInternals = useUpdateNodeInternals();
+  const { setNodes } = useReactFlow();
 
   const handleTextareaChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setTextareaValue(event.target.value);
-    // Optionally, update the node's data in React Flow's state here
-    // This might involve setting the new value in a context or state management system
-    // and then updating React Flow's representation of the node.
+    const newValue = event.target.value;
+    setTextareaValue(newValue);
+
+    // Update the node data in React Flow's state
+    setNodes((nodes) =>
+      nodes.map((node) => {
+        if (node.id === id) {
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              label: newValue,
+            },
+          };
+        }
+        return node;
+      }),
+    );
     updateNodeInternals(id);
   };
 
@@ -23,6 +40,15 @@ function ColumnNode({ id, data }: NodeProps) {
     // This is necessary to ensure React Flow's internal state is aware of the node's visual change
     updateNodeInternals(id);
   }, [textareaValue, updateNodeInternals, id]);
+
+  const canShowDeleteButton = (): boolean => {
+    return (
+      !data.output && // not an output column
+      data.depth !== 1 && // not initiating event
+      data.depth !== 2 && // not first functional event
+      data.allowDelete
+    ); // controlled by parent based on node visibility
+  };
 
   return (
     <>
@@ -51,7 +77,7 @@ function ColumnNode({ id, data }: NodeProps) {
           minHeight: 30,
         }}
       >
-        <div style={{ display: "flex" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <EuiTextArea
             onChange={handleTextareaChange}
             value={textareaValue}
@@ -62,19 +88,33 @@ function ColumnNode({ id, data }: NodeProps) {
               padding: 4,
               maxWidth: 100,
               outline: "none",
-              // overflow: "hidden",
             }}
             compressed={true}
             resize="none"
             rows={1}
             cols={1}
           />
-          <text
-            onClick={onClickAddColumn}
-            className={styles.addNodeButtonText}
-          >
-            +
-          </text>
+
+          <div className={styles.columnButtons}>
+            {allowAdd && (
+              <span
+                onClick={onClickAddColumn}
+                className={styles.addNodeButtonText}
+                role="button"
+              >
+                +
+              </span>
+            )}
+            {canShowDeleteButton() && (
+              <span
+                onClick={onClickDeleteColumn}
+                className={styles.deleteNodeButtonText}
+                role="button"
+              >
+                −
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -93,4 +133,4 @@ function ColumnNode({ id, data }: NodeProps) {
   );
 }
 
-export default ColumnNode;
+export default memo(ColumnNode);

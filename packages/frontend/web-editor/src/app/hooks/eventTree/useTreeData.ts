@@ -1,6 +1,77 @@
 import { Edge, Node } from "reactflow";
 import { GenerateUUID } from "../../../utils/treeUtils";
 
+/**
+ * Utility function to create end states for a leaf node
+ */
+export const createEndStates = (
+  leafNode: Node,
+  nodeWidth: number,
+  pos: { x: number; y: number },
+): { nodes: Node[]; edges: Edge[] } => {
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
+
+  // Sequence ID Node
+  const sequenceIdNode = GenerateUUID();
+  nodes.push({
+    id: sequenceIdNode,
+    type: "outputNode",
+    data: { label: sequenceIdNode, width: nodeWidth },
+    position: pos,
+  });
+  edges.push({
+    id: `${leafNode.id}-${sequenceIdNode}`,
+    source: leafNode.id,
+    target: sequenceIdNode,
+    type: "custom",
+    animated: false,
+  });
+
+  // Frequency Node
+  const frequencyNode = GenerateUUID();
+  nodes.push({
+    id: frequencyNode,
+    type: "outputNode",
+    data: { label: "0.55", width: nodeWidth },
+    position: pos,
+  });
+  edges.push({
+    id: `${sequenceIdNode}-${frequencyNode}`,
+    source: sequenceIdNode,
+    target: frequencyNode,
+    type: "custom",
+    animated: false,
+    data: {
+      hidden: true,
+    },
+  });
+
+  // Release Category Node
+  const releaseCategoryNode = GenerateUUID();
+  nodes.push({
+    id: releaseCategoryNode,
+    type: "outputNode",
+    data: { label: `Category A`, width: nodeWidth },
+    position: pos,
+  });
+  edges.push({
+    id: `${frequencyNode}-${releaseCategoryNode}`,
+    source: frequencyNode,
+    target: releaseCategoryNode,
+    type: "custom",
+    animated: false,
+    data: {
+      hidden: true,
+    },
+  });
+
+  return { nodes, edges };
+};
+
+/**
+ * Main function for generating tree data
+ */
 const useTreeData = (
   inputLevels: number,
   outputLevels: number,
@@ -44,7 +115,7 @@ const useTreeData = (
           id: leftChildId,
           type: "visibleNode",
           data: {
-            label: `Node ${leftChildId}`,
+            label: `Success`,
             depth: depth,
             width: nodeWidth,
             output: false,
@@ -59,7 +130,7 @@ const useTreeData = (
           id: rightChildId,
           type: "visibleNode",
           data: {
-            label: `Node ${rightChildId}`,
+            label: `Failure`,
             depth: depth,
             width: nodeWidth,
             output: false,
@@ -91,48 +162,14 @@ const useTreeData = (
       prevNodes = currentNodes; // Update previous nodes for the next depth
     }
 
-    // Connect each leaf node of input to its own sequence of output nodes
-    const outputStartDepth = inputLevels + 1; // Depth of the first output level
-    let prevNodeId = "";
-
-    currentNodes.forEach((inputLeafNode) => {
-      for (let j = 0; j < outputLevels; j++) {
-        const outputNodeId = GenerateUUID();
-        const outputNode: Node = {
-          id: outputNodeId,
-          type: "outputNode",
-          data: {
-            label: `Output ${outputNodeId}`,
-            depth: outputStartDepth + j,
-            width: nodeWidth,
-            output: true,
-          },
-          position: pos,
-        };
-        nodes.push(outputNode);
-
-        let edge: Edge;
-        if (j == 0) {
-          edge = {
-            id: `${inputLeafNode.id}-${outputNodeId}`,
-            source: inputLeafNode.id,
-            target: outputNodeId,
-            type: "custom",
-            animated: true,
-          };
-        } else {
-          edge = {
-            id: `${prevNodeId}-${outputNodeId}`,
-            source: prevNodeId,
-            target: outputNodeId,
-            type: "custom",
-            animated: false,
-          };
-        }
-
-        edges.push(edge);
-        prevNodeId = outputNodeId;
-      }
+    // Add end states for each leaf node
+    prevNodes.forEach((leafNode) => {
+      const { nodes: endNodes, edges: endEdges } = createEndStates(leafNode, nodeWidth, {
+        x: leafNode.position.x,
+        y: leafNode.position.y, // Automatically aligned relative to leaf node
+      });
+      nodes.push(...endNodes);
+      edges.push(...endEdges);
     });
 
     return { nodes, edges };
@@ -152,45 +189,71 @@ const useTreeData = (
         width: nodeWidth,
         depth: 1,
         output: false,
+        allowAdd: false,
       },
       position: pos,
     };
     nodes.push(node);
     let prevNode = rootColNode;
 
+    // Use a for loop to generate columns dynamically
     for (let column = 2; column <= verticalLevels; column++) {
       const nodeId = GenerateUUID();
-      const nodeData = {
-        label: column > inputLevels ? `End State` : `Functional Event`,
-        width: nodeWidth,
-        depth: column,
-        output: column > inputLevels, // Check if it's an output column
-      };
-      const node: Node = {
+      let nodeLabel = "";
+
+      // Determine the label for each column
+      if (column <= inputLevels) {
+        nodeLabel = `Functional Event`;
+      } else {
+        if (column === verticalLevels - 2) {
+          nodeLabel = `Sequence ID`;
+        } else if (column === verticalLevels - 1) {
+          nodeLabel = `Frequency`;
+        } else if (column === verticalLevels) {
+          nodeLabel = `Release Category`;
+        }
+      }
+
+      // Create the column node
+      const colNode: Node = {
         id: nodeId,
         type: "columnNode",
-        data: nodeData,
+        data: {
+          label: nodeLabel,
+          width: nodeWidth,
+          depth: column,
+          output: column > inputLevels, // Columns after input levels are for end states
+          allowAdd: column <= inputLevels,
+        },
         position: pos,
       };
-      nodes.push(node);
+      nodes.push(colNode);
 
+      // Create the edge connecting the previous column to the current column
       const edge: Edge = {
         id: `${prevNode}--${nodeId}`,
         source: prevNode,
         target: nodeId,
         type: "custom",
-        hidden: true,
         animated: false,
+        data: {
+          hidden: true,
+        },
       };
       edges.push(edge);
+
+      // Update the previous node to the current node
       prevNode = nodeId;
     }
-
+    console.log("vertical cols", verticalLevels);
+    console.log("input levels", inputLevels);
+    console.log("output levels", outputLevels);
     return { nodes, edges };
   };
 
   // Generate tree nodes and edges
   const { nodes: generatedTreeNodes, edges: treeEdges } = generateTreeNodesAndEdges();
+
   // Generate column nodes and edges
   const { nodes: generatedColNodes, edges: colEdges } = generateColNodesAndEdges();
 

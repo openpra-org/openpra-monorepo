@@ -1,12 +1,12 @@
 import { Route, Routes, useParams } from "react-router-dom";
 import React, { FC, ReactElement, useCallback, useEffect, useRef, useState } from "react";
-
 import ReactFlow, { Background, Edge, Node, ProOptions, ReactFlowProvider } from "reactflow";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import useTreeData from "../../hooks/eventTree/useTreeData";
 import { EventTreeList } from "../../components/lists/nestedLists/eventTreeList";
+import { CategoryProvider } from "../../hooks/eventTree/useCreateReleaseCategory";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
 
@@ -152,7 +152,7 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
 
 export const EventTreeEditor = (): ReactElement => {
   const input = 2;
-  const output = 1;
+  const output = 3;
   const { nodes, edges } = useTreeData(input, output, 140);
 
   return (
@@ -172,16 +172,18 @@ export const EventTreeEditor = (): ReactElement => {
  */
 function EventTrees(): ReactElement {
   return (
-    <Routes>
-      <Route
-        path=""
-        element={<EventTreeList />}
-      />
-      <Route
-        path=":eventTreeId"
-        element={<EventTreeEditor />}
-      ></Route>
-    </Routes>
+    <CategoryProvider>
+      <Routes>
+        <Route
+          path=""
+          element={<EventTreeList />}
+        />
+        <Route
+          path=":eventTreeId"
+          element={<EventTreeEditor />}
+        ></Route>
+      </Routes>
+    </CategoryProvider>
   );
 }
 

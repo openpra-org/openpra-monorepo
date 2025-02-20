@@ -6,6 +6,7 @@ interface CustomEdgeData {
   color?: string;
   text?: string;
   straight?: boolean;
+  hidden?: boolean;
 }
 
 const CustomEdge: FC<EdgeProps<CustomEdgeData>> = memo(
@@ -24,6 +25,10 @@ const CustomEdge: FC<EdgeProps<CustomEdgeData>> = memo(
       <BaseEdge
         path={edgePath}
         id={id}
+        style={{
+          opacity: data.hidden ? 0 : 1, // Hide visually but keep edge in DOM
+          pointerEvents: data.hidden ? "none" : "auto", // Prevent interaction with hidden edges
+        }}
       />
     );
   },

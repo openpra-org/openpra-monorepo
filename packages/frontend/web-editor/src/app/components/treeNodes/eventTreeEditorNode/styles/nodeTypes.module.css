@@ -3,7 +3,7 @@
   height: 50%
 }
 
-.Output
+.Output{ }
 
 .inputNode{
 
@@ -20,9 +20,24 @@
   text-align: center;
   padding-right: 0.2rem;
   font-size: medium;
+  cursor: pointer;
+}
+
+.deleteNodeButtonText{
+  text-align: center;
+  padding-right: 0.2rem;
+  font-size: medium;
+  cursor: pointer;
+  margin-left: 4px;
 }
 
 .textarea{
   height:1.2rem;
   fontSize: 0.7rem;
+}
+
+.columnButtons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }

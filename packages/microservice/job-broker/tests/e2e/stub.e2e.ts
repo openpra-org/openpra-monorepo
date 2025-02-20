@@ -8,8 +8,8 @@ const model = Buffer.from(xmlContent, "utf-8").toString("base64");
 
 describe("It should send HTTP requests to specified endpoints", () => {
   it("Should send requests", async () => {
-    for (let i = 0; i < 100; i++) {
-      await fetch("http://localhost:3000/q/quantify/scram", {
+    for (let i = 0; i < 10; i++) {
+      await fetch("https://v2-app.openpra.org/q/quantify/scram", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

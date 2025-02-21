@@ -1,5 +1,6 @@
 import { Edge, Node } from "reactflow";
 import { GenerateUUID } from "../../../utils/treeUtils";
+import { resetSequenceCounter } from "../../components/treeNodes/eventTreeEditorNode/outputNode";
 
 /**
  * Utility function to create end states for a leaf node
@@ -17,7 +18,7 @@ export const createEndStates = (
   nodes.push({
     id: sequenceIdNode,
     type: "outputNode",
-    data: { label: sequenceIdNode, width: nodeWidth },
+    data: { label: sequenceIdNode, width: nodeWidth, isSequenceId: true },
     position: pos,
   });
   edges.push({
@@ -79,6 +80,9 @@ const useTreeData = (
 ): { nodes: Node[]; edges: Edge[] } => {
   const pos = { x: 0, y: 0 };
   const verticalLevels = inputLevels + outputLevels;
+
+  // Reset counter at the start
+  resetSequenceCounter();
 
   // Function to generate tree nodes and edges
   const generateTreeNodesAndEdges = (): { nodes: Node[]; edges: Edge[] } => {
@@ -245,9 +249,7 @@ const useTreeData = (
       // Update the previous node to the current node
       prevNode = nodeId;
     }
-    console.log("vertical cols", verticalLevels);
-    console.log("input levels", inputLevels);
-    console.log("output levels", outputLevels);
+
     return { nodes, edges };
   };
 

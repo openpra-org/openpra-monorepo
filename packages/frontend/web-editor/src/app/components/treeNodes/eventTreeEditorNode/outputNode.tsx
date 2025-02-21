@@ -1,12 +1,28 @@
 import { Handle, NodeProps, Position } from "reactflow";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { EuiText, EuiSelect } from "@elastic/eui";
 import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCategory";
 import styles from "./styles/nodeTypes.module.css";
 
+// Counter for sequence IDs
+let sequenceCounter = 1;
+const usedIds = new Set();
+
 function OutputNode({ id, data }: NodeProps) {
   const { categories, addCategory } = useCategoryContext();
   const [releaseCategory, setReleaseCategory] = useState(data.label);
+  const [sequenceId, setSequenceId] = useState("");
+
+  // Initialize sequence ID on mount
+  useEffect(() => {
+    if (data.isSequenceId && !sequenceId) {
+      // If this ID hasn't been used yet
+      if (!usedIds.has(id)) {
+        setSequenceId(`IE-${sequenceCounter++}`);
+        usedIds.add(id);
+      }
+    }
+  }, [id, data.isSequenceId]);
 
   // Static "Create new" option
   const staticOptions = [{ value: "Create new", text: "Create new .." }];
@@ -23,6 +39,14 @@ function OutputNode({ id, data }: NodeProps) {
     } else {
       setReleaseCategory(value);
     }
+  };
+
+  // Format the display label
+  const getDisplayLabel = () => {
+    if (data.isSequenceId) {
+      return sequenceId;
+    }
+    return data.label;
   };
 
   return (
@@ -68,7 +92,7 @@ function OutputNode({ id, data }: NodeProps) {
             }}
           />
         ) : (
-          <EuiText style={{ fontSize: "0.7rem" }}>{data.label}</EuiText>
+          <EuiText style={{ fontSize: "0.7rem" }}>{getDisplayLabel()}</EuiText>
         )}
       </div>
 
@@ -86,5 +110,11 @@ function OutputNode({ id, data }: NodeProps) {
     </div>
   );
 }
+
+// Function to reset counter
+export const resetSequenceCounter = () => {
+  usedIds.clear();
+  sequenceCounter = 1;
+};
 
 export default OutputNode;

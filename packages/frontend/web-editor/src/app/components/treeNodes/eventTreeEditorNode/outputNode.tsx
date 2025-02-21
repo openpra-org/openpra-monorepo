@@ -1,10 +1,84 @@
 import { Handle, NodeProps, Position } from "reactflow";
 import React, { useState, useEffect } from "react";
-import { EuiText, EuiSelect, EuiSelectOption } from "@elastic/eui";
+import { EuiText, EuiSelect, EuiIcon, EuiButton } from "@elastic/eui";
 import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCategory";
 import { GenericModal } from "../../modals/genericModal";
-import { CategoryForm } from "./categoryForm";
 import styles from "./styles/nodeTypes.module.css";
+
+// Separate Modal Body Component for managing categories
+const ManageCategoriesForm = ({
+  categories,
+  addCategory,
+  deleteCategory,
+}: {
+  categories: { value: string; text: string }[];
+  addCategory: (category: string) => void;
+  deleteCategory: (category: string) => void;
+}) => {
+  const [newCategory, setNewCategory] = useState("");
+
+  return (
+    <div>
+      {/* List existing categories */}
+      {categories.map((category) => (
+        <div
+          key={category.value}
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "8px",
+            borderBottom: "1px solid #eee",
+          }}
+        >
+          <span>{category.value}</span>
+          {categories.length > 1 && (
+            <EuiIcon
+              type="trash"
+              onClick={() => {
+                deleteCategory(category.value);
+              }}
+              style={{ color: "red", cursor: "pointer" }}
+            />
+          )}
+        </div>
+      ))}
+
+      {/* Add new category section */}
+      <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #eee" }}>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <input
+            type="text"
+            placeholder="New category name"
+            value={newCategory}
+            onChange={(e) => {
+              setNewCategory(e.target.value);
+            }}
+            style={{
+              padding: "4px 8px",
+              fontSize: "14px",
+              border: "1px solid #ddd",
+              borderRadius: "4px",
+              width: "200px",
+            }}
+          />
+          <EuiButton
+            size="s"
+            onClick={() => {
+              if (newCategory.trim()) {
+                addCategory(newCategory.trim());
+                setNewCategory("");
+              }
+            }}
+            disabled={!newCategory.trim()}
+          >
+            Add
+          </EuiButton>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Counter for sequence IDs
 let sequenceCounter = 1;
@@ -28,17 +102,15 @@ export const setFirstColumnLabel = (label: string) => {
 };
 
 function OutputNode({ id, data }: NodeProps) {
-  const { categories, addCategory } = useCategoryContext();
+  const { categories, addCategory, deleteCategory } = useCategoryContext();
   const [releaseCategory, setReleaseCategory] = useState(data.label);
   const [sequenceId, setSequenceId] = useState("");
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [newCategory, setNewCategory] = useState("");
-  const selectOptions = [...categories, { value: "Create new", text: "Create new .." }];
+  const [isManageModalVisible, setIsManageModalVisible] = useState(false);
+  const selectOptions = categories;
 
   // Initialize sequence ID on mount
   useEffect(() => {
     if (data.isSequenceId && !sequenceId) {
-      // If this ID hasn't been used yet
       if (!usedIds.has(id)) {
         const initials = getInitials(firstColumnLabel);
         setSequenceId(`${initials}-${sequenceCounter++}`);
@@ -47,32 +119,17 @@ function OutputNode({ id, data }: NodeProps) {
     }
   }, [id, data.isSequenceId]);
 
-  // Static "Create new" option
-  const staticOptions = [{ value: "Create new", text: "Create new .." }];
-
-  // Handle category selection
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
-    if (value === "Create new") {
-      // const newCategory = prompt("Enter new Release Category:");
-      setIsModalVisible(true);
-    } else {
-      setReleaseCategory(value);
-    }
+    setReleaseCategory(value);
   };
 
   const handleModalSubmit = async (): Promise<void> => {
-    if (newCategory.trim()) {
-      addCategory(newCategory);
-      setReleaseCategory(newCategory);
-      setNewCategory("");
-      setIsModalVisible(false);
-    }
+    setIsManageModalVisible(false);
   };
 
   const handleModalClose = () => {
-    setNewCategory("");
-    setIsModalVisible(false);
+    setIsManageModalVisible(false);
   };
 
   // Format the display label
@@ -93,7 +150,6 @@ function OutputNode({ id, data }: NodeProps) {
           position: "absolute",
           top: "50%",
           left: "0%",
-
           visibility: "hidden",
         }}
       />
@@ -110,44 +166,51 @@ function OutputNode({ id, data }: NodeProps) {
           boxSizing: "border-box",
         }}
       >
-        {/* Show dropdown for Release Category */}
         {data.label === "Category A" || data.label === "Category B" ? (
-          <>
+          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
             <EuiSelect
-              // options={[...categories, ...staticOptions]}
               options={selectOptions}
               value={releaseCategory}
               onChange={handleCategoryChange}
-              compressed={true} // Makes dropdown smaller
+              compressed={true}
               style={{
-                width: "115px", // Smaller dropdown width
-                height: "30px", // Smaller dropdown height
-                fontSize: "0.7rem", // Smaller font size
+                width: "115px",
+                height: "30px",
+                fontSize: "0.7rem",
                 padding: "0 5px",
                 boxSizing: "border-box",
               }}
             />
-            {isModalVisible && (
+            <EuiIcon
+              type="pencil"
+              size="s"
+              onClick={() => {
+                setIsManageModalVisible(true);
+              }}
+              style={{ cursor: "pointer" }}
+            />
+
+            {isManageModalVisible && (
               <GenericModal
-                title="Add New Release Category"
+                title="Manage Release Categories"
                 body={
-                  <CategoryForm
-                    newCategory={newCategory}
-                    setNewCategory={setNewCategory}
+                  <ManageCategoriesForm
+                    categories={categories}
+                    addCategory={addCategory}
+                    deleteCategory={deleteCategory}
                   />
                 }
                 onClose={handleModalClose}
                 onSubmit={handleModalSubmit}
-                modalFormId="add-category-form"
+                modalFormId="manage-categories"
                 showButtons={true}
               />
             )}
-          </>
+          </div>
         ) : (
           <EuiText style={{ fontSize: "0.7rem" }}>{getDisplayLabel()}</EuiText>
         )}
       </div>
-
       <Handle
         type="source"
         position={Position.Right}

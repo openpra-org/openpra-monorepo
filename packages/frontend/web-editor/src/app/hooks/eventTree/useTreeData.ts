@@ -91,7 +91,7 @@ const useTreeData = (
       id: rootId,
       type: "visibleNode",
       data: {
-        label: "Root Node",
+        label: "IE",
         inputDepth: inputLevels,
         outputDepth: outputLevels,
         width: nodeWidth,

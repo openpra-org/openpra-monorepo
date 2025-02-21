@@ -4,10 +4,18 @@
     "devDependencies": {
         "http-server": "^14.1.1",
         "typedoc": "^0.25.7",
-        "typedoc-plugin-merge-modules": "^5.1.0"
+        "typedoc-plugin-merge-modules": "^5.1.0",
+        "typescript-json-schema": "^0.62.0",
+        "typescript": "^5.3.3"
     },
     "scripts": {
-        "docs": "typedoc --options typedoc.json",
+        "clean": "rm -rf docs",
+        "create-dirs": "mkdir -p docs/json-schemas docs/assets",
+        "generate-schema": "npx typescript-json-schema tsconfig.json \"*\" --out ./docs/json-schemas/schemas.json --required --strictNullChecks --refs",
+        "copy-schema": "cp docs/json-schemas/schemas.json docs/assets/schemas.json",
+        "copy-download-page": "cp schema-download.html docs/schema-download.html",
+        "generate-typedoc": "typedoc --options typedoc.json",
+        "docs": "npm run clean && npm run create-dirs && npm run generate-schema && npm run copy-schema && npm run copy-download-page && npm run generate-typedoc",
         "serve": "http-server docs -o -c-1"
     },
     "dependencies": {

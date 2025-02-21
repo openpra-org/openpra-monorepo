@@ -1,18 +1,6 @@
 import { Edge, Node } from "reactflow";
 import { GenerateUUID } from "../../../utils/treeUtils";
-import { setFirstColumnLabel } from "../../components/treeNodes/eventTreeEditorNode/outputNode";
 
-/**
- Helper function to get initials
- */
-
-const getInitials = (str: string): string => {
-  return str
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
-};
 /**
  * Utility function to create end states for a leaf node
  */
@@ -29,7 +17,7 @@ export const createEndStates = (
   nodes.push({
     id: sequenceIdNode,
     type: "outputNode",
-    data: { label: sequenceIdNode, width: nodeWidth, isSequenceId: true },
+    data: { label: sequenceIdNode, width: nodeWidth },
     position: pos,
   });
   edges.push({
@@ -92,16 +80,10 @@ const useTreeData = (
   const pos = { x: 0, y: 0 };
   const verticalLevels = inputLevels + outputLevels;
 
-  // Reset counter at the start
-  //resetSequenceCounter();
-
   // Function to generate tree nodes and edges
   const generateTreeNodesAndEdges = (): { nodes: Node[]; edges: Edge[] } => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-
-    const firstColumnLabel = "Initiating Event"; // Default
-    setFirstColumnLabel(firstColumnLabel);
 
     // Generate root node
     const rootId = GenerateUUID();
@@ -109,7 +91,7 @@ const useTreeData = (
       id: rootId,
       type: "visibleNode",
       data: {
-        label: getInitials(firstColumnLabel),
+        label: "IE",
         inputDepth: inputLevels,
         outputDepth: outputLevels,
         width: nodeWidth,
@@ -198,15 +180,12 @@ const useTreeData = (
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
-    const firstColumnLabel = "Initiating Event";
-    setFirstColumnLabel(firstColumnLabel);
-
     const rootColNode = GenerateUUID();
     const node: Node = {
       id: rootColNode,
       type: "columnNode",
       data: {
-        label: firstColumnLabel,
+        label: `Initiating Event`,
         width: nodeWidth,
         depth: 1,
         output: false,
@@ -266,7 +245,9 @@ const useTreeData = (
       // Update the previous node to the current node
       prevNode = nodeId;
     }
-
+    console.log("vertical cols", verticalLevels);
+    console.log("input levels", inputLevels);
+    console.log("output levels", outputLevels);
     return { nodes, edges };
   };
 

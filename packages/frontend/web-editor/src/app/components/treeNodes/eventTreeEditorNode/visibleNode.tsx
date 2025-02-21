@@ -8,7 +8,7 @@ import styles from "./styles/nodeTypes.module.css";
 function VisibleNode({ id, data }: NodeProps) {
   const onClickCreate = useCreateNodeClick(id);
   const onClickDelete = useDeleteNodeClick(id);
-  const [isEditingProb, setIsEditingProb] = useState(false);
+  const [isEditingFreq, setIsEditingFreq] = useState(false);
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const { setNodes } = useReactFlow();
 
@@ -70,10 +70,10 @@ function VisibleNode({ id, data }: NodeProps) {
         <div
           className={styles.inputNode}
           onDoubleClick={() => {
-            setIsEditingProb(true);
+            setIsEditingFreq(true);
           }}
         >
-          {isEditingProb ? (
+          {isEditingFreq ? (
             <input
               type="text"
               defaultValue={data.probability?.toFixed(2) || "0.55"}
@@ -87,10 +87,10 @@ function VisibleNode({ id, data }: NodeProps) {
                 outline: "none",
               }}
               onBlur={(e) => {
-                const value = Math.min(1, Math.max(0, parseFloat(e.target.value) || 0));
+                const value = Math.max(0, parseFloat(e.target.value) || 0);
                 const parsedValue = parseFloat(value.toFixed(2));
                 updateNodeProbability(parsedValue);
-                setIsEditingProb(false);
+                setIsEditingFreq(false);
               }}
               autoFocus
             />

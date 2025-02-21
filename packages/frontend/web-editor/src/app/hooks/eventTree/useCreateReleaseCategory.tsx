@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, ReactNode } from "react";
 interface CategoryContextType {
   categories: { value: string; text: string }[];
   addCategory: (newCategory: string) => void;
+  deleteCategory: (newCategory: string) => void;
 }
 
 // Create the context
@@ -22,7 +23,13 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
     setCategories((prevCategories) => [...prevCategories, { value: newCategory, text: newCategory }]);
   };
 
-  return <CategoryContext.Provider value={{ categories, addCategory }}>{children}</CategoryContext.Provider>;
+  const deleteCategory = (categoryToDelete: string) => {
+    setCategories((prevCategories) => prevCategories.filter((cat) => cat.value !== categoryToDelete));
+  };
+
+  return (
+    <CategoryContext.Provider value={{ categories, addCategory, deleteCategory }}>{children}</CategoryContext.Provider>
+  );
 };
 
 // Hook to use the context

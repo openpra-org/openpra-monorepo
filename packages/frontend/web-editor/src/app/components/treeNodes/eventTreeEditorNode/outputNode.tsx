@@ -8,6 +8,23 @@ import styles from "./styles/nodeTypes.module.css";
 let sequenceCounter = 1;
 const usedIds = new Set();
 
+// Helper function to get initials
+const getInitials = (str: string): string => {
+  return str
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+};
+
+// Store first column label
+let firstColumnLabel = "Initiating Event";
+
+// Export function to set first column label
+export const setFirstColumnLabel = (label: string) => {
+  firstColumnLabel = label;
+};
+
 function OutputNode({ id, data }: NodeProps) {
   const { categories, addCategory } = useCategoryContext();
   const [releaseCategory, setReleaseCategory] = useState(data.label);
@@ -18,7 +35,8 @@ function OutputNode({ id, data }: NodeProps) {
     if (data.isSequenceId && !sequenceId) {
       // If this ID hasn't been used yet
       if (!usedIds.has(id)) {
-        setSequenceId(`IE-${sequenceCounter++}`);
+        const initials = getInitials(firstColumnLabel);
+        setSequenceId(`${initials}-${sequenceCounter++}`);
         usedIds.add(id);
       }
     }

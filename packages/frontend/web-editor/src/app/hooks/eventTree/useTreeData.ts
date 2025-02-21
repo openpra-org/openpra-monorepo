@@ -1,6 +1,6 @@
 import { Edge, Node } from "reactflow";
 import { GenerateUUID } from "../../../utils/treeUtils";
-import { resetSequenceCounter } from "../../components/treeNodes/eventTreeEditorNode/outputNode";
+import { resetSequenceCounter, setFirstColumnLabel } from "../../components/treeNodes/eventTreeEditorNode/outputNode";
 
 /**
  * Utility function to create end states for a leaf node
@@ -184,12 +184,15 @@ const useTreeData = (
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
+    const firstColumnLabel = "Initiating Event";
+    setFirstColumnLabel(firstColumnLabel);
+
     const rootColNode = GenerateUUID();
     const node: Node = {
       id: rootColNode,
       type: "columnNode",
       data: {
-        label: `Initiating Event`,
+        label: firstColumnLabel,
         width: nodeWidth,
         depth: 1,
         output: false,

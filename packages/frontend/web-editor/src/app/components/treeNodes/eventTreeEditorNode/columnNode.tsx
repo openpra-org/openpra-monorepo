@@ -3,17 +3,7 @@ import React, { memo, useEffect, useState } from "react";
 import { EuiText, EuiTextArea } from "@elastic/eui";
 import useCreateColClick from "../../../hooks/eventTree/useCreateColClick";
 import useDeleteColClick from "../../../hooks/eventTree/useDeleteColClick";
-import { setFirstColumnLabel } from "./outputNode";
 import styles from "./styles/nodeTypes.module.css";
-
-// Helper function to get initials
-const getInitials = (str: string): string => {
-  return str
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
-};
 
 function ColumnNode({ id, data }: NodeProps) {
   const onClickAddColumn = useCreateColClick(id);
@@ -26,30 +16,6 @@ function ColumnNode({ id, data }: NodeProps) {
   const handleTextareaChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = event.target.value;
     setTextareaValue(newValue);
-
-    // If this is the first column (depth === 1), update all sequence IDs
-    if (data.depth === 1) {
-      const newInitials = getInitials(newValue);
-      setFirstColumnLabel(newValue);
-
-      // Update all sequence IDs with new initials
-      setNodes((nodes) =>
-        nodes.map((node) => {
-          if (node.type === "outputNode" && node.data.isSequenceId) {
-            // Extract the number from the existing sequence ID
-            const currentNum = parseInt(node.data.label.split("-")[1]) || 1;
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                label: `${newInitials}-${currentNum}`,
-              },
-            };
-          }
-          return node;
-        }),
-      );
-    }
 
     setNodes((nodes) =>
       nodes.map((node) => {
@@ -65,15 +31,15 @@ function ColumnNode({ id, data }: NodeProps) {
         return node;
       }),
     );
+    updateNodeInternals(id);
   };
 
-  // useEffect(() => {
-  //   updateNodeInternals(id);
-  // }, [textareaValue, updateNodeInternals, id]);
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [textareaValue, updateNodeInternals, id]);
 
   const canShowDeleteButton = (): boolean => {
-    // Updated condition: Allow deletion for functional events (including the first one)
-    return !data.output && data.depth !== 1 && data.allowDelete;
+    return !data.output && data.depth !== 1 && data.depth !== 2 && data.allowDelete;
   };
 
   const hasButtons = allowAdd || canShowDeleteButton();

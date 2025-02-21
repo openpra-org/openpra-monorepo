@@ -73,7 +73,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
         id: newNodeId,
         type: nodeType,
         data: {
-          label: `New Node(${level + clickedNodeDepth})`,
+          label: "New Node",
           depth: level + clickedNodeDepth,
           width: rootNode.data.width,
           output: false,

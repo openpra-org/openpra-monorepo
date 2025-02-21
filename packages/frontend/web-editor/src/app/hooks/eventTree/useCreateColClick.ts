@@ -92,7 +92,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
           id: newNodeId,
           type: clickedNode.data.output ? "outputNode" : "invisibleNode",
           data: {
-            label: `New Node (${clickedDepth + 1})`,
+            label: "New Node",
             depth: clickedDepth + 1,
             width: node.data.width,
           },

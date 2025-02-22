@@ -31,8 +31,7 @@ x-base-shared-confs: &shared-nestjs_conf
     <<: *volumes-timezone
 
 x-base-replicated: &shared-replicated
-  placement:
-    max_replicas_per_node: 128
+  mode: replicated
   update_config:
     parallelism: 16
     delay: 1s
@@ -73,6 +72,12 @@ services:
       DEBUG: ${CI_DEBUG}
       ALLOWED_HOST: ${CI_ALLOWED_HOST}
     deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_FRONTENDS}
+      placement:
+        max_replicas_per_node: 1
+        constraints:
+          - "${DEPLOYMENT_FRONTEND_POOL}"
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public
@@ -104,12 +109,12 @@ services:
       - rmq_net
       - db_net
     deploy:
-      mode: replicated
-      replicas: ${NUM_BROKERS}
       <<: *shared-replicated
+      replicas: ${NUM_BROKERS}
       placement:
+        max_replicas_per_node: 1
         constraints:
-          - node.labels.host_performance != low
+          - "${DEPLOYMENT_BROKER_POOL}"
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public
@@ -140,6 +145,10 @@ services:
       mode: replicated
       replicas: ${NUM_WORKERS}
       <<: *shared-replicated
+      placement:
+        max_replicas_per_node: 128
+        constraints:
+          - "${DEPLOYMENT_WORKER_POOL}"
 
   backend:
     image: ${IMAGE_BACKEND}
@@ -159,9 +168,12 @@ services:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
     deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_BACKENDS}
       placement:
+        max_replicas_per_node: 1
         constraints:
-          - node.labels.host_performance != low
+          - "${DEPLOYMENT_BACKEND_POOL}"
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public

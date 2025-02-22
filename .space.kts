@@ -10,8 +10,10 @@ job("Monorepo CD") {
         text("Host-Performance", value = "any") {
             options("any", "low", "medium", "high")
         }
-        text("NumWorkers", value = "1", description = "min: 2, max: 1024, auto: 1")
-        text("NumBrokers", value = "1", description = "min: 2, max: 1024, auto: 1")
+        text("NumWorkers", value = "1", description = "min: 2, max: 1024, auto: 1, default (main): 32")
+        text("NumBrokers", value = "1", description = "min: 2, max: 8, auto: 1, default (main): 3")
+        text("NumBackends", value = "1", description = "min: 2, max: 8, auto: 1, default (main): 3")
+        text("NumFrontends", value = "1", description = "min: 2, max: 8, auto: 1, default (main): 3")
     }
 
    host("Deployment Tags") {
@@ -36,20 +38,40 @@ job("Monorepo CD") {
        var numBrokers = (api.parameters["numBrokers"] ?: "0").toInt()
        numBrokers = if (numBrokers > 8) 8 else numBrokers // never more than 8 per deployment
 
+       var NumBackends = (api.parameters["NumBackends"] ?: "0").toInt()
+       NumBackends = if (NumBackends > 8) 8 else NumBackends // never more than 8 per deployment
+
+       var NumFrontends = (api.parameters["NumFrontends"] ?: "0").toInt()
+       NumFrontends = if (NumFrontends > 8) 8 else NumFrontends // never more than 8 per deployment
+
        if (branchName == "main") {
          branchSlug = "v2-app"
          api.parameters["buildType"] = "production"
          api.parameters["debugMode"] = "false"
          api.parameters["isReview"] = "false"
          api.parameters["numWorkers"] = if (numWorkers <= 1) "32" else numWorkers.toString() // 32 if unset
-         api.parameters["numBrokers"] = if (numBrokers <= 1) "4" else numBrokers.toString()  // 4 if unset
+         api.parameters["numBrokers"] = if (numBrokers <= 1) "3" else numBrokers.toString()  // 3 if unset
+         api.parameters["numBackends"] = if (numBackends <= 1) "3" else numBackends.toString() // 3 if unset
+         api.parameters["numFrontends"] = if (numFrontends <= 1) "3" else numFrontends.toString() // 3 if unset
+         // performance constraints
+         api.parameters["workerPoolConstraint"]   = "node.labels.min_host_performance == low" // run on any node
+         api.parameters["brokerPoolConstraint"]   = "node.labels.max_host_performance != low" // don't run on slow nodes
+         api.parameters["backendPoolConstraint"]  = "node.labels.max_host_performance != low" // don't run on slow nodes
+         api.parameters["frontendPoolConstraint"] = "node.labels.min_host_performance == low" // run on any node
        } else {
          branchSlug = "app-review-$branchSlug"
          api.parameters["buildType"] = "development"
          api.parameters["debugMode"] = "true"
          api.parameters["isReview"] = "true"
-         api.parameters["numWorkers"] = if (numWorkers <= 1) "2" else numWorkers.toString() // 32 if unset
-         api.parameters["numBrokers"] = if (numBrokers <= 1) "2" else numBrokers.toString()  // 4 if unset
+         api.parameters["numWorkers"] = if (numWorkers <= 1) "2" else numWorkers.toString() // 2 if unset
+         api.parameters["numBrokers"] = if (numBrokers <= 1) "2" else numBrokers.toString()  // 2 if unset
+         api.parameters["numBackends"] = if (numBackends <= 1) "2" else numBackends.toString() // 2 if unset
+         api.parameters["numFrontends"] = if (numFrontends <= 1) "2" else numFrontends.toString() // 2 if unset
+         // performance constraints
+         api.parameters["workerPoolConstraint"]   = "node.labels.min_host_performance == low" // run on any node
+         api.parameters["brokerPoolConstraint"]   = "node.labels.min_host_performance == low" // run on any node
+         api.parameters["backendPoolConstraint"]  = "node.labels.min_host_performance == low" // run on any node
+         api.parameters["frontendPoolConstraint"] = "node.labels.min_host_performance == low" // run on any node
        }
 
        api.parameters["branchSlug"] = branchSlug
@@ -86,8 +108,16 @@ job("Monorepo CD") {
 
      env["APP_NAME"] = "v2-{{ branchSlug }}"
      env["HOST_URL"] = "{{ branchSlug }}.{{ project:APP_DOMAIN }}"
+
      env["NUM_WORKERS"] = "{{ numWorkers }}"
      env["NUM_BROKERS"] = "{{ numBrokers }}"
+     env["NUM_BACKENDS"] = "{{ numBackends }}"
+     env["NUM_FRONTENDS"] = "{{ numFrontends }}"
+
+     env["DEPLOYMENT_WORKER_POOL"] = "{{ workerPoolConstraint }}"
+     env["DEPLOYMENT_BROKER_POOL"] = "{{ brokerPoolConstraint }}"
+     env["DEPLOYMENT_BACKEND_POOL"] = "{{ backendPoolConstraint }}"
+     env["DEPLOYMENT_FRONTEND_POOL"] = "{{ frontendPoolConstraint }}"
 
      env["CI_DEBUG"] = "{{ project:APP_DEBUG_MODE }}"
      env["CI_ALLOWED_HOST"] = ".{{ project:APP_DOMAIN }}"

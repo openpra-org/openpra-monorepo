@@ -1,16 +1,12 @@
 {
   "$schema": "https://typedoc.org/schema.json",
   "entryPoints": ["./index.ts"],
-  "entryPointStrategy": "resolve",
+  "entryPointStrategy": "expand",
   "out": "docs",
   "theme": "default",
-  "plugin": ["typedoc-plugin-merge-modules"],
-  "sort": ["source-order"],
-  "validation": {
-    "notExported": true,
-    "invalidLink": true,
-    "notDocumented": false
-  },
-  "mergeModulesMergeMode": "module",
-  "mergeModulesRenameDefaults": true
+  "plugin": [
+    "typedoc-plugin-merge-modules"
+  ],
+  "name": "Technical Elements Documentation",
+  "cleanOutputDir": false
 } 

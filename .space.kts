@@ -35,14 +35,14 @@ job("Monorepo CD") {
        var numWorkers = (api.parameters["NumWorkers"] ?: "0").toInt()
        numWorkers = if (numWorkers > 1024) 1024 else numWorkers // never more than 1024 per deployment
 
-       var numBrokers = (api.parameters["numBrokers"] ?: "0").toInt()
+       var numBrokers = (api.parameters["NumBrokers"] ?: "0").toInt()
        numBrokers = if (numBrokers > 8) 8 else numBrokers // never more than 8 per deployment
 
-       var NumBackends = (api.parameters["NumBackends"] ?: "0").toInt()
-       NumBackends = if (NumBackends > 8) 8 else NumBackends // never more than 8 per deployment
+       var numBackends = (api.parameters["NumBackends"] ?: "0").toInt()
+       numBackends = if (NumBackends > 8) 8 else NumBackends // never more than 8 per deployment
 
-       var NumFrontends = (api.parameters["NumFrontends"] ?: "0").toInt()
-       NumFrontends = if (NumFrontends > 8) 8 else NumFrontends // never more than 8 per deployment
+       var numFrontends = (api.parameters["NumFrontends"] ?: "0").toInt()
+       numFrontends = if (numFrontends > 8) 8 else numFrontends // never more than 8 per deployment
 
        if (branchName == "main") {
          branchSlug = "v2-app"

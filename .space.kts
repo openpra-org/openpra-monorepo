@@ -39,7 +39,7 @@ job("Monorepo CD") {
        numBrokers = if (numBrokers > 8) 8 else numBrokers // never more than 8 per deployment
 
        var numBackends = (api.parameters["NumBackends"] ?: "0").toInt()
-       numBackends = if (NumBackends > 8) 8 else NumBackends // never more than 8 per deployment
+       numBackends = if (numBackends > 8) 8 else numBackends // never more than 8 per deployment
 
        var numFrontends = (api.parameters["NumFrontends"] ?: "0").toInt()
        numFrontends = if (numFrontends > 8) 8 else numFrontends // never more than 8 per deployment

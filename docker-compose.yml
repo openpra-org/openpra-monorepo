@@ -3,7 +3,7 @@ volumes:
 
 networks:
   db_net:
-  backend:
+  svc_net:
   rmq_net:
 
 configs:
@@ -22,6 +22,15 @@ x-base-image: &base-image
      context: .
      dockerfile: docker/Dockerfile
   <<: *base-vols
+  env_file:
+    - .env
+
+x-base-hlthchk: &base-hlthchk
+  interval: 10s
+  timeout: 2s
+  retries: 5
+  start_period: 150s
+  start_interval: 2s
 
 services:
   frontend:
@@ -29,30 +38,30 @@ services:
     ports:
       - "4200:4200"
     networks:
-      - backend
+      - svc_net
     command: "nx run --verbose frontend-web-editor:serve:development"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4200/"]
+      <<: *base-hlthchk
 
   job-broker:
     <<: *base-image
     ports:
       - "3000:3000"
     command: "nx run --verbose microservice-job-broker:serve:development"
-    environment:
-      RABBITMQ_URL: "amqp://rabbitmq:5672"
-      MONGO_URL: "mongodb://mongodb:27017"
     networks:
       - db_net
       - rmq_net
     depends_on:
       - mongodb
       - rabbitmq
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
+      <<: *base-hlthchk
 
   job-worker:
     <<: *base-image
     command: "nx run --verbose microservice-job-broker:serve-consumer:development"
-    environment:
-      RABBITMQ_URL: "amqp://rabbitmq:5672"
-      MONGO_URL: "mongodb://mongodb:27017"
     networks:
       - db_net
       - rmq_net
@@ -60,22 +69,21 @@ services:
       - mongodb
       - rabbitmq
     deploy:
-      replicas: 4
+      replicas: 2
 
   backend:
     <<: *base-image
     ports:
       - "8000:8000"
     command: "nx run --verbose web-backend:serve:development"
-    environment:
-      MONGO_URL: "mongodb://mongodb:27017"
-      JWT_SECRET_KEY: "/dev/null"
-      DEBUG: "true"
-      DEPLOYMENT: "false"
     depends_on:
       - mongodb
     networks:
       - db_net
+      - svc_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
+      <<: *base-hlthchk
 
   rabbitmq:
     image: rabbitmq:management-alpine

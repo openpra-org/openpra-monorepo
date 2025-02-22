@@ -11,28 +11,51 @@ networks:
   traefik-public:
     external: true
 
-secrets:
-  CI_JWT_SECRET_KEY:
-    file: secrets/DSF_JWT_SECRET_KEY.secret
-
 configs:
   rabbitmq_plugins:
     file: configs/rabbitmq/enabled_plugins
   rabbitmq_conf:
     file: configs/rabbitmq/rabbitmq.conf
+  nestjs_env_vars:
+    file: configs/deployment.env
+
+x-base-shared-vols: &volumes-timezone
+  volumes:
+    - "/etc/localtime:/etc/localtime:ro"
+    - "/etc/timezone:/etc/timezone:ro"
+
+x-base-shared-confs: &shared-nestjs_conf
+    configs:
+      - source: nestjs_env_vars
+        target: /data/project/.env
+    <<: *volumes-timezone
+
+
+x-base-healthcheck: &healthcheck-fragments
+  interval: 10s
+  timeout: 2s
+  retries: 5
+  start_period: 150s
+  start_interval: 2s
+
+secrets:
+  CI_JWT_SECRET:
+    file: secrets/DSF_JWT_SECRET
 
 services:
   frontend:
     image: ${IMAGE_BACKEND}
-    volumes:
-      - "/etc/localtime:/etc/localtime:ro"
-      - "/etc/timezone:/etc/timezone:ro"
+    <<: *volumes-timezone
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4200/"]
+      <<: *healthcheck-fragments
     networks:
       - traefik-public
     command: "nx run --verbose frontend-web-editor:serve-static:$CI_BUILD_TYPE"
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
+      ALLOWED_HOST: ${CI_ALLOWED_HOST}
     deploy:
       labels:
         - traefik.enable=true
@@ -49,22 +72,15 @@ services:
         - traefik.http.routers.${APP_NAME}-frontend-https.middlewares=gzip
         - traefik.http.routers.${APP_NAME}-frontend-https.service=${APP_NAME}-frontend
         - traefik.http.services.${APP_NAME}-frontend.loadbalancer.server.port=4200
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4200/"]
-      interval: 10s
-      timeout: 2s
-      retries: 5
-      start_period: 150s
-      start_interval: 2s
 
   job-broker:
     image: ${IMAGE_BACKEND}
-    volumes:
-      - "/etc/localtime:/etc/localtime:ro"
-      - "/etc/timezone:/etc/timezone:ro"
+    <<: *shared-nestjs_conf
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
+      <<: *healthcheck-fragments
     command: "nx run --verbose microservice-job-broker:deploy:$CI_BUILD_TYPE"
     environment:
-      RABBITMQ_URL: "amqp://rabbitmq:5672"
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
     networks:
@@ -90,26 +106,17 @@ services:
         - traefik.http.routers.${APP_NAME}-job-broker-https.middlewares=gzip
         - traefik.http.routers.${APP_NAME}-job-broker-https.service=${APP_NAME}-job-broker
         - traefik.http.services.${APP_NAME}-job-broker.loadbalancer.server.port=3000
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
-      interval: 10s
-      timeout: 2s
-      retries: 5
-      start_period: 150s
-      start_interval: 2s
 
   job-worker:
     image: ${IMAGE_BACKEND}
-    volumes:
-      - "/etc/localtime:/etc/localtime:ro"
-      - "/etc/timezone:/etc/timezone:ro"
+    <<: *shared-nestjs_conf
     command: "nx run --verbose microservice-job-broker:deploy-consumer:$CI_BUILD_TYPE"
     environment:
-      RABBITMQ_URL: "amqp://rabbitmq:5672"
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
     networks:
       - rmq_net
+      - db_net
     deploy:
       mode: replicated
       replicas: ${NUM_WORKERS}
@@ -118,21 +125,18 @@ services:
 
   backend:
     image: ${IMAGE_BACKEND}
-    volumes:
-      - "/etc/localtime:/etc/localtime:ro"
-      - "/etc/timezone:/etc/timezone:ro"
+    <<: *shared-nestjs_conf
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
+      <<: *healthcheck-fragments
     networks:
       - traefik-public
       - db_net
     command: "nx run --verbose web-backend:deploy:$CI_BUILD_TYPE"
     secrets:
-      - CI_JWT_SECRET_KEY
+      - CI_JWT_SECRET
     environment:
-      MONGO_URL: mongodb://mongodb:27017
-      JWT_SECRET_KEY: /run/secrets/CI_JWT_SECRET_KEY
-      SENTRY_DSN: ${CI_SENTRY_DSN}
-      SENTRY_ENV: ${CI_SENTRY_ENV}
-      DEPLOYMENT: 'true'
+      JWT_SECRET_KEY_FILE: /run/secrets/CI_JWT_SECRET
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
     deploy:
@@ -154,22 +158,13 @@ services:
         - traefik.http.routers.${APP_NAME}-backend-https.middlewares=gzip
         - traefik.http.routers.${APP_NAME}-backend-https.service=${APP_NAME}-backend
         - traefik.http.services.${APP_NAME}-backend.loadbalancer.server.port=8000
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
-      interval: 10s
-      timeout: 2s
-      retries: 5
-      start_period: 150s
-      start_interval: 2s
 
   mongodb-express:
     image: mongo-express:latest
     networks:
       - traefik-public
       - db_net
-    volumes:
-      - "/etc/localtime:/etc/localtime:ro"
-      - "/etc/timezone:/etc/timezone:ro"
+    <<: *volumes-timezone
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb
       ME_CONFIG_MONGODB_ENABLE_ADMIN: 'true'

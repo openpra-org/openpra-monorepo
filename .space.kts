@@ -82,8 +82,6 @@ job("Monorepo CD") {
      env["HOST_URL"] = "{{ branchSlug }}.{{ project:APP_DOMAIN }}"
      env["NUM_WORKERS"] = "{{ numWorkers }}"
 
-     env["CI_SENTRY_DSN"] = "{{ project:APP_SENTRY_DSN }}"
-     env["CI_SENTRY_ENV"] = "{{ project:APP_SENTRY_ENV }}"
      env["CI_DEBUG"] = "{{ project:APP_DEBUG_MODE }}"
 
      env["CI_BUILD_TYPE"] = "{{ buildType }}"
@@ -103,7 +101,7 @@ job("Monorepo CD") {
      shellScript("write secret files"){
        interpreter = "/bin/bash"
        content = """
-                         echo ${'$'}DSF_JWT_SECRET_KEY > docker/secrets/DSF_JWT_SECRET_KEY.secret
+                         echo ${'$'}DSF_JWT_SECRET_KEY > docker/secrets/DSF_JWT_SECRET
                          """
      }
 

@@ -2,7 +2,7 @@ networks:
   db_net:
     driver: overlay
     attachable: true
-  backend:
+  svc_net:
     driver: overlay
     attachable: true
   rmq_net:
@@ -17,7 +17,7 @@ configs:
   rabbitmq_conf:
     file: configs/rabbitmq/rabbitmq.conf
   nestjs_env_vars:
-    file: configs/deployment.env
+    file: configs/.stack.env
 
 x-base-shared-vols: &volumes-timezone
   volumes:
@@ -30,6 +30,21 @@ x-base-shared-confs: &shared-nestjs_conf
         target: /data/project/.env
     <<: *volumes-timezone
 
+x-base-replicated: &shared-replicated
+  placement:
+    max_replicas_per_node: 128
+  update_config:
+    parallelism: 16
+    delay: 1s
+    failure_action: rollback
+    order: start-first
+    monitor: 300s
+  rollback_config:
+    parallelism: 16
+    delay: 1s
+    failure_action: continue
+    order: start-first
+    monitor: 300s
 
 x-base-healthcheck: &healthcheck-fragments
   interval: 10s
@@ -51,6 +66,7 @@ services:
       <<: *healthcheck-fragments
     networks:
       - traefik-public
+      - svc_net
     command: "nx run --verbose frontend-web-editor:serve-static:$CI_BUILD_TYPE"
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
@@ -88,6 +104,9 @@ services:
       - rmq_net
       - db_net
     deploy:
+      mode: replicated
+      replicas: ${NUM_BROKERS}
+      <<: *shared-replicated
       placement:
         constraints:
           - node.labels.host_performance != low
@@ -120,8 +139,7 @@ services:
     deploy:
       mode: replicated
       replicas: ${NUM_WORKERS}
-      placement:
-        max_replicas_per_node: 128
+      <<: *shared-replicated
 
   backend:
     image: ${IMAGE_BACKEND}
@@ -132,6 +150,7 @@ services:
     networks:
       - traefik-public
       - db_net
+      - svc_net
     command: "nx run --verbose web-backend:deploy:$CI_BUILD_TYPE"
     secrets:
       - CI_JWT_SECRET

@@ -1,5 +1,6 @@
 volumes:
   mongo_data:
+  rabbitmq_data:
 
 networks:
   db_net:
@@ -11,21 +12,25 @@ configs:
     file: docker/configs/rabbitmq/enabled_plugins
   rabbitmq_conf:
     file: docker/configs/rabbitmq/rabbitmq.conf
+  nestjs_env_vars:
+    file: docker/configs/.docker-compose.env
 
-x-vols: &base-vols
-  volumes:
-    - "/etc/localtime:/etc/localtime:ro"
-    - "/etc/timezone:/etc/timezone:ro"
+secrets:
+  JWT_SECRET:
+    file: ./.jwt-open-secret
 
 x-base-image: &base-image
   build:
      context: .
      dockerfile: docker/Dockerfile
-  <<: *base-vols
+  restart: unless-stopped
   env_file:
-    - .env
+    - docker/configs/.docker-compose.env
+  configs:
+    - source: nestjs_env_vars
+      target: /data/project/.env
 
-x-base-hlthchk: &base-hlthchk
+x-base-healthcheck: &healthcheck-fragments
   interval: 10s
   timeout: 2s
   retries: 5
@@ -42,7 +47,7 @@ services:
     command: "nx run --verbose frontend-web-editor:serve:development"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4200/"]
-      <<: *base-hlthchk
+      <<: *healthcheck-fragments
 
   job-broker:
     <<: *base-image
@@ -57,7 +62,7 @@ services:
       - rabbitmq
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
-      <<: *base-hlthchk
+      <<: *healthcheck-fragments
 
   job-worker:
     <<: *base-image
@@ -81,15 +86,19 @@ services:
     networks:
       - db_net
       - svc_net
+    secrets:
+      - JWT_SECRET
+    environment:
+      JWT_SECRET_KEY_FILE: /run/secrets/JWT_SECRET
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
-      <<: *base-hlthchk
+      <<: *healthcheck-fragments
 
   rabbitmq:
     image: rabbitmq:management-alpine
+    restart: unless-stopped
     volumes:
-      - "/etc/localtime:/etc/localtime:ro"
-      - "/etc/timezone:/etc/timezone:ro"
+      - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - rmq_net
     ports:
@@ -110,5 +119,3 @@ services:
       - db_net
     volumes:
       - mongo_data:/data/db
-      - /etc/localtime:/etc/localtime:ro
-      - /etc/timezone:/etc/timezone:ro

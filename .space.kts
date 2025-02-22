@@ -10,7 +10,8 @@ job("Monorepo CD") {
         text("Host-Performance", value = "any") {
             options("any", "low", "medium", "high")
         }
-        text("Worker-Count", value = "1", description = "min: 1, max: 1024")
+        text("NumWorkers", value = "1", description = "min: 2, max: 1024, auto: 1")
+        text("NumBrokers", value = "1", description = "min: 2, max: 1024, auto: 1")
     }
 
    host("Deployment Tags") {
@@ -29,21 +30,26 @@ job("Monorepo CD") {
        val maxSlugLength = if (branchName.length > 32) 32 else branchName.length
        var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
 
-       var numWorkers = (api.parameters["Worker-Count"] ?: "0").toInt()
-       numWorkers = if (numWorkers > 1024) 1024 else numWorkers // never more than 1024
+       var numWorkers = (api.parameters["NumWorkers"] ?: "0").toInt()
+       numWorkers = if (numWorkers > 1024) 1024 else numWorkers // never more than 1024 per deployment
+
+       var numBrokers = (api.parameters["numBrokers"] ?: "0").toInt()
+       numBrokers = if (numBrokers > 8) 8 else numBrokers // never more than 8 per deployment
 
        if (branchName == "main") {
          branchSlug = "v2-app"
          api.parameters["buildType"] = "production"
          api.parameters["debugMode"] = "false"
          api.parameters["isReview"] = "false"
-         api.parameters["numWorkers"] = if (numWorkers < 1) "32" else numWorkers.toString() // 32 if unset
+         api.parameters["numWorkers"] = if (numWorkers <= 1) "32" else numWorkers.toString() // 32 if unset
+         api.parameters["numBrokers"] = if (numBrokers <= 1) "4" else numBrokers.toString()  // 4 if unset
        } else {
          branchSlug = "app-review-$branchSlug"
          api.parameters["buildType"] = "development"
          api.parameters["debugMode"] = "true"
          api.parameters["isReview"] = "true"
-         api.parameters["numWorkers"] = if (numWorkers < 1) "2" else numWorkers.toString() // 2 if unset
+         api.parameters["numWorkers"] = if (numWorkers <= 1) "2" else numWorkers.toString() // 32 if unset
+         api.parameters["numBrokers"] = if (numBrokers <= 1) "2" else numBrokers.toString()  // 4 if unset
        }
 
        api.parameters["branchSlug"] = branchSlug
@@ -81,9 +87,10 @@ job("Monorepo CD") {
      env["APP_NAME"] = "v2-{{ branchSlug }}"
      env["HOST_URL"] = "{{ branchSlug }}.{{ project:APP_DOMAIN }}"
      env["NUM_WORKERS"] = "{{ numWorkers }}"
+     env["NUM_BROKERS"] = "{{ numBrokers }}"
 
      env["CI_DEBUG"] = "{{ project:APP_DEBUG_MODE }}"
-
+     env["CI_ALLOWED_HOST"] = ".{{ project:APP_DOMAIN }}"
      env["CI_BUILD_TYPE"] = "{{ buildType }}"
 
      env["ENV_SHARED_VOLUME_PATH"] = "{{ project:SHARED_VOLUME_PATH }}/openpra-app/v2/{{ branchSlug }}/volumes"

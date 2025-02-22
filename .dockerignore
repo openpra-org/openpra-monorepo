@@ -1,11 +1,11 @@
 .vscode
 dist
 node_modules
-*/**/node_modules
+*/**/node_modules/*
 .env
 .nx
 build
-*/**/build
+*/**/build/*
 */**/.idea
 CMakeFiles
 tmp

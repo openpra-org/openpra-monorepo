@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import amqp from "amqplib";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
@@ -7,13 +8,9 @@ import { EnvVarKeys } from "../../../config/env_vars.config";
 @Injectable()
 export class ProducerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ProducerService.name);
-
   private connection: amqp.Connection | null = null;
   private channel: amqp.Channel | null = null;
-  private readonly url: string = EnvVarKeys.RABBITMQ_URL;
-  private readonly initialJobQ: string = EnvVarKeys.QUANT_JOB_QUEUE_NAME;
-  private readonly deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
-  private readonly deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;
+  constructor(private readonly configSvc: ConfigService) {}
 
   private async connectWithRetry(url: string, retryCount: number): Promise<amqp.Connection> {
     let attempt = 0;
@@ -40,7 +37,8 @@ export class ProducerService implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     try {
       console.log("Producer is connecting to the broker");
-      this.connection = await this.connectWithRetry(this.url, 3);
+      const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
+      this.connection = await this.connectWithRetry(url, 3);
       this.channel = await this.connection.createChannel();
 
       console.log("Producer is initializing the queues");
@@ -52,24 +50,37 @@ export class ProducerService implements OnApplicationBootstrap {
   }
 
   private async setupQueuesAndExchanges(): Promise<void> {
+    // check for channel
     if (!this.channel) {
       this.logger.error("Channel is not available. Cannot set up queues and exchanges.");
       return;
     }
+    // set up dead letter exchange and queue
+    const quantJobDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE);
+    const quantJobDeadLetterX = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_EXCHANGE);
+    const isquantJobDeadLetterQDurable = Boolean(
+      this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE_DURABLE),
+    );
+    await this.channel.assertExchange(quantJobDeadLetterX, "direct", { durable: isquantJobDeadLetterQDurable });
+    await this.channel.assertQueue(quantJobDeadLetterQ, { durable: isquantJobDeadLetterQDurable });
+    await this.channel.bindQueue(quantJobDeadLetterQ, quantJobDeadLetterX, "");
 
-    await this.channel.assertExchange(this.deadLetterX, "direct", { durable: true });
-    await this.channel.assertQueue(this.deadLetterQ, { durable: true });
-    await this.channel.bindQueue(this.deadLetterQ, this.deadLetterX, "");
-
-    await this.channel.assertQueue(this.initialJobQ, {
-      durable: true,
-      deadLetterExchange: this.deadLetterX,
-      messageTtl: 60000,
+    // setup quantification job queue
+    const quantJobQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_QUEUE);
+    const jobTtl = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_MSG_TTL));
+    const isJobQDurable = Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_QUEUE_DURABLE));
+    const jobQMaxLength = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_QUEUE_MAXLENGTH));
+    await this.channel.assertQueue(quantJobQ, {
+      durable: isJobQDurable,
+      deadLetterExchange: quantJobDeadLetterX,
+      messageTtl: jobTtl,
+      maxLength: jobQMaxLength,
     });
   }
 
   public createAndQueueQuant(quantRequest: QuantifyRequest): void {
     try {
+      // check for channel
       if (!this.channel) {
         this.logger.error("Channel is not available. Cannot send message.");
         return;
@@ -78,8 +89,9 @@ export class ProducerService implements OnApplicationBootstrap {
       console.log("Producer gets the request body from the Quantification controller");
       const modelsData = typia.json.assertStringify<QuantifyRequest>(quantRequest);
 
+      const quantJobQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_QUEUE);
       console.log("Producer is queueing the quantification job");
-      this.channel.sendToQueue(this.initialJobQ, Buffer.from(modelsData), {
+      this.channel.sendToQueue(quantJobQ, Buffer.from(modelsData), {
         persistent: true,
       });
       console.log("Producer has queued the quantification job");

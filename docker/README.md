@@ -21,13 +21,6 @@ the frontend and backend services.
 - **Frontend**: Uses Nginx to serve the frontend static files.
 - **Backend**: Sets up the backend service, ready to connect to the MongoDB database.
 
-## [default.conf](default.conf)
-
-The `default.conf` file is the Nginx configuration for the frontend service. It
-sets up the server to listen on port 80 and serve files from
-the `/usr/share/nginx/html/web-editor` directory, with a fallback to
-`index.html` for single-page application routing.
-
 ## [docker-compose.yml](../docker-compose.yml)
 
 The `docker-compose.yml` file is used for local development. It defines two

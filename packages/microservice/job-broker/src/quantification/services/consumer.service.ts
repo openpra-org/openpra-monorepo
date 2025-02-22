@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import tmp from "tmp";
@@ -8,6 +9,7 @@ import { RunScramCli } from "scram-node";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+
 import { EnvVarKeys } from "../../../config/env_vars.config";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 
@@ -15,8 +17,10 @@ import { QuantificationJobReport } from "../../middleware/schemas/quantification
 export class ConsumerService implements OnApplicationBootstrap {
   // Importing ConfigService for accessing environment variables.
   private readonly logger = new Logger(ConsumerService.name);
+
   constructor(
     @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
+    private readonly configSvc: ConfigService,
   ) {}
 
   /**
@@ -66,33 +70,39 @@ export class ConsumerService implements OnApplicationBootstrap {
    * @returns A promise that resolves when the module initialization process is complete.
    */
   public async onApplicationBootstrap(): Promise<void> {
-    console.log("Settings environment variables for the Consumer");
-    // Verify that all required environment variables are available, logging an error and exiting if any are missing.
-    const url: string = EnvVarKeys.RABBITMQ_URL;
-    const initialJobQ: string = EnvVarKeys.QUANT_JOB_QUEUE_NAME;
-    const deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
-    const deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;
-
     // Connect to the RabbitMQ server and create a channel.
+    const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
     const connection = await this.connectWithRetry(url, 3);
     const channel = await connection.createChannel();
+
     // Ensure the dead letter exchange and queue are set up for handling failed messages.
-    await channel.assertExchange(deadLetterX, "direct", { durable: true });
-    await channel.assertQueue(deadLetterQ, { durable: true });
-    await channel.bindQueue(deadLetterQ, deadLetterX, "");
+    const quantJobDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE);
+    const quantJobDeadLetterX = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_EXCHANGE);
+    const quantJobDeadLetterQDurable = Boolean(
+      this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE_DURABLE),
+    );
+    await channel.assertExchange(quantJobDeadLetterX, "direct", { durable: quantJobDeadLetterQDurable });
+    await channel.assertQueue(quantJobDeadLetterQ, { durable: quantJobDeadLetterQDurable });
+    await channel.bindQueue(quantJobDeadLetterQ, quantJobDeadLetterX, "");
 
     // Assert the existence of the initial job queue with specific configurations,
     // including durability, dead letter exchange, time-to-live duration, and maximum queue length.
-    await channel.assertQueue(initialJobQ, {
-      durable: true,
-      deadLetterExchange: deadLetterX,
-      messageTtl: 60000,
+    const quantJobQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_QUEUE);
+    const jobTtl = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_MSG_TTL));
+    const isJobQDurable = Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_QUEUE_DURABLE));
+    const jobQMaxLength = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_QUEUE_MAXLENGTH));
+    const jobPrefetch = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_MSG_PREFETCH));
+    await channel.assertQueue(quantJobQ, {
+      durable: isJobQDurable,
+      deadLetterExchange: quantJobDeadLetterX,
+      messageTtl: jobTtl,
+      maxLength: jobQMaxLength,
     });
-    await channel.prefetch(32);
+    await channel.prefetch(jobPrefetch);
 
     // Consume the jobs from the initial queue
     await channel.consume(
-      initialJobQ,
+      quantJobQ,
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
         if (msg === null) {

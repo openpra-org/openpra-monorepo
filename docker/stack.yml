@@ -35,7 +35,7 @@ x-base-healthcheck: &healthcheck-fragments
   interval: 10s
   timeout: 2s
   retries: 5
-  start_period: 150s
+  start_period: 300s
   start_interval: 2s
 
 secrets:

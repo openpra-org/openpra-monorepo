@@ -5,6 +5,7 @@ import * as amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import typia, { TypeGuardError } from "typia";
 import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
+import { ConfigService } from "@nestjs/config";
 import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 
@@ -16,7 +17,10 @@ import { EnvVarKeys } from "../../../config/env_vars.config";
 @Injectable()
 export class ExecutableStorageService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableStorageService.name);
-  constructor(@InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>) {}
+  constructor(
+    @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
+    private readonly configSvc: ConfigService,
+  ) {}
 
   /**
    * Establishes a connection to the RabbitMQ broker with retry logic.
@@ -53,37 +57,37 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
    * sets up the RabbitMQ connection and starts consuming task results.
    */
   public async onApplicationBootstrap(): Promise<void> {
-    // Load all the environment variables required for RabbitMQ.
-    const url: string = EnvVarKeys.RABBITMQ_URL;
-    const storageQ: string = EnvVarKeys.EXECUTABLE_STORAGE_QUEUE_NAME;
-    const deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
-    const deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;
-
-    // Check if all required environment variables are set. Log the error and exit otherwise.
-    if (!url || !storageQ || !deadLetterQ || !deadLetterX) {
-      this.logger.error("Required environment variables for executable storage service are not set");
-      return;
-    }
-
     // Connect to the RabbitMQ server, create a channel, and connect the
     // database to the executed task result queue.
+    const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
     const connection = await this.connectWithRetry(url, 3);
     const channel = await connection.createChannel();
 
+    const execStorageDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_QUEUE);
+    const execStorageDeadLetterX = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_EXCHANGE);
+    const execStorageDeadLetterDurable = Boolean(this.configSvc.getOrThrow<boolean>(
+      EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_QUEUE_DURABLE,
+    ));
     // Assert the existence of a dead letter exchange (DLX) for routing failed messages.
-    await channel.assertExchange(deadLetterX, "direct", { durable: true });
+    await channel.assertExchange(execStorageDeadLetterX, "direct", { durable: execStorageDeadLetterDurable });
     // Assert the existence of a dead letter queue (DLQ) to hold messages that fail processing.
-    await channel.assertQueue(deadLetterQ, { durable: true });
+    await channel.assertQueue(execStorageDeadLetterQ, { durable: execStorageDeadLetterDurable });
     // Bind the dead letter queue to the dead letter exchange.
-    await channel.bindQueue(deadLetterQ, deadLetterX, "");
+    await channel.bindQueue(execStorageDeadLetterQ, execStorageDeadLetterX, "");
 
+    const storageQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_QUEUE);
+    const storageTtl = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_STORAGE_MSG_TTL));
+    const storageQDurable = Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_STORAGE_QUEUE_DURABLE));
+    const storageQMaxLength = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_STORAGE_QUEUE_MAXLENGTH));
+    const storagePrefetch = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_STORAGE_MSG_PREFETCH));
     // Assert and configure a durable queue with dead-letter exchange, message TTL, and max length.
     await channel.assertQueue(storageQ, {
-      durable: true,
-      deadLetterExchange: deadLetterX,
-      messageTtl: 60000,
-      maxLength: 10000,
+      durable: storageQDurable,
+      deadLetterExchange: execStorageDeadLetterX,
+      messageTtl: storageTtl,
+      maxLength: storageQMaxLength,
     });
+    await channel.prefetch(storagePrefetch);
 
     // Start consuming task results from the executed task result queue.
     await channel.consume(

@@ -3,8 +3,8 @@
 <a href="https://doi.org/10.5281/zenodo.10891407"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.10891407.svg" alt="DOI"></a>
 
 Welcome to the OpenPRA monorepo, the unified codebase for the [v2 OpenPRA App](https://v2-app.openpra.org/), which
-includes the web client, backend REST APIs, distributed microservices, wrappers for underlying C/C++ quantification
-engines, shared JSON schema definitions, and utility packages for automated PRA model generation.
+includes the web client, backend REST APIs, distributed microservices, wrappers for underlying C/C++ probabilistic risk
+assessment (PRA) engines, shared JSON schema definitions, and utility packages for automated PRA model generation.
 
 ## Internal Packages
 
@@ -35,6 +35,7 @@ Make sure you have the following tools installed on your system:
 - **Node.js v20.17.0** (managed via **nvm**)
 - **pnpm** (Package Manager)
 - **MongoDB**
+- **RabbitMQ**
 
 ## Installation
 

@@ -5,6 +5,10 @@ import { ConsumeMessage } from "amqplib/properties";
 import typia, { TypeGuardError } from "typia";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
 import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { ConfigService } from "@nestjs/config";
+import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 
 /**
@@ -15,6 +19,7 @@ import { EnvVarKeys } from "../../../config/env_vars.config";
 @Injectable()
 export class ExecutableWorkerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableWorkerService.name);
+  constructor(private readonly configSvc: ConfigService) {}
 
   /**
    * Establishes a connection to the RabbitMQ broker with retry logic.
@@ -51,38 +56,71 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
    * sets up the RabbitMQ connection and starts consuming executable tasks.
    */
   public async onApplicationBootstrap(): Promise<void> {
-    // Load all the environment variables required for RabbitMQ and task execution.
-    const url: string = EnvVarKeys.RABBITMQ_URL;
-    const initialJobQ: string = EnvVarKeys.EXECUTABLE_TASK_QUEUE_NAME;
-    const storageQ: string = EnvVarKeys.EXECUTABLE_STORAGE_QUEUE_NAME;
-    const deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
-    const deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;
-
     // Connect to the RabbitMQ server, create a channel, and connect the
     // workers to the initial queue to consume jobs.
+    const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
     const connection = await this.connectWithRetry(url, 3);
     const channel = await connection.createChannel();
 
-    // Set up the dead letter exchange and queue for handling failed messages.
-    await channel.assertExchange(deadLetterX, "direct", { durable: true });
-    await channel.assertQueue(deadLetterQ, { durable: true });
-    await channel.bindQueue(deadLetterQ, deadLetterX, "");
+    // ensure exec task queue is operational
+    const taskQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_QUEUE);
+    {
+      // set up dead letter exchange and queue
+      const execTaskDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_QUEUE);
+      const execTaskDeadLetterX = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_EXCHANGE);
+      const execTaskDeadLetterDurable = Boolean(
+        this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_QUEUE_DURABLE),
+      );
+      await channel.assertExchange(execTaskDeadLetterX, "direct", { durable: execTaskDeadLetterDurable });
+      await channel.assertQueue(execTaskDeadLetterQ, { durable: execTaskDeadLetterDurable });
+      await channel.bindQueue(execTaskDeadLetterQ, execTaskDeadLetterX, "");
+      // setup exec task queue
+      const taskTtl = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_MSG_TTL));
+      const taskQDurable = Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_QUEUE_DURABLE));
+      const taskQMaxLength = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_QUEUE_MAXLENGTH));
+      await channel.assertQueue(taskQ, {
+        durable: taskQDurable,
+        deadLetterExchange: execTaskDeadLetterX,
+        messageTtl: taskTtl,
+        maxLength: taskQMaxLength,
+      });
+    }
 
-    // Assert the existence of the main executable task queue.
-    // This queue is durable, has a dead letter exchange, a time-to-live duration of 60 seconds,
-    // and a maximum length of 10,000 messages.
-    await channel.assertQueue(initialJobQ, {
-      durable: true,
-      deadLetterExchange: deadLetterX,
-      messageTtl: 60000,
-      maxLength: 10000,
-    });
+    // ensure task storage queue is operational
+    const storageQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_QUEUE);
+    {
+      const execStorageDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_QUEUE);
+      const execStorageDeadLetterX = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_EXCHANGE);
+      const execStorageDeadLetterDurable = Boolean(
+        this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_QUEUE_DURABLE),
+      );
+      // Assert the existence of a dead letter exchange (DLX) for routing failed messages.
+      await channel.assertExchange(execStorageDeadLetterX, "direct", { durable: execStorageDeadLetterDurable });
+      // Assert the existence of a dead letter queue (DLQ) to hold messages that fail processing.
+      await channel.assertQueue(execStorageDeadLetterQ, { durable: execStorageDeadLetterDurable });
+      // Bind the dead letter queue to the dead letter exchange.
+      await channel.bindQueue(execStorageDeadLetterQ, execStorageDeadLetterX, "");
+
+      const storageTtl = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_STORAGE_MSG_TTL));
+      const storageQDurable = Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_STORAGE_QUEUE_DURABLE));
+      const storageQMaxLength = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_STORAGE_QUEUE_MAXLENGTH));
+      // Assert and configure a durable queue with dead-letter exchange, message TTL, and max length.
+      await channel.assertQueue(storageQ, {
+        durable: storageQDurable,
+        deadLetterExchange: execStorageDeadLetterX,
+        messageTtl: storageTtl,
+        maxLength: storageQMaxLength,
+      });
+    }
+
+    // next, fetch some exec tasks from queue
+    const taskPrefetch = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_MSG_PREFETCH));
+    await channel.prefetch(taskPrefetch);
 
     // Start consuming jobs from the initial queue.
     await channel.consume(
-      initialJobQ,
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (msg: ConsumeMessage | null) => {
+      taskQ,
+      (msg: ConsumeMessage | null) => {
         // Check if the consumed message is null, indicating an error in message retrieval.
         if (msg === null) {
           this.logger.error("Executable worker service is unable to parse the consumed message.");
@@ -97,14 +135,6 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
           const result = this.executeCommand(taskData);
           result._id = taskData._id;
           const taskResult = typia.json.assertStringify<ExecutionResult>(result);
-
-          // Assert and configure a durable queue with dead-letter exchange, message TTL, and max length.
-          await channel.assertQueue(storageQ, {
-            durable: true,
-            deadLetterExchange: deadLetterX,
-            messageTtl: 60000,
-            maxLength: 10000,
-          });
 
           // Send the executed task results to the storage queue.
           channel.sendToQueue(storageQ, Buffer.from(taskResult), {

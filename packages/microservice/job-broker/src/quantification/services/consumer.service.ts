@@ -1,18 +1,27 @@
 import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
-import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import tmp from "tmp";
 import typia, { TypeGuardError } from "typia";
-import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-import { QuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
 import { RunScramCli } from "scram-node";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+
 import { EnvVarKeys } from "../../../config/env_vars.config";
+import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 
 @Injectable()
-export class ConsumerService implements OnModuleInit {
+export class ConsumerService implements OnApplicationBootstrap {
   // Importing ConfigService for accessing environment variables.
   private readonly logger = new Logger(ConsumerService.name);
+
+  constructor(
+    @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
+    private readonly configSvc: ConfigService,
+  ) {}
 
   /**
    * Attempts to establish a connection to the RabbitMQ server with retry logic.
@@ -60,34 +69,40 @@ export class ConsumerService implements OnModuleInit {
    *
    * @returns A promise that resolves when the module initialization process is complete.
    */
-  public async onModuleInit(): Promise<void> {
-    // Verify that all required environment variables are available, logging an error and exiting if any are missing.
-    const url: string = EnvVarKeys.RABBITMQ_URL;
-    const initialJobQ: string = EnvVarKeys.QUANT_JOB_QUEUE_NAME;
-    const storageQ: string = EnvVarKeys.QUANT_STORAGE_QUEUE_NAME;
-    const deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
-    const deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;
-
+  public async onApplicationBootstrap(): Promise<void> {
     // Connect to the RabbitMQ server and create a channel.
+    const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
     const connection = await this.connectWithRetry(url, 3);
     const channel = await connection.createChannel();
+
     // Ensure the dead letter exchange and queue are set up for handling failed messages.
-    await channel.assertExchange(deadLetterX, "direct", { durable: true });
-    await channel.assertQueue(deadLetterQ, { durable: true });
-    await channel.bindQueue(deadLetterQ, deadLetterX, "");
+    const quantJobDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE);
+    const quantJobDeadLetterX = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_EXCHANGE);
+    const quantJobDeadLetterQDurable = Boolean(
+      this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE_DURABLE),
+    );
+    await channel.assertExchange(quantJobDeadLetterX, "direct", { durable: quantJobDeadLetterQDurable });
+    await channel.assertQueue(quantJobDeadLetterQ, { durable: quantJobDeadLetterQDurable });
+    await channel.bindQueue(quantJobDeadLetterQ, quantJobDeadLetterX, "");
 
     // Assert the existence of the initial job queue with specific configurations,
     // including durability, dead letter exchange, time-to-live duration, and maximum queue length.
-    await channel.assertQueue(initialJobQ, {
-      durable: true,
-      deadLetterExchange: deadLetterX,
-      messageTtl: 60000,
-      maxLength: 10000,
+    const quantJobQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_QUEUE);
+    const jobTtl = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_MSG_TTL));
+    const isJobQDurable = Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_QUEUE_DURABLE));
+    const jobQMaxLength = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_QUEUE_MAXLENGTH));
+    const jobPrefetch = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_MSG_PREFETCH));
+    await channel.assertQueue(quantJobQ, {
+      durable: isJobQDurable,
+      deadLetterExchange: quantJobDeadLetterX,
+      messageTtl: jobTtl,
+      maxLength: jobQMaxLength,
     });
+    await channel.prefetch(jobPrefetch);
 
     // Consume the jobs from the initial queue
     await channel.consume(
-      initialJobQ,
+      quantJobQ,
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
         if (msg === null) {
@@ -96,31 +111,13 @@ export class ConsumerService implements OnModuleInit {
         }
 
         try {
-          // Convert the inputs/data into a JSON object and perform
-          // the quantification using this JSON object
-          const modelsWithConfigs: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
-          // Perform quantification based on the parsed request and generate a report.
-          const { _id, ...configs } = modelsWithConfigs;
-          const result: QuantifyReport = this.performQuantification(configs);
-          result._id = _id;
-          // Serialize the quantification report and send it to the storage queue.
-          const report = typia.json.assertStringify<QuantifyReport>(result);
+          const modelsData: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
+          const { _id, ...modelsWithConfigs } = modelsData;
+          const result: string[] = this.performQuantification(modelsWithConfigs);
+          await this.quantificationJobModel.findByIdAndUpdate(_id, { $set: { results: result, status: "completed" } });
 
-          // Configure the storage queue for storing completed jobs, including dead letter handling.
-          await channel.assertQueue(storageQ, {
-            durable: true,
-            deadLetterExchange: deadLetterX,
-            messageTtl: 60000,
-            maxLength: 10000,
-          });
-
-          // Send the report to the storage queue, marking the message as persistent.
-          channel.sendToQueue(storageQ, Buffer.from(report), {
-            persistent: true,
-          });
-
-          // Acknowledge the original message to indicate successful processing.
           channel.ack(msg);
+          console.log(`${String(_id)}: Consumer has acknowledged`);
         } catch (error) {
           // Handle validation errors and other generic exceptions, logging details and negatively
           // acknowledging the message.
@@ -148,7 +145,7 @@ export class ConsumerService implements OnModuleInit {
    * @param modelsWithConfigs - The quantification request containing model data and configurations.
    * @returns A `QuantifyReport` object containing the results of the quantification process.
    */
-  public performQuantification(modelsWithConfigs: QuantifyRequest): { results: string[] } {
+  public performQuantification(modelsWithConfigs: QuantifyRequest): string[] {
     // Extract model data from the request.
     const models = modelsWithConfigs.models;
 
@@ -163,21 +160,19 @@ export class ConsumerService implements OnModuleInit {
     try {
       // Invoke the SCRAM CLI with the updated request, which now includes file paths
       // to the input model and output files.
+      console.log(`${JSON.stringify(modelsWithConfigs)} is running`);
       RunScramCli(modelsWithConfigs);
+      console.log(`${JSON.stringify(modelsWithConfigs)} has been quantified`);
 
       // Read the quantification results from the output file.
       const outputContent = readFileSync(outputFilePath, "utf8");
 
       // Construct and return the quantification report along with the configurations.
-      return {
-        results: [outputContent], // The quantification results.
-      };
+      return [outputContent]; // The quantification results.
     } catch (error) {
       // In case of an error during quantification, return a report indicating the failure.
       this.logger.error(error);
-      return {
-        results: ["Error during SCRAM CLI operation"],
-      };
+      return ["Error during scram-cli operation"];
     } finally {
       // Cleanup: Remove all temporary files created during the process.
       modelFilePaths.forEach(unlinkSync); // Remove model data files.

@@ -4,20 +4,21 @@ import typia, { TypeGuardError } from "typia";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
+import { ConfigService } from "@nestjs/config";
+
 import { EnvVarKeys } from "../../../config/env_vars.config";
 import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 
 @Injectable()
 export class ExecutableService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableService.name);
-  constructor(@InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>) {}
-
   private connection: amqp.Connection | null = null;
   private channel: amqp.Channel | null = null;
-  private readonly url: string = EnvVarKeys.RABBITMQ_URL;
-  private readonly queue: string = EnvVarKeys.EXECUTABLE_TASK_QUEUE_NAME;
-  private readonly deadLetterQ: string = EnvVarKeys.DEAD_LETTER_QUEUE_NAME;
-  private readonly deadLetterX: string = EnvVarKeys.DEAD_LETTER_EXCHANGE_NAME;
+
+  constructor(
+    @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
+    private readonly configSvc: ConfigService,
+  ) {}
 
   private async connectWithRetry(url: string, retryCount: number): Promise<amqp.Connection> {
     let attempt = 0;
@@ -43,7 +44,8 @@ export class ExecutableService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap(): Promise<void> {
     try {
-      this.connection = await this.connectWithRetry(this.url, 3);
+      const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
+      this.connection = await this.connectWithRetry(url, 3);
       this.channel = await this.connection.createChannel();
 
       await this.setupQueuesAndExchanges();
@@ -59,15 +61,26 @@ export class ExecutableService implements OnApplicationBootstrap {
       return;
     }
 
-    await this.channel.assertExchange(this.deadLetterX, "direct", { durable: true });
-    await this.channel.assertQueue(this.deadLetterQ, { durable: true });
-    await this.channel.bindQueue(this.deadLetterQ, this.deadLetterX, "");
+    // set up dead letter exchange and queue
+    const execTaskDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_QUEUE);
+    const execTaskDeadLetterX = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_EXCHANGE);
+    const execTaskDeadLetterDurable = Boolean(
+      this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_QUEUE_DURABLE),
+    );
+    await this.channel.assertExchange(execTaskDeadLetterX, "direct", { durable: execTaskDeadLetterDurable });
+    await this.channel.assertQueue(execTaskDeadLetterQ, { durable: execTaskDeadLetterDurable });
+    await this.channel.bindQueue(execTaskDeadLetterQ, execTaskDeadLetterX, "");
 
-    await this.channel.assertQueue(this.queue, {
-      durable: true,
-      deadLetterExchange: this.deadLetterX,
-      messageTtl: 60000,
-      maxLength: 10000,
+    // setup exec task queue
+    const taskQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_QUEUE);
+    const taskTtl = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_MSG_TTL));
+    const taskQDurable = Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_QUEUE_DURABLE));
+    const taskQMaxLength = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_QUEUE_MAXLENGTH));
+    await this.channel.assertQueue(taskQ, {
+      durable: taskQDurable,
+      deadLetterExchange: execTaskDeadLetterX,
+      messageTtl: taskTtl,
+      maxLength: taskQMaxLength,
     });
   }
 
@@ -79,7 +92,8 @@ export class ExecutableService implements OnApplicationBootstrap {
       }
 
       const taskData = typia.json.assertStringify<ExecutionTask>(task);
-      this.channel.sendToQueue(this.queue, Buffer.from(taskData), {
+      const taskQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_QUEUE);
+      this.channel.sendToQueue(taskQ, Buffer.from(taskData), {
         persistent: true,
       });
       await this.executableJobModel.updateOne({ _id: task._id }, { $set: { status: "queued" } });

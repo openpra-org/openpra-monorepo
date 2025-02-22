@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import { APP_PIPE, RouterModule } from "@nestjs/core";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
@@ -27,16 +28,16 @@ import { RolesModule } from "./roles/roles.module";
     TypedModelModule,
     RolesModule,
     ConfigModule.forRoot({
-      envFilePath: ".development.env",
+      envFilePath: ".env",
       isGlobal: true,
       cache: true,
-      ignoreEnvFile: !!process.env.DEPLOYMENT,
+      ignoreEnvFile: !fs.existsSync(".env"),
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
-        uri: config.get<string>("MONGO_URL"),
+      useFactory: (config: ConfigService) => ({
+        uri: config.getOrThrow<string>("MONGO_URL"),
       }),
     }),
     RouterModule.register([

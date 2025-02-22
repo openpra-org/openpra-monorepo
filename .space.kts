@@ -10,7 +10,10 @@ job("Monorepo CD") {
         text("Host-Performance", value = "any") {
             options("any", "low", "medium", "high")
         }
-        text("Worker-Count", value = "1", description = "min: 1, max: 1024")
+        text("NumWorkers", value = "1", description = "min: 2, max: 1024, auto: 1, default (main): 32")
+        text("NumBrokers", value = "1", description = "min: 2, max: 8, auto: 1, default (main): 3")
+        text("NumBackends", value = "1", description = "min: 2, max: 8, auto: 1, default (main): 3")
+        text("NumFrontends", value = "1", description = "min: 2, max: 8, auto: 1, default (main): 3")
     }
 
    host("Deployment Tags") {
@@ -29,21 +32,46 @@ job("Monorepo CD") {
        val maxSlugLength = if (branchName.length > 32) 32 else branchName.length
        var branchSlug = branchName.subSequence(0, maxSlugLength).toString()
 
-       var numWorkers = (api.parameters["Worker-Count"] ?: "0").toInt()
-       numWorkers = if (numWorkers > 1024) 1024 else numWorkers // never more than 1024
+       var numWorkers = (api.parameters["NumWorkers"] ?: "0").toInt()
+       numWorkers = if (numWorkers > 1024) 1024 else numWorkers // never more than 1024 per deployment
+
+       var numBrokers = (api.parameters["NumBrokers"] ?: "0").toInt()
+       numBrokers = if (numBrokers > 8) 8 else numBrokers // never more than 8 per deployment
+
+       var numBackends = (api.parameters["NumBackends"] ?: "0").toInt()
+       numBackends = if (numBackends > 8) 8 else numBackends // never more than 8 per deployment
+
+       var numFrontends = (api.parameters["NumFrontends"] ?: "0").toInt()
+       numFrontends = if (numFrontends > 8) 8 else numFrontends // never more than 8 per deployment
 
        if (branchName == "main") {
          branchSlug = "v2-app"
          api.parameters["buildType"] = "production"
          api.parameters["debugMode"] = "false"
          api.parameters["isReview"] = "false"
-         api.parameters["numWorkers"] = if (numWorkers < 1) "32" else numWorkers.toString() // 32 if unset
+         api.parameters["numWorkers"] = if (numWorkers <= 1) "32" else numWorkers.toString() // 32 if unset
+         api.parameters["numBrokers"] = if (numBrokers <= 1) "3" else numBrokers.toString()  // 3 if unset
+         api.parameters["numBackends"] = if (numBackends <= 1) "3" else numBackends.toString() // 3 if unset
+         api.parameters["numFrontends"] = if (numFrontends <= 1) "3" else numFrontends.toString() // 3 if unset
+         // performance constraints
+         api.parameters["workerPoolConstraint"]   = "node.labels.min_host_performance == low" // run on any node
+         api.parameters["brokerPoolConstraint"]   = "node.labels.max_host_performance != low" // don't run on slow nodes
+         api.parameters["backendPoolConstraint"]  = "node.labels.max_host_performance != low" // don't run on slow nodes
+         api.parameters["frontendPoolConstraint"] = "node.labels.min_host_performance == low" // run on any node
        } else {
          branchSlug = "app-review-$branchSlug"
          api.parameters["buildType"] = "development"
          api.parameters["debugMode"] = "true"
          api.parameters["isReview"] = "true"
-         api.parameters["numWorkers"] = if (numWorkers < 1) "2" else numWorkers.toString() // 2 if unset
+         api.parameters["numWorkers"] = if (numWorkers <= 1) "2" else numWorkers.toString() // 2 if unset
+         api.parameters["numBrokers"] = if (numBrokers <= 1) "2" else numBrokers.toString()  // 2 if unset
+         api.parameters["numBackends"] = if (numBackends <= 1) "2" else numBackends.toString() // 2 if unset
+         api.parameters["numFrontends"] = if (numFrontends <= 1) "1" else numFrontends.toString() // 2 if unset
+         // performance constraints
+         api.parameters["workerPoolConstraint"]   = "node.labels.min_host_performance == low" // run on any node
+         api.parameters["brokerPoolConstraint"]   = "node.labels.min_host_performance == low" // run on any node
+         api.parameters["backendPoolConstraint"]  = "node.labels.min_host_performance == low" // run on any node
+         api.parameters["frontendPoolConstraint"] = "node.labels.min_host_performance == low" // run on any node
        }
 
        api.parameters["branchSlug"] = branchSlug
@@ -80,12 +108,19 @@ job("Monorepo CD") {
 
      env["APP_NAME"] = "v2-{{ branchSlug }}"
      env["HOST_URL"] = "{{ branchSlug }}.{{ project:APP_DOMAIN }}"
+
      env["NUM_WORKERS"] = "{{ numWorkers }}"
+     env["NUM_BROKERS"] = "{{ numBrokers }}"
+     env["NUM_BACKENDS"] = "{{ numBackends }}"
+     env["NUM_FRONTENDS"] = "{{ numFrontends }}"
 
-     env["CI_SENTRY_DSN"] = "{{ project:APP_SENTRY_DSN }}"
-     env["CI_SENTRY_ENV"] = "{{ project:APP_SENTRY_ENV }}"
+     env["DEPLOYMENT_WORKER_POOL"] = "{{ workerPoolConstraint }}"
+     env["DEPLOYMENT_BROKER_POOL"] = "{{ brokerPoolConstraint }}"
+     env["DEPLOYMENT_BACKEND_POOL"] = "{{ backendPoolConstraint }}"
+     env["DEPLOYMENT_FRONTEND_POOL"] = "{{ frontendPoolConstraint }}"
+
      env["CI_DEBUG"] = "{{ project:APP_DEBUG_MODE }}"
-
+     env["CI_ALLOWED_HOST"] = ".{{ project:APP_DOMAIN }}"
      env["CI_BUILD_TYPE"] = "{{ buildType }}"
 
      env["ENV_SHARED_VOLUME_PATH"] = "{{ project:SHARED_VOLUME_PATH }}/openpra-app/v2/{{ branchSlug }}/volumes"
@@ -103,7 +138,7 @@ job("Monorepo CD") {
      shellScript("write secret files"){
        interpreter = "/bin/bash"
        content = """
-                         echo ${'$'}DSF_JWT_SECRET_KEY > docker/secrets/DSF_JWT_SECRET_KEY.secret
+                         echo ${'$'}DSF_JWT_SECRET_KEY > docker/secrets/DSF_JWT_SECRET
                          """
      }
 

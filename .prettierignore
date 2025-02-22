@@ -9,5 +9,3 @@ tmp
 build
 cmake-build-*
 cmake
-
-/.nx/workspace-data

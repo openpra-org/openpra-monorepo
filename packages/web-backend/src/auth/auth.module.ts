@@ -1,5 +1,3 @@
-import * as fs from "fs";
-import * as process from "process";
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
@@ -8,7 +6,7 @@ import { CollabModule } from "../collab/collab.module";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
 import { LocalStrategy } from "./strategies/local.strategy";
-import { JwtStrategy } from "./strategies/jwt.strategy";
+import { JwtStrategy, ParseJwtSecret } from "./strategies/jwt.strategy";
 
 @Module({
   imports: [
@@ -17,10 +15,8 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (config: ConfigService) => ({
-        secret: process.env.DEPLOYMENT
-          ? fs.readFileSync(config.get<string>("JWT_SECRET_KEY"))
-          : config.get<string>("JWT_SECRET_KEY"),
+      useFactory: (config: ConfigService) => ({
+        secret: ParseJwtSecret(config),
         signOptions: { expiresIn: "24h" },
       }),
     }),

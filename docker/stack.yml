@@ -37,13 +37,13 @@ x-base-replicated: &shared-replicated
     delay: 1s
     failure_action: rollback
     order: start-first
-    monitor: 300s
+    monitor: 120s
   rollback_config:
     parallelism: 16
     delay: 1s
     failure_action: continue
     order: start-first
-    monitor: 300s
+    monitor: 120s
 
 x-base-healthcheck: &healthcheck-fragments
   interval: 10s

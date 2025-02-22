@@ -66,7 +66,7 @@ job("Monorepo CD") {
          api.parameters["numWorkers"] = if (numWorkers <= 1) "2" else numWorkers.toString() // 2 if unset
          api.parameters["numBrokers"] = if (numBrokers <= 1) "2" else numBrokers.toString()  // 2 if unset
          api.parameters["numBackends"] = if (numBackends <= 1) "2" else numBackends.toString() // 2 if unset
-         api.parameters["numFrontends"] = if (numFrontends <= 1) "2" else numFrontends.toString() // 2 if unset
+         api.parameters["numFrontends"] = if (numFrontends <= 1) "1" else numFrontends.toString() // 2 if unset
          // performance constraints
          api.parameters["workerPoolConstraint"]   = "node.labels.min_host_performance == low" // run on any node
          api.parameters["brokerPoolConstraint"]   = "node.labels.min_host_performance == low" // run on any node

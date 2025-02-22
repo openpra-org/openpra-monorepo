@@ -11,7 +11,6 @@ CODEOWNERS "Project Admin"
 
 # Repo Sanitization
 *.gitignore "Project Admin"
-*.gitkeep "Project Admin"
 
 # Package Sanitization
 *.npmrc "Project Admin"
@@ -28,14 +27,16 @@ CODEOWNERS "Project Admin"
 *jest.config* "Project Admin"
 
 # Deployment Checks
+docker/* "Project Admin"
 *Dockerfile "Project Admin"
 docker-compose*.yml "Project Admin"
 stack.yml "Project Admin"
 .dockerignore "Project Admin"
 
 # CI/CD, GitLab Pipelines, Space Automations
-.space.kts
-.gitlab-ci.yml
+.space.kts "Project Admin"
+.gitlab-ci.yml "Project Admin"
+.github "Project Admin"
 
 # JetBrains IDE configs
 .idea "Project Admin"

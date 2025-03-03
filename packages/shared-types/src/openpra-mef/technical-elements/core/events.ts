@@ -13,6 +13,26 @@ import { Named, Unique } from "./meta";
 export type Frequency = number & tags.Minimum<0>;
 
 /**
+ * Units used for frequency measurements in probabilistic risk assessment
+ * @description Standardized units for expressing event frequencies across the PRA
+ * @example
+ * const unit: FrequencyUnit = FrequencyUnit.PER_REACTOR_YEAR;
+ */
+export enum FrequencyUnit {
+    /** Frequency per reactor year - used for reactor-specific events */
+    PER_REACTOR_YEAR = "per-reactor-year",
+    
+    /** Frequency per calendar year - used for site-wide events */
+    PER_CALENDAR_YEAR = "per-calendar-year",
+    
+    /** Frequency per critical year - used for events that can only occur during critical operation */
+    PER_CRITICAL_YEAR = "per-critical-year",
+    
+    /** Frequency per demand - used for events that occur upon system demand */
+    PER_DEMAND = "per-demand"
+}
+
+/**
  * Base Event - parent of all events
  * @memberof BaseEvents
  * @extends {Unique}`

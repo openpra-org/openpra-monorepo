@@ -32,6 +32,32 @@ import { DistributionType } from "../data-analysis/data-analysis";
  */
 
 /**
+ * Represents the different operating states of a nuclear reactor system.
+ * These are discrete modes that a plant can be in during its operational cycle.
+ * 
+ * @example
+ * const currentState: OperatingState = OperatingState.POWER;
+ * 
+ * @memberof OperatingStates
+ */
+export enum OperatingState {
+    /** Normal power operation */
+    POWER = "POWER",
+    
+    /** Reactor startup sequence */
+    STARTUP = "STARTUP",
+    
+    /** Normal shutdown state */
+    SHUTDOWN = "SHUTDOWN",
+    
+    /** Refueling operations */
+    REFUELING = "REFUELING",
+    
+    /** Maintenance period */
+    MAINTENANCE = "MAINTENANCE"
+}
+
+/**
  * Type for success criteria IDs
  * Format: SC-[SYSTEM]-[NUMBER]
  * Example: SC-RCIC-001
@@ -72,13 +98,79 @@ export type SystemStatus =
     | "NO";
 
 /**
- * Interface representing the barrier status.
+ * Enum representing the status of a radionuclide barrier.
+ * Used to indicate the current state of barriers that prevent the release of radioactive materials.
+ * 
  * @memberof OperatingStates
  */
-export type BarrierStatus = 
-    | "DEINERTED" 
-    | "INTACT" 
-    | "OPEN";
+export enum BarrierStatus {
+    /**
+     * Barrier is fully functional and providing its intended containment function
+     */
+    INTACT = "INTACT",
+    
+    /**
+     * Barrier has been compromised and is no longer providing its intended containment function
+     */
+    BREACHED = "BREACHED",
+    
+    /**
+     * Barrier is functioning below optimal levels but still providing some containment
+     */
+    DEGRADED = "DEGRADED",
+    
+    /**
+     * Barrier has been intentionally bypassed (e.g., for maintenance)
+     */
+    BYPASSED = "BYPASSED",
+    
+    /**
+     * Barrier is intentionally open (e.g., during refueling operations)
+     */
+    OPEN = "OPEN"
+}
+
+/**
+ * Describes a barrier preventing radionuclide release
+ * @example
+ * const containment: RadionuclideBarrier = {
+ *   uuid: "CONT-01",
+ *   name: "Primary Containment",
+ *   state: BarrierStatus.INTACT,
+ *   monitoringParameters: ["pressure", "temperature", "radiation"],
+ *   breachCriteria: ["pressure > 60 psig", "temperature > 280°F"]
+ * };
+ */
+export interface RadionuclideBarrier extends Unique, Named {
+    /** Current status of the barrier */
+    state: BarrierStatus;
+    /** Parameters being monitored for this barrier */
+    monitoringParameters?: string[];
+    /** Criteria that would indicate a breach of this barrier */
+    breachCriteria?: string[];
+    /** Description of the barrier */
+    description?: string;
+}
+
+/**
+ * Indicates the impact status of a reactor module in multi-module plants.
+ * Used to represent how initiating events or hazards affect individual modules.
+ * 
+ * @example
+ * const moduleStatus: ModuleState = ModuleState.NOT_IMPACTED;
+ * 
+ * @memberof OperatingStates
+ */
+export enum ModuleState {
+    /** Module is directly impacted by the initiating event or hazard */
+    IMPACTED = "IMPACTED",
+    
+    /** Module is not affected by the initiating event or hazard */
+    NOT_IMPACTED = "NOT_IMPACTED",
+    
+    /** Module is indirectly or partially affected by the initiating event or hazard */
+    PARTIALLY_IMPACTED = "PARTIALLY_IMPACTED"
+}
 
 /**
  * Interface representing the types of dependencies for safety functions.
@@ -776,7 +868,7 @@ export interface PlantOperatingState extends Unique, Named {
     detailedRadioactiveSources?: RadioactiveSource[];
     
     /** Operating mode or operational condition of the plant */
-    operatingMode: string;
+    operatingMode: OperatingState;
     
     /** Reactor Coolant Boundary configuration */
     rcbConfiguration: string;

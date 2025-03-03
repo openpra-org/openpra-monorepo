@@ -1,5 +1,5 @@
 import { Unique, Named } from "../core/meta";
-import { PlantOperatingStatesTable } from "../plant-operating-state-analysis/plant-operating-state-analysis";
+import { PlantOperatingStatesTable } from "../plant-operating-states-analysis/plant-operating-states-analysis";
 import * as temporal from './temporal-modeling';
 
 /**

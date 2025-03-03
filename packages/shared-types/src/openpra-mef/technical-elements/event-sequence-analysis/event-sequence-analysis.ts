@@ -3,7 +3,14 @@ import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { BaseEvent, FunctionalEvent, InitiatingEvent, Frequency } from "../core/events";
 import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
-import { PlantOperatingStatesTable, StateField } from "../plant-operating-state-analysis/plant-operating-state-analysis";
+import { 
+    PlantOperatingStatesTable, 
+    PlantOperatingState,
+    DependencyType,
+    PreventionMitigationLevel,
+    SafetyFunction as POSSafetyFunction,
+    SuccessCriteriaId
+} from "../plant-operating-states-analysis/plant-operating-states-analysis";
 import { Uncertainty } from "../data-analysis/data-analysis";
 import { ComponentTimeline } from "../systems-analysis/temporal-modeling";
 
@@ -16,11 +23,12 @@ import { ComponentTimeline } from "../systems-analysis/temporal-modeling";
  * Enum representing different levels of prevention/mitigation success
  * @memberof EventSequenceAnalysis
  */
-export enum PreventionMitigationLevel {
-    FULL = "FULL",
-    PARTIAL = "PARTIAL",
-    NONE = "NONE"
-}
+// Using PreventionMitigationLevel from plant-operating-state-analysis.ts instead
+// export enum PreventionMitigationLevel {
+//     FULL = "FULL",
+//     PARTIAL = "PARTIAL",
+//     NONE = "NONE"
+// }
 
 /**
  * Type representing dependency types with examples
@@ -34,7 +42,8 @@ export enum PreventionMitigationLevel {
  * };
  * ```
  */
-export type DependencyType = "functional" | "physical" | "human";
+// Using DependencyType from plant-operating-state-analysis.ts instead
+// export type DependencyType = "functional" | "physical" | "human";
 
 /*
  * Alternative type definitions for safety function dependencies - for future consideration
@@ -51,19 +60,19 @@ export type DependencyType = "functional" | "physical" | "human";
  * }
  *
  * export interface FunctionalDependency extends BaseDependency {
- *     type: "functional";
+ *     type: "FUNCTIONAL";
  *     // Reference to SystemComponent.uuid
  *     componentId: string;
  * }
  *
  * export interface PhysicalDependency extends BaseDependency {
- *     type: "physical";
+ *     type: "PHYSICAL";
  *     // Reference to System.uuid
  *     systemId: string;
  * }
  *
  * export interface HumanDependency extends BaseDependency {
- *     type: "human";
+ *     type: "HUMAN";
  * }
  *
  * export interface SafetyFunction {
@@ -138,13 +147,22 @@ export interface DesignInformation {
  *   },
  *   systemResponses: ["RPS Trip", "Control Rod Insertion"],
  *   dependencies: [{
- *     type: "functional",
+ *     type: "FUNCTIONAL",
  *     description: "Electric power for control rod drive mechanisms"
+ *   }],
+ *   category: "REACTIVITY_CONTROL",
+ *   implementationMechanisms: [{
+ *     name: "Control Rod System",
+ *     description: "System for inserting control rods to control reactivity",
+ *     status: "AVAILABLE",
+ *     type: "ACTIVE"
  *   }]
  * };
  * ```
  */
-export interface SafetyFunction {
+export interface SafetyFunction extends Omit<POSSafetyFunction, 'uuid'> {
+    // Simplified version of POSSafetyFunction for use in event sequences
+    // The uuid field is omitted as it's not needed for event sequences
     name: string;
     description?: string;
     state: "SUCCESS" | "FAILURE";
@@ -157,6 +175,74 @@ export interface SafetyFunction {
         type: DependencyType;
         description: string;
     }[];
+    
+    // Optional fields from POSSafetyFunction that may be relevant for event sequences
+    preventionMitigationLevel?: PreventionMitigationLevel;
+    category: "REACTIVITY_CONTROL" | "HEAT_REMOVAL" | "RADIOACTIVE_MATERIAL_RETENTION" | "OTHER";
+    
+    // Implementation mechanisms are required in POSSafetyFunction and must be required here too
+    implementationMechanisms: Array<{
+        name: string;
+        description: string;
+        status: "AVAILABLE" | "UNAVAILABLE" | "DEGRADED" | "MAINTENANCE";
+        statusDetails?: string;
+        type: "ACTIVE" | "PASSIVE";
+        reliability?: {
+            mtbf?: number;
+            pfd?: number;
+        };
+    }>;
+    
+    // Success criteria IDs are required in POSSafetyFunction and must be required here too
+    successCriteriaIds: SuccessCriteriaId[];
+    
+    // Initiating events this safety function responds to
+    initiatingEvents: {
+        /** ID of the initiating event */
+        id: string;
+        
+        /** Name of the initiating event (for convenience) */
+        name?: string;
+        
+        /** How effective this safety function is against this initiating event */
+        effectiveness?: PreventionMitigationLevel;
+    }[];
+    
+    // Operational parameters relevant to this safety function
+    operationalParameters?: Array<{
+        /** Name of the parameter */
+        name: string;
+        
+        /** Current value or state of the parameter */
+        value: string | number;
+        
+        /** Units of measurement, if applicable */
+        units?: string;
+        
+        /** Acceptable range for this parameter */
+        acceptableRange?: [number, number];
+        
+        /** Whether this parameter is being monitored */
+        monitored: boolean;
+        
+        /** Instruments used to monitor this parameter */
+        monitoringInstruments?: string[];
+    }>;
+    
+    // Degradation mechanisms that could affect this safety function
+    degradationMechanisms?: Array<{
+        /** Name of the degradation mechanism */
+        name: string;
+        
+        /** Description of the mechanism */
+        description: string;
+        
+        /** Current status of this degradation mechanism */
+        status: "ACTIVE" | "POTENTIAL" | "MITIGATED";
+        
+        /** Mitigation measures in place */
+        mitigationMeasures?: string[];
+    }>;
 }
 
 /**
@@ -171,8 +257,8 @@ export interface SafetyFunction {
  *   releaseType: "Gaseous Release",
  *   classification: "P2",
  *   damageState: "ND",
- *   preventionLevel: "PARTIAL",
- *   mitigationLevel: "FULL"
+ *   preventionLevel: PreventionMitigationLevel.PARTIAL,
+ *   mitigationLevel: PreventionMitigationLevel.FULL
  * };
  * ```
  */
@@ -212,7 +298,8 @@ export interface SequenceOperatingState {
 
     /**
      * Reference to the specific state within the table
-     * Links to PlantOperatingState.stateId
+     * This can be one of the predefined states (startUp, fullPower, controlledShutdown)
+     * or a custom state key from the PlantOperatingStatesTable
      */
     stateId: string;
 
@@ -226,7 +313,7 @@ export interface SequenceOperatingState {
     /**
      * References to success criteria specific to this operating state
      */
-    successCriteriaIds?: string[];
+    successCriteriaIds?: SuccessCriteriaId[];
 }
 
 /**
@@ -462,10 +549,21 @@ export const validateEventSequenceAnalysis = {
         plantStatesTable: PlantOperatingStatesTable
     ): string[] => {
         const errors: string[] = [];
-        const validStates = new Set(plantStatesTable.state_fields.map(field => field.state));
+        
+        // Get all valid state keys from the PlantOperatingStatesTable
+        // This includes the predefined states (startUp, fullPower, controlledShutdown)
+        // and any custom states
+        const validStateKeys = new Set([
+            'startUp',
+            'fullPower',
+            'controlledShutdown',
+            ...Object.keys(plantStatesTable).filter(key => 
+                key !== 'startUp' && key !== 'fullPower' && key !== 'controlledShutdown'
+            )
+        ]);
         
         analysis.eventSequences.forEach((seq, index) => {
-            if (!validStates.has(seq.operatingState.stateId)) {
+            if (!validStateKeys.has(seq.operatingState.stateId)) {
                 errors.push(
                     `Invalid stateId "${seq.operatingState.stateId}" in sequence ${index} (${seq.sequenceId})`
                 );

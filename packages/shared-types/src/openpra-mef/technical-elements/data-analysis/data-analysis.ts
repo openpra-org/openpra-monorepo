@@ -3,7 +3,7 @@
     import { Named, Unique } from "../core/meta";
     import { BasicEvent} from "../core/events";
     import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
-    import { PlantOperatingStatesTable } from "../plant-operating-state-analysis/plant-operating-state-analysis";
+    import { PlantOperatingStatesTable, PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
 
     /**
      * @module DataAnalysis
@@ -117,9 +117,39 @@
 
         /**
          * Represents the plant operating state for which the parameter applies.
+         * This can be either a reference to a specific plant operating state by ID,
+         * or a complete plant operating states table.
+         * 
+         * When using a string, it should reference a PlantOperatingState.uuid.
+         * When using a PlantOperatingStatesTable, it provides the complete set of
+         * operating states that this parameter applies to.
+         * 
+         * The new PlantOperatingStatesTable structure includes:
+         * - startUp: PlantOperatingState - Startup operating state
+         * - controlledShutdown: PlantOperatingState - Controlled shutdown operating state
+         * - fullPower: PlantOperatingState - Full power operating state
+         * - Additional custom operating states as needed
+         * 
+         * Example using a string reference:
+         * ```typescript
+         * plant_operating_state: "pos-fullpower-e89b-12d3-a456-426614174000" // References a specific PlantOperatingState by UUID
+         * ```
+         * 
+         * Example using the PlantOperatingStatesTable:
+         * ```typescript
+         * plant_operating_state: {
+         *   fullPower: {
+         *     uuid: "pos-fullpower-e89b-12d3-a456-426614174000",
+         *     name: "Full Power Operation",
+         *     // ... other required properties
+         *   },
+         *   // ... other operating states
+         * }
+         * ```
+         * 
          * HLR-DA-B: Grouping components into a homogeneous population
          */
-        plant_operating_state?: PlantOperatingStatesTable;
+        plant_operating_state?: PlantOperatingStatesTable | string;
 
         /**
          * The probability model used to evaluate event probability.
@@ -377,10 +407,98 @@
      *         basis: "Technical Specifications 3.8.1"
      *       },
      *       
-     *       // Operating Context
+     *       // Operating Context - Using the new PlantOperatingStatesTable structure
      *       plant_operating_state: {
-     *         state: "AT_POWER",
-     *         description: "Normal power operation"
+     *         startUp: {
+     *           uuid: "pos-startup-e89b-12d3-a456-426614174000",
+     *           name: "Plant Startup",
+     *           description: "Reactor startup from subcritical to low power",
+     *           timeBoundary: {
+     *             startingCondition: "Begin control rod withdrawal for startup",
+     *             endingCondition: "Main generator synchronized to grid"
+     *           },
+     *           radioactiveMaterialSources: ["Reactor Core"],
+     *           operatingMode: "Startup",
+     *           rcbConfiguration: "Intact",
+     *           rcsParameters: {
+     *             powerLevel: [0, 0.05],
+     *             decayHeatLevel: [0.01, 0.02],
+     *             reactorCoolantTemperatureAtControlVolume1: [150, 350],
+     *             coolantPressureAtControlVolume1: [0.1, 15.5]
+     *           },
+     *           decayHeatRemoval: {
+     *             primaryCoolingSystems: { "RHR-Loop-A": "YES" },
+     *             secondaryCoolingSystems: { "Auxiliary-Feedwater": "YES" }
+     *           },
+     *           availableInstrumentation: ["Neutron-Flux-Monitoring"],
+     *           radionuclideTransportBarrier: {
+     *             barrier1: "INTACT",
+     *             barrier2: "INTACT"
+     *           },
+     *           initiatingEvents: [],
+     *           safetyFunctions: [],
+     *           meanDuration: 24
+     *         },
+     *         fullPower: {
+     *           uuid: "pos-fullpower-e89b-12d3-a456-426614174000",
+     *           name: "Full Power Operation",
+     *           description: "Normal operation at 100% power with all systems available",
+     *           timeBoundary: {
+     *             startingCondition: "Generator synchronization complete and power ascension to >95% complete",
+     *             endingCondition: "Operator initiates power reduction for shutdown or reactor trip occurs"
+     *           },
+     *           radioactiveMaterialSources: ["Reactor Core", "Primary Coolant"],
+     *           operatingMode: "Power Operation",
+     *           rcbConfiguration: "Intact",
+     *           rcsParameters: {
+     *             powerLevel: [0.98, 1.0],
+     *             decayHeatLevel: [0.06, 0.07],
+     *             reactorCoolantTemperatureAtControlVolume1: [550, 558],
+     *             coolantPressureAtControlVolume1: [2200, 2250]
+     *           },
+     *           decayHeatRemoval: {
+     *             primaryCoolingSystems: { "Main-Feedwater": "YES" },
+     *             secondaryCoolingSystems: { "Main-Condenser": "YES" }
+     *           },
+     *           availableInstrumentation: ["Neutron-Flux-Monitoring"],
+     *           radionuclideTransportBarrier: {
+     *             barrier1: "INTACT",
+     *             barrier2: "INTACT"
+     *           },
+     *           initiatingEvents: [],
+     *           safetyFunctions: [],
+     *           meanDuration: 8000
+     *         },
+     *         controlledShutdown: {
+     *           uuid: "pos-shutdown-e89b-12d3-a456-426614174000",
+     *           name: "Controlled Shutdown",
+     *           description: "Controlled shutdown from full power to hot standby",
+     *           timeBoundary: {
+     *             startingCondition: "Operator initiates power reduction for shutdown",
+     *             endingCondition: "Reactor subcritical and in hot standby condition"
+     *           },
+     *           radioactiveMaterialSources: ["Reactor Core"],
+     *           operatingMode: "Hot Standby",
+     *           rcbConfiguration: "Intact",
+     *           rcsParameters: {
+     *             powerLevel: [0, 0.05],
+     *             decayHeatLevel: [0.05, 0.06],
+     *             reactorCoolantTemperatureAtControlVolume1: [350, 550],
+     *             coolantPressureAtControlVolume1: [1500, 2200]
+     *           },
+     *           decayHeatRemoval: {
+     *             primaryCoolingSystems: { "RHR-Loop-A": "YES" },
+     *             secondaryCoolingSystems: { "Auxiliary-Feedwater": "YES" }
+     *           },
+     *           availableInstrumentation: ["Neutron-Flux-Monitoring"],
+     *           radionuclideTransportBarrier: {
+     *             barrier1: "INTACT",
+     *             barrier2: "INTACT"
+     *           },
+     *           initiatingEvents: [],
+     *           safetyFunctions: [],
+     *           meanDuration: 12
+     *         }
      *       },
      *       
      *       // Statistical Analysis

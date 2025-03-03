@@ -5,7 +5,7 @@ import { Uncertainty, DataSource, Assumption } from "../data-analysis/data-analy
 import { Frequency } from "../core/events";
 
 /**
- * @module InitiatingEvents
+ * @module initiating_event_analysis
  * @description Initiating event types and interfaces
  * 
  * This module provides types and interfaces for modeling initiating events in a PRA.

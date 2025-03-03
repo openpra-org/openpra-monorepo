@@ -6,10 +6,10 @@
  */
 
 /**
- * @module plant_operating_state
- * @description Plant Operating State Analysis types and interfaces
+ * @module plant_operating_states_analysis
+ * @description Plant Operating States Analysis types and interfaces
  */
-export * as plant_operating_state from './plant-operating-state-analysis/plant-operating-state-analysis';
+export * as plant_operating_states_analysis from './plant-operating-states-analysis/plant-operating-states-analysis';
 
 /**
  * @module data_analysis
@@ -18,10 +18,10 @@ export * as plant_operating_state from './plant-operating-state-analysis/plant-o
 export * as data_analysis from './data-analysis/data-analysis';
 
 /**
- * @module initiating_event
+ * @module initiating_event_analysis
  * @description Initiating Event Analysis types and interfaces
  */
-export * as initiating_event from './initiating-event-analysis/initiating-event-analysis';
+export * as initiating_event_analysis from './initiating-event-analysis/initiating-event-analysis';
 
 /**
  * @module systems_analysis

@@ -1,7 +1,7 @@
     import typia, { tags } from "typia";
     import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
     import { Named, Unique } from "../core/meta";
-    import { BasicEvent} from "../core/events";
+    import { BasicEvent, FrequencyUnit } from "../core/events";
     import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
     import { PlantOperatingStatesTable, PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
 
@@ -569,3 +569,174 @@
      * ```
      */
     export const DataAnalysisSchema = typia.json.application<[DataAnalysis], "3.0">();
+
+    /**
+     * Interface representing a Bayesian update process for parameter estimation.
+     * This is used to combine prior information with new data to produce an updated posterior distribution.
+     * 
+     * @memberof Probability
+     */
+    export interface BayesianUpdate {
+        /**
+         * Whether a Bayesian update was performed
+         */
+        performed: boolean;
+        
+        /**
+         * The method used for the Bayesian update (e.g., "Conjugate prior", "MCMC")
+         */
+        method: string;
+        
+        /**
+         * Convergence criteria used for numerical methods (if applicable)
+         */
+        convergence_criteria?: number;
+        
+        /**
+         * Prior distribution information
+         */
+        prior?: {
+            /**
+             * The distribution type of the prior
+             */
+            distribution: DistributionType;
+            
+            /**
+             * Parameters of the prior distribution
+             */
+            parameters: Record<string, number>;
+            
+            /**
+             * Source of the prior information
+             */
+            source?: string;
+        };
+        
+        /**
+         * Posterior distribution information after update
+         */
+        posterior?: {
+            /**
+             * The distribution type of the posterior
+             */
+            distribution: DistributionType;
+            
+            /**
+             * Parameters of the posterior distribution
+             */
+            parameters: Record<string, number>;
+        };
+    }
+
+    /**
+     * Interface representing the quantification of a frequency parameter.
+     * This interface is used for frequency-based parameters such as initiating event frequencies.
+     * 
+     * @memberof Probability
+     */
+    export interface FrequencyQuantification {
+        /**
+         * Fraction of time spent in the operating state
+         */
+        operating_state_fraction: number;
+        
+        /**
+         * Number of modules impacted by the event
+         */
+        modules_impacted: number;
+        
+        /**
+         * Total number of modules in the plant
+         */
+        total_modules: number;
+        
+        /**
+         * Generic industry data used for the frequency estimation
+         */
+        generic_data: {
+            /**
+             * Source of the generic data
+             */
+            source: string;
+            
+            /**
+             * Applicability of the generic data to the specific plant
+             */
+            applicability: string;
+            
+            /**
+             * Time period covered by the generic data
+             */
+            time_period: [Date, Date];
+            
+            /**
+             * Number of events observed in the generic data
+             */
+            events: number;
+            
+            /**
+             * Exposure time in the generic data
+             */
+            exposure_time: number;
+            
+            /**
+             * Unit of the exposure time
+             */
+            exposure_unit: FrequencyUnit;
+        };
+        
+        /**
+         * Plant-specific data used for the frequency estimation (if available)
+         */
+        plant_specific_data?: {
+            /**
+             * Number of events observed in the plant-specific data
+             */
+            events: number;
+            
+            /**
+             * Exposure time in the plant-specific data
+             */
+            exposure_time: number;
+            
+            /**
+             * Unit of the exposure time
+             */
+            exposure_unit: FrequencyUnit;
+            
+            /**
+             * Applicability of the plant-specific data
+             */
+            applicability: string;
+        };
+        
+        /**
+         * Bayesian update information (if performed)
+         */
+        bayesian_update?: BayesianUpdate;
+        
+        /**
+         * Estimated frequency value
+         */
+        frequency: number;
+        
+        /**
+         * Unit of the frequency
+         */
+        frequency_unit: FrequencyUnit;
+        
+        /**
+         * Type of probability distribution used for the frequency
+         */
+        distribution: DistributionType;
+        
+        /**
+         * Parameters of the probability distribution
+         */
+        distribution_parameters: Record<string, number>;
+        
+        /**
+         * Uncertainty information for the frequency
+         */
+        uncertainty: Uncertainty;
+    }

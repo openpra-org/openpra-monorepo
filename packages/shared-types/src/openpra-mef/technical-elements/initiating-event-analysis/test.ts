@@ -1,7 +1,7 @@
 import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Named, Unique } from "../core/meta";
-import { Uncertainty, DataSource, Assumption, DistributionType } from "../data-analysis/data-analysis";
+import { Uncertainty, DataSource, Assumption, DistributionType, FrequencyQuantification, BayesianUpdate } from "../data-analysis/data-analysis";
 import { Frequency, InitiatingEvent, BaseEvent, FrequencyUnit } from "../core/events";
 import { PlantOperatingState, BarrierStatus, OperatingState, ModuleState, SafetyFunction, PreventionMitigationLevel, RadionuclideBarrier } from "../plant-operating-states-analysis/plant-operating-states-analysis";
 import { SystemComponent } from "../systems-analysis/systems-analysis";
@@ -109,16 +109,16 @@ export interface IdentificationMethodBase {
 export interface MasterLogicDiagram extends IdentificationMethodBase {
     sources: Set<string>;
     operating_states: Set<OperatingState>;
-    radionuclide_barriers: Map<string, RadionuclideBarrier>;
-    safety_functions: Map<string, SafetyFunction>;
-    systems_components: Map<string, SystemComponent>;
-    failure_modes: Map<string, {
+    radionuclide_barriers: Record<string, RadionuclideBarrier>;
+    safety_functions: Record<string, SafetyFunction>;
+    systems_components: Record<string, SystemComponent>;
+    failure_modes: Record<string, {
         id: string;
         name: string;
         description: string;
         component_id: string;
     }>;
-    initiators: Map<string, InitiatorDefinition>;
+    initiators: Record<string, InitiatorDefinition>;
 }
 
 /**
@@ -135,22 +135,22 @@ export interface MasterLogicDiagram extends IdentificationMethodBase {
  */
 export interface HeatBalanceFaultTree extends IdentificationMethodBase {
     operating_states: Set<OperatingState>;
-    interfaces: Map<string, {
+    interfaces: Record<string, {
         name: string;
         parameters: string[];
         normal_ranges: [number, number][];
     }>;
-    imbalances: Map<string, {
+    imbalances: Record<string, {
         description: string;
         threshold: number;
         consequences: string[];
     }>;
-    causes: Map<string, {
+    causes: Record<string, {
         description: string;
         probability: number;
         uncertainty?: Uncertainty;
     }>;
-    systems_components: Map<string, SystemComponent>;
+    systems_components: Record<string, SystemComponent>;
 }
 
 /**
@@ -166,13 +166,13 @@ export interface HeatBalanceFaultTree extends IdentificationMethodBase {
  * };
  */
 export interface FailureModesEffectAnalysis extends IdentificationMethodBase {
-    systems: Map<string, {
+    systems: Record<string, {
         name: string;
         function: string;
         boundaries: string[];
     }>;
-    components: Map<string, SystemComponent>;
-    failure_modes: Map<string, {
+    components: Record<string, SystemComponent>;
+    failure_modes: Record<string, {
         mode: string;
         causes: string[];
         local_effects: string[];
@@ -337,7 +337,7 @@ export interface InitiatorDefinition extends ExtendedInitiatingEvent {
     /**
      * Parameters that trigger reactor/plant trips
      */
-    trip_parameters: Map<string, {
+    trip_parameters: Record<string, {
         parameter: string;
         setpoint: number;
         uncertainty: number;
@@ -347,7 +347,7 @@ export interface InitiatorDefinition extends ExtendedInitiatingEvent {
     /**
      * Systems that can mitigate this initiating event
      */
-    mitigating_systems: Map<string, {
+    mitigating_systems: Record<string, {
         system: string;
         function: string;
         success_criteria: string;
@@ -357,7 +357,7 @@ export interface InitiatorDefinition extends ExtendedInitiatingEvent {
     /**
      * Impact on radionuclide barriers
      */
-    barrier_impacts: Map<string, {
+    barrier_impacts: Record<string, {
         barrier: string;
         state: BarrierStatus;
         timing: string;
@@ -367,7 +367,7 @@ export interface InitiatorDefinition extends ExtendedInitiatingEvent {
     /**
      * Impact on reactor modules (for multi-module plants)
      */
-    module_impacts: Map<string, {
+    module_impacts: Record<string, {
         module: string;
         state: ModuleState;
         propagation_path?: string;
@@ -376,17 +376,14 @@ export interface InitiatorDefinition extends ExtendedInitiatingEvent {
 }
 
 /**
- * Frequency quantification with uncertainty analysis
- * @remarks **IE-C1**: For operating plants, calculate initiating event frequency using applicable generic and plant- or design-specific data representative of current design and performance, unless adequate plant-specific data exists.
- * @remarks **IE-C19**: Characterise the uncertainty associated with the frequency of each initiating event or initiating event group.
  * @example
- * const locaFreq: FrequencyQuantification = {
+ * const quantification: FrequencyQuantification = {
  *   operating_state_fraction: 0.8,
  *   modules_impacted: 1,
- *   total_modules: 12,
+ *   total_modules: 1,
  *   generic_data: {
- *     source: "NUREG-1829",
- *     applicability: "All PWRs",
+ *     source: "NUREG/CR-6928",
+ *     applicability: "Similar PWR designs",
  *     time_period: [new Date("2000-01-01"), new Date("2020-12-31")],
  *     events: 0,
  *     exposure_time: 3000,
@@ -395,35 +392,6 @@ export interface InitiatorDefinition extends ExtendedInitiatingEvent {
  *   // ... other properties
  * };
  */
-export interface FrequencyQuantification {
-    operating_state_fraction: number;
-    modules_impacted: number;
-    total_modules: number;
-    generic_data: {
-        source: string;
-        applicability: string;
-        time_period: [Date, Date];
-        events: number;
-        exposure_time: number;
-        exposure_unit: FrequencyUnit;
-    };
-    plant_specific_data?: {
-        events: number;
-        exposure_time: number;
-        exposure_unit: FrequencyUnit;
-        applicability: string;
-    };
-    bayesian_update?: {
-        performed: boolean;
-        method: string;
-        convergence_criteria?: number;
-    };
-    frequency: number;
-    frequency_unit: FrequencyUnit;
-    distribution: DistributionType;
-    distribution_parameters: Map<string, number>;
-    uncertainty: Uncertainty;
-}
 
 /**
  * Main interface for initiating events analysis
@@ -480,14 +448,14 @@ export interface InitiatingEventsAnalysis extends TechnicalElement<TechnicalElem
      * Identified initiating events
      * @remarks **HLR-IE-A**: The Initiating Event Analysis shall reasonably identify all initiating events...
      */
-    initiators: Map<string, InitiatorDefinition>;
+    initiators: Record<string, InitiatorDefinition>;
     
     /**
      * Grouping of initiating events with similar mitigation requirements
      * @remarks **HLR-IE-B**: The Initiating Event Analysis shall group the initiating events so that events in the same group have similar mitigation requirements (i.e., the requirements for all events in the group are either equally or less restrictive than the limiting mitigation requirements for the group) to facilitate an efficient but realistic estimation of the frequency of each modeled event sequence and event sequence family.
      * @remarks **IE-B1**: Group initiating events to facilitate definition of event sequences and quantification. Justify that grouping does not affect the determination of risk-significant event sequences.
      */
-    initiating_event_groups: Map<string, {
+    initiating_event_groups: Record<string, {
         group_id: string;
         name: string;
         description: string;
@@ -502,11 +470,11 @@ export interface InitiatingEventsAnalysis extends TechnicalElement<TechnicalElem
      * @remarks **HLR-IE-C**: The Initiating Event Analysis shall quantify the annual frequency of each initiating event or initiating event group based on the plant conditions for each source of radioactive material and plant operating state within the scope of the PRA.
      * @remarks **IE-C1**: For operating plants, calculate initiating event frequency using applicable generic and plant- or design-specific data representative of current design and performance, unless adequate plant-specific data exists.
      */
-    quantification: Map<string, FrequencyQuantification>;
+    quantification: Record<string, FrequencyQuantification>;
     
     insights: {
         key_assumptions: string[];
-        sensitivity_studies: Map<string, {
+        sensitivity_studies: Record<string, {
             parameter: string;
             range: [number, number];
             results: string;
@@ -553,34 +521,34 @@ export const validateInitiatingEventsAnalysis = {
         return errors;
     },
     
-    validateGrouping: (analysis: InitiatingEventsAnalysis): string[] => {
+    validateGroupConsistency: (analysis: InitiatingEventsAnalysis): string[] => {
         const errors: string[] = [];
         // Check if all initiators referenced in groups exist
-        for (const [groupId, group] of analysis.initiating_event_groups) {
+        Object.entries(analysis.initiating_event_groups).forEach(([groupId, group]) => {
             for (const memberId of group.members) {
-                if (!analysis.initiators.has(memberId)) {
+                if (!(memberId in analysis.initiators)) {
                     errors.push(`Group ${groupId} references non-existent initiator ${memberId}`);
                 }
             }
             
             // Check if bounding initiator exists and is a member of the group
-            if (!analysis.initiators.has(group.bounding_initiator)) {
+            if (!(group.bounding_initiator in analysis.initiators)) {
                 errors.push(`Group ${groupId} has non-existent bounding initiator ${group.bounding_initiator}`);
             } else if (!group.members.includes(group.bounding_initiator)) {
                 errors.push(`Bounding initiator ${group.bounding_initiator} is not a member of group ${groupId}`);
             }
-        }
+        });
         return errors;
     },
     
     validateOperatingStates: (analysis: InitiatingEventsAnalysis): string[] => {
         const errors: string[] = [];
         // Check if all initiators have at least one operating state
-        for (const [id, initiator] of analysis.initiators) {
+        Object.entries(analysis.initiators).forEach(([id, initiator]) => {
             if (initiator.operating_states.length === 0) {
                 errors.push(`Initiator ${id} has no operating states defined`);
             }
-        }
+        });
         return errors;
     }
 };
@@ -603,7 +571,7 @@ export const validateInitiatingEventsAnalysis = {
  *
  * // Additional runtime checks
  * const frequencyErrors = validateInitiatingEventsAnalysis.validateFrequency(someInitiator);
- * const groupingErrors = validateInitiatingEventsAnalysis.validateGrouping(analysis);
+ * const groupingErrors = validateInitiatingEventsAnalysis.validateGroupConsistency(analysis);
  * const operatingStateErrors = validateInitiatingEventsAnalysis.validateOperatingStates(analysis);
  * 
  * if (frequencyErrors.length > 0 || groupingErrors.length > 0 || operatingStateErrors.length > 0) {
@@ -626,3 +594,12 @@ export const InitiatingEventsAnalysisSchema = typia.json.application<[Initiating
 /**
  * - `event-sequence-analysis.ts`: To reference the `InitiatingEvent` that starts an event sequence
  */
+
+export interface HazardAnalysis extends Unique, Named {
+    // ... existing code ...
+    /**
+     * Radionuclide barriers considered in the analysis
+     */
+    radionuclide_barriers: Record<string, RadionuclideBarrier>;
+    // ... existing code ...
+}

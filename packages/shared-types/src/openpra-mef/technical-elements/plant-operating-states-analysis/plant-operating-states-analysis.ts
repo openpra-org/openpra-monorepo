@@ -947,6 +947,15 @@ export interface PlantOperatingState extends Unique, Named {
         
         /** Actions to improve accuracy */
         improvementActions?: string[];
+        
+        /** 
+         * Assessment of whether the detail level is sufficient to identify risk-significant contributors
+         * For operating plants, this must be explicitly evaluated
+         */
+        sufficientForRiskSignificantContributors: boolean;
+        
+        /** Justification for the sufficiency assessment */
+        sufficiencyJustification?: string;
     };
 }
 
@@ -1484,9 +1493,16 @@ export interface PlantOperatingStatesAnalysis extends TechnicalElement<Technical
     
     /** 
      * List of plant evolutions to be analyzed
+     * Must include, at a minimum, plant evolutions from at-power operations
      * @implements POS-A1
      */
     plantEvolutions: PlantEvolution[];
+    
+    /**
+     * Flag indicating whether at-power operations are included in the analysis
+     * Per regulatory guidance, at-power operations must be included at a minimum
+     */
+    includesAtPowerOperations: boolean;
     
     /** 
      * Hazardous sources information

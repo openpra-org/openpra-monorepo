@@ -492,5 +492,3 @@ The demonstrated schema fully satisfies HLR-IE-D requirements by:
 3. Implementing validation to ensure documentation completeness
 4. Supporting traceability through a hierarchical data structure
 5. Enabling comprehensive documentation at multiple levels (overall process, individual events, methods)
-
-The schema is therefore ready for production use, providing a robust framework for documenting Initiating Event Analysis in compliance with RA-S-1.4-2021 Section 4.3.2.

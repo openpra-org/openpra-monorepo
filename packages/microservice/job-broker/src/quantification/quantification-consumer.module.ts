@@ -2,12 +2,13 @@ import fs from "fs";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 import { MongooseModule } from "@nestjs/mongoose";
-
+import { QueueModule } from "../shared";
 import { QuantificationJobReport, QuantificationJobSchema } from "../middleware/schemas/quantification-job.schema";
 import { ConsumerService } from "./services/consumer.service";
 
 @Module({
   imports: [
+    QueueModule,
     ConfigModule.forRoot({
       envFilePath: ".env",
       isGlobal: true,

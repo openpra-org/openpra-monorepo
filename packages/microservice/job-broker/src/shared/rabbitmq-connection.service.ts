@@ -13,14 +13,9 @@ export class RabbitMQConnectionService {
    * Attempts to establish a connection to the RabbitMQ server with retry logic.
    *
    * @param serviceName - Name of the service attempting connection (for logging)
-   * retryCount - Maximum number of retry attempts
    * @returns A promise that resolves to a RabbitMQ connection
    */
-  public async getConnection(serviceName: string): Promise<amqp.Connection> {
     const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
-    const retryCount = 3;
-
-    return await this.connectWithRetry(url, retryCount, serviceName);
   }
 
   /**
@@ -29,9 +24,7 @@ export class RabbitMQConnectionService {
    * @param serviceName - Name of the service requesting the channel
    * @returns A promise that resolves to a RabbitMQ channel
    */
-  public async getChannel(serviceName: string): Promise<amqp.Channel> {
     const connection = await this.getConnection(serviceName);
-    return await connection.createChannel();
   }
 
   /**

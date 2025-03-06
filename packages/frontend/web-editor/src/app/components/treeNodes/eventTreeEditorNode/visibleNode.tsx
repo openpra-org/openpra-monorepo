@@ -1,8 +1,9 @@
 import { Handle, NodeProps, Position, useReactFlow } from "reactflow";
 import React, { useState } from "react";
-import { EuiText } from "@elastic/eui";
+import { EuiText, EuiToolTip } from "@elastic/eui";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 import useDeleteNodeClick from "../../../hooks/eventTree/useDeleteNodeClick";
+import { ScientificNotation } from "../../../../utils/scientificNotation";
 import styles from "./styles/nodeTypes.module.css";
 
 function VisibleNode({ id, data }: NodeProps) {
@@ -95,16 +96,20 @@ function VisibleNode({ id, data }: NodeProps) {
               onBlur={(e) => {
                 const inputValue = parseFloat(e.target.value); // Parse the input once
                 const value = isNaN(inputValue) || inputValue > 1 ? 0.0 : Math.max(0, inputValue);
-                const parsedValue = parseFloat(value.toFixed(2));
-                updateNodeProbability(parsedValue);
+                const parsedValue = ScientificNotation.fromScientific(e.target.value);
+                if (!isNaN(parsedValue) && parsedValue >= 0 && parsedValue <= 1) {
+                  updateNodeProbability(parsedValue);
+                }
                 setIsEditingFreq(false);
               }}
               autoFocus
             />
           ) : (
-            <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>
-              {data.probability?.toFixed(2) || defaultProbability.toFixed(2)}
-            </EuiText>
+            <EuiToolTip content={data.probability?.toExponential(6) ?? defaultProbability.toExponential(6)}>
+              <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>
+                {ScientificNotation.toScientific(data.probability ?? defaultProbability, 3)}
+              </EuiText>
+            </EuiToolTip>
           )}
         </div>
 

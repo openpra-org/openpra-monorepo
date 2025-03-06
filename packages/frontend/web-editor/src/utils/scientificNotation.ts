@@ -6,7 +6,7 @@ export class ScientificNotation {
    * @returns A string representation in scientific notation
    */
   static toScientific(value: number, significantDigits = 3): string {
-    if (value === 0) return `0.${"0".repeat(significantDigits - 1)}e+0`;
+    if (value === 0) return "0";
     const exponent = Math.floor(Math.log10(Math.abs(value)));
     let mantissa = value / Math.pow(10, exponent);
 

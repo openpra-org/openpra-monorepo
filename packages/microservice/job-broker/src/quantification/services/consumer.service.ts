@@ -29,10 +29,10 @@ export class ConsumerService implements OnApplicationBootstrap {
    */
   async onApplicationBootstrap(): Promise<void> {
     try {
-      this.logger.log("Connecting to the broker");
+      this.logger.debug("Connecting to the broker");
       this.channel = await this.queueService.setupQueue(this.queueConfig);
       await this.consumeQuantJobs();
-      this.logger.log("Initialized and consuming messages");
+      this.logger.debug("Initialized and consuming messages");
     } catch (error) {
       this.logger.error("Failed to initialize:", error);
     }
@@ -58,12 +58,13 @@ export class ConsumerService implements OnApplicationBootstrap {
 
         try {
           const modelsData: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
-          const { _id, ...modelsWithConfigs } = modelsData;
-          const result: string[] = this.performQuantification(modelsWithConfigs);
-          await this.quantificationJobModel.findByIdAndUpdate(_id, { $set: { results: result, status: "completed" } });
+          const result: string[] = this.performQuantification(modelsData);
+          await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
+            $set: { results: result, status: "completed" },
+          });
 
           this.channel?.ack(msg);
-          this.logger.log(`${String(_id)}: Acknowledged`);
+          this.logger.debug(`${String(modelsData._id)}: Acknowledged`);
         } catch (error) {
           if (error instanceof TypeGuardError) {
             this.logger.error(error);
@@ -86,21 +87,22 @@ export class ConsumerService implements OnApplicationBootstrap {
    */
   public performQuantification(modelsWithConfigs: QuantifyRequest): string[] {
     // Extract model data from the request.
-    const models = modelsWithConfigs.models;
+    const { _id, ...modelConfigs } = modelsWithConfigs;
+    const models = modelConfigs.models;
 
     // Write the model data to temporary XML files and store the file paths.
     const modelFilePaths = this.writeNodeAddonModelFilesBase64(models);
-    modelsWithConfigs.models = modelFilePaths;
+    modelConfigs.models = modelFilePaths;
 
     // Create a temporary file to store the output of the SCRAM CLI.
     const outputFilePath = String(tmp.fileSync({ prefix: "result", postfix: ".xml" }).name);
-    modelsWithConfigs.output = outputFilePath;
+    modelConfigs.output = outputFilePath;
 
     try {
       // Invoke the SCRAM CLI with the updated request
-      this.logger.log(`${JSON.stringify(modelsWithConfigs)} is running`);
-      RunScramCli(modelsWithConfigs);
-      this.logger.log(`${JSON.stringify(modelsWithConfigs)} has been quantified`);
+      this.logger.debug(`${String(_id)} is running`);
+      RunScramCli(modelConfigs);
+      this.logger.debug(`${String(_id)} has been quantified`);
 
       // Read the quantification results from the output file.
       const outputContent = readFileSync(outputFilePath, "utf8");

@@ -1,11 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger, OnApplicationBootstrap } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { Channel } from "amqplib";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
 import { QueueService, QueueConfig, QueueConfigFactory } from "../../shared";
-import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 
 @Injectable()
 export class ProducerService implements OnApplicationBootstrap {
@@ -14,7 +11,6 @@ export class ProducerService implements OnApplicationBootstrap {
   private channel: Channel | null = null;
 
   constructor(
-    @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
     private readonly queueService: QueueService,
     private readonly queueConfigFactory: QueueConfigFactory,
   ) {
@@ -27,7 +23,7 @@ export class ProducerService implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     try {
       this.logger.debug("Connecting to the broker");
-      this.channel = await this.queueService.setupQueue(QueueService.name, this.queueConfig);
+      this.channel = await this.queueService.setupQueue(this.queueConfig);
       this.logger.debug("Initialized and ready to send messages");
     } catch (error) {
       this.logger.error("Failed to initialize:", error);
@@ -39,11 +35,11 @@ export class ProducerService implements OnApplicationBootstrap {
    *
    * @param quantRequest - Request data for the quantification job
    */
-  public async createAndQueueQuant(quantRequest: QuantifyRequest): Promise<string | InternalServerErrorException> {
+  public createAndQueueQuant(quantRequest: QuantifyRequest): void {
     try {
       if (!this.channel) {
         this.logger.error("Channel is not available. Cannot send message.");
-        return new InternalServerErrorException();
+        return;
       }
 
       this.logger.debug("Gets the request body from the Quantification controller");
@@ -53,18 +49,12 @@ export class ProducerService implements OnApplicationBootstrap {
       this.channel.sendToQueue(this.queueConfig.name, Buffer.from(modelsData), {
         persistent: true,
       });
-
-      await this.quantificationJobModel.findByIdAndUpdate(quantRequest._id, {
-        $set: { status: "pending" },
-      });
-      return `Job: ${String(quantRequest._id)} has been queued to <${String(this.queueConfig.name)}>`;
+      this.logger.debug("Quantification job queued");
     } catch (error) {
       if (error instanceof TypeGuardError) {
         this.logger.error(error);
-        throw new InternalServerErrorException();
       } else {
         this.logger.error(error);
-        throw new InternalServerErrorException();
       }
     }
   }

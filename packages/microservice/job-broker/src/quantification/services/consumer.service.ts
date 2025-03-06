@@ -49,6 +49,7 @@ export class ConsumerService implements OnApplicationBootstrap {
 
     await this.channel.consume(
       this.queueConfig.name,
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
         if (msg === null) {
           this.logger.error("Unable to parse message from quantification queue");

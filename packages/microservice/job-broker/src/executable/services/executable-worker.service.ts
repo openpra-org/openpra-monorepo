@@ -48,6 +48,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
 
     await this.taskChannel.consume(
       this.taskQueueConfig.name,
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
         if (msg === null) {
           this.logger.error("Unable to parse message from task queue");

@@ -35,7 +35,7 @@ export class QueueService {
       await channel.prefetch(queueConfig.prefetch);
     }
 
-    this.logger.log(`Queue '${queueConfig.name}' setup complete`);
+    this.logger.debug(`Queue '${queueConfig.name}' setup complete`);
     return channel;
   }
 

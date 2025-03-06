@@ -1,12 +1,5 @@
-    import typia, { tags } from "typia";
-    import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
-    import { Named, Unique } from "../core/meta";
-    import { BasicEvent, FrequencyUnit } from "../core/events";
-    import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
-    import { PlantOperatingStatesTable, PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
-
-    /**
-     * @module DataAnalysis
+        /**
+     * @module data_analysis
      * @description The objectives of Data Analysis ensure that:
      * - (a) parameter boundaries are defined;
      * - (b) components are appropriately grouped;
@@ -17,6 +10,15 @@
      * @preferred
      * @category Technical Elements
      */
+
+        
+    import typia, { tags } from "typia";
+    import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
+    import { Named, Unique } from "../core/meta";
+    import { BasicEvent, FrequencyUnit } from "../core/events";
+    import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
+    import { PlantOperatingStatesTable, PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
+
 
     /**
      * @namespace Parameters

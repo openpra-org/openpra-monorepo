@@ -1,9 +1,15 @@
+/**
+ * @module systems_analysis
+ * @preferred
+ * @category Technical Elements
+ */
+
 import { Unique, Named } from "../core/meta";
 import { PlantOperatingStatesTable } from "../plant-operating-states-analysis/plant-operating-states-analysis";
 import * as temporal from './temporal-modeling';
 
 /**
- * @namespace Systems
+ * @namespace systems_analysis
  * @description Core system types and interfaces, including temporal modeling capabilities
  */
 
@@ -14,7 +20,7 @@ export { temporal };
  * Interface representing a system.
  * A system is a collection of components that work together to perform specific functions.
  * 
- * @memberof Systems
+ * @memberof systems_analysis
  * @extends {Unique}
  * @extends {Named}
  * 

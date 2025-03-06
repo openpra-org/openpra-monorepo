@@ -4,9 +4,35 @@
   "entryPointStrategy": "expand",
   "out": "docs",
   "theme": "default",
-  "plugin": [
-    "typedoc-plugin-merge-modules"
-  ],
+  "plugin": [],
   "name": "Technical Elements Documentation",
-  "cleanOutputDir": false
-} 
+  "cleanOutputDir": true,
+  
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeExternals": true,
+  "hideGenerator": true,
+  
+  "categorizeByGroup": true,
+  
+  "navigation": {
+    "includeGroups": true,
+    "includeCategories": true,
+    "includeFolders": false
+  },
+  
+  "sort": ["alphabetical"],
+  "disableSources": true,
+  
+  "groupOrder": [
+    "technical_elements",
+    "technical_elements.core",
+    "*"
+  ],
+  
+  "categoryOrder": [
+    "technical_elements",
+    "technical_elements.core",
+    "*"
+  ]
+}

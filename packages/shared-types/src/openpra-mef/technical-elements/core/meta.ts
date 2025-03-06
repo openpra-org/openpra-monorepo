@@ -1,8 +1,12 @@
+/**
+ * @packageDocumentation
+ * @module technical_elements.core
+ */
 import typia, { tags } from "typia";
 
 /**
  * Interface representing a unique entity with a UUID.
- *
+ * @memberof technical_elements.core
  * @example
  * ```
  * const uniqueEntity: Unique = {
@@ -16,7 +20,7 @@ export interface Unique {
 
 /**
  * Interface representing an entity with a name.
- *
+ * @memberof technical_elements.core
  * @example
  * ```
  * const namedEntity: Named = {
@@ -30,7 +34,7 @@ export interface Named {
 
 /**
  * JSON schema for validating {@link Unique} entities.
- *
+ * @memberof technical_elements.core
  * @example
  * ```
  * const isValid = UniqueTagSchema.validate(someData);
@@ -40,7 +44,7 @@ export const UniqueTagSchema = typia.json.application<[Unique], "3.0">();
 
 /**
  * JSON schema for validating {@link Named} entities.
- *
+ * @memberof technical_elements.core
  * @example
  * ```
  * const isValid = NamedTagSchema.validate(someData);

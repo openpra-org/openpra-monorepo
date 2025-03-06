@@ -1,23 +1,26 @@
-import typia, { tags } from "typia";
-import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
-import { Named, Unique } from "../core/meta";
-import { Uncertainty, DataSource, Assumption, DistributionType, FrequencyQuantification, BayesianUpdate } from "../data-analysis/data-analysis";
-import { Frequency, InitiatingEvent, BaseEvent, FrequencyUnit } from "../core/events";
-import { PlantOperatingState, BarrierStatus, OperatingState, ModuleState, SafetyFunction, PreventionMitigationLevel, RadionuclideBarrier } from "../plant-operating-states-analysis/plant-operating-states-analysis";
-import { SystemComponent } from "../systems-analysis/systems-analysis";
-
 /**
- * @module InitiatingEventsAnalysis
+ * @module initiating_event_analysis
  * @description Types and interfaces for Initiating Event Analysis based on RA-S-1.4-2021 Section 4.3.2
  * 
  * @remarks **HLR-IE-A**: The Initiating Event Analysis shall reasonably identify all initiating events for all modeled plant operating states and sources of radioactive material consistent with the PRA scope and plant pre-operational stage.
  * @remarks **HLR-IE-B**: The Initiating Event Analysis shall group the initiating events so that events in the same group have similar mitigation requirements to facilitate an efficient but realistic estimation of the frequency of each modeled event sequence and event sequence family.
  * @remarks **HLR-IE-C**: The Initiating Event Analysis shall quantify the annual frequency of each initiating event or initiating event group based on the plant conditions for each source of radioactive material and plant operating state within the scope of the PRA.
  * @remarks **HLR-IE-D**: The documentation of the Initiating Event Analysis shall provide traceability of the work.
- * 
  * @preferred
- * @category Technical Elements
- */
+ * @category Technical Elements 
+*/
+
+
+import typia, { tags } from "typia";
+import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
+import { Named, Unique } from "../core/meta";
+import { Uncertainty, DataSource, Assumption, DistributionType, FrequencyQuantification, BayesianUpdate } from "../data-analysis/data-analysis";
+import { Frequency, InitiatingEvent, BaseEvent, FrequencyUnit } from "../core/events";
+import { PlantOperatingState, BarrierStatus, OperatingState, ModuleState, SafetyFunction, RadionuclideBarrier } from "../plant-operating-states-analysis/plant-operating-states-analysis";
+import { SystemComponent } from "../systems-analysis/systems-analysis";
+import { PreventionMitigationLevel } from "../event-sequence-analysis/event-sequence-analysis";
+
+
 
 /**
  * Represents a basic system component with its properties and failure modes
@@ -186,7 +189,7 @@ export interface FailureModesEffectAnalysis extends IdentificationMethodBase {
 
 /**
  * Enhanced definition of an initiating event with additional properties
- * @memberof InitiatingEventsAnalysis
+ * @memberof initiating_event_analysis
  * @extends {InitiatingEvent}
  *
  * @remarks **HLR-IE-A**: The Initiating Event Analysis shall reasonably identify all initiating events for all modeled plant operating states and sources of radioactive material consistent with the PRA scope and plant pre-operational stage.

@@ -2,7 +2,7 @@ import { SystemComponent, FailureMode, SuccessCriteria } from "./systems-analysi
 import { tags } from "typia";
 
 /**
- * @namespace Systems.Temporal
+ * @namespace systems_analysis.Temporal
  * @description Time-dependent component behaviors and phase modeling, aligned with
  * ASME/ANS RA-S-1.4-2021 System Analysis requirements.
  * 
@@ -71,7 +71,7 @@ import { tags } from "typia";
 
 /**
  * Interface representing a component's behavior over time
- * @memberof Systems.Temporal
+ * @memberof systems_analysis.Temporal
  * 
  * @example Battery-Powered Component
  * ```typescript
@@ -117,7 +117,7 @@ export interface ComponentTimeline {
 
 /**
  * Interface representing a time phase in a component's timeline
- * @memberof Systems.Temporal
+ * @memberof systems_analysis.Temporal
  * 
  * @example Multiple Success Criteria
  * ```typescript
@@ -210,7 +210,7 @@ export const validateTemporalPhase = (phase: TemporalPhase): string[] => {
 
 /**
  * Interface for modeling resource depletion over time
- * @memberof Systems.Temporal
+ * @memberof systems_analysis.Temporal
  * 
  * @example Safety System Battery Depletion
  * ```typescript
@@ -249,7 +249,7 @@ export interface DepletionModel {
 
 /**
  * Possible states a component can be in during a phase
- * @memberof Systems.Temporal
+ * @memberof systems_analysis.Temporal
  * 
  * @example State Transitions
  * ```typescript

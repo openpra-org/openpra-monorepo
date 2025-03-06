@@ -26,19 +26,19 @@ import { InitiatingEvent, BaseEvent, Frequency } from "../core/events";
 import { IdPatterns } from "../core/shared-patterns";
 import { DistributionType } from "../data-analysis/data-analysis";
 
+//==============================================================================
 /**
- * @namespace OperatingStates
- * @description Types and interfaces for plant operating states
+ * @group Core Definitions & Enums
+ * @description Basic types, enums, and utility interfaces used throughout the module
  */
+//==============================================================================
 
 /**
  * Represents the different operating states of a nuclear reactor system.
  * These are discrete modes that a plant can be in during its operational cycle.
- * 
+ * @group Core Definitions & Enums
  * @example
  * const currentState: OperatingState = OperatingState.POWER;
- * 
- * @memberof OperatingStates
  */
 export enum OperatingState {
     /** Normal power operation */
@@ -58,50 +58,9 @@ export enum OperatingState {
 }
 
 /**
- * Type for success criteria IDs
- * Format: SC-[SYSTEM]-[NUMBER]
- * Example: SC-RCIC-001
- */
-export type SuccessCriteriaId = string;
-
-/**
- * Interface representing the screening status of hazards or sources.
- * @memberof OperatingStates
- */
-export type ScreeningStatus = 
-    | "FULLY_ANALYSIS" 
-    | "QUALITATIVE_ANALYSIS";
-
-/**
- * Interface representing the types of hazards in operating state analysis.
- * @memberof OperatingStates
- */
-export type HazardType = 
-    | "INTERNAL_EVENT" 
-    | "INTERNAL_HAZARD" 
-    | "EXTERNAL_HAZARD";
-
-/**
- * Interface representing the types of source locations.
- * @memberof OperatingStates
- */
-export type SourceLocationType = 
-    | "IN_CORE_SOURCE" 
-    | "OUT_OF_CORE_SOURCE";
-
-/**
- * Interface representing the system status.
- * @memberof OperatingStates
- */
-export type SystemStatus = 
-    | "YES" 
-    | "NO";
-
-/**
  * Enum representing the status of a radionuclide barrier.
  * Used to indicate the current state of barriers that prevent the release of radioactive materials.
- * 
- * @memberof OperatingStates
+ * @group Core Definitions & Enums
  */
 export enum BarrierStatus {
     /**
@@ -131,35 +90,11 @@ export enum BarrierStatus {
 }
 
 /**
- * Describes a barrier preventing radionuclide release
- * @example
- * const containment: RadionuclideBarrier = {
- *   uuid: "CONT-01",
- *   name: "Primary Containment",
- *   state: BarrierStatus.INTACT,
- *   monitoringParameters: ["pressure", "temperature", "radiation"],
- *   breachCriteria: ["pressure > 60 psig", "temperature > 280°F"]
- * };
- */
-export interface RadionuclideBarrier extends Unique, Named {
-    /** Current status of the barrier */
-    state: BarrierStatus;
-    /** Parameters being monitored for this barrier */
-    monitoringParameters?: string[];
-    /** Criteria that would indicate a breach of this barrier */
-    breachCriteria?: string[];
-    /** Description of the barrier */
-    description?: string;
-}
-
-/**
  * Indicates the impact status of a reactor module in multi-module plants.
  * Used to represent how initiating events or hazards affect individual modules.
- * 
+ * @group Core Definitions & Enums
  * @example
  * const moduleStatus: ModuleState = ModuleState.NOT_IMPACTED;
- * 
- * @memberof OperatingStates
  */
 export enum ModuleState {
     /** Module is directly impacted by the initiating event or hazard */
@@ -173,81 +108,374 @@ export enum ModuleState {
 }
 
 /**
- * Interface representing the types of dependencies for safety functions.
- * @memberof OperatingStates
+ * Type for success criteria IDs
+ * Format: SC-[SYSTEM]-[NUMBER]
+ * Example: SC-RCIC-001
+ * @group Core Definitions & Enums
  */
-export type DependencyType = 
-    | "FUNCTIONAL" 
-    | "PHYSICAL" 
-    | "HUMAN";
+export type SuccessCriteriaId = string;
 
 /**
- * Enum representing the prevention/mitigation level provided by safety functions.
- * @memberof OperatingStates
+ * A simplified type representing the screening status of an element.
+ * Used as a label for status grouping.
+ * F = Fully Analysis
+ * Q = Qualitative Analysis
+ * @group Core Definitions & Enums
  */
-export enum PreventionMitigationLevel {
-    FULL = "FULL",
-    PARTIAL = "PARTIAL",
-    NONE = "NONE"
+export type ScreeningStatus = 
+    | "F" // Fully Analysis
+    | "Q"; // Qualitative Analysis
+
+/**
+ * Interface representing the types of source locations.
+ * @group Core Definitions & Enums
+ */
+export type SourceLocationType = 
+    | "IN_CORE_SOURCE" 
+    | "OUT_OF_CORE_SOURCE";
+
+/**
+ * Interface representing the system status.
+ * @group Core Definitions & Enums
+ */
+export type SystemStatus = 
+    | "YES" 
+    | "NO";
+
+//==============================================================================
+/**
+ * @group Plant Evolutions
+ * @description Plant evolution definitions, transitions between states, and evolution characteristics
+ * @implements POS-A1, POS-A2, POS-A9
+ */
+//==============================================================================
+
+/**
+ * Interface representing a time-varying condition within a plant operating state.
+ * Conditions within a POS are not always constant, and certain parameters can change
+ * over time, affecting the risk profile.
+ * @group Plant Evolutions
+ */
+export interface TimeVaryingCondition extends Unique, Named {
+    /** Time in hours from the start of the POS */
+    time: number;
+    
+    /** Parameter that is changing (e.g., Decay Heat) */
+    parameter: string;
+    
+    /** Value of the parameter at this time */
+    value: number;
+    
+    /** Description of the impact on safety functions */
+    impact: string;
+    
+    /** Units of measurement */
+    units?: string;
+    
+    /** Associated uncertainty */
+    uncertainty?: number;
+    
+    /** Whether this condition requires special monitoring */
+    requiresMonitoring: boolean;
+}
+
+
+/**
+ * Interface representing a transition event between plant operating states.
+ * Transitions between states can introduce unique risks that need to be captured
+ * and analyzed.
+ * @group Plant Evolutions
+ * @extends {Unique}
+ */
+export interface TransitionEvent extends Unique {
+    /** Name of the transition event */
+    name: string;
+    
+    /** Description of the transition */
+    description?: string;
+    
+    /** ID of the source state */
+    fromStateId: string;
+    
+    /** ID of the destination state */
+    toStateId: string;
+    
+    /** Risks associated with this transition */
+    risks: string[];
+    
+    /** Duration of the transition */
+    duration?: number;
+    
+    /** Frequency of the transition (occurrences per year) */
+    frequency?: Frequency;
+    
+    /** Special considerations during the transition */
+    specialConsiderations?: string[];
+    
+    /** Operating procedures governing this transition */
+    procedureIds?: string[];
+    
+    /** Critical parameters to monitor during the transition */
+    criticalParameters?: string[];
+    
+    /**
+     * Specific plant parameters that define this transition
+     * Uses the reusable TransitionParameter interface
+     */
+    transitionParameters?: TransitionParameter[];
+    
+    /**
+     * Risk significance of this transition
+     */
+    riskSignificance?: "HIGH" | "MEDIUM" | "LOW";
+    
+    /**
+     * Mitigating actions to reduce transition risks
+     */
+    mitigatingActions?: string[];
+    
+    /**
+     * Human actions required during this transition
+     */
+    requiredHumanActions?: string[];
+    
+    /**
+     * Equipment that must be available during this transition
+     */
+    requiredEquipment?: string[];
+    
+    /**
+     * Potential failure modes during this transition
+     */
+    potentialFailureModes?: string[];
 }
 
 /**
- * Interface representing the hazard screening information.
- * @memberof OperatingStates
- * @implements POS-A2
+ * Interface representing plant evolution information.
+ * Combines the original PlantEvolution with PlantEvolutionDescription and PlantEvolutionConsiderations.
+ * @group Plant Evolutions
+ * @implements POS-A1, POS-A2, POS-A9
  */
-export interface HazardScreening {
-    /** The type of hazard */
-    hazardType: HazardType;
-    /** The screening status of the hazard */
-    screeningStatus: ScreeningStatus;
+export interface PlantEvolution extends Unique, Named {
+    /**
+     * Description of the plant evolution.
+     */
+    description?: string;
+    
+    /**
+     * Operating modes or operational conditions during the plant evolution.
+     */
+    operatingModes: string[];
+    
+    /**
+     * Reactor coolant boundary (RCB) configurations, such as vented or not vented.
+     */
+    rcbConfigurations: string[];
+    
+    /**
+     * Range of RCS parameters (e.g., power level, temperature, pressure).
+     */
+    rcsParameters: {
+        powerLevel?: number;
+        temperature?: number;
+        pressure?: number;
+        coolantInventory?: number;
+    };
+    
+    /**
+     * Available instrumentation for key parameters to be monitored.
+     */
+    availableInstrumentation: string[];
+    
+    /**
+     * Activities that may lead to changes in the parameters.
+     */
+    activitiesLeadingToChanges: string[];
+    
+    /**
+     * Status of radionuclide transport barriers.
+     */
+    radionuclideTransportBarriersStatus: string[];
+    
+    /**
+     * Activities changing the capabilities of SSCs to support safety functions.
+     */
+    sscCapabilitiesChanges: string[];
+    
+    /**
+     * Operational assumptions on full power, shutdown, refueling, and startup conditions.
+     */
+    operationalAssumptions: string[];
+    
+    /**
+     * List of plant operating states within this evolution.
+     */
+    plantOperatingStates: PlantOperatingState[];
+    
+    /**
+     * Descriptions of plant transitions with their PRA modes and screening status
+     * @implements POS-A1
+     */
+    evolutionProperties?: {
+        /** PRA mode for this transition */
+        praMode: string;
+        /** Screening status for this transition */
+        screeningStatus: ScreeningStatus;
+    };
+    
+    /**
+     * Considerations for plant evolution
+     * @implements POS-A2, POS-A9
+     */
+    evolutionConsiderations?: {
+        /** Reactor coolant boundary configurations (e.g., vented, RCS penetrations, decay heat removal mechanism) */
+        reactorCoolantBoundaryConfigurations: string[];
+        
+        /** Reactor coolant system parameter ranges */
+        reactorCoolantSystemParameterRanges: string[];
+        
+        /** Available monitoring devices */
+        availableMonitoringDevices: string[];
+        
+        /** Operator actions */
+        operatorActions: string[];
+        
+        /** Radionuclide transport barrier status */
+        radionuclideTransportBarrierStatus: string[];
+        
+        /** Screening status for these considerations */
+        screeningStatus: ScreeningStatus;
+        
+        /** 
+         * Hazard barrier effectiveness changes during transition 
+         * Per RG 1.247, POS definitions should include consideration of changing plant conditions that may
+         * impair or change the effectiveness of hazard barriers
+         */
+        hazardBarrierEffectivenessChanges?: string[];
+        
+        /** 
+         * Propagation pathway modifications during transition 
+         * Per RG 1.247, POS definitions should consider changes that may affect propagation pathways
+         */
+        propagationPathwayModifications?: string[];
+        
+        /** 
+         * SSC fragility modifications during transition 
+         * Per RG 1.247, POS definitions should consider changes that may modify fragilities of SSCs
+         */
+        sscFragilityModifications?: string[];
+        
+        /**
+         * Transition parameters that define changes between states
+         * Uses the reusable TransitionParameter interface
+         */
+        transitionParameters?: TransitionParameter[];
+    };
+    
+    /**
+     * Transitions between plant operating states within this evolution
+     * Captures the details and risks associated with state transitions
+     */
+    transitions?: TransitionEvent[];
+    
+    /**
+     * List of initiating events applicable to this evolution
+     * References to initiating events defined in the core/events module
+     */
+    initiatingEvents?: InitiatingEvent[];
 }
 
 /**
- * Interface representing source definition and screening.
- * @memberof OperatingStates
- * @implements POS-A7
+ * Reusable interface for representing time boundaries of plant operating states.
+ * Used to define when a POS begins and ends to ensure mutual exclusivity.
+ * @group Plant Evolutions
+ * @implements POS-B1, POS-B2, POS-B3
  */
-export interface SourceDefinition {
-    /** The location of the source */
-    sourceLocation: SourceLocationType;
-    /** The screening status of the source */
-    screeningStatus: ScreeningStatus;
+export interface TimeBoundary {
+    /** 
+     * Starting condition or event that marks the beginning of this POS 
+     * (e.g., "Reactor trip", "Begin control rod withdrawal")
+     */
+    startingCondition: string;
+    
+    /** 
+     * Ending condition or event that marks the end of this POS
+     * (e.g., "Criticality achieved", "Cold shutdown reached")
+     */
+    endingCondition: string;
+    
+    /**
+     * Specific plant parameters that define this transition
+     * Uses the reusable TransitionParameter interface
+     */
+    transitionParameters?: TransitionParameter[];
 }
 
-/**
- * Interface for representing a radioactive source in the plant.
- * This covers both in-vessel (e.g., reactor core) and ex-vessel (e.g., spent fuel pool) sources.
- * 
- * @memberof OperatingStates
- * @implements POS-A6, POS-A7
+/** 
+ * Reusable interface for representing transition parameters.
+ * Used to define specific plant parameters that mark transitions between states.
+ * @group Plant Evolutions
  */
-export interface RadioactiveSource extends Unique, Named {
-    /** Location of the source - in-vessel or ex-vessel */
-    location: "IN_VESSEL" | "EX_VESSEL";
+export interface TransitionParameter {
+    /** The plant parameter name */
+    parameter: string;
     
-    /** Detailed description of the source */
-    description: string;
+    /** The threshold value that marks the transition */
+    value: string | number;
     
-    /** List of significant radionuclides present in this source */
-    radionuclides: string[];
+    /** Units of measurement, if applicable */
+    units?: string;
     
-    /** Current status of the source */
-    status: string;
+    /** Whether this parameter is being monitored */
+    monitored?: boolean;
     
-    /** Potential release pathways for this source */
-    releasePaths?: string[];
+    /** Instruments used to monitor this parameter */
+    monitoringInstruments?: string[];
+}
+
+//==============================================================================
+/**
+ * @group Plant Operating States
+ * @description Plant operating states and their characteristics
+ * @implements POS-A3, POS-A5, POS-A6, POS-A7, POS-A8
+ */
+//==============================================================================
+
+/**
+ * Interface representing an instrument used to monitor key plant parameters.
+ * This helps ensure adequate instrumentation for each plant operating state.
+ * @group Plant Operating States
+ * @implements POS-A8
+ */
+export interface Instrument extends Unique, Named {
+    /** Parameter being monitored (e.g., Temperature, Pressure) */
+    parameter: string;
     
-    /** Barriers in place to prevent release */
-    barriers?: string[];
+    /** Location of the instrument in the plant */
+    location: string;
     
-    /** Screening status of this source */
-    screeningStatus: ScreeningStatus;
+    /** Accuracy of the instrument (e.g., ±1%) */
+    accuracy: number;
+    
+    /** Whether the instrument is available in this plant operating state */
+    availability: boolean;
+    
+    /** Range of the instrument */
+    range?: [number, number];
+    
+    /** Units of measurement */
+    units?: string;
+    
+    /** Calibration requirements */
+    calibrationRequirements?: string;
+    
+    /** Whether the instrument is safety-related */
+    safetyRelated: boolean;
 }
 
 /**
  * Interface representing decay heat removal systems.
- * @memberof OperatingStates
+ * @group Plant Operating States
  * @implements POS-A4
  */
 export interface DecayHeatRemovalSystems {
@@ -259,12 +487,10 @@ export interface DecayHeatRemovalSystems {
 
 /**
  * Interface representing reactor coolant system parameter ranges.
- * 
  * Per RG 1.247, POS definitions should consider decay heat level, Reactor Coolant System (RCS) configuration, 
  * reactor level (for reactors with liquid coolant), reactor pressure and temperature,
  * and other parameters needed to determine success criteria.
- * 
- * @memberof OperatingStates
+ * @group Plant Operating States
  * @implements POS-A5, POS-B2
  */
 export interface ReactorCoolantSystemParameters {
@@ -303,390 +529,24 @@ export interface ReactorCoolantSystemParameters {
 }
 
 /**
- * Interface representing an instrument used to monitor key plant parameters.
- * This helps ensure adequate instrumentation for each plant operating state.
- * 
- * @memberof OperatingStates
- * @implements POS-A8
+ * Interface representing radionuclide transport barriers.
+ * @group Plant Operating States
+ * @implements POS-A5
  */
-export interface Instrument extends Unique, Named {
-    /** Parameter being monitored (e.g., Temperature, Pressure) */
-    parameter: string;
-    
-    /** Location of the instrument in the plant */
-    location: string;
-    
-    /** Accuracy of the instrument (e.g., ±1%) */
-    accuracy: number;
-    
-    /** Whether the instrument is available in this plant operating state */
-    availability: boolean;
-    
-    /** Range of the instrument */
-    range?: [number, number];
-    
-    /** Units of measurement */
-    units?: string;
-    
-    /** Calibration requirements */
-    calibrationRequirements?: string;
-    
-    /** Whether the instrument is safety-related */
-    safetyRelated: boolean;
-}
-
-/**
- * Interface representing a time-varying condition within a plant operating state.
- * Conditions within a POS are not always constant, and certain parameters can change
- * over time, affecting the risk profile.
- * 
- * @memberof OperatingStates
- */
-export interface TimeVaryingCondition extends Unique, Named {
-    /** Time in hours from the start of the POS */
-    time: number;
-    
-    /** Parameter that is changing (e.g., Decay Heat) */
-    parameter: string;
-    
-    /** Value of the parameter at this time */
-    value: number;
-    
-    /** Description of the impact on safety functions */
-    impact: string;
-    
-    /** Units of measurement */
-    units?: string;
-    
-    /** Associated uncertainty */
-    uncertainty?: number;
-    
-    /** Whether this condition requires special monitoring */
-    requiresMonitoring: boolean;
-}
-
-/**
- * Interface representing a safety function in the plant operating state.
- * 
- * Safety functions include reactivity control, reactor coolant chemistry control,
- * decay heat removal control, RCS inventory/barrier control, radionuclide transport
- * barrier control, and ex-vessel fission product control.
- * 
- * Per RG 1.247, "The POS safety functions to consider include reactivity control, 
- * reactor coolant chemistry control, decay heat removal control, reactor coolant system (RCS) 
- * inventory/barrier control, radionuclide transport barrier control, and ex-vessel 
- * fission product control (e.g., off-gas tanks/fuel salt storage tanks/spent fuel pools)."
- * 
- * @memberof OperatingStates
- * @extends {Unique}
- * @extends {Named}
- * @implements POS-A4
- * 
- * @example
- * ```typescript
- * // Example of defining safety functions in a technology-agnostic way
- * const safetyFunctions: SafetyFunction[] = [
- *   // Reactivity control safety function
- *   {
- *     uuid: "sf-reactivity-001",
- *     name: "Reactivity Control",
- *     description: "Controls reactivity to maintain the reactor in a safe state",
- *     state: "SUCCESS",
- *     category: "REACTIVITY_CONTROL",
- *     implementationMechanisms: [
- *       {
- *         name: "Primary Reactivity Control System",
- *         description: "Primary system for controlling reactivity",
- *         status: "AVAILABLE",
- *         type: "ACTIVE",
- *         reliability: {
- *           pfd: 1e-4
- *         }
- *       },
- *       {
- *         name: "Secondary Reactivity Control System",
- *         description: "Backup system for controlling reactivity",
- *         status: "AVAILABLE",
- *         type: "PASSIVE",
- *         reliability: {
- *           pfd: 1e-3
- *         }
- *       }
- *     ],
- *     operationalParameters: [
- *       {
- *         name: "Shutdown Margin",
- *         value: 5.2,
- *         units: "%dk/k",
- *         acceptableRange: [3.0, 10.0],
- *         monitored: true,
- *         monitoringInstruments: ["Neutron Flux Monitor", "Control Position Indicator"]
- *       }
- *     ]
- *   },
- *   
- *   // Heat removal safety function
- *   {
- *     uuid: "sf-heat-removal-001",
- *     name: "Core Heat Removal",
- *     description: "Removes heat from the reactor core to maintain safe temperatures",
- *     state: "SUCCESS",
- *     category: "HEAT_REMOVAL",
- *     implementationMechanisms: [
- *       {
- *         name: "Primary Cooling System",
- *         description: "Primary system for removing heat from the core",
- *         status: "AVAILABLE",
- *         type: "ACTIVE",
- *         reliability: {
- *           mtbf: 8760
- *         }
- *       },
- *       {
- *         name: "Passive Cooling System",
- *         description: "Passive system for removing heat from the core",
- *         status: "AVAILABLE",
- *         type: "PASSIVE"
- *       }
- *     ],
- *     operationalParameters: [
- *       {
- *         name: "Core Exit Temperature",
- *         value: 320,
- *         units: "°C",
- *         acceptableRange: [0, 350],
- *         monitored: true,
- *         monitoringInstruments: ["Core Exit Thermocouple"]
- *       },
- *       {
- *         name: "Coolant Flow Rate",
- *         value: 1200,
- *         units: "kg/s",
- *         acceptableRange: [1000, 1500],
- *         monitored: true,
- *         monitoringInstruments: ["Flow Meter"]
- *       }
- *     ],
- *     degradationMechanisms: [
- *       {
- *         name: "Heat Exchanger Fouling",
- *         description: "Buildup of deposits on heat exchanger surfaces",
- *         status: "MITIGATED",
- *         mitigationMeasures: ["Regular cleaning", "Water chemistry control"]
- *       }
- *     ]
- *   },
- *   
- *   // Radioactive material retention safety function
- *   {
- *     uuid: "sf-containment-001",
- *     name: "Containment Integrity",
- *     description: "Maintains containment integrity to prevent release of radioactive materials",
- *     state: "SUCCESS",
- *     category: "RADIOACTIVE_MATERIAL_RETENTION",
- *     implementationMechanisms: [
- *       {
- *         name: "Containment Structure",
- *         description: "Physical barrier to prevent release of radioactive materials",
- *         status: "AVAILABLE",
- *         type: "PASSIVE"
- *       },
- *       {
- *         name: "Containment Isolation System",
- *         description: "System for isolating containment penetrations",
- *         status: "AVAILABLE",
- *         type: "ACTIVE",
- *         reliability: {
- *           pfd: 1e-3
- *         }
- *       }
- *     ],
- *     operationalParameters: [
- *       {
- *         name: "Containment Pressure",
- *         value: 101.3,
- *         units: "kPa",
- *         acceptableRange: [90, 120],
- *         monitored: true,
- *         monitoringInstruments: ["Pressure Transmitter"]
- *       },
- *       {
- *         name: "Containment Leakage Rate",
- *         value: 0.1,
- *         units: "%/day",
- *         acceptableRange: [0, 0.5],
- *         monitored: true
- *       }
- *     ]
- *   }
- * ];
- * ```
- */
-export interface SafetyFunction extends Unique, Named {
-    /** Description of the safety function */
-    description?: string;
-    
-    /** Current state of the safety function */
-    state: "SUCCESS" | "FAILURE";
-    
-    /** Success and failure criteria */
-    criteria?: {
-        success: string;
-        failure: string;
-    };
-    
-    /** System responses related to this safety function */
-    systemResponses?: string[];
-    
-    /** Dependencies for this safety function */
-    dependencies?: {
-        /** Type of dependency */
-        type: DependencyType;
-        /** Description of the dependency */
-        description: string;
-    }[];
-    
-    /** Prevention or mitigation level provided by this safety function */
-    preventionMitigationLevel?: PreventionMitigationLevel;
-    
-    /** 
-     * References to success criteria for this safety function
-     * These IDs reference success criteria defined in the success-criteria module
-     * Format: SC-[SYSTEM]-[NUMBER], e.g., "SC-RCIC-001"
-     */
-    successCriteriaIds?: SuccessCriteriaId[];
-    
-    /**
-     * Initiating events this safety function responds to
-     * These reference initiating events defined in the core/events module
-     */
-    initiatingEvents?: {
-        /** ID of the initiating event */
-        id: string;
-        
-        /** Name of the initiating event (for convenience) */
-        name?: string;
-        
-        /** How effective this safety function is against this initiating event */
-        effectiveness?: PreventionMitigationLevel;
-    }[];
-    
-    /**
-     * Category of safety function
-     * Technology-agnostic categorization of the safety function
-     */
-    category: "REACTIVITY_CONTROL" | "HEAT_REMOVAL" | "RADIOACTIVE_MATERIAL_RETENTION" | "OTHER";
-    
-    /**
-     * Implementation mechanisms for this safety function
-     * Technology-agnostic description of how the safety function is implemented
-     */
-    implementationMechanisms: Array<{
-        /** Name of the mechanism */
-        name: string;
-        
-        /** Description of the mechanism */
-        description: string;
-        
-        /** Current operational status of this mechanism */
-        status: "AVAILABLE" | "UNAVAILABLE" | "DEGRADED" | "MAINTENANCE";
-        
-        /** Detailed status information */
-        statusDetails?: string;
-        
-        /** Whether this is an active or passive mechanism */
-        type: "ACTIVE" | "PASSIVE";
-        
-        /** Reliability information for this mechanism */
-        reliability?: {
-            /** Mean time between failures (hours) */
-            mtbf?: number;
-            
-            /** Probability of failure on demand */
-            pfd?: number;
-        };
-    }>;
-    
-    /**
-     * Operational parameters relevant to this safety function
-     * Technology-agnostic parameters that affect the function's performance
-     */
-    operationalParameters?: Array<{
-        /** Name of the parameter */
-        name: string;
-        
-        /** Current value or state of the parameter */
-        value: string | number;
-        
-        /** Units of measurement, if applicable */
-        units?: string;
-        
-        /** Acceptable range for this parameter */
-        acceptableRange?: [number, number];
-        
-        /** Whether this parameter is being monitored */
-        monitored: boolean;
-        
-        /** Instruments used to monitor this parameter */
-        monitoringInstruments?: string[];
-    }>;
-    
-    /**
-     * Degradation mechanisms that could affect this safety function
-     */
-    degradationMechanisms?: Array<{
-        /** Name of the degradation mechanism */
-        name: string;
-        
-        /** Description of the mechanism */
-        description: string;
-        
-        /** Current status of this degradation mechanism */
-        status: "ACTIVE" | "POTENTIAL" | "MITIGATED";
-        
-        /** Mitigation measures in place */
-        mitigationMeasures?: string[];
-    }>;
-}
-
-/**
- * Interface representing time boundary for a plant operating state.
- * Used to ensure mutual exclusivity between operating states.
- * 
- * @memberof OperatingStates
- * @implements POS-B1, POS-B2, POS-B3
- */
-export interface POSTimeBoundary {
-    /** 
-     * Starting condition or event that marks the beginning of this POS 
-     * (e.g., "Reactor trip", "Begin control rod withdrawal")
-     */
-    startingCondition: string;
-    
-    /** 
-     * Ending condition or event that marks the end of this POS
-     * (e.g., "Criticality achieved", "Cold shutdown reached")
-     */
-    endingCondition: string;
-    
-    /**
-     * Specific plant parameters that define this transition
-     * For example: [{ parameter: "RCS Temperature", value: "350°F" }]
-     */
-    transitionParameters?: Array<{
-        /** The plant parameter name */
-        parameter: string;
-        /** The threshold value that marks the transition */
-        value: string;
-    }>;
+export interface RadionuclideTransportBarriers {
+    /** Status of barrier 1 */
+    barrier1: BarrierStatus;
+    /** Status of barrier 2 */
+    barrier2: BarrierStatus;
+    /** Status of other barriers */
+    [key: string]: BarrierStatus;
 }
 
 /**
  * Interface representing the risk significance of a plant operating state.
  * Different POSs contribute differently to overall plant risk, and this
  * interface captures that information.
- * 
- * @memberof OperatingStates
+ * @group Plant Operating States
  */
 export interface OperatingStateRisk {
     /** ID of the plant operating state */
@@ -727,123 +587,16 @@ export interface OperatingStateRisk {
 }
 
 /**
- * Interface representing a transition event between plant operating states.
- * Transitions between states can introduce unique risks that need to be captured
- * and analyzed.
- * 
- * @memberof OperatingStates
- * @extends {Unique}
- */
-export interface TransitionEvent extends Unique {
-    /** Name of the transition event */
-    name: string;
-    
-    /** Description of the transition */
-    description?: string;
-    
-    /** ID of the source state */
-    fromStateId: string;
-    
-    /** ID of the destination state */
-    toStateId: string;
-    
-    /** Risks associated with this transition */
-    risks: string[];
-    
-    /** Duration of the transition */
-    duration?: number;
-    
-    /** Frequency of the transition (occurrences per year) */
-    frequency?: Frequency;
-    
-    /** Special considerations during the transition */
-    specialConsiderations?: string[];
-    
-    /** Operating procedures governing this transition */
-    procedureIds?: string[];
-    
-    /** Critical parameters to monitor during the transition */
-    criticalParameters?: string[];
-}
-
-/**
  * Interface representing a plant operating state (POS).
- * 
  * Per RG 1.247, a POS represents distinct and relatively constant plant conditions. The POS is defined
  * in terms of all important conditions that may affect the delineation and evaluation of event sequences
  * modeled in the PRA. POS definitions should consider decay heat level, RCS configuration, reactor level,
  * reactor pressure and temperature, radionuclide transport configuration, status of barriers, available
  * instrumentation, and other parameters needed to determine success criteria and source terms.
- * 
- * @memberof OperatingStates
+ * @group Plant Operating States
  * @extends {Unique}
  * @extends {Named}
  * @implements POS-A3, POS-A5, POS-A6, POS-A7, POS-A8, POS-B1, POS-B2, POS-B3
- * 
- * @example
- * ```typescript
- * const fullPowerState: PlantOperatingState = {
- *   uuid: "pos-12345-e89b-12d3-a456-426614174000",
- *   name: "Full Power Operation",
- *   description: "Normal operation at 100% power with all systems available",
- *   characteristics: "Steady state operation at rated thermal power",
- *   processCriteriaIdentification: "Technical Specifications Section 3.1",
- *   timeBoundary: {
- *     startingCondition: "Generator synchronization complete and power ascension to >95% complete",
- *     endingCondition: "Operator initiates power reduction for shutdown or reactor trip occurs",
- *     transitionParameters: [
- *       { parameter: "Reactor Power", value: "≥ 95% rated thermal power" }
- *     ]
- *   },
- *   radioactiveMaterialSources: ["Reactor Core", "Primary Coolant"],
- *   operatingMode: "Power Operation",
- *   rcbConfiguration: "Intact",
- *   rcsParameters: {
- *     powerLevel: [0.98, 1.0],
- *     decayHeatLevel: [0.06, 0.07],
- *     reactorCoolantTemperatureAtControlVolume1: [550, 558],
- *     coolantPressureAtControlVolume1: [2200, 2250],
- *     rcsConfigurationDescription: "All primary loops in operation"
- *   },
- *   decayHeatRemoval: {
- *     primaryCoolingSystems: {
- *       "Main-Feedwater": "YES",
- *       "Auxiliary-Feedwater": "YES"
- *     },
- *     secondaryCoolingSystems: {
- *       "Main-Condenser": "YES",
- *       "Atmospheric-Dump": "YES"
- *     }
- *   },
- *   availableInstrumentation: [
- *     "Neutron-Flux-Monitoring",
- *     "RCS-Pressure",
- *     "RCS-Temperature"
- *   ],
- *   keyActivity: {
- *     controlRodInsertion: "YES",
- *     feedwaterPump: "YES",
- *     reactorCoolantCirculator: "YES"
- *   },
- *   activitiesLeadingToChanges: [
- *     "Load changes",
- *     "Control rod movement for axial offset control"
- *   ],
- *   radionuclideTransportBarrier: {
- *     barrier1: "INTACT",
- *     barrier2: "INTACT"
- *   },
- *   initiatingEvents: ["LOSS-OF-OFFSITE-POWER", "LOSS-OF-FEEDWATER"],
- *   safetyFunctions: [reactivityControlFunction], // Reference to the safety function defined above
- *   meanDuration: 8000,
- *   meanTimeSinceShutdown: 0,
- *   meanFrequency: 1,
- *   assumptions: [
- *     "All safety systems are operable as per technical specifications"
- *   ],
- *   successCriteriaIds: ["SC-RCIC-001", "SC-HPCI-001"]
- * };
- * ```
  */
 export interface PlantOperatingState extends Unique, Named {
     /** Description of the plant operating state */
@@ -858,8 +611,9 @@ export interface PlantOperatingState extends Unique, Named {
     /**
      * Explicit time boundary that defines when this POS begins and ends
      * Used to ensure mutual exclusivity between operating states
+     * @implements POS-B1, POS-B2, POS-B3
      */
-    timeBoundary: POSTimeBoundary;
+    timeBoundary: TimeBoundary;
     
     /** Sources of radioactive material within the scope of the PRA */
     radioactiveMaterialSources: string[];
@@ -935,33 +689,21 @@ export interface PlantOperatingState extends Unique, Named {
      * Plant representation accuracy for this POS
      * Documents how closely the PRA model represents the as-built and as-operated plant
      */
-    plantRepresentationAccuracy?: {
-        /** Degree of accuracy (HIGH/MEDIUM/LOW) */
-        accuracy: "HIGH" | "MEDIUM" | "LOW";
+    plantRepresentationAccuracy?: PlantRepresentationAccuracy & {
+        /** Areas with high confidence */
+        highConfidenceAreas?: string[];
         
-        /** Basis for accuracy assessment */
-        basis: string;
+        /** Areas with lower confidence */
+        lowerConfidenceAreas?: string[];
         
-        /** Limitations in plant representation */
-        limitations?: string[];
-        
-        /** Actions to improve accuracy */
-        improvementActions?: string[];
-        
-        /** 
-         * Assessment of whether the detail level is sufficient to identify risk-significant contributors
-         * For operating plants, this must be explicitly evaluated
-         */
-        sufficientForRiskSignificantContributors: boolean;
-        
-        /** Justification for the sufficiency assessment */
-        sufficiencyJustification?: string;
+        /** Plans for improvement */
+        improvementPlans?: string[];
     };
 }
 
 /**
  * Interface representing plant operating states table.
- * @memberof OperatingStates
+ * @group Plant Operating States
  * @implements POS-A3, POS-B3
  */
 export interface PlantOperatingStatesTable {
@@ -976,87 +718,11 @@ export interface PlantOperatingStatesTable {
 }
 
 /**
- * Interface for grouping plant operating states based on similar characteristics.
- *
- * Per RG 1.247, "LPSD types of POSs that are subsumed into each other are shown 
- * to be represented by the characteristics of the subsuming group."
- *
- * @memberof OperatingStates
- * @extends {Unique}
- * @extends {Named}
- * @implements POS-B4, POS-B5, POS-B6
- * 
- * @example
- * ```typescript
- * const startupGroup: PlantOperatingStatesGroup = {
- *   uuid: "posg-12345-e89b-12d3-a456-426614174000",
- *   name: "Startup Operating States",
- *   description: "Groups all startup-related operating states",
- *   plantOperatingStateIds: [
- *     "pos-startup1",
- *     "pos-startup2",
- *     "pos-lowpower"
- *   ],
- *   groupingJustification: "All states have similar thermal-hydraulic conditions and safety system availability",
- *   representativeCharacteristics: [
- *     "Low power operation (<25% rated power)",
- *     "All safety systems available",
- *     "Similar operator response expectations"
- *   ]
- * };
- * ```
- */
-export interface PlantOperatingStatesGroup extends Unique, Named {
-    /** Description of the plant operating state group */
-    description?: string;
-    
-    /** IDs of plant operating states included in this group */
-    plantOperatingStateIds: string[];
-    
-    /** Justification for grouping these plant operating states together */
-    groupingJustification: string;
-    
-    /** Representative characteristics of the group */
-    representativeCharacteristics: string[];
-}
-
-/**
- * Interface for grouping scenarios based on similar risk characteristics.
- * This helps streamline the analysis while ensuring that the grouped scenarios
- * have similar risk profiles.
- * 
- * @memberof OperatingStates
- */
-export interface ScenarioGroup extends Unique, Named {
-    /** List of scenario IDs included in this group */
-    scenarios: string[];
-    
-    /** Justification for grouping these scenarios */
-    justification: string;
-    
-    /** Risk characteristics of this group */
-    riskCharacteristics: {
-        /** Range of Core Damage Frequency values */
-        CDF_Range: [Frequency, Frequency];
-        
-        /** Range of Large Early Release Frequency values */
-        LERF_Range: [Frequency, Frequency];
-    };
-    
-    /** Verification that grouping does not mask important risk insights */
-    verificationOfGrouping?: string;
-    
-    /** Representative scenario used for detailed analysis */
-    representativeScenario?: string;
-}
-
-/**
  * Interface representing operating states frequency and duration data.
- * 
  * Per RG 1.247, the duration and number of entries into each POS must be determined.
  * This interface captures the historical data used to determine these frequencies and durations.
- * 
- * @memberof OperatingStates
+ * @description Operating state frequency calculation, duration tracking, and time-based relationships
+ * @group Plant Operating States
  * @implements POS-C1, POS-C2, POS-C3, POS-C4
  */
 export interface OperatingStatesFrequencyDuration {
@@ -1104,151 +770,41 @@ export interface OperatingStatesFrequencyDuration {
     }[];
 }
 
+//==============================================================================
 /**
- * Interface representing plant evolution description.
- * @memberof OperatingStates
- * @implements POS-A1
+ * @group State Screening & Grouping
+ * @description Grouping logic for both states and evolutions, screening criteria and implementation
+ * @implements POS-B1, POS-B2, POS-B3, POS-B4, POS-B5, POS-B6, POS-B7, POS-B8
  */
-export interface PlantEvolutionDescription {
-    /** PRA mode for this transition */
-    praMode: string;
-    /** Screening status for this transition */
-    screeningStatus: ScreeningStatus;
-}
+//==============================================================================
 
 /**
- * Interface representing plant evolution considerations.
- * 
- * Plant evolutions involve transitions between operating states. Per RG 1.247, LPSD (low-power shutdown)
- * plant evolutions should be divided into POSs based on differences in plant response to initiating events.
- * These considerations track important aspects of plant transitions that may affect risk.
- * 
- * @memberof OperatingStates
- * @implements POS-A2, POS-A9
+ * Interface for grouping plant operating states based on similar characteristics.
+ *
+ * Per RG 1.247, "LPSD types of POSs that are subsumed into each other are shown 
+ * to be represented by the characteristics of the subsuming group."
+ * @group State Screening & Grouping
+ * @extends {Unique}
+ * @extends {Named}
+ * @implements POS-B4, POS-B5, POS-B6
  */
-export interface PlantEvolutionConsiderations {
-    /** Reactor coolant boundary configurations (e.g., vented, RCS penetrations, decay heat removal mechanism) */
-    reactorCoolantBoundaryConfigurations: string[];
-    
-    /** Reactor coolant system parameter ranges */
-    reactorCoolantSystemParameterRanges: string[];
-    
-    /** Available monitoring devices */
-    availableMonitoringDevices: string[];
-    
-    /** Operator actions */
-    operatorActions: string[];
-    
-    /** Radionuclide transport barrier status */
-    radionuclideTransportBarrierStatus: string[];
-    
-    /** Screening status for these considerations */
-    screeningStatus: ScreeningStatus;
-    
-    /** 
-     * Hazard barrier effectiveness changes during transition 
-     * Per RG 1.247, POS definitions should include consideration of changing plant conditions that may
-     * impair or change the effectiveness of hazard barriers
-     */
-    hazardBarrierEffectivenessChanges?: string[];
-    
-    /** 
-     * Propagation pathway modifications during transition 
-     * Per RG 1.247, POS definitions should consider changes that may affect propagation pathways
-     */
-    propagationPathwayModifications?: string[];
-    
-    /** 
-     * SSC fragility modifications during transition 
-     * Per RG 1.247, POS definitions should consider changes that may modify fragilities of SSCs
-     */
-    sscFragilityModifications?: string[];
-}
-
-/**
- * Interface representing plant evolution information.
- * @memberof OperatingStates
- * @implements POS-A1, POS-A2
- */
-export interface PlantEvolution extends Unique, Named {
-    /**
-     * Description of the plant evolution.
-     */
+export interface PlantOperatingStatesGroup extends Unique, Named {
+    /** Description of the plant operating state group */
     description?: string;
     
-    /**
-     * Operating modes or operational conditions during the plant evolution.
-     */
-    operatingModes: string[];
+    /** IDs of plant operating states included in this group */
+    plantOperatingStateIds: string[];
     
-    /**
-     * Reactor coolant boundary (RCB) configurations, such as vented or not vented.
-     */
-    rcbConfigurations: string[];
+    /** Justification for grouping these plant operating states together */
+    groupingJustification: string;
     
-    /**
-     * Range of RCS parameters (e.g., power level, temperature, pressure).
-     */
-    rcsParameters: {
-        powerLevel?: number;
-        temperature?: number;
-        pressure?: number;
-        coolantInventory?: number;
-    };
-    
-    /**
-     * Available instrumentation for key parameters to be monitored.
-     */
-    availableInstrumentation: string[];
-    
-    /**
-     * Activities that may lead to changes in the parameters.
-     */
-    activitiesLeadingToChanges: string[];
-    
-    /**
-     * Status of radionuclide transport barriers.
-     */
-    radionuclideTransportBarriersStatus: string[];
-    
-    /**
-     * Activities changing the capabilities of SSCs to support safety functions.
-     */
-    sscCapabilitiesChanges: string[];
-    
-    /**
-     * Operational assumptions on full power, shutdown, refueling, and startup conditions.
-     */
-    operationalAssumptions: string[];
-    
-    /**
-     * List of plant operating states within this evolution.
-     */
-    plantOperatingStates: PlantOperatingState[];
-    
-    /** Descriptions of plant transitions with their PRA modes and screening status */
-    descriptions?: Record<string, PlantEvolutionDescription>;
-    
-    /** Considerations for plant evolution */
-    considerations?: PlantEvolutionConsiderations;
-    
-    /**
-     * Transitions between plant operating states within this evolution
-     * Captures the details and risks associated with state transitions
-     */
-    transitions?: TransitionEvent[];
-    
-    /**
-     * List of initiating events applicable to this evolution
-     * References to initiating events defined in the core/events module
-     */
-    initiatingEvents?: InitiatingEvent[];
+    /** Representative characteristics of the group */
+    representativeCharacteristics: string[];
 }
 
 /**
  * Assumptions made due to lack of as-built and as-operated details
- *
- * @memberof OperatingStates
+ * @group State Screening & Grouping
  * @implements POS-A13, POS-B8
  */
 export interface AssumptionsLackOfDetail {
@@ -1261,15 +817,292 @@ export interface AssumptionsLackOfDetail {
      * Influences of plant operating state definitions
      */
     influence: string;
+    
+    /**
+     * Impact assessment of this assumption on risk
+     */
+    riskImpact: "HIGH" | "MEDIUM" | "LOW";
+    
+    /**
+     * Justification for the assumption
+     */
+    justification?: string;
+    
+    /**
+     * Planned actions to validate or refine this assumption
+     */
+    plannedActions?: string[];
+    
+    /**
+     * Affected plant operating states
+     */
+    affectedPOSIds?: string[];
+    
+    /**
+     * Potential alternatives to this assumption
+     */
+    potentialAlternatives?: string[];
+    
+    /**
+     * Sensitivity analysis results, if performed
+     */
+    sensitivityAnalysis?: string;
+}
+
+/**
+ * Reusable interface for representing subsumed plant operating states.
+ * Used to document when one POS is subsumed into another for analysis simplification.
+ 
+ * This interface is critical for regulatory compliance as it provides structured
+ * documentation of POS grouping decisions. It directly supports HLR-POS-B requirements
+ * for justifying all screening and grouping of plant operating states to facilitate
+ * efficient estimation of event sequence frequencies.
+ * 
+ * Key regulatory requirements addressed:
+ * - POS-B3: Ensures grouped states don't mask risk-significant contributors
+ * - POS-B5: Documents grouping of demand-based and time-based initiating events
+ * - POS-B6: Ensures the most severe characteristics are chosen for combined groups
+ * - POS-D1: Provides traceability for the process and criteria used for grouping
+ * 
+ * Without this interface, it would be difficult to maintain a clear record of which
+ * plant operating states were combined, why they were combined, and what analysis
+ * was performed to ensure the combination doesn't impact risk insights.
+ * @group State Screening & Grouping
+ * @implements POS-B5, POS-B6
+ */
+export interface SubsumedPOS {
+    /** ID or name of the POS being subsumed */
+    subsumedPOS: string;
+    
+    /** ID or name of the POS that is subsuming the other */
+    subsumingPOS: string;
+    
+    /** Justification for why this subsumption is valid */
+    justification: string;
+    
+    /** Risk impact assessment of this subsumption */
+    riskImpact?: "HIGH" | "MEDIUM" | "LOW";
+    
+    /** Limitations introduced by this subsumption */
+    limitations?: string[];
+    
+    /** Validation method used to confirm the subsumption is appropriate */
+    validationMethod?: string;
+}
+
+
+//==============================================================================
+/**
+ * @group Safety Functions, Barriers & Sources
+ * @description Safety function definitions, implementation mechanisms, and success criteria. Radioactive/hazardous sources and barrier-related interfaces
+ * @implements POS-A4
+ */
+//==============================================================================
+
+/**
+ * Interface representing a safety function in the plant operating state.
+ * 
+ * Safety functions include reactivity control, reactor coolant chemistry control,
+ * decay heat removal control, RCS inventory/barrier control, radionuclide transport
+ * barrier control, and ex-vessel fission product control.
+ * 
+ * Per RG 1.247, "The POS safety functions to consider include reactivity control, 
+ * reactor coolant chemistry control, decay heat removal control, reactor coolant system (RCS) 
+ * inventory/barrier control, radionuclide transport barrier control, and ex-vessel 
+ * fission product control (e.g., off-gas tanks/fuel salt storage tanks/spent fuel pools)."
+ * @group Safety Functions, Barriers & Sources
+ * @extends {Unique}
+ * @extends {Named}
+ * @implements POS-A4
+ */
+export interface SafetyFunction extends Unique, Named {
+    /** Description of the safety function */
+    description?: string;
+    
+    /** Current state of the safety function */
+    state: "SUCCESS" | "FAILURE";
+    
+    /** Success and failure criteria */
+    criteria?: {
+        success: string;
+        failure: string;
+    };
+    
+    /** System responses related to this safety function */
+    systemResponses?: string[];
+    
+    /** Dependencies for this safety function */
+    dependencies?: {
+        /** Type of dependency */
+        type: string;
+        /** Description of the dependency */
+        description: string;
+    }[];
+    
+    /** Prevention or mitigation level provided by this safety function */
+    preventionMitigationLevel?: string;
+    
+    /** 
+     * References to success criteria for this safety function
+     * These IDs reference success criteria defined in the success-criteria module
+     * Format: SC-[SYSTEM]-[NUMBER], e.g., "SC-RCIC-001"
+     */
+    successCriteriaIds?: SuccessCriteriaId[];
+    
+    /**
+     * Initiating events this safety function responds to
+     * These reference initiating events defined in the core/events module
+     */
+    initiatingEvents?: {
+        /** ID of the initiating event */
+        id: string;
+        
+        /** Name of the initiating event (for convenience) */
+        name?: string;
+        
+        /** How effective this safety function is against this initiating event */
+        effectiveness?: string;
+    }[];
+    
+    /**
+     * Category of safety function
+     * Technology-agnostic categorization of the safety function
+     */
+    category: string;
+    
+    /**
+     * Implementation mechanisms for this safety function
+     * Technology-agnostic description of how the safety function is implemented
+     */
+    implementationMechanisms: Array<{
+        /** Name of the mechanism */
+        name: string;
+        
+        /** Description of the mechanism */
+        description: string;
+        
+        /** Current operational status of this mechanism */
+        status: string;
+        
+        /** Detailed status information */
+        statusDetails?: string;
+        
+        /** Whether this is an active or passive mechanism */
+        type: string;
+        
+        /** Reliability information for this mechanism */
+        reliability?: {
+            /** Mean time between failures (hours) */
+            mtbf?: number;
+            
+            /** Probability of failure on demand */
+            pfd?: number;
+        };
+    }>;
+    
+    /**
+     * Operational parameters relevant to this safety function
+     * Technology-agnostic parameters that affect the function's performance
+     */
+    operationalParameters?: Array<{
+        /** Name of the parameter */
+        name: string;
+        
+        /** Current value or state of the parameter */
+        value: string | number;
+        
+        /** Units of measurement, if applicable */
+        units?: string;
+        
+        /** Acceptable range for this parameter */
+        acceptableRange?: [number, number];
+        
+        /** Whether this parameter is being monitored */
+        monitored: boolean;
+        
+        /** Instruments used to monitor this parameter */
+        monitoringInstruments?: string[];
+    }>;
+    
+    /**
+     * Degradation mechanisms that could affect this safety function
+     */
+    degradationMechanisms?: Array<{
+        /** Name of the degradation mechanism */
+        name: string;
+        
+        /** Description of the mechanism */
+        description: string;
+        
+        /** Current status of this degradation mechanism */
+        status: string;
+        
+        /** Mitigation measures in place */
+        mitigationMeasures?: string[];
+    }>;
+}
+
+/**
+ * Describes a barrier preventing radionuclide release
+ * @example
+ * const containment: RadionuclideBarrier = {
+ *   uuid: "CONT-01",
+ *   name: "Primary Containment",
+ *   state: BarrierStatus.INTACT,
+ *   monitoringParameters: ["pressure", "temperature", "radiation"],
+ *   breachCriteria: ["pressure > 60 psig", "temperature > 280°F"]
+ * };
+ * @group Safety Functions, Barriers & Sources
+ */
+export interface RadionuclideBarrier extends Unique, Named {
+    /** Current status of the barrier */
+    state: BarrierStatus;
+    /** Parameters being monitored for this barrier */
+    monitoringParameters?: string[];
+    /** Criteria that would indicate a breach of this barrier */
+    breachCriteria?: string[];
+    /** Description of the barrier */
+    description?: string;
+}
+
+/**
+ * Interface for representing a radioactive source in the plant.
+ * This covers both in-vessel (e.g., reactor core) and ex-vessel (e.g., spent fuel pool) sources.
+ * Incorporates SourceDefinition to reduce fragmentation.
+ * @group Safety Functions, Barriers & Sources
+ * @implements POS-A6, POS-A7
+ */
+export interface RadioactiveSource extends Unique, Named {
+    /** Location of the source - in-vessel or ex-vessel */
+    location: "IN_VESSEL" | "EX_VESSEL";
+    
+    /** Source location type for screening purposes */
+    sourceLocation?: SourceLocationType;
+    
+    /** Detailed description of the source */
+    description: string;
+    
+    /** List of significant radionuclides present in this source */
+    radionuclides: string[];
+    
+    /** Current status of the source */
+    status: string;
+    
+    /** Potential release pathways for this source */
+    releasePaths?: string[];
+    
+    /** Barriers in place to prevent release */
+    barriers?: string[];
+    
+    /** Screening status of this source */
+    screeningStatus: ScreeningStatus;
 }
 
 /**
  * Interface representing hazardous sources in operating state analysis.
- * 
  * Per RG 1.247, POS definitions should include all sources of radioactive material within the scope of the PRA,
  * including ex-vessel sources, unless there is a documented technical justification for excluding ex-vessel sources.
- * 
- * @memberof OperatingStates
+ * @group Safety Functions, Barriers & Sources
  * @implements POS-A6, POS-A7
  */
 export interface HazardousSources {
@@ -1292,10 +1125,179 @@ export interface HazardousSources {
     exVesselSourceExclusionJustification?: string;
 }
 
+//==============================================================================
+/**
+ * @group Documentation & Traceability
+ * @description Process documentation, uncertainty and assumption tracking, peer review findings, and validation and verification elements
+ * @implements POS-D1, POS-D2, POS-D3, POS-B1, POS-B7
+ */
+//==============================================================================
+
+/**
+ * Interface for validation rules to ensure plant operating states are correctly defined
+ * and cover the entire plant operating cycle.
+ * 
+ * This is part of the Documentation & Traceability group but has a critical validation role.
+ * @group Documentation & Traceability
+ * @implements POS-B1, POS-B7
+ */
+export interface POSValidationRules {
+    /**
+     * Validates that the defined POSs are mutually exclusive (no overlap between states)
+     * This ensures that a given plant condition belongs to exactly one POS
+     */
+    mutualExclusivityRules: {
+        /** Description of how mutual exclusivity is ensured */
+        description: string;
+        
+        /** Parameters used to clearly delineate between POSs */
+        delineationParameters: string[];
+        
+        /** Verification method used to confirm mutual exclusivity */
+        verificationMethod: string;
+    };
+    
+    /**
+     * Validates that the defined POSs are collectively exhaustive (cover the entire plant cycle)
+     * This ensures that all plant conditions are captured by the defined POSs
+     */
+    collectiveExhaustivityRules: {
+        /** Description of how collective exhaustivity is ensured */
+        description: string;
+        
+        /** Method to verify complete coverage of the operating cycle */
+        verificationMethod: string;
+        
+        /** Confirmation that all possible plant configurations are covered */
+        configurationCoverage: string;
+    };
+    
+    /**
+     * Rules for transitions between POSs
+     * Ensures that transitions between POSs are well-defined and complete
+     */
+    transitionRules: {
+        /** Matrix or list documenting all possible transitions between POSs */
+        transitionMatrix: Record<string, string[]>;
+        
+        /** Parameters or conditions that trigger transitions */
+        transitionTriggers: Record<string, string>;
+    };
+}
+
+
+
+/**
+ * Reusable interface for representing model uncertainty information.
+ * Used to document sources of uncertainty in the model.
+ * @group Documentation & Traceability
+ */
+export interface ModelUncertaintyInfo {
+    /** Source of the uncertainty */
+    source: string;
+    
+    /** Description of the uncertainty */
+    description: string;
+    
+    /** Impact level of the uncertainty */
+    impact: "HIGH" | "MEDIUM" | "LOW";
+    
+    /** How the uncertainty is treated in the model */
+    treatment: string;
+    
+    /** Reasonable alternatives that could be considered */
+    reasonableAlternatives?: string[];
+}
+
+/**
+ * Reusable interface for representing peer review findings.
+ * Used to document feedback from peer reviews and responses.
+ * @group Documentation & Traceability
+ */
+export interface PeerReviewFinding {
+    /** ID of the peer review finding */
+    findingId: string;
+    
+    /** Description of the finding */
+    description: string;
+    
+    /** Category of the finding */
+    category: string;
+    
+    /** Significance of the finding (HIGH/MEDIUM/LOW) */
+    significance: "HIGH" | "MEDIUM" | "LOW";
+    
+    /** Response to the finding */
+    response: string;
+    
+    /** Actions taken to address the finding */
+    actions?: string[];
+    
+    /** Resolution status */
+    status: "OPEN" | "CLOSED" | "IN_PROGRESS";
+}
+
+/**
+ * Reusable interface for representing transition risks.
+ * Used to document risks associated with transitions between operating states.
+ * @group Documentation & Traceability
+ */
+export interface TransitionRisk {
+    /** ID of the transition */
+    transitionId: string;
+    
+    /** Description of the transition */
+    description: string;
+    
+    /** Risks associated with the transition */
+    risks: string[];
+    
+    /** Significance of the risks (HIGH/MEDIUM/LOW) */
+    significance: "HIGH" | "MEDIUM" | "LOW";
+    
+    /** Mitigating actions */
+    mitigatingActions?: string[];
+    
+    /** Human actions required during this transition */
+    requiredHumanActions?: string[];
+    
+    /** Equipment that must be available during this transition */
+    requiredEquipment?: string[];
+}
+
+/**
+ * Reusable interface for representing plant representation accuracy assessments.
+ * Used to document how closely the PRA model represents the as-built and as-operated plant.
+ * @group Documentation & Traceability
+ */
+export interface PlantRepresentationAccuracy {
+    /** Degree of accuracy (HIGH/MEDIUM/LOW) */
+    accuracy: "HIGH" | "MEDIUM" | "LOW";
+    
+    /** Basis for accuracy assessment */
+    basis: string;
+    
+    /** Limitations in plant representation */
+    limitations?: string[];
+    
+    /** Actions to improve accuracy */
+    improvementActions?: string[];
+    
+    /** 
+     * Assessment of whether the detail level is sufficient to identify risk-significant contributors
+     * For operating plants, this must be explicitly evaluated
+     */
+    sufficientForRiskSignificantContributors: boolean;
+    
+    /** Justification for the sufficiency assessment */
+    sufficiencyJustification?: string;
+}
+
 /**
  * Data structure to document the Plant Operating State Analysis
- *
- * @memberof PlantOperatingStatesAnalysis
+ * This comprehensive documentation structure captures all aspects of the analysis process,
+ * findings, and provides traceability for the work.
+ * @group Documentation & Traceability
  * @implements POS-D1, POS-D2, POS-D3
  */
 export interface PlantOperatingStatesDocumentation {
@@ -1358,120 +1360,21 @@ export interface PlantOperatingStatesDocumentation {
      * Documentation of peer review findings and responses
      * Especially important for PRAs performed during pre-operational stages
      */
-    peerReviewFindings?: {
-        /** ID of the peer review finding */
-        findingId: string;
-        
-        /** Description of the finding */
-        description: string;
-        
-        /** Category of the finding */
-        category: string;
-        
-        /** Significance of the finding (HIGH/MEDIUM/LOW) */
-        significance: "HIGH" | "MEDIUM" | "LOW";
-        
-        /** Response to the finding */
-        response: string;
-        
-        /** Actions taken to address the finding */
-        actions?: string[];
-        
-        /** Resolution status */
-        status: "OPEN" | "CLOSED" | "IN_PROGRESS";
-    }[];
+    peerReviewFindings?: PeerReviewFinding[];
     
     /**
      * Documentation of transition risks
      * Captures the risks associated with transitions between operating states
      */
-    transitionRisks?: {
-        /** ID of the transition */
-        transitionId: string;
-        
-        /** Description of the transition */
-        description: string;
-        
-        /** Risks associated with the transition */
-        risks: string[];
-        
-        /** Significance of the risks (HIGH/MEDIUM/LOW) */
-        significance: "HIGH" | "MEDIUM" | "LOW";
-        
-        /** Mitigating actions */
-        mitigatingActions?: string[];
-    }[];
-}
-
-/**
- * Interface for validation rules to ensure plant operating states are correctly defined
- * and cover the entire plant operating cycle.
- * 
- * @memberof PlantOperatingStatesAnalysis
- * @implements POS-B1, POS-B7
- */
-export interface POSValidationRules {
-    /**
-     * Validates that the defined POSs are mutually exclusive (no overlap between states)
-     * This ensures that a given plant condition belongs to exactly one POS
-     */
-    mutualExclusivityRules: {
-        /** Description of how mutual exclusivity is ensured */
-        description: string;
-        
-        /** Parameters used to clearly delineate between POSs */
-        delineationParameters: string[];
-        
-        /** Verification method used to confirm mutual exclusivity */
-        verificationMethod: string;
-    };
-    
-    /**
-     * Validates that the defined POSs are collectively exhaustive (cover the entire plant cycle)
-     * This ensures that all plant conditions are captured by the defined POSs
-     */
-    collectiveExhaustivityRules: {
-        /** Description of how collective exhaustivity is ensured */
-        description: string;
-        
-        /** Method to verify complete coverage of the operating cycle */
-        verificationMethod: string;
-        
-        /** Confirmation that all possible plant configurations are covered */
-        configurationCoverage: string;
-    };
-    
-    /**
-     * Rules for transitions between POSs
-     * Ensures that transitions between POSs are well-defined and complete
-     */
-    transitionRules: {
-        /** Matrix or list documenting all possible transitions between POSs */
-        transitionMatrix: Record<string, string[]>;
-        
-        /** Parameters or conditions that trigger transitions */
-        transitionTriggers: Record<string, string>;
-    };
-}
-
-/**
- * Interface representing radionuclide transport barriers.
- * @memberof OperatingStates
- * @implements POS-A5
- */
-export interface RadionuclideTransportBarriers {
-    /** Status of barrier 1 */
-    barrier1: BarrierStatus;
-    /** Status of barrier 2 */
-    barrier2: BarrierStatus;
-    /** Status of other barriers */
-    [key: string]: BarrierStatus;
+    transitionRisks?: TransitionRisk[];
 }
 
 /**
  * Interface representing plant operating state analysis.
  * 
- * @memberof OperatingStates
+ * This is the main container interface that brings together all aspects of the Plant Operating States Analysis.
+ * It implements multiple High-Level Requirements (HLRs) and their Supporting Requirements (SRs).
+ * 
  * @extends {TechnicalElement<TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS>}
  * @implements POS-A1, POS-A2, POS-A7, POS-A11, POS-A12, POS-A13, POS-B1, POS-B4, POS-B5, POS-B6, POS-B7, POS-B8, POS-D1, POS-D2, POS-D3
  * 
@@ -1483,14 +1386,9 @@ export interface RadionuclideTransportBarriers {
  *   // ... other properties
  * };
  * ```
+ *  @group API
  */
 export interface PlantOperatingStatesAnalysis extends TechnicalElement<TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS> {
-    /** 
-     * Hazard type information
-     * @implements POS-A2
-     */
-    hazardType: HazardScreening;
-    
     /** 
      * List of plant evolutions to be analyzed
      * Must include, at a minimum, plant evolutions from at-power operations
@@ -1520,22 +1418,13 @@ export interface PlantOperatingStatesAnalysis extends TechnicalElement<Technical
      * Sources of model uncertainty related to POS definitions
      * @implements POS-A12
      */
-    modelUncertainty?: Array<{
-        source: string;
-        description: string;
-        impact: "HIGH" | "MEDIUM" | "LOW";
-        treatment: string;
-    }>;
+    modelUncertainty?: ModelUncertaintyInfo[];
     
     /** 
      * Documentation of subsumed POSs
      * @implements POS-B5, POS-B6
      */
-    subsumedPOSs?: Array<{
-        subsumedPOS: string;
-        subsumingPOS: string;
-        justification: string;
-    }>;
+    subsumedPOSs?: SubsumedPOS[];
     
     /** 
      * List of assumptions due to lack of as-built details
@@ -1562,12 +1451,6 @@ export interface PlantOperatingStatesAnalysis extends TechnicalElement<Technical
     posValidationRules: POSValidationRules;
     
     /**
-     * Scenario groups for risk analysis
-     * Groups scenarios with similar risk characteristics
-     */
-    scenarioGroups?: ScenarioGroup[];
-    
-    /**
      * Transition events between plant operating states
      * Documents the transitions and associated risks
      */
@@ -1577,13 +1460,7 @@ export interface PlantOperatingStatesAnalysis extends TechnicalElement<Technical
      * Plant representation accuracy assessment
      * Documents how closely the PRA represents the as-built and as-operated plant
      */
-    plantRepresentationAccuracy?: {
-        /** Overall accuracy assessment */
-        overallAssessment: "HIGH" | "MEDIUM" | "LOW";
-        
-        /** Basis for the assessment */
-        basis: string;
-        
+    plantRepresentationAccuracy?: PlantRepresentationAccuracy & {
         /** Areas with high confidence */
         highConfidenceAreas?: string[];
         
@@ -1603,11 +1480,12 @@ export interface PlantOperatingStatesAnalysis extends TechnicalElement<Technical
 
 /**
  * JSON schema for validating {@link PlantOperatingStatesAnalysis} entities.
+ * Provides validation and ensures type safety throughout the application.
  *
- * @memberof PlantOperatingStateAnalysis
  * @example
  * ```typescript
  * const isValid = PlantOperatingStatesAnalysisSchema.validate(someData);
  * ```
+ * @group API
  */
 export const PlantOperatingStatesAnalysisSchema = typia.json.application<[PlantOperatingStatesAnalysis], "3.0">();

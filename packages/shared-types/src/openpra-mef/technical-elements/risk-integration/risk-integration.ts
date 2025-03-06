@@ -1,17 +1,23 @@
+/**
+ * @module risk_integration
+ * @description Types and interfaces for Risk Integration (RI) module. This module contains
+ * the core types used for representing and analyzing risk metrics, contributors, and uncertainties
+ * in probabilistic risk assessment.
+ * 
+ * @preferred
+ * @category Technical Elements
+ */
+
+
 import * as typia from "typia";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Uncertainty, DataAnalysisParameter, DistributionType } from "../data-analysis/data-analysis";
 
-/**
- * @namespace RiskIntegration
- * @description Types and interfaces for Risk Integration (RI) module. This module contains
- * the core types used for representing and analyzing risk metrics, contributors, and uncertainties
- * in probabilistic risk assessment.
- */
+
 
 /**
  * Interface representing a quantifiable risk metric used in risk assessment.
- * @memberof RiskIntegration
+ * @memberof risk_integration
  * @interface RiskMetric
  * 
  * @example
@@ -57,7 +63,7 @@ export interface RiskMetric {
 /**
  * Interface representing an element that contributes to overall risk.
  * Used to track and analyze different sources of risk in the system.
- * @memberof RiskIntegration
+ * @memberof risk_integration
  * @interface RiskContributor
  * 
  * @example
@@ -116,7 +122,7 @@ export interface RiskContributor {
 /**
  * Interface defining criteria for determining risk significance.
  * Used to establish thresholds and measures for evaluating risk importance.
- * @memberof RiskIntegration
+ * @memberof risk_integration
  * @interface RiskSignificanceCriteria
  * 
  * @example
@@ -147,7 +153,7 @@ export interface RiskSignificanceCriteria {
 /**
  * Interface representing a parameter used in uncertainty analysis.
  * Defines the statistical properties and impacts of uncertain variables.
- * @memberof RiskIntegration
+ * @memberof risk_integration
  * @interface UncertaintyParameter
  */
 export interface UncertaintyParameter {
@@ -167,7 +173,7 @@ export interface UncertaintyParameter {
  * Main interface representing a complete Risk Integration analysis.
  * Combines all aspects of risk assessment including metrics, contributors,
  * uncertainties, and insights.
- * @memberof RiskIntegration
+ * @memberof risk_integration
  * @interface RiskIntegrationAnalysis
  * 
  * @example
@@ -257,7 +263,7 @@ export interface RiskIntegrationAnalysis extends TechnicalElement<TechnicalEleme
 /**
  * JSON schema for validating {@link RiskIntegrationAnalysis} entities.
  * 
- * @memberof RiskIntegration
+ * @memberof risk_integration
  * @example
  * ```typescript
  * const analysis = {

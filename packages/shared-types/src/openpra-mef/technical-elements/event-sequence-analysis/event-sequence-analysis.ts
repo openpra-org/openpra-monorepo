@@ -1,86 +1,47 @@
+/**
+ * @module event_sequence_analysis
+ * @description Types and interfaces for Event Sequence Analysis
+ * 
+ * @preferred
+ * @category Technical Elements
+ */
+
 import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Named, Unique } from "../core/meta";
-import { BaseEvent, FunctionalEvent, InitiatingEvent, Frequency } from "../core/events";
-import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
-import { 
-    PlantOperatingStatesTable, 
-    PlantOperatingState,
-    DependencyType,
-    PreventionMitigationLevel,
-    SafetyFunction as POSSafetyFunction,
-    SuccessCriteriaId
-} from "../plant-operating-states-analysis/plant-operating-states-analysis";
+import { Frequency, InitiatingEvent, BaseEvent } from "../core/events";
 import { Uncertainty } from "../data-analysis/data-analysis";
+import { 
+    PlantOperatingState, 
+    OperatingState,
+    SuccessCriteriaId,
+    SafetyFunction as POSSafetyFunction,
+    PlantOperatingStatesTable
+} from "../plant-operating-states-analysis/plant-operating-states-analysis";
+import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
 import { ComponentTimeline } from "../systems-analysis/temporal-modeling";
 
 /**
- * @namespace EventSequenceAnalysis
- * @description Types and interfaces for Event Sequence Analysis parameters
+ * Enum representing the level of prevention or mitigation provided by a safety function.
  */
+export enum PreventionMitigationLevel {
+    /** Full prevention or mitigation capability */
+    FULL = "FULL",
+    
+    /** Partial prevention or mitigation capability */
+    PARTIAL = "PARTIAL",
+    
+    /** No prevention or mitigation capability */
+    NONE = "NONE"
+}
 
 /**
- * Enum representing different levels of prevention/mitigation success
- * @memberof EventSequenceAnalysis
+ * Type representing the different types of dependencies between systems or components.
  */
-// Using PreventionMitigationLevel from plant-operating-state-analysis.ts instead
-// export enum PreventionMitigationLevel {
-//     FULL = "FULL",
-//     PARTIAL = "PARTIAL",
-//     NONE = "NONE"
-// }
-
-/**
- * Type representing dependency types with examples
- * @memberof EventSequenceAnalysis
- * @example
- * ```typescript
- * const dependencies = {
- *   functional: ["power supply", "cooling water", "instrument air"],
- *   physical: ["spatial", "environmental", "seismic"],
- *   human: ["operator action", "maintenance", "testing"]
- * };
- * ```
- */
-// Using DependencyType from plant-operating-state-analysis.ts instead
-// export type DependencyType = "functional" | "physical" | "human";
-
-/*
- * Alternative type definitions for safety function dependencies - for future consideration
- *
- * This approach provides better type safety and maintainability through separate interfaces
- * for each dependency type. Currently commented out for future evaluation.
- *
- * Example Implementation:
- *
- * ```typescript
- * export interface BaseDependency {
- *     type: DependencyType;
- *     description: string;
- * }
- *
- * export interface FunctionalDependency extends BaseDependency {
- *     type: "FUNCTIONAL";
- *     // Reference to SystemComponent.uuid
- *     componentId: string;
- * }
- *
- * export interface PhysicalDependency extends BaseDependency {
- *     type: "PHYSICAL";
- *     // Reference to System.uuid
- *     systemId: string;
- * }
- *
- * export interface HumanDependency extends BaseDependency {
- *     type: "HUMAN";
- * }
- *
- * export interface SafetyFunction {
- *     // ... other fields ...
- *     dependencies: (FunctionalDependency | PhysicalDependency | HumanDependency)[];
- * }
- * ```
- */
+export type DependencyType = 
+    | "FUNCTIONAL" 
+    | "PHYSICAL" 
+    | "HUMAN";
 
 /**
  * Interface representing design information sources for traceability

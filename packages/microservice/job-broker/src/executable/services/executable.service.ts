@@ -1,4 +1,4 @@
-import { Injectable, Logger, InternalServerErrorException, OnApplicationBootstrap } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Channel } from "amqplib";
@@ -26,9 +26,9 @@ export class ExecutableService implements OnApplicationBootstrap {
    */
   async onApplicationBootstrap(): Promise<void> {
     try {
-      this.logger.debug("Connecting to the broker");
-      this.channel = await this.queueService.setupQueue(ExecutableService.name, this.queueConfig);
-      this.logger.debug("Initialized and ready to send messages");
+      this.logger.log("Connecting to the broker");
+      this.channel = await this.queueService.setupQueue(this.queueConfig);
+      this.logger.log("Initialized and ready to send messages");
     } catch (error) {
       this.logger.error("Failed to initialize:", error);
     }
@@ -39,11 +39,11 @@ export class ExecutableService implements OnApplicationBootstrap {
    *
    * @param task - The execution task to queue
    */
-  public async createAndQueueTask(task: ExecutionTask): Promise<string | InternalServerErrorException> {
+  public async createAndQueueTask(task: ExecutionTask): Promise<void> {
     try {
       if (!this.channel) {
         this.logger.error("Channel is not available. Cannot send message.");
-        return new InternalServerErrorException();
+        return;
       }
 
       const taskData = typia.json.assertStringify<ExecutionTask>(task);
@@ -51,15 +51,13 @@ export class ExecutableService implements OnApplicationBootstrap {
         persistent: true,
       });
 
-      await this.executableJobModel.updateOne({ _id: task._id }, { $set: { status: "pending" } });
-      return `Task: ${String(task._id)} has been queued to: <${String(this.queueConfig.name)}>`;
+      await this.executableJobModel.updateOne({ _id: task._id }, { $set: { status: "queued" } });
+      this.logger.log(`Task ${String(task._id)} queued successfully`);
     } catch (error) {
       if (error instanceof TypeGuardError) {
         this.logger.error(error);
-        throw new InternalServerErrorException();
       } else {
         this.logger.error(error);
-        throw new InternalServerErrorException();
       }
     }
   }

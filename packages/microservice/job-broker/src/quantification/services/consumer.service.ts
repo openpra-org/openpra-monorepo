@@ -29,10 +29,10 @@ export class ConsumerService implements OnApplicationBootstrap {
    */
   async onApplicationBootstrap(): Promise<void> {
     try {
-      this.logger.debug("Connecting to the broker");
-      this.channel = await this.queueService.setupQueue(ConsumerService.name, this.queueConfig);
+      this.logger.log("Connecting to the broker");
+      this.channel = await this.queueService.setupQueue(this.queueConfig);
       await this.consumeQuantJobs();
-      this.logger.debug("Initialized and consuming messages");
+      this.logger.log("Initialized and consuming messages");
     } catch (error) {
       this.logger.error("Failed to initialize:", error);
     }
@@ -49,7 +49,6 @@ export class ConsumerService implements OnApplicationBootstrap {
 
     await this.channel.consume(
       this.queueConfig.name,
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
         if (msg === null) {
           this.logger.error("Unable to parse message from quantification queue");
@@ -58,27 +57,12 @@ export class ConsumerService implements OnApplicationBootstrap {
 
         try {
           const modelsData: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
-          this.logger.debug(`Running Job: ${String(modelsData._id)}`);
-
-          await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
-            $set: { status: "running" },
-          });
-          this.logger.debug("Changing the status to <running>");
-
-          this.performQuantification(modelsData);
-
-          await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
-            $set: { status: "completed" },
-          });
-          this.logger.debug(`Completed Job: ${String(modelsData._id)}`);
-          /* Right now we are saving only the Job status, not the results.
-           * await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
-           *  $set: { results: result, status: "completed" },
-           * });
-           */
+          const { _id, ...modelsWithConfigs } = modelsData;
+          const result: string[] = this.performQuantification(modelsWithConfigs);
+          await this.quantificationJobModel.findByIdAndUpdate(_id, { $set: { results: result, status: "completed" } });
 
           this.channel?.ack(msg);
-          this.logger.debug(`Acknowledged Job: ${String(modelsData._id)}`);
+          this.logger.log(`${String(_id)}: Acknowledged`);
         } catch (error) {
           if (error instanceof TypeGuardError) {
             this.logger.error(error);
@@ -101,22 +85,21 @@ export class ConsumerService implements OnApplicationBootstrap {
    */
   public performQuantification(modelsWithConfigs: QuantifyRequest): string[] {
     // Extract model data from the request.
-    const { _id, ...modelConfigs } = modelsWithConfigs;
-    const models = modelConfigs.models;
+    const models = modelsWithConfigs.models;
 
     // Write the model data to temporary XML files and store the file paths.
     const modelFilePaths = this.writeNodeAddonModelFilesBase64(models);
-    modelConfigs.models = modelFilePaths;
+    modelsWithConfigs.models = modelFilePaths;
 
     // Create a temporary file to store the output of the SCRAM CLI.
     const outputFilePath = String(tmp.fileSync({ prefix: "result", postfix: ".xml" }).name);
-    modelConfigs.output = outputFilePath;
+    modelsWithConfigs.output = outputFilePath;
 
     try {
       // Invoke the SCRAM CLI with the updated request
-      this.logger.debug(`${String(_id)} is running`);
-      RunScramCli(modelConfigs);
-      this.logger.debug(`${String(_id)} has been quantified`);
+      this.logger.log(`${JSON.stringify(modelsWithConfigs)} is running`);
+      RunScramCli(modelsWithConfigs);
+      this.logger.log(`${JSON.stringify(modelsWithConfigs)} has been quantified`);
 
       // Read the quantification results from the output file.
       const outputContent = readFileSync(outputFilePath, "utf8");

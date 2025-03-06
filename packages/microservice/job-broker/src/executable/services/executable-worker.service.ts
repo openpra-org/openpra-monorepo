@@ -28,10 +28,10 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
    */
   async onApplicationBootstrap(): Promise<void> {
     try {
-      this.logger.debug("Connecting to the broker");
-      this.taskChannel = await this.queueService.setupQueue(ExecutableWorkerService.name, this.taskQueueConfig);
+      this.logger.log("Connecting to the broker");
+      this.taskChannel = await this.queueService.setupQueue(this.taskQueueConfig);
       await this.consumeExecutableTasks();
-      this.logger.debug("Initialized and consuming messages");
+      this.logger.log("Initialized and consuming messages");
     } catch (error) {
       this.logger.error("Failed to initialize:", error);
     }
@@ -48,7 +48,6 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
 
     await this.taskChannel.consume(
       this.taskQueueConfig.name,
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
         if (msg === null) {
           this.logger.error("Unable to parse message from task queue");
@@ -58,7 +57,6 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
         try {
           // Parse the task data
           const taskData: ExecutionTask = typia.json.assertParse<ExecutionTask>(msg.content.toString());
-          await this.executableJobModel.findByIdAndUpdate(taskData._id, { $set: { status: "running" } });
 
           // Execute the task and get the result
           const result = this.executeCommand(taskData);
@@ -72,10 +70,10 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
               stderr: result.stderr,
             },
           });
-          this.logger.debug(`Task ${String(taskData._id)} execution result stored in database`);
+          this.logger.log(`Task ${String(taskData._id)} execution result stored in database`);
 
           this.taskChannel?.ack(msg);
-          this.logger.debug(`Task: ${String(taskData._id)} executed successfully`);
+          this.logger.log(`Task ${String(taskData._id)} executed successfully`);
         } catch (error) {
           if (error instanceof TypeGuardError) {
             this.logger.error(error);

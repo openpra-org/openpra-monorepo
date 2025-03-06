@@ -23,7 +23,7 @@ import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { InitiatingEvent, BaseEvent, Frequency } from "../core/events";
-import { IdPatterns } from "../core/shared-patterns";
+import { IdPatterns, ImportanceLevel } from "../core/shared-patterns";
 import { DistributionType } from "../data-analysis/data-analysis";
 
 //==============================================================================
@@ -227,7 +227,7 @@ export interface TransitionEvent extends Unique {
     /**
      * Risk significance of this transition
      */
-    riskSignificance?: "HIGH" | "MEDIUM" | "LOW";
+    riskSignificance?: ImportanceLevel;
     
     /**
      * Mitigating actions to reduce transition risks
@@ -821,7 +821,7 @@ export interface AssumptionsLackOfDetail {
     /**
      * Impact assessment of this assumption on risk
      */
-    riskImpact: "HIGH" | "MEDIUM" | "LOW";
+    riskImpact: ImportanceLevel;
     
     /**
      * Justification for the assumption
@@ -881,7 +881,7 @@ export interface SubsumedPOS {
     justification: string;
     
     /** Risk impact assessment of this subsumption */
-    riskImpact?: "HIGH" | "MEDIUM" | "LOW";
+    riskImpact?: ImportanceLevel;
     
     /** Limitations introduced by this subsumption */
     limitations?: string[];
@@ -1200,7 +1200,7 @@ export interface ModelUncertaintyInfo {
     description: string;
     
     /** Impact level of the uncertainty */
-    impact: "HIGH" | "MEDIUM" | "LOW";
+    impact: ImportanceLevel;
     
     /** How the uncertainty is treated in the model */
     treatment: string;
@@ -1225,7 +1225,7 @@ export interface PeerReviewFinding {
     category: string;
     
     /** Significance of the finding (HIGH/MEDIUM/LOW) */
-    significance: "HIGH" | "MEDIUM" | "LOW";
+    significance: ImportanceLevel;
     
     /** Response to the finding */
     response: string;
@@ -1252,8 +1252,8 @@ export interface TransitionRisk {
     /** Risks associated with the transition */
     risks: string[];
     
-    /** Significance of the risks (HIGH/MEDIUM/LOW) */
-    significance: "HIGH" | "MEDIUM" | "LOW";
+    /** Significance of the risks */
+    significance: ImportanceLevel;
     
     /** Mitigating actions */
     mitigatingActions?: string[];
@@ -1271,8 +1271,8 @@ export interface TransitionRisk {
  * @group Documentation & Traceability
  */
 export interface PlantRepresentationAccuracy {
-    /** Degree of accuracy (HIGH/MEDIUM/LOW) */
-    accuracy: "HIGH" | "MEDIUM" | "LOW";
+    /** Degree of accuracy */
+    accuracy: ImportanceLevel;
     
     /** Basis for accuracy assessment */
     basis: string;

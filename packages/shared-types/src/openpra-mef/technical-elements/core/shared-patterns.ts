@@ -1,6 +1,7 @@
 /**
  * @packageDocumentation
  * @module technical_elements.core
+ * @description Core patterns, enums, and types shared across technical elements
  */
 
 /**
@@ -17,3 +18,21 @@ export const IdPatterns = {
     /** Pattern for Failure Mode IDs */
     FAILURE_MODE: "^FM-[A-Z0-9-]+$"
   } as const;
+
+/**
+ * Standardized levels for expressing importance, impact, or significance in probabilistic risk assessment
+ * @description Provides consistent categorization of significance levels across the PRA technical elements
+ * @example
+ * const significance: ImportanceLevel = ImportanceLevel.HIGH;
+ * @memberof technical_elements.core.enums
+ */
+export enum ImportanceLevel {
+  /** High importance - used for significant risk contributors or major impacts */
+  HIGH = "HIGH",
+  
+  /** Medium importance - used for moderate risk contributors or notable impacts */
+  MEDIUM = "MEDIUM",
+  
+  /** Low importance - used for minor risk contributors or minimal impacts */
+  LOW = "LOW"
+}

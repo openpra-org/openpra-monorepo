@@ -45,7 +45,13 @@ function VisibleNode({ id, data }: NodeProps) {
       }),
     );
   };
+  const getDefaultProbability = () => {
+    if (data.depth === 1) return 1.0;
+    if (data.depth === 2 && (data.label === "Success" || data.label === "Failure")) return 0.5;
+    return 0.0;
+  };
 
+  const defaultProbability = getDefaultProbability();
   return (
     <div>
       <Handle
@@ -76,7 +82,7 @@ function VisibleNode({ id, data }: NodeProps) {
           {isEditingFreq ? (
             <input
               type="text"
-              defaultValue={data.probability?.toFixed(2) || "0.55"}
+              defaultValue={data.probability?.toFixed(2) || defaultProbability.toFixed(2)}
               style={{
                 fontSize: "0.7rem",
                 width: "100%",
@@ -87,7 +93,8 @@ function VisibleNode({ id, data }: NodeProps) {
                 outline: "none",
               }}
               onBlur={(e) => {
-                const value = Math.max(0, parseFloat(e.target.value) || 0);
+                const inputValue = parseFloat(e.target.value); // Parse the input once
+                const value = isNaN(inputValue) || inputValue > 1 ? 0.0 : Math.max(0, inputValue);
                 const parsedValue = parseFloat(value.toFixed(2));
                 updateNodeProbability(parsedValue);
                 setIsEditingFreq(false);
@@ -95,7 +102,9 @@ function VisibleNode({ id, data }: NodeProps) {
               autoFocus
             />
           ) : (
-            <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>{data.probability?.toFixed(2) || "0.55"}</EuiText>
+            <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>
+              {data.probability?.toFixed(2) || defaultProbability.toFixed(2)}
+            </EuiText>
           )}
         </div>
 

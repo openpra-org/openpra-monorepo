@@ -24,15 +24,15 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
       (node) => node.type !== "columnNode" && node.type !== "invisibleNode" && node.data.depth === currentDepth,
     );
 
-    if (!hasVisibleNodesInCurrentColumn) {
-      addToast({
-        id: GenerateUUID(),
-        title: "Warning",
-        color: "warning",
-        text: "At least one branch should exist in the current functional event to create a new one",
-      });
-      return;
-    }
+    // if (!hasVisibleNodesInCurrentColumn) {
+    //   addToast({
+    //     id: GenerateUUID(),
+    //     title: "Warning",
+    //     color: "warning",
+    //     text: "At least one branch should exist in the current functional event to create a new one",
+    //   });
+    //   return;
+    // }
 
     // Get nodes in the next column
     const nextColumnNodes = nodeData.filter(

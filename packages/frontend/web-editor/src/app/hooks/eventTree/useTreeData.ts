@@ -3,6 +3,17 @@ import { GenerateUUID } from "../../../utils/treeUtils";
 import { resetSequenceCounter, setFirstColumnLabel } from "../../components/treeNodes/eventTreeEditorNode/outputNode";
 
 /**
+ Helper function to get initials
+ */
+
+const getInitials = (str: string): string => {
+  return str
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+};
+/**
  * Utility function to create end states for a leaf node
  */
 export const createEndStates = (
@@ -89,13 +100,16 @@ const useTreeData = (
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
+    const firstColumnLabel = "Initiating Event"; // Default
+    setFirstColumnLabel(firstColumnLabel);
+
     // Generate root node
     const rootId = GenerateUUID();
     const rootNode: Node = {
       id: rootId,
       type: "visibleNode",
       data: {
-        label: "IE",
+        label: getInitials(firstColumnLabel),
         inputDepth: inputLevels,
         outputDepth: outputLevels,
         width: nodeWidth,

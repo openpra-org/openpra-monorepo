@@ -1,744 +1,1429 @@
+/**
+ * @module data_analysis
+ * @description The objectives of Data Analysis ensure that:
+ * - (a) parameter boundaries are defined;
+ * - (b) components are appropriately grouped;
+ * - (c) parameter data are consistent with parameter definitions;
+ * - (d) relevant generic industry and plant-specific evidence are represented in the parameter estimation, including addressing uncertainties;
+ * - (e) the Data Analysis is documented to provide traceability of the work.
+ * 
+ * @preferred
+ * @category Technical Elements
+ */
+
+/**
+ * @summary Requirements Implementation and Improvement Areas
+ * 
+ * This schema implements the supporting requirements for Data Analysis as follows:
+ * 
+ * - HLR-DA-A: Parameter definition is implemented through DataAnalysisParameter with clear boundaries,
+ *   failure modes, success criteria, and appropriate probability models (DA-A1 through DA-A6).
+ * 
+ * - HLR-DA-B: Component grouping is implemented through ComponentGrouping with explicit outlier
+ *   handling via OutlierComponent to satisfy DA-B2 requirements for excluding outliers from groups.
+ * 
+ * - HLR-DA-C: Generic and plant-specific data collection is implemented through DataSource and
+ *   ExternalDataSource interfaces with consistency checks (DA-C1 through DA-C14).
+ * 
+ * - Documentation requirements are comprehensively addressed through DataAnalysisDocumentation,
+ *   ModelUncertaintyDocumentation, and PreOperationalAssumptionsDocumentation.
+ * 
+ * Areas for potential improvement:
+ * - Enhanced support for test and maintenance unavailability tracking (DA-C16 to DA-C21)
+ * - More explicit traceability between requirements and implementation
+ * - Expanded support for failure event data extraction criteria (DA-C5 to DA-C7)
+ */
+
+import typia, { tags } from "typia";
+import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
+import { Named, Unique } from "../core/meta";
+import { BasicEvent, FrequencyUnit } from "../core/events";
+import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
+import { PlantOperatingStatesTable, PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
+
+//==============================================================================
+/**
+ * @group Core Definition and Enums
+ * @description Basic types, enums, and fundamental interfaces for data analysis
+ */
+//==============================================================================
+
+/**
+ * Interface representing the types of parameters used in data analysis.
+ * The parameter type determines the type of data analysis that can be performed.
+ * 
+ * @implements DA-A4: IDENTIFY the parameter to be estimated
+ * @group Core Definition and Enums
+ */
+export type ParameterType =
+    | "FREQUENCY"
+    | "PROBABILITY"
+    | "UNAVAILABILITY"
+    | "CCF_PARAMETER"
+    | "HUMAN_ERROR_PROBABILITY"
+    | "OTHER";
+
+/**
+ * Enum representing the types of probability models used in data analysis.
+ * 
+ * @implements DA-A3: USE an appropriate probability model for each basic event
+ * @group Core Definition and Enums
+ */
+export enum DistributionType {
+    EXPONENTIAL = "exponential",
+    BINOMIAL = "binomial",
+    NORMAL = "normal",
+    LOGNORMAL = "lognormal",
+    WEIBULL = "weibull",
+    POISSON = "poisson",
+    UNIFORM = "uniform",
+    BETA = "beta",
+    GAMMA = "gamma",
+    POINT_ESTIMATE = "point_estimate"
+}
+
+/**
+ * Base Data Analysis Parameter - parent of all data analysis parameters
+ * 
+ * This interface implements several PRA standard requirements:
+ * - DA-A4: IDENTIFY the parameter to be estimated
+ * - DA-A5: IDENTIFY the sources of model uncertainty, related assumptions
+ * - DA-A6: IDENTIFY assumptions made due to lack of as-built details
+ * 
+ * @group Core Definition and Enums
+ * @extends {Unique}
+ * @extends {Named}
+ */
+export interface BaseDataAnalysisParameter extends Unique, Named {
+    /** Detailed description of the parameter */
+    description?: string;
+    
+    /**
+     * The type of parameter being analyzed.
+     * @implements DA-A4: IDENTIFY the parameter to be estimated
+     */
+    parameterType: ParameterType;
+    
+    /**
+     * Uncertainty information for the parameter.
+     * @implements DA-A5: IDENTIFY the sources of model uncertainty
+     */
+    uncertainty?: Uncertainty;
+    
+    /**
+     * All data sources used in the analysis, including both general and specific sources.
+     * @implements DA-A4: IDENTIFY the data required for estimation
+     */
+    data_sources?: DataSource[];
+    
+    /**
+     * All assumptions made in the analysis, including both general and specific assumptions.
+     * @implements DA-A5: IDENTIFY the sources of model uncertainty, related assumptions
+     * @implements DA-A6: IDENTIFY assumptions made due to lack of as-built details
+     */
+    assumptions?: Assumption[];
+}
+
+/**
+ * Interface representing data sources and their context
+ * @group Core Definition and Enums
+ * @implements DA-C1: OBTAIN generic parameter estimates from recognized data sources
+ */
+export interface DataSource {
+    /**
+     * The source of the data (e.g., "Plant maintenance records 2020-2023")
+     */
+    source: string;
+    
+    /**
+     * The context or type of the data source (e.g., "Industry standard", "Plant specific")
+     */
+    context?: string;
+    
+    /**
+     * Any additional notes about the data source
+     */
+    notes?: string;
+    
+    /**
+     * Reference to supporting documentation, technical reports or standards
+     */
+    documentationReferences?: string[];
+    
+    /**
+     * Type of source (Generic industry, Plant-specific, Expert judgment)
+     */
+    sourceType?: "GENERIC_INDUSTRY" | "PLANT_SPECIFIC" | "EXPERT_JUDGMENT";
+    
+    /**
+     * Time period covered by the data
+     */
+    timePeriod?: {
+        startDate: string;
+        endDate: string;
+    };
+    
+    /**
+     * Applicability assessment of this data source to the parameter
+     */
+    applicabilityAssessment?: string;
+}
+
+/**
+ * Interface representing an assumption and its context
+ * @group Core Definition and Enums
+ * @implements DA-A5: IDENTIFY the sources of model uncertainty, related assumptions
+ * @implements DA-A6: IDENTIFY assumptions made due to lack of as-built details
+ */
+export interface Assumption {
+    /**
+     * The assumption statement
+     */
+    statement: string;
+    
+    /**
+     * The context or type of the assumption (e.g., "General", "Value-specific")
+     */
+    context?: string;
+    
+    /**
+     * Any additional notes about the assumption
+     */
+    notes?: string;
+    
+    /**
+     * Rationale or justification for the assumption
+     */
+    rationale?: string;
+    
+    /**
+     * References to supporting documentation
+     */
+    references?: string[];
+    
+    /**
+     * Parameters or basic events impacted by this assumption
+     */
+    impactedParameters?: string[];
+    
+    /**
+     * Criteria or information required to close this assumption
+     */
+    closureCriteria?: string;
+    
+    /**
+     * Current status of the assumption
+     */
+    status?: "OPEN" | "CLOSED" | "IN_PROGRESS";
+}
+
+//==============================================================================
+/**
+ * @group Parameter Definition & Boundaries
+ * @description Parameter boundaries, definitions, and logical models for events
+ * @implements HLR-DA-A
+ */
+//==============================================================================
+
+/**
+ * Data Analysis parameter with specific requirements
+ * 
+ * This interface implements several PRA standard requirements:
+ * - DA-A2: DEFINE failure modes and success criteria
+ * - DA-A3: USE an appropriate probability model for each basic event
+ * - HLR-DA-B: Grouping components into a homogeneous population
+ * 
+ * @group Parameter Definition & Boundaries
+ * @extends {BaseDataAnalysisParameter}
+ * @implements DA-A2, DA-A3, HLR-DA-B
+ */
+export interface DataAnalysisParameter extends BaseDataAnalysisParameter {
+    /**
+     * The estimated value for the parameter
+     */
+    value: number & tags.Minimum<0>;
+    
+    /**
+     * Links to basic event this parameter is associated with
+     * @implements DA-A1: ESTABLISH component boundaries
+     */
+    basicEventId?: string;
+    
+    /**
+     * Links to unavailability event this parameter is associated with
+     * @implements DA-A1: ESTABLISH component boundaries
+     */
+    unavailabilityEventId?: string;
+
+    /**
+     * Reference to the system component this parameter is associated with.
+     * This provides access to the component's boundary and grouping information.
+     * @implements HLR-DA-B: Grouping components into a homogeneous population
+     */
+    systemComponentId?: string;
+
+    /**
+     * Defines how the component can fail.
+     * @implements DA-A2: DEFINE failure modes
+     */
+    failure_mode?: FailureMode;
+
+    /**
+     * Defines the criteria for success.
+     * @implements DA-A2: DEFINE success criteria
+     */
+    success_criteria?: SuccessCriteria;
+
+    /**
+     * Represents the plant operating state for which the parameter applies.
+     * This can be either a reference to a specific plant operating state by ID,
+     * or a complete plant operating states table.
+     * 
+     * @implements HLR-DA-B: Grouping components into a homogeneous population
+     */
+    plant_operating_state?: PlantOperatingStatesTable | string;
+
+    /**
+     * The probability model used to evaluate event probability.
+     * @implements DA-A3: USE an appropriate probability model for each basic event
+     */
+    probability_model?: DistributionType;
+
+    /**
+     * Alternative approaches or parameters that could be used.
+     * @implements DA-A5: IDENTIFY reasonable alternatives
+     */
+    alternatives?: string[];
+    
+    /**
+     * Specific component boundaries for this parameter
+     * @implements DA-A1: ESTABLISH component boundaries
+     */
+    componentBoundaries?: {
+        /** Boundary description */
+        description: string;
+        /** Parts included within the boundary */
+        includedParts: string[];
+        /** Parts excluded from the boundary */
+        excludedParts?: string[];
+    };
+    
+    /**
+     * Logic model information
+     * @implements DA-A4: IDENTIFY the parameter to be estimated in terms of the logic model
+     */
+    logicModelInfo?: {
+        /** The logic model type */
+        modelType: string;
+        /** The basic event boundary */
+        basicEventBoundary: string;
+        /** The model used for evaluation */
+        evaluationModel: string;
+    };
+}
+
+/**
+ * Interface representing system or component boundaries for parameter estimation
+ * @group Parameter Definition & Boundaries
+ * @implements DA-A1: ESTABLISH component boundaries
+ */
+export interface ComponentBoundary extends Unique, Named {
+    /** System identifier */
+    systemId: string;
+    
+    /** Component identifier */
+    componentId: string;
+    
+    /** Boundary description */
+    description: string;
+    
+    /** Items included in the boundary */
+    includedItems: string[];
+    
+    /** Items excluded from the boundary */
+    excludedItems?: string[];
+    
+    /** Basis for boundary definition */
+    boundaryBasis: string;
+    
+    /** Reference documents defining the boundary */
+    referenceDocuments?: string[];
+}
+
+/**
+ * Interface representing basic event boundary definitions
+ * @group Parameter Definition & Boundaries
+ * @implements DA-A1: ESTABLISH basic event boundaries
+ */
+export interface BasicEventBoundary extends Unique, Named {
+    /** Basic event identifier */
+    basicEventId: string;
+    
+    /** Boundary description */
+    description: string;
+    
+    /** Conditions included in the boundary */
+    includedConditions: string[];
+    
+    /** Conditions excluded from the boundary */
+    excludedConditions?: string[];
+    
+    /** Basis for boundary definition */
+    boundaryBasis: string;
+    
+    /** Reference documents defining the boundary */
+    referenceDocuments?: string[];
+}
+
+//==============================================================================
+/**
+ * @group Data Collection, Consistency, Grouping
+ * @description Data collection and consistency with parameter definitions
+ * @implements HLR-DA-C
+ */
+//==============================================================================
+
+/**
+ * Interface for external data source integration
+ * @group Data Collection, Consistency, Grouping
+ * @implements DA-C1: OBTAIN generic parameter estimates from recognized sources
+ */
+export interface ExternalDataSource extends Unique, Named {
+    /** Type of data source */
+    sourceType: "INDUSTRY_DATABASE" | "PLANT_RECORDS" | "EXPERT_JUDGMENT" | "OTHER";
+    
+    /** Source location or identifier */
+    sourceLocation: string;
+    
+    /** Time period covered */
+    timePeriod: {
+        start: string;
+        end: string;
+    };
+    
+    /** Access method for retrieving data */
+    accessMethod: string;
+    
+    /** Data format description */
+    dataFormat: string;
+    
+    /** Quality assurance information */
+    qualityAssurance?: string;
+    
+    /** Data limitations */
+    limitations?: string[];
+    
+    /** Reference documentation */
+    referenceDocumentation: string[];
+    
+    /** Data validation method */
+    validationMethod?: string;
+}
+
+/**
+ * Interface for data consistency verification
+ * @group Data Collection, Consistency, Grouping
+ * @implements DA-C2: ENSURE parameter data are consistent with parameter definitions
+ */
+export interface DataConsistencyCheck extends Unique {
+    /** Parameter ID being checked */
+    parameterId: string;
+    
+    /** Data source being checked against */
+    dataSourceId: string;
+    
+    /** Verification method */
+    verificationMethod: string;
+    
+    /** Consistency assessment */
+    consistencyAssessment: "CONSISTENT" | "INCONSISTENT" | "PARTIALLY_CONSISTENT";
+    
+    /** Discrepancies found */
+    discrepancies?: string[];
+    
+    /** Resolution actions for discrepancies */
+    resolutionActions?: string[];
+    
+    /** Verification date */
+    verificationDate: string;
+    
+    /** Verifier name or ID */
+    verifierId: string;
+}
+
+/**
+ * Interface representing a component identified as an outlier and excluded from grouping
+ * @group Data Collection, Consistency, Grouping
+ * @implements DA-B2: DO NOT INCLUDE outliers in the definition of a group
+ */
+export interface OutlierComponent extends Unique {
+    /** Component ID that is excluded from grouping */
+    componentId: string;
+    
+    /** Reference to the group this component would otherwise belong to */
+    potentialGroupId: string;
+    
+    /** Reason for excluding this component as an outlier */
+    exclusionReason: string;
+    
+    /** Detailed justification for why this component is considered an outlier */
+    exclusionJustification: string;
+    
+    /** Characteristics that make this component different from the group */
+    differentiatingCharacteristics: string[];
+    
+    /** How this component is handled in the analysis instead */
+    alternativeHandling: string;
+    
+    /** References to supporting documentation */
+    referenceDocuments?: string[];
+    
+    /** Status of the outlier determination */
+    status: "CONFIRMED" | "TENTATIVE" | "UNDER_REVIEW";
+    
+    /** Date when the outlier determination was made */
+    determinationDate?: string;
+    
+    /** Person or team who made the outlier determination */
+    determinedBy?: string;
+}
+
+/**
+ * Interface representing grouping rationale for components
+ * @group Data Collection, Consistency, Grouping
+ * @implements DA-B1: GROUP components considering design, environmental, and service conditions
+ */
+export interface ComponentGrouping extends Unique, Named {
+    /** Description of the component group */
+    description: string;
+    
+    /** Component IDs in this group */
+    componentIds: string[];
+    
+    /** Design characteristics considered for grouping */
+    designCharacteristics: string[];
+    
+    /** Environmental conditions considered for grouping */
+    environmentalConditions: string[];
+    
+    /** Service conditions considered for grouping */
+    serviceConditions: string[];
+    
+    /** Operational conditions considered for grouping */
+    operationalConditions?: string[];
+    
+    /** Justification for the grouping */
+    groupingJustification: string;
+    
+    /** References to supporting documents */
+    referenceDocuments?: string[];
+    
+    /**
+     * Components explicitly excluded from this group as outliers
+     * @implements DA-B2: DO NOT INCLUDE outliers in the definition of a group
+     */
+    excludedOutliers?: string[];
+    
+    /**
+     * Criteria used to identify outliers for this group
+     * @implements DA-B2: DO NOT INCLUDE outliers in the definition of a group
+     */
+    outlierIdentificationCriteria?: string[];
+}
+
+//==============================================================================
+/**
+ * @group Quantification & Uncertainty
+ * @description Uncertainty characterization, Bayesian updates, evidence integration
+ * @implements HLR-DA-D
+ */
+//==============================================================================
+
+/**
+ * Interface representing the uncertainty associated with a parameter.
+ * The structure of the uncertainty changes based on the distribution type.
+ *
+ * This interface implements several PRA standard requirements:
+ * - **HLR-DA-D**: The parameter estimates shall be based on relevant generic industry and technology- and plant-specific evidence.
+ * - **DA-A3**: USE an appropriate probability model for each basic event.
+ * - **DA-A5**: IDENTIFY the sources of model uncertainty, the related assumptions, and reasonable alternatives
+ * - **ESQ-E1**: ASSESS the effects on event sequence family frequencies of the model uncertainties and related assumptions
+ * - **RI-C1**: COMPILE a list of key sources of model uncertainty and related assumptions
+ *
+ * @group Quantification & Uncertainty
+ * @implements HLR-DA-D, DA-A3, DA-A5
+ */
+export interface Uncertainty {
+    /**
+     * The probability distribution type for the uncertainty.
+     * @implements DA-A3: USE an appropriate probability model for each basic event
+     */
+    distribution: DistributionType;
+
+    /**
+     * Parameters associated with the distribution (e.g., mean, standard deviation).
+     * @implements DA-A4: IDENTIFY the parameter to be estimated and the data required for estimation
+     */
+    parameters: Record<string, number>;
+
+    /**
+     * Sources of uncertainty in the model (e.g., "Limited data", "Model assumptions").
+     * @implements DA-A5: IDENTIFY the sources of model uncertainty, related assumptions
+     */
+    model_uncertainty_sources?: string[];
+
+    /**
+     * Risk assessment implications of this uncertainty.
+     * @implements HLR-DA-D: Each parameter estimate shall be accompanied by a characterization of the uncertainty
+     */
+    riskImplications?: {
         /**
-     * @module data_analysis
-     * @description The objectives of Data Analysis ensure that:
-     * - (a) parameter boundaries are defined;
-     * - (b) components are appropriately grouped;
-     * - (c) parameter data are consistent with parameter definitions;
-     * - (d) relevant generic industry and plant-specific evidence are represented in the parameter estimation, including addressing uncertainties;
-     * - (e) the Data Analysis is documented to provide traceability of the work.
-     * 
-     * @preferred
-     * @category Technical Elements
-     */
+         * References to risk metrics affected by this uncertainty (e.g., "CDF", "LERF").
+         */
+        affectedMetrics: string[];
 
-        
-    import typia, { tags } from "typia";
-    import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
-    import { Named, Unique } from "../core/meta";
-    import { BasicEvent, FrequencyUnit } from "../core/events";
-    import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
-    import { PlantOperatingStatesTable, PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
+        /**
+         * Qualitative assessment of uncertainty significance ("high" | "medium" | "low").
+         */
+        significanceLevel: "high" | "medium" | "low";
 
+        /**
+         * Notes on how this uncertainty propagates through the risk model.
+         */
+        propagationNotes?: string;
+    };
 
     /**
-     * @namespace Parameters
-     * @description Types and interfaces for data analysis parameters
+     * Correlations with other parameters. Captures dependencies between parameters.
+     * @implements ESQ-E1: ASSESS the effects on event sequence family frequencies of the model uncertainties and related assumptions
      */
+    correlations?: {
+        /**
+         * Reference to correlated parameter.
+         */
+        parameterId: string;
 
-    /**
-     * Interface representing the types of parameters used in data analysis.
-     * The parameter type determines the type of data analysis that can be performed.
-     * The parameter type must be one of the types defined in `ParameterType` enum.
-     * 
-     * @memberof Parameters
-     */
-    export type ParameterType =
-        | "FREQUENCY"
-        | "PROBABILITY"
-        | "UNAVAILABILITY"
-        | "CCF_PARAMETER"
-        | "HUMAN_ERROR_PROBABILITY"
-        | "OTHER";
+        /**
+         * Type of correlation ("common_cause" | "environmental" | "operational" | "other").
+         */
+        correlationType: "common_cause" | "environmental" | "operational" | "other";
 
-    /**
-     * Base Data Analysis Parameter - parent of all data analysis parameters
-     * 
-     * This interface implements several PRA standard requirements:
-     * - DA-A4: IDENTIFY the parameter to be estimated
-     * - DA-A5: IDENTIFY the sources of model uncertainty, related assumptions
-     * - DA-A6: IDENTIFY assumptions made due to lack of as-built details
-     * 
-     * @memberof Parameters
-     * @extends {Unique}
-     * @extends {Named}
-     */
-    export interface BaseDataAnalysisParameter extends Unique, Named {
+        /**
+         * Correlation coefficient or factor.
+         */
+        correlationFactor: number;
+
+        /**
+         * Description of correlation basis.
+         */
         description?: string;
-        /**
-         * The type of parameter being analyzed.
-         * DA-A4: IDENTIFY the parameter to be estimated
-         */
-        parameterType: ParameterType;
-        /**
-         * Uncertainty information for the parameter.
-         * DA-A5: IDENTIFY the sources of model uncertainty
-         */
-        uncertainty?: Uncertainty;
-        /**
-         * All data sources used in the analysis, including both general and specific sources.
-         * DA-A4: IDENTIFY the data required for estimation
-         */
-        data_sources?: DataSource[];
-        /**
-         * All assumptions made in the analysis, including both general and specific assumptions.
-         * DA-A5: IDENTIFY the sources of model uncertainty, related assumptions
-         * DA-A6: IDENTIFY assumptions made due to lack of as-built details
-         */
-        assumptions?: Assumption[];
-    }
+    }[];
 
     /**
-     * Data Analysis parameter with specific requirements
-     * 
-     * This interface implements several PRA standard requirements:
-     * - DA-A2: DEFINE failure modes and success criteria
-     * - DA-A3: USE an appropriate probability model for each basic event
-     * - HLR-DA-B: Grouping components into a homogeneous population
-     * 
-     * @memberof Parameters
-     * @extends {BaseDataAnalysisParameter}
+     * Results of sensitivity studies
      */
-    export interface DataAnalysisParameter extends BaseDataAnalysisParameter {
+    sensitivityStudies?: {
         /**
-         * The estimated value for the parameter
+         * Description of the sensitivity study.
          */
-        value: number & tags.Minimum<0>;
-        
-        //Links to event
-        basicEventId?: string;
-        unavailabilityEventId?: string;
+        description: string;
 
         /**
-         * Reference to the system component this parameter is associated with.
-         * This provides access to the component's boundary and grouping information.
-         * HLR-DA-B: Grouping components into a homogeneous population
+         * Range of parameter variation.
          */
-        systemComponentId?: string;
+        variationRange: {
+            min: number;
+            max: number;
+        };
 
         /**
-         * Defines how the component can fail.
-         * DA-A2: DEFINE failure modes
+         * Qualitative or quantitative results.
          */
-        failure_mode?: FailureMode;
+        results: string;
+    }[];
+}
 
-        /**
-         * Defines the criteria for success.
-         * DA-A2: DEFINE success criteria
-         */
-        success_criteria?: SuccessCriteria;
-
-        /**
-         * Represents the plant operating state for which the parameter applies.
-         * This can be either a reference to a specific plant operating state by ID,
-         * or a complete plant operating states table.
-         * 
-         * When using a string, it should reference a PlantOperatingState.uuid.
-         * When using a PlantOperatingStatesTable, it provides the complete set of
-         * operating states that this parameter applies to.
-         * 
-         * The new PlantOperatingStatesTable structure includes:
-         * - startUp: PlantOperatingState - Startup operating state
-         * - controlledShutdown: PlantOperatingState - Controlled shutdown operating state
-         * - fullPower: PlantOperatingState - Full power operating state
-         * - Additional custom operating states as needed
-         * 
-         * Example using a string reference:
-         * ```typescript
-         * plant_operating_state: "pos-fullpower-e89b-12d3-a456-426614174000" // References a specific PlantOperatingState by UUID
-         * ```
-         * 
-         * Example using the PlantOperatingStatesTable:
-         * ```typescript
-         * plant_operating_state: {
-         *   fullPower: {
-         *     uuid: "pos-fullpower-e89b-12d3-a456-426614174000",
-         *     name: "Full Power Operation",
-         *     // ... other required properties
-         *   },
-         *   // ... other operating states
-         * }
-         * ```
-         * 
-         * HLR-DA-B: Grouping components into a homogeneous population
-         */
-        plant_operating_state?: PlantOperatingStatesTable | string;
-
-        /**
-         * The probability model used to evaluate event probability.
-         * DA-A3: USE an appropriate probability model for each basic event
-         */
-        probability_model?: DistributionType;
-
-        /**
-         * Alternative approaches or parameters that could be used.
-         */
-        alternatives?: string[];
-    }
-
+/**
+ * Interface representing a Bayesian update process for parameter estimation.
+ * This is used to combine prior information with new data to produce an updated posterior distribution.
+ * 
+ * @group Quantification & Uncertainty
+ * @implements DA-D4: UPDATE parameter estimates with plant-specific evidence
+ */
+export interface BayesianUpdate {
     /**
-     * @namespace Probability
-     * @description Probability and uncertainty modeling
+     * Whether a Bayesian update was performed
      */
-
+    performed: boolean;
+    
     /**
-     * Enum representing the types of probability models used in data analysis.
-     * @memberof Probability
+     * The method used for the Bayesian update (e.g., "Conjugate prior", "MCMC")
      */
-    export enum DistributionType {
-        EXPONENTIAL = "exponential",
-        BINOMIAL = "binomial",
-        NORMAL = "normal",
-        LOGNORMAL = "lognormal",
-        WEIBULL = "weibull",
-        POISSON = "poisson",
-        UNIFORM = "uniform",
-        BETA = "beta",
-        GAMMA = "gamma",
-        POINT_ESTIMATE = "point_estimate"
-    }
-
+    method: string;
+    
     /**
-     * Interface representing the uncertainty associated with a parameter.
-     * The structure of the uncertainty changes based on the distribution type.
-     *
-     * This interface implements several PRA standard requirements:
-     * - **HLR-DA-D**: The parameter estimates shall be based on relevant generic industry and technology- and plant-specific evidence.
-     * - **DA-A3**: USE an appropriate probability model for each basic event.
-     * - **DA-A5**: IDENTIFY the sources of model uncertainty, the related assumptions, and reasonable alternatives
-     * - **ESQ-E1**: ASSESS the effects on event sequence family frequencies of the model uncertainties and related assumptions
-     * - **RI-C1**: COMPILE a list of key sources of model uncertainty and related assumptions
-     *
-     * @memberof Probability
-     * @example
-     * ```typescript
-     * const emergencyDieselGeneratorFailureUncertainty: Uncertainty = {
-     *   distribution: DistributionType.LOGNORMAL,
-     *   parameters: {
-     *     mean: 1.2e-3,
-     *     errorFactor: 3
-     *   },
-     *   model_uncertainty_sources: [
-     *     "Limited operational data",
-     *     "Environmental factors not fully characterized"
-     *   ],
-     *   riskImplications: {
-     *     affectedMetrics: ["CDF", "LERF"],
-     *     significanceLevel: "high",
-     *     propagationNotes: "Major impact on SBO sequences"
-     *   },
-     *   correlations: [
-     *     {
-     *       parameterId: "DA-EDG-B-FR",
-     *       correlationType: "common_cause",
-     *       correlationFactor: 0.8
-     *     }
-     *   ],
-     *   sensitivityStudies: [
-     *     {
-     *       description: "Impact of maintenance practices",
-     *       variationRange: { min: 0.5, max: 2.0 },
-     *       results: "Linear impact on CDF"
-     *     }
-     *   ]
-     * };
-     * ```
+     * Convergence criteria used for numerical methods (if applicable)
      */
-    export interface Uncertainty {
+    convergence_criteria?: number;
+    
+    /**
+     * Prior distribution information
+     */
+    prior?: {
         /**
-         * The probability distribution type for the uncertainty.
-         * DA-A3: USE an appropriate probability model for each basic event. [1, 2]
+         * The distribution type of the prior
          */
         distribution: DistributionType;
-
+        
         /**
-         * Parameters associated with the distribution (e.g., mean, standard deviation).
-         * DA-A4: IDENTIFY the parameter to be estimated and the data required for estimation [2, 3].
+         * Parameters of the prior distribution
          */
         parameters: Record<string, number>;
-
+        
         /**
-         * Sources of uncertainty in the model (e.g., "Limited data", "Model assumptions").
-         * DA-A5: IDENTIFY the sources of model uncertainty, related assumptions [2, 3].
+         * Source of the prior information
          */
-        model_uncertainty_sources?: string[];
-
-        /**
-         * Risk assessment implications of this uncertainty.
-         * HLR-DA-D: Each parameter estimate shall be accompanied by a characterization of the uncertainty [4].
-         */
-        riskImplications?: {
-            /**
-             * References to risk metrics affected by this uncertainty (e.g., "CDF", "LERF").
-             */
-            affectedMetrics: string[];
-
-            /**
-             * Qualitative assessment of uncertainty significance ("high" | "medium" | "low").
-             */
-            significanceLevel: "high" | "medium" | "low";
-
-            /**
-             * Notes on how this uncertainty propagates through the risk model.
-             */
-            propagationNotes?: string;
-        };
-
-        /**
-         * Correlations with other parameters. Captures dependencies between parameters.
-         * ESQ-E1: ASSESS the effects on event sequence family frequencies of the model uncertainties and related assumptions [5].
-         */
-        correlations?: {
-            /**
-             * Reference to correlated parameter.
-             */
-            parameterId: string;
-
-            /**
-             * Type of correlation ("common_cause" | "environmental" | "operational" | "other").
-             */
-            correlationType: "common_cause" | "environmental" | "operational" | "other";
-
-            /**
-             * Correlation coefficient or factor.
-             */
-            correlationFactor: number;
-
-            /**
-             * Description of correlation basis.
-             */
-            description?: string;
-        }[];
-
-        /**
-         * Results of sensitivity studies
-         */
-        sensitivityStudies?: {
-            /**
-             * Description of the sensitivity study.
-             */
-            description: string;
-
-            /**
-             * Range of parameter variation.
-             */
-            variationRange: {
-                min: number;
-                max: number;
-            };
-
-            /**
-             * Qualitative or quantitative results.
-             */
-            results: string;
-        }[];
-    }
-
+        source?: string;
+    };
+    
     /**
-     * @namespace Sources
-     * @description Data sources and assumptions
+     * Posterior distribution information after update
      */
-
-    /**
-     * Interface representing data sources and their context
-     * @memberof Sources
-     */
-    export interface DataSource {
+    posterior?: {
         /**
-         * The source of the data (e.g., "Plant maintenance records 2020-2023")
-         */
-        source: string;
-        /**
-         * The context or type of the data source (e.g., "Industry standard", "Plant specific")
-         */
-        context?: string;
-        /**
-         * Any additional notes about the data source
-         */
-        notes?: string;
-    }
-
-    /**
-     * Interface representing an assumption and its context
-     * @memberof Sources
-     */
-    export interface Assumption {
-        /**
-         * The assumption statement
-         */
-        statement: string;
-        /**
-         * The context or type of the assumption (e.g., "General", "Value-specific")
-         */
-        context?: string;
-        /**
-         * Any additional notes about the assumption
-         */
-        notes?: string;
-    }
-
-    /**
-     * The objectives of Data Analysis ensure that:
-     * - (a) parameter boundaries are defined;
-     * - (b) components are appropriately grouped;
-     * - (c) parameter data are consistent with parameter definitions;
-     * - (d) relevant generic industry and plant-specific evidence are represented in the parameter estimation, including addressing uncertainties;
-     * - (e) the Data Analysis is documented to provide traceability of the work.
-     * @packageDocumentation
-     */
-
-    /**
-     * Interface representing an analysis of data parameters, which is a type of technical element.
-     * 
-     * @memberof DataAnalysis
-     * @extends {TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS>}
-     * 
-     * @example
-     * ```typescript
-     * const analysis: DataAnalysis = {
-     *   "technical-element-type": TechnicalElementTypes.DATA_ANALYSIS,
-     *   "technical-element-code": "DA",
-     *   data_parameters: [
-     *     {
-     *       uuid: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
-     *       name: "Emergency Diesel Generator Failure Rate",
-     *       description: "Failure rate analysis for EDG-A during power operation",
-     *       parameterType: "FREQUENCY",
-     *       value: 1.2e-5,
-     *       
-     *       // Component and Event References
-     *       basicEventId: "BE-EDG-FS-001",
-     *       systemComponentId: "SYS-EDG-A",
-     *       
-     *       // Failure Characteristics
-     *       failure_mode: {
-     *         type: "FAILURE_TO_START",
-     *         description: "Failure to start on demand signal"
-     *       },
-     *       success_criteria: {
-     *         criteria: "Start and reach rated speed within 10 seconds",
-     *         basis: "Technical Specifications 3.8.1"
-     *       },
-     *       
-     *       // Operating Context - Using the new PlantOperatingStatesTable structure
-     *       plant_operating_state: {
-     *         startUp: {
-     *           uuid: "pos-startup-e89b-12d3-a456-426614174000",
-     *           name: "Plant Startup",
-     *           description: "Reactor startup from subcritical to low power",
-     *           timeBoundary: {
-     *             startingCondition: "Begin control rod withdrawal for startup",
-     *             endingCondition: "Main generator synchronized to grid"
-     *           },
-     *           radioactiveMaterialSources: ["Reactor Core"],
-     *           operatingMode: "Startup",
-     *           rcbConfiguration: "Intact",
-     *           rcsParameters: {
-     *             powerLevel: [0, 0.05],
-     *             decayHeatLevel: [0.01, 0.02],
-     *             reactorCoolantTemperatureAtControlVolume1: [150, 350],
-     *             coolantPressureAtControlVolume1: [0.1, 15.5]
-     *           },
-     *           decayHeatRemoval: {
-     *             primaryCoolingSystems: { "RHR-Loop-A": "YES" },
-     *             secondaryCoolingSystems: { "Auxiliary-Feedwater": "YES" }
-     *           },
-     *           availableInstrumentation: ["Neutron-Flux-Monitoring"],
-     *           radionuclideTransportBarrier: {
-     *             barrier1: "INTACT",
-     *             barrier2: "INTACT"
-     *           },
-     *           initiatingEvents: [],
-     *           safetyFunctions: [],
-     *           meanDuration: 24
-     *         },
-     *         fullPower: {
-     *           uuid: "pos-fullpower-e89b-12d3-a456-426614174000",
-     *           name: "Full Power Operation",
-     *           description: "Normal operation at 100% power with all systems available",
-     *           timeBoundary: {
-     *             startingCondition: "Generator synchronization complete and power ascension to >95% complete",
-     *             endingCondition: "Operator initiates power reduction for shutdown or reactor trip occurs"
-     *           },
-     *           radioactiveMaterialSources: ["Reactor Core", "Primary Coolant"],
-     *           operatingMode: "Power Operation",
-     *           rcbConfiguration: "Intact",
-     *           rcsParameters: {
-     *             powerLevel: [0.98, 1.0],
-     *             decayHeatLevel: [0.06, 0.07],
-     *             reactorCoolantTemperatureAtControlVolume1: [550, 558],
-     *             coolantPressureAtControlVolume1: [2200, 2250]
-     *           },
-     *           decayHeatRemoval: {
-     *             primaryCoolingSystems: { "Main-Feedwater": "YES" },
-     *             secondaryCoolingSystems: { "Main-Condenser": "YES" }
-     *           },
-     *           availableInstrumentation: ["Neutron-Flux-Monitoring"],
-     *           radionuclideTransportBarrier: {
-     *             barrier1: "INTACT",
-     *             barrier2: "INTACT"
-     *           },
-     *           initiatingEvents: [],
-     *           safetyFunctions: [],
-     *           meanDuration: 8000
-     *         },
-     *         controlledShutdown: {
-     *           uuid: "pos-shutdown-e89b-12d3-a456-426614174000",
-     *           name: "Controlled Shutdown",
-     *           description: "Controlled shutdown from full power to hot standby",
-     *           timeBoundary: {
-     *             startingCondition: "Operator initiates power reduction for shutdown",
-     *             endingCondition: "Reactor subcritical and in hot standby condition"
-     *           },
-     *           radioactiveMaterialSources: ["Reactor Core"],
-     *           operatingMode: "Hot Standby",
-     *           rcbConfiguration: "Intact",
-     *           rcsParameters: {
-     *             powerLevel: [0, 0.05],
-     *             decayHeatLevel: [0.05, 0.06],
-     *             reactorCoolantTemperatureAtControlVolume1: [350, 550],
-     *             coolantPressureAtControlVolume1: [1500, 2200]
-     *           },
-     *           decayHeatRemoval: {
-     *             primaryCoolingSystems: { "RHR-Loop-A": "YES" },
-     *             secondaryCoolingSystems: { "Auxiliary-Feedwater": "YES" }
-     *           },
-     *           availableInstrumentation: ["Neutron-Flux-Monitoring"],
-     *           radionuclideTransportBarrier: {
-     *             barrier1: "INTACT",
-     *             barrier2: "INTACT"
-     *           },
-     *           initiatingEvents: [],
-     *           safetyFunctions: [],
-     *           meanDuration: 12
-     *         }
-     *       },
-     *       
-     *       // Statistical Analysis
-     *       probability_model: DistributionType.LOGNORMAL,
-     *       uncertainty: {
-     *         distribution: DistributionType.LOGNORMAL,
-     *         parameters: {
-     *           median: 1.2e-5,
-     *           errorFactor: 3.0
-     *         },
-     *         model_uncertainty_sources: [
-     *           "Limited operational data",
-     *           "Environmental factors not fully characterized"
-     *         ]
-     *       },
-     *       
-     *       // Data Sources and Assumptions
-     *       data_sources: [
-     *         {
-     *           source: "Plant maintenance records 2020-2023",
-     *           context: "Plant specific",
-     *           notes: "Based on 156 successful starts and 2 failures"
-     *         },
-     *         {
-     *           source: "NUREG/CR-6928",
-     *           context: "Industry average",
-     *           notes: "Used for Bayesian update"
-     *         }
-     *       ],
-     *       assumptions: [
-     *         {
-     *           statement: "Maintenance activities restore component to as-good-as-new condition",
-     *           context: "Reliability modeling",
-     *           notes: "Based on comprehensive maintenance procedures"
-     *         },
-     *         {
-     *           statement: "Environmental conditions remain within design basis",
-     *           context: "Operating environment",
-     *           notes: "Verified through environmental monitoring program"
-     *         }
-     *       ],
-     *       
-     *       // Alternative Approaches
-     *       alternatives: [
-     *         "Use of Weibull distribution for age-dependent failure modeling",
-     *         "Incorporation of seasonal variation factors"
-     *       ]
-     *     }
-     *   ]
-     * };
-     * ```
-     */
-    export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS> {
-        /**
-         * Array of data analysis parameters that are part of this analysis.
-         * Each parameter represents a specific data point or measurement being analyzed.
-         */
-        data_parameters: DataAnalysisParameter[];
-    }
-
-    /**
-     * JSON schema for validating {@link DataAnalysis} entities.
-     * 
-     * @memberof DataAnalysis
-     * @example
-     * ```typescript
-     * const isValid = DataAnalysisSchema.validate(someData);
-     * ```
-     */
-    export const DataAnalysisSchema = typia.json.application<[DataAnalysis], "3.0">();
-
-    /**
-     * Interface representing a Bayesian update process for parameter estimation.
-     * This is used to combine prior information with new data to produce an updated posterior distribution.
-     * 
-     * @memberof Probability
-     */
-    export interface BayesianUpdate {
-        /**
-         * Whether a Bayesian update was performed
-         */
-        performed: boolean;
-        
-        /**
-         * The method used for the Bayesian update (e.g., "Conjugate prior", "MCMC")
-         */
-        method: string;
-        
-        /**
-         * Convergence criteria used for numerical methods (if applicable)
-         */
-        convergence_criteria?: number;
-        
-        /**
-         * Prior distribution information
-         */
-        prior?: {
-            /**
-             * The distribution type of the prior
-             */
-            distribution: DistributionType;
-            
-            /**
-             * Parameters of the prior distribution
-             */
-            parameters: Record<string, number>;
-            
-            /**
-             * Source of the prior information
-             */
-            source?: string;
-        };
-        
-        /**
-         * Posterior distribution information after update
-         */
-        posterior?: {
-            /**
-             * The distribution type of the posterior
-             */
-            distribution: DistributionType;
-            
-            /**
-             * Parameters of the posterior distribution
-             */
-            parameters: Record<string, number>;
-        };
-    }
-
-    /**
-     * Interface representing the quantification of a frequency parameter.
-     * This interface is used for frequency-based parameters such as initiating event frequencies.
-     * 
-     * @memberof Probability
-     */
-    export interface FrequencyQuantification {
-        /**
-         * Fraction of time spent in the operating state
-         */
-        operating_state_fraction: number;
-        
-        /**
-         * Number of modules impacted by the event
-         */
-        modules_impacted: number;
-        
-        /**
-         * Total number of modules in the plant
-         */
-        total_modules: number;
-        
-        /**
-         * Generic industry data used for the frequency estimation
-         */
-        generic_data: {
-            /**
-             * Source of the generic data
-             */
-            source: string;
-            
-            /**
-             * Applicability of the generic data to the specific plant
-             */
-            applicability: string;
-            
-            /**
-             * Time period covered by the generic data
-             */
-            time_period: [Date, Date];
-            
-            /**
-             * Number of events observed in the generic data
-             */
-            events: number;
-            
-            /**
-             * Exposure time in the generic data
-             */
-            exposure_time: number;
-            
-            /**
-             * Unit of the exposure time
-             */
-            exposure_unit: FrequencyUnit;
-        };
-        
-        /**
-         * Plant-specific data used for the frequency estimation (if available)
-         */
-        plant_specific_data?: {
-            /**
-             * Number of events observed in the plant-specific data
-             */
-            events: number;
-            
-            /**
-             * Exposure time in the plant-specific data
-             */
-            exposure_time: number;
-            
-            /**
-             * Unit of the exposure time
-             */
-            exposure_unit: FrequencyUnit;
-            
-            /**
-             * Applicability of the plant-specific data
-             */
-            applicability: string;
-        };
-        
-        /**
-         * Bayesian update information (if performed)
-         */
-        bayesian_update?: BayesianUpdate;
-        
-        /**
-         * Estimated frequency value
-         */
-        frequency: number;
-        
-        /**
-         * Unit of the frequency
-         */
-        frequency_unit: FrequencyUnit;
-        
-        /**
-         * Type of probability distribution used for the frequency
+         * The distribution type of the posterior
          */
         distribution: DistributionType;
         
         /**
-         * Parameters of the probability distribution
+         * Parameters of the posterior distribution
          */
-        distribution_parameters: Record<string, number>;
+        parameters: Record<string, number>;
+    };
+    
+    /**
+     * Validation of the update process
+     */
+    validation?: {
+        /** Method used for validation */
+        method: string;
+        /** Results of validation */
+        results: string;
+        /** Any issues identified */
+        issues?: string[];
+    };
+}
+
+/**
+ * Interface representing the quantification of a frequency parameter.
+ * This interface is used for frequency-based parameters such as initiating event frequencies.
+ * 
+ * @group Quantification & Uncertainty
+ * @implements DA-D1: BASE parameter estimates on relevant generic and plant-specific evidence
+ * @implements DA-D3: PROVIDE a mean value for each parameter
+ */
+export interface FrequencyQuantification {
+    /**
+     * Fraction of time spent in the operating state
+     */
+    operating_state_fraction: number;
+    
+    /**
+     * Number of modules impacted by the event
+     */
+    modules_impacted: number;
+    
+    /**
+     * Total number of modules in the plant
+     */
+    total_modules: number;
+    
+    /**
+     * Generic industry data used for the frequency estimation
+     * @implements DA-D1: BASE parameter estimates on relevant generic industry evidence
+     */
+    generic_data: {
+        /**
+         * Source of the generic data
+         */
+        source: string;
         
         /**
-         * Uncertainty information for the frequency
+         * Applicability of the generic data to the specific plant
          */
-        uncertainty: Uncertainty;
-    }
+        applicability: string;
+        
+        /**
+         * Time period covered by the generic data
+         */
+        time_period: [Date, Date];
+        
+        /**
+         * Number of events observed in the generic data
+         */
+        events: number;
+        
+        /**
+         * Exposure time in the generic data
+         */
+        exposure_time: number;
+        
+        /**
+         * Unit of the exposure time
+         */
+        exposure_unit: FrequencyUnit;
+    };
+    
+    /**
+     * Plant-specific data used for the frequency estimation (if available)
+     * @implements DA-D1: BASE parameter estimates on relevant plant-specific evidence
+     */
+    plant_specific_data?: {
+        /**
+         * Number of events observed in the plant-specific data
+         */
+        events: number;
+        
+        /**
+         * Exposure time in the plant-specific data
+         */
+        exposure_time: number;
+        
+        /**
+         * Unit of the exposure time
+         */
+        exposure_unit: FrequencyUnit;
+        
+        /**
+         * Applicability of the plant-specific data
+         */
+        applicability: string;
+    };
+    
+    /**
+     * Bayesian update information (if performed)
+     * @implements DA-D4: UPDATE parameter estimates with plant-specific evidence
+     */
+    bayesian_update?: BayesianUpdate;
+    
+    /**
+     * Estimated frequency value (mean)
+     * @implements DA-D3: PROVIDE a mean value of each parameter
+     */
+    frequency: number;
+    
+    /**
+     * Unit of the frequency
+     */
+    frequency_unit: FrequencyUnit;
+    
+    /**
+     * Type of probability distribution used for the frequency
+     */
+    distribution: DistributionType;
+    
+    /**
+     * Parameters of the probability distribution
+     */
+    distribution_parameters: Record<string, number>;
+    
+    /**
+     * Uncertainty information for the frequency
+     * @implements DA-D2: CHARACTERIZE the uncertainty in parameter estimates
+     */
+    uncertainty: Uncertainty;
+}
+
+//==============================================================================
+/**
+ * @group Documentation & Traceability
+ * @description Documentation of the data analysis process and results
+ * @implements HLR-DA-E
+ */
+//==============================================================================
+
+/**
+ * Interface representing detailed documentation of the data analysis process.
+ * This directly implements DA-E1 requirements (a)-(k).
+ * 
+ * @group Documentation & Traceability
+ * @implements DA-E1
+ */
+export interface DataAnalysisDocumentation extends Unique, Named {
+    /** 
+     * Description of the data analysis process
+     * Specifies inputs, methods, and results
+     * @implements DA-E1: DOCUMENT the process used specifying inputs, methods, and results
+     */
+    processDescription: string;
+    
+    /**
+     * System and component boundaries used
+     * @implements DA-E1(a): System and component boundaries used to establish component failure probabilities
+     */
+    systemComponentBoundaries: {
+        /** System or component ID */
+        id: string;
+        /** Boundary description */
+        boundaryDescription: string;
+        /** Reference documents */
+        references?: string[];
+    }[];
+    
+    /**
+     * Models used to evaluate basic event probabilities
+     * @implements DA-E1(b): The model used to evaluate each basic event probability
+     */
+    basicEventProbabilityModels: {
+        /** Basic event ID */
+        basicEventId: string;
+        /** Probability model used */
+        model: string;
+        /** Justification for model selection */
+        justification?: string;
+    }[];
+    
+    /**
+     * Sources for generic parameter estimates
+     * @implements DA-E1(c): Sources for generic parameter estimates
+     */
+    genericParameterSources: {
+        /** Parameter ID */
+        parameterId: string;
+        /** Data source */
+        source: string;
+        /** Reference */
+        reference?: string;
+    }[];
+    
+    /**
+     * Plant-specific and operating state-specific data sources
+     * @implements DA-E1(d): Plant-specific and plant operating state-specific sources of data
+     */
+    plantSpecificDataSources: {
+        /** Parameter ID */
+        parameterId: string;
+        /** Data source */
+        source: string;
+        /** Operating state(s) */
+        operatingState?: string;
+        /** Time period */
+        timePeriod?: string;
+    }[];
+    
+    /**
+     * Time periods for plant-specific data collection
+     * @implements DA-E1(e): The time periods for which plant-specific data were gathered
+     */
+    dataCollectionPeriods: {
+        /** Parameter ID */
+        parameterId: string;
+        /** Start date */
+        startDate: string;
+        /** End date */
+        endDate: string;
+        /** Justification for censoring */
+        censoringJustification?: string;
+    }[];
+    
+    /**
+     * Justification for exclusion of any data
+     * @implements DA-E1(f): Justification for exclusion of any data
+     */
+    dataExclusionJustifications: {
+        /** Parameter ID */
+        parameterId: string;
+        /** Excluded data description */
+        excludedData: string;
+        /** Justification for exclusion */
+        justification: string;
+    }[];
+    
+    /**
+     * Basis for CCF probability estimates
+     * @implements DA-E1(g): The basis for the estimates of CCF probabilities
+     */
+    ccfProbabilityBasis: {
+        /** CCF parameter ID */
+        ccfParameterId: string;
+        /** Estimation method */
+        estimationMethod: string;
+        /** Justification for data mapping */
+        mappingJustification?: string;
+    }[];
+    
+    /**
+     * Rationale for prior distributions in Bayesian updates
+     * @implements DA-E1(h): The rationale for any distributions used as priors for Bayesian updates
+     */
+    bayesianPriorRationales: {
+        /** Parameter ID */
+        parameterId: string;
+        /** Prior distribution */
+        priorDistribution: string;
+        /** Rationale */
+        rationale: string;
+    }[];
+    
+    /**
+     * Parameter estimates with uncertainty characterization
+     * @implements DA-E1(i): Parameter estimate including the characterization of uncertainty
+     */
+    parameterEstimates: {
+        /** Parameter ID */
+        parameterId: string;
+        /** Estimate value */
+        estimate: number;
+        /** Uncertainty characterization */
+        uncertaintyCharacterization: string;
+    }[];
+    
+    /**
+     * Justification for full power or other plant operating state data
+     * @implements DA-E1(j): Justification for use of full power or other plant operating state data
+     */
+    operatingStateDataJustifications: {
+        /** Parameter ID */
+        parameterId: string;
+        /** Operating state */
+        operatingState: string;
+        /** Justification */
+        justification: string;
+    }[];
+    
+    /**
+     * Rationale for using generic parameter estimates
+     * @implements DA-E1(k): Rationale for using generic parameter estimates
+     */
+    genericParameterRationales: {
+        /** Parameter ID */
+        parameterId: string;
+        /** Operating state(s) */
+        operatingStates: string[];
+        /** Rationale */
+        rationale: string;
+    }[];
+    
+    /**
+     * Documentation of component grouping and outlier handling
+     * @implements DA-B1: DEFINE the criteria used for grouping components
+     * @implements DA-B2: DO NOT INCLUDE outliers in the definition of a group
+     */
+    componentGroupingDocumentation?: {
+        /** Group ID */
+        groupId: string;
+        
+        /** Grouping criteria description */
+        groupingCriteria: string;
+        
+        /** Outlier identification methodology */
+        outlierIdentificationMethodology: string;
+        
+        /** Justification for outlier exclusions */
+        outlierExclusionJustifications: {
+            /** Component ID */
+            componentId: string;
+            
+            /** Reason for exclusion */
+            exclusionReason: string;
+            
+            /** Detailed justification */
+            detailedJustification: string;
+            
+            /** Alternative treatment in the analysis */
+            alternativeTreatment: string;
+        }[];
+        
+        /** References to supporting analyses */
+        supportingAnalyses?: string[];
+    }[];
+}
+
+/**
+ * Interface representing model uncertainty sources in data analysis
+ * @group Documentation & Traceability
+ * @implements DA-E2
+ */
+export interface ModelUncertaintyDocumentation extends Unique, Named {
+    /** 
+     * Description of model uncertainty sources
+     * @implements DA-E2: DOCUMENT the sources of model uncertainty
+     */
+    uncertaintySources: {
+        /** Source description */
+        source: string;
+        /** Impact on analysis */
+        impact: string;
+        /** Applicable parameter(s) */
+        applicableParameters?: string[];
+    }[];
+    
+    /**
+     * Related assumptions
+     * @implements DA-E2: DOCUMENT related assumptions
+     */
+    relatedAssumptions: {
+        /** Assumption description */
+        assumption: string;
+        /** Basis for assumption */
+        basis: string;
+        /** Applicable parameter(s) */
+        applicableParameters?: string[];
+    }[];
+    
+    /**
+     * Reasonable alternatives considered
+     * @implements DA-E2: DOCUMENT reasonable alternatives
+     */
+    reasonableAlternatives: {
+        /** Alternative description */
+        alternative: string;
+        /** Reason not selected */
+        reasonNotSelected: string;
+        /** Applicable parameter(s) */
+        applicableParameters?: string[];
+    }[];
+    
+    /**
+     * Reference to requirement
+     * @implements DA-E2: Associated with Requirement DA-A5
+     */
+    requirementReference: string;
+}
+
+/**
+ * Interface representing pre-operational assumptions documentation
+ * @group Documentation & Traceability
+ * @implements DA-E3
+ */
+export interface PreOperationalAssumptionsDocumentation extends Unique, Named {
+    /**
+     * Assumptions due to lack of as-built, as-operated details
+     * @implements DA-E3: DOCUMENT assumptions and limitations due to lack of as-built, as-operated details
+     */
+    assumptions: {
+        /** Assumption statement */
+        statement: string;
+        
+        /** Rationale/justification */
+        rationale: string;
+        
+        /** References supporting the assumption */
+        references?: string[];
+        
+        /** Parameters or basic events impacted */
+        impactedParameters: string[];
+        
+        /** Closure criteria */
+        closureCriteria: string;
+        
+        /** Current status */
+        status: "OPEN" | "CLOSED" | "IN_PROGRESS";
+        
+        /** Limitations imposed by this assumption */
+        limitations?: string[];
+        
+        /** Risk impact assessment */
+        riskImpact?: string;
+        
+        /** Plans to address the assumption */
+        addressingPlans?: string;
+    }[];
+    
+    /**
+     * Reference to DA-A6
+     * @implements DA-E3: See DA-A6
+     */
+    relatedRequirement: string;
+    
+    /**
+     * Reference to DA-N-5 (Note)
+     * @implements DA-E3: See Note DA-N-5
+     */
+    relatedNote: string;
+}
+
+/**
+ * Interface representing peer review documentation for data analysis
+ * @group Documentation & Traceability
+ */
+export interface PeerReviewDocumentation extends Unique, Named {
+    /** Review date */
+    reviewDate: string;
+    
+    /** Review team members */
+    reviewTeam: string[];
+    
+    /** Findings and observations */
+    findings: {
+        /** Finding ID */
+        id: string;
+        /** Finding description */
+        description: string;
+        /** Significance level */
+        significance: "HIGH" | "MEDIUM" | "LOW";
+        /** Associated requirement(s) */
+        associatedRequirements: string[];
+        /** Status */
+        status: "OPEN" | "CLOSED" | "IN_PROGRESS";
+        /** Resolution plan */
+        resolutionPlan?: string;
+        /** Resolution date */
+        resolutionDate?: string;
+    }[];
+    
+    /** Review scope */
+    scope: string;
+    
+    /** Review methodology */
+    methodology: string;
+    
+    /** Review report reference */
+    reportReference: string;
+    
+    /**
+     * Specific review of component grouping and outlier handling
+     * @implements DA-B2: DO NOT INCLUDE outliers in the definition of a group
+     */
+    outlierReview?: {
+        /** Whether outlier identification was reviewed */
+        outlierIdentificationReviewed: boolean;
+        
+        /** Assessment of outlier identification methodology */
+        methodologyAssessment: string;
+        
+        /** Assessment of outlier exclusion justifications */
+        justificationAssessment: string;
+        
+        /** Specific outlier findings */
+        outlierFindings: {
+            /** Component ID */
+            componentId: string;
+            
+            /** Finding description */
+            finding: string;
+            
+            /** Recommendation */
+            recommendation: string;
+            
+            /** Status */
+            status: "ACCEPTED" | "REJECTED" | "UNDER_REVIEW";
+        }[];
+        
+        /** Overall assessment of outlier handling */
+        overallAssessment: string;
+    };
+}
+
+//==============================================================================
+/**
+ * @group API
+ * @description Entry point interfaces, validation, and integration components
+ */
+//==============================================================================
+
+/**
+ * Interface for validation rules to ensure parameter data analysis is correctly performed
+ * @group API
+ */
+export interface ParameterValidationRules {
+    /**
+     * Rules for component boundary validation
+     */
+    componentBoundaryRules: {
+        /** Validation description */
+        description: string;
+        /** Validation method */
+        validationMethod: string;
+        /** Required elements for boundary definition */
+        requiredElements: string[];
+    };
+    
+    /**
+     * Rules for parameter consistency validation
+     */
+    parameterConsistencyRules: {
+        /** Validation description */
+        description: string;
+        /** Validation method */
+        validationMethod: string;
+        /** Consistency checks to perform */
+        consistencyChecks: string[];
+    };
+    
+    /**
+     * Rules for uncertainty characterization validation
+     */
+    uncertaintyValidationRules: {
+        /** Validation description */
+        description: string;
+        /** Required uncertainty elements */
+        requiredElements: string[];
+        /** Validation criteria */
+        validationCriteria: string[];
+    };
+    
+    /**
+     * Rules for data source validation
+     */
+    dataSourceValidationRules: {
+        /** Validation description */
+        description: string;
+        /** Source quality criteria */
+        qualityCriteria: string[];
+        /** Applicability assessment requirements */
+        applicabilityRequirements: string[];
+    };
+    
+    /**
+     * Rules for outlier identification and validation
+     * @implements DA-B2: DO NOT INCLUDE outliers in the definition of a group
+     */
+    outlierValidationRules?: {
+        /** Validation description */
+        description: string;
+        
+        /** Criteria for identifying outliers */
+        outlierIdentificationCriteria: string[];
+        
+        /** Required justification elements for outlier exclusion */
+        requiredJustificationElements: string[];
+        
+        /** Validation checks for proper outlier handling */
+        validationChecks: string[];
+        
+        /** Review process for outlier determinations */
+        reviewProcess: string;
+    };
+}
+
+/**
+ * Interface for export/import of data analysis parameters
+ * @group API
+ */
+export interface DataAnalysisExportImport {
+    /**
+     * Export format specification
+     */
+    exportFormat: "JSON" | "CSV" | "XML";
+    
+    /**
+     * Export configuration
+     */
+    exportConfig: {
+        /** Include uncertainty information */
+        includeUncertainty: boolean;
+        /** Include documentation references */
+        includeDocumentation: boolean;
+        /** Include source data */
+        includeSourceData: boolean;
+    };
+    
+    /**
+     * Import validation rules
+     */
+    importValidation: {
+        /** Required fields */
+        requiredFields: string[];
+        /** Validation checks */
+        validationChecks: string[];
+        /** Error handling approach */
+        errorHandling: "STRICT" | "LENIENT";
+    };
+    
+    /**
+     * Mapping for external data sources
+     */
+    externalSourceMapping: {
+        /** Source field */
+        sourceField: string;
+        /** Target field */
+        targetField: string;
+        /** Transformation logic */
+        transformation?: string;
+    }[];
+}
+
+/**
+ * Interface representing the main Data Analysis container
+ * 
+ * The objectives of Data Analysis ensure that:
+ * - (a) parameter boundaries are defined;
+ * - (b) components are appropriately grouped;
+ * - (c) parameter data are consistent with parameter definitions;
+ * - (d) relevant generic industry and plant-specific evidence are represented in the parameter estimation, including addressing uncertainties;
+ * - (e) the Data Analysis is documented to provide traceability of the work.
+ * 
+ * @group API
+ * @extends {TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS>}
+ */
+export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS> {
+    /**
+     * Array of data analysis parameters that are part of this analysis.
+     * Each parameter represents a specific data point or measurement being analyzed.
+     */
+    data_parameters: DataAnalysisParameter[];
+    
+    /**
+     * Component groupings for homogeneous populations
+     * @implements HLR-DA-B
+     */
+    componentGroupings?: ComponentGrouping[];
+    
+    /**
+     * Components identified as outliers and excluded from groupings
+     * @implements DA-B2: DO NOT INCLUDE outliers in the definition of a group
+     */
+    outlierComponents?: OutlierComponent[];
+    
+    /**
+     * External data sources used in the analysis
+     * @implements HLR-DA-C
+     */
+    externalDataSources?: ExternalDataSource[];
+    
+    /**
+     * Data consistency checks performed
+     * @implements DA-C2
+     */
+    dataConsistencyChecks?: DataConsistencyCheck[];
+    
+    /**
+     * Detailed documentation of the data analysis process
+     * @implements HLR-DA-E
+     */
+    documentation?: {
+        /** Process and results documentation */
+        processDocumentation?: DataAnalysisDocumentation;
+        
+        /** Model uncertainty documentation */
+        modelUncertainty?: ModelUncertaintyDocumentation;
+        
+        /** Pre-operational assumptions */
+        preOperationalAssumptions?: PreOperationalAssumptionsDocumentation;
+        
+        /** Peer review documentation */
+        peerReview?: PeerReviewDocumentation;
+    };
+    
+    /**
+     * Validation rules for parameters
+     */
+    validationRules?: ParameterValidationRules;
+    
+    /**
+     * Export/import configuration
+     */
+    exportImportConfig?: DataAnalysisExportImport;
+}
+
+/**
+ * JSON schema for validating {@link DataAnalysis} entities.
+ * 
+ * @group API
+ * @example
+ * ```typescript
+ * const isValid = DataAnalysisSchema.validate(someData);
+ * ```
+ */
+export const DataAnalysisSchema = typia.json.application<[DataAnalysis], "3.0">();

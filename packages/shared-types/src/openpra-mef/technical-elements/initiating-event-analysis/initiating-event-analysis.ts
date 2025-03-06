@@ -716,7 +716,48 @@ export interface InitiatingEventDocumentation {
 }
 
 /**
- * Pre-operational assumptions and limitations
+ * Peer review documentation for Initiating Event Analysis
+ * @remarks **HLR-IE-D**: The documentation of the Initiating Event Analysis shall provide traceability of the work.
+ * @remarks **IE-D1**: DOCUMENT the process used in the Initiating Event Analysis specifying what is used as input, the applied methods, and the results.
+ * @group Documentation & Traceability
+ */
+export interface PeerReviewDocumentation extends Unique, Named {
+    /** Review date */
+    reviewDate: string;
+    
+    /** Review team members */
+    reviewTeam: string[];
+    
+    /** Findings and observations */
+    findings: {
+        /** Finding ID */
+        id: string;
+        /** Finding description */
+        description: string;
+        /** Significance level */
+        significance: "HIGH" | "MEDIUM" | "LOW";
+        /** Associated requirement(s) */
+        associatedRequirements: string[];
+        /** Status */
+        status: "OPEN" | "CLOSED" | "IN_PROGRESS";
+        /** Resolution plan */
+        resolutionPlan?: string;
+        /** Resolution date */
+        resolutionDate?: string;
+    }[];
+    
+    /** Review scope */
+    scope: string;
+    
+    /** Review methodology */
+    methodology: string;
+    
+    /** Review report reference */
+    reportReference: string;
+}
+
+/**
+ * Pre-operational assumptions for Initiating Event Analysis
  * @remarks **IE-D3**: For PRAs performed during the pre-operational stage, DOCUMENT assumptions and limitations due to the lack of as-built, as-operated details...
  * @group Documentation & Traceability
  */
@@ -842,6 +883,12 @@ export interface InitiatingEventsAnalysis extends TechnicalElement<TechnicalElem
      * @remarks **IE-D1**: DOCUMENT the process used in the Initiating Event Analysis specifying what is used as input, the applied methods, and the results.
      */
     documentation?: InitiatingEventDocumentation;
+    
+    /**
+     * Peer review documentation
+     * @remarks **HLR-IE-D**: The documentation of the Initiating Event Analysis shall provide traceability of the work.
+     */
+    peer_review?: PeerReviewDocumentation;
     
     /**
      * Pre-operational assumptions and limitations

@@ -61,7 +61,7 @@ export class RabbitMQConnectionService implements OnApplicationShutdown {
     while (attempt < retryCount) {
       try {
         const connection = await amqp.connect(url);
-        this.logger.log(`${serviceName} successfully connected to the RabbitMQ broker.`);
+        this.logger.debug(`${serviceName} successfully connected to the RabbitMQ broker.`);
         return connection;
       } catch {
         attempt++;

@@ -22,9 +22,9 @@ export class ProducerService implements OnApplicationBootstrap {
    */
   async onApplicationBootstrap(): Promise<void> {
     try {
-      this.logger.log("Connecting to the broker");
+      this.logger.debug("Connecting to the broker");
       this.channel = await this.queueService.setupQueue(this.queueConfig);
-      this.logger.log("Initialized and ready to send messages");
+      this.logger.debug("Initialized and ready to send messages");
     } catch (error) {
       this.logger.error("Failed to initialize:", error);
     }
@@ -42,14 +42,14 @@ export class ProducerService implements OnApplicationBootstrap {
         return;
       }
 
-      this.logger.log("Gets the request body from the Quantification controller");
+      this.logger.debug("Gets the request body from the Quantification controller");
       const modelsData = typia.json.assertStringify<QuantifyRequest>(quantRequest);
 
-      this.logger.log("Queueing the quantification job");
+      this.logger.debug("Queueing the quantification job");
       this.channel.sendToQueue(this.queueConfig.name, Buffer.from(modelsData), {
         persistent: true,
       });
-      this.logger.log("Quantification job queued");
+      this.logger.debug("Quantification job queued");
     } catch (error) {
       if (error instanceof TypeGuardError) {
         this.logger.error(error);

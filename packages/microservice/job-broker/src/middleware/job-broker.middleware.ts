@@ -1,4 +1,4 @@
-import { Injectable, NestMiddleware } from "@nestjs/common";
+import { Injectable, Logger, NestMiddleware } from "@nestjs/common";
 import { Request, Response, NextFunction } from "express";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
@@ -9,6 +9,8 @@ import { ExecutableJobReport } from "./schemas/executable-job.schema";
 
 @Injectable()
 export class JobBrokerMiddleware implements NestMiddleware {
+  private readonly logger = new Logger(JobBrokerMiddleware.name);
+
   constructor(
     @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
     @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
@@ -26,14 +28,18 @@ export class JobBrokerMiddleware implements NestMiddleware {
   /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
-    console.log("Checking whether it is a quantification or executable request");
     if (this.isQuantifyRequest(req.body)) {
-      console.log("Creating a MongoDB document to store the quantification request");
+      this.logger.debug("Storing the quantification request...");
       const quantificationJob = await this.quantificationJobModel.create({ configuration: req.body });
-      req.body._id = quantificationJob._id.toString();
+      const jobId = quantificationJob._id.toString();
+      this.logger.debug(`${jobId} has been stored.`);
+      req.body._id = jobId;
     } else if (this.isExecutionTask(req.body)) {
-      const executableJob = await this.executableJobModel.create({ task: req.body });
-      req.body._id = executableJob._id.toString();
+      this.logger.debug("Storing the executable task...");
+      const executableTask = await this.executableJobModel.create({ task: req.body });
+      const taskId = executableTask._id.toString();
+      this.logger.debug(`${taskId} has been stored.`);
+      req.body._id = taskId;
     }
 
     next();

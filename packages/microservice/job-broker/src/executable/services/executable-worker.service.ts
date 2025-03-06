@@ -28,10 +28,10 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
    */
   async onApplicationBootstrap(): Promise<void> {
     try {
-      this.logger.log("Connecting to the broker");
+      this.logger.debug("Connecting to the broker");
       this.taskChannel = await this.queueService.setupQueue(this.taskQueueConfig);
       await this.consumeExecutableTasks();
-      this.logger.log("Initialized and consuming messages");
+      this.logger.debug("Initialized and consuming messages");
     } catch (error) {
       this.logger.error("Failed to initialize:", error);
     }
@@ -71,10 +71,10 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
               stderr: result.stderr,
             },
           });
-          this.logger.log(`Task ${String(taskData._id)} execution result stored in database`);
+          this.logger.debug(`Task ${String(taskData._id)} execution result stored in database`);
 
           this.taskChannel?.ack(msg);
-          this.logger.log(`Task ${String(taskData._id)} executed successfully`);
+          this.logger.debug(`Task ${String(taskData._id)} executed successfully`);
         } catch (error) {
           if (error instanceof TypeGuardError) {
             this.logger.error(error);

@@ -1,6 +1,6 @@
 import { Edge, Node } from "reactflow";
 import { GenerateUUID } from "../../../utils/treeUtils";
-import { resetSequenceCounter, setFirstColumnLabel } from "../../components/treeNodes/eventTreeEditorNode/outputNode";
+import { setFirstColumnLabel } from "../../components/treeNodes/eventTreeEditorNode/outputNode";
 
 /**
  Helper function to get initials
@@ -93,7 +93,7 @@ const useTreeData = (
   const verticalLevels = inputLevels + outputLevels;
 
   // Reset counter at the start
-  resetSequenceCounter();
+  //resetSequenceCounter();
 
   // Function to generate tree nodes and edges
   const generateTreeNodesAndEdges = (): { nodes: Node[]; edges: Edge[] } => {

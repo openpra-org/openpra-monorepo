@@ -1,4 +1,3 @@
-// outputnode.tsx
 import { Handle, NodeProps, Position, Node } from "reactflow";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { EuiText, EuiSelect, EuiIcon, EuiButton } from "@elastic/eui";

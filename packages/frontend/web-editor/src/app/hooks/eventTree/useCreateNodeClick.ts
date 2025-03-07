@@ -3,7 +3,6 @@ import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph"
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
-import { recalculateFrequencies } from "../../../utils/recalculateFrequencies";
 import { createEndStates } from "./useTreeData";
 
 function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
@@ -144,13 +143,11 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     setNodes(nodes);
     setEdges(updatedEdges);
 
-    // Then recalculate frequencies and update nodes
-    const recalculatedNodes = recalculateFrequencies(nodes, updatedEdges);
-    setNodes(recalculatedNodes);
+    setNodes([...nodes]);
 
     const eventTreeCurrentState: EventTreeGraph = EventTreeState({
       eventTreeId: eventTreeId,
-      nodes: recalculatedNodes,
+      nodes: nodes,
       edges: updatedEdges,
     });
 

@@ -77,6 +77,8 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
           depth: level + clickedNodeDepth,
           width: rootNode.data.width,
           output: false,
+          isSequenceId: level >= inputLevels - clickedNodeDepth,
+          sequenceId: level >= inputLevels - clickedNodeDepth ? "" : null, // Set to null if its not a sequence
         },
         position: {
           x: clickedNode?.position.x!,
@@ -140,6 +142,8 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     const updatedEdges = edges.concat(newEdges);
     setNodes(nodes);
     setEdges(updatedEdges);
+
+    setNodes([...nodes]);
 
     const eventTreeCurrentState: EventTreeGraph = EventTreeState({
       eventTreeId: eventTreeId,

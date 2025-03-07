@@ -1,10 +1,10 @@
-import { Handle, NodeProps, Position } from "reactflow";
-import React, { useState, useEffect } from "react";
+import { Handle, NodeProps, Position, Node } from "reactflow";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { EuiText, EuiSelect, EuiIcon, EuiButton } from "@elastic/eui";
+import { useReactFlow, useStore } from "reactflow";
 import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCategory";
 import { GenericModal } from "../../modals/genericModal";
 import styles from "./styles/nodeTypes.module.css";
-
 // Separate Modal Body Component for managing categories
 const ManageCategoriesForm = ({
   categories,
@@ -80,19 +80,6 @@ const ManageCategoriesForm = ({
   );
 };
 
-// Counter for sequence IDs
-let sequenceCounter = 1;
-const usedIds = new Set();
-
-// Helper function to get initials
-const getInitials = (str: string): string => {
-  return str
-    .split(" ")
-    .map((word) => word[0])
-    .join("")
-    .toUpperCase();
-};
-
 // Store first column label
 let firstColumnLabel = "Initiating Event";
 
@@ -104,20 +91,33 @@ export const setFirstColumnLabel = (label: string) => {
 function OutputNode({ id, data }: NodeProps) {
   const { categories, addCategory, deleteCategory } = useCategoryContext();
   const [releaseCategory, setReleaseCategory] = useState(data.label);
-  const [sequenceId, setSequenceId] = useState("");
+  const [displayLabel, setDisplayLabel] = useState(data.label);
   const [isManageModalVisible, setIsManageModalVisible] = useState(false);
   const selectOptions = categories;
+  const [sequenceId, setSequenceId] = useState<string | null>(null);
+  const nodes = useStore((store) => store.getNodes());
 
-  // Initialize sequence ID on mount
-  useEffect(() => {
-    if (data.isSequenceId && !sequenceId) {
-      if (!usedIds.has(id)) {
-        const initials = getInitials(firstColumnLabel);
-        setSequenceId(`${initials}-${sequenceCounter++}`);
-        usedIds.add(id);
-      }
+  const updateSequenceId = useCallback(() => {
+    if (data.isSequenceId) {
+      const sequenceIdNodes = nodes
+        .filter((node) => node.type === "outputNode" && node.data.isSequenceId)
+        .sort((a, b) => a.position.y - b.position.y);
+
+      sequenceIdNodes.forEach((node, index) => {
+        if (node.id === id) {
+          const calculatedSequenceId = `IE-${index + 1}`;
+          if (sequenceId !== calculatedSequenceId) {
+            setSequenceId(calculatedSequenceId);
+            setDisplayLabel(calculatedSequenceId);
+          }
+        }
+      });
     }
-  }, [id, data.isSequenceId]);
+  }, [data.isSequenceId, nodes, id, sequenceId]);
+
+  useEffect(() => {
+    updateSequenceId();
+  }, [updateSequenceId]);
 
   const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
@@ -130,14 +130,6 @@ function OutputNode({ id, data }: NodeProps) {
 
   const handleModalClose = () => {
     setIsManageModalVisible(false);
-  };
-
-  // Format the display label
-  const getDisplayLabel = () => {
-    if (data.isSequenceId) {
-      return sequenceId;
-    }
-    return data.label;
   };
 
   return (
@@ -208,7 +200,7 @@ function OutputNode({ id, data }: NodeProps) {
             )}
           </div>
         ) : (
-          <EuiText style={{ fontSize: "0.7rem" }}>{getDisplayLabel()}</EuiText>
+          <EuiText style={{ fontSize: "0.7rem" }}>{displayLabel}</EuiText>
         )}
       </div>
       <Handle
@@ -225,11 +217,5 @@ function OutputNode({ id, data }: NodeProps) {
     </div>
   );
 }
-
-// Function to reset counter
-export const resetSequenceCounter = () => {
-  usedIds.clear();
-  sequenceCounter = 1;
-};
 
 export default OutputNode;

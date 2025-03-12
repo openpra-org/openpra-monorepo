@@ -16,7 +16,7 @@
         "copy-schema": "cp docs/json-schemas/schemas.json docs/assets/schemas.json",
         "copy-download-page": "cp schema-download.html docs/schema-download.html",
         "generate-typedoc": "typedoc --options typedoc.json",
-        "docs": "npm run clean && npm run create-dirs && npm run generate-schema && npm run copy-schema && npm run copy-download-page && npm run generate-typedoc",
+        "docs": "npm run clean && npm run generate-typedoc && npm run create-dirs && npm run generate-schema && npm run copy-schema && npm run copy-download-page",
         "serve": "http-server docs -o -c-1"
     },
     "dependencies": {

@@ -6,7 +6,7 @@
   "theme": "default",
   "plugin": [],
   "name": "Technical Elements Documentation",
-  "cleanOutputDir": true,
+  "cleanOutputDir": false,
   
   "excludePrivate": true,
   "excludeProtected": true,

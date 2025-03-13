@@ -6,7 +6,6 @@ import { ExecutableJobReport, ExecutableJobSchema } from "../middleware/schemas/
 import { QuantificationJobReport, QuantificationJobSchema } from "../middleware/schemas/quantification-job.schema";
 import { ExecutableController } from "./executable.controller";
 import { ExecutableService } from "./services/executable.service";
-import { ExecutableWorkerService } from "./services/executable-worker.service";
 import { ExecutableStorageService } from "./services/executable-storage.service";
 
 @Module({
@@ -18,7 +17,7 @@ import { ExecutableStorageService } from "./services/executable-storage.service"
     ]),
   ],
   controllers: [ExecutableController],
-  providers: [ExecutableService, ExecutableWorkerService, ExecutableStorageService],
+  providers: [ExecutableService, ExecutableStorageService],
 })
 export class ExecutableModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

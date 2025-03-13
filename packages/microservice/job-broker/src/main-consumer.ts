@@ -2,10 +2,10 @@ import { NestFactory } from "@nestjs/core";
 import { MicroserviceOptions, Transport } from "@nestjs/microservices";
 import { ConfigService } from "@nestjs/config";
 import { EnvVarKeys } from "../config/env_vars.config";
-import { QuantificationConsumerModule } from "./quantification/quantification-consumer.module";
+import { JobBrokerConsumerModule } from "./job-broker-consumer.module";
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(QuantificationConsumerModule);
+  const app = await NestFactory.create(JobBrokerConsumerModule);
   const configService: ConfigService = app.get(ConfigService);
   const url = configService.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
   app.connectMicroservice<MicroserviceOptions>({

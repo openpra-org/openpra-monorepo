@@ -7,11 +7,6 @@ import { Named, Unique } from "./meta";
 
 /**
  * @namespace technical_elements.core.events
- * @description Event types and interfaces for technical elements
- */
-
-/**
- * @namespace technical_elements.core.events
  * @description Base event types and interfaces for the technical elements
  */
 
@@ -19,6 +14,7 @@ import { Named, Unique } from "./meta";
  * Represents a frequency value that must be non-negative
  * @description Used for event frequencies across different event types
  * @memberof technical_elements.core.events
+ * @group Events
  */
 export type Frequency = number & tags.Minimum<0>;
 
@@ -28,6 +24,7 @@ export type Frequency = number & tags.Minimum<0>;
  * @example
  * const unit: FrequencyUnit = FrequencyUnit.PER_REACTOR_YEAR;
  * @memberof technical_elements.core.events
+ * @group Events
  */
 export enum FrequencyUnit {
   /** Frequency per reactor year - used for reactor-specific events */
@@ -45,6 +42,7 @@ export enum FrequencyUnit {
  * @memberof technical_elements.core.events
  * @extends {Unique}
  * @extends {Named}
+ * @group Events
  */
 export interface BaseEvent extends Unique, Named {
   description?: string;
@@ -59,6 +57,7 @@ export interface BaseEvent extends Unique, Named {
  * Basic Event type
  * @memberof technical_elements.core.events.basic
  * @extends {BaseEvent}
+ * @group Events
  */
 export interface BasicEvent extends BaseEvent {
   eventType: "BASIC";
@@ -73,6 +72,7 @@ export interface BasicEvent extends BaseEvent {
  * Functional Event type
  * @memberof technical_elements.core.events.functional
  * @extends {BaseEvent}
+ * @group Events
  */
 export interface FunctionalEvent extends BaseEvent {
   eventType: "FUNCTIONAL";
@@ -82,6 +82,7 @@ export interface FunctionalEvent extends BaseEvent {
  * Top Event
  * @memberof technical_elements.core.events.functional
  * @extends {FunctionalEvent}
+ * @group Events
  */
 export interface TopEvent extends FunctionalEvent {
   eventSubType: "TOP";
@@ -96,6 +97,7 @@ export interface TopEvent extends FunctionalEvent {
  * Initiating Event type
  * @memberof technical_elements.core.events.initiating
  * @extends {BaseEvent}
+ * @group Events
  */
 export interface InitiatingEvent extends BaseEvent {
   eventType: "INITIATING";
@@ -108,8 +110,10 @@ export interface InitiatingEvent extends BaseEvent {
  */
 
 /**
+ * @internal
  * Event validation schemas
  * @memberof technical_elements.core.validation
+ * @group Events
  */
 export const EventSchemas = {
   base: typia.json.application<[BaseEvent], "3.0">(),

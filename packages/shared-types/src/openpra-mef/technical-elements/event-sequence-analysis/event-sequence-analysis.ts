@@ -1,564 +1,1321 @@
 /**
  * @module event_sequence_analysis
- * @description Types and interfaces for Event Sequence Analysis
+ * @description Comprehensive types and interfaces for Event Sequence Analysis (ES)
+ * 
+ * The objectives of Event Sequence Analysis ensure that:
+ * - (a) the sources of radioactive material, the barriers to radionuclide release, and the safety 
+ *       functions necessary to protect each barrier for each source within the scope of the PRA 
+ *       model are defined as a basis for the event sequence model development and described for 
+ *       each plant operating state;
+ * - (b) plant-, design- and site-specific dependencies that impact significant event sequences 
+ *       are represented in the event sequence structure;
+ * - (c) individual function successes, mission times, and time windows for operator actions for 
+ *       each reactor-specific safety function and release phenomenon modeled in the event 
+ *       sequences are accounted for;
+ * - (d) the Event Sequence Analysis is documented to provide traceability of the work.
+ * 
+ * Per RG 1.247, the objective of the event sequence analysis PRA element is to model 
+ * chronologically (to the extent practical) the different possible progressions of events 
+ * (i.e., event sequences) that can occur from the start of the initiating event to either 
+ * successful mitigation or release.
  * 
  * @preferred
  * @category Technical Elements
  */
 
-import typia, { tags } from "typia";
+import typia, { tags } from "typia";    
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Named, Unique } from "../core/meta";
-import { Frequency, InitiatingEvent, BaseEvent } from "../core/events";
-import { Uncertainty } from "../data-analysis/data-analysis";
+import { InitiatingEvent, BaseEvent, Frequency, FrequencyUnit } from "../core/events";
+import { IdPatterns, ImportanceLevel } from "../core/shared-patterns";
+import { PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
+import { DistributionType } from "../data-analysis/data-analysis";
 import { 
-    PlantOperatingState, 
-    OperatingState,
-    SuccessCriteriaId,
-    SafetyFunction as POSSafetyFunction,
-    PlantOperatingStatesTable
-} from "../plant-operating-states-analysis/plant-operating-states-analysis";
-import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
-import { ComponentTimeline } from "../systems-analysis/temporal-modeling";
+    BaseDesignInformation, 
+    BaseProcessDocumentation, 
+    BaseModelUncertaintyDocumentation, 
+    BasePreOperationalAssumptionsDocumentation,
+    BasePeerReviewDocumentation
+} from "../core/documentation";
+
+//==============================================================================
+/**
+ * @group Core Definitions & Enums
+ * @description Basic types, enums, and utility interfaces used throughout the module
+ */
+//==============================================================================
 
 /**
- * Enum representing the level of prevention or mitigation provided by a safety function.
+ * The possible end states for an event sequence.
+ * These represent the final outcome of an event sequence progression.
+ * @group Core Definitions & Enums
  */
-export enum PreventionMitigationLevel {
-    /** Full prevention or mitigation capability */
-    FULL = "FULL",
+export enum EndState {
+    /** Successful prevention of radioactive material release */
+    SUCCESSFUL_MITIGATION = "SUCCESSFUL_MITIGATION",
     
-    /** Partial prevention or mitigation capability */
-    PARTIAL = "PARTIAL",
-    
-    /** No prevention or mitigation capability */
-    NONE = "NONE"
+    /** Release of radioactive material occurred */
+    RADIONUCLIDE_RELEASE = "RADIONUCLIDE_RELEASE"
 }
 
 /**
- * Type representing the different types of dependencies between systems or components.
+ * The types of dependencies that can exist between systems, components, or operator actions.
+ * @group Core Definitions & Enums
  */
-export type DependencyType = 
-    | "FUNCTIONAL" 
-    | "PHYSICAL" 
-    | "HUMAN";
+export enum DependencyType {
+    /** Functional dependency where one system requires another to operate */
+    FUNCTIONAL = "FUNCTIONAL",
+    
+    /** Physical dependency based on physical connections or shared environment */
+    PHYSICAL = "PHYSICAL",
+    
+    /** Dependency on human actions */
+    HUMAN = "HUMAN",
+    
+    /** Dependency based on operational procedures or practices */
+    OPERATIONAL = "OPERATIONAL",
+    
+    /** Dependency based on physical phenomena */
+    PHENOMENOLOGICAL = "PHENOMENOLOGICAL",
+    
+    /** Dependency based on shared or common components */
+    COMMON_CAUSE = "COMMON_CAUSE"
+}
 
 /**
- * Interface representing design information sources for traceability
- * @memberof EventSequenceAnalysis
+ * Type for success criteria IDs.
+ * Format: SC-[SYSTEM]-[NUMBER]
+ * Example: SC-RCIC-001
+ * @group Core Definitions & Enums
+ */
+export type SuccessCriteriaId = string & tags.Pattern<typeof IdPatterns.SUCCESS_CRITERIA_ID>;
+
+/**
+ * Type for system references.
+ * Format: SYS-[NAME]
+ * Example: SYS-RCIC
+ * @group Core Definitions & Enums
+ */
+export type SystemReference = string & tags.Pattern<typeof IdPatterns.SYSTEM_ID>;
+
+/**
+ * Type for human action references.
+ * Format: HRA-[NUMBER]
+ * Example: HRA-001
+ * @group Core Definitions & Enums
+ */
+export type HumanActionReference = string & tags.Pattern<typeof IdPatterns.HUMAN_ACTION_ID>;
+
+/**
+ * Type for source term references.
+ * Format: ST-[NUMBER]
+ * Example: ST-001
+ * @group Core Definitions & Enums
+ */
+export type SourceTermReference = string & tags.Pattern<typeof IdPatterns.SOURCE_TERM_ID>;
+
+/**
+ * Type for release category references.
+ * Format: RC-[NUMBER]
+ * Example: RC-001
+ * @group Core Definitions & Enums
+ */
+export type ReleaseCategoryReference = string & tags.Pattern<typeof IdPatterns.RELEASE_CATEGORY_ID>;
+
+/**
+ * Type for event sequence references.
+ * Format: ES-[NUMBER]
+ * Example: ES-001
+ * @group Core Definitions & Enums
+ */
+export type EventSequenceReference = string & tags.Pattern<typeof IdPatterns.EVENT_SEQUENCE_ID>;
+
+/**
+ * Type for event sequence family references.
+ * Format: ESF-[NUMBER]
+ * Example: ESF-001
+ * @group Core Definitions & Enums
+ */
+export type EventSequenceFamilyReference = string & tags.Pattern<typeof IdPatterns.EVENT_SEQUENCE_FAMILY_ID>;
+
+/**
+ * Type for representing the status of a system in an event sequence.
+ * @group Core Definitions & Enums
+ */
+export type SystemStatus = "SUCCESS" | "FAILURE";
+
+//==============================================================================
+/**
+ * @group Event Sequences & Progression
+ * @description Event sequence interfaces and types, chronological progression representation
+ * @implements HLR-ES-A, HLR-ES-B, HLR-ES-C
+ */
+//==============================================================================
+
+/**
+ * Interface representing a time window for operator actions.
+ * Used to define the available time for human actions in event sequences.
+ * @group Event Sequences & Progression
+ */
+export interface TimeWindow {
+    /** Start time for the action (hours after initiating event) */
+    startTime: number & tags.Minimum<0>;
+    
+    /** End time for the action (hours after initiating event) */
+    endTime: number & tags.Minimum<0>;
+    
+    /** Description of the time window */
+    description?: string;
+    
+    /** Basis for the time window calculation */
+    basis?: string;
+    
+    /** References to deterministic analyses supporting the time window */
+    deterministicAnalysisReferences?: string[];
+}
+
+/**
+ * Interface representing timing information for key events in a sequence.
+ * @group Event Sequences & Progression
+ * @implements ES-A8: INCLUDE individual function successes, mission times, and time windows
+ */
+export interface SequenceTiming extends Unique {
+    /** Event name or description */
+    event: string;
+    
+    /** Time after initiating event (hours) */
+    timeAfterInitiator: number & tags.Minimum<0>;
+    
+    /** Duration or mission time if applicable (hours) */
+    duration?: number & tags.Minimum<0>;
+    
+    /** Time window for operator actions if applicable */
+    timeWindow?: TimeWindow;
+    
+    /** Basis for the timing information */
+    basis?: string;
+    
+    /** References to deterministic analyses supporting the timing */
+    deterministicAnalysisReferences?: string[];
+    
+    /** Uncertainty in timing (hours) */
+    uncertaintyRange?: [number & tags.Minimum<0>, number & tags.Minimum<0>];
+}
+
+/**
+ * Interface representing a dependency between systems, components, or operator actions.
+ * Used to define the relationships and dependencies in event sequences.
+ * @group Event Sequences & Progression
+ * @implements ES-B1: DEVELOP event sequence models including functional, phenomenological, and operational dependencies
+ */
+export interface Dependency extends Unique {
+    /** Element that depends on another element */
+    dependentElement: SystemReference | HumanActionReference;
+    
+    /** Element that is depended upon */
+    dependedUponElement: SystemReference | HumanActionReference;
+    
+    /** Type of dependency */
+    dependencyType: DependencyType;
+    
+    /** Description of the dependency */
+    description: string;
+    
+    /** Basis for the dependency */
+    basis?: string;
+    
+    /** Applicable plant operating states */
+    applicablePlantOperatingStates?: string[];
+    
+    /** Applicable initiating events */
+    applicableInitiatingEvents?: string[];
+    
+    /** Importance level of the dependency */
+    importanceLevel?: ImportanceLevel;
+}
+
+/**
+ * Interface representing a phenomenological impact in an event sequence.
+ * @group Event Sequences & Progression
+ * @implements ES-B1: DEVELOP event sequence models including phenomenological dependencies
+ * @implements ES-C2: DELINEATE event sequences to account for significant phenomenological conditions
+ */
+export interface PhenomenologicalImpact extends Unique, Named {
+    /** Description of the impact */
+    description: string;
+    
+    /** Affected systems or components */
+    affectedElements: (SystemReference | HumanActionReference)[];
+    
+    /** Timing of the impact (hours after initiating event) */
+    timing?: number & tags.Minimum<0>;
+    
+    /** Duration of the impact (hours) */
+    duration?: number & tags.Minimum<0>;
+    
+    /** Deterministic analyses supporting the impact characterization */
+    deterministicAnalysisReferences?: string[];
+    
+    /** Applicable plant operating states */
+    applicablePlantOperatingStates?: string[];
+    
+    /** Applicable initiating events */
+    applicableInitiatingEvents?: string[];
+    
+    /** Importance level of the impact */
+    importanceLevel?: ImportanceLevel;
+}
+
+/**
+ * Interface representing an event sequence.
+ * An event sequence is a chronological progression of events from the initiating event
+ * to a specified end state.
+ * @group Event Sequences & Progression
+ * @extends {Unique}
+ * @extends {Named}
+ * @implements ES-A6: IDENTIFY event sequences that should be explicitly modeled
+ * @implements ES-A7: IDENTIFY event sequences that can be screened on the basis of low probability or frequency
+ */
+export interface EventSequence extends Unique, Named {
+    /** Description of the event sequence */
+    description?: string;
+    
+    /** Reference to the initiating event that starts this sequence */
+    initiatingEventId: string;
+    
+    /** Reference to the plant operating state in which this sequence occurs */
+    plantOperatingStateId: string;
+    
+    /** Design information supporting this event sequence */
+    designInformation?: EventSequenceDesignInformation[];
+    
+    /** Chronological progression of events in the sequence */
+    progression?: string;
+    
+    /** Systems involved in the sequence and their status */
+    systemResponses?: Record<SystemReference, SystemStatus>;
+    
+    /** Operator actions involved in the sequence */
+    operatorActions?: HumanActionReference[];
+    
+    /** Timing information for key events in the sequence */
+    timing?: SequenceTiming[];
+    
+    /** Dependencies between systems and operator actions in this sequence */
+    dependencies?: Dependency[];
+    
+    /** Phenomenological impacts in this sequence */
+    phenomenologicalImpacts?: PhenomenologicalImpact[];
+    
+    /** End state of the sequence */
+    endState: EndState;
+    
+    /** Reference to the event sequence family this sequence belongs to */
+    sequenceFamilyId?: EventSequenceFamilyReference;
+    
+    /** Reference to the release category if the end state is radionuclide release */
+    releaseCategoryId?: ReleaseCategoryReference;
+    
+    /** Success criteria applicable to this sequence */
+    successCriteriaIds?: SuccessCriteriaId[];
+    
+    /** Frequency of the sequence (per unit time) */
+    frequency?: {
+        /** Mean value of the frequency */
+        mean: Frequency;
+        
+        /** Units of the frequency */
+        units: FrequencyUnit;
+        
+        /** Statistical distribution of the frequency */
+        distribution?: DistributionType;
+        
+        /** Parameters of the distribution */
+        distributionParameters?: Record<string, number>;
+    };
+    
+    /** 
+     * Screening status of the sequence 
+     * @implements ES-A7: IDENTIFY event sequences that can be screened
+     */
+    screening?: {
+        /** Whether the sequence is screened out */
+        isScreenedOut: boolean;
+        
+        /** Basis for screening decision */
+        screeningBasis?: string;
+        
+        /** Justification for screening decision */
+        screeningJustification?: string;
+    };
+    
+    /** Assumptions specific to this sequence */
+    sequenceSpecificAssumptions?: Assumption[];
+}
+
+//==============================================================================
+/**
+ * @group Sequence Families & Release Categories
+ * @description Event sequence family definitions, grouping criteria and logic
+ * @implements ES-C3, ES-C4, ES-C5, ES-C6
+ */
+//==============================================================================
+
+/**
+ * Interface representing criteria for grouping event sequences into families.
+ * @group Sequence Families & Release Categories
+ * @implements ES-C3: USE consistent end-state definitions for similar scenarios
+ */
+export interface GroupingCriteria extends Unique, Named {
+    /** Description of the criteria */
+    description: string;
+    
+    /** Basis for the criteria */
+    basis?: string;
+    
+    /** Characteristics considered for grouping */
+    characteristicsConsidered: string[];
+    
+    /** Limitations of the grouping criteria */
+    limitations?: string[];
+}
+
+/**
+ * Interface representing an event sequence family.
+ * An event sequence family is a group of event sequences with similar characteristics.
+ * @group Sequence Families & Release Categories
+ * @extends {Unique}
+ * @extends {Named}
+ * @implements ES-C3: USE consistent end-state definitions for similar scenarios
+ * @implements ES-C4: COMBINE event sequences with similar characteristics (source, POS, initiator)
+ * @implements ES-C5: COMBINE event sequences with similar plant response
+ * @implements ES-C6: COMBINE event sequences with similar characteristics for source term
+ */
+export interface EventSequenceFamily extends Unique, Named {
+    /** Description of the event sequence family */
+    description?: string;
+    
+    /** Criteria used for grouping sequences into this family */
+    groupingCriteriaId: string;
+    
+    /** Representative initiating event for the family */
+    representativeInitiatingEventId: string;
+    
+    /** Representative plant operating state for the family */
+    representativePlantOperatingStateId: string;
+    
+    /** Representative plant response characteristics */
+    representativePlantResponse: string;
+    
+    /** Reference to the representative source term */
+    representativeSourceTermId?: SourceTermReference;
+    
+    /** References to release categories associated with this family */
+    releaseCategoryIds?: ReleaseCategoryReference[];
+    
+    /** IDs of event sequences that belong to this family */
+    memberSequenceIds: EventSequenceReference[];
+    
+    /** Basis for considering these sequences similar */
+    similarityBasis?: string;
+    
+    /** End state of the sequence family */
+    endState: EndState;
+    
+    /** Mean frequency of the event sequence family */
+    frequency?: {
+        /** Mean value of the frequency */
+        mean: Frequency;
+        
+        /** Units of the frequency */
+        units: FrequencyUnit;
+        
+        /** Statistical distribution of the frequency */
+        distribution?: DistributionType;
+        
+        /** Parameters of the distribution */
+        distributionParameters?: Record<string, number>;
+    };
+    
+    /** Assumptions specific to this family */
+    familySpecificAssumptions?: Assumption[];
+}
+
+/**
+ * Interface representing the mapping of event sequences to release categories.
+ * Used to define how event sequences are mapped to release categories for source term analysis.
+ * @group Sequence Families & Release Categories
+ * @implements ES-C8: MAP each event sequence with a release to a release category
+ */
+export interface ReleaseCategoryMapping extends Unique {
+    /** References to the event sequences mapped to this release category */
+    eventSequenceIds: EventSequenceReference[];
+    
+    /** Reference to the release category */
+    releaseCategoryId: ReleaseCategoryReference;
+    
+    /** Reference to the source term associated with this release category */
+    sourceTermId?: SourceTermReference;
+    
+    /** Basis for mapping these sequences to this release category */
+    mappingBasis: string;
+    
+    /** Description of the common characteristics */
+    commonCharacteristics: string[];
+    
+    /** References to supporting analyses */
+    supportingAnalysisReferences?: string[];
+}
+
+//==============================================================================
+/**
+ * @group Dependencies & Phenomenology
+ * @description Dependencies between systems, components, and operator actions
+ * @implements ES-B1, ES-B2, ES-B3, ES-B4
+ */
+//==============================================================================
+
+/**
+ * Interface representing a functional dependency model.
+ * Used to define and document functional dependencies between systems.
+ * @group Dependencies & Phenomenology
+ * @implements ES-B1: DEVELOP event sequence models including functional dependencies
+ */
+export interface FunctionalDependencyModel extends Unique, Named {
+    /** Description of the dependency model */
+    description: string;
+    
+    /** Systems involved in the functional dependency */
+    involvedSystems: SystemReference[];
+    
+    /** Specific dependencies modeled */
+    dependencies: Dependency[];
+    
+    /** Logic model representation (e.g., fault tree, event tree) */
+    logicModel?: string;
+    
+    /** References to supporting analyses */
+    supportingAnalysisReferences?: string[];
+}
+
+/**
+ * Interface representing a phenomenological dependency model.
+ * Used to define and document dependencies based on physical phenomena.
+ * @group Dependencies & Phenomenology
+ * @implements ES-B1: DEVELOP event sequence models including phenomenological dependencies
+ */
+export interface PhenomenologicalDependencyModel extends Unique, Named {
+    /** Description of the phenomenological dependency */
+    description: string;
+    
+    /** Physical phenomenon causing the dependency */
+    phenomenon: string;
+    
+    /** Systems affected by the phenomenon */
+    affectedSystems: SystemReference[];
+    
+    /** Environmental conditions involved */
+    environmentalConditions?: string[];
+    
+    /** Specific impacts on each affected system */
+    systemSpecificImpacts?: Record<SystemReference, string>;
+    
+    /** References to deterministic analyses supporting the dependency model */
+    deterministicAnalysisReferences?: string[];
+}
+
+/**
+ * Interface representing an operational dependency model.
+ * Used to define and document dependencies based on operational practices.
+ * @group Dependencies & Phenomenology
+ * @implements ES-B1: DEVELOP event sequence models including operational dependencies
+ */
+export interface OperationalDependencyModel extends Unique, Named {
+    /** Description of the operational dependency */
+    description: string;
+    
+    /** Operational practice or procedure causing the dependency */
+    operationalPractice: string;
+    
+    /** Systems affected by the operational practice */
+    affectedSystems: SystemReference[];
+    
+    /** Human actions involved in the operational dependency */
+    involvedHumanActions?: HumanActionReference[];
+    
+    /** References to procedures or operating instructions */
+    procedureReferences?: string[];
+}
+
+/**
+ * Interface representing a human dependency model.
+ * Used to define and document dependencies involving human actions.
+ * @group Dependencies & Phenomenology
+ * @implements ES-B1: DEVELOP event sequence models including dependencies
+ */
+export interface HumanDependencyModel extends Unique, Named {
+    /** Description of the human dependency */
+    description: string;
+    
+    /** Human actions involved in the dependency */
+    involvedHumanActions: HumanActionReference[];
+    
+    /** Systems affected by the human actions */
+    affectedSystems?: SystemReference[];
+    
+    /** Type of dependency between human actions */
+    dependencyType: string;
+    
+    /** References to human reliability analyses */
+    hraReferences?: string[];
+}
+
+/**
+ * Interface representing an interface dependency between systems.
+ * @group Dependencies & Phenomenology
+ * @implements ES-B2: IDENTIFY interfaces between event sequence models
+ */
+export interface SystemInterfaceDependency extends Unique, Named {
+    /** Description of the interface dependency */
+    description: string;
+    
+    /** Systems involved in the interface */
+    involvedSystems: SystemReference[];
+    
+    /** Type of interface (physical, functional, operational) */
+    interfaceType: "PHYSICAL" | "FUNCTIONAL" | "OPERATIONAL";
+    
+    /** Specific connection points or interfaces */
+    connectionPoints?: string[];
+    
+    /** How the interface is modeled in event sequences */
+    modelingApproach: string;
+}
+
+//==============================================================================
+/**
+ * @group Uncertainty & Assumptions
+ * @description Model uncertainty sources, related assumptions, and reasonable alternatives
+ * @implements ES-A14, ES-A15, ES-B9, ES-C10
+ */
+//==============================================================================
+
+/**
+ * Interface representing an assumption made in the event sequence analysis.
+ * @group Uncertainty & Assumptions
+ * @implements ES-A15: IDENTIFY assumptions made due to lack of as-built and as-operated details
+ */
+export interface Assumption extends Unique {
+    /** Description of the assumption */
+    description: string;
+    
+    /** Justification for the assumption */
+    justification?: string;
+    
+    /** Impact of the assumption on the analysis */
+    impact?: string;
+    
+    /** References to supporting documentation */
+    references?: string[];
+    
+    /** Whether this is due to lack of as-built/as-operated details */
+    isPreOperational?: boolean;
+    
+    /** Plans to address or validate the assumption */
+    addressingPlans?: string;
+}
+
+/**
+ * Interface representing a source of model uncertainty in the event sequence analysis.
+ * @group Uncertainty & Assumptions
+ * @implements ES-A14: IDENTIFY and characterize the sources of model uncertainty
+ * @implements ES-B9: IDENTIFY and characterize sources of model uncertainty
+ * @implements ES-C10: IDENTIFY and characterize sources of model uncertainty
+ */
+export interface ModelUncertainty extends Unique, Named {
+    /** Description of the model uncertainty */
+    description: string;
+    
+    /** Aspects of the analysis affected by this uncertainty */
+    affectedAspects?: ("eventSequenceDefinition" | "dependencies" | "releasePhenomena")[];
+    
+    /** Assumptions related to this uncertainty */
+    assumptions?: Assumption[];
+    
+    /** Reasonable alternatives that could be considered */
+    reasonableAlternatives?: string[];
+    
+    /** Potential impact on the analysis results */
+    impact?: string;
+    
+    /** Plans to address or reduce this uncertainty */
+    addressingPlans?: string;
+    
+    /** Characterization of the uncertainty (qualitative or quantitative) */
+    characterization?: {
+        /** Type of characterization */
+        type: "QUALITATIVE" | "QUANTITATIVE";
+        
+        /** Description of the characterization */
+        description: string;
+        
+        /** Range or bounds of the uncertainty if quantitative */
+        range?: [number, number];
+    };
+}
+
+/**
+ * Interface representing a sensitivity study for uncertainty assessment.
+ * @group Uncertainty & Assumptions
+ * @implements ES-A14: Characterize the sources of model uncertainty
+ */
+export interface SensitivityStudy extends Unique, Named {
+    /** Description of the sensitivity study */
+    description: string;
+    
+    /** Model uncertainty being studied */
+    modelUncertaintyId: string;
+    
+    /** Parameters varied in the study */
+    variedParameters: string[];
+    
+    /** Range of variation for each parameter */
+    parameterRanges: Record<string, [number, number]>;
+    
+    /** Results of the sensitivity study */
+    results?: string;
+    
+    /** Insights gained from the study */
+    insights?: string;
+    
+    /** Impact on event sequence frequencies or outcomes */
+    impact?: string;
+}
+
+/**
+ * Interface representing documentation of the process used in the event sequence analysis.
+ * @group Documentation & Traceability
+ * @implements ES-D1: DOCUMENT the process used in the Event Sequence Analysis
+ */
+export interface ProcessDocumentation extends BaseProcessDocumentation {
+    /** 
+     * Linkage between plant operating states, initiating events, and event sequences
+     * @implements ES-D1(a): the linkage between the modeled plant operating states, initiating events, and event sequences
+     */
+    posInitiatorSequenceLinkage?: {
+        /** Plant operating state ID */
+        plantOperatingStateId: string;
+        
+        /** Initiating event ID */
+        initiatingEventId: string;
+        
+        /** Event sequence IDs for this combination */
+        eventSequenceIds: EventSequenceReference[];
+        
+        /** Description of the linkage */
+        description?: string;
+    }[];
+    
+    /** 
+     * Success criteria established for each modeled initiating event
+     * @implements ES-D1(b): the success criteria established for each modeled initiating event
+     */
+    successCriteriaBases?: {
+        /** Initiating event ID */
+        initiatingEventId: string;
+        
+        /** Success criteria ID */
+        successCriteriaId: SuccessCriteriaId;
+        
+        /** Basis for the success criteria */
+        basis: string;
+        
+        /** System capacities required */
+        systemCapacitiesRequired: string;
+        
+        /** Components required to achieve these capacities */
+        requiredComponents: string;
+    }[];
+    
+    /** 
+     * Deterministic analyses performed to support the event sequence analysis
+     * @implements ES-D1(c): each deterministic analysis performed to support the Event Sequence Analysis
+     */
+    deterministicAnalyses?: {
+        /** Analysis ID or reference */
+        analysisId: string;
+        
+        /** Description of the analysis */
+        description: string;
+        
+        /** Purpose of the analysis */
+        purpose: string;
+        
+        /** Key results and insights */
+        results: string;
+        
+        /** How the analysis was used in event sequence development */
+        applicationInEventSequences: string;
+    }[];
+    
+    /** 
+     * Description of event sequences or groups of similar sequences
+     * @implements ES-D1(d): a description of the event sequence for each sequence or group of similar sequences
+     */
+    eventSequenceDescriptions?: {
+        /** Event sequence or family ID */
+        sequenceOrFamilyId: string;
+        
+        /** Sequence timing information */
+        timing: string;
+        
+        /** Applicable procedural guidance */
+        proceduralGuidance: string;
+        
+        /** Expected environmental or phenomenological impacts */
+        environmentalImpacts: string;
+        
+        /** Dependencies between systems and operator actions */
+        dependencies: string;
+        
+        /** End states */
+        endStates: string;
+        
+        /** Other pertinent information */
+        otherPertinentInformation?: string;
+        
+        /** Evaluation of uncertainties */
+        uncertaintyEvaluation?: string;
+    }[];
+    
+    /** 
+     * Technical basis for the treatment of radionuclide transport barriers
+     * @implements ES-D1(e): the technical basis for the treatment of each of the radionuclide transport barriers
+     */
+    barrierTreatmentBasis?: {
+        /** Barrier ID or name */
+        barrierId: string;
+        
+        /** Event sequence family */
+        eventSequenceFamilyId: EventSequenceFamilyReference;
+        
+        /** Fuel capabilities credited */
+        fuelCapabilitiesCredited: string;
+        
+        /** Structural capabilities credited */
+        structuralCapabilitiesCredited: string;
+        
+        /** Barrier capacities credited */
+        barrierCapacitiesCredited: string;
+        
+        /** Basis for assignment of end states */
+        endStateAssignmentBasis: string;
+    }[];
+    
+    /** 
+     * Evaluation of failure modes and degradation mechanisms
+     * @implements ES-D1(f): the evaluation of failure modes, failure and degradation mechanisms
+     */
+    failureModeEvaluation?: {
+        /** Barrier or system ID */
+        barrierId: string;
+        
+        /** Failure modes evaluated */
+        failureModes: string[];
+        
+        /** Degradation mechanisms considered */
+        degradationMechanisms: string[];
+        
+        /** Loading conditions evaluated */
+        loadingConditions: string[];
+        
+        /** Assessment of capability to withstand loads */
+        loadCapabilityAssessment: string;
+        
+        /** Impacts of modeling uncertainties */
+        uncertaintyImpacts: string;
+    }[];
+    
+    /** 
+     * Definition of event sequence end states, families, and release categories
+     * @implements ES-D1(g): a clear definition of the event sequence end states, event sequence families, and release categories
+     */
+    endStateAndFamilyDefinitions?: {
+        /** End state or family ID */
+        id: string;
+        
+        /** Definition of the end state or family */
+        definition: string;
+        
+        /** Detail provided for determining event sequence family */
+        familyDeterminationDetail: string;
+        
+        /** Release category identification */
+        releaseCategoryId?: ReleaseCategoryReference;
+        
+        /** Mechanistic source term information */
+        mechanisticSourceTermId?: SourceTermReference;
+    }[];
+    
+    /** 
+     * Operator actions represented in the event trees
+     * @implements ES-D1(h): the operator actions represented in the event trees
+     */
+    operatorActionsRepresentation?: {
+        /** Human action ID */
+        humanActionId: HumanActionReference;
+        
+        /** Sequence-specific timing */
+        timing: string;
+        
+        /** Dependencies traceable to human reliability analysis */
+        hraDependencies: string;
+    }[];
+    
+    /** 
+     * Interface of event sequence models with release categories
+     * @implements ES-D1(i): the interface of the event sequence models with the release categories
+     */
+    releaseInterfaceDescription?: {
+        /** Description of the interface */
+        description: string;
+        
+        /** How event sequences map to release categories */
+        mappingApproach: string;
+        
+        /** How mechanistic source terms are assigned */
+        sourceTermAssignment: string;
+    };
+    
+    /** 
+     * Use of single top event fault tree approach
+     * @implements ES-D1(j): the manner in which the requirements for Event Sequence Analysis has been satisfied
+     */
+    singleTopEventApproach?: {
+        /** Whether a single top event fault tree is used */
+        useSingleTopEvent: boolean;
+        
+        /** Description of the approach */
+        approachDescription?: string;
+        
+        /** How requirements are satisfied */
+        requirementsSatisfactionDescription?: string;
+    };
+    
+    /** 
+     * Mitigating systems challenged by initiating events
+     * @implements ES-D1(k): mitigating systems that are challenged, degraded, or failed by each specific initiating event
+     */
+    mitigatingSystemChallenges?: {
+        /** Initiating event ID */
+        initiatingEventId: string;
+        
+        /** Challenged systems */
+        challengedSystems: Record<SystemReference, string>;
+        
+        /** Impact on the system */
+        systemImpact: string;
+    }[];
+    
+    /** 
+     * Dependence of mitigating systems on other functions
+     * @implements ES-D1(l): the dependence of modeled mitigating systems on the success or failure of preceding system's functions and human actions
+     */
+    mitigatingSystemDependencies?: {
+        /** Mitigating system ID */
+        mitigatingSystemId: SystemReference;
+        
+        /** Dependencies on other systems */
+        systemDependencies: SystemReference[];
+        
+        /** Dependencies on human actions */
+        humanActionDependencies: HumanActionReference[];
+        
+        /** Description of dependencies */
+        dependencyDescription: string;
+    }[];
+}
+
+/**
+ * Interface representing documentation of model uncertainty in the event sequence analysis.
+ * @group Documentation & Traceability
+ * @implements ES-D2: DOCUMENT the sources of model uncertainty, related assumptions, and reasonable alternatives
+ */
+export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
+    /** 
+     * Event sequence specific uncertainty impacts
+     * @implements ES-D2: DOCUMENT the sources of model uncertainty specific to event sequences
+     */
+    eventSequenceSpecificUncertainties?: {
+        /** Event sequence ID */
+        eventSequenceId: EventSequenceReference;
+        
+        /** Specific uncertainties for this sequence */
+        uncertainties: string[];
+        
+        /** Impact on sequence outcomes */
+        sequenceImpact: string;
+    }[];
+}
+
+/**
+ * Interface representing documentation of pre-operational assumptions.
+ * @group Documentation & Traceability
+ * @implements ES-D3: DOCUMENT assumptions and limitations due to lack of as-built, as-operated details
+ */
+export interface PreOperationalAssumptionsDocumentation extends BasePreOperationalAssumptionsDocumentation {
+    /** 
+     * Event sequence specific assumptions
+     * @implements ES-D3: DOCUMENT assumptions specific to event sequences
+     */
+    eventSequenceSpecificAssumptions?: {
+        /** Event sequence ID */
+        eventSequenceId: EventSequenceReference;
+        
+        /** Specific assumptions for this sequence */
+        assumptions: string[];
+        
+        /** Impact on sequence modeling */
+        modelingImpact: string;
+    }[];
+}
+
+/**
+ * Interface representing peer review documentation.
+ * @group Documentation & Traceability
+ */
+export interface PeerReviewDocumentation extends BasePeerReviewDocumentation {
+    /** Consistency with initiating event analysis */
+    consistencyWithInitiatingEvents?: string;
+    
+    /** Reviewer experience specific to event sequence analysis */
+    reviewerExperience?: string;
+    
+    /** Recognition of plant-specific features */
+    plantSpecificFeaturesRecognition?: string;
+}
+
+/**
+ * Interface representing design information specific to event sequences.
+ * Used to document the design basis and technical information supporting event sequence development.
+ * 
  * @example
  * ```typescript
- * const designInfo: DesignInformation = {
+ * const designInfo: EventSequenceDesignInformation = {
  *   sourceId: "DWG-123",
  *   sourceType: "drawing",
  *   revision: "A",
  *   date: "2025-01-15",
  *   description: "System layout drawing",
  *   requirementId: "ES-001",
- *   standardSection: "4.3.3"
- * };
- * ```
- */
-export interface DesignInformation {
-    /** 
-     * Identifier for the design source document
-     */
-    sourceId: string;
-
-    /** 
-     * Type of source document (e.g., "drawing", "calculation", "specification") 
-     */
-    sourceType: string;
-
-    /** Document revision identifier */
-    revision?: string;
-
-    /** 
-     * Date of the source document
-     * @format date
-     */
-    date?: string;
-
-    /** Description of the design information */
-    description?: string;
-
-    /** 
-     * Requirement identifier for traceability
-     */
-    requirementId?: string;
-
-    /** 
-     * Section number in relevant standard (e.g., "4.3.3" in RA-S-1.4-2021)
-     */
-    standardSection?: string;
-}
-
-/**
- * Interface representing safety function status in a sequence
- * @memberof EventSequenceAnalysis
- * @example
- * ```typescript
- * const reactivityControl: SafetyFunction = {
- *   name: "Reactivity Control",
- *   description: "Core power control through engineered means",
- *   state: "SUCCESS",
- *   criteria: {
- *     success: "Core power reduced below 1% rated power within 10 seconds",
- *     failure: "Failure to achieve subcritical conditions"
+ *   standardSection: "4.3.3",
+ *   supportedAspects: {
+ *     timing: true,
+ *     systemDependencies: true,
+ *     operatorActions: false,
+ *     phenomenologicalImpacts: false,
+ *     successCriteria: true
  *   },
- *   systemResponses: ["RPS Trip", "Control Rod Insertion"],
- *   dependencies: [{
- *     type: "FUNCTIONAL",
- *     description: "Electric power for control rod drive mechanisms"
- *   }],
- *   category: "REACTIVITY_CONTROL",
- *   implementationMechanisms: [{
- *     name: "Control Rod System",
- *     description: "System for inserting control rods to control reactivity",
- *     status: "AVAILABLE",
- *     type: "ACTIVE"
- *   }]
+ *   applicationInSequence: "Used to determine system layout and physical dependencies",
+ *   assumptions: ["Drawing represents as-designed configuration"]
  * };
  * ```
+ * 
+ * @group Documentation & Traceability
+ * @implements ES-D1: DOCUMENT the process used in the Event Sequence Analysis
  */
-export interface SafetyFunction extends Omit<POSSafetyFunction, 'uuid'> {
-    // Simplified version of POSSafetyFunction for use in event sequences
-    // The uuid field is omitted as it's not needed for event sequences
-    name: string;
-    description?: string;
-    state: "SUCCESS" | "FAILURE";
-    criteria?: {
-        success: string;
-        failure: string;
+export interface EventSequenceDesignInformation extends BaseDesignInformation {
+    /** 
+     * Specific aspects of the event sequence supported by this design information.
+     * Indicates which parts of the event sequence this design information is used to support.
+     */
+    supportedAspects: {
+        /** Whether this supports sequence timing (e.g., system response times, mission times) */
+        timing?: boolean;
+        
+        /** Whether this supports system dependencies (e.g., physical connections, shared components) */
+        systemDependencies?: boolean;
+        
+        /** Whether this supports operator actions (e.g., access paths, control locations) */
+        operatorActions?: boolean;
+        
+        /** Whether this supports phenomenological impacts (e.g., environmental conditions, physical phenomena) */
+        phenomenologicalImpacts?: boolean;
+        
+        /** Whether this supports success criteria (e.g., system capabilities, performance requirements) */
+        successCriteria?: boolean;
     };
-    systemResponses?: string[];
-    dependencies?: {
-        type: DependencyType;
-        description: string;
-    }[];
     
-    // Optional fields from POSSafetyFunction that may be relevant for event sequences
-    preventionMitigationLevel?: PreventionMitigationLevel;
-    category: "REACTIVITY_CONTROL" | "HEAT_REMOVAL" | "RADIOACTIVE_MATERIAL_RETENTION" | "OTHER";
+    /** 
+     * How this design information was used in developing the event sequence.
+     * Describes the specific application and relevance of the design information.
+     */
+    applicationInSequence: string;
     
-    // Implementation mechanisms are required in POSSafetyFunction and must be required here too
-    implementationMechanisms: Array<{
-        name: string;
-        description: string;
-        status: "AVAILABLE" | "UNAVAILABLE" | "DEGRADED" | "MAINTENANCE";
-        statusDetails?: string;
-        type: "ACTIVE" | "PASSIVE";
-        reliability?: {
-            mtbf?: number;
-            pfd?: number;
-        };
-    }>;
-    
-    // Success criteria IDs are required in POSSafetyFunction and must be required here too
-    successCriteriaIds: SuccessCriteriaId[];
-    
-    // Initiating events this safety function responds to
-    initiatingEvents: {
-        /** ID of the initiating event */
-        id: string;
-        
-        /** Name of the initiating event (for convenience) */
-        name?: string;
-        
-        /** How effective this safety function is against this initiating event */
-        effectiveness?: PreventionMitigationLevel;
-    }[];
-    
-    // Operational parameters relevant to this safety function
-    operationalParameters?: Array<{
-        /** Name of the parameter */
-        name: string;
-        
-        /** Current value or state of the parameter */
-        value: string | number;
-        
-        /** Units of measurement, if applicable */
-        units?: string;
-        
-        /** Acceptable range for this parameter */
-        acceptableRange?: [number, number];
-        
-        /** Whether this parameter is being monitored */
-        monitored: boolean;
-        
-        /** Instruments used to monitor this parameter */
-        monitoringInstruments?: string[];
-    }>;
-    
-    // Degradation mechanisms that could affect this safety function
-    degradationMechanisms?: Array<{
-        /** Name of the degradation mechanism */
-        name: string;
-        
-        /** Description of the mechanism */
-        description: string;
-        
-        /** Current status of this degradation mechanism */
-        status: "ACTIVE" | "POTENTIAL" | "MITIGATED";
-        
-        /** Mitigation measures in place */
-        mitigationMeasures?: string[];
-    }>;
+    /** 
+     * Any assumptions or limitations in applying this design information.
+     * Documents important considerations when using this design information.
+     */
+    assumptions?: string[];
 }
 
+
+//==============================================================================
 /**
- * Interface representing end states of sequences
- * @memberof EventSequenceAnalysis
- * @example
- * ```typescript
- * const endState: EndState = {
- *   name: "Controlled Release",
- *   description: "Limited release within regulatory limits",
- *   category: "DBE",
- *   releaseType: "Gaseous Release",
- *   classification: "P2",
- *   damageState: "ND",
- *   preventionLevel: PreventionMitigationLevel.PARTIAL,
- *   mitigationLevel: PreventionMitigationLevel.FULL
- * };
- * ```
+ * @group API
+ * @description Main interface for Event Sequence Analysis and schema validation
  */
-export interface EndState {
-    name: string;
-    description?: string;
-    category?: string;
-    releaseType?: string;
-    classification?: string;
-    damageState?: string;
-    preventionLevel?: PreventionMitigationLevel;
-    mitigationLevel?: PreventionMitigationLevel;
-    // TODO: Add mechanistic source term linkage
-    // mechanisticSourceTermId?: string;
-}
+//==============================================================================
 
 /**
- * Interface representing plant operating state details for a sequence
- * @memberof EventSequenceAnalysis
- * 
- * @example
- * ```typescript
- * const operatingState: SequenceOperatingState = {
- *   stateTableId: "POS-TABLE-001",  // References PlantOperatingStatesTable.uuid
- *   stateId: "POS-1",               // References specific state within the table
- *   duration: 168,                  // Hours
- *   successCriteriaIds: ["SC-001"]
- * };
- * ```
+ * Interface representing event sequence analysis validation rules.
+ * Used to validate the event sequence analysis for completeness and consistency.
+ * @group API
  */
-export interface SequenceOperatingState {
+export interface EventSequenceValidationRules {
     /**
-     * Reference to the Plant Operating States Table
-     * Links to PlantOperatingStatesTable.uuid
+     * Rules for initiating event coverage validation
      */
-    stateTableId: string;
-
+    initiatingEventCoverageRules: {
+        /** Validation description */
+        description: string;
+        
+        /** Validation method */
+        validationMethod: string;
+        
+        /** Required analysis elements */
+        requiredElements: string[];
+    };
+    
     /**
-     * Reference to the specific state within the table
-     * This can be one of the predefined states (startUp, fullPower, controlledShutdown)
-     * or a custom state key from the PlantOperatingStatesTable
+     * Rules for plant operating state coverage validation
      */
-    stateId: string;
-
+    plantOperatingStateCoverageRules: {
+        /** Validation description */
+        description: string;
+        
+        /** Validation method */
+        validationMethod: string;
+        
+        /** Required analysis elements */
+        requiredElements: string[];
+    };
+    
     /**
-     * Duration of this operating state in hours.
-     * This can differ from the default duration defined in the Plant Operating States Table
-     * when sequence-specific timing considerations apply.
+     * Rules for end state definition validation
      */
-    duration?: number;
-
+    endStateDefinitionRules: {
+        /** Validation description */
+        description: string;
+        
+        /** Required end states */
+        requiredEndStates: string[];
+        
+        /** End state definition criteria */
+        definitionCriteria: string[];
+    };
+    
     /**
-     * References to success criteria specific to this operating state
+     * Rules for dependency modeling validation
      */
-    successCriteriaIds?: SuccessCriteriaId[];
+    dependencyModelingRules: {
+        /** Validation description */
+        description: string;
+        
+        /** Dependency types that must be addressed */
+        requiredDependencyTypes: string[];
+        
+        /** Documentation requirements */
+        documentationRequirements: string[];
+    };
+    
+    /**
+     * Rules for release category mapping validation
+     */
+    releaseCategoryMappingRules: {
+        /** Validation description */
+        description: string;
+        
+        /** Mapping criteria */
+        mappingCriteria: string[];
+        
+        /** Required documentation */
+        requiredDocumentation: string[];
+    };
 }
 
 /**
- * Interface representing an analysis of event sequences, which is a type of technical element.
- *
- * @memberof EventSequenceAnalysis
- * @extends {TechnicalElement}
+ * Interface representing the main Event Sequence Analysis container.
  * 
- * @relation PlantOperatingStateAnalysis
- * Links to {@link PlantOperatingStatesTable} through stateTableId reference in each sequence's operatingState
+ * The objectives of Event Sequence Analysis ensure that:
+ * - (a) the sources of radioactive material, the barriers to radionuclide release, and the safety 
+ *       functions necessary to protect each barrier for each source within the scope of the PRA 
+ *       model are defined as a basis for the event sequence model development and described for 
+ *       each plant operating state;
+ * - (b) plant-, design- and site-specific dependencies that impact significant event sequences 
+ *       are represented in the event sequence structure;
+ * - (c) individual function successes, mission times, and time windows for operator actions for 
+ *       each reactor-specific safety function and release phenomenon modeled in the event 
+ *       sequences are accounted for;
+ * - (d) the Event Sequence Analysis is documented to provide traceability of the work.
  * 
- * @relation SystemsAnalysis
- * - Links to {@link SystemComponent} through involvedSystemComponentIds
- * - Links to {@link System} through componentTimelines
- * - Links to {@link FailureMode} through failureModeIds
- * - Links to {@link UnavailabilityEvent} through unavailabilityEventIds
- * 
- * @relation DataAnalysis
- * - Links to {@link Uncertainty} through uncertainty field
- * - Links to basic events through basicEventIds
- * 
- * @requirement RA-S-1.4-2021 §4.3.3
- * - §4.3.3.1: Model event sequences following each initiating event
- * - §4.3.3.2: Model temporal dependencies between safety functions
- * - §4.3.3.3: Account for system responses and operator actions
- * - §4.3.3.4: Provide traceability through documentation
- * 
- * @example
- * ```typescript
- * const analysis: EventSequenceAnalysis = {
- *   "technical-element-type": TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS,
- *   eventSequences: [
- *     {
- *       sequenceId: "SEQ-001",
- *       description: "Loss of coolant accident with successful safety injection",
- *       initiatingEventId: "IE-LOCA-SMALL",
- *       operatingState: {
- *         stateTableId: "POS-TABLE-001",
- *         stateId: "FULL-POWER"
- *       },
- *       // ... other sequence details
- *     }
- *   ]
- * };
- * ```
+ * @group API
+ * @extends {TechnicalElement<TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS>}
  */
 export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS> {
     /**
-     * A list of event sequences that are part of this analysis.
-     * Each sequence represents a specific scenario following an initiating event.
+     * Metadata about the analysis
+     * @implements ES-D1: DOCUMENT the process used in the Event Sequence Analysis
      */
-    eventSequences: EventSequence[];
+    metadata: {
+        /** Version of the analysis */
+        version: string;
+        
+        /** Date the analysis was performed */
+        analysisDate: string;
+        
+        /** Person who performed the analysis */
+        analyst: string;
+        
+        /** Person who reviewed the analysis */
+        reviewer?: string;
+        
+        /** Approval status of the analysis */
+        approvalStatus?: string;
+        
+        /** Scope of the analysis */
+        scope?: string[];
+        
+        /** Limitations of the analysis */
+        limitations?: string[];
+        
+        /** Traceability information */
+        traceability?: string;
+    };
+    
+    /**
+     * Definition of the scope of the analysis
+     * @implements ES-A1: DELINEATE the plant scenarios addressed in the event sequence analysis
+     */
+    scopeDefinition: {
+        /** Plant operating states included in the analysis */
+        plantOperatingStateIds: string[];
+        
+        /** Initiating events included in the analysis */
+        initiatingEventIds: string[];
+        
+        /** Sources of radioactive material within scope */
+        radioactiveMaterialSources: string[];
+        
+        /** Barriers to radionuclide release */
+        radionuclideBarriers: string[];
+    };
+    
+    /**
+     * Key safety functions that form the basis for event sequence development
+     * @implements ES-A3: DEFINE the key safety functions as a basis for event sequence model development
+     */
+    keySafetyFunctions: string[];
+    
+    /**
+     * Event sequences analyzed
+     * @implements ES-A6: IDENTIFY event sequences that should be explicitly modeled
+     */
+    eventSequences: Record<EventSequenceReference, EventSequence>;
+    
+    /**
+     * Event sequence families defined
+     * @implements ES-C3: USE consistent end-state definitions for similar scenarios
+     * @implements ES-C4: COMBINE event sequences with similar characteristics
+     */
+    eventSequenceFamilies: Record<EventSequenceFamilyReference, EventSequenceFamily>;
+    
+    /**
+     * Mappings of event sequences to release categories
+     * @implements ES-C8: MAP each event sequence with a release to a release category
+     */
+    releaseCategoryMappings?: ReleaseCategoryMapping[];
+    
+    /**
+     * Dependency models used in the analysis
+     * @implements ES-B1: DEVELOP event sequence models including functional, phenomenological, and operational dependencies
+     */
+    dependencyModels?: {
+        /** Functional dependency models */
+        functionalDependencies?: FunctionalDependencyModel[];
+        
+        /** Phenomenological dependency models */
+        phenomenologicalDependencies?: PhenomenologicalDependencyModel[];
+        
+        /** Operational dependency models */
+        operationalDependencies?: OperationalDependencyModel[];
+        
+        /** Human dependency models */
+        humanDependencies?: HumanDependencyModel[];
+        
+        /** System interface dependencies */
+        systemInterfaces?: SystemInterfaceDependency[];
+    };
+    
+    /**
+     * Sources of model uncertainty and related assumptions
+     * @implements ES-A14: IDENTIFY and characterize the sources of model uncertainty
+     */
+    modelUncertainties?: ModelUncertainty[];
+    
+    /**
+     * Sensitivity studies for uncertainty assessment
+     * @implements ES-A14: Characterize the sources of model uncertainty
+     */
+    sensitivityStudies?: SensitivityStudy[];
+    
+    /**
+     * Assumptions made due to lack of as-built, as-operated details
+     * @implements ES-A15: IDENTIFY assumptions made due to lack of as-built and as-operated details
+     */
+    preOperationalAssumptions?: Assumption[];
+    
+    /**
+     * References to supporting plant response analyses
+     * @implements ES-A2: IDENTIFY the plant response analyses needed to determine success criteria
+     * @implements ES-C7: IDENTIFY the plant response analyses used to develop event sequences and assess success criteria
+     */
+    plantResponseAnalysisReferences?: string[];
+    
+    /**
+     * Documentation of the analysis
+     * @implements ES-D1: DOCUMENT the process used in the Event Sequence Analysis
+     * @implements ES-D2: DOCUMENT the sources of model uncertainty, related assumptions, and reasonable alternatives
+     * @implements ES-D3: DOCUMENT assumptions and limitations due to lack of as-built, as-operated details
+     */
+    documentation?: {
+        /** Process documentation */
+        processDocumentation?: ProcessDocumentation;
+        
+        /** Model uncertainty documentation */
+        modelUncertaintyDocumentation?: ModelUncertaintyDocumentation;
+        
+        /** Pre-operational assumptions documentation */
+        preOperationalAssumptionsDocumentation?: PreOperationalAssumptionsDocumentation;
+        
+        /** Peer review documentation */
+        peerReviewDocumentation?: PeerReviewDocumentation;
+    };
+    
+    /**
+     * Validation rules for the analysis
+     */
+    validationRules?: EventSequenceValidationRules;
 }
-
-/**
- * Interface representing a single event sequence.
- *
- * @memberof EventSequenceAnalysis
- *
- * @example
- * ```typescript
- * const sequence: EventSequence = {
- *  sequenceId: "SEQ-001",
- *  description: "Loss of coolant accident followed by failure of emergency core cooling",
- *  initiatingEventId: "IE-LOCA",
- *  reactivityControl: {
- *    name: "Reactivity Control",
- *    state: "SUCCESS",
- *    systemResponses: ["RPS Trip"]
- *  },
- *  heatRemoval: {
- *    name: "Heat Removal",
- *    state: "FAILURE",
- *    systemResponses: ["ECCS"]
- *  },
- *  confinement: {
- *    name: "Confinement",
- *    state: "SUCCESS"
- *  },
- *  frequency: 1.0E-6,
- *  endState: {
- *    name: "Controlled Release",
- *    category: "DBE",
- *    releaseType: "Gaseous Release",
- *    classification: "P2",
- *    preventionLevel: "PARTIAL",
- *    mitigationLevel: "FULL"
- *  },
- *  operatingState: {
- *    stateId: "POS-1",
- *    duration: 168,
- *    successCriteriaIds: ["SC-001", "SC-002"]
- *  },
- *  componentTimelines: [{
- *    component: { id: "ECCS-PUMP-1" },
- *    phases: [{
- *      startTime: 0,
- *      endTime: 24,
- *      state: "operational"
- *    }]
- *  }],
- *  designInformation: [{
- *    sourceId: "DWG-123",
- *    sourceType: "drawing",
- *    revision: "A"
- *  }]
- * };
- * ```
- *
- * @implements RA-S-1.4-2021 Section 4.3.3
- */
-export interface EventSequence extends Unique, Named {
-    /**
-     * Unique identifier for the event sequence.
-     */
-    sequenceId: string;
-
-    /**
-     * A textual description of what this event sequence represents.
-     */
-    description: string;
-
-    /**
-     * Reference to the initiating event that starts this sequence.
-     */
-    initiatingEventId: string;
-
-    /**
-     * Status of reactivity control safety function
-     * @HLR-ES-C Account for necessary system responses
-     */
-    reactivityControl: SafetyFunction;
-
-    /**
-     * Status of heat removal safety function
-     * @HLR-ES-C Account for necessary system responses
-     */
-    heatRemoval: SafetyFunction;
-
-    /**
-     * Status of confinement safety function
-     * @HLR-ES-C Account for necessary system responses
-     */
-    confinement: SafetyFunction;
-
-    /**
-     * Frequency of the event sequence
-     */
-    frequency?: Frequency;
-
-    /**
-     * End state of the sequence including release category
-     * @HLR-ES-A Describe scenarios that can lead to release
-     */
-    endState: EndState;
-
-    /**
-     * Operating state details for this sequence
-     */
-    operatingState: SequenceOperatingState;
-
-    /**
-     * Component timelines for this sequence
-     */
-    componentTimelines?: ComponentTimeline[];
-
-    /**
-     * Design information sources for traceability
-     * @HLR-ES-D Provide traceability of the work
-     */
-    designInformation?: DesignInformation[];
-
-    /**
-     * References to the system components involved in this event sequence.
-     * @HLR-ES-B DEVELOP the event sequence models to a level of detail sufficient to identify intersystem dependencies and train level interfaces, either in the event trees or through a combination of event tree and fault tree models and associated logic [2].
-     */
-    involvedSystemComponentIds?: string[];
-
-    /**
-     * References to unavailability events relevant to this sequence.
-     */
-    unavailabilityEventIds?: string[];
-
-    /**
-     * References to specific failure modes relevant in this sequence.
-     */
-    failureModeIds?: string[];
-
-    /**
-     * References to basic events (from Data Analysis) impacting this sequence.
-     * Connects the event sequence to the underlying data and probabilities.
-     */
-    basicEventIds?: string[];
-
-    /**
-     * References to success criteria that must be met in this sequence.
-     * Ties the sequence to defined success standards.
-     */
-    successCriteriaIds?: string[];
-
-    /**
-     * @ES-A14 IDENTIFY the sources of model uncertainty, the related assumptions, and reasonable alternatives associated with event sequence definition in a manner that supports the applicable requirements of HLR-ESQ-E [1].
-     */
-    uncertainty?: Uncertainty;
-
-    /**
-     * References to supporting analyses
-     * @HLR-ES-D Provide traceability of the work
-     */
-    supportingAnalyses?: {
-        analysisType: string;
-        analysisId: string;
-        description?: string;
-    }[];
-
-    // TODO: Future enhancement for train/subsystem dependencies
-    // trainDependencies?: {
-    //     systemId: string;
-    //     trainId: string;
-    //     dependencyType: DependencyType;
-    // }[];
-}
-
-/**
- * Runtime validation functions for EventSequenceAnalysis
- */
-export const validateEventSequenceAnalysis = {
-    /**
-     * Validates that all stateIds referenced in sequences exist in the provided plant states table
-     */
-    validateStateReferences: (
-        analysis: EventSequenceAnalysis,
-        plantStatesTable: PlantOperatingStatesTable
-    ): string[] => {
-        const errors: string[] = [];
-        
-        // Get all valid state keys from the PlantOperatingStatesTable
-        // This includes the predefined states (startUp, fullPower, controlledShutdown)
-        // and any custom states
-        const validStateKeys = new Set([
-            'startUp',
-            'fullPower',
-            'controlledShutdown',
-            ...Object.keys(plantStatesTable).filter(key => 
-                key !== 'startUp' && key !== 'fullPower' && key !== 'controlledShutdown'
-            )
-        ]);
-        
-        analysis.eventSequences.forEach((seq, index) => {
-            if (!validStateKeys.has(seq.operatingState.stateId)) {
-                errors.push(
-                    `Invalid stateId "${seq.operatingState.stateId}" in sequence ${index} (${seq.sequenceId})`
-                );
-            }
-        });
-        
-        return errors;
-    }
-};
 
 /**
  * JSON schema for validating {@link EventSequenceAnalysis} entities.
- * Includes both type-level and runtime validations.
- * 
+ * Provides validation and ensures type safety throughout the application.
+ *
+ * @group API
  * @example
  * ```typescript
- * // Type-level validation (compile time)
- * const analysis: EventSequenceAnalysis = { ... };
- * 
- * // Runtime validation
- * const schema = EventSequenceAnalysisSchema;
- * const validationResult = schema.validateSync(analysis);
- * if (!validationResult.success) {
- *   console.error(validationResult.errors);
- * }
- * 
- * // Additional runtime checks
- * const stateErrors = validateEventSequenceAnalysis.validateStateReferences(
- *   analysis,
- *   plantStatesTable
- * );
- * if (stateErrors.length > 0) {
- *   console.error(stateErrors);
- * }
+ * const isValid = EventSequenceAnalysisSchema.validate(someData);
  * ```
  */
 export const EventSequenceAnalysisSchema = typia.json.application<[EventSequenceAnalysis], "3.0">();

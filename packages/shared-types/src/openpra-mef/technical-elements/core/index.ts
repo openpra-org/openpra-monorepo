@@ -5,5 +5,6 @@
  */
 
 export * from './events';
-export * from './meta';
-export { IdPatterns } from './shared-patterns';
+// export * from './meta';
+export * from './documentation';
+export * from './shared-patterns';

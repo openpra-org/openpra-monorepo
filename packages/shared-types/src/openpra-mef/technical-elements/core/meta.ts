@@ -5,6 +5,7 @@
 import typia, { tags } from "typia";
 
 /**
+ * @internal
  * Interface representing a unique entity with a UUID.
  * @memberof technical_elements.core
  * @example
@@ -19,6 +20,7 @@ export interface Unique {
 }
 
 /**
+ * @internal
  * Interface representing an entity with a name.
  * @memberof technical_elements.core
  * @example
@@ -33,6 +35,7 @@ export interface Named {
 }
 
 /**
+ * @internal
  * JSON schema for validating {@link Unique} entities.
  * @memberof technical_elements.core
  * @example
@@ -43,6 +46,7 @@ export interface Named {
 export const UniqueTagSchema = typia.json.application<[Unique], "3.0">();
 
 /**
+ * @internal
  * JSON schema for validating {@link Named} entities.
  * @memberof technical_elements.core
  * @example

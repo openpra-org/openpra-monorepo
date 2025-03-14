@@ -225,7 +225,56 @@ export interface BasePeerReviewDocumentation extends Unique, Named {
 }
 
 /**
- * @internal
+ * Base interface for traceability documentation across technical elements.
+ * Provides a consistent structure for documenting traceability of work.
+ * 
+ * This interface supports HLR-ES-D and similar requirements across technical elements
+ * by providing a structured way to document decisions, data sources, and changes.
+ * 
+ * @group Documentation & Traceability
+ */
+export interface BaseTraceabilityDocumentation extends Unique, Named {
+    /** Key modeling decisions and their justifications */
+    modelingDecisions?: Record<string, string>;
+    
+    /** References to data sources used in the analysis */
+    dataSourceReferences?: Record<string, string[]>;
+    
+    /** Reference to a diagram showing the analysis flow */
+    analysisFlowDiagram?: string;
+    
+    /** Log of changes to the analysis */
+    changeLog?: {
+        /** Version identifier */
+        version: string;
+        
+        /** Date of change */
+        date: string;
+        
+        /** Description of changes made */
+        changes: string[];
+        
+        /** Person who made the changes */
+        analyst: string;
+    }[];
+    
+    /** Cross-references to other technical elements */
+    crossReferences?: {
+        /** Technical element type */
+        technicalElement: string;
+        
+        /** ID of the referenced element */
+        elementId: string;
+        
+        /** Type of relationship */
+        relationship: string;
+        
+        /** Description of the relationship */
+        description?: string;
+    }[];
+}
+
+/**
  * JSON schema for validating documentation entities.
  * @group Documentation & Traceability
  */
@@ -234,5 +283,6 @@ export const DocumentationSchemas = {
     processDocumentation: typia.json.application<[BaseProcessDocumentation], "3.0">(),
     modelUncertainty: typia.json.application<[BaseModelUncertaintyDocumentation], "3.0">(),
     preOperationalAssumptions: typia.json.application<[BasePreOperationalAssumptionsDocumentation], "3.0">(),
-    peerReview: typia.json.application<[BasePeerReviewDocumentation], "3.0">()
+    peerReview: typia.json.application<[BasePeerReviewDocumentation], "3.0">(),
+    traceability: typia.json.application<[BaseTraceabilityDocumentation], "3.0">()
 } as const;

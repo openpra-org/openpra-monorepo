@@ -35,7 +35,8 @@ import {
     BaseProcessDocumentation, 
     BaseModelUncertaintyDocumentation, 
     BasePreOperationalAssumptionsDocumentation,
-    BasePeerReviewDocumentation
+    BasePeerReviewDocumentation,
+    BaseTraceabilityDocumentation
 } from "../core/documentation";
 
 //==============================================================================
@@ -267,6 +268,91 @@ export interface PhenomenologicalImpact extends Unique, Named {
 }
 
 /**
+ * Interface representing an intermediate end state in an event sequence.
+ * Used to reduce the size and complexity of individual event trees by providing
+ * transfer points between event trees.
+ * 
+ * @group Event Sequences & Progression
+ * @implements ES-A13: Intermediate end states and/or transfers between or among event trees
+ */
+export interface IntermediateEndState extends Unique, Named {
+    /** Description of the intermediate end state */
+    description: string;
+    
+    /** Reference to the event tree to transfer to */
+    transferToEventTree?: string;
+    
+    /** Reference to the event sequence or family this intermediate state belongs to */
+    parentSequenceId?: EventSequenceReference;
+    
+    /** Reference to the event sequence family this intermediate state belongs to */
+    parentSequenceFamilyId?: EventSequenceFamilyReference;
+    
+    /** 
+     * Plant conditions at this intermediate state 
+     * Uses minimal concepts from Plant Operating States Analysis
+     */
+    plantConditions: {
+        /** 
+         * Operating mode at this intermediate state 
+         * Reuses OperatingState from Plant Operating States
+         */
+        operatingMode?: "POWER" | "STARTUP" | "SHUTDOWN" | "REFUELING" | "MAINTENANCE";
+        
+        /** Key plant parameters that define this intermediate state */
+        keyParameters: Record<string, string | number>;
+        
+        /** System statuses at this intermediate state */
+        systemStatuses?: Record<SystemReference, SystemStatus>;
+        
+        /** 
+         * Barrier statuses at this intermediate state 
+         * Reuses BarrierStatus values from Plant Operating States
+         */
+        barrierStatuses?: Record<string, "INTACT" | "BREACHED" | "DEGRADED" | "BYPASSED" | "OPEN">;
+        
+        /** References to success criteria applicable at this state */
+        successCriteriaIds?: SuccessCriteriaId[];
+    };
+    
+    /** Conditions that trigger the transfer to another event tree */
+    transferConditions?: {
+        /** Description of the condition */
+        description: string;
+        
+        /** Logic expression representing the condition */
+        logicExpression?: string;
+        
+        /** References to events that trigger the transfer */
+        triggeringEvents?: string[];
+    };
+    
+    /** Dependencies that must be preserved when transferring */
+    preservedDependencies: {
+        /** Functional dependencies to preserve */
+        functional?: string[];
+        
+        /** System dependencies to preserve */
+        system?: SystemReference[];
+        
+        /** Initiating event dependencies to preserve */
+        initiatingEvent?: string[];
+        
+        /** Operator action dependencies to preserve */
+        operator?: HumanActionReference[];
+        
+        /** Phenomenological dependencies to preserve */
+        phenomenological?: string[];
+        
+        /** Spatial or environmental dependencies to preserve */
+        spatial?: string[];
+    };
+    
+    /** References to supporting analyses */
+    supportingAnalysisReferences?: string[];
+}
+
+/**
  * Interface representing an event sequence.
  * An event sequence is a chronological progression of events from the initiating event
  * to a specified end state.
@@ -306,6 +392,9 @@ export interface EventSequence extends Unique, Named {
     
     /** Phenomenological impacts in this sequence */
     phenomenologicalImpacts?: PhenomenologicalImpact[];
+    
+    /** Intermediate end states in this sequence */
+    intermediateEndStates?: IntermediateEndState[];
     
     /** End state of the sequence */
     endState: EndState;
@@ -934,6 +1023,18 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
         /** Description of dependencies */
         dependencyDescription: string;
     }[];
+
+    /**
+     * Methodology details for the event sequence analysis
+     * @implements ES-D1(m): the methodology details for the event sequence analysis
+     */
+    methodologyDetails?: {
+        approachDescription: string;
+        modelingTechniques: string[];
+        toolsUsed: string[];
+        validationApproach: string;
+        conformanceToStandards?: string[];
+    };
 }
 
 /**
@@ -993,6 +1094,17 @@ export interface PeerReviewDocumentation extends BasePeerReviewDocumentation {
     
     /** Recognition of plant-specific features */
     plantSpecificFeaturesRecognition?: string;
+
+    /**
+     * Methodology review for the event sequence analysis
+     * @implements ES-D1(n): the methodology review for the event sequence analysis
+     */
+    methodologyReview?: {
+        peerReviewProcess: string;
+        qualificationOfReviewers: string[];
+        methodologyAssessment: string;
+        findingsAndResolutions?: Record<string, string>;
+    };
 }
 
 /**
@@ -1231,6 +1343,12 @@ export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElement
     eventSequenceFamilies: Record<EventSequenceFamilyReference, EventSequenceFamily>;
     
     /**
+     * Intermediate end states used in the analysis
+     * @implements ES-A13: Intermediate end states and/or transfers between or among event trees
+     */
+    intermediateEndStates?: Record<string, IntermediateEndState>;
+    
+    /**
      * Mappings of event sequences to release categories
      * @implements ES-C8: MAP each event sequence with a release to a release category
      */
@@ -1300,6 +1418,12 @@ export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElement
         
         /** Peer review documentation */
         peerReviewDocumentation?: PeerReviewDocumentation;
+
+        /** 
+         * Traceability documentation 
+         * @implements ES-D: The documentation of the Event Sequence Analysis shall provide traceability of the work
+         */
+        traceabilityDocumentation?: BaseTraceabilityDocumentation;
     };
     
     /**

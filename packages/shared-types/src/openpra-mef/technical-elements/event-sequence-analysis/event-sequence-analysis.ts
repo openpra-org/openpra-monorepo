@@ -31,12 +31,22 @@ import { IdPatterns, ImportanceLevel, SensitivityStudy, ScreeningStatus, Screeni
 import { PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
 import { DistributionType } from "../data-analysis/data-analysis";
 import { 
+    SuccessCriteriaId, 
+    SuccessCriterion, 
+    OverallSuccessCriteriaDefinition,
+    SystemSuccessCriteriaDefinition,
+    ComponentSuccessCriteriaDefinition,
+    HumanActionSuccessCriteriaDefinition
+} from "../success-criteria/success-criteria-development";
+import { 
     BaseDesignInformation, 
     BaseProcessDocumentation, 
     BaseModelUncertaintyDocumentation, 
     BasePreOperationalAssumptionsDocumentation,
     BasePeerReviewDocumentation,
-    BaseTraceabilityDocumentation
+    BaseTraceabilityDocumentation,
+    BaseAssumption,
+    PreOperationalAssumption
 } from "../core/documentation";
 
 //==============================================================================
@@ -82,14 +92,6 @@ export enum DependencyType {
     /** Dependency based on shared or common components */
     COMMON_CAUSE = "COMMON_CAUSE"
 }
-
-/**
- * Type for success criteria IDs.
- * Format: SC-[SYSTEM]-[NUMBER]
- * Example: SC-RCIC-001
- * @group Core Definitions & Enums
- */
-export type SuccessCriteriaId = string & tags.Pattern<typeof IdPatterns.SUCCESS_CRITERIA_ID>;
 
 /**
  * Type for system references.
@@ -144,6 +146,12 @@ export type EventSequenceFamilyReference = string & tags.Pattern<typeof IdPatter
  * @group Core Definitions & Enums
  */
 export type SystemStatus = "SUCCESS" | "FAILURE";
+
+/**
+ * Type for sequence designator IDs.
+ * @group Core Definitions & Enums
+ */
+export type SequenceDesignatorId = string;
 
 //==============================================================================
 /**
@@ -442,6 +450,24 @@ export interface EventSequence extends Unique, Named {
     sequenceSpecificAssumptions?: Assumption[];
 }
 
+/**
+ * Interface representing a sequence designator.
+ * @group Event Sequences & Progression
+ */
+export interface SequenceDesignator extends Unique {
+    /** Sequence designator ID */
+    id: SequenceDesignatorId;
+    
+    /** Associated event sequence reference */
+    eventSequenceId: EventSequenceReference;
+    
+    /** Frequency value associated with this sequence path */
+    frequency?: Frequency;
+    
+    /** Description of this sequence path */
+    description?: string;
+}
+
 //==============================================================================
 /**
  * @group Sequence Families & Release Categories
@@ -694,24 +720,8 @@ export interface SystemInterfaceDependency extends Unique, Named {
  * @group Uncertainty & Assumptions
  * @implements ES-A15: IDENTIFY assumptions made due to lack of as-built and as-operated details
  */
-export interface Assumption extends Unique {
-    /** Description of the assumption */
-    description: string;
-    
-    /** Justification for the assumption */
-    justification?: string;
-    
-    /** Impact of the assumption on the analysis */
-    impact?: string;
-    
-    /** References to supporting documentation */
-    references?: string[];
-    
-    /** Whether this is due to lack of as-built/as-operated details */
-    isPreOperational?: boolean;
-    
-    /** Plans to address or validate the assumption */
-    addressingPlans?: string;
+export interface Assumption extends BaseAssumption {
+    // Additional properties specific to event sequence analysis assumptions can be added here
 }
 
 /**
@@ -1303,6 +1313,11 @@ export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElement
      * @implements ES-A6: IDENTIFY event sequences that should be explicitly modeled
      */
     eventSequences: Record<EventSequenceReference, EventSequence>;
+    
+    /**
+     * Sequence designators for referencing specific paths through event sequences
+     */
+    sequenceDesignators?: Record<string, SequenceDesignator>;
     
     /**
      * Event sequence families defined

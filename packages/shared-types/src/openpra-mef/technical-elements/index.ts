@@ -46,4 +46,10 @@ export * as risk_integration from './risk-integration/risk-integration';
  * @namespace technical_elements.event_sequence_analysis
  * @description Event Sequence Analysis types and interfaces
  */
-export * as event_sequence_analysis from './event-sequence-analysis/event-sequence-analysis'; 
+export * as event_sequence_analysis from './event-sequence-analysis/event-sequence-analysis';
+
+/**
+ * @namespace technical_elements.success_criteria_development
+ * @description Success Criteria Development types and interfaces
+ */
+export * as success_criteria_development from './success-criteria/success-criteria-development'; 

@@ -35,12 +35,17 @@
  */
 
 import typia, { tags } from "typia";
-import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
+import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { BasicEvent, FrequencyUnit } from "../core/events";
 import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
 import { PlantOperatingStatesTable, PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
 import { SensitivityStudy } from "../core/shared-patterns";
+import { 
+    BaseAssumption, 
+    PreOperationalAssumption, 
+    BasePreOperationalAssumptionsDocumentation 
+} from "../core/documentation";
 
 //==============================================================================
 /**
@@ -176,31 +181,11 @@ export interface DataSource {
  * @implements DA-A5: IDENTIFY the sources of model uncertainty, related assumptions
  * @implements DA-A6: IDENTIFY assumptions made due to lack of as-built details
  */
-export interface Assumption {
-    /**
-     * The assumption statement
-     */
-    statement: string;
-    
+export interface Assumption extends BaseAssumption {
     /**
      * The context or type of the assumption (e.g., "General", "Value-specific")
      */
     context?: string;
-    
-    /**
-     * Any additional notes about the assumption
-     */
-    notes?: string;
-    
-    /**
-     * Rationale or justification for the assumption
-     */
-    rationale?: string;
-    
-    /**
-     * References to supporting documentation
-     */
-    references?: string[];
     
     /**
      * Parameters or basic events impacted by this assumption
@@ -211,11 +196,6 @@ export interface Assumption {
      * Criteria or information required to close this assumption
      */
     closureCriteria?: string;
-    
-    /**
-     * Current status of the assumption
-     */
-    status?: "OPEN" | "CLOSED" | "IN_PROGRESS";
 }
 
 //==============================================================================
@@ -1084,40 +1064,7 @@ export interface ModelUncertaintyDocumentation extends Unique, Named {
  * @group Documentation & Traceability
  * @implements DA-E3
  */
-export interface PreOperationalAssumptionsDocumentation extends Unique, Named {
-    /**
-     * Assumptions due to lack of as-built, as-operated details
-     * @implements DA-E3: DOCUMENT assumptions and limitations due to lack of as-built, as-operated details
-     */
-    assumptions: {
-        /** Assumption statement */
-        statement: string;
-        
-        /** Rationale/justification */
-        rationale: string;
-        
-        /** References supporting the assumption */
-        references?: string[];
-        
-        /** Parameters or basic events impacted */
-        impactedParameters: string[];
-        
-        /** Closure criteria */
-        closureCriteria: string;
-        
-        /** Current status */
-        status: "OPEN" | "CLOSED" | "IN_PROGRESS";
-        
-        /** Limitations imposed by this assumption */
-        limitations?: string[];
-        
-        /** Risk impact assessment */
-        riskImpact?: string;
-        
-        /** Plans to address the assumption */
-        addressingPlans?: string;
-    }[];
-    
+export interface PreOperationalAssumptionsDocumentation extends BasePreOperationalAssumptionsDocumentation {
     /**
      * Reference to DA-A6
      * @implements DA-E3: See DA-A6
@@ -1346,6 +1293,17 @@ export interface DataAnalysisExportImport {
  * @extends {TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS>}
  */
 export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS> {
+    /**
+     * Additional metadata specific to Data Analysis
+     */
+    additionalMetadata?: {
+        /** Data analysis specific limitations */
+        limitations?: string[];
+        
+        /** Data analysis specific assumptions */
+        assumptions?: string[];
+    };
+    
     /**
      * Array of data analysis parameters that are part of this analysis.
      * Each parameter represents a specific data point or measurement being analyzed.

@@ -26,11 +26,12 @@
  */
 
 import typia, { tags } from "typia";
-import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
+import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { InitiatingEvent, BaseEvent, Frequency } from "../core/events";
 import { IdPatterns, ImportanceLevel, SensitivityStudy, ScreeningStatus } from "../core/shared-patterns";
 import { DistributionType } from "../data-analysis/data-analysis";
+import { SuccessCriteriaId } from "../success-criteria/success-criteria-development";
 
 //==============================================================================
 /**
@@ -112,14 +113,6 @@ export enum ModuleState {
     /** Module is indirectly or partially affected by the initiating event or hazard */
     PARTIALLY_IMPACTED = "PARTIALLY_IMPACTED"
 }
-
-/**
- * Type for success criteria IDs
- * Format: SC-[SYSTEM]-[NUMBER]
- * Example: SC-RCIC-001
- * @group Core Definitions & Enums
- */
-export type SuccessCriteriaId = string;
 
 /**
  * Interface representing the types of source locations.
@@ -1390,6 +1383,17 @@ export interface PlantOperatingStatesDocumentation {
  *  @group API
  */
 export interface PlantOperatingStatesAnalysis extends TechnicalElement<TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS> {
+    /**
+     * Additional metadata specific to Plant Operating States Analysis
+     */
+    additionalMetadata?: {
+        /** Plant operating states specific limitations */
+        limitations?: string[];
+        
+        /** Plant operating states specific assumptions */
+        assumptions?: string[];
+    };
+    
     /** 
      * List of plant evolutions to be analyzed
      * Must include, at a minimum, plant evolutions from at-power operations

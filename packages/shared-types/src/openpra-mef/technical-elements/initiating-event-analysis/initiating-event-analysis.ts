@@ -60,7 +60,7 @@ import {
 } from "../data-analysis/data-analysis";
 
 // Other technical element imports
-import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
+import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { SystemComponent } from "../systems-analysis/systems-analysis";
 
 //==============================================================================

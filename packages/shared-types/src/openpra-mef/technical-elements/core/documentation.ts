@@ -140,6 +140,61 @@ export interface BaseModelUncertaintyDocumentation extends Unique, Named {
 }
 
 /**
+ * Base interface for assumptions across technical elements.
+ * Provides a consistent structure for documenting assumptions.
+ * 
+ * @group Documentation & Traceability
+ */
+export interface BaseAssumption extends Unique {
+    /** Description of the assumption */
+    description: string;
+    
+    /** Impact of the assumption on the analysis */
+    impact?: string;
+    
+    /** Justification or rationale for the assumption */
+    rationale?: string;
+    
+    /** References to supporting documentation */
+    references?: string[];
+    
+    /** Whether this is a pre-operational assumption (due to lack of as-built/as-operated details) */
+    isPreOperational?: boolean;
+    
+    /** Plans to address or validate the assumption */
+    addressingPlans?: string;
+    
+    /** Current status of the assumption */
+    status?: "OPEN" | "CLOSED" | "IN_PROGRESS";
+    
+    /** Limitations imposed by this assumption */
+    limitations?: string[];
+}
+
+/**
+ * Interface for pre-operational assumptions that are made due to lack of as-built, as-operated details.
+ * Extends the base assumption with additional properties specific to pre-operational contexts.
+ * 
+ * @group Documentation & Traceability
+ */
+export interface PreOperationalAssumption extends BaseAssumption {
+    /** Unique identifier for the assumption within its context */
+    assumptionId: string;
+    
+    /** Design information needed to resolve the assumption */
+    requiredDesignInformation?: BaseDesignInformation[];
+    
+    /** Specific resolution plan for addressing this assumption */
+    resolutionPlan?: string;
+    
+    /** Current status - required for pre-operational assumptions */
+    status: "OPEN" | "CLOSED" | "IN_PROGRESS";
+    
+    /** Limitations imposed by this assumption - required for pre-operational assumptions */
+    limitations: string[];
+}
+
+/**
  * Base interface for pre-operational assumptions documentation across technical elements.
  * Provides a consistent structure for documenting assumptions made before operation.
  * 
@@ -147,31 +202,7 @@ export interface BaseModelUncertaintyDocumentation extends Unique, Named {
  */
 export interface BasePreOperationalAssumptionsDocumentation extends Unique, Named {
     /** Assumptions due to lack of as-built, as-operated details */
-    assumptions: {
-        /** Assumption ID */
-        assumptionId: string;
-        
-        /** Description of the assumption */
-        description: string;
-        
-        /** Rationale for the assumption */
-        rationale: string;
-        
-        /** Limitations imposed by this assumption */
-        limitations: string[];
-        
-        /** Impact on the analysis */
-        impact: string;
-        
-        /** Design information needed to resolve the assumption */
-        requiredDesignInformation?: BaseDesignInformation[];
-        
-        /** Plan to address when as-built information becomes available */
-        resolutionPlan?: string;
-        
-        /** Current status */
-        status: "OPEN" | "CLOSED" | "IN_PROGRESS";
-    }[];
+    assumptions: PreOperationalAssumption[];
     
     /** References to supporting documentation */
     supportingDocumentationReferences?: string[];
@@ -284,5 +315,7 @@ export const DocumentationSchemas = {
     modelUncertainty: typia.json.application<[BaseModelUncertaintyDocumentation], "3.0">(),
     preOperationalAssumptions: typia.json.application<[BasePreOperationalAssumptionsDocumentation], "3.0">(),
     peerReview: typia.json.application<[BasePeerReviewDocumentation], "3.0">(),
-    traceability: typia.json.application<[BaseTraceabilityDocumentation], "3.0">()
+    traceability: typia.json.application<[BaseTraceabilityDocumentation], "3.0">(),
+    baseAssumption: typia.json.application<[BaseAssumption], "3.0">(),
+    preOperationalAssumption: typia.json.application<[PreOperationalAssumption], "3.0">()
 } as const;

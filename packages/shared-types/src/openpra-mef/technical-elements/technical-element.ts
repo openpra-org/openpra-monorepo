@@ -1,4 +1,6 @@
 import typia from "typia";
+import { Named, Unique } from "./core/meta";
+import { BaseAssumption } from "./core/documentation";
 
 /**
  * Mapping of technical element codes to their full names
@@ -121,33 +123,68 @@ export interface TechnicalElementMetadata {
 }
 
 /**
- * Interface representing a technical element with a specific type and code.
- *@remarks
- * This interface defines the structure of a technical element in the system.
- * It includes both the full type and the abbreviated code for the element,
- * as well as standard metadata.
- * @typeparam TechnicalElementType - The type of the technical element.
- *
- * @example
- * ```typescript
- *    const element: TechnicalElement<TechnicalElementTypes> = {
- *   "technical-element-type": TechnicalElementTypes.DATA_ANALYSIS,
- *   "technical-element-code": "DA",
- *   "metadata": {
- *     version: "1.0.0",
- *     analysisDate: "2023-03-15",
- *     analysts: ["John Doe"],
- *     approvalStatus: "APPROVED",
- *     scope: "Full plant analysis",
- *     lastModifiedDate: "2023-03-20",
- *     lastModifiedBy: "John Doe"
- *   }
- * };
+ * Base interface for all technical elements in the PRA model.
+ * 
+ * Technical elements are the major analytical tasks that, when completed in an integrated manner,
+ * make up a PRA model. Each technical element represents a specific aspect of the PRA model.
+ * 
+ * @typeParam T - The type of technical element
  */
-export interface TechnicalElement<TechnicalElementType> {
-  "technical-element-type": TechnicalElementType;
-  "technical-element-code": TechnicalElementCode;
-  "metadata": TechnicalElementMetadata;
+export interface TechnicalElement<T extends TechnicalElementTypes> extends Unique, Named {
+    /**
+     * The type of technical element
+     */
+    type: T;
+
+    /**
+     * The version of the technical element
+     */
+    version: string;
+
+    /**
+     * The date the technical element was created
+     */
+    created: string;
+
+    /**
+     * The date the technical element was last modified
+     */
+    modified: string;
+
+    /**
+     * The owner of the technical element
+     */
+    owner?: string;
+
+    /**
+     * The status of the technical element
+     */
+    status?: "DRAFT" | "REVIEW" | "APPROVED" | "DEPRECATED";
+
+    /**
+     * The description of the technical element
+     */
+    description?: string;
+
+    /**
+     * Tags associated with the technical element
+     */
+    tags?: string[];
+    
+    /**
+     * Common assumptions that apply across this technical element
+     * Using the standardized BaseAssumption interface
+     */
+    commonAssumptions?: BaseAssumption[];
+    
+    /**
+     * References to other technical elements
+     */
+    references?: {
+        technicalElementId: string;
+        technicalElementType: TechnicalElementTypes;
+        description: string;
+    }[];
 }
 
 /**

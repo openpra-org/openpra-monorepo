@@ -1,4 +1,10 @@
 /**
+ * @packageDocumentation
+ * @module plant_operating_states_analysis
+ * @description Types and interfaces for Plant Operating States Analysis based on RA-S-1.4-2021 Section 4.3.1
+ */
+
+/**
  * @module plant_operating_states_analysis
  * @description Comprehensive types and interfaces for Plant Operating State Analysis (POS)
  * 
@@ -23,7 +29,7 @@ import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { InitiatingEvent, BaseEvent, Frequency } from "../core/events";
-import { IdPatterns, ImportanceLevel } from "../core/shared-patterns";
+import { IdPatterns, ImportanceLevel, SensitivityStudy, ScreeningStatus } from "../core/shared-patterns";
 import { DistributionType } from "../data-analysis/data-analysis";
 
 //==============================================================================
@@ -114,17 +120,6 @@ export enum ModuleState {
  * @group Core Definitions & Enums
  */
 export type SuccessCriteriaId = string;
-
-/**
- * A simplified type representing the screening status of an element.
- * Used as a label for status grouping.
- * F = Fully Analysis
- * Q = Qualitative Analysis
- * @group Core Definitions & Enums
- */
-export type ScreeningStatus = 
-    | "F" // Fully Analysis
-    | "Q"; // Qualitative Analysis
 
 /**
  * Interface representing the types of source locations.
@@ -888,6 +883,12 @@ export interface SubsumedPOS {
     
     /** Validation method used to confirm the subsumption is appropriate */
     validationMethod?: string;
+    
+    /** 
+     * Sensitivity analysis for this subsumption
+     * Replaced simple string with standardized SensitivityStudy interface
+     */
+    sensitivityAnalysis?: SensitivityStudy;
 }
 
 

@@ -69,22 +69,85 @@ export enum TechnicalElementTypes {
 }
 
 /**
+ * Interface representing common metadata for all technical elements.
+ * 
+ * @remarks
+ * This interface defines the standard metadata that should be present in all technical elements.
+ * It includes fields for version information, analysis dates, analysts/reviewers, approval status,
+ * and scope/limitations.
+ * 
+ * @example
+ * ```typescript
+ * const metadata: TechnicalElementMetadata = {
+ *   version: "1.0.0",
+ *   analysisDate: "2023-03-15",
+ *   analysts: ["John Doe"],
+ *   reviewers: ["Jane Smith"],
+ *   approvalStatus: "APPROVED",
+ *   scope: "Full plant analysis",
+ *   limitations: ["Limited to normal operating conditions"],
+ *   lastModifiedDate: "2023-03-20",
+ *   lastModifiedBy: "John Doe"
+ * };
+ * ```
+ */
+export interface TechnicalElementMetadata {
+  /** Version information for the technical element */
+  version: string;
+  
+  /** Date when the analysis was performed */
+  analysisDate: string;
+  
+  /** Person or team who performed the analysis */
+  analysts: string[];
+  
+  /** Person or team who reviewed the analysis */
+  reviewers?: string[];
+  
+  /** Current approval status of the analysis */
+  approvalStatus: "DRAFT" | "REVIEWED" | "APPROVED" | "REJECTED";
+  
+  /** Scope of the analysis */
+  scope: string;
+  
+  /** Limitations of the analysis */
+  limitations?: string[];
+  
+  /** Last modified date */
+  lastModifiedDate: string;
+  
+  /** Last modified by */
+  lastModifiedBy: string;
+}
+
+/**
  * Interface representing a technical element with a specific type and code.
  *@remarks
  * This interface defines the structure of a technical element in the system.
- * It includes both the full type and the abbreviated code for the element.
+ * It includes both the full type and the abbreviated code for the element,
+ * as well as standard metadata.
  * @typeparam TechnicalElementType - The type of the technical element.
  *
  * @example
  * ```typescript
  *    const element: TechnicalElement<TechnicalElementTypes> = {
  *   "technical-element-type": TechnicalElementTypes.DATA_ANALYSIS,
- *   "technical-element-code": "DA"
+ *   "technical-element-code": "DA",
+ *   "metadata": {
+ *     version: "1.0.0",
+ *     analysisDate: "2023-03-15",
+ *     analysts: ["John Doe"],
+ *     approvalStatus: "APPROVED",
+ *     scope: "Full plant analysis",
+ *     lastModifiedDate: "2023-03-20",
+ *     lastModifiedBy: "John Doe"
+ *   }
  * };
  */
 export interface TechnicalElement<TechnicalElementType> {
   "technical-element-type": TechnicalElementType;
   "technical-element-code": TechnicalElementCode;
+  "metadata": TechnicalElementMetadata;
 }
 
 /**
@@ -117,3 +180,21 @@ export const validateTechnicalElement = typia.createValidate<TechnicalElement<Te
  * This is useful for runtime type checking and validation.
  */
 export const isTechnicalElement = typia.createIs<TechnicalElement<TechnicalElementTypes>>();
+
+/**
+ * Runtime validation for technical element metadata
+ * 
+ * @remarks
+ * Provides runtime type checking for technical element metadata.
+ * This ensures data consistency throughout the application.
+ */
+export const validateTechnicalElementMetadata = typia.createValidate<TechnicalElementMetadata>();
+
+/**
+ * Type guard for technical element metadata
+ * 
+ * @remarks
+ * A type guard function that checks if a given object is valid technical element metadata.
+ * This is useful for runtime type checking and validation.
+ */
+export const isTechnicalElementMetadata = typia.createIs<TechnicalElementMetadata>();

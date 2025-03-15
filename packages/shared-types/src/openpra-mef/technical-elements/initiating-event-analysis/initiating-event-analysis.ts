@@ -37,7 +37,7 @@
 import typia, { tags } from "typia";
 import { Named, Unique } from "../core/meta";
 import { Frequency, InitiatingEvent, BaseEvent, FrequencyUnit } from "../core/events";
-import { ImportanceLevel } from "../core/shared-patterns";
+import { ImportanceLevel, SensitivityStudy, ScreeningStatus, ScreeningCriteria } from "../core/shared-patterns";
 
 // Plant operating states imports (midstream)
 import { 
@@ -119,22 +119,6 @@ export enum InitiatingEventCategory {
   
   /** Events caused by at-initiator human failure events */
   HUMAN_FAILURE = "HUMAN_FAILURE"
-}
-
-/**
- * Enum representing initiating event screening status.
- * @remarks **IE-B7**: SCREEN OUT initiating events if they meet defined criteria
- *  @group Core Definitions & Enums
- */
-export enum ScreeningStatus {
-  /** Event retained for detailed analysis */
-  RETAINED = "RETAINED",
-  
-  /** Event excluded from analysis based on screening criteria */
-  SCREENED_OUT = "SCREENED_OUT",
-  
-  /** Event merged into another group */
-  MERGED = "MERGED"
 }
 
 /**
@@ -541,16 +525,7 @@ export interface HazardInducedInitiator extends InitiatorDefinition {
  * @remarks **IE-B7**: SCREEN OUT initiating events if they meet criteria
  * @group Event Grouping & Screening
  */
-export interface ScreeningCriteria {
-    /** Frequency-based screening criterion */
-    frequency_criterion: number;
-    
-    /** Damage frequency screening criterion */
-    damage_frequency_criterion: number;
-    
-    /** Basis for screening criteria */
-    basis: string;
-    
+export interface InitiatingEventScreeningCriteria extends ScreeningCriteria {
     /** List of screened-out initiating events */
     screened_out_events: {
         event_id: string;
@@ -603,25 +578,6 @@ export interface InitiatingEventGroup extends Unique, Named {
 //==============================================================================
 
 /**
- * Interface for sensitivity studies on initiating event frequencies
- * @remarks **IE-C19**: Characterize the uncertainty associated with the frequency of each initiating event or initiating event group.
- * @group Quantification & Uncertainty
- */
-export interface SensitivityStudy {
-    /** Parameter being varied */
-    parameter: string;
-    
-    /** Range of parameter values */
-    range: [number, number];
-    
-    /** Results of sensitivity analysis */
-    results: string;
-    
-    /** Risk insights gained */
-    insights: string;
-}
-
-/**
  * Quantification details for an initiating event
  * @remarks **HLR-IE-C**: The Initiating Event Analysis shall quantify the annual frequency of each initiating event or initiating event group based on the plant conditions for each source of radioactive material and plant operating state within the scope of the PRA.
  * @remarks **IE-C1**: For operating plants, calculate initiating event frequency using applicable generic and plant- or design-specific data representative of current design and performance, unless adequate plant-specific data exists.
@@ -648,7 +604,7 @@ export interface InitiatingEventQuantification {
     };
     
     /** Sensitivity studies performed */
-    sensitivity_studies?: SensitivityStudy[];
+    sensitivityStudies?: SensitivityStudy[];
 }
 
 //==============================================================================
@@ -809,14 +765,11 @@ export interface PreOperationalAssumptions {
  *  @group API
  */
 export interface InitiatingEventsAnalysis extends TechnicalElement<TechnicalElementTypes.INITIATING_EVENT_ANALYSIS> {
-    metadata: {
-        version: string;
-        analysis_date: string;
-        analyst: string;
-        reviewer: string;
-        approval_status: string;
-        scope: string[];
-        limitations: string[];
+    /**
+     * Additional metadata specific to Initiating Events Analysis
+     */
+    additionalMetadata?: {
+        /** Assumptions specific to initiating events analysis */
         assumptions: Assumption[];
     };
     
@@ -865,14 +818,14 @@ export interface InitiatingEventsAnalysis extends TechnicalElement<TechnicalElem
      * Screening criteria used to exclude initiating events
      * @remarks **IE-B7**: SCREEN OUT initiating events if they meet defined criteria
      */
-    screening_criteria: ScreeningCriteria;
+    screening_criteria: InitiatingEventScreeningCriteria;
     
     /**
      * Risk insights from the analysis
      */
     insights: {
         key_assumptions: string[];
-        sensitivity_studies: Record<string, SensitivityStudy>;
+        sensitivityStudies: Record<string, SensitivityStudy>;
         dominant_contributors: string[];
         uncertainty_drivers: string[];
     };

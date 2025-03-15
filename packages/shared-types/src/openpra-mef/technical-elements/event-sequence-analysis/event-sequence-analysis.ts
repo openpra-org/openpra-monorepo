@@ -27,7 +27,7 @@ import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { InitiatingEvent, BaseEvent, Frequency, FrequencyUnit } from "../core/events";
-import { IdPatterns, ImportanceLevel } from "../core/shared-patterns";
+import { IdPatterns, ImportanceLevel, SensitivityStudy, ScreeningStatus, ScreeningCriteria } from "../core/shared-patterns";
 import { PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
 import { DistributionType } from "../data-analysis/data-analysis";
 import { 
@@ -428,8 +428,8 @@ export interface EventSequence extends Unique, Named {
      * @implements ES-A7: IDENTIFY event sequences that can be screened
      */
     screening?: {
-        /** Whether the sequence is screened out */
-        isScreenedOut: boolean;
+        /** Screening status of the sequence */
+        status: ScreeningStatus;
         
         /** Basis for screening decision */
         screeningBasis?: string;
@@ -751,34 +751,6 @@ export interface ModelUncertainty extends Unique, Named {
         /** Range or bounds of the uncertainty if quantitative */
         range?: [number, number];
     };
-}
-
-/**
- * Interface representing a sensitivity study for uncertainty assessment.
- * @group Uncertainty & Assumptions
- * @implements ES-A14: Characterize the sources of model uncertainty
- */
-export interface SensitivityStudy extends Unique, Named {
-    /** Description of the sensitivity study */
-    description: string;
-    
-    /** Model uncertainty being studied */
-    modelUncertaintyId: string;
-    
-    /** Parameters varied in the study */
-    variedParameters: string[];
-    
-    /** Range of variation for each parameter */
-    parameterRanges: Record<string, [number, number]>;
-    
-    /** Results of the sensitivity study */
-    results?: string;
-    
-    /** Insights gained from the study */
-    insights?: string;
-    
-    /** Impact on event sequence frequencies or outcomes */
-    impact?: string;
 }
 
 /**
@@ -1171,6 +1143,24 @@ export interface EventSequenceDesignInformation extends BaseDesignInformation {
     assumptions?: string[];
 }
 
+/**
+ * Criteria for screening out event sequences
+ * @remarks **ES-A7**: IDENTIFY event sequences that can be screened
+ * @group Event Sequence Screening & Grouping
+ */
+export interface EventSequenceScreeningCriteria extends ScreeningCriteria {
+    /** List of screened-out event sequences */
+    screened_out_sequences: {
+        /** ID of the screened-out sequence */
+        sequence_id: EventSequenceReference;
+        
+        /** Reason for screening out */
+        reason: string;
+        
+        /** Detailed justification for screening decision */
+        justification: string;
+    }[];
+}
 
 //==============================================================================
 /**
@@ -1276,31 +1266,10 @@ export interface EventSequenceValidationRules {
  */
 export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS> {
     /**
-     * Metadata about the analysis
+     * Additional metadata specific to Event Sequence Analysis
      * @implements ES-D1: DOCUMENT the process used in the Event Sequence Analysis
      */
-    metadata: {
-        /** Version of the analysis */
-        version: string;
-        
-        /** Date the analysis was performed */
-        analysisDate: string;
-        
-        /** Person who performed the analysis */
-        analyst: string;
-        
-        /** Person who reviewed the analysis */
-        reviewer?: string;
-        
-        /** Approval status of the analysis */
-        approvalStatus?: string;
-        
-        /** Scope of the analysis */
-        scope?: string[];
-        
-        /** Limitations of the analysis */
-        limitations?: string[];
-        
+    additionalMetadata?: {
         /** Traceability information */
         traceability?: string;
     };
@@ -1430,6 +1399,12 @@ export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElement
      * Validation rules for the analysis
      */
     validationRules?: EventSequenceValidationRules;
+    
+    /**
+     * Screening criteria used to exclude event sequences
+     * @implements ES-A7: IDENTIFY event sequences that can be screened
+     */
+    screening_criteria?: EventSequenceScreeningCriteria;
 }
 
 /**

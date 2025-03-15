@@ -40,6 +40,7 @@ import { Named, Unique } from "../core/meta";
 import { BasicEvent, FrequencyUnit } from "../core/events";
 import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
 import { PlantOperatingStatesTable, PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
+import { SensitivityStudy } from "../core/shared-patterns";
 
 //==============================================================================
 /**
@@ -622,25 +623,7 @@ export interface Uncertainty {
     /**
      * Results of sensitivity studies
      */
-    sensitivityStudies?: {
-        /**
-         * Description of the sensitivity study.
-         */
-        description: string;
-
-        /**
-         * Range of parameter variation.
-         */
-        variationRange: {
-            min: number;
-            max: number;
-        };
-
-        /**
-         * Qualitative or quantitative results.
-         */
-        results: string;
-    }[];
+    sensitivityStudies?: SensitivityStudy[];
 }
 
 /**
@@ -832,6 +815,11 @@ export interface FrequencyQuantification {
      * @implements DA-D2: CHARACTERIZE the uncertainty in parameter estimates
      */
     uncertainty: Uncertainty;
+    
+    /**
+     * Sensitivity studies for this frequency quantification
+     */
+    sensitivityStudies?: SensitivityStudy[];
 }
 
 //==============================================================================
@@ -1415,6 +1403,11 @@ export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DAT
      * Export/import configuration
      */
     exportImportConfig?: DataAnalysisExportImport;
+    
+    /**
+     * Sensitivity studies performed as part of this analysis
+     */
+    sensitivityStudies?: SensitivityStudy[];
 }
 
 /**

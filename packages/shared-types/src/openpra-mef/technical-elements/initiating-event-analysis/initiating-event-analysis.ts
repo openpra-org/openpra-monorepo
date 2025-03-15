@@ -59,9 +59,12 @@ import {
   BayesianUpdate 
 } from "../data-analysis/data-analysis";
 
+// Success criteria imports
+import { SuccessCriteriaId } from "../success-criteria/success-criteria-development";
+
 // Other technical element imports
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
-import { SystemComponent } from "../systems-analysis/systems-analysis";
+import { SystemDefinition, FailureModeType } from "../systems-analysis/systems-analysis";
 
 //==============================================================================
 /**
@@ -300,7 +303,7 @@ export interface MasterLogicDiagram extends IdentificationMethodBase {
     safety_functions: Record<string, SafetyFunction>;
     
     /** Systems and components */
-    systems_components: Record<string, SystemComponent>;
+    systems_components: Record<string, SystemDefinition>;
     
     /** Failure modes */
     failure_modes: Record<string, {
@@ -308,6 +311,7 @@ export interface MasterLogicDiagram extends IdentificationMethodBase {
         name: string;
         description: string;
         component_id: string;
+        failureMode: FailureModeType | string;
     }>;
     
     /** Identified initiators */
@@ -355,7 +359,7 @@ export interface HeatBalanceFaultTree extends IdentificationMethodBase {
     }>;
     
     /** Systems and components */
-    systems_components: Record<string, SystemComponent>;
+    systems_components: Record<string, SystemDefinition>;
 }
 
 /**
@@ -382,11 +386,11 @@ export interface FailureModesEffectAnalysis extends IdentificationMethodBase {
     }>;
     
     /** Components analyzed */
-    components: Record<string, SystemComponent>;
+    components: Record<string, SystemDefinition>;
     
     /** Failure modes analyzed */
     failure_modes: Record<string, {
-        mode: string;
+        mode: FailureModeType | string;
         causes: string[];
         local_effects: string[];
         system_effects: string[];
@@ -459,7 +463,7 @@ export interface InitiatorDefinition extends ExtendedInitiatingEvent {
     mitigating_systems: Record<string, {
         system: string;
         function: string;
-        success_criteria: string;
+        success_criteria: string | string[] | SuccessCriteriaId;
         dependencies: string[];
     }>;
     

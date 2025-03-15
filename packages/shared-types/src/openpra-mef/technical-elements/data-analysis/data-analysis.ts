@@ -37,8 +37,11 @@
 import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
+// Import BasicEvent from the upstream core events module
+// This is the authoritative source for the BasicEvent definition
 import { BasicEvent, FrequencyUnit } from "../core/events";
-import { SystemComponent, FailureMode, SuccessCriteria, UnavailabilityEvent, System } from "../systems-analysis/systems-analysis";
+import { SystemDefinition, FailureModeType, SystemBasicEvent } from "../systems-analysis/systems-analysis";
+import { SuccessCriteriaId } from "../success-criteria/success-criteria-development";
 import { PlantOperatingStatesTable, PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
 import { SensitivityStudy } from "../core/shared-patterns";
 import { 
@@ -231,29 +234,29 @@ export interface DataAnalysisParameter extends BaseDataAnalysisParameter {
     basicEventId?: string;
     
     /**
-     * Links to unavailability event this parameter is associated with
+     * Links to test/maintenance information this parameter is associated with
      * @implements DA-A1: ESTABLISH component boundaries
      */
-    unavailabilityEventId?: string;
+    testMaintenanceId?: string;
 
     /**
-     * Reference to the system component this parameter is associated with.
+     * Reference to the system definition this parameter is associated with.
      * This provides access to the component's boundary and grouping information.
      * @implements HLR-DA-B: Grouping components into a homogeneous population
      */
-    systemComponentId?: string;
+    systemDefinitionId?: string;
 
     /**
      * Defines how the component can fail.
      * @implements DA-A2: DEFINE failure modes
      */
-    failure_mode?: FailureMode;
+    failureMode?: FailureModeType | string;
 
     /**
      * Defines the criteria for success.
      * @implements DA-A2: DEFINE success criteria
      */
-    success_criteria?: SuccessCriteria;
+    successCriteria?: string | string[] | SuccessCriteriaId;
 
     /**
      * Represents the plant operating state for which the parameter applies.
@@ -281,10 +284,24 @@ export interface DataAnalysisParameter extends BaseDataAnalysisParameter {
      * @implements DA-A1: ESTABLISH component boundaries
      */
     componentBoundaries?: {
+        /** System ID - references SystemDefinition */
+        systemId: string;
+        
+        /** Component ID - references a component within SystemDefinition.modeledComponentsAndFailures */
+        componentId?: string;
+        
         /** Boundary description */
         description: string;
-        /** Parts included within the boundary */
+        
+        /** 
+         * Boundaries array - directly maps to SystemDefinition.boundaries when 
+         * referencing a system
+         */
+        boundaries: string[];
+        
+        /** Parts included within the boundary - more detailed than boundaries */
         includedParts: string[];
+        
         /** Parts excluded from the boundary */
         excludedParts?: string[];
     };
@@ -309,16 +326,22 @@ export interface DataAnalysisParameter extends BaseDataAnalysisParameter {
  * @implements DA-A1: ESTABLISH component boundaries
  */
 export interface ComponentBoundary extends Unique, Named {
-    /** System identifier */
+    /** System identifier - references SystemDefinition */
     systemId: string;
     
-    /** Component identifier */
-    componentId: string;
+    /** Component identifier - references a component within SystemDefinition.modeledComponentsAndFailures */
+    componentId?: string;
     
     /** Boundary description */
     description: string;
     
-    /** Items included in the boundary */
+    /** 
+     * Boundaries array - directly maps to SystemDefinition.boundaries when 
+     * referencing a system
+     */
+    boundaries: string[];
+    
+    /** Items included in the boundary - more detailed than boundaries */
     includedItems: string[];
     
     /** Items excluded from the boundary */
@@ -335,9 +358,16 @@ export interface ComponentBoundary extends Unique, Named {
  * Interface representing basic event boundary definitions
  * @group Parameter Definition & Boundaries
  * @implements DA-A1: ESTABLISH basic event boundaries
+ * 
+ * @description This interface defines boundaries for basic events that are used in data analysis.
+ * It references the core BasicEvent type from the upstream core/events.ts module.
+ * The BasicEvent type is the most upstream definition and is used across multiple modules.
  */
 export interface BasicEventBoundary extends Unique, Named {
-    /** Basic event identifier */
+    /** 
+     * Basic event identifier - references a BasicEvent from the core events module
+     * This establishes a link to the upstream BasicEvent definition
+     */
     basicEventId: string;
     
     /** Boundary description */
@@ -354,6 +384,12 @@ export interface BasicEventBoundary extends Unique, Named {
     
     /** Reference documents defining the boundary */
     referenceDocuments?: string[];
+    
+    /**
+     * Reference to the system where this basic event is used
+     * This creates a link to the SystemBasicEvent in the systems-analysis module
+     */
+    systemReference?: string;
 }
 
 //==============================================================================
@@ -438,10 +474,22 @@ export interface DataConsistencyCheck extends Unique {
  * @implements DA-B2: DO NOT INCLUDE outliers in the definition of a group
  */
 export interface OutlierComponent extends Unique {
-    /** Component ID that is excluded from grouping */
+    /**
+     * System identifier - references SystemDefinition
+     */
+    systemId: string;
+    
+    /** 
+     * Component ID that is excluded from grouping - references a component within 
+     * SystemDefinition.modeledComponentsAndFailures
+     * This component should NOT have a componentGroup field set
+     */
     componentId: string;
     
-    /** Reference to the group this component would otherwise belong to */
+    /** 
+     * Reference to the group this component would otherwise belong to
+     * References the groupId of a ComponentGrouping
+     */
     potentialGroupId: string;
     
     /** Reason for excluding this component as an outlier */
@@ -478,7 +526,21 @@ export interface ComponentGrouping extends Unique, Named {
     /** Description of the component group */
     description: string;
     
-    /** Component IDs in this group */
+    /**
+     * System identifier - references SystemDefinition
+     */
+    systemId: string;
+    
+    /**
+     * Group identifier - corresponds to componentGroup in SystemDefinition.modeledComponentsAndFailures
+     * This is the identifier used in the componentGroup field of components in SystemDefinition
+     */
+    groupId: string;
+    
+    /** 
+     * Component IDs in this group - references components within SystemDefinition.modeledComponentsAndFailures
+     * These components should have their componentGroup field set to this group's groupId
+     */
     componentIds: string[];
     
     /** Design characteristics considered for grouping */
@@ -830,10 +892,24 @@ export interface DataAnalysisDocumentation extends Unique, Named {
      * @implements DA-E1(a): System and component boundaries used to establish component failure probabilities
      */
     systemComponentBoundaries: {
-        /** System or component ID */
-        id: string;
-        /** Boundary description */
+        /** System ID - references SystemDefinition */
+        systemId: string;
+        
+        /** Component ID - references a component within SystemDefinition.modeledComponentsAndFailures */
+        componentId?: string;
+        
+        /** 
+         * Boundary description - should align with SystemDefinition.boundaries 
+         * when referencing a system, or with specific component boundaries
+         */
         boundaryDescription: string;
+        
+        /** 
+         * Boundaries array - directly maps to SystemDefinition.boundaries when 
+         * referencing a system
+         */
+        boundaries: string[];
+        
         /** Reference documents */
         references?: string[];
     }[];
@@ -989,7 +1065,7 @@ export interface DataAnalysisDocumentation extends Unique, Named {
         
         /** Justification for outlier exclusions */
         outlierExclusionJustifications: {
-            /** Component ID */
+            /** Component ID - references a component within SystemDefinition.modeledComponentsAndFailures */
             componentId: string;
             
             /** Reason for exclusion */

@@ -22,7 +22,7 @@ export * as plant_operating_states_analysis from './plant-operating-states-analy
  * @namespace technical_elements.data_analysis
  * @description Data Analysis types and interfaces
  */
-export * as data_analysis from './data-analysis/data-analysis';
+export * as data_analysis from './data-analysis';
 
 /**
  * @namespace technical_elements.initiating_event_analysis

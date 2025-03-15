@@ -707,17 +707,9 @@ export interface SystemInterfaceDependency extends Unique, Named {
     modelingApproach: string;
 }
 
-//==============================================================================
-/**
- * @group Uncertainty & Assumptions
- * @description Model uncertainty sources, related assumptions, and reasonable alternatives
- * @implements ES-A14, ES-A15, ES-B9, ES-C10
- */
-//==============================================================================
-
 /**
  * Interface representing an assumption made in the event sequence analysis.
- * @group Uncertainty & Assumptions
+ * @group Documentation & Traceability
  * @implements ES-A15: IDENTIFY assumptions made due to lack of as-built and as-operated details
  */
 export interface Assumption extends BaseAssumption {
@@ -726,7 +718,7 @@ export interface Assumption extends BaseAssumption {
 
 /**
  * Interface representing a source of model uncertainty in the event sequence analysis.
- * @group Uncertainty & Assumptions
+ * @group Documentation & Traceability
  * @implements ES-A14: IDENTIFY and characterize the sources of model uncertainty
  * @implements ES-B9: IDENTIFY and characterize sources of model uncertainty
  * @implements ES-C10: IDENTIFY and characterize sources of model uncertainty
@@ -1156,7 +1148,7 @@ export interface EventSequenceDesignInformation extends BaseDesignInformation {
 /**
  * Criteria for screening out event sequences
  * @remarks **ES-A7**: IDENTIFY event sequences that can be screened
- * @group Event Sequence Screening & Grouping
+ * @group Sequence Families & Release Categories
  */
 export interface EventSequenceScreeningCriteria extends ScreeningCriteria {
     /** List of screened-out event sequences */

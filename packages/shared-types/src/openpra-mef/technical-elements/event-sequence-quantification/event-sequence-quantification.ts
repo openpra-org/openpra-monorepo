@@ -1299,7 +1299,6 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Additional metadata specific to Event Sequence Quantification.
    * @remarks Includes details like the version of the analysis, analyst, and review status.
-   * @see ASME/ANS RA-S-1.4-2021 Table 4.3.15.1-7 (ESQ-F1)
    * @example
    * ```typescript
    * metadata: {

@@ -20,7 +20,7 @@
 
 ## Introduction
 
-This document demonstrates how the TypeScript schema for Event Sequence Quantification (ESQ) satisfies the supporting requirements for HLR-ESQ-F as defined in ASME/ANS RA-S-1.4-2021. The schema enables comprehensive documentation of the ESQ process, including inputs, methods, results, uncertainties, and limitations, providing the traceability required by the standard.
+This document demonstrates how the TypeScript schema for Event Sequence Quantification (ESQ) satisfies the supporting requirements the latest non LWR standards. The schema enables comprehensive documentation of the ESQ process, including inputs, methods, results, uncertainties, and limitations, providing the traceability required by the standard.
 
 The schema has been designed to support sodium-cooled fast reactors similar to EBR-II, with special attention to specific characteristics like metal fuel, sodium coolant, and passive safety systems while maintaining general applicability to a wide range of reactor designs.
 

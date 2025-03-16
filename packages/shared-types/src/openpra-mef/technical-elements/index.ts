@@ -59,3 +59,9 @@ export * as success_criteria_development from './success-criteria/success-criter
  * @description Event Sequence Quantification types and interfaces
  */
 export * as event_sequence_quantification from './event-sequence-quantification/event-sequence-quantification';
+
+/**
+ * @namespace technical_elements.mechanistic_source_term
+ * @description Mechanistic Source Term types and interfaces
+ */
+export * as mechanistic_source_term from './mechanistic-source-term/mechanistic-source-term';

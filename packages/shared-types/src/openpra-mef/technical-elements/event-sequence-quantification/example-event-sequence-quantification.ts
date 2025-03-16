@@ -18,7 +18,7 @@ import { DependencyType } from '../event-sequence-analysis/event-sequence-analys
  * Example of a complete Event Sequence Quantification analysis
  * 
  * This example demonstrates how to structure a complete event sequence quantification
- * with all required properties according to ASME/ANS RA-S-1.4-2021.
+ * with all required properties according to latest non LWR standards.
  * 
  * @example
  * ```typescript

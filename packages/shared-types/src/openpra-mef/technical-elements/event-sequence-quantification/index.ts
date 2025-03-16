@@ -7,6 +7,5 @@
 // Export main interfaces and types
 export * from './event-sequence-quantification';
 
-// Export examples
-// export { examples, EventSequenceQuantificationExample } from './example-event-sequence-quantification';
+// Export examples directly
 export * from './example-event-sequence-quantification';

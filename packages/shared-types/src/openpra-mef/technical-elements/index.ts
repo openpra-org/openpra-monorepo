@@ -53,3 +53,9 @@ export * as event_sequence_analysis from './event-sequence-analysis/event-sequen
  * @description Success Criteria Development types and interfaces
  */
 export * as success_criteria_development from './success-criteria/success-criteria-development'; 
+
+/**
+ * @namespace technical_elements.event_sequence_quantification
+ * @description Event Sequence Quantification types and interfaces
+ */
+export * as event_sequence_quantification from './event-sequence-quantification/event-sequence-quantification';

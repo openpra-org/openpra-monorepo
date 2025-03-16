@@ -53,6 +53,13 @@ The Systems Analysis TypeScript schema implements a comprehensive set of interfa
 
 The schema provides dedicated interfaces for meeting HLR-SY-C requirements, including `ProcessDocumentation`, `ModelUncertaintyDocumentation`, and other interfaces that inherit from base documentation classes.
 
+Additionally, the schema includes minimal interfaces for specific system aspects:
+- `SupportSystemSuccessCriteria`: For documenting success criteria of support systems
+- `EnvironmentalDesignBasisConsideration`: For identifying components that may operate beyond design basis
+- `InitiationActuationSystem`: For modeling system initiation and actuation
+
+The schema provides dedicated interfaces for meeting HLR-SY-C requirements, including `ProcessDocumentation`, `ModelUncertaintyDocumentation`, and other interfaces that inherit from base documentation classes.
+
 ## HLR-SY-C Requirements Coverage
 
 This section demonstrates how the schema enables compliance with each of the supporting requirements for HLR-SY-C.
@@ -218,6 +225,14 @@ successCriteriaDocumentation?: Record<SystemReference, {
 
 // Also in SystemDefinition interface
 successCriteria: string | SystemSuccessCriterion | SuccessCriteriaId;
+
+// Also in SupportSystemSuccessCriteria interface
+export interface SupportSystemSuccessCriteria extends Unique {
+  systemReference: SystemReference;
+  successCriteria: string;
+  criteriaType: "conservative" | "realistic";
+  supportedSystems: SystemReference[];
+}
 ```
 
 **Example:**
@@ -229,6 +244,15 @@ const processDoc: ProcessDocumentation = {
       relationshipToEventSequences: "Required for all sequences involving loss of forced circulation in accident sequences AS-LOFC-001 through AS-LOFC-015"
     }
   }
+};
+
+// Example for support system success criteria
+const supportSystemCriteria: SupportSystemSuccessCriteria = {
+  id: "SSSC-001",
+  systemReference: "SYS-CCW",
+  successCriteria: "At least one CCW pump and heat exchanger train providing minimum flow of 5000 gpm",
+  criteriaType: "realistic",
+  supportedSystems: ["SYS-RHR", "SYS-CSS"]
 };
 ```
 
@@ -834,6 +858,9 @@ The following table provides a condensed summary of how the schema enables compl
 | **SY-C1** | `ProcessDocumentation` interface with 21 specialized properties corresponding to each sub-requirement | ✅ Complete |
 | **SY-C2** | `ModelUncertaintyDocumentation` interface with `systemSpecificUncertainties` and `reasonableAlternatives` properties | ✅ Complete |
 | **SY-C3** | Base documentation imports including `PreOperationalAssumption` | ✅ Complete |
+| **SY-B7/B8** | `SupportSystemSuccessCriteria` interface for documenting conservative vs. realistic criteria | ✅ Complete |
+| **SY-B11/B12** | `InitiationActuationSystem` interface for modeling initiation and actuation systems | ✅ Complete |
+| **SY-B14** | `EnvironmentalDesignBasisConsideration` interface for identifying SSCs that may operate beyond design basis | ✅ Complete |
 
 ### SY-C1 Documentation Structure
 

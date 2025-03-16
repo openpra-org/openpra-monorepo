@@ -5,6 +5,8 @@
  */
 
 import { Unique } from "./meta";
+// Import DistributionType from data-analysis
+import { DistributionType } from "../data-analysis/data-analysis";
 
 /**
  * Common ID patterns used throughout the technical elements
@@ -100,6 +102,66 @@ export interface SensitivityStudy extends Unique {
      * Allows for extension with properties specific to a technical element
      */
     elementSpecificProperties?: Record<string, unknown>;
+}
+
+/**
+ * Base interface for uncertainty analysis across technical elements.
+ * 
+ * This interface provides a consistent structure for documenting uncertainty 
+ * propagation methods and model uncertainties across different technical elements.
+ * 
+ * @group Shared Patterns
+ */
+export interface BaseUncertaintyAnalysis extends Unique {
+  /** 
+   * Uncertainty propagation method 
+   * Defines the method used to propagate uncertainty, which is a general concept
+   * applicable across different types of uncertainty analysis within a PRA.
+   */
+  propagationMethod: "MONTE_CARLO" | "LATIN_HYPERCUBE" | "ANALYTICAL" | "OTHER";
+  
+  /** 
+   * Number of samples if using simulation 
+   * Specific to simulation-based propagation methods (like Monte Carlo and Latin Hypercube)
+   * and is a general parameter for such methods.
+   */
+  numberOfSamples?: number;
+  
+  /** 
+   * Seed value for random number generator if using simulation 
+   * Used in simulation-based uncertainty propagation to ensure reproducibility
+   * or to control the random number generation process.
+   */
+  randomSeed?: number;
+  
+  /** 
+   * Model uncertainties considered 
+   * The concept of identifying, describing, and defining the treatment approach
+   * for model uncertainties is relevant across various technical elements of a PRA.
+   */
+  modelUncertainties: {
+    /** Uncertainty ID */
+    uncertaintyId: string;
+    
+    /** Description of the uncertainty */
+    description: string;
+    
+    /** Impact on the model */
+    impact: string;
+    
+    /** Whether the uncertainty is quantified */
+    isQuantified: boolean;
+    
+    /** How the uncertainty is addressed */
+    treatmentApproach: string;
+  }[];
+  
+  /** 
+   * Sensitivity studies for unquantified uncertainties 
+   * Sensitivity analysis is a general technique used to assess the impact
+   * of parameter variations or uncertainties on the results of an analysis.
+   */
+  sensitivityStudies?: SensitivityStudy[];
 }
 
 /**

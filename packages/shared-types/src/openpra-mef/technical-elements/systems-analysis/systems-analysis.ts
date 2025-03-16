@@ -22,7 +22,7 @@
   import typia, { tags } from "typia";    
   import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
   import { Named, Unique } from "../core/meta";
-  import { IdPatterns, ImportanceLevel, SensitivityStudy } from "../core/shared-patterns";
+  import { IdPatterns, ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../core/shared-patterns";
   import { PlantOperatingStatesTable } from "../plant-operating-states-analysis/plant-operating-states-analysis";
   import { BaseEvent, BasicEvent, TopEvent } from "../core/events";
   import { 
@@ -40,6 +40,7 @@
       SystemSuccessCriterion,
       SuccessCriteriaId
   } from "../success-criteria/success-criteria-development";
+  import { DistributionType } from "../data-analysis/data-analysis";
   
   //==============================================================================
   /**
@@ -173,6 +174,22 @@
      * The probability or frequency of this basic event.
      */
     probability?: number;
+    
+    /**
+     * Whether repair is modeled for this basic event
+     * @implements SY-A31: DO NOT MODEL repair unless justified
+     */
+    repairModeled?: boolean;
+    
+    /**
+     * Justification for modeling repair, if applicable
+     */
+    repairJustification?: string;
+    
+    /**
+     * Mean time to repair, if repair is modeled
+     */
+    meanTimeToRepair?: number;
   }
   
   //==============================================================================
@@ -552,6 +569,19 @@ export interface SystemDefinition extends Unique, Named {
      * Used for time-based modeling of system performance.
      */
     temporalBehavior?: ComponentTimeline[];
+    
+    /**
+     * Indicates whether this system definition is based on as-built/as-operated
+     * or as-designed/as-intended-to-operate information
+     * @implements SY-A2: COLLECT pertinent information
+     */
+    informationBasis: "as-built-as-operated" | "as-designed-as-intended";
+    
+    /**
+     * For pre-operational PRAs, justification for information sources used
+     * @implements SY-A4: SPECIFY and JUSTIFY information sources
+     */
+    preOperationalInformationJustification?: string;
   }
   
   /**
@@ -1040,6 +1070,66 @@ export interface SystemDefinition extends Unique, Named {
   //==============================================================================
   
   /**
+   * Interface for system uncertainty analysis.
+   * @group Engineering Analysis & Validation
+   * @implements SY-B4: EVALUATE appropriate common cause failure probabilities
+   */
+  export interface SystemUncertaintyAnalysis extends BaseUncertaintyAnalysis {
+    /**
+     * The system being analyzed.
+     */
+    system: SystemReference;
+    
+    /**
+     * Parameter uncertainties specific to this system.
+     */
+    parameterUncertainties: {
+      /** Parameter name or ID */
+      parameterId: string;
+      
+      /** Distribution type */
+      distributionType: DistributionType;
+      
+      /** Distribution parameters */
+      distributionParameters: Record<string, number>;
+      
+      /** Basis for the distribution */
+      basis: string;
+      
+      /** Component or failure mode this parameter is associated with */
+      associatedComponent?: string;
+    }[];
+    
+    /**
+     * Common cause failure model uncertainties.
+     */
+    ccfUncertainties?: {
+      /** CCF group ID */
+      ccfGroupId: string;
+      
+      /** Description of the uncertainty */
+      description: string;
+      
+      /** Impact on system reliability */
+      impact: string;
+    }[];
+    
+    /**
+     * Uncertainty in system success criteria.
+     */
+    successCriteriaUncertainties?: {
+      /** Success criterion ID */
+      criterionId: string;
+      
+      /** Description of the uncertainty */
+      description: string;
+      
+      /** Impact on system reliability */
+      impact: string;
+    }[];
+  }
+  
+  /**
    * Interface for system model evaluation results.
    * @group Engineering Analysis & Validation
    * @implements SY-C1(o): results of the system model evaluations
@@ -1408,4 +1498,285 @@ export interface SystemDefinition extends Unique, Named {
       /** Affected systems */
       applicableSystems?: SystemReference[];
     }[];
+    
+    /**
+     * Pre-operational assumptions affecting systems analysis
+     * @implements SY-A33/B17: IDENTIFY pre-operational assumptions
+     */
+    preOperationalAssumptions?: Record<SystemReference, {
+      assumptions: string[];
+      impact: string;
+    }>;
+  }
+
+  /**
+   * Interface representing the Systems Analysis technical element.
+   * @group Documentation & Traceability
+   * @implements HLR-SY-A, HLR-SY-B, HLR-SY-C
+   */
+  export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.SYSTEMS_ANALYSIS> {
+    /**
+     * System definitions, including boundaries, components, and success criteria.
+     * @implements SY-A1: DEVELOP system logic models
+     * @implements SY-A3: DEFINE the boundaries of the system
+     */
+    systemDefinitions: Record<SystemReference, SystemDefinition>;
+    
+    /**
+     * System logic models (e.g., fault trees).
+     * @implements SY-A1: DEVELOP system logic models
+     */
+    systemLogicModels: Record<string, SystemLogicModel>;
+    
+    /**
+     * Dependencies between systems.
+     * @implements SY-B5: INCLUDE both intersystem and intrasystem dependencies
+     */
+    systemDependencies: SystemDependency[];
+    
+    /**
+     * Dependencies between components within systems.
+     * @implements SY-B5: INCLUDE both intersystem and intrasystem dependencies
+     */
+    componentDependencies: ComponentDependency[];
+    
+    /**
+     * Common cause failure groups.
+     * @implements SY-B1: IDENTIFY and MODEL the common cause failures
+     * @implements SY-B4: EVALUATE appropriate common cause failure probabilities
+     */
+    commonCauseFailureGroups: Record<string, CommonCauseFailureGroup>;
+    
+    /**
+     * Human failure events integrated into system models.
+     * @implements SY-A1: INCLUDE human failures that can contribute to system unavailability
+     */
+    humanFailureEventIntegrations: HumanFailureEventIntegration[];
+    
+    /**
+     * Methodology used to search for dependencies.
+     * @implements SY-C1(i): process used for systematic search for dependencies including dependency tables
+     */
+    dependencySearchMethodology: DependencySearchMethodology;
+    
+    /**
+     * System model evaluation results.
+     * @implements SY-C1(o): results of the system model evaluations
+     */
+    systemModelEvaluations: Record<SystemReference, SystemModelEvaluation>;
+    
+    /**
+     * Sensitivity studies on system models.
+     * @implements SY-C1(p): results of sensitivity studies
+     */
+    sensitivityStudies: SystemSensitivityStudy[];
+    
+    /**
+     * Considerations of potential overload conditions.
+     * @implements SY-A29: IDENTIFY conditions that may require designed capabilities to be exceeded
+     */
+    overCapacityConsiderations: OverCapacityConsideration[];
+    
+    /**
+     * Model validation methods.
+     * @implements SY-A33: USE of external or independent reviews
+     */
+    modelValidations: ModelValidation[];
+    
+    /**
+     * Digital instrumentation and control systems modeling.
+     * @implements SY-C1(t): treatment of digital instrumentation and control systems
+     */
+    digitalInstrumentationAndControl: Record<string, DigitalInstrumentationAndControl>;
+    
+    /**
+     * Passive safety systems modeling.
+     * @implements SY-C1(u): treatment of systems that perform their safety functions using passive means
+     */
+    passiveSystemsTreatment: Record<string, PassiveSystemsTreatment>;
+    
+    /**
+     * Documentation of the process used in the systems analysis.
+     * @implements SY-C1: DOCUMENT the process used in the Systems Analysis
+     */
+    processDocumentation: ProcessDocumentation;
+    
+    /**
+     * Documentation of model uncertainty in the systems analysis.
+     * @implements SY-C2: DOCUMENT the sources of model uncertainty
+     */
+    modelUncertaintyDocumentation: ModelUncertaintyDocumentation;
+    
+    /**
+     * Uncertainty analysis for systems.
+     * @implements SY-B4: EVALUATE appropriate common cause failure probabilities
+     */
+    uncertaintyAnalysis?: Record<SystemReference, SystemUncertaintyAnalysis>;
+  }
+
+  /**
+   * Interface mapping systems to safety functions
+   * @implements SY-A1: IDENTIFY systems needed to provide or support safety functions
+   * @group System Modeling & Failure Modes
+   */
+  export interface SystemToSafetyFunctionMapping extends Unique {
+    /**
+     * Reference to the system
+     */
+    systemReference: SystemReference;
+    
+    /**
+     * Safety functions this system supports
+     * @implements SY-A1: IDENTIFY systems needed to provide or support safety functions
+     */
+    safetyFunctions: string[];
+    
+    /**
+     * Event sequences where this system is credited
+     */
+    eventSequences: string[];
+  }
+
+  /**
+   * Interface for Low Power and Shutdown system configurations
+   * @implements SY-A5/A6: INVESTIGATE systems and alignments unique to LPSD
+   * @group System Modeling & Failure Modes
+   */
+  export interface LPSDSystemConfiguration extends Unique {
+    /**
+     * Reference to the system
+     */
+    systemReference: SystemReference;
+    
+    /**
+     * Description of the LPSD-specific configuration
+     * @implements SY-A5/A6: INVESTIGATE systems and alignments unique to LPSD
+     */
+    description: string;
+    
+    /**
+     * Plant operating states where this configuration applies
+     */
+    applicablePOSs: string[];
+    
+    /**
+     * Whether this configuration is unique to LPSD (not in Full-Power PRA)
+     */
+    uniqueToLPSD: boolean;
+    
+    /**
+     * Source of information (e.g., past outage data, design information)
+     */
+    informationSource: string;
+  }
+
+  /**
+   * Interface for documenting component screening justifications
+   * @implements SY-A20: Screening criteria for excluding components
+   * @group Documentation & Traceability
+   */
+  export interface ComponentScreeningJustification extends Unique {
+    /**
+     * Reference to the system
+     */
+    systemReference: SystemReference;
+    
+    /**
+     * Component that was screened out
+     */
+    componentId: string;
+    
+    /**
+     * Failure modes that were screened out
+     */
+    failureModes?: FailureModeType[];
+    
+    /**
+     * Screening criterion used (a or b from SY-A20)
+     * @implements SY-A20: Screening criteria for excluding components
+     */
+    screeningCriterion: "a" | "b";
+    
+    /**
+     * Quantitative justification for screening
+     */
+    quantitativeJustification: string;
+  }
+
+  /**
+   * Minimal interface for support system success criteria
+   * @group System Modeling & Failure Modes
+   * @implements SY-B7/B8: Conservative vs. realistic success criteria
+   */
+  export interface SupportSystemSuccessCriteria extends Unique {
+    /**
+     * Reference to the support system
+     */
+    systemReference: SystemReference;
+    
+    /**
+     * Success criteria for the support system
+     */
+    successCriteria: string;
+    
+    /**
+     * Whether the success criteria are conservative or realistic
+     */
+    criteriaType: "conservative" | "realistic";
+    
+    /**
+     * Systems supported by this support system
+     */
+    supportedSystems: SystemReference[];
+  }
+
+  /**
+   * Minimal interface for environmental design basis considerations
+   * @group System Modeling & Failure Modes
+   * @implements SY-B14: IDENTIFY SSCs that may operate beyond design basis
+   */
+  export interface EnvironmentalDesignBasisConsideration extends Unique {
+    /**
+     * Reference to the system
+     */
+    systemReference: SystemReference;
+    
+    /**
+     * Components that may operate beyond environmental design basis
+     * @implements SY-B14: IDENTIFY SSCs that may operate beyond design basis
+     */
+    components: string[];
+    
+    /**
+     * Event sequences where this may occur
+     */
+    eventSequences: string[];
+    
+    /**
+     * Environmental conditions beyond design basis
+     */
+    environmentalConditions: string;
+  }
+
+  /**
+   * Minimal interface for initiation and actuation systems
+   * @group System Modeling & Failure Modes
+   * @implements SY-B11/B12: MODEL initiation and actuation systems
+   */
+  export interface InitiationActuationSystem extends Unique, Named {
+    /**
+     * Reference to the system being initiated/actuated
+     */
+    systemReference: SystemReference;
+    
+    /**
+     * Description of the initiation/actuation system
+     * @implements SY-B11/B12: MODEL initiation and actuation systems
+     */
+    description: string;
+    
+    /**
+     * Whether detailed modeling is used
+     */
+    detailedModeling: boolean;
   }

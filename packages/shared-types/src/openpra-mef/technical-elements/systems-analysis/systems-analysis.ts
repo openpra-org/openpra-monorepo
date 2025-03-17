@@ -4,7 +4,7 @@
    * 
    * The objectives of Systems Analysis ensure that:
    * - (a) there is a reasonably complete set of the independent system failure and unavailability modes
-   *       and associated human failure events, (HFEs) and system alignments for each system;
+   *       and associated human failure events (HFEs) and system alignments for each system;
    * - (b) there is a reasonably complete identification of the common cause failures (CCFs) and 
    *       dependency effects on system performance;
    * - (c) the Systems Analysis is documented to provide traceability of the work.

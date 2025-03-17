@@ -16,6 +16,9 @@ export * from './documentation';
 // Export events
 export * from './events';
 
+// Export component types
+export * from './component';
+
 // Export specific assumption types for easy access
 export {
     BaseAssumption,

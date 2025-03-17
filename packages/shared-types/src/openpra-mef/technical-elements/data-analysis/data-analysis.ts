@@ -49,6 +49,7 @@ import {
     PreOperationalAssumption, 
     BasePreOperationalAssumptionsDocumentation 
 } from "../core/documentation";
+import { ComponentReference } from "../core/component";
 
 //==============================================================================
 /**
@@ -330,7 +331,7 @@ export interface ComponentBoundary extends Unique, Named {
     systemId: string;
     
     /** Component identifier - references a component within SystemDefinition.modeledComponentsAndFailures */
-    componentId?: string;
+    componentId?: ComponentReference;
     
     /** Boundary description */
     description: string;
@@ -484,7 +485,7 @@ export interface OutlierComponent extends Unique {
      * SystemDefinition.modeledComponentsAndFailures
      * This component should NOT have a componentGroup field set
      */
-    componentId: string;
+    componentId: ComponentReference;
     
     /** 
      * Reference to the group this component would otherwise belong to
@@ -523,25 +524,17 @@ export interface OutlierComponent extends Unique {
  * @implements DA-B1: GROUP components considering design, environmental, and service conditions
  */
 export interface ComponentGrouping extends Unique, Named {
-    /** Description of the component group */
-    description: string;
-    
-    /**
-     * System identifier - references SystemDefinition
-     */
+    /** System identifier - references SystemDefinition */
     systemId: string;
     
-    /**
-     * Group identifier - corresponds to componentGroup in SystemDefinition.modeledComponentsAndFailures
-     * This is the identifier used in the componentGroup field of components in SystemDefinition
-     */
+    /** Group identifier */
     groupId: string;
     
     /** 
      * Component IDs in this group - references components within SystemDefinition.modeledComponentsAndFailures
      * These components should have their componentGroup field set to this group's groupId
      */
-    componentIds: string[];
+    componentIds: ComponentReference[];
     
     /** Design characteristics considered for grouping */
     designCharacteristics: string[];

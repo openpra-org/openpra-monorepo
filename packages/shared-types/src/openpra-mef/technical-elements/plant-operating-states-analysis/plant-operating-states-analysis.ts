@@ -31,6 +31,8 @@ import { InitiatingEvent, BaseEvent, Frequency } from "../core/events";
 import { IdPatterns, ImportanceLevel, SensitivityStudy, ScreeningStatus } from "../core/shared-patterns";
 import { DistributionType } from "../data-analysis/data-analysis";
 import { SuccessCriteriaId } from "../success-criteria/success-criteria-development";
+import { BaseAssumption } from "../core/documentation";
+import { ComponentReference } from "../core/component";
 
 //==============================================================================
 /**
@@ -560,7 +562,7 @@ export interface OperatingStateRisk {
     /** Importance measures for key components */
     importanceMeasures?: {
         /** Component ID */
-        componentId: string;
+        componentId: ComponentReference;
         
         /** Fussell-Vesely importance */
         fussellVesely?: number;

@@ -41,6 +41,7 @@
       SuccessCriteriaId
   } from "../success-criteria/success-criteria-development";
   import { DistributionType } from "../data-analysis/data-analysis";
+  import { ComponentReference } from "../core/component";
   
   //==============================================================================
   /**
@@ -358,7 +359,7 @@
     /**
      * Component identifier within the system
      */
-    componentId: string;
+    componentId: ComponentReference;
     
     /**
      * Description of this timeline
@@ -1684,7 +1685,7 @@ export interface SystemDefinition extends Unique, Named {
     /**
      * Component that was screened out
      */
-    componentId: string;
+    componentId: ComponentReference;
     
     /**
      * Failure modes that were screened out

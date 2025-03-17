@@ -34,6 +34,7 @@ import {
     BaseAssumption,
     PreOperationalAssumption
 } from "../core/documentation";
+import { ComponentReference } from "../core/component";
 
 //==============================================================================
 /**
@@ -226,7 +227,7 @@ export interface SystemSuccessCriteriaDefinition extends Unique {
  */
 export interface ComponentSuccessCriteriaDefinition extends Unique {
     /** Component identifier */
-    componentId: string;
+    componentId: ComponentReference;
     
     /** Component description */
     description: string;
@@ -1239,7 +1240,7 @@ export interface MissionTimeDefinition extends Unique {
  */
 export interface ComponentMissionTimeDefinition extends Unique {
     /** Component identifier */
-    componentId: string;
+    componentId: ComponentReference;
     
     /** Mission time in hours */
     missionTimeHours: number & tags.Minimum<0>;

@@ -24,7 +24,7 @@
 
 ## Introduction
 
-This document demonstrates how the TypeScript schema for Success Criteria Development satisfies the Supporting Requirements for HLR-SC-C as defined in the PRA standard. The schema provides a comprehensive structure to document the process, model uncertainties, and assumptions related to success criteria development, ensuring traceability of work as required by HLR-SC-C.
+This document demonstrates how the TypeScript schema for Success Criteria Development satisfies the Supporting Regulatory Requirements. The schema provides a comprehensive structure to document the process, model uncertainties, and assumptions related to success criteria development, ensuring traceability of work as required by Regulatory Requirements.
 
 ## Schema Overview
 
@@ -44,11 +44,11 @@ export interface SuccessCriteriaDevelopment extends TechnicalElement<TechnicalEl
 }
 ```
 
-The documentation structure directly addresses the requirements in HLR-SC-C, providing fields for documenting the process, model uncertainties, and assumptions.
+The documentation structure directly addresses the requirements in Regulatory, providing fields for documenting the process, model uncertainties, and assumptions.
 
-## HLR-SC-C Compliance Map
+## Regulatory Compliance Map
 
-The following table maps the HLR-SC-C requirements to their corresponding schema elements:
+The following table maps the Regulatory requirements to their corresponding schema elements:
 
 | Requirement | Description | Schema Element |
 |-------------|-------------|----------------|
@@ -358,11 +358,9 @@ Natural circulation criteria can be documented using:
 
 ## Conclusion
 
-The Success Criteria Development TypeScript schema fully satisfies the Supporting Requirements for HLR-SC-C. The schema provides structured elements for documenting:
+The Success Criteria Development TypeScript schema fully satisfies the Supporting Requirements for Regulatory Compliance. The schema provides structured elements for documenting:
 - The process used in success criteria development (SC-C1)
 - Sources of model uncertainty and reasonable alternatives (SC-C2)
 - Assumptions and limitations due to lack of as-built, as-operated details (SC-C3)
 
 Each sub-requirement of SC-C1 has corresponding dedicated schema structures, ensuring comprehensive documentation. The schema is also well-suited for documenting EBR-II specific success criteria, including its unique features like the Reactor Shutdown System, passive safety features, and natural circulation capabilities.
-
-This documentation demonstrates that the schema is ready for production use, providing the necessary structures to satisfy all HLR-SC-C requirements while supporting specific reactor types like EBR-II.

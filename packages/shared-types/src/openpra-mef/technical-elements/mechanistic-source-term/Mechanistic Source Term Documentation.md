@@ -2,7 +2,7 @@
 
 ## Table of Contents
 1. [Introduction](#introduction)
-2. [Coverage of HLR-MS-E Requirements](#coverage-of-hlr-ms-e-requirements)
+2. [Coverage of Regulatory Requirements](#coverage-of-regulatory-requirements)
 3. [MS-E1: Process Documentation Coverage](#ms-e1-process-documentation-coverage)
    - [E1(a): Radioactive Material Source Characterization](#e1a-radioactive-material-source-characterization)
    - [E1(b): Release Category Definition](#e1b-release-category-definition)
@@ -26,11 +26,11 @@
 
 ## Introduction
 
-This document demonstrates how the Mechanistic Source Term Analysis TypeScript schema provides comprehensive coverage of the Supporting Requirements for HLR-MS-E from ASME/ANS RA-S-1.4-2021. The schema has been designed to ensure that all documentation requirements for traceability are satisfied through appropriate interfaces, types, and data structures.
+This document demonstrates how the Mechanistic Source Term Analysis TypeScript schema provides comprehensive coverage of the Supporting Requirements for Regulatory Compliance. The schema has been designed to ensure that all documentation requirements for traceability are satisfied through appropriate interfaces, types, and data structures.
 
 ## Coverage of HLR-MS-E Requirements
 
-The following table provides a summary of the schema's coverage of HLR-MS-E requirements:
+The following table provides a summary of the schema's coverage of Regulatory requirements:
 
 | Requirement | Description | Schema Interface(s) | Coverage |
 |-------------|-------------|---------------------|----------|
@@ -442,11 +442,10 @@ This interface explicitly references the requirements from MS-B6 and MS-C6:
 
 ```typescript
 /** 
- * Explicit link to HLR-MS-D uncertainty requirements
- * @implements MS-B6: IDENTIFY the sources of model uncertainty in a manner that supports HLR-MS-D
+ * Explicit link to Regulatory uncertainty requirements
  */
 uncertaintyRequirementsLink?: {
-  /** Reference to specific HLR-MS-D requirements addressed */
+  /** Reference to specific Regulatory requirements addressed */
   hlrMsDRequirements: string[];
   /** Description of how the uncertainty analysis supports these requirements */
   supportDescription: string;

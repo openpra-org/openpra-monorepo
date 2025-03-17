@@ -3,7 +3,7 @@
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Schema Overview](#schema-overview)
-3. [HLR-SY-C Requirements Coverage](#hlr-sy-c-requirements-coverage)
+3. [Regulatory Requirements Coverage](#Regulatory-requirements-coverage)
    1. [SY-C1: Process Documentation](#sy-c1-process-documentation)
       1. [(a) System Function and Operation](#a-system-function-and-operation)
       2. [(b) System Model Boundary](#b-system-model-boundary)
@@ -36,13 +36,13 @@
 
 ## Introduction
 
-This document validates that the TypeScript schema for Systems Analysis is compliant with the "Supporting Requirements for HLR-SY-C" as defined in the standard. The schema provides interfaces and data structures that enable comprehensive documentation of Systems Analysis according to these requirements.
+This document validates that the TypeScript schema for Systems Analysis is compliant with the "Supporting Requirements" as defined in the standard. The schema provides interfaces and data structures that enable comprehensive documentation of Systems Analysis according to these requirements.
 
-The primary objective of HLR-SY-C is to ensure that the documentation of Systems Analysis provides traceability of the work. The TypeScript schema implements this through structured interfaces that capture all required information.
+The primary objective of Regulatory guidance is to ensure that the documentation of Systems Analysis provides traceability of the work. The TypeScript schema implements this through structured interfaces that capture all required information.
 
 ## Schema Overview
 
-The Systems Analysis TypeScript schema implements a comprehensive set of interfaces and types that enable documentation of system models, dependencies, uncertainties, and assumptions as required by HLR-SY-C. Key modules in the schema include:
+The Systems Analysis TypeScript schema implements a comprehensive set of interfaces and types that enable documentation of system models, dependencies, uncertainties, and assumptions as required by Regulators. Key modules in the schema include:
 
 - Core definitions and enumerations
 - System modeling and failure modes
@@ -51,18 +51,18 @@ The Systems Analysis TypeScript schema implements a comprehensive set of interfa
 - Engineering analysis and validation
 - Documentation and traceability
 
-The schema provides dedicated interfaces for meeting HLR-SY-C requirements, including `ProcessDocumentation`, `ModelUncertaintyDocumentation`, and other interfaces that inherit from base documentation classes.
+The schema provides dedicated interfaces for meeting Regulatory requirements, including `ProcessDocumentation`, `ModelUncertaintyDocumentation`, and other interfaces that inherit from base documentation classes.
 
 Additionally, the schema includes minimal interfaces for specific system aspects:
 - `SupportSystemSuccessCriteria`: For documenting success criteria of support systems
 - `EnvironmentalDesignBasisConsideration`: For identifying components that may operate beyond design basis
 - `InitiationActuationSystem`: For modeling system initiation and actuation
 
-The schema provides dedicated interfaces for meeting HLR-SY-C requirements, including `ProcessDocumentation`, `ModelUncertaintyDocumentation`, and other interfaces that inherit from base documentation classes.
+The schema provides dedicated interfaces for meeting Regulatory requirements, including `ProcessDocumentation`, `ModelUncertaintyDocumentation`, and other interfaces that inherit from base documentation classes.
 
-## HLR-SY-C Requirements Coverage
+## Regulatory Requirements Coverage
 
-This section demonstrates how the schema enables compliance with each of the supporting requirements for HLR-SY-C.
+This section demonstrates how the schema enables compliance with each of the supporting requirements for Regulatory Compliance.
 
 ### SY-C1: Process Documentation
 
@@ -851,7 +851,7 @@ const shutdownCoolingSystem: SystemDefinition = {
 
 ## Requirements Coverage Summary
 
-The following table provides a condensed summary of how the schema enables compliance with HLR-SY-C requirements:
+The following table provides a condensed summary of how the schema enables compliance with Regulatory requirements:
 
 | Requirement | Schema Implementation | Compliance |
 |-------------|----------------------|------------|
@@ -876,7 +876,7 @@ The schema implements all 21 sub-requirements of SY-C1 through a systematic prop
 
 ## Conclusion
 
-The TypeScript schema for Systems Analysis has been validated against the "Supporting Requirements for HLR-SY-C." The schema provides comprehensive interfaces and data structures that enable documentation of Systems Analysis in accordance with these requirements. Key findings include:
+The TypeScript schema for Systems Analysis has been validated against the "Supporting Requirements for Regulatory Compliance." The schema provides comprehensive interfaces and data structures that enable documentation of Systems Analysis in accordance with these requirements. Key findings include:
 
 1. The `ProcessDocumentation` interface provides dedicated properties for each of the SY-C1 sub-requirements (a) through (u).
 
@@ -885,5 +885,3 @@ The TypeScript schema for Systems Analysis has been validated against the "Suppo
 3. Pre-operational assumptions documentation is supported through integration with the base documentation module, satisfying SY-C3.
 
 4. Examples demonstrating EBR-II's passive safety features and shutdown cooling system show how the schema can be applied to specific reactor designs.
-
-The schema is ready for production use, providing a structured approach to documenting Systems Analysis that ensures compliance with the "Supporting Requirements for HLR-SY-C."

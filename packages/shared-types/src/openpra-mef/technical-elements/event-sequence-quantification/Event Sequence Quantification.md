@@ -482,9 +482,7 @@ Detailed coverage of ESQ-F1 sub-requirements:
 | Special Topics Documentation (g, j, m, o, p) | `eventSequencesAndBinning`, `radionuclideBarrierTreatment`, `mutuallyExclusiveEventsTreatment`, `asymmetriesInModeling`, `quantificationVerification` | Complete |
 
 ## References
-
-1. ASME/ANS RA-S-1.4-2021, "Probabilistic Risk Assessment Standard for Advanced Non-Light Water Reactor Nuclear Power Plants"
-2. U.S. NRC Regulatory Guide 1.247, "Acceptability of Probabilistic Risk Assessment Results for Non-Light Water Reactor Risk-Informed Activities"
-3. ANL/RAS-73-39, "EBR-II System Design Descriptions - Vol. II: Primary System"
-4. NUREG/CR-6042, "Perspectives on Reactor Safety"
-5. ANL-ART-3, "Experimental Breeder Reactor - II (EBR-II) Level 1 Probabilistic Risk Assessment"
+1. U.S. NRC Regulatory Guide 1.247, "Acceptability of Probabilistic Risk Assessment Results for Non-Light Water Reactor Risk-Informed Activities"
+2. ANL/RAS-73-39, "EBR-II System Design Descriptions - Vol. II: Primary System"
+3. NUREG/CR-6042, "Perspectives on Reactor Safety"
+4. ANL-ART-3, "Experimental Breeder Reactor - II (EBR-II) Level 1 Probabilistic Risk Assessment"

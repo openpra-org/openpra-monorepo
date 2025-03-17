@@ -315,6 +315,8 @@ export interface RadioactiveSource extends Unique, Named {
  * @group Release Categorization & Source Characterization
  * @description Maps event sequences to release categories and provides justification.
  * @implements MS-E1(c): DOCUMENT assignment of event sequences and event sequence families to each release category
+ * @remarks This interface is referenced by the Risk Integration module's EventSequenceToReleaseCategory interface.
+ * The Risk Integration module uses this mapping as input for risk calculations.
  */
 export interface EventSequenceToReleaseCategoryMapping extends Unique {
   /** Reference to the event sequence */
@@ -328,6 +330,51 @@ export interface EventSequenceToReleaseCategoryMapping extends Unique {
   
   /** Technical basis for the assignment */
   technicalBasis?: string;
+  
+  /** 
+   * Frequency information for this mapping, if available at this stage.
+   * This may be populated during event sequence quantification and used by risk integration.
+   */
+  frequencyInformation?: {
+    /** Mean frequency value */
+    mean?: number;
+    
+    /** Frequency unit */
+    unit?: string;
+    
+    /** Uncertainty in the frequency */
+    uncertainty?: {
+      /** Distribution type */
+      distributionType?: DistributionType;
+      
+      /** Distribution parameters */
+      parameters?: Record<string, number>;
+    };
+  };
+  
+  /**
+   * Flag indicating whether this mapping has been processed by risk integration.
+   * Used for traceability between technical elements.
+   */
+  processedByRiskIntegration?: boolean;
+  
+  /**
+   * Reference to the corresponding mapping in the risk integration module, if available.
+   * This provides traceability between the mechanistic source term and risk integration modules.
+   */
+  riskIntegrationMappingId?: string;
+  
+  /**
+   * Risk significance level determined by risk integration, if available.
+   * This may be populated based on feedback from risk integration.
+   */
+  riskSignificance?: ImportanceLevel;
+  
+  /**
+   * Insights from risk integration, if available.
+   * This may be populated based on feedback from risk integration.
+   */
+  riskIntegrationInsights?: string[];
 }
 
 /**
@@ -837,6 +884,33 @@ export interface MechanisticSourceTermProcessDocumentation extends BaseProcessDo
     parameterValues: string;
     uncertaintyAssessment: string;
   }>;
+  
+  /**
+   * Documentation of the integration with risk integration.
+   * Describes how this analysis supports risk integration and how feedback is incorporated.
+   */
+  riskIntegrationDocumentation?: {
+    /** Description of how this analysis supports risk integration */
+    supportDescription: string;
+    
+    /** How release categories are used in risk integration */
+    releaseCategoryUsage: string;
+    
+    /** How source term definitions are used in risk integration */
+    sourceTermUsage: string;
+    
+    /** How uncertainties are propagated to risk integration */
+    uncertaintyPropagation?: string;
+    
+    /** Challenges in integrating with risk integration */
+    integrationChallenges?: string[];
+    
+    /** How feedback from risk integration is incorporated */
+    feedbackIncorporation?: string;
+    
+    /** Key insights from risk integration that impact source term analysis */
+    keyInsights?: string[];
+  };
 }
 
 /**
@@ -873,18 +947,44 @@ export interface MechanisticSourceTermPreOperationalAssumptionsDocumentation ext
 //==============================================================================
 /**
  * @group API
- * @description Main interface definition and schema for Mechanistic Source Term Analysis
- */
-//==============================================================================
-
-/**
- * @group API
  * @description Represents the technical element for 4.3.16 Mechanistic Source Term Analysis (MS).
  * @remarks This technical element addresses the characterization of radiological releases to the environment.
  * @remarks It includes defining release categories, characterizing radioactive sources, modeling transport phenomena,
- * @remarks quantifying source terms, and addressing uncertainties as required by RG 1.247 and ASME/ANS RA-S-1.4-2021.
+ * @remarks quantifying source terms, and addressing uncertainties as required by RG 1.247
  */
 export interface MechanisticSourceTermAnalysis extends TechnicalElement<TechnicalElementTypes.MECHANISTIC_SOURCE_TERM_ANALYSIS> {
+  /**
+   * Additional metadata specific to Mechanistic Source Term Analysis.
+   */
+  additionalMetadata?: {
+    /** Mechanistic source term specific limitations */
+    limitations?: string[];
+    
+    /** Mechanistic source term specific assumptions */
+    assumptions?: string[];
+    
+    /** Traceability information */
+    traceability?: string;
+    
+    /** 
+     * References to risk integration results that use this analysis.
+     * This provides traceability between technical elements.
+     */
+    riskIntegrationReferences?: {
+      /** ID of the risk integration analysis */
+      analysisId: string;
+      
+      /** Version or revision of the analysis */
+      version?: string;
+      
+      /** Date the analysis was performed */
+      date?: string;
+      
+      /** Description of how this analysis was used in risk integration */
+      usageDescription: string;
+    }[];
+  };
+
   /**
    * Definition of the set of release categories.
    * @implements MS-A1
@@ -979,6 +1079,91 @@ export interface MechanisticSourceTermAnalysis extends TechnicalElement<Technica
    * @implements MS-E4
    */
   preOperationalAssumptionsDocumentation?: MechanisticSourceTermPreOperationalAssumptionsDocumentation;
+  
+  /**
+   * Risk integration feedback received for this analysis.
+   * This field contains feedback from risk integration that should be considered
+   * in future revisions of the mechanistic source term analysis.
+   */
+  riskIntegrationFeedback?: {
+    /** ID of the risk integration analysis that provided the feedback */
+    analysisId: string;
+    
+    /** Date the feedback was received */
+    feedbackDate?: string;
+    
+    /** Feedback on release categories */
+    releaseCategoryFeedback?: Record<ReleaseCategoryReference, {
+      /** Risk significance level determined by risk integration */
+      riskSignificance?: ImportanceLevel;
+      
+      /** Insights from risk integration */
+      insights?: string[];
+      
+      /** Recommendations for improving the release category definition */
+      recommendations?: string[];
+      
+      /** Status of addressing the feedback */
+      status?: "PENDING" | "IN_PROGRESS" | "ADDRESSED" | "DEFERRED";
+    }>;
+    
+    /** Feedback on source term definitions */
+    sourceTermDefinitionFeedback?: Record<SourceTermDefinitionReference, {
+      /** Risk significance level determined by risk integration */
+      riskSignificance?: ImportanceLevel;
+      
+      /** Insights from risk integration */
+      insights?: string[];
+      
+      /** Recommendations for improving the source term definition */
+      recommendations?: string[];
+      
+      /** Key uncertainties identified during risk integration */
+      keyUncertainties?: string[];
+      
+      /** Status of addressing the feedback */
+      status?: "PENDING" | "IN_PROGRESS" | "ADDRESSED" | "DEFERRED";
+    }>;
+    
+    /** General feedback on the mechanistic source term analysis */
+    generalFeedback?: string;
+    
+    /** Response to the feedback */
+    response?: {
+      /** Description of how the feedback was or will be addressed */
+      description: string;
+      
+      /** Changes made or planned in response to the feedback */
+      changes?: string[];
+      
+      /** Status of the response */
+      status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+    };
+  };
+  
+  /**
+   * Documentation of the integration with risk integration.
+   * Describes how this analysis is used in risk integration and how feedback is incorporated.
+   */
+  riskIntegrationDescription?: {
+    /** Description of how this analysis supports risk integration */
+    supportDescription: string;
+    
+    /** How release categories are used in risk integration */
+    releaseCategoryUsage: string;
+    
+    /** How source term definitions are used in risk integration */
+    sourceTermUsage: string;
+    
+    /** How uncertainties are propagated to risk integration */
+    uncertaintyPropagation?: string;
+    
+    /** Challenges in integrating with risk integration */
+    integrationChallenges?: string[];
+    
+    /** How feedback from risk integration is incorporated */
+    feedbackIncorporation?: string;
+  };
 }
 
 /**
@@ -1167,6 +1352,15 @@ export interface MechanisticSourceTermAnalysis extends TechnicalElement<Technica
  *     },
  *     releaseCategoryBasis: {
  *       "RC-LER": "Based on containment failure timing and release magnitude"
+ *     },
+ *     riskIntegrationDocumentation: {
+ *       supportDescription: "Risk integration is valuable for improving source term definition",
+ *       releaseCategoryUsage: "Release categories are used in risk integration",
+ *       sourceTermUsage: "Source term definitions are used in risk integration",
+ *       uncertaintyPropagation: "Uncertainties are propagated to risk integration",
+ *       integrationChallenges: ["Challenges in integrating with risk integration"],
+ *       feedbackIncorporation: "Feedback is incorporated into source term definition",
+ *       keyInsights: ["Containment failure timing is critical for release magnitude"]
  *     }
  *   },
  *   preOperationalAssumptionsDocumentation: {
@@ -1190,6 +1384,40 @@ export interface MechanisticSourceTermAnalysis extends TechnicalElement<Technica
  *         designInformationNeeded: "Post-construction leakage test results"
  *       }
  *     ]
+ *   },
+ *   riskIntegrationFeedback: {
+ *     analysisId: "ri-001",
+ *     feedbackDate: "2024-05-15",
+ *     releaseCategoryFeedback: {
+ *       "RC-LER": {
+ *         riskSignificance: ImportanceLevel.HIGH,
+ *         insights: ["Containment failure timing is critical for release magnitude"],
+ *         recommendations: ["Consider containment failure timing in source term definition"],
+ *         status: "ADDRESSED"
+ *       }
+ *     },
+ *     sourceTermDefinitionFeedback: {
+ *       "ST-001": {
+ *         riskSignificance: ImportanceLevel.HIGH,
+ *         insights: ["Containment failure timing is critical for release magnitude"],
+ *         recommendations: ["Consider containment failure timing in source term definition"],
+ *         keyUncertainties: ["Containment failure timing"],
+ *         status: "ADDRESSED"
+ *       }
+ *     },
+ *     generalFeedback: "Risk integration feedback is valuable for improving source term definition",
+ *     response: {
+ *       description: "Feedback incorporated into source term definition",
+ *       changes: ["Containment failure timing considered in source term definition"]
+ *     }
+ *   },
+ *   riskIntegrationDescription: {
+ *     supportDescription: "Risk integration is valuable for improving source term definition",
+ *     releaseCategoryUsage: "Release categories are used in risk integration",
+ *     sourceTermUsage: "Source term definitions are used in risk integration",
+ *     uncertaintyPropagation: "Uncertainties are propagated to risk integration",
+ *     integrationChallenges: ["Challenges in integrating with risk integration"],
+ *     feedbackIncorporation: "Feedback is incorporated into source term definition"
  *   }
  * };
  *

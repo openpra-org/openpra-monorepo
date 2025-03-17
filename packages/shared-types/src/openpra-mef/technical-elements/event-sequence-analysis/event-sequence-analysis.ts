@@ -561,6 +561,8 @@ export interface EventSequenceFamily extends Unique, Named {
  * Used to define how event sequences are mapped to release categories for source term analysis.
  * @group Sequence Families & Release Categories
  * @implements ES-C8: MAP each event sequence with a release to a release category
+ * @remarks This interface is referenced by the Risk Integration module's EventSequenceToReleaseCategory interface.
+ * The Risk Integration module uses this mapping as input for risk calculations.
  */
 export interface ReleaseCategoryMapping extends Unique {
     /** References to the event sequences mapped to this release category */
@@ -580,6 +582,33 @@ export interface ReleaseCategoryMapping extends Unique {
     
     /** References to supporting analyses */
     supportingAnalysisReferences?: string[];
+    
+    /** 
+     * Frequency information for this mapping, if available at this stage.
+     * This may be populated during event sequence quantification and used by risk integration.
+     */
+    frequencyInformation?: {
+        /** Mean frequency value */
+        mean?: number;
+        
+        /** Frequency unit */
+        units?: FrequencyUnit;
+        
+        /** Uncertainty in the frequency */
+        uncertainty?: {
+            /** Distribution type */
+            distribution?: DistributionType;
+            
+            /** Distribution parameters */
+            parameters?: Record<string, number>;
+        };
+    };
+    
+    /**
+     * Flag indicating whether this mapping has been processed by risk integration.
+     * Used for traceability between technical elements.
+     */
+    processedByRiskIntegration?: boolean;
 }
 
 //==============================================================================

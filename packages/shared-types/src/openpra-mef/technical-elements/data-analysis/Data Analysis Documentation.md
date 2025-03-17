@@ -23,11 +23,11 @@
 
 ## Introduction
 
-This document demonstrates how the provided TypeScript schema satisfies the documentation requirements specified in HLR-DA-E. The schema has been designed to ensure complete traceability of the data analysis work, as mandated by the standard. The implementation provides interfaces and data structures that directly map to each requirement in the DA-E category, enabling comprehensive documentation of the data analysis process.
+This document demonstrates how the provided TypeScript schema satisfies the documentation requirements specified in the regulatory guidance. The schema has been designed to ensure complete traceability of the data analysis work, as mandated by the standard. The implementation provides interfaces and data structures that directly map to each requirement in the DA-E category, enabling comprehensive documentation of the data analysis process.
 
-## Overview of HLR-DA-E Requirements
+## Overview of Regulatory Requirements
 
-HLR-DA-E states: "The documentation of the Data Analysis shall provide traceability of the work."
+"The documentation of the Data Analysis shall provide traceability of the work."
 
 This high-level requirement is supported by three specific requirements:
 
@@ -323,7 +323,7 @@ This interface is included in the `documentation` property of the main `DataAnal
 
 ## Implementation Examples
 
-This section provides simplified examples of how the schema would be implemented to document data analysis according to the HLR-DA-E requirements.
+This section provides simplified examples of how the schema would be implemented to document data analysis according to the Regulatory requirements.
 
 ### Example: Documenting System and Component Boundaries
 
@@ -383,17 +383,3 @@ The following table provides a comprehensive mapping between the DA-E requiremen
 | DA-E1.k | Generic parameter rationales | `genericParameterRationales` property | Complete |
 | DA-E2 | Document model uncertainty sources | `ModelUncertaintyDocumentation` interface | Complete |
 | DA-E3 | Document pre-operational assumptions | `PreOperationalAssumptionsDocumentation` interface | Complete |
-
-## Conclusion
-
-The analysis demonstrates that the provided schema fully supports the documentation requirements specified in HLR-DA-E. The schema includes dedicated interfaces and data structures that directly map to each requirement in the DA-E category, enabling comprehensive documentation of the data analysis process.
-
-Key strengths of the schema implementation include:
-
-1. **Direct mapping to requirements**: Each sub-requirement of DA-E1, as well as DA-E2 and DA-E3, has a corresponding interface or property in the schema.
-
-2. **Comprehensive documentation structure**: The schema provides a detailed structure for documenting all aspects of the data analysis process, from system boundaries to uncertainty characterization.
-
-3. **Extensibility**: The schema is designed to be extensible, allowing for the addition of more detailed documentation as needed.
-
-4. **Type safety**: The use of TypeScript provides type safety and ensures that all required fields are properly documented.

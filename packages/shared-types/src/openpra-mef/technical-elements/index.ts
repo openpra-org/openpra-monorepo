@@ -1,7 +1,7 @@
 /**
  * @packageDocumentation
  * @module technical_elements
- * @description OpenPRA Technical Elements Schema - Types and interfaces for PRA technical elements based on ASME/ANS RA-S-1.4-2021
+ * @description OpenPRA Technical Elements Schema - Types and interfaces for PRA technical elements
  * 
  * > [View Documentation Guide](./index.html)
  */
@@ -65,3 +65,9 @@ export * as event_sequence_quantification from './event-sequence-quantification/
  * @description Mechanistic Source Term types and interfaces
  */
 export * as mechanistic_source_term from './mechanistic-source-term/mechanistic-source-term';
+
+/**
+ * @namespace technical_elements.radiological_consequence_analysis
+ * @description Radiological Consequence Analysis types and interfaces
+ */
+export * as radiological_consequence_analysis from './radiological-consequence-analysis/radiological-consequence-analysis';

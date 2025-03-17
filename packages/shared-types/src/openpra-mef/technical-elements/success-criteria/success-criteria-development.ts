@@ -1124,7 +1124,6 @@ export interface SuccessCriteriaDevelopment extends TechnicalElement<TechnicalEl
     
     /**
      * References to supporting plant response analyses
-     * @implements RA-S-1.4-2021 ES-A2, ES-C7
      */
     plantResponseAnalysisReferences?: string[];
     

@@ -1,6 +1,5 @@
 /**
  * @module initiating_event_analysis
- * @description Types and interfaces for Initiating Event Analysis based on RA-S-1.4-2021 Section 4.3.2
  * 
  * The objectives of Initiating Event Analysis ensure that:
  * - (a) There is a reasonably complete identification of initiating events;
@@ -15,7 +14,6 @@
  * 
  * @expert_value
  * This schema provides:
- * - Full compliance with RA-S-1.4-2021 Section 4.3.2 requirements
  * - Built-in validation for frequency calculations and grouping consistency
  * - Comprehensive hazard analysis integration
  * - Runtime type checking through Typia
@@ -96,7 +94,6 @@ export type PlantOperatingStateReference = string;
 export type SafetyFunctionReference = string;
 
 /**
- * Enum representing categories of initiating events as specified in RA-S-1.4-2021.
  * These categories help in the organization and analysis of different types of events.
  * @remarks **IE-A5**: INCLUDE in the spectrum of initiating event challenges these general categories
  *  @group Core Definitions & Enums

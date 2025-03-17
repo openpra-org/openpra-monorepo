@@ -1,7 +1,6 @@
 /**
  * @packageDocumentation
  * @module plant_operating_states_analysis
- * @description Types and interfaces for Plant Operating States Analysis based on RA-S-1.4-2021 Section 4.3.1
  */
 
 /**

@@ -59,7 +59,7 @@ export interface BaseDesignInformation {
     requirementId?: string;
 
     /** 
-     * Section number in relevant standard (e.g., "4.3.3" in RA-S-1.4-2021) 
+     * Section number in relevant standard (e.g., NRC RG 1.247) 
      */
     standardSection?: string;
 }

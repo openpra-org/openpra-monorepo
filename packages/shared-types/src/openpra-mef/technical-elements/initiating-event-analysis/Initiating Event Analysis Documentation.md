@@ -1,4 +1,4 @@
-# Demonstrating HLR-IE-D Compliance in the Initiating Event Analysis Schema
+# Demonstrating Regulatory Compliance in the Initiating Event Analysis Schema
 
 ## Table of Contents
 - [1. Introduction](#1-introduction)
@@ -25,11 +25,11 @@
 
 ## 1. Introduction
 
-The provided TypeScript schema implements comprehensive support for documenting Initiating Event Analysis in accordance with RA-S-1.4-2021 Section 4.3.2, specifically addressing the HLR-IE-D requirements. This document demonstrates how the schema satisfies all documentation requirements through its data structures, validation rules, and interfaces.
+The provided TypeScript schema implements comprehensive support for documenting Initiating Event Analysis in accordance with Regulatory standards, specifically addressing the Regulatory requirements. This document demonstrates how the schema satisfies all documentation requirements through its data structures, validation rules, and interfaces.
 
 ## 2. Schema Structure Supporting Documentation Requirements
 
-The schema includes dedicated interfaces specifically designed to fulfill HLR-IE-D requirements:
+The schema includes dedicated interfaces specifically designed to fulfill Regulatory requirements:
 
 ```typescript
 // Primary documentation interfaces in the schema
@@ -45,7 +45,6 @@ export interface InitiatingEventsAnalysis extends TechnicalElement<TechnicalElem
     
     /**
      * Documentation of the Initiating Event Analysis process.
-     * @remarks **HLR-IE-D**: The documentation of the Initiating Event Analysis shall provide traceability of the work.
      */
     documentation?: InitiatingEventDocumentation;
     
@@ -482,13 +481,3 @@ Additionally, the Typia validation ensures type compliance:
 ```typescript
 export const InitiatingEventsAnalysisSchema = typia.json.application<[InitiatingEventsAnalysis], "3.0">();
 ```
-
-## 6. Conclusion
-
-The demonstrated schema fully satisfies HLR-IE-D requirements by:
-
-1. Providing explicit interfaces for all documentation requirements in IE-D1, IE-D2, and IE-D3
-2. Including JSDoc remarks that trace each schema element to its corresponding requirement
-3. Implementing validation to ensure documentation completeness
-4. Supporting traceability through a hierarchical data structure
-5. Enabling comprehensive documentation at multiple levels (overall process, individual events, methods)

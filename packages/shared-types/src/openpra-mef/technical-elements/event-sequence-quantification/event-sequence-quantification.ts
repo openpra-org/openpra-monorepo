@@ -1,6 +1,5 @@
 /**
  * @module event_sequence_quantification
- * @description Types and interfaces for Event Sequence Quantification based on RA-S-1.4-2021 Section 4.3.15
  * 
  * The objectives of Event Sequence Quantification ensure that:
  * - (a) The individual parts of the PRA model of event sequences are integrated to obtain a quantification of event sequence frequencies;
@@ -17,7 +16,6 @@
  * 
  * @expert_value
  * This schema provides:
- * - Full compliance with RA-S-1.4-2021 Section 4.3.15 requirements
  * - Integration with upstream technical elements including Initiating Event Analysis, Systems Analysis, and Human Reliability Analysis
  * - Comprehensive dependency tracking across functional, physical, and human aspects
  * - Mechanisms for breaking circular logic and identifying mutually exclusive events

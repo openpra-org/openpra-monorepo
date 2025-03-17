@@ -691,5 +691,3 @@ export interface Named {
 ```
 
 Each POS, evolution, and group has a unique identifier that can be referenced across the PRA model. This ensures changes can be tracked and impacts assessed across the model.
-
-The comprehensive structure of the `PlantOperatingStatesAnalysis` schema ensures that all documentation requirements of POS-D1, POS-D2, and POS-D3 can be satisfied in a consistent, traceable manner. By providing structured interfaces for all required documentation elements, the schema facilitates compliance with regulatory requirements while supporting efficient documentation practices.

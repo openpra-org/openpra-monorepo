@@ -1,9 +1,9 @@
-# Event Sequence Analysis Documentation: Schema Validation Against HLR-ES-D
+# Event Sequence Analysis Documentation:
 
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Schema Overview](#schema-overview)
-3. [Compliance with HLR-ES-D Requirements](#compliance-with-hlr-es-d-requirements)
+3. [Compliance with Regulatory Requirements](#compliance-with-regulatory-requirements)
    1. [ES-D1: Process Documentation](#es-d1-process-documentation)
    2. [ES-D2: Model Uncertainty Documentation](#es-d2-model-uncertainty-documentation)
    3. [ES-D3: Pre-operational Assumptions Documentation](#es-d3-pre-operational-assumptions-documentation)
@@ -14,7 +14,7 @@
 
 ## Introduction
 
-This document demonstrates that the Event Sequence Analysis schema satisfies the Supporting Requirements for High-Level Requirement ES-D (HLR-ES-D) from the Probabilistic Risk Assessment (PRA) standard. The schema provides a comprehensive data model that enables documentation of Event Sequence Analyses with full traceability as required by the standard.
+This document demonstrates that the Event Sequence Analysis schema satisfies the Regulatory Requirements from the Probabilistic Risk Assessment (PRA) standard. The schema provides a comprehensive data model that enables documentation of Event Sequence Analyses with full traceability as required by the standard.
 
 The documentation uses the Experimental Breeder Reactor II (EBR-II) as a reference example where appropriate, but focuses primarily on demonstrating schema compliance rather than a complete reactor model.
 
@@ -32,9 +32,9 @@ The Event Sequence Analysis schema defines a structured approach for documenting
 
 The schema is implemented as a TypeScript interface with comprehensive typing to ensure data integrity and validation.
 
-## Compliance with HLR-ES-D Requirements
+## Compliance with Regulatory Requirements
 
-HLR-ES-D states: "The documentation of the Event Sequence Analysis shall provide traceability of the work."
+"The documentation of the Event Sequence Analysis shall provide traceability of the work."
 
 The schema directly supports this requirement through its comprehensive documentation structures. The following sections demonstrate how each supporting requirement (SR) is satisfied.
 

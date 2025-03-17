@@ -1,6 +1,7 @@
 {
     "name": "technical-elements-docs",
     "version": "0.0.1",
+    "type": "module",
     "devDependencies": {
         "http-server": "^14.1.1",
         "typedoc": "^0.27.9",

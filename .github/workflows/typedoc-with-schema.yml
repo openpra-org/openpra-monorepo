@@ -49,9 +49,15 @@ jobs:
         working-directory: packages/shared-types/src/openpra-mef/technical-elements
         run: npm install
 
-      - name: Generate TypeDoc and Schema
+      - name: Generate Documentation
         working-directory: packages/shared-types/src/openpra-mef/technical-elements
         run: |
+          # Clean previous docs
+          rm -rf docs
+          
+          # Generate TypeDoc documentation
+          npx typedoc --options typedoc.json
+          
           # Create necessary directories
           mkdir -p docs/json-schemas docs/assets
           
@@ -63,9 +69,6 @@ jobs:
           
           # Copy schema download page
           cp schema-download.html docs/schema-download.html
-          
-          # Generate TypeDoc documentation
-          npm run generate-typedoc
 
       - name: Update Schema Download Link
         working-directory: packages/shared-types/src/openpra-mef/technical-elements/docs

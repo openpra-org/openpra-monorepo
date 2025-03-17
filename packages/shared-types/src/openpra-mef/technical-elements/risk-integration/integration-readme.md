@@ -14,23 +14,66 @@ Risk Integration follows a hierarchical dependency structure:
 ### Integration Diagram
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Data Analysis  │     │ Success Criteria │     │ Systems Analysis│
-└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-         │                       │                       │
-         ▼                       ▼                       ▼
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│ Event Sequence  │────▶│  Mechanistic    │     │ Initiating Event│
-│    Analysis     │◀────│  Source Term    │     │    Analysis     │
-└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-         │                       │                       │
-         │                       │                       │
-         └───────────────┬───────────────┬───────────────┘
-                         │               │
-                         ▼               │
-               ┌─────────────────┐       │
-               │Risk Integration │◀──────┘
-               └─────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ┌─────────────┐                    ┌─────────────┐    ┌─────────────────┐   │
+│ │   Data      │ Uncertainty Models │   Success   │    │Plant Operating  │   │
+│ │  Analysis   ├───────────────────►│   Criteria  │    │States Analysis  │   │
+│ │             │◄───────────────────┤             │    │                 │   │
+│ │             │ Parameter Reqmts   │             │    └────────┬────────┘   │
+│ └──────┬──────┘                    └──────┬──────┘             │            │
+│        │                                  │                     │            │
+│        │ Distributions                    │ Success Criteria    │ Operating  │
+│        │ Parameters                       │ Definitions         │ States     │
+│        ▼                                  ▼                     ▼            │
+│ ┌─────────────┐                    ┌─────────────┐    ┌─────────────────┐   │
+│ │   Event     │ Event Sequences    │   Systems   │    │Event Sequence   │   │
+│ │  Sequence   ├───────────────────►│   Analysis  │◄───┤Quantification   │   │
+│ │  Analysis   │◄───────────────────┤             │    │                 │   │
+│ │             │ System Failures    │             │    └────────┬────────┘   │
+│ └──────┬──────┘                    └──────┬──────┘             │            │
+│        │                                  │                     │            │
+│        │                                  │ System              │ Quantified │
+│        │                                  │ Definitions         │ Sequences  │
+│        │                                  ▼                     │            │
+│        │ Event Sequence           ┌─────────────┐              │            │
+│        │ to Release               │ Initiating  │              │            │
+│        │ Category Mapping         │   Event     │◄─────────────┘            │
+│        │                          │  Analysis   │                           │
+│        │                          └──────┬──────┘                           │
+│        │                                 │                                  │
+│        │                                 │ Initiating                       │
+│        │                                 │ Event Frequencies                │
+│        ▼                                 │                                  │
+│ ┌─────────────┐                          │                                  │
+│ │ Mechanistic │                          │                                  │
+│ │ Source Term ├──────────────────────────┘                                  │
+│ │  Analysis   │ Release Categories                                          │
+│ └──────┬──────┘                                                             │
+│        │                                                                    │
+│        │ Source Term Definitions                                            │
+│        ▼                                                                    │
+│ ┌─────────────────────┐                                                     │
+│ │   Radiological      │                                                     │
+│ │   Consequence       │                                                     │
+│ │     Analysis        │                                                     │
+│ └──────┬──────────────┘                                                     │
+│        │                                                                    │
+│        │ Dose Consequences, Health Effects                                  │
+│        ▼                                                                    │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │                           Risk Integration                              │ │
+│ └───────────────────────────────────┬─────────────────────────────────────┘ │
+│                                     │                                        │
+│                                     │ Feedback (Risk Significance,           │
+│                                     │ Insights, Recommendations)             │
+│                                     ▼                                        │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │                        All Upstream Modules                             │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Legend:
+───► Data flow with specific information being transferred
 ```
 
 ## Cross-Module Reference Pattern

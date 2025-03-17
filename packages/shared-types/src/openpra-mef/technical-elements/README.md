@@ -4,6 +4,7 @@ OpenPRA technical schema is based on the latest standards for Advanced Non-Light
 
 To download the JSON Schema for technical elements, visit `/schema-download.html` when running the documentation server. The schema can be used to validate your PRA data structures and ensure compliance with the OpenPRA technical elements specification.
 
+
 ## Understanding TypeScript Types and Interfaces
 
 The documentation uses several TypeScript concepts to define and organize the PRA technical elements:

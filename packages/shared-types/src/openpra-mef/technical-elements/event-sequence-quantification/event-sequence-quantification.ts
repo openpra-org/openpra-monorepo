@@ -1088,8 +1088,29 @@ export interface EventSequenceQuantificationDocumentation extends BaseProcessDoc
   /** Truncation process and values */
   truncationProcess: string;
   
-  /** Event sequence family frequencies */
-  familyFrequencies: Record<string, string>;
+  /** 
+   * Event sequence family frequencies with structured data
+   * Provides a detailed representation of family frequencies with traceability
+   */
+  familyFrequencies: Array<{
+    /** ID of the event sequence family */
+    familyId: EventSequenceFamilyReference;
+    
+    /** Mean frequency value */
+    meanFrequency: number;
+    
+    /** Frequency units */
+    units: FrequencyUnit;
+    
+    /** Uncertainty distribution type, if available */
+    distributionType?: DistributionType;
+    
+    /** Key contributors to this family's frequency */
+    keyContributors?: string[];
+    
+    /** Reference to the detailed quantification result */
+    quantificationResultReference?: string;
+  }>;
   
   /** Risk insights */
   riskInsights: string[];

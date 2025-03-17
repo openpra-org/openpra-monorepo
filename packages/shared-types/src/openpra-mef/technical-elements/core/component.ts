@@ -48,12 +48,14 @@ export const ComponentReferenceSchema = typia.json.application<[ComponentReferen
 /**
  * Runtime validation for components
  * @memberof technical_elements.core
+ * @hidden
  */
 export const validateComponent = typia.createValidate<Component>();
 
 /**
  * Type guard for components
  * @memberof technical_elements.core
+ * @hidden
  */
 export const isComponent = typia.createIs<Component>();
 
@@ -80,6 +82,7 @@ export interface ComponentRegistry extends Unique {
 /**
  * Utility functions for components
  * @memberof technical_elements.core
+ * @hidden
  */
 export const ComponentUtils = {
     /**
@@ -91,6 +94,8 @@ export const ComponentUtils = {
     
     /**
      * Validates a component ID
+     * @memberof technical_elements.core
+     * @hidden
      */
     validateComponentId: (id: string): boolean => {
         return new RegExp(COMPONENT_ID_PATTERN).test(id);

@@ -14,6 +14,7 @@ import typia, { tags } from "typia";
  *   uuid: "123e4567-e89b-12d3-a456-426614174000"
  * };
  * ```
+ * @hidden
  */
 export interface Unique {
   uuid: tags.Format<"uuid">;
@@ -29,6 +30,7 @@ export interface Unique {
  *   name: "Sample Name"
  * };
  * ```
+ * @hidden
  */
 export interface Named {
   name: string;
@@ -42,6 +44,7 @@ export interface Named {
  * ```
  * const isValid = UniqueTagSchema.validate(someData);
  * ```
+ * @hidden
  */
 export const UniqueTagSchema = typia.json.application<[Unique], "3.0">();
 
@@ -53,5 +56,6 @@ export const UniqueTagSchema = typia.json.application<[Unique], "3.0">();
  * ```
  * const isValid = NamedTagSchema.validate(someData);
  * ```
+ * @hidden
  */
 export const NamedTagSchema = typia.json.application<[Named], "3.0">();

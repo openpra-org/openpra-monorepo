@@ -79,7 +79,7 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
         if (seqIdCol) {
           node.position.x = seqIdCol.position.x;
         }
-      } else if (node.data.label === "0.55") {
+      } else if (node.data.isFrequencyNode) {
         // Frequency node - should align with the Frequency column
         const freqCol = regularCols.find((col) => col.data.label === "Frequency");
         if (freqCol) {

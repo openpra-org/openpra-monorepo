@@ -45,7 +45,7 @@ export const createEndStates = (
   nodes.push({
     id: frequencyNode,
     type: "outputNode",
-    data: { label: "0.55", width: nodeWidth },
+    data: { label: "", width: nodeWidth, isFrequencyNode: true },
     position: pos,
   });
   edges.push({

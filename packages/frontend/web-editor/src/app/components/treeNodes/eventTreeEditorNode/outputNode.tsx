@@ -5,7 +5,11 @@ import { useReactFlow, useStore } from "reactflow";
 import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCategory";
 import { GenericModal } from "../../modals/genericModal";
 import styles from "./styles/nodeTypes.module.css";
-// Separate Modal Body Component for managing categories
+
+/**
+ * Separate Modal Body Component for managing categories
+ */
+
 const ManageCategoriesForm = ({
   categories,
   addCategory,

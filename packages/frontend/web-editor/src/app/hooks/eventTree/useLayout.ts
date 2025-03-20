@@ -43,6 +43,9 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
   // Find the maximum value of y from the leaf nodes
   const maxYLeaf = Math.min(...root.leaves().map((d) => d.x));
 
+  // Find button column node (if exists)
+  const buttonNode = cols.find((col) => col.type === "computeButtomColumn");
+
   // Iterate over each column node and update its position
   cols.forEach((col, index) => {
     // Calculate the x position based on the column number and column width
@@ -62,26 +65,49 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
 
   // Handle output nodes for end states (Sequence ID, Frequency, Release Category)
   const totalCols = cols.length;
+  const regularCols = cols.filter((col) => col.type === "columnNode");
+  const lastRegularColIndex = regularCols.length - 1;
+  const lastRegularCol = regularCols[lastRegularColIndex];
+
+  // First, align all output nodes to their correct columns
   nodes.forEach((node) => {
     if (node.type === "outputNode") {
-      let columnIndex = -1;
-
-      // Map node values to columns
-      if (node.data.label.length > 10) {
-        columnIndex = totalCols - 2;
+      // Find which output node this is by checking properties
+      if (node.data.isSequenceId) {
+        // Sequence ID - should align with the sequence ID column
+        const seqIdCol = regularCols.find((col) => col.data.label === "Sequence ID");
+        if (seqIdCol) {
+          node.position.x = seqIdCol.position.x;
+        }
       } else if (node.data.label === "0.55") {
-        columnIndex = totalCols - 1;
+        // Frequency node - should align with the Frequency column
+        const freqCol = regularCols.find((col) => col.data.label === "Frequency");
+        if (freqCol) {
+          node.position.x = freqCol.position.x;
+        }
       } else if (node.data.label.includes("Category")) {
-        columnIndex = totalCols;
-      }
-
-      // Align nodes to columns
-      if (columnIndex !== -1) {
-        const col = cols[columnIndex - 1]; // Adjust for 0-based index
-        node.position.x = col.position.x; // Align x-coordinate
+        // Release Category node - should align with the Release Category column
+        const catCol = regularCols.find((col) => col.data.label === "Release Category");
+        if (catCol) {
+          node.position.x = catCol.position.x;
+        }
       }
     }
   });
+
+  // After all nodes are positioned, place the button column at the end
+  const buttonCol = cols.find((col) => col.type === "computeButtonColumn");
+
+  // Ensure the button column is placed next to the last regular column
+  if (buttonCol && regularCols.length > 0) {
+    const lastRegularCol = regularCols[regularCols.length - 1]; // Last column before button
+
+    // Set button column to be placed exactly next to the last column
+    buttonCol.position = {
+      x: lastRegularCol.position.x + lastRegularCol.data.width,
+      y: lastRegularCol.position.y,
+    };
+  }
 
   return [...nodes, ...cols];
 }
@@ -110,7 +136,7 @@ function useLayout(depth: number) {
     const cols: Node[] = [];
     console.log(nodeData, edges);
     nodeData.forEach((node) => {
-      if (node.type === "columnNode") {
+      if (node.type === "columnNode" || node.type === "computeButtonColumn") {
         cols.push(node);
       } else {
         nodes.push(node);

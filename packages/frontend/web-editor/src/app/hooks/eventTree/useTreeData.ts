@@ -267,6 +267,33 @@ const useTreeData = (
       prevNode = nodeId;
     }
 
+    // Add the button column after the last column
+    const buttonNodeId = GenerateUUID();
+    const buttonColNode: Node = {
+      id: buttonNodeId,
+      type: "computeButtonColumn", // This will be our new node type
+      data: {
+        label: "Action",
+        width: nodeWidth,
+        depth: verticalLevels + 1, // Position it after the last column
+      },
+      position: pos,
+    };
+    nodes.push(buttonColNode);
+
+    // Create edge connecting the last column to the button column
+    const buttonEdge: Edge = {
+      id: `${prevNode}--${buttonNodeId}`,
+      source: prevNode,
+      target: buttonNodeId,
+      type: "custom",
+      animated: false,
+      data: {
+        hidden: true,
+      },
+    };
+    edges.push(buttonEdge);
+
     return { nodes, edges };
   };
 

@@ -4,6 +4,8 @@ import { EuiText } from "@elastic/eui";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 import useDeleteNodeClick from "../../../hooks/eventTree/useDeleteNodeClick";
 import { ScientificNotation } from "../../../../utils/scientificNotation";
+import { UseToastContext } from "../../../providers/toastProvider";
+import { GenerateUUID } from "../../../../utils/treeUtils";
 import styles from "./styles/nodeTypes.module.css";
 
 function VisibleNode({ id, data }: NodeProps) {
@@ -12,6 +14,7 @@ function VisibleNode({ id, data }: NodeProps) {
   const [isEditingFreq, setIsEditingFreq] = useState(false);
   const [isEditingLabel, setIsEditingLabel] = useState(false);
   const { setNodes } = useReactFlow();
+  const { addToast } = UseToastContext();
 
   const updateNodeLabel = (newValue: string) => {
     setNodes((nodes) =>
@@ -31,8 +34,53 @@ function VisibleNode({ id, data }: NodeProps) {
   };
 
   const updateNodeProbability = (newValue: number) => {
-    setNodes((nodes) =>
-      nodes.map((node) => {
+    setNodes((nodes) => {
+      // Get all sibling nodes (nodes at the same depth level)
+      const siblingNodes = nodes.filter((node) => node.data.depth === data.depth);
+
+      // Calculate sum of probabilities for all siblings EXCEPT the current node
+      let siblingSum = 0;
+      siblingNodes.forEach((node) => {
+        if (node.id !== id) {
+          // Use the node's actual probability value, with fallback to default
+          const nodeProb =
+            node.data.probability ??
+            (node.data.depth === 1
+              ? 1.0
+              : node.data.depth === 2 && (node.data.label === "Success" || node.data.label === "Failure")
+              ? 0.5
+              : 0.0);
+
+          siblingSum += nodeProb;
+        }
+      });
+
+      // Check if new total would exceed 1
+      if (siblingSum + newValue > 1) {
+        addToast({
+          id: GenerateUUID(),
+          title: "Probability Limit Exceeded",
+          color: "warning",
+          text: "Total probability in this column cannot exceed 1",
+        });
+
+        // Return updated nodes with current node's probability set to 0
+        return nodes.map((node) => {
+          if (node.id === id) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                probability: 0.0,
+              },
+            };
+          }
+          return node;
+        });
+      }
+
+      // If validation passes, update the probability normally
+      return nodes.map((node) => {
         if (node.id === id) {
           return {
             ...node,
@@ -43,8 +91,8 @@ function VisibleNode({ id, data }: NodeProps) {
           };
         }
         return node;
-      }),
-    );
+      });
+    });
   };
 
   const getDefaultProbability = () => {
@@ -188,12 +236,27 @@ function VisibleNode({ id, data }: NodeProps) {
                 outline: "none",
               }}
               onBlur={(e) => {
-                const inputValue = parseFloat(e.target.value); // Parse the input once
-                const value = isNaN(inputValue) || inputValue > 1 ? 0.0 : Math.max(0, inputValue);
-                const parsedValue = ScientificNotation.fromScientific(e.target.value);
-                if (!isNaN(parsedValue) && parsedValue >= 0 && parsedValue <= 1) {
-                  updateNodeProbability(parsedValue);
+                // Try to parse the input value
+                let value;
+
+                // First try to parse as scientific notation
+                const scientificValue = ScientificNotation.fromScientific(e.target.value);
+                if (!isNaN(scientificValue)) {
+                  // If valid scientific notation, use that value
+                  value = scientificValue;
+                } else {
+                  // Otherwise parse as regular number
+                  const regularValue = parseFloat(e.target.value);
+                  value = isNaN(regularValue) ? 0 : regularValue;
                 }
+
+                // Clamp value between 0 and 1
+                value = Math.max(0, Math.min(1, value));
+
+                // Update the node with the parsed and clamped value
+                updateNodeProbability(value);
+
+                // Exit editing mode
                 setIsEditingFreq(false);
               }}
               autoFocus

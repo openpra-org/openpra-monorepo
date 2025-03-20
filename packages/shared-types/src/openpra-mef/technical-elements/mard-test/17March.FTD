@@ -1,7 +1,0 @@
-TUTORIAL                                        =
-*  Name                 , Description,        SubTree, Alternate, Project
-BORON-FT                                        , Emergency boration fails                                                                                                ,   ,  , TUTORIAL
-HPI-FT                                          , High pressure injection fails                                                                                           ,   ,  , TUTORIAL
-LPI-FT                                          , Low pressure injection fails                                                                                            ,   ,  , TUTORIAL
-REACTOR-TRIP-FT                                 , Reactor trip fails                                                                                                      ,   ,  , TUTORIAL
-REDUCE-PRESSURE-FT                              , Reducing pressure fails                                                                                                 ,   ,  , TUTORIAL

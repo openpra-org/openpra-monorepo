@@ -1,7 +1,19 @@
 import { Edge, Node } from "reactflow";
 import { GenerateUUID } from "../../../utils/treeUtils";
-import { resetSequenceCounter, setFirstColumnLabel } from "../../components/treeNodes/eventTreeEditorNode/outputNode";
+import { setFirstColumnLabel } from "../../components/treeNodes/eventTreeEditorNode/outputNode";
+import { ScientificNotation } from "../../../utils/scientificNotation";
 
+/**
+ * Helper function to get initials
+ */
+
+export const getInitials = (str: string): string => {
+  return str
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+};
 /**
  * Utility function to create end states for a leaf node
  */
@@ -34,7 +46,12 @@ export const createEndStates = (
   nodes.push({
     id: frequencyNode,
     type: "outputNode",
-    data: { label: "0.55", width: nodeWidth },
+    data: {
+      label: ScientificNotation.toScientific(0.0),
+      frequency: 0.0,
+      width: nodeWidth,
+      isFrequencyNode: true,
+    },
     position: pos,
   });
   edges.push({
@@ -71,7 +88,7 @@ export const createEndStates = (
 };
 
 /**
- * Main function for generating tree data
+ *Main function for generating tree data
  */
 const useTreeData = (
   inputLevels: number,
@@ -82,12 +99,15 @@ const useTreeData = (
   const verticalLevels = inputLevels + outputLevels;
 
   // Reset counter at the start
-  resetSequenceCounter();
+  //resetSequenceCounter();
 
   // Function to generate tree nodes and edges
   const generateTreeNodesAndEdges = (): { nodes: Node[]; edges: Edge[] } => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
+
+    const firstColumnLabel = "Initiating Event"; // Default
+    setFirstColumnLabel(firstColumnLabel);
 
     // Generate root node
     const rootId = GenerateUUID();
@@ -95,7 +115,7 @@ const useTreeData = (
       id: rootId,
       type: "visibleNode",
       data: {
-        label: "IE",
+        label: getInitials(firstColumnLabel),
         inputDepth: inputLevels,
         outputDepth: outputLevels,
         width: nodeWidth,
@@ -120,6 +140,7 @@ const useTreeData = (
           type: "visibleNode",
           data: {
             label: `Success`,
+            probability: 0.5,
             depth: depth,
             width: nodeWidth,
             output: false,
@@ -135,6 +156,7 @@ const useTreeData = (
           type: "visibleNode",
           data: {
             label: `Failure`,
+            probability: 0.5,
             depth: depth,
             width: nodeWidth,
             output: false,
@@ -193,6 +215,7 @@ const useTreeData = (
       type: "columnNode",
       data: {
         label: firstColumnLabel,
+        probability: 1.0,
         width: nodeWidth,
         depth: 1,
         output: false,
@@ -252,6 +275,33 @@ const useTreeData = (
       // Update the previous node to the current node
       prevNode = nodeId;
     }
+
+    // Add the button column after the last column
+    const buttonNodeId = GenerateUUID();
+    const buttonColNode: Node = {
+      id: buttonNodeId,
+      type: "computeButtonColumn", // This will be our new node type
+      data: {
+        label: "Action",
+        width: nodeWidth,
+        depth: verticalLevels + 1, // Position it after the last column
+      },
+      position: pos,
+    };
+    nodes.push(buttonColNode);
+
+    // Create edge connecting the last column to the button column
+    const buttonEdge: Edge = {
+      id: `${prevNode}--${buttonNodeId}`,
+      source: prevNode,
+      target: buttonNodeId,
+      type: "custom",
+      animated: false,
+      data: {
+        hidden: true,
+      },
+    };
+    edges.push(buttonEdge);
 
     return { nodes, edges };
   };

@@ -2,9 +2,10 @@ import { Handle, NodeProps, Position, Node } from "reactflow";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { EuiText, EuiSelect, EuiIcon, EuiButton } from "@elastic/eui";
 import { useReactFlow, useStore } from "reactflow";
+import { getInitials } from "../../../hooks/eventTree/useTreeData";
+import { ScientificNotation } from "../../../../utils/scientificNotation";
 import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCategory";
 import { GenericModal } from "../../modals/genericModal";
-import styles from "./styles/nodeTypes.module.css";
 
 /**
  * Separate Modal Body Component for managing categories
@@ -118,6 +119,14 @@ function OutputNode({ id, data }: NodeProps) {
       });
     }
   }, [data.isSequenceId, nodes, id, sequenceId]);
+
+  useEffect(() => {
+    if (data.isFrequencyNode && typeof data.frequency === "number") {
+      setDisplayLabel(ScientificNotation.toScientific(data.frequency, 2));
+    } else {
+      setDisplayLabel(data.label);
+    }
+  }, [data.label, data.frequency, data.isFrequencyNode]);
 
   useEffect(() => {
     updateSequenceId();

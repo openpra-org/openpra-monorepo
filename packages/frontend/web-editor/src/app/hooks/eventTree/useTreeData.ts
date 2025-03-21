@@ -1,12 +1,13 @@
 import { Edge, Node } from "reactflow";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { setFirstColumnLabel } from "../../components/treeNodes/eventTreeEditorNode/outputNode";
+import { ScientificNotation } from "../../../utils/scientificNotation";
 
 /**
  * Helper function to get initials
  */
 
-const getInitials = (str: string): string => {
+export const getInitials = (str: string): string => {
   return str
     .split(" ")
     .map((word) => word[0])
@@ -45,7 +46,12 @@ export const createEndStates = (
   nodes.push({
     id: frequencyNode,
     type: "outputNode",
-    data: { label: "", width: nodeWidth, isFrequencyNode: true },
+    data: {
+      label: ScientificNotation.toScientific(0.0),
+      frequency: 0.0,
+      width: nodeWidth,
+      isFrequencyNode: true,
+    },
     position: pos,
   });
   edges.push({
@@ -134,6 +140,7 @@ const useTreeData = (
           type: "visibleNode",
           data: {
             label: `Success`,
+            probability: 0.5,
             depth: depth,
             width: nodeWidth,
             output: false,
@@ -149,6 +156,7 @@ const useTreeData = (
           type: "visibleNode",
           data: {
             label: `Failure`,
+            probability: 0.5,
             depth: depth,
             width: nodeWidth,
             output: false,
@@ -207,6 +215,7 @@ const useTreeData = (
       type: "columnNode",
       data: {
         label: firstColumnLabel,
+        probability: 1.0,
         width: nodeWidth,
         depth: 1,
         output: false,

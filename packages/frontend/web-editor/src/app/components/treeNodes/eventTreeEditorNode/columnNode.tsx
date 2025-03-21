@@ -37,7 +37,7 @@ function ColumnNode({ id, data }: NodeProps) {
         nodes.map((node) => {
           if (node.type === "outputNode" && node.data.isSequenceId) {
             // Extract the number from the existing sequence ID
-            const currentNum = parseInt(node.data.label.split("-")[1]);
+            const currentNum = parseInt(node.data.label.split("-")[1]) || 1;
             return {
               ...node,
               data: {

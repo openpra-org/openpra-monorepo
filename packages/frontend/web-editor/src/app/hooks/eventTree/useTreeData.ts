@@ -1,7 +1,7 @@
 import { Edge, Node } from "reactflow";
 import { GenerateUUID } from "../../../utils/treeUtils";
-import { setFirstColumnLabel } from "../../components/treeNodes/eventTreeEditorNode/outputNode";
 import { ScientificNotation } from "../../../utils/scientificNotation";
+import { useEventTreeStore } from "./useEventTreeStore";
 
 /**
  * Helper function to get initials
@@ -95,19 +95,20 @@ const useTreeData = (
   outputLevels: number,
   nodeWidth: number,
 ): { nodes: Node[]; edges: Edge[] } => {
+  // Access Zustand store state
+  const { firstColumnLabel, setFirstColumnLabel } = useEventTreeStore.getState();
+
+  if (!firstColumnLabel) {
+    setFirstColumnLabel("Initiating Event"); // Default label if not set
+  }
+
   const pos = { x: 0, y: 0 };
   const verticalLevels = inputLevels + outputLevels;
-
-  // Reset counter at the start
-  //resetSequenceCounter();
 
   // Function to generate tree nodes and edges
   const generateTreeNodesAndEdges = (): { nodes: Node[]; edges: Edge[] } => {
     const nodes: Node[] = [];
     const edges: Edge[] = [];
-
-    const firstColumnLabel = "Initiating Event"; // Default
-    setFirstColumnLabel(firstColumnLabel);
 
     // Generate root node
     const rootId = GenerateUUID();

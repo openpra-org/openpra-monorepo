@@ -110,7 +110,8 @@ function OutputNode({ id, data }: NodeProps) {
 
       sequenceIdNodes.forEach((node, index) => {
         if (node.id === id) {
-          const calculatedSequenceId = `IE-${index + 1}`;
+          const initials = getInitials(firstColumnLabel);
+          const calculatedSequenceId = `${initials}-${index + 1}`;
           if (sequenceId !== calculatedSequenceId) {
             setSequenceId(calculatedSequenceId);
             setDisplayLabel(calculatedSequenceId);

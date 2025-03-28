@@ -5,6 +5,7 @@ import { useReactFlow, useStore } from "reactflow";
 import { getInitials } from "../../../hooks/eventTree/useTreeData";
 import { ScientificNotation } from "../../../../utils/scientificNotation";
 import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCategory";
+import Tooltip from "../../tooltips/customTooltip";
 import { GenericModal } from "../../modals/genericModal";
 
 /**
@@ -213,6 +214,10 @@ function OutputNode({ id, data }: NodeProps) {
               />
             )}
           </div>
+        ) : data.isFrequencyNode ? (
+          <Tooltip content={ScientificNotation.toScientific(data.frequency ?? 0, 8)}>
+            <EuiText style={{ fontSize: "0.7rem" }}>{ScientificNotation.toScientific(data.frequency ?? 0, 3)}</EuiText>
+          </Tooltip>
         ) : (
           <EuiText style={{ fontSize: "0.7rem" }}>{displayLabel}</EuiText>
         )}

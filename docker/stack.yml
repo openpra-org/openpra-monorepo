@@ -232,7 +232,6 @@ services:
         target: /etc/rabbitmq/enabled_plugins
       - source: rabbitmq_conf
         target: /etc/rabbitmq/rabbitmq.conf
-    restart: always
     deploy:
       placement:
         constraints:

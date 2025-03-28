@@ -6,6 +6,7 @@ import useDeleteNodeClick from "../../../hooks/eventTree/useDeleteNodeClick";
 import { ScientificNotation } from "../../../../utils/scientificNotation";
 import { UseToastContext } from "../../../providers/toastProvider";
 import { GenerateUUID } from "../../../../utils/treeUtils";
+import Tooltip from "../../tooltips/customTooltip";
 import styles from "./styles/nodeTypes.module.css";
 
 function VisibleNode({ id, data }: NodeProps) {
@@ -105,99 +106,8 @@ function VisibleNode({ id, data }: NodeProps) {
   const probability = data.probability ?? defaultProbability;
   const tooltipContent = probability.toExponential(8);
 
-  // Custom tooltip styles
-  const tooltipStyles = {
-    position: "relative",
-    display: "inline-block",
-    cursor: "pointer",
-  } as React.CSSProperties;
-
-  // Add the custom tooltip CSS
-  const tooltipContainerStyles = {
-    ".custom-tooltip": {
-      position: "relative",
-      display: "inline-block",
-      cursor: "pointer",
-    },
-    ".custom-tooltip .tooltip-text": {
-      visibility: "hidden",
-      backgroundColor: "rgba(0, 119, 204, 0.2)",
-      color: "#006bb8",
-      textAlign: "center",
-      borderRadius: "6px",
-      padding: "8px 10px",
-      position: "absolute",
-      zIndex: 1000,
-      bottom: "125%",
-      left: "50%",
-      transform: "translateX(-50%)",
-      opacity: 0,
-      transition: "opacity 0.3s",
-      fontSize: "0.8rem",
-      fontWeight: 500,
-      whiteSpace: "nowrap",
-      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
-    },
-    ".custom-tooltip .tooltip-text::after": {
-      content: '""',
-      position: "absolute",
-      top: "100%",
-      left: "50%",
-      marginLeft: "-5px",
-      borderWidth: "5px",
-      borderStyle: "solid",
-      borderColor: "rgba(0, 119, 204, 0.2) transparent transparent transparent",
-    },
-    ".custom-tooltip:hover .tooltip-text": {
-      visibility: "visible",
-      opacity: 1,
-    },
-  };
-
   return (
     <div>
-      <style>
-        {`
-          .custom-tooltip {
-            position: relative;
-            display: inline-block;
-            cursor: pointer;
-          }
-          .custom-tooltip .tooltip-text {
-            visibility: hidden;
-            background-color: rgba(0, 119, 204, 0.2);
-            color: #006bb8;
-            text-align: center;
-            border-radius: 6px;
-            padding: 4px 6px;
-            position: absolute;
-            z-index: 1000;
-            bottom: 70%;
-            left: 50%;
-            transform: translateX(-50%);
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 0.6rem;
-            font-weight: 500;
-            white-space: nowrap;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-          }
-          .custom-tooltip .tooltip-text::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -3px;
-            border-width: 3px;
-            border-style: solid;
-            border-color: rgba(0, 119, 204, 0.2) transparent transparent transparent;
-          }
-          .custom-tooltip:hover .tooltip-text {
-            visibility: visible;
-            opacity: 1;
-          }
-        `}
-      </style>
       <Handle
         type="target"
         position={Position.Left}
@@ -262,12 +172,11 @@ function VisibleNode({ id, data }: NodeProps) {
               autoFocus
             />
           ) : (
-            <div className="custom-tooltip">
+            <Tooltip content={tooltipContent}>
               <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>
                 {ScientificNotation.toScientific(probability, 3)}
               </EuiText>
-              <span className="tooltip-text">{tooltipContent}</span>
-            </div>
+            </Tooltip>
           )}
         </div>
 

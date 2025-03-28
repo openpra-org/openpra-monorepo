@@ -19,9 +19,11 @@ export class ExecutableController {
    * @param taskRequest - The task to execute.
    */
   @TypedRoute.Post("/tasks")
-  public async createAndQueueTask(@TypedBody() taskRequest: ExecutionTask): Promise<void> {
+  public async createAndQueueTask(
+    @TypedBody() taskRequest: ExecutionTask,
+  ): Promise<string | InternalServerErrorException> {
     try {
-      await this.executableService.createAndQueueTask(taskRequest);
+      return await this.executableService.createAndQueueTask(taskRequest);
     } catch {
       throw new InternalServerErrorException("Server encountered a problem while queueing a binary executable task.");
     }

@@ -29,7 +29,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     try {
       this.logger.debug("Connecting to the broker");
-      this.taskChannel = await this.queueService.setupQueue(this.taskQueueConfig);
+      this.taskChannel = await this.queueService.setupQueue(ExecutableWorkerService.name, this.taskQueueConfig);
       await this.consumeExecutableTasks();
       this.logger.debug("Initialized and consuming messages");
     } catch (error) {
@@ -58,6 +58,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
         try {
           // Parse the task data
           const taskData: ExecutionTask = typia.json.assertParse<ExecutionTask>(msg.content.toString());
+          await this.executableJobModel.findByIdAndUpdate(taskData._id, { $set: { status: "running" } });
 
           // Execute the task and get the result
           const result = this.executeCommand(taskData);
@@ -74,7 +75,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
           this.logger.debug(`Task ${String(taskData._id)} execution result stored in database`);
 
           this.taskChannel?.ack(msg);
-          this.logger.debug(`Task ${String(taskData._id)} executed successfully`);
+          this.logger.debug(`Task: ${String(taskData._id)} executed successfully`);
         } catch (error) {
           if (error instanceof TypeGuardError) {
             this.logger.error(error);

@@ -6,7 +6,7 @@ import { EnvVarKeys } from "../../config/env_vars.config";
 @Injectable()
 export class RabbitMQConnectionService implements OnApplicationShutdown {
   private readonly logger = new Logger(RabbitMQConnectionService.name);
-  private connection: amqp.Connection | null = null;
+  private readonly connections = new Map<string, amqp.Connection>();
   private readonly channels = new Map<string, amqp.Channel>();
 
   constructor(private readonly configSvc: ConfigService) {}
@@ -19,32 +19,33 @@ export class RabbitMQConnectionService implements OnApplicationShutdown {
    * @returns A promise that resolves to a RabbitMQ connection
    */
   public async getConnection(serviceName: string, retryCount = 3): Promise<amqp.Connection> {
-    if (this.connection) {
-      return this.connection;
+    const existingConnection = this.connections.get(serviceName);
+    if (existingConnection) {
+      return existingConnection;
     }
 
     const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
-    this.connection = await this.connectWithRetry(url, retryCount, serviceName);
-    return this.connection;
+    const newConnection = await this.connectWithRetry(url, retryCount, serviceName);
+    this.connections.set(serviceName, newConnection);
+    return newConnection;
   }
 
   /**
    * Gets or creates a channel from the connection
    *
    * @param serviceName - Name of the service requesting the channel
-   * @param channelKey - Unique identifier for the channel
    * @returns A promise that resolves to a RabbitMQ channel
    */
-  public async getChannel(serviceName: string, channelKey = "default"): Promise<amqp.Channel> {
-    const existingChannel = this.channels.get(channelKey);
+  public async getChannel(serviceName: string): Promise<amqp.Channel> {
+    const existingChannel = this.channels.get(serviceName);
     if (existingChannel) {
       return existingChannel;
     }
 
     const connection = await this.getConnection(serviceName);
-    const channel = await connection.createChannel();
-    this.channels.set(channelKey, channel);
-    return channel;
+    const newChannel = await connection.createChannel();
+    this.channels.set(serviceName, newChannel);
+    return newChannel;
   }
 
   /**
@@ -88,12 +89,12 @@ export class RabbitMQConnectionService implements OnApplicationShutdown {
       }
     }
 
-    if (this.connection) {
+    for (const [key, connection] of this.connections.entries()) {
       try {
-        await this.connection.close();
-        this.connection = null;
+        await connection.close();
+        this.connections.delete(key);
       } catch (error) {
-        this.logger.error("Error closing connection:", error);
+        this.logger.error(`Error closing connection ${key}:`, error);
       }
     }
   }

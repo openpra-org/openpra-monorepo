@@ -20,10 +20,10 @@ export interface QueueConfig {
  * Configuration for a dead letter exchange
  */
 export interface DeadLetterConfig {
+  /** Name of the dead letter queue */
+  name: string;
   /** Name of the dead letter exchange */
   exchange: string;
-  /** Name of the dead letter queue */
-  queue: string;
   /** Whether the dead letter queue should survive broker restarts */
   durable: boolean;
 }

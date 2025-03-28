@@ -30,7 +30,7 @@ export class ConsumerService implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     try {
       this.logger.debug("Connecting to the broker");
-      this.channel = await this.queueService.setupQueue(this.queueConfig);
+      this.channel = await this.queueService.setupQueue(ConsumerService.name, this.queueConfig);
       await this.consumeQuantJobs();
       this.logger.debug("Initialized and consuming messages");
     } catch (error) {
@@ -58,13 +58,27 @@ export class ConsumerService implements OnApplicationBootstrap {
 
         try {
           const modelsData: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
-          const result: string[] = this.performQuantification(modelsData);
+          this.logger.debug(`Running Job: ${String(modelsData._id)}`);
+
           await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
-            $set: { results: result, status: "completed" },
+            $set: { status: "running" },
           });
+          this.logger.debug("Changing the status to <running>");
+
+          this.performQuantification(modelsData);
+
+          await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
+            $set: { status: "completed" },
+          });
+          this.logger.debug(`Completed Job: ${String(modelsData._id)}`);
+          /* Right now we are saving only the Job status, not the results.
+           * await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
+           *  $set: { results: result, status: "completed" },
+           * });
+           */
 
           this.channel?.ack(msg);
-          this.logger.debug(`${String(modelsData._id)}: Acknowledged`);
+          this.logger.debug(`Acknowledged Job: ${String(modelsData._id)}`);
         } catch (error) {
           if (error instanceof TypeGuardError) {
             this.logger.error(error);

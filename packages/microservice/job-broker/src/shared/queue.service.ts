@@ -12,12 +12,12 @@ export class QueueService {
   /**
    * Sets up a queue with its associated dead letter exchange
    *
+   * @param serviceName - Name of the service (i.e., ProducerService, ExecutableService etc.)
    * @param queueConfig - Configuration for the queue
-   * @param channelKey - Optional key for the channel
    * @returns A promise that resolves to the channel when setup is complete
    */
-  public async setupQueue(queueConfig: QueueConfig, channelKey = queueConfig.name): Promise<Channel> {
-    const channel = await this.connectionSvc.getChannel(channelKey);
+  public async setupQueue(serviceName: string, queueConfig: QueueConfig): Promise<Channel> {
+    const channel = await this.connectionSvc.getChannel(serviceName);
 
     // Set up dead letter exchange and queue
     await this.setupDeadLetterExchange(channel, queueConfig.deadLetter);
@@ -48,7 +48,7 @@ export class QueueService {
    */
   private async setupDeadLetterExchange(channel: Channel, config: DeadLetterConfig): Promise<void> {
     await channel.assertExchange(config.exchange, "direct", { durable: config.durable });
-    await channel.assertQueue(config.queue, { durable: config.durable });
-    await channel.bindQueue(config.queue, config.exchange, "");
+    await channel.assertQueue(config.name, { durable: config.durable });
+    await channel.bindQueue(config.name, config.exchange, "");
   }
 }

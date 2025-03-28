@@ -25,9 +25,11 @@ export class ScramController {
    * @throws {@link InternalServerErrorException} When there is a problem queueing the quantification job.
    */
   @TypedRoute.Post("/scram")
-  public createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): void {
+  public async createAndQueueQuant(
+    @TypedBody() quantRequest: QuantifyRequest,
+  ): Promise<string | InternalServerErrorException> {
     try {
-      this.producerService.createAndQueueQuant(quantRequest);
+      return await this.producerService.createAndQueueQuant(quantRequest);
     } catch {
       throw new InternalServerErrorException("Server encountered a problem while queueing SCRAM quantification job.");
     }

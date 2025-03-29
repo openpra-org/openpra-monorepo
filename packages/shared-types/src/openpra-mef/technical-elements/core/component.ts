@@ -4,7 +4,8 @@
  * @description Core component types and interfaces
  */
 import typia, { tags } from "typia";
-import { Unique, Named } from "./meta";
+import { Unique, Named, Versioned } from "./meta";
+import { isValidComponentReference } from "./validators";
 
 /**
  * Standard pattern for component IDs
@@ -14,11 +15,25 @@ import { Unique, Named } from "./meta";
 export const COMPONENT_ID_PATTERN = "^CMP-[A-Za-z0-9_-]+$";
 
 /**
+ * Standard pattern for component type IDs
+ * @memberof technical_elements.core
+ * @group Component
+ */
+export const COMPONENT_TYPE_ID_PATTERN = "^CMPTYPE-[A-Za-z0-9_-]+$";
+
+/**
  * Type representing a component reference
  * @memberof technical_elements.core
  * @group Component
  */
 export type ComponentReference = string & tags.Pattern<typeof COMPONENT_ID_PATTERN>;
+
+/**
+ * Type representing a component type reference
+ * @memberof technical_elements.core
+ * @group Component
+ */
+export type ComponentTypeReference = string & tags.Pattern<typeof COMPONENT_TYPE_ID_PATTERN>;
 
 /**
  * Base interface for components
@@ -80,6 +95,44 @@ export interface ComponentRegistry extends Unique {
 }
 
 /**
+ * Interface for component types
+ * @memberof technical_elements.core
+ * @extends {Unique}
+ * @extends {Named}
+ * @extends {Versioned}
+ * @group Component
+ */
+export interface ComponentType extends Unique, Named, Versioned {
+  /** Description of the component type */
+  description?: string;
+  /** Category of the component type */
+  category: string;
+  /** Common characteristics of this component type */
+  commonCharacteristics: Record<string, any>;
+}
+
+/**
+ * JSON schema for validating {@link ComponentTypeReference}.
+ * @memberof technical_elements.core
+ * @group Component
+ */
+export const ComponentTypeReferenceSchema = typia.json.application<[ComponentTypeReference], "3.0">();
+
+/**
+ * Runtime validation for component types
+ * @memberof technical_elements.core
+ * @hidden
+ */
+export const validateComponentType = typia.createValidate<ComponentType>();
+
+/**
+ * Type guard for component types
+ * @memberof technical_elements.core
+ * @hidden
+ */
+export const isComponentType = typia.createIs<ComponentType>();
+
+/**
  * Utility functions for components
  * @memberof technical_elements.core
  * @hidden
@@ -98,6 +151,6 @@ export const ComponentUtils = {
      * @hidden
      */
     validateComponentId: (id: string): boolean => {
-        return new RegExp(COMPONENT_ID_PATTERN).test(id);
+        return isValidComponentReference(id);
     }
 }; 

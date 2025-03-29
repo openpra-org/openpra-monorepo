@@ -34,6 +34,7 @@ export interface Unique {
  */
 export interface Named {
   name: string;
+  description?: string;
 }
 
 /**
@@ -59,3 +60,14 @@ export const UniqueTagSchema = typia.json.application<[Unique], "3.0">();
  * @hidden
  */
 export const NamedTagSchema = typia.json.application<[Named], "3.0">();
+
+
+export interface Versioned {
+  version: string;
+  lastUpdated: string;
+}
+
+export const VersionedTagSchema = typia.json.application<[Versioned], "3.0">();
+
+
+

@@ -40,7 +40,7 @@ import { Named, Unique } from "../core/meta";
 // Import BasicEvent from the upstream core events module
 // This is the authoritative source for the BasicEvent definition
 import { BasicEvent, FrequencyUnit } from "../core/events";
-import { SystemDefinition, FailureModeType, SystemBasicEvent } from "../systems-analysis/systems-analysis";
+import { SystemDefinition, SystemBasicEvent } from "../systems-analysis/systems-analysis";
 import { SuccessCriteriaId } from "../success-criteria/success-criteria-development";
 import { PlantOperatingStatesTable, PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
 import { SensitivityStudy } from "../core/shared-patterns";
@@ -74,6 +74,12 @@ export type ParameterType =
     | "OTHER";
 
 /**
+ * Type representing the level of detectability for a failure mode
+ * @group Core Definition and Enums
+ */
+export type DetectabilityLevel = 'High' | 'Medium' | 'Low' | 'None';
+
+/**
  * Enum representing the types of probability models used in data analysis.
  * 
  * @implements DA-A3: USE an appropriate probability model for each basic event
@@ -90,6 +96,232 @@ export enum DistributionType {
     BETA = "beta",
     GAMMA = "gamma",
     POINT_ESTIMATE = "point_estimate"
+}
+
+/**
+ * Interface representing a probability model with its parameters and estimation details
+ * @group Core Definition and Enums
+ */
+export interface ProbabilityModel {
+    /** Type of probability distribution */
+    distribution: DistributionType;
+    
+    /** Parameters of the probability distribution */
+    parameters: Record<string, number>;
+    
+    /** Source of the probability model */
+    source?: 'estimated' | 'manual' | 'default';
+    
+    /** Details about how the probability model was estimated */
+    estimationDetails?: {
+        /** References to data points used in estimation */
+        dataPointReferences: string[];
+        /** Method used for estimation */
+        estimationMethod: string;
+        /** Date when estimation was performed */
+        estimationDate: string;
+        /** Confidence level in the estimation (0-1) */
+        confidence: number;
+    };
+}
+
+/**
+ * Base interface for any basic event in the data analysis context
+ * @group Core Definition and Enums
+ * @extends {Unique}
+ * @extends {Named}
+ */
+export interface DataAnalysisBasicEvent extends Unique, Named {
+    // Base properties for any basic event
+}
+
+/**
+ * Interface representing a component-specific basic event
+ * @group Core Definition and Enums
+ * @extends {BasicEvent}
+ * @description Extends the core BasicEvent type with component-specific properties
+ * and SAPHIRE integration capabilities.
+ */
+export interface ComponentBasicEvent extends BasicEvent {
+    /** Reference to ComponentType from core */
+    componentTypeReference: string;
+    
+    /** Reference to FailureModeType */
+    failureMode: string;
+    
+    /** Probability model for this event */
+    probabilityModel: ProbabilityModel;
+    
+    /** Indicates this is a template that can be referenced */
+    isTemplate: boolean;
+    
+    /** SAPHIRE-specific attributes */
+    saphireAttributes?: {
+        /** Template use flags for controlling what attributes are applied */
+        templateUseFlags: {
+            componentId: boolean;
+            system: boolean;
+            train: boolean;
+            type: boolean;
+            failureMode: boolean;
+            location: boolean;
+            eventType: boolean;
+            description: boolean;
+            models: boolean;
+            phases: boolean;
+            notes: boolean;
+            references: boolean;
+            categories: boolean[];
+        };
+        
+        /** Alternate descriptions (BEDA format) */
+        alternateDescriptions?: {
+            short?: string;
+            long?: string;
+            technical?: string;
+            graphical?: string;
+        };
+        
+        /** Component identifiers */
+        componentId?: string;
+        train?: string;
+        
+        /** System and location */
+        systemId?: string;
+        location?: string;
+        
+        /** Additional categorization */
+        eventType?: string;
+        categories?: string[];
+        
+        /** Documentation */
+        notes?: string;
+        references?: string[];
+        
+        /** Phase applicability */
+        phaseApplicability?: Record<string, boolean>;
+    };
+}
+
+/**
+ * Interface representing an instance of a component basic event template
+ * @group Core Definition and Enums
+ * @description Used to create specific instances of component basic events from templates,
+ * allowing for instance-specific customization while maintaining the template structure.
+ */
+export interface ComponentBasicEventInstance {
+    /** Unique identifier for this instance */
+    instanceId: string;
+    
+    /** Reference to the Component instance this event is associated with */
+    componentReference: string;
+    
+    /** Reference to the ComponentBasicEvent template this instance is based on */
+    templateReference: string;
+    
+    /** Adjustments to probability parameters for this specific instance */
+    probabilityAdjustments?: Record<string, number>;
+    
+    /** Instance-specific SAPHIRE attributes */
+    saphireInstanceAttributes?: {
+        /** Component identifier specific to this instance */
+        componentId?: string;
+        
+        /** Train identifier specific to this instance */
+        train?: string;
+        
+        /** System identifier specific to this instance */
+        systemId?: string;
+        
+        /** Location specific to this instance */
+        location?: string;
+    };
+}
+
+/**
+ * Interface representing an operational data point collected from a specific component
+ * @group Data Collection, Consistency, Grouping
+ * @description Represents a single instance of operational data collected from a component,
+ * such as a failure event, repair, inspection, or maintenance activity.
+ * @implements DA-C3: COLLECT plant-specific data to facilitate parameter estimation
+ */
+export interface OperationalDataPoint {
+    /** Unique identifier for this data point */
+    id: string;
+    
+    /** Reference to the component instance this data point is associated with */
+    componentReference: string;
+    
+    /** Reference to the component type of the component */
+    componentTypeReference: string;
+    
+    /** Timestamp when the data was recorded (ISO format) */
+    timestamp: string;
+    
+    /** Type of event recorded */
+    eventType: 'failure' | 'repair' | 'inspection' | 'maintenance';
+    
+    /** Number of hours the component was in operation at the time of the event */
+    operatingHours: number;
+    
+    /** Number of cycles the component had completed at the time of the event */
+    operatingCycles: number;
+    
+    /** Optional reference to the failure mode if this is a failure event */
+    failureModeReference?: string;
+    
+    /** Additional measurements recorded during the event */
+    measurements?: Record<string, number>;
+    
+    /** Textual description of the event */
+    description?: string;
+    
+    /** Domain-specific extension data */
+    metadata?: Record<string, any>;
+}
+
+/**
+ * Interface representing a registry of operational data points
+ * @group Data Collection, Consistency, Grouping
+ * @description Central repository for operational data points with indexing capabilities
+ * to facilitate efficient data retrieval for analysis.
+ * @implements DA-C4: ORGANIZE the data to facilitate parameter estimation
+ */
+export interface OperationalDataRegistry {
+    /** Unique identifier for this registry */
+    id: string;
+    
+    /** Name of the registry */
+    name: string;
+    
+    /** Array of all data points in the registry */
+    dataPoints: OperationalDataPoint[];
+    
+    /** Indexing of data points by component type for efficient lookup */
+    dataByComponentType?: Record<string, string[]>;
+    
+    /** Indexing of data points by failure mode for efficient lookup */
+    dataByFailureMode?: Record<string, string[]>;
+}
+
+/**
+ * Interface representing a failure mode type with its characteristics
+ * @group Core Definition and Enums
+ * @extends {Unique}
+ * @extends {Named}
+ */
+export interface FailureModeType extends Unique, Named {
+    /** Category of the failure mode */
+    category: string;
+    
+    /** Mechanism of failure description */
+    mechanismOfFailure: string;
+    
+    /** Level of detectability of the failure mode */
+    detectability: DetectabilityLevel;
+    
+    /** Default probability model for this failure mode */
+    defaultProbabilityModel?: ProbabilityModel;
 }
 
 /**

@@ -100,7 +100,7 @@ export enum DistributionType {
 
 /**
  * Interface representing a probability model with its parameters and estimation details
- * @group Core Definition and Enums
+ * @group Quantification & Uncertainty
  */
 export interface ProbabilityModel {
     /** Type of probability distribution */
@@ -126,18 +126,8 @@ export interface ProbabilityModel {
 }
 
 /**
- * Base interface for any basic event in the data analysis context
- * @group Core Definition and Enums
- * @extends {Unique}
- * @extends {Named}
- */
-export interface DataAnalysisBasicEvent extends Unique, Named {
-    // Base properties for any basic event
-}
-
-/**
  * Interface representing a component-specific basic event
- * @group Core Definition and Enums
+ * @group Parameter Definition & Boundaries
  * @extends {BasicEvent}
  * @description Extends the core BasicEvent type with component-specific properties
  * and SAPHIRE integration capabilities.
@@ -205,7 +195,7 @@ export interface ComponentBasicEvent extends BasicEvent {
 
 /**
  * Interface representing an instance of a component basic event template
- * @group Core Definition and Enums
+ * @group Parameter Definition & Boundaries
  * @description Used to create specific instances of component basic events from templates,
  * allowing for instance-specific customization while maintaining the template structure.
  */
@@ -306,7 +296,7 @@ export interface OperationalDataRegistry {
 
 /**
  * Interface representing a failure mode type with its characteristics
- * @group Core Definition and Enums
+ * @group Parameter Definition & Boundaries
  * @extends {Unique}
  * @extends {Named}
  */
@@ -368,7 +358,7 @@ export interface BaseDataAnalysisParameter extends Unique, Named {
 
 /**
  * Interface representing data sources and their context
- * @group Core Definition and Enums
+ * @group Data Collection, Consistency, Grouping
  * @implements DA-C1: OBTAIN generic parameter estimates from recognized data sources
  */
 export interface DataSource {

@@ -32,3 +32,27 @@ export const parseModuleReference = (
     id: parts[2]
   };
 };
+
+/**
+ * Create a reference to a basic event in the data-analysis module
+ * @param id ID of the basic event
+ * @returns A formatted cross-module reference string
+ */
+export const createBasicEventReference = (id: string): string => 
+  createModuleReference('data', 'basic-event', id);
+
+/**
+ * Create a reference to a component in the systems-analysis module
+ * @param id ID of the component
+ * @returns A formatted cross-module reference string
+ */
+export const createComponentReference = (id: string): string =>
+  createModuleReference('systems', 'component', id);
+
+/**
+ * Create a reference to a failure mode in the systems-analysis module
+ * @param id ID of the failure mode
+ * @returns A formatted cross-module reference string
+ */
+export const createFailureModeReference = (id: string): string =>
+  createModuleReference('systems', 'failure-mode', id);

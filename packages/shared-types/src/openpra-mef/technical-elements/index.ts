@@ -71,3 +71,22 @@ export * as mechanistic_source_term from './mechanistic-source-term/mechanistic-
  * @description Radiological Consequence Analysis types and interfaces
  */
 export * as radiological_consequence_analysis from './radiological-consequence-analysis/radiological-consequence-analysis';
+
+/**
+ * @namespace technical_elements.integration
+ * @description Integration interfaces for external tools and formats
+ */
+export * as integration from './integration';
+
+// Direct exports for commonly used integration interfaces
+export { 
+  OpenPSASerializable, 
+  OpenPSAFieldMapping,
+  OpenPSASerializationOptions,
+  DEFAULT_OPENPSA_SERIALIZATION_OPTIONS 
+} from './integration/open-psa-serialization';
+
+export {
+  SAPHIREFieldMapping,
+  SAPHIRECompatible
+} from './integration/saphire-annotations';

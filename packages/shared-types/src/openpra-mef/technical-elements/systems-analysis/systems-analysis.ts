@@ -25,6 +25,7 @@
   import { IdPatterns, ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../core/shared-patterns";
   import { PlantOperatingStatesTable } from "../plant-operating-states-analysis/plant-operating-states-analysis";
   import { BaseEvent, BasicEvent, TopEvent } from "../core/events";
+  import { SAPHIRECompatible } from "../integration/saphire-annotations";
   import { 
       BaseDesignInformation, 
       BaseProcessDocumentation, 
@@ -41,7 +42,7 @@
       SuccessCriteriaId
   } from "../success-criteria/success-criteria-development";
   import { DistributionType } from "../data-analysis/data-analysis";
-  import { ComponentReference } from "../core/component";
+  import { Component, ComponentReference, ComponentTypeReference } from "../core/component";
   
   //==============================================================================
   /**
@@ -382,6 +383,134 @@
     applicablePOSs?: string[];
   }
   
+  /**
+   * Extended Component interface for Systems Analysis
+   * Uses composition pattern for template-instance relationships
+   * 
+   * @group System Modeling & Failure Modes
+   * @extends Component
+   */
+  export interface SystemComponent extends Component {
+    /**
+     * Instance properties specific to systems analysis
+     */
+    instanceProperties?: {
+      position?: string;
+      serialNumber?: string;
+      installationDetails?: {
+        dateInstalled?: string;
+        installedBy?: string;
+      };
+    };
+    
+    /**
+     * Template-instance relationship (composition-based)
+     */
+    isTemplateInstance: boolean;
+    templateReference?: ComponentTypeReference;
+    
+    /**
+     * Hierarchical structure support
+     */
+    parentComponentId?: ComponentReference;
+    
+    /**
+     * References to related entities
+     */
+    basicEventIds?: string[];  // References to ComponentBasicEvent
+    failureModeIds?: string[]; // References to FailureMode
+  }
+  
+  /**
+   * Record of changes made to a component template
+   * Used for tracking template changes and propagation to instances
+   * 
+   * @group System Modeling & Failure Modes
+   */
+  export interface TemplateChangeRecord {
+    /**
+     * Reference to the template that was changed
+     */
+    templateReference: string;
+    
+    /**
+     * Version of the template after the change
+     */
+    version: string;
+    
+    /**
+     * Timestamp when the change was made
+     */
+    timestamp: string;
+    
+    /**
+     * Description of changes made to the template
+     */
+    changes: string[];
+    
+    /**
+     * Indicates if changes have been propagated to instances
+     */
+    changesPropagated: boolean;
+    
+    /**
+     * Instances to exclude from change propagation
+     */
+    excludedInstances?: string[]; // Instances to exclude from propagation
+  }
+  
+  /**
+   * Configuration for template change propagation
+   * Controls how changes to templates are propagated to instances
+   * 
+   * @group System Modeling & Failure Modes
+   */
+  export interface TemplatePropagationConfig {
+    /**
+     * Whether changes are automatically propagated to instances
+     */
+    autoPropagation: boolean;
+    
+    /**
+     * Fields that should not be propagated when template changes
+     */
+    excludedFields?: string[];
+    
+    /**
+     * Whether approval is required before propagating changes
+     */
+    approvalRequired: boolean;
+  }
+  
+  /**
+   * Registry for tracking template instances
+   * Manages the relationships between templates and their instances
+   * 
+   * @group System Modeling & Failure Modes
+   * @extends {Unique}
+   */
+  export interface TemplateInstanceRegistry extends Unique {
+    /**
+     * Registry of instances organized by template
+     */
+    instancesByTemplate: Record<string, string[]>; // TemplateReference -> InstanceReference[]
+    
+    /**
+     * Current version of each template
+     */
+    templateVersions: Record<string, string>; // TemplateReference -> version
+    
+    /**
+     * History of changes to templates
+     */
+    changeHistory: TemplateChangeRecord[];
+    
+    /**
+     * Configuration for propagating changes
+     */
+    propagationConfig: TemplatePropagationConfig;
+  }
+  
   //==============================================================================
   /**
    * @group System Modeling & Failure Modes
@@ -391,12 +520,12 @@
   //==============================================================================
   
   /**
- * Interface for a system definition, including boundaries, components, and success criteria.
- * @group System Modeling & Failure Modes
- * @implements SY-A1: DEVELOP system logic models
- * @implements SY-A3: DEFINE the boundaries of the system
- */
-export interface SystemDefinition extends Unique, Named {
+   * Interface for a system definition, including boundaries, components, and success criteria.
+   * @group System Modeling & Failure Modes
+   * @implements SY-A1: DEVELOP system logic models
+   * @implements SY-A3: DEFINE the boundaries of the system
+   */
+  export interface SystemDefinition extends Unique, Named {
     /**
      * Description of the system's function and operation under normal and emergency conditions.
      * @implements SY-C1(a): system function and operation under normal and emergency operations
@@ -411,6 +540,12 @@ export interface SystemDefinition extends Unique, Named {
      * @example ["Pump A", "Pump B", "Heat Exchanger", "Piping from RCS"]
      */
     boundaries: string[];
+    
+    /**
+     * Components that make up this system
+     * @implements SY-A7: INCLUDE components required to support success criteria
+     */
+    components?: Record<ComponentReference, SystemComponent>;
     
     /**
      * Success criteria for the system to perform its intended safety function(s).
@@ -747,6 +882,20 @@ export interface SystemDefinition extends Unique, Named {
   /**
    * Unified interface for all fault tree nodes with type-specific properties
    * @group Fault Tree Analysis
+   * 
+   * @example
+   * ```typescript
+   * // Example using cross-module reference to data-analysis basic event
+   * import { createBasicEventReference } from "../core/reference-types";
+   * 
+   * const basicEventNode: FaultTreeNode = {
+   *   id: "BE1",
+   *   nodeType: FaultTreeNodeType.BASIC_EVENT,
+   *   name: "Pump Failure",
+   *   usesDataAnalysisReference: true,
+   *   dataAnalysisBasicEventRef: createBasicEventReference("PUMP_FAILURE_001")
+   * };
+   * ```
    */
   export interface FaultTreeNode extends Unique {
     /**
@@ -785,6 +934,17 @@ export interface SystemDefinition extends Unique, Named {
     basicEventReference?: string;
     
     /**
+     * Reference to a basic event in the data-analysis module
+     * Format: data:basic-event:{id}
+     */
+    dataAnalysisBasicEventRef?: string;
+    
+    /**
+     * Whether this basic event references a data-analysis module entity
+     */
+    usesDataAnalysisReference?: boolean;
+    
+    /**
      * Reference to a human action for human-related events
      */
     humanActionReference?: HumanActionReference;
@@ -810,7 +970,7 @@ export interface SystemDefinition extends Unique, Named {
    * @group Fault Tree Analysis
    * @implements SY-A1: DEVELOP system logic models
    */
-  export interface FaultTree extends Unique, Named {
+  export interface FaultTree extends Unique, Named, SAPHIRECompatible {
     /**
      * Reference to the system this fault tree belongs to
      */
@@ -1540,6 +1700,11 @@ export interface SystemDefinition extends Unique, Named {
      * @implements SY-B5: INCLUDE both intersystem and intrasystem dependencies
      */
     componentDependencies: ComponentDependency[];
+    
+    /**
+     * Registry for tracking template instances and managing template changes
+     */
+    templateInstanceRegistry?: TemplateInstanceRegistry;
     
     /**
      * Common cause failure groups.

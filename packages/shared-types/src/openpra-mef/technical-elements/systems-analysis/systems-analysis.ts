@@ -43,6 +43,7 @@
   } from "../success-criteria/success-criteria-development";
   import { DistributionType } from "../data-analysis/data-analysis";
   import { Component, ComponentReference, ComponentTypeReference } from "../core/component";
+  import { QuantificationReferenceManager } from "../core/quantification-bridge";
   
   //==============================================================================
   /**
@@ -150,7 +151,6 @@
   
   /**
    * Interface for a basic event in a system logic model.
-   * @group Core Definitions & Enums
    * @extends {BasicEvent} from core events module
    * @description Extends the core BasicEvent type with system-specific properties.
    * The core BasicEvent is defined in the upstream core/events.ts module and is the
@@ -160,6 +160,7 @@
    * 1. Core events.ts (most upstream): Defines the base BasicEvent interface
    * 2. Systems-analysis.ts (midstream): Extends BasicEvent with system-specific properties
    * 3. Data-analysis.ts (downstream): Uses both BasicEvent and references SystemBasicEvent
+   * @group System Modeling & Failure Modes
    */
   export interface SystemBasicEvent extends BasicEvent {
     /**
@@ -860,7 +861,7 @@
   
   /**
    * Enum for fault tree node types, representing standard FTA symbols
-   * @group Fault Tree Analysis
+   * @group Core Definitions & Enums
    */
   export enum FaultTreeNodeType {
     // Gates

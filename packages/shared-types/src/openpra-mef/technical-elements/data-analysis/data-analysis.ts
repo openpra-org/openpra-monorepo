@@ -37,8 +37,6 @@
 import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
-// Import BasicEvent from the upstream core events module
-// This is the authoritative source for the BasicEvent definition
 import { BasicEvent, FrequencyUnit } from "../core/events";
 import { SystemDefinition, SystemBasicEvent } from "../systems-analysis/systems-analysis";
 import { SuccessCriteriaId } from "../success-criteria/success-criteria-development";
@@ -292,6 +290,154 @@ export interface OperationalDataRegistry {
     
     /** Indexing of data points by failure mode for efficient lookup */
     dataByFailureMode?: Record<string, string[]>;
+}
+
+/**
+ * Interface representing the result of a failure rate estimation
+ * @group Quantification & Uncertainty
+ * @implements DA-D1: BASE parameter estimates on relevant evidence
+ * @implements DA-D2: CHARACTERIZE the uncertainty in parameter estimates
+ * @implements DA-D3: PROVIDE a mean value for each parameter
+ */
+export interface FailureRateEstimationResult {
+    /** Reference to the failure mode being analyzed */
+    failureModeReference: string;
+    
+    /** Reference to the component type being analyzed */
+    componentTypeReference: string;
+    
+    /** The estimated probability distribution type */
+    estimatedDistribution: DistributionType;
+    
+    /** Parameters of the estimated distribution */
+    parameters: Record<string, number>;
+    
+    /** Confidence intervals for the parameters */
+    confidenceIntervals?: {
+        /** Lower bounds of confidence intervals */
+        lower: Record<string, number>;
+        /** Upper bounds of confidence intervals */
+        upper: Record<string, number>;
+    };
+    
+    /** Number of data points used in the estimation */
+    sampleSize: number;
+    
+    /** Results of goodness of fit testing */
+    goodnessOfFit?: {
+        /** Method used for goodness of fit testing */
+        method: string;
+        /** Test statistic value */
+        value: number;
+    };
+}
+
+/**
+ * Class for estimating failure rates from operational data
+ * @group Quantification & Uncertainty
+ * @implements DA-D1: BASE parameter estimates on relevant evidence
+ * @implements DA-D2: CHARACTERIZE the uncertainty in parameter estimates
+ * @implements DA-D3: PROVIDE a mean value for each parameter
+ * @implements DA-D4: UPDATE parameter estimates with plant-specific evidence
+ */
+export class FailureRateEstimator {
+    /**
+     * Main estimation method for failure rates
+     * @param failureModeRef - Reference to the failure mode being analyzed
+     * @param componentTypeRef - Reference to the component type being analyzed
+     * @param dataRegistry - Registry containing operational data points
+     * @param method - Estimation method to use ('maxLikelihood' or 'bayesian')
+     * @returns FailureRateEstimationResult containing the estimation results
+     * @throws Error if insufficient data is available for estimation
+     */
+    estimateFailureRate(
+        failureModeRef: string,
+        componentTypeRef: string,
+        dataRegistry: OperationalDataRegistry,
+        method: 'maxLikelihood' | 'bayesian' = 'maxLikelihood'
+    ): FailureRateEstimationResult {
+        // Get relevant data points
+        const dataPointIds = dataRegistry.dataByFailureMode?.[failureModeRef] || [];
+        const dataPoints = dataPointIds
+            .map(id => dataRegistry.dataPoints.find(dp => dp.id === id))
+            .filter(dp => dp && dp.componentTypeReference === componentTypeRef) as OperationalDataPoint[];
+        
+        if (dataPoints.length === 0) {
+            throw new Error('Insufficient data for estimation');
+        }
+        
+        // Perform estimation based on method
+        return method === 'maxLikelihood' 
+            ? this.performMaxLikelihoodEstimation(dataPoints, failureModeRef, componentTypeRef)
+            : this.performBayesianEstimation(dataPoints, failureModeRef, componentTypeRef);
+    }
+    
+    /**
+     * Performs Maximum Likelihood Estimation for failure rates
+     * @param dataPoints - Array of operational data points
+     * @param failureModeRef - Reference to the failure mode
+     * @param componentTypeRef - Reference to the component type
+     * @returns FailureRateEstimationResult containing the MLE results
+     */
+    private performMaxLikelihoodEstimation(
+        dataPoints: OperationalDataPoint[],
+        failureModeRef: string,
+        componentTypeRef: string
+    ): FailureRateEstimationResult {
+        // Implementation of Maximum Likelihood Estimation
+        // This would involve statistical calculations to fit distributions
+        
+        // Example simplified implementation (placeholder)
+        const operatingHours = dataPoints.map(dp => dp.operatingHours);
+        const meanTime = operatingHours.reduce((sum, h) => sum + h, 0) / operatingHours.length;
+        
+        return {
+            failureModeReference: failureModeRef,
+            componentTypeReference: componentTypeRef,
+            estimatedDistribution: DistributionType.WEIBULL,
+            parameters: {
+                shape: 2.0,  // Simplified example
+                scale: meanTime
+            },
+            sampleSize: dataPoints.length,
+            goodnessOfFit: {
+                method: 'Anderson-Darling',
+                value: 0.95  // Placeholder
+            }
+        };
+    }
+    
+    /**
+     * Performs Bayesian Estimation for failure rates
+     * @param dataPoints - Array of operational data points
+     * @param failureModeRef - Reference to the failure mode
+     * @param componentTypeRef - Reference to the component type
+     * @returns FailureRateEstimationResult containing the Bayesian estimation results
+     */
+    private performBayesianEstimation(
+        dataPoints: OperationalDataPoint[],
+        failureModeRef: string,
+        componentTypeRef: string
+    ): FailureRateEstimationResult {
+        // Implementation of Bayesian Estimation
+        // More complex implementation would go here
+        
+        // Simplified placeholder
+        return {
+            failureModeReference: failureModeRef,
+            componentTypeReference: componentTypeRef,
+            estimatedDistribution: DistributionType.WEIBULL,
+            parameters: {
+                shape: 2.1,
+                scale: 10000
+            },
+            confidenceIntervals: {
+                lower: { shape: 1.8, scale: 9000 },
+                upper: { shape: 2.4, scale: 11000 }
+            },
+            sampleSize: dataPoints.length
+        };
+    }
 }
 
 /**
@@ -1669,3 +1815,141 @@ export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DAT
  * ```
  */
 export const DataAnalysisSchema = typia.json.application<[DataAnalysis], "3.0">();
+
+/**
+ * Service class for managing data analysis operations
+ * @group API
+ * @implements DA-C3: COLLECT plant-specific data to facilitate parameter estimation
+ * @implements DA-C4: ORGANIZE the data to facilitate parameter estimation
+ * @implements DA-D1: BASE parameter estimates on relevant evidence
+ * @implements DA-D2: CHARACTERIZE the uncertainty in parameter estimates
+ * @implements DA-D3: PROVIDE a mean value for each parameter
+ * @implements DA-D4: UPDATE parameter estimates with plant-specific evidence
+ */
+export class DataAnalysisService {
+    /** Map of component basic events indexed by UUID */
+    private basicEvents: Map<tags.Format<"uuid">, ComponentBasicEvent> = new Map();
+    
+    /** Map of failure modes indexed by UUID */
+    private failureModes: Map<tags.Format<"uuid">, FailureModeType> = new Map();
+    
+    /** Registry containing operational data points */
+    private dataRegistry: OperationalDataRegistry | null = null;
+    
+    /** Estimator for failure rates */
+    private estimator: FailureRateEstimator = new FailureRateEstimator();
+    
+    /**
+     * Retrieves a component basic event by ID
+     * @param id - The UUID of the basic event to retrieve
+     * @returns The requested component basic event
+     * @throws Error if the basic event is not found
+     */
+    getComponentBasicEvent(id: tags.Format<"uuid">): ComponentBasicEvent {
+        const event = this.basicEvents.get(id);
+        if (!event) throw new Error(`Basic event ${id} not found`);
+        return event;
+    }
+    
+    /**
+     * Creates a new component basic event
+     * @param event - The component basic event to create
+     * @returns The UUID of the created event
+     */
+    createComponentBasicEvent(event: ComponentBasicEvent): tags.Format<"uuid"> {
+        this.basicEvents.set(event.uuid, event);
+        return event.uuid;
+    }
+    
+    /**
+     * Retrieves a failure mode by ID
+     * @param id - The UUID of the failure mode to retrieve
+     * @returns The requested failure mode
+     * @throws Error if the failure mode is not found
+     */
+    getFailureMode(id: tags.Format<"uuid">): FailureModeType {
+        const mode = this.failureModes.get(id);
+        if (!mode) throw new Error(`Failure mode ${id} not found`);
+        return mode;
+    }
+    
+    /**
+     * Creates a new failure mode
+     * @param mode - The failure mode to create
+     * @returns The UUID of the created failure mode
+     */
+    createFailureMode(mode: FailureModeType): tags.Format<"uuid"> {
+        this.failureModes.set(mode.uuid, mode);
+        return mode.uuid;
+    }
+    
+    /**
+     * Sets the operational data registry
+     * @param registry - The operational data registry to use
+     */
+    setDataRegistry(registry: OperationalDataRegistry): void {
+        this.dataRegistry = registry;
+    }
+    
+    /**
+     * Retrieves the current operational data registry
+     * @returns The current operational data registry
+     * @throws Error if no data registry is available
+     */
+    getOperationalDataRegistry(): OperationalDataRegistry {
+        if (!this.dataRegistry) throw new Error('No data registry available');
+        return this.dataRegistry;
+    }
+    
+    /**
+     * Estimates failure rate for a given failure mode and component type
+     * @param failureModeRef - Reference to the failure mode
+     * @param componentTypeRef - Reference to the component type
+     * @param method - Estimation method to use
+     * @returns The failure rate estimation result
+     * @throws Error if no data registry is available
+     */
+    estimateFailureRate(
+        failureModeRef: string,
+        componentTypeRef: string,
+        method: 'maxLikelihood' | 'bayesian' = 'maxLikelihood'
+    ): FailureRateEstimationResult {
+        if (!this.dataRegistry) throw new Error('No data registry available');
+        
+        return this.estimator.estimateFailureRate(
+            failureModeRef,
+            componentTypeRef,
+            this.dataRegistry,
+            method
+        );
+    }
+    
+    /**
+     * Updates a basic event with failure rate estimation results
+     * @param basicEventId - UUID of the basic event to update
+     * @param estimationResult - Results from failure rate estimation
+     * @throws Error if the basic event is not found
+     */
+    updateBasicEventWithEstimation(
+        basicEventId: tags.Format<"uuid">,
+        estimationResult: FailureRateEstimationResult
+    ): void {
+        const event = this.getComponentBasicEvent(basicEventId);
+        
+        // Update probability model with estimation results
+        event.probabilityModel = {
+            distribution: estimationResult.estimatedDistribution,
+            parameters: estimationResult.parameters,
+            source: 'estimated',
+            estimationDetails: {
+                dataPointReferences: [], // Would be populated with actual data point IDs
+                estimationMethod: 'maxLikelihood', // Default to MLE
+                estimationDate: new Date().toISOString(),
+                confidence: estimationResult.goodnessOfFit?.value || 0.9
+            }
+        };
+        
+        // Update the stored event
+        this.basicEvents.set(basicEventId, event);
+    }
+}

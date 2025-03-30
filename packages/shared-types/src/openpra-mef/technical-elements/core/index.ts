@@ -19,6 +19,9 @@ export * from './events';
 // Export component types
 export * from './component';
 
+// Export quantification bridge
+export * from './quantification-bridge';
+
 // Export specific assumption types for easy access
 export {
     BaseAssumption,

@@ -3,11 +3,14 @@
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Schema Overview](#schema-overview)
+   1. [Event Trees and Event Sequences Relationship](#event-trees-and-event-sequences-relationship)
 3. [Compliance with Regulatory Requirements](#compliance-with-regulatory-requirements)
    1. [ES-D1: Process Documentation](#es-d1-process-documentation)
    2. [ES-D2: Model Uncertainty Documentation](#es-d2-model-uncertainty-documentation)
    3. [ES-D3: Pre-operational Assumptions Documentation](#es-d3-pre-operational-assumptions-documentation)
 4. [Schema Implementation Examples](#schema-implementation-examples)
+   1. [Event Sequence Example](#event-sequence-example)
+   2. [Event Tree Example with Connected Event Sequence](#event-tree-example-with-connected-event-sequence)
 5. [Traceability Demonstration](#traceability-demonstration)
 6. [Summary](#summary)
 7. [References](#references)
@@ -31,8 +34,65 @@ The Event Sequence Analysis schema defines a structured approach for documenting
 - End states and release categories
 - Uncertainties and assumptions
 - Documentation requirements
+- Event trees and their relationship to event sequences
 
 The schema is implemented as a TypeScript interface with comprehensive typing to ensure data integrity and validation.
+
+### Event Trees and Event Sequences Relationship
+
+The schema includes a robust implementation of event trees that aligns with ANS standards requirements. Event trees are a graphical method to model the chronological progression of events following an initiating event, and they provide the structure to delineate event sequences.
+
+The relationship between event trees and event sequences is bidirectional:
+
+1. **Event Tree Structure**: The `EventTree` interface provides a complete representation of an event tree with functional events (branch points), branches (decision nodes), and sequences (paths). This structure implements several ANS requirements including ES-A6, ES-A7, ES-A8, ES-A10, and ES-A13.
+
+2. **Event Sequence Mapping**: Each `EventSequence` connects to event trees through the `eventTreeId` and `eventTreeSequenceId` properties, establishing traceability between these complementary representations. The `functionalEventStates` property in an event sequence mirrors the states of functional events from the corresponding path in the event tree.
+
+3. **Bidirectional Traceability**: This design ensures that event sequences can be traced to their graphical representation in event trees and vice versa, supporting documentation requirements (HLR-ES-D, ES-D1).
+
+4. **Consistency Validation**: The schema includes validation functions to ensure consistency between event trees and event sequences, checking that they share the same initiating events, end states, and functional event states.
+
+#### Code Example: Event Tree Structure
+
+```typescript
+const loopEventTree: EventTree = {
+    name: "LOOP-ET",
+    label: "Loss of Offsite Power Event Tree",
+    initiatingEventId: "IE-LOOP",
+    plantOperatingStateId: "POS-POWER",
+    functionalEvents: {
+        "FE-EDG": {
+            name: "FE-EDG",
+            label: "Emergency Diesel Generators",
+            systemReference: "SYS-EDG",
+            order: 1
+        },
+        "FE-HPCI": {
+            name: "FE-HPCI",
+            label: "High Pressure Cooling Injection",
+            systemReference: "SYS-HPCI",
+            order: 2
+        }
+    },
+    branches: {
+        // Branch definitions...
+    },
+    sequences: {
+        "SEQ-1": {
+            name: "SEQ-1",
+            endState: "SUCCESSFUL_MITIGATION",
+            eventSequenceId: "ES-LOOP-1",
+            functionalEventStates: {
+                "FE-EDG": "SUCCESS",
+                "FE-HPCI": "SUCCESS"
+            }
+        }
+    },
+    initialState: {
+        branchId: "BR-INIT"
+    }
+};
+```
 
 ## Compliance with Regulatory Requirements
 
@@ -217,6 +277,12 @@ const lossOfHeatSinkSequence: EventSequence = {
     description: "Loss of heat sink with successful transition to natural circulation cooling",
     initiatingEventId: "IE-LOHS-01",
     plantOperatingStateId: "POS-POWER-100",
+    eventTreeId: "ET-LOHS-01",             // Reference to the event tree modeling this sequence
+    eventTreeSequenceId: "LOHS-SEQ-1",     // Reference to the specific path in the event tree
+    functionalEventStates: {               // Mirroring functional event states from the event tree
+        "FE-RPS": "SUCCESS",               // Reactor Protection System success
+        "FE-NC": "SUCCESS"                 // Natural Circulation success
+    },
     systemResponses: {
         "SYS-SHR": "SUCCESS",
         "SYS-PPS": "SUCCESS",
@@ -242,6 +308,107 @@ const lossOfHeatSinkSequence: EventSequence = {
     ],
     endState: EndState.SUCCESSFUL_MITIGATION,
     successCriteriaIds: ["SC-SHR-001"]
+};
+```
+
+### Event Tree Example with Connected Event Sequence
+
+```typescript
+const lossOfHeatSinkEventTree: EventTree = {
+    name: "ET-LOHS-01",
+    label: "Loss of Heat Sink Event Tree",
+    description: "Models possible sequences following a loss of heat sink initiating event",
+    initiatingEventId: "IE-LOHS-01",
+    plantOperatingStateId: "POS-POWER-100",
+    
+    // Functional events (branch points in the tree)
+    functionalEvents: {
+        "FE-RPS": {
+            name: "FE-RPS",
+            label: "Reactor Protection System",
+            description: "Automatic reactor trip",
+            systemReference: "SYS-PPS",
+            order: 1
+        },
+        "FE-NC": {
+            name: "FE-NC",
+            label: "Natural Circulation",
+            description: "Transition to natural circulation cooling",
+            systemReference: "SYS-SHR",
+            order: 2
+        }
+    },
+    
+    // Sequences (paths through the tree)
+    sequences: {
+        "LOHS-SEQ-1": {
+            name: "LOHS-SEQ-1",
+            label: "Successful Mitigation",
+            endState: EndState.SUCCESSFUL_MITIGATION,
+            eventSequenceId: "ES-001",  // Reference to the related event sequence
+            functionalEventStates: {
+                "FE-RPS": "SUCCESS",
+                "FE-NC": "SUCCESS"
+            }
+        },
+        "LOHS-SEQ-2": {
+            name: "LOHS-SEQ-2",
+            label: "Release Sequence",
+            endState: EndState.RADIONUCLIDE_RELEASE,
+            eventSequenceId: "ES-002",
+            functionalEventStates: {
+                "FE-RPS": "SUCCESS",
+                "FE-NC": "FAILURE"
+            }
+        }
+    },
+    
+    // Structure of the tree (branches and paths)
+    branches: {
+        "BR-INIT": {
+            name: "BR-INIT",
+            label: "Initiating Event",
+            functionalEventId: "FE-RPS",
+            paths: [
+                {
+                    state: "SUCCESS",
+                    target: "BR-NC",
+                    targetType: "BRANCH"
+                },
+                {
+                    state: "FAILURE",
+                    target: "LOHS-SEQ-3",
+                    targetType: "SEQUENCE"
+                }
+            ]
+        },
+        "BR-NC": {
+            name: "BR-NC",
+            label: "Natural Circulation",
+            functionalEventId: "FE-NC",
+            paths: [
+                {
+                    state: "SUCCESS",
+                    target: "LOHS-SEQ-1",
+                    targetType: "SEQUENCE"
+                },
+                {
+                    state: "FAILURE",
+                    target: "LOHS-SEQ-2",
+                    targetType: "SEQUENCE"
+                }
+            ]
+        }
+    },
+    
+    // Starting point of the tree
+    initialState: {
+        branchId: "BR-INIT"
+    },
+    
+    // Mission time for this analysis
+    missionTime: 24,
+    missionTimeUnits: "hours"
 };
 ```
 

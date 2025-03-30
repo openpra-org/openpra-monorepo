@@ -281,11 +281,20 @@ export interface IntermediateEndState extends Unique, Named {
     /** Reference to the event tree to transfer to */
     transferToEventTree?: string;
     
+    /** 
+     * Reference to specific branch in the target event tree for the transfer 
+     * This allows more precise targeting within the destination event tree
+     */
+    transferToEventTreeBranch?: string;
+    
     /** Reference to the event sequence or family this intermediate state belongs to */
     parentSequenceId?: EventSequenceReference;
     
     /** Reference to the event sequence family this intermediate state belongs to */
     parentSequenceFamilyId?: EventSequenceFamilyReference;
+    
+    /** Reference to the source event tree if this is a transfer point */
+    sourceEventTreeId?: string;
     
     /** 
      * Plant conditions at this intermediate state 
@@ -358,8 +367,14 @@ export interface IntermediateEndState extends Unique, Named {
  * @group Event Sequences & Progression
  * @extends {Unique}
  * @extends {Named}
- * @implements ES-A6
- * @implements ES-A7
+ * @implements ES-A6, HLR-ES-D, ES-D1, ES-A7
+ * 
+ * An event sequence is typically modeled using event trees. The relationship between 
+ * event sequences and event trees is captured through the `eventTreeId` and `eventTreeSequenceId` 
+ * properties. Each event sequence can be linked to a specific path through an event tree,
+ * and the `functionalEventStates` property mirrors the states of functional events in that path.
+ * This bidirectional traceability between event sequences and event trees supports the 
+ * documentation requirements in the ANS standards.
  */
 export interface EventSequence extends Unique, Named {
     /** Description of the event sequence */
@@ -370,6 +385,31 @@ export interface EventSequence extends Unique, Named {
     
     /** Reference to the plant operating state in which this sequence occurs */
     plantOperatingStateId: string;
+    
+    /** 
+     * Reference to the event tree that models this sequence.
+     * This property explicitly links the event sequence to its event tree representation,
+     * establishing bidirectional traceability between the sequence and tree models.
+     * @implements HLR-ES-D, ES-D1
+     */
+    eventTreeId?: string;
+    
+    /** 
+     * Reference to the specific sequence within the event tree.
+     * This connects the event sequence to a specific path through the event tree,
+     * allowing for precise mapping between sequence analysis and event tree models.
+     * @implements ES-A6, A-7 and A-10
+     */
+    eventTreeSequenceId?: string;
+    
+    /** 
+     * The states of functional events for this sequence path.
+     * Maps functional event IDs to their states (SUCCESS/FAILURE).
+     * This property mirrors the functional event states from the corresponding
+     * path in the event tree, ensuring consistency between representations.
+     * @implements ES-A6, A-10
+     */
+    functionalEventStates?: Record<string, "SUCCESS" | "FAILURE">;
     
     /** Design information supporting this event sequence */
     designInformation?: EventSequenceDesignInformation[];
@@ -1186,6 +1226,171 @@ export interface EventSequenceScreeningCriteria extends ScreeningCriteria {
 
 //==============================================================================
 /**
+ * @group Event Trees
+ * @description Event tree structures for representing event sequence progression
+ * @implements ES-A6, ES-B1
+ * 
+ * Event tree interfaces provide a structured way to model event trees, which are a key tool 
+ * for performing Event Sequence Analysis as required by the ANS standards. They support the 
+ * definition of event sequences, the consideration of system and operator responses, the
+ * handling of dependencies and progression, and the identification of end states.
+ */
+//==============================================================================
+
+/**
+ * Interface representing a functional event in an event tree.
+ * Functional events represent the branch points in an event tree.
+ * @group Event Trees
+ * @implements HLR-ES-A,ES-A4,ES-A5, ES-A12
+ */
+export interface FunctionalEvent extends Unique, Named {
+    /** Unique name/identifier for the functional event */
+    name: string;
+    
+    /** Optional descriptive label */
+    label?: string;
+    
+    /** Order/position in the event tree */
+    order?: number;
+
+    /** Description of the functional event */
+    description?: string;
+    
+    /** The system or component this functional event represents */
+    systemReference?: SystemReference;
+
+    /** Human action reference if this functional event involves operator action */
+    humanActionReference?: HumanActionReference;
+}
+
+/**
+ * Interface representing a path in an event tree.
+ * Paths connect branch points to other branches or end states.
+ * @group Event Trees
+ * @implements HLR-ES-A, ES-A6, ES-A10
+ */
+export interface EventTreePath {
+    /** State of the path (SUCCESS/FAILURE) */
+    state: "SUCCESS" | "FAILURE";
+    
+    /** Target of the path (could be another branch, sequence, or end state) */
+    target: string;
+
+    /** Type of target (BRANCH, SEQUENCE, END_STATE) */
+    targetType: "BRANCH" | "SEQUENCE" | "END_STATE";
+
+    /** Optional description of this path */
+    description?: string;
+}
+
+/**
+ * Interface representing a branch in an event tree.
+ * Branches contain paths to other branches, sequences, or end states.
+ * @group Event Trees
+ * @implements HLR-ES-A, ES-A5, ES-B5
+ */
+export interface EventTreeBranch extends Unique, Named {
+    /** Unique name/identifier for the branch */
+    name: string;
+    
+    /** Optional descriptive label */
+    label?: string;
+
+    /** Functional event associated with this branch */
+    functionalEventId?: string;
+    
+    /** Paths from this branch */
+    paths: EventTreePath[];
+
+    /** Instructions or logic for this branch */
+    instructions?: string[];
+}
+
+/**
+ * Interface representing an event tree sequence.
+ * Sequences are paths through an event tree leading to an end state.
+ * @group Event Trees
+ * @implements HLR-ES-A, ES-C1, ES-A6
+ */
+export interface EventTreeSequence extends Unique, Named {
+    /** Unique name/identifier for the sequence */
+    name: string;
+    
+    /** Optional descriptive label */
+    label?: string;
+    
+    /** End state reference */
+    endState?: EndState | string;
+    
+    /** Instructions or logic for this sequence */
+    instructions?: string[];
+
+    /** Associated event sequence reference */
+    eventSequenceId?: EventSequenceReference;
+
+    /** The states of functional events in this sequence */
+    functionalEventStates?: Record<string, "SUCCESS" | "FAILURE">;
+}
+
+/**
+ * Interface representing an event tree.
+ * Event trees model the progression from an initiating event through various
+ * system states to different end states.
+ * @group Event Trees
+ * @implements HLR-ES-A, ES-A6, ES-A7, ES-A13, ES-A8
+ */
+export interface EventTree extends Unique, Named {
+    /** Unique name/identifier for the event tree */
+    name: string;
+    
+    /** Optional descriptive label */
+    label?: string;
+    
+    /** Associated initiating event */
+    initiatingEventId: string;
+
+    /** Associated plant operating state */
+    plantOperatingStateId?: string;
+    
+    /** Functional events that represent branch points in the event tree */
+    functionalEvents: Record<string, FunctionalEvent>;
+    
+    /** Sequences that represent paths through the event tree */
+    sequences: Record<string, EventTreeSequence>;
+
+    /** Branches in the event tree */
+    branches: Record<string, EventTreeBranch>;
+    
+    /** Initial state that starts the event tree */
+    initialState: {
+        /** Initial branch ID */
+        branchId: string;
+    };
+    
+    /** Optional transfers to other event trees */
+    transfers?: Record<string, {
+        /** Target event tree name */
+        targetEventTreeId: string;
+        
+        /** Conditions for transfer */
+        transferConditions?: string[];
+        
+        /** Dependencies to preserve during transfer */
+        preservedDependencies?: string[];
+    }>;
+
+    /** Description of the event tree */
+    description?: string;
+
+    /** Mission time for the event tree analysis */
+    missionTime?: number;
+
+    /** Units for mission time */
+    missionTimeUnits?: string;
+}
+
+//==============================================================================
+/**
  * @group API
  * @description Main interface for Event Sequence Analysis and schema validation
  */
@@ -1421,7 +1626,232 @@ export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElement
      * @implements ES-A7: IDENTIFY event sequences that can be screened
      */
     screening_criteria?: EventSequenceScreeningCriteria;
+    
+    /**
+     * Event trees used in the analysis
+     * @implements ES-A6
+     */
+    eventTrees?: Record<string, EventTree>;
 }
+
+/**
+ * Runtime validation functions for EventTree structure and relationships
+ * @group API
+ */
+export const validateEventTree = {
+    /**
+     * Validates the basic structure of an event tree
+     * @param eventTree - The EventTree to validate
+     * @returns Array of validation error messages
+     */
+    validateStructure: (eventTree: EventTree): string[] => {
+        const errors: string[] = [];
+        
+        // Check if initiating event is specified
+        if (!eventTree.initiatingEventId) {
+            errors.push(`Event tree ${eventTree.name} must have an initiating event`);
+        }
+        
+        // Check if initial state points to a valid branch
+        if (!eventTree.initialState.branchId) {
+            errors.push(`Event tree ${eventTree.name} must have an initial state branch ID`);
+        } else if (!eventTree.branches[eventTree.initialState.branchId]) {
+            errors.push(`Event tree ${eventTree.name} has invalid initial state branch ID: ${eventTree.initialState.branchId}`);
+        }
+        
+        // Check if all paths target valid elements
+        Object.entries(eventTree.branches).forEach(([branchId, branch]) => {
+            branch.paths.forEach((path, index) => {
+                const { target, targetType } = path;
+                
+                // Check if target exists based on targetType
+                if (targetType === "BRANCH" && !eventTree.branches[target]) {
+                    errors.push(`Branch ${branchId} path ${index} references non-existent branch: ${target}`);
+                } else if (targetType === "SEQUENCE" && !eventTree.sequences[target]) {
+                    errors.push(`Branch ${branchId} path ${index} references non-existent sequence: ${target}`);
+                }
+                // END_STATE targets don't need to exist within the event tree
+            });
+            
+            // Check if functional event exists if referenced
+            if (branch.functionalEventId && !eventTree.functionalEvents[branch.functionalEventId]) {
+                errors.push(`Branch ${branchId} references non-existent functional event: ${branch.functionalEventId}`);
+            }
+        });
+        
+        // Check for cycles in the event tree structure
+        const visited = new Set<string>();
+        const stack = new Set<string>();
+        
+        const checkForCycles = (branchId: string): boolean => {
+            if (stack.has(branchId)) {
+                errors.push(`Event tree ${eventTree.name} has a cycle involving branch: ${branchId}`);
+                return true;
+            }
+            
+            if (visited.has(branchId)) {
+                return false;
+            }
+            
+            visited.add(branchId);
+            stack.add(branchId);
+            
+            const branch = eventTree.branches[branchId];
+            for (const path of branch.paths) {
+                if (path.targetType === "BRANCH" && checkForCycles(path.target)) {
+                    return true;
+                }
+            }
+            
+            stack.delete(branchId);
+            return false;
+        };
+        
+        checkForCycles(eventTree.initialState.branchId);
+        
+        return errors;
+    },
+    
+    /**
+     * Validates the relationship integrity between event trees and event sequences
+     * @param eventTree - The event tree to validate
+     * @param sequences - Record of event sequences
+     * @returns Array of validation error messages
+     */
+    validateEventSequenceIntegrity: (
+        eventTree: EventTree, 
+        sequences: Record<EventSequenceReference, EventSequence>
+    ): string[] => {
+        const errors: string[] = [];
+        
+        // Check for consistency in initiating events
+        Object.entries(eventTree.sequences).forEach(([seqId, treeSeq]) => {
+            if (treeSeq.eventSequenceId) {
+                const eventSeq = sequences[treeSeq.eventSequenceId];
+                
+                if (eventSeq) {
+                    // Validate initiating event consistency
+                    if (eventSeq.initiatingEventId !== eventTree.initiatingEventId) {
+                        errors.push(`Inconsistent initiating event: Event tree ${eventTree.name} has initiating event ${eventTree.initiatingEventId} but linked sequence ${eventSeq.name} has initiating event ${eventSeq.initiatingEventId}`);
+                    }
+                    
+                    // Validate functional event states match the sequence path
+                    if (treeSeq.functionalEventStates && eventSeq.systemResponses) {
+                        // Map tree functional events to system references where possible
+                        for (const [funcEventId, state] of Object.entries(treeSeq.functionalEventStates)) {
+                            const funcEvent = eventTree.functionalEvents[funcEventId];
+                            if (funcEvent?.systemReference) {
+                                const sysRef = funcEvent.systemReference;
+                                if (eventSeq.systemResponses[sysRef] && 
+                                    eventSeq.systemResponses[sysRef] !== state) {
+                                    errors.push(`Inconsistent system state: Event tree sequence ${seqId} has state ${state} for functional event ${funcEventId} (system ${sysRef}) but event sequence ${eventSeq.name} has system response ${eventSeq.systemResponses[sysRef]}`);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Validate end states match
+                    if (treeSeq.endState && eventSeq.endState !== treeSeq.endState) {
+                        errors.push(`Inconsistent end state: Event tree sequence ${seqId} has end state ${treeSeq.endState} but event sequence ${eventSeq.name} has end state ${eventSeq.endState}`);
+                    }
+                    
+                    // Validate timing consistency if applicable
+                    if (treeSeq.functionalEventStates && eventSeq.timing && eventSeq.timing.length > 0) {
+                        // Ensure events in sequence timing align with functional events in the event tree
+                        // This would need custom logic based on naming conventions or explicit mappings
+                    }
+                }
+            }
+        });
+        
+        // Validate that all sequences linked to this event tree exist in the tree
+        Object.values(sequences).forEach(seq => {
+            if (seq.eventTreeId === eventTree.name && seq.eventTreeSequenceId) {
+                if (!eventTree.sequences[seq.eventTreeSequenceId]) {
+                    errors.push(`Event sequence ${seq.name} references non-existent event tree sequence ${seq.eventTreeSequenceId} in event tree ${eventTree.name}`);
+                }
+            }
+        });
+        
+        // Validate chronological ordering of functional events
+        const functionalEventsByOrder = Object.values(eventTree.functionalEvents)
+            .filter(fe => fe.order !== undefined)
+            .sort((a, b) => (a.order || 0) - (b.order || 0));
+            
+        // Check if ordering in the event tree structure matches the declared order
+        // This would require analyzing the structure of branches and paths
+        
+        return errors;
+    },
+    
+    /**
+     * Validates that all paths through the event tree have corresponding event sequences
+     * @param eventTree - The EventTree to validate
+     * @param sequences - Record of EventSequence objects
+     * @returns Array of validation error messages
+     */
+    validateSequenceCoverage: (
+        eventTree: EventTree, 
+        sequences: Record<EventSequenceReference, EventSequence>
+    ): string[] => {
+        const errors: string[] = [];
+        
+        // Check if all event tree sequences have a corresponding event sequence
+        Object.entries(eventTree.sequences).forEach(([treeSeqId, treeSeq]) => {
+            if (!treeSeq.eventSequenceId) {
+                errors.push(`Event tree sequence ${treeSeqId} has no corresponding event sequence reference`);
+            } else if (!sequences[treeSeq.eventSequenceId]) {
+                errors.push(`Event tree sequence ${treeSeqId} references non-existent event sequence ${treeSeq.eventSequenceId}`);
+            }
+        });
+        
+        // Find all unique paths through the event tree and ensure they map to sequences
+        // This would require traversing the event tree structure
+        
+        return errors;
+    },
+    
+    /**
+     * Validates transfers between event trees
+     * @param eventTrees - Record of EventTree objects
+     * @returns Array of validation error messages
+     */
+    validateTransfers: (eventTrees: Record<string, EventTree>): string[] => {
+        const errors: string[] = [];
+        
+        // Check all transfers between event trees
+        Object.entries(eventTrees).forEach(([treeId, tree]) => {
+            if (tree.transfers) {
+                Object.entries(tree.transfers).forEach(([transferId, transfer]) => {
+                    // Check if target event tree exists
+                    if (!eventTrees[transfer.targetEventTreeId]) {
+                        errors.push(`Event tree ${treeId} transfer ${transferId} references non-existent target event tree: ${transfer.targetEventTreeId}`);
+                    }
+                });
+            }
+        });
+        
+        // Check for intermediate end states with transfers
+        Object.entries(eventTrees).forEach(([treeId, tree]) => {
+            Object.entries(tree.sequences).forEach(([seqId, seq]) => {
+                // For sequences with event sequence references
+                if (seq.eventSequenceId) {
+                    // This would need to access the intermediate end states from the analysis object
+                    // This is a placeholder for that logic
+                    // intermediateEndStates.forEach(state => {
+                    //     if (state.parentSequenceId === seq.eventSequenceId && 
+                    //         state.transferToEventTree && 
+                    //         !eventTrees[state.transferToEventTree]) {
+                    //         errors.push(`Intermediate end state in sequence ${seq.eventSequenceId} references non-existent target event tree: ${state.transferToEventTree}`);
+                    //     }
+                    // });
+                }
+            });
+        });
+        
+        return errors;
+    }
+};
 
 /**
  * JSON schema for validating {@link EventSequenceAnalysis} entities.

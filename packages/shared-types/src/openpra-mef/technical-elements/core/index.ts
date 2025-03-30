@@ -28,3 +28,11 @@ export {
     PreOperationalAssumption,
     BasePreOperationalAssumptionsDocumentation
 } from './documentation';
+
+// Export model types
+export { 
+    ModelType, 
+    defaultModelTypes, 
+    getModelTypeById, 
+    getModelTypeBySuffix 
+  } from './model-types';

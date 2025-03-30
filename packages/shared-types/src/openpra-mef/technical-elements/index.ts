@@ -87,6 +87,9 @@ export {
 } from './integration/open-psa-serialization';
 
 export {
-  SAPHIREFieldMapping,
-  SAPHIRECompatible
+  SaphireFieldMapping,
+  SaphireCompatible,
+  SaphirePhase,
+  phaseSaphireMappings,
+  specialEventSaphireMappings
 } from './integration/saphire-annotations';

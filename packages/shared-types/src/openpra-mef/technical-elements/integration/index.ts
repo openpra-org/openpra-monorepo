@@ -10,4 +10,15 @@
 export * from './open-psa-serialization';
 
 // Export SAPHIRE integration interfaces
-export * from './saphire-annotations'; 
+export * from './saphire-annotations';
+
+// Re-export specific SAPHIRE types for convenience
+export {
+  SaphireFieldMapping,
+  SaphireCompatible,
+  SaphirePhase,
+  SaphireProjectAttributes,
+  phaseSaphireMappings,
+  specialEventSaphireMappings,
+  projectAttributesSaphireMappings
+} from './saphire-annotations'; 

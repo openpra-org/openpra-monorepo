@@ -35,9 +35,8 @@ import {
     PreOperationalAssumption
 } from "../core/documentation";
 import { BaseEvent, BasicEvent, TopEvent} from "../core/events";
-import { EventSequenceReference, SourceTermReference } from "../event-sequence-analysis/event-sequence-analysis";
 import { DistributionType } from "../data-analysis/data-analysis";
-import { BarrierStatus, RadionuclideBarrier } from "../plant-operating-states-analysis/plant-operating-states-analysis";
+import { EventSequenceQuantification, BarrierStatus } from "../event-sequence-quantification/event-sequence-quantification";
 
 //==============================================================================
 /**
@@ -59,6 +58,12 @@ export type ReleaseCategoryReference = string & tags.Pattern<"^RC-[A-Za-z0-9_-]+
  * @group Core Definitions & Enums
  */
 export type SourceTermDefinitionReference = string & tags.Pattern<"^ST-[0-9]+$">;
+
+/**
+ * Type for event sequence references from event sequence quantification
+ * @group Core Definitions & Enums
+ */
+export type EventSequenceReference = string;
 
 /**
  * @group Core Definitions & Enums
@@ -409,7 +414,7 @@ export interface ReleaseCategoryBasis extends Unique {
  * @group Transport Phenomena & Calculation
  * @description Represents a barrier to radionuclide transport from a mechanistic source term perspective.
  * This interface focuses on the transport characteristics and effectiveness of barriers,
- * while referencing operational status information from the Plant Operating States module.
+ * while referencing operational status information from the Event Sequence Quantification module.
  * @implements MS-B2: ASSESS the radionuclide transport barriers
  * @implements MS-B4: ASSESS the relevant radionuclide transport characteristics within each transport barrier
  */
@@ -430,15 +435,15 @@ export interface RadionuclideTransportBarrier extends Unique, Named {
   affectedRadionuclides?: Radionuclide[];
   
   /** 
-   * Reference to a barrier defined in Plant Operating States Analysis.
-   * This UUID links to a RadionuclideBarrier in the Plant Operating States module,
+   * Reference to a barrier defined in Event Sequence Quantification.
+   * This UUID links to a barrier in the Event Sequence Quantification module,
    * allowing reuse of operational status information while maintaining separation of concerns.
    */
   barrierReference?: string;
   
   /** 
    * Current status of the barrier in this analysis context.
-   * Reuses the BarrierStatus enum from Plant Operating States Analysis for consistency.
+   * Status information comes from Event Sequence Quantification.
    */
   status?: BarrierStatus;
   
@@ -951,6 +956,7 @@ export interface MechanisticSourceTermPreOperationalAssumptionsDocumentation ext
  * @remarks This technical element addresses the characterization of radiological releases to the environment.
  * @remarks It includes defining release categories, characterizing radioactive sources, modeling transport phenomena,
  * @remarks quantifying source terms, and addressing uncertainties as required by RG 1.247
+ * @remarks This analysis depends on Event Sequence Quantification for sequence and barrier information.
  */
 export interface MechanisticSourceTermAnalysis extends TechnicalElement<TechnicalElementTypes.MECHANISTIC_SOURCE_TERM_ANALYSIS> {
   /**
@@ -965,6 +971,24 @@ export interface MechanisticSourceTermAnalysis extends TechnicalElement<Technica
     
     /** Traceability information */
     traceability?: string;
+    
+    /** 
+     * References to event sequence quantification results that provide input to this analysis.
+     * This provides traceability between technical elements.
+     */
+    eventSequenceQuantificationReferences?: {
+      /** ID of the event sequence quantification analysis */
+      analysisId: string;
+      
+      /** Version or revision of the analysis */
+      version?: string;
+      
+      /** Date the analysis was performed */
+      date?: string;
+      
+      /** Description of how this analysis uses event sequence quantification results */
+      usageDescription: string;
+    }[];
     
     /** 
      * References to risk integration results that use this analysis.

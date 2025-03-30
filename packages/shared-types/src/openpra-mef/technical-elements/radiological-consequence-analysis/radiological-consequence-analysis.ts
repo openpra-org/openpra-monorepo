@@ -1,7 +1,12 @@
 import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
-import { ImportanceLevel, SensitivityStudy } from "../core/shared-patterns";
+import { 
+    ImportanceLevel, 
+    SensitivityStudy, 
+    RiskMetricType, 
+    RiskSignificanceCriteriaType 
+} from "../core/shared-patterns";
 import { 
     BaseProcessDocumentation, 
     BaseModelUncertaintyDocumentation, 
@@ -13,10 +18,6 @@ import {
     ReleaseCategoryReference as MstReleaseCategoryReference,
     SourceTermDefinitionReference 
 } from "../mechanistic-source-term/mechanistic-source-term";
-import { 
-    RiskMetricType, 
-    RiskSignificanceCriteriaType 
-} from "../risk-integration/risk-integration";
 
 //==============================================================================
 /**
@@ -608,6 +609,90 @@ export interface RadiologicalConsequenceAnalysis extends TechnicalElement<Techni
         
         /** Key insights about consequences derived from risk integration */
         keyInsights?: string[];
+    };
+
+    /**
+     * Risk integration information.
+     * This field provides information specifically structured for consumption by risk integration.
+     * @remarks This helps maintain a clean dependency structure where Risk Integration depends on 
+     * Radiological Consequence Analysis rather than directly on multiple upstream elements.
+     */
+    riskIntegrationInfo?: {
+      /** 
+       * Risk-significant consequences identified in this analysis.
+       * This provides a simplified view of risk-significant consequences for risk integration.
+       */
+      riskSignificantConsequences: {
+        /** Release category identifier */
+        releaseCategoryId: string;
+        
+        /** Source term definition identifier */
+        sourceTermDefinitionId?: string;
+        
+        /** Consequence metrics and their values */
+        consequenceMetrics: Record<string, number>;
+        
+        /** Risk significance level */
+        riskSignificance: "HIGH" | "MEDIUM" | "LOW" | "NONE";
+        
+        /** Risk insights derived from this consequence */
+        riskInsights?: string[];
+        
+        /** Uncertainty description */
+        uncertaintyDescription?: string;
+        
+        /** Mapped risk metrics used in risk integration */
+        mappedRiskMetrics?: {
+          /** Risk metric name */
+          metricName: string;
+          
+          /** Description of how the consequence maps to this risk metric */
+          mappingDescription: string;
+        }[];
+      }[];
+      
+      /**
+       * Feedback received from risk integration.
+       * This field contains feedback from risk integration that should be considered
+       * in future revisions of the radiological consequence analysis.
+       */
+      riskIntegrationFeedback?: {
+        /** ID of the risk integration analysis that provided the feedback */
+        analysisId: string;
+        
+        /** Date the feedback was received */
+        feedbackDate?: string;
+        
+        /** Feedback on specific consequence metrics */
+        metricFeedback?: {
+          /** Consequence metric */
+          metric: string;
+          
+          /** Risk significance level determined by risk integration */
+          riskSignificance?: ImportanceLevel;
+          
+          /** Insights from risk integration */
+          insights?: string[];
+          
+          /** Recommendations for improving the consequence metric */
+          recommendations?: string[];
+        }[];
+        
+        /** General feedback on the consequence analysis */
+        generalFeedback?: string;
+        
+        /** Response to the feedback */
+        response?: {
+          /** Description of how the feedback was or will be addressed */
+          description: string;
+          
+          /** Changes made or planned in response to the feedback */
+          changes?: string[];
+          
+          /** Status of the response */
+          status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+        };
+      };
     };
 }
 

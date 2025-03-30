@@ -250,3 +250,47 @@ export interface ScreeningCriteria {
    */
   elementSpecificProperties?: Record<string, unknown>;
 }
+
+/**
+ * Risk metric types used across multiple technical elements
+ * @group Common Risk Types
+ * @description Common risk metrics used in radiological consequence analysis and risk integration
+ */
+export enum RiskMetricType {
+  /** Individual early fatality risk */
+  INDIVIDUAL_EARLY_FATALITY_RISK = "INDIVIDUAL_EARLY_FATALITY_RISK",
+  
+  /** Individual latent cancer fatality risk */
+  INDIVIDUAL_LATENT_CANCER_FATALITY_RISK = "INDIVIDUAL_LATENT_CANCER_FATALITY_RISK",
+  
+  /** Population dose */
+  POPULATION_DOSE = "POPULATION_DOSE",
+  
+  /** Land contamination area */
+  LAND_CONTAMINATION_AREA = "LAND_CONTAMINATION_AREA",
+  
+  /** Economic cost */
+  ECONOMIC_COST = "ECONOMIC_COST",
+  
+  /** Custom metric defined by the user */
+  CUSTOM = "CUSTOM"
+}
+
+/**
+ * Risk significance criteria types used across multiple technical elements
+ * @group Common Risk Types
+ * @description Common risk significance criteria used in radiological consequence analysis and risk integration
+ */
+export enum RiskSignificanceCriteriaType {
+  /** Quantitative Health Objectives */
+  QHO = "QHO",
+  
+  /** Safety Goals */
+  SAFETY_GOAL = "SAFETY_GOAL",
+  
+  /** Design Objectives */
+  DESIGN_OBJECTIVE = "DESIGN_OBJECTIVE",
+  
+  /** Other criteria */
+  OTHER = "OTHER"
+}

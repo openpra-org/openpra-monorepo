@@ -1,11 +1,16 @@
 /**
  * @packageDocumentation
  * @module event_sequence_quantification
- * @description Event Sequence Quantification types, interfaces, and examples for OpenPRA
+ * @description OpenPRA Event Sequence Quantification - Types and interfaces for event sequence quantification elements
  */
 
-// Export main interfaces and types
+// Direct exports from the main module
 export * from './event-sequence-quantification';
+
+// Export additional reference interfaces from references module
+export { 
+  RiskSignificantEventSequence 
+} from './references';
 
 // Export examples directly
 export * from './example-event-sequence-quantification';

@@ -93,6 +93,12 @@ import {
   BaseAssumption as Assumption
 } from "../core/documentation";
 
+// Import BarrierStatus from plant operating states for reuse in this module
+import { BarrierStatus } from "../plant-operating-states-analysis/plant-operating-states-analysis";
+
+// Re-export BarrierStatus for use by downstream modules
+export { BarrierStatus };
+
 // Import documentation interfaces from documentation.ts
 import {
   BaseTraceabilityDocumentation,
@@ -1185,7 +1191,7 @@ export interface SystemSuccessTreatment {
 /**
  * Treatment of radionuclide transport barriers in event sequence quantification
  * @remarks **ESQ-C5**: INTEGRATE the radionuclide transport barrier failure modes, phenomena, equipment failures, and human failures into the Event Sequence Quantification to resolve the mechanistic source term.
- * @group Integration & Dependencies
+ * @group Transport Barriers & Phenomena
  */
 export interface RadionuclideBarrierTreatment {
   /** Barriers considered */
@@ -1206,7 +1212,7 @@ export interface RadionuclideBarrierTreatment {
   /** Basis for barrier capacity analysis */
   barrierCapacityBasis: string;
   
-  /** 
+  /**
    * Failure probabilities for each barrier and failure mode
    * @implements ESQ-A3: INTEGRATE the event sequences, system models, event progression phenomena, barrier failure modes
    * @implements ESQ-C14: INCLUDE the radionuclide transport barrier failure modes
@@ -1223,16 +1229,31 @@ export interface RadionuclideBarrierTreatment {
     conditions: string;
     /** Capability assessment under these conditions */
     capability: string;
-    /** Failure probability under these conditions */
-    failureProbability?: number;
-  }[]>;
+  }>;
+  
+  /** Method used to calculate barrier failure probabilities */
+  calculationMethod: string;
   
   /**
-   * Method used to calculate barrier failure probabilities
-   * @implements ESQ-A3: INTEGRATE the event sequences, system models, event progression phenomena, barrier failure modes
-   * @implements ESQ-C14: INCLUDE the radionuclide transport barrier failure modes
+   * Current states of barriers in different event sequences
+   * This provides a mapping between event sequences and barrier states
+   * for use by downstream modules like mechanistic source term analysis
    */
-  calculationMethod: string;
+  barrierStates?: Record<string, {
+    /** Event sequence ID */
+    eventSequenceId: string;
+    /** States of barriers in this sequence */
+    states: Record<string, BarrierStatus>;
+    /** Timing of barrier state changes (if applicable) */
+    timing?: Record<string, {
+      /** Time of state change in seconds or hours */
+      time: number;
+      /** Unit of time (seconds, hours, etc.) */
+      unit: string;
+      /** New state */
+      newState: BarrierStatus;
+    }[]>;
+  }[]>;
 }
 
 //==============================================================================
@@ -1923,6 +1944,105 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
    * ```
    */
   mechanisticSourceTermAnalysisReferences?: string[];
+
+  /**
+   * Risk integration information.
+   * This field provides information specifically structured for consumption by risk integration.
+   * @remarks This helps maintain a clean dependency structure where Risk Integration depends on 
+   * Event Sequence Quantification rather than directly on multiple upstream elements.
+   */
+  riskIntegrationInfo?: {
+    /** 
+     * Risk-significant event sequences identified in this analysis.
+     * This provides a simplified view of risk-significant sequences for risk integration.
+     */
+    riskSignificantSequences: {
+      /** ID of the event sequence or event sequence family */
+      sequenceId: string;
+      
+      /** Type of sequence (individual or family) */
+      sequenceType: "INDIVIDUAL" | "FAMILY";
+      
+      /** Mean frequency estimate */
+      meanFrequency: number;
+      
+      /** Unit of frequency */
+      frequencyUnit: string;
+      
+      /** Risk significance level */
+      riskSignificance: "HIGH" | "MEDIUM" | "LOW" | "NONE";
+      
+      /** Importance metrics */
+      importanceMetrics?: {
+        /** Fussell-Vesely importance measure */
+        fussellVesely?: number;
+        
+        /** Risk Achievement Worth */
+        raw?: number;
+        
+        /** Risk Reduction Worth */
+        rrw?: number;
+        
+        /** Birnbaum importance measure */
+        birnbaum?: number;
+      };
+      
+      /** Basis for risk significance determination */
+      riskSignificanceBasis?: string;
+      
+      /** Risk insights derived from this sequence */
+      riskInsights?: string[];
+      
+      /** 
+       * Reference to the release category for this sequence, if available.
+       * Provides a link to mechanistic source term analysis.
+       */
+      releaseCategoryId?: string;
+    }[];
+    
+    /**
+     * Feedback received from risk integration.
+     * This field contains feedback from risk integration that should be considered
+     * in future revisions of the event sequence quantification.
+     */
+    riskIntegrationFeedback?: {
+      /** ID of the risk integration analysis that provided the feedback */
+      analysisId: string;
+      
+      /** Date the feedback was received */
+      feedbackDate?: string;
+      
+      /** Feedback on specific event sequences */
+      sequenceFeedback?: {
+        /** ID of the event sequence */
+        sequenceId: string;
+        
+        /** Risk significance level determined by risk integration */
+        riskSignificance?: ImportanceLevel;
+        
+        /** Insights from risk integration */
+        insights?: string[];
+        
+        /** Recommendations for improving the sequence analysis */
+        recommendations?: string[];
+      }[];
+      
+      /** General feedback on the event sequence quantification */
+      generalFeedback?: string;
+      
+      /** Response to the feedback */
+      response?: {
+        /** Description of how the feedback was or will be addressed */
+        description: string;
+        
+        /** Changes made or planned in response to the feedback */
+        changes?: string[];
+        
+        /** Status of the response */
+        status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+      };
+    };
+  };
 }
 
 /**

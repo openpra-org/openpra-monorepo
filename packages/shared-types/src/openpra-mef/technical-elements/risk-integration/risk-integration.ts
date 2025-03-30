@@ -20,8 +20,27 @@
  * @dependency_structure
  * This module follows a hierarchical dependency structure:
  * 1. Core events and shared patterns (core/events.ts, core/shared-patterns.ts) - Most upstream
- * 2. Technical elements like ESQ, MST, RCA - Midstream, providing inputs to Risk Integration
- * 3. Risk Integration (this file) - Downstream, depends on all other technical elements
+ * 2. Technical elements like Event Sequence Quantification (ESQ) and Radiological Consequence Analysis (RCA) - Midstream
+ * 3. Risk Integration (this file) - Downstream, depends primarily on ESQ and RCA
+ * 
+ * IMPORTANT: Risk Integration should primarily depend on:
+ * - Event Sequence Quantification (ESQ): For sequence frequencies and importance metrics
+ * - Radiological Consequence Analysis (RCA): For consequence metrics and uncertainty analysis
+ * 
+ * Any references to other technical elements should be proxied through ESQ and RCA to maintain
+ * a clean dependency hierarchy. This is implemented using reference modules in both ESQ and RCA
+ * that re-export necessary types, ensuring Risk Integration doesn't directly depend on upstream elements.
+ * 
+ * The primary input interfaces for risk integration are:
+ * - RiskSignificantEventSequence: Provided by ESQ, contains sequence frequencies and risk significance
+ * - RiskSignificantConsequence: Provided by RCA, contains consequence metrics and risk significance
+ * 
+ * Integration Best Practices:
+ * 1. Always use re-exported types from ESQ and RCA rather than importing directly from upstream modules
+ * 2. Maintain a clear separation of concerns between technical elements
+ * 3. Use reference types (e.g., EventSequenceReference) when referring to entities defined in other modules
+ * 4. Document feedback mechanisms that provide insights back to upstream modules
+ * 5. When adding new dependencies, consider their impact on the overall architecture
  * 
  * @preferred
  * @category Technical Elements 
@@ -30,23 +49,36 @@
 // Core imports
 import typia, { tags } from "typia";
 import { Named, Unique } from "../core/meta";
-import { ImportanceLevel, SensitivityStudy, ScreeningStatus, ScreeningCriteria } from "../core/shared-patterns";
+import { 
+  ImportanceLevel, 
+  SensitivityStudy, 
+  ScreeningStatus, 
+  ScreeningCriteria,
+  RiskMetricType,
+  RiskSignificanceCriteriaType
+} from "../core/shared-patterns";
 import { Frequency, FrequencyUnit } from "../core/events";
 import { Uncertainty, DataSource, Assumption, DistributionType } from "../data-analysis/data-analysis";
 
 // Technical element imports
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
-import { EventSequenceReference, EventSequenceFamilyReference, ReleaseCategoryMapping } from "../event-sequence-analysis/event-sequence-analysis";
-import { PlantOperatingStateReference } from "../initiating-event-analysis/initiating-event-analysis";
-import { SuccessCriteriaId } from "../success-criteria/success-criteria-development";
-import { SystemReference } from "../systems-analysis/systems-analysis";
+
+// Import proxied/re-exported types from Event Sequence Quantification
 import { 
-    ReleaseCategoryReference, 
-    SourceTermDefinitionReference, 
-    EventSequenceToReleaseCategoryMapping,
-    ReleaseCategory,
-    SourceTermDefinition
-} from "../mechanistic-source-term/mechanistic-source-term";
+  EventSequenceReference, 
+  EventSequenceFamilyReference,
+  RiskSignificantEventSequence
+} from "../event-sequence-quantification";
+
+// Import proxied/re-exported types from Radiological Consequence Analysis
+import { 
+  ReleaseCategoryReference, 
+  SourceTermDefinitionReference, 
+  EventSequenceToReleaseCategoryMapping,
+  ReleaseCategory,
+  SourceTermDefinition,
+  RiskSignificantConsequence
+} from "../radiological-consequence-analysis";
 
 //==============================================================================
 /**
@@ -55,58 +87,7 @@ import {
  */
 //==============================================================================
 
-/**
- * Enum representing the type of risk significance criteria.
- * @group Core Definitions & Enums
- */
-export enum RiskSignificanceCriteriaType {
-    /** Absolute risk significance based on fixed thresholds */
-    ABSOLUTE = "ABSOLUTE",
-    
-    /** Relative risk significance based on percentage of total risk */
-    RELATIVE = "RELATIVE",
-    
-    /** Hybrid approach combining absolute and relative criteria */
-    HYBRID = "HYBRID",
-    
-    /** Criteria based on sensitivity studies */
-    SENSITIVITY_BASED = "SENSITIVITY_BASED",
-    
-    /** Other criteria not falling into standard categories */
-    OTHER = "OTHER"
-}
-
-/**
- * Enum representing risk metric types used in risk integration.
- * @group Core Definitions & Enums
- */
-export enum RiskMetricType {
-    /** Frequency of exceeding a specific Site Boundary Dose */
-    SITE_BOUNDARY_DOSE_FREQUENCY = "SITE_BOUNDARY_DOSE_FREQUENCY",
-
-    /** Frequency of exceeding a specific Population Dose (e.g., person-rem) */
-    POPULATION_DOSE_FREQUENCY = "POPULATION_DOSE_FREQUENCY",
-
-    /** Frequency of Early Fatalities exceeding a threshold */
-    EARLY_FATALITIES_FREQUENCY = "EARLY_FATALITIES_FREQUENCY",
-
-    /** Frequency of Latent Cancer Fatalities exceeding a threshold */
-    LATENT_CANCER_FATALITIES_FREQUENCY = "LATENT_CANCER_FATALITIES_FREQUENCY",
-
-    /** Individual Risk of Early Fatality */
-    INDIVIDUAL_RISK_EARLY_FATALITY = "INDIVIDUAL_RISK_EARLY_FATALITY",
-
-    /** Individual Risk of Latent Cancer Fatality */
-    INDIVIDUAL_RISK_LATENT_CANCER_FATALITY = "INDIVIDUAL_RISK_LATENT_CANCER_FATALITY",
-
-    /** Frequency of exceeding a specific level of Radioactive Material Release */
-    RADIOACTIVE_MATERIAL_RELEASE_FREQUENCY = "RADIOACTIVE_MATERIAL_RELEASE_FREQUENCY",
-
-    /** Other consequence-based risk metrics (if clearly defined and justified) */
-    OTHER_CONSEQUENCE = "OTHER_CONSEQUENCE"
-}
-
-/**
+    /**
  * Reference to a Risk Significance Criteria by its unique identifier.
  * @description Used to reference risk significance criteria without creating circular dependencies.
  * @example "RSC-CDF-01"
@@ -1501,6 +1482,78 @@ export interface RiskIntegration extends TechnicalElement<TechnicalElementTypes.
         
         /** General feedback on the mechanistic source term analysis */
         generalFeedback?: string;
+    };
+
+    /**
+     * Primary inputs from Event Sequence Quantification.
+     * This field provides a structured way to capture inputs from ESQ that are
+     * used in risk integration, maintaining a clean dependency structure.
+     */
+    eventSequenceQuantificationInputs: {
+        /**
+         * References to event sequence quantification analyses used as input.
+         * This provides traceability between technical elements.
+         */
+        analysisReferences: {
+            /** ID of the event sequence quantification analysis */
+            analysisId: string;
+            
+            /** Version or revision of the analysis */
+            version?: string;
+            
+            /** Date the analysis was performed */
+            date?: string;
+            
+            /** Description of how the analysis was used */
+            usageDescription: string;
+        }[];
+        
+        /**
+         * Risk-significant event sequences identified in the ESQ analysis.
+         * This provides the primary input from ESQ for risk integration.
+         */
+        riskSignificantSequences: RiskSignificantEventSequence[];
+        
+        /**
+         * Method used to determine risk significance of event sequences.
+         */
+        significanceDeterminationMethod?: string;
+    };
+    
+    /**
+     * Primary inputs from Radiological Consequence Analysis.
+     * This field provides a structured way to capture inputs from RCA that are
+     * used in risk integration, maintaining a clean dependency structure.
+     */
+    radiologicalConsequenceInputs: {
+        /**
+         * References to radiological consequence analyses used as input.
+         * This provides traceability between technical elements.
+         */
+        analysisReferences: {
+            /** ID of the radiological consequence analysis */
+            analysisId: string;
+            
+            /** Version or revision of the analysis */
+            version?: string;
+            
+            /** Date the analysis was performed */
+            date?: string;
+            
+            /** Description of how the analysis was used */
+            usageDescription: string;
+        }[];
+        
+        /**
+         * Risk-significant consequences identified in the RCA analysis.
+         * This provides the primary input from RCA for risk integration.
+         */
+        riskSignificantConsequences: RiskSignificantConsequence[];
+        
+        /**
+         * Method used to determine risk significance of consequences.
+         */
+        significanceDeterminationMethod?: string;
     };
 }
 

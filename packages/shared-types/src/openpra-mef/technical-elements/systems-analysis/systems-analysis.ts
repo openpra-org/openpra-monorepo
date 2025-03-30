@@ -25,7 +25,7 @@
   import { IdPatterns, ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../core/shared-patterns";
   import { PlantOperatingStatesTable } from "../plant-operating-states-analysis/plant-operating-states-analysis";
   import { BaseEvent, BasicEvent, TopEvent } from "../core/events";
-  import { SAPHIRECompatible } from "../integration/saphire-annotations";
+  import { SaphireCompatible } from "../integration/saphire-annotations";
   import { 
       BaseDesignInformation, 
       BaseProcessDocumentation, 
@@ -864,7 +864,7 @@
    * @group Fault Tree Analysis
    * @implements SY-A1: DEVELOP system logic models
    */
-  export interface FaultTree extends Unique, Named, SAPHIRECompatible {
+  export interface FaultTree extends Unique, Named, SaphireCompatible {
     /**
      * Reference to the system this fault tree belongs to
      */
@@ -918,6 +918,12 @@
      * Assumptions made in the fault tree analysis
      */
     assumptions?: string[];
+
+    /**
+     * Validates special events in the fault tree
+     * @returns true if all special events are valid, false otherwise
+     */
+    validateSpecialEvents(): boolean;
   }
   
   /**
@@ -1028,6 +1034,12 @@
     UNDEVELOPED_EVENT = "UNDEVELOPED_EVENT",   // Diamond: Undeveloped Event
     HOUSE_EVENT = "HOUSE_EVENT",           // House: Normally Occurring Basic Event
     
+    // Special Events
+    TRUE_EVENT = "TRUE_EVENT",           // Probability = 1.0
+    FALSE_EVENT = "FALSE_EVENT",         // Probability = 0.0
+    PASS_EVENT = "PASS_EVENT",           // Logic flow control
+    INIT_EVENT = "INIT_EVENT",           // Initiating event placeholder
+    
     // Transfers
     TRANSFER_IN = "TRANSFER_IN",           // Triangle In: continues a branch from another page
     TRANSFER_OUT = "TRANSFER_OUT"          // Triangle Out: continues a branch on another page
@@ -1117,6 +1129,16 @@
      * For TRANSFER_IN: ID of the source node
      */
     sourceNodeId?: string;
+
+    /**
+     * Value for PASS events
+     */
+    specialEventValue?: any;
+
+    /**
+     * Reference to initiating event for INIT events
+     */
+    initiatingEventRef?: string;
   }
   
   //==============================================================================

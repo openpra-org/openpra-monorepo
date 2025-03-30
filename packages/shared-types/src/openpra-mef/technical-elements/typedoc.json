@@ -23,6 +23,9 @@
   
   "sort": ["alphabetical"],
   "disableSources": true,
+  "excludeExternals": true,
+  "excludeInternal": true,
+  "excludeNotDocumented": true,
   
   "groupOrder": [
     "technical_elements",

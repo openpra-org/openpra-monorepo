@@ -3,6 +3,8 @@
     "version": "0.0.1",
     "type": "module",
     "devDependencies": {
+        "@types/jest": "^29.5.14",
+        "@types/node": "^22.13.14",
         "http-server": "^14.1.1",
         "typedoc": "^0.25.13",
         "typedoc-plugin-markdown": "^4.4.2",

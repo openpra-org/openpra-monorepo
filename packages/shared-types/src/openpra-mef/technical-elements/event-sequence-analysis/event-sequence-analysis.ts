@@ -32,6 +32,7 @@ import {
     PreOperationalAssumption
 } from "../core/documentation";
 import { ComponentReference } from "../core/component";
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 interface SuccessCriterion extends Unique, Named {
     description?: string;
@@ -1921,3 +1922,24 @@ export const validateEventTree = {
  * ```
  */
 export const EventSequenceAnalysisSchema = typia.json.application<[EventSequenceAnalysis], "3.0">();
+
+/**
+ * Example of creating a new event sequence analysis with proper versioning
+ * @example
+ * ```typescript
+ * const analysis: EventSequenceAnalysis = {
+ *   metadata: {
+ *     versionInfo: createVersionInfo("1.0.0", SCHEMA_VERSION),
+ *     analysisDate: "2024-03-30",
+ *     analysts: ["John Doe"],
+ *     reviewers: ["Jane Smith"],
+ *     approvalStatus: "APPROVED",
+ *     scope: "Full plant analysis",
+ *     limitations: ["Limited to normal operating conditions"],
+ *     lastModifiedDate: "2024-03-30",
+ *     lastModifiedBy: "John Doe"
+ *   },
+ *   // ... rest of the analysis data ...
+ * };
+ * ```
+ */

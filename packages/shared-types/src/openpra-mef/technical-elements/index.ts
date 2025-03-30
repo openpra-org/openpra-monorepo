@@ -18,7 +18,7 @@ export * as core from './core';
 * @namespace technical_elements.plant_operating_states_analysis
 * @description Plant Operating States Analysis types and interfaces
 */
-export * as plant_operating_states_analysis from './plant-operating-states-analysis/plant-operating-states-analysis';
+export * as plant_operating_states_analysis from './plant-operating-states-analysis';
 
 
 /**
@@ -32,14 +32,14 @@ export * as data_analysis from './data-analysis';
 * @namespace technical_elements.initiating_event_analysis
 * @description Initiating Event Analysis types and interfaces
 */
-export * as initiating_event_analysis from './initiating-event-analysis/initiating-event-analysis';
+export * as initiating_event_analysis from './initiating-event-analysis';
 
 
 /**
 * @namespace technical_elements.systems_analysis
 * @description Systems Analysis types and interfaces, including temporal modeling capabilities
 */
-export * as systems_analysis from './systems-analysis/systems-analysis';
+export * as systems_analysis from './systems-analysis';
 
 
 /**
@@ -53,35 +53,35 @@ export * as risk_integration from './risk-integration';
 * @namespace technical_elements.event_sequence_analysis
 * @description Event Sequence Analysis types and interfaces
 */
-export * as event_sequence_analysis from './event-sequence-analysis/event-sequence-analysis';
+export * as event_sequence_analysis from './event-sequence-analysis';
 
 
 /**
 * @namespace technical_elements.success_criteria_development
 * @description Success Criteria Development types and interfaces
 */
-export * as success_criteria_development from './success-criteria/success-criteria-development';
+export * as success_criteria_development from './success-criteria';
 
 
 /**
 * @namespace technical_elements.event_sequence_quantification
 * @description Event Sequence Quantification types and interfaces
 */
-export * as event_sequence_quantification from './event-sequence-quantification/event-sequence-quantification';
+export * as event_sequence_quantification from './event-sequence-quantification';
 
 
 /**
 * @namespace technical_elements.mechanistic_source_term
 * @description Mechanistic Source Term types and interfaces
 */
-export * as mechanistic_source_term from './mechanistic-source-term/mechanistic-source-term';
+export * as mechanistic_source_term from './mechanistic-source-term';
 
 
 /**
 * @namespace technical_elements.radiological_consequence_analysis
 * @description Radiological Consequence Analysis types and interfaces
 */
-export * as radiological_consequence_analysis from './radiological-consequence-analysis/radiological-consequence-analysis';
+export * as radiological_consequence_analysis from './radiological-consequence-analysis';
 
 
 /**

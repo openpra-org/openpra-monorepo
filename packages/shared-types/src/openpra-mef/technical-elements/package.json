@@ -1,7 +1,23 @@
 {
     "name": "technical-elements-docs",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "type": "module",
+    "exports": {
+        ".": "./dist/index.js",
+        "./core": "./dist/core/index.js",
+        "./core/validators": "./dist/core/validators.js",
+        "./plant-operating-states-analysis": "./dist/plant-operating-states-analysis/plant-operating-states-analysis.js",
+        "./data-analysis": "./dist/data-analysis/index.js",
+        "./initiating-event-analysis": "./dist/initiating-event-analysis/initiating-event-analysis.js",
+        "./systems-analysis": "./dist/systems-analysis/systems-analysis.js",
+        "./risk-integration": "./dist/risk-integration/index.js",
+        "./event-sequence-analysis": "./dist/event-sequence-analysis/event-sequence-analysis.js",
+        "./success-criteria": "./dist/success-criteria/success-criteria-development.js",
+        "./event-sequence-quantification": "./dist/event-sequence-quantification/event-sequence-quantification.js",
+        "./mechanistic-source-term": "./dist/mechanistic-source-term/mechanistic-source-term.js",
+        "./radiological-consequence-analysis": "./dist/radiological-consequence-analysis/radiological-consequence-analysis.js",
+        "./integration": "./dist/integration/index.js"
+    },
     "devDependencies": {
         "@types/jest": "^29.5.14",
         "@types/node": "^22.13.14",
@@ -17,11 +33,16 @@
         "clean": "rm -rf docs",
         "create-dirs": "mkdir -p docs/json-schemas docs/assets",
         "generate-schema": "npx typescript-json-schema tsconfig.json \"*\" --out ./docs/json-schemas/schemas.json --required --strictNullChecks --refs",
+        "generate-schema:element": "node scripts/generate-element-schema.js",
         "copy-schema": "cp docs/json-schemas/schemas.json docs/assets/schemas.json",
         "copy-download-page": "cp schema-download.html docs/schema-download.html",
         "generate-typedoc": "typedoc --options typedoc.json",
         "docs": "npm run clean && npm run generate-typedoc && npm run create-dirs && npm run generate-schema && npm run copy-schema && npm run copy-download-page",
-        "serve": "http-server docs -o -c-1"
+        "serve": "http-server docs -o -c-1",
+        "version:patch": "npm version patch",
+        "version:minor": "npm version minor",
+        "version:major": "npm version major",
+        "version:check": "node scripts/check-version.js"
     },
     "dependencies": {
         "typia": "6.9.0"

@@ -91,6 +91,7 @@ interface FrequencyQuantification {
   /** The unit of the frequency */
   unit: string;
 }
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 /**
  * Runtime validation functions for EventSequenceQuantification

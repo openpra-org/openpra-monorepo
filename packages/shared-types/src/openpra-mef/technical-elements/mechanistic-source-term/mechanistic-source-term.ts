@@ -29,6 +29,7 @@ import {
 import { BaseEvent, BasicEvent, TopEvent} from "../core/events";
 import { DistributionType } from "../data-analysis/data-analysis";
 import { EventSequenceQuantification, BarrierStatus } from "../event-sequence-quantification/event-sequence-quantification";
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 //==============================================================================
 /**

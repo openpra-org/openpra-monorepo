@@ -37,6 +37,7 @@
   } from "../success-criteria/success-criteria-development";
   import { DistributionType } from "../data-analysis/data-analysis";
   import { QuantificationReferenceManager } from "../core/quantification-bridge";
+  import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
   
   //==============================================================================
   /**
@@ -2088,3 +2089,24 @@
      */
     detailedModeling: boolean;
   }
+
+  /**
+   * Example of creating a new systems analysis with proper versioning
+   * @example
+   * ```typescript
+   * const analysis: SystemsAnalysis = {
+   *   metadata: {
+   *     versionInfo: createVersionInfo("1.0.0", SCHEMA_VERSION),
+   *     analysisDate: "2024-03-30",
+   *     analysts: ["John Doe"],
+   *     reviewers: ["Jane Smith"],
+   *     approvalStatus: "APPROVED",
+   *     scope: "Full plant analysis",
+   *     limitations: ["Limited to normal operating conditions"],
+   *     lastModifiedDate: "2024-03-30",
+   *     lastModifiedBy: "John Doe"
+   *   },
+   *   // ... rest of the analysis data ...
+   * };
+   * ```
+   */

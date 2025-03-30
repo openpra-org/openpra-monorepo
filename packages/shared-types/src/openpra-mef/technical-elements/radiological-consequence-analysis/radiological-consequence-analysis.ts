@@ -18,7 +18,7 @@ import {
     ReleaseCategoryReference as MstReleaseCategoryReference,
     SourceTermDefinitionReference 
 } from "../mechanistic-source-term/mechanistic-source-term";
-
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 //==============================================================================
 /**
  * @group Meteorological Data Analysis

@@ -210,3 +210,125 @@ npm run serve
 3. Document all interfaces and types thoroughly
 4. Include examples in JSDoc comments
 5. Test documentation generation locally before submitting
+
+### Versioning
+
+The OpenPRA Technical Elements package follows semantic versioning (MAJOR.MINOR.PATCH) to ensure clear communication of changes and maintain compatibility.
+
+#### Version Numbers
+- **MAJOR** version (X.0.0): Breaking schema changes
+- **MINOR** version (0.X.0): New features or non-breaking schema extensions
+- **PATCH** version (0.0.X): Documentation updates and bug fixes
+
+#### Version Management
+The package provides several npm scripts for version management:
+
+```bash
+# For bug fixes and documentation updates
+npm run version:patch
+
+# For new features or non-breaking changes
+npm run version:minor
+
+# For breaking schema changes
+npm run version:major
+
+# To verify version consistency
+npm run version:check
+```
+
+#### Breaking Changes
+A breaking change is defined as any change that:
+1. Removes or renames existing fields
+2. Changes the type of existing fields
+3. Modifies validation rules in a way that invalidates previously valid data
+
+#### Non-Breaking Changes
+Non-breaking changes include:
+1. Adding new optional fields
+2. Adding new validation rules that don't invalidate existing data
+3. Documentation improvements
+4. Bug fixes that don't change the schema
+
+#### Version Update Process
+When making changes that require a version update:
+1. Update the version using the appropriate npm script
+2. Add a new section in CHANGELOG.md
+3. Update documentation if needed
+4. Tag the release in git
+5. Update any dependent packages
+
+For detailed version history and guidelines, see [CHANGELOG.md](./CHANGELOG.md).
+
+## Versioning Hierarchy
+
+The technical elements package uses a three-level versioning hierarchy to manage changes at different scopes:
+
+### 1. Package Version (package.json)
+- Current version: 0.1.0
+- Represents the version of the entire technical elements package
+- Changes when:
+  - Package structure is modified
+  - Shared types are updated
+  - Core functionality changes
+  - Breaking changes are introduced to any technical element
+- Managed through npm version control
+- Tracked in CHANGELOG.md
+
+### 2. Schema Version (core/version.ts)
+- Current version: 0.1.0 (matches package version)
+- Defined in `SCHEMA_VERSION` constant
+- Represents the version of the type system/schema
+- Used to ensure type compatibility across the codebase
+- Must be compatible with the package version
+- Changes when:
+  - Core interfaces are modified
+  - Type validation rules change
+  - Breaking changes to shared types
+
+### 3. Technical Element Version (versionInfo.version)
+- Each technical element maintains its own version
+- Independent of package and schema versions
+- Tracked in the element's metadata
+- Example structure:
+  ```typescript
+  {
+    metadata: {
+      versionInfo: {
+        version: "1.0.0",        // Technical element version
+        schemaVersion: "0.1.0",  // Must match SCHEMA_VERSION
+        lastUpdated: "2024-03-30",
+        deprecatedFields: []
+      }
+    }
+  }
+  ```
+- Changes when:
+  - Element-specific interfaces change
+  - Element behavior is modified
+  - Element-specific validation rules update
+
+### Version Relationships
+- Technical elements can evolve independently (different versions)
+- All elements must be compatible with the current schema version
+- Package version changes trigger schema version updates
+- Version validation ensures:
+  - All versions follow semantic versioning (MAJOR.MINOR.PATCH)
+  - Technical elements use a compatible schema version
+  - Version history is properly tracked
+
+### Example Version States
+```typescript
+// Package version (package.json)
+"version": "0.1.0"
+
+// Schema version (core/version.ts)
+SCHEMA_VERSION = "0.1.0"
+
+// Individual technical elements can have different versions
+systemsAnalysis.metadata.versionInfo.version = "2.1.0"
+eventSequenceAnalysis.metadata.versionInfo.version = "1.3.0"
+// Both must have schemaVersion = "0.1.0"
+```
+
+For version update guidelines and procedures, see the [Versioning](#versioning) section above.

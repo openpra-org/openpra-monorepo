@@ -68,6 +68,7 @@ import {
   SourceTermDefinition,
   RiskSignificantConsequence
 } from "../radiological-consequence-analysis";
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 //==============================================================================
 /**

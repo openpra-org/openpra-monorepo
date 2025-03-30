@@ -22,6 +22,9 @@ export * from './component';
 // Export quantification bridge
 export * from './quantification-bridge';
 
+// Export validators
+export * from './validators';
+
 // Export specific assumption types for easy access
 export {
     BaseAssumption,

@@ -28,6 +28,7 @@ import {
 } from "../core/documentation";
 import { ComponentReference } from "../core/component";
 import { EndState, EventSequenceReference } from "../event-sequence-analysis/event-sequence-analysis";
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 //==============================================================================
 /**

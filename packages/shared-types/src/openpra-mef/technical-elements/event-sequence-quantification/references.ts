@@ -26,10 +26,10 @@ export {
     SystemReference 
 } from "../systems-analysis/systems-analysis";
 
-// Re-export types from success-criteria-development
+// Re-export types from core shared patterns
 export { 
     SuccessCriteriaId 
-} from "../success-criteria/success-criteria-development";
+} from "../core/shared-patterns";
 
 /**
  * Risk-integrated event sequence results with importance metrics and risk significance.

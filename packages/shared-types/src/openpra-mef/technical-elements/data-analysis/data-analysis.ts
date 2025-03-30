@@ -42,6 +42,7 @@ import {
     BasePreOperationalAssumptionsDocumentation 
 } from "../core/documentation";
 import { ComponentReference } from "../core/component";
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 /**
  * Type representing a reference to a plant operating state

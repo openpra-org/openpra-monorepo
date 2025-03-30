@@ -25,6 +25,7 @@ import { IdPatterns, ImportanceLevel, SensitivityStudy, ScreeningStatus, Success
 import { DistributionType } from "../data-analysis/data-analysis";
 import { BaseAssumption } from "../core/documentation";
 import { ComponentReference } from "../core/component";
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 //==============================================================================
 /**

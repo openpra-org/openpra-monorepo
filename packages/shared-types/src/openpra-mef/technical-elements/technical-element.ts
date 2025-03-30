@@ -1,6 +1,7 @@
 import typia from "typia";
 import { Named, Unique } from "./core/meta";
 import { BaseAssumption } from "./core/documentation";
+import { VersionInfo, SCHEMA_VERSION } from "./core/version";
 
 /**
  * Mapping of technical element codes to their full names
@@ -81,7 +82,12 @@ export enum TechnicalElementTypes {
  * @example
  * ```typescript
  * const metadata: TechnicalElementMetadata = {
- *   version: "1.0.0",
+ *   versionInfo: {
+ *     version: "1.0.0",
+ *     lastUpdated: "2024-03-30",
+ *     schemaVersion: "1.0.0",
+ *     deprecatedFields: []
+ *   },
  *   analysisDate: "2023-03-15",
  *   analysts: ["John Doe"],
  *   reviewers: ["Jane Smith"],
@@ -95,30 +101,30 @@ export enum TechnicalElementTypes {
  */
 export interface TechnicalElementMetadata {
   /** Version information for the technical element */
-  version: string;
+  versionInfo: VersionInfo;
   
   /** Date when the analysis was performed */
   analysisDate: string;
   
-  /** Person or team who performed the analysis */
+  /** List of analysts who performed the analysis */
   analysts: string[];
   
-  /** Person or team who reviewed the analysis */
-  reviewers?: string[];
+  /** List of reviewers who reviewed the analysis */
+  reviewers: string[];
   
   /** Current approval status of the analysis */
-  approvalStatus: "DRAFT" | "REVIEWED" | "APPROVED" | "REJECTED";
+  approvalStatus: "DRAFT" | "IN_REVIEW" | "APPROVED" | "REJECTED";
   
   /** Scope of the analysis */
   scope: string;
   
-  /** Limitations of the analysis */
-  limitations?: string[];
+  /** List of limitations or assumptions */
+  limitations: string[];
   
-  /** Last modified date */
+  /** Date when the element was last modified */
   lastModifiedDate: string;
   
-  /** Last modified by */
+  /** User who last modified the element */
   lastModifiedBy: string;
 }
 

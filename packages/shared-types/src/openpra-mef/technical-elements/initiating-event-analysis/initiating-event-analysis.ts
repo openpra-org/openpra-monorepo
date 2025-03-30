@@ -60,6 +60,7 @@ import { ComponentReference } from "../core/component";
 // Other technical element imports
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { SystemDefinition, FailureModeType } from "../systems-analysis/systems-analysis";
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 //==============================================================================
 /**

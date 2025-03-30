@@ -407,3 +407,580 @@ export const projectAttributesSaphireMappings: SaphireFieldMapping[] = [
     description: "Analyst information"
   }
 ];
+
+/**
+ * Interface for SAPHIRE fault tree compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export interface SaphireFaultTree {
+  /** Fault tree name */
+  name: string;
+  
+  /** Fault tree description */
+  description?: string;
+  
+  /** Whether this is a sub-tree */
+  subTree?: boolean;
+  
+  /** Alternate fault tree name */
+  alternateName?: string;
+  
+  /** Textual information */
+  text?: string;
+}
+
+/**
+ * Fault tree mappings for SAPHIRE compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export const faultTreeSaphireMappings: SaphireFieldMapping[] = [
+  {
+    openPraField: "name",
+    saphireField: "ft_name",
+    description: "Fault tree name"
+  },
+  {
+    openPraField: "description",
+    saphireField: "ft_description",
+    description: "Fault tree description"
+  },
+  {
+    openPraField: "subTree",
+    saphireField: "ft_subtree",
+    description: "Whether this is a sub-tree"
+  },
+  {
+    openPraField: "alternateName",
+    saphireField: "ft_alternate_name",
+    description: "Alternate fault tree name"
+  },
+  {
+    openPraField: "text",
+    saphireField: "ft_text",
+    description: "Textual information"
+  }
+];
+
+/**
+ * Interface for SAPHIRE gate compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export interface SaphireGate {
+  /** Gate name */
+  name: string;
+  
+  /** Gate description */
+  description?: string;
+  
+  /** Gate attributes */
+  attributes: {
+    /** Gate type */
+    type: 'OR' | 'AND' | 'NOT' | 'NOR' | 'NAND' | 'XOR';
+    /** Alternate gate name */
+    alternateName?: string;
+  };
+}
+
+/**
+ * Gate mappings for SAPHIRE compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export const gateSaphireMappings: SaphireFieldMapping[] = [
+  {
+    openPraField: "name",
+    saphireField: "gate_name",
+    description: "Gate name"
+  },
+  {
+    openPraField: "description",
+    saphireField: "gate_description",
+    description: "Gate description"
+  },
+  {
+    openPraField: "attributes.type",
+    saphireField: "gate_type",
+    description: "Gate type"
+  },
+  {
+    openPraField: "attributes.alternateName",
+    saphireField: "gate_alternate_name",
+    description: "Alternate gate name"
+  }
+];
+
+/**
+ * Interface for SAPHIRE event tree compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export interface SaphireEventTree {
+  /** Event tree name */
+  name: string;
+  
+  /** Event tree description */
+  description?: string;
+  
+  /** Event tree attributes */
+  attributes?: {
+    /** Initiating event name */
+    initiatingEvent?: string;
+    /** Alternate event tree name */
+    alternateName?: string;
+  };
+  
+  /** Textual information */
+  text?: string;
+}
+
+/**
+ * Event tree mappings for SAPHIRE compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export const eventTreeSaphireMappings: SaphireFieldMapping[] = [
+  {
+    openPraField: "name",
+    saphireField: "et_name",
+    description: "Event tree name"
+  },
+  {
+    openPraField: "description",
+    saphireField: "et_description",
+    description: "Event tree description"
+  },
+  {
+    openPraField: "attributes.initiatingEvent",
+    saphireField: "et_initiating_event",
+    description: "Initiating event name"
+  },
+  {
+    openPraField: "attributes.alternateName",
+    saphireField: "et_alternate_name",
+    description: "Alternate event tree name"
+  },
+  {
+    openPraField: "text",
+    saphireField: "et_text",
+    description: "Textual information"
+  }
+];
+
+/**
+ * Interface for SAPHIRE sequence compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export interface SaphireSequence {
+  /** Sequence name */
+  name: string;
+  
+  /** Parent event tree name */
+  eventTree: string;
+  
+  /** Sequence description */
+  description?: string;
+  
+  /** Sequence attributes */
+  attributes?: {
+    /** End state name */
+    endState?: string;
+    /** Minimal cut set information */
+    minCut?: string;
+    /** Mission time */
+    mission?: number;
+    /** Cut set probability */
+    proCut?: string;
+    /** Sampling information */
+    sample?: string;
+    /** Random seed */
+    seed?: string;
+    /** Size information */
+    size?: string;
+    /** Number of cuts */
+    cuts?: string;
+    /** Events information */
+    events?: string;
+    /** Quantification method */
+    quantificationMethod?: string;
+    /** Alternate sequence name */
+    alternateName?: string;
+  };
+}
+
+/**
+ * Sequence mappings for SAPHIRE compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export const sequenceSaphireMappings: SaphireFieldMapping[] = [
+  {
+    openPraField: "name",
+    saphireField: "sq_name",
+    description: "Sequence name"
+  },
+  {
+    openPraField: "eventTree",
+    saphireField: "sq_event_tree",
+    description: "Parent event tree name"
+  },
+  {
+    openPraField: "description",
+    saphireField: "sq_description",
+    description: "Sequence description"
+  },
+  {
+    openPraField: "attributes.endState",
+    saphireField: "sq_end_state",
+    description: "End state name"
+  },
+  {
+    openPraField: "attributes.minCut",
+    saphireField: "sq_min_cut",
+    description: "Minimal cut set information"
+  },
+  {
+    openPraField: "attributes.mission",
+    saphireField: "sq_mission",
+    description: "Mission time"
+  },
+  {
+    openPraField: "attributes.proCut",
+    saphireField: "sq_pro_cut",
+    description: "Cut set probability"
+  },
+  {
+    openPraField: "attributes.quantificationMethod",
+    saphireField: "sq_quantification_method",
+    description: "Quantification method"
+  },
+  {
+    openPraField: "attributes.alternateName",
+    saphireField: "sq_alternate_name",
+    description: "Alternate sequence name"
+  }
+];
+
+/**
+ * Interface for SAPHIRE basic event compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export interface SaphireBasicEvent {
+  /** Basic event name */
+  name: string;
+  
+  /** Basic event description */
+  description?: string;
+  
+  /** Alternate description for the basic event */
+  alternateDescription?: string;
+  
+  /** Basic event attributes */
+  attributes?: {
+    /** Alternate name */
+    altName?: string;
+    /** Event type */
+    type?: string;
+    /** System identifier */
+    system?: string;
+    /** Failure mode */
+    failureMode?: string;
+    /** Location identifier */
+    location?: string;
+    /** Component identifier */
+    componentId?: string;
+    /** Train identifier */
+    train?: string;
+    /** Whether the event is a template */
+    isTemplate?: boolean;
+    /** Template name if used */
+    templateName?: string;
+  };
+  
+  /** Basic event failure information */
+  failureInfo?: {
+    /** Failure data type */
+    calculationType?: number;
+    /** Failure probability */
+    probability?: number;
+    /** Failure rate (per time) */
+    lambda?: number;
+    /** Time period */
+    tau?: number;
+    /** Mission time */
+    missionTime?: number;
+    /** Initiating event flag */
+    init?: string;
+    /** Calculated probability */
+    calcProb?: number;
+    /** Analysis type */
+    analysisType?: 'RANDOM' | 'SEISMIC' | 'FIRE' | 'OTHER';
+    /** Phase type */
+    phaseType?: string;
+  };
+}
+
+/**
+ * Basic event mappings for SAPHIRE compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export const basicEventSaphireMappings: SaphireFieldMapping[] = [
+  {
+    openPraField: "name",
+    saphireField: "be_name",
+    description: "Basic event name"
+  },
+  {
+    openPraField: "description",
+    saphireField: "be_description",
+    description: "Basic event description"
+  },
+  {
+    openPraField: "alternateDescription",
+    saphireField: "be_alternate_description",
+    description: "Alternate description for the basic event"
+  },
+  {
+    openPraField: "attributes.altName",
+    saphireField: "be_alt_name",
+    description: "Alternate name"
+  },
+  {
+    openPraField: "attributes.type",
+    saphireField: "be_type",
+    description: "Event type"
+  },
+  {
+    openPraField: "attributes.system",
+    saphireField: "be_system",
+    description: "System identifier"
+  },
+  {
+    openPraField: "attributes.failureMode",
+    saphireField: "be_failure_mode",
+    description: "Failure mode"
+  },
+  {
+    openPraField: "attributes.location",
+    saphireField: "be_location",
+    description: "Location identifier"
+  },
+  {
+    openPraField: "attributes.componentId",
+    saphireField: "be_component_id",
+    description: "Component identifier"
+  },
+  {
+    openPraField: "attributes.train",
+    saphireField: "be_train",
+    description: "Train identifier"
+  },
+  {
+    openPraField: "attributes.isTemplate",
+    saphireField: "be_is_template",
+    description: "Whether the event is a template"
+  },
+  {
+    openPraField: "attributes.templateName",
+    saphireField: "be_template_name",
+    description: "Template name if used"
+  },
+  {
+    openPraField: "failureInfo.calculationType",
+    saphireField: "be_calculation_type",
+    description: "Failure data type"
+  },
+  {
+    openPraField: "failureInfo.probability",
+    saphireField: "be_probability",
+    description: "Failure probability"
+  },
+  {
+    openPraField: "failureInfo.lambda",
+    saphireField: "be_lambda",
+    description: "Failure rate (per time)"
+  },
+  {
+    openPraField: "failureInfo.tau",
+    saphireField: "be_tau",
+    description: "Time period"
+  },
+  {
+    openPraField: "failureInfo.missionTime",
+    saphireField: "be_mission_time",
+    description: "Mission time"
+  },
+  {
+    openPraField: "failureInfo.init",
+    saphireField: "be_init",
+    description: "Initiating event flag"
+  },
+  {
+    openPraField: "failureInfo.analysisType",
+    saphireField: "be_analysis_type",
+    description: "Analysis type"
+  }
+];
+
+/**
+ * Interface for SAPHIRE Common Cause Failure (CCF) compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export interface SaphireCCF {
+  /** CCF type */
+  type: string;
+  
+  /** CCF model name */
+  model: string;
+  
+  /** Whether the CCF is staggered */
+  staggered: boolean;
+  
+  /** CCF factors */
+  factors: number[];
+  
+  /** Names of independent events */
+  independentNames?: string[];
+}
+
+/**
+ * CCF mappings for SAPHIRE compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export const ccfSaphireMappings: SaphireFieldMapping[] = [
+  {
+    openPraField: "type",
+    saphireField: "ccf_type",
+    description: "CCF type"
+  },
+  {
+    openPraField: "model",
+    saphireField: "ccf_model",
+    description: "CCF model name"
+  },
+  {
+    openPraField: "staggered",
+    saphireField: "ccf_staggered",
+    description: "Whether the CCF is staggered"
+  },
+  {
+    openPraField: "factors",
+    saphireField: "ccf_factors",
+    description: "CCF factors"
+  },
+  {
+    openPraField: "independentNames",
+    saphireField: "ccf_independent_names",
+    description: "Names of independent events"
+  }
+];
+
+/**
+ * Interface for SAPHIRE end state compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export interface SaphireEndState {
+  /** End state name */
+  name: string;
+  
+  /** End state description */
+  description?: string;
+  
+  /** Textual information */
+  text?: string;
+  
+  /** End state information */
+  information?: {
+    /** Default quantification method */
+    quantificationMethod?: string;
+    /** Number of passes */
+    passes?: number;
+  };
+}
+
+/**
+ * End state mappings for SAPHIRE compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export const endStateSaphireMappings: SaphireFieldMapping[] = [
+  {
+    openPraField: "name",
+    saphireField: "es_name",
+    description: "End state name"
+  },
+  {
+    openPraField: "description",
+    saphireField: "es_description",
+    description: "End state description"
+  },
+  {
+    openPraField: "text",
+    saphireField: "es_text",
+    description: "Textual information"
+  },
+  {
+    openPraField: "information.quantificationMethod",
+    saphireField: "es_quantification_method",
+    description: "Default quantification method"
+  },
+  {
+    openPraField: "information.passes",
+    saphireField: "es_passes",
+    description: "Number of passes"
+  }
+];
+
+/**
+ * Interface for SAPHIRE histogram compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export interface SaphireHistogram {
+  /** Histogram name */
+  name: string;
+  
+  /** Histogram description */
+  description?: string;
+  
+  /** Histogram bins */
+  bins: {
+    /** Lower bound of the bin */
+    lowerBound: number;
+    /** Upper bound of the bin */
+    upperBound: number;
+    /** Count in the bin */
+    count: number;
+  }[];
+}
+
+/**
+ * Histogram mappings for SAPHIRE compatibility
+ * @memberof technical_elements.core.integration
+ * @group SAPHIRE
+ */
+export const histogramSaphireMappings: SaphireFieldMapping[] = [
+  {
+    openPraField: "name",
+    saphireField: "hist_name",
+    description: "Histogram name"
+  },
+  {
+    openPraField: "description",
+    saphireField: "hist_description",
+    description: "Histogram description"
+  },
+  {
+    openPraField: "bins",
+    saphireField: "hist_bins",
+    description: "Histogram bins"
+  }
+];

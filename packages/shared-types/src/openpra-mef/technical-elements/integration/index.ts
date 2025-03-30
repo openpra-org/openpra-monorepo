@@ -25,5 +25,22 @@ export {
   SaphireProjectAttributes,
   phaseSaphireMappings,
   specialEventSaphireMappings,
-  projectAttributesSaphireMappings
+  projectAttributesSaphireMappings,
+  // New SAPHIRE exports
+  SaphireFaultTree,
+  faultTreeSaphireMappings,
+  SaphireGate,
+  gateSaphireMappings,
+  SaphireEventTree,
+  eventTreeSaphireMappings,
+  SaphireSequence,
+  sequenceSaphireMappings,
+  SaphireBasicEvent,
+  basicEventSaphireMappings,
+  SaphireCCF,
+  ccfSaphireMappings,
+  SaphireEndState,
+  endStateSaphireMappings,
+  SaphireHistogram,
+  histogramSaphireMappings
 } from './SAPHIRE/saphire-annotations'; 

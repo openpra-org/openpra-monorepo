@@ -5,6 +5,7 @@
  */
 
 import { Unique } from "./meta";
+import typia, { tags } from "typia";
 // Import DistributionType from data-analysis
 import { DistributionType } from "../data-analysis/data-analysis";
 
@@ -37,6 +38,14 @@ export const IdPatterns = {
     /** Pattern for Event Sequence Family IDs */
     EVENT_SEQUENCE_FAMILY_ID: "^ESF-[0-9]+$"
   } as const;
+
+/**
+ * Type for success criteria IDs.
+ * Format: SC-[SYSTEM]-[NUMBER]
+ * Example: SC-RCIC-001
+ * @group Shared Patterns
+ */
+export type SuccessCriteriaId = string & tags.Pattern<typeof IdPatterns.SUCCESS_CRITERIA_ID>;
 
 /**
  * Standardized levels for expressing importance, impact, or significance in probabilistic risk assessment

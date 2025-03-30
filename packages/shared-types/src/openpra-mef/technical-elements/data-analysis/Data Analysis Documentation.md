@@ -208,12 +208,24 @@ This is supported by the comprehensive `Uncertainty` interface that provides a d
 operatingStateDataJustifications: {
     /** Parameter ID */
     parameterId: string;
-    /** Operating state */
-    operatingState: string;
+    /** Operating state - references a plant operating state using a standardized reference pattern */
+    operatingState: PlantOperatingStateReference;
     /** Justification */
     justification: string;
 }[];
 ```
+
+The schema uses a standardized reference pattern for plant operating states through the `PlantOperatingStateReference` type:
+
+```typescript
+/**
+ * Type representing a reference to a plant operating state
+ * @group Core Definition and Enums
+ */
+export type PlantOperatingStateReference = string & tags.Pattern<"^POS-[A-Z0-9_-]+$">;
+```
+
+This reference type ensures consistent identification of plant operating states across the codebase while avoiding direct dependencies on the plant operating states module.
 
 ### Generic Parameter Rationales (DA-E1.k)
 
@@ -223,8 +235,8 @@ operatingStateDataJustifications: {
 genericParameterRationales: {
     /** Parameter ID */
     parameterId: string;
-    /** Operating state(s) */
-    operatingStates: string[];
+    /** Operating state(s) - references plant operating states using standardized reference pattern */
+    operatingStates: PlantOperatingStateReference[];
     /** Rationale */
     rationale: string;
 }[];
@@ -360,6 +372,37 @@ const dataCollectionPeriods: DataAnalysisDocumentation['dataCollectionPeriods'] 
     startDate: "2015-01-01",
     endDate: "2023-12-31",
     censoringJustification: null
+  }
+];
+```
+
+### Example: Documenting Operating State Data Justification
+
+```typescript
+// Example implementation of operating state data justification
+const operatingStateJustifications: DataAnalysisDocumentation['operatingStateDataJustifications'] = [
+  {
+    parameterId: "PARAM-EDG-FR-001",
+    operatingState: "POS-FULL-POWER-100",
+    justification: "Data collected during full power operation provides the most representative conditions for EDG failure rate estimation"
+  },
+  {
+    parameterId: "PARAM-PUMP-FS-001",
+    operatingState: "POS-STARTUP-200",
+    justification: "Startup conditions are critical for pump failure rate assessment due to thermal stresses"
+  }
+];
+```
+
+### Example: Documenting Generic Parameter Rationales
+
+```typescript
+// Example implementation of generic parameter rationales
+const genericParameterRationales: DataAnalysisDocumentation['genericParameterRationales'] = [
+  {
+    parameterId: "PARAM-VALVE-FR-001",
+    operatingStates: ["POS-FULL-POWER-100", "POS-PARTIAL-POWER-150"],
+    rationale: "Generic industry data is applicable across full and partial power conditions due to similar operating characteristics"
   }
 ];
 ```

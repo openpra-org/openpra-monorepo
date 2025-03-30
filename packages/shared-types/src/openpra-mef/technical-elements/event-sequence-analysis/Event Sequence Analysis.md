@@ -5,12 +5,14 @@
 2. [Schema Overview](#schema-overview)
    1. [Event Trees and Event Sequences Relationship](#event-trees-and-event-sequences-relationship)
 3. [Compliance with Regulatory Requirements](#compliance-with-regulatory-requirements)
-   1. [ES-D1: Process Documentation](#es-d1-process-documentation)
-   2. [ES-D2: Model Uncertainty Documentation](#es-d2-model-uncertainty-documentation)
-   3. [ES-D3: Pre-operational Assumptions Documentation](#es-d3-pre-operational-assumptions-documentation)
+   1. [ES-D1](#es-d1)
+   2. [ES-D2](#es-d2)
+   3. [ES-D3](#es-d3)
 4. [Schema Implementation Examples](#schema-implementation-examples)
    1. [Event Sequence Example](#event-sequence-example)
    2. [Event Tree Example with Connected Event Sequence](#event-tree-example-with-connected-event-sequence)
+   3. [Dependency Example](#dependency-example)
+   4. [Event Sequence Family Example](#event-sequence-family-example)
 5. [Traceability Demonstration](#traceability-demonstration)
 6. [Summary](#summary)
 7. [References](#references)
@@ -22,6 +24,8 @@ This document demonstrates that the Event Sequence Analysis schema satisfies the
 The documentation uses the Experimental Breeder Reactor II (EBR-II) as a reference example where appropriate, but focuses primarily on demonstrating schema compliance rather than a complete reactor model.
 
 The schema leverages a modular design with base interfaces defined in the core/documentation.ts file. These base interfaces are extended by technical element-specific interfaces, promoting code reuse and ensuring consistency across different technical elements.
+
+The schema uses `PlantOperatingStateReference` from the initiating event analysis module to reference plant operating states, avoiding circular dependencies while maintaining type safety and validation.
 
 ## Schema Overview
 
@@ -59,7 +63,7 @@ const loopEventTree: EventTree = {
     name: "LOOP-ET",
     label: "Loss of Offsite Power Event Tree",
     initiatingEventId: "IE-LOOP",
-    plantOperatingStateId: "POS-POWER",
+    plantOperatingStateId: "POS-POWER-100",
     functionalEvents: {
         "FE-EDG": {
             name: "FE-EDG",
@@ -98,7 +102,7 @@ const loopEventTree: EventTree = {
 
 The schema directly supports this requirement through its comprehensive documentation structures. The following sections demonstrate how each supporting requirement (SR) is satisfied.
 
-### ES-D1: Process Documentation
+### ES-D1
 
 | Schema Element | Implementation Approach |
 |---------------|------------------------|
@@ -172,7 +176,7 @@ const ebrIIProcessDocumentation: ProcessDocumentation = {
 }
 ```
 
-### ES-D2: Model Uncertainty Documentation
+### ES-D2
 
 ES-D2 requires recording sources of model uncertainty, related assumptions, and alternatives considered. The schema provides the `ModelUncertaintyDocumentation` interface:
 
@@ -220,7 +224,7 @@ const ebrIIModelUncertaintyDoc: ModelUncertaintyDocumentation = {
 };
 ```
 
-### ES-D3: Pre-operational Assumptions Documentation
+### ES-D3
 
 ES-D3 requires recording assumptions made due to incomplete as-built or as-operated details. The schema provides:
 
@@ -475,7 +479,7 @@ The following diagram illustrates how the schema enables traceability throughout
            └─────────────────┘
 ```
 
-This traceability is implemented in the schema through explicit ID references between entities, ensuring that all elements can be traced from initiating events through to release categories and documentation.
+Note: Plant Operating States are referenced through Initiating Events using `PlantOperatingStateReference`, avoiding circular dependencies while maintaining traceability.
 
 ## Summary
 

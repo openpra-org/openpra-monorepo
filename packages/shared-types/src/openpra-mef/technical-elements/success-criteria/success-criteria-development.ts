@@ -15,7 +15,7 @@
 import typia, { tags } from "typia";    
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
-import { IdPatterns, ImportanceLevel, SensitivityStudy } from "../core/shared-patterns";
+import { IdPatterns, ImportanceLevel, SensitivityStudy, SuccessCriteriaId } from "../core/shared-patterns";
 import { 
     BaseDesignInformation, 
     BaseProcessDocumentation, 
@@ -27,6 +27,7 @@ import {
     PreOperationalAssumption
 } from "../core/documentation";
 import { ComponentReference } from "../core/component";
+import { EndState, EventSequenceReference } from "../event-sequence-analysis/event-sequence-analysis";
 
 //==============================================================================
 /**
@@ -34,14 +35,6 @@ import { ComponentReference } from "../core/component";
  * @description Basic types, enums, and utility interfaces used throughout the module
  */
 //==============================================================================
-
-/**
- * Type for success criteria IDs.
- * Format: SC-[SYSTEM]-[NUMBER]
- * Example: SC-RCIC-001
- * @group Core Definitions & Enums
- */
-export type SuccessCriteriaId = string & tags.Pattern<typeof IdPatterns.SUCCESS_CRITERIA_ID>;
 
 /**
  * The types of analysis that can be used to establish success criteria.
@@ -85,7 +78,7 @@ export interface SuccessCriterion extends Unique, Named {
     initiatingEventReferences?: string[];
     
     /** The defined end state if applicable to this criterion */
-    endState?: string;
+    endState?: EndState;
 }
 
 /**
@@ -138,7 +131,7 @@ export interface ComponentSuccessCriterion extends SuccessCriterion {
  */
 export interface OverallSuccessCriteriaDefinition extends Unique {
     /** Reference to the event sequence or family */
-    eventSequenceReference: string;
+    eventSequenceReference: EventSequenceReference;
     
     /** Description of the overall success criteria */
     description: string;
@@ -147,7 +140,7 @@ export interface OverallSuccessCriteriaDefinition extends Unique {
     criteria: string[];
     
     /** The end state parameters that determine success or failure */
-    endStateParameters: Record<string, string>;
+    endStateParameters: Record<string, EndState>;
     
     /** Key safety functions that must be maintained */
     keySafetyFunctions: string[];
@@ -654,13 +647,13 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
      */
     endStateDefinitions?: {
         /** End state identifier */
-        endStateId: string;
+        endStateId: EndState;
         
         /** Definition of the end state */
         definition: string;
         
         /** Event sequences leading to this end state */
-        eventSequences: string[];
+        eventSequences: EventSequenceReference[];
         
         /** Key parameters used to define this end state */
         parameters: Record<string, string>;
@@ -1204,7 +1197,7 @@ export const isConsistencyVerification = typia.createIs<ConsistencyVerification>
  */
 export interface MissionTimeDefinition extends Unique {
     /** Reference to the event sequence */
-    eventSequenceReference: string;
+    eventSequenceReference: EventSequenceReference;
     
     /** Mission time in hours */
     missionTimeHours: number & tags.Minimum<0>;
@@ -1232,7 +1225,7 @@ export interface ComponentMissionTimeDefinition extends Unique {
     missionTimeHours: number & tags.Minimum<0>;
     
     /** Reference to the event sequence */
-    eventSequenceReference: string;
+    eventSequenceReference: EventSequenceReference;
     
     /** 
      * Justification if component mission time is shorter than sequence mission time

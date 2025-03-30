@@ -11,6 +11,8 @@
    6. [Meteorological Data (RCME)](#meteorological-data-rcme)
 3. [Sample Implementation for EBR-II](#sample-implementation-for-ebr-ii)
 4. [Future Enhancements](#future-enhancements)
+5. [Risk Integration](#risk-integration)
+6. [Configuration Control and Traceability](#configuration-control-and-traceability)
 
 ## Introduction
 
@@ -30,19 +32,17 @@ The schema enables structured documentation of:
 
 #### RCRE-C1 Coverage
 
-The schema includes a comprehensive structure for documenting the process used in the release category to Radiological Consequence Analysis transition.
-
 **Traceability Matrix for RCRE-C1**
 
-| Requirement Aspect | Schema Element | Notes |
-|-------------------|----------------|-------|
-| Document the process | `RadiologicalConsequenceDocumentation` | Extends `BaseProcessDocumentation` with specific fields |
-| Specify inputs | `RadiologicalConsequenceDocumentation.inputSources` | Array of input sources |
-| Applied methods | `RadiologicalConsequenceDocumentation.appliedMethods` | Array of methods used |
-| Results | `RadiologicalConsequenceDocumentation.resultsSummary` | Summary of analysis results |
-| Address RCRE-A2 inputs | `ReleaseCategoryInputs`, `ReleaseCharacteristics` | Captures all required characteristics |
-| Selected consequence metrics | `ReleaseCategoryToConsequenceAnalysis.selectedConsequenceMeasures` | Array of selected metrics |
-| Bounding site assumptions | `BoundingSite.boundingJustification` | Justification for bounding site selection |
+| Schema Element | Notes |
+|----------------|-------|
+| `RadiologicalConsequenceDocumentation` | Extends `BaseProcessDocumentation` with specific fields |
+| `RadiologicalConsequenceDocumentation.inputSources` | Array of input sources |
+| `RadiologicalConsequenceDocumentation.appliedMethods` | Array of methods used |
+| `RadiologicalConsequenceDocumentation.resultsSummary` | Summary of analysis results |
+| `ReleaseCategoryInputs`, `ReleaseCharacteristics` | Captures all required characteristics |
+| `ReleaseCategoryToConsequenceAnalysis.selectedConsequenceMeasures` | Array of selected metrics |
+| `BoundingSite.boundingJustification` | Justification for bounding site selection |
 
 **Code Sample for RCRE Documentation**
 
@@ -67,21 +67,19 @@ const releaseToConsequenceDoc = {
 
 #### RCAD-F3 Coverage
 
-The schema provides dedicated structures for documenting the atmospheric transport and dispersion analysis process.
-
 **Traceability Matrix for RCAD-F3**
 
-| Requirement Aspect | Schema Element | Notes |
-|-------------------|----------------|-------|
-| Document the process | `RadiologicalConsequenceDocumentation` | General documentation structure |
-| Meteorological data | `AtmosphericDispersionAnalysis.meteorologicalDataSpecification` | Reference to meteorological data |
-| Atmospheric dispersion models | `AtmosphericDispersionAnalysis.dispersionModel` | Model specification |
-| Plume rise models | `AtmosphericDispersionAnalysis.plumeRiseConsideration` | Plume rise considerations |
-| Building wake models | `AtmosphericDispersionAnalysis.buildingWakeEffectsConsideration` | Building wake effects |
-| Terrain effects models | `AtmosphericDispersionAnalysis.terrainEffectsConsideration` | Terrain effects |
-| Deposition models | `AtmosphericDispersionAnalysis.depositionModeling` | Documentation of deposition modeling |
-| Model limitations | `AtmosphericDispersionAnalysis.modelLimitations` | Model limitations and constraints |
-| Method-specific features | `AtmosphericDispersionAnalysis.dispersionModelJustification` | Justification for chosen model |
+| Schema Element | Notes |
+|----------------|-------|
+| `RadiologicalConsequenceDocumentation` | General documentation structure |
+| `AtmosphericDispersionAnalysis.meteorologicalDataSpecification` | Reference to meteorological data |
+| `AtmosphericDispersionAnalysis.dispersionModel` | Model specification |
+| `AtmosphericDispersionAnalysis.plumeRiseConsideration` | Plume rise considerations |
+| `AtmosphericDispersionAnalysis.buildingWakeEffectsConsideration` | Building wake effects |
+| `AtmosphericDispersionAnalysis.terrainEffectsConsideration` | Terrain effects |
+| `AtmosphericDispersionAnalysis.depositionModeling` | Documentation of deposition modeling |
+| `AtmosphericDispersionAnalysis.modelLimitations` | Model limitations and constraints |
+| `AtmosphericDispersionAnalysis.dispersionModelJustification` | Justification for chosen model |
 
 **Code Sample for RCAD Documentation**
 
@@ -107,18 +105,16 @@ const atmosphericAnalysis: AtmosphericDispersionAnalysis = {
 
 #### RCDO-C1 and RCDO-C2 Coverage
 
-The schema includes comprehensive structures for documenting the dosimetry analysis process and characterizing uncertainty in dose conversion factors.
-
 **Traceability Matrix for RCDO-C1 & RCDO-C2**
 
-| Requirement Aspect | Schema Element | Notes |
-|-------------------|----------------|-------|
-| Document the process | `RadiologicalConsequenceDocumentation` | General documentation structure |
-| Exposure pathways models | `DosimetryAnalysis.exposurePathways` | Array of exposure pathways |
-| Recognized sources for DCFs | `DosimetryAnalysis.dcfSource` | DCF source documentation |
-| Protection factors | `DosimetryAnalysis.shieldingConsiderations`, `DosimetryAnalysis.occupancyConsiderations` | Shielding and occupancy factors |
-| Parameter uncertainty | `DosimetryAnalysis.dcfUncertainty` | Uncertainty documentation |
-| Characterize DCF uncertainty | `DosimetryAnalysis.dcfParameterUncertaintyCharacterisation` | Detailed uncertainty characterization |
+| Schema Element | Notes |
+|----------------|-------|
+| `RadiologicalConsequenceDocumentation` | General documentation structure |
+| `DosimetryAnalysis.exposurePathways` | Array of exposure pathways |
+| `DosimetryAnalysis.dcfSource` | DCF source documentation |
+| `DosimetryAnalysis.shieldingConsiderations`, `DosimetryAnalysis.occupancyConsiderations` | Shielding and occupancy factors |
+| `DosimetryAnalysis.dcfUncertainty` | Uncertainty documentation |
+| `DosimetryAnalysis.dcfParameterUncertaintyCharacterisation` | Detailed uncertainty characterization |
 
 **Code Sample for RCDO Documentation**
 
@@ -157,20 +153,18 @@ const dosimetryAnalysis: DosimetryAnalysis = {
 
 #### RCQ-D1 Coverage
 
-The schema provides comprehensive structures for documenting the consequence quantification process.
-
 **Traceability Matrix for RCQ-D1**
 
-| Requirement Aspect | Schema Element | Notes |
-|-------------------|----------------|-------|
-| Document the process | `RadiologicalConsequenceDocumentation` | General documentation structure |
-| Specify inputs | `ConsequenceQuantificationAnalysis.supportingDocumentationReferences` | References to input documentation |
-| Applied methods/models | `ConsequenceQuantificationAnalysis.consequenceCodesUsed` | Codes and models used |
-| Results | `ConsequenceQuantificationAnalysis.eventSequenceConsequences` | Results for each sequence |
-| Models and codes used | `ConsequenceQuantificationAnalysis.consequenceCodesUsed` | Documentation of codes |
-| Consequence metrics | `ConsequenceQuantificationAnalysis.selectedMetrics` | Selected metrics |
-| Integration of data | `ConsequenceQuantificationAnalysis.uncertaintyCharacterization` | Uncertainty characterization |
-| Model limitations | `ConsequenceQuantificationAnalysis.modelAndCodeLimitations` | Limitations of models |
+| Schema Element | Notes |
+|----------------|-------|
+| `RadiologicalConsequenceDocumentation` | General documentation structure |
+| `ConsequenceQuantificationAnalysis.supportingDocumentationReferences` | References to input documentation |
+| `ConsequenceQuantificationAnalysis.consequenceCodesUsed` | Codes and models used |
+| `ConsequenceQuantificationAnalysis.eventSequenceConsequences` | Results for each sequence |
+| `ConsequenceQuantificationAnalysis.consequenceCodesUsed` | Documentation of codes |
+| `ConsequenceQuantificationAnalysis.selectedMetrics` | Selected metrics |
+| `ConsequenceQuantificationAnalysis.uncertaintyCharacterization` | Uncertainty characterization |
+| `ConsequenceQuantificationAnalysis.modelAndCodeLimitations` | Limitations of models |
 
 **Code Sample for RCQ Documentation**
 
@@ -222,17 +216,17 @@ const consequenceQuantification: ConsequenceQuantificationAnalysis = {
 
 **Traceability Matrix for RCPA Documentation**
 
-| Requirement Aspect | Schema Element | Notes |
-|-------------------|----------------|-------|
-| Document the process | `RadiologicalConsequenceDocumentation` | General documentation structure |
-| Protective actions modeled | `ProtectiveActionAnalysis.protectiveActionParameters` | Parameters for protective actions |
-| Protective action parameters | `ProtectiveActionAnalysis.protectiveActionParameters` | Detailed parameters |
-| Incident phases | `ProtectiveActionAnalysis.emergencyResponseTimingBases` | Timing information |
-| Population distribution | `ProtectiveActionAnalysis.populationDistribution` | Population data |
-| Land-use data | `ProtectiveActionAnalysis.landUseCharacteristics` | Land use information |
-| Plant characteristics | `BoundingSite.characteristics` | Plant physical information |
-| Parameter uncertainty | `ProtectiveActionAnalysis.protectiveActionUncertainty` | Uncertainty documentation |
-| Generic references | `RadiologicalConsequenceDocumentation.supportingDocumentationReferences` | External references |
+| Schema Element | Notes |
+|----------------|-------|
+| `RadiologicalConsequenceDocumentation` | General documentation structure |
+| `ProtectiveActionAnalysis.protectiveActionParameters` | Parameters for protective actions |
+| `ProtectiveActionAnalysis.protectiveActionParameters` | Detailed parameters |
+| `ProtectiveActionAnalysis.emergencyResponseTimingBases` | Timing information |
+| `ProtectiveActionAnalysis.populationDistribution` | Population data |
+| `ProtectiveActionAnalysis.landUseCharacteristics` | Land use information |
+| `BoundingSite.characteristics` | Plant physical information |
+| `ProtectiveActionAnalysis.protectiveActionUncertainty` | Uncertainty documentation |
+| `RadiologicalConsequenceDocumentation.supportingDocumentationReferences` | External references |
 
 **Code Sample for RCPA Documentation**
 
@@ -271,17 +265,17 @@ const protectiveActionAnalysis: ProtectiveActionAnalysis = {
 
 **Traceability Matrix for RCME Documentation**
 
-| Requirement Aspect | Schema Element | Notes |
-|-------------------|----------------|-------|
-| Document the process | `RadiologicalConsequenceDocumentation` | General documentation structure |
-| Source of data | `MeteorologicalDataAnalysis.meteorologicalDataSetDescription` | Description of data source |
-| Quality assessment | Should be included in documentation | Partially covered |
-| Levels of sensors | Should be included in description | Partially covered |
-| Exposure of tower | Should be included in description | Partially covered |
-| Calibration records | Should be included in description | Partially covered |
-| Period of record | `MeteorologicalDataAnalysis.meteorologicalDataSetDescription` | Time period information |
-| Percent data recovery | Should be included in description | Partially covered |
-| Parameter uncertainty | `MeteorologicalDataAnalysis.parameterUncertaintyCharacterisation` | Uncertainty characterization |
+| Schema Element | Notes |
+|----------------|-------|
+| `RadiologicalConsequenceDocumentation` | General documentation structure |
+| `MeteorologicalDataAnalysis.meteorologicalDataSetDescription` | Description of data source |
+| Should be included in documentation | Partially covered |
+| Should be included in description | Partially covered |
+| Should be included in description | Partially covered |
+| Should be included in description | Partially covered |
+| `MeteorologicalDataAnalysis.meteorologicalDataSetDescription` | Time period information |
+| Should be included in description | Partially covered |
+| `MeteorologicalDataAnalysis.parameterUncertaintyCharacterisation` | Uncertainty characterization |
 
 **Code Sample for RCME Documentation**
 
@@ -390,3 +384,209 @@ While the current schema provides comprehensive coverage of the documentation re
 6. **Validation Record Integration** - Add structures to document model validation studies, including comparisons with experimental data particularly for specialized phenomena like sodium fires.
 
 7. **Cross-References to Source Term Analysis** - Strengthen the connections between radiological consequence analysis and upstream mechanistic source term analysis, particularly for non-LWR technologies.
+
+## Risk Integration
+
+The schema includes comprehensive support for risk integration through several enhanced interfaces:
+
+1. Enhanced `ConsequenceQuantificationAnalysis`:
+```typescript
+export interface ConsequenceQuantificationAnalysis {
+    // ... existing fields ...
+    
+    /**
+     * Mapping between consequence metrics and risk metrics used in risk integration.
+     */
+    riskMetricMapping?: {
+        consequenceMetric: string;
+        riskMetric: RiskMetricType | string;
+        mappingDescription: string;
+        transformations?: string;
+    }[];
+    
+    /**
+     * Feedback received from risk integration.
+     */
+    riskIntegrationFeedback?: {
+        analysisId: string;
+        feedbackDate?: string;
+        metricFeedback?: {
+            metric: string;
+            riskSignificance?: ImportanceLevel;
+            insights?: string[];
+            recommendations?: string[];
+        }[];
+        generalFeedback?: string;
+        response?: {
+            description: string;
+            changes?: string[];
+            status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+        };
+    };
+}
+```
+
+2. Enhanced `RadiologicalConsequenceDocumentation`:
+```typescript
+export interface RadiologicalConsequenceDocumentation extends BaseProcessDocumentation {
+    // ... existing fields ...
+    
+    /**
+     * Documentation of the integration with risk integration.
+     */
+    riskIntegrationDocumentation?: {
+        integrationProcessDescription: string;
+        consequenceMetricUsage: {
+            metricName: string;
+            correspondingRiskMetric?: RiskMetricType;
+            usageDescription: string;
+        }[];
+        uncertaintyPropagation?: string;
+        integrationChallenges?: string[];
+        inconsistencyResolution?: string;
+        feedbackReceived?: {
+            source: string;
+            date?: string;
+            description: string;
+            significance: ImportanceLevel;
+        }[];
+        feedbackIncorporation?: {
+            feedbackReference: string;
+            incorporationDescription: string;
+            status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+            date?: string;
+        }[];
+        keyInsights?: string[];
+        riskIntegrationReferences?: {
+            analysisId: string;
+            version?: string;
+            date?: string;
+            usageDescription: string;
+        }[];
+    };
+}
+```
+
+3. Enhanced `ReleaseCategoryToConsequenceAnalysis`:
+```typescript
+export interface ReleaseCategoryToConsequenceAnalysis {
+    // ... existing fields ...
+    
+    /**
+     * Mapping between release categories and risk metrics used in risk integration.
+     */
+    riskMetricMapping?: {
+        releaseCategory: ReleaseCategoryReference;
+        riskMetrics: {
+            riskMetric: RiskMetricType | string;
+            contributionDescription: string;
+            significance?: ImportanceLevel;
+        }[];
+    }[];
+    
+    /**
+     * Risk significance criteria used to evaluate release categories.
+     */
+    riskSignificanceCriteria?: {
+        criteriaType: RiskSignificanceCriteriaType | string;
+        description: string;
+        thresholds?: {
+            level: ImportanceLevel;
+            value: number;
+            units?: string;
+        }[];
+    }[];
+}
+```
+
+4. Enhanced `ProtectiveActionAnalysis`:
+```typescript
+export interface ProtectiveActionAnalysis {
+    // ... existing fields ...
+    
+    /**
+     * Impact of protective actions on risk metrics.
+     */
+    riskMetricImpact?: {
+        riskMetric: RiskMetricType | string;
+        impactDescription: string;
+        quantitativeAssessment?: string;
+        uncertaintyDescription?: string;
+    }[];
+    
+    /**
+     * Sensitivity of risk metrics to protective action parameters.
+     */
+    riskMetricSensitivity?: {
+        parameter: string;
+        affectedRiskMetrics: (RiskMetricType | string)[];
+        sensitivityDescription: string;
+        importance?: ImportanceLevel;
+    }[];
+}
+```
+
+5. Enhanced `MeteorologicalDataAnalysis`:
+```typescript
+export interface MeteorologicalDataAnalysis {
+    // ... existing fields ...
+    
+    /**
+     * Description of how temporal changes in meteorological conditions are accommodated.
+     */
+    temporalChangesAccommodation?: string;
+    
+    /**
+     * Time resolution of meteorological data.
+     */
+    timeResolution?: string;
+}
+```
+
+6. Enhanced `AtmosphericDispersionAnalysis`:
+```typescript
+export interface AtmosphericDispersionAnalysis {
+    // ... existing fields ...
+    
+    /**
+     * Description of deposition modeling for radionuclide particles.
+     */
+    depositionModeling?: string;
+    
+    /**
+     * Dry deposition parameters.
+     */
+    dryDepositionParameters?: {
+        depositionVelocities?: Record<string, number>;
+        particleSizeDistribution?: string;
+    };
+    
+    /**
+     * Wet deposition parameters.
+     */
+    wetDepositionParameters?: {
+        washoutCoefficients?: Record<string, number>;
+        precipitationData?: string;
+    };
+}
+```
+
+These enhancements provide comprehensive support for:
+- Mapping between consequence metrics and risk metrics
+- Documentation of risk integration feedback and responses
+- Tracking of risk significance and criteria
+- Assessment of protective action impacts on risk metrics
+- Enhanced meteorological and atmospheric dispersion modeling
+- Improved traceability between technical elements
+
+## Configuration Control and Traceability
+
+The schema includes structures for documenting configuration control and traceability, including:
+
+1. **Version Control** - `RadiologicalConsequenceAnalysis.metadata.version`
+2. **Analysis Date** - `RadiologicalConsequenceAnalysis.metadata.analysis_date`
+3. **Analyst Information** - `RadiologicalConsequenceAnalysis.metadata.analyst`
+4. **Scope Definition** - `RadiologicalConsequenceAnalysis.metadata.scopeDefinition`
+5. **Documentation References** - `RadiologicalConsequenceDocumentation.supportingDocumentationReferences`
+
+These structures ensure that all documentation is traceable to the specific analysis context and the responsible analyst.

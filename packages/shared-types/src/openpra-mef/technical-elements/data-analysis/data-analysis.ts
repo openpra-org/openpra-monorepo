@@ -34,8 +34,7 @@ import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } fro
 import { Named, Unique } from "../core/meta";
 import { BasicEvent, FrequencyUnit } from "../core/events";
 import { SystemDefinition, SystemBasicEvent } from "../systems-analysis/systems-analysis";
-import { SuccessCriteriaId } from "../success-criteria/success-criteria-development";
-import { PlantOperatingStatesTable, PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
+import { SuccessCriteriaId } from "../core/shared-patterns";
 import { SensitivityStudy } from "../core/shared-patterns";
 import { 
     BaseAssumption, 
@@ -43,6 +42,12 @@ import {
     BasePreOperationalAssumptionsDocumentation 
 } from "../core/documentation";
 import { ComponentReference } from "../core/component";
+
+/**
+ * Type representing a reference to a plant operating state
+ * @group Core Definition and Enums
+ */
+export type PlantOperatingStateReference = string & tags.Pattern<"^POS-[A-Z0-9_-]+$">;
 
 //==============================================================================
 /**
@@ -629,7 +634,7 @@ export interface DataAnalysisParameter extends BaseDataAnalysisParameter {
      * 
      * @implements HLR-DA-B
      */
-    plant_operating_state?: PlantOperatingStatesTable | string;
+    plant_operating_state?: PlantOperatingStateReference;
 
     /**
      * The probability model used to evaluate event probability.

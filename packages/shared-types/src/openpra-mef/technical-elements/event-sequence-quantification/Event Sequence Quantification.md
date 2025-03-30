@@ -5,16 +5,16 @@
 1. [Introduction](#introduction)
 2. [Schema Overview](#schema-overview)
 3. [ESQ-F1: Documentation of Event Sequence Quantification Process](#esq-f1-documentation-of-event-sequence-quantification-process)
-   - [3.1 Core Process Documentation](#31-core-process-documentation)
-   - [3.2 Quantification Method Documentation](#32-quantification-method-documentation)
-   - [3.3 Model Integration Documentation](#33-model-integration-documentation)
-   - [3.4 Dependency Treatment Documentation](#34-dependency-treatment-documentation)
-   - [3.5 Results and Risk Insights Documentation](#35-results-and-risk-insights-documentation)
-   - [3.6 Special Topics Documentation](#36-special-topics-documentation)
-4. [ESQ-F2: Documentation of Risk-Significant Contributors](#esq-f2-documentation-of-risk-significant-contributors)
-5. [ESQ-F3: Documentation of Model Uncertainty and Assumptions](#esq-f3-documentation-of-model-uncertainty-and-assumptions)
-6. [ESQ-F4: Documentation of Quantification Limitations](#esq-f4-documentation-of-quantification-limitations)
-7. [ESQ-F5: Documentation of Pre-Operational Assumptions](#esq-f5-documentation-of-pre-operational-assumptions)
+   - [3.1 ](#31-core-process-documentation)
+   - [3.2 ](#32-quantification-method-documentation)
+   - [3.3 ](#33-model-integration-documentation)
+   - [3.4 ](#34-dependency-treatment-documentation)
+   - [3.5 ](#35-results-and-risk-insights-documentation)
+   - [3.6 ](#36-special-topics-documentation)
+4. [ESQ-F2](#esq-f2-documentation-of-risk-significant-contributors)
+5. [ESQ-F3](#esq-f3-documentation-of-model-uncertainty-and-assumptions)
+6. [ESQ-F4:](#esq-f4-documentation-of-quantification-limitations)
+7. [ESQ-F5:](#esq-f5-documentation-of-pre-operational-assumptions)
 8. [Summary of ESQ-F Requirements Coverage](#summary-of-esq-f-requirements-coverage)
 9. [References](#references)
 
@@ -54,7 +54,39 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
 
 The schema implements all ESQ-F requirements through dedicated documentation interfaces that ensure complete and structured documentation. Let's examine how each requirement is satisfied.
 
-## ESQ-F1: Documentation of Event Sequence Quantification Process
+## Dependency Management
+
+The schema follows a clear dependency management approach:
+
+1. **String References**: Most cross-module references use string IDs and references to maintain loose coupling
+2. **BarrierStatus Import**: The `BarrierStatus` type is imported from `event-sequence-quantification`, which re-exports it from `plant-operating-states-analysis`
+3. **Interface-Based Design**: Well-defined interfaces ensure loose coupling between modules
+4. **Minimal Direct Dependencies**: Direct imports are minimized to essential types only
+
+Example of dependency management in practice:
+
+```typescript
+// Import only what's needed
+import { 
+  EventSequenceQuantification,
+  TruncationMethod,
+  QuantificationApproach,
+  CircularLogicResolutionMethod,
+  BarrierStatus  // Re-exported from plant-operating-states-analysis
+} from './event-sequence-quantification';
+
+// Use string references for cross-module relationships
+const example: EventSequenceQuantification = {
+  eventSequenceFamilies: {
+    "ESF-LOCA-SMALL": {
+      memberSequenceIds: ["ES-SLOCA-001", "ES-SLOCA-002"], // String references
+      representativeInitiatingEventId: "IE-SLOCA" // String reference
+    }
+  }
+};
+```
+
+## ESQ-F1
 
 The schema implements this through the `EventSequenceQuantificationDocumentation` interface:
 
@@ -73,11 +105,11 @@ This interface extends `BaseProcessDocumentation` and adds specific fields to ad
 
 ### 3.1 Core Process Documentation
 
-| ESQ-F1 Sub-Requirement | Schema Implementation | Example for EBR-II |
-|------------------------|----------------------|-------------------|
-| (a) records of the process/results when adding nonrecovery terms as part of the final quantification | `nonRecoveryTermsProcess` | "Recovery of passive cooling in EBR-II was modeled using explicit operator actions with timing from thermal-hydraulic simulations" |
-| (i) the basis for any parameter estimates not documented elsewhere in the PRA | `parameterEstimatesNotDocumented` | "EBR-II metal fuel failure probabilities were derived from IFR metallic fuel test data, adjusted for burnup" |
-| (b) a general description of the quantification process | `processDescription` | "Event trees were quantified using fault tree linking methodology with special consideration for passive safety systems in EBR-II" |
+| Schema Implementation | Example for EBR-II |
+|----------------------|-------------------|
+| `nonRecoveryTermsProcess` | "Recovery of passive cooling in EBR-II was modeled using explicit operator actions with timing from thermal-hydraulic simulations" |
+| `parameterEstimatesNotDocumented` | "EBR-II metal fuel failure probabilities were derived from IFR metallic fuel test data, adjusted for burnup" |
+| `processDescription` | "Event trees were quantified using fault tree linking methodology with special consideration for passive safety systems in EBR-II" |
 
 Implementation example:
 
@@ -94,10 +126,10 @@ const documentation: EventSequenceQuantificationDocumentation = {
 
 ### 3.2 Quantification Method Documentation
 
-| ESQ-F1 Sub-Requirement | Schema Implementation | Example for EBR-II |
-|------------------------|----------------------|-------------------|
-| (d) the process and results for establishing the truncation screening values for final Event Sequence Quantification demonstrating that convergence toward a stable result has been achieved | `truncationProcess` | "Truncation analysis for EBR-II loss of flow sequences was performed at 1E-12, 1E-11, 1E-10, 1E-9, and 1E-8 to demonstrate convergence" |
-| (k) the treatment of the uncertainty and sensitivity analysis | `uncertaintyAnalysis` (in parent interface) | "Parameter uncertainties for sodium pump failure rates were propagated using Latin Hypercube sampling with 10,000 samples" |
+| Schema Implementation | Example for EBR-II |
+|----------------------|-------------------|
+| `truncationProcess` | "Truncation analysis for EBR-II loss of flow sequences was performed at 1E-12, 1E-11, 1E-10, 1E-9, and 1E-8 to demonstrate convergence" |
+| `uncertaintyAnalysis` (in parent interface) | "Parameter uncertainties for sodium pump failure rates were propagated using Latin Hypercube sampling with 10,000 samples" |
 
 Implementation example:
 
@@ -130,10 +162,10 @@ const quantificationMethods = {
 
 ### 3.3 Model Integration Documentation
 
-| ESQ-F1 Sub-Requirement | Schema Implementation | Example for EBR-II |
-|------------------------|----------------------|-------------------|
-| (c) details of the cutset review process | `cutsetReviewProcess` | "Cutsets for EBR-II unprotected loss of flow sequences were reviewed to verify correct modeling of passive heat removal" |
-| (l) the basis for any equipment or human actions considered in the development of the Event Sequence Quantification to resolve the release category assignment and identification of the radionuclide source term | `radionuclideCategoryAssignment` | "Sodium fire modeling assumptions for containment bypass scenarios were documented to support source term evaluation" |
+| Schema Implementation | Example for EBR-II |
+|----------------------|-------------------|
+| `cutsetReviewProcess` | "Cutsets for EBR-II unprotected loss of flow sequences were reviewed to verify correct modeling of passive heat removal" |
+| `radionuclideCategoryAssignment` | "Sodium fire modeling assumptions for containment bypass scenarios were documented to support source term evaluation" |
 
 Implementation example:
 
@@ -154,10 +186,10 @@ documentation.cutsetReviewProcess = "Cutsets for EBR-II unprotected loss of flow
 
 ### 3.4 Dependency Treatment Documentation
 
-| ESQ-F1 Sub-Requirement | Schema Implementation | Example for EBR-II |
-|------------------------|----------------------|-------------------|
-| (n) the approach to ensuring that the use of plant damage states or intermediate end states does not prematurely truncate potentially risk-significant event sequence families that represent dependencies | `intermediateStatesApproach` | "Intermediate states for EBR-II were modeled to ensure sodium-water reaction sequences were not prematurely truncated" |
-| (h) the approach to the treatment of dependencies across functional, physical, or human actions that are the key factors in causing the events to not be risk-significant | `dependenciesTreatment` | "Dependencies between primary and secondary sodium pump failures were explicitly modeled" |
+| Schema Implementation | Example for EBR-II |
+|----------------------|-------------------|
+| `intermediateStatesApproach` | "Intermediate states for EBR-II were modeled to ensure sodium-water reaction sequences were not prematurely truncated" |
+| `dependenciesTreatment` | "Dependencies between primary and secondary sodium pump failures were explicitly modeled" |
 
 Implementation example:
 
@@ -188,10 +220,10 @@ documentation.dependenciesTreatment = "Dependencies in EBR-II were modeled throu
 
 ### 3.5 Results and Risk Insights Documentation
 
-| ESQ-F1 Sub-Requirement | Schema Implementation | Example for EBR-II |
-|------------------------|----------------------|-------------------|
-| (e) the total of each plant- or design-specific event sequence family frequency and contributions from the different event groups | `familyFrequencies` | "Total ULOF frequency for EBR-II: 2.3E-6/yr, with contributions from electrical system failures (40%), pump failures (35%), and operator errors (25%)" |
-| (f) risk insights associated with the aggregation and disaggregation of contributions from different plant operating states, hazard groups, and sources of radioactive material within the scope of the Event Sequence Quantification | `riskInsights` | "Metal fuel damage in EBR-II is dominated by unprotected loss of flow scenarios during full power operation" |
+| Schema Implementation | Example for EBR-II |
+|----------------------|-------------------|
+| `familyFrequencies` | "Total ULOF frequency for EBR-II: 2.3E-6/yr, with contributions from electrical system failures (40%), pump failures (35%), and operator errors (25%)" |
+| `riskInsights` | "Metal fuel damage in EBR-II is dominated by unprotected loss of flow scenarios during full power operation" |
 
 Implementation example:
 
@@ -211,12 +243,12 @@ documentation.riskInsights = [
 
 ### 3.6 Special Topics Documentation
 
-| ESQ-F1 Sub-Requirement | Schema Implementation | Example for EBR-II |
-|------------------------|----------------------|-------------------|
-| (g) the event sequences and their contributing cutsets | `eventSequencesAndBinning` | "Summary of dominant cutsets for EBR-II unprotected loss of flow sequences, including CCF of primary pumps combined with failure of reactor protection system" |
-| (j) the radionuclide transport barrier failure modes and barrier challenges | `radionuclideBarrierTreatment` | "Documentation of metallic fuel cladding failure modes under ULOF conditions, including eutectic formation with cladding" |
-| (m) the treatment of mutually exclusive events eliminated from the resulting cutsets and their justification | `mutuallyExclusiveEventsTreatment` | "Mutually exclusive events in EBR-II PRA including concurrent failure modes of active and passive cooling systems" |
-| (p) sufficient evidence to show that the method and approach used in the Event Sequence Quantification will yield the correct results | `quantificationVerification` | "Verification of EBR-II sequence frequencies through comparison with IFR safety analysis results" |
+| Schema Implementation | Example for EBR-II |
+|----------------------|-------------------|
+| `eventSequencesAndBinning` | "Summary of dominant cutsets for EBR-II unprotected loss of flow sequences, including CCF of primary pumps combined with failure of reactor protection system" |
+| `radionuclideBarrierTreatment` | "Documentation of metallic fuel cladding failure modes under ULOF conditions, including eutectic formation with cladding" |
+| `mutuallyExclusiveEventsTreatment` | "Mutually exclusive events in EBR-II PRA including concurrent failure modes of active and passive cooling systems" |
+| `quantificationVerification` | "Verification of EBR-II sequence frequencies through comparison with IFR safety analysis results" |
 
 Implementation example:
 
@@ -228,9 +260,9 @@ documentation.radionuclideBarrierTreatment = "Metallic fuel cladding failure mod
 documentation.mutuallyExclusiveEventsTreatment = "Mutually exclusive events in EBR-II PRA were identified and eliminated, including concurrent active pump failure and natural circulation failure modes";
 ```
 
-## ESQ-F2: Documentation of Risk-Significant Contributors
+## ESQ-F2
 
-ESQ-F2 requires documenting risk-significant contributors to the frequencies of risk-significant event sequence families. The schema implements this through both dedicated fields in `EventSequenceQuantificationDocumentation` and the `ImportanceAnalysis` interface:
+ The schema implements this through both dedicated fields in `EventSequenceQuantificationDocumentation` and the `ImportanceAnalysis` interface:
 
 ```typescript
 export interface ImportanceAnalysis {
@@ -277,9 +309,9 @@ const importanceAnalysisFV: ImportanceAnalysis = {
 documentation.riskSignificanceDrivers = "EBR-II risk is primarily driven by common cause failure of primary sodium pumps (F-V=0.32) and reactor protection system failures (F-V=0.28) during unprotected loss of flow accidents";
 ```
 
-## ESQ-F3: Documentation of Model Uncertainty and Assumptions
+## ESQ-F3
 
-ESQ-F3 requires documenting sources of model uncertainty, related assumptions, and reasonable alternatives. The schema implements this through the `EventSequenceQuantificationUncertaintyDocumentation` interface:
+. The schema implements this through the `EventSequenceQuantificationUncertaintyDocumentation` interface:
 
 ```typescript
 export interface EventSequenceQuantificationUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
@@ -347,9 +379,9 @@ const uncertaintyDocumentation: EventSequenceQuantificationUncertaintyDocumentat
 };
 ```
 
-## ESQ-F4: Documentation of Quantification Limitations
+## ESQ-F4
 
-ESQ-F4 requires documenting limitations in the quantification process that would impact applications. The schema implements this through the `EventSequenceQuantificationLimitationsDocumentation` interface:
+ The schema implements this through the `EventSequenceQuantificationLimitationsDocumentation` interface:
 
 ```typescript
 export interface EventSequenceQuantificationLimitationsDocumentation {
@@ -399,9 +431,9 @@ const limitationsDocumentation: EventSequenceQuantificationLimitationsDocumentat
 };
 ```
 
-## ESQ-F5: Documentation of Pre-Operational Assumptions
+## ESQ-F5
 
-ESQ-F5 requires documenting assumptions and limitations due to the lack of as-built, as-operated details for PRAs conducted in the pre-operational stage. The schema implements this through the `EventSequenceQuantificationPreOperationalDocumentation` interface:
+ The schema implements this through the `EventSequenceQuantificationPreOperationalDocumentation` interface:
 
 ```typescript
 export interface EventSequenceQuantificationPreOperationalDocumentation extends BasePreOperationalAssumptionsDocumentation {
@@ -464,16 +496,16 @@ The following table summarizes how the TypeScript schema satisfies each of the E
 
 | Requirement | Implementation in Schema | Coverage Assessment |
 |------------|--------------------------|---------------------|
-| **ESQ-F1**: Document the process used in the Event Sequence Quantification | `EventSequenceQuantificationDocumentation` | Complete - All 16 sub-items (a-p) are addressed through specific fields |
-| **ESQ-F2**: Document risk-significant contributors | `ImportanceAnalysis` and related fields in `documentation` | Complete - Supports documentation of all contributor types (states, events, failures) |
-| **ESQ-F3**: Document sources of model uncertainty, assumptions, and alternatives | `EventSequenceQuantificationUncertaintyDocumentation` | Complete - Structured approach to document sources, impacts, assumptions, and alternatives |
-| **ESQ-F4**: Document limitations in the quantification process | `EventSequenceQuantificationLimitationsDocumentation` | Complete - Comprehensive coverage of different limitation types and their impacts |
-| **ESQ-F5**: Document pre-operational assumptions and limitations | `EventSequenceQuantificationPreOperationalDocumentation` | Complete - Structured approach for pre-operational assumptions and limitations |
+| **ESQ-F1**:| `EventSequenceQuantificationDocumentation` | Complete - All 16 sub-items (a-p) are addressed through specific fields |
+| **ESQ-F2**:| `ImportanceAnalysis` and related fields in `documentation` | Complete - Supports documentation of all contributor types (states, events, failures) |
+| **ESQ-F3**:| `EventSequenceQuantificationUncertaintyDocumentation` | Complete - Structured approach to document sources, impacts, assumptions, and alternatives |
+| **ESQ-F4**:| `EventSequenceQuantificationLimitationsDocumentation` | Complete - Comprehensive coverage of different limitation types and their impacts |
+| **ESQ-F5**:| `EventSequenceQuantificationPreOperationalDocumentation` | Complete - Structured approach for pre-operational assumptions and limitations |
 
 Detailed coverage of ESQ-F1 sub-requirements:
 
-| ESQ-F1 Sub-Requirement Category | Schema Implementation | Coverage |
-|--------------------------------|----------------------|----------|
+| Schema Implementation | Coverage |
+|----------------------|----------|
 | Core Process Documentation (a, b, i) | `processDescription`, `nonRecoveryTermsProcess`, `parameterEstimatesNotDocumented` | Complete |
 | Quantification Method Documentation (d, k) | `truncationProcess`, `uncertaintyAnalysis` | Complete |
 | Model Integration Documentation (c, l) | `cutsetReviewProcess`, `radionuclideCategoryAssignment` | Complete |

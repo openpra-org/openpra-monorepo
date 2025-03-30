@@ -17,10 +17,9 @@
   import typia, { tags } from "typia";    
   import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
   import { Named, Unique } from "../core/meta";
-  import { IdPatterns, ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../core/shared-patterns";
-  import { PlantOperatingStatesTable } from "../plant-operating-states-analysis/plant-operating-states-analysis";
+  import { IdPatterns, ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis, SuccessCriteriaId } from "../core/shared-patterns";
   import { BaseEvent, BasicEvent, TopEvent } from "../core/events";
-  import { SaphireCompatible } from "../integration/saphire-annotations";
+  import { SaphireFieldMapping } from "../integration/saphire-annotations";
   import { 
       BaseDesignInformation, 
       BaseProcessDocumentation, 
@@ -31,13 +30,12 @@
       BaseAssumption,
       PreOperationalAssumption
   } from "../core/documentation";
+  import { Component, ComponentReference, ComponentTypeReference } from "../core/component";
   import {
       SuccessCriterion,
-      SystemSuccessCriterion,
-      SuccessCriteriaId
+      SystemSuccessCriterion
   } from "../success-criteria/success-criteria-development";
   import { DistributionType } from "../data-analysis/data-analysis";
-  import { Component, ComponentReference, ComponentTypeReference } from "../core/component";
   import { QuantificationReferenceManager } from "../core/quantification-bridge";
   
   //==============================================================================
@@ -60,6 +58,29 @@
    * @group Core Definitions & Enums
    */
   export type HumanActionReference = string & tags.Pattern<"^HRA-[0-9]+$">;
+  
+  /**
+   * Reference to a plant operating state
+   * Format: POS-[NAME] (e.g., POS-FULL-POWER)
+   * @group Core Definitions & Enums
+   */
+  export type PlantOperatingStateReference = string & tags.Pattern<"^POS-[A-Z0-9_-]+$">;
+  
+  /**
+   * Simple reference to plant operating states for a system
+   * @group Core Definitions & Enums
+   */
+  export interface PlantOperatingStatesReference {
+    /**
+     * List of plant operating states where this system is required
+     */
+    states: PlantOperatingStateReference[];
+    
+    /**
+     * Optional description of how the system's requirements vary across states
+     */
+    stateSpecificRequirements?: Record<PlantOperatingStateReference, string>;
+  }
   
   /**
    * Interface representing an assumption made during the analysis.
@@ -572,7 +593,7 @@
      * Plant operating states where this system is required.
      * @implements SY-B14
      */
-    plantOperatingStates?: PlantOperatingStatesTable;
+    plantOperatingStates?: PlantOperatingStatesReference;
     
     /**
      * Components and failure modes included in the model and justification for any exclusions.
@@ -859,7 +880,7 @@
    * @group Fault Tree Analysis
    * @implements SY-A1
    */
-  export interface FaultTree extends Unique, Named, SaphireCompatible {
+  export interface FaultTree extends Unique, Named {
     /**
      * Reference to the system this fault tree belongs to
      */
@@ -919,6 +940,17 @@
      * @returns true if all special events are valid, false otherwise
      */
     validateSpecialEvents(): boolean;
+
+    /**
+     * Optional SAPHIRE compatibility fields
+     */
+    saphireCompatibility?: {
+        /** Field mappings between OpenPRA and SAPHIRE */
+        saphireFieldMappings?: SaphireFieldMapping[];
+        
+        /** OpenPSA/SCRAM compatibility mappings */
+        openPsaFieldMappings?: Record<string, string>;
+    };
   }
   
   /**

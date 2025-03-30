@@ -31,7 +31,7 @@
 import typia, { tags } from "typia";
 import { Named, Unique } from "../core/meta";
 import { Frequency, InitiatingEvent, BaseEvent, FrequencyUnit } from "../core/events";
-import { ImportanceLevel, SensitivityStudy, ScreeningStatus, ScreeningCriteria } from "../core/shared-patterns";
+import { IdPatterns, ImportanceLevel, SensitivityStudy, ScreeningStatus, ScreeningCriteria, SuccessCriteriaId } from "../core/shared-patterns";
 
 // Plant operating states imports (midstream)
 import { 
@@ -54,7 +54,8 @@ import {
 } from "../data-analysis/data-analysis";
 
 // Success criteria imports
-import { SuccessCriteriaId } from "../success-criteria/success-criteria-development";
+import { BaseAssumption } from "../core/documentation";
+import { ComponentReference } from "../core/component";
 
 // Other technical element imports
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";

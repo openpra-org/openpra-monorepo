@@ -8,7 +8,8 @@ import {
   EventSequenceQuantification,
   TruncationMethod,
   QuantificationApproach,
-  CircularLogicResolutionMethod
+  CircularLogicResolutionMethod,
+  BarrierStatus
 } from './event-sequence-quantification';
 import { DistributionType } from '../data-analysis/data-analysis';
 import { TechnicalElementTypes } from '../technical-element';
@@ -19,6 +20,12 @@ import { DependencyType } from '../event-sequence-analysis/event-sequence-analys
  * 
  * This example demonstrates how to structure a complete event sequence quantification
  * with all required properties according to latest non LWR standards.
+ * 
+ * @dependency_management
+ * This example follows the module's dependency management approach:
+ * 1. Uses string references and IDs for most cross-module references
+ * 2. Only imports BarrierStatus from event-sequence-quantification (which re-exports it from plant-operating-states-analysis)
+ * 3. Demonstrates loose coupling through well-defined interfaces
  * 
  * @example
  * ```typescript

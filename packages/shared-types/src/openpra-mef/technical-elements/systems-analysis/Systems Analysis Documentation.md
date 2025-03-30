@@ -4,35 +4,39 @@
 1. [Introduction](#introduction)
 2. [Schema Overview](#schema-overview)
 3. [Regulatory Requirements Coverage](#Regulatory-requirements-coverage)
-   1. [SY-C1: Process Documentation](#sy-c1-process-documentation)
-      1. [(a) System Function and Operation](#a-system-function-and-operation)
-      2. [(b) System Model Boundary](#b-system-model-boundary)
-      3. [(c) System Schematic](#c-system-schematic)
-      4. [(d) Equipment Operability](#d-equipment-operability)
-      5. [(e) Operational History](#e-operational-history)
-      6. [(f) Success Criteria](#f-success-criteria)
-      7. [(g) Human Actions](#g-human-actions)
-      8. [(h) Test and Maintenance](#h-test-and-maintenance)
-      9. [(i) System Dependencies](#i-system-dependencies)
-      10. [(j) Component Spatial Information](#j-component-spatial-information)
-      11. [(k) Modeling Assumptions](#k-modeling-assumptions)
-      12. [(l) Components and Failure Modes](#l-components-and-failure-modes)
-      13. [(m) Modularization Process](#m-modularization-process)
-      14. [(n) Logic Loop Resolution](#n-logic-loop-resolution)
-      15. [(o) Evaluation Results](#o-evaluation-results)
-      16. [(p) Sensitivity Studies](#p-sensitivity-studies)
-      17. [(q) Information Sources](#q-information-sources)
-      18. [(r) Basic Events Traceability](#r-basic-events-traceability)
-      19. [(s) Nomenclature](#s-nomenclature)
-      20. [(t) Digital I&C Systems](#t-digital-ic-systems)
-      21. [(u) Passive Systems](#u-passive-systems)
-   2. [SY-C2: Model Uncertainty Documentation](#sy-c2-model-uncertainty-documentation)
-   3. [SY-C3: Pre-Operational Assumptions Documentation](#sy-c3-pre-operational-assumptions-documentation)
-4. [Implementation Examples](#implementation-examples)
+   1. [SY-C1](#sy-c1)
+      1. [SY-C1.a](#sy-c1a)
+      2. [SY-C1.b](#sy-c1b)
+      3. [SY-C1.c](#sy-c1c)
+      4. [SY-C1.d](#sy-c1d)
+      5. [SY-C1.e](#sy-c1e)
+      6. [SY-C1.f](#sy-c1f)
+      7. [SY-C1.g](#sy-c1g)
+      8. [SY-C1.h](#sy-c1h)
+      9. [SY-C1.i](#sy-c1i)
+      10. [SY-C1.j](#sy-c1j)
+      11. [SY-C1.k](#sy-c1k)
+      12. [SY-C1.l](#sy-c1l)
+      13. [SY-C1.m](#sy-c1m)
+      14. [SY-C1.n](#sy-c1n)
+      15. [SY-C1.o](#sy-c1o)
+      16. [SY-C1.p](#sy-c1p)
+      17. [SY-C1.q](#sy-c1q)
+      18. [SY-C1.r](#sy-c1r)
+      19. [SY-C1.s](#sy-c1s)
+      20. [SY-C1.t](#sy-c1t)
+      21. [SY-C1.u](#sy-c1u)
+   2. [SY-C2](#sy-c2)
+   3. [SY-C3](#sy-c3)
+4. [Template Management](#template-management)
+5. [Safety Function Mapping](#safety-function-mapping)
+6. [Environmental Considerations](#environmental-considerations)
+7. [Implementation Examples](#implementation-examples)
    1. [EBR-II Passive Safety Features Example](#ebr-ii-passive-safety-features-example)
    2. [EBR-II Shutdown Cooling System Example](#ebr-ii-shutdown-cooling-system-example)
-5. [Requirements Coverage Summary](#requirements-coverage-summary)
-6. [Conclusion](#conclusion)
+8. [Requirements Coverage Summary](#requirements-coverage-summary)
+9. [Core Definitions](#core-definitions)
+10. [Conclusion](#conclusion)
 
 ## Introduction
 
@@ -64,7 +68,7 @@ The schema provides dedicated interfaces for meeting Regulatory requirements, in
 
 This section demonstrates how the schema enables compliance with each of the supporting requirements for Regulatory Compliance.
 
-### SY-C1: Process Documentation
+### SY-C1
 
 The schema provides the `ProcessDocumentation` interface that extends `BaseProcessDocumentation` with systems-specific documentation requirements:
 
@@ -79,7 +83,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
 
 The following sections demonstrate how each SY-C1 sub-requirement is covered by the schema with concise examples.
 
-#### (a) System Function and Operation
+#### SY-C1a
 
 **Schema Coverage:**
 ```typescript
@@ -100,7 +104,7 @@ const processDoc: ProcessDocumentation = {
 };
 ```
 
-#### (b) System Model Boundary
+#### SY-C1b
 
 **Schema Coverage:**
 ```typescript
@@ -126,7 +130,7 @@ const systemDef: SystemDefinition = {
 };
 ```
 
-#### (c) System Schematic
+#### SY-C1c
 
 **Schema Coverage:**
 ```typescript
@@ -155,7 +159,7 @@ const processDoc: ProcessDocumentation = {
 };
 ```
 
-#### (d) Equipment Operability
+#### SY-C1d
 
 **Schema Coverage:**
 ```typescript
@@ -189,7 +193,7 @@ const systemDef: SystemDefinition = {
 };
 ```
 
-#### (e) Operational History
+#### SY-C1e
 
 **Schema Coverage:**
 ```typescript
@@ -213,7 +217,7 @@ const processDoc: ProcessDocumentation = {
 };
 ```
 
-#### (f) Success Criteria
+#### SY-C1f
 
 **Schema Coverage:**
 ```typescript
@@ -234,6 +238,8 @@ export interface SupportSystemSuccessCriteria extends Unique {
   supportedSystems: SystemReference[];
 }
 ```
+
+**Note:** The `SuccessCriteriaId` type is imported from the shared patterns module (`shared-patterns.ts`) to maintain consistency across the codebase and avoid duplicate type definitions.
 
 **Example:**
 ```typescript
@@ -256,7 +262,7 @@ const supportSystemCriteria: SupportSystemSuccessCriteria = {
 };
 ```
 
-#### (g) Human Actions
+#### SY-C1g
 
 **Schema Coverage:**
 ```typescript
@@ -286,7 +292,7 @@ const systemDef: SystemDefinition = {
 };
 ```
 
-#### (h) Test and Maintenance
+#### SY-C1h
 
 **Schema Coverage:**
 ```typescript
@@ -310,7 +316,7 @@ const processDoc: ProcessDocumentation = {
 };
 ```
 
-#### (i) System Dependencies
+#### SY-C1i
 
 **Schema Coverage:**
 ```typescript
@@ -356,7 +362,7 @@ const dependencySearch: DependencySearchMethodology = {
 };
 ```
 
-#### (j) Component Spatial Information
+#### SY-C1j
 
 **Schema Coverage:**
 ```typescript
@@ -390,7 +396,7 @@ const systemDef: SystemDefinition = {
 };
 ```
 
-#### (k) Modeling Assumptions
+#### SY-C1k
 
 **Schema Coverage:**
 ```typescript
@@ -414,7 +420,7 @@ const processDoc: ProcessDocumentation = {
 };
 ```
 
-#### (l) Components and Failure Modes
+#### SY-C1l
 
 **Schema Coverage:**
 ```typescript
@@ -458,7 +464,7 @@ const systemDef: SystemDefinition = {
 };
 ```
 
-#### (m) Modularization Process
+#### SY-C1m
 
 **Schema Coverage:**
 ```typescript
@@ -479,7 +485,7 @@ const processDoc: ProcessDocumentation = {
 };
 ```
 
-#### (n) Logic Loop Resolution
+#### SY-C1n
 
 **Schema Coverage:**
 ```typescript
@@ -514,7 +520,7 @@ const sysLogicModel: SystemLogicModel = {
 };
 ```
 
-#### (o) Evaluation Results
+#### SY-C1o
 
 **Schema Coverage:**
 ```typescript
@@ -552,7 +558,7 @@ const sysEvaluation: SystemModelEvaluation = {
 };
 ```
 
-#### (p) Sensitivity Studies
+#### SY-C1p
 
 **Schema Coverage:**
 ```typescript
@@ -583,7 +589,7 @@ const sensitivityStudy: SystemSensitivityStudy = {
 };
 ```
 
-#### (q) Information Sources
+#### SY-C1q
 
 **Schema Coverage:**
 ```typescript
@@ -608,7 +614,7 @@ const processDoc: ProcessDocumentation = {
 };
 ```
 
-#### (r) Basic Events Traceability
+#### SY-C1r
 
 **Schema Coverage:**
 ```typescript
@@ -643,7 +649,7 @@ const processDoc: ProcessDocumentation = {
 };
 ```
 
-#### (s) Nomenclature
+#### SY-C1s
 
 **Schema Coverage:**
 ```typescript
@@ -668,7 +674,7 @@ const sysLogicModel: SystemLogicModel = {
 };
 ```
 
-#### (t) Digital I&C Systems
+#### SY-C1t
 
 **Schema Coverage:**
 ```typescript
@@ -702,7 +708,7 @@ const digitalIC: DigitalInstrumentationAndControl = {
 };
 ```
 
-#### (u) Passive Systems
+#### SY-C1u
 
 **Schema Coverage:**
 ```typescript
@@ -736,7 +742,7 @@ const passiveSys: PassiveSystemsTreatment = {
 };
 ```
 
-### SY-C2: Model Uncertainty Documentation
+### SY-C2
 
 The schema includes the `ModelUncertaintyDocumentation` interface that extends `BaseModelUncertaintyDocumentation` to address SY-C2 requirements:
 
@@ -755,9 +761,7 @@ export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocum
 }
 ```
 
-This interface explicitly addresses the requirements of SY-C2 to document sources of model uncertainty, related assumptions, and reasonable alternatives associated with Systems Analysis.
-
-### SY-C3: Pre-Operational Assumptions Documentation
+### SY-C3
 
 The schema leverages the base `PreOperationalAssumption` interface type which is imported from the core documentation module:
 
@@ -769,7 +773,99 @@ import {
 } from "../core/documentation";
 ```
 
-This enables documentation of assumptions and limitations for pre-operational PRAs, including the assumption that systems are free of design and construction errors or defects, as required by SY-C3.
+## Template Management
+
+The schema includes comprehensive support for managing component templates and their instances:
+
+```typescript
+export interface TemplateInstanceRegistry extends Unique {
+    /** Registry of instances organized by template */
+    instancesByTemplate: Record<string, string[]>;
+    
+    /** Current version of each template */
+    templateVersions: Record<string, string>;
+    
+    /** History of changes to templates */
+    changeHistory: TemplateChangeRecord[];
+    
+    /** Configuration for propagating changes */
+    propagationConfig: TemplatePropagationConfig;
+}
+
+export interface TemplateChangeRecord {
+    /** Reference to the template that was changed */
+    templateReference: string;
+    
+    /** Version of the template after the change */
+    version: string;
+    
+    /** Timestamp when the change was made */
+    timestamp: string;
+    
+    /** Description of changes made to the template */
+    changes: string[];
+    
+    /** Indicates if changes have been propagated to instances */
+    changesPropagated: boolean;
+    
+    /** Instances to exclude from change propagation */
+    excludedInstances?: string[];
+}
+```
+
+This structure enables:
+- Tracking of template versions and changes
+- Management of template instances
+- Controlled propagation of template changes
+- Exclusion of specific instances from updates
+
+## Safety Function Mapping
+
+The schema includes dedicated support for mapping systems to safety functions:
+
+```typescript
+export interface SystemToSafetyFunctionMapping extends Unique {
+    /** Reference to the system */
+    systemReference: SystemReference;
+    
+    /** Safety functions this system supports */
+    safetyFunctions: string[];
+    
+    /** Event sequences where this system is credited */
+    eventSequences: string[];
+}
+```
+
+This enables clear documentation of:
+- Which safety functions each system supports
+- Event sequences where systems are credited
+- Traceability between systems and safety functions
+
+## Environmental Considerations
+
+The schema includes comprehensive support for environmental considerations:
+
+```typescript
+export interface EnvironmentalDesignBasisConsideration extends Unique {
+    /** Reference to the system */
+    systemReference: SystemReference;
+    
+    /** Components that may operate beyond environmental design basis */
+    components: string[];
+    
+    /** Event sequences where this may occur */
+    eventSequences: string[];
+    
+    /** Environmental conditions beyond design basis */
+    environmentalConditions: string;
+}
+```
+
+This structure enables documentation of:
+- Components operating beyond design basis
+- Associated event sequences
+- Specific environmental conditions
+- Impact on system performance
 
 ## Implementation Examples
 
@@ -874,14 +970,153 @@ The schema implements all 21 sub-requirements of SY-C1 through a systematic prop
 | Analysis Results | (o)(p)(q)(r) | `evaluationResultsDocumentation`, `sensitivityStudiesDocumentation`, `informationSourcesDocumentation`, `basicEventsDocumentation` |
 | Special Systems | (t)(u) | `digitalICDocumentation`, `passiveSystemsDocumentation` |
 
+## Core Definitions
+
+The schema includes several core definitions that are fundamental to systems analysis:
+
+### Component States
+
+Components can be in various states during operation:
+
+```typescript
+export type ComponentState = 
+  | "operational"  // Normal operation
+  | "degraded"     // Operating but with reduced capability
+  | "failed"       // Complete loss of function
+  | "recovering"   // Being restored to service
+  | "maintenance"; // Under planned maintenance
+```
+
+This enables modeling of:
+- Normal operation conditions
+- Degraded operation states
+- Complete failure states
+- Recovery processes
+- Maintenance periods
+
+### Plant Operating States
+
+The schema includes support for referencing plant operating states:
+
+```typescript
+/**
+ * Reference to a plant operating state
+ * Format: POS-[NAME] (e.g., POS-FULL-POWER)
+ */
+export type PlantOperatingStateReference = string & tags.Pattern<"^POS-[A-Z0-9_-]+$">;
+
+/**
+ * Simple reference to plant operating states for a system
+ */
+export interface PlantOperatingStatesReference {
+  /** List of plant operating states where this system is required */
+  states: PlantOperatingStateReference[];
+  
+  /** Optional description of how the system's requirements vary across states */
+  stateSpecificRequirements?: Record<PlantOperatingStateReference, string>;
+}
+```
+
+This enables:
+- Standardized referencing of plant operating states
+- Documentation of system requirements across different operating states
+- Implementation of SY-B14 requirements
+- Clear traceability between systems and their operating state requirements
+
+### Dependency Types
+
+The schema defines various types of system dependencies:
+
+```typescript
+export enum DependencyType {
+  /** Functional dependency (e.g., power, control, cooling) */
+  FUNCTIONAL = "FUNCTIONAL",
+  
+  /** Spatial dependency (e.g., shared location) */
+  SPATIAL = "SPATIAL",
+  
+  /** Environmental dependency (e.g., temperature, radiation) */
+  ENVIRONMENTAL = "ENVIRONMENTAL",
+  
+  /** Human dependency (e.g., shared operator actions) */
+  HUMAN = "HUMAN",
+  
+  /** Other dependencies not covered by the above */
+  OTHER = "OTHER"
+}
+```
+
+This enables comprehensive modeling of:
+- Functional dependencies between systems
+- Spatial dependencies in shared locations
+- Environmental dependencies affecting multiple systems
+- Human dependencies in shared operations
+- Other types of dependencies not covered by the standard categories
+
+### Repair Modeling
+
+The schema includes comprehensive support for repair modeling:
+
+```typescript
+export interface SystemBasicEvent extends BasicEvent {
+  /** Whether repair is modeled for this basic event */
+  repairModeled?: boolean;
+  
+  /** Justification for modeling repair */
+  repairJustification?: string;
+  
+  /** Mean time to repair, if repair is modeled */
+  meanTimeToRepair?: number;
+}
+```
+
+This enables:
+- Explicit modeling of repair processes
+- Documentation of repair modeling justification
+- Quantification of repair times
+- Implementation of SY-A31 requirements
+
+### Resource Depletion
+
+The schema includes detailed support for modeling resource depletion:
+
+```typescript
+export interface DepletionModel extends Unique {
+  /** Type of resource being depleted */
+  resourceType: "fuel" | "coolant" | "battery" | "other";
+  
+  /** Description of the resource */
+  description?: string;
+  
+  /** Initial quantity available */
+  initialQuantity: number;
+  
+  /** Rate at which the resource is consumed */
+  consumptionRate: number;
+  
+  /** Units of measurement for consumption rate */
+  units: string;
+  
+  /** Component or system using this resource */
+  associatedSystem?: SystemReference;
+  
+  /** Whether depletion leads to immediate failure or degraded operation */
+  depletionFailureMode?: string;
+  
+  /** Time required for resource recovery */
+  recoveryTime?: number;
+}
+```
+
+This enables modeling of:
+- Various types of consumable resources
+- Resource consumption rates
+- System dependencies on resources
+- Failure modes due to resource depletion
+- Resource recovery processes
+
 ## Conclusion
 
-The TypeScript schema for Systems Analysis has been validated against the "Supporting Requirements for Regulatory Compliance." The schema provides comprehensive interfaces and data structures that enable documentation of Systems Analysis in accordance with these requirements. Key findings include:
+The TypeScript schema for Systems Analysis has been validated against the "Supporting Requirements for Regulatory Compliance." The schema provides comprehensive interfaces and data structures that enable documentation of Systems Analysis in accordance with these requirements.
 
-1. The `ProcessDocumentation` interface provides dedicated properties for each of the SY-C1 sub-requirements (a) through (u).
-
-2. Model uncertainty documentation is facilitated through the `ModelUncertaintyDocumentation` interface, which addresses SY-C2 requirements.
-
-3. Pre-operational assumptions documentation is supported through integration with the base documentation module, satisfying SY-C3.
-
-4. Examples demonstrating EBR-II's passive safety features and shutdown cooling system show how the schema can be applied to specific reactor designs.
+The schema provides comprehensive support for SY-C1 through SY-C3 requirements, with dedicated interfaces for process documentation, model uncertainty documentation, and pre-operational assumptions documentation, demonstrated through EBR-II specific examples.

@@ -3,34 +3,42 @@
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Schema Overview](#schema-overview)
-3. [HLR-SC-C Compliance Map](#hlr-sc-c-compliance-map)
-4. [SC-C1 Requirements Coverage](#sc-c1-requirements-coverage)
-   - [End State Definitions (SC-C1a)](#end-state-definitions-sc-c1a)
-   - [Calculations (SC-C1b)](#calculations-sc-c1b)
-   - [Computer Codes (SC-C1c)](#computer-codes-sc-c1c)
-   - [Calculation Limitations (SC-C1d)](#calculation-limitations-sc-c1d)
-   - [Expert Judgment (SC-C1e)](#expert-judgment-sc-c1e)
-   - [Mitigating Systems Criteria (SC-C1f)](#mitigating-systems-criteria-sc-c1f)
-   - [Human Action Timing (SC-C1g)](#human-action-timing-sc-c1g)
-   - [Grouped Events Criteria (SC-C1h)](#grouped-events-criteria-sc-c1h)
-   - [Digital Systems Criteria (SC-C1i)](#digital-systems-criteria-sc-c1i)
-   - [Passive Safety Criteria (SC-C1j)](#passive-safety-criteria-sc-c1j)
-   - [Shared Systems Criteria (SC-C1k)](#shared-systems-criteria-sc-c1k)
-5. [SC-C2 Requirements Coverage](#sc-c2-requirements-coverage)
-6. [SC-C3 Requirements Coverage](#sc-c3-requirements-coverage)
+3. [HLR-SC-C](#hlr-sc-c)
+4. [SC-C1](#sc-c1)
+   1. [SC-C1.a](#sc-c1a)
+   2. [SC-C1.b](#sc-c1b)
+   3. [SC-C1.c](#sc-c1c)
+   4. [SC-C1.d](#sc-c1d)
+   5. [SC-C1.e](#sc-c1e)
+   6. [SC-C1.f](#sc-c1f)
+   7. [SC-C1.g](#sc-c1g)
+   8. [SC-C1.h](#sc-c1h)
+   9. [SC-C1.i](#sc-c1i)
+   10. [SC-C1.j](#sc-c1j)
+   11. [SC-C1.k](#sc-c1k)
+5. [SC-C2](#sc-c2)
+6. [SC-C3](#sc-c3)
 7. [Cross-Referenced Requirements](#cross-referenced-requirements)
 8. [EBR-II Specific Considerations](#ebr-ii-specific-considerations)
-9. [Conclusion](#conclusion)
+9. [Mission Times](#mission-times)
+10. [Digital Systems and Passive Safety](#digital-systems-and-passive-safety)
+11. [Shared Systems](#shared-systems)
+12. [Configuration Control and Traceability](#configuration-control-and-traceability)
+13. [Conclusion](#conclusion)
 
 ## Introduction
 
 This document demonstrates how the TypeScript schema for Success Criteria Development satisfies the Supporting Regulatory Requirements. The schema provides a comprehensive structure to document the process, model uncertainties, and assumptions related to success criteria development, ensuring traceability of work as required by Regulatory Requirements.
+
+The schema uses `EndState` and `EventSequenceReference` types from the event sequence analysis module to maintain proper type safety and avoid circular dependencies.
 
 ## Schema Overview
 
 The Success Criteria Development schema is implemented as a TypeScript interface that extends the `TechnicalElement` type. The schema provides structured documentation capabilities through the following key components:
 
 ```typescript
+import { EndState, EventSequenceReference } from "../event-sequence-analysis/event-sequence-analysis";
+
 export interface SuccessCriteriaDevelopment extends TechnicalElement<TechnicalElementTypes.SUCCESS_CRITERIA_DEVELOPMENT> {
     // ... other fields
     documentation?: {
@@ -50,16 +58,16 @@ The documentation structure directly addresses the requirements in Regulatory, p
 
 The following table maps the Regulatory requirements to their corresponding schema elements:
 
-| Requirement | Description | Schema Element |
-|-------------|-------------|----------------|
-| HLR-SC-C | The documentation of the Success Criteria Development shall provide traceability of the work. | `documentation.traceabilityDocumentation` |
-| SC-C1 | DOCUMENT the process used in the Success Criteria Development | `documentation.processDocumentation` |
-| SC-C2 | DOCUMENT the sources of model uncertainty | `documentation.modelUncertaintyDocumentation` |
-| SC-C3 | DOCUMENT assumptions and limitations due to lack of as-built, as-operated details | `documentation.preOperationalAssumptionsDocumentation` |
+| Requirement | Schema Element |
+|-------------|----------------|
+| HLR-SC-C | `documentation.traceabilityDocumentation` |
+| SC-C1 | `documentation.processDocumentation` |
+| SC-C2 | `documentation.modelUncertaintyDocumentation` |
+| SC-C3 | `documentation.preOperationalAssumptionsDocumentation` |
 
 ## SC-C1 Requirements Coverage
 
-SC-C1 requires documenting the process used in the Success Criteria Development, specifying inputs, methods, and results. The `ProcessDocumentation` interface provides fields for each sub-requirement:
+The `ProcessDocumentation` interface provides fields for each sub-requirement:
 
 ```typescript
 export interface ProcessDocumentation extends BaseProcessDocumentation {
@@ -77,25 +85,21 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
 }
 ```
 
-### End State Definitions (SC-C1a)
-
-The schema includes structure for documenting end states:
+### SC-C1a
 
 ```typescript
 endStateDefinitions?: {
-    endStateId: string;
+    endStateId: EndState;
     definition: string;
-    eventSequences: string[];
+    eventSequences: EventSequenceReference[];
     parameters: Record<string, string>;
     parameterBasis: string;
 }[];
 ```
 
-This structure allows documenting end states, including plant operating states, event sequences, and parameters such as peak fuel temperature.
+This structure allows documenting end states, including plant operating states, event sequences, and parameters such as peak fuel temperature. The `EndState` type ensures consistent end state identification across the analysis.
 
-### Calculations (SC-C1b)
-
-The schema provides for documenting calculations used to establish success criteria:
+### SC-C1b
 
 ```typescript
 calculationsUsed?: {
@@ -109,7 +113,7 @@ calculationsUsed?: {
 
 This includes both generic and plant-specific calculations, and evaluations of radionuclide transport barrier capability.
 
-### Computer Codes (SC-C1c)
+### SC-C1c
 
 Computer codes documentation is supported through:
 
@@ -123,11 +127,7 @@ computerCodesUsed?: {
 }[];
 ```
 
-This allows documentation of codes used for establishing plant-specific success criteria.
-
-### Calculation Limitations (SC-C1d)
-
-Limitations of calculations and codes are documented using:
+### SC-C1d
 
 ```typescript
 calculationLimitations?: {
@@ -139,9 +139,7 @@ calculationLimitations?: {
 }[];
 ```
 
-This includes potential conservatisms or limitations that could challenge the applicability of computer models.
-
-### Expert Judgment (SC-C1e)
+### SC-C1e
 
 Expert judgment documentation is supported via:
 
@@ -154,11 +152,7 @@ expertJudgmentUse?: {
 }[];
 ```
 
-This captures the uses of expert judgment within the PRA and rationale for such uses.
-
-### Mitigating Systems Criteria (SC-C1f)
-
-Success criteria for mitigating systems are documented with:
+### SC-C1f
 
 ```typescript
 mitigatingSystemsCriteria?: {
@@ -169,11 +163,7 @@ mitigatingSystemsCriteria?: {
 }[];
 ```
 
-This allows documenting technical bases for mitigating systems for each initiating event group.
-
-### Human Action Timing (SC-C1g)
-
-The basis for human action timing is documented through:
+### SC-C1g
 
 ```typescript
 humanActionTimingBasis?: {
@@ -184,11 +174,7 @@ humanActionTimingBasis?: {
 }[];
 ```
 
-This captures the basis for establishing time available for human actions.
-
-### Grouped Events Criteria (SC-C1h)
-
-Processes for grouped events are documented via:
+### SC-C1h
 
 ```typescript
 groupedEventsCriteria?: {
@@ -200,9 +186,7 @@ groupedEventsCriteria?: {
 }[];
 ```
 
-This allows documenting how success criteria for grouped initiating events are defined.
-
-### Digital Systems Criteria (SC-C1i)
+### SC-C1i
 
 Digital I&C systems' success criteria are documented using:
 
@@ -216,11 +200,7 @@ digitalSystemsCriteria?: {
 }[];
 ```
 
-This captures the technical basis for digital instrumentation and control systems.
-
-### Passive Safety Criteria (SC-C1j)
-
-Success criteria for passive safety functions are documented with:
+### SC-C1j
 
 ```typescript
 passiveSafetyCriteria?: {
@@ -233,11 +213,7 @@ passiveSafetyCriteria?: {
 }[];
 ```
 
-This allows documenting uncertainties in passive safety function criteria and how they were addressed.
-
-### Shared Systems Criteria (SC-C1k)
-
-Criteria for shared systems are documented through:
+### SC-C1k
 
 ```typescript
 sharedSystemsCriteria?: {
@@ -249,11 +225,7 @@ sharedSystemsCriteria?: {
 }[];
 ```
 
-This captures how shared systems between reactors are handled in success criteria.
-
 ## SC-C2 Requirements Coverage
-
-SC-C2 requires documenting sources of model uncertainty and reasonable alternatives. The schema provides dedicated structures for this:
 
 ```typescript
 export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
@@ -271,11 +243,9 @@ export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocum
 }
 ```
 
-This structure enables documenting model uncertainties specific to success criteria and reasonable alternatives as required by SC-C2, including references to SC-A10 and SC-B9.
+This structure satisfies SC-C2, including references to SC-A10 and SC-B9.
 
 ## SC-C3 Requirements Coverage
-
-SC-C3 requires documenting assumptions and limitations due to lack of as-built, as-operated details. The schema addresses this with:
 
 ```typescript
 export interface PreOperationalAssumptionsDocumentation extends BasePreOperationalAssumptionsDocumentation {
@@ -288,15 +258,13 @@ export interface PreOperationalAssumptionsDocumentation extends BasePreOperation
 }
 ```
 
-This structure enables documenting pre-operational assumptions specific to success criteria, including plans to resolve them when the plant is built and operational.
-
 ## Cross-Referenced Requirements
 
 The schema also addresses cross-referenced requirements:
 
-- **SC-A10** (reasonable alternatives for significant assumptions) is addressed via `SuccessCriteriaSensitivityStudy` and `ModelUncertaintyDocumentation.reasonableAlternatives`
-- **SC-B9** (model uncertainty sources) is addressed via `modelUncertainties` and `ModelUncertaintyDocumentation`
-- **SC-A11/SC-B10** (pre-operational assumptions) is addressed via `preOperationalAssumptions` and `PreOperationalAssumptionsDocumentation`
+- **SC-A10** is addressed via `SuccessCriteriaSensitivityStudy` and `ModelUncertaintyDocumentation.reasonableAlternatives`
+- **SC-B9** is addressed via `modelUncertainties` and `ModelUncertaintyDocumentation`
+- **SC-A11/SC-B10** is addressed via `preOperationalAssumptions` and `PreOperationalAssumptionsDocumentation`
 
 ## EBR-II Specific Considerations
 
@@ -356,11 +324,197 @@ Natural circulation criteria can be documented using:
 }
 ```
 
+## Mission Times
+
+The schema includes mission time definitions for both event sequences and components:
+
+```typescript
+export interface MissionTimeDefinition extends Unique {
+    eventSequenceReference: EventSequenceReference;
+    missionTimeHours: number & tags.Minimum<0>;
+    basis: string;
+    analysisReferences: string[];
+    isRiskSignificant?: boolean;
+}
+
+export interface ComponentMissionTimeDefinition extends Unique {
+    componentId: ComponentReference;
+    missionTimeHours: number & tags.Minimum<0>;
+    eventSequenceReference: EventSequenceReference;
+    shorterMissionTimeJustification?: string;
+    analysisReferences: string[];
+}
+```
+
+These interfaces ensure proper traceability between components, event sequences, and their respective mission times.
+
+## Digital Systems and Passive Safety
+
+The schema includes dedicated support for digital systems and passive safety through enhanced interfaces:
+
+1. Enhanced `ProcessDocumentation` with digital systems criteria:
+```typescript
+export interface ProcessDocumentation extends BaseProcessDocumentation {
+    // ... existing fields ...
+    
+    /**
+     * Documentation of success criteria for digital systems
+     * @implements SC-C1(i)
+     */
+    digitalSystemsCriteria?: {
+        /** Digital system identifier */
+        systemId: string;
+        
+        /** Success criteria */
+        criteria: string;
+        
+        /** Technical basis */
+        technicalBasis: string;
+        
+        /** Failure modes considered */
+        failureModes: string[];
+        
+        /** References to supporting analyses */
+        supportingAnalyses: string[];
+    }[];
+    
+    /**
+     * Documentation of passive safety function criteria
+     * @implements SC-C1(j)
+     */
+    passiveSafetyCriteria?: {
+        /** Passive safety function identifier */
+        functionId: string;
+        
+        /** Description of the function */
+        description: string;
+        
+        /** Success criteria */
+        criteria: string;
+        
+        /** Technical basis */
+        technicalBasis: string;
+        
+        /** Uncertainties in these criteria */
+        uncertainties: string;
+        
+        /** How uncertainties were addressed */
+        uncertaintyTreatment: string;
+    }[];
+}
+```
+
+## Shared Systems
+
+The schema includes comprehensive support for shared systems through several interfaces:
+
+1. Enhanced `ProcessDocumentation` with shared systems criteria:
+```typescript
+export interface ProcessDocumentation extends BaseProcessDocumentation {
+    // ... existing fields ...
+    
+    /**
+     * Documentation of shared systems criteria
+     * @implements SC-C1(k)
+     */
+    sharedSystemsCriteria?: {
+        /** Shared system identifier */
+        systemId: string;
+        
+        /** Reactors sharing this system */
+        sharedByReactors: string[];
+        
+        /** Success criteria */
+        criteria: string;
+        
+        /** Common initiating events considered */
+        commonInitiatingEvents: string[];
+        
+        /** Technical basis */
+        technicalBasis: string;
+    }[];
+}
+```
+
+2. `SharedResourceDefinition` interface:
+```typescript
+export interface SharedResourceDefinition extends Unique, Named {
+    /** Description of the shared resource */
+    description: string;
+    
+    /** Systems that share this resource */
+    sharedBySystems: string[];
+    
+    /** Reactors or units that share this resource */
+    sharedByReactors: string[];
+    
+    /** Resource capacity allocation strategy */
+    allocationStrategy: string;
+    
+    /** Impact on success criteria */
+    successCriteriaImpact: string;
+    
+    /** References to supporting analyses */
+    analysisReferences: string[];
+}
+```
+
+3. Enhanced `SuccessCriteriaDevelopment` with shared resources:
+```typescript
+export interface SuccessCriteriaDevelopment extends TechnicalElement<TechnicalElementTypes.SUCCESS_CRITERIA_DEVELOPMENT> {
+    // ... existing fields ...
+    
+    /**
+     * Shared resource definitions between reactors
+     * @implements SC-A7
+     */
+    sharedResources?: Record<string, SharedResourceDefinition>;
+    
+    /**
+     * Consistency verifications
+     * @implements SC-A7
+     * @implements SC-A9
+     */
+    consistencyVerifications?: Record<string, ConsistencyVerification>;
+}
+```
+
+These enhancements provide comprehensive support for:
+- Mission time definitions for event sequences and components
+- Digital systems success criteria and failure modes
+- Passive safety function criteria and uncertainty treatment
+- Shared systems criteria and resource allocation
+- Consistency verification across different aspects of the analysis
+
+## Configuration Control and Traceability
+
+The schema includes dedicated structures for configuration control and traceability:
+
+```typescript
+export interface BaseTraceabilityDocumentation extends Unique {
+    // ... existing fields ...
+    
+    /**
+     * Configuration control records
+     * @implements SC-A12
+     */
+    configurationControlRecords?: Record<string, ConfigurationControlRecord>;
+}
+```
+
+This structure enables documenting configuration control records as required by SC-A12.
+
 ## Conclusion
 
-The Success Criteria Development TypeScript schema fully satisfies the Supporting Requirements for Regulatory Compliance. The schema provides structured elements for documenting:
-- The process used in success criteria development (SC-C1)
-- Sources of model uncertainty and reasonable alternatives (SC-C2)
-- Assumptions and limitations due to lack of as-built, as-operated details (SC-C3)
+The Success Criteria Development TypeScript schema fully satisfies the Supporting Requirements for Regulatory Compliance. The schema provides structured elements for documenting SC-C1 to SC-C3.
 
 Each sub-requirement of SC-C1 has corresponding dedicated schema structures, ensuring comprehensive documentation. The schema is also well-suited for documenting EBR-II specific success criteria, including its unique features like the Reactor Shutdown System, passive safety features, and natural circulation capabilities.
+
+The schema uses standardized patterns for cross-referencing other technical elements:
+
+```typescript
+// Standardized reference patterns
+type SuccessCriteriaId = string & tags.Pattern<typeof IdPatterns.SUCCESS_CRITERIA_ID>;  // Imported from shared-patterns
+type PlantOperatingStateId = string & tags.Pattern<typeof IdPatterns.STATE>;
+type SystemId = string & tags.Pattern<typeof IdPatterns.SYSTEM_ID>;
+```

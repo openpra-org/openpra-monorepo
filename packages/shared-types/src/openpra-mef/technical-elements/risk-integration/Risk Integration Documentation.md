@@ -3,20 +3,24 @@
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Documentation Coverage Analysis](#documentation-coverage-analysis)
-3. [HLR-RI-D Requirements Coverage](#hlr-ri-d-requirements-coverage)
-   - [RI-D1: Process Documentation](#ri-d1-process-documentation)
-     - [RI-D1(a): Overall Process Description](#ri-d1a-overall-process-description)
-     - [RI-D1(b): Risk Significance Criteria](#ri-d1b-risk-significance-criteria)
-     - [RI-D1(c): Risk Calculation Methods](#ri-d1c-risk-calculation-methods)
-     - [RI-D1(d): Uncertainty Analysis](#ri-d1d-uncertainty-analysis)
-     - [RI-D1(e): Key Assumptions](#ri-d1e-key-assumptions)
-     - [RI-D1(f): Analysis Limitations](#ri-d1f-analysis-limitations)
-     - [RI-D1(g): Risk Insights](#ri-d1g-risk-insights)
-     - [RI-D1(h): Risk Contributors](#ri-d1h-risk-contributors)
-   - [RI-D2: Model Uncertainty Documentation](#ri-d2-model-uncertainty-documentation)
+3. [HLR-RI-D](#hlr-ri-d)
+   - [RI-D1](#ri-d1)
+     - [RI-D1.a](#ri-d1a)
+     - [RI-D1.b](#ri-d1b)
+     - [RI-D1.c](#ri-d1c)
+     - [RI-D1.d](#ri-d1d)
+     - [RI-D1.e](#ri-d1e)
+     - [RI-D1.f](#ri-d1f)
+     - [RI-D1.g](#ri-d1g)
+     - [RI-D1.h](#ri-d1h)
+   - [RI-D2](#ri-d2)
 4. [Schema Implementation](#schema-implementation)
+   - [Core Definitions](#core-definitions)
    - [Documentation Interfaces](#documentation-interfaces)
    - [Traceability Implementation](#traceability-implementation)
+   - [Validation Rules](#validation-rules)
+   - [Feedback Mechanisms](#feedback-mechanisms)
+   - [Integration Descriptions](#integration-descriptions)
 5. [Usage Example: Simplified EBR-II Based Analysis](#usage-example-simplified-ebr-ii-based-analysis)
 6. [Conclusion](#conclusion)
 
@@ -46,20 +50,18 @@ The TypeScript schema includes dedicated interfaces for documenting the Risk Int
 
 The table below maps each sub-requirement of RI-D1 to the corresponding schema elements:
 
-| Requirement | Description | Schema Element | Coverage |
-|-------------|-------------|----------------|----------|
-| RI-D1(a) | Process description | `RiskIntegrationDocumentation.processDescription` | Full |
-| RI-D1(b) | Risk significance criteria | `RiskIntegrationDocumentation.riskSignificanceCriteriaDescription` | Full |
-| RI-D1(c) | Risk calculation methods | `RiskIntegrationDocumentation.calculationMethodsDescription` | Full |
-| RI-D1(d) | Uncertainty analysis | `RiskIntegrationDocumentation.uncertaintyAnalysisDescription` | Full |
-| RI-D1(e) | Key assumptions | `RiskIntegrationDocumentation.keyAssumptionsDescription` | Full |
-| RI-D1(f) | Limitations | `RiskIntegrationDocumentation.limitationsDescription` | Full |
-| RI-D1(g) | Risk insights | `RiskIntegrationDocumentation.riskInsights` | Full |
-| RI-D1(h) | Risk contributors | `SignificantRiskContributors` interface and various `significantContributors` fields | Full |
+| Requirement | Schema Element | Coverage |
+|-------------|----------------|----------|
+| RI-D1(a) | `RiskIntegrationDocumentation.processDescription` | Full |
+| RI-D1(b) | `RiskIntegrationDocumentation.riskSignificanceCriteriaDescription` | Full |
+| RI-D1(c) | `RiskIntegrationDocumentation.calculationMethodsDescription` | Full |
+| RI-D1(d) | `RiskIntegrationDocumentation.uncertaintyAnalysisDescription` | Full |
+| RI-D1(e) | `RiskIntegrationDocumentation.keyAssumptionsDescription` | Full |
+| RI-D1(f) | `RiskIntegrationDocumentation.limitationsDescription` | Full |
+| RI-D1(g) | `RiskIntegrationDocumentation.riskInsights` | Full |
+| RI-D1(h) | `SignificantRiskContributors` interface and various `significantContributors` fields | Full |
 
-#### RI-D1(a): Overall Process Description
-
-The schema provides a field for documenting the overall process used in Risk Integration:
+#### RI-D1(a)
 
 ```typescript
 /** 
@@ -75,9 +77,7 @@ Example implementation:
 processDescription: "The risk integration process for this NLWR PRA incorporates event sequence families from Event Sequence Quantification and release categories from Mechanistic Source Term Analysis. A Monte Carlo simulation approach with 10,000 trials was used to propagate uncertainties in both frequency and consequence measures. Results are presented as point estimates, mean values, and complementary cumulative distribution functions (CCDFs)."
 ```
 
-#### RI-D1(b): Risk Significance Criteria
-
-The schema provides a field for documenting the risk significance criteria:
+#### RI-D1(b)
 
 ```typescript
 /** 
@@ -101,9 +101,7 @@ export interface RiskSignificanceCriteria extends Unique, Named {
 }
 ```
 
-#### RI-D1(c): Risk Calculation Methods
-
-The schema provides a field for documenting the methods used to calculate overall risk:
+#### RI-D1(c)
 
 ```typescript
 /** 
@@ -126,9 +124,7 @@ calculationApproach: {
 };
 ```
 
-#### RI-D1(d): Uncertainty Analysis
-
-The schema provides a field for documenting the uncertainty analysis:
+#### RI-D1(d)
 
 ```typescript
 /** 
@@ -152,9 +148,7 @@ export interface RiskUncertaintyAnalysis extends Unique, Named {
 }
 ```
 
-#### RI-D1(e): Key Assumptions
-
-The schema provides a field for documenting key assumptions:
+#### RI-D1(e)
 
 ```typescript
 /** 
@@ -177,9 +171,7 @@ export interface RiskIntegrationAssumption extends Unique {
 }
 ```
 
-#### RI-D1(f): Analysis Limitations
-
-The schema provides a field for documenting the limitations of the analysis:
+#### RI-D1(f)
 
 ```typescript
 /** 
@@ -195,9 +187,7 @@ Example implementation:
 limitationsDescription: "This analysis is limited by the availability of operational data since the facility is not yet built. The PRA relied on design information and engineering judgment to establish failure rates and human error probabilities. These limitations will be addressed during the operational phase through data collection and model updates."
 ```
 
-#### RI-D1(g): Risk Insights
-
-The schema provides a field for documenting risk insights:
+#### RI-D1(g)
 
 ```typescript
 /** 
@@ -217,9 +207,7 @@ riskInsights: [
 ]
 ```
 
-#### RI-D1(h): Risk Contributors
-
-The schema provides a comprehensive interface for documenting risk contributors:
+#### RI-D1(h)
 
 ```typescript
 export interface SignificantRiskContributors extends Unique {
@@ -235,11 +223,7 @@ export interface SignificantRiskContributors extends Unique {
 
 The interface supports documentation of various contributor types as required by RI-D1(h).
 
-### Model Uncertainty Documentation
-
-"DOCUMENT the sources of model uncertainty, related assumptions, and reasonable alternatives (as identified in Requirement RI-C1) associated with the Risk Integration."
-
-The schema provides specific interfaces for documenting model uncertainties and assumptions:
+### RI-D2
 
 ```typescript
 export interface ModelUncertaintySource extends Unique, Named {
@@ -266,21 +250,129 @@ export interface RiskIntegrationAssumption extends Unique {
 }
 ```
 
-These interfaces ensure that all aspects of RI-D2 are addressed in the schema.
-
 ## Schema Implementation
+
+### Core Definitions
+
+The schema includes several core definitions that form the foundation of risk integration:
+
+#### Risk Metric Interface
+
+```typescript
+export interface RiskMetric extends Unique, Named {
+    /** Type of risk metric */
+    metricType: RiskMetricType | string;
+    
+    /** Description of the risk metric */
+    description?: string;
+    
+    /** Point estimate value of the risk metric */
+    value: number;
+    
+    /** Units for the metric (e.g., "per reactor year") */
+    units: FrequencyUnit | string;
+    
+    /** Uncertainty associated with the risk metric value */
+    uncertainty?: Uncertainty;
+    
+    /** Applicable acceptance criteria (if any) */
+    acceptanceCriteria?: {
+        limit: number;
+        basis: string;
+        complianceStatus: "COMPLIANT" | "NON_COMPLIANT" | "INDETERMINATE";
+    };
+}
+```
+
+This interface provides:
+- Definition of risk metrics with values and units
+- Support for uncertainty characterization
+- Compliance tracking against acceptance criteria
+
+#### Risk Contributor Interface
+
+```typescript
+export interface RiskContributor extends Unique, Named {
+    /** Type of contributor (e.g., "event-sequence", "component") */
+    contributorType: string;
+    
+    /** Original technical element where this contributor is defined */
+    sourceElement: TechnicalElementTypes;
+    
+    /** Reference ID to the original entity in its technical element */
+    sourceId: string;
+    
+    /** Importance metrics for this contributor */
+    importanceMetrics?: {
+        /** Fussell-Vesely importance measure */
+        fussellVesely?: number;
+        
+        /** Risk Achievement Worth */
+        raw?: number;
+        
+        /** Risk Reduction Worth */
+        rrw?: number;
+        
+        /** Birnbaum importance measure */
+        birnbaum?: number;
+        
+        /** Other importance measures */
+        [key: string]: number | undefined;
+    };
+    
+    /** Estimated contribution to total risk */
+    riskContribution?: number;
+    
+    /** Importance level of this contributor */
+    importanceLevel?: ImportanceLevel;
+    
+    /** Additional contextual information about this contributor */
+    context?: string;
+    
+    /** Risk insights derived from this contributor */
+    insights?: string[];
+}
+```
+
+This interface enables:
+- Identification of risk contributors across technical elements
+- Tracking of importance metrics
+- Documentation of risk contributions and insights
+
+#### Reference Types
+
+The schema includes several reference types for maintaining traceability:
+
+```typescript
+/** Reference to a Risk Significance Criteria */
+export type RiskSignificanceCriteriaReference = string & tags.Pattern<"^RSC-[A-Za-z0-9_-]+$">;
+
+/** Reference to an Integrated Risk Result */
+export type IntegratedRiskResultReference = string & tags.Pattern<"^IRR-[A-Za-z0-9_-]+$">;
+
+/** Reference to a significant risk contributor analysis */
+export type SignificantContributorReference = string & tags.Pattern<"^SRC-[A-Za-z0-9_-]+$">;
+
+/** Reference to a risk integration method */
+export type RiskIntegrationMethodReference = string & tags.Pattern<"^RIM-[A-Za-z0-9_-]+$">;
+```
+
+These reference types ensure:
+- Unique identification of entities across the PRA
+- Consistent reference format
+- Traceability between different technical elements
 
 ### Documentation Interfaces
 
 The schema implements several key interfaces that support documentation requirements:
 
-| Interface | Purpose | RI-D Requirements Addressed |
-|-----------|---------|----------------------------|
-| `RiskIntegrationDocumentation` | Primary documentation structure | RI-D1(a) through RI-D1(g) |
-| `SignificantRiskContributors` | Documents risk contributors | RI-D1(h) |
-| `ModelUncertaintySource` | Documents uncertainty sources | RI-D2 |
-| `RiskIntegrationAssumption` | Documents assumptions | RI-D2 |
-| `RiskUncertaintyAnalysis` | Documents uncertainty analyses | RI-D1(d), RI-D2 |
+| Interface | RI-D Requirements Addressed |
+|-----------|----------------------------|
+| `RiskIntegrationDocumentation` | RI-D1(a) through RI-D1(g) |
+| `SignificantRiskContributors` | RI-D1(h) |
+| `ModelUncertaintySource` | RI-D2 |
+| `RiskIntegrationAssumption` | RI-D2 |
+| `RiskUncertaintyAnalysis` | RI-D1(d), RI-D2 |
 
 ### Traceability Implementation
 
@@ -308,6 +400,142 @@ The schema implements traceability through several mechanisms:
    ```typescript
    validationRules?: RiskIntegrationValidationRules;
    ```
+
+## Validation Rules
+
+The schema includes comprehensive validation rules through the `RiskIntegrationValidationRules` interface:
+
+```typescript
+export interface RiskIntegrationValidationRules {
+    riskSignificanceCriteriaRules: {
+        description: string;
+        validationMethod: string;
+        requiredElements: string[];
+    };
+    
+    integratedRiskResultsRules: {
+        description: string;
+        validationMethod: string;
+        requiredAnalysisElements: string[];
+    };
+    
+    uncertaintyAnalysisRules: {
+        description: string;
+        requiredUncertaintyElements: string[];
+        characterizationCriteria: string[];
+    };
+    
+    significantContributorRules: {
+        description: string;
+        requiredContributorTypes: string[];
+        documentationRequirements: string[];
+    };
+    
+    documentationRules: {
+        description: string;
+        documentationCriteria: string[];
+        requiredDocumentation: string[];
+    };
+}
+```
+
+This structure enables:
+- Validation of risk significance criteria
+- Validation of integrated risk results
+- Validation of uncertainty analyses
+- Validation of significant contributor identification
+- Validation of documentation completeness
+
+## Feedback Mechanisms
+
+The schema includes dedicated feedback mechanisms for both event sequence and mechanistic source term analyses:
+
+```typescript
+eventSequenceAnalysisFeedback?: {
+    analysisId: string;
+    releaseCategoryMappingFeedback?: {
+        originalMappingId: string;
+        updatedFrequency?: number;
+        updatedFrequencyUnit?: FrequencyUnit;
+        insights?: string[];
+        recommendations?: string[];
+    }[];
+    eventSequenceFamilyFeedback?: {
+        familyId: EventSequenceFamilyReference;
+        riskSignificance?: ImportanceLevel;
+        insights?: string[];
+        recommendations?: string[];
+    }[];
+    generalFeedback?: string;
+};
+
+mechanisticSourceTermFeedback?: {
+    analysisId: string;
+    releaseCategoryFeedback?: {
+        releaseCategoryId: ReleaseCategoryReference;
+        riskSignificance?: ImportanceLevel;
+        insights?: string[];
+        recommendations?: string[];
+    }[];
+    sourceTermDefinitionFeedback?: {
+        sourceTermDefinitionId: SourceTermDefinitionReference;
+        riskSignificance?: ImportanceLevel;
+        insights?: string[];
+        recommendations?: string[];
+        keyUncertainties?: string[];
+    }[];
+    mappingFeedback?: {
+        originalMappingId: string;
+        riskSignificance?: ImportanceLevel;
+        insights?: string[];
+        recommendations?: string[];
+    }[];
+    generalFeedback?: string;
+};
+```
+
+This enables:
+- Feedback on release category mappings
+- Feedback on event sequence families
+- Feedback on release categories
+- Feedback on source term definitions
+- Feedback on mapping consistency
+
+## Integration Descriptions
+
+The schema includes detailed integration descriptions for both event sequence and mechanistic source term analyses:
+
+```typescript
+eventSequenceIntegrationDescription?: {
+    integrationProcessDescription: string;
+    mappingApproach: string;
+    frequencyDerivationApproach: string;
+    integrationChallenges?: string[];
+    inconsistencyResolution?: string;
+    feedbackProvided?: string;
+};
+
+mechanisticSourceTermIntegrationDescription?: {
+    integrationProcessDescription: string;
+    releaseCategoryIntegrationApproach: string;
+    sourceTermUtilizationApproach: string;
+    uncertaintyPropagationApproach?: string;
+    integrationChallenges?: string[];
+    inconsistencyResolution?: string;
+    feedbackProvided?: string;
+    sourceTermInsights?: string[];
+};
+```
+
+This enables documentation of:
+- Integration processes
+- Mapping approaches
+- Frequency derivation methods
+- Uncertainty propagation
+- Integration challenges
+- Inconsistency resolution
+- Feedback mechanisms
+- Key insights
 
 ## Usage Example: Simplified EBR-II Based Analysis
 

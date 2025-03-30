@@ -8,31 +8,28 @@
  * all risk-significant contributors are represented and understood. This element should address all dependencies and 
  * demonstrate a complete understanding of PRA uncertainties and assumptions and their impacts on the PRA results.
  * 
- * @expert_value
- * This schema provides:
- * - Integration with upstream technical elements including Initiating Event Analysis, Systems Analysis, and Human Reliability Analysis
- * - Comprehensive dependency tracking across functional, physical, and human aspects
- * - Mechanisms for breaking circular logic and identifying mutually exclusive events
- * - Robust uncertainty characterization and propagation
- * - Structured sensitivity and importance analyses
- * - Clear traceability of data sources and modeling assumptions
+ * @dependency_management
+ * This module intentionally minimizes direct dependencies on other technical elements:
+ * 1. Uses string references and IDs instead of direct type imports
+ * 2. Maintains loose coupling through well-defined interfaces
+ * 3. Localizes type definitions where possible
+ * 4. Documents dependencies in comments rather than through imports
  * 
- * @dependency_structure
- * This module depends on multiple upstream technical elements:
- * 1. Initiating Event Analysis - Provides initiating event frequencies
- * 2. Event Sequence Analysis - Provides event sequence structures
- * 3. Systems Analysis - Provides system models and basic event probabilities
- * 4. Human Reliability Analysis - Provides human error probabilities
- * 5. Data Analysis - Provides parameter distributions for uncertainty analysis
+ * The only exception is BarrierStatus which is imported from plant-operating-states-analysis
+ * as it is the source of truth for barrier states across the PRA model.
  * 
- * @preferred
- * @category Technical Elements 
+ * This approach allows for:
+ * - Independent evolution of technical elements
+ * - Easier testing and maintenance
+ * - Clear dependency boundaries
+ * - Reduced circular dependencies
  */
 
-// TODO: Future enhancements needed:
-// 1. Add EventTimingRepresentation interface for time-dependent equipment survivability assessment
-// 2. Implement ParameterSelectionCriteria interface to address ESQ-A8/A9 (reference HR-D, HR-G, HR-H, DA-C, DA-D)
-// 3. Create ScreenedInitiatingEventAssessment interface for ESQ-D8 to track cumulative impact of screened events
+// Import BarrierStatus from plant operating states for reuse in this module
+import { BarrierStatus } from "../plant-operating-states-analysis/plant-operating-states-analysis";
+
+// Re-export BarrierStatus for use by downstream modules
+export { BarrierStatus };
 
 // Core imports
 import typia, { tags } from "typia";
@@ -63,15 +60,6 @@ import {
   EventSequenceFamily, 
   DependencyType 
 } from "../event-sequence-analysis/event-sequence-analysis";
-import { 
-  SystemDefinition, 
-  FaultTree, 
-  CommonCauseFailureGroup 
-} from "../systems-analysis/systems-analysis";
-import { 
-  InitiatingEventGroup, 
-  ExtendedInitiatingEvent 
-} from "../initiating-event-analysis/initiating-event-analysis";
 
 // Documentation and shared patterns imports
 import { 
@@ -86,12 +74,6 @@ import {
 import {
   BaseAssumption as Assumption
 } from "../core/documentation";
-
-// Import BarrierStatus from plant operating states for reuse in this module
-import { BarrierStatus } from "../plant-operating-states-analysis/plant-operating-states-analysis";
-
-// Re-export BarrierStatus for use by downstream modules
-export { BarrierStatus };
 
 // Import documentation interfaces from documentation.ts
 import {

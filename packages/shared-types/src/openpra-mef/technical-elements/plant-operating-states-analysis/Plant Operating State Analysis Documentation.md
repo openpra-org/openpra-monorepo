@@ -1,26 +1,27 @@
 # Plant Operating State Analysis Documentation
 
 ## Table of Contents
-- [1. POS-D1 Compliance](#1-pos-d1-compliance)
-  - [1.1 Selection and Definitions of Plant Evolutions (POS-D1.a)](#11-selection-and-definitions-of-plant-evolutions-pos-d1a)
-  - [1.2 Process and Criteria Used to Identify Plant Operating States (POS-D1.b)](#12-process-and-criteria-used-to-identify-plant-operating-states-pos-d1b)
-  - [1.3 Process and Criteria Used to Group Plant Operating States (POS-D1.c)](#13-process-and-criteria-used-to-group-plant-operating-states-pos-d1c)
-  - [1.4 Definition of Each Plant Operating State Group (POS-D1.d)](#14-definition-of-each-plant-operating-state-group-pos-d1d)
-  - [1.5 Defining Characteristics of Each Plant Operating State (POS-D1.e)](#15-defining-characteristics-of-each-plant-operating-state-pos-d1e)
-  - [1.6 Mean Durations, Mean Times Since Shutdown, and Mean Frequencies (POS-D1.f)](#16-mean-durations-mean-times-since-shutdown-and-mean-frequencies-pos-d1f)
-  - [1.7 Decay Heat Associated with Each Plant Operating State (POS-D1.g)](#17-decay-heat-associated-with-each-plant-operating-state-pos-d1g)
-  - [1.8 Specific Interfaces with Other PRA Tasks (POS-D1.h)](#18-specific-interfaces-with-other-pra-tasks-pos-d1h)
-- [2. POS-D2 Compliance](#2-pos-d2-compliance)
-  - [2.1 Schema Support for Model Uncertainty Documentation](#21-schema-support-for-model-uncertainty-documentation)
-  - [2.2 Example Model Uncertainty Documentation](#22-example-model-uncertainty-documentation)
-- [3. POS-D3 Compliance](#3-pos-d3-compliance)
-  - [3.1 Schema Support for Pre-operational Limitations](#31-schema-support-for-pre-operational-limitations)
-  - [3.2 Example Pre-operational Limitations Documentation](#32-example-pre-operational-limitations-documentation)
-- [4. Configuration Control and Traceability](#4-configuration-control-and-traceability)
+1. [Introduction](#introduction)
+2. [Coverage of Regulatory Requirements](#coverage-of-regulatory-requirements)
+3. [POS-D1](#pos-d1)
+   - [D1(a)](#d1a)
+   - [D1(b)](#d1b)
+   - [D1(c)](#d1c)
+   - [D1(d)](#d1d)
+   - [D1(e)](#d1e)
+   - [D1(f)](#d1f)
+   - [D1(g)](#d1g)
+   - [D1(h)](#d1h)
+4. [POS-D2](#pos-d2)
+5. [POS-D3](#pos-d3)
+6. [Peer Review and Validation](#peer-review-and-validation)
+7. [Transition Risk Analysis](#transition-risk-analysis)
+8. [Plant Representation Accuracy](#plant-representation-accuracy)
+9. [Configuration Control and Traceability](#configuration-control-and-traceability)
 
 ## 1. POS-D1 Compliance
 
-### 1.1 Selection and Definitions of Plant Evolutions (POS-D1.a)
+### 1.1 POS-D1.a
 
 The schema captures plant evolutions through the `plantEvolutions` field in the `PlantOperatingStatesAnalysis` interface:
 
@@ -71,7 +72,7 @@ includesAtPowerOperations: boolean;
 - **SSC Capabilities Changes**: No changes during normal operation
 - **Operational Assumptions**: Reactor operates at full power for 90% of operational time
 
-### 1.2 Process and Criteria Used to Identify Plant Operating States (POS-D1.b)
+### 1.2 POS-D1.b
 
 The schema documents the identification process through the `PlantOperatingStatesDocumentation` interface:
 
@@ -128,7 +129,7 @@ export interface TimeBoundary {
 - Changes in reactor coolant inventory
 - Significant operator actions or alignments
 
-### 1.3 Process and Criteria Used to Group Plant Operating States (POS-D1.c)
+### 1.3 POS-D1.c
 
 The schema supports grouping of plant operating states through the `plantOperatingStatesGroups` field:
 
@@ -184,7 +185,7 @@ export interface SubsumedPOS {
 
 **Example Grouping Justification**: POS-5A and POS-5B were grouped because they share similar decay heat levels (0.5-0.7% of rated power), identical RCS configurations (vented, reduced inventory), and the same set of available safety systems. Sensitivity analysis confirmed that using the parameters from POS-5A (the more limiting case) provides conservative results for both states.
 
-### 1.4 Definition of Each Plant Operating State Group (POS-D1.d)
+### 1.4 POS-D1.d
 
 The schema provides detailed definitions of each POS group through the `PlantOperatingStatesGroup` interface:
 
@@ -223,7 +224,7 @@ export interface PlantOperatingStatesGroup extends Unique, Named {
   - Equipment hatch closed
   - Time since shutdown: 48-96 hours
 
-### 1.5 Defining Characteristics of Each Plant Operating State (POS-D1.e)
+### 1.5 POS-D1.e
 
 Each `PlantOperatingState` in the schema has comprehensive characteristics defined:
 
@@ -303,7 +304,7 @@ export interface ReactorCoolantSystemParameters {
 - **Initiating Events**: Loss of RHR, inventory loss events
 - **Safety Functions**: Decay heat removal, RCS inventory control
 
-### 1.6 Mean Durations, Mean Times Since Shutdown, and Mean Frequencies (POS-D1.f)
+### 1.6 POS-D1.f
 
 The schema captures these temporal aspects through multiple fields:
 
@@ -353,7 +354,7 @@ export interface OperatingStatesFrequencyDuration {
 - **Mean Frequency**: 0.5 per year (biennial refueling)
 - **Fraction of Time**: 0.014 (1.4% of plant operating time)
 
-### 1.7 Decay Heat Associated with Each Plant Operating State (POS-D1.g)
+### 1.7 POS-D1.g
 
 Decay heat information is captured in the `rcsParameters` field:
 
@@ -430,7 +431,12 @@ export interface PlantOperatingState {
 
 1. **Initiating Event Analysis**: The POS Analysis provides the operational context for initiating event identification and quantification. Each POS has a defined set of applicable initiating events referenced through the `initiatingEvents` field.
 
-2. **Success Criteria Analysis**: POS-specific success criteria are referenced through the `successCriteriaIds` field. Each POS has unique thermal-hydraulic conditions that affect system success criteria.
+2. **Success Criteria Analysis**: POS-specific success criteria are referenced through the `successCriteriaIds` field, which uses the standardized pattern `^SC-[A-Z0-9-]+$` from shared patterns. Each POS has unique thermal-hydraulic conditions that affect system success criteria.
+
+The success criteria IDs follow a consistent format across the PRA:
+- Format: `SC-[SYSTEM]-[NUMBER]`
+- Example: `SC-RCIC-001`
+- Pattern validation ensures consistent formatting
 
 3. **Systems Analysis**: The availability and configuration of systems in each POS are captured in the `decayHeatRemoval` field. This information feeds into the systems analysis task.
 
@@ -445,7 +451,6 @@ When the Success Criteria Analysis is updated, the corresponding success criteri
 
 ### 2.1 Schema Support for Model Uncertainty Documentation
 
-The schema includes specific structures to document model uncertainties, related assumptions, and alternatives:
 
 ```typescript
 export interface PlantOperatingStatesAnalysis {
@@ -482,8 +487,6 @@ export interface ModelUncertaintyInfo {
     reasonableAlternatives?: string[];
 }
 ```
-
-This structure allows comprehensive documentation of uncertainties, their impact, treatment approaches, and alternative treatments, fully satisfying POS-D2.
 
 ### 2.2 Example Model Uncertainty Documentation
 
@@ -534,13 +537,11 @@ This example shows how the schema effectively documents:
 - How the uncertainty is treated in the analysis
 - Reasonable alternative approaches that could be considered
 
-Such documentation satisfies the requirements of POS-D2 by providing a structured approach to capturing model uncertainties and assumptions.
 
 ## 3. POS-D3 Compliance
 
 ### 3.1 Schema Support for Pre-operational Limitations
 
-The schema includes a dedicated structure to document assumptions and limitations due to the lack of as-built, as-operated details:
 
 ```typescript
 export interface PlantOperatingStatesAnalysis {
@@ -602,7 +603,6 @@ export interface AssumptionsLackOfDetail {
 }
 ```
 
-This interface captures all aspects needed for POS-D3, including the description of assumptions, their influence on POS definitions, risk impact assessment, justification, planned validation actions, affected operating states, alternatives, and sensitivity analysis results.
 
 ### 3.2 Example Pre-operational Limitations Documentation
 
@@ -691,3 +691,166 @@ export interface Named {
 ```
 
 Each POS, evolution, and group has a unique identifier that can be referenced across the PRA model. This ensures changes can be tracked and impacts assessed across the model.
+
+## Peer Review and Validation
+
+The schema includes comprehensive support for peer review findings and validation through several interfaces:
+
+1. `PeerReviewFinding` interface:
+```typescript
+export interface PeerReviewFinding {
+    /** ID of the peer review finding */
+    findingId: string;
+    
+    /** Description of the finding */
+    description: string;
+    
+    /** Category of the finding */
+    category: string;
+    
+    /** Significance of the finding (HIGH/MEDIUM/LOW) */
+    significance: ImportanceLevel;
+    
+    /** Response to the finding */
+    response: string;
+    
+    /** Actions taken to address the finding */
+    actions?: string[];
+    
+    /** Resolution status */
+    status: "OPEN" | "CLOSED" | "IN_PROGRESS";
+}
+```
+
+2. `POSValidationRules` interface:
+```typescript
+export interface POSValidationRules {
+    /** Validates mutual exclusivity between POSs */
+    mutualExclusivityRules: {
+        description: string;
+        delineationParameters: string[];
+        verificationMethod: string;
+    };
+    
+    /** Validates collective exhaustivity of POSs */
+    collectiveExhaustivityRules: {
+        description: string;
+        verificationMethod: string;
+        configurationCoverage: string;
+    };
+    
+    /** Rules for transitions between POSs */
+    transitionRules: {
+        transitionMatrix: Record<string, string[]>;
+        transitionTriggers: Record<string, string>;
+    };
+}
+```
+
+## Transition Risk Analysis
+
+The schema includes dedicated interfaces for documenting transition risks:
+
+1. `TransitionRisk` interface:
+```typescript
+export interface TransitionRisk {
+    /** ID of the transition */
+    transitionId: string;
+    
+    /** Description of the transition */
+    description: string;
+    
+    /** Risks associated with the transition */
+    risks: string[];
+    
+    /** Significance of the risks */
+    significance: ImportanceLevel;
+    
+    /** Mitigating actions */
+    mitigatingActions?: string[];
+    
+    /** Human actions required during this transition */
+    requiredHumanActions?: string[];
+    
+    /** Equipment that must be available during this transition */
+    requiredEquipment?: string[];
+}
+```
+
+2. Enhanced `TransitionEvent` interface with additional fields:
+```typescript
+export interface TransitionEvent extends Unique {
+    // ... existing fields ...
+    
+    /** Risk significance of this transition */
+    riskSignificance?: ImportanceLevel;
+    
+    /** Mitigating actions to reduce transition risks */
+    mitigatingActions?: string[];
+    
+    /** Human actions required during this transition */
+    requiredHumanActions?: string[];
+    
+    /** Equipment that must be available during this transition */
+    requiredEquipment?: string[];
+    
+    /** Potential failure modes during this transition */
+    potentialFailureModes?: string[];
+}
+```
+
+## Plant Representation Accuracy
+
+The schema includes comprehensive support for assessing plant representation accuracy:
+
+1. `PlantRepresentationAccuracy` interface:
+```typescript
+export interface PlantRepresentationAccuracy {
+    /** Degree of accuracy */
+    accuracy: ImportanceLevel;
+    
+    /** Basis for accuracy assessment */
+    basis: string;
+    
+    /** Limitations in plant representation */
+    limitations?: string[];
+    
+    /** Actions to improve accuracy */
+    improvementActions?: string[];
+    
+    /** Assessment of sufficiency for risk-significant contributors */
+    sufficientForRiskSignificantContributors: boolean;
+    
+    /** Justification for the sufficiency assessment */
+    sufficiencyJustification?: string;
+}
+```
+
+2. Enhanced `PlantOperatingState` with accuracy assessment:
+```typescript
+export interface PlantOperatingState extends Unique, Named {
+    // ... existing fields ...
+    
+    /** Plant representation accuracy for this POS */
+    plantRepresentationAccuracy?: PlantRepresentationAccuracy & {
+        /** Areas with high confidence */
+        highConfidenceAreas?: string[];
+        
+        /** Areas with lower confidence */
+        lowerConfidenceAreas?: string[];
+        
+        /** Plans for improvement */
+        improvementPlans?: string[];
+    };
+}
+```
+
+3. Enhanced `PlantOperatingStatesAnalysis` with time-varying conditions:
+```typescript
+export interface PlantOperatingStatesAnalysis extends TechnicalElement<TechnicalElementTypes.PLANT_OPERATING_STATES_ANALYSIS> {
+    // ... existing fields ...
+    
+    /** Time-varying conditions across multiple POSs */
+    timeVaryingConditions?: TimeVaryingCondition[];
+}
+```

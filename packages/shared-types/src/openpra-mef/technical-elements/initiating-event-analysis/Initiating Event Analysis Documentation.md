@@ -5,18 +5,18 @@
 - [2. Schema Structure Supporting Documentation Requirements](#2-schema-structure-supporting-documentation-requirements)
 - [3. Mapping of Schema Components to IE-D Requirements](#3-mapping-of-schema-components-to-ie-d-requirements)
   - [3.1 IE-D1 Requirements and Compliance](#31-ie-d1-requirements-and-compliance)
-    - [3.1.1 Functional Categories Considered (IE-D1.a)](#311-functional-categories-considered-ie-d1a)
-    - [3.1.2 Systematic Search for Plant-Unique Initiators (IE-D1.b)](#312-systematic-search-for-plant-unique-initiators-ie-d1b)
-    - [3.1.3 Identification of State-Specific Initiators (IE-D1.c)](#313-identification-of-state-specific-initiators-ie-d1c)
-    - [3.1.4 Systematic Search for RCB Failures (IE-D1.d)](#314-systematic-search-for-rcb-failures-ie-d1d)
-    - [3.1.5 Completeness Assessment Approach (IE-D1.e)](#315-completeness-assessment-approach-ie-d1e)
-    - [3.1.6 Basis for Screening Out Initiating Events (IE-D1.f)](#316-basis-for-screening-out-initiating-events-ie-d1f)
-    - [3.1.7 Basis for Grouping and Subsuming Events (IE-D1.g)](#317-basis-for-grouping-and-subsuming-events-ie-d1g)
-    - [3.1.8 Justification for Dismissal of Observed Events (IE-D1.h)](#318-justification-for-dismissal-of-observed-events-ie-d1h)
-    - [3.1.9 Derivation of Event Frequencies (IE-D1.i)](#319-derivation-of-event-frequencies-ie-d1i)
-    - [3.1.10 Approach to Quantification (IE-D1.j)](#3110-approach-to-quantification-ie-d1j)
-    - [3.1.11 Justification for Data Exclusion (IE-D1.k)](#3111-justification-for-data-exclusion-ie-d1k)
-    - [3.1.12 Justification for Using Other Reactor Data (IE-D1.l)](#3112-justification-for-using-other-reactor-data-ie-d1l)
+    - [3.1.1 IE-D1.a](#311-ie-d1a)
+    - [3.1.2 IE-D1.b](#312-ie-d1b)
+    - [3.1.3 IE-D1.c](#313-ie-d1c)
+    - [3.1.4 IE-D1.d](#314-ie-d1d)
+    - [3.1.5 IE-D1.e](#315-ie-d1e)
+    - [3.1.6 IE-D1.f](#316-ie-d1f)
+    - [3.1.7 IE-D1.g](#317-ie-d1g)
+    - [3.1.8 IE-D1.h](#318-ie-d1h)
+    - [3.1.9 IE-D1.i](#319-ie-d1i)
+    - [3.1.10 IE-D1.j](#3110-ie-d1j)
+    - [3.1.11 IE-D1.k](#3111-ie-d1k)
+    - [3.1.12 IE-D1.l](#3112-ie-d1l)
   - [3.2 IE-D2 Compliance](#32-ie-d2-compliance)
   - [3.3 IE-D3 Compliance](#33-ie-d3-compliance)
 - [4. Documentation Capabilities and Data Structure](#4-documentation-capabilities-and-data-structure)
@@ -35,6 +35,17 @@ The schema includes dedicated interfaces specifically designed to fulfill Regula
 // Primary documentation interfaces in the schema
 export interface InitiatingEventDocumentation { ... }
 export interface PreOperationalAssumptions { ... }
+export interface PeerReviewDocumentation { ... }
+export interface HazardAnalysis { ... }
+```
+
+The schema uses standardized patterns for cross-referencing other technical elements:
+
+```typescript
+// Standardized reference patterns
+type SuccessCriteriaId = string & tags.Pattern<typeof IdPatterns.SUCCESS_CRITERIA_ID>;  // Imported from shared-patterns
+type PlantOperatingStateId = string & tags.Pattern<typeof IdPatterns.STATE>;
+type SystemId = string & tags.Pattern<typeof IdPatterns.SYSTEM_ID>;
 ```
 
 These interfaces are integrated into the main `InitiatingEventsAnalysis` interface:
@@ -53,6 +64,12 @@ export interface InitiatingEventsAnalysis extends TechnicalElement<TechnicalElem
      * @remarks **IE-D3**: For PRAs performed during the pre-operational stage, DOCUMENT assumptions and limitations...
      */
     pre_operational_assumptions?: PreOperationalAssumptions[];
+    
+    /**
+     * Peer review documentation
+     * @remarks **HLR-IE-D**
+     */
+    peer_review?: PeerReviewDocumentation;
 }
 ```
 
@@ -72,7 +89,7 @@ export interface InitiatingEventDocumentation {
 }
 ```
 
-#### 3.1.1 Functional Categories Considered (IE-D1.a)
+#### 3.1.1 IE-D1.a
 
 The schema documents functional categories and specific initiating events through:
 
@@ -103,7 +120,7 @@ export interface ExtendedInitiatingEvent extends InitiatingEvent {
 }
 ```
 
-#### 3.1.2 Systematic Search for Plant-Unique Initiators (IE-D1.b)
+#### 3.1.2 IE-D1.b
 
 The schema captures the systematic search for plant-unique initiators through:
 
@@ -126,7 +143,7 @@ export interface MasterLogicDiagram extends IdentificationMethodBase {
 }
 ```
 
-#### 3.1.3 Identification of State-Specific Initiators (IE-D1.c)
+#### 3.1.3 IE-D1.c
 
 The schema documents the approach for identifying state-specific initiators through:
 
@@ -152,7 +169,7 @@ export interface InitiatingEventsAnalysis {
 }
 ```
 
-#### 3.1.4 Systematic Search for RCB Failures (IE-D1.d)
+#### 3.1.4 IE-D1.d
 
 The schema documents the systematic search for RCB failures through:
 
@@ -174,7 +191,7 @@ export interface InitiatorDefinition {
 }
 ```
 
-#### 3.1.5 Completeness Assessment Approach (IE-D1.e)
+#### 3.1.5 IE-D1.e
 
 The schema documents the approach for assessing completeness through:
 
@@ -204,7 +221,7 @@ validateCompleteness: (analysis: InitiatingEventsAnalysis): string[] => {
 }
 ```
 
-#### 3.1.6 Basis for Screening Out Initiating Events (IE-D1.f)
+#### 3.1.6 IE-D1.f
 
 The schema documents the basis for screening out initiating events through:
 
@@ -237,7 +254,7 @@ export interface ExtendedInitiatingEvent {
 }
 ```
 
-#### 3.1.7 Basis for Grouping and Subsuming Events (IE-D1.g)
+#### 3.1.7 IE-D1.g
 
 The schema documents the basis for grouping initiating events through:
 
@@ -254,7 +271,10 @@ export interface InitiatingEventGroup extends Unique, Named {
     grouping_basis: string;
     bounding_initiator_id: string;
     shared_mitigation_requirements: string[];
-    // Other fields...
+    challenged_safety_functions: SafetyFunctionReference[];
+    applicable_operating_states: PlantOperatingStateReference[];
+    quantification?: FrequencyQuantification;
+    risk_importance?: ImportanceLevel;
 }
 ```
 
@@ -268,7 +288,7 @@ export interface ExtendedInitiatingEvent {
 }
 ```
 
-#### 3.1.8 Justification for Dismissal of Observed Events (IE-D1.h)
+#### 3.1.8 IE-D1.h
 
 The schema documents justification for dismissing observed events through:
 
@@ -285,7 +305,7 @@ export interface ExtendedInitiatingEvent {
 }
 ```
 
-#### 3.1.9 Derivation of Event Frequencies (IE-D1.i)
+#### 3.1.9 IE-D1.i
 
 The schema documents the derivation of initiating event frequencies through:
 
@@ -299,19 +319,18 @@ Frequency data and calculations are captured in specialized interfaces:
 export interface InitiatingEventQuantification {
     event_id: string;
     quantification: FrequencyQuantification;
-    // Other fields...
-}
-
-export interface FrequencyQuantification {
-    frequency: number;
-    unit: FrequencyUnit;
-    uncertainty?: Uncertainty;
-    dataSource?: DataSource[];
-    // Other fields...
+    data_exclusion_justification?: string;
+    other_reactor_data_justification?: string;
+    fault_tree_details?: {
+        model_id: string;
+        top_event: string;
+        modifications: string[];
+    };
+    sensitivityStudies?: SensitivityStudy[];
 }
 ```
 
-#### 3.1.10 Approach to Quantification (IE-D1.j)
+#### 3.1.10 IE-D1.j
 
 The schema documents the approach to quantification through:
 
@@ -319,20 +338,20 @@ The schema documents the approach to quantification through:
 quantificationApproach: string;
 ```
 
-The approach includes consideration of operating states:
+The approach includes consideration of operating states and supporting analyses:
 
 ```typescript
-export interface InitiatingEventQuantification {
-    fault_tree_details?: {
-        model_id: string;
-        top_event: string;
-        modifications: string[];
-    };
+export interface InitiatorDefinition {
+    supportingAnalyses?: {
+        analysisType: string;
+        analysisId: string;
+        description?: string;
+    }[];
     // Other fields...
 }
 ```
 
-#### 3.1.11 Justification for Data Exclusion (IE-D1.k)
+#### 3.1.11 IE-D1.k
 
 The schema documents justification for excluding data through:
 
@@ -349,7 +368,7 @@ export interface InitiatingEventQuantification {
 }
 ```
 
-#### 3.1.12 Justification for Using Other Reactor Data (IE-D1.l)
+#### 3.1.12 IE-D1.l
 
 The schema documents justification for applying data from other reactor types through:
 
@@ -368,7 +387,7 @@ export interface InitiatingEventQuantification {
 
 ### 3.2 IE-D2 Compliance
 
-The schema supports documentation of model uncertainties and assumptions as required by IE-D2:
+
 
 ```typescript
 // Within InitiatingEventsAnalysis
@@ -411,15 +430,24 @@ The schema provides comprehensive traceability through nested data structures:
 1. **Top-level documentation**:
    - Process documentation in `InitiatingEventDocumentation`
    - Pre-operational documentation in `PreOperationalAssumptions`
+   - Peer review documentation in `PeerReviewDocumentation`
 
 2. **Event-level documentation**:
    - Per-event documentation in `ExtendedInitiatingEvent.description`
    - Screening basis in `ExtendedInitiatingEvent.screeningBasis`
    - Plant experience in `ExtendedInitiatingEvent.plantExperience`
+   - Supporting analyses in `ExtendedInitiatingEvent.supportingAnalyses`
 
 3. **Method-level documentation**:
    - Documentation of identification methods (MLD, HBFT, FMEA)
    - Documentation of quantification methods
+   - Documentation of hazard analysis methods
+
+4. **Group-level documentation**:
+   - Group descriptions and basis in `InitiatingEventGroup`
+   - Shared mitigation requirements
+   - Challenged safety functions
+   - Applicable operating states
 
 Example usage pattern for documentation:
 
@@ -445,7 +473,26 @@ const analysis: InitiatingEventsAnalysis = {
       validationPlan: "Validate when final RCP design is confirmed"
     }
     // Additional pre-operational assumptions...
-  ]
+  ],
+  
+  // Peer Review Documentation
+  peer_review: {
+    reviewDate: "2024-03-15",
+    reviewTeam: ["John Doe", "Jane Smith"],
+    findings: [
+      {
+        id: "FIND-001",
+        description: "Need to clarify basis for screening criteria",
+        significance: "MEDIUM",
+        associatedRequirements: ["IE-D1.f"],
+        status: "OPEN",
+        resolutionPlan: "Update screening criteria documentation"
+      }
+    ],
+    scope: "Full review of initiating event analysis",
+    methodology: "Independent technical review",
+    reportReference: "PR-2024-001"
+  }
 };
 ```
 
@@ -472,6 +519,18 @@ export const validateInitiatingEventsAnalysis = {
     validateCompleteness: (analysis: InitiatingEventsAnalysis): string[] => {
         // Validation ensuring all required categories are documented
         // ...
+    },
+    
+    validatePeerReview: (analysis: InitiatingEventsAnalysis): string[] => {
+        const errors: string[] = [];
+        if (analysis.peer_review) {
+            // Validate peer review documentation completeness
+            if (!analysis.peer_review.findings.length) {
+                errors.push("Peer review must include at least one finding");
+            }
+            // Additional validation...
+        }
+        return errors;
     }
 };
 ```
@@ -481,3 +540,7 @@ Additionally, the Typia validation ensures type compliance:
 ```typescript
 export const InitiatingEventsAnalysisSchema = typia.json.application<[InitiatingEventsAnalysis], "3.0">();
 ```
+
+## 6. Conclusion
+
+The updated schema provides comprehensive support for documenting Initiating Event Analysis in accordance with Regulatory requirements. The enhanced documentation capabilities, including peer review documentation and expanded validation, ensure that all aspects of the analysis are properly documented and traceable. The schema's modular design allows for future extensions while maintaining backward compatibility.

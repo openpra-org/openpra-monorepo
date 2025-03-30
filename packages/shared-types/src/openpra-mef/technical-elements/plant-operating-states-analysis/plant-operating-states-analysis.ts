@@ -21,9 +21,8 @@ import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { InitiatingEvent, BaseEvent, Frequency } from "../core/events";
-import { IdPatterns, ImportanceLevel, SensitivityStudy, ScreeningStatus } from "../core/shared-patterns";
+import { IdPatterns, ImportanceLevel, SensitivityStudy, ScreeningStatus, SuccessCriteriaId } from "../core/shared-patterns";
 import { DistributionType } from "../data-analysis/data-analysis";
-import { SuccessCriteriaId } from "../success-criteria/success-criteria-development";
 import { BaseAssumption } from "../core/documentation";
 import { ComponentReference } from "../core/component";
 

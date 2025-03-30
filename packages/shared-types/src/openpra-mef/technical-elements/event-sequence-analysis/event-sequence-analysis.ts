@@ -15,20 +15,12 @@
  */
 
 import typia, { tags } from "typia";    
-import { TechnicalElement, TechnicalElementTypes } from "../technical-element";
+import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { InitiatingEvent, BaseEvent, Frequency, FrequencyUnit } from "../core/events";
-import { IdPatterns, ImportanceLevel, SensitivityStudy, ScreeningStatus, ScreeningCriteria } from "../core/shared-patterns";
-import { PlantOperatingState } from "../plant-operating-states-analysis/plant-operating-states-analysis";
+import { IdPatterns, ImportanceLevel, SensitivityStudy, ScreeningStatus, ScreeningCriteria, SuccessCriteriaId } from "../core/shared-patterns";
+import { PlantOperatingStateReference } from "../initiating-event-analysis/initiating-event-analysis";
 import { DistributionType } from "../data-analysis/data-analysis";
-import { 
-    SuccessCriteriaId, 
-    SuccessCriterion, 
-    OverallSuccessCriteriaDefinition,
-    SystemSuccessCriteriaDefinition,
-    ComponentSuccessCriteriaDefinition,
-    HumanActionSuccessCriteriaDefinition
-} from "../success-criteria/success-criteria-development";
 import { 
     BaseDesignInformation, 
     BaseProcessDocumentation, 
@@ -39,6 +31,71 @@ import {
     BaseAssumption,
     PreOperationalAssumption
 } from "../core/documentation";
+import { ComponentReference } from "../core/component";
+
+interface SuccessCriterion extends Unique, Named {
+    description?: string;
+    criteriaText: string[];
+    engineeringBasisReferences: string[];
+    plantOperatingStateReferences?: string[];
+    initiatingEventReferences?: string[];
+    endState?: string;
+}
+
+interface OverallSuccessCriteriaDefinition extends Unique {
+    eventSequenceReference: string;
+    description: string;
+    criteria: string[];
+    endStateParameters: Record<string, string>;
+    keySafetyFunctions: string[];
+    radionuclideBarriers: string[];
+    engineeringBasisReferences: string[];
+    applicablePlantOperatingStates?: string[];
+    isRiskSignificant?: boolean;
+    usesRealisticCriteria?: boolean;
+}
+
+interface SystemSuccessCriteriaDefinition extends Unique {
+    systemId: string;
+    description: string;
+    requiredCapacities: {
+        parameter: string;
+        value: string;
+        basis: string;
+    }[];
+    systemDependencies?: {
+        systemId: string;
+        description: string;
+    }[];
+}
+
+interface ComponentSuccessCriteriaDefinition extends Unique {
+    componentId: string;
+    description: string;
+    performanceRequirements: {
+        parameter: string;
+        value: string;
+        basis: string;
+    }[];
+    dependencies?: {
+        componentId: string;
+        description: string;
+    }[];
+}
+
+interface HumanActionSuccessCriteriaDefinition extends Unique {
+    humanActionId: string;
+    description: string;
+    requiredActions: {
+        action: string;
+        timing: string;
+        basis: string;
+    }[];
+    dependencies?: {
+        humanActionId: string;
+        description: string;
+    }[];
+}
 
 //==============================================================================
 /**
@@ -384,7 +441,7 @@ export interface EventSequence extends Unique, Named {
     initiatingEventId: string;
     
     /** Reference to the plant operating state in which this sequence occurs */
-    plantOperatingStateId: string;
+    plantOperatingStateId: PlantOperatingStateReference;
     
     /** 
      * Reference to the event tree that models this sequence.
@@ -548,7 +605,7 @@ export interface EventSequenceFamily extends Unique, Named {
     representativeInitiatingEventId: string;
     
     /** Representative plant operating state for the family */
-    representativePlantOperatingStateId: string;
+    representativePlantOperatingStateId: PlantOperatingStateReference;
     
     /** Representative plant response characteristics */
     representativePlantResponse: string;
@@ -1350,7 +1407,7 @@ export interface EventTree extends Unique, Named {
     initiatingEventId: string;
 
     /** Associated plant operating state */
-    plantOperatingStateId?: string;
+    plantOperatingStateId?: PlantOperatingStateReference;
     
     /** Functional events that represent branch points in the event tree */
     functionalEvents: Record<string, FunctionalEvent>;
@@ -1496,7 +1553,7 @@ export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElement
      */
     scopeDefinition: {
         /** Plant operating states included in the analysis */
-        plantOperatingStateIds: string[];
+        plantOperatingStateIds: PlantOperatingStateReference[];
         
         /** Initiating events included in the analysis */
         initiatingEventIds: string[];

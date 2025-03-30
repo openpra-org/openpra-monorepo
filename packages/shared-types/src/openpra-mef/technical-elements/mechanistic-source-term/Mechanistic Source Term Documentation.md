@@ -3,26 +3,27 @@
 ## Table of Contents
 1. [Introduction](#introduction)
 2. [Coverage of Regulatory Requirements](#coverage-of-regulatory-requirements)
-3. [MS-E1: Process Documentation Coverage](#ms-e1-process-documentation-coverage)
-   - [E1(a): Radioactive Material Source Characterization](#e1a-radioactive-material-source-characterization)
-   - [E1(b): Release Category Definition](#e1b-release-category-definition)
-   - [E1(c): Event Sequence Assignment](#e1c-event-sequence-assignment)
-   - [E1(d): Radionuclide Transport Phenomena](#e1d-radionuclide-transport-phenomena)
-   - [E1(e): Models and Computer Programs](#e1e-models-and-computer-programs)
-   - [E1(f): Uncertainty and Sensitivity Analyses](#e1f-uncertainty-and-sensitivity-analyses)
-   - [E1(g): Surrogate Risk Metrics](#e1g-surrogate-risk-metrics)
-4. [MS-E2: Source Term Definition Parameters](#ms-e2-source-term-definition-parameters)
-   - [E2(a): Reactors and Initial Inventories](#e2a-reactors-and-initial-inventories)
-   - [E2(b): Radionuclide Release Quantities](#e2b-radionuclide-release-quantities)
-   - [E2(c): Physical and Chemical Form](#e2c-physical-and-chemical-form)
-   - [E2(d): Release Timing](#e2d-release-timing)
-   - [E2(e): Warning Time for Evacuation](#e2e-warning-time-for-evacuation)
-   - [E2(f): Energy of Release](#e2f-energy-of-release)
-   - [E2(g): Elevation of Release](#e2g-elevation-of-release)
-5. [MS-E3: Model and Parameter Uncertainty](#ms-e3-model-and-parameter-uncertainty)
-6. [MS-E4: Pre-operational Assumptions](#ms-e4-pre-operational-assumptions)
-7. [Implementation Example for EBR-II](#implementation-examples-for-ebr-ii)
-8. [Conclusion](#conclusion)
+3. [MS-E1](#ms-e1)
+   - [E1(a)](#e1a)
+   - [E1(b)](#e1b)
+   - [E1(c)](#e1c)
+   - [E1(d)](#e1d)
+   - [E1(e)](#e1e)
+   - [E1(f)](#e1f)
+   - [E1(g)](#e1g)
+4. [MS-E2](#ms-e2)
+   - [E2(a)](#e2a)
+   - [E2(b)](#e2b)
+   - [E2(c)](#e2c)
+   - [E2(d)](#e2d)
+   - [E2(e)](#e2e)
+   - [E2(f)](#e2f)
+   - [E2(g)](#e2g)
+5. [MS-E3](#ms-e3)
+6. [MS-E4](#ms-e4)
+7. [Risk Integration](#risk-integration)
+8. [Implementation Example for EBR-II](#implementation-examples-for-ebr-ii)
+9. [Conclusion](#conclusion)
 
 ## Introduction
 
@@ -32,28 +33,28 @@ This document demonstrates how the Mechanistic Source Term Analysis TypeScript s
 
 The following table provides a summary of the schema's coverage of Regulatory requirements:
 
-| Requirement | Description | Schema Interface(s) | Coverage |
-|-------------|-------------|---------------------|----------|
-| MS-E1 | Process documentation | `MechanisticSourceTermProcessDocumentation` | Complete |
-| MS-E1(a) | Radioactive material sources | `RadioactiveSource` | Complete |
-| MS-E1(b) | Release category definitions | `ReleaseCategoryBasis` | Complete |
-| MS-E1(c) | Event sequence assignments | `EventSequenceToReleaseCategoryMapping` | Complete |
-| MS-E1(d) | Transport phenomena | `TransportPhenomena` | Complete |
-| MS-E1(e) | Models and programs | `SourceTermModel` | Complete |
-| MS-E1(f) | Uncertainty and sensitivity | `MechanisticSourceTermSensitivityStudy` | Complete |
-| MS-E1(g) | Surrogate risk metrics | Documented in `processDocumentation` | Complete |
-| MS-E2 | Source term parameters | `SourceTermDefinition` | Complete |
-| MS-E2(a) | Reactors involved | `SourceTermDefinition.involvedReactors` | Complete |
-| MS-E2(b) | Radionuclide quantities | `RadionuclideReleaseQuantity` | Complete |
-| MS-E2(c) | Physical/chemical form | `ReleaseForm` enum | Complete |
-| MS-E2(d) | Release timing | `ReleasePhase` | Complete |
-| MS-E2(e) | Warning time | `SourceTermDefinition.warningTimeForEvacuation` | Complete |
-| MS-E2(f) | Energy of release | `SourceTermDefinition.releaseEnergy` | Complete |
-| MS-E2(g) | Release elevation | `SourceTermDefinition.releaseElevation` | Complete |
-| MS-E3 | Model uncertainty | `MechanisticSourceTermModelUncertaintyDocumentation` | Complete |
-| MS-E4 | Pre-operational assumptions | `MechanisticSourceTermPreOperationalAssumptionsDocumentation` | Complete |
+| Requirement | Schema Interface(s) | Coverage |
+|-------------|---------------------|----------|
+| MS-E1 | `MechanisticSourceTermProcessDocumentation` | Complete |
+| MS-E1(a) | `RadioactiveSource` | Complete |
+| MS-E1(b) | `ReleaseCategoryBasis` | Complete |
+| MS-E1(c) | `EventSequenceToReleaseCategoryMapping` | Complete |
+| MS-E1(d) | `TransportPhenomena` | Complete |
+| MS-E1(e) | `SourceTermModel` | Complete |
+| MS-E1(f) | `MechanisticSourceTermSensitivityStudy` | Complete |
+| MS-E1(g) | Documented in `processDocumentation` | Complete |
+| MS-E2 | `SourceTermDefinition` | Complete |
+| MS-E2(a) | `SourceTermDefinition.involvedReactors` | Complete |
+| MS-E2(b) | `RadionuclideReleaseQuantity` | Complete |
+| MS-E2(c) | `ReleaseForm` enum | Complete |
+| MS-E2(d) | `ReleasePhase` | Complete |
+| MS-E2(e) | `SourceTermDefinition.warningTimeForEvacuation` | Complete |
+| MS-E2(f) | `SourceTermDefinition.releaseEnergy` | Complete |
+| MS-E2(g) | `SourceTermDefinition.releaseElevation` | Complete |
+| MS-E3 | `MechanisticSourceTermModelUncertaintyDocumentation` | Complete |
+| MS-E4 | `MechanisticSourceTermPreOperationalAssumptionsDocumentation` | Complete |
 
-## MS-E1: Process Documentation Coverage
+## MS-E1
 
 The schema's main interface for process documentation is `MechanisticSourceTermProcessDocumentation`, which extends `BaseProcessDocumentation`:
 
@@ -98,12 +99,21 @@ export interface MechanisticSourceTermProcessDocumentation extends BaseProcessDo
     parameterValues: string;
     uncertaintyAssessment: string;
   }>;
+  /** Documentation of the integration with risk integration */
+  riskIntegrationDocumentation?: {
+    supportDescription: string;
+    releaseCategoryUsage: string;
+    sourceTermUsage: string;
+    uncertaintyPropagation?: string;
+    integrationChallenges?: string[];
+    feedbackIncorporation?: string;
+    keyInsights?: string[];
+  };
 }
 ```
-
 This interface provides structured fields for documenting all the elements required by MS-E1. Let's examine each requirement in detail:
 
-### E1(a): Radioactive Material Source Characterization
+### E1(a)
 
 The schema captures radioactive material source characterization through the `RadioactiveSource` interface:
 
@@ -127,10 +137,7 @@ export interface RadioactiveSource extends Unique, Named {
   };
 }
 ```
-
-This interface provides comprehensive fields for characterizing radioactive sources and their inventories, satisfying MS-E1(a).
-
-### E1(b): Release Category Definition
+### E1(b)
 
 The schema provides the `ReleaseCategoryBasis` interface specifically for documenting the technical basis for release category definitions:
 
@@ -147,9 +154,7 @@ export interface ReleaseCategoryBasis extends Unique {
 }
 ```
 
-This interface addresses MS-E1(b) by providing fields for documenting the technical basis and regulatory alignment of release category definitions.
-
-### E1(c): Event Sequence Assignment
+### E1(c)
 
 The schema includes the `EventSequenceToReleaseCategoryMapping` interface for documenting the assignment of event sequences to release categories:
 
@@ -163,12 +168,24 @@ export interface EventSequenceToReleaseCategoryMapping extends Unique {
   assignmentJustification: string;
   /** Technical basis for the assignment */
   technicalBasis?: string;
+  /** Frequency information for this mapping */
+  frequencyInformation?: {
+    mean?: number;
+    unit?: string;
+    uncertainty?: {
+      distributionType?: DistributionType;
+      parameters?: Record<string, number>;
+    };
+  };
+  /** Risk integration related fields */
+  processedByRiskIntegration?: boolean;
+  riskIntegrationMappingId?: string;
+  riskSignificance?: ImportanceLevel;
+  riskIntegrationInsights?: string[];
 }
 ```
 
-This interface satisfies MS-E1(c) by providing fields to document the assignment of event sequences to release categories with appropriate justification.
-
-### E1(d): Radionuclide Transport Phenomena
+### E1(d)
 
 The `TransportPhenomena` interface documents the relevant radionuclide transport phenomena for each release category:
 
@@ -182,13 +199,28 @@ export interface TransportPhenomena extends Unique {
   phenomenaTypes?: TransportPhenomenonType[];
   /** Models and computer programs used to analyze these phenomena */
   modelsUsed: string[];
-  // Additional fields omitted for brevity
+  /** Barriers that affect these transport phenomena */
+  relatedBarriers?: string[];
+  /** Transport mechanisms involved in these phenomena */
+  relatedMechanisms?: string[];
+  /** Assessment of specific MS-B5 phenomena for inclusion */
+  msB5Assessment?: {
+    assessedPhenomena: {
+      phenomenonType: TransportPhenomenonType;
+      included: boolean;
+      justification?: string;
+    }[];
+    assessmentJustification?: string;
+  };
+  /** Justification that the treatment of phenomena is sufficient */
+  consequenceQuantificationSupport?: {
+    description: string;
+    adequacyJustification: string;
+  };
 }
 ```
 
-Additionally, the `transportPhenomenaDocumentation` field in `MechanisticSourceTermProcessDocumentation` provides a clear mapping of transport phenomena to release categories, satisfying MS-E1(d).
-
-### E1(e): Models and Computer Programs
+### E1(e)
 
 The schema defines the `SourceTermModel` interface for documenting models and computer programs used in analysis:
 
@@ -211,9 +243,7 @@ export interface SourceTermModel extends Unique, Named {
 }
 ```
 
-This interface, along with the `sourceTermModelsDocumentation` field in `MechanisticSourceTermProcessDocumentation`, satisfies MS-E1(e) by providing comprehensive fields for documenting models and computer programs.
-
-### E1(f): Uncertainty and Sensitivity Analyses
+### E1(f)
 
 The schema includes interfaces for documenting uncertainty and sensitivity analyses:
 
@@ -228,14 +258,19 @@ export interface MechanisticSourceTermSensitivityStudy extends SensitivityStudy 
   impactOnSourceTerm: string;
   /** Whether this parameter is considered a key driver of uncertainty */
   isKeyDriver: boolean;
-  // Additional fields omitted for brevity
+  /** Recommendations based on the sensitivity study */
+  recommendations?: string;
+  /** Evaluation of the impact of key sources of uncertainty */
+  keyUncertaintyImpactEvaluation?: {
+    description: string;
+    significance: ImportanceLevel;
+  };
+  /** Documentation of sensitivity analysis results */
+  documentationOfResults?: string;
 }
 ```
 
-The `uncertaintyAndSensitivityAnalysesDocumentation` field in `MechanisticSourceTermProcessDocumentation` further supports the documentation of these analyses, satisfying MS-E1(f).
-
-### E1(g): Surrogate Risk Metrics
-
+### E1(g)
 The schema includes a dedicated field in `MechanisticSourceTermProcessDocumentation` for documenting surrogate risk metrics:
 
 ```typescript
@@ -246,7 +281,6 @@ surrogateRiskMetricsDocumentation?: Record<string, {
 }>;
 ```
 
-This field satisfies MS-E1(g) by providing a structure for documenting surrogate risk metrics and their relationship to release categories.
 
 ## MS-E2: Source Term Definition Parameters
 
@@ -273,13 +307,17 @@ export interface SourceTermDefinition extends Unique {
   releaseEnergy?: { quantity: number; unit: string };
   /** Elevation of the release point */
   releaseElevation?: { quantity: number; unit: string };
-  // Additional fields omitted for brevity
+  /** Reference to the source term model used for calculation */
+  sourceTermModelReference?: string;
+  /** Aerosol and particle size distribution, if applicable */
+  particleSizeDistribution?: {
+    description: string;
+    sizeRanges: { min: number; max: number; unit: string; fraction: number }[];
+  };
 }
 ```
 
-This interface directly addresses MS-E2 by providing fields for all required parameters. Let's examine each in detail:
-
-### E2(a): Reactors and Initial Inventories
+### E2(a)
 
 The `involvedReactors` field in `SourceTermDefinition` captures the number of reactors involved:
 
@@ -290,7 +328,7 @@ involvedReactors?: number;
 
 Initial inventories are captured in the `RadioactiveSource` interface through the `totalInventory` field, satisfying MS-E2(a).
 
-### E2(b): Radionuclide Release Quantities
+### E2(b)
 
 The schema defines detailed structures for capturing radionuclide release quantities:
 
@@ -309,7 +347,7 @@ export interface RadionuclideReleaseQuantity {
 
 The `radionuclideReleases` field in `SourceTermDefinition` uses this interface to capture quantities by phase, satisfying MS-E2(b).
 
-### E2(c): Physical and Chemical Form
+### E2(c)
 
 The schema includes an enum for release forms and a field in `SourceTermDefinition` to capture the form for each radionuclide:
 
@@ -342,7 +380,7 @@ particleSizeDistribution?: {
 
 These fields together satisfy MS-E2(c).
 
-### E2(d): Release Timing
+### E2(d)
 
 The schema defines a `ReleasePhase` interface and includes fields in `SourceTermDefinition` to capture release timing:
 
@@ -365,9 +403,7 @@ export interface ReleasePhase extends Unique {
 releaseTiming: ReleasePhase[];
 ```
 
-These structures satisfy MS-E2(d) by providing comprehensive fields for documenting release timing.
-
-### E2(e): Warning Time for Evacuation
+### E2(e)
 
 The `SourceTermDefinition` interface includes a field for warning time:
 
@@ -378,7 +414,7 @@ warningTimeForEvacuation?: string;
 
 This field satisfies MS-E2(e).
 
-### E2(f): Energy of Release
+### E2(f)
 
 The `SourceTermDefinition` interface includes a field for release energy:
 
@@ -400,7 +436,7 @@ releaseElevation?: { quantity: number; unit: string };
 
 This field satisfies MS-E2(g).
 
-## MS-E3: Model and Parameter Uncertainty
+## MS-E3
 
 The schema includes a comprehensive interface for documenting model and parameter uncertainty:
 
@@ -434,27 +470,22 @@ export interface MechanisticSourceTermModelUncertaintyDocumentation extends Base
     alternativeApproach: string;
     reasonNotSelected: string;
   }[];
-  // Additional fields omitted for brevity
+  /** Pre-operational assumptions specific to source terms */
+  preOperationalAssumptions?: {
+    assumption: string;
+    relatedArea: string;
+    impact: string;
+    resolutionApproach: string;
+  }[];
+  /** Explicit link to HLR-MS-D uncertainty requirements */
+  uncertaintyRequirementsLink?: {
+    hlrMsDRequirements: string[];
+    supportDescription: string;
+  };
 }
 ```
 
-This interface explicitly references the requirements from MS-B6 and MS-C6:
-
-```typescript
-/** 
- * Explicit link to Regulatory uncertainty requirements
- */
-uncertaintyRequirementsLink?: {
-  /** Reference to specific Regulatory requirements addressed */
-  hlrMsDRequirements: string[];
-  /** Description of how the uncertainty analysis supports these requirements */
-  supportDescription: string;
-};
-```
-
-These structures satisfy MS-E3 by providing comprehensive fields for documenting model and parameter uncertainty, related assumptions, and reasonable alternatives.
-
-## MS-E4: Pre-operational Assumptions
+## MS-E4
 
 The schema includes a dedicated interface for documenting pre-operational assumptions:
 
@@ -484,7 +515,77 @@ export interface MechanisticSourceTermPreOperationalAssumptionsDocumentation ext
 }
 ```
 
-This interface satisfies MS-E4 by providing structured fields for documenting assumptions and limitations due to the lack of as-built, as-operated details, with references to MS-B7 and MS-C7.
+## Risk Integration
+
+The schema includes comprehensive support for risk integration through several interfaces and fields:
+
+1. In `MechanisticSourceTermAnalysis`:
+```typescript
+/** Risk integration feedback received for this analysis */
+riskIntegrationFeedback?: {
+  analysisId: string;
+  feedbackDate?: string;
+  releaseCategoryFeedback?: Record<ReleaseCategoryReference, {
+    riskSignificance?: ImportanceLevel;
+    insights?: string[];
+    recommendations?: string[];
+    status?: "PENDING" | "IN_PROGRESS" | "ADDRESSED" | "DEFERRED";
+  }>;
+  sourceTermDefinitionFeedback?: Record<SourceTermDefinitionReference, {
+    riskSignificance?: ImportanceLevel;
+    insights?: string[];
+    recommendations?: string[];
+    keyUncertainties?: string[];
+    status?: "PENDING" | "IN_PROGRESS" | "ADDRESSED" | "DEFERRED";
+  }>;
+  generalFeedback?: string;
+  response?: {
+    description: string;
+    changes?: string[];
+    status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+  };
+};
+
+/** Documentation of the integration with risk integration */
+riskIntegrationDescription?: {
+  supportDescription: string;
+  releaseCategoryUsage: string;
+  sourceTermUsage: string;
+  uncertaintyPropagation?: string;
+  integrationChallenges?: string[];
+  feedbackIncorporation?: string;
+};
+```
+
+2. In `EventSequenceToReleaseCategoryMapping`:
+```typescript
+/** Risk integration related fields */
+processedByRiskIntegration?: boolean;
+riskIntegrationMappingId?: string;
+riskSignificance?: ImportanceLevel;
+riskIntegrationInsights?: string[];
+```
+
+3. In `MechanisticSourceTermProcessDocumentation`:
+```typescript
+/** Documentation of the integration with risk integration */
+riskIntegrationDocumentation?: {
+  supportDescription: string;
+  releaseCategoryUsage: string;
+  sourceTermUsage: string;
+  uncertaintyPropagation?: string;
+  integrationChallenges?: string[];
+  feedbackIncorporation?: string;
+  keyInsights?: string[];
+};
+```
+
+These interfaces provide comprehensive support for:
+- Tracking feedback from risk integration
+- Documenting how the analysis supports risk integration
+- Managing the status of feedback incorporation
+- Capturing key insights and recommendations
+- Maintaining traceability between technical elements
 
 ## Implementation Example for EBR-II
 
@@ -516,13 +617,9 @@ const sodiumCoolantBarrier: RadionuclideTransportBarrier = {
   ]
 };
 ```
+
 ## Conclusion
 
-The Mechanistic Source Term Analysis TypeScript schema provides comprehensive coverage Supporting Requirements for non LWR reactor standards. The schema includes dedicated interfaces for:
-
-1. Documenting the process used in the Mechanistic Source Term Analysis (MS-E1)
-2. Capturing quantitative values and uncertainties for source term parameters (MS-E2)
-3. Documenting model and parameter uncertainties (MS-E3)
-4. Documenting pre-operational assumptions and limitations (MS-E4)
+The Mechanistic Source Term Analysis TypeScript schema provides comprehensive coverage Supporting Requirements for non LWR reactor standards. The schema includes dedicated interfaces for all requirements MS-E1 to MS-E4 along with supporting risk intregration.  
 
 Each interface includes fields that directly map to the specific sub-requirements, ensuring complete traceability of the work. The examples provided for a sodium-cooled fast reactor like EBR-II demonstrate the schema's applicability to specific reactor types with unique source term characteristics.

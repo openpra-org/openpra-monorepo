@@ -12,7 +12,7 @@ import { isValidComponentReference } from "./validators";
  * @memberof technical_elements.core
  * @group Component
  */
-export const COMPONENT_ID_PATTERN = "^CMP-[A-Za-z0-9_-]+$";
+export const COMPONENT_ID_PATTERN = "^SYS-[A-Z0-9-]+/CMP-[A-Za-z0-9_-]+/FM-[A-Za-z0-9_-]+$";
 
 /**
  * Standard pattern for component type IDs

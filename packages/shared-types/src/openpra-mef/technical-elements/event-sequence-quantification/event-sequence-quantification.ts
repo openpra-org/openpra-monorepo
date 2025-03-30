@@ -599,6 +599,83 @@ export interface QuantificationReviewProcess {
 }
 
 /**
+ * Interface for minimal cut sets in event sequence quantification
+ * @group Quantification & Uncertainty Analysis
+ * @implements ESQ-B1: QUANTIFY the frequency of each specified modeled event sequence
+ * @implements ESQ-D6: IDENTIFY the contributions to the frequencies of key risk-significant event sequences
+ * 
+ * @remarks
+ * This interface stores the complete cut set information used in sequence quantification,
+ * maintaining the relationship with system cut sets while including sequence-specific modifications.
+ */
+export interface QuantificationCutSet {
+  /**
+   * Reference to the original system cut set
+   */
+  systemCutSetReference: string;
+  
+  /**
+   * Basic events in this cut set
+   */
+  events: string[];
+  
+  /**
+   * Order of the cut set (number of events)
+   */
+  order: number;
+  
+  /**
+   * Individual probabilities of each event in the cut set
+   */
+  eventProbabilities: Record<string, number>;
+  
+  /**
+   * System-level probability before sequence modifications
+   */
+  systemProbability: number;
+  
+  /**
+   * Sequence-specific modifications applied
+   */
+  sequenceModifications: {
+    /**
+     * Factor applied to the cut set probability
+     */
+    probabilityFactor: number;
+    
+    /**
+     * Justification for the modification
+     */
+    modificationJustification: string;
+    
+    /**
+     * Sequence-specific conditions affecting this cut set
+     */
+    sequenceConditions?: string[];
+  };
+  
+  /**
+   * Final probability in this sequence
+   */
+  sequenceProbability: number;
+  
+  /**
+   * Importance measure for this cut set in this sequence
+   */
+  importance?: number;
+  
+  /**
+   * Whether this cut set was included or truncated
+   */
+  truncationStatus: "included" | "truncated";
+  
+  /**
+   * Justification for truncation if applicable
+   */
+  truncationJustification?: string;
+}
+
+/**
  * Frequency and uncertainty estimates for an event sequence
  * @remarks **ESQ-A1**: DELINEATE the event sequences or event sequence families to be modeled in the Event Sequence Quantification...
  * @remarks **ESQ-B1**: QUANTIFY the frequency of each specified modeled event sequence and event sequence family using a method that integrates...
@@ -650,6 +727,115 @@ export interface EventSequenceFrequencyEstimate {
     /** Effect on frequency */
     frequencyEffect: [number, number];
   }[];
+  
+  /**
+   * Cut sets contributing to this sequence's frequency
+   */
+  contributingCutSets?: CutSetUsage[];
+  
+  /**
+   * Total number of cut sets considered
+   */
+  totalCutSets?: number;
+  
+  /**
+   * Number of cut sets that were truncated
+   */
+  truncatedCutSets?: number;
+  
+  /**
+   * Complete minimal cut sets used in this sequence's quantification
+   * @example
+   * ```typescript
+   * minimalCutSets: [
+   *   {
+   *     systemCutSetReference: "SYS-RHR/CUT-001",
+   *     events: ["BE-PUMP-A-FAIL", "BE-PUMP-B-FAIL"],
+   *     order: 2,
+   *     eventProbabilities: { "BE-PUMP-A-FAIL": 0.001, "BE-PUMP-B-FAIL": 0.001 },
+   *     systemProbability: 0.000001,
+   *     sequenceModifications: { probabilityFactor: 1.0, modificationJustification: "No modifications" },
+   *     sequenceProbability: 0.000001,
+   *     truncationStatus: "included"
+   *   }
+   * ]
+   */
+  minimalCutSets?: QuantificationCutSet[];
+  
+  /**
+   * Summary of cut set information
+   * @example
+   * ```typescript
+   * cutSetSummary: {
+   *   totalCutSets: 50,
+   *   truncatedCutSets: 2,
+   *   cutSetsByOrder: { 1: 10, 2: 30, 3: 10 },
+   *   dominantCutSets: [
+   *     { cutSetReference: "SYS-RHR/CUT-001", contribution: 0.000001, percentage: 25 }
+   *   ]
+   * }
+   */
+  cutSetSummary?: {
+    /**
+     * Total number of cut sets considered
+     */
+    totalCutSets: number;
+    
+    /**
+     * Number of cut sets that were truncated
+     */
+    truncatedCutSets: number;
+    
+    /**
+     * Number of cut sets by order
+     */
+    cutSetsByOrder: Record<number, number>;
+    
+    /**
+     * Dominant cut sets (top contributors)
+     */
+    dominantCutSets: {
+      /**
+       * Cut set reference
+       */
+      cutSetReference: string;
+      
+      /**
+       * Contribution to sequence frequency
+       */
+      contribution: number;
+      
+      /**
+       * Percentage of total frequency
+       */
+      percentage: number;
+    }[];
+  };
+  
+  /**
+   * Truncation criteria used
+   */
+  truncationCriteria?: {
+    /**
+     * Method used for truncation
+     */
+    method: TruncationMethod;
+    
+    /**
+     * Value used for truncation
+     */
+    value: number;
+    
+    /**
+     * Justification for the truncation criteria
+     */
+    justification: string;
+    
+    /**
+     * Impact of truncation on results
+     */
+    impact?: string;
+  };
 }
 
 /**
@@ -1761,3 +1947,94 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
  * 
  * @group API
  */
+
+/**
+ * Interface for using system cut sets in event sequence quantification
+ * @group Quantification & Uncertainty Analysis
+ * @implements ESQ-A2: INTEGRATE the event sequences, system models, event progression phenomena
+ * @implements ESQ-B1: QUANTIFY the frequency of each specified modeled event sequence
+ * 
+ * @remarks
+ * This interface defines how system cut sets are used in event sequence quantification.
+ * It maintains the separation of concerns by:
+ * 1. Using system cut sets as inputs only
+ * 2. Adding sequence-specific modifications
+ * 3. Tracking the relationship between system and sequence cut sets
+ * 4. Maintaining validation and traceability
+ */
+export interface CutSetUsage {
+  /**
+   * Reference to the original system cut set
+   */
+  systemCutSetReference: string;
+  
+  /**
+   * Sequence-specific modifications to the cut set probability
+   */
+  sequenceModifications: {
+    /**
+     * Factor applied to the cut set probability for this sequence
+     */
+    probabilityFactor: number;
+    
+    /**
+     * Justification for the modification
+     */
+    modificationJustification: string;
+    
+    /**
+     * Any sequence-specific conditions that affect this cut set
+     */
+    sequenceConditions?: string[];
+  };
+  
+  /**
+   * Final probability of this cut set in this sequence
+   */
+  sequenceProbability: number;
+  
+  /**
+   * Whether this cut set contributes to the sequence frequency
+   */
+  contributionStatus: "active" | "truncated" | "modified";
+  
+  /**
+   * Validation of cut set usage in this sequence
+   */
+  validation: {
+    /**
+     * Whether the usage has been validated
+     */
+    isValidated: boolean;
+    
+    /**
+     * Date of last validation
+     */
+    validationDate?: string;
+    
+    /**
+     * Any validation issues found
+     */
+    validationIssues?: string[];
+  };
+  
+  /**
+   * Traceability information
+   */
+  traceability: {
+    /**
+     * Reference to the system analysis document
+     */
+    systemAnalysisReference: string;
+    
+    /**
+     * Reference to the sequence analysis document
+     */
+    sequenceAnalysisReference: string;
+    
+    /**
+     * Any assumptions made in using this cut set
+     */
+    assumptions?: string[];
+  };
+}

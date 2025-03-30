@@ -81,32 +81,29 @@ export enum RiskSignificanceCriteriaType {
  * @group Core Definitions & Enums
  */
 export enum RiskMetricType {
-    /** Core Damage Frequency */
-    CDF = "CDF",
-    
-    /** Large Release Frequency */
-    LRF = "LRF",
-    
-    /** Large Early Release Frequency */
-    LERF = "LERF",
-    
-    /** Site Release Frequency */
-    SRF = "SRF",
-    
-    /** Dose to the Public */
-    DOSE = "DOSE",
-    
-    /** Health Effects */
-    HEALTH_EFFECTS = "HEALTH_EFFECTS",
-    
-    /** Economic Impact */
-    ECONOMIC = "ECONOMIC",
-    
-    /** Land Contamination */
-    LAND_CONTAMINATION = "LAND_CONTAMINATION",
-    
-    /** Other risk metrics */
-    OTHER = "OTHER"
+    /** Frequency of exceeding a specific Site Boundary Dose */
+    SITE_BOUNDARY_DOSE_FREQUENCY = "SITE_BOUNDARY_DOSE_FREQUENCY",
+
+    /** Frequency of exceeding a specific Population Dose (e.g., person-rem) */
+    POPULATION_DOSE_FREQUENCY = "POPULATION_DOSE_FREQUENCY",
+
+    /** Frequency of Early Fatalities exceeding a threshold */
+    EARLY_FATALITIES_FREQUENCY = "EARLY_FATALITIES_FREQUENCY",
+
+    /** Frequency of Latent Cancer Fatalities exceeding a threshold */
+    LATENT_CANCER_FATALITIES_FREQUENCY = "LATENT_CANCER_FATALITIES_FREQUENCY",
+
+    /** Individual Risk of Early Fatality */
+    INDIVIDUAL_RISK_EARLY_FATALITY = "INDIVIDUAL_RISK_EARLY_FATALITY",
+
+    /** Individual Risk of Latent Cancer Fatality */
+    INDIVIDUAL_RISK_LATENT_CANCER_FATALITY = "INDIVIDUAL_RISK_LATENT_CANCER_FATALITY",
+
+    /** Frequency of exceeding a specific level of Radioactive Material Release */
+    RADIOACTIVE_MATERIAL_RELEASE_FREQUENCY = "RADIOACTIVE_MATERIAL_RELEASE_FREQUENCY",
+
+    /** Other consequence-based risk metrics (if clearly defined and justified) */
+    OTHER_CONSEQUENCE = "OTHER_CONSEQUENCE"
 }
 
 /**

@@ -2,15 +2,7 @@
  * @module success_criteria_development
  * @description Comprehensive types and interfaces for Success Criteria Development (SC)
  * 
- * The objectives of Success Criteria Development ensure that:
- * - (a) overall success criteria are defined (i.e., prevention of a release of radioactive material) 
- *       in each of the modeled event sequences and event sequence families as defined in the Event 
- *       Sequence Analysis element and release categories as defined in the Mechanistic Source Term 
- *       Analysis element;
- * - (b) success criteria are defined for key safety functions, supporting systems, structures, 
- *       barriers to release of radioactive material, components, and operator actions necessary 
- *       to support event sequence development based on a defensible technical basis;
- * - (c) the success criteria is documented to provide traceability of the work.
+ * The objectives of Success Criteria Development ensure that HLR-SC-A to HLR-SC-C are met.
  * 
  * Per RG 1.247, the objective of the success criteria analysis PRA element is to determine the 
  * minimum requirements for each function (and ultimately the systems used to perform the functions) 
@@ -141,8 +133,8 @@ export interface ComponentSuccessCriterion extends SuccessCriterion {
  * Represents the overall success criteria defined for preventing a release of radioactive material 
  * in each modeled event sequence and event sequence family.
  * @group Success Criteria & Technical Bases
- * @implements SC-A1: SPECIFY plant parameters that define the end states
- * @implements SC-A2: IDENTIFY key safety functions supporting radionuclide transport barriers
+ * @implements SC-A1
+ * @implements SC-A2
  */
 export interface OverallSuccessCriteriaDefinition extends Unique {
     /** Reference to the event sequence or family */
@@ -182,8 +174,8 @@ export interface OverallSuccessCriteriaDefinition extends Unique {
 /**
  * Represents system-specific success criteria including required capacities.
  * @group Success Criteria & Technical Bases
- * @implements SC-A3: SPECIFY mitigating systems and functions that determine end states
- * @implements SC-A4: IDENTIFY dependencies among mitigating systems
+ * @implements SC-A3
+ * @implements SC-A4
  */
 export interface SystemSuccessCriteriaDefinition extends Unique {
     /** System identifier */
@@ -223,7 +215,7 @@ export interface SystemSuccessCriteriaDefinition extends Unique {
 /**
  * Represents component-level success criteria.
  * @group Success Criteria & Technical Bases
- * @implements SC-A5: SPECIFY components required to achieve system functions
+ * @implements SC-A5
  */
 export interface ComponentSuccessCriteriaDefinition extends Unique {
     /** Component identifier */
@@ -245,7 +237,7 @@ export interface ComponentSuccessCriteriaDefinition extends Unique {
 /**
  * Represents human action success criteria.
  * @group Success Criteria & Technical Bases
- * @implements SC-A6: SPECIFY requirements for operator actions to achieve system functions
+ * @implements SC-A6
  */
 export interface HumanActionSuccessCriteriaDefinition extends Unique {
     /** Human action identifier */
@@ -270,7 +262,7 @@ export interface HumanActionSuccessCriteriaDefinition extends Unique {
 /**
  * Interface for mitigating systems' shared resources.
  * @group Success Criteria & Technical Bases
- * @implements SC-A7: Mitigating systems that are shared between reactors
+ * @implements SC-A7
  */
 export interface SharedResourceDefinition extends Unique, Named {
     /** Description of the shared resource */
@@ -295,8 +287,8 @@ export interface SharedResourceDefinition extends Unique, Named {
 /**
  * Interface representing consistency verification with plant design and operation.
  * @group Success Criteria & Technical Bases
- * @implements SC-A7: ENSURE consistency with plant design bases, licensing bases, and operational practices
- * @implements SC-A9: ENSURE consistency with features, procedures, and design/operating philosophy
+ * @implements SC-A7
+ * @implements SC-A9
  */
 export interface ConsistencyVerification extends Unique {
     /** Success criteria being verified */
@@ -350,8 +342,8 @@ export interface ConsistencyVerification extends Unique {
 /**
  * Interface for engineering analysis used to establish success criteria.
  * @group Engineering Analysis & Validation
- * @implements SC-B1: USE appropriate engineering analyses to establish success criteria
- * @implements SC-B3: USE computer codes, models, and methods that are validated and verified
+ * @implements SC-B1
+ * @implements SC-B3
  */
 export interface EngineeringAnalysis extends Unique {
     /** Analysis identifier */
@@ -394,7 +386,7 @@ export interface EngineeringAnalysis extends Unique {
 /**
  * Interface for plant-specific design information used in analysis.
  * @group Engineering Analysis & Validation
- * @implements SC-B2: BASE analyses on plant-specific design and operating philosophy
+ * @implements SC-B2
  */
 export interface PlantSpecificDesignInformation extends BaseDesignInformation {
     /** Plant systems described */
@@ -413,8 +405,8 @@ export interface PlantSpecificDesignInformation extends BaseDesignInformation {
 /**
  * Interface for computer code verification and validation.
  * @group Engineering Analysis & Validation
- * @implements SC-B4: USE computer codes and models validated with plant-specific or applicable benchmarks
- * @implements SC-B5: USE computer codes and models validated for physical phenomena
+ * @implements SC-B4
+ * @implements SC-B5
  */
 export interface ComputerCodeValidation extends Unique, Named {
     /** Computer code name */
@@ -469,7 +461,7 @@ export interface ComputerCodeValidation extends Unique, Named {
 /**
  * Interface for analyst qualifications.
  * @group Engineering Analysis & Validation
- * @implements SC-B6: PERFORM analyses (thermal, structural, etc.) with qualified personnel
+ * @implements SC-B6
  */
 export interface AnalystQualification extends Unique {
     /** Analyst name */
@@ -497,7 +489,7 @@ export interface AnalystQualification extends Unique {
 /**
  * Interface for thermal-fluid analysis specifics.
  * @group Engineering Analysis & Validation
- * @implements SC-B7: ENSURE thermal-hydraulic analysis is capable of predicting response to event sequences 
+ * @implements SC-B7
  */
 export interface ThermalFluidAnalysis extends Unique {
     /** Reference to the engineering analysis */
@@ -522,7 +514,7 @@ export interface ThermalFluidAnalysis extends Unique {
 /**
  * Interface for structural analysis specifics.
  * @group Engineering Analysis & Validation
- * @implements SC-B8: ENSURE structural analysis is capable of determining loads and damage 
+ * @implements SC-B8
  */
 export interface StructuralAnalysis extends Unique {
     /** Reference to the engineering analysis */
@@ -555,7 +547,7 @@ export interface StructuralAnalysis extends Unique {
 /**
  * Interface for model uncertainty in success criteria analysis.
  * @group Uncertainty & Expert Judgment
- * @implements SC-B9: IDENTIFY and characterize sources of model uncertainty
+ * @implements SC-B9
  */
 export interface ModelUncertainty extends Unique, Named {
     /** Source of uncertainty */
@@ -583,8 +575,8 @@ export interface ModelUncertainty extends Unique, Named {
 /**
  * Interface for pre-operational assumptions in success criteria analysis.
  * @group Uncertainty & Expert Judgment
- * @implements SC-A11: IDENTIFY assumptions made due to lack of as-built and as-operated details
- * @implements SC-B10: DOCUMENT assumptions made due to lack of as-built, as-operated details
+ * @implements SC-A11
+ * @implements SC-B10
  */
 export interface SuccessCriteriaAssumption extends BaseAssumption {
     /** Success criteria affected by this assumption */
@@ -597,7 +589,7 @@ export interface SuccessCriteriaAssumption extends BaseAssumption {
 /**
  * Interface for expert judgment used in success criteria analysis.
  * @group Uncertainty & Expert Judgment
- * @implements SC-A8: USE expert judgment in a manner that is defensible
+ * @implements SC-A8
  */
 export interface ExpertJudgment extends Unique {
     /** Topic of expert judgment */
@@ -625,8 +617,8 @@ export interface ExpertJudgment extends Unique {
 /**
  * Interface for sensitivity studies related to success criteria.
  * @group Uncertainty & Expert Judgment
- * @implements SC-A9: PERFORM sensitivity studies for significant assumptions
- * @implements SC-A10: IDENTIFY reasonable alternatives for significant assumptions
+ * @implements SC-A9
+ * @implements SC-A10
  */
 export interface SuccessCriteriaSensitivityStudy extends SensitivityStudy {
     /** Success criteria evaluated in this study */
@@ -653,12 +645,12 @@ export interface SuccessCriteriaSensitivityStudy extends SensitivityStudy {
 /**
  * Interface representing documentation of the process used in the success criteria development.
  * @group Documentation & Traceability
- * @implements SC-C1: DOCUMENT the process used in the Success Criteria Development
+ * @implements SC-C1
  */
 export interface ProcessDocumentation extends BaseProcessDocumentation {
     /** 
      * Documentation of the definition of end states
-     * @implements SC-C1(a): Definition of end states, events, and parameters
+     * @implements SC-C1(a)
      */
     endStateDefinitions?: {
         /** End state identifier */
@@ -679,7 +671,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /**
      * Documentation of calculations used to establish success criteria
-     * @implements SC-C1(b): Calculations used to establish success criteria
+     * @implements SC-C1(b)
      */
     calculationsUsed?: {
         /** Calculation identifier */
@@ -700,7 +692,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /**
      * Documentation of computer codes used
-     * @implements SC-C1(c): Computer codes used to establish success criteria
+     * @implements SC-C1(c)
      */
     computerCodesUsed?: {
         /** Code identifier */
@@ -721,7 +713,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /**
      * Documentation of limitations of calculations and codes
-     * @implements SC-C1(d): Limitations of calculations and codes
+     * @implements SC-C1(d)
      */
     calculationLimitations?: {
         /** Limitation identifier */
@@ -742,7 +734,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /**
      * Documentation of expert judgment use
-     * @implements SC-C1(e): Expert judgment used in PRA
+     * @implements SC-C1(e)
      */
     expertJudgmentUse?: {
         /** Identifier for the expert judgment */
@@ -760,7 +752,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /**
      * Documentation of success criteria for mitigating systems
-     * @implements SC-C1(f): Success criteria for mitigating systems
+     * @implements SC-C1(f)
      */
     mitigatingSystemsCriteria?: {
         /** System identifier */
@@ -778,7 +770,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /**
      * Documentation of time available for human actions
-     * @implements SC-C1(g): Basis for establishing time for human actions
+     * @implements SC-C1(g)
      */
     humanActionTimingBasis?: {
         /** Human action identifier */
@@ -796,7 +788,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /**
      * Documentation of grouped initiating events criteria
-     * @implements SC-C1(h): Process used to define success criteria for grouped events
+     * @implements SC-C1(h)
      */
     groupedEventsCriteria?: {
         /** Group identifier */
@@ -817,7 +809,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /**
      * Documentation of success criteria for digital systems
-     * @implements SC-C1(i): Technical basis for digital I&C success criteria
+     * @implements SC-C1(i)
      */
     digitalSystemsCriteria?: {
         /** Digital system identifier */
@@ -838,7 +830,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /**
      * Documentation of passive safety function criteria
-     * @implements SC-C1(j): Success criteria for passive safety functions
+     * @implements SC-C1(j)
      */
     passiveSafetyCriteria?: {
         /** Passive safety function identifier */
@@ -862,7 +854,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /**
      * Documentation of shared systems criteria
-     * @implements SC-C1(k): Criteria for shared systems between reactors
+     * @implements SC-C1(k)
      */
     sharedSystemsCriteria?: {
         /** Shared system identifier */
@@ -885,12 +877,12 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
 /**
  * Interface representing documentation of model uncertainty in the success criteria analysis.
  * @group Documentation & Traceability
- * @implements SC-C2: DOCUMENT the sources of model uncertainty
+ * @implements SC-C2
  */
 export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
     /** 
      * Success criteria specific uncertainty impacts
-     * @implements SC-C2: DOCUMENT the sources of model uncertainty specific to success criteria
+     * @implements SC-C2
      */
     successCriteriaSpecificUncertainties?: {
         /** Success criteria ID */
@@ -905,7 +897,7 @@ export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocum
     
     /**
      * Documentation of reasonable alternatives
-     * @implements SC-C2: DOCUMENT reasonable alternatives associated with the Success Criteria Development
+     * @implements SC-C2
      */
     reasonableAlternatives: {
         /** Alternative approach */
@@ -922,12 +914,12 @@ export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocum
 /**
  * Interface representing documentation of pre-operational assumptions.
  * @group Documentation & Traceability
- * @implements SC-C3: DOCUMENT assumptions and limitations due to lack of as-built, as-operated details
+ * @implements SC-C3
  */
 export interface PreOperationalAssumptionsDocumentation extends BasePreOperationalAssumptionsDocumentation {
     /** 
      * Success criteria specific assumptions
-     * @implements SC-C3: DOCUMENT assumptions specific to success criteria
+     * @implements SC-C3
      */
     successCriteriaSpecificAssumptions?: {
         /** Success criteria ID */
@@ -1004,13 +996,7 @@ export interface SuccessCriteriaDesignInformation extends BaseDesignInformation 
 
 /**
  * Interface representing the main Success Criteria Development container.
- * 
- * The objectives of Success Criteria Development ensure that:
- * - (a) overall success criteria are defined (i.e., prevention of a release of radioactive material) 
- *       in each of the modeled event sequences and event sequence families;
- * - (b) success criteria are defined for key safety functions, supporting systems, structures, 
- *       barriers to release of radioactive material, components, and operator actions;
- * - (c) the success criteria is documented to provide traceability of the work.
+ 
  * 
  * @group API
  * @extends {TechnicalElement<TechnicalElementTypes.SUCCESS_CRITERIA_DEVELOPMENT>}
@@ -1018,7 +1004,7 @@ export interface SuccessCriteriaDesignInformation extends BaseDesignInformation 
 export interface SuccessCriteriaDevelopment extends TechnicalElement<TechnicalElementTypes.SUCCESS_CRITERIA_DEVELOPMENT> {
     /**
      * Additional metadata specific to Success Criteria Development
-     * @implements SC-C1: DOCUMENT the process used in the Success Criteria Development
+     * @implements SC-C1
      */
     additionalMetadata?: {
         /** Known limitations */
@@ -1030,96 +1016,96 @@ export interface SuccessCriteriaDevelopment extends TechnicalElement<TechnicalEl
     
     /**
      * Overall success criteria defined for preventing a release of radioactive material
-     * @implements HLR-SC-A: Overall success criteria for the system, structure, component, and human action
+     * @implements HLR-SC-A
      */
     overallSuccessCriteria: Record<SuccessCriteriaId, OverallSuccessCriteriaDefinition>;
     
     /**
      * System-specific success criteria
-     * @implements SC-A3: SPECIFY mitigating systems and functions
-     * @implements SC-A4: IDENTIFY dependencies
+     * @implements SC-A3
+     * @implements SC-A4
      */
     systemSuccessCriteria?: Record<string, SystemSuccessCriteriaDefinition>;
     
     /**
      * Component-level success criteria
-     * @implements SC-A5: SPECIFY components required
+     * @implements SC-A5
      */
     componentSuccessCriteria?: Record<string, ComponentSuccessCriteriaDefinition>;
     
     /**
      * Human action success criteria
-     * @implements SC-A6: SPECIFY requirements for operator actions
+     * @implements SC-A6
      */
     humanActionSuccessCriteria?: Record<string, HumanActionSuccessCriteriaDefinition>;
     
     /**
      * Shared resource definitions between reactors
-     * @implements SC-A7: IDENTIFY mitigating systems shared between reactors
+     * @implements SC-A7
      */
     sharedResources?: Record<string, SharedResourceDefinition>;
     
     /**
      * Engineering analyses supporting success criteria
-     * @implements HLR-SC-B: Engineering bases shall be capable of providing success criteria
+     * @implements HLR-SC-B
      */
     engineeringAnalyses: Record<string, EngineeringAnalysis>;
     
     /**
      * Plant-specific design information
-     * @implements SC-B2: BASE analyses on realistic plant-specific design and procedural information
+     * @implements SC-B2
      */
     plantSpecificDesign?: Record<string, PlantSpecificDesignInformation>;
     
     /**
      * Computer code validation information
-     * @implements SC-B3: USE computer codes, models, and methods that are validated and verified
-     * @implements SC-B4: USE computer codes and models validated with plant-specific or applicable benchmarks
-     * @implements SC-B5: USE computer codes and models validated for physical phenomena
+     * @implements SC-B3
+     * @implements SC-B4
+     * @implements SC-B5
      */
     computerCodeValidation?: Record<string, ComputerCodeValidation>;
     
     /**
      * Analyst qualifications
-     * @implements SC-B6: PERFORM analyses (thermal, structural, etc.) with qualified personnel
+     * @implements SC-B6
      */
     analystQualifications?: Record<string, AnalystQualification>;
     
     /**
      * Thermal-fluid analyses
-     * @implements SC-B7: ENSURE thermal-hydraulic analysis is capable of predicting response
+     * @implements SC-B7
      */
     thermalFluidAnalyses?: Record<string, ThermalFluidAnalysis>;
     
     /**
      * Structural analyses
-     * @implements SC-B8: ENSURE structural analysis is capable of determining loads and damage
+     * @implements SC-B8
      */
     structuralAnalyses?: Record<string, StructuralAnalysis>;
     
     /**
      * Sources of model uncertainty
-     * @implements SC-B9: IDENTIFY and characterize the sources of model uncertainty
+     * @implements SC-B9
      */
     modelUncertainties?: Record<string, ModelUncertainty>;
     
     /**
      * Assumptions made due to lack of as-built, as-operated details
-     * @implements SC-A11: IDENTIFY assumptions made due to lack of as-built and as-operated details
-     * @implements SC-B10: DOCUMENT assumptions made due to lack of as-built, as-operated details
+     * @implements SC-A11
+     * @implements SC-B10
      */
     preOperationalAssumptions?: Record<string, SuccessCriteriaAssumption>;
     
     /**
      * Expert judgments used
-     * @implements SC-A8: USE expert judgment in a manner that is defensible
+     * @implements SC-A8
      */
     expertJudgments?: Record<string, ExpertJudgment>;
     
     /**
      * Sensitivity studies performed
-     * @implements SC-A9: PERFORM sensitivity studies for significant assumptions
-     * @implements SC-A10: IDENTIFY reasonable alternatives for significant assumptions
+     * @implements SC-A9
+     * @implements SC-A10
      */
     sensitivityStudies?: Record<string, SuccessCriteriaSensitivityStudy>;
     
@@ -1130,10 +1116,10 @@ export interface SuccessCriteriaDevelopment extends TechnicalElement<TechnicalEl
     
     /**
      * Documentation of the analysis
-     * @implements HLR-SC-C: The documentation of the Success Criteria Development shall provide traceability of the work
-     * @implements SC-C1: DOCUMENT the process used
-     * @implements SC-C2: DOCUMENT the sources of model uncertainty
-     * @implements SC-C3: DOCUMENT assumptions and limitations
+     * @implements HLR-SC-C
+     * @implements SC-C1
+     * @implements SC-C2
+     * @implements SC-C3
      */
     documentation?: {
         /** Process documentation */
@@ -1150,27 +1136,27 @@ export interface SuccessCriteriaDevelopment extends TechnicalElement<TechnicalEl
         
         /** 
          * Traceability documentation 
-         * @implements HLR-SC-C: The documentation of the Success Criteria Development shall provide traceability of the work
+         * @implements HLR-SC-C
          */
         traceabilityDocumentation?: BaseTraceabilityDocumentation;
     };
     
     /**
      * Mission times for event sequences
-     * @implements SC-A2: SPECIFY the mission time for each modeled event sequence
+     * @implements SC-A2
      */
     missionTimes?: Record<string, MissionTimeDefinition>;
     
     /**
      * Component mission times
-     * @implements SC-A8: ENSURE component mission time supports full sequence mission time
+     * @implements SC-A8
      */
     componentMissionTimes?: Record<string, ComponentMissionTimeDefinition>;
     
     /**
      * Consistency verifications
-     * @implements SC-A7: ENSURE consistency with plant design bases, licensing bases, and operational practices
-     * @implements SC-A9: ENSURE consistency with features, procedures, and design/operating philosophy
+     * @implements SC-A7
+     * @implements SC-A9
      */
     consistencyVerifications?: Record<string, ConsistencyVerification>;
 }

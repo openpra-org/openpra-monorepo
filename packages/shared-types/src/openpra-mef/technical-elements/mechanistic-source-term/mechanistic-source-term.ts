@@ -2,15 +2,7 @@
  * @module mechanistic_source_term_analysis
  * @description Comprehensive types and interfaces for Mechanistic Source Term Analysis (MS)
  * 
- * The objectives of Mechanistic Source Term Analysis ensure that:
- * - (a) there is a reasonably complete definition and characterization of release categories for
- *       the requirements of the Mechanistic Source Term Analysis and Radiological Consequence Analysis;
- * - (b) the Mechanistic Source Term Analysis assesses the radionuclide transport barriers and
- *       transport mechanisms for each release category;
- * - (c) the mechanistic source term and associated radionuclide transport phenomena are calculated;
- * - (d) uncertainties in the mechanistic source terms and associated radionuclide transport
- *       phenomena are characterized and quantified when practical;
- * - (e) the documentation of the Mechanistic Source Term Analysis provides traceability of the work.
+ * The objectives of Mechanistic Source Term Analysis ensure that HLR-MS-A to HLR-MS-E are met.
  * 
  * Per RG 1.247, the objective of the mechanistic source term analysis PRA element is to 
  * characterize the radiological releases to the environment (or source terms) that could result
@@ -147,7 +139,7 @@ export interface RadionuclideReleaseUncertainty {
 /**
  * @group Core Definitions & Enums
  * @description The types of transport phenomena that can affect radionuclide release.
- * @implements MS-B5: ASSESS the following phenomena for inclusion in the Mechanistic Source Term Analysis
+ * @implements MS-B5
  */
 export enum TransportPhenomenonType {
   /** Barrier degradation or failure */
@@ -208,7 +200,7 @@ export enum TransportPhenomenonType {
 /**
  * @group Release Categorization & Source Characterization
  * @description Defines a single release category for the Mechanistic Source Term Analysis.
- * @implements MS-A1: DEFINE the set of release categories consistent with the Event Sequence Analysis end states and radionuclide transport analysis performed.
+ * @implements MS-A1
  * @example
  * ```typescript
  * const releaseCategory: ReleaseCategory = {
@@ -256,7 +248,7 @@ export interface ReleaseCategory extends Unique, Named {
   
   /** 
    * Pre-operational assumptions that influence release category definition and characterization
-   * @implements MS-A3: IDENTIFY assumptions made due to the lack of as-built and as-operated details
+   * @implements MS-A3
    */
   preOperationalAssumptions?: {
     /** Description of the assumption */
@@ -276,7 +268,7 @@ export interface ReleaseCategory extends Unique, Named {
 /**
  * @group Release Categorization & Source Characterization
  * @description Characterization of a source of radioactive material.
- * @implements MS-B1: CHARACTERIZE each modeled source of radioactive material and inventory.
+ * @implements MS-B1
  * @example
  * ```typescript
  * const radioactiveSource: RadioactiveSource = {
@@ -319,7 +311,7 @@ export interface RadioactiveSource extends Unique, Named {
 /**
  * @group Release Categorization & Source Characterization
  * @description Maps event sequences to release categories and provides justification.
- * @implements MS-E1(c): DOCUMENT assignment of event sequences and event sequence families to each release category
+ * @implements MS-E1(c)
  * @remarks This interface is referenced by the Risk Integration module's EventSequenceToReleaseCategory interface.
  * The Risk Integration module uses this mapping as input for risk calculations.
  */
@@ -385,7 +377,7 @@ export interface EventSequenceToReleaseCategoryMapping extends Unique {
 /**
  * @group Release Categorization & Source Characterization
  * @description Technical basis for the adequacy of the definition of a release category.
- * @implements MS-E1(b): DOCUMENT technical basis for the adequacy of the definition of each modeled release category
+ * @implements MS-E1(b)
  */
 export interface ReleaseCategoryBasis extends Unique {
   /** Reference to the release category */
@@ -415,8 +407,8 @@ export interface ReleaseCategoryBasis extends Unique {
  * @description Represents a barrier to radionuclide transport from a mechanistic source term perspective.
  * This interface focuses on the transport characteristics and effectiveness of barriers,
  * while referencing operational status information from the Event Sequence Quantification module.
- * @implements MS-B2: ASSESS the radionuclide transport barriers
- * @implements MS-B4: ASSESS the relevant radionuclide transport characteristics within each transport barrier
+ * @implements MS-B2
+ * @implements MS-B4
  */
 export interface RadionuclideTransportBarrier extends Unique, Named {
   /** Description of the barrier */
@@ -449,7 +441,7 @@ export interface RadionuclideTransportBarrier extends Unique, Named {
   
   /**
    * Physical and chemical conditions within the barrier that affect radionuclide transport.
-   * @implements MS-B4: ASSESS the impact of the physical and chemical conditions within each barrier
+   * @implements MS-B4
    */
   physicalChemicalConditions?: {
     /** Temperature conditions (e.g., range, gradients) */
@@ -470,7 +462,7 @@ export interface RadionuclideTransportBarrier extends Unique, Named {
   
   /**
    * Transport mechanisms specific to this barrier.
-   * @implements MS-B4: ASSESS the relevant radionuclide transport characteristics
+   * @implements MS-B4
    */
   transportMechanisms?: {
     /** Type of transport mechanism */
@@ -487,7 +479,7 @@ export interface RadionuclideTransportBarrier extends Unique, Named {
 /**
  * @group Transport Phenomena & Calculation
  * @description Represents a mechanism for radionuclide transport.
- * @implements MS-B3: ASSESS the transport mechanisms
+ * @implements MS-B3
  */
 export interface TransportMechanism extends Unique, Named {
   /** Description of the transport mechanism */
@@ -506,8 +498,8 @@ export interface TransportMechanism extends Unique, Named {
 /**
  * @group Transport Phenomena & Calculation
  * @description Details of the radionuclide transport phenomena for a specific release category.
- * @implements MS-C1: IDENTIFY the relevant radionuclide transport phenomena for each release category.
- * @implements MS-B5: ASSESS the following phenomena for inclusion in the Mechanistic Source Term Analysis.
+ * @implements MS-C1
+ * @implements MS-B5
  * @example
  * ```typescript
  * const transportPhenomena: TransportPhenomena = {
@@ -539,7 +531,7 @@ export interface TransportPhenomena extends Unique {
   
   /** 
    * Assessment of specific MS-B5 phenomena for inclusion
-   * @implements MS-B5: ASSESS the following phenomena for inclusion in the Mechanistic Source Term Analysis
+   * @implements MS-B5
    */
   msB5Assessment?: {
     /** Phenomena assessed and their inclusion status */
@@ -555,7 +547,7 @@ export interface TransportPhenomena extends Unique {
   
   /**
    * Justification that the treatment of phenomena is sufficient to support Consequence Quantification
-   * @implements MS-C4: JUSTIFY that the treatment of phenomena is sufficient to support Consequence Quantification
+   * @implements MS-C4
    */
   consequenceQuantificationSupport?: {
     /** Description of how the phenomena treatment supports consequence quantification */
@@ -569,7 +561,7 @@ export interface TransportPhenomena extends Unique {
 /**
  * @group Transport Phenomena & Calculation
  * @description Definition of the source term for a specific release category, detailing the release characteristics.
- * @implements MS-E2: INCLUDE the quantitative values and assessment of uncertainty for the following parameters of the definition of the source term for each modeled release category: (a) number of reactors involved... (b) quantity of radionuclides released... (c) physical and chemical form... (d) source term release timing... (e) warning time for evacuation... (f) energy of the release; (g) elevation of the release.
+ * @implements MS-E2
  * @example
  * ```typescript
  * const sourceTermDefinition: SourceTermDefinition = {
@@ -631,7 +623,7 @@ export interface SourceTermDefinition extends Unique {
 /**
  * @group Transport Phenomena & Calculation
  * @description Represents the models and computer programs used in the Mechanistic Source Term Analysis.
- * @implements MS-E1(e): DOCUMENT Models and computer programs used to develop source terms.
+ * @implements MS-E1(e)
  * @example
  * ```typescript
  * const sourceTermModel: SourceTermModel = {
@@ -677,7 +669,7 @@ export interface SourceTermModel extends Unique, Named {
 /**
  * @group Uncertainty & Sensitivity Analysis
  * @description Extends the base uncertainty analysis with mechanistic source term specific aspects.
- * @implements MS-D1: IDENTIFY and CHARACTERIZE the uncertainty sources
+ * @implements MS-D1
  */
 export interface MechanisticSourceTermUncertaintyAnalysis extends BaseUncertaintyAnalysis {
   /** Reference to the source term or release category being analyzed */
@@ -710,7 +702,7 @@ export interface MechanisticSourceTermUncertaintyAnalysis extends BaseUncertaint
   
   /**
    * Method used to quantify uncertainty in the estimated source term
-   * @implements MS-D2: QUANTIFY the uncertainty in the estimated source term using appropriate methods
+   * @implements MS-D2
    */
   quantificationMethod?: {
     /** Description of the method used */
@@ -722,7 +714,7 @@ export interface MechanisticSourceTermUncertaintyAnalysis extends BaseUncertaint
   
   /**
    * Documentation of uncertainty and sensitivity analysis results
-   * @implements MS-D4: DOCUMENT the results of the uncertainty and sensitivity analyses
+   * @implements MS-D4
    */
   documentationOfResults?: string;
 }
@@ -730,8 +722,8 @@ export interface MechanisticSourceTermUncertaintyAnalysis extends BaseUncertaint
 /**
  * @group Uncertainty & Sensitivity Analysis
  * @description Sensitivity studies specific to mechanistic source term analysis.
- * @implements MS-D2: IDENTIFY key sources of uncertainty
- * @implements MS-E1(f): DOCUMENT uncertainty and sensitivity analyses for each source term
+ * @implements MS-D2
+ * @implements MS-E1(f)
  */
 export interface MechanisticSourceTermSensitivityStudy extends SensitivityStudy {
   /** Reference to the source term or release category being analyzed */
@@ -752,7 +744,7 @@ export interface MechanisticSourceTermSensitivityStudy extends SensitivityStudy 
   
   /**
    * Evaluation of the impact of key sources of uncertainty on the estimated source term
-   * @implements MS-D3: PERFORM sensitivity analyses to evaluate the impact of key sources of uncertainty
+   * @implements MS-D3
    */
   keyUncertaintyImpactEvaluation?: {
     /** Description of the impact evaluation */
@@ -764,7 +756,7 @@ export interface MechanisticSourceTermSensitivityStudy extends SensitivityStudy 
   
   /**
    * Documentation of sensitivity analysis results
-   * @implements MS-D4: DOCUMENT the results of the uncertainty and sensitivity analyses
+   * @implements MS-D4
    */
   documentationOfResults?: string;
 }
@@ -772,8 +764,8 @@ export interface MechanisticSourceTermSensitivityStudy extends SensitivityStudy 
 /**
  * @group Uncertainty & Sensitivity Analysis
  * @description Interface for model uncertainty documentation specific to mechanistic source term analysis.
- * @implements MS-C6: IDENTIFY sources of model uncertainty
- * @implements MS-E3: DOCUMENT the sources of model and parameter uncertainty
+ * @implements MS-C6
+ * @implements MS-E3
  */
 export interface MechanisticSourceTermModelUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
   /** Sources of uncertainty specific to transport phenomena modeling */
@@ -818,7 +810,7 @@ export interface MechanisticSourceTermModelUncertaintyDocumentation extends Base
   
   /** 
    * Explicit link to HLR-MS-D uncertainty requirements
-   * @implements MS-B6: IDENTIFY the sources of model uncertainty in a manner that supports HLR-MS-D
+   * @implements MS-B6
    */
   uncertaintyRequirementsLink?: {
     /** Reference to specific HLR-MS-D requirements addressed */
@@ -840,7 +832,7 @@ export interface MechanisticSourceTermModelUncertaintyDocumentation extends Base
 /**
  * @group Documentation & Traceability
  * @description Process documentation for the mechanistic source term analysis.
- * @implements MS-E1: DOCUMENT the process used in the Mechanistic Source Term Analysis
+ * @implements MS-E1
  */
 export interface MechanisticSourceTermProcessDocumentation extends BaseProcessDocumentation {
   /** Documentation of radioactive source characterization */
@@ -921,7 +913,7 @@ export interface MechanisticSourceTermProcessDocumentation extends BaseProcessDo
 /**
  * @group Documentation & Traceability
  * @description Documentation for pre-operational assumptions in mechanistic source term analysis.
- * @implements MS-E4: DOCUMENT assumptions and limitations due to lack of as-built, as-operated details
+ * @implements MS-E4
  */
 export interface MechanisticSourceTermPreOperationalAssumptionsDocumentation extends BasePreOperationalAssumptionsDocumentation {
   /** Assumptions specific to radionuclide transport barriers */
@@ -1051,7 +1043,7 @@ export interface MechanisticSourceTermAnalysis extends TechnicalElement<Technica
   /**
    * Identification of the relevant radionuclide transport phenomena for each release category.
    * @implements MS-C1
-   * @implements MS-B5: ASSESS the following phenomena for inclusion in the Mechanistic Source Term Analysis
+   * @implements MS-B5
    */
   transportPhenomenaAnalysis: Record<string, TransportPhenomena>;
 

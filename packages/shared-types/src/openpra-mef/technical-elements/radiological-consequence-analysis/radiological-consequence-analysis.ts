@@ -29,8 +29,8 @@ import {
 
 /**
  * Represents the analysis of meteorological data used in radiological consequence calculations.
- * @remarks **RCME-A11**: Describes the meteorological data set(s) used for the analysis.
- * @remarks **RCME-B3**: Describes how the frequency distribution of meteorological conditions is accounted for.
+ * @remarks **RCME-A11**
+ * @remarks **RCME-B3**
  * @example
  * ```typescript
  * const meteorologicalDataAnalysis = {
@@ -46,21 +46,21 @@ export interface MeteorologicalDataAnalysis {
      * Characterisation of the uncertainty distribution of meteorological parameters.
      * Required by **RCME-B3**.
      * @example "Uncertainty in wind speed and direction modelled using historical data distributions."
-     * @remarks **RCME-B3**: Describes how the frequency distribution of meteorological conditions is accounted for in the consequence analysis.
+     * @remarks **RCME-B3**
      */
     parameterUncertaintyCharacterisation?: string;
 
     /**
      * Description of the meteorological data set(s) used for the analysis, including the period of data collection and relevant parameters.
      * @example "Five years of hourly meteorological data (wind speed, wind direction, atmospheric stability) from the on-site meteorological tower were used."
-     * @remarks **RCME-A11**: Describes the meteorological data set(s) used for the analysis, including the period of data collection and relevant parameters.
+     * @remarks **RCME-A11**
      */
     meteorologicalDataSetDescription?: string;
 
     /**
      * Description of how the frequency distribution of meteorological conditions is accounted for in the consequence analysis.
      * @example "A stratified random sampling approach was used to select meteorological sequences from the five-year data set to represent the frequency distribution of weather conditions."
-     * @remarks **RCME-B3**: Describes how the frequency distribution of meteorological conditions is accounted for in the consequence analysis.
+     * @remarks **RCME-B3**
      */
     meteorologicalFrequencyDistributionTreatment?: string;
 
@@ -88,8 +88,8 @@ export interface MeteorologicalDataAnalysis {
 
 /**
  * Represents the quantification of radiological consequences.
- * @remarks **RCQ-A1**: Specifies the models and computer codes used to perform the radiological consequence analysis.
- * @remarks **RCQ-A2**: Identifies features and limitations of the models and codes used that could impact the results.
+ * @remarks **RCQ-A1**
+ * @remarks **RCQ-A2**
  * @example
  * ```typescript
  * const consequenceQuantificationAnalysis = {
@@ -115,21 +115,21 @@ export interface ConsequenceQuantificationAnalysis {
      * Selected consequence metrics for the analysis.
      * Required by **RCQ-A1**.
      * @example ["Early Fatalities", "Latent Cancer Fatalities (50-year TEDE)", "Maximum Off-site Dose"]
-     * @remarks **RCQ-A1**: Specifies the models and computer codes used to perform the radiological consequence analysis.
+     * @remarks **RCQ-A1**
      */
     selectedMetrics: string[];
 
     /**
      * Models and computer codes used to perform the radiological consequence analysis.
      * @example "MACCS2 code version 1.13"
-     * @remarks **RCQ-A1**: Specifies the models and computer codes used to perform the radiological consequence analysis.
+     * @remarks **RCQ-A1**
      */
     consequenceCodesUsed: string[];
 
     /**
      * Features and limitations of the models and codes used for consequence analysis that could impact the results.
      * Required by **RCQ-A2**.
-     * @remarks **RCQ-A2**: Identifies features and limitations of the models and codes used that could impact the results.
+     * @remarks **RCQ-A2**
      */
     modelAndCodeLimitations: {
         code?: string;
@@ -179,14 +179,14 @@ export interface ConsequenceQuantificationAnalysis {
     /**
      * Characterization of uncertainties in the Radiological Consequence Analysis.
      * @example "Uncertainty in meteorological conditions, source term magnitude, and dose coefficients were propagated."
-     * @remarks **HLR-RCQ-D**: Uncertainties in the Radiological Consequence Analysis shall be characterised.
+     * @remarks **HLR-RCQ-D**
      */
     uncertaintyCharacterization?: string;
 
     /**
      * References to documentation of the input data, models, assumptions, and results of the Consequence Quantification analysis.
      * @example ["Section 5 of the main report", "Appendix B: Consequence Code Validation"]
-     * @remarks **RCQ-D1**: Documents the input data, models, assumptions, and results of the Consequence Quantification analysis.
+     * @remarks **RCQ-D1**
      */
     supportingDocumentationReferences?: string[];
 
@@ -470,11 +470,11 @@ export interface RadiologicalConsequenceDocumentation extends BaseProcessDocumen
  * @group API
  * @description Represents the technical element for 4.3.17 Radiological Consequence Analysis (RC).
  * @remarks This technical element addresses the analysis of off-site radiological consequences from postulated releases.
- * @remarks **HLR-RCRE-A**: The Radiological Consequence Analysis shall identify the inputs required for the off-site Radiological Consequence Analysis methodology for each release category.
- * @remarks **HLR-RCRE-B**: The Radiological Consequence Analysis shall specify the consequence measure(s) selected for the intended application of the PRA.
- * @remarks **HLR-RCAD-A**: The atmospheric dispersion models shall be appropriate for the release characteristics and site conditions.
- * @remarks **HLR-RCDO-B**: The dosimetry models shall be appropriate for the exposure pathways and radionuclides considered.
- * @remarks **HLR-RCQ-D**: Uncertainties in the Radiological Consequence Analysis shall be characterized.
+ * @remarks **HLR-RCRE-A**
+ * @remarks **HLR-RCRE-B**
+ * @remarks **HLR-RCAD-A**
+ * @remarks **HLR-RCDO-B**
+ * @remarks **HLR-RCQ-D**
  * 
  * @example
  * ```typescript
@@ -700,12 +700,7 @@ export interface RadiologicalConsequenceAnalysis extends TechnicalElement<Techni
  * @module radiological_consequence_analysis
  * @description Types and interfaces for Radiological Consequence Analysis based on relevant standards
  * 
- * The objectives of Radiological Consequence Analysis ensure that:
- * - (a) Off-site radiological consequences from postulated releases are properly analyzed;
- * - (b) Appropriate modeling of atmospheric transport and dispersion is performed;
- * - (c) Dosimetry calculations are based on recognized methods;
- * - (d) Protective action parameters are appropriately considered;
- * - (e) The analysis is documented to provide traceability of the work.
+ * The objectives of Radiological Consequence Analysis are met here
  
  * @preferred
  * @category Technical Elements 
@@ -800,8 +795,8 @@ export interface BoundingSite {
 
 /**
  * Represents the analysis of radiation doses to individuals and populations.
- * @remarks **RCDO-A1**: Specifies the exposure pathways considered in the dosimetry analysis.
- * @remarks **RCDO-B**: The dosimetry models shall be appropriate for the exposure pathways and radionuclides considered.
+ * @remarks **RCDO-A1**
+ * @remarks **RCDO-B**
  * @example
  * ```typescript
  * const dosimetryAnalysis: DosimetryAnalysis = {
@@ -829,7 +824,7 @@ export interface DosimetryAnalysis {
      * Identified exposure pathways considered in the analysis.
      * Required by **RCDO-A1**.
      * @example ["Inhalation", "Ground Shine", "Cloud Submersion"]
-     * @remarks **RCDO-A1**: Specifies the exposure pathways considered in the dosimetry analysis (e.g., inhalation, ingestion, ground deposition, plume immersion).
+     * @remarks **RCDO-A1**
      */
     exposurePathways: string[];
 
@@ -837,7 +832,7 @@ export interface DosimetryAnalysis {
      * The recognized source(s) used for Dose Conversion Factors (DCFs).
      * Required by **RCDO-A2**.
      * @example "ICRP Publication 72", "Federal Guidance Report No. 11"
-     * @remarks **RCDO-A3**: Specifies the dose coefficients used to convert intake or exposure to dose for the considered radionuclides and pathways.
+     * @remarks **RCDO-A3**
      */
     dcfSource: string;
 
@@ -870,49 +865,49 @@ export interface DosimetryAnalysis {
      * Characterisation of the uncertainty distribution of DCF parameters.
      * Required by **RCDO-C2**.
      * @example "Log-normal distributions were assumed for DCF parameter uncertainties based on literature."
-     * @remarks **RCDO-C2**: Describes the treatment of daughter product ingrowth and decay in the dosimetry calculations.
+     * @remarks **RCDO-C2**
      */
     dcfParameterUncertaintyCharacterisation?: string;
 
     /**
      * Identifies the age groups or receptor types for which doses are calculated.
      * @example ["Adult", "Teenager", "Child (1 year)", "Infant (3 months)"]
-     * @remarks **RCDO-A2**: Identifies the age groups or receptor types for which doses are calculated (e.g., adult, child, infant).
+     * @remarks **RCDO-A2**
      */
     receptorTypes?: string[];
 
     /**
      * The dosimetry models used in the analysis.
      * @example "Dose calculations were performed using the EPA Federal Guidance Report No. 11 and 12 methodologies."
-     * @remarks **HLR-RCDO-B**: The dosimetry models shall be appropriate for the exposure pathways and radionuclides considered.
+     * @remarks **HLR-RCDO-B**
      */
     dosimetryModelsUsed?: string;
 
     /**
      * Describes how organ doses are calculated and aggregated to determine effective dose or other relevant dose metrics.
      * @example "Organ doses were calculated for key organs, and effective dose was determined using ICRP Publication 103 weighting factors."
-     * @remarks **RCDO-A10**: Describes how organ doses are calculated and aggregated to determine effective dose or other relevant dose metrics.
+     * @remarks **RCDO-A10**
      */
     doseAggregationMethod?: string;
 
     /**
      * Describes how the dosimetry analysis accounts for the physical and radiological decay of radionuclides.
      * @example "Radionuclide decay was accounted for during atmospheric transport and dose calculations using half-life data."
-     * @remarks **HLR-RCDO-C**: The dosimetry analysis shall account for the physical and radiological decay of radionuclides.
+     * @remarks **HLR-RCDO-C**
      */
     radionuclideDecayConsideration?: string;
 
     /**
      * Specifies the time periods over which doses are integrated.
      * @example ["7-day thyroid dose", "50-year committed effective dose"]
-     * @remarks **RCDO-C1**: Specifies the time periods over which doses are integrated (e.g., short-term acute doses, long-term chronic doses).
+     * @remarks **RCDO-C1**
      */
     doseIntegrationPeriods?: string[];
 }
 
 /**
  * Represents characteristics of a radionuclide release for consequence analysis.
- * @remarks **RCRE-A2**: Identifies the inputs required for the off-site Radiological Consequence Analysis methodology for each release category.
+ * @remarks **RCRE-A2**
  * @example
  * ```typescript
  * const releaseCharacteristics: ReleaseCharacteristics = {
@@ -1084,7 +1079,7 @@ export interface RadiologicalConsequenceAnalysisScope {
      * Consequence measure(s) selected for the intended application of the PRA.
      * References to metrics defined in Risk Integration.
      * @example ["Individual Early Fatality Risk", "Population Latent Cancer Risk"]
-     * @remarks **RCRE-B1**: Specifies the consequence measure(s) selected for the intended application of the PRA as per RI-A1
+     * @remarks **RCRE-B1**
      */
     consequenceMetrics: string[];
 
@@ -1166,9 +1161,9 @@ export interface ReleaseCategoryInputs {
 
 /**
  * Represents the analysis linking release categories to radiological consequences.
- * @remarks **RCRE-A1**: Identifies the site of the reactor or describes and justifies a bounding site for the analysis.
- * @remarks **RCRE-A2**: Identifies the inputs required for the off-site Radiological Consequence Analysis methodology for each release category.
- * @remarks **RCRE-A3**: Indicates that the release category definitions and mechanistic source term parameters were reviewed for the identification of inputs.
+ * @remarks **RCRE-A1**
+ * @remarks **RCRE-A2**
+ * @remarks **RCRE-A3**
  * @example
  * ```typescript
  * const releaseCategoryAnalysis = {
@@ -1194,7 +1189,7 @@ export interface ReleaseCategoryToConsequenceAnalysis {
     /**
      * Identification of the specific site or description of the bounding site used.
      * Required by **RCRE-A1**.
-     * @remarks **RCRE-A1**: Identifies the site of the reactor or describes and justifies a bounding site for the analysis.
+     * @remarks **RCRE-A1**
      */
     siteInformation:
         | {
@@ -1217,28 +1212,28 @@ export interface ReleaseCategoryToConsequenceAnalysis {
      * Inputs required for the off-site Radiological Consequence Analysis methodology for each release category.
      * Includes characteristics like number of plumes, radionuclide release quantities, isotopes, timing, energy, height, particle size, and uncertainties.
      * Derived from **RCRE-A2** and informed by **ES-C1** and **HLR-MS-A** (**RCRE-A3**).
-     * @remarks **RCRE-A2**: Identifies the inputs required for the off-site Radiological Consequence Analysis methodology for each release category.
+     * @remarks **RCRE-A2**
      */
     releaseCategoryInputs: ReleaseCategoryInputs[];
 
     /**
      * Indicates that the release category definitions (ES-C1) and mechanistic source term parameters (HLR-MS-A) were reviewed for the identification of inputs.
      * @example true
-     * @remarks **RCRE-A3**: Indicates that the release category definitions (ES-C1) and mechanistic source term parameters (HLR-MS-A) were reviewed for the identification of inputs in RCRE-A2.
+     * @remarks **RCRE-A3**
      */
     releaseCategoryAndSourceTermReviewed: boolean;
 
     /**
      * Consequence measure(s) selected for the intended application of the PRA as per RI-A1.
      * @example ["Individual Early Fatality Risk", "Population Latent Cancer Risk"]
-     * @remarks **RCRE-B1**: Specifies the consequence measure(s) selected for the intended application of the PRA as per RI-A1.
+     * @remarks **RCRE-B1**
      */
     selectedConsequenceMeasures: string[];
 
     /**
      * Documents the linkage between modeled plant operating states, initiating events, and event sequences leading to defined release categories.
      * @example "Refer to the Event Sequence Analysis documentation for the mapping of event sequences to release categories."
-     * @remarks **RCRE-C1**: Documents the linkage between modeled plant operating states, initiating events, and event sequences leading to defined release categories.
+     * @remarks **RCRE-C1**
      */
     releaseCategoryLinkageDocumentation?: string;
     
@@ -1363,8 +1358,8 @@ export interface ReleaseCategoryToConsequenceAnalysis {
 
 /**
  * Represents the analysis of atmospheric transport and dispersion of radioactive materials.
- * @remarks **RCAD-A1**: Specifies the atmospheric dispersion model(s) used in the analysis.
- * @remarks **RCAD-A2**: Describes how site-specific characteristics are considered in the atmospheric dispersion analysis.
+ * @remarks **RCAD-A1**
+ * @remarks **RCAD-A2**
  * @example
  * ```typescript
  * const atmosphericAnalysis = {
@@ -1393,7 +1388,7 @@ export interface AtmosphericDispersionAnalysis {
      * The selected atmospheric dispersion model(s).
      * Required by **RCAD-A2**.
      * @example "Gaussian Plume Model (e.g., AERMOD)"
-     * @remarks **RCAD-A1**: Specifies the atmospheric dispersion model(s) used in the analysis.
+     * @remarks **RCAD-A1**
      */
     dispersionModel: string;
 
@@ -1401,7 +1396,7 @@ export interface AtmosphericDispersionAnalysis {
      * Justification for the appropriateness of the selected dispersion model(s) for the source term and meteorological conditions.
      * Required by **RCAD-A2** (implicitly).
      * @example "AERMOD is suitable for near-field dispersion and can incorporate building downwash effects."
-     * @remarks **RCAD-C6**: Justifies the selection of the atmospheric dispersion model(s) and parameters used.
+     * @remarks **RCAD-C6**
      */
     dispersionModelJustification: string;
 
@@ -1409,7 +1404,7 @@ export interface AtmosphericDispersionAnalysis {
      * Considerations for plume rise due to thermal buoyancy and/or momentum effects.
      * Relevant to **RCAD-A4**.
      * @example "Plume rise was considered for high-energy releases using Briggs' equations." | "Plume rise is negligible for the modelled releases."
-     * @remarks **RCAD-A7**: Describes the treatment of plume rise (e.g., due to thermal buoyancy or momentum) for applicable releases.
+     * @remarks **RCAD-A7**
      */
     plumeRiseConsideration?: string;
 
@@ -1440,42 +1435,42 @@ export interface AtmosphericDispersionAnalysis {
     /**
      * Describes how site-specific characteristics (e.g., topography, nearby structures) are considered in the atmospheric dispersion analysis.
      * @example "Topographical data was used to adjust plume trajectories and dispersion coefficients. Building wake effects were modeled for releases near plant structures."
-     * @remarks **RCAD-A2**: Describes how site-specific characteristics are considered in the atmospheric dispersion analysis.
+     * @remarks **RCAD-A2**
      */
     siteCharacteristicsConsidered?: string;
 
     /**
      * Specifies the meteorological data used for the atmospheric dispersion calculations.
      * @example "Refer to the Meteorological Data sub-element for details on the meteorological data used."
-     * @remarks **RCAD-A4**: Specifies the meteorological data used for the atmospheric dispersion calculations as per RCME.
+     * @remarks **RCAD-A4**
      */
     meteorologicalDataSpecification?: string;
 
     /**
      * Specifies the grid or receptor locations used for calculating off-site concentrations and deposition.
      * @example "A polar grid extending to 50 miles with finer resolution near the site boundary."
-     * @remarks **RCAD-A8**: Specifies the grid or receptor locations used for calculating off-site concentrations and deposition.
+     * @remarks **RCAD-A8**
      */
     receptorLocationsSpecification?: string;
 
     /**
      * Describes the uncertainty analysis performed for the atmospheric transport and dispersion calculations.
      * @example "Uncertainty in meteorological parameters (wind speed, stability class) was propagated through the dispersion model using Monte Carlo simulation."
-     * @remarks **RCAD-D4**: Describes the uncertainty analysis performed for the atmospheric transport and dispersion calculations.
+     * @remarks **RCAD-D4**
      */
     uncertaintyAnalysisDescription?: string;
 
     /**
      * References to documentation of the input data, models, and results of the atmospheric transport and dispersion analysis.
      * @example ["Appendix C of the main report", "Atmospheric Dispersion Model Validation Report"]
-     * @remarks **RCAD-E7**: Documents the input data, models, and results of the atmospheric transport and dispersion analysis.
+     * @remarks **RCAD-E7**
      */
     supportingDocumentationReferences?: string[];
 
     /**
      * Addresses any limitations of the atmospheric dispersion models used.
      * @example "The Gaussian plume model assumes flat terrain and may have limitations in complex terrain scenarios."
-     * @remarks **RCAD-F3**: Addresses any limitations of the atmospheric dispersion models used.
+     * @remarks **RCAD-F3**
      */
     modelLimitations?: string;
 
@@ -1513,8 +1508,8 @@ export interface AtmosphericDispersionAnalysis {
 
 /**
  * Represents the analysis of protective actions and other site data.
- * @remarks **RCPA-A1**: Specifies the protective action parameters used in the analysis.
- * @remarks **RCPA-A2**: Describes how site-specific characteristics are considered in the protective action analysis.
+ * @remarks **RCPA-A1**
+ * @remarks **RCPA-A2**
  * @example
  * ```typescript
  * const protectiveActionAnalysis = {
@@ -1540,7 +1535,7 @@ export interface ProtectiveActionAnalysis {
      * Protective action parameters used in the analysis.
      * Required by **RCPA-A1**.
      * @example { evacuationDelay: "2 hours", evacuationSpeed: "10 mph" }
-     * @remarks **RCPA-A1**: Specifies the protective action parameters used in the analysis (e.g., evacuation time, sheltering effectiveness).
+     * @remarks **RCPA-A1**
      */
     protectiveActionParameters: {
         evacuationDelay?: string;
@@ -1553,7 +1548,7 @@ export interface ProtectiveActionAnalysis {
      * Description of the population distribution around the site.
      * Required by **RCPA-A2**.
      * @example "Population data from the 2020 census was used, with a 10-mile radius divided into 16 sectors."
-     * @remarks **RCPA-A2**: Describes the population distribution around the site used in the analysis.
+     * @remarks **RCPA-A2**
      */
     populationDistribution: string;
 
@@ -1561,7 +1556,7 @@ export interface ProtectiveActionAnalysis {
      * Description of the land use characteristics around the site.
      * Required by **RCPA-A3**.
      * @example "Agricultural land use data was incorporated for ingestion pathway analysis."
-     * @remarks **RCPA-A3**: Describes the land use characteristics around the site used in the analysis.
+     * @remarks **RCPA-A3**
      */
     landUseCharacteristics: string;
 
@@ -1569,14 +1564,14 @@ export interface ProtectiveActionAnalysis {
      * Bases for emergency response timing assumptions.
      * Required by **RCPA-A4**.
      * @example "Evacuation timing was based on the site emergency plan and local emergency response capabilities."
-     * @remarks **RCPA-A4**: Provides the bases for emergency response timing assumptions.
+     * @remarks **RCPA-A4**
      */
     emergencyResponseTimingBases: string;
 
     /**
      * Sources of model uncertainty, related assumptions, and reasonable alternatives for protective actions.
      * Required by **RCPA-A5**.
-     * @remarks **RCPA-A5**: Identifies sources of model uncertainty and related assumptions in the protective action analysis.
+     * @remarks **RCPA-A5**
      */
     protectiveActionUncertainty: {
         sources: string[];

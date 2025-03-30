@@ -1,11 +1,7 @@
 /**
  * @module initiating_event_analysis
  * 
- * The objectives of Initiating Event Analysis ensure that:
- * - (a) There is a reasonably complete identification of initiating events;
- * - (b) Grouping the initiating events is conducted so that events in the same group have similar mitigation requirements;
- * - (c) Frequencies of the initiating events are quantified;
- * - (d) The Initiating Event Analysis is documented to provide traceability of the work.
+ * The objectives of Initiating Event Analysis ensure that HLRR-IE-A to HLRR-IE-D are met.
  * 
  * Per RG 1.247, initiating events are perturbations to the steady-state operation of the plant that challenge plant control 
  * and safety systems and could lead to plant damage states of interest, radioactivity release, or both. They also include 
@@ -132,7 +128,7 @@ export enum InitiatingEventCategory {
  * Enhanced definition of an initiating event with additional properties
  * @extends {InitiatingEvent}
  *
- * @remarks **HLR-IE-A**: The Initiating Event Analysis shall reasonably identify all initiating events for all modeled plant operating states and sources of radioactive material consistent with the PRA scope and plant pre-operational stage.
+ * @remarks **HLR-IE-A**
  * 
  * @example
  * ```typescript
@@ -157,7 +153,7 @@ export enum InitiatingEventCategory {
 export interface ExtendedInitiatingEvent extends InitiatingEvent {
     /**
      * Category of the initiating event.
-     * @remarks **HLR-IE-B**: The Initiating Event Analysis shall group the initiating events so that events in the same group have similar mitigation requirements to facilitate an efficient but realistic estimation of the frequency of each modeled event sequence and event sequence family.
+     * @remarks **HLR-IE-B**
      */
     category: InitiatingEventCategory | string;
     
@@ -168,56 +164,56 @@ export interface ExtendedInitiatingEvent extends InitiatingEvent {
     
     /**
      * Model uncertainty, data sources, and assumptions associated with the initiating event.
-     * @remarks **IE-C19**: Characterise the uncertainty associated with the frequency of each initiating event or initiating event group.
-     * @remarks **IE-D2**: DOCUMENT the sources of model uncertainty, related assumptions, and reasonable alternatives (as identified in Requirements IE-A17) associated with the Initiating Event Analysis.
+     * @remarks **IE-C19**
+     * @remarks **IE-D2**
      */
     uncertainty?: Uncertainty;
     
     /**
      * Grouping of initiating events with similar mitigation requirements.
-     * @remarks **HLR-IE-B**: The Initiating Event Analysis shall group the initiating events so that events in the same group have similar mitigation requirements.
+     * @remarks **HLR-IE-B**
      */
     group?: string;
     
     /**
      * Plant operating states in which this initiating event can occur.
-     * @remarks **HLR-IE-A**: The Initiating Event Analysis shall reasonably identify all initiating events for all modeled plant operating states ...
+     * @remarks **HLR-IE-A**
      */
     applicableStates?: PlantOperatingStateReference[];
     
     /**
      * Unique identifier for the grouping of initiating events for analysis purposes.
-     * @remarks **HLR-IE-B**: ...group the initiating events so that events in the same group have similar mitigation requirements...
+     * @remarks **HLR-IE-B**
      */
     groupId?: string;
     
     /**
      * List of plant-specific experience related to this initiating event (for operating plants).
-     * @remarks **IE-A7**: For operating plants, REVIEW the plant-specific initiating-event experience to ensure that the list of challenges addresses plant experience for all modeled plant operating states.
+     * @remarks **IE-A7**
      */
     plantExperience?: string[];
     
     /**
      * Review of generic analyses of similar plants.
-     * @remarks **IE-A8**: REVIEW generic analyses of similar plants to assess whether the list of challenges included in the model addresses industry experience for all modeled plant operating states.
+     * @remarks **IE-A8**
      */
     genericAnalysisReview?: string;
     
     /**
      * Assumptions made due to lack of as-built, as-operated details (for pre-operational stage).
-     * @remarks **IE-A18**: For PRAs performed during the pre-operational stage, IDENTIFY assumptions made due to the lack of as-built, as-operated details that influence the initiating event identification analysis.
+     * @remarks **IE-A18**
      */
     preOperationalAssumptions?: string[];
     
     /**
      * Basis for screening out this initiating event (if applicable).
-     * @remarks **IE-D1**: DOCUMENT ... (f) the basis for screening out initiating events;
+     * @remarks **IE-D1**
      */
     screeningBasis?: string;
     
     /**
      * References to supporting analyses (e.g., fault trees).
-     * @remarks **IE-C11**: If fault tree modeling is used for initiating events, USE the applicable Systems Analysis requirements for fault tree modeling found in Systems Analysis (HLR-SY-A).
+     * @remarks **IE-C11**
      */
     supportingAnalyses?: {
         analysisType: string;
@@ -227,7 +223,7 @@ export interface ExtendedInitiatingEvent extends InitiatingEvent {
 
     /**
      * Screening status of this initiating event
-     * @remarks **IE-B7**: SCREEN OUT initiating events if they meet defined criteria
+     * @remarks **IE-B7**
      */
     screeningStatus?: ScreeningStatus;
 
@@ -247,7 +243,7 @@ export interface ExtendedInitiatingEvent extends InitiatingEvent {
 
 /**
  * Base interface for identification methods with version tracking information
- * @remarks **IE-D1**: DOCUMENT the process used in the Initiating Event Analysis specifying what is used as input, the applied methods, and the results.
+ * @remarks **IE-D1**
  * @group Identification Methods
  */
 export interface IdentificationMethodBase {
@@ -272,8 +268,8 @@ export interface IdentificationMethodBase {
 
 /**
  * Master Logic Diagram method for identifying initiating events
- * @remarks **IE-A9**: Perform a systematic evaluation of each system down to the subsystem or train level...
- * @remarks **IE-A12**: Interview at least one knowledgeable resource in plant design or operation to identify potential overlooked initiating events.
+ * @remarks **IE-A9**
+ * @remarks **IE-A12**
  * @example
  * ```typescript
  * const mld: MasterLogicDiagram = {
@@ -317,7 +313,7 @@ export interface MasterLogicDiagram extends IdentificationMethodBase {
 
 /**
  * Heat Balance Fault Tree method for identifying initiating events
- * @remarks **IE-A9**: Perform a systematic evaluation of each system down to the subsystem or train level, including support systems, to identify potential initiating events.
+ * @remarks **IE-A9**
  * @example
  * ```typescript
  * const hbft: HeatBalanceFaultTree = {
@@ -361,8 +357,8 @@ export interface HeatBalanceFaultTree extends IdentificationMethodBase {
 
 /**
  * Failure Modes and Effects Analysis method
- * @remarks **IE-A10**: Include initiating events resulting from multiple failures, including common cause failures and equipment unavailabilities due to maintenance or testing.
- * @remarks **IE-A15**: In searching for initiating events, INCLUDE each system and supporting system alignment that could either influence the likelihood that failures cause an initiating event or could increase the severity of the effect on plant safety functions.
+ * @remarks **IE-A10**
+ * @remarks **IE-A15**
  * @example
  * ```typescript
  * const fmea: FailureModesEffectAnalysis = {
@@ -400,8 +396,8 @@ export interface FailureModesEffectAnalysis extends IdentificationMethodBase {
 
 /**
  * Comprehensive definition of an initiating event
- * @remarks **IE-A7**: For operating plants, REVIEW the plant-specific initiating-event experience to ensure that the list of challenges addresses plant experience for all modeled plant operating states.
- * @remarks **IE-A8**: REVIEW generic analyses of similar plants to assess whether the list of challenges included in the model addresses industry experience for all modeled plant operating states.
+ * @remarks **IE-A7**
+ * @remarks **IE-A8**
  * @example
  * ```typescript
  * const loca: InitiatorDefinition = {
@@ -489,7 +485,7 @@ export interface InitiatorDefinition extends ExtendedInitiatingEvent {
 
 /**
  * Hazard-induced initiating event
- * @remarks **IE-A6**: When identifying initiating events caused by internal or external hazards, INCLUDE initiating events caused by a combination of hazards.
+ * @remarks **IE-A6**
  * @group Identification Methods
  */
 export interface HazardInducedInitiator extends InitiatorDefinition {
@@ -523,7 +519,7 @@ export interface HazardInducedInitiator extends InitiatorDefinition {
 
 /**
  * Criteria for screening out initiating events
- * @remarks **IE-B7**: SCREEN OUT initiating events if they meet criteria
+ * @remarks **IE-B7**
  * @group Event Grouping & Screening
  */
 export interface InitiatingEventScreeningCriteria extends ScreeningCriteria {
@@ -537,8 +533,8 @@ export interface InitiatingEventScreeningCriteria extends ScreeningCriteria {
 
 /**
  * Initiating event group defined by similar mitigation requirements
- * @remarks **IE-B1**: Group initiating events to facilitate definition of event sequences and quantification. Justify that grouping does not affect the determination of risk-significant event sequences.
- * @remarks **IE-B2**: Use a structured, systematic process for grouping initiating events.
+ * @remarks **IE-B1**
+ * @remarks **IE-B2**
  * @group Event Grouping & Screening
  */
 export interface InitiatingEventGroup extends Unique, Named {
@@ -580,8 +576,8 @@ export interface InitiatingEventGroup extends Unique, Named {
 
 /**
  * Quantification details for an initiating event
- * @remarks **HLR-IE-C**: The Initiating Event Analysis shall quantify the annual frequency of each initiating event or initiating event group based on the plant conditions for each source of radioactive material and plant operating state within the scope of the PRA.
- * @remarks **IE-C1**: For operating plants, calculate initiating event frequency using applicable generic and plant- or design-specific data representative of current design and performance, unless adequate plant-specific data exists.
+ * @remarks **HLR-IE-C**
+ * @remarks **IE-C1**
  * @group Quantification & Uncertainty
  */
 export interface InitiatingEventQuantification {
@@ -618,8 +614,8 @@ export interface InitiatingEventQuantification {
 
 /**
  * Documentation of the Initiating Event Analysis process
- * @remarks **HLR-IE-D**: The documentation of the Initiating Event Analysis shall provide traceability of the work.
- * @remarks **IE-D1**: DOCUMENT the process used in the Initiating Event Analysis specifying what is used as input, the applied methods, and the results.
+ * @remarks **HLR-IE-D**
+ * @remarks **IE-D1**
  * @group Documentation & Traceability
  */
 export interface InitiatingEventDocumentation {
@@ -674,8 +670,8 @@ export interface InitiatingEventDocumentation {
 
 /**
  * Peer review documentation for Initiating Event Analysis
- * @remarks **HLR-IE-D**: The documentation of the Initiating Event Analysis shall provide traceability of the work.
- * @remarks **IE-D1**: DOCUMENT the process used in the Initiating Event Analysis specifying what is used as input, the applied methods, and the results.
+ * @remarks **HLR-IE-D**
+ * @remarks **IE-D1**
  * @group Documentation & Traceability
  */
 export interface PeerReviewDocumentation extends Unique, Named {
@@ -715,7 +711,7 @@ export interface PeerReviewDocumentation extends Unique, Named {
 
 /**
  * Pre-operational assumptions for Initiating Event Analysis
- * @remarks **IE-D3**: For PRAs performed during the pre-operational stage, DOCUMENT assumptions and limitations due to the lack of as-built, as-operated details...
+ * @remarks **IE-D3**
  * @group Documentation & Traceability
  */
 export interface PreOperationalAssumptions {
@@ -744,10 +740,10 @@ export interface PreOperationalAssumptions {
  * Implements comprehensive analysis of initiating events including identification,
  * grouping, quantification, and insights
  * 
- * @remarks **HLR-IE-A**: The Initiating Event Analysis shall reasonably identify all initiating events for all modeled plant operating states and sources of radioactive material consistent with the PRA scope and plant pre-operational stage.
- * @remarks **HLR-IE-B**: The Initiating Event Analysis shall group the initiating events so that events in the same group have similar mitigation requirements to facilitate an efficient but realistic estimation of the frequency of each modeled event sequence and event sequence family.
- * @remarks **HLR-IE-C**: The Initiating Event Analysis shall quantify the annual frequency of each initiating event or initiating event group based on the plant conditions for each source of radioactive material and plant operating state within the scope of the PRA.
- * @remarks **HLR-IE-D**: The documentation of the Initiating Event Analysis shall provide traceability of the work.
+ * @remarks **HLR-IE-A**
+ * @remarks **HLR-IE-B**
+ * @remarks **HLR-IE-C**
+ * @remarks **HLR-IE-D**
  * 
  * @example
  * ```typescript
@@ -778,16 +774,16 @@ export interface InitiatingEventsAnalysis extends TechnicalElement<TechnicalElem
      * References to plant operating states that are considered in this analysis
      * @remarks This property stores references to plant operating state IDs rather than the full objects
      * to avoid circular dependencies. These IDs can be used to look up the full PlantOperatingState objects.
-     * @remarks **HLR-IE-A**: The Initiating Event Analysis shall reasonably identify all initiating events for all modeled plant operating states...
+     * @remarks **HLR-IE-A**
      */
     applicable_plant_operating_states: PlantOperatingStateReference[];
     
     /**
      * Methods used for identifying initiating events
-     * @remarks **IE-A9**: Perform a systematic evaluation of each system down to the subsystem or train level...
-     * @remarks **IE-A10**: Include initiating events resulting from multiple failures, including common cause failures and equipment unavailabilities due to maintenance or testing.
-     * @remarks **IE-A12**: Interview at least one knowledgeable resource in plant design or operation to identify potential overlooked initiating events.
-     * @remarks **IE-A13**: For operating plants, review operating experience for initiating event precursors and initiating events caused by human failures impacting later operator mitigation actions.
+     * @remarks **IE-A9**
+     * @remarks **IE-A10**
+     * @remarks **IE-A12**
+     * @remarks **IE-A13**
      */
     identification: {
         master_logic_diagram: MasterLogicDiagram;
@@ -797,27 +793,27 @@ export interface InitiatingEventsAnalysis extends TechnicalElement<TechnicalElem
     
     /**
      * Identified initiating events
-     * @remarks **HLR-IE-A**: The Initiating Event Analysis shall reasonably identify all initiating events...
+     * @remarks **HLR-IE-A**
      */
     initiators: Record<string, InitiatorDefinition>;
     
     /**
      * Grouping of initiating events with similar mitigation requirements
-     * @remarks **HLR-IE-B**: The Initiating Event Analysis shall group the initiating events so that events in the same group have similar mitigation requirements (i.e., the requirements for all events in the group are either equally or less restrictive than the limiting mitigation requirements for the group) to facilitate an efficient but realistic estimation of the frequency of each modeled event sequence and event sequence family.
-     * @remarks **IE-B1**: Group initiating events to facilitate definition of event sequences and quantification. Justify that grouping does not affect the determination of risk-significant event sequences.
+     * @remarks **HLR-IE-B**
+     * @remarks **IE-B1**
      */
     initiating_event_groups: Record<string, InitiatingEventGroup>;
     
     /**
      * Frequency quantification for initiating events
-     * @remarks **HLR-IE-C**: The Initiating Event Analysis shall quantify the annual frequency of each initiating event or initiating event group based on the plant conditions for each source of radioactive material and plant operating state within the scope of the PRA.
-     * @remarks **IE-C1**: For operating plants, calculate initiating event frequency using applicable generic and plant- or design-specific data representative of current design and performance, unless adequate plant-specific data exists.
+     * @remarks **HLR-IE-C**
+     * @remarks **IE-C1**
      */
     quantification: Record<string, InitiatingEventQuantification>;
     
     /**
      * Screening criteria used to exclude initiating events
-     * @remarks **IE-B7**: SCREEN OUT initiating events if they meet defined criteria
+     * @remarks **IE-B7**
      */
     screening_criteria: InitiatingEventScreeningCriteria;
     
@@ -833,27 +829,27 @@ export interface InitiatingEventsAnalysis extends TechnicalElement<TechnicalElem
     
     /**
      * Documentation of the Initiating Event Analysis process.
-     * @remarks **HLR-IE-D**: The documentation of the Initiating Event Analysis shall provide traceability of the work.
-     * @remarks **IE-D1**: DOCUMENT the process used in the Initiating Event Analysis specifying what is used as input, the applied methods, and the results.
+     * @remarks **HLR-IE-D**
+     * @remarks **IE-D1**
      */
     documentation?: InitiatingEventDocumentation;
     
     /**
      * Peer review documentation
-     * @remarks **HLR-IE-D**: The documentation of the Initiating Event Analysis shall provide traceability of the work.
+     * @remarks **HLR-IE-D**
      */
     peer_review?: PeerReviewDocumentation;
     
     /**
      * Pre-operational assumptions and limitations
-     * @remarks **IE-D3**: For PRAs performed during the pre-operational stage, DOCUMENT assumptions and limitations due to the lack of as-built, as-operated details...
+     * @remarks **IE-D3**
      */
     pre_operational_assumptions?: PreOperationalAssumptions[];
 }
 
 /**
  * Interface representing hazard analysis that may induce initiating events
- * @remarks **IE-A6**: When identifying initiating events caused by internal or external hazards, INCLUDE initiating events caused by a combination of hazards
+ * @remarks **IE-A6**
  * @group API
  */
 export interface HazardAnalysis extends Unique, Named {

@@ -1,18 +1,7 @@
 /**
  * @module risk_integration
  * 
- * The objectives of Risk Integration ensure that:
- * - (a) The criteria for establishing the appropriate absolute or relative risk significance of event
- *       sequences, event sequence families, structures, systems and components, and basic events
- *       modeled in the PRA are defined in a manner that is consistent with the intended applications
- *       of the PRA.
- * - (b) The overall risk is calculated and the significant risk contributors are identified using risk
- *       metrics consistent with the selected risk significance criteria and appropriate for the
- *       intended PRA applications.
- * - (c) The uncertainties in the calculated risk metrics are characterized and quantified to the extent
- *       practical. Key sources of model uncertainty and assumptions are identified, and their
- *       potential impact on the results is understood.
- * - (d) The Risk Integration is documented to provide traceability of the work.
+ * The objectives of Risk Integration ensure that HLR-RI-A to HLR-RI-D are met.
  *
  * This module incorporates requirements from RG 1.247 which considers Risk Integration a fundamental
  * element of an acceptable NLWR PRA.
@@ -195,7 +184,7 @@ export interface RiskContributor extends Unique, Named {
 
 /**
  * Interface defining the criteria used to establish risk significance.
- * @remarks **HLR-RI-A**: The Risk Integration shall define the criteria to be used to establish the risk significance of event sequences, event sequence families, systems, structures and components, and basic events modeled in the PRA.
+ * @remarks **HLR-RI-A**
  * @example
  * ```
  * {
@@ -313,7 +302,7 @@ export interface RiskSignificanceCriteria extends Unique, Named {
 
 /**
  * Interface for risk significance evaluation of a specific PRA element.
- * @remarks **RI-A3**: ENSURE that the risk significance criteria are applied consistently across all analyses, plant operating states, and hazard groups.
+ * @remarks **RI-A3**
  * @example
  * ```
  * {
@@ -369,7 +358,7 @@ export interface RiskSignificanceEvaluation extends Unique {
 
 /**
  * Interface representing the calculated overall risk using defined risk metrics.
- * @remarks **HLR-RI-B**: The Risk Integration shall calculate the overall risk and identify the significant risk contributors using risk metrics consistent with the selected risk significance criteria and appropriate for the intended PRA applications.
+ * @remarks **HLR-RI-B**
  * @example
  * ```
  * {
@@ -578,7 +567,7 @@ export interface IntegratedRiskResults extends Unique, Named {
 
 /**
  * Interface representing the significant risk contributors identified from the integrated risk results.
- * @remarks **RI-B6**: IDENTIFY the significant contributors to the overall risk metrics and to the key sources of uncertainty in these risk metrics.
+ * @remarks **RI-B6**
  * @example
  * ```typescript
  * const contributors: SignificantRiskContributors = {
@@ -669,7 +658,7 @@ export interface SignificantRiskContributors extends Unique {
 
 /**
  * Interface for documenting the methods and codes used for Risk Integration.
- * @remarks **RI-B7**: DOCUMENT the methods and any applicable codes used to accomplish the RI-B1 through RI-B6 requirements, including descriptions of their application and limitations for the specific installation.
+ * @remarks **RI-B7**
  * @example
  * ```
  * {
@@ -724,7 +713,7 @@ export interface RiskIntegrationMethod extends Unique, Named {
 
 /**
  * Interface representing a key source of model uncertainty.
- * @remarks **RI-C1**: IDENTIFY the key sources of model uncertainty and related assumptions for each technical element and characterize these uncertainties in terms of their impact on the event sequence family frequencies and consequences.
+ * @remarks **RI-C1**
  * @example
  * ```
  * {
@@ -774,7 +763,7 @@ export interface ModelUncertaintySource extends Unique, Named {
 
 /**
  * Interface representing the characterization and quantification of uncertainties in the calculated risk metrics.
- * @remarks **HLR-RI-C**: The Risk Integration shall characterize and quantify the uncertainties in the calculated risk metrics to the extent practical. Key sources of model uncertainty and assumptions shall be identified, and their potential impact on the results shall be understood.
+ * @remarks **HLR-RI-C**
  * @example
  * ```
  * {
@@ -909,7 +898,7 @@ export interface RiskUncertaintyAnalysis extends Unique, Named {
 
 /**
  * Interface representing a key assumption in the risk integration.
- * @remarks **RI-D2**: DOCUMENT the sources of model uncertainty, related assumptions, and reasonable alternatives (as identified in Requirement RI-C1) associated with the Risk Integration.
+ * @remarks **RI-D2**
  * @example
  * ```
  * {
@@ -950,7 +939,7 @@ export interface RiskIntegrationAssumption extends Unique {
 
 /**
  * Interface for documenting the Risk Integration analysis.
- * @remarks **HLR-RI-D**: The documentation of the Risk Integration shall provide traceability of the work.
+ * @remarks **HLR-RI-D**
  * @example
  * ```
  * {
@@ -1098,7 +1087,7 @@ export interface RiskIntegrationDocumentation extends Unique {
 
 /**
  * Interface representing the mapping between event sequences and release categories.
- * @remarks **RI-B1**: USE the event sequence families and their frequencies from Event Sequence Quantification and the release categories and their characteristics from Mechanistic Source Term Analysis to calculate the overall risk and to identify the significant risk contributors.
+ * @remarks **RI-B1**
  * @example
  * ```
  * {
@@ -1185,21 +1174,8 @@ export interface EventSequenceToReleaseCategory extends Unique {
 
 /**
  * Comprehensive interface for the Risk Integration technical element.
- * 
- * The objectives of Risk Integration ensure that:
- * - (a) The criteria for establishing the appropriate absolute or relative risk significance of event
- *       sequences, event sequence families, structures, systems and components, and basic events
- *       modeled in the PRA are defined in a manner that is consistent with the intended applications
- *       of the PRA.
- * - (b) The overall risk is calculated and the significant risk contributors are identified using risk
- *       metrics consistent with the selected risk significance criteria and appropriate for the
- *       intended PRA applications.
- * - (c) The uncertainties in the calculated risk metrics are characterized and quantified to the extent
- *       practical. Key sources of model uncertainty and assumptions are identified, and their
- *       potential impact on the results is understood.
- * - (d) The Risk Integration is documented to provide traceability of the work.
  *
- * @remarks **HLR-RI**: The Risk Integration shall define the criteria to be used to establish the risk significance of event sequences, event sequence families, systems, structures and components, and basic events modeled in the PRA. The Risk Integration shall calculate the overall risk and identify the significant risk contributors using risk metrics consistent with the selected risk significance criteria and appropriate for the intended PRA applications. The Risk Integration shall characterize and quantify the uncertainties in the calculated risk metrics to the extent practical. Key sources of model uncertainty and assumptions shall be identified, and their potential impact on the results shall be understood. The documentation of the Risk Integration shall provide traceability of the work.
+ * @remarks **HLR-RI**
  * @group API
  */
 export interface RiskIntegration extends TechnicalElement<TechnicalElementTypes.RISK_INTEGRATION> {
@@ -1255,7 +1231,7 @@ export interface RiskIntegration extends TechnicalElement<TechnicalElementTypes.
     
     /**
      * Definition of the scope of the risk integration analysis
-     * @implements RI-A1: DEFINE the consequence measure(s) necessary to support the intended applications of the PRA
+     * @remarks **RI-A1**
      */
     scopeDefinition?: {
         /** Consequence measures included in the analysis */
@@ -1291,74 +1267,73 @@ export interface RiskIntegration extends TechnicalElement<TechnicalElementTypes.
     
     /**
      * Risk significance criteria defined for the PRA.
-     * @remarks **HLR-RI-A**: The Risk Integration shall define the criteria to be used to establish the risk significance of event sequences, event sequence families, systems, structures and components, and basic events modeled in the PRA.
-     * @implements RI-A2: DEFINE and JUSTIFY the criteria to be used to establish the relative risk significance
-     * @implements RI-A3: DEFINE and JUSTIFY the criteria to be used to establish the absolute risk significance
+     * @remarks **HLR-RI-A**
+     * @remarks **RI-A2**
+     * @remarks **RI-A3**
      */
     riskSignificanceCriteria: RiskSignificanceCriteria[];
     
     /**
      * Risk significance evaluations for specific PRA elements.
-     * @implements RI-A3: ENSURE that the risk significance criteria are applied consistently
+     * @remarks **RI-A3**
      */
     riskSignificanceEvaluations?: RiskSignificanceEvaluation[];
     
     /**
      * Mappings between event sequences and release categories.
-     * @remarks **RI-B1**: USE the event sequence families and their frequencies from Event Sequence Quantification and the release categories and their characteristics from Mechanistic Source Term Analysis to calculate the overall risk and to identify the significant risk contributors.
+     * @remarks **RI-B1**
      * @remarks This field should be populated based on the ReleaseCategoryMapping objects from the Event Sequence Analysis module.
      */
     eventSequenceToReleaseCategoryMappings: EventSequenceToReleaseCategory[];
     
     /**
      * Integrated risk results.
-     * @remarks **HLR-RI-B**: The Risk Integration shall calculate the overall risk and identify the significant risk contributors using risk metrics consistent with the selected risk significance criteria and appropriate for the intended PRA applications.
-     * @implements RI-B2: CALCULATE the integrated risk results using risk metrics
-     * @implements RI-B3: AGGREGATE the risk results from each source, state, or hazard group
-     * @implements RI-B4: INCLUDE the risk contributions from modelled event sequence families involving releases from multiple reactors
-     * @implements RI-B5: JUSTIFY that selection of the event sequence variations within each event sequence family is representative
+     * @remarks **HLR-RI-B**
+     * @remarks **RI-B2**
+     * @remarks **RI-B3**
+     * @remarks **RI-B4**
      */
     integratedRiskResults: IntegratedRiskResults;
     
     /**
      * Significant risk contributors identified from the integrated risk results.
-     * @remarks **RI-B6**: IDENTIFY the significant contributors to the overall risk metrics and to the key sources of uncertainty in these risk metrics.
+     * @remarks **RI-B6**
      */
     significantContributors: SignificantRiskContributors;
     
     /**
      * Methods and codes used for risk integration.
-     * @remarks **RI-B7**: DOCUMENT the methods and any applicable codes used to accomplish the RI-B1 through RI-B6 requirements, including descriptions of their application and limitations for the specific installation.
+     * @remarks **RI-B7**
      */
     integrationMethods: RiskIntegrationMethod[];
     
     /**
      * Uncertainty analyses for the calculated risk metrics.
-     * @remarks **HLR-RI-C**: The Risk Integration shall characterize and quantify the uncertainties in the calculated risk metrics to the extent practical. Key sources of model uncertainty and assumptions shall be identified, and their potential impact on the results shall be understood.
-     * @implements RI-C1: COMPILE a list of key sources of model uncertainty and related assumptions
-     * @implements RI-C2: CHARACTERISE the uncertainty associated with the selection of risk significance criteria
-     * @implements RI-C3: PERFORM an uncertainty analysis for the calculated risk metrics
-     * @implements RI-C4: CHARACTERISE the uncertainty distribution of the selected risk metric results
-     * @implements RI-C5: IDENTIFY the key sources of uncertainty that contribute most to the uncertainty in the risk results
+     * @remarks **HLR-RI-C**
+     * @remarks **RI-C1**
+     * @remarks **RI-C2**
+     * @remarks **RI-C3**
+     * @remarks **RI-C4**
+     * @remarks **RI-C5**
      */
     uncertaintyAnalyses: RiskUncertaintyAnalysis[];
     
     /**
      * Key assumptions in the risk integration.
-     * @remarks **RI-D2**: DOCUMENT the sources of model uncertainty, related assumptions, and reasonable alternatives (as identified in Requirement RI-C1) associated with the Risk Integration.
+     * @remarks **RI-D2**
      */
     keyAssumptions?: RiskIntegrationAssumption[];
     
     /**
      * Documentation of the risk integration.
-     * @remarks **HLR-RI-D**: The documentation of the Risk Integration shall provide traceability of the work.
-     * @implements RI-D1: DOCUMENT the process used in the Risk Integration
+     * @remarks **HLR-RI-D**
+     * @remarks **RI-D1**
      */
     documentation: RiskIntegrationDocumentation;
     
     /**
      * For pre-operational PRAs, assumptions and limitations due to the lack of as-built, as-operated details.
-     * @remarks **RI-D3**: For PRAs performed during the pre-operational stage, DOCUMENT assumptions and limitations due to the lack of as-built, as-operated details that influence the Risk Integration.
+     * @remarks **RI-D3**
      */
     preOperationalAssumptions?: {
         assumption: string;
@@ -1368,7 +1343,7 @@ export interface RiskIntegration extends TechnicalElement<TechnicalElementTypes.
     
     /**
      * Sensitivity studies for uncertainty assessment
-     * @implements RI-C2: CHARACTERISE the uncertainty associated with the selection of risk significance criteria
+     * @remarks **RI-C2**
      */
     sensitivityStudies?: SensitivityStudy[];
     

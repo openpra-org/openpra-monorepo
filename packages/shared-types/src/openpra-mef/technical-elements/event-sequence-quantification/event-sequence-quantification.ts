@@ -1,13 +1,7 @@
 /**
  * @module event_sequence_quantification
  * 
- * The objectives of Event Sequence Quantification ensure that:
- * - (a) The individual parts of the PRA model of event sequences are integrated to obtain a quantification of event sequence frequencies;
- * - (b) Quantification is performed using appropriate models and codes;
- * - (c) Functional, physical, and human dependencies are addressed;
- * - (d) Quantification supports the determination of risk-significant contributors;
- * - (e) Uncertainties in the Event Sequence Quantification are characterized;
- * - (f) The Event Sequence Quantification is documented to provide traceability of the work.
+ * The objectives of Event Sequence Quantification ensure that HLR-ESQ-A to HLR-ESQ-F are met.
  * 
  * Per RG 1.247, the objective of the event sequence quantification analysis PRA element is to develop a frequency 
  * estimate of event sequences and event sequence families at any stage of the plant life cycle, while ensuring that 
@@ -334,8 +328,7 @@ export type EventSequenceFamilyReference = string;
 
 /**
  * Enum representing the different methods for truncating event sequences
- * @remarks **ESQ-B3**: USE a truncation value that is sufficiently low to ensure convergence of the overall event sequence or PRA model frequency.
- * @group Core Definitions & Enums
+ * @remarks **ESQ-B3**
  */
 export enum TruncationMethod {
   /** Truncate based on absolute frequency value */
@@ -353,7 +346,7 @@ export enum TruncationMethod {
 
 /**
  * Enum representing the different approaches for quantifying event sequence frequencies
- * @remarks **ESQ-B1**: QUANTIFY the frequency of each specified modeled event sequence and event sequence family using a method that integrates...
+ * @remarks **ESQ-B1**
  * @group Core Definitions & Enums
  */
 export enum QuantificationApproach {
@@ -378,8 +371,7 @@ export enum QuantificationApproach {
 
 /**
  * Enum representing the circular logic resolution methods
- * @remarks **ESQ-B5**: IDENTIFY and RESOLVE circular logic in the event sequence models.
- * @group Core Definitions & Enums
+ * @remarks **ESQ-B5**
  */
 export enum CircularLogicResolutionMethod {
   /** Break loops by inserting conditional split fractions */
@@ -419,8 +411,8 @@ export type SourceTermReference = string;
 
 /**
  * Detailed representation of an event sequence family for quantification purposes
- * @remarks **ESQ-A1**: DELINEATE the event sequences or event sequence families to be modeled in the Event Sequence Quantification by specifying the associated... 
- * @remarks **Note ESQ-N-1**: ...event sequence family, which should group event sequences with similar source, plant operating state, initiating event, plant response, and mechanistic source term.
+ * @remarks **ESQ-A1**
+ * @remarks **Note ESQ-N-1**
  * @example
  * ```typescript
  * const esfQuantification: EventSequenceFamilyQuantification = {
@@ -477,8 +469,8 @@ export interface EventSequenceFamilyQuantification extends Unique, Named {
 
 /**
  * Detailed representation of mutually exclusive events and combinations
- * @remarks **ESQ-B7**: IDENTIFY mutually exclusive event combinations.
- * @remarks **ESQ-B8**: ELIMINATE mutually exclusive event combinations from the event sequence model or provide a justification for retaining them.
+ * @remarks **ESQ-B7**
+ * @remarks **ESQ-B8**
  * @group Core Definitions & Enums
  */
 export interface MutuallyExclusiveEvents {
@@ -503,7 +495,7 @@ export interface MutuallyExclusiveEvents {
 
 /**
  * Representation of a circular logic situation in the event sequence model
- * @remarks **ESQ-B5**: IDENTIFY and RESOLVE circular logic in the event sequence models.
+ * @remarks **ESQ-B5**
  * @group Core Definitions & Enums
  */
 export interface CircularLogic {
@@ -531,7 +523,7 @@ export interface CircularLogic {
 
 /**
  * Representation of a flag event in the event sequence quantification
- * @remarks **ESQ-B9**: When flag events are used in the quantification of event sequence frequencies, DEVELOP a traceable process for the use of flag events.
+ * @remarks **ESQ-B9**
  * @group Core Definitions & Enums
  */
 export interface FlagEvent extends Unique, Named {
@@ -561,9 +553,9 @@ export interface FlagEvent extends Unique, Named {
 
 /**
  * Review process for event sequence quantification
- * @remarks **ESQ-D1**: REVIEW the event sequence results to ensure they make logical sense.
- * @remarks **ESQ-D4**: COMPARE results to similar plants, where available, accounting for design differences.
- * @remarks **ESQ-D6**: IDENTIFY the contributions to the frequencies of key risk-significant event sequences and event sequence families from relevant initiating events, system failures, and human errors.
+ * @remarks **ESQ-D1**
+ * @remarks **ESQ-D4**
+ * @remarks **ESQ-D6**
  * @group Quantification & Uncertainty Analysis
  */
 export interface QuantificationReviewProcess {
@@ -607,8 +599,8 @@ export interface QuantificationReviewProcess {
 /**
  * Interface for minimal cut sets in event sequence quantification
  * @group Quantification & Uncertainty Analysis
- * @implements ESQ-B1: QUANTIFY the frequency of each specified modeled event sequence
- * @implements ESQ-D6: IDENTIFY the contributions to the frequencies of key risk-significant event sequences
+ * @implements ESQ-B1
+ * @implements ESQ-D6
  * 
  * @remarks
  * This interface stores the complete cut set information used in sequence quantification,
@@ -683,9 +675,9 @@ export interface QuantificationCutSet {
 
 /**
  * Frequency and uncertainty estimates for an event sequence
- * @remarks **ESQ-A1**: DELINEATE the event sequences or event sequence families to be modeled in the Event Sequence Quantification...
- * @remarks **ESQ-B1**: QUANTIFY the frequency of each specified modeled event sequence and event sequence family using a method that integrates...
- * @remarks **ESQ-E1**: CHARACTERIZE the uncertainty in the event sequence frequencies and PROVIDE the basis for the characterization.
+ * @remarks **ESQ-A1**
+ * @remarks **ESQ-B1**
+ * @remarks **ESQ-E1**
  * @group Quantification & Uncertainty Analysis
  */
 export interface EventSequenceFrequencyEstimate {
@@ -846,8 +838,8 @@ export interface EventSequenceFrequencyEstimate {
 
 /**
  * Convergence analysis for event sequence quantification
- * @remarks **ESQ-B3**: USE a truncation value that is sufficiently low to ensure convergence of the overall event sequence or PRA model frequency.
- * @remarks **ESQ-B4**: DEMONSTRATE that the truncation value(s) used in the final event sequence quantification demonstrates convergence toward a stable result.
+ * @remarks **ESQ-B3**
+ * @remarks **ESQ-B4**
  * @group Quantification & Uncertainty Analysis
  */
 export interface ConvergenceAnalysis {
@@ -878,9 +870,9 @@ export interface ConvergenceAnalysis {
 
 /**
  * Importance analysis for event sequence quantification
- * @remarks **ESQ-D5**: DETERMINE the frequencies of event sequence families.
- * @remarks **ESQ-D6**: IDENTIFY the contributions to the frequencies of key risk-significant event sequences and event sequence families from relevant initiating events...
- * @remarks **ESQ-D7**: IDENTIFY the significant basic events (equipment unavailabilities and human failure events), event sequence families, and fault tree top events that contributes to risk-significant event sequences...
+ * @remarks **ESQ-D5**
+ * @remarks **ESQ-D6**
+ * @remarks **ESQ-D7**
  * @group Quantification & Uncertainty Analysis
  */
 export interface ImportanceAnalysis {
@@ -920,10 +912,10 @@ export interface ImportanceAnalysis {
 
 /**
  * Comprehensive uncertainty analysis for event sequence quantification
- * @remarks **HLR-ESQ-E**: Uncertainties in the Event Sequence Quantification results shall be characterized and quantified to the extent practical. Key sources of model uncertainty and assumptions shall be identified, and their potential impact on the results shall be understood. Those sources of uncertainty that are not quantified shall be addressed via sensitivity analysis.
- * @remarks **ESQ-E1**: CHARACTERIZE the uncertainty in the event sequence frequencies and PROVIDE the basis for the characterization.
- * @remarks **ESQ-E2**: IDENTIFY the key sources of model uncertainty for each event sequence family.
- * @remarks **ESQ-A5**: QUANTIFY the mean frequency of each modeled event sequence family by propagating the uncertainty distributions of the risk-significant input parameters in such a way that the state-of-knowledge correlation is taken into account unless it can be demonstrated that the effect of the state-of-knowledge correlation is not risk-significant.
+ * @remarks **HLR-ESQ-E**
+ * @remarks **ESQ-E1**
+ * @remarks **ESQ-E2**
+ * @remarks **ESQ-A5**
  * @group Quantification & Uncertainty Analysis
  */
 export interface EventQuantUncertaintyAnalysis extends BaseUncertaintyAnalysis {
@@ -956,7 +948,7 @@ export interface EventQuantUncertaintyAnalysis extends BaseUncertaintyAnalysis {
   
   /**
    * State-of-knowledge correlation handling
-   * @remarks **ESQ-A5**: QUANTIFY the mean frequency of each modeled event sequence family by propagating the uncertainty distributions of the risk-significant input parameters in such a way that the state-of-knowledge correlation is taken into account unless it can be demonstrated that the effect of the state-of-knowledge correlation is not risk-significant.
+   * @remarks **ESQ-A5**
    */
   stateOfKnowledgeCorrelation: {
     /** Whether state-of-knowledge correlation is considered */
@@ -989,7 +981,7 @@ export interface EventQuantUncertaintyAnalysis extends BaseUncertaintyAnalysis {
 
 /**
  * Assessment of equipment survivability under adverse environmental conditions
- * @remarks **ESQ-C8**: ASSESS the survivability of equipment under adverse environmental conditions in the quantification of event sequences.
+ * @remarks **ESQ-C8**
  * @group Integration & Dependencies
  */
 export interface EquipmentSurvivabilityAssessment {
@@ -1023,7 +1015,7 @@ export interface EquipmentSurvivabilityAssessment {
 
 /**
  * Treatment of recovery actions in event sequence quantification
- * @remarks **ESQ-A7**: INCLUDE recovery actions in the event sequence quantification that have a reasonable probability of success taking into account the applicable adverse environments and the time available.
+ * @remarks **ESQ-A7**
  * @group Integration & Dependencies
  */
 export interface RecoveryActionTreatment {
@@ -1042,7 +1034,7 @@ export interface RecoveryActionTreatment {
 
 /**
  * Integration of components for event sequence quantification
- * @remarks **ESQ-A2**: INTEGRATE the event sequences, system models, event progression phenomena, barrier failure modes, data, and human reliability analysis elements, accounting for all functional, physical, and human dependencies and recovery actions, into a frequency estimate.
+ * @remarks **ESQ-A2**
  * @group Integration & Dependencies
  */
 export interface ModelIntegration {
@@ -1070,10 +1062,10 @@ export interface ModelIntegration {
 
 /**
  * Representation of human failure event dependencies in cutsets
- * @remarks **HR-G6**: EVALUATE the degree of dependence between the HFEs in the same sequence or scenario.
- * @remarks **HR-G7**: ACCOUNT for the influence of success or failure in preceding human actions and system performance on the defined human event through the evaluation of dependency.
- * @remarks **HR-G8**: EVALUATE the potential for dependency between HFEs and include such dependencies in the PRA model.
- * @remarks **HR-G12**: INCLUDE the combined effect of multiple human errors in the same accident sequence or cut set.
+ * @remarks **HR-G6**
+ * @remarks **HR-G7**
+ * @remarks **HR-G8**
+ * @remarks **HR-G12**
  * @group Integration & Dependencies
  */
 export interface HumanFailureEventDependency {
@@ -1089,8 +1081,8 @@ export interface HumanFailureEventDependency {
 
 /**
  * Representation of dependencies in event sequence quantification
- * @remarks **HLR-ESQ-C**: The Event Sequence Quantification shall be done in a manner that all identified functional, physical, and human dependencies are addressed.
- * @remarks **ESQ-C1**: INCORPORATE functional, physical, and human dependencies into the event sequence model or PROVIDE a basis for dismissal.
+ * @remarks **HLR-ESQ-C**
+ * @remarks **ESQ-C1**
  * @group Integration & Dependencies
  */
 export interface DependencyRepresentation {
@@ -1120,8 +1112,8 @@ export interface DependencyRepresentation {
   
   /** 
    * Detailed human failure event dependencies in cutsets
-   * @remarks **ESQ-C1**: INCORPORATE functional, physical, and human dependencies into the event sequence model
-   * @remarks **ESQ-C2**: INCLUDE the impact of human dependencies in the event sequence quantification
+   * @remarks **ESQ-C1**
+   * @remarks **ESQ-C2**
    */
   humanFailureEventDependencies?: HumanFailureEventDependency[];
   
@@ -1163,7 +1155,7 @@ export interface DependencyRepresentation {
   
   /** 
    * Assessment of equipment survivability under adverse conditions
-   * @remarks **ESQ-C8**: ASSESS the survivability of equipment under adverse environmental conditions in the quantification of event sequences.
+   * @remarks **ESQ-C8**
    * @todo Future enhancement: Consider adding more detailed environmental condition modeling and time-dependent survivability analysis
    */
   equipmentSurvivabilityAssessment?: EquipmentSurvivabilityAssessment;
@@ -1171,7 +1163,7 @@ export interface DependencyRepresentation {
 
 /**
  * Treatment of system successes in event sequence quantification
- * @remarks **ESQ-B6**: ACCOUNT for the effect of system success in event sequences.
+ * @remarks **ESQ-B6**
  * @group Integration & Dependencies
  */
 export interface SystemSuccessTreatment {
@@ -1190,7 +1182,7 @@ export interface SystemSuccessTreatment {
 
 /**
  * Treatment of radionuclide transport barriers in event sequence quantification
- * @remarks **ESQ-C5**: INTEGRATE the radionuclide transport barrier failure modes, phenomena, equipment failures, and human failures into the Event Sequence Quantification to resolve the mechanistic source term.
+ * @remarks **ESQ-C5**
  * @group Transport Barriers & Phenomena
  */
 export interface RadionuclideBarrierTreatment {
@@ -1214,15 +1206,15 @@ export interface RadionuclideBarrierTreatment {
   
   /**
    * Failure probabilities for each barrier and failure mode
-   * @implements ESQ-A3: INTEGRATE the event sequences, system models, event progression phenomena, barrier failure modes
-   * @implements ESQ-C14: INCLUDE the radionuclide transport barrier failure modes
+   * @implements ESQ-A3
+   * @implements ESQ-C14
    */
   barrierFailureProbabilities: Record<string, Record<string, number>>;
   
   /**
    * Evaluation of barrier capabilities under different conditions
-   * @implements ESQ-A3: INTEGRATE the event sequences, system models, event progression phenomena, barrier failure modes
-   * @implements ESQ-C14: INCLUDE the radionuclide transport barrier failure modes
+   * @implements ESQ-A3
+   * @implements ESQ-C14
    */
   barrierCapabilityEvaluation: Record<string, {
     /** Conditions under which the barrier is evaluated */
@@ -1266,8 +1258,8 @@ export interface RadionuclideBarrierTreatment {
 
 /**
  * Documentation of the Event Sequence Quantification process
- * @remarks **HLR-ESQ-F**: The documentation of the Event Sequence Quantification shall provide traceability of the work.
- * @remarks **ESQ-F1**: DOCUMENT the process used in the Event Sequence Quantification, specifying what is used as input, the applied methods, and the results.
+ * @remarks **HLR-ESQ-F**
+ * @remarks **ESQ-F1**
  * @group Documentation & Traceability
  */
 export interface EventSequenceQuantificationDocumentation extends BaseProcessDocumentation {
@@ -1358,7 +1350,7 @@ export interface EventSequenceQuantificationDocumentation extends BaseProcessDoc
 
 /**
  * Documentation of model uncertainties in Event Sequence Quantification
- * @remarks **ESQ-F3**: DOCUMENT the sources of model uncertainty, related assumptions, and reasonable alternatives associated with the Event Sequence Quantification.
+ * @remarks **ESQ-F3**
  * @group Documentation & Traceability
  */
 export interface EventSequenceQuantificationUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
@@ -1405,7 +1397,7 @@ export interface EventSequenceQuantificationUncertaintyDocumentation extends Bas
 
 /**
  * Documentation of limitations in the Event Sequence Quantification
- * @remarks **ESQ-F4**: DOCUMENT limitations in the quantification process that would impact applications.
+ * @remarks **ESQ-F4**
  * @group Documentation & Traceability
  */
 export interface EventSequenceQuantificationLimitationsDocumentation {
@@ -1439,7 +1431,7 @@ export interface EventSequenceQuantificationLimitationsDocumentation {
 
 /**
  * Documentation of pre-operational assumptions and limitations
- * @remarks **ESQ-F5**: For PRAs conducted in the pre-operational stage, DOCUMENT assumptions and limitations of the Event Sequence Quantification due to the lack of as-built, as-operated details.
+ * @remarks **ESQ-F5**
  * @group Documentation & Traceability
  */
 export interface EventSequenceQuantificationPreOperationalDocumentation extends BasePreOperationalAssumptionsDocumentation {
@@ -1479,7 +1471,7 @@ export interface EventSequenceQuantificationPreOperationalDocumentation extends 
 
 /**
  * Peer review documentation for Event Sequence Quantification
- * @remarks Part of **HLR-ESQ-F**: The documentation of the Event Sequence Quantification shall provide traceability of the work.
+ * @remarks Part of **HLR-ESQ-F**
  * @group Documentation & Traceability
  */
 export interface EventSequenceQuantificationPeerReviewDocumentation extends BasePeerReviewDocumentation {
@@ -1553,9 +1545,8 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Event sequence families defined for quantification.
    * @remarks Specifies how individual event sequences are grouped into families for quantification.
-   * @remarks **ESQ-A1**: DELINEATE the event sequences or event sequence families to be modeled.
-   * @remarks **Note ESQ-N-1**: An event sequence family is a group of event sequences with similar source, plant operating state, initiating event, plant response, and mechanistic source term.
-   * @example
+   * @remarks **ESQ-A1**
+   * @remarks **Note ESQ-N-1**:
    * ```typescript
    * eventSequenceFamilies: {
    *   "LOCA-Small-LossOfOffsitePower": {
@@ -1572,8 +1563,8 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Quantification results for each event sequence and family.
    * @remarks Includes frequency estimates, uncertainty analyses, and risk-significant contributors.
-   * @remarks **ESQ-B1**: QUANTIFY the frequency of each specified modeled event sequence and event sequence family.
-   * @remarks **ESQ-D6**: IDENTIFY the contributions to the frequencies of key risk-significant event sequences.
+   * @remarks **ESQ-B1**
+   * @remarks **ESQ-D6**
    * @example
    * ```typescript
    * quantificationResults: {
@@ -1590,8 +1581,8 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Details of the quantification methods used.
    * @remarks Specifies the computer codes, truncation levels, and overall approach.
-   * @remarks **ESQ-B1**: QUANTIFY the frequency of each specified modeled event sequence and event sequence family using a method that integrates the event sequences, system models, etc.
-   * @remarks **ESQ-B3**: USE a truncation value that is sufficiently low to ensure convergence of the overall event sequence or PRA model frequency.
+   * @remarks **ESQ-B1**
+   * @remarks **ESQ-B3**
    * @example
    * ```typescript
    * quantificationMethods: {
@@ -1611,7 +1602,6 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
     
     /** 
      * Computer codes used 
-     * @implements ESQ-B1: QUANTIFY the frequency of each specified modeled event sequence and event sequence family using a method that integrates the event sequences, system models, etc.
      * @todo Future enhancement: Consider adding more detailed V&V documentation including test cases, benchmarking results, and configuration management
      */
     computerCodes: {
@@ -1642,7 +1632,7 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
     
     /** 
      * Treatment of recovery actions 
-     * @implements ESQ-A7: INCLUDE recovery actions in the event sequence quantification that have a reasonable probability of success
+     * @implements ESQ-A7
      * @todo Future enhancement: Consider adding more detailed fields for timing, success criteria, and dependencies
      */
     recoveryActionTreatment?: RecoveryActionTreatment;
@@ -1654,7 +1644,7 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Integration of models from various technical elements.
    * @remarks Describes how different PRA elements are integrated into the quantification.
-   * @remarks **ESQ-A2**: INTEGRATE the event sequences, system models, event progression phenomena, barrier failure modes, data, and human reliability analysis elements.
+   * @remarks **ESQ-A2**
    * @example
    * ```typescript
    * modelIntegration: {
@@ -1670,7 +1660,7 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Treatment of dependencies in quantification.
    * @remarks Describes how functional, physical, and human dependencies are addressed.
-   * @remarks **HLR-ESQ-C**: The Event Sequence Quantification shall be done in a manner that all identified functional, physical, and human dependencies are addressed.
+   * @remarks **HLR-ESQ-C**
    * @example
    * ```typescript
    * dependencyTreatment: {
@@ -1691,9 +1681,9 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Handling of circular logic and mutually exclusive events.
    * @remarks Describes how logical challenges in the model are addressed.
-   * @remarks **ESQ-B5**: IDENTIFY and RESOLVE circular logic in the event sequence models.
-   * @remarks **ESQ-B7**: IDENTIFY mutually exclusive event combinations.
-   * @remarks **ESQ-B8**: ELIMINATE mutually exclusive event combinations from the event sequence model or provide a justification for retaining them.
+   * @remarks **ESQ-B5**
+   * @remarks **ESQ-B7**
+   * @remarks **ESQ-B8**
    * @example
    * ```typescript
    * logicalChallenges: {
@@ -1733,9 +1723,9 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Uncertainty and sensitivity analyses.
    * @remarks Characterizes uncertainties and their impact on results.
-   * @remarks **HLR-ESQ-E**: Uncertainties in the Event Sequence Quantification results shall be characterized and quantified to the extent practical.
-   * @remarks **ESQ-E1**: CHARACTERIZE the uncertainty in the event sequence frequencies and PROVIDE the basis for the characterization.
-   * @remarks **ESQ-E2**: IDENTIFY the key sources of model uncertainty for each event sequence family.
+   * @remarks **HLR-ESQ-E**
+   * @remarks **ESQ-E1**
+   * @remarks **ESQ-E2**
    * @example
    * ```typescript
    * uncertaintyAnalysis: {
@@ -1759,8 +1749,8 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Importance analysis of contributors.
    * @remarks Identifies significant contributors to risk.
-   * @remarks **ESQ-D6**: IDENTIFY the contributions to the frequencies of key risk-significant event sequences and event sequence families.
-   * @remarks **ESQ-D7**: IDENTIFY the significant basic events, event sequence families, and fault tree top events that contribute to risk-significant event sequences.
+   * @remarks **ESQ-D6**
+   * @remarks **ESQ-D7**
    * @example
    * ```typescript
    * importanceAnalysis: {
@@ -1782,8 +1772,8 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Review process for quantification results.
    * @remarks Documents the review of results for logical consistency and comparison to similar plants.
-   * @remarks **ESQ-D1**: REVIEW the event sequence results to ensure they make logical sense.
-   * @remarks **ESQ-D4**: COMPARE results to similar plants, where available, accounting for design differences.
+   * @remarks **ESQ-D1**
+   * @remarks **ESQ-D4**
    * @todo Future enhancement: Consider adding more detailed review documentation including peer review findings and resolution tracking
    * @example
    * ```typescript
@@ -1809,7 +1799,7 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Treatment of radionuclide barriers.
    * @remarks Describes how barriers to prevent and mitigate event sequences are modeled.
-   * @remarks **ESQ-C5**: INTEGRATE the radionuclide transport barrier failure modes, phenomena, equipment failures, and human failures into the Event Sequence Quantification to resolve the mechanistic source term.
+   * @remarks **ESQ-C5**
    * @example
    * ```typescript
    * barrierTreatment: {
@@ -1827,8 +1817,8 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Documentation of the Event Sequence Quantification process.
    * @remarks Provides traceability of the work, including inputs, methods, and results.
-   * @remarks **HLR-ESQ-F**: The documentation of the Event Sequence Quantification shall provide traceability of the work.
-   * @remarks **ESQ-F1**: DOCUMENT the process used in the Event Sequence Quantification, specifying what is used as input, the applied methods, and the results.
+   * @remarks **HLR-ESQ-F**
+   * @remarks **ESQ-F1**
    * @example
    * ```typescript
    * documentation: {
@@ -1845,7 +1835,7 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Documentation of model uncertainties.
    * @remarks Documents sources of model uncertainty, related assumptions, and alternatives.
-   * @remarks **ESQ-F3**: DOCUMENT the sources of model uncertainty, related assumptions, and reasonable alternatives associated with the Event Sequence Quantification.
+   * @remarks **ESQ-F3**
    * @example
    * ```typescript
    * uncertaintyDocumentation: {
@@ -1868,7 +1858,7 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Documentation of quantification limitations.
    * @remarks Documents limitations that would impact applications.
-   * @remarks **ESQ-F4**: DOCUMENT limitations in the quantification process that would impact applications.
+   * @remarks **ESQ-F4**
    * @example
    * ```typescript
    * limitationsDocumentation: {
@@ -1889,7 +1879,7 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Documentation of pre-operational assumptions and limitations.
    * @remarks Documents assumptions and limitations due to lack of as-built, as-operated details.
-   * @remarks **ESQ-F5**: For PRAs conducted in the pre-operational stage, DOCUMENT assumptions and limitations of the Event Sequence Quantification due to the lack of as-built, as-operated details.
+   * @remarks **ESQ-F5**
    * @example
    * ```typescript
    * preOperationalDocumentation: {
@@ -1911,7 +1901,7 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
   /**
    * Peer review documentation.
    * @remarks Documents peer review of the Event Sequence Quantification.
-   * @remarks Part of **HLR-ESQ-F**: The documentation of the Event Sequence Quantification shall provide traceability of the work.
+   * @remarks Part of **HLR-ESQ-F**
    * @example
    * ```typescript
    * peerReviewDocumentation: {
@@ -2055,12 +2045,12 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
  * Implements comprehensive quantification of event sequences including integration,
  * dependency treatment, uncertainty analysis, and documentation
  * 
- * @remarks **HLR-ESQ-A**: The individual modeling items of the PRA shall be integrated to support Event Sequence Quantification which shall quantify the frequency of each modeled event sequence and event sequence family. The integration shall include the event sequences, system models, event progression phenomena, barrier failure modes, data, and human reliability analysis elements, and shall account for functional, physical, and human dependencies and recovery actions.
- * @remarks **HLR-ESQ-B**: Quantification of the event sequences shall be performed using appropriate models and codes, a truncation level sufficiently low to show convergence, and shall address method-specific limitations and features. Quantification shall also address the breaking of circular logic, identification of mutually exclusive event combinations, use of flag events and modules, and performance of Event Sequence Quantification including the use of system successes.
- * @remarks **HLR-ESQ-C**: The Event Sequence Quantification shall be done in a manner that all identified functional, physical, and human dependencies are addressed.
- * @remarks **HLR-ESQ-D**: The Event Sequence Quantification results shall be reviewed, and the risk-significant contributors to the frequency of each risk-significant event sequence and event sequence family shall be identified.
- * @remarks **HLR-ESQ-E**: Uncertainties in the Event Sequence Quantification results shall be characterized and quantified to the extent practical. Key sources of model uncertainty and assumptions shall be identified, and their potential impact on the results shall be understood.
- * @remarks **HLR-ESQ-F**: The documentation of the Event Sequence Quantification shall provide traceability of the work.
+ * @remarks **HLR-ESQ-A**
+ * @remarks **HLR-ESQ-B**
+ * @remarks **HLR-ESQ-C**
+ * @remarks **HLR-ESQ-D**
+ * @remarks **HLR-ESQ-E**
+ * @remarks **HLR-ESQ-F**
  * 
  * @example
  * See the example-event-sequence-quantification.ts file for a complete example.
@@ -2071,8 +2061,8 @@ export interface EventSequenceQuantification extends TechnicalElement<TechnicalE
 /**
  * Interface for using system cut sets in event sequence quantification
  * @group Quantification & Uncertainty Analysis
- * @implements ESQ-A2: INTEGRATE the event sequences, system models, event progression phenomena
- * @implements ESQ-B1: QUANTIFY the frequency of each specified modeled event sequence
+ * @implements ESQ-A2
+ * @implements ESQ-B1
  * 
  * @remarks
  * This interface defines how system cut sets are used in event sequence quantification.

@@ -7,14 +7,7 @@
  * @module plant_operating_states_analysis
  * @description Comprehensive types and interfaces for Plant Operating State Analysis (POS)
  * 
- * The objectives of Plant Operating State Analysis ensure that:
- * - (a) each plant operating state is defined in terms of all important conditions that may affect 
- *       the delineation and evaluation of event sequences;
- * - (b) plant operating states that are grouped together are shown to be represented by the 
- *       characteristics of the remaining group;
- * - (c) the frequencies, decay heat levels, and plant configurations for each plant operating 
- *       state are well characterized;
- * - (d) the Plant Operating State Analysis is documented to provide traceability of the work.
+ * The objectives of Plant Operating State Analysis ensure that HLR-POS-A to HLR-POS-D are met.
  * 
  * Per RG 1.247, POSs are used to subdivide the plant operating cycle into unique states, such that the plant 
  * response can be assumed to be the same within the given POS for a given initiating event. The POS analysis 
@@ -844,14 +837,12 @@ export interface AssumptionsLackOfDetail {
  
  * This interface is critical for regulatory compliance as it provides structured
  * documentation of POS grouping decisions. It directly supports HLR-POS-B requirements
- * for justifying all screening and grouping of plant operating states to facilitate
- * efficient estimation of event sequence frequencies.
  * 
  * Key regulatory requirements addressed:
- * - POS-B3: Ensures grouped states don't mask risk-significant contributors
- * - POS-B5: Documents grouping of demand-based and time-based initiating events
- * - POS-B6: Ensures the most severe characteristics are chosen for combined groups
- * - POS-D1: Provides traceability for the process and criteria used for grouping
+ * - POS-B3
+ * - POS-B5
+ * - POS-B6
+ * - POS-D1
  * 
  * Without this interface, it would be difficult to maintain a clear record of which
  * plant operating states were combined, why they were combined, and what analysis

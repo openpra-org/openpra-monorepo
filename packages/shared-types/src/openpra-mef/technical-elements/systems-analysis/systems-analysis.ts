@@ -2,12 +2,7 @@
    * @module systems_analysis
    * @description Comprehensive types and interfaces for Systems Analysis (SY)
    * 
-   * The objectives of Systems Analysis ensure that:
-   * - (a) there is a reasonably complete set of the independent system failure and unavailability modes
-   *       and associated human failure events (HFEs) and system alignments for each system;
-   * - (b) there is a reasonably complete identification of the common cause failures (CCFs) and 
-   *       dependency effects on system performance;
-   * - (c) the Systems Analysis is documented to provide traceability of the work.
+   * The objectives of Systems Analysis ensure that HLR-SY-A to HLR-SY-C are met.
    * 
    * Per RG 1.247, the objective of the systems analysis PRA element is to identify the various 
    * combinations of failures that can prevent a system from performing its function as defined by 
@@ -180,7 +175,7 @@
     
     /**
      * Whether repair is modeled for this basic event
-     * @implements SY-A31: DO NOT MODEL repair unless justified
+     * @implements SY-A31 
      */
     repairModeled?: boolean;
     
@@ -199,7 +194,7 @@
   /**
    * @group Temporal Modeling
    * @description Time-dependent component behaviors and phase modeling
-   * @implements SY-A1: DEVELOP system logic models that include mission times
+   * @implements SY-A1
    */
   //==============================================================================
   
@@ -523,49 +518,49 @@
   /**
    * Interface for a system definition, including boundaries, components, and success criteria.
    * @group System Modeling & Failure Modes
-   * @implements SY-A1: DEVELOP system logic models
-   * @implements SY-A3: DEFINE the boundaries of the system
+   * @implements SY-A1
+   * @implements SY-A3
    */
   export interface SystemDefinition extends Unique, Named {
     /**
      * Description of the system's function and operation under normal and emergency conditions.
-     * @implements SY-C1(a): system function and operation under normal and emergency operations
+     * @implements SY-C1(a)
      * @example "The RHR system removes decay heat from the reactor core during shutdown conditions."
      */
     description?: string;
     
     /**
      * System boundaries, including components within the scope of the model.
-     * @implements SY-A3(a): DEFINE boundaries, equipment, and portions that are not modeled
-     * @implements SY-C1(b): system model boundary
+     * @implements SY-A3(a)
+     * @implements SY-C1(b)
      * @example ["Pump A", "Pump B", "Heat Exchanger", "Piping from RCS"]
      */
     boundaries: string[];
     
     /**
      * Components that make up this system
-     * @implements SY-A7: INCLUDE components required to support success criteria
+     * @implements SY-A7
      */
     components?: Record<ComponentReference, SystemComponent>;
     
     /**
      * Success criteria for the system to perform its intended safety function(s).
-     * @implements SY-A2: INCLUDE success criteria derived from thermal, structural analyses
-     * @implements SY-C1(f): system success criteria and relationship to event sequence models
+     * @implements SY-A2
+     * @implements SY-C1(f)
      * @example "One of two pumps capable of delivering required flow."
      */
     successCriteria: string | SystemSuccessCriterion | SuccessCriteriaId;
     
     /**
      * Mission time for which the system is required to function.
-     * @implements SY-A1: DEVELOP system logic models that include mission times
+     * @implements SY-A1
      * @example "24 hours"
      */
     missionTime?: string;
     
     /**
      * System schematic illustrating all equipment and components necessary for operation.
-     * @implements SY-C1(c): system schematic illustrating all equipment and components
+     * @implements SY-C1(c)
      * @example { reference: "Drawing XYZ-123", description: "P&ID of RHR System" }
      */
     schematic?: {
@@ -575,14 +570,14 @@
     
     /**
      * Plant operating states where this system is required.
-     * @implements SY-B14: MODEL dependencies on plant operating states
+     * @implements SY-B14
      */
     plantOperatingStates?: PlantOperatingStatesTable;
     
     /**
      * Components and failure modes included in the model and justification for any exclusions.
-     * @implements SY-A7: INCLUDE components required to support success criteria
-     * @implements SY-C1(l): components and failure modes included and justification for exclusion
+     * @implements SY-A7
+     * @implements SY-C1(l)
      */
     modeledComponentsAndFailures: Record<
       string,
@@ -600,19 +595,19 @@
     
     /**
      * Justification for exclusion of any components.
-     * @implements SY-A7: Justification for exclusion of components
+     * @implements SY-A7
      */
     justificationForExclusionOfComponents?: string[];
     
     /**
      * Justification for exclusion of any failure modes.
-     * @implements SY-A19: Justification for exclusion of failure modes
+     * @implements SY-A19
      */
     justificationForExclusionOfFailureModes?: string[];
     
     /**
      * Human actions necessary for the operation of the system.
-     * @implements SY-C1(g): human actions necessary for operation of system
+     * @implements SY-C1(g)
      * @example [{ actionRef: "HRA-001", description: "Operator aligns valves for recirculation." }]
      */
     humanActionsForOperation?: {
@@ -622,21 +617,21 @@
     
     /**
      * Reference to system-related test and maintenance procedures.
-     * @implements SY-C1(h): reference to system-related test and maintenance procedures
+     * @implements SY-C1(h)
      * @example ["Procedure STM-RHR-001: Quarterly Pump Test"]
      */
     testMaintenanceProcedures?: string[];
     
     /**
      * Testing and maintenance requirements and practices relevant to system availability.
-     * @implements SY-A3(d): DEFINE test and maintenance requirements
+     * @implements SY-A3(d)
      * @example ["Quarterly pump testing", "Annual valve maintenance"]
      */
     testAndMaintenance?: string[];
     
     /**
      * Component spatial information and environmental hazards that may impact multiple systems.
-     * @implements SY-C1(j): component spatial information, including hazards
+     * @implements SY-C1(j)
      * @example [{ location: "Pump Room A", hazards: ["Potential flooding"] }]
      */
     spatialInformation?: {
@@ -647,14 +642,14 @@
     
     /**
      * Assumptions or simplifications made in the development of the system model.
-     * @implements SY-C1(k): assumptions or simplifications made in development of system models
+     * @implements SY-C1(k)
      * @example ["Piping failures are not explicitly modeled."]
      */
     modelAssumptions?: string[];
     
     /**
      * Information and calculations supporting equipment operability considerations and assumptions.
-     * @implements SY-C1(d): information and calculations to support equipment operability
+     * @implements SY-C1(d)
      * @example [{ component: "Pump A", calculationRef: "CALC-RHR-001" }]
      */
     operabilityConsiderations?: {
@@ -665,14 +660,14 @@
     
     /**
      * Operating limitations as per Technical Specifications or design basis.
-     * @implements SY-A3(e): DEFINE operating limitations
+     * @implements SY-A3(e)
      * @example ["Minimum of two pumps operable in shutdown."]
      */
     operatingLimitations?: string[];
     
     /**
      * Component operability and design limits.
-     * @implements SY-A3(f): DEFINE component operability and design limits
+     * @implements SY-A3(f)
      * @example [{ component: "Pump A", limit: "Flow rate > 500 gpm" }]
      */
     componentOperabilityLimits?: {
@@ -682,21 +677,21 @@
     
     /**
      * System configuration during normal and off-normal conditions, including alternative alignments.
-     * @implements SY-A3(h): DEFINE system configuration during normal and off-normal conditions
+     * @implements SY-A3(h)
      * @example ["Normal standby with valves open.", "Emergency injection mode."]
      */
     configurations?: string[];
     
     /**
      * Actual operational history or history in similar systems indicating past problems.
-     * @implements SY-C1(e): actual operational history or history in similar systems
+     * @implements SY-C1(e)
      * @example ["Two instances of pump seal failure in the last 5 years."]
      */
     operationalHistory?: string[];
     
     /**
      * Procedures for the operation of the system during normal and off-normal conditions.
-     * @implements SY-A3(g): DEFINE procedures for system operation
+     * @implements SY-A3(g)
      * @example ["EOP-XXX: Loss of Coolant Accident"]
      */
     operatingProcedures?: string[];
@@ -710,13 +705,13 @@
     /**
      * Indicates whether this system definition is based on as-built/as-operated
      * or as-designed/as-intended-to-operate information
-     * @implements SY-A2: COLLECT pertinent information
+     * @implements SY-A2
      */
     informationBasis: "as-built-as-operated" | "as-designed-as-intended";
     
     /**
      * For pre-operational PRAs, justification for information sources used
-     * @implements SY-A4: SPECIFY and JUSTIFY information sources
+     * @implements SY-A4
      */
     preOperationalInformationJustification?: string;
   }
@@ -724,7 +719,7 @@
   /**
    * Interface for a system logic model (e.g., fault tree).
    * @group System Modeling & Failure Modes
-   * @implements SY-A1: DEVELOP system logic models
+   * @implements SY-A1
    */
   export interface SystemLogicModel extends Unique {
     /**
@@ -740,20 +735,20 @@
     
     /**
      * Representation of the logic model (e.g., a textual representation or a link to an external file).
-     * @implements SY-C1: DOCUMENT the process used in the Systems Analysis
+     * @implements SY-C1
      * @example "[[PumpA_Fail OR PumpB_Fail] AND [Power_Fail OR ControlSignal_Fail]]"
      */
     modelRepresentation: string;
     
     /**
      * Basic events included in the logic model and their descriptions.
-     * @implements SY-C1(r): basic events in the system fault trees
+     * @implements SY-C1(r)
      */
     basicEvents: SystemBasicEvent[];
     
     /**
      * Records of resolution of logic loops developed during fault tree linking (if used).
-     * @implements SY-C1(n): records of resolution of logic loops developed during fault tree linking
+     * @implements SY-C1(n)
      * @example [{ loopId: "LOOP-001", resolution: "Implemented time-dependent gate." }]
      */
     logicLoopResolutions?: {
@@ -763,13 +758,13 @@
     
     /**
      * The nomenclature used in the system models.
-     * @implements SY-C1(s): the nomenclature used in the system models
+     * @implements SY-C1(s)
      */
     nomenclature?: Record<string, string>;
     
     /**
      * Fault tree representation of the system logic model, if applicable.
-     * @implements SY-A1: DEVELOP system logic models
+     * @implements SY-A1
      */
     faultTree?: FaultTree;
   }
@@ -777,7 +772,7 @@
   /**
    * Interface for digital instrumentation and control systems modeling.
    * @group System Modeling & Failure Modes
-   * @implements SY-C1(t): treatment of digital instrumentation and control systems
+   * @implements SY-C1(t)
    */
   export interface DigitalInstrumentationAndControl extends Unique, Named {
     /**
@@ -815,7 +810,7 @@
   /**
    * Interface for passive safety systems modeling.
    * @group System Modeling & Failure Modes
-   * @implements SY-C1(u): treatment of systems that perform their safety functions using passive means
+   * @implements SY-C1(u)
    */
   export interface PassiveSystemsTreatment extends Unique, Named {
     /**
@@ -853,16 +848,16 @@
   /**
    * @group Fault Tree Analysis
    * @description Fault tree modeling, symbols, and analysis methods
-   * @implements SY-A1: DEVELOP system logic models
-   * @implements SY-A7: INCLUDE components required to support success criteria
-   * @implements SY-B1: IDENTIFY and MODEL the common cause failures
+   * @implements SY-A1
+   * @implements SY-A7
+   * @implements SY-B1
    */
   //==============================================================================
   
   /**
    * Interface for a complete fault tree
    * @group Fault Tree Analysis
-   * @implements SY-A1: DEVELOP system logic models
+   * @implements SY-A1
    */
   export interface FaultTree extends Unique, Named, SaphireCompatible {
     /**
@@ -878,7 +873,7 @@
     /**
      * ID of the top event node within this fault tree's nodes map
      * This is an internal reference to identify which node in the fault tree represents the top event
-     * @implements SY-A1: DEVELOP system logic models that represent the top event
+     * @implements SY-A1
      */
     topEventId: string;
     
@@ -929,8 +924,8 @@
   /**
    * Interface representing a minimal cut set in a fault tree
    * @group Fault Tree Analysis
-   * @implements SY-A1: DEVELOP system logic models
-   * @implements SY-C1(o): results of the system model evaluations
+   * @implements SY-A1
+   * @implements SY-C1(o)
    * 
    * @remarks
    * This interface defines the core structure of minimal cut sets as they are generated from system fault trees.
@@ -1152,7 +1147,7 @@
   /**
    * Interface for a dependency between systems.
    * @group Dependencies & Common Cause Analysis
-   * @implements SY-B5: INCLUDE both intersystem and intrasystem dependencies
+   * @implements SY-B5
    */
   export interface SystemDependency extends Unique {
     /**
@@ -1191,7 +1186,7 @@
   /**
    * Interface for a dependency between components within a system.
    * @group Dependencies & Common Cause Analysis
-   * @implements SY-B5: INCLUDE both intersystem and intrasystem dependencies
+   * @implements SY-B5
    */
   export interface ComponentDependency extends Unique {
     /**
@@ -1233,8 +1228,8 @@
   /**
    * Interface for a common cause failure group.
    * @group Dependencies & Common Cause Analysis
-   * @implements SY-B1: IDENTIFY and MODEL the common cause failures
-   * @implements SY-B4: EVALUATE appropriate common cause failure probabilities
+   * @implements SY-B1
+   * @implements SY-B4
    */
   export interface CommonCauseFailureGroup extends Unique, Named {
     /**
@@ -1256,7 +1251,7 @@
     
     /**
      * The common cause model used (reference to Data Analysis).
-     * @implements SY-B4: EVALUATE appropriate common cause failure probabilities
+     * @implements SY-B4
      * @example "Multiple Greek Letter (MGL)"
      */
     modelType: string;
@@ -1269,7 +1264,7 @@
     
     /**
      * Justification for why this CCF is or is not risk-significant.
-     * @implements SY-B1: Justification for risk-significance
+     * @implements SY-B1
      */
     riskSignificanceJustification?: string;
   }
@@ -1277,7 +1272,7 @@
   /**
    * Interface for a human failure event integrated into system models.
    * @group Dependencies & Common Cause Analysis
-   * @implements SY-A1: INCLUDE human failures that can contribute to system unavailability
+   * @implements SY-A1
    */
   export interface HumanFailureEventIntegration extends Unique {
     /**
@@ -1310,7 +1305,7 @@
   /**
    * Interface for systematic dependency search methodology.
    * @group Dependencies & Common Cause Analysis
-   * @implements SY-C1(i): process used for systematic search for dependencies including dependency tables
+   * @implements SY-C1(i)
    */
   export interface DependencySearchMethodology extends Unique, Named {
     /**
@@ -1348,7 +1343,7 @@
   /**
    * Interface for system uncertainty analysis.
    * @group Engineering Analysis & Validation
-   * @implements SY-B4: EVALUATE appropriate common cause failure probabilities
+   * @implements SY-B4
    */
   export interface SystemUncertaintyAnalysis extends BaseUncertaintyAnalysis {
     /**
@@ -1408,7 +1403,7 @@
   /**
    * Interface for system model evaluation results.
    * @group Engineering Analysis & Validation
-   * @implements SY-C1(o): results of the system model evaluations
+   * @implements SY-C1(o)
    */
   export interface SystemModelEvaluation extends Unique {
     /**
@@ -1444,7 +1439,7 @@
   /**
    * Interface for sensitivity studies on system models.
    * @group Engineering Analysis & Validation
-   * @implements SY-C1(p): results of sensitivity studies
+   * @implements SY-C1(p)
    */
   export interface SystemSensitivityStudy extends SensitivityStudy {
     /**
@@ -1475,7 +1470,7 @@
   /**
    * Interface for considerations of potential overload conditions.
    * @group Engineering Analysis & Validation
-   * @implements SY-A29: IDENTIFY conditions that may require designed capabilities to be exceeded
+   * @implements SY-A29
    */
   export interface OverCapacityConsideration extends Unique {
     /**
@@ -1507,7 +1502,7 @@
   /**
    * Interface for model validation methods.
    * @group Engineering Analysis & Validation
-   * @implements SY-A33: USE of external or independent reviews
+   * @implements SY-A33
    */
   export interface ModelValidation extends Unique, Named {
     /**
@@ -1553,24 +1548,24 @@
   /**
    * Interface representing documentation of the process used in the systems analysis.
    * @group Documentation & Traceability
-   * @implements SY-C1: DOCUMENT the process used in the Systems Analysis
+   * @implements SY-C1
    */
   export interface ProcessDocumentation extends BaseProcessDocumentation {
     /**
      * Documentation of system functions and operations.
-     * @implements SY-C1(a): system function and operation under normal and emergency operations
+     * @implements SY-C1(a)
      */
     systemFunctionDocumentation?: Record<SystemReference, string>;
     
     /**
      * Documentation of system boundaries.
-     * @implements SY-C1(b): system model boundary
+     * @implements SY-C1(b)
      */
     systemBoundaryDocumentation?: Record<SystemReference, string>;
     
     /**
      * Documentation of system schematics.
-     * @implements SY-C1(c): system schematic illustrating all equipment and components
+     * @implements SY-C1(c)
      */
     systemSchematicReferences?: Record<SystemReference, {
       reference: string;
@@ -1579,7 +1574,7 @@
     
     /**
      * Documentation of equipment operability considerations.
-     * @implements SY-C1(d): information and calculations to support equipment operability
+     * @implements SY-C1(d)
      */
     equipmentOperabilityDocumentation?: Record<string, {
       system: SystemReference;
@@ -1590,13 +1585,13 @@
     
     /**
      * Documentation of operational history.
-     * @implements SY-C1(e): actual operational history or history in similar systems
+     * @implements SY-C1(e)
      */
     operationalHistoryDocumentation?: Record<SystemReference, string[]>;
     
     /**
      * Documentation of success criteria relationship to event sequences.
-     * @implements SY-C1(f): system success criteria and relationship to event sequence models
+     * @implements SY-C1(f)
      */
     successCriteriaDocumentation?: Record<SystemReference, {
       criteria: string;
@@ -1605,7 +1600,7 @@
     
     /**
      * Documentation of human actions for system operation.
-     * @implements SY-C1(g): human actions necessary for operation of system
+     * @implements SY-C1(g)
      */
     humanActionsDocumentation?: Record<HumanActionReference, {
       system: SystemReference;
@@ -1614,13 +1609,13 @@
     
     /**
      * Documentation of test and maintenance procedures.
-     * @implements SY-C1(h): reference to system-related test and maintenance procedures
+     * @implements SY-C1(h)
      */
     testMaintenanceProceduresDocumentation?: Record<SystemReference, string[]>;
     
     /**
      * Documentation of system dependencies and search methodology.
-     * @implements SY-C1(i): system dependencies and shared component interface
+     * @implements SY-C1(i)
      */
     dependencySearchDocumentation?: {
       methodology: string;
@@ -1629,7 +1624,7 @@
     
     /**
      * Documentation of spatial information and hazards.
-     * @implements SY-C1(j): component spatial information, including hazards
+     * @implements SY-C1(j)
      */
     spatialInformationDocumentation?: Record<string, {
       location: string;
@@ -1640,13 +1635,13 @@
     
     /**
      * Documentation of modeling assumptions.
-     * @implements SY-C1(k): assumptions or simplifications made in development of system models
+     * @implements SY-C1(k)
      */
     modelingAssumptionsDocumentation?: Record<SystemReference, string[]>;
     
     /**
      * Documentation of components and failure modes included/excluded.
-     * @implements SY-C1(l): components and failure modes included and justification for exclusion
+     * @implements SY-C1(l)
      */
     componentsFailureModesDocumentation?: Record<SystemReference, {
       includedComponents: string[];
@@ -1659,7 +1654,7 @@
     
     /**
      * Documentation of modularization process.
-     * @implements SY-C1(m): description of the modularization process
+     * @implements SY-C1(m)
      */
     modularizationDocumentation?: {
       description: string;
@@ -1668,7 +1663,7 @@
     
     /**
      * Documentation of logic loop resolutions.
-     * @implements SY-C1(n): records of resolution of logic loops developed during fault tree linking
+     * @implements SY-C1(n)
      */
     logicLoopResolutionsDocumentation?: Record<string, {
       system: SystemReference;
@@ -1678,7 +1673,7 @@
     
     /**
      * Documentation of system model evaluation results.
-     * @implements SY-C1(o): results of the system model evaluations
+     * @implements SY-C1(o)
      */
     evaluationResultsDocumentation?: Record<SystemReference, {
       topEventProbability: number;
@@ -1687,7 +1682,7 @@
     
     /**
      * Documentation of sensitivity studies results.
-     * @implements SY-C1(p): results of sensitivity studies
+     * @implements SY-C1(p)
      */
     sensitivityStudiesDocumentation?: Record<SystemReference, {
       studyDescription: string;
@@ -1696,7 +1691,7 @@
     
     /**
      * Documentation of information sources.
-     * @implements SY-C1(q): sources of information
+     * @implements SY-C1(q)
      */
     informationSourcesDocumentation?: {
       drawings: string[];
@@ -1707,7 +1702,7 @@
     
     /**
      * Documentation of basic events traceability.
-     * @implements SY-C1(r): basic events in the system fault trees
+     * @implements SY-C1(r)
      */
     basicEventsDocumentation?: Record<string, {
       system: SystemReference;
@@ -1718,13 +1713,13 @@
     
     /**
      * Documentation of nomenclature used in system models.
-     * @implements SY-C1(s): nomenclature used in the system models
+     * @implements SY-C1(s)
      */
     nomenclatureDocumentation?: Record<string, string>;
     
     /**
      * Documentation of digital I&C systems.
-     * @implements SY-C1(t): treatment of digital instrumentation and control systems
+     * @implements SY-C1(t)
      */
     digitalICDocumentation?: Record<SystemReference, {
       description: string;
@@ -1734,7 +1729,7 @@
     
     /**
      * Documentation of passive systems.
-     * @implements SY-C1(u): treatment of systems that perform their safety functions using passive means
+     * @implements SY-C1(u)
      */
     passiveSystemsDocumentation?: Record<SystemReference, {
       description: string;
@@ -1745,12 +1740,12 @@
   /**
    * Interface representing documentation of model uncertainty in the systems analysis.
    * @group Documentation & Traceability
-   * @implements SY-C2: DOCUMENT the sources of model uncertainty
+   * @implements SY-C2
    */
   export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
     /**
      * Systems-specific uncertainty impacts.
-     * @implements SY-C2: DOCUMENT the sources of model uncertainty specific to systems analysis
+     * @implements SY-C2
      */
     systemSpecificUncertainties?: Record<SystemReference, {
       /** System-specific uncertainties */
@@ -1762,7 +1757,7 @@
     
     /**
      * Documentation of reasonable alternatives.
-     * @implements SY-C2: DOCUMENT reasonable alternatives associated with the Systems Analysis
+     * @implements SY-C2
      */
     reasonableAlternatives: {
       /** Alternative approach */
@@ -1777,7 +1772,7 @@
     
     /**
      * Pre-operational assumptions affecting systems analysis
-     * @implements SY-A33/B17: IDENTIFY pre-operational assumptions
+     * @implements SY-A33/B17
      */
     preOperationalAssumptions?: Record<SystemReference, {
       assumptions: string[];
@@ -1793,26 +1788,26 @@
   export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.SYSTEMS_ANALYSIS> {
     /**
      * System definitions, including boundaries, components, and success criteria.
-     * @implements SY-A1: DEVELOP system logic models
-     * @implements SY-A3: DEFINE the boundaries of the system
+     * @implements SY-A1
+     * @implements SY-A3
      */
     systemDefinitions: Record<SystemReference, SystemDefinition>;
     
     /**
      * System logic models (e.g., fault trees).
-     * @implements SY-A1: DEVELOP system logic models
+     * @implements SY-A1
      */
     systemLogicModels: Record<string, SystemLogicModel>;
     
     /**
      * Dependencies between systems.
-     * @implements SY-B5: INCLUDE both intersystem and intrasystem dependencies
+     * @implements SY-B5
      */
     systemDependencies: SystemDependency[];
     
     /**
      * Dependencies between components within systems.
-     * @implements SY-B5: INCLUDE both intersystem and intrasystem dependencies
+     * @implements SY-B5
      */
     componentDependencies: ComponentDependency[];
     
@@ -1823,81 +1818,81 @@
     
     /**
      * Common cause failure groups.
-     * @implements SY-B1: IDENTIFY and MODEL the common cause failures
-     * @implements SY-B4: EVALUATE appropriate common cause failure probabilities
+     * @implements SY-B1
+     * @implements SY-B4
      */
     commonCauseFailureGroups: Record<string, CommonCauseFailureGroup>;
     
     /**
      * Human failure events integrated into system models.
-     * @implements SY-A1: INCLUDE human failures that can contribute to system unavailability
+     * @implements SY-A1
      */
     humanFailureEventIntegrations: HumanFailureEventIntegration[];
     
     /**
      * Methodology used to search for dependencies.
-     * @implements SY-C1(i): process used for systematic search for dependencies including dependency tables
+     * @implements SY-C1(i)
      */
     dependencySearchMethodology: DependencySearchMethodology;
     
     /**
      * System model evaluation results.
-     * @implements SY-C1(o): results of the system model evaluations
+     * @implements SY-C1(o)
      */
     systemModelEvaluations: Record<SystemReference, SystemModelEvaluation>;
     
     /**
      * Sensitivity studies on system models.
-     * @implements SY-C1(p): results of sensitivity studies
+     * @implements SY-C1(p)
      */
     sensitivityStudies: SystemSensitivityStudy[];
     
     /**
      * Considerations of potential overload conditions.
-     * @implements SY-A29: IDENTIFY conditions that may require designed capabilities to be exceeded
+     * @implements SY-A29
      */
     overCapacityConsiderations: OverCapacityConsideration[];
     
     /**
      * Model validation methods.
-     * @implements SY-A33: USE of external or independent reviews
+     * @implements SY-A33
      */
     modelValidations: ModelValidation[];
     
     /**
      * Digital instrumentation and control systems modeling.
-     * @implements SY-C1(t): treatment of digital instrumentation and control systems
+     * @implements SY-C1(t)
      */
     digitalInstrumentationAndControl: Record<string, DigitalInstrumentationAndControl>;
     
     /**
      * Passive safety systems modeling.
-     * @implements SY-C1(u): treatment of systems that perform their safety functions using passive means
+     * @implements SY-C1(u)
      */
     passiveSystemsTreatment: Record<string, PassiveSystemsTreatment>;
     
     /**
      * Documentation of the process used in the systems analysis.
-     * @implements SY-C1: DOCUMENT the process used in the Systems Analysis
+     * @implements SY-C1
      */
     processDocumentation: ProcessDocumentation;
     
     /**
      * Documentation of model uncertainty in the systems analysis.
-     * @implements SY-C2: DOCUMENT the sources of model uncertainty
+     * @implements SY-C2
      */
     modelUncertaintyDocumentation: ModelUncertaintyDocumentation;
     
     /**
      * Uncertainty analysis for systems.
-     * @implements SY-B4: EVALUATE appropriate common cause failure probabilities
+     * @implements SY-B4
      */
     uncertaintyAnalysis?: Record<SystemReference, SystemUncertaintyAnalysis>;
   }
 
   /**
    * Interface mapping systems to safety functions
-   * @implements SY-A1: IDENTIFY systems needed to provide or support safety functions
+   * @implements SY-A1
    * @group System Modeling & Failure Modes
    */
   export interface SystemToSafetyFunctionMapping extends Unique {
@@ -1908,7 +1903,7 @@
     
     /**
      * Safety functions this system supports
-     * @implements SY-A1: IDENTIFY systems needed to provide or support safety functions
+     * @implements SY-A1
      */
     safetyFunctions: string[];
     
@@ -1920,7 +1915,7 @@
 
   /**
    * Interface for Low Power and Shutdown system configurations
-   * @implements SY-A5/A6: INVESTIGATE systems and alignments unique to LPSD
+   * @implements SY-A5/A6
    * @group System Modeling & Failure Modes
    */
   export interface LPSDSystemConfiguration extends Unique {
@@ -1931,7 +1926,7 @@
     
     /**
      * Description of the LPSD-specific configuration
-     * @implements SY-A5/A6: INVESTIGATE systems and alignments unique to LPSD
+     * @implements SY-A5/A6
      */
     description: string;
     
@@ -1953,7 +1948,7 @@
 
   /**
    * Interface for documenting component screening justifications
-   * @implements SY-A20: Screening criteria for excluding components
+   * @implements SY-A20
    * @group Documentation & Traceability
    */
   export interface ComponentScreeningJustification extends Unique {
@@ -1974,7 +1969,7 @@
     
     /**
      * Screening criterion used (a or b from SY-A20)
-     * @implements SY-A20: Screening criteria for excluding components
+     * @implements SY-A20
      */
     screeningCriterion: "a" | "b";
     
@@ -1987,7 +1982,7 @@
   /**
    * Minimal interface for support system success criteria
    * @group System Modeling & Failure Modes
-   * @implements SY-B7/B8: Conservative vs. realistic success criteria
+   * @implements SY-B7/B8
    */
   export interface SupportSystemSuccessCriteria extends Unique {
     /**
@@ -2014,7 +2009,7 @@
   /**
    * Minimal interface for environmental design basis considerations
    * @group System Modeling & Failure Modes
-   * @implements SY-B14: IDENTIFY SSCs that may operate beyond design basis
+   * @implements SY-B14
    */
   export interface EnvironmentalDesignBasisConsideration extends Unique {
     /**
@@ -2024,7 +2019,7 @@
     
     /**
      * Components that may operate beyond environmental design basis
-     * @implements SY-B14: IDENTIFY SSCs that may operate beyond design basis
+     * @implements SY-B14
      */
     components: string[];
     
@@ -2042,7 +2037,7 @@
   /**
    * Minimal interface for initiation and actuation systems
    * @group System Modeling & Failure Modes
-   * @implements SY-B11/B12: MODEL initiation and actuation systems
+   * @implements SY-B11/B12
    */
   export interface InitiationActuationSystem extends Unique, Named {
     /**
@@ -2052,7 +2047,7 @@
     
     /**
      * Description of the initiation/actuation system
-     * @implements SY-B11/B12: MODEL initiation and actuation systems
+     * @implements SY-B11/B12
      */
     description: string;
     

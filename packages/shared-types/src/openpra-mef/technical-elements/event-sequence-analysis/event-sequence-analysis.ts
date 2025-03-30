@@ -2,17 +2,8 @@
  * @module event_sequence_analysis
  * @description Comprehensive types and interfaces for Event Sequence Analysis (ES)
  * 
- * The objectives of Event Sequence Analysis ensure that:
- * - (a) the sources of radioactive material, the barriers to radionuclide release, and the safety 
- *       functions necessary to protect each barrier for each source within the scope of the PRA 
- *       model are defined as a basis for the event sequence model development and described for 
- *       each plant operating state;
- * - (b) plant-, design- and site-specific dependencies that impact significant event sequences 
- *       are represented in the event sequence structure;
- * - (c) individual function successes, mission times, and time windows for operator actions for 
- *       each reactor-specific safety function and release phenomenon modeled in the event 
- *       sequences are accounted for;
- * - (d) the Event Sequence Analysis is documented to provide traceability of the work.
+ * The objectives of Event Sequence Analysis ensure that HLR-ES-A to HLR-ES-D are satisfied.
+
  * 
  * Per RG 1.247, the objective of the event sequence analysis PRA element is to model 
  * chronologically (to the extent practical) the different possible progressions of events 
@@ -186,7 +177,7 @@ export interface TimeWindow {
 /**
  * Interface representing timing information for key events in a sequence.
  * @group Event Sequences & Progression
- * @implements ES-A8: INCLUDE individual function successes, mission times, and time windows
+ * @implements ES-A8
  */
 export interface SequenceTiming extends Unique {
     /** Event name or description */
@@ -215,7 +206,7 @@ export interface SequenceTiming extends Unique {
  * Interface representing a dependency between systems, components, or operator actions.
  * Used to define the relationships and dependencies in event sequences.
  * @group Event Sequences & Progression
- * @implements ES-B1: DEVELOP event sequence models including functional, phenomenological, and operational dependencies
+ * @implements ES-B1
  */
 export interface Dependency extends Unique {
     /** Element that depends on another element */
@@ -246,8 +237,8 @@ export interface Dependency extends Unique {
 /**
  * Interface representing a phenomenological impact in an event sequence.
  * @group Event Sequences & Progression
- * @implements ES-B1: DEVELOP event sequence models including phenomenological dependencies
- * @implements ES-C2: DELINEATE event sequences to account for significant phenomenological conditions
+ * @implements ES-B1
+ * @implements ES-C2
  */
 export interface PhenomenologicalImpact extends Unique, Named {
     /** Description of the impact */
@@ -281,7 +272,7 @@ export interface PhenomenologicalImpact extends Unique, Named {
  * transfer points between event trees.
  * 
  * @group Event Sequences & Progression
- * @implements ES-A13: Intermediate end states and/or transfers between or among event trees
+ * @implements ES-A13
  */
 export interface IntermediateEndState extends Unique, Named {
     /** Description of the intermediate end state */
@@ -367,8 +358,8 @@ export interface IntermediateEndState extends Unique, Named {
  * @group Event Sequences & Progression
  * @extends {Unique}
  * @extends {Named}
- * @implements ES-A6: IDENTIFY event sequences that should be explicitly modeled
- * @implements ES-A7: IDENTIFY event sequences that can be screened on the basis of low probability or frequency
+ * @implements ES-A6
+ * @implements ES-A7
  */
 export interface EventSequence extends Unique, Named {
     /** Description of the event sequence */
@@ -433,7 +424,7 @@ export interface EventSequence extends Unique, Named {
     
     /** 
      * Screening status of the sequence 
-     * @implements ES-A7: IDENTIFY event sequences that can be screened
+     * @implements ES-A7
      */
     screening?: {
         /** Screening status of the sequence */
@@ -479,7 +470,7 @@ export interface SequenceDesignator extends Unique {
 /**
  * Interface representing criteria for grouping event sequences into families.
  * @group Sequence Families & Release Categories
- * @implements ES-C3: USE consistent end-state definitions for similar scenarios
+ * @implements ES-C3
  */
 export interface GroupingCriteria extends Unique, Named {
     /** Description of the criteria */
@@ -501,10 +492,10 @@ export interface GroupingCriteria extends Unique, Named {
  * @group Sequence Families & Release Categories
  * @extends {Unique}
  * @extends {Named}
- * @implements ES-C3: USE consistent end-state definitions for similar scenarios
- * @implements ES-C4: COMBINE event sequences with similar characteristics (source, POS, initiator)
- * @implements ES-C5: COMBINE event sequences with similar plant response
- * @implements ES-C6: COMBINE event sequences with similar characteristics for source term
+ * @implements ES-C3
+ * @implements ES-C4
+ * @implements ES-C5
+ * @implements ES-C6
  */
 export interface EventSequenceFamily extends Unique, Named {
     /** Description of the event sequence family */
@@ -560,7 +551,7 @@ export interface EventSequenceFamily extends Unique, Named {
  * Interface representing the mapping of event sequences to release categories.
  * Used to define how event sequences are mapped to release categories for source term analysis.
  * @group Sequence Families & Release Categories
- * @implements ES-C8: MAP each event sequence with a release to a release category
+ * @implements ES-C8
  * @remarks This interface is referenced by the Risk Integration module's EventSequenceToReleaseCategory interface.
  * The Risk Integration module uses this mapping as input for risk calculations.
  */
@@ -623,7 +614,7 @@ export interface ReleaseCategoryMapping extends Unique {
  * Interface representing a functional dependency model.
  * Used to define and document functional dependencies between systems.
  * @group Dependencies & Phenomenology
- * @implements ES-B1: DEVELOP event sequence models including functional dependencies
+ * @implements ES-B1
  */
 export interface FunctionalDependencyModel extends Unique, Named {
     /** Description of the dependency model */
@@ -646,7 +637,7 @@ export interface FunctionalDependencyModel extends Unique, Named {
  * Interface representing a phenomenological dependency model.
  * Used to define and document dependencies based on physical phenomena.
  * @group Dependencies & Phenomenology
- * @implements ES-B1: DEVELOP event sequence models including phenomenological dependencies
+ * @implements ES-B1
  */
 export interface PhenomenologicalDependencyModel extends Unique, Named {
     /** Description of the phenomenological dependency */
@@ -672,7 +663,7 @@ export interface PhenomenologicalDependencyModel extends Unique, Named {
  * Interface representing an operational dependency model.
  * Used to define and document dependencies based on operational practices.
  * @group Dependencies & Phenomenology
- * @implements ES-B1: DEVELOP event sequence models including operational dependencies
+ * @implements ES-B1
  */
 export interface OperationalDependencyModel extends Unique, Named {
     /** Description of the operational dependency */
@@ -695,7 +686,7 @@ export interface OperationalDependencyModel extends Unique, Named {
  * Interface representing a human dependency model.
  * Used to define and document dependencies involving human actions.
  * @group Dependencies & Phenomenology
- * @implements ES-B1: DEVELOP event sequence models including dependencies
+ * @implements ES-B1
  */
 export interface HumanDependencyModel extends Unique, Named {
     /** Description of the human dependency */
@@ -717,7 +708,7 @@ export interface HumanDependencyModel extends Unique, Named {
 /**
  * Interface representing an interface dependency between systems.
  * @group Dependencies & Phenomenology
- * @implements ES-B2: IDENTIFY interfaces between event sequence models
+ * @implements ES-B2
  */
 export interface SystemInterfaceDependency extends Unique, Named {
     /** Description of the interface dependency */
@@ -739,7 +730,7 @@ export interface SystemInterfaceDependency extends Unique, Named {
 /**
  * Interface representing an assumption made in the event sequence analysis.
  * @group Documentation & Traceability
- * @implements ES-A15: IDENTIFY assumptions made due to lack of as-built and as-operated details
+ * @implements ES-A15
  */
 export interface Assumption extends BaseAssumption {
     // Additional properties specific to event sequence analysis assumptions can be added here
@@ -748,9 +739,9 @@ export interface Assumption extends BaseAssumption {
 /**
  * Interface representing a source of model uncertainty in the event sequence analysis.
  * @group Documentation & Traceability
- * @implements ES-A14: IDENTIFY and characterize the sources of model uncertainty
- * @implements ES-B9: IDENTIFY and characterize sources of model uncertainty
- * @implements ES-C10: IDENTIFY and characterize sources of model uncertainty
+ * @implements ES-A14
+ * @implements ES-B9
+ * @implements ES-C10
  */
 export interface ModelUncertainty extends Unique, Named {
     /** Description of the model uncertainty */
@@ -787,12 +778,12 @@ export interface ModelUncertainty extends Unique, Named {
 /**
  * Interface representing documentation of the process used in the event sequence analysis.
  * @group Documentation & Traceability
- * @implements ES-D1: DOCUMENT the process used in the Event Sequence Analysis
+ * @implements ES-D1
  */
 export interface ProcessDocumentation extends BaseProcessDocumentation {
     /** 
      * Linkage between plant operating states, initiating events, and event sequences
-     * @implements ES-D1(a): the linkage between the modeled plant operating states, initiating events, and event sequences
+     * @implements ES-D1(a)
      */
     posInitiatorSequenceLinkage?: {
         /** Plant operating state ID */
@@ -810,7 +801,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /** 
      * Success criteria established for each modeled initiating event
-     * @implements ES-D1(b): the success criteria established for each modeled initiating event
+     * @implements ES-D1(b)
      */
     successCriteriaBases?: {
         /** Initiating event ID */
@@ -831,7 +822,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /** 
      * Deterministic analyses performed to support the event sequence analysis
-     * @implements ES-D1(c): each deterministic analysis performed to support the Event Sequence Analysis
+     * @implements ES-D1(c)
      */
     deterministicAnalyses?: {
         /** Analysis ID or reference */
@@ -852,7 +843,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /** 
      * Description of event sequences or groups of similar sequences
-     * @implements ES-D1(d): a description of the event sequence for each sequence or group of similar sequences
+     * @implements ES-D1(d)
      */
     eventSequenceDescriptions?: {
         /** Event sequence or family ID */
@@ -882,7 +873,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /** 
      * Technical basis for the treatment of radionuclide transport barriers
-     * @implements ES-D1(e): the technical basis for the treatment of each of the radionuclide transport barriers
+     * @implements ES-D1(e)
      */
     barrierTreatmentBasis?: {
         /** Barrier ID or name */
@@ -906,7 +897,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /** 
      * Evaluation of failure modes and degradation mechanisms
-     * @implements ES-D1(f): the evaluation of failure modes, failure and degradation mechanisms
+     * @implements ES-D1(f)
      */
     failureModeEvaluation?: {
         /** Barrier or system ID */
@@ -930,7 +921,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /** 
      * Definition of event sequence end states, families, and release categories
-     * @implements ES-D1(g): a clear definition of the event sequence end states, event sequence families, and release categories
+     * @implements ES-D1(g)
      */
     endStateAndFamilyDefinitions?: {
         /** End state or family ID */
@@ -951,7 +942,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /** 
      * Operator actions represented in the event trees
-     * @implements ES-D1(h): the operator actions represented in the event trees
+     * @implements ES-D1(h)
      */
     operatorActionsRepresentation?: {
         /** Human action ID */
@@ -966,7 +957,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /** 
      * Interface of event sequence models with release categories
-     * @implements ES-D1(i): the interface of the event sequence models with the release categories
+     * @implements ES-D1(i)
      */
     releaseInterfaceDescription?: {
         /** Description of the interface */
@@ -981,7 +972,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /** 
      * Use of single top event fault tree approach
-     * @implements ES-D1(j): the manner in which the requirements for Event Sequence Analysis has been satisfied
+     * @implements ES-D1(j)
      */
     singleTopEventApproach?: {
         /** Whether a single top event fault tree is used */
@@ -996,7 +987,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /** 
      * Mitigating systems challenged by initiating events
-     * @implements ES-D1(k): mitigating systems that are challenged, degraded, or failed by each specific initiating event
+     * @implements ES-D1(k)
      */
     mitigatingSystemChallenges?: {
         /** Initiating event ID */
@@ -1011,7 +1002,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
     
     /** 
      * Dependence of mitigating systems on other functions
-     * @implements ES-D1(l): the dependence of modeled mitigating systems on the success or failure of preceding system's functions and human actions
+     * @implements ES-D1(l)
      */
     mitigatingSystemDependencies?: {
         /** Mitigating system ID */
@@ -1029,7 +1020,7 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
 
     /**
      * Methodology details for the event sequence analysis
-     * @implements ES-D1(m): the methodology details for the event sequence analysis
+     * @implements ES-D1(m)
      */
     methodologyDetails?: {
         approachDescription: string;
@@ -1043,12 +1034,12 @@ export interface ProcessDocumentation extends BaseProcessDocumentation {
 /**
  * Interface representing documentation of model uncertainty in the event sequence analysis.
  * @group Documentation & Traceability
- * @implements ES-D2: DOCUMENT the sources of model uncertainty, related assumptions, and reasonable alternatives
+ * @implements ES-D2
  */
 export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
     /** 
      * Event sequence specific uncertainty impacts
-     * @implements ES-D2: DOCUMENT the sources of model uncertainty specific to event sequences
+     * @implements ES-D2
      */
     eventSequenceSpecificUncertainties?: {
         /** Event sequence ID */
@@ -1065,12 +1056,12 @@ export interface ModelUncertaintyDocumentation extends BaseModelUncertaintyDocum
 /**
  * Interface representing documentation of pre-operational assumptions.
  * @group Documentation & Traceability
- * @implements ES-D3: DOCUMENT assumptions and limitations due to lack of as-built, as-operated details
+ * @implements ES-D3
  */
 export interface PreOperationalAssumptionsDocumentation extends BasePreOperationalAssumptionsDocumentation {
     /** 
      * Event sequence specific assumptions
-     * @implements ES-D3: DOCUMENT assumptions specific to event sequences
+     * @implements ES-D3
      */
     eventSequenceSpecificAssumptions?: {
         /** Event sequence ID */
@@ -1100,7 +1091,7 @@ export interface PeerReviewDocumentation extends BasePeerReviewDocumentation {
 
     /**
      * Methodology review for the event sequence analysis
-     * @implements ES-D1(n): the methodology review for the event sequence analysis
+     * @implements ES-D1(n)
      */
     methodologyReview?: {
         peerReviewProcess: string;
@@ -1137,7 +1128,7 @@ export interface PeerReviewDocumentation extends BasePeerReviewDocumentation {
  * ```
  * 
  * @group Documentation & Traceability
- * @implements ES-D1: DOCUMENT the process used in the Event Sequence Analysis
+ * @implements ES-D1
  */
 export interface EventSequenceDesignInformation extends BaseDesignInformation {
     /** 
@@ -1176,7 +1167,7 @@ export interface EventSequenceDesignInformation extends BaseDesignInformation {
 
 /**
  * Criteria for screening out event sequences
- * @remarks **ES-A7**: IDENTIFY event sequences that can be screened
+ * @remarks **ES-A7**
  * @group Sequence Families & Release Categories
  */
 export interface EventSequenceScreeningCriteria extends ScreeningCriteria {
@@ -1279,18 +1270,7 @@ export interface EventSequenceValidationRules {
 
 /**
  * Interface representing the main Event Sequence Analysis container.
- * 
- * The objectives of Event Sequence Analysis ensure that:
- * - (a) the sources of radioactive material, the barriers to radionuclide release, and the safety 
- *       functions necessary to protect each barrier for each source within the scope of the PRA 
- *       model are defined as a basis for the event sequence model development and described for 
- *       each plant operating state;
- * - (b) plant-, design- and site-specific dependencies that impact significant event sequences 
- *       are represented in the event sequence structure;
- * - (c) individual function successes, mission times, and time windows for operator actions for 
- *       each reactor-specific safety function and release phenomenon modeled in the event 
- *       sequences are accounted for;
- * - (d) the Event Sequence Analysis is documented to provide traceability of the work.
+ 
  * 
  * @group API
  * @extends {TechnicalElement<TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS>}
@@ -1298,7 +1278,7 @@ export interface EventSequenceValidationRules {
 export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElementTypes.EVENT_SEQUENCE_ANALYSIS> {
     /**
      * Additional metadata specific to Event Sequence Analysis
-     * @implements ES-D1: DOCUMENT the process used in the Event Sequence Analysis
+     * @implements ES-D1
      */
     additionalMetadata?: {
         /** Traceability information */
@@ -1307,7 +1287,7 @@ export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElement
     
     /**
      * Definition of the scope of the analysis
-     * @implements ES-A1: DELINEATE the plant scenarios addressed in the event sequence analysis
+     * @implements ES-A1
      */
     scopeDefinition: {
         /** Plant operating states included in the analysis */
@@ -1325,13 +1305,13 @@ export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElement
     
     /**
      * Key safety functions that form the basis for event sequence development
-     * @implements ES-A3: DEFINE the key safety functions as a basis for event sequence model development
+     * @implements ES-A3
      */
     keySafetyFunctions: string[];
     
     /**
      * Event sequences analyzed
-     * @implements ES-A6: IDENTIFY event sequences that should be explicitly modeled
+     * @implements ES-A6
      */
     eventSequences: Record<EventSequenceReference, EventSequence>;
     
@@ -1342,26 +1322,26 @@ export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElement
     
     /**
      * Event sequence families defined
-     * @implements ES-C3: USE consistent end-state definitions for similar scenarios
-     * @implements ES-C4: COMBINE event sequences with similar characteristics
+     * @implements ES-C3
+     * @implements ES-C4
      */
     eventSequenceFamilies: Record<EventSequenceFamilyReference, EventSequenceFamily>;
     
     /**
      * Intermediate end states used in the analysis
-     * @implements ES-A13: Intermediate end states and/or transfers between or among event trees
+     * @implements ES-A13
      */
     intermediateEndStates?: Record<string, IntermediateEndState>;
     
     /**
      * Mappings of event sequences to release categories
-     * @implements ES-C8: MAP each event sequence with a release to a release category
+     * @implements ES-C8
      */
     releaseCategoryMappings?: ReleaseCategoryMapping[];
     
     /**
      * Dependency models used in the analysis
-     * @implements ES-B1: DEVELOP event sequence models including functional, phenomenological, and operational dependencies
+     * @implements ES-B1
      */
     dependencyModels?: {
         /** Functional dependency models */
@@ -1382,34 +1362,34 @@ export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElement
     
     /**
      * Sources of model uncertainty and related assumptions
-     * @implements ES-A14: IDENTIFY and characterize the sources of model uncertainty
+     * @implements ES-A14
      */
     modelUncertainties?: ModelUncertainty[];
     
     /**
      * Sensitivity studies for uncertainty assessment
-     * @implements ES-A14: Characterize the sources of model uncertainty
+     * @implements ES-A14
      */
     sensitivityStudies?: SensitivityStudy[];
     
     /**
      * Assumptions made due to lack of as-built, as-operated details
-     * @implements ES-A15: IDENTIFY assumptions made due to lack of as-built and as-operated details
+     * @implements ES-A15
      */
     preOperationalAssumptions?: Assumption[];
     
     /**
      * References to supporting plant response analyses
-     * @implements ES-A2: IDENTIFY the plant response analyses needed to determine success criteria
-     * @implements ES-C7: IDENTIFY the plant response analyses used to develop event sequences and assess success criteria
+     * @implements ES-A2
+     * @implements ES-C7
      */
     plantResponseAnalysisReferences?: string[];
     
     /**
      * Documentation of the analysis
-     * @implements ES-D1: DOCUMENT the process used in the Event Sequence Analysis
-     * @implements ES-D2: DOCUMENT the sources of model uncertainty, related assumptions, and reasonable alternatives
-     * @implements ES-D3: DOCUMENT assumptions and limitations due to lack of as-built, as-operated details
+     * @implements ES-D1
+     * @implements ES-D2
+     * @implements ES-D3
      */
     documentation?: {
         /** Process documentation */
@@ -1426,7 +1406,7 @@ export interface EventSequenceAnalysis extends TechnicalElement<TechnicalElement
 
         /** 
          * Traceability documentation 
-         * @implements ES-D: The documentation of the Event Sequence Analysis shall provide traceability of the work
+         * @implements ES-D
          */
         traceabilityDocumentation?: BaseTraceabilityDocumentation;
     };

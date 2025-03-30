@@ -34,7 +34,7 @@ jobs:
           echo "Directory contents:"
           ls -la
           echo "Packages directory contents:"
-          ls -la packages || echo "No packages directory"
+          ls -la openpra-monorepo/packages || echo "No packages directory"
           echo "Git status:"
           git status
           echo "Git branch:"
@@ -46,32 +46,29 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        working-directory: packages/shared-types/src/openpra-mef/technical-elements
+        working-directory: openpra-monorepo/packages/shared-types/src/openpra-mef/technical-elements
         run: npm install
 
       - name: Generate Documentation
-        working-directory: packages/shared-types/src/openpra-mef/technical-elements
+        working-directory: openpra-monorepo/packages/shared-types/src/openpra-mef/technical-elements
         run: |
-          # Clean previous docs
-          rm -rf docs
-          
-          # Generate TypeDoc documentation
-          npx typedoc --options typedoc.json
-          
-          # Create necessary directories
-          mkdir -p docs/json-schemas docs/assets
-          
-          # Generate JSON Schema
-          npx typescript-json-schema tsconfig.json "*" --out ./docs/json-schemas/schemas.json --required --strictNullChecks --refs
-          
-          # Copy schema to assets
-          cp docs/json-schemas/schemas.json docs/assets/schemas.json
-          
-          # Copy schema download page
-          cp schema-download.html docs/schema-download.html
+          # Use the NPM script to generate all docs
+          npm run docs
 
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'openpra-monorepo/packages/shared-types/src/openpra-mef/technical-elements/docs'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        
       - name: Update Schema Download Link
-        working-directory: packages/shared-types/src/openpra-mef/technical-elements/docs
+        working-directory: openpra-monorepo/packages/shared-types/src/openpra-mef/technical-elements/docs
         run: |
           # Get the GitHub Pages URL from the environment
           PAGES_URL="${{ steps.deployment.outputs.page_url }}"
@@ -81,16 +78,4 @@ jobs:
           fi
           
           # Update the documentation link in schema-download.html to point to the GitHub Pages URL
-          sed -i "s|window.location.origin|'${PAGES_URL}'|g" schema-download.html
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v4
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: 'packages/shared-types/src/openpra-mef/technical-elements/docs'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4 
+          sed -i "s|window.location.origin|'${PAGES_URL}'|g" schema-download.html 

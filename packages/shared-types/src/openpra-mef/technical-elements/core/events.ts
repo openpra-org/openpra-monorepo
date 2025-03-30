@@ -34,7 +34,9 @@ export enum FrequencyUnit {
   /** Frequency per critical year - used for events that can only occur during critical operation */
   PER_CRITICAL_YEAR = "per-critical-year",
   /** Frequency per demand - used for events that occur upon system demand */
-  PER_DEMAND = "per-demand"
+  PER_DEMAND = "per-demand",
+  /** Frequency per plant year - used for plant-wide events */
+  PER_PLANT_YEAR = "per-plant-year"
 }
 
 /**

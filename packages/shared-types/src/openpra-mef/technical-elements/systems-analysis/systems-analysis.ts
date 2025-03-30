@@ -860,6 +860,159 @@
   //==============================================================================
   
   /**
+   * Interface for a complete fault tree
+   * @group Fault Tree Analysis
+   * @implements SY-A1: DEVELOP system logic models
+   */
+  export interface FaultTree extends Unique, Named, SAPHIRECompatible {
+    /**
+     * Reference to the system this fault tree belongs to
+     */
+    systemReference: SystemReference;
+    
+    /**
+     * Description of the fault tree
+     */
+    description: string;
+    
+    /**
+     * ID of the top event node within this fault tree's nodes map
+     * This is an internal reference to identify which node in the fault tree represents the top event
+     * @implements SY-A1: DEVELOP system logic models that represent the top event
+     */
+    topEventId: string;
+    
+    /**
+     * Reference to a top event from the core events module
+     * This allows linking the fault tree to a formally defined TopEvent in the core/events.ts file
+     * This is different from topEventId, which references a node within this fault tree
+     */
+    topEventReference?: string;
+    
+    /**
+     * Map of node IDs to nodes
+     */
+    nodes: Record<string, FaultTreeNode>;
+    
+    /**
+     * Minimal cut sets as arrays of basic event IDs
+     */
+    minimalCutSets?: string[][];
+    
+    /**
+     * Calculated probability of the top event
+     * @implements SY-C1(o): results of the system model evaluations
+     */
+    topEventProbability?: number;
+    
+    /**
+     * Quantification settings
+     */
+    quantificationSettings?: {
+      method?: "mincut" | "exact" | "rare-event" | "mcub";
+      truncationLimit?: number;
+      maxOrder?: number;
+    };
+    
+    /**
+     * Assumptions made in the fault tree analysis
+     */
+    assumptions?: string[];
+  }
+  
+  /**
+   * Interface representing a minimal cut set in a fault tree
+   * @group Fault Tree Analysis
+   * @implements SY-A1: DEVELOP system logic models
+   * @implements SY-C1(o): results of the system model evaluations
+   * 
+   * @remarks
+   * This interface defines the core structure of minimal cut sets as they are generated from system fault trees.
+   * These cut sets are then used by Event Sequence Quantification to calculate sequence frequencies.
+   * 
+   * The relationship between Systems Analysis and Event Sequence Quantification is:
+   * 1. Systems Analysis generates minimal cut sets from fault trees
+   * 2. These cut sets are used as inputs to Event Sequence Quantification
+   * 3. Event Sequence Quantification combines cut sets with sequence-specific factors
+   * 4. The combined results are used to calculate sequence frequencies
+   * 
+   * @validation_rules
+   * - Cut sets must be properly generated from fault trees
+   * - Each event in a cut set must exist in the fault tree
+   * - Cut set probabilities must be correctly calculated
+   * - Truncation criteria must be consistently applied
+   */
+  export interface MinimalCutSet {
+    /**
+     * Array of basic event IDs that constitute this cut set
+     */
+    events: string[];
+    
+    /**
+     * Order of the cut set (number of events)
+     */
+    order: number;
+    
+    /**
+     * Individual probabilities of each event in the cut set
+     * These are system-level probabilities that will be modified by sequence-specific factors
+     * in Event Sequence Quantification
+     */
+    eventProbabilities: Record<string, number>;
+    
+    /**
+     * Combined probability of the cut set occurring at the system level
+     * This is the raw probability before sequence-specific modifications
+     */
+    probability: number;
+    
+    /**
+     * Importance measure for this cut set at the system level
+     */
+    importance?: number;
+    
+    /**
+     * Whether this cut set was included or truncated in the system analysis
+     */
+    truncationStatus?: "included" | "truncated";
+    
+    /**
+     * Justification for truncation if applicable
+     */
+    truncationJustification?: string;
+    
+    /**
+     * Reference to the fault tree this cut set belongs to
+     */
+    faultTreeReference: string;
+    
+    /**
+     * Reference to the system this cut set belongs to
+     */
+    systemReference: SystemReference;
+    
+    /**
+     * Validation status of this cut set
+     */
+    validationStatus?: {
+      /**
+       * Whether the cut set has been validated
+       */
+      isValidated: boolean;
+      
+      /**
+       * Date of last validation
+       */
+      validationDate?: string;
+      
+      /**
+       * Any validation issues found
+       */
+      validationIssues?: string[];
+    };
+  }
+  
+  /**
    * Enum for fault tree node types, representing standard FTA symbols
    * @group Core Definitions & Enums
    */
@@ -964,67 +1117,6 @@
      * For TRANSFER_IN: ID of the source node
      */
     sourceNodeId?: string;
-  }
-  
-  /**
-   * Interface for a complete fault tree
-   * @group Fault Tree Analysis
-   * @implements SY-A1: DEVELOP system logic models
-   */
-  export interface FaultTree extends Unique, Named, SAPHIRECompatible {
-    /**
-     * Reference to the system this fault tree belongs to
-     */
-    systemReference: SystemReference;
-    
-    /**
-     * Description of the fault tree
-     */
-    description: string;
-    
-    /**
-     * ID of the top event node within this fault tree's nodes map
-     * This is an internal reference to identify which node in the fault tree represents the top event
-     * @implements SY-A1: DEVELOP system logic models that represent the top event
-     */
-    topEventId: string;
-    
-    /**
-     * Reference to a top event from the core events module
-     * This allows linking the fault tree to a formally defined TopEvent in the core/events.ts file
-     * This is different from topEventId, which references a node within this fault tree
-     */
-    topEventReference?: string;
-    
-    /**
-     * Map of node IDs to nodes
-     */
-    nodes: Record<string, FaultTreeNode>;
-    
-    /**
-     * Minimal cut sets as arrays of basic event IDs
-     */
-    minimalCutSets?: string[][];
-    
-    /**
-     * Calculated probability of the top event
-     * @implements SY-C1(o): results of the system model evaluations
-     */
-    topEventProbability?: number;
-    
-    /**
-     * Quantification settings
-     */
-    quantificationSettings?: {
-      method?: "mincut" | "exact" | "rare-event" | "mcub";
-      truncationLimit?: number;
-      maxOrder?: number;
-    };
-    
-    /**
-     * Assumptions made in the fault tree analysis
-     */
-    assumptions?: string[];
   }
   
   //==============================================================================

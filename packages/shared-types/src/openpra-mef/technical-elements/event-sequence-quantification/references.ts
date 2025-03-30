@@ -35,6 +35,7 @@ export {
  * Risk-integrated event sequence results with importance metrics and risk significance.
  * This interface consolidates event sequence quantification results with risk significance
  * information to simplify access by Risk Integration.
+ * @group Integration & Dependencies
  */
 export interface RiskSignificantEventSequence {
     /** ID of the event sequence or event sequence family */

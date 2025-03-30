@@ -7,10 +7,15 @@
  */
 
 // Export OpenPSA serialization interfaces
-export * from './open-psa-serialization';
+export * from './openPSA/openPSA-xml-serialization';
 
 // Export SAPHIRE integration interfaces
-export * from './saphire-annotations';
+export * from './SAPHIRE/saphire-annotations';
+
+// Export quantification adapter and types for third-party quantification tools
+export * from './openPSA/quantification-adapter';
+export * from './openPSA/quantification-adapter-types';
+export * from './openPSA/scram-quantification-input';
 
 // Re-export specific SAPHIRE types for convenience
 export {
@@ -21,4 +26,4 @@ export {
   phaseSaphireMappings,
   specialEventSaphireMappings,
   projectAttributesSaphireMappings
-} from './saphire-annotations'; 
+} from './SAPHIRE/saphire-annotations'; 

@@ -13,6 +13,7 @@
 /**
  * Interface for a quantification reference that bridges between 
  * data-analysis and systems-analysis modules
+ * @group Quantification
  */
 export interface QuantificationReference {
     /**
@@ -91,6 +92,7 @@ export enum QuantificationDirection {
 
 /**
  * Interface for configuring the quantification workflow
+ * @group Quantification
  */
 export interface QuantificationWorkflowConfig {
   /**

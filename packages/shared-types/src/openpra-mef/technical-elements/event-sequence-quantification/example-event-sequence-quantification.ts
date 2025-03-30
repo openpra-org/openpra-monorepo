@@ -406,7 +406,7 @@ export const EventSequenceQuantificationExample = {
  * const esqExample = examples.EventSequenceQuantificationExample;
  * ```
  * @const
- * @group Examples
+ * @hidden
  */
 export const examples = {
   EventSequenceQuantificationExample

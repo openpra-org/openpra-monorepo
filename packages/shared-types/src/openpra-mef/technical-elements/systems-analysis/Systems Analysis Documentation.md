@@ -28,15 +28,16 @@
       21. [SY-C1.u](#sy-c1u)
    2. [SY-C2](#sy-c2)
    3. [SY-C3](#sy-c3)
-4. [Template Management](#template-management)
-5. [Safety Function Mapping](#safety-function-mapping)
-6. [Environmental Considerations](#environmental-considerations)
-7. [Implementation Examples](#implementation-examples)
+4. [Data Analysis Integration](#data-analysis-integration)
+5. [Template Management](#template-management)
+6. [Safety Function Mapping](#safety-function-mapping)
+7. [Environmental Considerations](#environmental-considerations)
+8. [Implementation Examples](#implementation-examples)
    1. [EBR-II Passive Safety Features Example](#ebr-ii-passive-safety-features-example)
    2. [EBR-II Shutdown Cooling System Example](#ebr-ii-shutdown-cooling-system-example)
-8. [Requirements Coverage Summary](#requirements-coverage-summary)
-9. [Core Definitions](#core-definitions)
-10. [Conclusion](#conclusion)
+9. [Requirements Coverage Summary](#requirements-coverage-summary)
+10. [Core Definitions](#core-definitions)
+11. [Conclusion](#conclusion)
 
 ## Introduction
 
@@ -773,6 +774,95 @@ import {
 } from "../core/documentation";
 ```
 
+## Data Analysis Integration
+
+The Systems Analysis module now integrates directly with the Data Analysis module to avoid duplication and ensure consistency across the PRA model. This integration focuses on aligning the probability models, parameter definitions, and basic event representations between the two modules.
+
+### Cross-Module References
+
+The Systems Analysis module includes several cross-references to the Data Analysis module:
+
+1. **Basic Event Integration**
+   ```typescript
+   export interface SystemBasicEvent extends BasicEvent {
+     // Other properties...
+     
+     // Probability model from data analysis module
+     probabilityModel?: ProbabilityModel;
+     
+     // Reference to a ComponentBasicEvent in the data-analysis module
+     dataAnalysisBasicEventRef?: string;
+   }
+   ```
+
+2. **CCF Group Integration**
+   ```typescript
+   export interface CommonCauseFailureGroup extends Unique, Named {
+     // Other properties...
+     
+     // Reference to CCF parameter in data analysis module
+     dataAnalysisCCFParameterRef?: string;
+     
+     // Probability model from data analysis module
+     probabilityModel?: ProbabilityModel;
+   }
+   ```
+
+3. **Module-Level Integration**
+   ```typescript
+   export interface SystemsAnalysis extends TechnicalElement<TechnicalElementTypes.SYSTEMS_ANALYSIS> {
+     // Other properties...
+     
+     // Reference to associated Data Analysis module
+     dataAnalysisReference?: string;
+     
+     // Parameters with references to data analysis
+     parameters?: Record<string, {
+       // Other properties...
+       dataAnalysisParameterRef?: string;
+     }>;
+   }
+   ```
+
+### Benefits of Integration
+
+This integration provides several benefits:
+
+1. **Reduced Duplication**: Complex probability models and uncertainty characterizations are defined once in the Data Analysis module and referenced in Systems Analysis.
+
+2. **Improved Consistency**: Changes to parameters or basic events in the Data Analysis module are automatically reflected in Systems Analysis.
+
+3. **Clearer Separation of Concerns**: 
+   - Data Analysis module focuses on parameter estimation, uncertainty characterization, and data collection
+   - Systems Analysis module focuses on system modeling, dependencies, and logic structures
+
+4. **Streamlined Quantification**: The quantification adapter can access the most up-to-date and detailed parameter information from the Data Analysis module.
+
+### Example Usage
+
+```typescript
+// Example of a System Basic Event referencing Data Analysis
+const systemBasicEvent: SystemBasicEvent = {
+  id: "BE-PCS-PUMP-FTR",
+  name: "Primary Cooling Pump Fails to Run",
+  componentReference: "PCS-PUMP-001",
+  failureMode: "FAILURE_TO_RUN",
+  
+  // Reference to data analysis module for detailed probability information
+  dataAnalysisBasicEventRef: "DA-BE-PCS-PUMP-FTR-001",
+  
+  // ProbabilityModel imported from Data Analysis
+  probabilityModel: {
+    distribution: DistributionType.LOGNORMAL,
+    parameters: {
+      mean: 1.0e-4,
+      errorFactor: 3.0
+    },
+    source: 'estimated'
+  }
+};
+```
+
 ## Template Management
 
 The schema includes comprehensive support for managing component templates and their instances:
@@ -1052,6 +1142,105 @@ This enables comprehensive modeling of:
 - Environmental dependencies affecting multiple systems
 - Human dependencies in shared operations
 - Other types of dependencies not covered by the standard categories
+
+### Common Cause Failure Modeling
+
+The schema provides comprehensive support for modeling Common Cause Failures (CCF) through the enhanced `CommonCauseFailureGroup` interface:
+
+```typescript
+export interface CommonCauseFailureGroup extends Unique, Named {
+  /** Description of the common cause failure group */
+  description: string;
+  
+  /** Components affected by this CCF group */
+  affectedComponents: string[];
+  
+  /** Systems affected by this CCF group */
+  affectedSystems: SystemReference[];
+  
+  /** The common cause model used */
+  modelType: "BETA_FACTOR" | "MGL" | "ALPHA_FACTOR" | "PHI_FACTOR" | string;
+  
+  /** Parameters of the CCF model */
+  modelParameters?: Record<string, number>;
+  
+  /** Model-specific parameters based on the modelType */
+  modelSpecificParameters?: {
+    /** Beta factor model parameters */
+    betaFactorParameters?: {
+      beta: number;
+      totalFailureProbability: number;
+    };
+    
+    /** Multiple Greek Letter (MGL) model parameters */
+    mglParameters?: {
+      beta: number;
+      gamma?: number;
+      delta?: number;
+      additionalFactors?: Record<string, number>;
+      totalFailureProbability: number;
+    };
+    
+    /** Alpha factor model parameters */
+    alphaFactorParameters?: {
+      alphaFactors: Record<string, number>;
+      totalFailureProbability: number;
+    };
+    
+    /** Phi factor model parameters */
+    phiFactorParameters?: {
+      phiFactors: Record<string, number>;
+      totalFailureProbability: number;
+    };
+  };
+  
+  /** Defense mechanisms in place to prevent or mitigate CCF */
+  defenseMechanisms?: string[];
+  
+  /** Shared cause factors that contribute to CCF potential */
+  sharedCauseFactors?: {
+    hardwareDesign?: boolean;
+    manufacturer?: boolean;
+    maintenance?: boolean;
+    installation?: boolean;
+    environment?: boolean;
+    otherFactors?: string[];
+  };
+  
+  /** Justification for why this CCF is or is not risk-significant */
+  riskSignificanceJustification?: string;
+  
+  /** Supporting data sources for CCF parameters */
+  dataSources?: {
+    reference: string;
+    description: string;
+    dataType: "plant-specific" | "generic" | "expert-judgment";
+  }[];
+  
+  /** Mapping to guide how this CCF group should be quantified */
+  quantificationMapping?: {
+    openPsaMapping?: {
+      modelType: "beta-factor" | "MGL" | "alpha-factor" | "phi-factor";
+      factorMappings?: Record<string, string>;
+    };
+  };
+}
+```
+
+This enhanced interface supports:
+
+- Four standard CCF models with specific parameter structures:
+  - Beta Factor Model: Simple model with a single beta parameter
+  - Multiple Greek Letter (MGL) Model: Hierarchical model with beta, gamma, delta parameters
+  - Alpha Factor Model: Event-based parametric model with alpha factors by multiplicity
+  - Phi Factor Model: Direct parameter specification model
+
+- Documentation of defense mechanisms and shared cause factors
+- Traceability of data sources and their types
+- Mapping to quantification engine formats
+- Implementation of SY-B4 requirements for CCF analysis
+
+The integration with the quantification adapter enables seamless conversion between OpenPRA's internal CCF representation and external quantification engine formats, supporting consistent modeling and analysis of common cause failures across the PRA process.
 
 ### Repair Modeling
 

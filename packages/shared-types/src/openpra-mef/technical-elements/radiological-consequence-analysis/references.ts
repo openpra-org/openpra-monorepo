@@ -22,6 +22,7 @@ export {
  * Risk-significant consequence results with integrated risk metrics.
  * This interface consolidates radiological consequence results with risk significance
  * information to simplify access by Risk Integration.
+ * @group Consequence Quantification
  */
 export interface RiskSignificantConsequence {
     /** Release category identifier */

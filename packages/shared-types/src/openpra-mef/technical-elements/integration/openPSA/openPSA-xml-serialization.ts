@@ -14,14 +14,14 @@
 
 //==============================================================================
 /**
- * @group OpenPSA
+ * @group OpenPSA XML
  * @description Basic types and interfaces used throughout the OpenPSA serialization module
  */
 //==============================================================================
 
 /**
  * Represents a mapping between OpenPRA fields and OpenPSA fields
- * @group OpenPSA
+ * @group OpenPSA XML
  */
 export interface OpenPSAFieldMapping {
   /** OpenPRA field name */
@@ -32,7 +32,7 @@ export interface OpenPSAFieldMapping {
   description?: string;
 }
 
-import { EventTree, EventTreeBranch, EventTreeSequence, FunctionalEvent } from "../event-sequence-analysis/event-sequence-analysis";
+import { EventTree, EventTreeBranch, EventTreeSequence, FunctionalEvent } from "../../event-sequence-analysis/event-sequence-analysis";
 
 /**
  * Interface for objects that can be serialized to OpenPSA XML format.
@@ -76,13 +76,13 @@ export interface OpenPSASerializable {
 
 
 /**
- * @group OpenPSA
+ * @group OpenPSA XML
  * @description Configuration options for OpenPSA serialization
  */
 
 /**
  * Options for OpenPSA serialization
- * @group OpenPSA
+* @group OpenPSA XML
  */
 export interface OpenPSASerializationOptions {
   /**
@@ -113,7 +113,7 @@ export interface OpenPSASerializationOptions {
 
 /**
  * Default serialization options
- * @group OpenPSA
+ * @group OpenPSA XML
  */
 export const DEFAULT_OPENPSA_SERIALIZATION_OPTIONS: OpenPSASerializationOptions = {
   prettyPrint: true,
@@ -123,14 +123,14 @@ export const DEFAULT_OPENPSA_SERIALIZATION_OPTIONS: OpenPSASerializationOptions 
 
 //==============================================================================
 /**
- * @group OpenPSA
+ * @group OpenPSA XML
  * @description Functions and classes for serializing event trees to OpenPSA XML format
  */
 //==============================================================================
 
 /**
  * Options for event tree serialization
- * @group OpenPSA
+ * @group OpenPSA XML
  */
 export interface EventTreeSerializationOptions {
   /** Format for serialization (compact or verbose) */
@@ -148,7 +148,7 @@ export interface EventTreeSerializationOptions {
 
 /**
  * Default options for event tree serialization
- * @group OpenPSA
+ * @group OpenPSA XML
  */
 export const DEFAULT_EVENT_TREE_SERIALIZATION_OPTIONS: EventTreeSerializationOptions = {
   format: "verbose",
@@ -159,7 +159,7 @@ export const DEFAULT_EVENT_TREE_SERIALIZATION_OPTIONS: EventTreeSerializationOpt
 
 /**
  * Helper class for serializing event trees to OpenPSA XML format
- * @group OpenPSA
+ * @group OpenPSA XML
  */
 export class EventTreeSerializer {
   /**
@@ -405,7 +405,7 @@ export class EventTreeSerializer {
 
 /**
  * Default instance of EventTreeSerializer for convenient use throughout the application
- * @group OpenPSA
+ * @group OpenPSA XML
  */
 export const defaultEventTreeSerializer = new EventTreeSerializer();
 
@@ -414,7 +414,7 @@ export const defaultEventTreeSerializer = new EventTreeSerializer();
  * @param eventTree - The event tree to serialize
  * @param options - Optional serialization options
  * @returns XML string representation of the event tree
- * @group OpenPSA
+ * @group OpenPSA XML
  */
 export function eventTreeToOpenPSAXML(
   eventTree: EventTree,
@@ -427,7 +427,7 @@ export function eventTreeToOpenPSAXML(
  * Helper function to map OpenPSA serialization options to event tree serialization options
  * @param options - OpenPSA serialization options
  * @returns Equivalent event tree serialization options
- * @group OpenPSA
+ * @group OpenPSA XML
  */
 export function mapToEventTreeOptions(options: OpenPSASerializationOptions): EventTreeSerializationOptions {
   return {

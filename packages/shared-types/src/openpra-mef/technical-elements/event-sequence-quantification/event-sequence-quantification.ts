@@ -312,7 +312,9 @@ export type EventSequenceFamilyReference = string;
 /**
  * Enum representing the different methods for truncating event sequences
  * @remarks **ESQ-B3**
+ * @group Core Definitions & Enums
  */
+ 
 export enum TruncationMethod {
   /** Truncate based on absolute frequency value */
   ABSOLUTE_FREQUENCY = "ABSOLUTE_FREQUENCY",
@@ -355,6 +357,7 @@ export enum QuantificationApproach {
 /**
  * Enum representing the circular logic resolution methods
  * @remarks **ESQ-B5**
+ * @group Core Definitions & Enums
  */
 export enum CircularLogicResolutionMethod {
   /** Break loops by inserting conditional split fractions */

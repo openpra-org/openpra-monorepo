@@ -19,7 +19,7 @@
   import { Named, Unique } from "../core/meta";
   import { IdPatterns, ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis, SuccessCriteriaId } from "../core/shared-patterns";
   import { BaseEvent, BasicEvent, TopEvent } from "../core/events";
-  import { SaphireFieldMapping } from "../integration/saphire-annotations";
+  import { SaphireFieldMapping } from "../integration/SAPHIRE/saphire-annotations";
   import { 
       BaseDesignInformation, 
       BaseProcessDocumentation, 
@@ -35,7 +35,7 @@
       SuccessCriterion,
       SystemSuccessCriterion
   } from "../success-criteria/success-criteria-development";
-  import { DistributionType } from "../data-analysis/data-analysis";
+  import { DistributionType, ProbabilityModel, ComponentBasicEvent } from '../data-analysis/data-analysis';
   import { QuantificationReferenceManager } from "../core/quantification-bridge";
   import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
   
@@ -210,6 +210,55 @@
      * Mean time to repair, if repair is modeled
      */
     meanTimeToRepair?: number;
+    
+    /**
+     * Probability model from data analysis module
+     * Reuses the data analysis module's definition to avoid duplication
+     */
+    probabilityModel?: ProbabilityModel;
+    
+    /**
+     * Reference to a ComponentBasicEvent in the data-analysis module
+     * This establishes a link between systems analysis and data analysis
+     */
+    dataAnalysisBasicEventRef?: string;
+    
+    /**
+     * Expression that can be used in place of a fixed probability
+     * Used by the quantification adapter for parametric calculations
+     * @deprecated Use probabilityModel from data-analysis module instead
+     */
+    expression?: {
+      /** Fixed value (equivalent to the probability field) */
+      value?: number;
+      
+      /** Parameter reference (for using model-wide parameters) */
+      parameter?: string;
+      
+      /** Formula (using mathematical notation) */
+      formula?: string;
+      
+      /** Expression type */
+      type?: "constant" | "parameter" | "formula";
+    };
+    
+    /**
+     * Unit for the probability/frequency value
+     * Used by the quantification adapter for proper unit conversion
+     */
+    unit?: "bool" | "int" | "float" | "hours" | "hours-1" | "years" | "years-1" | "fit" | "demands" | string;
+    
+    /**
+     * Attributes for the quantification adapter
+     * Enables passing additional information to the quantification engine
+     */
+    attributes?: { name: string; value: string }[];
+    
+    /**
+     * Role of this basic event in quantification
+     * Used by the quantification adapter for model organization
+     */
+    role?: "public" | "private" | "interface";
   }
   
   //==============================================================================
@@ -437,6 +486,39 @@
      */
     basicEventIds?: string[];  // References to ComponentBasicEvent
     failureModeIds?: string[]; // References to FailureMode
+    
+    /**
+     * Failure data for quantification
+     * This information is used directly by the quantification adapter
+     */
+    failureData?: {
+      /** Failure rate for this component (per time unit) */
+      failureRate?: number;
+      
+      /** Failure probability for this component (dimensionless) */
+      failureProbability?: number;
+      
+      /** Time unit for the failure rate */
+      timeUnit?: "hours" | "years" | string;
+      
+      /** Source of the failure data */
+      dataSource?: string;
+      
+      /** Whether this component is part of a CCF group */
+      isPartOfCCFGroup?: boolean;
+      
+      /** Reference to the CCF group */
+      ccfGroupReference?: string;
+    };
+    
+    /**
+     * Quantification attributes
+     * Additional parameters used by the quantification adapter
+     */
+    quantificationAttributes?: {
+      name: string;
+      value: string | number | boolean;
+    }[];
   }
   
   /**
@@ -912,6 +994,29 @@
     nodes: Record<string, FaultTreeNode>;
     
     /**
+     * Gates in the fault tree - this structure aligns with the quantification adapter expectations
+     * @note This field can be derived from nodes but is provided explicitly for adapter compatibility
+     */
+    gates?: Record<string, {
+      id: string;
+      name: string;
+      description?: string;
+      type: string;
+      inputs: { id: string }[];
+      k?: number; // For ATLEAST gates, the minimum number of inputs required
+    }>;
+    
+    /**
+     * Components referenced in this fault tree
+     * Used by the quantification adapter for component mapping
+     */
+    components?: { 
+      id: string; 
+      name: string; 
+      description?: string; 
+    }[];
+    
+    /**
      * Minimal cut sets as arrays of basic event IDs
      */
     minimalCutSets?: string[][];
@@ -952,6 +1057,12 @@
         /** OpenPSA/SCRAM compatibility mappings */
         openPsaFieldMappings?: Record<string, string>;
     };
+    
+    /**
+     * Attributes for quantification adapter
+     * These are used by the adapter to provide additional information to the quantification engine
+     */
+    attributes?: { name: string; value: string }[];
   }
   
   /**
@@ -1283,23 +1394,234 @@
     affectedSystems: SystemReference[];
     
     /**
-     * The common cause model used (reference to Data Analysis).
+     * The common cause model used.
      * @implements SY-B4
      * @example "Multiple Greek Letter (MGL)"
+     * The modelType field should align with the types expected by the quantification adapter:
+     * - BETA_FACTOR, MGL, ALPHA_FACTOR, PHI_FACTOR are directly mapped
+     * - Other types may require mapping in the adapter
      */
-    modelType: string;
+    modelType: "BETA_FACTOR" | "MGL" | "ALPHA_FACTOR" | "PHI_FACTOR" | string;
     
     /**
-     * Parameters of the CCF model (reference to Data Analysis parameters).
+     * Parameters of the CCF model.
      * @example { betaFactor: 0.05 }
      */
     modelParameters?: Record<string, number>;
+    
+    /**
+     * Total failure probability for a single component
+     * This field is used directly by the quantification adapter
+     */
+    totalFailureProbability?: number;
+    
+    /**
+     * Reference to CCF parameter in data analysis module
+     * Links this CCF group to its corresponding parameter in data analysis
+     */
+    dataAnalysisCCFParameterRef?: string;
+    
+    /**
+     * Members of this CCF group formatted for the quantification adapter
+     * This structure directly aligns with the adapter's expected format
+     */
+    members?: {
+      basicEvents: { id: string; name?: string }[];
+    };
+    
+    /**
+     * Model-specific parameters based on the modelType.
+     * Different CCF models require different parameters.
+     */
+    modelSpecificParameters?: {
+      /**
+       * Beta factor model parameters (fraction of total component failure rate attributed to common cause)
+       */
+      betaFactorParameters?: {
+        /**
+         * Beta factor value (typically between 0.01 and 0.2)
+         */
+        beta: number;
+        
+        /**
+         * Total failure probability for a single component
+         */
+        totalFailureProbability: number;
+      };
+      
+      /**
+       * Multiple Greek Letter (MGL) model parameters
+       */
+      mglParameters?: {
+        /**
+         * Beta factor (fraction of total failure that is common cause)
+         */
+        beta: number;
+        
+        /**
+         * Gamma factor (conditional probability of three or more components failing)
+         */
+        gamma?: number;
+        
+        /**
+         * Delta factor (conditional probability of four or more components failing)
+         */
+        delta?: number;
+        
+        /**
+         * Additional factors for higher-order failures (optional)
+         */
+        additionalFactors?: Record<string, number>;
+        
+        /**
+         * Total failure probability for a single component
+         */
+        totalFailureProbability: number;
+      };
+      
+      /**
+       * Alpha factor model parameters
+       */
+      alphaFactorParameters?: {
+        /**
+         * Alpha factors by failure multiplicity
+         * Key is the number of components failing (e.g., "1" for single failures, "2" for double failures)
+         * Value is the alpha factor for that multiplicity
+         */
+        alphaFactors: Record<string, number>;
+        
+        /**
+         * Total failure probability for a single component
+         */
+        totalFailureProbability: number;
+      };
+      
+      /**
+       * Phi factor model parameters (direct specification of CCF probabilities)
+       */
+      phiFactorParameters?: {
+        /**
+         * Phi factors by failure multiplicity
+         * Key is the number of components failing (e.g., "1" for single failures, "2" for double failures)
+         * Value is the fraction of total probability for that multiplicity
+         */
+        phiFactors: Record<string, number>;
+        
+        /**
+         * Total failure probability for a single component
+         */
+        totalFailureProbability: number;
+      };
+    };
+    
+    /**
+     * Probability model from data analysis module
+     * Reuses the data analysis module's definition to avoid duplication
+     */
+    probabilityModel?: ProbabilityModel;
+    
+    /**
+     * CCF factors formatted specifically for the quantification adapter
+     * This structure directly maps to the adapter's expected format
+     */
+    factors?: {
+      factor: { level: number; expression: { value: number } }[];
+    };
+    
+    /**
+     * Defense mechanisms in place to prevent or mitigate CCF.
+     * This is important for CCF analysis and can affect model parameters.
+     */
+    defenseMechanisms?: string[];
+    
+    /**
+     * Shared cause factors that contribute to CCF potential.
+     * These factors help justify the CCF group definition.
+     */
+    sharedCauseFactors?: {
+      /**
+       * Hardware design similarities
+       */
+      hardwareDesign?: boolean;
+      
+      /**
+       * Same manufacturer
+       */
+      manufacturer?: boolean;
+      
+      /**
+       * Same maintenance procedures
+       */
+      maintenance?: boolean;
+      
+      /**
+       * Same installation procedures
+       */
+      installation?: boolean;
+      
+      /**
+       * Shared environment
+       */
+      environment?: boolean;
+      
+      /**
+       * Other shared factors
+       */
+      otherFactors?: string[];
+    };
     
     /**
      * Justification for why this CCF is or is not risk-significant.
      * @implements SY-B1
      */
     riskSignificanceJustification?: string;
+    
+    /**
+     * Supporting data sources for CCF parameters
+     */
+    dataSources?: {
+      /**
+       * Reference to the source
+       */
+      reference: string;
+      
+      /**
+       * Description of the data source
+       */
+      description: string;
+      
+      /**
+       * Whether this is plant-specific or generic data
+       */
+      dataType: "plant-specific" | "generic" | "expert-judgment";
+    }[];
+    
+    /**
+     * Mapping to guide how this CCF group should be quantified
+     * Maps to the format required by quantification engines
+     */
+    quantificationMapping?: {
+      /**
+       * Mapping to OpenPSA/SCRAM format (for integration)
+       */
+      openPsaMapping?: {
+        /**
+         * CCF model type in OpenPSA format
+         */
+        modelType: "beta-factor" | "MGL" | "alpha-factor" | "phi-factor";
+        
+        /**
+         * Factor mappings for OpenPSA
+         */
+        factorMappings?: Record<string, string>;
+      };
+    };
+    
+    /**
+     * Attributes for the quantification adapter
+     * Enables passing additional information to the quantification engine
+     */
+    attributes?: { name: string; value: string }[];
   }
   
   /**
@@ -1921,6 +2243,49 @@
      * @implements SY-B4
      */
     uncertaintyAnalysis?: Record<SystemReference, SystemUncertaintyAnalysis>;
+    
+    /**
+     * Fault trees organized in a format directly accessible by the quantification adapter
+     * This simplifies the conversion process compared to extracting them from systemLogicModels
+     */
+    faultTrees?: Record<string, FaultTree>;
+    
+    /**
+     * Basic events organized in a flat structure for the quantification adapter
+     * This provides easier access than searching through fault trees
+     */
+    systemBasicEvents?: Record<string, SystemBasicEvent>;
+    
+    /**
+     * Reference to associated Data Analysis module
+     * This field establishes the integration between Systems Analysis and Data Analysis
+     * for use in system basic event quantification
+     */
+    dataAnalysisReference?: string;
+    
+    /**
+     * Global parameters that can be used in expressions across the model
+     * These parameters can be referenced by basic events and other model elements
+     * Note: For complex parameter definitions, reference data-analysis module parameters
+     */
+    parameters?: Record<string, {
+      id: string;
+      name: string;
+      description?: string;
+      value: number;
+      unit?: string;
+      /**
+       * Optional reference to a parameter in the data-analysis module
+       * For more complex parameter types, use the data-analysis module directly
+       */
+      dataAnalysisParameterRef?: string;
+    }>;
+    
+    /**
+     * Attributes for the quantification adapter
+     * Enables passing additional information to the quantification engine
+     */
+    attributes?: { name: string; value: string }[];
   }
 
   /**

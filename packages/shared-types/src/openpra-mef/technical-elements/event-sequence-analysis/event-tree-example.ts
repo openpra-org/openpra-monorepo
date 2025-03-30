@@ -20,6 +20,7 @@ import { EndState } from "./event-sequence-analysis";
  * An event tree is a graphical method used to model and depict event sequences.
  * It starts with an initiating event and branches at various "top events"
  * (functional events), with each branch representing a possible outcome.
+ * @hidden
  */
 export interface ConceptualEventTree {
   name: string;
@@ -44,6 +45,7 @@ export interface ConceptualEventTree {
 /**
  * Functional Event (Top Event) in an event tree
  * These represent systems, components, or operator actions that can succeed or fail
+ * @hidden
  */
 export interface ConceptualFunctionalEvent {
   name: string;
@@ -57,6 +59,7 @@ export interface ConceptualFunctionalEvent {
 /**
  * Branch point in an event tree
  * Each branch contains a functional event and paths following success/failure
+ * @hidden
  */
 export interface ConceptualBranch {
   name: string;
@@ -67,7 +70,8 @@ export interface ConceptualBranch {
 
 /**
  * Path from a branch point
- * Represents the success or failure of the functional event
+* Represents the success or failure of the functional event
+ * @hidden
  */
 export interface ConceptualPath {
   state: "SUCCESS" | "FAILURE";  // Outcome of the functional event
@@ -79,6 +83,7 @@ export interface ConceptualPath {
 /**
  * Sequence (end point) in an event tree
  * Each sequence represents a specific path through the event tree
+ * @hidden
  */
 export interface ConceptualSequence {
   name: string;
@@ -93,6 +98,7 @@ export interface ConceptualSequence {
  * Event sequence corresponding to a path through an event tree
  * An event sequence is a chronological progression of events from an initiating event
  * to a specific end state, accounting for system/component/operator responses.
+ * @hidden
  */
 export interface ConceptualEventSequence {
   id: string;
@@ -127,6 +133,8 @@ export interface ConceptualEventSequence {
 /**
  * Create a simple example event tree for a Loss of Offsite Power (LOOP) scenario
  * @returns A sample conceptual event tree with mapped event sequences
+ * @hidden
+ * 
  */
 export function createConceptualEventTree(): ConceptualEventTree {
   // Define functional events (systems or operator actions that can succeed or fail)
@@ -437,6 +445,7 @@ export function createConceptualEventTree(): ConceptualEventTree {
 /**
  * Demonstrate event tree serialization 
  * @returns String representation of the event tree
+ * @hidden
  */
 export function stringifyConceptualEventTree(): string {
   const eventTree = createConceptualEventTree();
@@ -448,6 +457,7 @@ export function stringifyConceptualEventTree(): string {
  * Note: This is a text representation for illustration purposes.
  * 
  * Each path through the event tree represents a unique event sequence.
+ * @hidden
  */
 export function printEventTreeDiagram(): string {
   // Simple ASCII representation of the event tree
@@ -482,6 +492,7 @@ export function printEventTreeDiagram(): string {
 /**
  * Demonstrate the relationship between event trees and event sequences
  * @returns String representation explaining the relationship
+ * @group Event Trees
  */
 export function explainEventTreeSequenceRelationship(): string {
   return `

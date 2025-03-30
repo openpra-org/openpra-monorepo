@@ -97,7 +97,7 @@ export {
  OpenPSAFieldMapping,
  OpenPSASerializationOptions,
  DEFAULT_OPENPSA_SERIALIZATION_OPTIONS
-} from './integration/open-psa-serialization';
+} from './integration/openPSA/openPSA-xml-serialization';
 
 
 export {
@@ -106,5 +106,5 @@ export {
  SaphirePhase,
  phaseSaphireMappings,
  specialEventSaphireMappings
-} from './integration/saphire-annotations';
+} from './integration/SAPHIRE/saphire-annotations';
 

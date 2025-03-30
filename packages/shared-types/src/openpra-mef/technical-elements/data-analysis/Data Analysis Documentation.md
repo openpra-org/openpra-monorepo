@@ -18,8 +18,9 @@
 4. [Schema Support for DA-E2](#schema-support-for-da-e2)
 5. [Schema Support for DA-E3](#schema-support-for-da-e3)
 6. [Implementation Examples](#implementation-examples)
-7. [Requirements Coverage Matrix](#requirements-coverage-matrix)
-8. [Conclusion](#conclusion)
+7. [Technical Elements Dependencies](#technical-elements-dependencies)
+8. [Requirements Coverage Matrix](#requirements-coverage-matrix)
+9. [Conclusion](#conclusion)
 
 ## Introduction
 
@@ -45,10 +46,18 @@ The schema implements DA-E1 primarily through the `DataAnalysisDocumentation` in
 
 ```typescript
 systemComponentBoundaries: {
-    /** System or component ID */
-    id: string;
+    /** System ID - references SystemDefinition */
+    systemId: string;
+    
+    /** Component ID - references a component within SystemDefinition.modeledComponentsAndFailures */
+    componentId?: string;
+    
     /** Boundary description */
     boundaryDescription: string;
+    
+    /** Boundaries array - directly maps to SystemDefinition.boundaries */
+    boundaries: string[];
+    
     /** Reference documents */
     references?: string[];
 }[];
@@ -59,7 +68,7 @@ Additionally, the schema provides dedicated interfaces for detailed boundary doc
 ```typescript
 export interface ComponentBoundary extends Unique, Named {
     systemId: string;
-    componentId: string;
+    componentId?: ComponentReference;
     description: string;
     includedItems: string[];
     excludedItems?: string[];
@@ -67,6 +76,8 @@ export interface ComponentBoundary extends Unique, Named {
     referenceDocuments?: string[];
 }
 ```
+
+This implementation ensures proper linkage to the Systems Analysis technical element through references to the `SystemDefinition` and components within it.
 
 ### Basic Event Probability Models (DA-E1.b)
 
@@ -85,6 +96,21 @@ basicEventProbabilityModels: {
 
 This is supported by the `DistributionType` enum and the `probability_model` field in the `DataAnalysisParameter` interface.
 
+```typescript
+export enum DistributionType {
+    EXPONENTIAL = "exponential",
+    BINOMIAL = "binomial",
+    NORMAL = "normal",
+    LOGNORMAL = "lognormal",
+    WEIBULL = "weibull",
+    POISSON = "poisson",
+    UNIFORM = "uniform",
+    BETA = "beta",
+    GAMMA = "gamma",
+    POINT_ESTIMATE = "point_estimate"
+}
+```
+
 ### Generic Parameter Sources (DA-E1.c)
 
 **Implementation**: The schema provides the `genericParameterSources` property:
@@ -101,6 +127,21 @@ genericParameterSources: {
 ```
 
 This is complemented by the `DataSource` interface that provides a comprehensive structure for documenting data sources.
+
+```typescript
+export interface DataSource {
+    source: string;
+    context?: string;
+    notes?: string;
+    documentationReferences?: string[];
+    sourceType?: "GENERIC_INDUSTRY" | "PLANT_SPECIFIC" | "EXPERT_JUDGMENT";
+    timePeriod?: {
+        startDate: string;
+        endDate: string;
+    };
+    applicabilityAssessment?: string;
+}
+```
 
 ### Plant-Specific Data Sources (DA-E1.d)
 
@@ -183,6 +224,28 @@ bayesianPriorRationales: {
 
 This is supported by the `BayesianUpdate` interface that provides detailed structure for Bayesian update documentation.
 
+```typescript
+export interface BayesianUpdate {
+    performed: boolean;
+    method: string;
+    convergence_criteria?: number;
+    prior?: {
+        distribution: DistributionType;
+        parameters: Record<string, number>;
+        source?: string;
+    };
+    posterior?: {
+        distribution: DistributionType;
+        parameters: Record<string, number>;
+    };
+    validation?: {
+        method: string;
+        results: string;
+        issues?: string[];
+    };
+}
+```
+
 ### Parameter Estimates with Uncertainty (DA-E1.i)
 
 **Implementation**: The schema provides the `parameterEstimates` property:
@@ -199,6 +262,26 @@ parameterEstimates: {
 ```
 
 This is supported by the comprehensive `Uncertainty` interface that provides a detailed structure for uncertainty documentation.
+
+```typescript
+export interface Uncertainty {
+    distribution: DistributionType;
+    parameters: Record<string, number>;
+    model_uncertainty_sources?: string[];
+    riskImplications?: {
+        affectedMetrics: string[];
+        significanceLevel: "high" | "medium" | "low";
+        propagationNotes?: string;
+    };
+    correlations?: {
+        parameterId: string;
+        correlationType: "common_cause" | "environmental" | "operational" | "other";
+        correlationFactor: number;
+        description?: string;
+    }[];
+    sensitivityStudies?: SensitivityStudy[];
+}
+```
 
 ### Operating State Data Justification (DA-E1.j)
 
@@ -344,13 +427,16 @@ This section provides simplified examples of how the schema would be implemented
 // Example implementation of system component boundaries documentation
 const boundaries: DataAnalysisDocumentation['systemComponentBoundaries'] = [
   {
-    id: "SYS-RCS-001",
+    systemId: "SYS-RCS-001",
     boundaryDescription: "Reactor Coolant System pump boundary includes the pump, motor, seals, and associated control circuitry",
+    boundaries: ["Primary coolant loop", "Pump systems", "Seal systems"],
     references: ["Drawing RCS-PID-001", "Design Spec DS-RCS-PUMP-001"]
   },
   {
-    id: "COMP-EDG-001",
+    systemId: "SYS-EDG-001",
+    componentId: "COMP-EDG-001",
     boundaryDescription: "Emergency Diesel Generator includes the engine, generator, starting system, and local control panel",
+    boundaries: ["Starting system", "Air intake", "Fuel system", "Control system"],
     references: ["Drawing EDG-PID-001", "Maintenance Procedure MP-EDG-START-001"]
   }
 ];
@@ -407,6 +493,68 @@ const genericParameterRationales: DataAnalysisDocumentation['genericParameterRat
 ];
 ```
 
+## Technical Elements Dependencies
+
+The Data Analysis technical element has dependencies with other technical elements in the OpenPRA framework. Below is a diagram illustrating these relationships:
+
+```
+┌────────────────────────┐     ┌───────────────────────────┐
+│       Core Module      │     │    Systems Analysis       │
+│                        │<────┤                           │
+│ - Base interfaces      │     │ - System definitions      │
+│ - Shared types         │     │ - Component definitions   │
+│ - Reference patterns   │     │ - Boundaries              │
+└────────────────────────┘     └───────────────────────────┘
+          ▲                                 ▲
+          │                                 │
+          │                  ┌──────────────┘
+┌─────────┴────────────┐     │  ┌─────────────────────────┐
+│    Data Analysis     │◄────┼──┤  Plant Operating States │
+│                      │     │  │                         │
+│ - Parameters         │─────┘  │ - Operating state defs  │
+│ - Estimation         │◄───────┤ - State transitions     │
+│ - Documentation      │        │ - Success criteria      │
+└──────────┬───────────┘        └───────────────────────────┘
+           │                                ▲
+           │                                │
+           ▼                                │
+┌──────────────────────┐     ┌─────────────┴─────────────┐
+│  Event Sequence      │     │  Initiating Event         │
+│  Quantification      │◄────┤  Analysis                 │
+│                      │     │                           │
+│ - Quantification     │     │ - Event definitions       │
+│ - Uncertainty        │     │ - Frequencies             │
+└──────────────────────┘     └───────────────────────────┘
+```
+
+### Key Dependency Relationships:
+
+1. **Core Module**:
+   - Provides base interfaces (`Unique`, `Named`, etc.)
+   - Defines shared patterns and types used across all technical elements
+   - Data Analysis extends base documentation interfaces from core
+
+2. **Systems Analysis**:
+   - Provides `SystemDefinition` referenced by Data Analysis parameters
+   - Component boundaries and failure modes are referenced
+   - Data Analysis parameters are associated with system components
+   - **Bidirectional dependency**: Systems Analysis models use parameter estimates from Data Analysis
+
+3. **Plant Operating States**:
+   - Operating states referenced through `PlantOperatingStateReference` pattern
+   - Data parameters can be specific to particular plant operating states
+   - Operating state transitions can be informed by data analysis
+
+4. **Initiating Event Analysis**:
+   - Uses data analysis parameters for event frequencies
+   - Data analysis provides uncertainty information for events
+
+5. **Event Sequence Quantification**:
+   - Uses data analysis parameters for basic event probabilities
+   - Incorporates uncertainty from data analysis into sequence quantification
+
+The Data Analysis module is a fundamental technical element that provides critical inputs to many other modules in the PRA framework. It ensures that all parameters used in the model have proper technical justification and documented uncertainty.
+
 ## Requirements Coverage Matrix
 
 The following table provides a comprehensive mapping between the DA-E requirements and the schema implementation:
@@ -431,3 +579,5 @@ The following table provides a comprehensive mapping between the DA-E requiremen
 ## Conclusion
 
 This document has provided a comprehensive overview of the schema support for the HLR-DA-E requirements. The schema implementation provides interfaces and data structures that directly map to each requirement in the DA-E category, enabling comprehensive documentation of the data analysis process. The implementation ensures complete traceability of the data analysis work, as mandated by the standard.
+
+The Data Analysis technical element is a critical component of the overall PRA framework, providing the foundation for parameter estimation, uncertainty quantification, and technical justification of model inputs. Through well-designed interfaces and proper integration with other technical elements, the schema ensures that regulatory requirements are met while promoting maintainable, scalable code.

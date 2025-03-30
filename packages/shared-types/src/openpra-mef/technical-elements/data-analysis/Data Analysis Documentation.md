@@ -25,15 +25,13 @@
 
 This document demonstrates how the provided TypeScript schema satisfies the documentation requirements specified in the regulatory guidance. The schema has been designed to ensure complete traceability of the data analysis work, as mandated by the standard. The implementation provides interfaces and data structures that directly map to each requirement in the DA-E category, enabling comprehensive documentation of the data analysis process.
 
+The schema leverages a modular design with base interfaces defined in the core/documentation.ts file. These base interfaces are then extended by technical element-specific interfaces, promoting code reuse and ensuring consistency across different technical elements. This approach aligns with software engineering best practices for maintainability and scalability.
+
 ## Overview of Regulatory Requirements
 
-"The documentation of the Data Analysis shall provide traceability of the work."
+DA-E requires adequate documentation of data analysis processes.
 
-This high-level requirement is supported by three specific requirements:
-
-1. **DA-E1**: Document the process used in the Data Analysis specifying inputs, methods, and results
-2. **DA-E2**: Document the sources of model uncertainty, related assumptions, and reasonable alternatives
-3. **DA-E3**: Document assumptions and limitations due to lack of as-built, as-operated details
+This high-level requirement is supported by three specific requirements from DA-E1 to DA-E3. 
 
 The schema provides dedicated interfaces to satisfy each of these requirements.
 
@@ -42,8 +40,6 @@ The schema provides dedicated interfaces to satisfy each of these requirements.
 The schema implements DA-E1 primarily through the `DataAnalysisDocumentation` interface, which contains fields that directly map to each sub-requirement of DA-E1.
 
 ### System and Component Boundaries (DA-E1.a)
-
-**Requirement**: Document system and component boundaries used to establish component failure probabilities.
 
 **Implementation**: The schema provides the `systemComponentBoundaries` property in the `DataAnalysisDocumentation` interface:
 
@@ -74,8 +70,6 @@ export interface ComponentBoundary extends Unique, Named {
 
 ### Basic Event Probability Models (DA-E1.b)
 
-**Requirement**: Document the model used to evaluate each basic event probability.
-
 **Implementation**: The schema provides the `basicEventProbabilityModels` property:
 
 ```typescript
@@ -92,8 +86,6 @@ basicEventProbabilityModels: {
 This is supported by the `DistributionType` enum and the `probability_model` field in the `DataAnalysisParameter` interface.
 
 ### Generic Parameter Sources (DA-E1.c)
-
-**Requirement**: Document sources for generic parameter estimates.
 
 **Implementation**: The schema provides the `genericParameterSources` property:
 
@@ -112,8 +104,6 @@ This is complemented by the `DataSource` interface that provides a comprehensive
 
 ### Plant-Specific Data Sources (DA-E1.d)
 
-**Requirement**: Document plant-specific and plant operating state-specific sources of data.
-
 **Implementation**: The schema provides the `plantSpecificDataSources` property:
 
 ```typescript
@@ -130,8 +120,6 @@ plantSpecificDataSources: {
 ```
 
 ### Time Periods for Data Collection (DA-E1.e)
-
-**Requirement**: Document the time periods for which plant-specific data were gathered.
 
 **Implementation**: The schema provides the `dataCollectionPeriods` property:
 
@@ -150,8 +138,6 @@ dataCollectionPeriods: {
 
 ### Data Exclusion Justification (DA-E1.f)
 
-**Requirement**: Document justification for exclusion of any data.
-
 **Implementation**: The schema provides the `dataExclusionJustifications` property:
 
 ```typescript
@@ -167,8 +153,6 @@ dataExclusionJustifications: {
 
 ### CCF Probability Basis (DA-E1.g)
 
-**Requirement**: Document the basis for the estimates of CCF probabilities.
-
 **Implementation**: The schema provides the `ccfProbabilityBasis` property:
 
 ```typescript
@@ -183,8 +167,6 @@ ccfProbabilityBasis: {
 ```
 
 ### Bayesian Prior Rationales (DA-E1.h)
-
-**Requirement**: Document the rationale for any distributions used as priors for Bayesian updates.
 
 **Implementation**: The schema provides the `bayesianPriorRationales` property:
 
@@ -203,8 +185,6 @@ This is supported by the `BayesianUpdate` interface that provides detailed struc
 
 ### Parameter Estimates with Uncertainty (DA-E1.i)
 
-**Requirement**: Document parameter estimate including the characterization of uncertainty.
-
 **Implementation**: The schema provides the `parameterEstimates` property:
 
 ```typescript
@@ -222,8 +202,6 @@ This is supported by the comprehensive `Uncertainty` interface that provides a d
 
 ### Operating State Data Justification (DA-E1.j)
 
-**Requirement**: Document justification for use of full power or other plant operating state data.
-
 **Implementation**: The schema provides the `operatingStateDataJustifications` property:
 
 ```typescript
@@ -239,8 +217,6 @@ operatingStateDataJustifications: {
 
 ### Generic Parameter Rationales (DA-E1.k)
 
-**Requirement**: Document rationale for using generic parameter estimates.
-
 **Implementation**: The schema provides the `genericParameterRationales` property:
 
 ```typescript
@@ -255,8 +231,6 @@ genericParameterRationales: {
 ```
 
 ## Schema Support for DA-E2
-
-**Requirement**: Document the sources of model uncertainty, related assumptions, and reasonable alternatives.
 
 **Implementation**: The schema provides a dedicated `ModelUncertaintyDocumentation` interface:
 
@@ -292,30 +266,57 @@ This interface is included in the `documentation` property of the main `DataAnal
 
 ## Schema Support for DA-E3
 
-**Requirement**: Document assumptions and limitations due to lack of as-built, as-operated details.
-
 **Implementation**: The schema provides a dedicated `PreOperationalAssumptionsDocumentation` interface:
 
 ```typescript
-export interface PreOperationalAssumptionsDocumentation extends Unique, Named {
-    /** Assumptions due to lack of as-built, as-operated details */
-    assumptions: {
-        statement: string;
-        rationale: string;
-        references?: string[];
-        impactedParameters: string[];
-        closureCriteria: string;
-        status: "OPEN" | "CLOSED" | "IN_PROGRESS";
-        limitations?: string[];
-        riskImpact?: string;
-        addressingPlans?: string;
-    }[];
-    
-    /** Reference to DA-A6 */
+export interface PreOperationalAssumptionsDocumentation extends BasePreOperationalAssumptionsDocumentation {
+    /**
+     * Reference to DA-A6
+     * @implements DA-E3: See DA-A6
+     */
     relatedRequirement: string;
     
-    /** Reference to DA-N-5 (Note) */
+    /**
+     * Reference to DA-N-5 (Note)
+     * @implements DA-E3: See Note DA-N-5
+     */
     relatedNote: string;
+}
+```
+
+The `BasePreOperationalAssumptionsDocumentation` interface that it extends contains:
+
+```typescript
+export interface BasePreOperationalAssumptionsDocumentation extends Unique, Named {
+    /** Assumptions due to lack of as-built, as-operated details */
+    assumptions: PreOperationalAssumption[];
+    
+    /** References to supporting documentation */
+    supportingDocumentationReferences?: string[];
+    
+    /** Plant construction or operational phase when assumption can be validated */
+    validationPhase?: string;
+}
+```
+
+With `PreOperationalAssumption` being defined as:
+
+```typescript
+export interface PreOperationalAssumption extends BaseAssumption {
+    /** Unique identifier for the assumption within its context */
+    assumptionId: string;
+    
+    /** Design information needed to resolve the assumption */
+    requiredDesignInformation?: BaseDesignInformation[];
+    
+    /** Specific resolution plan for addressing this assumption */
+    resolutionPlan?: string;
+    
+    /** Current status - required for pre-operational assumptions */
+    status: "OPEN" | "CLOSED" | "IN_PROGRESS";
+    
+    /** Limitations imposed by this assumption - required for pre-operational assumptions */
+    limitations: string[];
 }
 ```
 
@@ -367,19 +368,23 @@ const dataCollectionPeriods: DataAnalysisDocumentation['dataCollectionPeriods'] 
 
 The following table provides a comprehensive mapping between the DA-E requirements and the schema implementation:
 
-| Requirement | Description | Schema Implementation | Completeness |
-|-------------|-------------|----------------------|--------------|
-| DA-E1 | Document the process used in the Data Analysis | `DataAnalysisDocumentation` interface | Complete |
-| DA-E1.a | System and component boundaries | `systemComponentBoundaries` property, `ComponentBoundary` interface | Complete |
-| DA-E1.b | Basic event probability models | `basicEventProbabilityModels` property, `DistributionType` enum | Complete |
-| DA-E1.c | Generic parameter sources | `genericParameterSources` property, `DataSource` interface | Complete |
-| DA-E1.d | Plant-specific data sources | `plantSpecificDataSources` property | Complete |
-| DA-E1.e | Time periods for data collection | `dataCollectionPeriods` property | Complete |
-| DA-E1.f | Data exclusion justification | `dataExclusionJustifications` property | Complete |
-| DA-E1.g | CCF probability basis | `ccfProbabilityBasis` property | Complete |
-| DA-E1.h | Bayesian prior rationales | `bayesianPriorRationales` property, `BayesianUpdate` interface | Complete |
-| DA-E1.i | Parameter estimates with uncertainty | `parameterEstimates` property, `Uncertainty` interface | Complete |
-| DA-E1.j | Operating state data justification | `operatingStateDataJustifications` property | Complete |
-| DA-E1.k | Generic parameter rationales | `genericParameterRationales` property | Complete |
-| DA-E2 | Document model uncertainty sources | `ModelUncertaintyDocumentation` interface | Complete |
-| DA-E3 | Document pre-operational assumptions | `PreOperationalAssumptionsDocumentation` interface | Complete |
+| Requirement | Schema Implementation | Completeness |
+|-------------|----------------------|--------------|
+| DA-E1 | `DataAnalysisDocumentation` interface | Complete |
+| DA-E1.a | `systemComponentBoundaries` property, `ComponentBoundary` interface | Complete |
+| DA-E1.b | `basicEventProbabilityModels` property, `DistributionType` enum | Complete |
+| DA-E1.c | `genericParameterSources` property, `DataSource` interface | Complete |
+| DA-E1.d | `plantSpecificDataSources` property | Complete |
+| DA-E1.e | `dataCollectionPeriods` property | Complete |
+| DA-E1.f | `dataExclusionJustifications` property | Complete |
+| DA-E1.g | `ccfProbabilityBasis` property | Complete |
+| DA-E1.h | `bayesianPriorRationales` property, `BayesianUpdate` interface | Complete |
+| DA-E1.i | `parameterEstimates` property, `Uncertainty` interface | Complete |
+| DA-E1.j | `operatingStateDataJustifications` property | Complete |
+| DA-E1.k | `genericParameterRationales` property | Complete |
+| DA-E2 | `ModelUncertaintyDocumentation` interface | Complete |
+| DA-E3 | `PreOperationalAssumptionsDocumentation` interface, `BasePreOperationalAssumptionsDocumentation` interface, `PreOperationalAssumption` interface | Complete |
+
+## Conclusion
+
+This document has provided a comprehensive overview of the schema support for the HLR-DA-E requirements. The schema implementation provides interfaces and data structures that directly map to each requirement in the DA-E category, enabling comprehensive documentation of the data analysis process. The implementation ensures complete traceability of the data analysis work, as mandated by the standard.

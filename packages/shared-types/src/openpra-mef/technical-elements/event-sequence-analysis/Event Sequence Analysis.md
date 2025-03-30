@@ -14,9 +14,11 @@
 
 ## Introduction
 
-This document demonstrates that the Event Sequence Analysis schema satisfies the Regulatory Requirements from the Probabilistic Risk Assessment (PRA) standard. The schema provides a comprehensive data model that enables documentation of Event Sequence Analyses with full traceability as required by the standard.
+This document demonstrates that the Event Sequence Analysis schema satisfies the regulatory requirements applicable to this technical element. The schema provides a comprehensive data model that enables documentation of Event Sequence Analyses with full traceability as required by standards.
 
 The documentation uses the Experimental Breeder Reactor II (EBR-II) as a reference example where appropriate, but focuses primarily on demonstrating schema compliance rather than a complete reactor model.
+
+The schema leverages a modular design with base interfaces defined in the core/documentation.ts file. These base interfaces are extended by technical element-specific interfaces, promoting code reuse and ensuring consistency across different technical elements.
 
 ## Schema Overview
 
@@ -34,28 +36,26 @@ The schema is implemented as a TypeScript interface with comprehensive typing to
 
 ## Compliance with Regulatory Requirements
 
-"The documentation of the Event Sequence Analysis shall provide traceability of the work."
-
 The schema directly supports this requirement through its comprehensive documentation structures. The following sections demonstrate how each supporting requirement (SR) is satisfied.
 
 ### ES-D1: Process Documentation
 
-ES-D1 requires documenting the process used in the Event Sequence Analysis, specifying inputs, methods, and results. The table below maps each sub-requirement to specific schema elements:
-
-| ES-D1 Sub-requirement | Schema Element | Implementation Approach |
-|---------------------|---------------|------------------------|
-| (a) Linkage between plant operating states, initiating events, and event sequences | `ProcessDocumentation.posInitiatorSequenceLinkage` | Explicit mapping structure with IDs and descriptions |
-| (b) Success criteria established for each modeled initiating event | `ProcessDocumentation.successCriteriaBases` | Captures criteria, basis, required capacities, and components |
-| (c) Deterministic analyses performed | `ProcessDocumentation.deterministicAnalyses` | Documents analyses, purposes, and applications |
-| (d) Description of event sequences or groups | `ProcessDocumentation.eventSequenceDescriptions` | Defines timing, procedural guidance, environmental impacts, etc. |
-| (e) Technical basis for treatment of radionuclide barriers | `ProcessDocumentation.barrierTreatmentBasis` | Captures credited capabilities and end state assignment basis |
-| (f) Evaluation of failure modes and degradation | `ProcessDocumentation.failureModeEvaluation` | Documents modes, mechanisms, loading conditions, and assessments |
-| (g) Definition of end states, families, and categories | `ProcessDocumentation.endStateAndFamilyDefinitions` | Provides definitions and categorizations |
-| (h) Operator actions in event trees | `ProcessDocumentation.operatorActionsRepresentation` | Links to HRA with timing and dependencies |
-| (i) Interface with release categories | `ProcessDocumentation.releaseInterfaceDescription` | Describes mapping and source term assignment |
-| (j) Use of single top event fault tree | `ProcessDocumentation.singleTopEventApproach` | Documents satisfaction of requirements |
-| (k) Mitigating systems challenged by initiators | `ProcessDocumentation.mitigatingSystemChallenges` | Maps initiating events to system impacts |
-| (l) Dependence of mitigating systems | `ProcessDocumentation.mitigatingSystemDependencies` | Captures system and human action dependencies |
+| Schema Element | Implementation Approach |
+|---------------|------------------------|
+| (a) `ProcessDocumentation.posInitiatorSequenceLinkage` | Explicit mapping structure with IDs and descriptions |
+| (b) `ProcessDocumentation.successCriteriaBases` | Captures criteria, basis, required capacities, and components |
+| (c) `ProcessDocumentation.deterministicAnalyses` | Documents analyses, purposes, and applications |
+| (d) `ProcessDocumentation.eventSequenceDescriptions` | Defines timing, procedural guidance, environmental impacts, etc. |
+| (e) `ProcessDocumentation.barrierTreatmentBasis` | Captures credited capabilities and end state assignment basis |
+| (f) `ProcessDocumentation.failureModeEvaluation` | Documents modes, mechanisms, loading conditions, and assessments |
+| (g) `ProcessDocumentation.endStateAndFamilyDefinitions` | Provides definitions and categorizations |
+| (h) `ProcessDocumentation.operatorActionsRepresentation` | Links to HRA with timing and dependencies |
+| (i) `ProcessDocumentation.releaseInterfaceDescription` | Describes mapping and source term assignment |
+| (j) `ProcessDocumentation.singleTopEventApproach` | Documents satisfaction of requirements |
+| (k) `ProcessDocumentation.mitigatingSystemChallenges` | Maps initiating events to system impacts |
+| (l) `ProcessDocumentation.mitigatingSystemDependencies` | Captures system and human action dependencies |
+| (m) `ProcessDocumentation.methodologyDetails` | Captures additional details about the process |
+| (n) `PeerReviewDocumentation.methodologyReview` | Captures peer review details |
 
 #### Code Example: ProcessDocumentation Interface
 
@@ -114,7 +114,7 @@ const ebrIIProcessDocumentation: ProcessDocumentation = {
 
 ### ES-D2: Model Uncertainty Documentation
 
-ES-D2 requires documenting sources of model uncertainty, related assumptions, and reasonable alternatives. The schema provides the `ModelUncertaintyDocumentation` interface:
+ES-D2 requires recording sources of model uncertainty, related assumptions, and alternatives considered. The schema provides the `ModelUncertaintyDocumentation` interface:
 
 #### Code Example: ModelUncertaintyDocumentation Interface
 
@@ -162,7 +162,7 @@ const ebrIIModelUncertaintyDoc: ModelUncertaintyDocumentation = {
 
 ### ES-D3: Pre-operational Assumptions Documentation
 
-ES-D3 requires documenting assumptions and limitations due to lack of as-built, as-operated details. The schema provides:
+ES-D3 requires recording assumptions made due to incomplete as-built or as-operated details. The schema provides:
 
 #### Code Example: PreOperationalAssumptionsDocumentation Interface
 
@@ -314,26 +314,26 @@ This traceability is implemented in the schema through explicit ID references be
 
 The following table summarizes how the Event Sequence Analysis schema satisfies each of the ES-D supporting requirements:
 
-| Requirement | Description | Schema Coverage | Status |
-|-------------|-------------|-----------------|--------|
-| ES-D1(a) | Linkage between plant operating states, initiating events, and event sequences | `ProcessDocumentation.posInitiatorSequenceLinkage` | ✓ Compliant |
-| ES-D1(b) | Success criteria established for each modeled initiating event | `ProcessDocumentation.successCriteriaBases` | ✓ Compliant |
-| ES-D1(c) | Deterministic analyses performed | `ProcessDocumentation.deterministicAnalyses` | ✓ Compliant |
-| ES-D1(d) | Description of event sequences or groups | `ProcessDocumentation.eventSequenceDescriptions` | ✓ Compliant |
-| ES-D1(e) | Technical basis for treatment of radionuclide barriers | `ProcessDocumentation.barrierTreatmentBasis` | ✓ Compliant |
-| ES-D1(f) | Evaluation of failure modes and degradation | `ProcessDocumentation.failureModeEvaluation` | ✓ Compliant |
-| ES-D1(g) | Definition of end states, families, and categories | `ProcessDocumentation.endStateAndFamilyDefinitions` | ✓ Compliant |
-| ES-D1(h) | Operator actions in event trees | `ProcessDocumentation.operatorActionsRepresentation` | ✓ Compliant |
-| ES-D1(i) | Interface with release categories | `ProcessDocumentation.releaseInterfaceDescription` | ✓ Compliant |
-| ES-D1(j) | Use of single top event fault tree | `ProcessDocumentation.singleTopEventApproach` | ✓ Compliant |
-| ES-D1(k) | Mitigating systems challenged by initiators | `ProcessDocumentation.mitigatingSystemChallenges` | ✓ Compliant |
-| ES-D1(l) | Dependence of mitigating systems | `ProcessDocumentation.mitigatingSystemDependencies` | ✓ Compliant |
-| ES-D1(m) | Methodology details | `ProcessDocumentation.methodologyDetails` | ✓ Compliant |
-| ES-D1(n) | Methodology review | `PeerReviewDocumentation.methodologyReview` | ✓ Compliant |
-| ES-D2 | Documentation of model uncertainty | `ModelUncertaintyDocumentation` | ✓ Compliant |
-| ES-D3 | Documentation of pre-operational assumptions | `PreOperationalAssumptionsDocumentation` | ✓ Compliant |
+| Requirement | Schema Coverage | Status |
+|-------------|-----------------|--------|
+| ES-D1(a) | `ProcessDocumentation.posInitiatorSequenceLinkage` | ✓ Compliant |
+| ES-D1(b) | `ProcessDocumentation.successCriteriaBases` | ✓ Compliant |
+| ES-D1(c) | `ProcessDocumentation.deterministicAnalyses` | ✓ Compliant |
+| ES-D1(d) | `ProcessDocumentation.eventSequenceDescriptions` | ✓ Compliant |
+| ES-D1(e) | `ProcessDocumentation.barrierTreatmentBasis` | ✓ Compliant |
+| ES-D1(f) | `ProcessDocumentation.failureModeEvaluation` | ✓ Compliant |
+| ES-D1(g) | `ProcessDocumentation.endStateAndFamilyDefinitions` | ✓ Compliant |
+| ES-D1(h) | `ProcessDocumentation.operatorActionsRepresentation` | ✓ Compliant |
+| ES-D1(i) | `ProcessDocumentation.releaseInterfaceDescription` | ✓ Compliant |
+| ES-D1(j) | `ProcessDocumentation.singleTopEventApproach` | ✓ Compliant |
+| ES-D1(k) | `ProcessDocumentation.mitigatingSystemChallenges` | ✓ Compliant |
+| ES-D1(l) | `ProcessDocumentation.mitigatingSystemDependencies` | ✓ Compliant |
+| ES-D1(m) | `ProcessDocumentation.methodologyDetails` | ✓ Compliant |
+| ES-D1(n) | `PeerReviewDocumentation.methodologyReview` | ✓ Compliant |
+| ES-D2 | `ModelUncertaintyDocumentation` | ✓ Compliant |
+| ES-D3 | `PreOperationalAssumptionsDocumentation` | ✓ Compliant |
 
 ## References
 
-1. Regulatory Guide 1.247, "Acceptability of Probabilistic Risk Assessment Results for Advanced Non-Light Water Reactor Risk-Informed Activities"
+1. Regulatory Guide 1.247
 2. EBR-II Documentation (Argonne National Laboratory)

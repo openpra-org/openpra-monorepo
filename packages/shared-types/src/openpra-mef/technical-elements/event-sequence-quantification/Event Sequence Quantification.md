@@ -56,7 +56,7 @@ The schema implements all ESQ-F requirements through dedicated documentation int
 
 ## ESQ-F1: Documentation of Event Sequence Quantification Process
 
-ESQ-F1 requires documenting the process used in the Event Sequence Quantification, specifying inputs, applied methods, and results. The schema implements this through the `EventSequenceQuantificationDocumentation` interface:
+The schema implements this through the `EventSequenceQuantificationDocumentation` interface:
 
 ```typescript
 export interface EventSequenceQuantificationDocumentation extends BaseProcessDocumentation {

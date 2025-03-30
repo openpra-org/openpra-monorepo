@@ -34,7 +34,7 @@ jobs:
           echo "Directory contents:"
           ls -la
           echo "Packages directory contents:"
-          ls -la openpra-monorepo/packages || echo "No packages directory"
+          ls -la packages || echo "No packages directory"
           echo "Git status:"
           git status
           echo "Git branch:"
@@ -46,11 +46,11 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        working-directory: openpra-monorepo/packages/shared-types/src/openpra-mef/technical-elements
+        working-directory: packages/shared-types/src/openpra-mef/technical-elements
         run: npm install
 
       - name: Generate Documentation
-        working-directory: openpra-monorepo/packages/shared-types/src/openpra-mef/technical-elements
+        working-directory: packages/shared-types/src/openpra-mef/technical-elements
         run: |
           # Use the NPM script to generate all docs
           npm run docs
@@ -61,14 +61,14 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: 'openpra-monorepo/packages/shared-types/src/openpra-mef/technical-elements/docs'
+          path: 'packages/shared-types/src/openpra-mef/technical-elements/docs'
 
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
         
       - name: Update Schema Download Link
-        working-directory: openpra-monorepo/packages/shared-types/src/openpra-mef/technical-elements/docs
+        working-directory: packages/shared-types/src/openpra-mef/technical-elements/docs
         run: |
           # Get the GitHub Pages URL from the environment
           PAGES_URL="${{ steps.deployment.outputs.page_url }}"
@@ -77,5 +77,11 @@ jobs:
             PAGES_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
           fi
           
-          # Update the documentation link in schema-download.html to point to the GitHub Pages URL
-          sed -i "s|window.location.origin|'${PAGES_URL}'|g" schema-download.html 
+          # Check if schema-download.html exists
+          if [ -f "schema-download.html" ]; then
+            # Update the documentation link in schema-download.html to point to the GitHub Pages URL
+            # More robust sed command that works with different variations of the script tag
+            sed -i "s|document.getElementById('docs-link').href = window.location.origin|document.getElementById('docs-link').href = '${PAGES_URL}'|g" schema-download.html
+          else
+            echo "Warning: schema-download.html file not found in docs directory"
+          fi 

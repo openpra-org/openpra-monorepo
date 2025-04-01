@@ -1,0 +1,87 @@
+name: TypeDoc Documentation with Schema Download
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to generate documentation from'
+        required: true
+        type: string
+        default: 'main'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 1
+
+      - name: Debug Directory Structure
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Directory contents:"
+          ls -la
+          echo "Packages directory contents:"
+          ls -la packages || echo "No packages directory"
+          echo "Git status:"
+          git status
+          echo "Git branch:"
+          git branch
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        working-directory: packages/shared-types/src/openpra-mef/technical-elements
+        run: npm install
+
+      - name: Generate Documentation
+        working-directory: packages/shared-types/src/openpra-mef/technical-elements
+        run: |
+          # Use the NPM script to generate all docs
+          npm run docs
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'packages/shared-types/src/openpra-mef/technical-elements/docs'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        
+      - name: Update Schema Download Link
+        working-directory: packages/shared-types/src/openpra-mef/technical-elements/docs
+        run: |
+          # Get the GitHub Pages URL from the environment
+          PAGES_URL="${{ steps.deployment.outputs.page_url }}"
+          if [ -z "$PAGES_URL" ]; then
+            # Fallback to the repository pages URL pattern
+            PAGES_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
+          fi
+          
+          # Check if schema-download.html exists
+          if [ -f "schema-download.html" ]; then
+            # Update the documentation link in schema-download.html to point to the GitHub Pages URL
+            # More robust sed command that works with different variations of the script tag
+            sed -i "s|document.getElementById('docs-link').href = window.location.origin|document.getElementById('docs-link').href = '${PAGES_URL}'|g" schema-download.html
+          else
+            echo "Warning: schema-download.html file not found in docs directory"
+          fi 

@@ -1,4 +1,7 @@
 import typia from "typia";
+import { Named, Unique } from "./core/meta";
+import { BaseAssumption } from "./core/documentation";
+import { VersionInfo, SCHEMA_VERSION } from "./core/version";
 
 /**
  * Mapping of technical element codes to their full names
@@ -69,22 +72,125 @@ export enum TechnicalElementTypes {
 }
 
 /**
- * Interface representing a technical element with a specific type and code.
- *@remarks
- * This interface defines the structure of a technical element in the system.
- * It includes both the full type and the abbreviated code for the element.
- * @typeparam TechnicalElementType - The type of the technical element.
- *
+ * Interface representing common metadata for all technical elements.
+ * 
+ * @remarks
+ * This interface defines the standard metadata that should be present in all technical elements.
+ * It includes fields for version information, analysis dates, analysts/reviewers, approval status,
+ * and scope/limitations.
+ * 
  * @example
  * ```typescript
- *    const element: TechnicalElement<TechnicalElementTypes> = {
- *   "technical-element-type": TechnicalElementTypes.DATA_ANALYSIS,
- *   "technical-element-code": "DA"
+ * const metadata: TechnicalElementMetadata = {
+ *   versionInfo: {
+ *     version: "1.0.0",
+ *     lastUpdated: "2024-03-30",
+ *     schemaVersion: "1.0.0",
+ *     deprecatedFields: []
+ *   },
+ *   analysisDate: "2023-03-15",
+ *   analysts: ["John Doe"],
+ *   reviewers: ["Jane Smith"],
+ *   approvalStatus: "APPROVED",
+ *   scope: "Full plant analysis",
+ *   limitations: ["Limited to normal operating conditions"],
+ *   lastModifiedDate: "2023-03-20",
+ *   lastModifiedBy: "John Doe"
  * };
+ * ```
  */
-export interface TechnicalElement<TechnicalElementType> {
-  "technical-element-type": TechnicalElementType;
-  "technical-element-code": TechnicalElementCode;
+export interface TechnicalElementMetadata {
+  /** Version information for the technical element */
+  versionInfo: VersionInfo;
+  
+  /** Date when the analysis was performed */
+  analysisDate: string;
+  
+  /** List of analysts who performed the analysis */
+  analysts: string[];
+  
+  /** List of reviewers who reviewed the analysis */
+  reviewers: string[];
+  
+  /** Current approval status of the analysis */
+  approvalStatus: "DRAFT" | "IN_REVIEW" | "APPROVED" | "REJECTED";
+  
+  /** Scope of the analysis */
+  scope: string;
+  
+  /** List of limitations or assumptions */
+  limitations: string[];
+  
+  /** Date when the element was last modified */
+  lastModifiedDate: string;
+  
+  /** User who last modified the element */
+  lastModifiedBy: string;
+}
+
+/**
+ * Base interface for all technical elements in the PRA model.
+ * 
+ * Technical elements are the major analytical tasks that, when completed in an integrated manner,
+ * make up a PRA model. Each technical element represents a specific aspect of the PRA model.
+ * 
+ * @typeParam T - The type of technical element
+ */
+export interface TechnicalElement<T extends TechnicalElementTypes> extends Unique, Named {
+    /**
+     * The type of technical element
+     */
+    type: T;
+
+    /**
+     * The version of the technical element
+     */
+    version: string;
+
+    /**
+     * The date the technical element was created
+     */
+    created: string;
+
+    /**
+     * The date the technical element was last modified
+     */
+    modified: string;
+
+    /**
+     * The owner of the technical element
+     */
+    owner?: string;
+
+    /**
+     * The status of the technical element
+     */
+    status?: "DRAFT" | "REVIEW" | "APPROVED" | "DEPRECATED";
+
+    /**
+     * The description of the technical element
+     */
+    description?: string;
+
+    /**
+     * Tags associated with the technical element
+     */
+    tags?: string[];
+    
+    /**
+     * Common assumptions that apply across this technical element
+     * Using the standardized BaseAssumption interface
+     */
+    commonAssumptions?: BaseAssumption[];
+    
+    /**
+     * References to other technical elements
+     */
+    references?: {
+        technicalElementId: string;
+        technicalElementType: TechnicalElementTypes;
+        description: string;
+    }[];
 }
 
 /**
@@ -117,3 +223,21 @@ export const validateTechnicalElement = typia.createValidate<TechnicalElement<Te
  * This is useful for runtime type checking and validation.
  */
 export const isTechnicalElement = typia.createIs<TechnicalElement<TechnicalElementTypes>>();
+
+/**
+ * Runtime validation for technical element metadata
+ * 
+ * @remarks
+ * Provides runtime type checking for technical element metadata.
+ * This ensures data consistency throughout the application.
+ */
+export const validateTechnicalElementMetadata = typia.createValidate<TechnicalElementMetadata>();
+
+/**
+ * Type guard for technical element metadata
+ * 
+ * @remarks
+ * A type guard function that checks if a given object is valid technical element metadata.
+ * This is useful for runtime type checking and validation.
+ */
+export const isTechnicalElementMetadata = typia.createIs<TechnicalElementMetadata>();

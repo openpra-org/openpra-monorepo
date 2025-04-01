@@ -1,92 +1,126 @@
+/**
+ * @packageDocumentation
+ * @module technical_elements.core
+ */
 import typia, { tags } from "typia";
 import { Named, Unique } from "./meta";
 
 /**
- * @namespace BaseEvents
- * @description Base event types and interfaces
+ * @namespace technical_elements.core.events
+ * @description Base event types and interfaces for the technical elements
  */
 
 /**
  * Represents a frequency value that must be non-negative
  * @description Used for event frequencies across different event types
+ * @memberof technical_elements.core.events
+ * @group Events
  */
 export type Frequency = number & tags.Minimum<0>;
 
 /**
- * Base Event - parent of all events
- * @memberof BaseEvents
- * @extends {Unique}`
- * @extends {Named}
+ * Units used for frequency measurements in probabilistic risk assessment
+ * @description Standardized units for expressing event frequencies across the PRA
+ * @example
+ * const unit: FrequencyUnit = FrequencyUnit.PER_REACTOR_YEAR;
+ * @memberof technical_elements.core.events
+ * @group Events
  */
-export interface BaseEvent extends Unique, Named {
-    description?: string;
+export enum FrequencyUnit {
+  /** Frequency per reactor year - used for reactor-specific events */
+  PER_REACTOR_YEAR = "per-reactor-year",
+  /** Frequency per calendar year - used for site-wide events */
+  PER_CALENDAR_YEAR = "per-calendar-year",
+  /** Frequency per critical year - used for events that can only occur during critical operation */
+  PER_CRITICAL_YEAR = "per-critical-year",
+  /** Frequency per demand - used for events that occur upon system demand */
+  PER_DEMAND = "per-demand",
+  /** Frequency per plant year - used for plant-wide events */
+  PER_PLANT_YEAR = "per-plant-year"
 }
 
 /**
- * @namespace BasicEvents
+ * Base Event - parent of all events
+ * @memberof technical_elements.core.events
+ * @extends {Unique}
+ * @extends {Named}
+ * @group Events
+ */
+export interface BaseEvent extends Unique, Named {
+  description?: string;
+}
+
+/**
+ * @namespace technical_elements.core.events.basic
  * @description Basic event types and their specializations
  */
 
 /**
  * Basic Event type
- * @memberof BasicEvents
+ * @memberof technical_elements.core.events.basic
  * @extends {BaseEvent}
+ * @group Events
  */
 export interface BasicEvent extends BaseEvent {
-    eventType: "BASIC";
+  eventType: "BASIC";
 }
 
 /**
- * @namespace FunctionalEvents
+ * @namespace technical_elements.core.events.functional
  * @description Functional event types and their specializations
  */
 
 /**
  * Functional Event type
- * @memberof FunctionalEvents
+ * @memberof technical_elements.core.events.functional
  * @extends {BaseEvent}
+ * @group Events
  */
 export interface FunctionalEvent extends BaseEvent {
-    eventType: "FUNCTIONAL";
+  eventType: "FUNCTIONAL";
 }
 
 /**
  * Top Event
- * @memberof FunctionalEvents
+ * @memberof technical_elements.core.events.functional
  * @extends {FunctionalEvent}
+ * @group Events
  */
 export interface TopEvent extends FunctionalEvent {
-    eventSubType: "TOP";
+  eventSubType: "TOP";
 }
 
 /**
- * @namespace InitiatingEvents
+ * @namespace technical_elements.core.events.initiating
  * @description Initiating event types
  */
 
 /**
  * Initiating Event type
- * @memberof InitiatingEvents
+ * @memberof technical_elements.core.events.initiating
  * @extends {BaseEvent}
+ * @group Events
  */
 export interface InitiatingEvent extends BaseEvent {
-    eventType: "INITIATING";
-    frequency: Frequency;
+  eventType: "INITIATING";
+  frequency: Frequency;
 }
 
 /**
- * @namespace Validation
+ * @namespace technical_elements.core.validation
  * @description Schema validation for events
  */
 
 /**
+ * @internal
  * Event validation schemas
- * @memberof Validation
+ * @memberof technical_elements.core.validation
+ * @group Events
  */
 export const EventSchemas = {
-    base: typia.json.application<[BaseEvent], "3.0">(),
-    basic: typia.json.application<[BasicEvent], "3.0">(),
-    functional: typia.json.application<[FunctionalEvent], "3.0">(),
-    top: typia.json.application<[TopEvent], "3.0">(),
-    initiating: typia.json.application<[InitiatingEvent], "3.0">()
+  base: typia.json.application<[BaseEvent], "3.0">(),
+  basic: typia.json.application<[BasicEvent], "3.0">(),
+  functional: typia.json.application<[FunctionalEvent], "3.0">(),
+  top: typia.json.application<[TopEvent], "3.0">(),
+  initiating: typia.json.application<[InitiatingEvent], "3.0">()
 } as const;

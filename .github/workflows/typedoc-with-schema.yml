@@ -47,7 +47,8 @@ jobs:
 
       - name: Install dependencies
         working-directory: packages/shared-types/src/openpra-mef/technical-elements
-        run: npm install
+        run: |
+          npm install || npm install --legacy-peer-deps
 
       - name: Generate Documentation
         working-directory: packages/shared-types/src/openpra-mef/technical-elements

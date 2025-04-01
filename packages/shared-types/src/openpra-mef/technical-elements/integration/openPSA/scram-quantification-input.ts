@@ -2559,6 +2559,7 @@ interface RuleDefinition extends BaseElement {
  *   ]
  * };
  * ```
+ * @group SCRAM Adapter
  */
 export interface QuantificationInput {
   /**

@@ -4,6 +4,38 @@ OpenPRA technical schema is based on the latest standards for Advanced Non-Light
 
 To download the JSON Schema for technical elements, visit `/schema-download.html` when running the documentation server. The schema can be used to validate your PRA data structures and ensure compliance with the OpenPRA technical elements specification.
 
+## Table of Contents
+- [Understanding TypeScript Types and Interfaces](#understanding-typescript-types-and-interfaces)
+  - [Namespace](#namespace)
+  - [Interface](#interface)
+  - [Properties](#properties)
+  - [Variable](#variable)
+  - [Type Alias](#type-alias)
+  - [Enumeration](#enumeration)
+  - [Function](#function)
+- [Running the Documentation](#running-the-documentation)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Serving Documentation](#serving-documentation)
+- [Schema Generation](#schema-generation)
+- [Troubleshooting](#troubleshooting)
+- [Contributing](#contributing)
+  - [Reporting Issues](#reporting-issues)
+  - [Making Changes](#making-changes)
+  - [Ensuring New Files are Documented](#ensuring-new-files-are-documented)
+  - [Schema Update Guidelines](#schema-update-guidelines)
+- [Versioning](#versioning)
+  - [Version Numbers](#version-numbers)
+  - [Version Management](#version-management)
+  - [Breaking Changes](#breaking-changes)
+  - [Non-Breaking Changes](#non-breaking-changes)
+  - [Version Update Process](#version-update-process)
+- [Versioning Hierarchy](#versioning-hierarchy)
+  - [Package Version](#1-package-version-packagejson)
+  - [Schema Version](#2-schema-version-coreversionts)
+  - [Technical Element Version](#3-technical-element-version-versioninfoversion)
+  - [Version Relationships](#version-relationships)
+  - [Example Version States](#example-version-states)
 
 ## Understanding TypeScript Types and Interfaces
 
@@ -97,6 +129,31 @@ npm run serve  # Serves documentation at http://localhost:8080
 ```
 
 The documentation will be available at `http://localhost:8080`.
+
+## Schema Generation
+
+The package includes a schema generation feature that allows you to generate JSON Schema definitions for various technical elements.
+
+### Running Schema Generation
+
+To generate schemas for specific elements, use the following command:
+
+```bash
+npm run generate-schema:element -- <element-name>
+```
+
+For example:
+```bash
+npm run generate-schema:element -- event-sequence-analysis
+```
+
+If you're in the root folder (`openpra-monorepo`), you can run the command with the `--project` flag to specify the package:
+
+```bash
+npm run generate-schema:element -- --project=shared-types event-sequence-analysis
+```
+
+This will generate JSON Schema definitions for the specified element, which can be used for validation and documentation purposes.
 
 ## Troubleshooting
 

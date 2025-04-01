@@ -91,20 +91,5 @@ export * as radiological_consequence_analysis from './radiological-consequence-a
 export * as integration from './integration';
 
 
-// Direct exports for commonly used integration interfaces
-export {
- OpenPSASerializable,
- OpenPSAFieldMapping,
- OpenPSASerializationOptions,
- DEFAULT_OPENPSA_SERIALIZATION_OPTIONS
-} from './integration/openPSA/openPSA-xml-serialization';
-
-
-export {
- SaphireFieldMapping,
- SaphireCompatible,
- SaphirePhase,
- phaseSaphireMappings,
- specialEventSaphireMappings
-} from './integration/SAPHIRE/saphire-annotations';
+// Direct exports removed - accessing integration types through technical_elements.integration
 

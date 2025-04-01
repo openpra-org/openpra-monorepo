@@ -1,5 +1,6 @@
 /**
- * @module integration
+ * @packageDocumentation
+ * @module technical_elements.integration
  * @description Integration interfaces for external tools and formats
  * 
  * This module provides interfaces and types for integrating OpenPRA with 
@@ -17,7 +18,8 @@ export * from './openPSA/quantification-adapter';
 export * from './openPSA/quantification-adapter-types';
 export * from './openPSA/scram-quantification-input';
 
-// Re-export specific SAPHIRE types for convenience
+// Re-export specific SAPHIRE types for convenience within the integration namespace
+// These will be documented within the integration namespace in TypeDoc
 export {
   SaphireFieldMapping,
   SaphireCompatible,

@@ -1,5 +1,6 @@
 /**
- * @module open_psa_serialization
+ * @packageDocumentation
+ * @module technical_elements.integration.OpenPSA
  * @description Types and utilities for OpenPSA serialization to enable compatibility with tools that support the OpenPSA MEF standard.
  * 
  * The objectives of OpenPSA serialization ensure that:
@@ -21,6 +22,7 @@
 
 /**
  * Represents a mapping between OpenPRA fields and OpenPSA fields
+ * @memberof technical_elements.integration.OpenPSA
  * @group OpenPSA XML
  */
 export interface OpenPSAFieldMapping {
@@ -36,11 +38,13 @@ import { EventTree, EventTreeBranch, EventTreeSequence, FunctionalEvent } from "
 
 /**
  * Interface for objects that can be serialized to OpenPSA XML format.
+ * @group OpenPSA XML
  */
 export interface OpenPSASerializable {
   /**
    * Serializes the object to OpenPSA XML format.
    * @returns The XML string representation.
+   * @group OpenPSA XML
    */
   toOpenPSAXML(): string;
   

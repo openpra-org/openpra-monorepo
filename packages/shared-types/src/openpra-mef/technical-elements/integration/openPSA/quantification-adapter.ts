@@ -30,6 +30,7 @@ import {
 
 /**
  * Configuration options for the quantification adapter
+ * @group SCRAM Adapter
  */
 export interface QuantificationAdapterOptions {
   /**
@@ -65,6 +66,7 @@ export interface QuantificationAdapterOptions {
 
 /**
  * Default options for the quantification adapter
+ * @group SCRAM Adapter
  */
 const DEFAULT_ADAPTER_OPTIONS: QuantificationAdapterOptions = {
   includeEventTrees: true,
@@ -76,6 +78,7 @@ const DEFAULT_ADAPTER_OPTIONS: QuantificationAdapterOptions = {
 
 /**
  * Result of a conversion operation, including the converted model and any warnings
+ * @group SCRAM Adapter
  */
 export interface ConversionResult {
   /**
@@ -96,6 +99,7 @@ export interface ConversionResult {
 
 /**
  * Adapter class for converting OpenPRA models to the quantification input format
+ * @group SCRAM Adapter
  */
 export class QuantificationAdapter {
   /**
@@ -211,6 +215,7 @@ export class QuantificationAdapter {
   
   /**
    * Convert basic events from OpenPRA to the quantification input format
+   * @group SCRAM Adapter
    */
   private static convertBasicEvents(
     systemsAnalysis: SystemsAnalysis,
@@ -302,6 +307,7 @@ export class QuantificationAdapter {
   
   /**
    * Convert house events from OpenPRA to the quantification input format
+   * @group SCRAM Adapter
    */
   private static convertHouseEvents(
     systemsAnalysis: SystemsAnalysis,
@@ -324,6 +330,7 @@ export class QuantificationAdapter {
   
   /**
    * Convert parameters from OpenPRA to the quantification input format
+   * @group SCRAM Adapter
    */
   private static convertParameters(
     systemsAnalysis: SystemsAnalysis,
@@ -412,6 +419,7 @@ export class QuantificationAdapter {
   
   /**
    * Convert gates from OpenPRA fault tree to the quantification input format
+   * @group SCRAM Adapter
    */
   private static convertGates(
     faultTree: any,

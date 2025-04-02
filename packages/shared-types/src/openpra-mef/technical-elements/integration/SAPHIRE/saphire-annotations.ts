@@ -1,6 +1,6 @@
 /**
  * @packageDocumentation
- * @module technical_elements.core.integration
+ * @module technical_elements.integration.SAPHIRE
  * @description SAPHIRE compatibility annotations for OpenPRA
  * @annotation Required for SAPHIRE model type differentiation (MTD format)
  * @group SAPHIRE
@@ -8,7 +8,7 @@
 
 /**
  * Represents a mapping between OpenPRA fields and SAPHIRE fields
- * @memberof technical_elements.core.integration
+ * @memberof technical_elements.integration.SAPHIRE
  * @group SAPHIRE
  */
 export interface SaphireFieldMapping {

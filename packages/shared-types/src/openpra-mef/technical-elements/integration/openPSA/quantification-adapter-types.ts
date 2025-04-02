@@ -15,11 +15,13 @@ import { DistributionType, ProbabilityModel } from '../../data-analysis/data-ana
 
 /**
  * Generic Record type with string keys and any values
+ * @group SCRAM Adapter
  */
 type StringRecord<T = any> = Record<string, T>;
 
 /**
  * Interface for basic events used by the adapter
+ * @group SCRAM Adapter
  */
 export interface SystemBasicEvent {
   id: string;
@@ -66,6 +68,7 @@ export interface SystemBasicEvent {
 
 /**
  * Interface for parameters used by the adapter
+ * @group SCRAM Adapter
  */
 export interface Parameter {
   id: string;
@@ -82,6 +85,7 @@ export interface Parameter {
 
 /**
  * Interface for components used by the adapter
+ * @group SCRAM Adapter
  */
 export interface Component {
   id: string;
@@ -111,6 +115,7 @@ export interface Component {
 
 /**
  * Interface for gates in fault trees used by the adapter
+ * @group SCRAM Adapter
  */
 export interface Gate {
   id: string;
@@ -123,6 +128,7 @@ export interface Gate {
 
 /**
  * Interface for fault trees used by the adapter
+ * @group SCRAM Adapter
  */
 export interface FaultTree {
   id: string;
@@ -138,6 +144,7 @@ export interface FaultTree {
 
 /**
  * Interface for functional events in event trees used by the adapter
+ * @group SCRAM Adapter
  */
 export interface FunctionalEvent {
   id: string;
@@ -146,6 +153,7 @@ export interface FunctionalEvent {
 
 /**
  * Interface for sequences in event trees used by the adapter
+ * @group SCRAM Adapter
  */
 export interface Sequence {
   id: string;
@@ -154,6 +162,7 @@ export interface Sequence {
 
 /**
  * Interface for event trees used by the adapter
+ * @group SCRAM Adapter
  */
 export interface EventTree {
   id: string;
@@ -168,6 +177,7 @@ export interface EventTree {
 
 /**
  * Interface for CCF group factors used by the adapter
+ * @group SCRAM Adapter
  */
 export interface CCFFactor {
   level: number;
@@ -176,6 +186,7 @@ export interface CCFFactor {
 
 /**
  * Interface for CCF group members used by the adapter
+ * @group SCRAM Adapter
  */
 export interface CCFMember {
   id: string;
@@ -183,6 +194,7 @@ export interface CCFMember {
 
 /**
  * Interface for common cause failure groups used by the adapter
+ * @group SCRAM Adapter
  */
 export interface CCFGroup {
   id: string;
@@ -231,6 +243,7 @@ export interface CCFGroup {
 /**
  * SystemsAnalysis interface used by the adapter
  * This shadows the original interface without extending it
+ * @group SCRAM Adapter
  */
 export interface SystemsAnalysis {
   // Core properties needed by the adapter
@@ -260,6 +273,7 @@ export interface SystemsAnalysis {
 /**
  * EventSequenceAnalysis interface used by the adapter
  * This shadows the original interface without extending it
+ * @group SCRAM Adapter
  */
 export interface EventSequenceAnalysis {
   // Core properties needed by the adapter
@@ -274,8 +288,9 @@ export interface EventSequenceAnalysis {
 }
 
 /**
- * InitiatingEventsAnalysis interface used by the adapter
+  *InitiatingEventsAnalysis interface used by the adapter
  * This shadows the original interface without extending it
+ * @group SCRAM Adapter
  */
 export interface InitiatingEventsAnalysis {
   id: string;
@@ -286,6 +301,7 @@ export interface InitiatingEventsAnalysis {
  * Type guard to check if an object can be used as SystemsAnalysis for the adapter
  * @param obj - Object to check
  * @returns Whether the object is compatible with the adapter's SystemsAnalysis
+ * @group SCRAM Adapter
  */
 export function isSystemsAnalysis(obj: any): obj is SystemsAnalysis {
   return obj && 
@@ -298,6 +314,7 @@ export function isSystemsAnalysis(obj: any): obj is SystemsAnalysis {
  * Type guard to check if an object can be used as EventSequenceAnalysis for the adapter
  * @param obj - Object to check
  * @returns Whether the object is compatible with the adapter's EventSequenceAnalysis
+ * @group SCRAM Adapter
  */
 export function isEventSequenceAnalysis(obj: any): obj is EventSequenceAnalysis {
   return obj && 
@@ -311,6 +328,7 @@ export function isEventSequenceAnalysis(obj: any): obj is EventSequenceAnalysis 
  * Adapter-specific type cast for SystemsAnalysis
  * @param obj - The original SystemsAnalysis object
  * @returns The object cast to the adapter's SystemsAnalysis interface
+ * @group SCRAM Adapter
  */
 export function asSystemsAnalysis(obj: CoreSystemsAnalysis): SystemsAnalysis {
   return obj as unknown as SystemsAnalysis;
@@ -320,6 +338,7 @@ export function asSystemsAnalysis(obj: CoreSystemsAnalysis): SystemsAnalysis {
  * Adapter-specific type cast for EventSequenceAnalysis
  * @param obj - The original EventSequenceAnalysis object
  * @returns The object cast to the adapter's EventSequenceAnalysis interface
+ * @group SCRAM Adapter
  */
 export function asEventSequenceAnalysis(obj: CoreEventSequenceAnalysis): EventSequenceAnalysis {
   return obj as unknown as EventSequenceAnalysis;
@@ -329,6 +348,7 @@ export function asEventSequenceAnalysis(obj: CoreEventSequenceAnalysis): EventSe
  * Adapter-specific type cast for InitiatingEventsAnalysis
  * @param obj - The original InitiatingEventsAnalysis object
  * @returns The object cast to the adapter's InitiatingEventsAnalysis interface
+ * @group SCRAM Adapter
  */
 export function asInitiatingEventsAnalysis(obj: CoreInitiatingEventsAnalysis): InitiatingEventsAnalysis {
   return obj as unknown as InitiatingEventsAnalysis;
@@ -340,6 +360,7 @@ export function asInitiatingEventsAnalysis(obj: CoreInitiatingEventsAnalysis): I
  * @param key - The property key
  * @param defaultValue - Default value if property doesn't exist
  * @returns The property value or default value
+ * @group SCRAM Adapter
  */
 export function safeGet<T>(obj: any, key: string, defaultValue: T): T {
   if (obj && typeof obj === 'object' && key in obj) {
@@ -352,6 +373,7 @@ export function safeGet<T>(obj: any, key: string, defaultValue: T): T {
  * Helper function to safely convert a possibly undefined object to a record
  * @param obj - The object to convert
  * @returns The object as a record or an empty object
+ * @group SCRAM Adapter
  */
 export function asRecord<T = any>(obj: any): Record<string, T> {
   if (obj && typeof obj === 'object') {

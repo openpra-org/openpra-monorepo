@@ -30,12 +30,14 @@
   "groupOrder": [
     "technical_elements",
     "technical_elements.core",
+    "technical_elements.integration",
     "*"
   ],
   
   "categoryOrder": [
     "technical_elements",
     "technical_elements.core",
+    "technical_elements.integration",
     "*"
   ],
   

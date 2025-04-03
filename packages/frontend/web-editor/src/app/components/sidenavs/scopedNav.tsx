@@ -130,6 +130,16 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           },
           1,
         ),
+        createTreeItem(
+          "Master Logic Digram",
+          {
+            icon: <EuiToken iconType="tokenRepo" />,
+            callback: () => {
+              navigate("master-logic-diagram");
+            },
+          },
+          1,
+        ),
       ],
     }),
   ];

@@ -7,6 +7,7 @@ import {
   PostHeatBalanceFaultTree,
   PostHumanReliabilityAnalysis,
   PostMarkovChain,
+  PostMasterLogicDiagram,
   PostMechanisticSourceTerm,
   PostOperatingStateAnalysis,
   PostRadiologicalConsequenceAnalysis,
@@ -154,6 +155,15 @@ export function CreateHeatBalanceFaultTreeButton(): JSX.Element {
     <CreateNestedItemButton
       itemName="heat-balance-fault-tree"
       postEndpoint={PostHeatBalanceFaultTree}
+    />
+  );
+}
+
+export function CreateMasterLogicDiagramButton(): JSX.Element {
+  return (
+    <CreateNestedItemButton
+      itemName="master-logic-diagram"
+      postEndpoint={PostMasterLogicDiagram}
     />
   );
 }

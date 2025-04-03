@@ -28,6 +28,7 @@ import { EventSequenceAnalysisService } from "./NestedModelsHelpers/event-sequen
 import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
 import { BayesianNetworksService } from "./NestedModelsHelpers/bayesian-networks.service";
 import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
+import { MasterLogicDiagram } from "./schemas/master-logic-diagram.schema";
 
 @Controller()
 export class NestedModelController {
@@ -130,6 +131,17 @@ export class NestedModelController {
   @Post("/heat-balance-fault-trees/")
   async createHeatBalanceFaultTree(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
     return this.nestedModelService.createHeatBalanceFaultTree(data);
+  }
+
+  /**
+   * posts the nested model defined in the method name
+   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
+   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
+   * @returns a promise with the newly created model, with the general nested model fields
+   */
+  @Post("/master-logic-diagrams/")
+  async createMasterLogicDiagram(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
+    return this.nestedModelService.createMasterLogicDiagram(data);
   }
 
   /**
@@ -331,6 +343,16 @@ export class NestedModelController {
   }
 
   /**
+   * grabs the collection of the type of nested model defined by the function call name (Fault Trees)
+   * @param id the id of the parent model
+   * @returns a promise with a list of the model typed defined
+   */
+  @Get("/master-logic-diagrams/")
+  async getMasterLogicDiagrams(@Query("id") id: number): Promise<MasterLogicDiagram[]> {
+    return this.nestedModelService.getMasterLogicDiagrams(id);
+  }
+
+  /**
    * grabs the collection of the type of nested model defined by the function call name (Functional events)
    * @param id the id of the parent model
    * @returns a promise with a list of the model typed defined
@@ -526,6 +548,16 @@ export class NestedModelController {
    * @param modelId the id of the model to be retrieved
    * @returns a promise with the model with the given id
    */
+  @Get("/master-logic-diagrams/:id")
+  async getSingleMasterLogicDiagram(@Param("id") modelId: number): Promise<MasterLogicDiagram> {
+    return this.nestedModelService.getSingleMasterLogicDiagram(modelId);
+  }
+
+  /**
+   * returns a single model from the given collection
+   * @param modelId the id of the model to be retrieved
+   * @returns a promise with the model with the given id
+   */
   @Get("/functional-events/:id")
   async getSingleFunctionalEvent(@Param("id") modelId: number): Promise<FunctionalEvent> {
     return this.nestedModelService.getSingleFunctionalEvent(modelId);
@@ -710,6 +742,16 @@ export class NestedModelController {
    * @param id the id of the model to be deleted
    * @returns a promise with the deleted model
    */
+  @Delete("/master-logic-diagrams/")
+  async deleteMasterLogicDiagram(@Query("id") id: number): Promise<MasterLogicDiagram> {
+    return this.nestedModelService.deleteMasterLogicDiagram(id);
+  }
+
+  /**
+   * deletes a single nested model from the collection of that typed based on an id
+   * @param id the id of the model to be deleted
+   * @returns a promise with the deleted model
+   */
   @Delete("/functional-events/")
   async deleteFunctionalEvent(@Query("id") id: number): Promise<FunctionalEvent> {
     return this.nestedModelService.deleteFunctionalEvent(id);
@@ -876,6 +918,17 @@ export class NestedModelController {
   @Patch("/heat-balance-fault-trees/:id")
   async updateHeatBalanceFaultTreeLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
     return this.nestedModelService.updateHeatBalanceFaultTreeLabel(id, data);
+  }
+
+  /**
+   * updates a label for the nested model type
+   * @param id the id of the nested model to be updated
+   * @param data the new label, with a name and description string
+   * @returns the updated model
+   */
+  @Patch("/master-logic-diagrams/:id")
+  async updateMasterLogicDiagramLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
+    return this.nestedModelService.updateMasterLogicDiagramLabel(id, data);
   }
 
   /**

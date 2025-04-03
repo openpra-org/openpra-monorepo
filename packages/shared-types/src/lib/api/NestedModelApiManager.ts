@@ -25,7 +25,7 @@ export const BAYESIAN_NETWORKS_ENDPOINT = `${NESTED_ENDPOINT}/bayesian-networks`
 export const FAULT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/fault-trees`;
 
 const HEAT_BALANCE_FAULT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/heat-balance-fault-trees`;
-const MASTER_LOGIC_DIAGRAM_ENDPOINT = `${NESTED_ENDPOINT}/master-logic-diagram`;
+const MASTER_LOGIC_DIAGRAM_ENDPOINT = `${NESTED_ENDPOINT}/master-logic-diagrams`;
 const FUNCTIONAL_EVENTS_ENDPOINT = `${NESTED_ENDPOINT}/functional-events`;
 const MARKOV_CHAINS_ENDPOINT = `${NESTED_ENDPOINT}/markov-chains`;
 const BAYESIAN_ESTIMATION_ENDPOINT = `${NESTED_ENDPOINT}/bayesian-estimations`;

@@ -1,6 +1,6 @@
 import { Route, Routes, useParams } from "react-router-dom";
 import React, { FC, ReactElement, useCallback, useEffect, useRef, useState } from "react";
-import ReactFlow, { Background, Controls, Edge, Node, ProOptions, ReactFlowProvider, useReactFlow } from "reactflow";
+import ReactFlow, { Background, Controls, Edge, Node, ProOptions, ReactFlowProvider } from "reactflow";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
@@ -24,38 +24,8 @@ import { LoadingCard } from "../../components/cards/loadingCard";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
-// Modified fitViewOptions to ensure better visibility
 const fitViewOptions = {
-  padding: 0.2,
-  minZoom: 0.5,
-  maxZoom: 2,
-};
-
-// Component to handle proper fitting of the viewport
-const FitViewHandler = () => {
-  const reactFlowInstance = useReactFlow();
-
-  useEffect(() => {
-    // Wait for nodes to be properly rendered
-    const timer = setTimeout(() => {
-      // Start slightly zoomed out to ensure we can see everything
-      reactFlowInstance.setViewport({ zoom: 0.8, x: 0, y: 0 }, { duration: 0 });
-
-      // Then fit properly with a slight delay
-      setTimeout(() => {
-        reactFlowInstance.fitView({
-          ...fitViewOptions,
-          duration: 200,
-        });
-      }, 50);
-    }, 250);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, [reactFlowInstance]);
-
-  return null;
+  padding: 0.95,
 };
 
 /**
@@ -128,107 +98,72 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
     setMenu(null);
     setIsOpen(false);
   }, [setMenu, isOpen]);
-
   return loading ? (
     <LoadingCard />
   ) : (
-    <div
-      className="react-flow-wrapper"
-      style={{ width: "100%", height: "100%", overflow: "hidden" }}
+    <ReactFlow
+      ref={ref}
+      defaultNodes={nodes}
+      defaultEdges={edges}
+      proOptions={proOptions}
+      fitView
+      nodeTypes={nodeTypes}
+      edgeTypes={edgeTypes}
+      fitViewOptions={fitViewOptions}
+      onPaneClick={onPaneClick}
+      onNodeContextMenu={onNodeContextMenu}
+      minZoom={0.8}
+      maxZoom={100}
+      nodesDraggable={false}
+      nodesConnectable={false}
+      zoomOnDoubleClick={false}
+      // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
+      // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
+      deleteKeyCode={null}
     >
-      <ReactFlow
-        ref={ref}
-        defaultNodes={nodes}
-        defaultEdges={edges}
-        proOptions={proOptions}
-        fitView={false} // Disable automatic fit view - we'll handle it ourselves
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        onPaneClick={onPaneClick}
-        onNodeContextMenu={onNodeContextMenu}
-        minZoom={0.4}
-        maxZoom={2}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        zoomOnDoubleClick={false}
-        // we are setting deleteKeyCode to null to prevent the deletion of nodes in order to keep the example simple.
-        // If you want to enable deletion of nodes, you need to make sure that you only have one root node in your graph.
-        deleteKeyCode={null}
-        className="react-flow-instance"
-        style={{ width: "100%", height: "100%" }}
-        defaultViewport={{ x: 0, y: 0, zoom: 0.7 }} // Start with a more zoomed out view
+      <Background />
+      <Controls showInteractive={false} />
+      <EuiPopover
+        id={headerAppPopoverId}
+        button={<></>}
+        isOpen={isOpen}
+        anchorPosition="downRight"
+        style={{
+          top: typeof menu?.top === "number" ? menu.top : undefined,
+          left: typeof menu?.left === "number" ? menu.left : undefined,
+          bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
+          right: typeof menu?.right === "number" ? menu.right : undefined,
+        }}
+        closePopover={onPaneClick}
       >
-        <Background />
-        <Controls showInteractive={false} />
-        <FitViewHandler />
-        <EuiPopover
-          id={headerAppPopoverId}
-          button={<></>}
-          isOpen={isOpen}
-          anchorPosition="downRight"
-          style={{
-            top: typeof menu?.top === "number" ? menu.top : undefined,
-            left: typeof menu?.left === "number" ? menu.left : undefined,
-            bottom: typeof menu?.bottom === "number" ? menu.bottom : undefined,
-            right: typeof menu?.right === "number" ? menu.right : undefined,
-          }}
-          closePopover={onPaneClick}
-        >
-          {menu && (
-            <EventTreeNodeContextMenu
-              onClick={onPaneClick}
-              {...menu}
-            />
-          )}
-        </EuiPopover>
-      </ReactFlow>
-    </div>
+        {menu && (
+          <EventTreeNodeContextMenu
+            onClick={onPaneClick}
+            {...menu}
+          />
+        )}
+      </EuiPopover>
+    </ReactFlow>
   );
 };
-
 /**
  * The EventTreeEditor component wraps the HorizontalFlow component for editing event trees.
  * @returns ReactElement The HorizontalFlow component for editing event trees.
  */
+
 export const EventTreeEditor = (): ReactElement => {
   const input = 2;
   const output = 3;
   const { nodes, edges } = useTreeData(input, output, 140);
 
-  // Add some CSS to ensure the container can show the entire graph
-  useEffect(() => {
-    const styleEl = document.createElement("style");
-    styleEl.textContent = `
-      .react-flow-wrapper {
-        height: calc(100vh - 60px) !important;
-        width: 100% !important;
-        overflow: hidden;
-      }
-      .react-flow-instance {
-        width: 100% !important;
-        height: 100% !important;
-      }
-      .react-flow__viewport {
-        transform-origin: 0 0 !important;
-      }
-    `;
-    document.head.appendChild(styleEl);
-
-    return () => {
-      document.head.removeChild(styleEl);
-    };
-  }, []);
-
   return (
-    <div style={{ width: "100%", height: "calc(100vh - 60px)", overflow: "hidden" }}>
-      <ReactFlowProvider>
-        <ReactFlowPro
-          nodeData={nodes}
-          edgeData={edges}
-          depth={input + output}
-        />
-      </ReactFlowProvider>
-    </div>
+    <ReactFlowProvider>
+      <ReactFlowPro
+        nodeData={nodes}
+        edgeData={edges}
+        depth={input + output}
+      />
+    </ReactFlowProvider>
   );
 };
 

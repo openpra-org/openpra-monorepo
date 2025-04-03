@@ -1,6 +1,10 @@
 # TypeDoc generated documentation
 docs/
 
+# Allow the docs directory structure but exclude JSON schemas
+!docs/
+docs/json-schemas/*.json
+
 # Dependencies
 node_modules/
 

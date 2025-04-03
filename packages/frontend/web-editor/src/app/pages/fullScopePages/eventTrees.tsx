@@ -1,6 +1,6 @@
 import { Route, Routes, useParams } from "react-router-dom";
 import React, { FC, ReactElement, useCallback, useEffect, useRef, useState } from "react";
-import ReactFlow, { Background, Edge, Node, ProOptions, ReactFlowProvider } from "reactflow";
+import ReactFlow, { Background, Controls, Edge, Node, ProOptions, ReactFlowProvider } from "reactflow";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
@@ -122,6 +122,7 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
       deleteKeyCode={null}
     >
       <Background />
+      <Controls showInteractive={false} />
       <EuiPopover
         id={headerAppPopoverId}
         button={<></>}

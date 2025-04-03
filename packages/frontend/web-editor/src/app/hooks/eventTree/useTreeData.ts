@@ -1,6 +1,7 @@
 import { Edge, Node } from "reactflow";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { ScientificNotation } from "../../../utils/scientificNotation";
+import { recalculateFrequencies } from "../../../utils/recalculateFrequencies";
 import { useEventTreeStore } from "./useEventTreeStore";
 
 /**
@@ -21,6 +22,7 @@ export const createEndStates = (
   leafNode: Node,
   nodeWidth: number,
   pos: { x: number; y: number },
+  isDefaultNode = false, // Add new parameter to identify default nodes
 ): { nodes: Node[]; edges: Edge[] } => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -43,14 +45,16 @@ export const createEndStates = (
 
   // Frequency Node
   const frequencyNode = GenerateUUID();
+  const frequencyValue = isDefaultNode ? 0.5 : 0.0;
   nodes.push({
     id: frequencyNode,
     type: "outputNode",
     data: {
-      label: ScientificNotation.toScientific(0.0),
-      frequency: 0.0,
+      label: ScientificNotation.toScientific(frequencyValue),
+      frequency: frequencyValue,
       width: nodeWidth,
       isFrequencyNode: true,
+      isDefaultNode: isDefaultNode,
     },
     position: pos,
   });
@@ -191,15 +195,22 @@ const useTreeData = (
 
     // Add end states for each leaf node
     prevNodes.forEach((leafNode) => {
-      const { nodes: endNodes, edges: endEdges } = createEndStates(leafNode, nodeWidth, {
-        x: leafNode.position.x,
-        y: leafNode.position.y, // Automatically aligned relative to leaf node
-      });
+      const { nodes: endNodes, edges: endEdges } = createEndStates(
+        leafNode,
+        nodeWidth,
+        {
+          x: leafNode.position.x,
+          y: leafNode.position.y, // Automatically aligned relative to leaf node
+        },
+        true,
+      );
       nodes.push(...endNodes);
       edges.push(...endEdges);
     });
 
-    return { nodes, edges };
+    // Apply frequency calculation to all nodes
+    const calculatedNodes = recalculateFrequencies(nodes, edges);
+    return { nodes: calculatedNodes, edges };
   };
 
   // Function to generate column nodes and edges
@@ -276,33 +287,6 @@ const useTreeData = (
       // Update the previous node to the current node
       prevNode = nodeId;
     }
-
-    // Add the button column after the last column
-    const buttonNodeId = GenerateUUID();
-    const buttonColNode: Node = {
-      id: buttonNodeId,
-      type: "computeButtonColumn", // This will be our new node type
-      data: {
-        label: "Action",
-        width: nodeWidth,
-        depth: verticalLevels + 1, // Position it after the last column
-      },
-      position: pos,
-    };
-    nodes.push(buttonColNode);
-
-    // Create edge connecting the last column to the button column
-    const buttonEdge: Edge = {
-      id: `${prevNode}--${buttonNodeId}`,
-      source: prevNode,
-      target: buttonNodeId,
-      type: "custom",
-      animated: false,
-      data: {
-        hidden: true,
-      },
-    };
-    edges.push(buttonEdge);
 
     return { nodes, edges };
   };

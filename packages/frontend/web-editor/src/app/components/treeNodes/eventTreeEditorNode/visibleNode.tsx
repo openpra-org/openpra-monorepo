@@ -7,6 +7,7 @@ import { ScientificNotation } from "../../../../utils/scientificNotation";
 import { UseToastContext } from "../../../providers/toastProvider";
 import { GenerateUUID } from "../../../../utils/treeUtils";
 import Tooltip from "../../tooltips/customTooltip";
+import { recalculateFrequencies } from "../../../../utils/recalculateFrequencies";
 import styles from "./styles/nodeTypes.module.css";
 
 function VisibleNode({ id, data }: NodeProps) {
@@ -14,36 +15,22 @@ function VisibleNode({ id, data }: NodeProps) {
   const onClickDelete = useDeleteNodeClick(id);
   const [isEditingFreq, setIsEditingFreq] = useState(false);
   const [isEditingLabel, setIsEditingLabel] = useState(false);
-  const { setNodes } = useReactFlow();
+  const { setNodes, getNodes, getEdges } = useReactFlow();
   const { addToast } = UseToastContext();
 
   const updateNodeLabel = (newValue: string) => {
     setNodes((nodes) =>
-      nodes.map((node) => {
-        if (node.id === id) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              label: newValue,
-            },
-          };
-        }
-        return node;
-      }),
+      nodes.map((node) => (node.id === id ? { ...node, data: { ...node.data, label: newValue } } : node)),
     );
   };
 
   const updateNodeProbability = (newValue: number) => {
     setNodes((nodes) => {
-      // Get all sibling nodes (nodes at the same depth level)
       const siblingNodes = nodes.filter((node) => node.data.depth === data.depth);
 
-      // Calculate sum of probabilities for all siblings EXCEPT the current node
       let siblingSum = 0;
       siblingNodes.forEach((node) => {
         if (node.id !== id) {
-          // Use the node's actual probability value, with fallback to default
           const nodeProb =
             node.data.probability ??
             (node.data.depth === 1
@@ -51,12 +38,10 @@ function VisibleNode({ id, data }: NodeProps) {
               : node.data.depth === 2 && (node.data.label === "Success" || node.data.label === "Failure")
               ? 0.5
               : 0.0);
-
           siblingSum += nodeProb;
         }
       });
 
-      // Check if new total would exceed 1
       if (siblingSum + newValue > 1) {
         addToast({
           id: GenerateUUID(),
@@ -65,34 +50,18 @@ function VisibleNode({ id, data }: NodeProps) {
           text: "Total probability in this column cannot exceed 1",
         });
 
-        // Return updated nodes with current node's probability set to 0
-        return nodes.map((node) => {
-          if (node.id === id) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                probability: 0.0,
-              },
-            };
-          }
-          return node;
-        });
+        return nodes.map((node) => (node.id === id ? { ...node, data: { ...node.data, probability: 0.0 } } : node));
       }
 
-      // If validation passes, update the probability normally
-      return nodes.map((node) => {
-        if (node.id === id) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              probability: newValue,
-            },
-          };
-        }
-        return node;
-      });
+      // Update probability
+      const updatedNodes = nodes.map((node) =>
+        node.id === id ? { ...node, data: { ...node.data, probability: newValue } } : node,
+      );
+
+      // ✅ Recalculate frequency nodes
+      const edges = getEdges();
+      const recalculated = recalculateFrequencies(updatedNodes, edges);
+      return recalculated;
     });
   };
 
@@ -104,7 +73,7 @@ function VisibleNode({ id, data }: NodeProps) {
 
   const defaultProbability = getDefaultProbability();
   const probability = data.probability ?? defaultProbability;
-  const tooltipContent = probability.toExponential(8);
+  const tooltipContent = ScientificNotation.toScientific(probability, 8);
 
   return (
     <div>
@@ -146,27 +115,18 @@ function VisibleNode({ id, data }: NodeProps) {
                 outline: "none",
               }}
               onBlur={(e) => {
-                // Try to parse the input value
                 let value;
 
-                // First try to parse as scientific notation
                 const scientificValue = ScientificNotation.fromScientific(e.target.value);
                 if (!isNaN(scientificValue)) {
-                  // If valid scientific notation, use that value
                   value = scientificValue;
                 } else {
-                  // Otherwise parse as regular number
                   const regularValue = parseFloat(e.target.value);
                   value = isNaN(regularValue) ? 0 : regularValue;
                 }
 
-                // Clamp value between 0 and 1
                 value = Math.max(0, Math.min(1, value));
-
-                // Update the node with the parsed and clamped value
                 updateNodeProbability(value);
-
-                // Exit editing mode
                 setIsEditingFreq(false);
               }}
               autoFocus
@@ -209,7 +169,7 @@ function VisibleNode({ id, data }: NodeProps) {
           )}
         </div>
 
-        {data.depth != 1 && (
+        {data.depth !== 1 && (
           <div
             style={{
               display: "flex",

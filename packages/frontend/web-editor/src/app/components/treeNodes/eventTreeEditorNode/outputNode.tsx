@@ -1,16 +1,12 @@
-import { Handle, NodeProps, Position, Node } from "reactflow";
+import { Handle, NodeProps, Position } from "reactflow";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { EuiText, EuiSelect, EuiIcon, EuiButton } from "@elastic/eui";
-import { useReactFlow, useStore } from "reactflow";
+import { useStore } from "reactflow";
 import { getInitials } from "../../../hooks/eventTree/useTreeData";
 import { ScientificNotation } from "../../../../utils/scientificNotation";
 import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCategory";
 import Tooltip from "../../tooltips/customTooltip";
 import { GenericModal } from "../../modals/genericModal";
-
-/**
- * Separate Modal Body Component for managing categories
- */
 
 const ManageCategoriesForm = ({
   categories,
@@ -25,7 +21,6 @@ const ManageCategoriesForm = ({
 
   return (
     <div>
-      {/* List existing categories */}
       {categories.map((category) => (
         <div
           key={category.value}
@@ -49,8 +44,6 @@ const ManageCategoriesForm = ({
           )}
         </div>
       ))}
-
-      {/* Add new category section */}
       <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #eee" }}>
         <div style={{ display: "flex", gap: "8px" }}>
           <input
@@ -89,7 +82,6 @@ const ManageCategoriesForm = ({
 // Store first column label
 let firstColumnLabel = "Initiating Event";
 
-// Export function to set first column label
 export const setFirstColumnLabel = (label: string) => {
   firstColumnLabel = label;
 };
@@ -153,12 +145,7 @@ function OutputNode({ id, data }: NodeProps) {
         type="target"
         position={Position.Left}
         id="b"
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "0%",
-          visibility: "hidden",
-        }}
+        style={{ position: "absolute", top: "50%", left: "0%", visibility: "hidden" }}
       />
       <div
         style={{
@@ -179,7 +166,7 @@ function OutputNode({ id, data }: NodeProps) {
               options={selectOptions}
               value={releaseCategory}
               onChange={handleCategoryChange}
-              compressed={true}
+              compressed
               style={{
                 width: "115px",
                 height: "30px",
@@ -196,7 +183,6 @@ function OutputNode({ id, data }: NodeProps) {
               }}
               style={{ cursor: "pointer" }}
             />
-
             {isManageModalVisible && (
               <GenericModal
                 title="Manage Release Categories"
@@ -210,7 +196,7 @@ function OutputNode({ id, data }: NodeProps) {
                 onClose={handleModalClose}
                 onSubmit={handleModalSubmit}
                 modalFormId="manage-categories"
-                showButtons={true}
+                showButtons
               />
             )}
           </div>
@@ -226,12 +212,7 @@ function OutputNode({ id, data }: NodeProps) {
         type="source"
         position={Position.Right}
         id="a"
-        style={{
-          position: "absolute",
-          top: "50%",
-          right: "0%",
-          visibility: "hidden",
-        }}
+        style={{ position: "absolute", top: "50%", right: "0%", visibility: "hidden" }}
       />
     </div>
   );

@@ -43,9 +43,6 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
   // Find the maximum value of y from the leaf nodes
   const maxYLeaf = Math.min(...root.leaves().map((d) => d.x));
 
-  // Find button column node (if exists)
-  const buttonNode = cols.find((col) => col.type === "computeButtomColumn");
-
   // Iterate over each column node and update its position
   cols.forEach((col, index) => {
     // Calculate the x position based on the column number and column width
@@ -95,20 +92,6 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
     }
   });
 
-  // After all nodes are positioned, place the button column at the end
-  const buttonCol = cols.find((col) => col.type === "computeButtonColumn");
-
-  // Ensure the button column is placed next to the last regular column
-  if (buttonCol && regularCols.length > 0) {
-    const lastRegularCol = regularCols[regularCols.length - 1]; // Last column before button
-
-    // Set button column to be placed exactly next to the last column
-    buttonCol.position = {
-      x: lastRegularCol.position.x + lastRegularCol.data.width,
-      y: lastRegularCol.position.y,
-    };
-  }
-
   return [...nodes, ...cols];
 }
 
@@ -134,9 +117,10 @@ function useLayout(depth: number) {
     // splitting the nodeData into nodes and columns
     const nodes: Node[] = [];
     const cols: Node[] = [];
+
     console.log(nodeData, edges);
     nodeData.forEach((node) => {
-      if (node.type === "columnNode" || node.type === "computeButtonColumn") {
+      if (node.type === "columnNode") {
         cols.push(node);
       } else {
         nodes.push(node);

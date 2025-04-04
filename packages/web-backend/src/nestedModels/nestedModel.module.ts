@@ -41,6 +41,7 @@ import { SystemsAnalysis, SystemsAnalysisSchema } from "./schemas/systems-analys
 import { SuccessCriteria, SuccessCriteriaSchema } from "./schemas/success-criteria.schema";
 import { EventSequenceAnalysis, EventSequenceAnalysisSchema } from "./schemas/event-sequence-analysis.schema";
 import { OperatingStateAnalysis, OperatingStateAnalysisSchema } from "./schemas/operatingStateAnalysis.schema";
+import { MasterLogicDiagram, MasterLogicDiagramSchema } from "./schemas/master-logic-diagram.schema";
 import { NestedModelHelperService } from "./nested-model-helper.service";
 import { InitiatingEventsService } from "./NestedModelsHelpers/initiating-events.service";
 import { EventSequenceDiagramService } from "./NestedModelsHelpers/event-sequence-diagram.service";
@@ -48,6 +49,7 @@ import { EventSequenceAnalysisService } from "./NestedModelsHelpers/event-sequen
 import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
 import { BayesianNetworksService } from "./NestedModelsHelpers/bayesian-networks.service";
 import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
+import { MasterLogicDiagramsService } from "./NestedModelsHelpers/master-logic-diagrams.service";
 
 @Module({
   imports: [
@@ -58,6 +60,7 @@ import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
       { name: EventTree.name, schema: EventTreeSchema },
       { name: FaultTree.name, schema: FaultTreeSchema },
       { name: HeatBalanceFaultTree.name, schema: HeatBalanceFaultTreeSchema },
+      { name: MasterLogicDiagram.name, schema: MasterLogicDiagramSchema },
       { name: FunctionalEvent.name, schema: FunctionalEventSchema },
       { name: InitiatingEvent.name, schema: InitiatingEventSchema },
       { name: MarkovChain.name, schema: MarkovChainSchema },
@@ -109,6 +112,7 @@ import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
     EventTreesService,
     BayesianNetworksService,
     FaultTreesService,
+    MasterLogicDiagramsService,
   ],
   exports: [
     NestedModelService,

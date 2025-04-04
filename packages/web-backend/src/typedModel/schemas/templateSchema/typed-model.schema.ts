@@ -47,6 +47,9 @@ export class TypedModel {
 
   @Prop()
   weibullAnalysis: number[];
+
+  @Prop()
+  masterLogicDiagrams: number[];
 }
 
 export type TypedModelDocument = TypedModel & Document;

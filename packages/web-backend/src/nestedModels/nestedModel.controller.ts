@@ -29,6 +29,7 @@ import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
 import { BayesianNetworksService } from "./NestedModelsHelpers/bayesian-networks.service";
 import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
 import { MasterLogicDiagram } from "./schemas/master-logic-diagram.schema";
+import { MasterLogicDiagramsService } from "./NestedModelsHelpers/master-logic-diagrams.service";
 
 @Controller()
 export class NestedModelController {
@@ -40,6 +41,7 @@ export class NestedModelController {
     private readonly eventTreeService: EventTreesService,
     private readonly bayesianNetworkService: BayesianNetworksService,
     private readonly faultTreesService: FaultTreesService,
+    private readonly masterLogicDiagramService: MasterLogicDiagramsService,
   ) {}
 
   //method to get counter value
@@ -140,8 +142,10 @@ export class NestedModelController {
    * @returns a promise with the newly created model, with the general nested model fields
    */
   @Post("/master-logic-diagrams/")
-  async createMasterLogicDiagram(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
-    return this.nestedModelService.createMasterLogicDiagram(data);
+  async createMasterLogicDiagram(
+    @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType },
+  ): Promise<NestedModel> {
+    return this.masterLogicDiagramService.createMasterLogicDiagram(body.data, body.typedModel);
   }
 
   /**
@@ -348,8 +352,12 @@ export class NestedModelController {
    * @returns a promise with a list of the model typed defined
    */
   @Get("/master-logic-diagrams/")
-  async getMasterLogicDiagrams(@Query("id") id: number): Promise<MasterLogicDiagram[]> {
-    return this.nestedModelService.getMasterLogicDiagrams(id);
+  async getMasterLogicDiagrams(@Query("id") id: number | string): Promise<MasterLogicDiagram[]> {
+    if (typeof id === "number") {
+      return this.masterLogicDiagramService.getMasterLogicDiagrams(id);
+    } else {
+      return this.masterLogicDiagramService.getMasterLogicDiagramsString(id);
+    }
   }
 
   /**
@@ -549,8 +557,12 @@ export class NestedModelController {
    * @returns a promise with the model with the given id
    */
   @Get("/master-logic-diagrams/:id")
-  async getSingleMasterLogicDiagram(@Param("id") modelId: number): Promise<MasterLogicDiagram> {
-    return this.nestedModelService.getSingleMasterLogicDiagram(modelId);
+  async getSingleMasterLogicDiagram(@Param("id") modelId: number | string): Promise<InitiatingEvent> {
+    if (typeof modelId === "number") {
+      return this.masterLogicDiagramService.getSingleMasterLogicDiagram(modelId);
+    } else {
+      return this.masterLogicDiagramService.getSingleMasterLogicDiagramString(modelId);
+    }
   }
 
   /**
@@ -570,7 +582,6 @@ export class NestedModelController {
    */
   @Get("/initiating-events/:id")
   async getSingleInitiatingEvent(@Param("id") modelId: number | string): Promise<InitiatingEvent> {
-    console.log(typeof modelId);
     if (typeof modelId === "number") {
       return this.initiatingEventsService.getSingleInitiatingEvent(modelId);
     } else {
@@ -743,8 +754,8 @@ export class NestedModelController {
    * @returns a promise with the deleted model
    */
   @Delete("/master-logic-diagrams/")
-  async deleteMasterLogicDiagram(@Query("id") id: number): Promise<MasterLogicDiagram> {
-    return this.nestedModelService.deleteMasterLogicDiagram(id);
+  async deleteMasterLogicDiagram(@Query("id") id: string, @Query("type") typedModel: TypedModelType): Promise<void> {
+    await this.masterLogicDiagramService.deleteMasterLogicDiagram(id, typedModel);
   }
 
   /**
@@ -927,8 +938,8 @@ export class NestedModelController {
    * @returns the updated model
    */
   @Patch("/master-logic-diagrams/:id")
-  async updateMasterLogicDiagramLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
-    return this.nestedModelService.updateMasterLogicDiagramLabel(id, data);
+  async updateMasterLogicDiagramLabel(@Param("id") id: string, @Body() data: Label): Promise<NestedModel> {
+    return this.masterLogicDiagramService.updateMasterLogicDiagramLabel(id, data);
   }
 
   /**

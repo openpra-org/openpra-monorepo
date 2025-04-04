@@ -18,7 +18,8 @@ export type NestedModelType =
   | "bayesianNetworks"
   | "markovChains"
   | "bayesianEstimations"
-  | "weibullAnalysis";
+  | "weibullAnalysis"
+  | "masterLogicDiagrams";
 
 @Injectable()
 export class NestedModelHelperService {

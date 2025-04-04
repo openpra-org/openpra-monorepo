@@ -146,18 +146,6 @@ export class NestedModelService {
    * and a label object with a name string and optional description string
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createMasterLogicDiagram(body: Partial<NestedModel>): Promise<NestedModel> {
-    const newHeatBalanceFaultTree = new this.masterLogicDiagramModel(body);
-    newHeatBalanceFaultTree.id = await this.getNextValue("nestedCounter");
-    return newHeatBalanceFaultTree.save();
-  }
-
-  /**
-   * creates the type of nested model defined in the function name
-   * @param body a nested model, that needs to contain its parent id (easier to grab on frontend with getCurrentModel)
-   * and a label object with a name string and optional description string
-   * @returns a promise with a nested model in it, which contains the basic data all the nested models have
-   */
   async createFunctionalEvent(body: Partial<NestedModel>): Promise<NestedModel> {
     const newFunctionalEvent = new this.functionalEventsModel(body);
     newFunctionalEvent.id = await this.getNextValue("nestedCounter");
@@ -325,17 +313,6 @@ export class NestedModelService {
    * @param parentId id of the parent model the nested model is number
    * @returns a promise with an array of the nested model of the type in the function name
    */
-  async getMasterLogicDiagrams(parentId: number): Promise<HeatBalanceFaultTree[]> {
-    //typecast to a number because for some reason, it isn't a number????
-
-    return this.masterLogicDiagramModel.find({ parentIds: Number(parentId) }, { _id: 0 });
-  }
-
-  /**
-   * gets the collection of the nested model as defined by the function name (bayesian estimations, etc.)
-   * @param parentId id of the parent model the nested model is number
-   * @returns a promise with an array of the nested model of the type in the function name
-   */
   async getFunctionalEvents(parentId: number): Promise<FunctionalEvent[]> {
     //typecast to a number because for some reason, it isn't a number????
 
@@ -483,15 +460,6 @@ export class NestedModelService {
    * @param modelId the id of the model to be retrieved
    * @returns the model which has the associated id
    */
-  async getSingleMasterLogicDiagram(modelId: number): Promise<MasterLogicDiagram> {
-    return this.masterLogicDiagramModel.findOne({ id: modelId }, { _id: 0 });
-  }
-
-  /**
-   * gets a single model from the collection based on the id
-   * @param modelId the id of the model to be retrieved
-   * @returns the model which has the associated id
-   */
   async getSingleFunctionalEvent(modelId: number): Promise<FunctionalEvent> {
     return this.functionalEventsModel.findOne({ id: modelId }, { _id: 0 });
   }
@@ -613,15 +581,6 @@ export class NestedModelService {
    */
   async deleteHeatBalanceFaultTree(modelId: number): Promise<HeatBalanceFaultTree> {
     return this.heatBalanceFaultTreeModel.findOneAndDelete({ id: modelId });
-  }
-
-  /**
-   * finds and deletes the nested model in this collection with the give model id
-   * @param modelId the id of the model we want to delete
-   * @returns a promise with the deleted model
-   */
-  async deleteMasterLogicDiagram(modelId: number): Promise<MasterLogicDiagram> {
-    return this.masterLogicDiagramModel.findOneAndDelete({ id: modelId });
   }
 
   /**
@@ -774,16 +733,6 @@ export class NestedModelService {
    */
   async updateHeatBalanceFaultTreeLabel(id: number, body: Label): Promise<NestedModel> {
     return this.heatBalanceFaultTreeModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
-  }
-
-  /**
-   * updates the label in the nested model
-   * @param id the id of the nested model to be updated
-   * @param body a label with a name and description
-   * @returns a promise with the updated model with an updated label
-   */
-  async updateMasterLogicDiagramLabel(id: number, body: Label): Promise<NestedModel> {
-    return this.masterLogicDiagramModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
   /**

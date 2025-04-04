@@ -115,5 +115,6 @@ export interface typedModelType {
   markovChains?: string[];
   bayesianEstimations?: string[];
   weibullAnalysis?: string[];
+  masterLogicDiagrams: string[];
   id: number;
 }

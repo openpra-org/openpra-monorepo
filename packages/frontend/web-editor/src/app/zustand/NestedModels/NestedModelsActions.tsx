@@ -24,6 +24,12 @@ import {
   SetBayesianNetworks,
 } from "./ActionHelpers/BayesianNetworksActions";
 import { AddFaultTree, DeleteFaultTree, EditFaultTree, SetFaultTrees } from "./ActionHelpers/FaultTreesActions";
+import {
+  AddMasterLogicDiagram,
+  DeleteMasterLogicDiagram,
+  EditMasterLogicDiagram,
+  SetMasterLogicDiagrams,
+} from "./ActionHelpers/MasterLogicDiagramsActions";
 
 export {
   // Initiating Events
@@ -61,4 +67,10 @@ export {
   AddFaultTree,
   EditFaultTree,
   DeleteFaultTree,
+
+  // Master Logic Diagrams
+  SetMasterLogicDiagrams,
+  AddMasterLogicDiagram,
+  EditMasterLogicDiagram,
+  DeleteMasterLogicDiagram,
 };

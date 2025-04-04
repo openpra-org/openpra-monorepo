@@ -73,7 +73,8 @@ function NestedModelActionForm({
         itemName === "event-sequence-analysis" ||
         itemName === "event-tree" ||
         itemName === "bayesian-network" ||
-        itemName === "fault-tree"
+        itemName === "fault-tree" ||
+        itemName === "master-logic-diagram"
       ) {
         if (initialFormValues && _id && patchNestedEndpoint) {
           void patchNestedEndpoint(_id, partialModel).then(() => {

@@ -101,7 +101,7 @@ function InternalEventsPage(): JSX.Element {
             element={<HeatBalanceFaultTrees />}
           />
           <Route
-            path="master-logic-diagram/*"
+            path="master-logic-diagrams/*"
             element={<MasterLogicDiagram />}
           />
           <Route

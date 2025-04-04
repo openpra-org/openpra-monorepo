@@ -160,10 +160,11 @@ export function CreateHeatBalanceFaultTreeButton(): JSX.Element {
 }
 
 export function CreateMasterLogicDiagramButton(): JSX.Element {
+  const AddMasterLogicDiagram = UseGlobalStore.use.AddMasterLogicDiagram();
   return (
     <CreateNestedItemButton
       itemName="master-logic-diagram"
-      postEndpoint={PostMasterLogicDiagram}
+      postNestedEndpoint={AddMasterLogicDiagram}
     />
   );
 }

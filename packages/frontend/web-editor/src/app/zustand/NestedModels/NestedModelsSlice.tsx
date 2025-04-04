@@ -10,24 +10,28 @@ import {
   AddEventTree,
   AddFaultTree,
   AddInitiatingEvent,
+  AddMasterLogicDiagram,
   DeleteBayesianNetwork,
   DeleteEventSequenceAnalysis,
   DeleteEventSequenceDiagram,
   DeleteEventTree,
   DeleteFaultTree,
   DeleteInitiatingEvent,
+  DeleteMasterLogicDiagram,
   EditBayesianNetwork,
   EditEventSequenceAnalysis,
   EditEventSequenceDiagram,
   EditEventTree,
   EditFaultTree,
   EditInitiatingEvent,
+  EditMasterLogicDiagram,
   SetBayesianNetworks,
   SetEventSequenceAnalysis,
   SetEventSequenceDiagrams,
   SetEventTrees,
   SetFaultTrees,
   SetInitiatingEvents,
+  SetMasterLogicDiagrams,
 } from "./NestedModelsActions";
 
 const NestedModelsSlice: StateCreator<
@@ -77,6 +81,12 @@ const NestedModelsSlice: StateCreator<
     AddFaultTree: AddFaultTree,
     EditFaultTree: EditFaultTree,
     DeleteFaultTree: DeleteFaultTree,
+
+    // Master Logic Diagram
+    SetMasterLogicDiagrams: SetMasterLogicDiagrams,
+    AddMasterLogicDiagram: AddMasterLogicDiagram,
+    EditMasterLogicDiagram: EditMasterLogicDiagram,
+    DeleteMasterLogicDiagram: DeleteMasterLogicDiagram,
   };
 });
 

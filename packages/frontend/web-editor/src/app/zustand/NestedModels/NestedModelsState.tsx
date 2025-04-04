@@ -7,6 +7,7 @@ export const NestedModelsState = {
     InitiatingEventsAnalysis: {
       InitiatingEvents: [] as NestedModelType[],
       HeatBalanceFaultTrees: [] as string[],
+      MasterLogicDiagrams: [] as NestedModelType[],
     },
     EventSequenceAnalysis: {
       EventSequenceAnalysisList: [] as NestedModelType[],

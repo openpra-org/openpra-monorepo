@@ -5,6 +5,7 @@ import { EventSequenceAnalysisType } from "./TypesHelpers/EventSequenceAnalysisT
 import { EventTreesType } from "./TypesHelpers/EventTreesType";
 import { BayesianNetworksType } from "./TypesHelpers/BayesianNetworksType";
 import { FaultTreesType } from "./TypesHelpers/FaultTreesType";
+import { MasterLogicDiagramsType } from "./TypesHelpers/MasterLogicDiagramType";
 
 export interface NestedModelsStateType {
   parentId: string;
@@ -13,6 +14,7 @@ export interface NestedModelsStateType {
   InitiatingEventsAnalysis: {
     InitiatingEvents: NestedModelType[];
     HeatBalanceFaultTrees: string[];
+    MasterLogicDiagrams: NestedModelType[];
   };
   EventSequenceAnalysis: {
     EventSequenceAnalysisList: NestedModelType[];
@@ -67,4 +69,5 @@ export type NestedModelActionsType = BayesianNetworksType &
   EventSequenceDiagramsType &
   EventSequenceAnalysisType &
   EventTreesType &
-  FaultTreesType;
+  FaultTreesType &
+  MasterLogicDiagramsType;

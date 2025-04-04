@@ -11,7 +11,8 @@ export type NestedModelNames =
   | "eventSequenceAnalysis"
   | "eventTrees"
   | "bayesianNetworks"
-  | "faultTrees";
+  | "faultTrees"
+  | "masterLogicDiagrams";
 
 export const GetTypedModelName = (): TypedModelNames => {
   const typedModel = GetCurrentModelType();
@@ -46,6 +47,8 @@ export const GetNestedModelName = (): NestedModelNames => {
       return "bayesianNetworks";
     case "fault-trees":
       return "faultTrees";
+    case "master-logic-diagrams":
+      return "masterLogicDiagrams";
   }
 
   return "initiatingEvents";

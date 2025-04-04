@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, Logger, OnApplicationBootstrap } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { Channel } from "amqplib";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
@@ -39,11 +39,11 @@ export class ProducerService implements OnApplicationBootstrap {
    *
    * @param quantRequest - Request data for the quantification job
    */
-  public async createAndQueueQuant(quantRequest: QuantifyRequest): Promise<string | InternalServerErrorException> {
+  public async createAndQueueQuant(quantRequest: QuantifyRequest): Promise<void> {
     try {
       if (!this.channel) {
         this.logger.error("Channel is not available. Cannot send message.");
-        return new InternalServerErrorException();
+        return;
       }
 
       this.logger.debug("Gets the request body from the Quantification controller");
@@ -57,14 +57,11 @@ export class ProducerService implements OnApplicationBootstrap {
       await this.quantificationJobModel.findByIdAndUpdate(quantRequest._id, {
         $set: { status: "pending" },
       });
-      return `Job: ${String(quantRequest._id)} has been queued to <${String(this.queueConfig.name)}>`;
     } catch (error) {
       if (error instanceof TypeGuardError) {
         this.logger.error(error);
-        throw new InternalServerErrorException();
       } else {
         this.logger.error(error);
-        throw new InternalServerErrorException();
       }
     }
   }

@@ -39,11 +39,11 @@ export class ExecutableService implements OnApplicationBootstrap {
    *
    * @param task - The execution task to queue
    */
-  public async createAndQueueTask(task: ExecutionTask): Promise<string | InternalServerErrorException> {
+  public async createAndQueueTask(task: ExecutionTask): Promise<void> {
     try {
       if (!this.channel) {
         this.logger.error("Channel is not available. Cannot send message.");
-        return new InternalServerErrorException();
+        return;
       }
 
       const taskData = typia.json.assertStringify<ExecutionTask>(task);
@@ -52,14 +52,11 @@ export class ExecutableService implements OnApplicationBootstrap {
       });
 
       await this.executableJobModel.updateOne({ _id: task._id }, { $set: { status: "pending" } });
-      return `Task: ${String(task._id)} has been queued to: <${String(this.queueConfig.name)}>`;
     } catch (error) {
       if (error instanceof TypeGuardError) {
         this.logger.error(error);
-        throw new InternalServerErrorException();
       } else {
         this.logger.error(error);
-        throw new InternalServerErrorException();
       }
     }
   }

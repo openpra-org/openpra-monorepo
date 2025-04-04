@@ -13,7 +13,7 @@ export class RabbitMQConnectionService {
    * Attempts to establish a connection to the RabbitMQ server with retry logic.
    *
    * @param serviceName - Name of the service attempting connection (for logging)
-   * @param retryCount - Maximum number of retry attempts
+   * retryCount - Maximum number of retry attempts
    * @returns A promise that resolves to a RabbitMQ connection
    */
   public async getConnection(serviceName: string): Promise<amqp.Connection> {

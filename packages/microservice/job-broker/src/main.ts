@@ -71,7 +71,7 @@ async function bootstrap(): Promise<void> {
 
   // Start listening for incoming requests on port 3000.
   logger.debug("Microservices have been initialized.");
-  await app.listen(3_000);
+  await app.listen(3000);
 }
 
 // Executing the `bootstrap` function to start the application.

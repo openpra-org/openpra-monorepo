@@ -1,0 +1,75 @@
+.node {
+  border: 1px solid #0984e3;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background-color: #fff;
+  box-shadow: rgba(0, 0, 0, 0.08) 0 4px 12px;
+  width: 180px;
+  height: 74px;
+  padding-top: 8px;
+  font-size: 12px;
+  text-align: center;
+  color: #0984e3;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.selected {
+  border: 1px solid red;
+}
+
+.node:hover {
+  background: radial-gradient(circle at 18.7% 37.8%, rgb(252, 252, 252) 0%, rgb(239, 241, 243) 90%);
+}
+
+.content {
+  pointer-events: none;
+}
+
+.handle {
+  visibility: hidden;
+}
+
+.placeholder {
+  background: #fff;
+  border: 1px dashed #bbb;
+  color: #bbb;
+  box-shadow: none;
+}
+
+.node_container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.editable_text_field {
+  border: none;
+  background-color: transparent;
+  outline: none;
+  resize: none;
+  text-align: center;
+  color: #0984e3
+}
+
+.editable_text_field:focus {
+  outline: none !important;
+  border: none !important;
+}
+
+.node_id {
+  font-size: 8px;
+  padding: 2px 0 2px 6px;
+  text-align: left;
+  border-top: solid 1px;
+}
+
+.node_quantification {
+  width: 100%;
+  margin-top: -10px;
+  font-size: 6px;
+  text-align: right;
+  padding-right: 2px;
+}

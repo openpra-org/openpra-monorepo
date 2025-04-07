@@ -19,6 +19,51 @@ import { Named, Unique } from "./meta";
 export type Frequency = number & tags.Minimum<0>;
 
 /**
+ * Types of probability distributions used for uncertainty analysis
+ * @description Standardized distribution types used across the PRA
+ * @memberof technical_elements.core.events
+ * @group Events
+ */
+export enum DistributionType {
+  EXPONENTIAL = "exponential",
+  BINOMIAL = "binomial",
+  NORMAL = "normal",
+  LOGNORMAL = "lognormal",
+  WEIBULL = "weibull",
+  POISSON = "poisson",
+  UNIFORM = "uniform",
+  BETA = "beta",
+  GAMMA = "gamma",
+  POINT_ESTIMATE = "point_estimate"
+}
+
+/**
+ * Comprehensive frequency representation with distribution information
+ * @description Extended frequency type that includes unit, distribution, and source information
+ * @memberof technical_elements.core.events
+ * @group Events
+ */
+export interface FrequencyWithDistribution {
+  /** Mean or point estimate value of the frequency */
+  value: Frequency;
+  
+  /** Units of measurement for the frequency */
+  units: FrequencyUnit;
+  
+  /** Distribution information for uncertainty analysis */
+  distribution?: {
+    /** Type of probability distribution */
+    type: DistributionType;
+    
+    /** Parameters of the distribution */
+    parameters: number[];
+  };
+  
+  /** Source of the frequency data */
+  source?: string;
+}
+
+/**
  * Units used for frequency measurements in probabilistic risk assessment
  * @description Standardized units for expressing event frequencies across the PRA
  * @example
@@ -103,7 +148,12 @@ export interface TopEvent extends FunctionalEvent {
  */
 export interface InitiatingEvent extends BaseEvent {
   eventType: "INITIATING";
-  frequency: Frequency;
+  
+  /**
+   * Frequency of the initiating event
+   * @description Can be either a simple numeric frequency or a complex object with distribution information
+   */
+  frequency: Frequency | FrequencyWithDistribution;
 }
 
 /**

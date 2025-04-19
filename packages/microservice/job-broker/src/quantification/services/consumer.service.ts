@@ -2,23 +2,25 @@ import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { Channel, ConsumeMessage } from "amqplib";
+import { Channel, Connection, ConsumeMessage } from "amqplib";
 import tmp from "tmp";
 import typia, { TypeGuardError } from "typia";
 import { RunScramCli } from "scram-node";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-import { QueueService, QueueConfig, QueueConfigFactory } from "../../shared";
+import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQConnectionService } from "../../shared";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 
 @Injectable()
 export class ConsumerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ConsumerService.name);
   private readonly queueConfig: QueueConfig;
+  private connection: Connection | null = null;
   private channel: Channel | null = null;
 
   constructor(
     @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
     private readonly queueService: QueueService,
+    private readonly rabbitmqService: RabbitMQConnectionService,
     private readonly queueConfigFactory: QueueConfigFactory,
   ) {
     this.queueConfig = this.queueConfigFactory.createQuantJobQueueConfig();
@@ -30,9 +32,11 @@ export class ConsumerService implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     try {
       this.logger.debug("Connecting to the broker");
-      this.channel = await this.queueService.setupQueue(ConsumerService.name, this.queueConfig);
+      this.connection = await this.rabbitmqService.getConnection(ConsumerService.name);
+      this.channel = await this.rabbitmqService.getChannel(this.connection);
+      await this.queueService.setupQueue(this.queueConfig, this.channel);
+      this.logger.debug("Initialized and consuming messages...");
       await this.consumeQuantJobs();
-      this.logger.debug("Initialized and consuming messages");
     } catch (error) {
       this.logger.error("Failed to initialize:", error);
     }
@@ -81,7 +85,7 @@ export class ConsumerService implements OnApplicationBootstrap {
           this.logger.debug(`Acknowledged Job: ${String(modelsData._id)}`);
         } catch (error) {
           if (error instanceof TypeGuardError) {
-            this.logger.error(error);
+            this.logger.error("The quant request does not follow the schema: ", error);
             this.channel?.nack(msg, false, false);
           } else {
             this.logger.error(error);

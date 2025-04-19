@@ -1,21 +1,23 @@
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { Channel } from "amqplib";
+import { Channel, Connection } from "amqplib";
 import typia, { TypeGuardError } from "typia";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
-import { QueueService, QueueConfig, QueueConfigFactory } from "../../shared";
+import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQConnectionService } from "../../shared";
 import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 
 @Injectable()
 export class ExecutableService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableService.name);
   private readonly queueConfig: QueueConfig;
+  private connection: Connection | null = null;
   private channel: Channel | null = null;
 
   constructor(
     @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
     private readonly queueService: QueueService,
+    private readonly rabbitmqService: RabbitMQConnectionService,
     private readonly queueConfigFactory: QueueConfigFactory,
   ) {
     this.queueConfig = this.queueConfigFactory.createExecTaskQueueConfig();
@@ -27,7 +29,9 @@ export class ExecutableService implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     try {
       this.logger.debug("Connecting to the broker");
-      this.channel = await this.queueService.setupQueue(ExecutableService.name, this.queueConfig);
+      this.connection = await this.rabbitmqService.getConnection(ExecutableService.name);
+      this.channel = await this.rabbitmqService.getChannel(this.connection);
+      await this.queueService.setupQueue(this.queueConfig, this.channel);
       this.logger.debug("Initialized and ready to send messages");
     } catch (error) {
       this.logger.error("Failed to initialize:", error);
@@ -47,14 +51,19 @@ export class ExecutableService implements OnApplicationBootstrap {
       }
 
       const taskData = typia.json.assertStringify<ExecutionTask>(task);
-      this.channel.sendToQueue(this.queueConfig.name, Buffer.from(taskData), {
-        persistent: true,
-      });
+      this.channel.publish(
+        this.queueConfig.exchange.name,
+        this.queueConfig.exchange.routingKey,
+        Buffer.from(taskData),
+        {
+          persistent: true,
+        },
+      );
 
-      await this.executableJobModel.updateOne({ _id: task._id }, { $set: { status: "pending" } });
+      await this.executableJobModel.findByIdAndUpdate(task._id, { $set: { status: "pending" } });
     } catch (error) {
       if (error instanceof TypeGuardError) {
-        this.logger.error(error);
+        this.logger.error("The executable request does not follow the schema: ", error);
       } else {
         this.logger.error(error);
       }

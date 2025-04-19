@@ -13,13 +13,26 @@ export class QueueConfigFactory {
   public createQuantJobQueueConfig(): QueueConfig {
     return {
       name: this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_QUEUE),
+      exchange: {
+        name: this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_EXCHANGE_ID),
+        type: this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_EXCHANGE_TYPE),
+        durable: this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_EXCHANGE_DURABLE),
+        bindingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_BINDING_KEY),
+        routingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_ROUTING_KEY),
+      },
       durable: Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_QUEUE_DURABLE)),
       messageTtl: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_MSG_TTL)),
       maxLength: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_QUEUE_MAXLENGTH)),
       prefetch: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_MSG_PREFETCH)),
       deadLetter: {
         name: this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE),
-        exchange: this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_EXCHANGE),
+        exchange: {
+          name: this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_EXCHANGE_ID),
+          type: this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_EXCHANGE_TYPE),
+          durable: this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_EXCHANGE_DURABLE),
+          bindingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_BINDING_KEY),
+          routingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_ROUTING_KEY),
+        },
         durable: Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE_DURABLE)),
       },
     };
@@ -31,13 +44,26 @@ export class QueueConfigFactory {
   public createExecTaskQueueConfig(): QueueConfig {
     return {
       name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_QUEUE),
+      exchange: {
+        name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_EXCHANGE_ID),
+        type: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_EXCHANGE_TYPE),
+        durable: this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_EXCHANGE_DURABLE),
+        bindingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_BINDING_KEY),
+        routingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_ROUTING_KEY),
+      },
       durable: Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_QUEUE_DURABLE)),
       messageTtl: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_MSG_TTL)),
       maxLength: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_QUEUE_MAXLENGTH)),
       prefetch: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_MSG_PREFETCH)),
       deadLetter: {
         name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_QUEUE),
-        exchange: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_EXCHANGE),
+        exchange: {
+          name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_EXCHANGE_ID),
+          type: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_EXCHANGE_TYPE),
+          durable: this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_EXCHANGE_DURABLE),
+          bindingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_BINDING_KEY),
+          routingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_ROUTING_KEY),
+        },
         durable: Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_QUEUE_DURABLE)),
       },
     };
@@ -49,13 +75,26 @@ export class QueueConfigFactory {
   public createExecStorageQueueConfig(): QueueConfig {
     return {
       name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_QUEUE),
+      exchange: {
+        name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_EXCHANGE_ID),
+        type: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_EXCHANGE_TYPE),
+        durable: this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_STORAGE_EXCHANGE_DURABLE),
+        bindingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_BINDING_KEY),
+        routingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_ROUTING_KEY),
+      },
       durable: Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_STORAGE_QUEUE_DURABLE)),
       messageTtl: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_STORAGE_MSG_TTL)),
       maxLength: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_STORAGE_QUEUE_MAXLENGTH)),
       prefetch: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_STORAGE_MSG_PREFETCH)),
       deadLetter: {
         name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_QUEUE),
-        exchange: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_EXCHANGE),
+        exchange: {
+          name: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_EXCHANGE_ID),
+          type: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_EXCHANGE_TYPE),
+          durable: this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_EXCHANGE_DURABLE),
+          bindingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_BINDING_KEY),
+          routingKey: this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_ROUTING_KEY),
+        },
         durable: Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_QUEUE_DURABLE)),
       },
     };

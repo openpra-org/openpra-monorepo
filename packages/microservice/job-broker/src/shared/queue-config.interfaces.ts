@@ -4,6 +4,8 @@
 export interface QueueConfig {
   /** Name of the queue */
   name: string;
+  /** Properties of the exchange connected with the queue */
+  exchange: ExchangeConfig;
   /** Whether the queue should survive broker restarts */
   durable: boolean;
   /** Time-to-live for messages in the queue (milliseconds) */
@@ -12,18 +14,31 @@ export interface QueueConfig {
   maxLength: number;
   /** Number of messages to prefetch */
   prefetch?: number;
-  /** Dead letter exchange configuration */
+  /** Dead letter queue configuration */
   deadLetter: DeadLetterConfig;
 }
 
+export interface ExchangeConfig {
+  /** Name of the exchange */
+  name: string;
+  /** Type of exchange (e.g.: direct, fanout etc.) */
+  type: string;
+  /** Whether the exchange should survive broker restarts */
+  durable: boolean;
+  /** The key that binds the exchange with the queue */
+  bindingKey: string;
+  /** The key that binds the service with the exchange */
+  routingKey: string;
+}
+
 /**
- * Configuration for a dead letter exchange
+ * Configuration for a dead letter queue
  */
 export interface DeadLetterConfig {
   /** Name of the dead letter queue */
   name: string;
-  /** Name of the dead letter exchange */
-  exchange: string;
+  /** Properties of the exchange connected with the dead letter queue */
+  exchange: ExchangeConfig;
   /** Whether the dead letter queue should survive broker restarts */
   durable: boolean;
 }

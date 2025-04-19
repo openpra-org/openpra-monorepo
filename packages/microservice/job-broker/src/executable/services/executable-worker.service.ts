@@ -2,25 +2,27 @@ import { execSync, ExecSyncOptionsWithStringEncoding } from "node:child_process"
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { Channel, ConsumeMessage } from "amqplib";
+import { Channel, Connection, ConsumeMessage } from "amqplib";
 import typia, { TypeGuardError } from "typia";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
 import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
-import { QueueService, QueueConfig, QueueConfigFactory } from "../../shared";
+import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQConnectionService } from "../../shared";
 import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 
 @Injectable()
 export class ExecutableWorkerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableWorkerService.name);
-  private readonly taskQueueConfig: QueueConfig;
-  private taskChannel: Channel | null = null;
+  private readonly queueConfig: QueueConfig;
+  private connection: Connection | null = null;
+  private channel: Channel | null = null;
 
   constructor(
     @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
     private readonly queueService: QueueService,
+    private readonly rabbitmqService: RabbitMQConnectionService,
     private readonly queueConfigFactory: QueueConfigFactory,
   ) {
-    this.taskQueueConfig = this.queueConfigFactory.createExecTaskQueueConfig();
+    this.queueConfig = this.queueConfigFactory.createExecTaskQueueConfig();
   }
 
   /**
@@ -29,7 +31,9 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     try {
       this.logger.debug("Connecting to the broker");
-      this.taskChannel = await this.queueService.setupQueue(ExecutableWorkerService.name, this.taskQueueConfig);
+      this.connection = await this.rabbitmqService.getConnection(ExecutableWorkerService.name);
+      this.channel = await this.rabbitmqService.getChannel(this.connection);
+      await this.queueService.setupQueue(this.queueConfig, this.channel);
       await this.consumeExecutableTasks();
       this.logger.debug("Initialized and consuming messages");
     } catch (error) {
@@ -41,13 +45,13 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
    * Start consuming tasks from the queue
    */
   private async consumeExecutableTasks(): Promise<void> {
-    if (!this.taskChannel) {
+    if (!this.channel) {
       this.logger.error("Task channel is not available. Cannot start consuming.");
       return;
     }
 
-    await this.taskChannel.consume(
-      this.taskQueueConfig.name,
+    await this.channel.consume(
+      this.queueConfig.name,
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
         if (msg === null) {
@@ -74,15 +78,15 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
           });
           this.logger.debug(`Task ${String(taskData._id)} execution result stored in database`);
 
-          this.taskChannel?.ack(msg);
+          this.channel?.ack(msg);
           this.logger.debug(`Task: ${String(taskData._id)} executed successfully`);
         } catch (error) {
           if (error instanceof TypeGuardError) {
-            this.logger.error(error);
-            this.taskChannel?.nack(msg, false, false);
+            this.logger.error("The executable request does not follow the schema: ", error);
+            this.channel?.nack(msg, false, false);
           } else {
             this.logger.error(error);
-            this.taskChannel?.nack(msg, false, false);
+            this.channel?.nack(msg, false, false);
           }
         }
       },

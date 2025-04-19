@@ -1,21 +1,23 @@
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
-import { Channel } from "amqplib";
+import { Connection, Channel } from "amqplib";
 import typia, { TypeGuardError } from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { QueueService, QueueConfig, QueueConfigFactory } from "../../shared";
+import { QueueService, RabbitMQConnectionService, QueueConfig, QueueConfigFactory } from "../../shared";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 
 @Injectable()
 export class ProducerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ProducerService.name);
   private readonly queueConfig: QueueConfig;
+  private connection: Connection | null = null;
   private channel: Channel | null = null;
 
   constructor(
     @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
     private readonly queueService: QueueService,
+    private readonly rabbitmqService: RabbitMQConnectionService,
     private readonly queueConfigFactory: QueueConfigFactory,
   ) {
     this.queueConfig = this.queueConfigFactory.createQuantJobQueueConfig();
@@ -27,7 +29,9 @@ export class ProducerService implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     try {
       this.logger.debug("Connecting to the broker");
-      this.channel = await this.queueService.setupQueue(QueueService.name, this.queueConfig);
+      this.connection = await this.rabbitmqService.getConnection(QueueService.name);
+      this.channel = await this.rabbitmqService.getChannel(this.connection);
+      await this.queueService.setupQueue(this.queueConfig, this.channel);
       this.logger.debug("Initialized and ready to send messages");
     } catch (error) {
       this.logger.error("Failed to initialize:", error);
@@ -50,16 +54,21 @@ export class ProducerService implements OnApplicationBootstrap {
       const modelsData = typia.json.assertStringify<QuantifyRequest>(quantRequest);
 
       this.logger.debug("Queueing the quantification job");
-      this.channel.sendToQueue(this.queueConfig.name, Buffer.from(modelsData), {
-        persistent: true,
-      });
+      this.channel.publish(
+        this.queueConfig.exchange.name,
+        this.queueConfig.exchange.routingKey,
+        Buffer.from(modelsData),
+        {
+          persistent: true,
+        },
+      );
 
       await this.quantificationJobModel.findByIdAndUpdate(quantRequest._id, {
         $set: { status: "pending" },
       });
     } catch (error) {
       if (error instanceof TypeGuardError) {
-        this.logger.error(error);
+        this.logger.error("The quant request does not follow the schema: ", error);
       } else {
         this.logger.error(error);
       }

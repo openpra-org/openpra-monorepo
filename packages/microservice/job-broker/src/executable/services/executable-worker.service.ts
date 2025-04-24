@@ -1,16 +1,17 @@
 import { execSync, ExecSyncOptionsWithStringEncoding } from "node:child_process";
-import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Channel, Connection, ConsumeMessage } from "amqplib";
-import typia, { TypeGuardError } from "typia";
+import typia from "typia";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
 import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
+import { RpcException } from "@nestjs/microservices";
 import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQConnectionService } from "../../shared";
 import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 
 @Injectable()
-export class ExecutableWorkerService implements OnApplicationBootstrap {
+export class ExecutableWorkerService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(ExecutableWorkerService.name);
   private readonly queueConfig: QueueConfig;
   private connection: Connection | null = null;
@@ -29,44 +30,64 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
    * Initialize the service when the application bootstraps
    */
   async onApplicationBootstrap(): Promise<void> {
-    try {
-      this.logger.debug("Connecting to the broker");
-      this.connection = await this.rabbitmqService.getConnection(ExecutableWorkerService.name);
-      this.channel = await this.rabbitmqService.getChannel(this.connection);
-      await this.queueService.setupQueue(this.queueConfig, this.channel);
-      await this.consumeExecutableTasks();
-      this.logger.debug("Initialized and consuming messages");
-    } catch (error) {
-      this.logger.error("Failed to initialize:", error);
-    }
+    this.logger.debug("Connecting to the broker");
+    this.connection = await this.rabbitmqService.getConnection(ExecutableWorkerService.name);
+    this.channel = await this.rabbitmqService.getChannel(this.connection, ExecutableWorkerService.name);
+    await this.queueService.setupQueue(this.queueConfig, this.channel);
+    this.logger.debug("Initialized and consuming messages");
+    await this.consumeExecutableTasks();
   }
 
   /**
    * Start consuming tasks from the queue
    */
   private async consumeExecutableTasks(): Promise<void> {
-    if (!this.channel) {
-      this.logger.error("Task channel is not available. Cannot start consuming.");
-      return;
+    try {
+      await this.channel?.checkQueue(this.queueConfig.name);
+    } catch (err) {
+      throw new RpcException(`Queue: ${this.queueConfig.name} does not exist.`);
     }
 
-    await this.channel.consume(
+    await this.channel?.consume(
       this.queueConfig.name,
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
         if (msg === null) {
-          this.logger.error("Unable to parse message from task queue");
-          return;
+          throw new RpcException(
+            `${ExecutableWorkerService.name} consumed a null message from ${this.queueConfig.name} queue.`,
+          );
         }
 
+        const taskData = ((): ExecutionTask => {
+          try {
+            this.logger.debug("Gets the message body from the Executable queue");
+            return typia.json.assertParse<ExecutionTask>(msg.content.toString());
+          } catch (err) {
+            this.channel?.nack(msg, false, false);
+            throw new RpcException(
+              `${ExecutableWorkerService.name} consumed an invalid message from ${this.queueConfig.name} queue.`,
+            );
+          }
+        })();
+
         try {
-          // Parse the task data
-          const taskData: ExecutionTask = typia.json.assertParse<ExecutionTask>(msg.content.toString());
+          this.logger.debug(`Running Task: ${String(taskData._id)}`);
           await this.executableJobModel.findByIdAndUpdate(taskData._id, { $set: { status: "running" } });
+          this.logger.debug("Changing the status to <running>");
+        } catch (err) {
+          throw new RpcException(`Failed to update <running> status of: TaskID ${String(taskData._id)}`);
+        }
 
-          // Execute the task and get the result
-          const result = this.executeCommand(taskData);
+        const result = ((): ExecutionResult => {
+          try {
+            return this.executeCommand(taskData);
+          } catch (err) {
+            this.channel?.nack(msg, false, false);
+            throw new RpcException(`Failed to execute: TaskID ${String(taskData._id)}`);
+          }
+        })();
 
+        try {
           // Update the job report directly in the database
           await this.executableJobModel.findByIdAndUpdate(taskData._id, {
             $set: {
@@ -77,18 +98,12 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
             },
           });
           this.logger.debug(`Task ${String(taskData._id)} execution result stored in database`);
-
-          this.channel?.ack(msg);
-          this.logger.debug(`Task: ${String(taskData._id)} executed successfully`);
-        } catch (error) {
-          if (error instanceof TypeGuardError) {
-            this.logger.error("The executable request does not follow the schema: ", error);
-            this.channel?.nack(msg, false, false);
-          } else {
-            this.logger.error(error);
-            this.channel?.nack(msg, false, false);
-          }
+        } catch (err) {
+          throw new RpcException(`Failed to update <completed> status of: TaskID ${String(taskData._id)}`);
         }
+
+        this.channel?.ack(msg);
+        this.logger.debug(`Task: ${String(taskData._id)} executed successfully`);
       },
       { noAck: false },
     );
@@ -101,38 +116,42 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
    * @returns The result of the execution, including exit code, stdout, and stderr.
    */
   private executeCommand(task: ExecutionTask): ExecutionResult {
-    try {
-      // Construct the command to be executed, including the provided arguments.
-      const command = `${task.executable} ${task.arguments?.join(" ") ?? ""}`;
-      const options: ExecSyncOptionsWithStringEncoding = {
-        // Set the environment variables for the command execution.
-        env: task.env_vars
-          ? (Object.fromEntries(task.env_vars.map((envVar) => envVar.split("="))) as NodeJS.ProcessEnv)
-          : process.env,
-        stdio: "pipe",
-        shell: task.tty ? "/bin/bash" : undefined,
-        encoding: "utf-8",
-      };
+    // Construct the command to be executed, including the provided arguments.
+    const command = `${task.executable} ${task.arguments?.join(" ") ?? ""}`;
+    const options: ExecSyncOptionsWithStringEncoding = {
+      // Set the environment variables for the command execution.
+      env: task.env_vars
+        ? (Object.fromEntries(task.env_vars.map((envVar) => envVar.split("="))) as NodeJS.ProcessEnv)
+        : process.env,
+      stdio: "pipe",
+      shell: task.tty ? "/bin/bash" : undefined,
+      encoding: "utf-8",
+    };
 
+    try {
       // Execute the command and capture the standard output.
       const stdout = execSync(command, options).toString();
-
-      // Return the execution result with a successful exit code.
       return {
         exit_code: 0,
         stderr: "",
-        stdout,
+        stdout: stdout,
       };
-    } catch (error) {
-      // Handle errors that occur during command execution.
-      const execError = error as Error & { status?: number; stderr?: Buffer; stdout?: Buffer };
-      this.logger.error(execError);
-
+    } catch (err: any) {
       return {
-        exit_code: execError.status ? execError.status : 1,
-        stderr: execError.stderr?.toString() ?? "",
-        stdout: execError.stdout?.toString() ?? "",
+        exit_code: err.status,
+        stderr: err.stderr.toString(),
+        stdout: "",
       };
+    }
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    try {
+      await this.channel?.deleteQueue(this.queueConfig.name);
+      await this.channel?.close();
+      await this.connection?.close();
+    } catch (err) {
+      throw new RpcException(`${ExecutableWorkerService.name} failed to stop RabbitMQ services.`);
     }
   }
 }

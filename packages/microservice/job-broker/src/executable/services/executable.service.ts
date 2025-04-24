@@ -1,14 +1,15 @@
-import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Channel, Connection } from "amqplib";
-import typia, { TypeGuardError } from "typia";
+import typia from "typia";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
+import { RpcException } from "@nestjs/microservices";
 import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQConnectionService } from "../../shared";
 import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 
 @Injectable()
-export class ExecutableService implements OnApplicationBootstrap {
+export class ExecutableService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(ExecutableService.name);
   private readonly queueConfig: QueueConfig;
   private connection: Connection | null = null;
@@ -27,15 +28,11 @@ export class ExecutableService implements OnApplicationBootstrap {
    * Initialize the service when the application bootstraps
    */
   async onApplicationBootstrap(): Promise<void> {
-    try {
-      this.logger.debug("Connecting to the broker");
-      this.connection = await this.rabbitmqService.getConnection(ExecutableService.name);
-      this.channel = await this.rabbitmqService.getChannel(this.connection);
-      await this.queueService.setupQueue(this.queueConfig, this.channel);
-      this.logger.debug("Initialized and ready to send messages");
-    } catch (error) {
-      this.logger.error("Failed to initialize:", error);
-    }
+    this.logger.debug("Connecting to the broker");
+    this.connection = await this.rabbitmqService.getConnection(ExecutableService.name);
+    this.channel = await this.rabbitmqService.getChannel(this.connection, ExecutableService.name);
+    await this.queueService.setupQueue(this.queueConfig, this.channel);
+    this.logger.debug("Initialized and ready to send messages");
   }
 
   /**
@@ -44,14 +41,19 @@ export class ExecutableService implements OnApplicationBootstrap {
    * @param task - The execution task to queue
    */
   public async createAndQueueTask(task: ExecutionTask): Promise<void> {
-    try {
-      if (!this.channel) {
-        this.logger.error("Channel is not available. Cannot send message.");
-        return;
+    const taskData = ((): string => {
+      try {
+        this.logger.debug("Gets the request body from the Executable controller");
+        return typia.json.assertStringify<ExecutionTask>(task);
+      } catch (err) {
+        throw new RpcException(`Invalid schema: TaskID <${String(task._id)}>`);
       }
+    })();
 
-      const taskData = typia.json.assertStringify<ExecutionTask>(task);
-      this.channel.publish(
+    try {
+      this.logger.debug("Queueing the executable task");
+      await this.channel?.checkExchange(this.queueConfig.exchange.name);
+      this.channel?.publish(
         this.queueConfig.exchange.name,
         this.queueConfig.exchange.routingKey,
         Buffer.from(taskData),
@@ -59,14 +61,24 @@ export class ExecutableService implements OnApplicationBootstrap {
           persistent: true,
         },
       );
+    } catch (err) {
+      throw new RpcException(`${this.queueConfig.exchange.name} does not exist.`);
+    }
 
+    try {
       await this.executableJobModel.findByIdAndUpdate(task._id, { $set: { status: "pending" } });
-    } catch (error) {
-      if (error instanceof TypeGuardError) {
-        this.logger.error("The executable request does not follow the schema: ", error);
-      } else {
-        this.logger.error(error);
-      }
+    } catch (err) {
+      throw new RpcException(`Failed to update <pending> status of: TaskID ${String(task._id)}`);
+    }
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    try {
+      await this.channel?.deleteExchange(this.queueConfig.exchange.name);
+      await this.channel?.close();
+      await this.connection?.close();
+    } catch (err) {
+      throw new RpcException(`${ExecutableService.name} failed to stop RabbitMQ services.`);
     }
   }
 }

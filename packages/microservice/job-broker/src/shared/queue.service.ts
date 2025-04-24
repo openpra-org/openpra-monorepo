@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Channel } from "amqplib";
+import { RpcException } from "@nestjs/microservices";
 import { DeadLetterConfig, QueueConfig } from "./queue-config.interfaces";
 
 @Injectable()
@@ -18,25 +19,37 @@ export class QueueService {
     await this.setupDeadLetterQueue(queueConfig.deadLetter, channel);
 
     // Set up the main exchange
-    await channel.assertExchange(queueConfig.exchange.name, queueConfig.exchange.type, {
-      durable: queueConfig.exchange.durable,
-    });
-
-    // Set up the main queue
-    await channel.assertQueue(queueConfig.name, {
-      durable: queueConfig.durable,
-      messageTtl: queueConfig.messageTtl,
-      deadLetterExchange: queueConfig.deadLetter.exchange.name,
-      deadLetterRoutingKey: queueConfig.deadLetter.exchange.routingKey,
-      maxLength: queueConfig.maxLength,
-    });
-
-    // Set prefetch if provided
-    if (queueConfig.prefetch) {
-      await channel.prefetch(queueConfig.prefetch);
+    try {
+      await channel.assertExchange(queueConfig.exchange.name, queueConfig.exchange.type, {
+        durable: queueConfig.exchange.durable,
+      });
+    } catch (err) {
+      throw new RpcException(`Failed to initialize ${queueConfig.exchange.name}.`);
     }
 
-    await channel.bindQueue(queueConfig.name, queueConfig.exchange.name, queueConfig.exchange.bindingKey);
+    // Set up the main queue
+    try {
+      await channel.assertQueue(queueConfig.name, {
+        durable: queueConfig.durable,
+        messageTtl: queueConfig.messageTtl,
+        deadLetterExchange: queueConfig.deadLetter.exchange.name,
+        deadLetterRoutingKey: queueConfig.deadLetter.exchange.routingKey,
+        maxLength: queueConfig.maxLength,
+      });
+
+      // Set prefetch if provided
+      if (queueConfig.prefetch) {
+        await channel.prefetch(queueConfig.prefetch);
+      }
+    } catch (err) {
+      throw new RpcException(`Failed to set up ${queueConfig.name}.`);
+    }
+
+    try {
+      await channel.bindQueue(queueConfig.name, queueConfig.exchange.name, queueConfig.exchange.bindingKey);
+    } catch (err) {
+      throw new RpcException(`Failed to bind ${queueConfig.exchange.name} and ${queueConfig.name} queue.`);
+    }
 
     this.logger.debug(`Queue '${queueConfig.name}' setup complete`);
   }
@@ -49,8 +62,12 @@ export class QueueService {
    * @returns A promise that resolves when setup is complete
    */
   private async setupDeadLetterQueue(config: DeadLetterConfig, channel: Channel): Promise<void> {
-    await channel.assertExchange(config.exchange.name, config.exchange.type, { durable: config.exchange.durable });
-    await channel.assertQueue(config.name, { durable: config.durable });
-    await channel.bindQueue(config.name, config.exchange.name, config.exchange.bindingKey);
+    try {
+      await channel.assertExchange(config.exchange.name, config.exchange.type, { durable: config.exchange.durable });
+      await channel.assertQueue(config.name, { durable: config.durable });
+      await channel.bindQueue(config.name, config.exchange.name, config.exchange.bindingKey);
+    } catch (err) {
+      throw new RpcException(`Failed to set up ${config.name}.`);
+    }
   }
 }

@@ -1,17 +1,18 @@
 import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
-import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Channel, Connection, ConsumeMessage } from "amqplib";
 import tmp from "tmp";
-import typia, { TypeGuardError } from "typia";
+import typia from "typia";
 import { RunScramCli } from "scram-node";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { RpcException } from "@nestjs/microservices";
 import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQConnectionService } from "../../shared";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 
 @Injectable()
-export class ConsumerService implements OnApplicationBootstrap {
+export class ConsumerService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(ConsumerService.name);
   private readonly queueConfig: QueueConfig;
   private connection: Connection | null = null;
@@ -30,47 +31,64 @@ export class ConsumerService implements OnApplicationBootstrap {
    * Initialize the consumer service when the application bootstraps
    */
   async onApplicationBootstrap(): Promise<void> {
-    try {
-      this.logger.debug("Connecting to the broker");
-      this.connection = await this.rabbitmqService.getConnection(ConsumerService.name);
-      this.channel = await this.rabbitmqService.getChannel(this.connection);
-      await this.queueService.setupQueue(this.queueConfig, this.channel);
-      this.logger.debug("Initialized and consuming messages...");
-      await this.consumeQuantJobs();
-    } catch (error) {
-      this.logger.error("Failed to initialize:", error);
-    }
+    this.logger.debug("Connecting to the broker");
+    this.connection = await this.rabbitmqService.getConnection(ConsumerService.name);
+    this.channel = await this.rabbitmqService.getChannel(this.connection, ConsumerService.name);
+    await this.queueService.setupQueue(this.queueConfig, this.channel);
+    this.logger.debug("Initialized and consuming messages...");
+    await this.consumeQuantJobs();
   }
 
   /**
    * Start consuming messages from the queue
    */
   private async consumeQuantJobs(): Promise<void> {
-    if (!this.channel) {
-      this.logger.error("Channel is not available. Cannot start consuming.");
-      return;
+    try {
+      await this.channel?.checkQueue(this.queueConfig.name);
+    } catch (err) {
+      throw new RpcException(`Queue: ${this.queueConfig.name} does not exist.`);
     }
 
-    await this.channel.consume(
+    await this.channel?.consume(
       this.queueConfig.name,
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
         if (msg === null) {
-          this.logger.error("Unable to parse message from quantification queue");
-          return;
+          throw new RpcException(
+            `${ConsumerService.name} consumed a null message from ${this.queueConfig.name} queue.`,
+          );
         }
 
-        try {
-          const modelsData: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
-          this.logger.debug(`Running Job: ${String(modelsData._id)}`);
+        const modelsData = ((): QuantifyRequest => {
+          try {
+            this.logger.debug("Gets the message body from the Quantification queue");
+            return typia.json.assertParse<QuantifyRequest>(msg.content.toString());
+          } catch (err) {
+            this.channel?.nack(msg, false, false);
+            throw new RpcException(
+              `${ConsumerService.name} consumed an invalid message from ${this.queueConfig.name} queue.`,
+            );
+          }
+        })();
 
+        try {
+          this.logger.debug(`Running Job: ${String(modelsData._id)}`);
           await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
             $set: { status: "running" },
           });
           this.logger.debug("Changing the status to <running>");
+        } catch (err) {
+          throw new RpcException(`Failed to update <running> status of: JobID ${String(modelsData._id)}`);
+        }
 
+        try {
           this.performQuantification(modelsData);
+        } catch (err) {
+          this.channel?.nack(msg, false, false);
+          throw new RpcException(`Failed to quantify: JobID ${String(modelsData._id)}`);
+        }
 
+        try {
           await this.quantificationJobModel.findByIdAndUpdate(modelsData._id, {
             $set: { status: "completed" },
           });
@@ -80,18 +98,12 @@ export class ConsumerService implements OnApplicationBootstrap {
            *  $set: { results: result, status: "completed" },
            * });
            */
-
-          this.channel?.ack(msg);
-          this.logger.debug(`Acknowledged Job: ${String(modelsData._id)}`);
-        } catch (error) {
-          if (error instanceof TypeGuardError) {
-            this.logger.error("The quant request does not follow the schema: ", error);
-            this.channel?.nack(msg, false, false);
-          } else {
-            this.logger.error(error);
-            this.channel?.nack(msg, false, false);
-          }
+        } catch (err) {
+          throw new RpcException(`Failed to update <completed> status of: JobID ${String(modelsData._id)}`);
         }
+
+        this.channel?.ack(msg);
+        this.logger.debug(`Acknowledged Job: ${String(modelsData._id)}`);
       },
       { noAck: false },
     );
@@ -126,9 +138,6 @@ export class ConsumerService implements OnApplicationBootstrap {
       const outputContent = readFileSync(outputFilePath, "utf8");
 
       return [outputContent]; // The quantification results.
-    } catch (error) {
-      this.logger.error("Error during quantification:", error);
-      return ["Error during scram-cli operation"];
     } finally {
       // Cleanup: Remove all temporary files created during the process.
       modelFilePaths.forEach(unlinkSync); // Remove model data files.
@@ -153,5 +162,15 @@ export class ConsumerService implements OnApplicationBootstrap {
     }
 
     return files;
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    try {
+      await this.channel?.deleteQueue(this.queueConfig.name);
+      await this.channel?.close();
+      await this.connection?.close();
+    } catch (err) {
+      throw new RpcException(`${ConsumerService.name} failed to stop RabbitMQ services.`);
+    }
   }
 }

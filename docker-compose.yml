@@ -23,8 +23,8 @@ secrets:
 
 x-base-image: &base-image
   build:
-     context: .
-     dockerfile: docker/Dockerfile
+    context: .
+    dockerfile: docker/Dockerfile
   restart: unless-stopped
   env_file:
     - docker/configs/.docker-compose.env
@@ -115,7 +115,7 @@ services:
       <<: *healthcheck-fragments
 
   rabbitmq:
-    image: rabbitmq:management-alpine
+    image: rabbitmq:3.13.7-management-alpine
     restart: unless-stopped
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq

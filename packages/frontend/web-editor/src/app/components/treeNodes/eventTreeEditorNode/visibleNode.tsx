@@ -26,28 +26,49 @@ function VisibleNode({ id, data }: NodeProps) {
 
   const updateNodeProbability = (newValue: number) => {
     setNodes((nodes) => {
-      const siblingNodes = nodes.filter((node) => node.data.depth === data.depth);
+      const edges = getEdges();
 
+      // Find the parent of this node
+      const parentEdge = edges.find((edge) => edge.target === id);
+      const parentId = parentEdge ? parentEdge.source : null;
+
+      // If there's no parent, use the original logic (root node)
+      if (!parentId) {
+        return nodes.map((node) =>
+          node.id === id ? { ...node, data: { ...node.data, probability: newValue } } : node,
+        );
+      }
+
+      // Find all edges coming from the same parent
+      const siblingEdges = edges.filter((edge) => edge.source === parentId);
+      const siblingIds = siblingEdges.map((edge) => edge.target);
+
+      // Calculate sum of probabilities from the same parent
       let siblingSum = 0;
-      siblingNodes.forEach((node) => {
-        if (node.id !== id) {
-          const nodeProb =
-            node.data.probability ??
-            (node.data.depth === 1
-              ? 1.0
-              : node.data.depth === 2 && (node.data.label === "Success" || node.data.label === "Failure")
-              ? 0.5
-              : 0.0);
-          siblingSum += nodeProb;
+      siblingIds.forEach((siblingId) => {
+        if (siblingId !== id) {
+          const siblingNode = nodes.find((node) => node.id === siblingId);
+          if (siblingNode) {
+            const siblingProb =
+              siblingNode.data.probability ??
+              (siblingNode.data.depth === 1
+                ? 1.0
+                : siblingNode.data.depth === 2 &&
+                  (siblingNode.data.label === "Success" || siblingNode.data.label === "Failure")
+                ? 0.5
+                : 0.0);
+            siblingSum += siblingProb;
+          }
         }
       });
 
+      // Check if the new value would exceed 1 when combined with siblings
       if (siblingSum + newValue > 1) {
         addToast({
           id: GenerateUUID(),
           title: "Probability Limit Exceeded",
           color: "warning",
-          text: "Total probability in this column cannot exceed 1",
+          text: "Total probability from the same parent cannot exceed 1",
         });
 
         return nodes.map((node) => (node.id === id ? { ...node, data: { ...node.data, probability: 0.0 } } : node));
@@ -58,8 +79,7 @@ function VisibleNode({ id, data }: NodeProps) {
         node.id === id ? { ...node, data: { ...node.data, probability: newValue } } : node,
       );
 
-      // ✅ Recalculate frequency nodes
-      const edges = getEdges();
+      // Recalculate frequency nodes
       const recalculated = recalculateFrequencies(updatedNodes, edges);
       return recalculated;
     });

@@ -1,6 +1,6 @@
 import { Handle, NodeProps, Position } from "reactflow";
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { EuiText, EuiSelect, EuiIcon, EuiButton } from "@elastic/eui";
+import React, { useState, useEffect, useCallback } from "react";
+import { EuiText, EuiIcon, EuiButton, EuiSuperSelect, EuiFlexGroup, EuiFlexItem, EuiSpacer } from "@elastic/eui";
 import { useStore } from "reactflow";
 import { getInitials } from "../../../hooks/eventTree/useTreeData";
 import { ScientificNotation } from "../../../../utils/scientificNotation";
@@ -44,36 +44,41 @@ const ManageCategoriesForm = ({
           )}
         </div>
       ))}
+      <EuiSpacer size="m" />
       <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #eee" }}>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <input
-            type="text"
-            placeholder="New category name"
-            value={newCategory}
-            onChange={(e) => {
-              setNewCategory(e.target.value);
-            }}
-            style={{
-              padding: "4px 8px",
-              fontSize: "14px",
-              border: "1px solid #ddd",
-              borderRadius: "4px",
-              width: "200px",
-            }}
-          />
-          <EuiButton
-            size="s"
-            onClick={() => {
-              if (newCategory.trim()) {
-                addCategory(newCategory.trim());
-                setNewCategory("");
-              }
-            }}
-            disabled={!newCategory.trim()}
-          >
-            Add
-          </EuiButton>
-        </div>
+        <EuiFlexGroup gutterSize="s">
+          <EuiFlexItem>
+            <input
+              type="text"
+              placeholder="New category name"
+              value={newCategory}
+              onChange={(e) => {
+                setNewCategory(e.target.value);
+              }}
+              style={{
+                padding: "4px 8px",
+                fontSize: "14px",
+                border: "1px solid #ddd",
+                borderRadius: "4px",
+                width: "100%",
+              }}
+            />
+          </EuiFlexItem>
+          <EuiFlexItem grow={false}>
+            <EuiButton
+              size="s"
+              onClick={() => {
+                if (newCategory.trim()) {
+                  addCategory(newCategory.trim());
+                  setNewCategory("");
+                }
+              }}
+              disabled={!newCategory.trim()}
+            >
+              Add
+            </EuiButton>
+          </EuiFlexItem>
+        </EuiFlexGroup>
       </div>
     </div>
   );
@@ -91,9 +96,15 @@ function OutputNode({ id, data }: NodeProps) {
   const [releaseCategory, setReleaseCategory] = useState(data.label);
   const [displayLabel, setDisplayLabel] = useState(data.label);
   const [isManageModalVisible, setIsManageModalVisible] = useState(false);
-  const selectOptions = categories;
   const [sequenceId, setSequenceId] = useState<string | null>(null);
   const nodes = useStore((store) => store.getNodes());
+
+  // Transform categories to work with EuiSuperSelect - keep display simple
+  const superSelectOptions = categories.map((category) => ({
+    value: category.value,
+    inputDisplay: category.text || category.value,
+    dropdownDisplay: category.text || category.value,
+  }));
 
   const updateSequenceId = useCallback(() => {
     if (data.isSequenceId) {
@@ -126,8 +137,7 @@ function OutputNode({ id, data }: NodeProps) {
     updateSequenceId();
   }, [updateSequenceId]);
 
-  const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value;
+  const handleCategoryChange = (value: string) => {
     setReleaseCategory(value);
   };
 
@@ -161,44 +171,34 @@ function OutputNode({ id, data }: NodeProps) {
         }}
       >
         {data.label === "Category A" || data.label === "Category B" ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-            <EuiSelect
-              options={selectOptions}
-              value={releaseCategory}
-              onChange={handleCategoryChange}
-              compressed
-              style={{
-                width: "115px",
-                height: "30px",
-                fontSize: "0.7rem",
-                padding: "0 5px",
-                boxSizing: "border-box",
-              }}
-            />
-            <EuiIcon
-              type="pencil"
-              size="s"
-              onClick={() => {
-                setIsManageModalVisible(true);
-              }}
-              style={{ cursor: "pointer" }}
-            />
-            {isManageModalVisible && (
-              <GenericModal
-                title="Manage Release Categories"
-                body={
-                  <ManageCategoriesForm
-                    categories={categories}
-                    addCategory={addCategory}
-                    deleteCategory={deleteCategory}
-                  />
-                }
-                onClose={handleModalClose}
-                onSubmit={handleModalSubmit}
-                modalFormId="manage-categories"
-                showButtons
+          <div style={{ display: "flex", alignItems: "center", width: "100%" }}>
+            <div style={{ flex: 1 }}>
+              <EuiSuperSelect
+                options={superSelectOptions}
+                valueOfSelected={releaseCategory}
+                onChange={handleCategoryChange}
+                compressed
+                fullWidth
+                style={{
+                  minWidth: "100px",
+                  fontSize: "0.7rem",
+                }}
+                popoverProps={{
+                  ownFocus: true,
+                  anchorPosition: "downCenter",
+                }}
               />
-            )}
+            </div>
+            <div>
+              <EuiIcon
+                type="pencil"
+                size="s"
+                onClick={() => {
+                  setIsManageModalVisible(true);
+                }}
+                style={{ cursor: "pointer" }}
+              />
+            </div>
           </div>
         ) : data.isFrequencyNode ? (
           <Tooltip content={ScientificNotation.toScientific(data.frequency ?? 0, 8)}>
@@ -214,6 +214,22 @@ function OutputNode({ id, data }: NodeProps) {
         id="a"
         style={{ position: "absolute", top: "50%", right: "0%", visibility: "hidden" }}
       />
+      {isManageModalVisible && (
+        <GenericModal
+          title="Manage Release Categories"
+          body={
+            <ManageCategoriesForm
+              categories={categories}
+              addCategory={addCategory}
+              deleteCategory={deleteCategory}
+            />
+          }
+          onClose={handleModalClose}
+          onSubmit={handleModalSubmit}
+          modalFormId="manage-categories"
+          showButtons
+        />
+      )}
     </div>
   );
 }

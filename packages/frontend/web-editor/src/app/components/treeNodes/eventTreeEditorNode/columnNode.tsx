@@ -72,7 +72,8 @@ function ColumnNode({ id, data }: NodeProps) {
   // }, [textareaValue, updateNodeInternals, id]);
 
   const canShowDeleteButton = (): boolean => {
-    return !data.output && data.depth !== 1 && data.depth !== 2 && data.allowDelete;
+    // Updated condition: Allow deletion for functional events (including the first one)
+    return !data.output && data.depth !== 1 && data.allowDelete;
   };
 
   const hasButtons = allowAdd || canShowDeleteButton();

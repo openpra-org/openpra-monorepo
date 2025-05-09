@@ -142,7 +142,8 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         width: clickedNode.data.width,
         output: clickedNode.data.output,
         allowAdd: true,
-        allowDelete: !clickedNode.data.output && clickedDepth + 1 !== 1 && clickedDepth + 1 !== 2 && true,
+        // allowDelete: !clickedNode.data.output && clickedDepth + 1 !== 1 && clickedDepth + 1 !== 2 && true,
+        allowDelete: !clickedNode.data.output && clickedDepth + 1 !== 1,
       },
       position: {
         x: clickedNode ? clickedNode.position.x : 0,

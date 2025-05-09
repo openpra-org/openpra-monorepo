@@ -266,6 +266,8 @@ const useTreeData = (
           depth: column,
           output: column > inputLevels, // Columns after input levels are for end states
           allowAdd: column <= inputLevels,
+          // Allow delete for all functional events, including the first one
+          allowDelete: column <= inputLevels && column !== 1,
         },
         position: pos,
       };

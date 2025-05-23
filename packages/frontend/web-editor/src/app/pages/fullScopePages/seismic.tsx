@@ -1,5 +1,5 @@
-function Seismic(): JSX.Element {
-  return <div></div>;
-}
+const Seismic = (): JSX.Element => {
+  return <div />;
+};
 
 export { Seismic };

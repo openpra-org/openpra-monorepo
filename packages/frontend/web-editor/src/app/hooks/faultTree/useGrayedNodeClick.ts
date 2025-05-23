@@ -1,10 +1,15 @@
-import { Edge, getOutgoers, Node, NodeProps } from "reactflow";
 import { useCallback } from "react";
 import { useParams } from "react-router-dom";
+import { Edge, getOutgoers, Node, NodeProps } from "reactflow";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { useStore } from "../../store/faultTreeStore";
-import { FaultTreeState, GetParentNode, getWorkflowEdge } from "../../../utils/treeUtils";
+
+import {
+  FaultTreeState,
+  GetParentNode,
+  getWorkflowEdge,
+} from "../../../utils/treeUtils";
 import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
+import { useStore } from "../../store/faultTreeStore";
 
 /**
  * Hook handling click event on a grayed node.
@@ -25,22 +30,31 @@ const UseGrayedNodeClick = (id: NodeProps["id"]) => {
   const handleGrayedNodeClick = useCallback(
     async (branchId: string | undefined) => {
       //loop through all nodes to find the parent (the node to be deleted)
-      const parentNode = nodes.filter((node) => node.data?.branchId === undefined && node.data?.isGrayed === true);
+      const parentNode = nodes.filter(
+        (node) =>
+          node.data?.branchId === undefined && node.data?.isGrayed === true,
+      );
 
       //get parent of parent node (the NOT gate)
       const notGateNode = GetParentNode(parentNode[0], nodes, edges);
 
       //filter out the unwanted branches
       const solidifiedNodes = nodes.filter(
-        (node) => node.data?.branchId === branchId || node.data?.branchId === undefined,
+        (node) =>
+          node.data?.branchId === branchId || node.data?.branchId === undefined,
       );
       const solidifiedEdges = edges.filter(
-        (edge) => edge.data?.branchId === branchId || edge.data?.branchId === undefined,
+        (edge) =>
+          edge.data?.branchId === branchId || edge.data?.branchId === undefined,
       );
 
       //from the remaining nodes, find outgoer of parentNode (there should be only 1)
       //we need this to connect it as a child of the NOT gate
-      const branchRootNode = getOutgoers(parentNode[0], solidifiedNodes, solidifiedEdges);
+      const branchRootNode = getOutgoers(
+        parentNode[0],
+        solidifiedNodes,
+        solidifiedEdges,
+      );
 
       //filter out the parentNode (deleting the node which we wanted)
       const finalNodes: Node<FaultTreeNodeProps>[] = solidifiedNodes
@@ -51,7 +65,9 @@ const UseGrayedNodeClick = (id: NodeProps["id"]) => {
         }));
       const finalEdges: Edge<FaultTreeNodeProps>[] = solidifiedEdges
         .filter((edge) => {
-          return edge.source !== notGateNode.id && edge.source !== parentNode[0].id;
+          return (
+            edge.source !== notGateNode.id && edge.source !== parentNode[0].id
+          );
         })
         .map(({ data, animated, ...edge }) => ({
           ...edge,
@@ -60,7 +76,10 @@ const UseGrayedNodeClick = (id: NodeProps["id"]) => {
         }));
 
       //create an edge from notGateNode to the branchRootNode
-      const childEdge: Edge<FaultTreeNodeProps> = getWorkflowEdge(notGateNode.id, branchRootNode[0].id);
+      const childEdge: Edge<FaultTreeNodeProps> = getWorkflowEdge(
+        notGateNode.id,
+        branchRootNode[0].id,
+      );
       finalEdges.push(childEdge);
 
       setNodes(finalNodes);

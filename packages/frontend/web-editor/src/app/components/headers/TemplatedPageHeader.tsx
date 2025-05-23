@@ -1,4 +1,4 @@
-import { EuiPageTemplate, EuiPageHeaderProps, useEuiTheme } from "@elastic/eui";
+import { EuiPageHeaderProps, EuiPageTemplate, useEuiTheme } from "@elastic/eui";
 
 /**
  *
@@ -7,7 +7,7 @@ import { EuiPageTemplate, EuiPageHeaderProps, useEuiTheme } from "@elastic/eui";
  * @param restrictWidth - restricts the width if needed
  * @returns
  */
-function TemplatedPageHeader({ pageTitle, iconType, restrictWidth, ...rest }: EuiPageHeaderProps): JSX.Element {
+const TemplatedPageHeader = ({ pageTitle, iconType, restrictWidth, ...rest }: EuiPageHeaderProps): JSX.Element => {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
   const restrictedWidth = restrictWidth ?? largeScreenBreakpoint;
   return (
@@ -20,10 +20,10 @@ function TemplatedPageHeader({ pageTitle, iconType, restrictWidth, ...rest }: Eu
         color: "accent",
       }}
       responsive={false}
-      bottomBorder={true}
+      bottomBorder
       iconType={iconType}
       restrictWidth={restrictedWidth}
     />
   );
-}
+};
 export { TemplatedPageHeader };

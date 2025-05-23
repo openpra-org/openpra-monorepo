@@ -1,6 +1,7 @@
 // initial setup: one OR gate node and two basic events
 // basic event nodes can be turned into any type by right click
 import { Edge, Node } from "reactflow";
+
 import {
   ATLEAST_TWO_CHILDREN,
   BASIC_EVENT,

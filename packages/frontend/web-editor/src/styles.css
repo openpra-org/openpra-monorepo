@@ -3,30 +3,30 @@
 @import url("assets/fonts/cereal/Cereal.css");
 
 html {
-    font-synthesis: weight style small-caps;
-    font-optical-sizing: auto;
-    -moz-osx-font-smoothing: auto;
-    -webkit-font-smoothing: subpixel-antialiased;
-    font-smooth: always;
+  font-synthesis: weight style small-caps;
+  font-optical-sizing: auto;
+  -moz-osx-font-smoothing: auto;
+  -webkit-font-smoothing: subpixel-antialiased;
+  font-smooth: always;
 }
 
 #model {
-    margin: 8px;
-    background-color: #343741;
+  margin: 8px;
+  background-color: #343741;
 }
 
 .euiTreeView .euiTreeView {
-    padding-left: 12px !important;
+  padding-left: 12px !important;
 }
 
 .euiTreeView--withArrows.euiTreeView--compressed .euiTreeView__iconWrapper {
-    margin-left: 0 !important;
+  margin-left: 0 !important;
 }
 
 .euiTreeView--withArrows.euiTreeView .euiTreeView__iconWrapper {
-    margin-left: 0 !important;
+  margin-left: 0 !important;
 }
 
 .euiListGroupItem__label {
-    flex-grow: 1 !important;
+  flex-grow: 1 !important;
 }

@@ -1,6 +1,6 @@
 import { DataTable } from "./templatetable/dataTable";
 
-function SpecialEventsTable(): JSX.Element {
+const SpecialEventsTable = (): JSX.Element => {
   const rows = [
     {
       id: "1",
@@ -27,6 +27,6 @@ function SpecialEventsTable(): JSX.Element {
       columns={columns}
     />
   );
-}
+};
 
 export { SpecialEventsTable };

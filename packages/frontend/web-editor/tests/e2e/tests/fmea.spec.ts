@@ -1,4 +1,5 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+
 import { signUp } from "../../e2e/tests/signup.spec";
 
 test.describe("Fmea test", () => {

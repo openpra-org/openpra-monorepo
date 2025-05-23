@@ -1,7 +1,7 @@
 import { HumanReliabilityAnalysisList } from "../../components/lists/nestedLists/humanReliabilityAnalysisList";
 
-function HRA(): JSX.Element {
+const HRA = (): JSX.Element => {
   return <HumanReliabilityAnalysisList />;
-}
+};
 
 export { HRA };

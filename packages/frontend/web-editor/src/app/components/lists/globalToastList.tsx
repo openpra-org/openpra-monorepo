@@ -1,4 +1,5 @@
 import { EuiGlobalToastList } from "@elastic/eui";
+
 import { UseToastContext } from "../../providers/toastProvider";
 
 const GlobalToastList: React.FC = () => {

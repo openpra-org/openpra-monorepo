@@ -1,7 +1,8 @@
-import { EuiCard, logicalStyle, EuiTabbedContent } from "@elastic/eui";
+import { EuiCard, EuiTabbedContent, logicalStyle } from "@elastic/eui";
+
+import OpenPRALogo from "../../../assets/images/logos/OpenPRA_vs_0.1x.png";
 import { LoginForm } from "../forms/loginForm";
 import { SignUp } from "../login/signUp";
-import OpenPRALogo from "../../../assets/images/logos/OpenPRA_vs_0.1x.png";
 
 //required to show version number!
 const packageJson = require("../../../../../../../package.json");
@@ -19,18 +20,18 @@ const tabs = [
   },
 ];
 
-function AuthCardContent(): JSX.Element {
+const AuthCardContent = (): JSX.Element => {
   return (
     <EuiTabbedContent
       tabs={tabs}
-      expand={true}
+      expand
       initialSelectedTab={tabs[0]}
       data-testid="Context"
     />
   );
-}
+};
 
-function AuthCard(): JSX.Element {
+const AuthCard = (): JSX.Element => {
   const cardStyle = {
     ...logicalStyle("width", 300),
     ...logicalStyle("margin-horizontal", "auto"),
@@ -53,6 +54,6 @@ function AuthCard(): JSX.Element {
       <AuthCardContent />
     </EuiCard>
   );
-}
+};
 
 export { AuthCard };

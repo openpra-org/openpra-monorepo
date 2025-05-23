@@ -1,5 +1,5 @@
-function HazardsScreeningAnalysis(): JSX.Element {
-  return <div></div>;
-}
+const HazardsScreeningAnalysis = (): JSX.Element => {
+  return <div />;
+};
 
 export { HazardsScreeningAnalysis };

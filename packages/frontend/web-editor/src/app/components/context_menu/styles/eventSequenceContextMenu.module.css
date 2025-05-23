@@ -1,15 +1,15 @@
 .context_menu_option {
-    margin: auto;
-    height: 50px;
-    width: 70px;
+  margin: auto;
+  height: 50px;
+  width: 70px;
 }
 
 .context_menu_container {
-    display: inline-block !important;
-    white-space: nowrap !important;
-    overflow-x: scroll;
+  display: inline-block !important;
+  white-space: nowrap !important;
+  overflow-x: scroll;
 }
 
 .context_menu_container > li {
-    display: inline-block !important;
+  display: inline-block !important;
 }

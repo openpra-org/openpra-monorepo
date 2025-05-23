@@ -1,6 +1,6 @@
 import { DataTable } from "./templatetable/dataTable";
 
-function InitiatingEventsTable(): JSX.Element {
+const InitiatingEventsTable = (): JSX.Element => {
   //data has fields for every label
   //fth is 5th, nfth is 95th
   const rows = [
@@ -149,6 +149,6 @@ function InitiatingEventsTable(): JSX.Element {
       columns={columns}
     />
   );
-}
+};
 
 export { InitiatingEventsTable };

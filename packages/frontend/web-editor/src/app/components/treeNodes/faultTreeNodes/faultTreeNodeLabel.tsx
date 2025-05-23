@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import { useState } from "react";
+
 import styles from "./styles/faultTreeNodeStyles.module.css";
 
 interface FaultTreeNodeLabelProps {

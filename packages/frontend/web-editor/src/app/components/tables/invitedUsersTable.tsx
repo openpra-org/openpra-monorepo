@@ -1,20 +1,21 @@
 import {
-  formatDate,
+  Criteria,
   EuiBasicTable,
   EuiBasicTableColumn,
-  EuiTableFieldDataColumnType,
-  Criteria,
-  EuiText,
-  EuiSpacer,
   EuiHorizontalRule,
+  EuiSpacer,
+  EuiTableFieldDataColumnType,
+  EuiText,
   copyToClipboard,
+  formatDate,
 } from "@elastic/eui";
-import { InvitedUserDetailsDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
-import { useMemo, useState } from "react";
 import { DefaultItemAction } from "@elastic/eui/src/components/basic_table/action_types";
+import { useMemo, useState } from "react";
 import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
-import { UseToastContext } from "../../providers/toastProvider";
+import { InvitedUserDetailsDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
+
 import { GenerateUUID } from "../../../utils/treeUtils";
+import { UseToastContext } from "../../providers/toastProvider";
 
 const InvitedUsersTable = ({
   invitedUsers,
@@ -131,16 +132,14 @@ const InvitedUsersTable = ({
     pageSizeOptions: [10, 0],
   };
   const resultsCount =
-    pageSize === 0 ? (
+    pageSize === 0 ?
       <strong>All</strong>
-    ) : (
-      <>
+    : <>
         <strong>
           {pageSize * pageIndex + 1}-{pageSize * pageIndex + pageSize}
         </strong>{" "}
         of {totalItemCount}
-      </>
-    );
+      </>;
 
   const columns: EuiBasicTableColumn<InvitedUserDetailsDto>[] = [
     {

@@ -1,4 +1,5 @@
 import { EdgeTypes } from "reactflow";
+
 import { EventSequenceEdge } from "./eventSequenceEdge";
 
 /**

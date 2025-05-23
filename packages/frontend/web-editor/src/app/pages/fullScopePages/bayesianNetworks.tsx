@@ -1,31 +1,32 @@
+import { EuiToast } from "@elastic/eui";
 import React, { useCallback, useRef, useState } from "react";
-import "reactflow/dist/style.css";
 import { Route, Routes } from "react-router-dom";
-import { shallow } from "zustand/shallow";
 import ReactFlow, {
-  Node,
   Background,
   Controls,
-  Panel,
-  ReactFlowProvider,
-  FitViewOptions,
-  ProOptions,
-  NodeOrigin,
-  OnConnectStart,
-  OnConnectEnd,
-  useStoreApi,
-  useReactFlow,
   Edge,
+  FitViewOptions,
   MarkerType,
+  Node,
+  NodeOrigin,
+  OnConnectEnd,
+  OnConnectStart,
+  Panel,
+  ProOptions,
+  ReactFlowProvider,
+  useReactFlow,
+  useStoreApi,
 } from "reactflow";
-import { EuiToast } from "@elastic/eui";
-import { BayesianNetworkList } from "../../components/lists/nestedLists/bayesianNetworkList";
-import { MindMapNode } from "../../components/treeNodes/bayesianNetwork/mindMapNode";
-import { MindMapEdge } from "../../components/treeEdges/bayesianNetworkEdges/mindMapEdge";
-import CustomMiniMap from "../../components/minimap/minimap";
-import { BayesianNodeContextMenu } from "../../components/context_menu/bayesianNodeContextMenu";
-import { UseStore, RFState } from "../../hooks/bayesianNetwork/mindmap/useStore";
+import "reactflow/dist/style.css";
+import { shallow } from "zustand/shallow";
+
 import { GetEdgeParams } from "../../../utils/bayesianNodeIntersectionCalculator";
+import { BayesianNodeContextMenu } from "../../components/context_menu/bayesianNodeContextMenu";
+import { BayesianNetworkList } from "../../components/lists/nestedLists/bayesianNetworkList";
+import CustomMiniMap from "../../components/minimap/minimap";
+import { MindMapEdge } from "../../components/treeEdges/bayesianNetworkEdges/mindMapEdge";
+import { MindMapNode } from "../../components/treeNodes/bayesianNetwork/mindMapNode";
+import { RFState, UseStore } from "../../hooks/bayesianNetwork/mindmap/useStore";
 
 /**
  * Selector type defining the parts of the state to be extracted.
@@ -84,7 +85,7 @@ type ExtendedNode = {
  * It includes functionality for node and edge manipulation, context menu actions, and cycle detection.
  * @returns \{JSX.Element\} The rendered React Flow environment with nodes and edges.
  */
-function ReactFlowPro(): JSX.Element {
+const ReactFlowPro = (): JSX.Element => {
   const { nodes, edges, onNodesChange, onEdgesChange } = UseStore(selector, shallow);
   const reactFlow = useReactFlow();
   const connectingNodeId = useRef<string | null>(null);
@@ -285,8 +286,8 @@ function ReactFlowPro(): JSX.Element {
         onConnectEnd={onConnectEnd}
         minZoom={1.6}
         fitViewOptions={fitViewOptions}
-        nodesDraggable={true}
-        nodesConnectable={true}
+        nodesDraggable
+        nodesConnectable
         fitView
       >
         <Background />
@@ -324,27 +325,27 @@ function ReactFlowPro(): JSX.Element {
       )}
     </>
   );
-}
+};
 
 /**
  * Top-level component that provides the context necessary for the ReactFlowPro component to function.
  * This component wraps ReactFlowPro in a ReactFlowProvider.
  * @returns \{JSX.Element\} The ReactFlowProvider component that contains ReactFlowPro.
  */
-export function BayesianNetworkEditor(): JSX.Element {
+export const BayesianNetworkEditor = (): JSX.Element => {
   return (
     <ReactFlowProvider>
       <ReactFlowPro />
     </ReactFlowProvider>
   );
-}
+};
 
 /**
  * Component that acts as a router for Bayesian network visualization and editing.
  * It routes between a list of Bayesian networks and individual network editors.
  * @returns \{JSX.Element\} The Routes component that manages navigation between different Bayesian network views.
  */
-function BayesianNetworks(): JSX.Element {
+const BayesianNetworks = (): JSX.Element => {
   return (
     <Routes>
       <Route
@@ -357,6 +358,6 @@ function BayesianNetworks(): JSX.Element {
       />
     </Routes>
   );
-}
+};
 
 export { BayesianNetworks };

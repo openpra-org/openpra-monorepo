@@ -1,30 +1,31 @@
 import {
-  EuiFlyout,
-  EuiForm,
-  EuiFlyoutHeader,
-  EuiTitle,
-  EuiText,
-  EuiFlyoutBody,
-  EuiSpacer,
+  EuiButton,
   EuiButtonGroup,
-  EuiFlyoutFooter,
+  EuiFieldNumber,
   EuiFieldText,
-  EuiFormRow,
-  EuiSelect,
-  EuiTextArea,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiButton,
-  EuiFieldNumber,
+  EuiFlyout,
+  EuiFlyoutBody,
+  EuiFlyoutFooter,
+  EuiFlyoutHeader,
+  EuiForm,
+  EuiFormRow,
+  EuiSelect,
+  EuiSpacer,
+  EuiText,
+  EuiTextArea,
+  EuiTitle,
   copyToClipboard,
 } from "@elastic/eui";
 import { ChangeEvent, useState } from "react";
 import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
 import { InviteIdDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
-import { ExpiryOptions } from "../settings/users";
-import { DefaultSignupProps } from "../login/signUp";
-import { UseToastContext } from "../../providers/toastProvider";
+
 import { GetESToast } from "../../../utils/treeUtils";
+import { UseToastContext } from "../../providers/toastProvider";
+import { DefaultSignupProps } from "../login/signUp";
+import { ExpiryOptions } from "../settings/users";
 
 const buttons = [
   {
@@ -124,7 +125,7 @@ const InviteMultipleUsersFlyout = ({
           <EuiSpacer />
 
           <EuiFormRow label={"Starting Project"}>
-            <EuiFieldText></EuiFieldText>
+            <EuiFieldText />
           </EuiFormRow>
           <EuiSpacer />
           <EuiText>Select type of invite:</EuiText>
@@ -160,7 +161,7 @@ const InviteMultipleUsersFlyout = ({
                   onChange={(e): void => {
                     setNumberOfInvites(Number(e.target.value));
                   }}
-                ></EuiFieldNumber>
+                />
               </EuiFormRow>
             </>
           )}
@@ -168,7 +169,7 @@ const InviteMultipleUsersFlyout = ({
             <>
               <EuiSpacer />
               <EuiFormRow label={"List of emails"}>
-                <EuiTextArea placeholder={"xyz@gmail.com, abc@gmail.com"}></EuiTextArea>
+                <EuiTextArea placeholder={"xyz@gmail.com, abc@gmail.com"} />
               </EuiFormRow>
             </>
           )}
@@ -176,7 +177,7 @@ const InviteMultipleUsersFlyout = ({
       </EuiFlyoutBody>
       <EuiFlyoutFooter>
         <EuiFlexGroup justifyContent="spaceBetween">
-          <EuiFlexItem grow={false}></EuiFlexItem>
+          <EuiFlexItem grow={false} />
           <EuiFlexItem grow={false}>
             <EuiButton
               fill

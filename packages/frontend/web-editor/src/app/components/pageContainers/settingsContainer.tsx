@@ -1,17 +1,18 @@
 import { EuiPageTemplate } from "@elastic/eui";
 import { Outlet } from "react-router-dom";
+
 import { SettingsNav } from "../sidenavs/settingsNav";
 
 /**
  * The main container for the Settings Page
  * @returns - EuiPageTemplate containing the settings page
  */
-export function SettingsContainer(): JSX.Element {
+export const SettingsContainer = (): JSX.Element => {
   return (
     <EuiPageTemplate
       panelled={false}
       offset={0}
-      grow={true}
+      grow
       restrictWidth={false}
     >
       <EuiPageTemplate.Sidebar
@@ -25,4 +26,4 @@ export function SettingsContainer(): JSX.Element {
       <Outlet />
     </EuiPageTemplate>
   );
-}
+};

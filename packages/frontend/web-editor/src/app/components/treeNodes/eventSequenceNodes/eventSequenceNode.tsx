@@ -1,11 +1,12 @@
-import { Handle, Node, NodeProps, Position, useReactFlow } from "reactflow";
-import { memo, MemoExoticComponent, useCallback, useState } from "react";
-import cx from "classnames";
 import { EuiTextArea, useEuiFontSize } from "@elastic/eui";
+import cx from "classnames";
 import { debounce } from "lodash";
+import { memo, MemoExoticComponent, useCallback, useState } from "react";
+import { Handle, Node, NodeProps, Position, useReactFlow } from "reactflow";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { UseNodeClick } from "../../../hooks/eventSequence/useNodeClick";
+
 import { GetESToast } from "../../../../utils/treeUtils";
+import { UseNodeClick } from "../../../hooks/eventSequence/useNodeClick";
 import { UseToastContext } from "../../../providers/toastProvider";
 import { EventSequenceNodeProps, EventSequenceNodeTypes } from "./eventSequenceNodeType";
 import styles from "./styles/nodeTypes.module.css";
@@ -19,7 +20,7 @@ const stylesMap = styles as Record<string, string>;
  * @param data - Node properties
  * @returns Editable Label and Handles for the node
  */
-function GetNodeElements(id: NodeProps["id"], type: string, data: EventSequenceNodeProps): JSX.Element {
+const GetNodeElements = (id: NodeProps["id"], type: string, data: EventSequenceNodeProps): JSX.Element => {
   let handles: JSX.Element;
   const { getNodes, setNodes } = useReactFlow();
   const [nodeLabel, setNodeLabel] = useState(data.label ?? "");
@@ -112,7 +113,7 @@ function GetNodeElements(id: NodeProps["id"], type: string, data: EventSequenceN
         style={{ fontSize: fontSize }}
         placeholder="Node Label"
         value={nodeLabel}
-        fullWidth={true}
+        fullWidth
         onChange={onNodeLabelChange}
         resize={"none"}
         readOnly={data.tentative === true || data.branchId !== undefined}
@@ -121,7 +122,7 @@ function GetNodeElements(id: NodeProps["id"], type: string, data: EventSequenceN
       {handles}
     </>
   );
-}
+};
 
 /**
  * Get the node component -
@@ -134,7 +135,7 @@ function GetNodeElements(id: NodeProps["id"], type: string, data: EventSequenceN
  * @param borderClassName - CSS Class for the node's border component
  * (present for custom shaped nodes like intermediate/end-state/transfer-state/undeveloped)
  */
-function GetNode(
+const GetNode = (
   id: NodeProps["id"],
   type: EventSequenceNodeTypes,
   selected: boolean,
@@ -142,7 +143,7 @@ function GetNode(
   className: string,
   testId: string,
   borderClassName: string | undefined = undefined,
-): JSX.Element {
+): JSX.Element => {
   const border = selected && !data.tentative ? "#02337c" : "#0984e3";
   const onClick = UseNodeClick(id, data);
   const nodeElements: JSX.Element = GetNodeElements(id, type, data);
@@ -171,7 +172,7 @@ function GetNode(
           <div
             className={borderClassName}
             style={{ borderColor: border }}
-          ></div>
+          />
           <div
             className={className}
             data-testid={testId}
@@ -187,7 +188,7 @@ function GetNode(
     default:
       throw new Error("Node Type invalid");
   }
-}
+};
 
 /**
  * Get the node container for the node component
@@ -196,25 +197,23 @@ function GetNode(
  * @param style - Apply styling for opacity - not required for initiating node
  * @param tentative - Flag for tentative node state - for node border during deletion process
  */
-function GetNodeContainer(
+const GetNodeContainer = (
   nodeComponent: JSX.Element,
   className: string,
   style: boolean,
   tentative: boolean | undefined,
-): JSX.Element {
-  return style ? (
-    <div
-      className={className}
-      style={{
-        opacity: tentative ? "0.5" : "1",
-      }}
-    >
-      {nodeComponent}
-    </div>
-  ) : (
-    <div className={className}>{nodeComponent}</div>
-  );
-}
+): JSX.Element => {
+  return style ?
+      <div
+        className={className}
+        style={{
+          opacity: tentative ? "0.5" : "1",
+        }}
+      >
+        {nodeComponent}
+      </div>
+    : <div className={className}>{nodeComponent}</div>;
+};
 
 /**
  * Get Node component according to the type and other properties

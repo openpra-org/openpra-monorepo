@@ -1,13 +1,14 @@
 import { EuiPageTemplate, EuiSkeletonRectangle } from "@elastic/eui";
+
 import { InitiatingEventModelViewTable } from "../../components/tables/initiatingEventModelViewTable";
 
-function InitiatingEventModelView(): JSX.Element {
+const InitiatingEventModelView = (): JSX.Element => {
   return (
     <EuiPageTemplate
       panelled={false}
       offset={48}
-      grow={true}
-      restrictWidth={true}
+      grow
+      restrictWidth
     >
       <EuiPageTemplate.Section>
         <EuiSkeletonRectangle
@@ -22,6 +23,6 @@ function InitiatingEventModelView(): JSX.Element {
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
-}
+};
 
 export { InitiatingEventModelView };

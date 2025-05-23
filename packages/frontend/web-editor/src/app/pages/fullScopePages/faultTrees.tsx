@@ -9,7 +9,15 @@
  *
  * The graph elements are added via hook calls in the custom nodes and edges. The layout is calculated every time the graph changes (see hooks/useLayout.ts).
  **/
+import {
+  EuiButtonIcon,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiPopover,
+  EuiSkeletonRectangle,
+} from "@elastic/eui";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Route, Routes, useParams } from "react-router-dom";
 import ReactFlow, {
   Background,
   Edge,
@@ -21,30 +29,34 @@ import ReactFlow, {
   ProOptions,
   ReactFlowProvider,
 } from "reactflow";
-
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { EuiButtonIcon, EuiFlexGroup, EuiFlexItem, EuiPopover, EuiSkeletonRectangle } from "@elastic/eui";
-import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import { Route, Routes, useParams } from "react-router-dom";
-import { shallow } from "zustand/shallow";
-import { UseLayout } from "../../hooks/faultTree/useLayout";
-import { FaultTreeNodeTypes } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
-import { EdgeTypes } from "../../components/treeEdges/faultTreeEdges/faultTreeEdgeType";
-
 import "reactflow/dist/style.css";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { shallow } from "zustand/shallow";
 
-import { FaultTreeList } from "../../components/lists/nestedLists/faultTreeList";
+import { EDITOR_REDO, EDITOR_UNDO, SMALL } from "../../../utils/constants";
+import {
+  allToasts,
+  initialEdges,
+  initialNodes,
+} from "../../../utils/faultTreeData";
+import {
+  exitGrayedState,
+  GenerateUUID,
+  isSubgraphGrayed,
+} from "../../../utils/treeUtils";
 import {
   FaultTreeNodeContextMenu,
   TreeNodeContextMenuProps,
 } from "../../components/context_menu/faultTreeNodeContextMenu";
-import { exitGrayedState, GenerateUUID, isSubgraphGrayed } from "../../../utils/treeUtils";
-import { allToasts, initialEdges, initialNodes } from "../../../utils/faultTreeData";
-import { RFState, useStore } from "../../store/faultTreeStore";
-import { useUndoRedo } from "../../hooks/faultTree/useUndeRedo";
-import { EDITOR_REDO, EDITOR_UNDO, SMALL } from "../../../utils/constants";
+import { FaultTreeList } from "../../components/lists/nestedLists/faultTreeList";
 import Minimap from "../../components/minimap/minimap";
+import { EdgeTypes } from "../../components/treeEdges/faultTreeEdges/faultTreeEdgeType";
+import { FaultTreeNodeTypes } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
+import { UseLayout } from "../../hooks/faultTree/useLayout";
+import { useUndoRedo } from "../../hooks/faultTree/useUndeRedo";
 import { UseToastContext } from "../../providers/toastProvider";
+import { RFState, useStore } from "../../store/faultTreeStore";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
@@ -70,13 +82,14 @@ const selector = (
   setEdges: state.setEdges,
 });
 
-function ReactFlowPro(): JSX.Element {
+const ReactFlowPro = (): JSX.Element => {
   // this hook call ensures that the layout is re-calculated every time the graph changes
   UseLayout();
   const [menu, setMenu] = useState<TreeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
-  const { nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges } = useStore(selector, shallow);
+  const { nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges } =
+    useStore(selector, shallow);
   const [isLoading, setIsLoading] = useState(true);
   const { faultTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
@@ -84,12 +97,14 @@ function ReactFlowPro(): JSX.Element {
 
   useEffect(() => {
     const loadGraph = async (): Promise<void> => {
-      await GraphApiManager.getFaultTree(faultTreeId).then((res: FaultTreeGraph) => {
-        setNodes(res.nodes.length !== 0 ? res.nodes : initialNodes);
-        setEdges(res.edges.length !== 0 ? res.edges : initialEdges);
+      await GraphApiManager.getFaultTree(faultTreeId).then(
+        (res: FaultTreeGraph) => {
+          setNodes(res.nodes.length !== 0 ? res.nodes : initialNodes);
+          setEdges(res.edges.length !== 0 ? res.edges : initialEdges);
 
-        setIsLoading(false);
-      });
+          setIsLoading(false);
+        },
+      );
     };
     void (isLoading && loadGraph());
   }, [faultTreeId, isLoading, nodes, setEdges, setNodes]);
@@ -114,8 +129,12 @@ function ReactFlowPro(): JSX.Element {
         id: node.id,
         top: event.clientY < pane.height - 200 && event.clientY,
         left: event.clientX - 320 < pane.width - 200 && event.clientX - 320,
-        right: event.clientX - 320 >= pane.width - 200 && pane.width - event.clientX - 800,
-        bottom: event.clientY >= pane.height - 200 && pane.height - event.clientY - 800,
+        right:
+          event.clientX - 320 >= pane.width - 200 &&
+          pane.width - event.clientX - 800,
+        bottom:
+          event.clientY >= pane.height - 200 &&
+          pane.height - event.clientY - 800,
       });
     },
     [nodes, edges, isOpen, setNodes, setEdges],
@@ -146,7 +165,7 @@ function ReactFlowPro(): JSX.Element {
       isLoading={isLoading}
       width={"100%"}
       height={500}
-    ></EuiSkeletonRectangle>
+    />
   ) : (
     <ReactFlow
       ref={ref}
@@ -223,17 +242,17 @@ function ReactFlowPro(): JSX.Element {
       </EuiPopover>
     </ReactFlow>
   );
-}
+};
 
-export function FaultTreeEditor(): JSX.Element {
+export const FaultTreeEditor = (): JSX.Element => {
   return (
     <ReactFlowProvider>
       <ReactFlowPro />
     </ReactFlowProvider>
   );
-}
+};
 
-function FaultTrees(): JSX.Element {
+const FaultTrees = (): JSX.Element => {
   return (
     <Routes>
       <Route
@@ -246,6 +265,6 @@ function FaultTrees(): JSX.Element {
       />
     </Routes>
   );
-}
+};
 
 export { FaultTrees };

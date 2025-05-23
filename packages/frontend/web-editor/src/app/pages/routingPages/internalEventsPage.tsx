@@ -1,31 +1,32 @@
 import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
+
+import { GlobalToastList } from "../../components/lists/globalToastList";
+import { RadiologicalConsequenceAnalysisList } from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
 import { InternalEventsList } from "../../components/lists/workspaceLists/internalEventsList";
-import { EventSequenceDiagrams } from "../fullScopePages/eventSequenceDiagrams";
-import { BayesianNetworks } from "../fullScopePages/bayesianNetworks";
-import { ModelSettings } from "../fullScopePages/modelSettings";
-import { InitiatingEvents } from "../fullScopePages/initiatingEvents";
-import { EventTrees } from "../fullScopePages/eventTrees";
 import { InternalEventsContainer } from "../../components/pageContainers/internalEventsContainer";
-import { FunctionalEvents } from "../fullScopePages/functionalEvents";
+import { ToastProvider } from "../../providers/toastProvider";
 import { BayesianEstimation } from "../fullScopePages/bayesianEstimation";
-import { MechanisticAnalysis } from "../fullScopePages/mechanisticAnalysis";
-import { RiskIntegration } from "../fullScopePages/riskIntegration";
-import { WeibullAnalysis } from "../fullScopePages/weibullAnalysis";
-import { MarkovChains } from "../fullScopePages/markovChains";
-import { HRA } from "../fullScopePages/humanReliabilityAnalysis";
+import { BayesianNetworks } from "../fullScopePages/bayesianNetworks";
 import { DataAnalysis } from "../fullScopePages/dataAnalysis";
 import { EventSequenceAnalysis } from "../fullScopePages/eventSequenceAnalysis";
+import { EventSequenceDiagrams } from "../fullScopePages/eventSequenceDiagrams";
+import { EventSequenceQuantificationDiagrams } from "../fullScopePages/eventSequenceQuantificationDiagrams";
+import { EventTrees } from "../fullScopePages/eventTrees";
+import { FaultTrees } from "../fullScopePages/faultTrees";
+import { FunctionalEvents } from "../fullScopePages/functionalEvents";
+import { HeatBalanceFaultTrees } from "../fullScopePages/heatBalanceFaultTree";
+import { HRA } from "../fullScopePages/humanReliabilityAnalysis";
+import { InitiatingEventModelView } from "../fullScopePages/initiatingEventModelView";
+import { InitiatingEvents } from "../fullScopePages/initiatingEvents";
+import { MarkovChains } from "../fullScopePages/markovChains";
+import { MechanisticAnalysis } from "../fullScopePages/mechanisticAnalysis";
+import { ModelSettings } from "../fullScopePages/modelSettings";
 import { OperatingStateAnalysis } from "../fullScopePages/operatingStateAnalysis";
+import { RiskIntegration } from "../fullScopePages/riskIntegration";
 import { SuccessCriteria } from "../fullScopePages/successCriteria";
 import { SystemsAnalysis } from "../fullScopePages/systemsAnalysis";
-import { EventSequenceQuantificationDiagrams } from "../fullScopePages/eventSequenceQuantificationDiagrams";
-import { RadiologicalConsequenceAnalysisList } from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
-import { FaultTrees } from "../fullScopePages/faultTrees";
-import { InitiatingEventModelView } from "../fullScopePages/initiatingEventModelView";
-import { GlobalToastList } from "../../components/lists/globalToastList";
-import { ToastProvider } from "../../providers/toastProvider";
-import { HeatBalanceFaultTrees } from "../fullScopePages/heatBalanceFaultTree";
+import { WeibullAnalysis } from "../fullScopePages/weibullAnalysis";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -69,7 +70,7 @@ export function LoadModel(): ModelProps {
 //   return TypedModelApiManager.getInternalEvents(ApiManager.getCurrentUser().user_id)
 // }
 
-function InternalEventsPage(): JSX.Element {
+const InternalEventsPage = (): JSX.Element => {
   return (
     <ToastProvider>
       <Routes>
@@ -183,6 +184,6 @@ function InternalEventsPage(): JSX.Element {
       <GlobalToastList />
     </ToastProvider>
   );
-}
+};
 
 export { InternalEventsPage };

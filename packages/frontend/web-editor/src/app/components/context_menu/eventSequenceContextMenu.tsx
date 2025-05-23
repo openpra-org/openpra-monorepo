@@ -1,10 +1,16 @@
-import React, { useCallback } from "react";
 import { EuiContextMenu, EuiIcon } from "@elastic/eui";
 import { EuiContextMenuPanelDescriptor } from "@elastic/eui/src/components/context_menu";
 import { EuiContextMenuPanelItemDescriptor } from "@elastic/eui/src/components/context_menu/context_menu";
-import { useReactFlow, Node, NodeProps } from "reactflow";
+import { useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { EventSequenceNodeProps, EventSequenceNodeTypes } from "../treeNodes/eventSequenceNodes/eventSequenceNodeType";
+import { Node, NodeProps, useReactFlow } from "reactflow";
+
+import DescriptionNodeIcon from "../../../assets/images/nodeIcons/descriptionNodeIcon.svg";
+import EndStateNodeIcon from "../../../assets/images/nodeIcons/endStateNodeIcon.svg";
+import FunctionalNodeIcon from "../../../assets/images/nodeIcons/functionalNodeIcon.svg";
+import IntermediateNodeIcon from "../../../assets/images/nodeIcons/intermediateNodeIcon.svg";
+import TransferStateNodeIcon from "../../../assets/images/nodeIcons/transferStateNodeIcon.svg";
+import UndevelopedNodeIcon from "../../../assets/images/nodeIcons/undevelopedNodeIcon.svg";
 import {
   DeleteEventSequenceNode,
   GetChildCount,
@@ -14,14 +20,9 @@ import {
   UpdateEventSequenceDiagram,
   UpdateEventSequenceNode,
 } from "../../../utils/treeUtils";
-import FunctionalNodeIcon from "../../../assets/images/nodeIcons/functionalNodeIcon.svg";
-import DescriptionNodeIcon from "../../../assets/images/nodeIcons/descriptionNodeIcon.svg";
-import IntermediateNodeIcon from "../../../assets/images/nodeIcons/intermediateNodeIcon.svg";
-import EndStateNodeIcon from "../../../assets/images/nodeIcons/endStateNodeIcon.svg";
-import TransferStateNodeIcon from "../../../assets/images/nodeIcons/transferStateNodeIcon.svg";
-import UndevelopedNodeIcon from "../../../assets/images/nodeIcons/undevelopedNodeIcon.svg";
-import { UseToastContext } from "../../providers/toastProvider";
 import { UseFocusContext } from "../../providers/focusProvider";
+import { UseToastContext } from "../../providers/toastProvider";
+import { EventSequenceNodeProps, EventSequenceNodeTypes } from "../treeNodes/eventSequenceNodes/eventSequenceNodeType";
 import { EventSequenceContextMenuOptions } from "./interfaces/eventSequenceContextMenuOptions.interface";
 
 /**
@@ -29,7 +30,7 @@ import { EventSequenceContextMenuOptions } from "./interfaces/eventSequenceConte
  * @param EventSequenceContextMenuOptions - options to load the menu
  * @returns JSX Element
  */
-function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequenceContextMenuOptions): JSX.Element {
+const EventSequenceContextMenu = ({ id, onClick, isDelete = false }: EventSequenceContextMenuOptions): JSX.Element => {
   const { fitView, getNode, getNodes, getEdges, setNodes, setEdges } = useReactFlow();
   const { addToast } = UseToastContext();
   const { eventSequenceId } = useParams() as { eventSequenceId: string };
@@ -134,7 +135,7 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
           type="wrench"
           size={"m"}
           color={"#0984e3"}
-        ></EuiIcon>
+        />
       ),
       panel: 1,
     },
@@ -147,7 +148,7 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
           type="trash"
           size={"m"}
           color={"#0984e3"}
-        ></EuiIcon>
+        />
       ),
       onClick: (): void => {
         onItemClick(id, "delete");
@@ -170,7 +171,7 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
             <EuiIcon
               type={FunctionalNodeIcon}
               size={"l"}
-            ></EuiIcon>
+            />
           ),
           onClick: (): void => {
             onItemClick(id, "functional");
@@ -182,7 +183,7 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
             <EuiIcon
               type={DescriptionNodeIcon}
               size={"l"}
-            ></EuiIcon>
+            />
           ),
           onClick: (): void => {
             onItemClick(id, "description");
@@ -194,7 +195,7 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
             <EuiIcon
               type={IntermediateNodeIcon}
               size={"l"}
-            ></EuiIcon>
+            />
           ),
           onClick: (): void => {
             onItemClick(id, "intermediate");
@@ -206,7 +207,7 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
             <EuiIcon
               type={EndStateNodeIcon}
               size={"l"}
-            ></EuiIcon>
+            />
           ),
           onClick: (): void => {
             onItemClick(id, "end");
@@ -218,7 +219,7 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
             <EuiIcon
               type={TransferStateNodeIcon}
               size={"l"}
-            ></EuiIcon>
+            />
           ),
           onClick: (): void => {
             onItemClick(id, "transfer");
@@ -230,7 +231,7 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
             <EuiIcon
               type={UndevelopedNodeIcon}
               size={"l"}
-            ></EuiIcon>
+            />
           ),
           onClick: (): void => {
             onItemClick(id, "undeveloped");
@@ -247,5 +248,5 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
       size={"s"}
     />
   );
-}
+};
 export { EventSequenceContextMenu };

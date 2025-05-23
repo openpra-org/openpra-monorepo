@@ -1,19 +1,19 @@
+import { EuiPageBody, EuiPageHeaderProps, EuiPageTemplate, useEuiTheme } from "@elastic/eui";
 import { EuiPageBodyProps } from "@elastic/eui/src/components/page/page_body/page_body";
-import { EuiPageBody, EuiPageHeaderProps, useEuiTheme, EuiPageTemplate } from "@elastic/eui";
 import { EuiPageSectionProps } from "@elastic/eui/src/components/page/page_section/page_section";
 
 export type TemplatedPageBodyProps = {
   headerProps?: EuiPageHeaderProps;
   sectionProps?: EuiPageSectionProps;
 } & EuiPageBodyProps;
-function TemplatedPageBody({
+const TemplatedPageBody = ({
   panelled,
   children,
   restrictWidth,
   sectionProps,
   headerProps,
   ...rest
-}: TemplatedPageBodyProps): JSX.Element {
+}: TemplatedPageBodyProps): JSX.Element => {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.l;
   const isPanelled = panelled ?? true;
   const width = restrictWidth ?? largeScreenBreakpoint;
@@ -34,5 +34,5 @@ function TemplatedPageBody({
       </EuiPageTemplate.Section>
     </EuiPageBody>
   );
-}
+};
 export { TemplatedPageBody };

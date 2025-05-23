@@ -7,9 +7,9 @@ import {
   EuiPopover,
   EuiText,
 } from "@elastic/eui";
-import { SetStateAction, useCallback, useEffect, useState } from "react";
 import { EuiDataGridColumnSortingConfig } from "@elastic/eui/src/components/datagrid/data_grid_types";
-import { groupBy, set } from "lodash";
+import { groupBy } from "lodash";
+import { SetStateAction, useCallback, useState } from "react";
 
 interface DataTableProps {
   rows: any[];
@@ -31,7 +31,7 @@ interface CellValueProps {
  * @returns The `EuiDataGrid` component populated with the provided data.
  */
 
-function DataTable({ rows, columns, onRowClick }: DataTableProps): JSX.Element {
+const DataTable = ({ rows, columns, onRowClick }: DataTableProps): JSX.Element => {
   /**
    * State to manage the visibility of columns in the data grid.
    */
@@ -193,7 +193,7 @@ function DataTable({ rows, columns, onRowClick }: DataTableProps): JSX.Element {
                 onClick={() => {
                   handleGroupHeaderClick(row.group);
                 }}
-              ></div>
+              />
             );
           }
         }
@@ -250,7 +250,7 @@ function DataTable({ rows, columns, onRowClick }: DataTableProps): JSX.Element {
         </EuiPopover>
       </EuiFlexGroup>
       <EuiFlexGroup className="eui-xScroll">
-        <EuiFlexItem grow={true}>
+        <EuiFlexItem grow>
           <EuiDataGrid
             columns={columns}
             columnVisibility={{ visibleColumns, setVisibleColumns }}
@@ -274,6 +274,6 @@ function DataTable({ rows, columns, onRowClick }: DataTableProps): JSX.Element {
       </EuiFlexGroup>
     </div>
   );
-}
+};
 
 export { DataTable };

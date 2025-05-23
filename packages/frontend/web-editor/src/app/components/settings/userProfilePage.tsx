@@ -3,24 +3,24 @@ import {
   EuiFlexGroup,
   EuiFlexItem,
   EuiIcon,
+  EuiIconTip,
   EuiPageHeader,
   EuiPageTemplate,
+  EuiSkeletonLoading,
   EuiSpacer,
   EuiText,
-  EuiIconTip,
-  EuiSkeletonLoading,
   useIsWithinBreakpoints,
 } from "@elastic/eui";
 import { useEffect, useState } from "react";
-import { MemberResult } from "shared-types/src/lib/api/Members";
 import { useNavigate } from "react-router-dom";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { MemberResult } from "shared-types/src/lib/api/Members";
 
 /**
  * Function returns the main user profile page
  *
  */
-export function UserProfilePage({ id }: { id: number }): JSX.Element {
+export const UserProfilePage = ({ id }: { id: number }): JSX.Element => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [onDetails, setOnDetails] = useState<boolean>(false);
   const [currentMember, setCurrentMember] = useState<MemberResult>();
@@ -45,8 +45,8 @@ export function UserProfilePage({ id }: { id: number }): JSX.Element {
           panelled={false}
           offset={48}
           paddingSize="xl"
-          grow={true}
-          restrictWidth={true}
+          grow
+          restrictWidth
         >
           <EuiPageTemplate.Section>
             <EuiText>Loading Data...</EuiText>
@@ -58,15 +58,15 @@ export function UserProfilePage({ id }: { id: number }): JSX.Element {
           panelled={false}
           offset={48}
           paddingSize="xl"
-          grow={true}
-          restrictWidth={true}
+          grow
+          restrictWidth
         >
           <EuiPageHeader
             pageTitle={currentMember?.firstName + " " + currentMember?.lastName}
             paddingSize="xl"
             data-testid="profile-name"
-          ></EuiPageHeader>
-          <EuiPageTemplate.Section grow={true}>
+          />
+          <EuiPageTemplate.Section grow>
             <EuiAvatar
               size="xl"
               name={currentMember?.firstName + " " + currentMember?.lastName}
@@ -123,7 +123,7 @@ export function UserProfilePage({ id }: { id: number }): JSX.Element {
                   <EuiText size="s">{currentMember?.username}</EuiText>
                 </EuiFlexItem>
               </EuiFlexGroup>
-              <EuiSpacer></EuiSpacer>
+              <EuiSpacer />
               <EuiFlexGroup
                 alignItems="flexStart"
                 responsive={false}
@@ -142,6 +142,6 @@ export function UserProfilePage({ id }: { id: number }): JSX.Element {
           </EuiPageTemplate.Section>
         </EuiPageTemplate>
       }
-    ></EuiSkeletonLoading>
+    />
   );
-}
+};

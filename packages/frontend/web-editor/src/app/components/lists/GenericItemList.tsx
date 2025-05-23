@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { EuiFlexGrid, EuiFlexItem, EuiListGroup, EuiTablePagination } from "@elastic/eui";
+import { useEffect, useState } from "react";
 
 interface ItemListProps {
   children: JSX.Element[];
@@ -59,7 +59,7 @@ const GenericItemList: React.FC<ItemListProps> = ({ children }) => {
     <EuiFlexGrid gutterSize="s">
       <EuiFlexItem>
         <EuiListGroup
-          flush={true}
+          flush
           bordered={false}
           maxWidth={false}
           gutterSize="none"

@@ -1,10 +1,11 @@
 import { NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
-import { InitiatingEventsType } from "./TypesHelpers/InitiatingEventsType";
-import { EventSequenceDiagramsType } from "./TypesHelpers/EventSequenceDiagramsType";
-import { EventSequenceAnalysisType } from "./TypesHelpers/EventSequenceAnalysisType";
-import { EventTreesType } from "./TypesHelpers/EventTreesType";
+
 import { BayesianNetworksType } from "./TypesHelpers/BayesianNetworksType";
+import { EventSequenceAnalysisType } from "./TypesHelpers/EventSequenceAnalysisType";
+import { EventSequenceDiagramsType } from "./TypesHelpers/EventSequenceDiagramsType";
+import { EventTreesType } from "./TypesHelpers/EventTreesType";
 import { FaultTreesType } from "./TypesHelpers/FaultTreesType";
+import { InitiatingEventsType } from "./TypesHelpers/InitiatingEventsType";
 
 export interface NestedModelsStateType {
   parentId: string;

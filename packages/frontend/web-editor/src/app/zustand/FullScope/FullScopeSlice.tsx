@@ -1,8 +1,9 @@
 import { StateCreator } from "zustand";
+
 import { SliceResetFns, StoreActionType, StoreStateType } from "../Store";
-import { FullScopeActionsType, FullScopeType } from "./FullScopeTypes";
-import { FullScopeState } from "./FullScopeState";
 import { AddFullScope, DeleteFullScope, EditFullScope, SetFullScope } from "./FullScopeActions";
+import { FullScopeState } from "./FullScopeState";
+import { FullScopeActionsType, FullScopeType } from "./FullScopeTypes";
 
 const FullScopeSlice: StateCreator<StoreStateType & StoreActionType, [], [], FullScopeType & FullScopeActionsType> = (
   set,

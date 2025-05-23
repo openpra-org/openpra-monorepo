@@ -1,14 +1,15 @@
-import { memo, MemoExoticComponent, useCallback, useState } from "react";
-import { EdgeProps, getBezierPath, Edge, useReactFlow } from "reactflow";
 import { EuiFieldText } from "@elastic/eui";
 import cx from "classnames";
 import { debounce } from "lodash";
+import { memo, MemoExoticComponent, useCallback, useState } from "react";
+import { Edge, EdgeProps, getBezierPath, useReactFlow } from "reactflow";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { UseEdgeClick } from "../../../hooks/eventSequence/useEdgeClick";
+
 import { GetESToast } from "../../../../utils/treeUtils";
+import { UseEdgeClick } from "../../../hooks/eventSequence/useEdgeClick";
 import { UseToastContext } from "../../../providers/toastProvider";
-import styles from "./styles/edgeType.module.css";
 import { EventSequenceEdgeProps } from "./eventSequenceEdgeType";
+import styles from "./styles/edgeType.module.css";
 
 function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentType<EdgeProps<EventSequenceEdgeProps>>> {
   return memo(
@@ -68,10 +69,9 @@ function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentTyp
         [updateHandler],
       );
       const edgeLabelElement =
-        type === "normal" ? (
-          <span style={{ width: 0 }}></span>
-        ) : (
-          <foreignObject
+        type === "normal" ?
+          <span style={{ width: 0 }} />
+        : <foreignObject
             x={10}
             y={-10}
             width={40}
@@ -82,12 +82,11 @@ function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentTyp
               placeholder="Label"
               value={edgeLabel}
               onChange={onEdgeLabelChange}
-              compressed={true}
+              compressed
               disabled={data.tentative}
               title={edgeLabel}
             />
-          </foreignObject>
-        );
+          </foreignObject>;
       const edgeBtn = (
         <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
           <rect
@@ -120,7 +119,9 @@ function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentTyp
             d={edgePath}
             markerEnd={markerEnd}
           />
-          {data.tentative ? <button style={{ width: 0 }}></button> : edgeBtn}
+          {data.tentative ?
+            <button style={{ width: 0 }} />
+          : edgeBtn}
         </>
       );
     },

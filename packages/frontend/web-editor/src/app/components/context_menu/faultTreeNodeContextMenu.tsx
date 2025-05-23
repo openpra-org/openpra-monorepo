@@ -1,6 +1,12 @@
-import React from "react";
 import { EuiContextMenu, EuiIcon } from "@elastic/eui";
-import { UseFaultTreeContextMenuClick } from "../../hooks/faultTree/useFaultTreeContextMenuClick";
+
+import AndGateIcon from "../../../assets/images/faultTreeNodeIcons/AndGateIcon.svg";
+import AtLeastIcon from "../../../assets/images/faultTreeNodeIcons/AtLeastGateIcon.svg";
+import BasicEventIcon from "../../../assets/images/faultTreeNodeIcons/BasicEventIcon.svg";
+import HouseEventIcon from "../../../assets/images/faultTreeNodeIcons/HouseEventIcon.svg";
+import NotGateIcon from "../../../assets/images/faultTreeNodeIcons/NotGateIcon.svg";
+import OrGateIcon from "../../../assets/images/faultTreeNodeIcons/OrGateIcon.svg";
+import TransferGateIcon from "../../../assets/images/faultTreeNodeIcons/TransferGateIcon.svg";
 import {
   AND_GATE,
   AND_GATE_LABEL,
@@ -29,13 +35,7 @@ import {
   UPDATE_NODE_TYPE,
   WRENCH,
 } from "../../../utils/constants";
-import AndGateIcon from "../../../assets/images/faultTreeNodeIcons/AndGateIcon.svg";
-import AtLeastIcon from "../../../assets/images/faultTreeNodeIcons/AtLeastGateIcon.svg";
-import OrGateIcon from "../../../assets/images/faultTreeNodeIcons/OrGateIcon.svg";
-import NotGateIcon from "../../../assets/images/faultTreeNodeIcons/NotGateIcon.svg";
-import TransferGateIcon from "../../../assets/images/faultTreeNodeIcons/TransferGateIcon.svg";
-import BasicEventIcon from "../../../assets/images/faultTreeNodeIcons/BasicEventIcon.svg";
-import HouseEventIcon from "../../../assets/images/faultTreeNodeIcons/HouseEventIcon.svg";
+import { UseFaultTreeContextMenuClick } from "../../hooks/faultTree/useFaultTreeContextMenuClick";
 
 export interface TreeNodeContextMenuProps {
   id: string;
@@ -65,7 +65,7 @@ const FaultTreeNodeContextMenu = ({
           type={WRENCH}
           size={MEDIUM}
           color={EDITOR_BLUE_COLOR}
-        ></EuiIcon>
+        />
       ),
       panel: 1,
     },
@@ -76,7 +76,7 @@ const FaultTreeNodeContextMenu = ({
           type={IMPORT_ACTION}
           size={MEDIUM}
           color={EDITOR_BLUE_COLOR}
-        ></EuiIcon>
+        />
       ),
     },
   ];
@@ -88,7 +88,7 @@ const FaultTreeNodeContextMenu = ({
           type={TRASH}
           size={MEDIUM}
           color={EDITOR_BLUE_COLOR}
-        ></EuiIcon>
+        />
       ),
       panel: 2,
     });
@@ -119,7 +119,7 @@ const FaultTreeNodeContextMenu = ({
             <EuiIcon
               type={AndGateIcon}
               size={LARGE}
-            ></EuiIcon>
+            />
           ),
           onClick: async (): Promise<void> => {
             await onItemClick(id, AND_GATE);
@@ -131,7 +131,7 @@ const FaultTreeNodeContextMenu = ({
             <EuiIcon
               type={OrGateIcon}
               size={LARGE}
-            ></EuiIcon>
+            />
           ),
           onClick: async (): Promise<void> => {
             await onItemClick(id, OR_GATE);
@@ -143,7 +143,7 @@ const FaultTreeNodeContextMenu = ({
             <EuiIcon
               type={AtLeastIcon}
               size={LARGE}
-            ></EuiIcon>
+            />
           ),
           onClick: async (): Promise<void> => {
             await onItemClick(id, ATLEAST_GATE);
@@ -155,7 +155,7 @@ const FaultTreeNodeContextMenu = ({
             <EuiIcon
               type={NotGateIcon}
               size={LARGE}
-            ></EuiIcon>
+            />
           ),
           onClick: async (): Promise<void> => {
             await onItemClick(id, NOT_GATE);
@@ -167,7 +167,7 @@ const FaultTreeNodeContextMenu = ({
             <EuiIcon
               type={TransferGateIcon}
               size={LARGE}
-            ></EuiIcon>
+            />
           ),
           onClick: async (): Promise<void> => {
             await onItemClick(id, TRANSFER_GATE);
@@ -179,7 +179,7 @@ const FaultTreeNodeContextMenu = ({
             <EuiIcon
               type={HouseEventIcon}
               size={LARGE}
-            ></EuiIcon>
+            />
           ),
           onClick: async (): Promise<void> => {
             await onItemClick(id, HOUSE_EVENT);
@@ -191,7 +191,7 @@ const FaultTreeNodeContextMenu = ({
             <EuiIcon
               type={BasicEventIcon}
               size={LARGE}
-            ></EuiIcon>
+            />
           ),
           onClick: async (): Promise<void> => {
             await onItemClick(id, BASIC_EVENT);

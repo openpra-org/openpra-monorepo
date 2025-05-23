@@ -44,5 +44,10 @@
     "@types/react": "18.2.38",
     "@types/react-dom": "18.2.17",
     "uuid": "9.0.1"
+  },
+  "scripts": {
+    "lint": "nx lint frontend-web-editor",
+    "lint:fix": "nx lint frontend-web-editor --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,scss,md,json}\""
   }
 }

@@ -1,6 +1,7 @@
-import { GlobalParametersList } from "../../components/lists/globalParametersList";
 import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
-function BasicEvents(): JSX.Element {
+import { GlobalParametersList } from "../../components/lists/globalParametersList";
+
+const BasicEvents = (): JSX.Element => {
   return (
     <TemplatedPageBody
       headerProps={{
@@ -11,6 +12,6 @@ function BasicEvents(): JSX.Element {
       <GlobalParametersList />
     </TemplatedPageBody>
   );
-}
+};
 
 export { BasicEvents };

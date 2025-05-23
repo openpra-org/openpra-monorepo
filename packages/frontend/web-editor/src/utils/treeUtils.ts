@@ -1,16 +1,17 @@
-import { EventSequenceGraph, EventTreeGraph, FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
-import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
-import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node } from "reactflow";
-import _ from "lodash";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { Toast } from "@elastic/eui/src/components/toast/global_toast_list";
 import { EuiToastProps } from "@elastic/eui/src/components/toast/toast";
+import _ from "lodash";
+import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node } from "reactflow";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { EventSequenceGraph, EventTreeGraph, FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
+import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
+
+import { EventSequenceEdgeProps } from "../app/components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 import {
   EventSequenceNodeProps,
   EventSequenceNodeTypes,
 } from "../app/components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
-import { EventSequenceEdgeProps } from "../app/components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 import { FaultTreeNodeProps } from "../app/components/treeNodes/faultTreeNodes/faultTreeNodeType";
 import { BASIC_EVENT, WORKFLOW } from "./constants";
 

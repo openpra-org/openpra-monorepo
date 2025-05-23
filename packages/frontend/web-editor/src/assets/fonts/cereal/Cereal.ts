@@ -1,9 +1,9 @@
-import CerealLightWoff2 from "./Cereal-Light.woff2";
-import CerealBookWoff2 from "./Cereal-Book.woff2";
-import CerealMediumWoff2 from "./Cereal-Medium.woff2";
-import CerealBoldWoff2 from "./Cereal-Bold.woff2";
-import CerealExtraBoldWoff2 from "./Cereal-Extra-Bold.woff2";
 import CerealBlackWoff2 from "./Cereal-Black.woff2";
+import CerealBoldWoff2 from "./Cereal-Bold.woff2";
+import CerealBookWoff2 from "./Cereal-Book.woff2";
+import CerealExtraBoldWoff2 from "./Cereal-Extra-Bold.woff2";
+import CerealLightWoff2 from "./Cereal-Light.woff2";
+import CerealMediumWoff2 from "./Cereal-Medium.woff2";
 
 export const CerealLight = {
   fontFamily: "Cereal, sans-serif",

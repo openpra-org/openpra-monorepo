@@ -3,19 +3,17 @@ import {
   EuiContextMenu,
   EuiFormRow,
   EuiIcon,
-  EuiSwitch,
   EuiSpacer,
-  useGeneratedHtmlId,
+  EuiSwitch,
   useEuiPaddingSize,
+  useGeneratedHtmlId,
 } from "@elastic/eui";
-
-import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 
-import { ItemFormProps } from "../forms/typedModelActionForm";
-import { DeleteItemBox } from "../listchanging/deleteItemBox";
-import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { NestedModelActionForm } from "../forms/nestedModelActionForm";
+import { ItemFormProps, TypedModelActionForm } from "../forms/typedModelActionForm";
+import { DeleteItemBox } from "../listchanging/deleteItemBox";
 import { GenericListItemProps } from "./GenericListItem";
 
 export type ListItemContextMenuProps = GenericListItemProps & Omit<ItemFormProps, "action">;
@@ -103,31 +101,32 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
       title: "Quick Edit",
       content: (
         <div style={{ padding: useEuiPaddingSize("s") ?? "35px" }}>
-          {patchTypedEndpoint ? (
-            <TypedModelActionForm
-              noHeader
-              compressed
-              action="edit"
-              itemName={endpoint}
-              patchEndpoint={patchTypedEndpoint}
-              initialFormValues={modelInfo}
-              onCancel={onCancel}
-            />
-          ) : (
-            // TODO: PatchNestedEndpoint should be replaced by patchEndpoint and the function of patchNestedEndpoint - patchNestedEndpointNew must be renamed and passed to it after all
-            <NestedModelActionForm
-              noHeader
-              compressed
-              action="edit"
-              id={id}
-              _id={_id}
-              itemName={endpoint}
-              patchEndpoint={patchNestedEndpoint}
-              patchNestedEndpoint={patchNestedEndpointNew}
-              initialFormValues={nestedInfo}
-              onCancel={onCancel}
-            />
-          )}
+          {
+            patchTypedEndpoint ?
+              <TypedModelActionForm
+                noHeader
+                compressed
+                action="edit"
+                itemName={endpoint}
+                patchEndpoint={patchTypedEndpoint}
+                initialFormValues={modelInfo}
+                onCancel={onCancel}
+              />
+              // TODO: PatchNestedEndpoint should be replaced by patchEndpoint and the function of patchNestedEndpoint - patchNestedEndpointNew must be renamed and passed to it after all
+            : <NestedModelActionForm
+                noHeader
+                compressed
+                action="edit"
+                id={id}
+                _id={_id}
+                itemName={endpoint}
+                patchEndpoint={patchNestedEndpoint}
+                patchNestedEndpoint={patchNestedEndpointNew}
+                initialFormValues={nestedInfo}
+                onCancel={onCancel}
+              />
+
+          }
         </div>
       ),
     },
@@ -162,7 +161,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
               name="switch"
               id={embeddedCodeSwitchId1}
               label="Snapshot data"
-              checked={true}
+              checked
               onChange={(): void => {
                 //empty
               }}
@@ -176,7 +175,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
               name="switch"
               id={embeddedCodeSwitchId2}
               label="Current time range"
-              checked={true}
+              checked
               onChange={(): void => {
                 //empty
               }}

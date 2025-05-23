@@ -1,9 +1,11 @@
 import { EuiPageTemplate, EuiSkeletonRectangle } from "@elastic/eui";
 import { ReactElement, useEffect, useState } from "react";
-
-import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
-
 import { GetCurrentModelIdString } from "shared-types/src/lib/api/TypedModelApiManager";
+import {
+  NestedModelJSON,
+  NestedModelType,
+} from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+
 import { GenericItemList } from "../../GenericItemList";
 import { CreateGenericList } from "../../GenericList";
 
@@ -13,11 +15,21 @@ export interface NestedModelListProps {
   AddNestedModel: (data: NestedModelJSON) => Promise<void>;
   GetNestedModel: (id: string) => Promise<void>;
   DeleteNestedModel: (id: string) => Promise<void>;
-  EditNestedModel: (modelId: string, data: Partial<NestedModelJSON>) => Promise<void>;
+  EditNestedModel: (
+    modelId: string,
+    data: Partial<NestedModelJSON>,
+  ) => Promise<void>;
 }
 
-function NestedModelListZustand(props: NestedModelListProps): JSX.Element {
-  const { name, DeleteNestedModel, GetNestedModel, NestedModelList, EditNestedModel, AddNestedModel } = props;
+const NestedModelListZustand = (props: NestedModelListProps): JSX.Element => {
+  const {
+    name,
+    DeleteNestedModel,
+    GetNestedModel,
+    NestedModelList,
+    EditNestedModel,
+    AddNestedModel,
+  } = props;
 
   const [isLoading, setIsLoading] = useState(true);
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
@@ -39,14 +51,20 @@ function NestedModelListZustand(props: NestedModelListProps): JSX.Element {
         deleteNestedEndpoint: DeleteNestedModel,
       }),
     );
-  }, [AddNestedModel, DeleteNestedModel, EditNestedModel, NestedModelList, name]);
+  }, [
+    AddNestedModel,
+    DeleteNestedModel,
+    EditNestedModel,
+    NestedModelList,
+    name,
+  ]);
 
   return (
     <EuiPageTemplate
       panelled={false}
       offset={48}
-      grow={true}
-      restrictWidth={true}
+      grow
+      restrictWidth
     >
       <EuiPageTemplate.Section>
         <EuiSkeletonRectangle
@@ -61,6 +79,6 @@ function NestedModelListZustand(props: NestedModelListProps): JSX.Element {
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
-}
+};
 
 export { NestedModelListZustand };

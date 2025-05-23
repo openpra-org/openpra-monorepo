@@ -1,16 +1,16 @@
-import React, { useContext } from "react";
-import { useState, useEffect } from "react";
+import { EuiButton, EuiFieldPassword, EuiFieldText, EuiForm, EuiFormRow } from "@elastic/eui";
+import React, { useContext, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { EuiFieldText, EuiForm, EuiButton, EuiFormRow, EuiFieldPassword } from "@elastic/eui";
-import { LoginProps, LoginErrorProps } from "shared-types/src/lib/api/AuthTypes";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { AuthService } from "shared-types/src/lib/api/AuthService";
+import { LoginErrorProps, LoginProps } from "shared-types/src/lib/api/AuthTypes";
+
+import { GetESToast } from "../../../utils/treeUtils";
 import { UpdateAbility } from "../../casl/ability";
 import { AbilityContext } from "../../providers/abilityProvider";
 import { UseToastContext } from "../../providers/toastProvider";
-import { GetESToast } from "../../../utils/treeUtils";
 
-function LoginForm(): JSX.Element {
+const LoginForm = (): JSX.Element => {
   const DefaultProps: LoginProps = {
     username: "",
     password: "",
@@ -88,7 +88,7 @@ function LoginForm(): JSX.Element {
             return (
               <Navigate
                 to="internal-events"
-                replace={true}
+                replace
               />
             );
           }
@@ -104,7 +104,7 @@ function LoginForm(): JSX.Element {
     return (
       <Navigate
         to="internal-events"
-        replace={true}
+        replace
       />
     );
   } else {
@@ -161,6 +161,6 @@ function LoginForm(): JSX.Element {
       </EuiForm>
     );
   }
-}
+};
 
 export { LoginForm };

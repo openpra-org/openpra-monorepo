@@ -1,7 +1,8 @@
-import { useEffect, useRef } from "react";
-import { useReactFlow, useStore, Node, Edge, ReactFlowState } from "reactflow";
 import { stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
+import { useEffect, useRef } from "react";
+import { Edge, Node, ReactFlowState, useReactFlow, useStore } from "reactflow";
+
 import { FAULT_TREE_NODE_HEIGHT, FAULT_TREE_NODE_SEPARATION, FAULT_TREE_NODE_WIDTH } from "../../../utils/constants";
 import { useStore as useFaultTreeStore } from "../../store/faultTreeStore";
 

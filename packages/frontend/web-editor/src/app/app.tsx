@@ -1,20 +1,25 @@
-import { createBrowserRouter, RouteObject, RouterProvider } from "react-router-dom";
 import { ReactElement } from "react";
-import { ThemeProvider } from "./theme/ThemeProvider";
+import {
+  createBrowserRouter,
+  RouteObject,
+  RouterProvider,
+} from "react-router-dom";
+
+import { DefaultAbility } from "./casl/ability";
+import { GlobalToastList } from "./components/lists/globalToastList";
 import { ErrorPage } from "./pages/errorPage";
-import { InternalEventsPage } from "./pages/routingPages/internalEventsPage";
-import { InternalHazardsPage } from "./pages/routingPages/internalHazardsPage";
-import { ExternalHazardsPage } from "./pages/routingPages/externalHazardsPage";
+import { InvitePage } from "./pages/invitePage";
+import { LoginPage } from "./pages/LandingPage";
 import { RootContainer } from "./pages/rootContainer";
 import { DataPage } from "./pages/routingPages/dataAnalysisPage";
+import { ExternalHazardsPage } from "./pages/routingPages/externalHazardsPage";
 import { FullScopePage } from "./pages/routingPages/fullScope";
-import { LoginPage } from "./pages/LandingPage";
+import { InternalEventsPage } from "./pages/routingPages/internalEventsPage";
+import { InternalHazardsPage } from "./pages/routingPages/internalHazardsPage";
 import { SettingsPage } from "./pages/routingPages/settingsPage";
-import { ToastProvider } from "./providers/toastProvider";
-import { GlobalToastList } from "./components/lists/globalToastList";
-import { InvitePage } from "./pages/invitePage";
 import { AbilityContext } from "./providers/abilityProvider";
-import { DefaultAbility } from "./casl/ability";
+import { ToastProvider } from "./providers/toastProvider";
+import { ThemeProvider } from "./theme/ThemeProvider";
 
 const routes: RouteObject[] = [
   {
@@ -81,7 +86,7 @@ const router = createBrowserRouter(routes, {
   },
 });
 
-function App(): ReactElement {
+const App = (): ReactElement => {
   const ability = DefaultAbility();
   return (
     <ThemeProvider>
@@ -93,6 +98,6 @@ function App(): ReactElement {
       </ToastProvider>
     </ThemeProvider>
   );
-}
+};
 
 export { App };

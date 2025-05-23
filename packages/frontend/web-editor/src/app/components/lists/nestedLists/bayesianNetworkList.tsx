@@ -1,8 +1,9 @@
 import { UseGlobalStore } from "../../../zustand/Store";
 import { NestedModelListZustand } from "./templateList/nestedModelListZustand";
 
-function BayesianNetworkList(): JSX.Element {
-  const BayesianNetwork = UseGlobalStore.use.NestedModels().SystemAnalysis.BayesianNetworks;
+const BayesianNetworkList = (): JSX.Element => {
+  const BayesianNetwork =
+    UseGlobalStore.use.NestedModels().SystemAnalysis.BayesianNetworks;
   const SetBayesianNetworks = UseGlobalStore.use.SetBayesianNetworks();
   const AddBayesianNetwork = UseGlobalStore.use.AddBayesianNetwork();
   const DeleteBayesianNetwork = UseGlobalStore.use.DeleteBayesianNetwork();
@@ -19,6 +20,6 @@ function BayesianNetworkList(): JSX.Element {
       name="bayesian-network"
     />
   );
-}
+};
 
 export { BayesianNetworkList };

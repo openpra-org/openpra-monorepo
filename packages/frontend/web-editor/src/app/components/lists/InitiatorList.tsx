@@ -1,5 +1,3 @@
-import React, { useEffect, useState } from "react";
-import { Link, Route, Routes, useParams } from "react-router-dom";
 import {
   EuiButton,
   EuiFlexGroup,
@@ -11,6 +9,8 @@ import {
   EuiTextColor,
   EuiTitle,
 } from "@elastic/eui";
+import React, { useEffect, useState } from "react";
+import { Link, Route, Routes, useParams } from "react-router-dom";
 
 interface Item {
   id: number;
@@ -34,7 +34,7 @@ const List: React.FC = () => {
     <EuiPageTemplate
       panelled={false}
       offset={48}
-      grow={true}
+      grow
     >
       <EuiPageTemplate.Section>
         <>

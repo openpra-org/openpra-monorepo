@@ -1,7 +1,7 @@
 import { UseGlobalStore } from "../../../zustand/Store";
 import { NestedModelListZustand } from "./templateList/nestedModelListZustand";
 
-function FaultTreeList(): JSX.Element {
+const FaultTreeList = (): JSX.Element => {
   const FaultTree = UseGlobalStore.use.NestedModels().SystemAnalysis.FaultTrees;
   const SetFaultTrees = UseGlobalStore.use.SetFaultTrees();
   const AddFaultTree = UseGlobalStore.use.AddFaultTree();
@@ -19,6 +19,6 @@ function FaultTreeList(): JSX.Element {
       name="fault-tree"
     />
   );
-}
+};
 
 export { FaultTreeList };

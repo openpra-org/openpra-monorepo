@@ -1,7 +1,7 @@
-import { useEffect, useRef } from "react";
-import { useReactFlow, useStore, Node, Edge, ReactFlowState } from "reactflow";
-import { cluster, partition, stratify, tree } from "d3-hierarchy";
+import { cluster, stratify } from "d3-hierarchy";
 import { timer } from "d3-timer";
+import { useEffect, useRef } from "react";
+import { Edge, Node, ReactFlowState, useReactFlow, useStore } from "reactflow";
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
 const layout = cluster<Node>()

@@ -1,9 +1,10 @@
-import { useCallback, useState } from "react";
-import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node, NodeProps, useReactFlow } from "reactflow";
 import _ from "lodash";
+import { useCallback } from "react";
 import { useParams } from "react-router-dom";
+import { Edge, getConnectedEdges, getOutgoers, Node, NodeProps, useReactFlow } from "reactflow";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { GenerateUUID, FaultTreeState } from "../../../utils/treeUtils";
+
+import { FaultTreeState, GenerateUUID } from "../../../utils/treeUtils";
 
 /**
  * Hook for handling context menu click event.

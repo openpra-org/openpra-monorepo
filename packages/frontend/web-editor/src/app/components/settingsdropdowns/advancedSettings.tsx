@@ -1,20 +1,21 @@
 import {
-  useGeneratedHtmlId,
-  EuiText,
-  EuiFormRow,
-  EuiFlexGroup,
   EuiButton,
+  EuiFlexGrid,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiFormRow,
+  EuiIcon,
   EuiPanel,
   EuiSelect,
-  EuiFlexGrid,
-  EuiFlexItem,
-  EuiIcon,
-  EuiTitle,
-  EuiTextColor,
   EuiSpacer,
+  EuiText,
+  EuiTextColor,
+  EuiTitle,
+  useGeneratedHtmlId,
   useIsWithinBreakpoints,
 } from "@elastic/eui";
 import { useState } from "react";
+
 import { SettingsAccordian } from "./SettingsAccordian";
 
 const buttonContent = (
@@ -38,14 +39,16 @@ const buttonContent = (
     </EuiFlexGroup>
     <EuiText size="s">
       <p>
-        <EuiTextColor color="subdued">Change model user permissions, model grouping, or delete the model.</EuiTextColor>
+        <EuiTextColor color="subdued">
+          Change model user permissions, model grouping, or delete the model.
+        </EuiTextColor>
       </p>
     </EuiText>
   </div>
 );
 
 //returns the advanced settings menu, which is a drop down with a few settings
-function AdvancedSettings(): JSX.Element {
+const AdvancedSettings = (): JSX.Element => {
   //setting the value of the overview
   const [overviewValue, setOverviewValue] = useState("");
 
@@ -91,8 +94,8 @@ function AdvancedSettings(): JSX.Element {
               data-testid="text"
               color="subdued"
             >
-              The model can be grouped as a project, subsystem, or component. <EuiSpacer size="s" />{" "}
-              <strong>Default: Component</strong>
+              The model can be grouped as a project, subsystem, or component.{" "}
+              <EuiSpacer size="s" /> <strong>Default: Component</strong>
             </EuiText>
             <EuiSpacer />
             <EuiFormRow label="Grouping">
@@ -105,7 +108,7 @@ function AdvancedSettings(): JSX.Element {
                     onChange(e);
                   }}
                   aria-label="Use aria labels when no actual label is in use"
-                  fullWidth={true}
+                  fullWidth
                   data-testid="grouping"
                 />
               </EuiFlexGroup>
@@ -157,6 +160,6 @@ function AdvancedSettings(): JSX.Element {
       </EuiFlexGrid>
     </SettingsAccordian>
   );
-}
+};
 
 export { AdvancedSettings };

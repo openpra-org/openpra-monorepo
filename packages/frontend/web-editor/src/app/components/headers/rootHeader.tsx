@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   EuiAvatar,
   EuiFlexGroup,
@@ -19,14 +18,16 @@ import {
   EuiText,
   useGeneratedHtmlId,
 } from "@elastic/eui";
+import { EuiBreadcrumb } from "@elastic/eui/src/components/breadcrumbs";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
-import { EuiBreadcrumb } from "@elastic/eui/src/components/breadcrumbs";
-import { InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
 import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
+import { InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
+
 import { ToTitleCase, TokenizePath } from "../../../utils/StringUtils";
-import { ContextAddButton } from "../buttons/contextAddButton";
 import { ResetAllSlices, UseGlobalStore } from "../../zustand/Store";
+import { ContextAddButton } from "../buttons/contextAddButton";
 import { WorkspaceSelectorMenu } from "./WorkspaceSelectorMenu";
 
 const RootHeader = (): JSX.Element => {
@@ -79,7 +80,7 @@ const RootHeader = (): JSX.Element => {
       max={10}
       truncate={false}
       type="application"
-      lastBreadcrumbIsCurrentPage={true}
+      lastBreadcrumbIsCurrentPage
     />
   );
   const search = (

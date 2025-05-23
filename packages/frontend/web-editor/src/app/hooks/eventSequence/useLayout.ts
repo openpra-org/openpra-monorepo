@@ -1,16 +1,17 @@
-import { useEffect } from "react";
-import {
-  useReactFlow,
-  useStore,
-  Node,
-  Edge,
-  ReactFlowState,
-  Position,
-  getConnectedEdges,
-  FitViewOptions,
-} from "reactflow";
 import { HierarchyNode, stratify, tree } from "d3-hierarchy";
 import { timer } from "d3-timer";
+import { useEffect } from "react";
+import {
+  Edge,
+  FitViewOptions,
+  Node,
+  Position,
+  ReactFlowState,
+  getConnectedEdges,
+  useReactFlow,
+  useStore,
+} from "reactflow";
+
 import { AreSiblings, GetIncomingEdge, GetParentNode } from "../../../utils/treeUtils";
 import { UseFocusContext } from "../../providers/focusProvider";
 
@@ -70,8 +71,8 @@ function UseLayout(): void {
         ) {
           const incomingEdge1 = GetIncomingEdge(node1.data, getConnectedEdges([node1.data], currentEdges));
           const incomingEdge2 = GetIncomingEdge(node2.data, getConnectedEdges([node2.data], currentEdges));
-          return incomingEdge1.data?.order !== undefined && incomingEdge2.data?.order !== undefined
-            ? incomingEdge1.data.order - incomingEdge2.data.order
+          return incomingEdge1.data?.order !== undefined && incomingEdge2.data?.order !== undefined ?
+              incomingEdge1.data.order - incomingEdge2.data.order
             : 0;
         }
         return 0;

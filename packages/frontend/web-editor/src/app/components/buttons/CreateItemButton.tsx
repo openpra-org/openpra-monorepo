@@ -15,11 +15,11 @@ import {
   PostSystemsAnalysis,
   PostWeibullAnalysis,
 } from "shared-types/src/lib/api/NestedModelApiManager";
-import { ItemFormProps } from "../forms/typedModelActionForm";
-import { NestedItemFormProps, NestedModelActionForm } from "../forms/nestedModelActionForm";
-import { TypedModelActionForm } from "../forms/typedModelActionForm";
+
 import { ToTitleCase } from "../../../utils/StringUtils";
 import { UseGlobalStore } from "../../zustand/Store";
+import { NestedItemFormProps, NestedModelActionForm } from "../forms/nestedModelActionForm";
+import { ItemFormProps, TypedModelActionForm } from "../forms/typedModelActionForm";
 import { ButtonWithClosablePopover } from "./ButtonWithPopover";
 
 //different props depending on different type of objects we are using for the add button
@@ -33,7 +33,7 @@ export type CreateNestedItemButtonProps = Omit<NestedItemFormProps, "action">;
  * @param endpoint - endpoint that will be used to add the item
  * @returns the create item button
  */
-function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps): JSX.Element {
+const CreateItemButton = ({ itemName, postEndpoint }: CreateItemButtonProps): JSX.Element => {
   const popoverExtra = (child: JSX.Element): JSX.Element => <div style={logicalStyle("max-width", 240)}>{child}</div>;
   //this now checks what type of thing is being added, as adding a typed model has an extra field that isn't needed
   return (
@@ -41,7 +41,7 @@ function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps): JS
       popoverExtra={popoverExtra}
       closeProp="onCancel"
       buttonText={"Create " + ToTitleCase(itemName)}
-      confirmDiscard={true}
+      confirmDiscard
       popoverProps={{
         initialFocus: "#name",
       }}
@@ -58,7 +58,7 @@ function CreateItemButton({ itemName, postEndpoint }: CreateItemButtonProps): JS
       />
     </ButtonWithClosablePopover>
   );
-}
+};
 export { CreateItemButton };
 /**
  * @remarks for nested models
@@ -66,11 +66,11 @@ export { CreateItemButton };
  * @param endpoint - endpoint that will be used to add the item
  * @returns the create item button
  */
-export function CreateNestedItemButton({
+export const CreateNestedItemButton = ({
   itemName,
   postNestedEndpoint,
   postEndpoint,
-}: CreateNestedItemButtonProps): JSX.Element {
+}: CreateNestedItemButtonProps): JSX.Element => {
   const popoverExtra = (child: JSX.Element): JSX.Element => <div style={logicalStyle("max-width", 240)}>{child}</div>;
   //this now checks what type of thing is being added, as adding a typed model has an extra field that isn't needed
   return (
@@ -78,7 +78,7 @@ export function CreateNestedItemButton({
       popoverExtra={popoverExtra}
       closeProp="onCancel"
       buttonText={"Create " + ToTitleCase(itemName)}
-      confirmDiscard={true}
+      confirmDiscard
       popoverProps={{
         initialFocus: "#name",
       }}
@@ -95,10 +95,10 @@ export function CreateNestedItemButton({
       />
     </ButtonWithClosablePopover>
   );
-}
+};
 
 //TODO: Functions have placeholders for the creates that don't exist
-export function CreateInternalEventsButton(): JSX.Element {
+export const CreateInternalEventsButton = (): JSX.Element => {
   const createInternalEvent = UseGlobalStore.use.AddInternalEvent();
 
   return (
@@ -107,9 +107,9 @@ export function CreateInternalEventsButton(): JSX.Element {
       postEndpoint={createInternalEvent}
     />
   );
-}
+};
 
-export function CreateInternalHazardsButton(): JSX.Element {
+export const CreateInternalHazardsButton = (): JSX.Element => {
   const createInternalHazard = UseGlobalStore.use.AddInternalHazard();
   return (
     <CreateItemButton
@@ -117,9 +117,9 @@ export function CreateInternalHazardsButton(): JSX.Element {
       postEndpoint={createInternalHazard}
     />
   );
-}
+};
 
-export function CreateExternalHazardsButton(): JSX.Element {
+export const CreateExternalHazardsButton = (): JSX.Element => {
   const createExternalHazard = UseGlobalStore.use.AddExternalHazard();
   return (
     <CreateItemButton
@@ -127,9 +127,9 @@ export function CreateExternalHazardsButton(): JSX.Element {
       postEndpoint={createExternalHazard}
     />
   );
-}
+};
 
-export function CreateFullScopeButton(): JSX.Element {
+export const CreateFullScopeButton = (): JSX.Element => {
   const createFullScope = UseGlobalStore.use.AddFullScope();
   return (
     <CreateItemButton
@@ -137,9 +137,9 @@ export function CreateFullScopeButton(): JSX.Element {
       postEndpoint={createFullScope}
     />
   );
-}
+};
 
-export function CreateFaultTreeButton(): JSX.Element {
+export const CreateFaultTreeButton = (): JSX.Element => {
   const AddFaultTree = UseGlobalStore.use.AddFaultTree();
   return (
     <CreateNestedItemButton
@@ -147,18 +147,18 @@ export function CreateFaultTreeButton(): JSX.Element {
       postNestedEndpoint={AddFaultTree}
     />
   );
-}
+};
 
-export function CreateHeatBalanceFaultTreeButton(): JSX.Element {
+export const CreateHeatBalanceFaultTreeButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="heat-balance-fault-tree"
       postEndpoint={PostHeatBalanceFaultTree}
     />
   );
-}
+};
 
-export function CreateBayesianNetworkButton(): JSX.Element {
+export const CreateBayesianNetworkButton = (): JSX.Element => {
   const AddBayesianNetwork = UseGlobalStore.use.AddBayesianNetwork();
   return (
     <CreateNestedItemButton
@@ -166,18 +166,18 @@ export function CreateBayesianNetworkButton(): JSX.Element {
       postNestedEndpoint={AddBayesianNetwork}
     />
   );
-}
+};
 
-export function CreateBayesianEstimationButton(): JSX.Element {
+export const CreateBayesianEstimationButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="bayesian-estimation"
       postEndpoint={PostBayesianEstimation}
     />
   );
-}
+};
 
-export function CreateEventSequenceDiagramButton(): JSX.Element {
+export const CreateEventSequenceDiagramButton = (): JSX.Element => {
   const AddEventSequenceDiagram = UseGlobalStore.use.AddEventSequenceDiagram();
   return (
     <CreateNestedItemButton
@@ -185,9 +185,9 @@ export function CreateEventSequenceDiagramButton(): JSX.Element {
       postNestedEndpoint={AddEventSequenceDiagram}
     />
   );
-}
+};
 
-export function CreateEventTreeButton(): JSX.Element {
+export const CreateEventTreeButton = (): JSX.Element => {
   const AddEventTree = UseGlobalStore.use.AddEventTree();
   return (
     <CreateNestedItemButton
@@ -195,9 +195,9 @@ export function CreateEventTreeButton(): JSX.Element {
       postNestedEndpoint={AddEventTree}
     />
   );
-}
+};
 
-export function CreateInitiatingEventButton(): JSX.Element {
+export const CreateInitiatingEventButton = (): JSX.Element => {
   const AddInitiatingEvent = UseGlobalStore.use.AddInitiatingEvent();
   return (
     <CreateNestedItemButton
@@ -205,99 +205,99 @@ export function CreateInitiatingEventButton(): JSX.Element {
       postNestedEndpoint={AddInitiatingEvent}
     />
   );
-}
+};
 
-export function CreateFunctionalEventButton(): JSX.Element {
+export const CreateFunctionalEventButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="functional-event"
       postEndpoint={PostFunctionalEvent}
     />
   );
-}
+};
 
-export function CreateMarkovChainButton(): JSX.Element {
+export const CreateMarkovChainButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="markov-chain"
       postEndpoint={PostMarkovChain}
     />
   );
-}
+};
 
-export function CreateRiskIntegrationButton(): JSX.Element {
+export const CreateRiskIntegrationButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="risk-integration"
       postEndpoint={PostRiskIntegration}
     />
   );
-}
+};
 
-export function CreateRadiologicalConsequenceAnalysisButton(): JSX.Element {
+export const CreateRadiologicalConsequenceAnalysisButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="radiological-consequence-analysis"
       postEndpoint={PostRadiologicalConsequenceAnalysis}
     />
   );
-}
+};
 
-export function CreateMechanisticSourceTermButton(): JSX.Element {
+export const CreateMechanisticSourceTermButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="mechanistic-source-term"
       postEndpoint={PostMechanisticSourceTerm}
     />
   );
-}
+};
 
-export function CreateEventSequenceQuantificationDiagramButton(): JSX.Element {
+export const CreateEventSequenceQuantificationDiagramButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="event-sequence-quantification-diagram"
       postEndpoint={PostEventSequenceQuantificationDiagram}
     />
   );
-}
+};
 
-export function CreateDataAnalysisButton(): JSX.Element {
+export const CreateDataAnalysisButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="data-analysis"
       postEndpoint={PostDataAnalysis}
     />
   );
-}
+};
 
-export function CreateHumanReliabilityAnalysisButton(): JSX.Element {
+export const CreateHumanReliabilityAnalysisButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="human-reliability-analysis"
       postEndpoint={PostHumanReliabilityAnalysis}
     />
   );
-}
+};
 
-export function CreateSystemsAnalysisButton(): JSX.Element {
+export const CreateSystemsAnalysisButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="systems-analysis"
       postEndpoint={PostSystemsAnalysis}
     />
   );
-}
+};
 
-export function CreateSuccessCriteriaButton(): JSX.Element {
+export const CreateSuccessCriteriaButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="success-criteria"
       postEndpoint={PostSuccessCriteria}
     />
   );
-}
+};
 
-export function CreateEventSequenceAnalysisButton(): JSX.Element {
+export const CreateEventSequenceAnalysisButton = (): JSX.Element => {
   const AddEventSequenceAnalysis = UseGlobalStore.use.AddEventSequenceAnalysis();
   return (
     <CreateNestedItemButton
@@ -305,22 +305,22 @@ export function CreateEventSequenceAnalysisButton(): JSX.Element {
       postNestedEndpoint={AddEventSequenceAnalysis}
     />
   );
-}
+};
 
-export function CreateOperatingStateAnalysisButton(): JSX.Element {
+export const CreateOperatingStateAnalysisButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="operating-state-analysis"
       postEndpoint={PostOperatingStateAnalysis}
     />
   );
-}
+};
 
-export function CreateWeibullAnalysisButton(): JSX.Element {
+export const CreateWeibullAnalysisButton = (): JSX.Element => {
   return (
     <CreateNestedItemButton
       itemName="weibull-analysis"
       postEndpoint={PostWeibullAnalysis}
     />
   );
-}
+};

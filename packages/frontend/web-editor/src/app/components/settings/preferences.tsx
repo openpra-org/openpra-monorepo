@@ -1,11 +1,11 @@
 import { EuiIcon, EuiPageTemplate, EuiSkeletonLoading, EuiText } from "@elastic/eui";
+import React, { useContext, useEffect, useState } from "react";
 import { Outlet, useParams } from "react-router-dom";
-import { useContext, useEffect, useState } from "react";
-import { MemberResult } from "shared-types/src/lib/api/Members";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
-import React from "react";
-import { NavInsideNav } from "../sidenavs/genericNav";
+import { MemberResult } from "shared-types/src/lib/api/Members";
+
 import { AbilityContext } from "../../providers/abilityProvider";
+import { NavInsideNav } from "../sidenavs/genericNav";
 
 interface PreferenceContextType {
   currentUser: MemberResult | undefined;
@@ -37,7 +37,7 @@ const AUTHENTICATION = {
   ],
 };
 
-function Preferences(): JSX.Element {
+const Preferences = (): JSX.Element => {
   const { user } = useParams<{ user: string | undefined }>();
   const userId = Number(user);
   const [currentUser, setCurrentUser] = useState<MemberResult>();
@@ -67,7 +67,7 @@ function Preferences(): JSX.Element {
         >
           <EuiPageTemplate.Sidebar
             paddingSize="s"
-            sticky={true}
+            sticky
           >
             <NavInsideNav items={navItems} />
           </EuiPageTemplate.Sidebar>
@@ -84,7 +84,7 @@ function Preferences(): JSX.Element {
         >
           <EuiPageTemplate.Sidebar
             paddingSize="s"
-            sticky={true}
+            sticky
           >
             <NavInsideNav items={navItems} />
           </EuiPageTemplate.Sidebar>
@@ -96,8 +96,8 @@ function Preferences(): JSX.Element {
           </EuiPageTemplate.Section>
         </EuiPageTemplate>
       }
-    ></EuiSkeletonLoading>
+    />
   );
-}
+};
 
-export { Preferences, PreferenceContextType, PreferenceContext };
+export { PreferenceContext, PreferenceContextType, Preferences };

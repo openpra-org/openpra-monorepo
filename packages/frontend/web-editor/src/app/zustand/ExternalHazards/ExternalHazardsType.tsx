@@ -1,5 +1,5 @@
-import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { ExternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
+import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 
 export interface ExternalHazardsType {
   ExternalHazards: ExternalHazardsModelType[];

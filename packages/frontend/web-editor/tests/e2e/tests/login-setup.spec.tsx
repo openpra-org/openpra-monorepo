@@ -1,5 +1,4 @@
-import { test, expect } from "@playwright/test";
-import { screen } from "@testing-library/react";
+import { expect, test } from "@playwright/test";
 
 test.describe("SignUp Form Tests", () => {
   test.beforeEach(async ({ page }) => {

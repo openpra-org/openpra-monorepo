@@ -3,6 +3,7 @@
 This file outlines the steps to create a state for any particular part of the application
 
 ## Table of contents
+
 - [Files for the Zustand Implementation](#files-for-the-zustand-implementation)
 - [Structure of the Zustand store](#structure-of-the-zustand-store)
 - [Creating a new slice](#creating-a-new-slice)
@@ -75,6 +76,7 @@ export const sliceState = {
 ```
 
 ---
+
 ### Create the types file
 
 The types file contains the types needed by Typescript for the slice
@@ -88,6 +90,7 @@ For example, for Internal Events, create a type **InternalEventsModelType** in t
 Then create the types for the slice in the types file of the slice.
 
 ---
+
 ### Create the actions file
 
 This file contains all the functions that update the state and do asynchronous calls to the backend
@@ -99,6 +102,7 @@ Refer the following file to create actions for the slice
 > openpra-monorepo/packages/frontend/web-editor/src/app/zustand/internalEvents/internalEventsActions.tsx
 
 ---
+
 ### Create the slice file
 
 The slice file contains all the code for creating slice, resetting slice, adding actions to the slice
@@ -132,6 +136,7 @@ export default sliceName;
 ```
 
 ---
+
 ### Updating the store
 
 Once the slice is created, add the type of state of the slice to the **StoreStateType** types in the store file
@@ -192,9 +197,11 @@ For creating different nested models, refer to the README in the folder
 > openpra-monorepo/packages/frontend/web-editor/src/app/zustand/NestedModels
 
 ## Using Immer Middleware
+
 The setState function in zustand will be able to update the state on the first level of the state object. For nested state update, we have to use the spread (...) operator. But this can get messy quickly. So we use **Immer** middleware to perform nested state updates.
 
 To use Immer while creating a slice
+
 ```
 import { StateCreator } from "zustand";
 import { immer } from "zustand/middleware/immer";
@@ -264,7 +271,9 @@ const UseGlobalStoreBase = create<StoreType>()(
   ),
 );
 ```
+
 There are 2 parameters here:
+
 - enabled - Determines where to show the dev tool or not
 - name - This is the name of the store in the dev tools window
 

@@ -1,31 +1,32 @@
 import {
+  EuiBasicTable,
+  EuiButton,
+  EuiButtonIcon,
+  EuiFlexGroup,
+  EuiFlexItem,
+  EuiPageHeader,
   EuiPageTemplate,
   EuiSkeletonRectangle,
   EuiSpacer,
-  EuiBasicTable,
-  EuiPageHeader,
-  EuiButton,
-  EuiFlexGroup,
-  EuiFlexItem,
   EuiText,
-  EuiButtonIcon,
   copyToClipboard,
 } from "@elastic/eui";
+import { EuiBasicTableColumn } from "@elastic/eui/src/components/basic_table/basic_table";
 import { ChangeEvent, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
 import { MemberResult, Members } from "shared-types/src/lib/api/Members";
-import { EuiBasicTableColumn } from "@elastic/eui/src/components/basic_table/basic_table";
-import { Link } from "react-router-dom";
-import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { InviteIdDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
-import { GenericModal } from "../modals/genericModal";
-import { DefaultSignupProps } from "../login/signUp";
-import { SignUpForm } from "../forms/signUpForm";
-import { UseToastContext } from "../../providers/toastProvider";
+
 import { GetESToast } from "../../../utils/treeUtils";
-import { GenerateUserForm } from "../forms/generateUserForm";
 import { Can } from "../../providers/abilityProvider";
+import { UseToastContext } from "../../providers/toastProvider";
+import { GenerateUserForm } from "../forms/generateUserForm";
+import { SignUpForm } from "../forms/signUpForm";
+import { DefaultSignupProps } from "../login/signUp";
+import { GenericModal } from "../modals/genericModal";
 
 /**
  * Generate columns for table containing the names of the users
@@ -63,7 +64,7 @@ export const ExpiryOptions = [
  * Exports the list of users JSX.Element
  *
  */
-export function Users(): JSX.Element {
+export const Users = (): JSX.Element => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isNewUserModalVisible, setIsNewUserModalVisible] = useState<boolean>(false);
   const [isInviteNewUserModalVisible, setIsInviteNewUserModalVisible] = useState<boolean>(false);
@@ -157,14 +158,14 @@ export function Users(): JSX.Element {
                 <EuiFlexItem grow={false}>
                   <EuiText size="s">Invite Link Generated</EuiText>
                 </EuiFlexItem>
-                <EuiFlexItem grow={true}>
+                <EuiFlexItem grow>
                   <EuiButtonIcon
                     aria-label="Copy url to clipboard"
                     iconType="copy"
                     onClick={(): void => {
                       copyToClipboard(window.location.origin + "/invite/" + generatedUserId);
                     }}
-                  ></EuiButtonIcon>
+                  />
                 </EuiFlexItem>
               </EuiFlexGroup>
             )}
@@ -200,8 +201,8 @@ export function Users(): JSX.Element {
         panelled={false}
         offset={48}
         paddingSize="xl"
-        grow={true}
-        restrictWidth={true}
+        grow
+        restrictWidth
       >
         <EuiPageHeader
           pageTitle="User Profiles"
@@ -234,7 +235,7 @@ export function Users(): JSX.Element {
               </EuiButton>
             </Can>,
           ]}
-        ></EuiPageHeader>
+        />
         <EuiPageTemplate.Section>
           <EuiSkeletonRectangle
             width="100%"
@@ -253,4 +254,4 @@ export function Users(): JSX.Element {
       {modal}
     </div>
   );
-}
+};

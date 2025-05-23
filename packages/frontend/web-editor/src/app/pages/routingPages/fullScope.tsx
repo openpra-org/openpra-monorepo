@@ -1,35 +1,36 @@
 import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
+
 import { FullScopeList } from "../../components/lists/workspaceLists/fullScopeList";
-import { EventSequenceDiagrams } from "../fullScopePages/eventSequenceDiagrams";
-import { BayesianNetworks } from "../fullScopePages/bayesianNetworks";
-import { ModelSettings } from "../fullScopePages/modelSettings";
-import { InitiatingEvents } from "../fullScopePages/initiatingEvents";
-import { EventTrees } from "../fullScopePages/eventTrees";
 import { FullScopeContainer } from "../../components/pageContainers/fullScopeContainer";
-import { FunctionalEvents } from "../fullScopePages/functionalEvents";
-import { MarkovChains } from "../fullScopePages/markovChains";
-import { HRA } from "../fullScopePages/humanReliabilityAnalysis";
-import { RiskIntegration } from "../fullScopePages/riskIntegration";
-import { MechanisticAnalysis } from "../fullScopePages/mechanisticAnalysis";
-import { OtherHazards } from "../fullScopePages/otherHazards";
+import { BayesianEstimation } from "../fullScopePages/bayesianEstimation";
+import { BayesianNetworks } from "../fullScopePages/bayesianNetworks";
+import { DataAnalysis } from "../fullScopePages/dataAnalysis";
+import { EventSequenceAnalysis } from "../fullScopePages/eventSequenceAnalysis";
+import { EventSequenceDiagrams } from "../fullScopePages/eventSequenceDiagrams";
+import { EventSequenceQuantificationDiagrams } from "../fullScopePages/eventSequenceQuantificationDiagrams";
+import { EventTrees } from "../fullScopePages/eventTrees";
 import { ExternalFlooding } from "../fullScopePages/externalFlooding";
-import { HighWinds } from "../fullScopePages/highWinds";
+import { FaultTrees } from "../fullScopePages/faultTrees";
+import { FunctionalEvents } from "../fullScopePages/functionalEvents";
 import { HazardsScreeningAnalysis } from "../fullScopePages/hazardsScreeningAnalysis";
-import { Seismic } from "../fullScopePages/seismic";
+import { HeatBalanceFaultTrees } from "../fullScopePages/heatBalanceFaultTree";
+import { HighWinds } from "../fullScopePages/highWinds";
+import { HRA } from "../fullScopePages/humanReliabilityAnalysis";
+import { InitiatingEvents } from "../fullScopePages/initiatingEvents";
 import { InternalFire } from "../fullScopePages/internalFire";
 import { InternalFlood } from "../fullScopePages/internalFlood";
-import { BayesianEstimation } from "../fullScopePages/bayesianEstimation";
-import { WeibullAnalysis } from "../fullScopePages/weibullAnalysis";
-import { RadiologicalConsequenceAnalysis } from "../fullScopePages/radiologicalConsequenceAnalysis";
-import { EventSequenceQuantificationDiagrams } from "../fullScopePages/eventSequenceQuantificationDiagrams";
+import { MarkovChains } from "../fullScopePages/markovChains";
+import { MechanisticAnalysis } from "../fullScopePages/mechanisticAnalysis";
+import { ModelSettings } from "../fullScopePages/modelSettings";
 import { OperatingStateAnalysis } from "../fullScopePages/operatingStateAnalysis";
-import { EventSequenceAnalysis } from "../fullScopePages/eventSequenceAnalysis";
+import { OtherHazards } from "../fullScopePages/otherHazards";
+import { RadiologicalConsequenceAnalysis } from "../fullScopePages/radiologicalConsequenceAnalysis";
+import { RiskIntegration } from "../fullScopePages/riskIntegration";
+import { Seismic } from "../fullScopePages/seismic";
 import { SuccessCriteria } from "../fullScopePages/successCriteria";
 import { SystemsAnalysis } from "../fullScopePages/systemsAnalysis";
-import { DataAnalysis } from "../fullScopePages/dataAnalysis";
-import { FaultTrees } from "../fullScopePages/faultTrees";
-import { HeatBalanceFaultTrees } from "../fullScopePages/heatBalanceFaultTree";
+import { WeibullAnalysis } from "../fullScopePages/weibullAnalysis";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -69,7 +70,7 @@ export function LoadModel(): ModelProps {
   return getModelFixture();
 }
 
-function FullScopePage(): JSX.Element {
+const FullScopePage = (): JSX.Element => {
   return (
     <Routes>
       <Route
@@ -203,6 +204,6 @@ function FullScopePage(): JSX.Element {
        */}
     </Routes>
   );
-}
+};
 
 export { FullScopePage };

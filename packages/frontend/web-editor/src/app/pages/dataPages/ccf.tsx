@@ -1,8 +1,8 @@
 //this is all placeholder so that I can test hrefs and stuff
-import { CcfTable } from "../../components/tables/ccfTable";
 import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
+import { CcfTable } from "../../components/tables/ccfTable";
 
-function Ccf(): JSX.Element {
+const Ccf = (): JSX.Element => {
   return (
     <TemplatedPageBody
       headerProps={{
@@ -13,6 +13,6 @@ function Ccf(): JSX.Element {
       <CcfTable />
     </TemplatedPageBody>
   );
-}
+};
 
 export { Ccf };

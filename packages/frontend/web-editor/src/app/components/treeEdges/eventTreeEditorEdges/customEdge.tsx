@@ -1,6 +1,5 @@
-import { FC } from "react";
-import { BaseEdge, EdgeProps, getSmoothStepPath, getStraightPath } from "reactflow";
-import { memo } from "react";
+import { FC, memo } from "react";
+import { BaseEdge, EdgeProps, getSmoothStepPath } from "reactflow";
 
 interface CustomEdgeData {
   color?: string;
@@ -10,7 +9,16 @@ interface CustomEdgeData {
 }
 
 const CustomEdge: FC<EdgeProps<CustomEdgeData>> = memo(
-  ({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data = {} }) => {
+  ({
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    data = {},
+  }) => {
     const [edgePath] = getSmoothStepPath({
       sourceX,
       sourceY,

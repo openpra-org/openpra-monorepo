@@ -3,9 +3,10 @@ import {
   GetRiskIntegration,
   PatchRiskIntegrationLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
+
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function RiskIntegrationList(): JSX.Element {
+const RiskIntegrationList = (): JSX.Element => {
   return (
     <NestedModelList
       getNestedEndpoint={GetRiskIntegration}
@@ -14,6 +15,6 @@ function RiskIntegrationList(): JSX.Element {
       name="risk-integration"
     />
   );
-}
+};
 
 export { RiskIntegrationList };

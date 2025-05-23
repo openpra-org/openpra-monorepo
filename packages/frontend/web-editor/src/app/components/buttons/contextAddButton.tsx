@@ -1,5 +1,5 @@
 import { useLocation } from "react-router-dom";
-import React from "react";
+
 import {
   CreateBayesianEstimationButton,
   CreateBayesianNetworkButton,
@@ -10,9 +10,9 @@ import {
   CreateEventTreeButton,
   CreateExternalHazardsButton,
   CreateFaultTreeButton,
-  CreateHeatBalanceFaultTreeButton,
   CreateFullScopeButton,
   CreateFunctionalEventButton,
+  CreateHeatBalanceFaultTreeButton,
   CreateHumanReliabilityAnalysisButton,
   CreateInitiatingEventButton,
   CreateInternalEventsButton,

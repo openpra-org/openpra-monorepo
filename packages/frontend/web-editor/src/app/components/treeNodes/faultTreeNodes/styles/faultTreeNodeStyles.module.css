@@ -51,7 +51,7 @@
   outline: none;
   resize: none;
   text-align: center;
-  color: #0984e3
+  color: #0984e3;
 }
 
 .editable_text_field:focus {

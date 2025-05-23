@@ -1,15 +1,15 @@
-import { useState } from "react";
 import {
-  EuiForm,
-  EuiFormRow,
-  EuiFieldText,
   EuiButton,
-  EuiTextColor,
+  EuiFieldText,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiForm,
+  EuiFormRow,
   EuiSpacer,
+  EuiTextColor,
   EuiTitle,
 } from "@elastic/eui";
+import { useState } from "react";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
 export interface DeleteItemProps {
@@ -29,7 +29,7 @@ export interface DeleteItemProps {
  * @param toggleBox - this needs to be there to toggle the delete box on and off across components, a state to set the delete box being visible
  * @returns
  */
-function DeleteItemBox(props: DeleteItemProps): JSX.Element {
+const DeleteItemBox = (props: DeleteItemProps): JSX.Element => {
   //State used to hold value within text box. User types 'yes' to unlock the submit button
   const [confirmDelete, setConfirmDelete] = useState("");
 
@@ -62,7 +62,7 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
       <EuiForm>
         <EuiSpacer size="s" />
         {/** this gives the text, and then importantly sets the title of the item */}
-        <EuiFormRow fullWidth={true}>
+        <EuiFormRow fullWidth>
           <EuiTitle
             data-testid="delete-item-title"
             size="m"
@@ -75,7 +75,7 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
           <EuiTextColor>Are you sure you want to delete this model? This action is permanent</EuiTextColor>
         </EuiFormRow>
         {/** confirmation text */}
-        <EuiFormRow fullWidth={true}>
+        <EuiFormRow fullWidth>
           {/** User will enable the submit button by typing yes in this text box */}
           <EuiFieldText
             placeholder="Please type yes to proceed"
@@ -88,7 +88,7 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
         </EuiFormRow>
 
         {/** button to submit is equipped with the ability to  */}
-        <EuiFormRow fullWidth={true}>
+        <EuiFormRow fullWidth>
           <EuiFlexGroup
             justifyContent="spaceBetween"
             gutterSize="xs"
@@ -97,7 +97,7 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
               {/** This button will only be clickable when user types yes/Yes/YES/etc */}
               <EuiButton
                 data-testid="delete-item-button"
-                fill={true}
+                fill
                 color="danger"
                 isDisabled={!(confirmDelete.toLowerCase() === "yes")}
                 onClick={deleteData}
@@ -110,5 +110,5 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
       </EuiForm>
     </>
   );
-}
+};
 export { DeleteItemBox };

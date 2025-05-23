@@ -1,21 +1,34 @@
-import { Route, Routes, useParams } from "react-router-dom";
-import React, { FC, ReactElement, useCallback, useEffect, useRef, useState } from "react";
-import ReactFlow, { Background, Edge, Node, ProOptions, ReactFlowProvider } from "reactflow";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
-import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import useTreeData from "../../hooks/eventTree/useTreeData";
-import { EventTreeList } from "../../components/lists/nestedLists/eventTreeList";
-import { CategoryProvider } from "../../hooks/eventTree/useCreateReleaseCategory";
+import React, {
+  ReactElement,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { Route, Routes, useParams } from "react-router-dom";
+import ReactFlow, {
+  Background,
+  Edge,
+  Node,
+  ProOptions,
+  ReactFlowProvider,
+} from "reactflow";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 
-import nodeTypes from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
-import edgeTypes from "../../components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
-
-import useLayout from "../../hooks/eventTree/useLayout";
-import EventTreeNodeContextMenu, { treeNodeContextMenuProps } from "../../components/menus/eventTreeNodeContextMenu";
 import { LoadingCard } from "../../components/cards/loadingCard";
+import { EventTreeList } from "../../components/lists/nestedLists/eventTreeList";
+import EventTreeNodeContextMenu, {
+  treeNodeContextMenuProps,
+} from "../../components/menus/eventTreeNodeContextMenu";
+import edgeTypes from "../../components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
+import nodeTypes from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
+import { CategoryProvider } from "../../hooks/eventTree/useCreateReleaseCategory";
+import useLayout from "../../hooks/eventTree/useLayout";
+import useTreeData from "../../hooks/eventTree/useTreeData";
 
 /**
  * Initial set of nodes to be used in the ReactFlow component.
@@ -65,11 +78,13 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
 
   useEffect(() => {
     const loadGraph = async (): Promise<void> => {
-      await GraphApiManager.getEventTree(eventTreeId).then((res: EventTreeGraph) => {
-        setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
-        setEdges(res.edges.length !== 0 ? res.edges : edgeData);
-        setLoading(false);
-      });
+      await GraphApiManager.getEventTree(eventTreeId).then(
+        (res: EventTreeGraph) => {
+          setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
+          setEdges(res.edges.length !== 0 ? res.edges : edgeData);
+          setLoading(false);
+        },
+      );
     };
     void (loading && loadGraph());
   }, [eventTreeId, loading, nodes]);
@@ -86,8 +101,12 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
         id: node.id,
         top: event.clientY < pane.height - 200 && event.clientY,
         left: event.clientX - 320 < pane.width - 200 && event.clientX - 320,
-        right: event.clientX - 320 >= pane.width - 200 && pane.width - event.clientX - 800,
-        bottom: event.clientY >= pane.height - 200 && pane.height - event.clientY - 800,
+        right:
+          event.clientX - 320 >= pane.width - 200 &&
+          pane.width - event.clientX - 800,
+        bottom:
+          event.clientY >= pane.height - 200 &&
+          pane.height - event.clientY - 800,
       });
     },
     [setMenu],
@@ -170,7 +189,7 @@ export const EventTreeEditor = (): ReactElement => {
  * The EventTrees component provides routing for the event tree list and the event tree editor.
  * @returns ReactElement Routes component containing the EventTreeList and EventTreeEditor components.
  */
-function EventTrees(): ReactElement {
+const EventTrees = (): ReactElement => {
   return (
     <CategoryProvider>
       <Routes>
@@ -181,10 +200,10 @@ function EventTrees(): ReactElement {
         <Route
           path=":eventTreeId"
           element={<EventTreeEditor />}
-        ></Route>
+        />
       </Routes>
     </CategoryProvider>
   );
-}
+};
 
 export { EventTrees };

@@ -1,12 +1,9 @@
 import { Handle, NodeProps, Position } from "reactflow";
 
-import React from "react";
-
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
-
 import styles from "./styles/nodeTypes.module.css";
 
-function InvisibleNode({ id, data }: NodeProps) {
+const InvisibleNode = ({ id, data }: NodeProps) => {
   const onClick = useCreateNodeClick(id);
 
   return (
@@ -63,6 +60,6 @@ function InvisibleNode({ id, data }: NodeProps) {
       />
     </div>
   );
-}
+};
 
 export default InvisibleNode;

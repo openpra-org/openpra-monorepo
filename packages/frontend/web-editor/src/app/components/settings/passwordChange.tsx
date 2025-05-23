@@ -1,24 +1,25 @@
 import {
-  EuiPageTemplate,
-  EuiPageHeader,
-  EuiPanel,
-  EuiText,
+  EuiButton,
+  EuiFieldPassword,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiButton,
-  EuiSpacer,
   EuiForm,
   EuiFormRow,
-  EuiFieldPassword,
+  EuiPageHeader,
+  EuiPageTemplate,
+  EuiPanel,
+  EuiSpacer,
+  EuiText,
   useGeneratedHtmlId,
 } from "@elastic/eui";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import moment from "moment";
 import { useContext, useEffect, useState } from "react";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { CollabRole } from "shared-types/src/lib/data/predefiniedRoles";
-import { GenericModal } from "../modals/genericModal";
+
 import { PasswordForm } from "../forms/passwordForm";
+import { GenericModal } from "../modals/genericModal";
 import { PreferenceContext, PreferenceContextType } from "./preferences";
 
 /**
@@ -69,7 +70,12 @@ const PasswordChange = (): JSX.Element => {
     <EuiForm
       id={modalFormId}
       isInvalid={showErrors}
-      error={isInvalidOldPass ? ["Old password is wrong"] : isInvalidNewPass ? ["New password is wrong"] : []}
+      error={
+        isInvalidOldPass ? ["Old password is wrong"]
+        : isInvalidNewPass ?
+          ["New password is wrong"]
+        : []
+      }
       component="form"
     >
       {isActiveUser && (
@@ -86,7 +92,7 @@ const PasswordChange = (): JSX.Element => {
               setCurrentPassword(event.target.value);
             }}
             isInvalid={isInvalidOldPass}
-          ></EuiFieldPassword>
+          />
         </EuiFormRow>
       )}
       {signup && (
@@ -111,7 +117,7 @@ const PasswordChange = (): JSX.Element => {
         onClose={(): void => {
           setIsModalVisible(false);
         }}
-        showButtons={true}
+        showButtons
         onSubmit={async (): Promise<void> => {
           setButtonClicked(true);
           const { password = "", passConfirm = "" } = signup ?? {};
@@ -150,18 +156,18 @@ const PasswordChange = (): JSX.Element => {
         panelled={false}
         offset={0}
         paddingSize="none"
-        grow={true}
-        restrictWidth={true}
+        grow
+        restrictWidth
       >
         <EuiPageHeader
           pageTitle="Logins"
           paddingSize="xl"
           data-testid="profile-name"
-        ></EuiPageHeader>
+        />
         <EuiPageTemplate.Section paddingSize="l">
           <EuiPanel
             paddingSize="m"
-            hasBorder={true}
+            hasBorder
             grow={false}
           >
             <EuiFlexGroup justifyContent="spaceBetween">
@@ -180,7 +186,7 @@ const PasswordChange = (): JSX.Element => {
                 </EuiButton>
               </EuiFlexItem>
             </EuiFlexGroup>
-            <EuiSpacer></EuiSpacer>
+            <EuiSpacer />
             <EuiText>{"Last Login: " + lastLogin.format("MMMM Do YYYY, h:mm:ss a")}</EuiText>
           </EuiPanel>
         </EuiPageTemplate.Section>

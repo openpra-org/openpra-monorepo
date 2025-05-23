@@ -1,24 +1,24 @@
-import React, { useEffect, useState } from "react";
 import {
   EuiButton,
+  EuiDatePicker,
   EuiFieldText,
   EuiForm,
   EuiFormRow,
   EuiPageHeader,
   EuiPageTemplate,
-  EuiDatePicker,
-  EuiText,
   EuiSkeletonLoading,
+  EuiText,
 } from "@elastic/eui";
 import moment from "moment";
+import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { MemberResult } from "shared-types/src/lib/api/Members";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { MemberResult } from "shared-types/src/lib/api/Members";
 
 /**
  * Main form container for editing and saving a user
  */
-export function MemberForm(): JSX.Element {
+export const MemberForm = (): JSX.Element => {
   const { user } = useParams<{ user: string | undefined }>();
   const userId = Number(user);
   const [currentUer, setCurrentUser] = useState<MemberResult>();
@@ -42,7 +42,7 @@ export function MemberForm(): JSX.Element {
         <EuiPageTemplate
           panelled={false}
           grow={false}
-          restrictWidth={true}
+          restrictWidth
         >
           <EuiPageTemplate.Section>
             <EuiText>Loading Data...</EuiText>
@@ -53,13 +53,13 @@ export function MemberForm(): JSX.Element {
         <EuiPageTemplate
           panelled={false}
           grow={false}
-          restrictWidth={true}
+          restrictWidth
         >
           <EuiPageHeader
             pageTitle="Profile"
             paddingSize="l"
             data-testid="edit-user-title"
-          ></EuiPageHeader>
+          />
           <EuiPageTemplate.Section>
             <EuiForm component="form">
               <EuiFormRow label="First Name">
@@ -114,7 +114,7 @@ export function MemberForm(): JSX.Element {
                 <EuiDatePicker
                   name="member_last_access"
                   selected={moment(currentUer?.last_login)}
-                  readOnly={true}
+                  readOnly
                   data-testid="edit-user-last-access"
                 />
               </EuiFormRow>
@@ -122,7 +122,7 @@ export function MemberForm(): JSX.Element {
                 <EuiDatePicker
                   name="member_join_date"
                   selected={moment(currentUer?.account_created)}
-                  readOnly={true}
+                  readOnly
                   data-testid="edit-user-join-date"
                 />
               </EuiFormRow>
@@ -143,6 +143,6 @@ export function MemberForm(): JSX.Element {
           </EuiPageTemplate.Section>
         </EuiPageTemplate>
       }
-    ></EuiSkeletonLoading>
+    />
   );
-}
+};

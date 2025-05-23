@@ -1,11 +1,12 @@
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
 import { ReactElement, useEffect, useState } from "react";
 import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
-import { CreateGenericList } from "../GenericList";
+
 import { UseGlobalStore } from "../../../zustand/Store";
 import { GenericItemList } from "../GenericItemList";
+import { CreateGenericList } from "../GenericList";
 
-function InternalEventsList(): JSX.Element {
+const InternalEventsList = (): JSX.Element => {
   const [isLoading, setIsLoading] = useState(true);
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
 
@@ -38,8 +39,8 @@ function InternalEventsList(): JSX.Element {
     <EuiPageTemplate
       panelled={false}
       offset={48}
-      grow={true}
-      restrictWidth={true}
+      grow
+      restrictWidth
     >
       <EuiPageTemplate.Section>
         <EuiSkeletonRectangle
@@ -54,6 +55,6 @@ function InternalEventsList(): JSX.Element {
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
-}
+};
 
 export { InternalEventsList };

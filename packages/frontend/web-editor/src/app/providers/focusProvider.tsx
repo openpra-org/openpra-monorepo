@@ -1,5 +1,5 @@
-import { NodeProps } from "reactflow";
 import { createContext, ReactNode, useContext, useState } from "react";
+import { NodeProps } from "reactflow";
 
 interface NodeFocusType {
   focusNodeId: NodeProps["id"] | undefined;
@@ -17,12 +17,18 @@ export const UseFocusContext = (): NodeFocusType => {
   return context;
 };
 
-export const FocusProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const FocusProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [focusNodeId, setFocus] = useState<string | undefined>(undefined);
 
   const reset = (): void => {
     setFocus(undefined);
   };
 
-  return <FocusContext.Provider value={{ focusNodeId, setFocus, reset }}>{children}</FocusContext.Provider>;
+  return (
+    <FocusContext.Provider value={{ focusNodeId, setFocus, reset }}>
+      {children}
+    </FocusContext.Provider>
+  );
 };

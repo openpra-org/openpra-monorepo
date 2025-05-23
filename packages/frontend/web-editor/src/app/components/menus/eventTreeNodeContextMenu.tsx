@@ -1,6 +1,3 @@
-import React from "react";
-import { Position } from "reactflow";
-
 import { useEventTreeContextMenuClick } from "../../hooks/eventTree/useEventTreeContextMenuClick";
 
 export interface treeNodeContextMenuProps {

@@ -1,15 +1,16 @@
-import { create } from "zustand";
 import {
+  applyEdgeChanges,
+  applyNodeChanges,
   Edge,
   EdgeChange,
   Node,
   NodeChange,
-  OnNodesChange,
-  OnEdgesChange,
-  applyNodeChanges,
-  applyEdgeChanges,
   NodeProps,
+  OnEdgesChange,
+  OnNodesChange,
 } from "reactflow";
+import { create } from "zustand";
+
 import { initialEdges, initialNodes } from "../../utils/faultTreeData";
 import { FaultTreeNodeProps } from "../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 

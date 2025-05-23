@@ -1,17 +1,18 @@
 import {
   EuiAvatar,
-  EuiText,
-  EuiListGroupItem,
-  logicalStyle,
-  useEuiTheme,
-  useEuiPaddingSize,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiListGroupItem,
+  EuiText,
+  logicalStyle,
+  useEuiPaddingSize,
+  useEuiTheme,
 } from "@elastic/eui";
 import { Link } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
-import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+
 import { LastActionText } from "./LastActionText";
 import { ListItemContextMenuButton } from "./ListItemAction";
 
@@ -39,7 +40,7 @@ export interface GenericListItemProps {
 /**
  * @param props - that contains all the input props for the component
  */
-function GenericListItem(props: GenericListItemProps): JSX.Element {
+const GenericListItem = (props: GenericListItemProps): JSX.Element => {
   //grabs the props
   const { label, id, path } = props;
 
@@ -115,7 +116,7 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
       key={id}
       size="l"
       wrapText={false}
-    ></EuiListGroupItem>
+    />
   );
-}
+};
 export { GenericListItem };

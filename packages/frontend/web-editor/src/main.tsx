@@ -1,6 +1,6 @@
+import { BrowserTracing, init, reactRouterV6Instrumentation, Replay } from "@sentry/react";
 import React, { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserTracing, init, reactRouterV6Instrumentation, Replay } from "@sentry/react";
 import { createRoutesFromChildren, matchRoutes, useLocation, useNavigationType } from "react-router-dom";
 
 import { App } from "./app/app";

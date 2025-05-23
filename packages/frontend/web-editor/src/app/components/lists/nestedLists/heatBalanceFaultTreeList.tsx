@@ -3,9 +3,10 @@ import {
   GetHeatBalanceFaultTrees,
   PatchHeatBalanceFaultTreeLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
+
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function HeatBalanceFaultTreeList() {
+const HeatBalanceFaultTreeList = () => {
   return (
     <NestedModelList
       getNestedEndpoint={GetHeatBalanceFaultTrees}
@@ -14,6 +15,6 @@ function HeatBalanceFaultTreeList() {
       name="heat-balance-fault-tree"
     />
   );
-}
+};
 
 export { HeatBalanceFaultTreeList };

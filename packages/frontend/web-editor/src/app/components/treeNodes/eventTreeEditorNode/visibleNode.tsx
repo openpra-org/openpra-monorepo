@@ -1,11 +1,12 @@
-import { Handle, NodeProps, Position, useReactFlow } from "reactflow";
-import React, { useState } from "react";
 import { EuiText } from "@elastic/eui";
+import { useState } from "react";
+import { Handle, NodeProps, Position, useReactFlow } from "reactflow";
+
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 import useDeleteNodeClick from "../../../hooks/eventTree/useDeleteNodeClick";
 import styles from "./styles/nodeTypes.module.css";
 
-function VisibleNode({ id, data }: NodeProps) {
+const VisibleNode = ({ id, data }: NodeProps) => {
   const onClickCreate = useCreateNodeClick(id);
   const onClickDelete = useDeleteNodeClick(id);
   const [isEditingProb, setIsEditingProb] = useState(false);
@@ -87,7 +88,10 @@ function VisibleNode({ id, data }: NodeProps) {
                 outline: "none",
               }}
               onBlur={(e) => {
-                const value = Math.min(1, Math.max(0, parseFloat(e.target.value) || 0));
+                const value = Math.min(
+                  1,
+                  Math.max(0, parseFloat(e.target.value) || 0),
+                );
                 const parsedValue = parseFloat(value.toFixed(2));
                 updateNodeProbability(parsedValue);
                 setIsEditingProb(false);
@@ -95,7 +99,9 @@ function VisibleNode({ id, data }: NodeProps) {
               autoFocus
             />
           ) : (
-            <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>{data.probability?.toFixed(2) || "0.55"}</EuiText>
+            <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>
+              {data.probability?.toFixed(2) || "0.55"}
+            </EuiText>
           )}
         </div>
 
@@ -124,7 +130,9 @@ function VisibleNode({ id, data }: NodeProps) {
               autoFocus
             />
           ) : (
-            <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>{data.label}</EuiText>
+            <EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>
+              {data.label}
+            </EuiText>
           )}
         </div>
 
@@ -165,6 +173,6 @@ function VisibleNode({ id, data }: NodeProps) {
       />
     </div>
   );
-}
+};
 
 export default VisibleNode;

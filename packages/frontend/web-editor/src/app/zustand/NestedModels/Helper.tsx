@@ -1,7 +1,8 @@
-import { GetCurrentModelType } from "shared-types/src/lib/api/TypedModelApiManager";
 import { produce } from "immer";
 import { typedModelType } from "packages/shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { GetCurrentNestedModelType } from "shared-types/src/lib/api/NestedModelApiManager";
+import { GetCurrentModelType } from "shared-types/src/lib/api/TypedModelApiManager";
+
 import { StoreStateType } from "../Store";
 
 export type TypedModelNames = "InternalEvents" | "InternalHazards" | "ExternalHazards" | "FullScope";

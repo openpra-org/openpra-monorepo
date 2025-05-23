@@ -1,5 +1,5 @@
+import { EuiAccordion, EuiButton } from "@elastic/eui";
 import { useState } from "react";
-import { EuiButton, EuiAccordion } from "@elastic/eui";
 
 const SettingsAccordian = ({
   id,

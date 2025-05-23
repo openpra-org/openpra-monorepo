@@ -1,13 +1,14 @@
-import { Outlet } from "react-router-dom";
 import { EuiPageTemplate } from "@elastic/eui";
+import { Outlet } from "react-router-dom";
+
 import { DataSidenav } from "../sidenavs/dataSidenav";
 
-function DataContainer(): JSX.Element {
+const DataContainer = (): JSX.Element => {
   return (
     <EuiPageTemplate
       panelled={false}
       offset={48}
-      grow={true}
+      grow
       restrictWidth={false}
     >
       <EuiPageTemplate.Sidebar
@@ -21,6 +22,6 @@ function DataContainer(): JSX.Element {
       <Outlet />
     </EuiPageTemplate>
   );
-}
+};
 
 export { DataContainer };

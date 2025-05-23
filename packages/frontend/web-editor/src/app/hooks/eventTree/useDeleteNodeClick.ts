@@ -1,7 +1,7 @@
-import { NodeProps, useReactFlow } from "reactflow";
-import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
+import { NodeProps, useReactFlow } from "reactflow";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+
 import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";
 
@@ -90,8 +90,9 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
     // Find siblings (if any)
     const parentEdge = edges.find((edge) => edge.target === clickedNodeId);
     const parentId = parentEdge?.source;
-    const siblingEdges = parentId
-      ? edges.filter(
+    const siblingEdges =
+      parentId ?
+        edges.filter(
           (edge) => edge.source === parentId && edge.target !== clickedNodeId && !isOutputOrInvisibleNode(edge.target),
         )
       : [];

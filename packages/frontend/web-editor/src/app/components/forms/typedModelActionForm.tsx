@@ -1,21 +1,20 @@
 import {
   EuiButton,
+  EuiComboBox,
+  EuiComboBoxOptionOption,
   EuiFieldText,
   EuiFlexGroup,
   EuiFlexItem,
   EuiForm,
   EuiFormRow,
-  EuiComboBox,
-  EuiComboBoxOptionOption,
   EuiSpacer,
   EuiText,
   EuiTextArea,
   EuiTitle,
 } from "@elastic/eui";
 import React, { useEffect, useState } from "react";
-
-import { DEFAULT_TYPED_MODEL_JSON, TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { DEFAULT_TYPED_MODEL_JSON, TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 
 import { ToTitleCase } from "../../../utils/StringUtils";
 
@@ -32,7 +31,7 @@ export interface ItemFormProps {
   noHeader?: boolean;
 }
 
-function TypedModelActionForm({
+const TypedModelActionForm = ({
   itemName,
   onCancel,
   noHeader,
@@ -41,7 +40,7 @@ function TypedModelActionForm({
   action,
   patchEndpoint,
   postEndpoint,
-}: ItemFormProps): JSX.Element {
+}: ItemFormProps): JSX.Element => {
   const userId = ApiManager.getCurrentUser().user_id ?? -1;
 
   //setting up initial values depending on what has been sent, if init form values are passed it's assumed to be updating instead of adding
@@ -157,7 +156,7 @@ function TypedModelActionForm({
         onSubmit={handleAction}
       >
         <EuiFlexGroup>
-          <EuiFlexItem grow={true}>
+          <EuiFlexItem grow>
             <EuiFormRow
               fullWidth
               label={`${itemLabel} name`}
@@ -205,7 +204,7 @@ function TypedModelActionForm({
           />
         </EuiFormRow>
         <EuiSpacer size="m" />
-        {initialFormValues ? (
+        {initialFormValues ?
           <>
             <EuiFlexGroup>
               <EuiFormRow
@@ -226,7 +225,7 @@ function TypedModelActionForm({
             </EuiFlexGroup>
             <EuiSpacer size="m" />
           </>
-        ) : null}
+        : null}
         <EuiFlexGroup
           direction="row"
           justifyContent="spaceBetween"
@@ -261,5 +260,5 @@ function TypedModelActionForm({
       </EuiForm>
     </>
   );
-}
+};
 export { TypedModelActionForm };

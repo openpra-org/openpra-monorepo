@@ -1,11 +1,12 @@
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
-import { ExternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
 import { ReactElement, useEffect, useState } from "react";
-import { GenericItemList } from "../GenericItemList";
+import { ExternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
+
 import { UseGlobalStore } from "../../../zustand/Store";
+import { GenericItemList } from "../GenericItemList";
 import { CreateGenericList } from "../GenericList";
 
-function ExternalHazardsList(): JSX.Element {
+const ExternalHazardsList = (): JSX.Element => {
   const [isLoading, setIsLoading] = useState(true);
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
 
@@ -38,8 +39,8 @@ function ExternalHazardsList(): JSX.Element {
     <EuiPageTemplate
       panelled={false}
       offset={48}
-      grow={true}
-      restrictWidth={true}
+      grow
+      restrictWidth
     >
       <EuiPageTemplate.Section>
         <EuiSkeletonRectangle
@@ -55,6 +56,6 @@ function ExternalHazardsList(): JSX.Element {
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
-}
+};
 
 export { ExternalHazardsList };

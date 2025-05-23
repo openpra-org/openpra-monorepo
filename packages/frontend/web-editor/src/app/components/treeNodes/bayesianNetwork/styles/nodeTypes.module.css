@@ -27,7 +27,8 @@
   -moz-appearance: none;
 }
 
-.react-flow__handle.target, .targetHandle{
+.react-flow__handle.target,
+.targetHandle {
   height: 100%;
   width: 100%;
   top: 0;
@@ -40,7 +41,8 @@
   z-index: 9;
 }
 
-.react-flow__handle.source,.sourceHandle {
+.react-flow__handle.source,
+.sourceHandle {
   height: 100%;
   width: 100%;
   top: 0;
@@ -61,7 +63,7 @@
   background: white;
   width: 10px;
   height: 30%;
-  margin-top:14px ;
+  margin-top: 14px;
   margin-right: 4px;
   margin-left: 4px;
   border-radius: 1px;
@@ -83,7 +85,8 @@
   outline: none;
 }
 
-.inputWrapper:hover .input, .input:focus{
+.inputWrapper:hover .input,
+.input:focus {
   pointer-events: auto;
   outline: none;
   border: none;
@@ -99,5 +102,3 @@
     transform: scale(1.1);
   }
 }
-
-

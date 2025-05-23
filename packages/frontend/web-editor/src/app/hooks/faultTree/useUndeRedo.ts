@@ -1,5 +1,6 @@
-import { useCallback, useEffect } from "react";
 import { cloneDeep } from "lodash";
+import { useCallback, useEffect } from "react";
+
 import { HistoryItem, useStore } from "../../store/faultTreeStore";
 
 interface UseUndoRedoOptions {

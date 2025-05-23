@@ -1,5 +1,6 @@
+import React, { useEffect, useLayoutEffect, useRef } from "react";
 import { Handle, NodeProps, Position } from "reactflow";
-import React, { useRef, useLayoutEffect, useEffect } from "react";
+
 import styles from "../../../components/treeNodes/bayesianNetwork/styles/nodeTypes.module.css";
 import { UseStore } from "../../../hooks/bayesianNetwork/mindmap/useStore";
 

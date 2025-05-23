@@ -1,7 +1,7 @@
 import { UseGlobalStore } from "../../../zustand/Store";
 import { NestedModelListZustand } from "./templateList/nestedModelListZustand";
 
-function EventSequenceAnalysisList(): JSX.Element {
+const EventSequenceAnalysisList = (): JSX.Element => {
   const EventSequenceAnalysis = UseGlobalStore.use.NestedModels().EventSequenceAnalysis.EventSequenceAnalysisList;
   const SetEventSequenceAnalysis = UseGlobalStore.use.SetEventSequenceAnalysis();
   const AddEventSequenceAnalysis = UseGlobalStore.use.AddEventSequenceAnalysis();
@@ -19,6 +19,6 @@ function EventSequenceAnalysisList(): JSX.Element {
       name="event-sequence-analysis"
     />
   );
-}
+};
 
 export { EventSequenceAnalysisList };

@@ -1,12 +1,12 @@
 import {
+  EuiCollapsibleNavGroup,
   EuiIcon,
+  EuiText,
+  EuiToken,
   EuiTreeView,
   slugify,
-  EuiToken,
-  useEuiTheme,
-  EuiText,
-  EuiCollapsibleNavGroup,
   useEuiPaddingSize,
+  useEuiTheme,
 } from "@elastic/eui";
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
@@ -25,7 +25,7 @@ export interface ScopedNavProps {
   type: string;
 }
 
-function ScopedNav(props: ScopedNavProps): JSX.Element {
+const ScopedNav = (props: ScopedNavProps): JSX.Element => {
   const { type } = props;
 
   const { euiTheme } = useEuiTheme();
@@ -537,7 +537,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           iconSize="m"
           titleSize="xs"
           key={i}
-          isCollapsible={true}
+          isCollapsible
           isDisabled={false}
           arrowDisplay="none"
           onClick={items[0].callback}
@@ -552,7 +552,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
         iconSize="m"
         titleSize="xs"
         key={i}
-        isCollapsible={true}
+        isCollapsible
         buttonElement="button"
         initialIsOpen={items[0].isExpanded}
       >
@@ -592,6 +592,6 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   };
 
   return <>{createTreeViews(treeItems)}</>;
-}
+};
 
 export { ScopedNav };

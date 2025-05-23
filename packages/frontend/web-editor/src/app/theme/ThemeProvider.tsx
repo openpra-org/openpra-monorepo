@@ -1,6 +1,6 @@
+import { EuiProvider, EuiThemeColorMode } from "@elastic/eui";
 import React, { ReactElement } from "react";
-import { EuiProvider } from "@elastic/eui";
-import { EuiThemeColorMode } from "@elastic/eui";
+
 import { ThemeMods } from "./ThemeMods";
 
 /**

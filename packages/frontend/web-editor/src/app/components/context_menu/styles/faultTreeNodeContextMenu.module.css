@@ -1,14 +1,11 @@
 .gate_icon {
-    margin: auto;
-    height: 100%;
-    width: 30px;
+  margin: auto;
+  height: 100%;
+  width: 30px;
 }
 
 .context_menu_container {
-    display: flex;
-    overflow-x: scroll;
-    width: 250px;
+  display: flex;
+  overflow-x: scroll;
+  width: 250px;
 }
-
-
-

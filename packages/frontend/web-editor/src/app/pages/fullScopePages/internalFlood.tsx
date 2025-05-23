@@ -1,5 +1,5 @@
-function InternalFlood(): JSX.Element {
-  return <div></div>;
-}
+const InternalFlood = (): JSX.Element => {
+  return <div />;
+};
 
 export { InternalFlood };

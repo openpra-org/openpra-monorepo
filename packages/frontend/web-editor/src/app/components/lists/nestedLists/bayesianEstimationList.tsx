@@ -3,9 +3,10 @@ import {
   GetBayesianEstimations,
   PatchBayesianEstimationLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
+
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function BayesianEstimationList(): JSX.Element {
+const BayesianEstimationList = (): JSX.Element => {
   return (
     <NestedModelList
       getNestedEndpoint={GetBayesianEstimations}
@@ -14,5 +15,5 @@ function BayesianEstimationList(): JSX.Element {
       name="bayesian-estimation"
     />
   );
-}
+};
 export { BayesianEstimationList };

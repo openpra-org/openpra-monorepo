@@ -1,14 +1,15 @@
 import {
-  EuiText,
-  EuiHideFor,
   EuiFlexGroup,
   EuiFlexItem,
-  useIsWithinBreakpoints,
+  EuiHideFor,
+  EuiText,
   useEuiPaddingCSS,
   useEuiTheme,
+  useIsWithinBreakpoints,
 } from "@elastic/eui";
+
 import { AuthCard } from "../components/cards/authCard";
-function LoginPage(): JSX.Element {
+const LoginPage = (): JSX.Element => {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.xl;
   const textCss = [useEuiPaddingCSS("horizontal").m];
   const containterCss = [useEuiPaddingCSS().m];
@@ -43,6 +44,6 @@ function LoginPage(): JSX.Element {
       </EuiFlexItem>
     </EuiFlexGroup>
   );
-}
+};
 
 export { LoginPage };

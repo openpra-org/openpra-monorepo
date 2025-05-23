@@ -1,12 +1,13 @@
-import { Outlet } from "react-router-dom";
 import { EuiPageTemplate } from "@elastic/eui";
+import { Outlet } from "react-router-dom";
+
 import { ScopedNav } from "../sidenavs/scopedNav";
 
 const ExternalHazardsContainer = (): JSX.Element => (
   <EuiPageTemplate
     panelled={false}
     offset={0}
-    grow={true}
+    grow
     restrictWidth={false}
   >
     <EuiPageTemplate.Sidebar

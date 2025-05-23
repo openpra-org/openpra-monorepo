@@ -1,4 +1,5 @@
 import { usePrettyDuration } from "@elastic/eui";
+
 import { ToTitleCase } from "../../../utils/StringUtils";
 
 export interface LastActionTextProps {
@@ -7,7 +8,7 @@ export interface LastActionTextProps {
 }
 
 // TODO
-function LastActionText({ timestamp, action }: LastActionTextProps): JSX.Element {
+const LastActionText = ({ timestamp, action }: LastActionTextProps): JSX.Element => {
   let text = usePrettyDuration({
     timeFrom: "now-3w",
     timeTo: "now",
@@ -16,5 +17,5 @@ function LastActionText({ timestamp, action }: LastActionTextProps): JSX.Element
 
   text = `${ToTitleCase(action)} within the ${text.toLowerCase()}`;
   return <div>{text}</div>;
-}
+};
 export { LastActionText };

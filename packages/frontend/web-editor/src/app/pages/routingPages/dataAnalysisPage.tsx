@@ -1,12 +1,13 @@
 import { Route, Routes } from "react-router-dom";
-import { SpecialEvents } from "../dataPages/specialEvents";
+
+import { DataContainer } from "../../components/pageContainers/dataContainer";
+import { Ccf } from "../dataPages/ccf";
 import { ComponentReliability } from "../dataPages/componentReliability";
 import { DataInitiatingEvents } from "../dataPages/dataInitiatingEvents";
+import { SpecialEvents } from "../dataPages/specialEvents";
 import { TrainUA } from "../dataPages/trainUA";
-import { Ccf } from "../dataPages/ccf";
-import { DataContainer } from "../../components/pageContainers/dataContainer";
 
-function DataPage(): JSX.Element {
+const DataPage = (): JSX.Element => {
   return (
     //routes
     <Routes>
@@ -37,6 +38,6 @@ function DataPage(): JSX.Element {
       </Route>
     </Routes>
   );
-}
+};
 
 export { DataPage };

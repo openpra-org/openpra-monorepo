@@ -1,7 +1,7 @@
-import { isRouteErrorResponse, useRouteError } from "react-router-dom";
 import { ReactElement } from "react";
+import { isRouteErrorResponse, useRouteError } from "react-router-dom";
 
-function ErrorPage(): ReactElement {
+const ErrorPage = (): ReactElement => {
   const error = useRouteError();
   let statusText = "";
 
@@ -18,6 +18,6 @@ function ErrorPage(): ReactElement {
       </p>
     </div>
   );
-}
+};
 
 export { ErrorPage };

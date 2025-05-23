@@ -1,10 +1,10 @@
-import { Handle, NodeProps, Position } from "reactflow";
+import { EuiSelect, EuiText } from "@elastic/eui";
 import React, { useState } from "react";
-import { EuiText, EuiSelect } from "@elastic/eui";
-import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCategory";
-import styles from "./styles/nodeTypes.module.css";
+import { Handle, NodeProps, Position } from "reactflow";
 
-function OutputNode({ id, data }: NodeProps) {
+import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCategory";
+
+const OutputNode = ({ id, data }: NodeProps) => {
   const { categories, addCategory } = useCategoryContext();
   const [releaseCategory, setReleaseCategory] = useState(data.label);
 
@@ -53,12 +53,12 @@ function OutputNode({ id, data }: NodeProps) {
         }}
       >
         {/* Show dropdown for Release Category */}
-        {data.label === "Category A" || data.label === "Category B" ? (
+        {data.label === "Category A" || data.label === "Category B" ?
           <EuiSelect
             options={[...categories, ...staticOptions]}
             value={releaseCategory}
             onChange={handleCategoryChange}
-            compressed={true} // Makes dropdown smaller
+            compressed // Makes dropdown smaller
             style={{
               width: "115px", // Smaller dropdown width
               height: "30px", // Smaller dropdown height
@@ -67,9 +67,7 @@ function OutputNode({ id, data }: NodeProps) {
               boxSizing: "border-box",
             }}
           />
-        ) : (
-          <EuiText style={{ fontSize: "0.7rem" }}>{data.label}</EuiText>
-        )}
+        : <EuiText style={{ fontSize: "0.7rem" }}>{data.label}</EuiText>}
       </div>
 
       <Handle
@@ -85,6 +83,6 @@ function OutputNode({ id, data }: NodeProps) {
       />
     </div>
   );
-}
+};
 
 export default OutputNode;

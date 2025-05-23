@@ -1,22 +1,23 @@
 import { Route, Routes } from "react-router-dom";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
-import { SettingsContainer } from "../../components/pageContainers/settingsContainer";
-import { Users } from "../../components/settings/users";
+
 import { MemberForm } from "../../components/forms/editMemberForm";
-import { UserProfilePage } from "../../components/settings/userProfilePage";
-import { Preferences } from "../../components/settings/preferences";
 import { EditPersonalInfoForm } from "../../components/forms/editPersonalInfoForm";
-import { PasswordChange } from "../../components/settings/passwordChange";
+import { SettingsContainer } from "../../components/pageContainers/settingsContainer";
 import { Invitations } from "../../components/settings/invitations";
-import { Roles } from "../../components/settings/roles";
+import { PasswordChange } from "../../components/settings/passwordChange";
+import { Preferences } from "../../components/settings/preferences";
 import { RoleDescription } from "../../components/settings/roleDescription";
+import { Roles } from "../../components/settings/roles";
+import { UserProfilePage } from "../../components/settings/userProfilePage";
+import { Users } from "../../components/settings/users";
 
 /**
  * This function defines the routes for settings page
  *
  * @returns JSX.Element for the entire page which contains the routes
  */
-export function SettingsPage(): JSX.Element {
+export const SettingsPage = (): JSX.Element => {
   const id = ApiManager.getCurrentUser().user_id;
   if (id === undefined) {
     return <div>Seems like the user is not logged in</div>;
@@ -30,15 +31,15 @@ export function SettingsPage(): JSX.Element {
         <Route
           path=""
           element={<UserProfilePage id={id} />}
-        ></Route>
+        />
         <Route
           path="users"
           element={<Users />}
-        ></Route>
+        />
         <Route
           path=":user"
           element={<MemberForm />}
-        ></Route>
+        />
         <Route
           path="preferences/:user"
           element={<Preferences />}
@@ -46,11 +47,11 @@ export function SettingsPage(): JSX.Element {
           <Route
             path="personal-data"
             element={<EditPersonalInfoForm />}
-          ></Route>
+          />
           <Route
             path="logins"
             element={<PasswordChange />}
-          ></Route>
+          />
         </Route>
 
         <Route
@@ -69,4 +70,4 @@ export function SettingsPage(): JSX.Element {
       </Route>
     </Routes>
   );
-}
+};

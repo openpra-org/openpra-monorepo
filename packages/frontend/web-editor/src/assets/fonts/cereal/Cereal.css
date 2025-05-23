@@ -1,47 +1,47 @@
 @font-face {
-    src: url('Cereal-Light.woff2') format('woff2');
-    font-weight: 300;
-    font-display: swap;
-    font-style: normal;
-    font-family: "Cereal";
+  src: url("Cereal-Light.woff2") format("woff2");
+  font-weight: 300;
+  font-display: swap;
+  font-style: normal;
+  font-family: "Cereal";
 }
 
 @font-face {
-    src: url('Cereal-Book.woff2') format('woff2');
-    font-weight: 400;
-    font-display: swap;
-    font-style: normal;
-    font-family: "Cereal";
+  src: url("Cereal-Book.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+  font-style: normal;
+  font-family: "Cereal";
 }
 
 @font-face {
-    src: url('Cereal-Medium.woff2') format('woff2');
-    font-weight: 500;
-    font-display: swap;
-    font-style: normal;
-    font-family: "Cereal";
+  src: url("Cereal-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+  font-style: normal;
+  font-family: "Cereal";
 }
 
 @font-face {
-    src: url('Cereal-Bold.woff2') format('woff2');
-    font-weight: 600;
-    font-display: swap;
-    font-style: normal;
-    font-family: "Cereal";
+  src: url("Cereal-Bold.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+  font-style: normal;
+  font-family: "Cereal";
 }
 
 @font-face {
-    src: url('Cereal-Extra-Bold.woff2') format('woff2');
-    font-weight: 700;
-    font-display: swap;
-    font-style: normal;
-    font-family: "Cereal";
+  src: url("Cereal-Extra-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+  font-style: normal;
+  font-family: "Cereal";
 }
 
 @font-face {
-    src: url('Cereal-Black.woff2') format('woff2');
-    font-weight: 800;
-    font-display: swap;
-    font-style: normal;
-    font-family: "Cereal";
+  src: url("Cereal-Black.woff2") format("woff2");
+  font-weight: 800;
+  font-display: swap;
+  font-style: normal;
+  font-family: "Cereal";
 }

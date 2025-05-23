@@ -1,5 +1,6 @@
-import { Node, EdgeProps, useReactFlow, Edge } from "reactflow";
 import { useParams } from "react-router-dom";
+import { Edge, EdgeProps, Node, useReactFlow } from "reactflow";
+
 import {
   BuildAnEdge,
   GenerateUUID,
@@ -8,13 +9,13 @@ import {
   RevertTentativeState,
   UpdateEventSequenceDiagram,
 } from "../../../utils/treeUtils";
+import { EventSequenceEdgeProps } from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
 import {
   EventSequenceNodeProps,
   EventSequenceNodeTypes,
 } from "../../components/treeNodes/eventSequenceNodes/eventSequenceNodeType";
-import { EventSequenceEdgeProps } from "../../components/treeEdges/eventSequenceEdges/eventSequenceEdgeType";
-import { UseToastContext } from "../../providers/toastProvider";
 import { UseFocusContext } from "../../providers/focusProvider";
+import { UseToastContext } from "../../providers/toastProvider";
 
 /**
  * Hook for handling click events on edges in a React Flow diagram.

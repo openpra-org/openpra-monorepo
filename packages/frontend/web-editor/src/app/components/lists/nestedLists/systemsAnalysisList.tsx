@@ -3,9 +3,10 @@ import {
   GetSystemsAnalysis,
   PatchSystemsAnalysisLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
+
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function SystemsAnalysisList(): JSX.Element {
+const SystemsAnalysisList = (): JSX.Element => {
   return (
     <NestedModelList
       getNestedEndpoint={GetSystemsAnalysis}
@@ -14,6 +15,6 @@ function SystemsAnalysisList(): JSX.Element {
       name="systems-analysis"
     />
   );
-}
+};
 
 export { SystemsAnalysisList };

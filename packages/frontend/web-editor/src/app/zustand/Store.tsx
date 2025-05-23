@@ -1,14 +1,15 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+
 import { CreateSelectors } from "./CreateSelectors";
-import { InternalEventsSlice } from "./InternalEvents/InternalEventsSlice";
-import { InternalEventsActionsType, InternalEventsType } from "./InternalEvents/InternalEventsTypes";
-import { InternalHazardsSlice } from "./InternalHazards/InternalHazardsSlice";
-import { InternalHazardsActionsType, InternalHazardsType } from "./InternalHazards/InternalHazardsType";
 import { ExternalHazardsSlice } from "./ExternalHazards/ExternalHazardsSlice";
 import { ExternalHazardsActionsType, ExternalHazardsType } from "./ExternalHazards/ExternalHazardsType";
 import { FullScopeSlice } from "./FullScope/FullScopeSlice";
 import { FullScopeActionsType, FullScopeType } from "./FullScope/FullScopeTypes";
+import { InternalEventsSlice } from "./InternalEvents/InternalEventsSlice";
+import { InternalEventsActionsType, InternalEventsType } from "./InternalEvents/InternalEventsTypes";
+import { InternalHazardsSlice } from "./InternalHazards/InternalHazardsSlice";
+import { InternalHazardsActionsType, InternalHazardsType } from "./InternalHazards/InternalHazardsType";
 import { NestedModelsSlice } from "./NestedModels/NestedModelsSlice";
 import { NestedModelActionsType, NestedModelsType } from "./NestedModels/NestedModelsType";
 

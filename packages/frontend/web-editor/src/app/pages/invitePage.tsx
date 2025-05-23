@@ -1,16 +1,17 @@
-import { useNavigate, useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
-import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
-import { InvitedUserDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
-import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { EuiPageTemplate, EuiSkeletonLoading } from "@elastic/eui";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
+import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
 import { MemberRole } from "shared-types/src/lib/data/predefiniedRoles";
-import { DefaultSignupProps } from "../components/login/signUp";
-import { UseToastContext } from "../providers/toastProvider";
+import { InvitedUserDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
+
 import { GenerateUUID } from "../../utils/treeUtils";
-import { GenericModal } from "../components/modals/genericModal";
 import { SignUpForm } from "../components/forms/signUpForm";
+import { DefaultSignupProps } from "../components/login/signUp";
+import { GenericModal } from "../components/modals/genericModal";
+import { UseToastContext } from "../providers/toastProvider";
 
 const InvitePage = (): JSX.Element => {
   const { inviteId } = useParams<{ inviteId: string | undefined }>();
@@ -92,13 +93,13 @@ const InvitePage = (): JSX.Element => {
   function getModal(): JSX.Element {
     if (isExpired) {
       return (
-        <EuiPageTemplate panelled={true}>
-          <EuiPageTemplate.EmptyPrompt title={<span>Your invite has expired</span>}></EuiPageTemplate.EmptyPrompt>
+        <EuiPageTemplate panelled>
+          <EuiPageTemplate.EmptyPrompt title={<span>Your invite has expired</span>} />
         </EuiPageTemplate>
       );
     }
     return (
-      <EuiPageTemplate panelled={true}>
+      <EuiPageTemplate panelled>
         <EuiPageTemplate.EmptyPrompt title={<span>You are invited to OpenPRA</span>}>
           <SignUpForm
             handleSignup={handleSignup}
@@ -127,7 +128,7 @@ const InvitePage = (): JSX.Element => {
         />
       }
       loadedContent={getModal()}
-    ></EuiSkeletonLoading>
+    />
   );
 };
 

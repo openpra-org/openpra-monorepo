@@ -1,7 +1,8 @@
 import React from "react";
 import { EdgeProps, getStraightPath } from "reactflow";
-import { UseStore } from "../../../hooks/bayesianNetwork/mindmap/useStore";
+
 import { GetEdgeParams } from "../../../../utils/bayesianNodeIntersectionCalculator";
+import { UseStore } from "../../../hooks/bayesianNetwork/mindmap/useStore";
 
 /**
  * A functional component that renders an edge in the mind map with custom styling and directional arrows.

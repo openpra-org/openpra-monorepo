@@ -1,8 +1,7 @@
 import { StateCreator } from "zustand";
 import { immer } from "zustand/middleware/immer";
+
 import { SliceResetFns, StoreActionType, StoreStateType } from "../Store";
-import { NestedModelsState } from "./NestedModelsState";
-import { NestedModelActionsType, NestedModelsType } from "./NestedModelsType";
 import {
   AddBayesianNetwork,
   AddEventSequenceAnalysis,
@@ -29,6 +28,8 @@ import {
   SetFaultTrees,
   SetInitiatingEvents,
 } from "./NestedModelsActions";
+import { NestedModelsState } from "./NestedModelsState";
+import { NestedModelActionsType, NestedModelsType } from "./NestedModelsType";
 
 const NestedModelsSlice: StateCreator<
   StoreStateType & StoreActionType,

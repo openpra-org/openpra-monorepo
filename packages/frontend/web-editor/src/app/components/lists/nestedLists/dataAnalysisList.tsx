@@ -3,9 +3,10 @@ import {
   GetDataAnalysis,
   PatchDataAnalysisLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
+
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function DataAnalysisList(): JSX.Element {
+const DataAnalysisList = (): JSX.Element => {
   return (
     <NestedModelList
       getNestedEndpoint={GetDataAnalysis}
@@ -14,5 +15,5 @@ function DataAnalysisList(): JSX.Element {
       name="data-analysis"
     />
   );
-}
+};
 export { DataAnalysisList };

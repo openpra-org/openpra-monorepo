@@ -1,9 +1,9 @@
-import { useReactFlow, Node, Edge } from "reactflow";
 import { useParams } from "react-router-dom";
+import { useReactFlow } from "reactflow";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { EventTreeState } from "../../../utils/treeUtils";
+
+import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";
-import { GenerateUUID } from "../../../utils/treeUtils";
 
 function useDeleteColClick(clickedColumnId: string) {
   const { setNodes, setEdges, getNodes, getEdges } = useReactFlow();

@@ -1,4 +1,10 @@
 import {
+  AddBayesianNetwork,
+  DeleteBayesianNetwork,
+  EditBayesianNetwork,
+  SetBayesianNetworks,
+} from "./ActionHelpers/BayesianNetworksActions";
+import {
   AddEventSequenceAnalysis,
   DeleteEventSequenceAnalysis,
   EditEventSequenceAnalysis,
@@ -10,55 +16,44 @@ import {
   EditEventSequenceDiagram,
   SetEventSequenceDiagrams,
 } from "./ActionHelpers/EventSequenceDiagramsActions";
-import {
-  SetInitiatingEvents,
-  AddInitiatingEvent,
-  EditInitiatingEvent,
-  DeleteInitiatingEvent,
-} from "./ActionHelpers/InitiatingEventsActions";
-import { SetEventTrees, AddEventTree, EditEventTree, DeleteEventTree } from "./ActionHelpers/EventTreesActions";
-import {
-  AddBayesianNetwork,
-  DeleteBayesianNetwork,
-  EditBayesianNetwork,
-  SetBayesianNetworks,
-} from "./ActionHelpers/BayesianNetworksActions";
+import { AddEventTree, DeleteEventTree, EditEventTree, SetEventTrees } from "./ActionHelpers/EventTreesActions";
 import { AddFaultTree, DeleteFaultTree, EditFaultTree, SetFaultTrees } from "./ActionHelpers/FaultTreesActions";
+import {
+  AddInitiatingEvent,
+  DeleteInitiatingEvent,
+  EditInitiatingEvent,
+  SetInitiatingEvents,
+} from "./ActionHelpers/InitiatingEventsActions";
 
 export {
-  // Initiating Events
-  SetInitiatingEvents,
-  AddInitiatingEvent,
-  EditInitiatingEvent,
-  DeleteInitiatingEvent,
-
-  // Event Sequence Diagrams
-  SetEventSequenceDiagrams,
-  AddEventSequenceDiagram,
-  EditEventSequenceDiagram,
-  DeleteEventSequenceDiagram,
-
-  // Event Sequence Analysis
-  SetEventSequenceAnalysis,
+  AddBayesianNetwork,
   AddEventSequenceAnalysis,
-  EditEventSequenceAnalysis,
-  DeleteEventSequenceAnalysis,
-
-  // Event Trees
-  SetEventTrees,
+  AddEventSequenceDiagram,
   AddEventTree,
-  EditEventTree,
+  AddFaultTree,
+  AddInitiatingEvent,
+  DeleteBayesianNetwork,
+  DeleteEventSequenceAnalysis,
+  DeleteEventSequenceDiagram,
   DeleteEventTree,
-
+  DeleteFaultTree,
+  DeleteInitiatingEvent,
+  EditBayesianNetwork,
+  EditEventSequenceAnalysis,
+  EditEventSequenceDiagram,
+  EditEventTree,
+  EditFaultTree,
+  EditInitiatingEvent,
   // Bayesian Networks
   SetBayesianNetworks,
-  AddBayesianNetwork,
-  EditBayesianNetwork,
-  DeleteBayesianNetwork,
-
+  // Event Sequence Analysis
+  SetEventSequenceAnalysis,
+  // Event Sequence Diagrams
+  SetEventSequenceDiagrams,
+  // Event Trees
+  SetEventTrees,
   // Fault Trees
   SetFaultTrees,
-  AddFaultTree,
-  EditFaultTree,
-  DeleteFaultTree,
+  // Initiating Events
+  SetInitiatingEvents,
 };

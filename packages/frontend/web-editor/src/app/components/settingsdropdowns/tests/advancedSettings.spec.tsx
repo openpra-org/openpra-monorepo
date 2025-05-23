@@ -1,7 +1,8 @@
-import { BrowserRouter } from "react-router-dom";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { AdvancedSettings } from "../advancedSettings";
 import "@testing-library/jest-dom";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { BrowserRouter } from "react-router-dom";
+
+import { AdvancedSettings } from "../advancedSettings";
 
 describe("AdvancedSettings", () => {
   //test for settings menu

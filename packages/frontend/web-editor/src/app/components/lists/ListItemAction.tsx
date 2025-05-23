@@ -2,12 +2,12 @@ import { ButtonWithClosablePopover } from "../buttons/ButtonWithPopover";
 import { GenericListItemProps } from "./GenericListItem";
 import { ListItemContextMenu } from "./ListItemContextMenu";
 
-export function ListItemContextMenuButton(props: GenericListItemProps): JSX.Element {
+export const ListItemContextMenuButton = (props: GenericListItemProps): JSX.Element => {
   return (
     <ButtonWithClosablePopover
       closeProp="onCancel"
       iconType="boxesHorizontal"
-      isIcon={true}
+      isIcon
       aria-label="Edit Item"
       confirmDiscard={false}
       popoverProps={{
@@ -19,4 +19,4 @@ export function ListItemContextMenuButton(props: GenericListItemProps): JSX.Elem
       <ListItemContextMenu {...props} />
     </ButtonWithClosablePopover>
   );
-}
+};

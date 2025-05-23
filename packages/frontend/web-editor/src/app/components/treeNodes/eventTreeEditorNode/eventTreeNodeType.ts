@@ -1,8 +1,9 @@
 import { NodeTypes } from "reactflow";
-import VisibleNode from "./visibleNode";
+
 import ColumnNode from "./columnNode";
-import OutputNode from "./outputNode";
 import InvisibleNode from "./invisibleNode";
+import OutputNode from "./outputNode";
+import VisibleNode from "./visibleNode";
 
 export const nodeTypes: NodeTypes = {
   visibleNode: VisibleNode,

@@ -1,20 +1,21 @@
-import { useEffect, useState } from "react";
 import {
-  EuiTextColor,
+  EuiFlexGrid,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiFlexGrid,
+  EuiIcon,
   EuiPanel,
+  EuiSkeletonRectangle,
+  EuiText,
+  EuiTextColor,
   EuiTitle,
   useIsWithinBreakpoints,
-  EuiText,
-  EuiIcon,
-  EuiSkeletonRectangle,
 } from "@elastic/eui";
-import TypedModel from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+import { useEffect, useState } from "react";
 import { GetCurrentTypedModel } from "shared-types/src/lib/api/TypedModelApiManager";
-import { TypedModelActionForm } from "../forms/typedModelActionForm";
+import TypedModel from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+
 import { UseGlobalStore } from "../../zustand/Store";
+import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { SettingsAccordian } from "./SettingsAccordian";
 
 const TYPED_MODEL_TYPE_LOCATION = 1;
@@ -28,7 +29,7 @@ async function fetchCurrentTypedModel(): Promise<TypedModel> {
 }
 
 //a change of new item that lets you edit an item, though right now functionality for that isn't available because it requires database
-function EditCurrentModel(): JSX.Element {
+const EditCurrentModel = (): JSX.Element => {
   //this is what is in the newItem structure, will eventually be used to actually make things
   //this is also subject to change, probably needs a type passed in from props eventually
   const newItem = new TypedModel();
@@ -117,14 +118,14 @@ function EditCurrentModel(): JSX.Element {
     <SettingsAccordian
       id="model_settings"
       buttonContent={buttonContent}
-      initial={true}
+      initial
     >
       <EuiFlexGrid
         direction="row"
         responsive={false}
         columns={smallScreen ? 1 : 2}
       >
-        <EuiFlexItem grow={true}>
+        <EuiFlexItem grow>
           <EuiPanel paddingSize="xl">
             <EuiSkeletonRectangle
               width="100%"
@@ -150,6 +151,6 @@ function EditCurrentModel(): JSX.Element {
       </EuiFlexGrid>
     </SettingsAccordian>
   );
-}
+};
 
 export { EditCurrentModel };

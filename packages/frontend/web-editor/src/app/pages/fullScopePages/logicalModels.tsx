@@ -1,5 +1,5 @@
-function LogicalModels(): JSX.Element {
-  return <div></div>;
-}
+const LogicalModels = (): JSX.Element => {
+  return <div />;
+};
 
 export { LogicalModels };

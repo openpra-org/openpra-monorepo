@@ -1,22 +1,23 @@
 import {
   EuiAvatar,
+  EuiButton,
+  EuiFieldText,
+  EuiForm,
+  EuiFormRow,
   EuiPageHeader,
   EuiPageTemplate,
   EuiSpacer,
-  EuiForm,
-  EuiFormRow,
-  EuiFieldText,
-  EuiButton,
 } from "@elastic/eui";
 import { useContext } from "react";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+
 import { PreferenceContext, PreferenceContextType } from "../settings/preferences";
 
 /**
  * Function returns the main user profile page
  *
  */
-export function EditPersonalInfoForm(): JSX.Element {
+export const EditPersonalInfoForm = (): JSX.Element => {
   const { currentUser, setCurrentUser } = useContext<PreferenceContextType>(PreferenceContext);
 
   return (
@@ -24,15 +25,15 @@ export function EditPersonalInfoForm(): JSX.Element {
       panelled={false}
       offset={0}
       paddingSize="xl"
-      grow={true}
-      restrictWidth={true}
+      grow
+      restrictWidth
     >
       <EuiPageHeader
         pageTitle={currentUser?.firstName + " " + currentUser?.lastName}
         paddingSize="xl"
         data-testid="profile-name"
-      ></EuiPageHeader>
-      <EuiPageTemplate.Section grow={true}>
+      />
+      <EuiPageTemplate.Section grow>
         <EuiAvatar
           size="xl"
           name={currentUser?.firstName + " " + currentUser?.lastName}
@@ -106,4 +107,4 @@ export function EditPersonalInfoForm(): JSX.Element {
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
-}
+};

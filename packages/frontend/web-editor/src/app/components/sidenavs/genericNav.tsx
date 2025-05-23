@@ -1,5 +1,5 @@
-import React, { useState } from "react";
 import { EuiSideNav } from "@elastic/eui";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 interface NavItemHeader {
@@ -15,10 +15,12 @@ interface NavItem {
   data: object;
 }
 
-function NavInsideNav({ items }: { items: NavItemHeader[] }): JSX.Element {
+const NavInsideNav = ({ items }: { items: NavItemHeader[] }): JSX.Element => {
   const navigate = useNavigate();
   const [isSideNavOpenOnMobile, setIsSideNavOpenOnMobile] = useState(false);
-  const [selectedItemName, setSelectedItem] = useState<string | null>("Personal Data");
+  const [selectedItemName, setSelectedItem] = useState<string | null>(
+    "Personal Data",
+  );
   const toggleOpenOnMobile = (): void => {
     setIsSideNavOpenOnMobile(!isSideNavOpenOnMobile);
   };
@@ -46,7 +48,9 @@ function NavInsideNav({ items }: { items: NavItemHeader[] }): JSX.Element {
     name: headerItem.name,
     id: headerItem.id,
     icon: headerItem.icon,
-    items: headerItem.items.map((navItem) => createItem(navItem.name, navItem.url, navItem.data)),
+    items: headerItem.items.map((navItem) =>
+      createItem(navItem.name, navItem.url, navItem.data),
+    ),
   }));
   return (
     <EuiSideNav
@@ -57,6 +61,6 @@ function NavInsideNav({ items }: { items: NavItemHeader[] }): JSX.Element {
       items={navItems}
     />
   );
-}
+};
 
 export { NavInsideNav, NavItem, NavItemHeader };

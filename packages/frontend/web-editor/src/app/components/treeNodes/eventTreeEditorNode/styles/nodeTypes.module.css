@@ -1,29 +1,29 @@
-.outputNode{
-  border: 1.5px solid ;
-  height: 50%
+.outputNode {
+  border: 1.5px solid;
+  height: 50%;
 }
 
-.Output{ }
-
-.inputNode{
-
+.Output {
 }
 
-.addNodeButton{
+.inputNode {
+}
+
+.addNodeButton {
   cursor: pointer;
   pointer-events: all;
   stroke: #0984e3;
   fill: white;
 }
 
-.addNodeButtonText{
+.addNodeButtonText {
   text-align: center;
   padding-right: 0.2rem;
   font-size: medium;
   cursor: pointer;
 }
 
-.deleteNodeButtonText{
+.deleteNodeButtonText {
   text-align: center;
   padding-right: 0.2rem;
   font-size: medium;
@@ -31,9 +31,9 @@
   margin-left: 4px;
 }
 
-.textarea{
-  height:1.2rem;
-  fontSize: 0.7rem;
+.textarea {
+  height: 1.2rem;
+  fontsize: 0.7rem;
 }
 
 .columnButtons {

@@ -3,9 +3,10 @@ import {
   GetWeibullAnalysis,
   PatchWeibullAnalysisLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
+
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function WeibullAnalysisList(): JSX.Element {
+const WeibullAnalysisList = (): JSX.Element => {
   return (
     <NestedModelList
       getNestedEndpoint={GetWeibullAnalysis}
@@ -14,6 +15,6 @@ function WeibullAnalysisList(): JSX.Element {
       name="weibull-analysis"
     />
   );
-}
+};
 
 export { WeibullAnalysisList };

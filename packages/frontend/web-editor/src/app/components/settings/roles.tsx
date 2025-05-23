@@ -1,10 +1,11 @@
 import { EuiIcon, EuiPageTemplate, EuiSkeletonRectangle } from "@elastic/eui";
-import { Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
+import { Outlet } from "react-router-dom";
 import { GetAllRoles } from "shared-types/src/lib/api/roles/rolesApi";
-import { NavInsideNav, NavItemHeader } from "../sidenavs/genericNav";
-import { UseToastContext } from "../../providers/toastProvider";
+
 import { GetESToast } from "../../../utils/treeUtils";
+import { UseToastContext } from "../../providers/toastProvider";
+import { NavInsideNav, NavItemHeader } from "../sidenavs/genericNav";
 
 const Roles = (): JSX.Element => {
   const { addToast } = UseToastContext();
@@ -39,7 +40,7 @@ const Roles = (): JSX.Element => {
   return (
     <EuiPageTemplate
       panelled={false}
-      restrictWidth={true}
+      restrictWidth
       paddingSize={"s"}
     >
       <EuiPageTemplate.Sidebar>

@@ -1,31 +1,32 @@
 import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
+
+import { RadiologicalConsequenceAnalysisList } from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
 import { InternalHazardsList } from "../../components/lists/workspaceLists/internalHazardsList";
-import { EventSequenceDiagrams } from "../fullScopePages/eventSequenceDiagrams";
-import { BayesianNetworks } from "../fullScopePages/bayesianNetworks";
-import { ModelSettings } from "../fullScopePages/modelSettings";
-import { InitiatingEvents } from "../fullScopePages/initiatingEvents";
-import { EventTrees } from "../fullScopePages/eventTrees";
 import { InternalHazardsContainer } from "../../components/pageContainers/internalHazardsContainer";
-import { HRA } from "../fullScopePages/humanReliabilityAnalysis";
 import { BayesianEstimation } from "../fullScopePages/bayesianEstimation";
+import { BayesianNetworks } from "../fullScopePages/bayesianNetworks";
+import { DataAnalysis } from "../fullScopePages/dataAnalysis";
+import { EventSequenceAnalysis } from "../fullScopePages/eventSequenceAnalysis";
+import { EventSequenceDiagrams } from "../fullScopePages/eventSequenceDiagrams";
+import { EventSequenceQuantificationDiagrams } from "../fullScopePages/eventSequenceQuantificationDiagrams";
+import { EventTrees } from "../fullScopePages/eventTrees";
+import { FaultTrees } from "../fullScopePages/faultTrees";
 import { FunctionalEvents } from "../fullScopePages/functionalEvents";
 import { HazardsScreeningAnalysis } from "../fullScopePages/hazardsScreeningAnalysis";
+import { HRA } from "../fullScopePages/humanReliabilityAnalysis";
+import { InitiatingEvents } from "../fullScopePages/initiatingEvents";
 import { InternalFire } from "../fullScopePages/internalFire";
 import { InternalFlood } from "../fullScopePages/internalFlood";
 import { MarkovChains } from "../fullScopePages/markovChains";
 import { MechanisticAnalysis } from "../fullScopePages/mechanisticAnalysis";
+import { ModelSettings } from "../fullScopePages/modelSettings";
+import { OperatingStateAnalysis } from "../fullScopePages/operatingStateAnalysis";
 import { OtherHazards } from "../fullScopePages/otherHazards";
 import { RiskIntegration } from "../fullScopePages/riskIntegration";
-import { WeibullAnalysis } from "../fullScopePages/weibullAnalysis";
-import { EventSequenceQuantificationDiagrams } from "../fullScopePages/eventSequenceQuantificationDiagrams";
-import { DataAnalysis } from "../fullScopePages/dataAnalysis";
-import { EventSequenceAnalysis } from "../fullScopePages/eventSequenceAnalysis";
-import { OperatingStateAnalysis } from "../fullScopePages/operatingStateAnalysis";
 import { SuccessCriteria } from "../fullScopePages/successCriteria";
 import { SystemsAnalysis } from "../fullScopePages/systemsAnalysis";
-import { RadiologicalConsequenceAnalysisList } from "../../components/lists/nestedLists/radiologicalConsequenceAnalysisList";
-import { FaultTrees } from "../fullScopePages/faultTrees";
+import { WeibullAnalysis } from "../fullScopePages/weibullAnalysis";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -65,7 +66,7 @@ export function LoadModel(): ModelProps {
   return getModelFixture();
 }
 
-function InternalHazardsPage(): JSX.Element {
+const InternalHazardsPage = (): JSX.Element => {
   return (
     <Routes>
       <Route
@@ -183,6 +184,6 @@ function InternalHazardsPage(): JSX.Element {
        */}
     </Routes>
   );
-}
+};
 
 export { InternalHazardsPage };

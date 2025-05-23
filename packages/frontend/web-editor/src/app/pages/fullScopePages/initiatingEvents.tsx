@@ -1,37 +1,33 @@
 import {
   EuiButton,
-  EuiModal,
-  EuiModalHeader,
-  EuiModalHeaderTitle,
-  EuiModalBody,
-  EuiModalFooter,
-  EuiFieldText,
-  EuiSelect,
-  EuiOverlayMask,
-  EuiForm,
-  EuiFormRow,
-  EuiPageTemplate,
   EuiButtonIcon,
-  EuiFieldNumber,
   EuiDataGrid,
   EuiDataGridCellValueElementProps,
+  EuiFieldNumber,
+  EuiFieldText,
+  EuiForm,
+  EuiFormRow,
   EuiGlobalToastList,
-  EuiToast,
+  EuiModal,
+  EuiModalBody,
+  EuiModalFooter,
+  EuiModalHeader,
+  EuiModalHeaderTitle,
+  EuiOverlayMask,
+  EuiPageTemplate,
   EuiResizableContainer,
+  EuiSelect,
 } from "@elastic/eui";
 import React, { useCallback, useEffect, useState } from "react";
 import { Route, Routes } from "react-router-dom";
-
+import FmeaApiManager from "shared-types/src/lib/api/InitiatingEventsApiManager";
 import { Column } from "shared-types/src/lib/types/fmea/Column";
 import { Row } from "shared-types/src/lib/types/fmea/Row";
 
-import FmeaApiManager from "shared-types/src/lib/api/InitiatingEventsApiManager";
-
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import InitiatorList from "../../components/lists/InitiatorList";
 import { InitiatingEventsList } from "../../components/lists/nestedLists/initiatingEventsList";
 
-export function EditableTable(): JSX.Element | null {
+export const EditableTable = (): JSX.Element | null => {
   const [data, setData] = useState<Row[]>([]);
   const [columns, setColumn] = useState<Column[]>([]);
   const [newColumn, setNewColumn] = useState({
@@ -628,7 +624,7 @@ export function EditableTable(): JSX.Element | null {
                                 label={column.name}
                                 key={column.id}
                               >
-                                {column.type === "dropdown" ? (
+                                {column.type === "dropdown" ?
                                   <EuiSelect
                                     options={column.dropdownOptions.map((option) => ({
                                       value: option.number.toString(),
@@ -640,14 +636,13 @@ export function EditableTable(): JSX.Element | null {
                                     }}
                                     style={{ minWidth: "100px" }}
                                   />
-                                ) : (
-                                  <EuiFieldText
+                                : <EuiFieldText
                                     value={value}
                                     onChange={(e): void => {
                                       updateCell(selectedRowIdSidePanel, column.id, e.target.value);
                                     }}
                                   />
-                                )}
+                                }
                               </EuiFormRow>
                             );
                           })}
@@ -667,17 +662,17 @@ export function EditableTable(): JSX.Element | null {
       </EuiPageTemplate>
     </div>
   );
-}
+};
 
-export function InitiatingEventAnalysis(): JSX.Element {
+export const InitiatingEventAnalysis = (): JSX.Element => {
   return (
     <>
       <EditableTable />
       <div> this is event data grid page </div>
     </>
   );
-}
-export function InitiatingEvents(): JSX.Element {
+};
+export const InitiatingEvents = (): JSX.Element => {
   return (
     <Routes>
       <Route
@@ -694,4 +689,4 @@ export function InitiatingEvents(): JSX.Element {
       />
     </Routes>
   );
-}
+};

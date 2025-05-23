@@ -1,18 +1,18 @@
-import { useEffect, useState } from "react";
 import {
-  EuiForm,
-  EuiFormRow,
-  EuiFieldText,
-  EuiTextArea,
   EuiButton,
+  EuiButtonEmpty,
+  EuiFieldText,
   EuiFlexGroup,
   EuiFlexItem,
-  EuiSpacer,
+  EuiForm,
+  EuiFormRow,
   EuiSelectable,
   EuiSelectableOption,
+  EuiSpacer,
+  EuiTextArea,
   EuiTitle,
-  EuiButtonEmpty,
 } from "@elastic/eui";
+import { useEffect, useState } from "react";
 
 //list of props passed in, the users is optional and controls which version is shown, this is so we can reuse this structure later
 export interface NewItemProps {
@@ -25,7 +25,7 @@ export interface NewItemProps {
 }
 
 //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
-function NewItem(props: NewItemProps): JSX.Element {
+const NewItem = (props: NewItemProps): JSX.Element => {
   //grabbing the props
   const { title, users, toggleBox } = props;
 
@@ -81,15 +81,15 @@ function NewItem(props: NewItemProps): JSX.Element {
     //Setting form width seems to be the only real way to make this look a little bigger
     <EuiForm style={{ width: "300px" }}>
       {/** this gives the text, and then importantly sets the title of the item */}
-      <EuiFormRow fullWidth={true}>
+      <EuiFormRow fullWidth>
         <EuiTitle size="m">
           <strong>New {title}</strong>
         </EuiTitle>
       </EuiFormRow>
-      <EuiSpacer size="s"></EuiSpacer>
-      <EuiFormRow fullWidth={true}>
+      <EuiSpacer size="s" />
+      <EuiFormRow fullWidth>
         <EuiFieldText
-          fullWidth={true}
+          fullWidth
           placeholder="Title"
           value={itemInfo.title}
           onChange={(e): void => {
@@ -101,9 +101,9 @@ function NewItem(props: NewItemProps): JSX.Element {
         />
       </EuiFormRow>
       {/** this form row is for the description */}
-      <EuiFormRow fullWidth={true}>
+      <EuiFormRow fullWidth>
         <EuiTextArea
-          fullWidth={true}
+          fullWidth
           placeholder="Description"
           resize="none"
           value={itemInfo.description}
@@ -117,7 +117,7 @@ function NewItem(props: NewItemProps): JSX.Element {
       </EuiFormRow>
       {/** toggles if users exists and is passed, and it shows the selectable menu of users */}
       {users && (
-        <EuiFormRow fullWidth={true}>
+        <EuiFormRow fullWidth>
           <EuiSelectable
             options={options}
             onChange={(newOptions): void => {
@@ -137,7 +137,7 @@ function NewItem(props: NewItemProps): JSX.Element {
         </EuiFormRow>
       )}
       {/** the submit and also the go back buttons are right here*/}
-      <EuiFormRow fullWidth={true}>
+      <EuiFormRow fullWidth>
         <EuiFlexGroup
           justifyContent="spaceBetween"
           gutterSize="xs"
@@ -147,7 +147,7 @@ function NewItem(props: NewItemProps): JSX.Element {
           </EuiFlexItem>
           <EuiFlexItem>
             <EuiButton
-              fill={true}
+              fill
               isDisabled={(users && itemInfo.users.length === 0) ?? itemInfo.title.length === 0}
               onClick={setData}
             >
@@ -158,5 +158,5 @@ function NewItem(props: NewItemProps): JSX.Element {
       </EuiFormRow>
     </EuiForm>
   );
-}
+};
 export { NewItem };

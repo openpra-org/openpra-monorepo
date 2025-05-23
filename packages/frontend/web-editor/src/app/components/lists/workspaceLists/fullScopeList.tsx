@@ -1,11 +1,12 @@
 import { EuiPageTemplate, EuiSkeletonRectangle, EuiSpacer } from "@elastic/eui";
 import { ReactElement, useEffect, useState } from "react";
 import { FullScopeModelType } from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
-import { GenericItemList } from "../GenericItemList";
+
 import { UseGlobalStore } from "../../../zustand/Store";
+import { GenericItemList } from "../GenericItemList";
 import { CreateGenericList } from "../GenericList";
 
-function FullScopeList(): JSX.Element {
+const FullScopeList = (): JSX.Element => {
   const [isLoading, setIsLoading] = useState(true);
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
 
@@ -38,8 +39,8 @@ function FullScopeList(): JSX.Element {
     <EuiPageTemplate
       panelled={false}
       offset={48}
-      grow={true}
-      restrictWidth={true}
+      grow
+      restrictWidth
     >
       <EuiPageTemplate.Section>
         <EuiSkeletonRectangle
@@ -55,6 +56,6 @@ function FullScopeList(): JSX.Element {
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
-}
+};
 
 export { FullScopeList };

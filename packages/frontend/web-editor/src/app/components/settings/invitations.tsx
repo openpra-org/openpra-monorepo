@@ -1,12 +1,13 @@
+import { EuiButton, EuiPageHeader, EuiPageTemplate, EuiSkeletonLoading, EuiText } from "@elastic/eui";
 import { useEffect, useState } from "react";
 import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
 import { InvitedUserDetailsDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
-import { EuiButton, EuiPageHeader, EuiPageTemplate, EuiSkeletonLoading, EuiText } from "@elastic/eui";
-import { UseToastContext } from "../../providers/toastProvider";
+
 import { GenerateUUID } from "../../../utils/treeUtils";
-import { InvitedUsersTable } from "../tables/invitedUsersTable";
-import { InviteMultipleUsersFlyout } from "../forms/inviteMultipleUsersFlyout";
 import { Can } from "../../providers/abilityProvider";
+import { UseToastContext } from "../../providers/toastProvider";
+import { InviteMultipleUsersFlyout } from "../forms/inviteMultipleUsersFlyout";
+import { InvitedUsersTable } from "../tables/invitedUsersTable";
 
 const Invitations = (): JSX.Element => {
   const [invitedUsers, setInvitedUsers] = useState<InvitedUserDetailsDto[]>();
@@ -66,8 +67,8 @@ const Invitations = (): JSX.Element => {
           panelled={false}
           offset={48}
           paddingSize="xl"
-          grow={true}
-          restrictWidth={true}
+          grow
+          restrictWidth
         >
           <>
             <EuiPageHeader
@@ -87,7 +88,7 @@ const Invitations = (): JSX.Element => {
                   </EuiButton>
                 </Can>,
               ]}
-            ></EuiPageHeader>
+            />
             <EuiPageTemplate.Section>
               <InvitedUsersTable
                 invitedUsers={invitedUsers ?? []}
@@ -98,7 +99,7 @@ const Invitations = (): JSX.Element => {
           </>
         </EuiPageTemplate>
       }
-    ></EuiSkeletonLoading>
+    />
   );
 };
 

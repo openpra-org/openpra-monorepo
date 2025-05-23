@@ -1,4 +1,3 @@
-import React from "react";
 import { INodeProps, NodeTypes } from "./interfaces/nodeProps";
 
 /**
@@ -8,7 +7,10 @@ import { INodeProps, NodeTypes } from "./interfaces/nodeProps";
  * @param isGrayed - boolean for showing grayed out state
  */
 function getNodeShape(nodeType: NodeTypes, selected: boolean | undefined, isGrayed: boolean): JSX.Element {
-  const stroke = isGrayed ? "#bbb" : selected ? "red" : "#0984e3";
+  const stroke =
+    isGrayed ? "#bbb"
+    : selected ? "red"
+    : "#0984e3";
   switch (nodeType) {
     case NodeTypes.AndGate:
       return (
@@ -154,7 +156,7 @@ function getNodeShape(nodeType: NodeTypes, selected: boolean | undefined, isGray
         />
       );
     default:
-      return <div></div>;
+      return <div />;
   }
 }
 

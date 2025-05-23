@@ -1,21 +1,22 @@
 import {
+  EuiButton,
+  EuiFieldNumber,
+  EuiFlexGrid,
+  EuiFlexGroup,
+  EuiFlexItem,
   EuiForm,
   EuiFormRow,
-  EuiSelect,
-  EuiButton,
-  EuiFlexGroup,
-  useGeneratedHtmlId,
-  EuiText,
-  EuiPanel,
-  EuiFlexGrid,
-  EuiFlexItem,
   EuiIcon,
-  EuiTitle,
-  EuiTextColor,
-  EuiFieldNumber,
+  EuiPanel,
+  EuiSelect,
   EuiSpacer,
+  EuiText,
+  EuiTextColor,
+  EuiTitle,
+  useGeneratedHtmlId,
 } from "@elastic/eui";
 import { useState } from "react";
+
 import { SettingsAccordian } from "./SettingsAccordian";
 
 const buttonContent = (
@@ -46,7 +47,7 @@ const buttonContent = (
 );
 
 //this page in theory changes the diagram on the voerview page, but again, cant even remotely test right now so its mostly dummied out
-function SettingsOverview(): JSX.Element {
+const SettingsOverview = (): JSX.Element => {
   const [overviewValue, setOverviewValue] = useState("");
 
   const basicSelectId = useGeneratedHtmlId({ prefix: "basicSelect" });
@@ -70,7 +71,7 @@ function SettingsOverview(): JSX.Element {
     >
       <EuiFlexGrid
         direction="row"
-        responsive={true}
+        responsive
         columns={2}
       >
         <EuiFlexItem grow={false}>
@@ -114,7 +115,7 @@ function SettingsOverview(): JSX.Element {
                     <EuiFieldNumber
                       style={{ width: 60 }}
                       min={1}
-                      disabled={true}
+                      disabled
                       value={1}
                       data-testid="diagramNumber"
                     />
@@ -137,6 +138,6 @@ function SettingsOverview(): JSX.Element {
       </EuiFlexGrid>
     </SettingsAccordian>
   );
-}
+};
 
 export { SettingsOverview };

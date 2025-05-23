@@ -1,6 +1,6 @@
 import { DataTable } from "./templatetable/dataTable";
 
-function ComponentReliabilityTable(): JSX.Element {
+const ComponentReliabilityTable = (): JSX.Element => {
   //data has fields for every label
   //fth is 5th, nfth is 95th
   const rows = [
@@ -209,6 +209,6 @@ function ComponentReliabilityTable(): JSX.Element {
       columns={columns}
     />
   );
-}
+};
 
 export { ComponentReliabilityTable };

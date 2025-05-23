@@ -1,5 +1,6 @@
+import { EuiContextMenu, EuiContextMenuPanelDescriptor, EuiIcon } from "@elastic/eui";
 import React from "react";
-import { EuiContextMenuPanelDescriptor, EuiContextMenu, EuiIcon } from "@elastic/eui";
+
 import { EDITOR_BLUE_COLOR, MEDIUM, TRASH } from "../../../utils/constants";
 
 export interface BayesianNodeContextMenuProps {
@@ -81,64 +82,64 @@ const BayesianNodeContextMenu: React.FC<BayesianNodeContextMenuProps> = ({
               type={TRASH}
               size={MEDIUM}
               color={EDITOR_BLUE_COLOR}
-            ></EuiIcon>
+            />
           ),
           onClick: (): void => {
             onActionSelect("deleteNode", nodeId);
           },
         },
-        ...(parents.length > 0
-          ? [
-              {
-                name: "Show Parents",
-                icon: (
-                  <EuiIcon
-                    type={"user"}
-                    size={MEDIUM}
-                    color={EDITOR_BLUE_COLOR}
-                  ></EuiIcon>
-                ),
-                panel: 1, // Panel ID for parent
-              },
-            ]
-          : []),
-        ...(children.length > 0
-          ? [
-              {
-                name: "Show Children",
-                icon: (
-                  <EuiIcon
-                    type={"users"}
-                    size={MEDIUM}
-                    color={EDITOR_BLUE_COLOR}
-                  ></EuiIcon>
-                ),
-                panel: 2, // Panel ID for children
-              },
-            ]
-          : []),
+        ...(parents.length > 0 ?
+          [
+            {
+              name: "Show Parents",
+              icon: (
+                <EuiIcon
+                  type={"user"}
+                  size={MEDIUM}
+                  color={EDITOR_BLUE_COLOR}
+                />
+              ),
+              panel: 1, // Panel ID for parent
+            },
+          ]
+        : []),
+        ...(children.length > 0 ?
+          [
+            {
+              name: "Show Children",
+              icon: (
+                <EuiIcon
+                  type={"users"}
+                  size={MEDIUM}
+                  color={EDITOR_BLUE_COLOR}
+                />
+              ),
+              panel: 2, // Panel ID for children
+            },
+          ]
+        : []),
       ],
     },
     // Parent panel only if a parent exists
-    ...(parents.length > 0
-      ? [
-          {
-            id: 1,
-            title: "Parent",
-            items: parentItems,
-          },
-        ]
-      : []),
+    ...(parents.length > 0 ?
+      [
+        {
+          id: 1,
+          title: "Parent",
+          items: parentItems,
+        },
+      ]
+    : []),
     // Children panel only if there are any children
-    ...(children.length > 0
-      ? [
-          {
-            id: 2,
-            title: "Children",
-            items: childrenItems,
-          },
-        ]
-      : []),
+    ...(children.length > 0 ?
+      [
+        {
+          id: 2,
+          title: "Children",
+          items: childrenItems,
+        },
+      ]
+    : []),
   ];
 
   return (

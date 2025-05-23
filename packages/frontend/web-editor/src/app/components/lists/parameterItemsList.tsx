@@ -1,7 +1,7 @@
-import { EuiFlexGroup, EuiFlexItem, EuiText, useEuiTheme, EuiHorizontalRule, EuiButtonIcon } from "@elastic/eui";
+import { EuiButtonIcon, EuiFlexGroup, EuiFlexItem, EuiHorizontalRule, EuiText, useEuiTheme } from "@elastic/eui";
 import { useState } from "react";
 
-function ParameterItemsList(): JSX.Element {
+const ParameterItemsList = (): JSX.Element => {
   //state to toggle the delete menu
   const [deleteVisible, setDeleteVisible] = useState(false);
 
@@ -69,6 +69,6 @@ function ParameterItemsList(): JSX.Element {
       {/*)}*/}
     </EuiFlexGroup>
   );
-}
+};
 
 export { ParameterItemsList };

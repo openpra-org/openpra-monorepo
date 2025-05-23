@@ -3,9 +3,10 @@ import {
   GetHumanReliabilityAnalysis,
   PatchHumanReliabilityLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
+
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function HumanReliabilityAnalysisList(): JSX.Element {
+const HumanReliabilityAnalysisList = (): JSX.Element => {
   return (
     <NestedModelList
       getNestedEndpoint={GetHumanReliabilityAnalysis}
@@ -14,6 +15,6 @@ function HumanReliabilityAnalysisList(): JSX.Element {
       name="human-reliability-analysis"
     />
   );
-}
+};
 
 export { HumanReliabilityAnalysisList };

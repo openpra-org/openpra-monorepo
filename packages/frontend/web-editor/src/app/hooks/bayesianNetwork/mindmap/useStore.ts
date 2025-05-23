@@ -1,16 +1,16 @@
+import { nanoid } from "nanoid";
 import {
+  applyEdgeChanges,
+  applyNodeChanges,
   Edge,
   EdgeChange,
   Node,
   NodeChange,
-  OnNodesChange,
   OnEdgesChange,
-  applyNodeChanges,
-  applyEdgeChanges,
+  OnNodesChange,
   XYPosition,
 } from "reactflow";
 import { create } from "zustand";
-import { nanoid } from "nanoid";
 
 /**
  * Type definition for additional data to be stored within each node.
@@ -116,12 +116,12 @@ const UseStore = create<RFState>((set, get) => ({
     };
 
     const updatedNodes = get().nodes.map((node) =>
-      node.id === childNode.id
-        ? {
-            ...node,
-            parentNodes: node.parentNodes ? [...node.parentNodes, newParentNode.id] : [newParentNode.id],
-          }
-        : node,
+      node.id === childNode.id ?
+        {
+          ...node,
+          parentNodes: node.parentNodes ? [...node.parentNodes, newParentNode.id] : [newParentNode.id],
+        }
+      : node,
     );
 
     const newEdge = {

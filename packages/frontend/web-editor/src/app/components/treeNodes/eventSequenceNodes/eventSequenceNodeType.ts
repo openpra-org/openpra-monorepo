@@ -1,4 +1,5 @@
 import { NodeTypes } from "reactflow";
+
 import { EventSequenceNode } from "./eventSequenceNode";
 
 export type EventSequenceNodeTypes =

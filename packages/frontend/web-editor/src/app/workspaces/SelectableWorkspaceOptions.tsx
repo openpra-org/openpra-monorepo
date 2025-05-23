@@ -26,9 +26,9 @@ export const SelectableWorkspaceOptions: EuiSelectableOption<WorkspaceOption>[] 
       />
     ),
     checked:
-      window.location.pathname.split("/")[1] === "internal-events" || !window.location.pathname.split("/")[1]
-        ? "on"
-        : "off",
+      window.location.pathname.split("/")[1] === "internal-events" || !window.location.pathname.split("/")[1] ?
+        "on"
+      : "off",
   }, //This one ^ checks if the url is an internal-events url or if there isn't one (login page)
   {
     label: "Internal Hazards",

@@ -1,5 +1,5 @@
-function ExternalFlooding(): JSX.Element {
-  return <div></div>;
-}
+const ExternalFlooding = (): JSX.Element => {
+  return <div />;
+};
 
 export { ExternalFlooding };

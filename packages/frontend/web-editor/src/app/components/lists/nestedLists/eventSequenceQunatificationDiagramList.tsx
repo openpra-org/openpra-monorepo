@@ -3,9 +3,10 @@ import {
   GetEventSequenceQuantificationDiagram,
   PatchEventSequenceQuantificationDiagramLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
+
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function EventSequenceQuantificationDiagramList(): JSX.Element {
+const EventSequenceQuantificationDiagramList = (): JSX.Element => {
   return (
     <NestedModelList
       getNestedEndpoint={GetEventSequenceQuantificationDiagram}
@@ -14,6 +15,6 @@ function EventSequenceQuantificationDiagramList(): JSX.Element {
       name="event-sequence-quantification-diagram"
     />
   );
-}
+};
 
 export { EventSequenceQuantificationDiagramList };

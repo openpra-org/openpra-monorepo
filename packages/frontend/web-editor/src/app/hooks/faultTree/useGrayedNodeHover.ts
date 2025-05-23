@@ -1,7 +1,8 @@
 import { Edge, Node, NodeProps } from "reactflow";
-import { useStore } from "../../store/faultTreeStore";
-import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
+
 import { isSubgraphGrayed } from "../../../utils/treeUtils";
+import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
+import { useStore } from "../../store/faultTreeStore";
 
 /**
  * Hook for handling grayed node hover functionality.

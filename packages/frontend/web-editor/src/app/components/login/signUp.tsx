@@ -1,15 +1,15 @@
-import React, { useContext } from "react";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { AuthService } from "shared-types/src/lib/api/AuthService";
+import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { MemberRole } from "shared-types/src/lib/data/predefiniedRoles";
-import { UseToastContext } from "../../providers/toastProvider";
+
 import { GenerateUUID } from "../../../utils/treeUtils";
-import { SignUpForm } from "../forms/signUpForm";
 import { UpdateAbility } from "../../casl/ability";
 import { AbilityContext } from "../../providers/abilityProvider";
+import { UseToastContext } from "../../providers/toastProvider";
+import { SignUpForm } from "../forms/signUpForm";
 
 const DefaultSignupProps: SignUpPropsWithRole = {
   username: "",
@@ -24,11 +24,13 @@ const DefaultSignupProps: SignUpPropsWithRole = {
 /**
  * This is a wrapper component for the SignUp Form. Mainly because we want to decouple the form for reuse
  */
-function SignUp(): JSX.Element {
+const SignUp = (): JSX.Element => {
   const [signup, setSignup] = useState<SignUpPropsWithRole>(DefaultSignupProps);
   const { addToast } = UseToastContext();
   const ability = useContext(AbilityContext);
-  const [redirectToHomepage, setRedirectToHomepage] = useState(ApiManager.isLoggedIn());
+  const [redirectToHomepage, setRedirectToHomepage] = useState(
+    ApiManager.isLoggedIn(),
+  );
 
   /**
    * The function to call when user clicks on signup
@@ -56,7 +58,7 @@ function SignUp(): JSX.Element {
     return (
       <Navigate
         to="/internal-events"
-        replace={true}
+        replace
       />
     );
   } else {
@@ -69,6 +71,6 @@ function SignUp(): JSX.Element {
       />
     );
   }
-}
+};
 
-export { SignUp, DefaultSignupProps };
+export { DefaultSignupProps, SignUp };

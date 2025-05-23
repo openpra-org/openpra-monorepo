@@ -1,7 +1,7 @@
 import { SuccessCriteriaList } from "../../components/lists/nestedLists/successCriteriaList";
 
-function SuccessCriteria(): JSX.Element {
+const SuccessCriteria = (): JSX.Element => {
   return <SuccessCriteriaList />;
-}
+};
 
 export { SuccessCriteria };

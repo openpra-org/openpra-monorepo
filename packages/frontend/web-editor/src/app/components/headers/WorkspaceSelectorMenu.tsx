@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import {
   EuiHeaderSectionItemButton,
   EuiPopover,
@@ -9,9 +8,11 @@ import {
   useGeneratedHtmlId,
 } from "@elastic/eui";
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import { SelectableWorkspaceOptions } from "../../workspaces/SelectableWorkspaceOptions";
 
-function WorkspaceSelectorMenu(): JSX.Element {
+const WorkspaceSelectorMenu = (): JSX.Element => {
   const isMountedRef = useRef(false);
   const navigate = useNavigate();
   const popoverID = useGeneratedHtmlId({
@@ -84,5 +85,5 @@ function WorkspaceSelectorMenu(): JSX.Element {
       </EuiSelectable>
     </EuiPopover>
   );
-}
+};
 export { WorkspaceSelectorMenu };

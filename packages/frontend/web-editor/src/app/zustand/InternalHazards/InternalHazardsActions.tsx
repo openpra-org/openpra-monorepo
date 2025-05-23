@@ -1,12 +1,13 @@
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import {
   DeleteInternalHazard as DeleteInternalHazardAPI,
   GetInternalHazards,
   PatchInternalHazard,
   PostInternalHazard,
 } from "shared-types/src/lib/api/TypedModelApiManager";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+
 import { UseGlobalStore } from "../Store";
 
 export const SetInternalHazards = async (): Promise<void> => {

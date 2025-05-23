@@ -1,16 +1,17 @@
 import { useCallback } from "react";
-import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node, NodeProps, useReactFlow } from "reactflow";
 import { useParams } from "react-router-dom";
+import {
+  Edge,
+  getConnectedEdges,
+  getIncomers,
+  getOutgoers,
+  Node,
+  NodeProps,
+  useReactFlow,
+} from "reactflow";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import {
-  FaultTreeState,
-  getBasicEventNode,
-  GetSubgraph,
-  GetParentNode,
-  getWorkflowEdge,
-  grayOutSubgraph,
-} from "../../../utils/treeUtils";
+
 import {
   ATLEAST_TWO_CHILDREN,
   BASIC_EVENT,
@@ -24,8 +25,16 @@ import {
   UPDATE_ROOT_NODE,
   WORKFLOW,
 } from "../../../utils/constants";
-import { useStore } from "../../store/faultTreeStore";
+import {
+  FaultTreeState,
+  getBasicEventNode,
+  GetParentNode,
+  GetSubgraph,
+  getWorkflowEdge,
+  grayOutSubgraph,
+} from "../../../utils/treeUtils";
 import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
+import { useStore } from "../../store/faultTreeStore";
 import { useUndoRedo } from "./useUndeRedo";
 
 /**
@@ -66,7 +75,10 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
           const outgoers = getOutgoers(incomers[0], nodes, edges);
 
           //if parent should have at least 2 children
-          if (LOGICAL_GATES.includes(incomers[0].type) && outgoers.length === 2) {
+          if (
+            LOGICAL_GATES.includes(incomers[0].type) &&
+            outgoers.length === 2
+          ) {
             return ATLEAST_TWO_CHILDREN;
           }
           //if parent is NOT gate, cannot delete only child (leaf event)
@@ -74,7 +86,10 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
             return NOT_GATE_CHILD;
           }
         }
-      } else if (id === FAULT_TREE_ROOT_NODE_ID && (LEAF_NODE_TYPES.includes(type) || type === NOT_GATE)) {
+      } else if (
+        id === FAULT_TREE_ROOT_NODE_ID &&
+        (LEAF_NODE_TYPES.includes(type) || type === NOT_GATE)
+      ) {
         return UPDATE_ROOT_NODE;
       }
     },
@@ -112,8 +127,16 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
         } else if (LEAF_NODE_TYPES.includes(updateNodeType)) {
           // case 2: current node is any type of node with children and new node is leaf node
           // delete all child nodes and edges
-          const { nodes: subGraphNodes, edges: subGraphEdges } = GetSubgraph(clickedNode, nodes, edges);
-          edgesToRemove.push(...subGraphEdges.filter((edge) => !(edge.target === clickedNode.id)));
+          const { nodes: subGraphNodes, edges: subGraphEdges } = GetSubgraph(
+            clickedNode,
+            nodes,
+            edges,
+          );
+          edgesToRemove.push(
+            ...subGraphEdges.filter(
+              (edge) => !(edge.target === clickedNode.id),
+            ),
+          );
           nodesToRemove.push(...subGraphNodes);
         } else if (clickedNode.type === NOT_GATE) {
           //case 3: current node is a NOT gate with single child and new node is a logic gate (and/or)
@@ -130,8 +153,16 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
           // case 4: current node is of any type and new node is a not gate
           // flush the entire subtree and add a notGate with a basic event as child
 
-          const { nodes: subGraphNodes, edges: subGraphEdges } = GetSubgraph(clickedNode, nodes, edges);
-          edgesToRemove.push(...subGraphEdges.filter((edge) => !(edge.target === clickedNode.id)));
+          const { nodes: subGraphNodes, edges: subGraphEdges } = GetSubgraph(
+            clickedNode,
+            nodes,
+            edges,
+          );
+          edgesToRemove.push(
+            ...subGraphEdges.filter(
+              (edge) => !(edge.target === clickedNode.id),
+            ),
+          );
           nodesToRemove.push(...subGraphNodes);
 
           // add a basic event as child to not gate
@@ -151,8 +182,16 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
         //if it is a delete function, there are 2 cases
         if (updateNodeType === "deleteSubtree") {
           //case1: delete entire subtree - delete all children nodes and edges
-          const { nodes: subGraphNodes, edges: subGraphEdges } = GetSubgraph(clickedNode, nodes, edges);
-          edgesToRemove.push(...subGraphEdges.filter((edge) => !(edge.target === clickedNode.id)));
+          const { nodes: subGraphNodes, edges: subGraphEdges } = GetSubgraph(
+            clickedNode,
+            nodes,
+            edges,
+          );
+          edgesToRemove.push(
+            ...subGraphEdges.filter(
+              (edge) => !(edge.target === clickedNode.id),
+            ),
+          );
           nodesToRemove.push(...subGraphNodes);
           //set parent node type to basic event
           updateClickedNodeTo = BASIC_EVENT;
@@ -167,9 +206,16 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
 
           //if parent of intermediate node is NOT gate, handle separately
           const parentOfClickedNode = getIncomers(clickedNode, nodes, edges)[0];
-          if (LOGICAL_GATES.includes(clickedNode.type) && parentOfClickedNode.type === NOT_GATE) {
+          if (
+            LOGICAL_GATES.includes(clickedNode.type) &&
+            parentOfClickedNode.type === NOT_GATE
+          ) {
             //gray out the subgraph
-            const { grayedNodes, grayedEdges } = grayOutSubgraph(clickedNode, nodes, edges);
+            const { grayedNodes, grayedEdges } = grayOutSubgraph(
+              clickedNode,
+              nodes,
+              edges,
+            );
 
             setNodes(grayedNodes);
             setEdges(grayedEdges);
@@ -206,7 +252,8 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
 
       // if we need to update parent node, find it and update it
       if (updateClickedNodeTo) {
-        nodes[nodes.findIndex((el: Node) => el.id === id)].type = updateClickedNodeTo;
+        nodes[nodes.findIndex((el: Node) => el.id === id)].type =
+          updateClickedNodeTo;
       }
       setNodes(newNodes);
 
@@ -234,7 +281,16 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
         //console.log(r);
       });
     },
-    [clickedNode, takeSnapshot, nodes, setNodes, edges, setEdges, faultTreeId, id],
+    [
+      clickedNode,
+      takeSnapshot,
+      nodes,
+      setNodes,
+      edges,
+      setEdges,
+      faultTreeId,
+      id,
+    ],
   );
 
   return { handleContextMenuClick, validateFaultTreeContextMenuClick };

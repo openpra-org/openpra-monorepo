@@ -1,23 +1,23 @@
-import { useEffect, useState } from "react";
 import {
-  EuiForm,
-  EuiFormRow,
-  EuiFieldText,
   EuiButton,
-  EuiTextColor,
+  EuiFieldNumber,
+  EuiFieldText,
   EuiFlexGroup,
   EuiFlexItem,
+  EuiForm,
+  EuiFormRow,
   EuiSpacer,
+  EuiTextColor,
   useEuiTheme,
-  EuiFieldNumber,
 } from "@elastic/eui";
+import { useEffect, useState } from "react";
 
 export interface NewParameterProps {
   toggleBox: (isVisible: boolean) => void;
 }
 
 //returns what is called a newItem, which is actually a panel to create a new item in some sort of list somewhere
-function NewParameter(props: NewParameterProps): JSX.Element {
+const NewParameter = (props: NewParameterProps): JSX.Element => {
   //this is to make sure the new thing gets set
   // const [addNewVisible, setAddNewVisible] = useState(false);
 
@@ -78,11 +78,11 @@ function NewParameter(props: NewParameterProps): JSX.Element {
         <strong>New Global Parameter</strong>
       </EuiTextColor>
       <EuiFormRow
-        fullWidth={true}
+        fullWidth
         style={{ margin: "10px" }}
       >
         <EuiFieldText
-          fullWidth={true}
+          fullWidth
           placeholder="Title"
           value={itemInfo.name}
           onChange={(e): void => {
@@ -95,11 +95,11 @@ function NewParameter(props: NewParameterProps): JSX.Element {
       </EuiFormRow>
       {/** this form row is for the description */}
       <EuiFormRow
-        fullWidth={true}
+        fullWidth
         style={{ margin: "10px" }}
       >
         <EuiFieldNumber
-          fullWidth={true}
+          fullWidth
           placeholder="Value"
           value={itemInfo.value}
           onChange={(e): void => {
@@ -112,7 +112,7 @@ function NewParameter(props: NewParameterProps): JSX.Element {
       </EuiFormRow>
       {/** toggles if users exists and is passed, and it shows the selectable menu of users */}
       {/** the submit and also the go back buttons are right here*/}
-      <EuiFormRow fullWidth={true}>
+      <EuiFormRow fullWidth>
         <EuiFlexGroup
           justifyContent="spaceBetween"
           gutterSize="xs"
@@ -146,5 +146,5 @@ function NewParameter(props: NewParameterProps): JSX.Element {
       </EuiFormRow>
     </EuiForm>
   );
-}
+};
 export { NewParameter };

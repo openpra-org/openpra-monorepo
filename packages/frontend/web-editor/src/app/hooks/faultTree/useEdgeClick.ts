@@ -1,10 +1,10 @@
-import { Node, EdgeProps, useReactFlow, Edge } from "reactflow";
-
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
+import { Edge, EdgeProps, Node, useReactFlow } from "reactflow";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import { exitGrayedState, FaultTreeState, GenerateUUID, isSubgraphGrayed } from "../../../utils/treeUtils";
+
 import { NOT_GATE, WORKFLOW } from "../../../utils/constants";
+import { exitGrayedState, FaultTreeState, GenerateUUID, isSubgraphGrayed } from "../../../utils/treeUtils";
 import { useStore } from "../../store/faultTreeStore";
 import { useUndoRedo } from "./useUndeRedo";
 

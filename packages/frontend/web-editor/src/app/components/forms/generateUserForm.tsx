@@ -1,11 +1,12 @@
 import { EuiButton, EuiFlexGroup, EuiFlexItem, EuiForm, EuiFormRow, EuiSelect, EuiText } from "@elastic/eui";
-import React, { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { EuiSelectOption } from "@elastic/eui/src/components/form/select/select";
+import React, { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
-import { EuiSelectOption } from "@elastic/eui/src/components/form/select/select";
-import { UseToastContext } from "../../providers/toastProvider";
+
 import { GenerateUUID } from "../../../utils/treeUtils";
+import { UseToastContext } from "../../providers/toastProvider";
 import { UsernameForm } from "./usernameForm";
 
 /**
@@ -134,7 +135,7 @@ const GenerateUserForm = ({
               Expires in:{" "}
             </EuiText>
           </EuiFlexItem>
-          <EuiFlexItem grow={true}>
+          <EuiFlexItem grow>
             <EuiSelect
               id={"SelectId"}
               options={options}

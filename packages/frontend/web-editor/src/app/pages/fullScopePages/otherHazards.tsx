@@ -1,5 +1,5 @@
-function OtherHazards(): JSX.Element {
-  return <div></div>;
-}
+const OtherHazards = (): JSX.Element => {
+  return <div />;
+};
 
 export { OtherHazards };

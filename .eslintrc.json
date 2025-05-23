@@ -1,13 +1,21 @@
 {
   "root": true,
   "ignorePatterns": ["!**/*"],
+  "settings": {
+    "react": {
+      "version": "detect"
+    }
+  },
   "plugins": [
     "@nx",
     "import",
     "@typescript-eslint/eslint-plugin",
     "eslint-plugin-tsdoc",
     "jest",
-    "security"
+    "security",
+    "react",
+    "react-hooks",
+    "jsx-a11y"
   ],
   "extends": [
     // https://github.com/typescript-eslint/typescript-eslint/blob/main/packages/eslint-plugin/src/configs/strict-type-checked.ts
@@ -20,6 +28,9 @@
     // https://ota-meshi.github.io/eslint-plugin-jsonc/rules/
     "plugin:jsonc/recommended-with-jsonc",
     "plugin:json-schema-validator/recommended",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended",
+    "plugin:jsx-a11y/recommended",
     "plugin:prettier/recommended"
   ],
   "overrides": [
@@ -32,7 +43,7 @@
             "bracketSpacing": true,
             "endOfLine": "lf",
             "experimentalTernaries": true,
-            "printWidth": 120,
+            // "printWidth": 120,
             "singleAttributePerLine": true,
             "singleQuote": false
           }
@@ -65,14 +76,64 @@
             "bracketSpacing": true,
             "endOfLine": "lf",
             "experimentalTernaries": true,
-            "printWidth": 120,
+            // "printWidth": 120,
             "singleAttributePerLine": true,
             "singleQuote": false
           }
         ],
         "arrow-body-style": "off",
         "prefer-arrow-callback": "off",
-        "no-console": "warn"
+        "no-console": "warn",
+        "react/react-in-jsx-scope": "off", // 0 for off, 1 for warning, 2 for eer
+        "react/no-multi-comp": ["error", { "ignoreStateless": true }],
+        "react/function-component-definition": [
+          "error",
+          {
+            "namedComponents": "arrow-function",
+            "unnamedComponents": "arrow-function"
+          }
+        ],
+        "react/jsx-pascal-case": "error",
+        "react/jsx-closing-bracket-location": ["error", "line-aligned"],
+        "react/jsx-closing-tag-location": "error",
+        "react/jsx-curly-spacing": ["error", { "when": "never", "children": true }],
+        "react/jsx-tag-spacing": [
+          "error",
+          {
+            "closingSlash": "never",
+            "beforeSelfClosing": "always",
+            "afterOpening": "never",
+            "beforeClosing": "never"
+          }
+        ],
+        "jsx-quotes": ["error", "prefer-double"],
+        "react/jsx-boolean-value": ["error", "never"],
+        "jsx-a11y/alt-text": "error",
+        "jsx-a11y/img-redundant-alt": "error",
+        "jsx-a11y/aria-role": "error",
+        "jsx-a11y/no-access-key": "error",
+        "react/no-array-index-key": "error",
+        "react/self-closing-comp": "error",
+        "react/jsx-wrap-multilines": "error",
+        "import/order": [
+          "error",
+          {
+            "groups": ["builtin", "external", "internal", ["parent", "sibling", "index"]],
+            "pathGroups": [
+              {
+                "pattern": "react",
+                "group": "external",
+                "position": "before"
+              }
+            ],
+            "pathGroupsExcludedImportTypes": ["react"],
+            "newlines-between": "always",
+            "alphabetize": {
+              "order": "asc",
+              "caseInsensitive": true
+            }
+          }
+        ]
       }
     },
     {

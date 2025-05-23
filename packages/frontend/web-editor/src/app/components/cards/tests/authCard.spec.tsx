@@ -1,4 +1,5 @@
 import { queryAllByRole, render } from "@testing-library/react";
+
 import { AuthCard } from "../authCard";
 
 describe("AuthCard", () => {

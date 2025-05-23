@@ -1,13 +1,13 @@
 import {
+  EuiAvatar,
+  EuiCollapsibleNavGroup,
+  EuiIcon,
+  EuiText,
   EuiTreeView,
   slugify,
-  useEuiTheme,
-  EuiText,
-  EuiCollapsibleNavGroup,
-  useEuiPaddingSize,
   useEuiBackgroundColor,
-  EuiIcon,
-  EuiAvatar,
+  useEuiPaddingSize,
+  useEuiTheme,
 } from "@elastic/eui";
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
 import { useNavigate } from "react-router-dom";
@@ -21,7 +21,7 @@ interface TreeItem {
   icon?: JSX.Element;
   callback?: () => NonNullable<unknown>;
 }
-function DataSidenav(): JSX.Element {
+const DataSidenav = (): JSX.Element => {
   const { euiTheme } = useEuiTheme();
 
   const createTreeItem = (label: string, data = {}, depth = 0): TreeItem => {
@@ -195,7 +195,7 @@ function DataSidenav(): JSX.Element {
           iconType={items[0].icon?.props.type}
           iconSize="m"
           titleSize="xs"
-          isCollapsible={true}
+          isCollapsible
           isDisabled={false}
           arrowDisplay="none"
           onClick={items[0].callback}
@@ -209,7 +209,7 @@ function DataSidenav(): JSX.Element {
         iconType={items[0].icon?.props.type}
         iconSize="m"
         titleSize="xs"
-        isCollapsible={true}
+        isCollapsible
         buttonElement="button"
         initialIsOpen={items[0].isExpanded}
       >
@@ -234,6 +234,6 @@ function DataSidenav(): JSX.Element {
   };
 
   return <>{createTreeViews(treeItems)}</>;
-}
+};
 
 export { DataSidenav };

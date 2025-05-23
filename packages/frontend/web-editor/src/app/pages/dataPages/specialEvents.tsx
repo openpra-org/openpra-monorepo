@@ -3,7 +3,7 @@
 import { TemplatedPageBody } from "../../components/headers/TemplatedPageBody";
 import { SpecialEventsTable } from "../../components/tables/specialEventsTable";
 
-function SpecialEvents(): JSX.Element {
+const SpecialEvents = (): JSX.Element => {
   return (
     <TemplatedPageBody
       headerProps={{
@@ -14,6 +14,6 @@ function SpecialEvents(): JSX.Element {
       <SpecialEventsTable />
     </TemplatedPageBody>
   );
-}
+};
 
 export { SpecialEvents };

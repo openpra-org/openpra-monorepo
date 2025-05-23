@@ -1,11 +1,12 @@
-import { Handle, NodeProps, Position, useReactFlow, useUpdateNodeInternals } from "reactflow";
+import { EuiTextArea } from "@elastic/eui";
 import React, { memo, useEffect, useState } from "react";
-import { EuiText, EuiTextArea } from "@elastic/eui";
+import { Handle, NodeProps, Position, useReactFlow, useUpdateNodeInternals } from "reactflow";
+
 import useCreateColClick from "../../../hooks/eventTree/useCreateColClick";
 import useDeleteColClick from "../../../hooks/eventTree/useDeleteColClick";
 import styles from "./styles/nodeTypes.module.css";
 
-function ColumnNode({ id, data }: NodeProps) {
+const ColumnNode = ({ id, data }: NodeProps) => {
   const onClickAddColumn = useCreateColClick(id);
   const onClickDeleteColumn = useDeleteColClick(id);
   const { label, allowAdd } = data;
@@ -89,7 +90,7 @@ function ColumnNode({ id, data }: NodeProps) {
               maxWidth: 100,
               outline: "none",
             }}
-            compressed={true}
+            compressed
             resize="none"
             rows={1}
             cols={1}
@@ -131,6 +132,6 @@ function ColumnNode({ id, data }: NodeProps) {
       />
     </>
   );
-}
+};
 
 export default memo(ColumnNode);

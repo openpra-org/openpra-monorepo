@@ -1,7 +1,7 @@
 import { UseGlobalStore } from "../../../zustand/Store";
 import { NestedModelListZustand } from "./templateList/nestedModelListZustand";
 
-function InitiatingEventsList(): JSX.Element {
+const InitiatingEventsList = (): JSX.Element => {
   const InitiatingEvents = UseGlobalStore.use.NestedModels().InitiatingEventsAnalysis.InitiatingEvents;
   const SetInitiatingEvents = UseGlobalStore.use.SetInitiatingEvents();
   const AddInitiatingEvent = UseGlobalStore.use.AddInitiatingEvent();
@@ -19,6 +19,6 @@ function InitiatingEventsList(): JSX.Element {
       name="initiating-event"
     />
   );
-}
+};
 
 export { InitiatingEventsList };

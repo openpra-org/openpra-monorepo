@@ -1,11 +1,12 @@
+import { produce } from "immer";
 import {
-  GetEventSequenceDiagrams,
-  PostEventSequenceDiagram,
-  PatchEventSequenceDiagramLabel,
   DeleteEventSequenceDiagram as DeleteEventSequenceDiagramAPI,
+  GetEventSequenceDiagrams,
+  PatchEventSequenceDiagramLabel,
+  PostEventSequenceDiagram,
 } from "shared-types/src/lib/api/NestedModelApiManager";
 import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
-import { produce } from "immer";
+
 import { StoreStateType, UseGlobalStore } from "../../Store";
 import { AddToParentModel, GetTypedModelName, RemoveFromParentModel } from "../Helper";
 

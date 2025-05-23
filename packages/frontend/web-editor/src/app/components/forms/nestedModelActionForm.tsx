@@ -11,10 +11,9 @@ import {
   EuiTitle,
 } from "@elastic/eui";
 import { useState } from "react";
-
 import { GetCurrentModelIdString } from "shared-types/src/lib/api/TypedModelApiManager";
-import { DefaultNestedModelJSON, NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
+import { DefaultNestedModelJSON, NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 
 import { ToTitleCase } from "../../../utils/StringUtils";
 
@@ -36,7 +35,7 @@ export interface NestedItemFormProps {
   noHeader?: boolean;
 }
 
-function NestedModelActionForm({
+const NestedModelActionForm = ({
   itemName,
   onCancel,
   noHeader,
@@ -49,7 +48,7 @@ function NestedModelActionForm({
   patchNestedEndpoint,
   id,
   _id,
-}: NestedItemFormProps): JSX.Element {
+}: NestedItemFormProps): JSX.Element => {
   //setting up initial values depending on what has been sent, if init form values are passed it's assumed to be updating instead of adding
   const formInitials = initialFormValues ? initialFormValues : DefaultNestedModelJSON;
 
@@ -124,7 +123,7 @@ function NestedModelActionForm({
         onSubmit={handleAction}
       >
         <EuiFlexGroup>
-          <EuiFlexItem grow={true}>
+          <EuiFlexItem grow>
             <EuiFormRow
               fullWidth
               label={`${itemLabel} name`}
@@ -207,5 +206,5 @@ function NestedModelActionForm({
       </EuiForm>
     </>
   );
-}
+};
 export { NestedModelActionForm };

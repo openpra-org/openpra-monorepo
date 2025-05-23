@@ -1,13 +1,15 @@
 import { EuiPageTemplate, EuiSkeletonRectangle } from "@elastic/eui";
 import { ReactElement, useEffect, useState } from "react";
-
-import { NestedModel } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+import {
+  GetCurrentModelId,
+  GetCurrentModelIdString,
+} from "shared-types/src/lib/api/TypedModelApiManager";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
+import { NestedModel } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 
-import { GetCurrentModelId, GetCurrentModelIdString } from "shared-types/src/lib/api/TypedModelApiManager";
-import { GenericListItem } from "../../GenericListItem";
-import { GenericItemList } from "../../GenericItemList";
 import { UseGlobalStore } from "../../../../zustand/Store";
+import { GenericItemList } from "../../GenericItemList";
+import { GenericListItem } from "../../GenericListItem";
 
 export interface NestedModelListProps {
   name: string;
@@ -27,8 +29,8 @@ async function fetchModelList(
     const modelList = getNestedEndpoint
       ? await getNestedEndpoint(GetCurrentModelId())
       : getNestedEndpointString
-      ? await getNestedEndpointString(GetCurrentModelIdString())
-      : [];
+        ? await getNestedEndpointString(GetCurrentModelIdString())
+        : [];
     return modelList;
     // return await getNestedEndpointString(modelId);
   } catch (error) {
@@ -50,10 +52,16 @@ const getFixtures = async (
     const modelList = getNestedEndpoint
       ? await fetchModelList(getNestedEndpoint, undefined)
       : getNestedEndpointString
-      ? await fetchModelList(undefined, getNestedEndpointString)
-      : [];
+        ? await fetchModelList(undefined, getNestedEndpointString)
+        : [];
     const nestedModelList: NestedModel[] = modelList.map(
-      (item: any) => new NestedModel(item.label.name, item.label.description, item.id, item.parentIds),
+      (item: any) =>
+        new NestedModel(
+          item.label.name,
+          item.label.description,
+          item.id,
+          item.parentIds,
+        ),
     );
 
     //now we map these events to what they should be and display them
@@ -77,11 +85,17 @@ const getFixtures = async (
   }
 };
 
-function NestedModelList(props: NestedModelListProps): JSX.Element {
+const NestedModelList = (props: NestedModelListProps): JSX.Element => {
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const { name, deleteNestedEndpoint, getNestedEndpoint, getNestedEndpointString, patchNestedEndpoint } = props;
+  const {
+    name,
+    deleteNestedEndpoint,
+    getNestedEndpoint,
+    getNestedEndpointString,
+    patchNestedEndpoint,
+  } = props;
 
   useEffect(() => {
     const fetchGenericListItems = async (): Promise<void> => {
@@ -115,8 +129,8 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
     <EuiPageTemplate
       panelled={false}
       offset={48}
-      grow={true}
-      restrictWidth={true}
+      grow
+      restrictWidth
     >
       <EuiPageTemplate.Section>
         <EuiSkeletonRectangle
@@ -131,6 +145,6 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
       </EuiPageTemplate.Section>
     </EuiPageTemplate>
   );
-}
+};
 
 export { NestedModelList };

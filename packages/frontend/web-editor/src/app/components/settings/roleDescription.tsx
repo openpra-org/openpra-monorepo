@@ -1,7 +1,3 @@
-import { useParams } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { MemberResult } from "shared-types/src/lib/api/Members";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
 import {
   EuiBasicTable,
   EuiBasicTableColumn,
@@ -13,12 +9,17 @@ import {
   EuiSkeletonRectangle,
   EuiSpacer,
 } from "@elastic/eui";
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { MemberResult } from "shared-types/src/lib/api/Members";
 import { GetRoleById } from "shared-types/src/lib/api/roles/rolesApi";
 import { RoleSchemaDto } from "shared-types/src/openpra-zod-mef/role/role-schema";
-import { Can } from "../../providers/abilityProvider";
-import { GenericModal } from "../modals/genericModal";
-import { UseToastContext } from "../../providers/toastProvider";
+
 import { GetESToast } from "../../../utils/treeUtils";
+import { Can } from "../../providers/abilityProvider";
+import { UseToastContext } from "../../providers/toastProvider";
+import { GenericModal } from "../modals/genericModal";
 
 /**
  * Generate columns for table containing the roles of the users
@@ -119,7 +120,7 @@ const RoleDescription = (): JSX.Element => {
     modal = (
       <GenericModal
         title={`New ${currRole?.name.toLowerCase()}`}
-        showButtons={true}
+        showButtons
         body={
           <EuiComboBox
             aria-label="Accessible screen reader label"
@@ -127,7 +128,7 @@ const RoleDescription = (): JSX.Element => {
             options={optionsStatic}
             selectedOptions={selectedOptions}
             onChange={onChange}
-            isClearable={true}
+            isClearable
             data-test-subj="demoComboBox"
           />
         }
@@ -141,7 +142,7 @@ const RoleDescription = (): JSX.Element => {
     );
   }
   if (!roleName) {
-    return <div></div>;
+    return <div />;
   }
   return (
     <div>
@@ -149,8 +150,8 @@ const RoleDescription = (): JSX.Element => {
         panelled={false}
         offset={0}
         paddingSize="s"
-        grow={true}
-        restrictWidth={true}
+        grow
+        restrictWidth
       >
         <EuiPageHeader
           pageTitle={currRole?.name ?? ""}
@@ -171,7 +172,7 @@ const RoleDescription = (): JSX.Element => {
               </EuiButton>
             </Can>,
           ]}
-        ></EuiPageHeader>
+        />
         <EuiPageTemplate.Section>
           <EuiSkeletonRectangle
             width="100%"

@@ -1,5 +1,5 @@
-function InternalFire(): JSX.Element {
-  return <div></div>;
-}
+const InternalFire = (): JSX.Element => {
+  return <div />;
+};
 
 export { InternalFire };

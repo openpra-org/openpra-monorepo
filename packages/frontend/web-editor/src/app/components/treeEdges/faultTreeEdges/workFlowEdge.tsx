@@ -1,11 +1,10 @@
-import React from "react";
 import { EdgeProps, getSmoothStepPath } from "reactflow";
 
 import { UseEdgeClick } from "../../../hooks/faultTree/useEdgeClick";
 import { FaultTreeNodeProps } from "../../treeNodes/faultTreeNodes/faultTreeNodeType";
 import styles from "./styles/edgeType.module.css";
 
-function WorkFlowEdge({
+const WorkFlowEdge = ({
   id,
   sourceX,
   sourceY,
@@ -16,7 +15,7 @@ function WorkFlowEdge({
   style,
   markerEnd,
   data,
-}: EdgeProps<FaultTreeNodeProps>): JSX.Element {
+}: EdgeProps<FaultTreeNodeProps>): JSX.Element => {
   // see the hook for implementation details
   // onClick adds a node in between the nodes that are connected by this edge
   const onClick = UseEdgeClick(id);
@@ -40,10 +39,9 @@ function WorkFlowEdge({
         d={edgePath}
         markerEnd={markerEnd}
       />
-      {data?.isGrayed ? (
+      {data?.isGrayed ?
         ""
-      ) : (
-        <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
+      : <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
           <rect
             onClick={onClick}
             x={-5}
@@ -62,9 +60,9 @@ function WorkFlowEdge({
             +
           </text>
         </g>
-      )}
+      }
     </>
   );
-}
+};
 
 export { WorkFlowEdge };

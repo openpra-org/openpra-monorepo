@@ -1,11 +1,16 @@
 import { useCallback } from "react";
-import { Edge, Node, getOutgoers, NodeProps, useReactFlow } from "reactflow";
-
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
+import { Edge, getOutgoers, Node, NodeProps, useReactFlow } from "reactflow";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+
+import {
+  BASIC_EVENT,
+  LEAF_NODE_TYPES,
+  NOT_GATE,
+  WORKFLOW,
+} from "../../../utils/constants";
 import { FaultTreeState, GenerateUUID } from "../../../utils/treeUtils";
-import { BASIC_EVENT, LEAF_NODE_TYPES, NOT_GATE, WORKFLOW } from "../../../utils/constants";
 import { useStore } from "../../store/faultTreeStore";
 import { useUndoRedo } from "./useUndeRedo";
 
@@ -31,7 +36,11 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
     // we need the parent node object for positioning the new child node
     const parentNode = getNode(id);
 
-    if (!parentNode || LEAF_NODE_TYPES.includes(parentNode.type) || parentNode.type === NOT_GATE) {
+    if (
+      !parentNode ||
+      LEAF_NODE_TYPES.includes(parentNode.type) ||
+      parentNode.type === NOT_GATE
+    ) {
       return;
     }
 
@@ -65,11 +74,15 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
       .map((node) => node.id);
 
     // add the new nodes (child and placeholder), filter out the existing placeholder nodes of the clicked node
-    const newNodes: Node[] = nodes.filter((node) => !existingChildren.includes(node.id)).concat([childNode]);
+    const newNodes: Node[] = nodes
+      .filter((node) => !existingChildren.includes(node.id))
+      .concat([childNode]);
     setNodes(newNodes);
 
     // add the new edges (node -> child, child -> placeholder), filter out any placeholder edges
-    const newEdges: Edge[] = edges.filter((edge) => !existingChildren.includes(edge.target)).concat([childEdge]);
+    const newEdges: Edge[] = edges
+      .filter((edge) => !existingChildren.includes(edge.target))
+      .concat([childEdge]);
     setEdges(newEdges);
 
     //set view
@@ -84,7 +97,17 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
     ).then((r: FaultTreeGraph) => {
       // console.log(r);
     });
-  }, [getNode, id, takeSnapshot, nodes, edges, setNodes, setEdges, setFocusNodeId, faultTreeId]);
+  }, [
+    getNode,
+    id,
+    takeSnapshot,
+    nodes,
+    edges,
+    setNodes,
+    setEdges,
+    setFocusNodeId,
+    faultTreeId,
+  ]);
 
   return { handleNodeDoubleClick };
 }

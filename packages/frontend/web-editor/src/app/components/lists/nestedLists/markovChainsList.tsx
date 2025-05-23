@@ -3,9 +3,10 @@ import {
   GetMarkovChains,
   PatchMarkovChainLabel,
 } from "shared-types/src/lib/api/NestedModelApiManager";
+
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function MarkovChainsList(): JSX.Element {
+const MarkovChainsList = (): JSX.Element => {
   return (
     <NestedModelList
       getNestedEndpoint={GetMarkovChains}
@@ -14,6 +15,6 @@ function MarkovChainsList(): JSX.Element {
       name="markov-chain"
     />
   );
-}
+};
 
 export { MarkovChainsList };

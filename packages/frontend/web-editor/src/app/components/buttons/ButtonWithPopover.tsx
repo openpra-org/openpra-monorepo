@@ -1,8 +1,9 @@
-import { EuiButtonPropsForButton } from "@elastic/eui/src/components/button/button";
-import React, { ReactElement, useEffect, useState } from "react";
 import { EuiButton, EuiButtonIcon, EuiConfirmModal, EuiPopover } from "@elastic/eui";
+import { EuiButtonPropsForButton } from "@elastic/eui/src/components/button/button";
 import { EuiPopoverProps } from "@elastic/eui/src/components/popover/popover";
+import React, { ReactElement, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
+
 import { UseGlobalStore } from "../../zustand/Store";
 
 //props for button with popover
@@ -25,7 +26,7 @@ export type ButtonWithPopoverProps = EuiButtonPropsForButton & ButtonWithPopover
  * @param confirmDiscard - optionally boolean to allow for confirming discarding changes
  * @returns a button with a popover that displays
  */
-function ButtonWithPopover({
+const ButtonWithPopover = ({
   iconType,
   children,
   buttonText,
@@ -35,7 +36,7 @@ function ButtonWithPopover({
   popoverProps,
   confirmDiscard,
   ...rest
-}: ButtonWithPopoverProps): JSX.Element {
+}: ButtonWithPopoverProps): JSX.Element => {
   const location = useLocation().pathname;
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,24 +70,23 @@ function ButtonWithPopover({
   };
 
   //color changed by setting fill
-  const button = isIcon ? (
-    <EuiButtonIcon
-      {...rest}
-      children={buttonText}
-      iconType={iconType ?? "none"}
-      data-testid="button-icon"
-      onClick={onButtonClick}
-    />
-  ) : (
-    <EuiButton
-      {...rest}
-      children={buttonText}
-      iconType={iconType}
-      fill={true}
-      data-testid="button-text"
-      onClick={onButtonClick}
-    />
-  );
+  const button =
+    isIcon ?
+      <EuiButtonIcon
+        {...rest}
+        children={buttonText}
+        iconType={iconType ?? "none"}
+        data-testid="button-icon"
+        onClick={onButtonClick}
+      />
+    : <EuiButton
+        {...rest}
+        children={buttonText}
+        iconType={iconType}
+        fill
+        data-testid="button-text"
+        onClick={onButtonClick}
+      />;
 
   let modal: JSX.Element | null = null;
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -103,23 +103,24 @@ function ButtonWithPopover({
     showModal = (): void => {
       setIsModalVisible(true);
     };
-    modal = isModalVisible ? (
-      <EuiConfirmModal
-        title="Discard changes?"
-        data-testid="modal"
-        onCancel={closeModal}
-        onConfirm={(): void => {
-          closeModal();
-          setIsPopoverOpen(false);
-        }}
-        cancelButtonText="Keep editing"
-        confirmButtonText="Discard changes"
-        defaultFocusedButton="cancel"
-        buttonColor="primary"
-      >
-        <p>Unsaved changes will be lost.</p>
-      </EuiConfirmModal>
-    ) : null;
+    modal =
+      isModalVisible ?
+        <EuiConfirmModal
+          title="Discard changes?"
+          data-testid="modal"
+          onCancel={closeModal}
+          onConfirm={(): void => {
+            closeModal();
+            setIsPopoverOpen(false);
+          }}
+          cancelButtonText="Keep editing"
+          confirmButtonText="Discard changes"
+          defaultFocusedButton="cancel"
+          buttonColor="primary"
+        >
+          <p>Unsaved changes will be lost.</p>
+        </EuiConfirmModal>
+      : null;
   }
 
   if (onRequestClose && isPopoverOpen) {
@@ -146,13 +147,13 @@ function ButtonWithPopover({
       {confirmDiscard && modal}
     </>
   );
-}
+};
 export { ButtonWithPopover };
 export type ButtonWithClosablePopoverProps = {
   closeProp: string;
   popoverExtra?: (child: JSX.Element) => JSX.Element;
 } & ButtonWithPopoverProps;
-export function ButtonWithClosablePopover(props: ButtonWithClosablePopoverProps): JSX.Element {
+export const ButtonWithClosablePopover = (props: ButtonWithClosablePopoverProps): JSX.Element => {
   const [forceClose, setForceClose] = useState(false);
 
   const { children, closeProp, popoverExtra, ...rest } = props;
@@ -187,4 +188,4 @@ export function ButtonWithClosablePopover(props: ButtonWithClosablePopoverProps)
       {content}
     </ButtonWithPopover>
   );
-}
+};

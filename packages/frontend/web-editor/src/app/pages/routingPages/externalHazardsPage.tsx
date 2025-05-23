@@ -1,32 +1,33 @@
 import { Route, Routes } from "react-router-dom";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
+
+import { EventSequenceQuantificationDiagramList } from "../../components/lists/nestedLists/eventSequenceQunatificationDiagramList";
 import { ExternalHazardsList } from "../../components/lists/workspaceLists/externalHazardsList";
 import { ExternalHazardsContainer } from "../../components/pageContainers/externalHazardsContainer";
-import { HRA } from "../fullScopePages/humanReliabilityAnalysis";
 import { BayesianEstimation } from "../fullScopePages/bayesianEstimation";
 import { BayesianNetworks } from "../fullScopePages/bayesianNetworks";
+import { DataAnalysis } from "../fullScopePages/dataAnalysis";
+import { EventSequenceAnalysis } from "../fullScopePages/eventSequenceAnalysis";
 import { EventSequenceDiagrams } from "../fullScopePages/eventSequenceDiagrams";
 import { EventTrees } from "../fullScopePages/eventTrees";
 import { ExternalFlooding } from "../fullScopePages/externalFlooding";
+import { FaultTrees } from "../fullScopePages/faultTrees";
 import { FunctionalEvents } from "../fullScopePages/functionalEvents";
 import { HazardsScreeningAnalysis } from "../fullScopePages/hazardsScreeningAnalysis";
 import { HighWinds } from "../fullScopePages/highWinds";
+import { HRA } from "../fullScopePages/humanReliabilityAnalysis";
 import { InitiatingEvents } from "../fullScopePages/initiatingEvents";
 import { MarkovChains } from "../fullScopePages/markovChains";
 import { MechanisticAnalysis } from "../fullScopePages/mechanisticAnalysis";
 import { ModelSettings } from "../fullScopePages/modelSettings";
+import { OperatingStateAnalysis } from "../fullScopePages/operatingStateAnalysis";
 import { OtherHazards } from "../fullScopePages/otherHazards";
+import { RadiologicalConsequenceAnalysis } from "../fullScopePages/radiologicalConsequenceAnalysis";
 import { RiskIntegration } from "../fullScopePages/riskIntegration";
 import { Seismic } from "../fullScopePages/seismic";
-import { WeibullAnalysis } from "../fullScopePages/weibullAnalysis";
-import { DataAnalysis } from "../fullScopePages/dataAnalysis";
-import { EventSequenceAnalysis } from "../fullScopePages/eventSequenceAnalysis";
-import { OperatingStateAnalysis } from "../fullScopePages/operatingStateAnalysis";
 import { SuccessCriteria } from "../fullScopePages/successCriteria";
 import { SystemsAnalysis } from "../fullScopePages/systemsAnalysis";
-import { EventSequenceQuantificationDiagramList } from "../../components/lists/nestedLists/eventSequenceQunatificationDiagramList";
-import { RadiologicalConsequenceAnalysis } from "../fullScopePages/radiologicalConsequenceAnalysis";
-import { FaultTrees } from "../fullScopePages/faultTrees";
+import { WeibullAnalysis } from "../fullScopePages/weibullAnalysis";
 
 const getModelFixture = (): ModelProps => ({
   label: {
@@ -66,7 +67,7 @@ export function LoadModel(): ModelProps {
   return getModelFixture();
 }
 
-function ExternalHazardsPage(): JSX.Element {
+const ExternalHazardsPage = (): JSX.Element => {
   return (
     <Routes>
       <Route
@@ -188,6 +189,6 @@ function ExternalHazardsPage(): JSX.Element {
        */}
     </Routes>
   );
-}
+};
 
 export { ExternalHazardsPage };

@@ -1,4 +1,5 @@
 import { NodeTypes } from "reactflow";
+
 import { FaultTreeNode } from "./faultTreeNode";
 
 export type FaultTreeNodeProps =

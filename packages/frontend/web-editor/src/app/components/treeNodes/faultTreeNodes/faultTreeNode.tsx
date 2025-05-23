@@ -1,10 +1,6 @@
 import React, { memo, MemoExoticComponent } from "react";
 import { Handle, NodeProps, Position } from "reactflow";
-import { NodeIcon } from "../icons/nodeIcon";
-import { NodeTypes } from "../icons/interfaces/nodeProps";
-import { UseNodeDoubleClick } from "../../../hooks/faultTree/useNodeDoubleClick";
-import { UseGrayedNodeHover } from "../../../hooks/faultTree/useGrayedNodeHover";
-import { UseGrayedNodeClick } from "../../../hooks/faultTree/useGrayedNodeClick";
+
 import {
   AND_GATE,
   AND_GATE_LABEL,
@@ -23,9 +19,14 @@ import {
   TRANSFER_GATE,
   TRANSFER_GATE_LABEL,
 } from "../../../../utils/constants";
-import styles from "./styles/faultTreeNodeStyles.module.css";
-import { FaultTreeNodeProps } from "./faultTreeNodeType";
+import { UseGrayedNodeClick } from "../../../hooks/faultTree/useGrayedNodeClick";
+import { UseGrayedNodeHover } from "../../../hooks/faultTree/useGrayedNodeHover";
+import { UseNodeDoubleClick } from "../../../hooks/faultTree/useNodeDoubleClick";
+import { NodeTypes } from "../icons/interfaces/nodeProps";
+import { NodeIcon } from "../icons/nodeIcon";
 import { FaultTreeNodeLabel } from "./faultTreeNodeLabel";
+import { FaultTreeNodeProps } from "./faultTreeNodeType";
+import styles from "./styles/faultTreeNodeStyles.module.css";
 
 const stylesMap = styles as Record<string, string>;
 
@@ -38,7 +39,12 @@ export type FaultTreeNodeTypes =
   | "houseEvent"
   | "basicEvent";
 
-function getNodeIcon(type: string, id: string, selected: boolean | undefined, data: FaultTreeNodeProps): JSX.Element {
+function getNodeIcon(
+  type: string,
+  id: string,
+  selected: boolean | undefined,
+  data: FaultTreeNodeProps,
+): JSX.Element {
   switch (type) {
     case AND_GATE:
       return (
@@ -174,7 +180,9 @@ function FaultTreeNode(
       <div
         className={stylesMap.node_container}
         onDoubleClick={(event) => void handleNodeDoubleClick(event)}
-        onClick={data.branchId !== undefined ? grayedNodeClickHandler : undefined}
+        onClick={
+          data.branchId !== undefined ? grayedNodeClickHandler : undefined
+        }
         onMouseEnter={mouseEnterHandler}
         onMouseLeave={mouseLeaveHandler}
       >

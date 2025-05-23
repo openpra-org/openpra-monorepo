@@ -1,5 +1,6 @@
-import { test, expect } from "@playwright/test";
-import { SignUp, LogOut } from "./signup.spec";
+import { expect, test } from "@playwright/test";
+
+import { LogOut, SignUp } from "./signup.spec";
 
 test.describe("Signup", () => {
   // if we want to access alias in test, we need to change arrow function => to function ()

@@ -1,11 +1,14 @@
 import { EuiButton, EuiForm, EuiFormRow } from "@elastic/eui";
-import React, { useEffect, useMemo } from "react";
-import { useState } from "react";
-import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
+import React, { useEffect, useMemo, useState } from "react";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
-import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
-import { UseToastContext } from "../../providers/toastProvider";
+import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
+import {
+  EmailValidationForm,
+  UsernameValidationForm,
+} from "shared-types/src/lib/api/FormValidation";
+
 import { GenerateUUID } from "../../../utils/treeUtils";
+import { UseToastContext } from "../../providers/toastProvider";
 import { PasswordForm } from "./passwordForm";
 import { UsernameForm } from "./usernameForm";
 
@@ -77,15 +80,20 @@ const SignUpForm = ({
       });
   }
 
-  type CheckEmailFunction = (callback: (validationResult: boolean) => void) => (signup: SignUpPropsWithRole) => void;
-  type CheckUserNameFunction = (callback: (validationResult: boolean) => void) => (signup: SignUpPropsWithRole) => void;
+  type CheckEmailFunction = (
+    callback: (validationResult: boolean) => void,
+  ) => (signup: SignUpPropsWithRole) => void;
+  type CheckUserNameFunction = (
+    callback: (validationResult: boolean) => void,
+  ) => (signup: SignUpPropsWithRole) => void;
 
-  const debouncedCheckUserName: (signup: SignUpPropsWithRole) => void = useMemo(() => {
-    const checkUserName: CheckUserNameFunction = ApiManager.checkUserName;
-    return checkUserName((validationResult: boolean) => {
-      setIsValidUsername(validationResult);
-    });
-  }, []);
+  const debouncedCheckUserName: (signup: SignUpPropsWithRole) => void =
+    useMemo(() => {
+      const checkUserName: CheckUserNameFunction = ApiManager.checkUserName;
+      return checkUserName((validationResult: boolean) => {
+        setIsValidUsername(validationResult);
+      });
+    }, []);
 
   const debouncedCheckEmail = useMemo(() => {
     const checkEmail: CheckEmailFunction = ApiManager.checkEmail;
@@ -121,7 +129,7 @@ const SignUpForm = ({
         isValidUsername={isValidUsername}
         setIsValidUsername={setIsValidUsername}
         buttonText={buttonText}
-        checkEmpty={true}
+        checkEmpty
       />
       <PasswordForm
         signup={signup}

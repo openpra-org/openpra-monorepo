@@ -43,13 +43,8 @@
   background-color: unset;
 }
 
-
 .node:hover {
-  background: radial-gradient(
-    circle at 18.7% 37.8%,
-    rgb(252, 252, 252) 0%,
-    rgb(239, 241, 243) 90%
-  );
+  background: radial-gradient(circle at 18.7% 37.8%, rgb(252, 252, 252) 0%, rgb(239, 241, 243) 90%);
 }
 
 .content {
@@ -110,16 +105,7 @@
   padding-top: 15px;
   padding-left: 8px;
   padding-right: 8px;
-  clip-path: polygon(
-    25% 0,
-    75% 0,
-    100% 25%,
-    100% 75%,
-    75% 100%,
-    25% 100%,
-    0 75%,
-    0 25%
-  );
+  clip-path: polygon(25% 0, 75% 0, 100% 25%, 100% 75%, 75% 100%, 25% 100%, 0 75%, 0 25%);
   & textarea {
     height: 40px !important;
   }
@@ -132,16 +118,7 @@
   width: calc(100% + 2px);
   height: calc(100% + 2px);
   border: 9px solid #0984e3; /* Border style */
-  clip-path: polygon(
-    25% 0,
-    75% 0,
-    100% 25%,
-    100% 75%,
-    75% 100%,
-    25% 100%,
-    0 75%,
-    0 25%
-  );
+  clip-path: polygon(25% 0, 75% 0, 100% 25%, 100% 75%, 75% 100%, 25% 100%, 0 75%, 0 25%);
 }
 
 .functional_node {
@@ -234,15 +211,7 @@
   height: 100%;
   padding-top: 22px;
   padding-left: 3px;
-  clip-path: polygon(
-    0% 25%,
-    50% 25%,
-    50% 0%,
-    100% 50%,
-    50% 100%,
-    50% 75%,
-    0% 75%
-  );
+  clip-path: polygon(0% 25%, 50% 25%, 50% 0%, 100% 50%, 50% 100%, 50% 75%, 0% 75%);
   & textarea {
     height: 25px !important;
   }
@@ -255,13 +224,5 @@
   width: calc(100% + 1px);
   height: calc(100% + 2px);
   border: 18px solid #0984e3; /* Border style */
-  clip-path: polygon(
-    0% 24.5%,
-    49.5% 24.5%,
-    49.5% -1%,
-    102% 50%,
-    49.5% 101%,
-    49.5% 75.5%,
-    0% 75.5%
-  );
+  clip-path: polygon(0% 24.5%, 49.5% 24.5%, 49.5% -1%, 102% 50%, 49.5% 101%, 49.5% 75.5%, 0% 75.5%);
 }

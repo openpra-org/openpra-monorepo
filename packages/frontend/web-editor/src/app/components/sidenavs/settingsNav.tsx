@@ -1,8 +1,9 @@
-import { EuiTreeView, slugify, useEuiTheme, EuiText, EuiCollapsibleNavGroup, useEuiPaddingSize } from "@elastic/eui";
+import { EuiCollapsibleNavGroup, EuiText, EuiTreeView, slugify, useEuiPaddingSize, useEuiTheme } from "@elastic/eui";
 import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
+import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
-import { useContext } from "react";
+
 import { AbilityContext } from "../../providers/abilityProvider";
 
 interface TreeItem {
@@ -19,7 +20,7 @@ interface TreeItem {
  * Function to export the navigation menu for the settings screen
  * @returns - JSX.Element containing the entire side navigation
  */
-export function SettingsNav(): JSX.Element {
+export const SettingsNav = (): JSX.Element => {
   const { euiTheme } = useEuiTheme();
   const ability = useContext(AbilityContext);
   const userId = ApiManager.getCurrentUser().user_id;
@@ -161,7 +162,7 @@ export function SettingsNav(): JSX.Element {
           iconSize="m"
           titleSize="xs"
           key={i}
-          isCollapsible={true}
+          isCollapsible
           isDisabled={false}
           arrowDisplay="none"
           onClick={items[0].callback}
@@ -175,7 +176,7 @@ export function SettingsNav(): JSX.Element {
         iconSize="m"
         titleSize="xs"
         key={i}
-        isCollapsible={true}
+        isCollapsible
         buttonElement="button"
         initialIsOpen={items[0].isExpanded}
       >
@@ -204,4 +205,4 @@ export function SettingsNav(): JSX.Element {
   };
 
   return <>{createTreeViews(treeItems)}</>;
-}
+};

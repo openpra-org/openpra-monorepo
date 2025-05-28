@@ -95,7 +95,7 @@ export interface Parameter {
 
 // Built-in Functions
 export type BuiltInFunction =
-  | { exponential: Value }
+  | { exponential: [Value, Value] }
   | { GLM: [Value, Value, Value, Value] }
   | { Weibull: [Value, Value, Value, Value] }
   | { periodicTest: Value[] };
@@ -139,4 +139,4 @@ export type NumericalOperation =
   | { max: Value[] }
   | { mean: Value[] };
 
-export type Unit = "hours" | "hour-1" | "years" | "year-1" | "demands" | "demand-1";
+export type Unit = "unitless" | "bool" | "int" | "float" | "hours" | "hour-1" | "years" | "year-1" | "fit" | "demands";

@@ -1,17 +1,17 @@
 #pragma once
 #include <napi.h>
-#include "settings.h"
+#include <memory>
+#include <string>
 #include "model.h"
+#include "fault_tree.h"
+#include "event.h"
 #include "parameter.h"
-#include "risk_analysis.h"
-#include "reporter.h"
-#include "fault_tree_analysis.h"
-#include "importance_analysis.h"
-#include "uncertainty_analysis.h"
-#include "event_tree_analysis.h"
-
-// Mapping helpers for Settings
-scram::core::Settings ScramNodeOptions(const Napi::Object& nodeOptions);
+#include "ccf_group.h"
+#include "expression/constant.h"
+#include "expression/exponential.h"
+#include "expression/numerical.h"
+#include "expression/random_deviate.h"
+#include "expression/test_event.h"
 
 // Forward declarations: recursive helpers for Model
 std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel);
@@ -68,18 +68,3 @@ inline std::string ScramNodeEventType(const std::string& type) {
         return type;
     throw std::runtime_error("Unknown event type: " + type);
 }
-
-// Forward declarations: helpers for Reporter
-Napi::Object ScramNodeModelFeatures(Napi::Env env, const scram::mef::Model& model);
-Napi::Object ScramNodeResults(Napi::Env env, const scram::core::RiskAnalysis& analysis);
-Napi::Object ScramNodeSafetyIntegrityLevels(Napi::Env env, const scram::core::ProbabilityAnalysis& pa);
-Napi::Object ScramNodeCurve(Napi::Env env, const scram::core::ProbabilityAnalysis& pa);
-Napi::Object ScramNodeStatisticalMeasure(Napi::Env env, const scram::core::UncertaintyAnalysis& ua);
-Napi::Object ScramNodeImportance(Napi::Env env, const scram::core::ImportanceAnalysis& ia);
-Napi::Object ScramNodeSumOfProducts(Napi::Env env, const scram::core::FaultTreeAnalysis& fta, const scram::core::ProbabilityAnalysis* pa);
-Napi::Array ScramNodeHistogram(Napi::Env env, const std::map<double, double>& hist);
-Napi::Array ScramNodeQuantiles(Napi::Env env, const std::vector<double>& quantiles, double mean, double sigma);
-Napi::Array ScramNodeProductList(Napi::Env env, const scram::core::ProductContainer& products, const scram::core::ProbabilityAnalysis* pa);
-
-// The main Node Addon function
-Napi::Value QuantifyFaultTree(const Napi::CallbackInfo& info);

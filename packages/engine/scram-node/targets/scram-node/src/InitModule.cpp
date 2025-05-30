@@ -1,6 +1,6 @@
 #include "AsyncRunScramCli.h"
 #include "RunScramCli.h"
-#include "QuantifyFaultTree.h"
+#include "QuantifyFaultTreeMain.h"
 
 #include <napi.h>
 

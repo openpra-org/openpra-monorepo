@@ -1,3 +1,5 @@
+import { Model } from "./model";
+
 /**
  * Schema for command-line options
  */
@@ -130,6 +132,11 @@ export interface ModelOptions {
    * String-encoded array of OpenPSA MEF XMLs
    */
   models: string[];
+}
+
+export interface NodeQuantRequest {
+  settings?: ScramNodeOptions;
+  model?: Model;
 }
 
 export type QuantifyRequest = CommandLineOptions & ModelOptions;

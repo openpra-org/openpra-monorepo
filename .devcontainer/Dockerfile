@@ -1,4 +1,5 @@
 FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
+ARG REPO_NAME
 
 # Install system dependencies
 RUN apt-get update && \
@@ -32,7 +33,7 @@ RUN npm install -g pnpm nx@19.6.2
 # Set up user
 RUN usermod -aG sudo vscode
 
-WORKDIR /workspaces/${GITHUB_REPOSITORY##*/}
+WORKDIR /workspaces/${REPO_NAME}
 
 # Copy entrypoint scripts if needed
 COPY devcontainer-setup.sh /usr/local/bin/devcontainer-setup.sh

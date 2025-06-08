@@ -1,8 +1,11 @@
 {
-  "name": "OpenPRA Dev Environment",
+  "name": "OpenPRA Monorepo Dev Environment",
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
   "build": {
-    "dockerfile": "Dockerfile"
+    "dockerfile": "Dockerfile",
+    "args": {
+      "REPO_NAME": "${localWorkspaceFolderBasename}"
+    }
   },
   "features": {
     "ghcr.io/devcontainers/features/node:1": {

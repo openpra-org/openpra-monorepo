@@ -1,0 +1,39 @@
+{
+  "name": "OpenPRA Dev Environment",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    },
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      },
+      "extensions": [
+        "ms-vscode-remote.remote-containers"
+      ]
+    },
+    "jetbrains": {
+      "gateway": true
+    }
+  },
+  "postCreateCommand": "pnpm install && ./devcontainer-setup.sh",
+  "forwardPorts": [4200, 3000, 8000, 27017, 15672, 5672],
+  "portsAttributes": {
+    "4200": { "label": "Frontend", "onAutoForward": "openBrowser" },
+    "3000": { "label": "Job Broker" },
+    "8000": { "label": "Backend" },
+    "27017": { "label": "MongoDB" },
+    "15672": { "label": "RabbitMQ Management" }
+  },
+  "remoteUser": "vscode"
+}

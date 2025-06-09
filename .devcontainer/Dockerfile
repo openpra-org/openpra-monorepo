@@ -33,10 +33,6 @@ RUN mkdir -p /vscode-dev/npm-cache && chown node:node /vscode-dev/npm-cache
 USER node
 WORKDIR /workspaces/openpra-monorepo
 
-# Copy all files and install dependencies (for build cache)
-COPY --chown=node:node . .
-RUN pnpm install
-
 # Set up npm cache symlink for node user
 RUN NPM_CACHE="$(npm config get cache)" && rm -rf "$NPM_CACHE" && ln -s /vscode-dev/npm-cache "$NPM_CACHE"
 RUN echo 'export DISPLAY="${DISPLAY:-:1}"' | tee -a ~/.bashrc >> ~/.zshrc

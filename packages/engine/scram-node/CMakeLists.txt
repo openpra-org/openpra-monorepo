@@ -206,3 +206,5 @@ add_subdirectory(targets/scram-node)
 if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
+
+install(CODE "message(STATUS \"Top-level install target created.\")")

@@ -32,7 +32,7 @@ RUN npm install -g pnpm nx@$NX_VERSION
 RUN mkdir -p /vscode-dev/npm-cache && chown node:node /vscode-dev/npm-cache
 
 # Copy the devcontainer-setup.sh script and make it executable
-COPY .devcontainer/devcontainer-setup.sh /usr/local/bin/devcontainer-setup.sh
+COPY ./devcontainer-setup.sh /usr/local/bin/devcontainer-setup.sh
 RUN chmod +x /usr/local/bin/devcontainer-setup.sh
 
 USER node

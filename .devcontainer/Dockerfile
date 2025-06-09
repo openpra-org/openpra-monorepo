@@ -33,7 +33,7 @@ RUN npm install -g pnpm nx@19.6.2
 RUN mkdir -p /vscode-dev/npm-cache && chown vscode:vscode /vscode-dev/npm-cache
 
 # Copy the devcontainer-setup.sh script and make it executable
-COPY .devcontainer/devcontainer-setup.sh /usr/local/bin/devcontainer-setup.sh
+COPY devcontainer-setup.sh /usr/local/bin/devcontainer-setup.sh
 RUN chmod +x /usr/local/bin/devcontainer-setup.sh
 
 USER vscode

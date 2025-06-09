@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-FROM mcr.microsoft.com/devcontainers/typescript-node:20.17.0-bookworm
+FROM mcr.microsoft.com/devcontainers/typescript-node:20-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NX_VERSION=19.6.2

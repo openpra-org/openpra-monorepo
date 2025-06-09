@@ -26,14 +26,7 @@
         "resmon.show.battery": false,
         "resmon.show.cpufreq": false
       },
-      "extensions": [
-        "dbaeumer.vscode-eslint",
-        "EditorConfig.EditorConfig",
-        "GitHub.vscode-pull-request-github",
-        "ms-vscode.vscode-github-issue-notebooks",
-        "ms-vscode.vscode-selfhost-test-provider",
-        "mutantdino.resourcemonitor"
-      ]
+      "extensions": []
     }
   },
   "forwardPorts": [27017, 5672, 15672, 4200, 3000, 8000],

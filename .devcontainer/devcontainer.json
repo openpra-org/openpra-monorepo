@@ -1,45 +1,72 @@
 {
-  "name": "OpenPRA Monorepo Dev Environment",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+  "name": "openpra-monorepo-dev",
   "build": {
-    "dockerfile": "Dockerfile",
-    "args": {
-      "REPO_NAME": "${localWorkspaceFolderBasename}"
-    }
+    "dockerfile": "Dockerfile"
   },
   "features": {
-    "ghcr.io/devcontainers/features/node:1": {
-      "version": "20",
-      "installTools": true,
-      "pnpm": "latest",
-      "globalPackages": ["nx@19.6.2"]
-    },
-    "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/python:1": {
-      "version": "3"
-    }
+    "ghcr.io/devcontainers/features/desktop-lite:1": {},
+    "ghcr.io/devcontainers/features/rust:1": {}
   },
+  "containerEnv": {
+    "DISPLAY": ""
+  },
+  "overrideCommand": false,
+  "privileged": true,
+  "mounts": [
+    {
+      "source": "vscode-dev",
+      "target": "/vscode-dev",
+      "type": "volume"
+    }
+  ],
+  "postCreateCommand": "./.devcontainer/post-create.sh",
   "customizations": {
     "vscode": {
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "resmon.show.battery": false,
+        "resmon.show.cpufreq": false
       },
       "extensions": [
-        "ms-vscode-remote.remote-containers"
+        "dbaeumer.vscode-eslint",
+        "EditorConfig.EditorConfig",
+        "GitHub.vscode-pull-request-github",
+        "ms-vscode.vscode-github-issue-notebooks",
+        "ms-vscode.vscode-selfhost-test-provider",
+        "mutantdino.resourcemonitor"
       ]
-    },
-    "jetbrains": {
-      "gateway": true
     }
   },
-  "postCreateCommand": "pnpm install && ./devcontainer-setup.sh",
-  "forwardPorts": [4200, 3000, 8000, 27017, 15672, 5672],
+  "forwardPorts": [27017, 5672, 15672, 4200, 3000, 8000],
   "portsAttributes": {
-    "4200": { "label": "Frontend", "onAutoForward": "openBrowser" },
-    "3000": { "label": "Job Broker" },
-    "8000": { "label": "Backend" },
-    "27017": { "label": "MongoDB" },
-    "15672": { "label": "RabbitMQ Management" }
+    "27017": { "label": "MongoDB", "onAutoForward": "silent" },
+    "5672": { "label": "RabbitMQ AMQP", "onAutoForward": "silent" },
+    "15672": { "label": "RabbitMQ Management", "onAutoForward": "silent" },
+    "4200": { "label": "Frontend", "onAutoForward": "silent" },
+    "3000": { "label": "Job Broker", "onAutoForward": "silent" },
+    "8000": { "label": "Backend", "onAutoForward": "silent" }
   },
-  "remoteUser": "vscode"
+  "hostRequirements": {
+    "memory": "8gb", // RAM options: 4, 8, 16, 32 GB
+    "cpus": 4, // vCPUs options: 2, 4, 8, 16, 32
+    "storage": "32gb" // Storage options: 32, 64, 128 GB
+  },
+  "services": {
+    "mongodb": {
+      "image": "mongo:6",
+      "restart": "unless-stopped",
+      "ports": [ "27017:27017" ],
+      "volumes": [ "mongodb-data:/data/db" ]
+    },
+    "rabbitmq": {
+      "image": "rabbitmq:management-alpine",
+      "restart": "unless-stopped",
+      "ports": [ "5672:5672", "15672:15672" ],
+      "volumes": [ "rabbitmq-data:/var/lib/rabbitmq" ]
+    }
+  },
+  "volumes": {
+    "mongodb-data": {},
+    "rabbitmq-data": {}
+  },
+  "updateContentCommand": "pnpm install"
 }

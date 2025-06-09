@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
+FROM mcr.microsoft.com/devcontainers/javascript-node:20
 
 # Add MongoDB GPG key and repository
 RUN curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | \
@@ -26,14 +26,14 @@ RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
     locale-gen
 ENV LANG=en_US.UTF-8
 
-# Set up npm, pnpm, nx, etc. as needed
+# Install pnpm and nx globally
 RUN npm install -g pnpm nx@19.6.2
 
 # Set up npm cache for speed and permissions
 RUN mkdir -p /vscode-dev/npm-cache && chown vscode:vscode /vscode-dev/npm-cache
 
 # Copy the devcontainer-setup.sh script and make it executable
-COPY devcontainer-setup.sh /usr/local/bin/devcontainer-setup.sh
+COPY .devcontainer/devcontainer-setup.sh /usr/local/bin/devcontainer-setup.sh
 RUN chmod +x /usr/local/bin/devcontainer-setup.sh
 
 USER vscode

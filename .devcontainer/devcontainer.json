@@ -9,7 +9,10 @@
   },
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "20"
+      "version": "20",
+      "installTools": true,
+      "pnpm": "latest",
+      "globalPackages": ["nx@19.6.2"]
     },
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/python:1": {

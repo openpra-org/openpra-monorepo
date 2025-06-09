@@ -1,13 +1,14 @@
-# syntax=docker/dockerfile:1.4
-FROM mcr.microsoft.com/devcontainers/typescript-node:20-bookworm
+FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
 
-ENV DEBIAN_FRONTEND=noninteractive
-ENV NX_VERSION=19.6.2
-ENV PNPM_HOME="/home/node/.local/share/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
+# Add MongoDB GPG key and repository
+RUN curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | \
+    gpg --dearmor -o /usr/share/keyrings/mongodb-server-8.0.gpg && \
+    echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.0 multiverse" \
+    | tee /etc/apt/sources.list.d/mongodb-org-8.0.list
 
-# Install build tools and libraries for C++/Node/MongoDB/RabbitMQ
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies, build tools, MongoDB, and RabbitMQ
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     make cmake ninja-build g++ \
     libboost-date-time-dev libboost-filesystem-dev libboost-math-dev \
     libboost-program-options-dev libboost-random-dev libboost-test-dev \
@@ -16,26 +17,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2 libboost-filesystem1.74.0 libboost-program-options1.74.0 \
     libtcmalloc-minimal4 libjemalloc2 \
     python3 python3-pip git curl jq locales nano sudo wget \
-    mongodb rabbitmq-server \
+    rabbitmq-server \
+    mongodb-org \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up locales
+# Set up locale
 RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
-    dpkg-reconfigure --frontend=noninteractive locales && \
-    update-locale LANG=en_US.UTF-8
+    locale-gen
 ENV LANG=en_US.UTF-8
 
-# Install pnpm and nx globally
-RUN npm install -g pnpm nx@$NX_VERSION
+# Set up npm, pnpm, nx, etc. as needed
+RUN npm install -g pnpm nx@19.6.2
 
 # Set up npm cache for speed and permissions
-RUN mkdir -p /vscode-dev/npm-cache && chown node:node /vscode-dev/npm-cache
+RUN mkdir -p /vscode-dev/npm-cache && chown vscode:vscode /vscode-dev/npm-cache
 
 # Copy the devcontainer-setup.sh script and make it executable
-COPY ./devcontainer-setup.sh /usr/local/bin/devcontainer-setup.sh
+COPY devcontainer-setup.sh /usr/local/bin/devcontainer-setup.sh
 RUN chmod +x /usr/local/bin/devcontainer-setup.sh
 
-USER node
+USER vscode
 WORKDIR /workspaces/openpra-monorepo
 
 # Set up npm cache symlink for node user

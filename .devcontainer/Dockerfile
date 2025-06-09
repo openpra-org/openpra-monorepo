@@ -8,7 +8,7 @@ ENV PATH="$PNPM_HOME:$PATH"
 
 # Install build tools and libraries for C++/Node/MongoDB/RabbitMQ
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    make cmake ninja-build g++ doxygen graphviz \
+    make cmake ninja-build g++ \
     libboost-date-time-dev libboost-filesystem-dev libboost-math-dev \
     libboost-program-options-dev libboost-random-dev libboost-test-dev \
     libgoogle-perftools-dev libjemalloc-dev libomp-dev libxml2-dev \
@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2 libboost-filesystem1.74.0 libboost-program-options1.74.0 \
     libtcmalloc-minimal4 libjemalloc2 \
     python3 python3-pip git curl jq locales nano sudo wget \
+    mongodb rabbitmq-server \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up locales
@@ -29,6 +30,10 @@ RUN npm install -g pnpm nx@$NX_VERSION
 
 # Set up npm cache for speed and permissions
 RUN mkdir -p /vscode-dev/npm-cache && chown node:node /vscode-dev/npm-cache
+
+# Copy the devcontainer-setup.sh script and make it executable
+COPY .devcontainer/devcontainer-setup.sh /usr/local/bin/devcontainer-setup.sh
+RUN chmod +x /usr/local/bin/devcontainer-setup.sh
 
 USER node
 WORKDIR /workspaces/openpra-monorepo

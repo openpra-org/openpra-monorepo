@@ -3,10 +3,6 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-  "features": {
-    "ghcr.io/devcontainers/features/desktop-lite:1": {},
-    "ghcr.io/devcontainers/features/rust:1": {}
-  },
   "containerEnv": {
     "DISPLAY": ""
   },
@@ -38,27 +34,9 @@
     "8000": { "label": "Backend", "onAutoForward": "silent" }
   },
   "hostRequirements": {
-    "memory": "8gb", // RAM options: 4, 8, 16, 32 GB
-    "cpus": 4, // vCPUs options: 2, 4, 8, 16, 32
-    "storage": "32gb" // Storage options: 32, 64, 128 GB
+    "memory": "8gb",
+    "cpus": 4,
+    "storage": "32gb"
   },
-  "services": {
-    "mongodb": {
-      "image": "mongo:6",
-      "restart": "unless-stopped",
-      "ports": [ "27017:27017" ],
-      "volumes": [ "mongodb-data:/data/db" ]
-    },
-    "rabbitmq": {
-      "image": "rabbitmq:management-alpine",
-      "restart": "unless-stopped",
-      "ports": [ "5672:5672", "15672:15672" ],
-      "volumes": [ "rabbitmq-data:/var/lib/rabbitmq" ]
-    }
-  },
-  "volumes": {
-    "mongodb-data": {},
-    "rabbitmq-data": {}
-  },
-  "updateContentCommand": "pnpm install"
+  "postCreateCommand": "/usr/local/bin/devcontainer-setup.sh"
 }

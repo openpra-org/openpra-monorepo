@@ -1,6 +1,6 @@
 {
   "name": "OpenPRA Monorepo Dev Environment",
-  "image": "mcr.microsoft.com/devcontainers/base:alpine-3.21",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
   "build": {
     "dockerfile": "Dockerfile",
     "args": {

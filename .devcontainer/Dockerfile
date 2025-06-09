@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/base:alpine-3.21
+FROM mcr.microsoft.com/devcontainers/base:ubuntu-22.04
 
 ARG REPO_NAME
 

@@ -1,4 +1,5 @@
-FROM mcr.microsoft.com/devcontainers/javascript-node:20
+# syntax=docker/dockerfile:1.4
+FROM mcr.microsoft.com/devcontainers/typescript-node:20-bookworm
 
 # Add MongoDB GPG key and repository
 RUN curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | \
@@ -6,9 +7,12 @@ RUN curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | \
     echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-8.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/8.0 multiverse" \
     | tee /etc/apt/sources.list.d/mongodb-org-8.0.list
 
-# Install system dependencies, build tools, MongoDB, and RabbitMQ
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+ENV NX_VERSION=19.6.2
+ENV PNPM_HOME="/home/node/.local/share/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+# Install build tools and libraries for C++/Node/MongoDB/RabbitMQ
+RUN apt-get update && apt-get install -y --no-install-recommends \
     make cmake ninja-build g++ \
     libboost-date-time-dev libboost-filesystem-dev libboost-math-dev \
     libboost-program-options-dev libboost-random-dev libboost-test-dev \
@@ -21,22 +25,23 @@ RUN apt-get update && \
     mongodb-org \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up locale
+# Set up locales
 RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
-    locale-gen
+    dpkg-reconfigure --frontend=noninteractive locales && \
+    update-locale LANG=en_US.UTF-8
 ENV LANG=en_US.UTF-8
 
 # Install pnpm and nx globally
-RUN npm install -g pnpm nx@19.6.2
+RUN npm install -g pnpm nx@$NX_VERSION
 
 # Set up npm cache for speed and permissions
-RUN mkdir -p /vscode-dev/npm-cache && chown vscode:vscode /vscode-dev/npm-cache
+RUN mkdir -p /vscode-dev/npm-cache && chown node:node /vscode-dev/npm-cache
 
 # Copy the devcontainer-setup.sh script and make it executable
 COPY devcontainer-setup.sh /usr/local/bin/devcontainer-setup.sh
 RUN chmod +x /usr/local/bin/devcontainer-setup.sh
 
-USER vscode
+USER node
 WORKDIR /workspaces/openpra-monorepo
 
 # Set up npm cache symlink for node user

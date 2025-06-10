@@ -8,8 +8,6 @@ RUN curl -fsSL https://www.mongodb.org/static/pgp/server-8.0.asc | \
     | tee /etc/apt/sources.list.d/mongodb-org-8.0.list
 
 ENV NX_VERSION=19.6.2
-ENV PNPM_HOME="/home/node/.local/share/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
 
 # Install build tools and libraries for C++/Node/MongoDB/RabbitMQ
 RUN apt-get update && apt-get install -y --no-install-recommends \

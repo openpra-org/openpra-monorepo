@@ -6,7 +6,7 @@
   "types": "./targets/scram-node/lib/index.d.ts",
   "private": true,
   "scripts": {
-    "postinstall": "cd build && ../scripts/inform_update_paths.sh",
+    "postinstall": "cd build && make install && ../scripts/inform_update_paths.sh",
     "install": "cmake-js -C --parallel 32 compile",
     "rebuild": "cmake-js -C --parallel 32 rebuild",
     "configure": "cmake-js -C --parallel 32 configure",

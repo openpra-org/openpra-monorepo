@@ -1,29 +1,10 @@
 {
   "name": "openpra-monorepo-dev",
-  "build": {
-    "dockerfile": "Dockerfile"
-  },
-  "containerEnv": {
-    "DISPLAY": ""
-  },
-  "overrideCommand": false,
-  "privileged": true,
-  "mounts": [
-    {
-      "source": "vscode-dev",
-      "target": "/vscode-dev",
-      "type": "volume"
-    }
+  "dockerComposeFile": [
+    "../docker-compose.yml"
   ],
-  "customizations": {
-    "vscode": {
-      "settings": {
-        "resmon.show.battery": false,
-        "resmon.show.cpufreq": false
-      },
-      "extensions": []
-    }
-  },
+  "service": "frontend",
+  "workspaceFolder": "/workspaces/openpra-monorepo",
   "forwardPorts": [27017, 5672, 15672, 4200, 3000, 8000],
   "portsAttributes": {
     "27017": { "label": "MongoDB", "onAutoForward": "silent" },
@@ -37,6 +18,5 @@
     "memory": "8gb",
     "cpus": 4,
     "storage": "32gb"
-  },
-  "postCreateCommand": "/usr/local/bin/devcontainer-setup.sh"
+  }
 }

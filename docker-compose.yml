@@ -30,6 +30,13 @@ x-base-image: &base-image
     - source: nestjs_env_vars
       target: /data/project/.env
 
+x-base-healthcheck: &healthcheck-fragments
+  interval: 10s
+  timeout: 2s
+  retries: 5
+  start_period: 150s
+  start_interval: 2s
+
 services:
   frontend:
     <<: *base-image
@@ -38,6 +45,9 @@ services:
     networks:
       - svc_net
     command: "nx run --verbose frontend-web-editor:serve:development"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4200/"]
+      <<: *healthcheck-fragments
 
   job-broker:
     <<: *base-image
@@ -50,6 +60,9 @@ services:
     depends_on:
       - mongodb
       - rabbitmq
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
+      <<: *healthcheck-fragments
 
   job-worker:
     <<: *base-image
@@ -77,6 +90,9 @@ services:
       - JWT_SECRET
     environment:
       JWT_SECRET_KEY_FILE: /run/secrets/JWT_SECRET
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
+      <<: *healthcheck-fragments
 
   rabbitmq:
     image: rabbitmq:management-alpine
@@ -103,3 +119,4 @@ services:
       - db_net
     volumes:
       - mongo_data:/data/db
+      

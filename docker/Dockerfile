@@ -30,6 +30,7 @@ RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
 
 COPY . .
 RUN source /root/.bashrc && \
+    git submodule update --init --recursive && \
     pnpm install
 
 FROM base AS serve

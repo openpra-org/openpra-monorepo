@@ -35,7 +35,7 @@ x-base-healthcheck: &healthcheck-fragments
   timeout: 2s
   retries: 5
   start_period: 150s
-  start_interval: 2s
+  # start_interval: 2s
 
 services:
   frontend:

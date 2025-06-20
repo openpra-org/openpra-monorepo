@@ -11,7 +11,7 @@ include_directories(${CMAKE_JS_INC})
 set(SCRAM_NODE_SRC
     src/AsyncScramWorker.cpp
     src/ScramWorker.cpp
-    src/QuantifyFaultTreeMain.cpp
+    src/ScramNodeQuantify.cpp
     src/ScramNodeSettings.cpp
     src/ScramNodeModel.cpp
     src/ScramNodeReporter.cpp
@@ -23,6 +23,7 @@ set(SCRAM_NODE_HEADERS
     src/AsyncRunScramCli.h
     src/ScramWorker.h
     src/RunScramCli.h
+    src/ScramNodeQuantify.h
     src/ScramNodeSettings.h
     src/ScramNodeModel.h
     src/ScramNodeReporter.h

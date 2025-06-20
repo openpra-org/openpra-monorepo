@@ -17,6 +17,16 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
         model->mission_time().value(mt);
     }
 
+    // Event Trees
+    if (nodeModel.Has("eventTrees")) {
+        Napi::Array etArr = nodeModel.Get("eventTrees").As<Napi::Array>();
+        for (uint32_t i = 0; i < etArr.Length(); ++i) {
+            Napi::Object etObj = etArr.Get(i).As<Napi::Object>();
+            auto et = ScramNodeEventTree(etObj, model.get());
+            model->Add(std::move(et));
+        }
+    }
+
     // Fault Trees
     if (nodeModel.Has("faultTrees")) {
         Napi::Array ftArr = nodeModel.Get("faultTrees").As<Napi::Array>();
@@ -29,6 +39,154 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
     }
 
     return model;
+}
+
+static void BuildEventTreeTrie(
+    EventTreeTrieNode& root,
+    const Napi::Array& sequences
+) {
+    for (uint32_t i = 0; i < sequences.Length(); ++i) {
+        Napi::Object seqObj = sequences.Get(i).As<Napi::Object>();
+        Napi::Array feArr = seqObj.Get("functionalEvents").As<Napi::Array>();
+        EventTreeTrieNode* node = &root;
+        for (uint32_t j = 0; j < feArr.Length(); ++j) {
+            Napi::Object feObj = feArr.Get(j).As<Napi::Object>();
+            std::string state = feObj.Get("state").ToString().Utf8Value();
+            Napi::Value refGate = feObj.Has("refGate") ? feObj.Get("refGate") : Napi::Value();
+            if (node->children.count(state) == 0) {
+                node->children[state] = std::make_unique<EventTreeTrieNode>();
+            }
+            if (!refGate.IsEmpty() && !refGate.IsUndefined() && !refGate.IsNull()) {
+                node->refGates[state] = refGate;
+            }
+            node = node->children[state].get();
+        }
+        node->endState = seqObj.Get("endState").ToString().Utf8Value();
+    }
+}
+
+std::unique_ptr<scram::mef::EventTree> ScramNodeEventTree(const Napi::Object& nodeEventTree, scram::mef::Model* model) {
+    std::string name = nodeEventTree.Get("name").ToString().Utf8Value();
+    auto et = std::make_unique<scram::mef::EventTree>(name);
+
+    // 1. Functional Events: collect all unique names from all sequences
+    std::vector<std::string> functionalEventOrder;
+    std::set<std::string> feNames;
+    if (nodeEventTree.Has("eventSequences")) {
+        Napi::Array seqArr = nodeEventTree.Get("eventSequences").As<Napi::Array>();
+        for (uint32_t i = 0; i < seqArr.Length(); ++i) {
+            Napi::Object seqObj = seqArr.Get(i).As<Napi::Object>();
+            Napi::Array feArr = seqObj.Get("functionalEvents").As<Napi::Array>();
+            for (uint32_t j = 0; j < feArr.Length(); ++j) {
+                Napi::Object feObj = feArr.Get(j).As<Napi::Object>();
+                std::string feName = feObj.Get("name").ToString().Utf8Value();
+                if (feNames.insert(feName).second) {
+                    functionalEventOrder.push_back(feName);
+                    auto fe = std::make_unique<scram::mef::FunctionalEvent>(feName);
+                    et->Add(std::move(fe));
+                }
+            }
+        }
+    }
+
+    // 2. Sequences (end states)
+    if (nodeEventTree.Has("eventSequences")) {
+        Napi::Array seqArr = nodeEventTree.Get("eventSequences").As<Napi::Array>();
+        for (uint32_t i = 0; i < seqArr.Length(); ++i) {
+            Napi::Object seqObj = seqArr.Get(i).As<Napi::Object>();
+            std::string seqName = seqObj.Get("endState").ToString().Utf8Value();
+            auto seq = std::make_unique<scram::mef::Sequence>(seqName);
+            et->Add(seq.get());
+            model->Add(std::move(seq));
+        }
+        // 3. Build the trie
+        EventTreeTrieNode trieRoot;
+        BuildEventTreeTrie(trieRoot, seqArr);
+
+        // 4. Recursively build the event tree structure
+        auto buildBranch = [&](EventTreeTrieNode* node, size_t level, auto&& buildBranchRef) -> std::unique_ptr<scram::mef::Branch> {
+            auto branch = std::make_unique<scram::mef::Branch>();
+            // If this is a leaf, attach the sequence
+            if (!node->endState.empty()) {
+                auto& seq = et->Get<scram::mef::Sequence>(node->endState);
+                branch->target(&seq);
+                return branch;
+            }
+            // Otherwise, fork on the current functional event
+            if (level < functionalEventOrder.size()) {
+                std::string feName = functionalEventOrder[level];
+                auto& fe = et->Get<scram::mef::FunctionalEvent>(feName);
+                std::vector<scram::mef::Path> paths;
+                for (auto& [state, child] : node->children) {
+                    auto path = scram::mef::Path(state);
+                    // Attach collect-formula instruction if refGate is present
+                    if (node->refGates.count(state)) {
+                        scram::mef::Instruction* instr = nullptr;
+                        Napi::Value refGateVal = node->refGates[state];
+                        if (!refGateVal.IsEmpty() && !refGateVal.IsUndefined() && !refGateVal.IsNull()) {
+                            auto gatePtr = ScramNodeGate(refGateVal.As<Napi::Object>(), model, "");
+                            scram::mef::Gate* gateRaw = gatePtr.get();
+                            model->Add(std::move(gatePtr));
+                            instr = new scram::mef::CollectFormula(
+                                std::make_unique<scram::mef::Formula>(
+                                    scram::mef::kNull,
+                                    scram::mef::Formula::ArgSet{gateRaw}
+                                )
+                            );
+                        }
+                        if (instr) {
+                            std::vector<scram::mef::Instruction*> instrs = {instr};
+                            path.instructions(instrs);
+                        }
+                    }
+                    // Recursively build the child branch
+                    auto childBranch = buildBranchRef(child.get(), level + 1, buildBranchRef);
+                    path.target(childBranch->target());
+                    paths.push_back(std::move(path));
+                }
+                auto fork = std::make_unique<scram::mef::Fork>(fe, std::move(paths));
+                branch->target(fork.get());
+                et->Add(std::move(fork));
+            }
+            return branch;
+        };
+
+        // 5. Set the initial state
+        auto initialBranch = buildBranch(&trieRoot, 0, buildBranch);
+        et->initial_state(*initialBranch);
+    }
+
+    // 6. Initiating Event (optional, for OpenPSA compatibility)
+    // If the event tree has an initiating event, create and add it to the model
+    if (nodeEventTree.Has("initiatingEvent")) {
+        Napi::Object ieObj = nodeEventTree.Get("initiatingEvent").As<Napi::Object>();
+        auto ie = ScramNodeInitiatingEvent(ieObj, model);
+        // Link the event tree to the initiating event
+        ie->event_tree(et.get());
+        model->Add(std::move(ie));
+    }
+
+    return et;
+}
+
+std::unique_ptr<scram::mef::InitiatingEvent> ScramNodeInitiatingEvent(const Napi::Object& nodeIE, scram::mef::Model* model) {
+    std::string name = nodeIE.Get("name").ToString().Utf8Value();
+    auto ie = std::make_unique<scram::mef::InitiatingEvent>(name);
+    if (nodeIE.Has("description")) {
+        ie->label(nodeIE.Get("description").ToString().Utf8Value());
+    }
+    // Frequency/unit mapping
+    if (nodeIE.Has("frequency")) {
+        // You may want to store this as an attribute or parameter
+        double freq = nodeIE.Get("frequency").ToNumber().DoubleValue();
+        ie->SetAttribute(scram::mef::Attribute("frequency", std::to_string(freq)));
+    }
+    if (nodeIE.Has("unit")) {
+        std::string unit = nodeIE.Get("unit").ToString().Utf8Value();
+        ie->SetAttribute(scram::mef::Attribute("unit", unit));
+    }
+    // No eventTree field here!
+    return ie;
 }
 
 // FaultTree mapping

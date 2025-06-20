@@ -2,9 +2,13 @@
 #include <napi.h>
 #include <memory>
 #include <string>
+#include <vector>
+#include <map>
+
 #include "model.h"
 #include "fault_tree.h"
 #include "event.h"
+#include "event_tree.h"
 #include "parameter.h"
 #include "ccf_group.h"
 #include "expression/constant.h"
@@ -15,6 +19,12 @@
 
 // Forward declarations: recursive helpers for Model
 std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel);
+
+// Event Tree mapping
+std::unique_ptr<scram::mef::EventTree> ScramNodeEventTree(const Napi::Object& nodeEventTree, scram::mef::Model* model);
+std::unique_ptr<scram::mef::InitiatingEvent> ScramNodeInitiatingEvent(const Napi::Object& nodeIE, scram::mef::Model* model);
+
+// Fault Tree Mapping
 std::unique_ptr<scram::mef::FaultTree> ScramNodeFaultTree(const Napi::Object& nodeFaultTree, scram::mef::Model* model);
 std::unique_ptr<scram::mef::Gate> ScramNodeGate(const Napi::Object& nodeGate, scram::mef::Model* model, const std::string& basePath = "");
 std::unique_ptr<scram::mef::BasicEvent> ScramNodeBasicEvent(const Napi::Object& nodeEvent, scram::mef::Model* model, const std::string& basePath = "");
@@ -22,6 +32,15 @@ std::unique_ptr<scram::mef::HouseEvent> ScramNodeHouseEvent(const Napi::Object& 
 std::unique_ptr<scram::mef::Parameter> ScramNodeParameter(const Napi::Object& nodeParam, scram::mef::Model* model, const std::string& basePath = "");
 std::unique_ptr<scram::mef::CcfGroup> ScramNodeCCFGroup(const Napi::Object& nodeCCF, scram::mef::Model* model, const std::string& basePath = "");
 scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef::Model* model, const std::string& basePath = "");
+
+struct EventTreeTrieNode {
+    // Key: state string, Value: child node
+    std::map<std::string, std::unique_ptr<EventTreeTrieNode>> children;
+    // For each state, the refGate (if any) to collect at this step
+    std::map<std::string, Napi::Value> refGates;
+    // If this is a leaf, the end state name
+    std::string endState;
+};
 
 // Helper: Convert JS string to GateType enum
 inline scram::mef::Connective ScramNodeGateType(const std::string& type) {

@@ -1,7 +1,6 @@
 #include "ScramNodeReporter.h"
 
-// Step 3: C++ to TypeScript Report Mapping
-// Main entry point
+// Main entry point: C++ to TypeScript Report Mapping
 Napi::Object ScramNodeReport(Napi::Env env, const scram::core::RiskAnalysis& analysis) {
     Napi::Object report = Napi::Object::New(env);
 
@@ -24,13 +23,44 @@ Napi::Object ScramNodeModelFeatures(Napi::Env env, const scram::mef::Model& mode
     mf.Set("houseEvents", Napi::Number::New(env, model.house_events().size()));
     mf.Set("undevelopedEvents", Napi::Number::New(env, 0)); // Not tracked separately in SCRAM
     mf.Set("ccfGroups", Napi::Number::New(env, model.ccf_groups().size()));
+    mf.Set("eventTrees", Napi::Number::New(env, model.event_trees().size()));
+    mf.Set("initiatingEvents", Napi::Number::New(env, model.initiating_events().size()));
+    // Optionally, add more fields as needed
     return mf;
 }
 
-// Results Layer
+// Results Layer: integrates event tree and fault tree results
 Napi::Object ScramNodeResults(Napi::Env env, const scram::core::RiskAnalysis& analysis) {
     Napi::Object results = Napi::Object::New(env);
 
+    // --- Event Tree Results ---
+    if (!analysis.event_tree_results().empty()) {
+        Napi::Array ieArr = Napi::Array::New(env, analysis.event_tree_results().size());
+        uint32_t idx = 0;
+        for (const auto& etaResult : analysis.event_tree_results()) {
+            if (etaResult.event_tree_analysis) {
+                const auto& eta = *etaResult.event_tree_analysis;
+                Napi::Object ieResult = Napi::Object::New(env);
+                const auto& ie = eta.initiating_event();
+                ieResult.Set("name", ie.name());
+                if (!ie.label().empty())
+                    ieResult.Set("description", ie.label());
+                Napi::Array seqArr = Napi::Array::New(env, eta.sequences().size());
+                uint32_t sidx = 0;
+                for (const auto& seq : eta.sequences()) {
+                    Napi::Object seqObj = Napi::Object::New(env);
+                    seqObj.Set("name", seq.sequence.name());
+                    seqObj.Set("value", seq.p_sequence);
+                    seqArr.Set(sidx++, seqObj);
+                }
+                ieResult.Set("sequences", seqArr);
+                ieArr.Set(idx++, ieResult);
+            }
+        }
+        results.Set("initiatingEvents", ieArr);
+    }
+
+    // --- Fault Tree and Other Results ---
     // Safety Integrity Levels (SIL)
     Napi::Array silArr = Napi::Array::New(env);
     uint32_t silIdx = 0;

@@ -6,6 +6,7 @@
 #include "uncertainty_analysis.h"
 #include "importance_analysis.h"
 #include "fault_tree_analysis.h"
+#include "event_tree_analysis.h"
 
 // Forward declarations: helpers for Reporter
 Napi::Object ScramNodeReport(Napi::Env env, const scram::core::RiskAnalysis& analysis);

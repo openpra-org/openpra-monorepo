@@ -44,6 +44,12 @@ services:
       - "4200:4200"
     networks:
       - svc_net
+    depends_on:
+      - backend
+      - rabbitmq
+      - mongodb
+      - job-broker
+      - job-worker
     command: "nx run --verbose frontend-web-editor:serve:development"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4200/"]

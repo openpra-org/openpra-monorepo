@@ -4,6 +4,7 @@
     "../docker-compose.yml"
   ],
   "service": "frontend",
+  "runServices": ["job-broker", "job-worker", "backend", "rabbitmq", "mongodb"],
   "workspaceFolder": "/workspaces/openpra-monorepo",
   "forwardPorts": [27017, 5672, 15672, 4200, 3000, 8000],
   "portsAttributes": {
@@ -18,5 +19,6 @@
     "memory": "8gb",
     "cpus": 4,
     "storage": "32gb"
-  }
+  },
+  "shutdownAction": "none"
 }

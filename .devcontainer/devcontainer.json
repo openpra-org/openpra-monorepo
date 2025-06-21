@@ -3,7 +3,7 @@
   "dockerComposeFile": [
     "../docker-compose.yml"
   ],
-  "service": "frontend",
+  "service": "backend",
   "workspaceFolder": "/workspaces/openpra-monorepo",
   "forwardPorts": [27017, 5672, 15672, 4200, 3000, 8000],
   "portsAttributes": {

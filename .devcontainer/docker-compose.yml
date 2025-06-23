@@ -10,8 +10,6 @@ configs:
     file: ../docker/configs/rabbitmq/enabled_plugins
   rabbitmq_conf:
     file: ../docker/configs/rabbitmq/rabbitmq.conf
-  nestjs_env_vars:
-    file: ../docker/configs/.docker-compose.env
 
 services:
   devcontainer:
@@ -27,9 +25,6 @@ services:
       - rabbitmq
     env_file:
       - ../docker/configs/.docker-compose.env
-    configs:
-      - source: nestjs_env_vars
-        target: /workspaces/openpra-monorepo/.env
 
   rabbitmq:
     networks:

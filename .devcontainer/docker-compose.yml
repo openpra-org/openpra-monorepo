@@ -7,6 +7,12 @@ configs:
     file: ../docker/configs/rabbitmq/enabled_plugins
   rabbitmq_conf:
     file: ../docker/configs/rabbitmq/rabbitmq.conf
+  nestjs_env_vars:
+    file: ../docker/configs/.docker-compose.env
+
+secrets:
+  JWT_SECRET:
+    file: ../.jwt-open-secret
 
 services:
   devcontainer:
@@ -19,6 +25,13 @@ services:
     depends_on:
       - mongodb
       - rabbitmq
+    env_file:
+      - ../docker/configs/.docker-compose.env
+    configs:
+      - source: nestjs_env_vars
+        target: /workspaces/openpra-monorepo/.env
+    secrets:
+      - JWT_SECRET
 
   rabbitmq:
     network_mode: host

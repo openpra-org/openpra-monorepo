@@ -13,7 +13,7 @@ tmp
 
 # dependencies
 node_modules
-pnpm-store
+.pnpm-store
 
 # IDEs and   editors
 #/.idea

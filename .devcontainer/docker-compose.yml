@@ -12,7 +12,6 @@ configs:
 
 services:
   devcontainer:
-    network_mode: host
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
@@ -23,7 +22,6 @@ services:
       - rabbitmq
 
   rabbitmq:
-    network_mode: host
     image: rabbitmq:management-alpine
     restart: unless-stopped
     volumes:
@@ -38,7 +36,6 @@ services:
         target: /etc/rabbitmq/rabbitmq.conf
 
   mongodb:
-    network_mode: host
     image: mongo:latest
     restart: unless-stopped
     volumes:

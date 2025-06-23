@@ -2,6 +2,9 @@ volumes:
   mongo_data:
   rabbitmq_data:
 
+networks:
+  app_net:
+
 configs:
   rabbitmq_plugins:
     file: ../docker/configs/rabbitmq/enabled_plugins
@@ -10,13 +13,10 @@ configs:
   nestjs_env_vars:
     file: ../docker/configs/.docker-compose.env
 
-secrets:
-  JWT_SECRET:
-    file: ../.jwt-open-secret
-
 services:
   devcontainer:
-    network_mode: host
+    networks:
+      - app_net
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
@@ -30,11 +30,10 @@ services:
     configs:
       - source: nestjs_env_vars
         target: /workspaces/openpra-monorepo/.env
-    secrets:
-      - JWT_SECRET
 
   rabbitmq:
-    network_mode: host
+    networks:
+      - app_net
     image: rabbitmq:management-alpine
     restart: unless-stopped
     volumes:
@@ -46,7 +45,8 @@ services:
         target: /etc/rabbitmq/rabbitmq.conf
 
   mongodb:
-    network_mode: host
+    networks:
+      - app_net
     image: mongo:latest
     restart: unless-stopped
     volumes:

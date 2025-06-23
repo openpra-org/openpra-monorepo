@@ -1,9 +1,8 @@
+version: '3'
+
 volumes:
   mongo_data:
   rabbitmq_data:
-
-networks:
-  app_net:
 
 configs:
   rabbitmq_plugins:
@@ -13,8 +12,7 @@ configs:
 
 services:
   devcontainer:
-    networks:
-      - app_net
+    network_mode: host
     build:
       context: ..
       dockerfile: .devcontainer/Dockerfile
@@ -27,8 +25,7 @@ services:
       - ../docker/configs/.docker-compose.env
 
   rabbitmq:
-    networks:
-      - app_net
+    network_mode: host
     image: rabbitmq:management-alpine
     restart: unless-stopped
     volumes:
@@ -43,8 +40,7 @@ services:
         target: /etc/rabbitmq/rabbitmq.conf
 
   mongodb:
-    networks:
-      - app_net
+    network_mode: host
     image: mongo:latest
     restart: unless-stopped
     volumes:

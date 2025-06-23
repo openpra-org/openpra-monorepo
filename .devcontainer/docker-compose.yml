@@ -21,8 +21,6 @@ services:
     depends_on:
       - mongodb
       - rabbitmq
-    env_file:
-      - ../docker/configs/.docker-compose.env
 
   rabbitmq:
     network_mode: host

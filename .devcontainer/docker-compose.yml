@@ -7,8 +7,6 @@ volumes:
 configs:
   rabbitmq_plugins:
     file: ../docker/configs/rabbitmq/enabled_plugins
-  rabbitmq_conf:
-    file: ../docker/configs/rabbitmq/rabbitmq.conf
 
 services:
   devcontainer:
@@ -32,8 +30,6 @@ services:
     configs:
       - source: rabbitmq_plugins
         target: /etc/rabbitmq/enabled_plugins
-      - source: rabbitmq_conf
-        target: /etc/rabbitmq/rabbitmq.conf
 
   mongodb:
     image: mongo:latest

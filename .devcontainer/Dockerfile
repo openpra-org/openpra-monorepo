@@ -28,7 +28,7 @@ RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
     npm install --global pnpm nx@$NX_VERSION && \
     SHELL=bash pnpm setup
 
-COPY . .
+COPY .. .
 RUN source /root/.bashrc && \
     git submodule update --init --recursive
 

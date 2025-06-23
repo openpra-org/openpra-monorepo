@@ -10,83 +10,19 @@ configs:
     file: ../docker/configs/rabbitmq/enabled_plugins
   rabbitmq_conf:
     file: ../docker/configs/rabbitmq/rabbitmq.conf
-  nestjs_env_vars:
-    file: ../docker/configs/.docker-compose.env
-
-secrets:
-  JWT_SECRET:
-    file: ../.jwt-open-secret
-
-x-base-image: &base-image
-  build:
-     context: .
-     dockerfile: Dockerfile
-  restart: unless-stopped
-  env_file:
-    - ../docker/configs/.docker-compose.env
-  configs:
-    - source: nestjs_env_vars
-      target: /data/project/.env
-
-x-base-healthcheck: &healthcheck-fragments
-  interval: 10s
-  timeout: 5s
-  retries: 5
-  start_period: 150s
 
 services:
-  frontend:
-    <<: *base-image
-    ports:
-      - "4200:4200"
-    networks:
-      - app_net
-    command: "nx run --verbose frontend-web-editor:serve:development"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4200/"]
-      <<: *healthcheck-fragments
-
-  job-broker:
-    <<: *base-image
-    ports:
-      - "3000:3000"
-    command: "nx run --verbose microservice-job-broker:serve:development"
+  devcontainer:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspaces/openpra-monorepo:cached
     networks:
       - app_net
     depends_on:
       - mongodb
       - rabbitmq
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
-      <<: *healthcheck-fragments
-
-  job-worker:
-    <<: *base-image
-    command: "nx run --verbose microservice-job-broker:serve-consumer:development"
-    networks:
-      - app_net
-    depends_on:
-      - mongodb
-      - rabbitmq
-    deploy:
-      replicas: 2
-
-  backend:
-    <<: *base-image
-    ports:
-      - "8000:8000"
-    command: "nx run --verbose web-backend:serve:development"
-    depends_on:
-      - mongodb
-    networks:
-      - app_net
-    secrets:
-      - JWT_SECRET
-    environment:
-      JWT_SECRET_KEY_FILE: /run/secrets/JWT_SECRET
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
-      <<: *healthcheck-fragments
 
   rabbitmq:
     image: rabbitmq:management-alpine

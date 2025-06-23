@@ -3,7 +3,7 @@
   "dockerComposeFile": [
     "docker-compose.yml"
   ],
-  "service": "frontend",
+  "service": "backend",
   "workspaceFolder": "/workspaces/openpra-monorepo",
   "hostRequirements": {
     "memory": "8gb",

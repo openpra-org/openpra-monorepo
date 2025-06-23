@@ -5,6 +5,35 @@ volumes:
 networks:
   app_net:
 
+configs:
+  rabbitmq_plugins:
+    file: ../docker/configs/rabbitmq/enabled_plugins
+  rabbitmq_conf:
+    file: ../docker/configs/rabbitmq/rabbitmq.conf
+  nestjs_env_vars:
+    file: ../docker/configs/.docker-compose.env
+
+secrets:
+  JWT_SECRET:
+    file: ../.jwt-open-secret
+
+x-base-image: &base-image
+  build:
+     context: .
+     dockerfile: Dockerfile
+  restart: unless-stopped
+  env_file:
+    - ../docker/configs/.docker-compose.env
+  configs:
+    - source: nestjs_env_vars
+      target: /data/project/.env
+
+x-base-healthcheck: &healthcheck-fragments
+  interval: 10s
+  timeout: 5s
+  retries: 5
+  start_period: 150s
+
 services:
   frontend:
     <<: *base-image

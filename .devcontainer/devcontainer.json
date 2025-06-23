@@ -1,19 +1,10 @@
 {
   "name": "openpra-monorepo-dev",
   "dockerComposeFile": [
-    "../docker-compose.yml"
+    "docker-compose.yml"
   ],
   "service": "frontend",
   "workspaceFolder": "/workspaces/openpra-monorepo",
-  "forwardPorts": [27017, 5672, 15672, 4200, 3000, 8000],
-  "portsAttributes": {
-    "27017": { "label": "MongoDB", "onAutoForward": "silent" },
-    "5672": { "label": "RabbitMQ AMQP", "onAutoForward": "silent" },
-    "15672": { "label": "RabbitMQ Management", "onAutoForward": "silent" },
-    "4200": { "label": "Frontend", "onAutoForward": "silent" },
-    "3000": { "label": "Job Broker", "onAutoForward": "silent" },
-    "8000": { "label": "Backend", "onAutoForward": "silent" }
-  },
   "hostRequirements": {
     "memory": "8gb",
     "cpus": 4,

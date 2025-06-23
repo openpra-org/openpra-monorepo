@@ -3,39 +3,7 @@ volumes:
   rabbitmq_data:
 
 networks:
-  db_net:
-  svc_net:
-  rmq_net:
-
-configs:
-  rabbitmq_plugins:
-    file: docker/configs/rabbitmq/enabled_plugins
-  rabbitmq_conf:
-    file: docker/configs/rabbitmq/rabbitmq.conf
-  nestjs_env_vars:
-    file: docker/configs/.docker-compose.env
-
-secrets:
-  JWT_SECRET:
-    file: ./.jwt-open-secret
-
-x-base-image: &base-image
-  build:
-     context: .
-     dockerfile: docker/Dockerfile
-  restart: unless-stopped
-  env_file:
-    - docker/configs/.docker-compose.env
-  configs:
-    - source: nestjs_env_vars
-      target: /data/project/.env
-
-x-base-healthcheck: &healthcheck-fragments
-  interval: 10s
-  timeout: 2s
-  retries: 5
-  start_period: 150s
-  start_interval: 2s
+  app_net:
 
 services:
   frontend:
@@ -43,7 +11,7 @@ services:
     ports:
       - "4200:4200"
     networks:
-      - svc_net
+      - app_net
     command: "nx run --verbose frontend-web-editor:serve:development"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4200/"]
@@ -55,8 +23,7 @@ services:
       - "3000:3000"
     command: "nx run --verbose microservice-job-broker:serve:development"
     networks:
-      - db_net
-      - rmq_net
+      - app_net
     depends_on:
       - mongodb
       - rabbitmq
@@ -68,8 +35,7 @@ services:
     <<: *base-image
     command: "nx run --verbose microservice-job-broker:serve-consumer:development"
     networks:
-      - db_net
-      - rmq_net
+      - app_net
     depends_on:
       - mongodb
       - rabbitmq
@@ -84,8 +50,7 @@ services:
     depends_on:
       - mongodb
     networks:
-      - db_net
-      - svc_net
+      - app_net
     secrets:
       - JWT_SECRET
     environment:
@@ -100,7 +65,7 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
-      - rmq_net
+      - app_net
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -116,6 +81,7 @@ services:
     ports:
       - "27017:27017"
     networks:
-      - db_net
+      - app_net
     volumes:
       - mongo_data:/data/db
+      

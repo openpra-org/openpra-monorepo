@@ -41,8 +41,6 @@ services:
     restart: unless-stopped
     ports:
       - "27017:27017"
-    networks:
-      - app_net
     volumes:
       - mongo_data:/data/db
       

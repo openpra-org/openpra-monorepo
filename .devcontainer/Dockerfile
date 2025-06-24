@@ -66,4 +66,4 @@ RUN source /root/.bashrc
 COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 
-ENTRYPOINT ["/entrypoint.sh"]
+RUN /entrypoint.sh

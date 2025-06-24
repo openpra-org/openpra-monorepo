@@ -10,7 +10,7 @@ echo "Starting RabbitMQ..."
 service rabbitmq-server start
 
 # Enable RabbitMQ plugins
-rabbitmq-plugins enable --offline rabbitmq_management rabbitmq_prometheus
+rabbitmq-plugins enable rabbitmq_management rabbitmq_prometheus
 
 # Wait for services to be ready
 sleep 5

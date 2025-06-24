@@ -54,10 +54,10 @@ RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /data/db && chown -R mongodb:mongodb /data/db
 
 # Install Node.js global tools
-RUN npm install --global pnpm nx@$NX_VERSION && pnpm setup
+RUN npm install --global pnpm nx@$NX_VERSION && SHELL=bash pnpm setup
 
 # Copy source code
-COPY . .
+COPY .. .
 
 # Initialize git submodules
 RUN source /root/.bashrc && git submodule update --init --recursive

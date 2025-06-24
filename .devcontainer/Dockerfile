@@ -3,7 +3,7 @@ FROM node:20.17.0-bullseye-slim
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NX_VERSION=19.6.2
 ENV NX_SOCKET_DIR="/tmp/nx"
-ENV BUILD_PACKAGES="make cmake g++ git python3 curl ca-certificates gnupg lsb-release"
+ENV BUILD_PACKAGES="make cmake g++ git python3 curl ca-certificates gnupg apt-transport-https lsb-release"
 ENV SCRAM_BUILD_PACKAGES="libxml2-dev libomp-dev libgoogle-perftools-dev libboost-program-options-dev libboost-math-dev libboost-random-dev libboost-filesystem-dev libboost-test-dev libboost-date-time-dev libjemalloc-dev"
 ENV SCRAM_RUNTIME_PACKAGES="libxml2 libboost-filesystem1.74.0 libboost-program-options1.74.0 libtcmalloc-minimal4 libjemalloc2"
 ENV PATH="/root/.local/bin:${PATH}"
@@ -11,7 +11,7 @@ ENV PATH="/root/.local/bin:${PATH}"
 WORKDIR /workspaces/openpra-monorepo
 SHELL ["/bin/bash", "-c"]
 
-# Install system dependencies, MongoDB, and RabbitMQ
+# Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         $BUILD_PACKAGES \
@@ -24,17 +24,28 @@ RUN curl -fsSL https://pgp.mongodb.com/server-6.0.asc | gpg --dearmor -o /usr/sh
     apt-get update && \
     apt-get install -y mongodb-org
 
-# Install Erlang (required for RabbitMQ)
-RUN curl -fsSL https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc | gpg --dearmor -o /usr/share/keyrings/erlang.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/erlang.gpg] https://packages.erlang-solutions.com/ubuntu $(lsb_release -cs) contrib" > /etc/apt/sources.list.d/erlang.list && \
-    apt-get update && \
-    apt-get install -y erlang-nox
-
-# Install RabbitMQ
-RUN curl -fsSL https://packagecloud.io/rabbitmq/rabbitmq-server/gpgkey | gpg --dearmor -o /usr/share/keyrings/rabbitmq-archive-keyring.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/rabbitmq-archive-keyring.gpg] https://packagecloud.io/rabbitmq/rabbitmq-server/debian/ bullseye main" > /etc/apt/sources.list.d/rabbitmq.list && \
-    apt-get update && \
-    apt-get install -y rabbitmq-server
+# Install RabbitMQ and Erlang (official instructions)
+RUN curl -fsSL "https://keys.openpgp.org/vks/v1/by-fingerprint/0A9AF2115F4687BD29803A206B73A36E6026DFCA" | gpg --dearmor | tee /usr/share/keyrings/com.rabbitmq.team.gpg > /dev/null && \
+    curl -fsSL https://github.com/rabbitmq/signing-keys/releases/download/3.0/cloudsmith.rabbitmq-erlang.E495BB49CC4BBE5B.key | gpg --dearmor | tee /usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg > /dev/null && \
+    curl -fsSL https://github.com/rabbitmq/signing-keys/releases/download/3.0/cloudsmith.rabbitmq-server.9F4587F226208342.key | gpg --dearmor | tee /usr/share/keyrings/rabbitmq.9F4587F226208342.gpg > /dev/null && \
+    tee /etc/apt/sources.list.d/rabbitmq.list > /dev/null <<EOF
+deb [arch=amd64 signed-by=/usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg] https://ppa1.rabbitmq.com/rabbitmq/rabbitmq-erlang/deb/debian bullseye main
+deb-src [signed-by=/usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg] https://ppa1.rabbitmq.com/rabbitmq/rabbitmq-erlang/deb/debian bullseye main
+deb [arch=amd64 signed-by=/usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg] https://ppa2.rabbitmq.com/rabbitmq/rabbitmq-erlang/deb/debian bullseye main
+deb-src [signed-by=/usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg] https://ppa2.rabbitmq.com/rabbitmq/rabbitmq-erlang/deb/debian bullseye main
+deb [arch=amd64 signed-by=/usr/share/keyrings/rabbitmq.9F4587F226208342.gpg] https://ppa1.rabbitmq.com/rabbitmq/rabbitmq-server/deb/debian bullseye main
+deb-src [signed-by=/usr/share/keyrings/rabbitmq.9F4587F226208342.gpg] https://ppa1.rabbitmq.com/rabbitmq/rabbitmq-server/deb/debian bullseye main
+deb [arch=amd64 signed-by=/usr/share/keyrings/rabbitmq.9F4587F226208342.gpg] https://ppa2.rabbitmq.com/rabbitmq/rabbitmq-server/deb/debian bullseye main
+deb-src [signed-by=/usr/share/keyrings/rabbitmq.9F4587F226208342.gpg] https://ppa2.rabbitmq.com/rabbitmq/rabbitmq-server/deb/debian bullseye main
+EOF
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        erlang-base \
+        erlang-asn1 erlang-crypto erlang-eldap erlang-ftp erlang-inets \
+        erlang-mnesia erlang-os-mon erlang-parsetools erlang-public-key \
+        erlang-runtime-tools erlang-snmp erlang-ssl \
+        erlang-syntax-tools erlang-tftp erlang-tools erlang-xmerl && \
+    apt-get install -y --fix-missing rabbitmq-server
 
 # Clean up
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*

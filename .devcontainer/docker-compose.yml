@@ -18,6 +18,7 @@ services:
     depends_on:
       - mongodb
       - rabbitmq
+    network_mode: "service:rabbitmq"
 
   rabbitmq:
     image: rabbitmq:management-alpine
@@ -27,6 +28,7 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+      - "27017:27017"
     configs:
       - source: rabbitmq_plugins
         target: /etc/rabbitmq/enabled_plugins
@@ -36,6 +38,5 @@ services:
     restart: unless-stopped
     volumes:
       - mongo_data:/data/db
-    ports:
-      - "27017:27017"
+    network_mode: "service:rabbitmq"
       

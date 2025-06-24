@@ -52,7 +52,7 @@ COPY . .
 RUN source /root/.bashrc && git submodule update --init --recursive
 
 # Copy entrypoint script
-COPY .devcontainer/entrypoint.sh /
+COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]

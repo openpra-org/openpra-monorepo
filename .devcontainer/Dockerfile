@@ -1,4 +1,4 @@
-FROM node:20.17.0-bullseye-slim
+FROM node:20.17.0-bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NX_VERSION=19.6.2

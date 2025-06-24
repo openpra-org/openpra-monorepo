@@ -3,6 +3,7 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
+  "runArgs": ["-p5672:5672", "-p15672:15672", "-p27017:27017"],
   "workspaceFolder": "/workspaces/openpra-monorepo",
   "hostRequirements": {
     "memory": "8gb",

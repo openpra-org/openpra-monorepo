@@ -60,7 +60,7 @@ RUN npm install --global pnpm nx@$NX_VERSION && SHELL=bash pnpm setup
 COPY .. .
 
 # Initialize git submodules
-RUN source /root/.bashrc && git submodule update --init --recursive
+RUN source /root/.bashrc
 
 # Copy entrypoint script
 COPY entrypoint.sh /

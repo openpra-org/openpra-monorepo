@@ -1,5 +1,3 @@
-version: '3'
-
 volumes:
   mongo_data:
   rabbitmq_data:
@@ -15,9 +13,6 @@ services:
       dockerfile: .devcontainer/Dockerfile
     volumes:
       - ..:/workspaces/openpra-monorepo
-    depends_on:
-      - mongodb
-      - rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"

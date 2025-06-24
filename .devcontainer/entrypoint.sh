@@ -1,11 +1,23 @@
 #!/bin/bash
+set -e
 
-source /root/.bashrc
+# Start MongoDB
+echo "Starting MongoDB..."
+mongod --fork --logpath /var/log/mongod.log --dbpath /data/db
 
-# If a command is provided, run it; otherwise, keep the container alive
-if [ $# -gt 0 ]; then
-  exec "$@"
-else
-  # Keep the container running
-  tail -f /dev/null
-fi
+# Start RabbitMQ
+echo "Starting RabbitMQ..."
+service rabbitmq-server start
+
+# Optionally enable plugins (management, prometheus, etc.)
+rabbitmq-plugins enable --offline rabbitmq_management rabbitmq_prometheus
+
+# Wait for services to be ready
+sleep 5
+
+# Print logs for debugging
+tail -n 20 /var/log/mongod.log || true
+rabbitmqctl status
+
+# Start the default shell or your dev process
+exec "$@"

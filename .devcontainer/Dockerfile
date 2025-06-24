@@ -65,5 +65,3 @@ RUN source /root/.bashrc
 # Copy entrypoint script
 COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
-
-RUN /entrypoint.sh

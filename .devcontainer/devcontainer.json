@@ -3,12 +3,12 @@
   "build": {
     "dockerfile": "Dockerfile"
   },
-  "appPort": ["5672:5672", "15672:15672", "27017:27017"],
   "workspaceFolder": "/workspaces/openpra-monorepo",
   "hostRequirements": {
     "memory": "8gb",
     "cpus": 4,
     "storage": "32gb"
   },
+  "postStartCommand": "/entrypoint.sh",
   "shutdownAction": "none"
 }

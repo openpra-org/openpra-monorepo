@@ -9,7 +9,7 @@ mongod --fork --logpath /var/log/mongod.log --dbpath /data/db
 echo "Starting RabbitMQ..."
 service rabbitmq-server start
 
-# Optionally enable plugins (management, prometheus, etc.)
+# Enable RabbitMQ plugins
 rabbitmq-plugins enable --offline rabbitmq_management rabbitmq_prometheus
 
 # Wait for services to be ready
@@ -19,5 +19,5 @@ sleep 5
 tail -n 20 /var/log/mongod.log || true
 rabbitmqctl status
 
-# Start the default shell or your dev process
+# Start a shell by default, or pass through CMD
 exec "$@"

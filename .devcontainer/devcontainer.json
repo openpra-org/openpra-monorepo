@@ -5,7 +5,6 @@
     "dockerfile": "Dockerfile"
   },
   "workspaceFolder": "/workspaces/openpra-monorepo",
-  "forwardPorts": [5672, 15672, 27017],
   "hostRequirements": {
     "memory": "8gb",
     "cpus": 4,

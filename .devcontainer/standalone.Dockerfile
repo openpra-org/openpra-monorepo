@@ -64,5 +64,5 @@ COPY .. .
 RUN source /root/.bashrc
 
 # Copy entrypoint script
-COPY entrypoint.sh /
-RUN chmod +x /entrypoint.sh
+COPY standalone_entrypoint.sh /
+RUN chmod +x /standalone_entrypoint.sh

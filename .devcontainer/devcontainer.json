@@ -1,7 +1,7 @@
 {
   "name": "openpra-monorepo-dev",
   "build": {
-    "dockerfile": "Dockerfile"
+    "dockerfile": "standalone.Dockerfile"
   },
   "workspaceFolder": "/workspaces/openpra-monorepo",
   "hostRequirements": {
@@ -9,6 +9,6 @@
     "cpus": 4,
     "storage": "32gb"
   },
-  "postStartCommand": "/entrypoint.sh",
+  "postStartCommand": "/standalone_entrypoint.sh",
   "shutdownAction": "none"
 }

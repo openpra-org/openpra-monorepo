@@ -67,5 +67,3 @@ COPY entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
-
-EXPOSE 5672 15672 27017

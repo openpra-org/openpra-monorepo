@@ -1,9 +1,9 @@
-[submodule "fixtures/models/synthetic-openpsa-models"]
-	path = fixtures/models/synthetic-openpsa-models
-	url = https://github.com/openpra-org/synthetic-openpsa-models.git
-[submodule "fixtures/models/generic-openpsa-models"]
-	path = fixtures/models/generic-openpsa-models
-	url = https://github.com/openpra-org/generic-openpsa-models.git
-[submodule "fixtures/models/generic-pwr-openpsa-model"]
-	path = fixtures/models/generic-pwr-openpsa-model
-	url = https://github.com/openpra-org/generic-pwr-openpsa-model.git
+[submodule "fixtures/models/synthetic-models"]
+	path = fixtures/models/synthetic-models
+	url = https://github.com/openpra-org/synthetic-models.git
+[submodule "fixtures/models/aralia-fault-tree-dataset"]
+	path = fixtures/models/aralia-fault-tree-dataset
+	url = https://github.com/openpra-org/aralia-fault-tree-dataset.git
+[submodule "fixtures/models/generic-pwr-model"]
+	path = fixtures/models/generic-pwr-model
+	url = https://github.com/openpra-org/generic-pwr-model.git

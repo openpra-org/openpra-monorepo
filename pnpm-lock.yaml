@@ -555,6 +555,9 @@ importers:
       rxjs:
         specifier: 7.8.1
         version: 7.8.1
+      scram-node:
+        specifier: workspace:^
+        version: link:../engine/scram-node
       shared-types:
         specifier: workspace:^
         version: link:../shared-types
@@ -564,6 +567,9 @@ importers:
       tmp:
         specifier: 0.2.3
         version: 0.2.3
+      webpack:
+        specifier: 5.94.0
+        version: 5.94.0(@swc/core@1.5.7(@swc/helpers@0.5.12))
     devDependencies:
       '@darraghor/eslint-plugin-nestjs-typed':
         specifier: 5.0.18
@@ -20898,7 +20904,7 @@ snapshots:
     dependencies:
       browserslist: 4.23.3
       escalade: 3.1.2
-      picocolors: 1.0.1
+      picocolors: 1.1.1
 
   uri-js@4.4.1:
     dependencies:

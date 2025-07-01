@@ -161,8 +161,18 @@ void EventTreeAnalysis::Analyze() noexcept {
       gate->formula(std::make_unique<mef::Formula>(
           mef::kNull, mef::Formula::ArgSet{&mef::HouseEvent::kTrue}));
     }
-    sequences_.push_back(
-        {*sequence.first, std::move(gate), is_expression_only});
+
+    double sequence_probability = 1.0;
+    if (initiating_event_.GetAttribute("frequency")) {
+        sequence_probability *= std::stod(initiating_event_.GetAttribute("frequency")->value());
+    }
+    for (PathCollector& path_collector : sequence.second) {
+        for (mef::Expression* expr : path_collector.expressions) {
+            sequence_probability *= expr->value();
+        }
+    }
+
+    sequences_.push_back({*sequence.first, std::move(gate), is_expression_only, sequence_probability});
   }
 }
 
@@ -187,12 +197,32 @@ void EventTreeAnalysis::CollectSequences(const mef::Branch& initial_state,
       }
 
       void Visit(const mef::CollectFormula* collect_formula) override {
-        // clang-format off
-        collector_.path_collector_.formulas.push_back(
-            core::Clone(collect_formula->formula(),
-                        collector_.path_collector_.set_instructions,
-                        collector_.clones_));
-        // clang-format on
+        const mef::Formula& formula = collect_formula->formula();
+        if (formula.connective() == mef::kNull && formula.args().size() == 1) {
+            mef::Gate* gate = nullptr;
+            if (auto g = std::get_if<mef::Gate*>(&formula.args().front().event)) {
+                gate = *g;
+            }
+            if (gate && gate->HasFormula()) {
+                double p = 0.0;
+                const mef::Formula& f = gate->formula();
+                if (f.args().size() == 1 && std::holds_alternative<mef::BasicEvent*>(f.args().front().event)) {
+                    p = std::get<mef::BasicEvent*>(f.args().front().event)->p();
+                }
+                std::string state = "bypass";
+                auto it = collector_.result_->context.functional_events.find(gate->name());
+                if (it != collector_.result_->context.functional_events.end()) {
+                    state = it->second;
+                }
+                if (state == "failure") {
+                    collector_.path_collector_.expressions.push_back(new mef::ConstantExpression(p));
+                } else if (state == "success") {
+                    collector_.path_collector_.expressions.push_back(new mef::ConstantExpression(1.0 - p));
+                } else if (state == "bypass") {
+                    collector_.path_collector_.expressions.push_back(new mef::ConstantExpression(1.0));
+                }
+            }
+        }
       }
 
       void Visit(const mef::CollectExpression* collect_expression) override {

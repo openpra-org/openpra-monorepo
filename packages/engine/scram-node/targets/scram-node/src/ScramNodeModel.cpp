@@ -124,13 +124,22 @@ std::unique_ptr<scram::mef::EventTree> ScramNodeEventTree(const Napi::Object& no
                         scram::mef::Instruction* instr = nullptr;
                         Napi::Value refGateVal = node->refGates[state];
                         if (!refGateVal.IsEmpty() && !refGateVal.IsUndefined() && !refGateVal.IsNull()) {
-                            auto gatePtr = ScramNodeGate(refGateVal.As<Napi::Object>(), model, "");
-                            scram::mef::Gate* gateRaw = gatePtr.get();
-                            model->Add(std::move(gatePtr));
+                            Napi::Object refGateObj = refGateVal.As<Napi::Object>();
+                            std::string refGateName = refGateObj.Get("name").ToString().Utf8Value();
+                            scram::mef::Gate* gateRaw = nullptr;
+                            auto gatesTable = model->table<scram::mef::Gate>();
+                            auto it = std::find_if(gatesTable.begin(), gatesTable.end(),
+                                [&](const scram::mef::Gate& g) { return g.name() == refGateName; });
+                            if (it != gatesTable.end()) {
+                                gateRaw = const_cast<scram::mef::Gate*>(&(*it));
+                            } else {
+                                auto gatePtr = ScramNodeGate(refGateObj, model, "");
+                                gateRaw = gatePtr.get();
+                                model->Add(std::move(gatePtr));
+                            }
                             instr = new scram::mef::CollectFormula(
                                 std::make_unique<scram::mef::Formula>(
-                                    scram::mef::kNull,
-                                    scram::mef::Formula::ArgSet{gateRaw}
+                                    scram::mef::kNull, scram::mef::Formula::ArgSet{gateRaw}
                                 )
                             );
                         }
@@ -224,6 +233,11 @@ std::unique_ptr<scram::mef::FaultTree> ScramNodeFaultTree(const Napi::Object& no
 // Gate mapping (recursive)
 std::unique_ptr<scram::mef::Gate> ScramNodeGate(const Napi::Object& nodeGate, scram::mef::Model* model, const std::string& basePath) {
     std::string name = nodeGate.Get("name").ToString().Utf8Value();
+    auto it = std::find_if(model->table<scram::mef::Gate>().begin(), model->table<scram::mef::Gate>().end(),
+        [&](const scram::mef::Gate& g) { return g.name() == name; });
+    if (it != model->table<scram::mef::Gate>().end()) {
+        return std::unique_ptr<scram::mef::Gate>(const_cast<scram::mef::Gate*>(&(*it)));
+    }
     auto gate = std::make_unique<scram::mef::Gate>(name, basePath, scram::mef::RoleSpecifier::kPublic);
 
     // Description

@@ -1,16 +1,21 @@
+import { Injectable } from "@nestjs/common";
 import fs from "fs";
 import path from "path";
 import { promises as promise_fs } from "fs";
 import { tmpdir } from "os";
 import { spawn } from "child_process";
-
-import { Injectable } from "@nestjs/common";
-import { CommandLineOptions } from "shared-types/src/openpra-mef/util/quantify-request";
-import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { QuantifyModel } from "scram-node"
 import { BinaryQuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
+import { CommandLineOptions, NodeQuantRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { Report } from "shared-types/src/openpra-mef/util/report";
 
 @Injectable()
 export class QuantifyService {
+  public async quantifyModel(scramNodeModel: NodeQuantRequest): Promise<Report> {
+    return QuantifyModel(scramNodeModel.settings, scramNodeModel.model);
+  }
+
   // call shell commands from here.
   // 1. write the model data xmls to a set of files (at-least 1 element in set)
   // 2. parse CommandLineOptions from QuantifyRequest as a command-line options string for scram

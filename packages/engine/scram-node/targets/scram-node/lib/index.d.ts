@@ -74,5 +74,5 @@ declare module "scram-node" {
    */
   export function RunScramCli(info: QuantifyRequest): void;
 
-  export function QuantifyFaultTree(options?: ScramNodeOptions, model: Model): Report;
+  export function QuantifyModel(options?: ScramNodeOptions, model: Model): Report;
 }

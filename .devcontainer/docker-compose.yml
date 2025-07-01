@@ -1,0 +1,37 @@
+volumes:
+  mongo_data:
+  rabbitmq_data:
+
+configs:
+  rabbitmq_plugins:
+    file: ../docker/configs/rabbitmq/enabled_plugins
+
+services:
+  devcontainer:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspaces/openpra-monorepo
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+      - "27017:27017"
+
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    restart: unless-stopped
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    configs:
+      - source: rabbitmq_plugins
+        target: /etc/rabbitmq/enabled_plugins
+    network_mode: "service:devcontainer"
+
+  mongodb:
+    image: mongo:latest
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    network_mode: "service:devcontainer"
+      

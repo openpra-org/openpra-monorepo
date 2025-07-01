@@ -17,7 +17,7 @@ ENV SCRAM_RUNTIME_PACKAGES="libxml2 \
 
 ENV PATH="/root/.local/bin:${PATH}"
 
-WORKDIR /data/project
+WORKDIR /workspaces/openpra-monorepo
 SHELL ["/bin/bash", "-c"]
 RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
     --mount=target=/var/cache/apt,type=cache,sharing=locked \
@@ -30,14 +30,9 @@ RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
 
 COPY . .
 RUN source /root/.bashrc && \
-    git submodule update --init --recursive && \
-    pnpm install
+    git submodule update --init --recursive
 
 FROM base AS serve
-COPY docker/entrypoint.sh /
+COPY .devcontainer/entrypoint.sh /
 RUN chmod +x /entrypoint.sh
 ENTRYPOINT ["/entrypoint.sh"]
-
-EXPOSE 4200
-EXPOSE 3000
-EXPOSE 8000

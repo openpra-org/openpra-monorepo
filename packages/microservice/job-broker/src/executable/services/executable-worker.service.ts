@@ -29,13 +29,13 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
    * @returns A promise that resolves to the established RabbitMQ connection.
    * @throws {@link Error} An error if the connection fails after the specified number of attempts.
    */
-  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.Connection> {
+  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.ChannelModel> {
     let attempt = 0;
     while (attempt < retryCount) {
       try {
-        const connection = await amqp.connect(url);
+        const channelModel = await amqp.connect(url);
         this.logger.log("Executable-task-worker successfully connected to the RabbitMQ broker.");
-        return connection;
+        return channelModel;
       } catch {
         attempt++;
         this.logger.error(
@@ -59,8 +59,8 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
     // Connect to the RabbitMQ server, create a channel, and connect the
     // workers to the initial queue to consume jobs.
     const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
-    const connection = await this.connectWithRetry(url, 3);
-    const channel = await connection.createChannel();
+    const channelModel = await this.connectWithRetry(url, 3);
+    const channel = await channelModel.createChannel();
 
     // ensure exec task queue is operational
     const taskQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_QUEUE);

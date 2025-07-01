@@ -12,7 +12,7 @@ import { ExecutableJobReport } from "../../middleware/schemas/executable-job.sch
 @Injectable()
 export class ExecutableService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableService.name);
-  private connection: amqp.Connection | null = null;
+  private channelModel: amqp.ChannelModel | null = null;
   private channel: amqp.Channel | null = null;
 
   constructor(
@@ -20,13 +20,13 @@ export class ExecutableService implements OnApplicationBootstrap {
     private readonly configSvc: ConfigService,
   ) {}
 
-  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.Connection> {
+  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.ChannelModel> {
     let attempt = 0;
     while (attempt < retryCount) {
       try {
-        const connection = await amqp.connect(url);
+        const channelModel = await amqp.connect(url);
         this.logger.log("Executable-task-producer successfully connected to the RabbitMQ broker.");
-        return connection;
+        return channelModel;
       } catch {
         attempt++;
         this.logger.error(
@@ -45,8 +45,8 @@ export class ExecutableService implements OnApplicationBootstrap {
   async onApplicationBootstrap(): Promise<void> {
     try {
       const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
-      this.connection = await this.connectWithRetry(url, 3);
-      this.channel = await this.connection.createChannel();
+      this.channelModel = await this.connectWithRetry(url, 3);
+      this.channel = await this.channelModel.createChannel();
 
       await this.setupQueuesAndExchanges();
       this.logger.log("ExecutableService initialized and ready to send messages.");

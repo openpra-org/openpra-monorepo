@@ -30,13 +30,13 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
    * @returns A promise that resolves to the established RabbitMQ connection.
    * @throws {@link Error} An error if the connection fails after the specified number of attempts.
    */
-  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.Connection> {
+  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.ChannelModel> {
     let attempt = 0;
     while (attempt < retryCount) {
       try {
-        const connection = await amqp.connect(url);
+        const channelModel = await amqp.connect(url);
         this.logger.log("Executable-task-storage successfully connected to the RabbitMQ broker.");
-        return connection;
+        return channelModel;
       } catch {
         attempt++;
         this.logger.error(
@@ -60,8 +60,8 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
     // Connect to the RabbitMQ server, create a channel, and connect the
     // database to the executed task result queue.
     const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
-    const connection = await this.connectWithRetry(url, 3);
-    const channel = await connection.createChannel();
+    const channelModel = await this.connectWithRetry(url, 3);
+    const channel = await channelModel.createChannel();
 
     const execStorageDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_QUEUE);
     const execStorageDeadLetterX = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_EXCHANGE);

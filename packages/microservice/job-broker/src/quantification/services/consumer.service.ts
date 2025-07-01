@@ -35,14 +35,14 @@ export class ConsumerService implements OnApplicationBootstrap {
    * @returns A promise that resolves to a RabbitMQ connection.
    * @throws Error if the connection could not be established after the specified number of retries.
    */
-  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.Connection> {
+  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.ChannelModel> {
     let attempt = 0; // Initialize the attempt counter.
     while (attempt < retryCount) {
       // Continue trying until the retry count is reached.
       try {
-        const connection = await amqp.connect(url); // Attempt to connect to RabbitMQ.
+        const channelModel = await amqp.connect(url); // Attempt to connect to RabbitMQ.
         this.logger.log("Quantification-consumer successfully connected to the RabbitMQ broker."); // Log successful connection.
-        return connection; // Return the established connection.
+        return channelModel; // Return the established connection.
       } catch {
         attempt++; // Increase the attempt count upon failure.
         this.logger.error(
@@ -72,8 +72,8 @@ export class ConsumerService implements OnApplicationBootstrap {
   public async onApplicationBootstrap(): Promise<void> {
     // Connect to the RabbitMQ server and create a channel.
     const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
-    const connection = await this.connectWithRetry(url, 3);
-    const channel = await connection.createChannel();
+    const channelModel = await this.connectWithRetry(url, 3);
+    const channel = await channelModel.createChannel();
 
     // Ensure the dead letter exchange and queue are set up for handling failed messages.
     const quantJobDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE);

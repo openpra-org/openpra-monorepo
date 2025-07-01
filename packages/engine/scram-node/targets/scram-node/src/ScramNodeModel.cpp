@@ -17,16 +17,6 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
         model->mission_time().value(mt);
     }
 
-    // Event Trees
-    if (nodeModel.Has("eventTrees")) {
-        Napi::Array etArr = nodeModel.Get("eventTrees").As<Napi::Array>();
-        for (uint32_t i = 0; i < etArr.Length(); ++i) {
-            Napi::Object etObj = etArr.Get(i).As<Napi::Object>();
-            auto et = ScramNodeEventTree(etObj, model.get());
-            model->Add(std::move(et));
-        }
-    }
-
     // Fault Trees
     if (nodeModel.Has("faultTrees")) {
         Napi::Array ftArr = nodeModel.Get("faultTrees").As<Napi::Array>();
@@ -35,6 +25,16 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
             auto ft = ScramNodeFaultTree(ftObj, model.get());
             ft->CollectTopEvents();
             model->Add(std::move(ft));
+        }
+    }
+
+    // Event Trees
+    if (nodeModel.Has("eventTrees")) {
+        Napi::Array etArr = nodeModel.Get("eventTrees").As<Napi::Array>();
+        for (uint32_t i = 0; i < etArr.Length(); ++i) {
+            Napi::Object etObj = etArr.Get(i).As<Napi::Object>();
+            auto et = ScramNodeEventTree(etObj, model.get());
+            model->Add(std::move(et));
         }
     }
 
@@ -133,9 +133,7 @@ std::unique_ptr<scram::mef::EventTree> ScramNodeEventTree(const Napi::Object& no
                             if (it != gatesTable.end()) {
                                 gateRaw = const_cast<scram::mef::Gate*>(&(*it));
                             } else {
-                                auto gatePtr = ScramNodeGate(refGateObj, model, "");
-                                gateRaw = gatePtr.get();
-                                model->Add(std::move(gatePtr));
+                                throw std::runtime_error("Referenced gate not found: " + refGateName);
                             }
                             instr = new scram::mef::CollectFormula(
                                 std::make_unique<scram::mef::Formula>(

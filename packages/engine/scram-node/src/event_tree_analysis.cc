@@ -275,8 +275,7 @@ void EventTreeAnalysis::CollectSequences(const mef::Branch& initial_state,
           gate = std::get<mef::Gate*>(f.args().front().event);
         if (!gate || !gate->HasFormula()) return;
 
-        static std::unordered_map<const mef::Gate*, double> memo;
-        double p_fail = EvaluateGateProbability(*gate, memo);
+        double p_fail = EvaluateGateProbability(*gate, collector_.memo);
 
         std::string state = "bypass";
         if (!collector_.current_fe_.empty()) {
@@ -342,6 +341,7 @@ void EventTreeAnalysis::CollectSequences(const mef::Branch& initial_state,
     SequenceCollector*                                     result_;
     std::vector<std::unique_ptr<mef::Event>>*              clones_;
     std::vector<std::unique_ptr<mef::Expression>>*         expressions_owner_;
+    std::unordered_map<const mef::Gate*, double>           memo;
     PathCollector                                          path_collector_;
   };
 

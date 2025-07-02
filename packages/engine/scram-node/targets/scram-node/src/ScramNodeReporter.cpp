@@ -1,3 +1,5 @@
+#include <cstdlib>
+#include <string>
 #include "ScramNodeReporter.h"
 
 // Main entry point: C++ to TypeScript Report Mapping
@@ -47,10 +49,15 @@ Napi::Object ScramNodeResults(Napi::Env env, const scram::core::RiskAnalysis& an
                     ieResult.Set("description", ie.label());
                 Napi::Array seqArr = Napi::Array::New(env, eta.sequences().size());
                 uint32_t sidx = 0;
+
+                double ie_freq = 1.0;
+                if (const auto* attr = ie.GetAttribute("frequency"))
+                    ie_freq = std::strtod(attr->value().c_str(), nullptr);
+
                 for (const auto& seq : eta.sequences()) {
                     Napi::Object seqObj = Napi::Object::New(env);
                     seqObj.Set("name", seq.sequence.name());
-                    seqObj.Set("value", seq.p_sequence);
+                    seqObj.Set("value", Napi::Number::New(env, seq.p_sequence * ie_freq));
                     seqArr.Set(sidx++, seqObj);
                 }
                 ieResult.Set("sequences", seqArr);

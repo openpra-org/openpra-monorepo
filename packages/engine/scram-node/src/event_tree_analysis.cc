@@ -227,10 +227,6 @@ void EventTreeAnalysis::Analyze() noexcept {
 
     /* unconditional sequence probability (initiator * path) -------------- */
     double seq_p = 1.0;
-    if (initiating_event_.GetAttribute("frequency"))
-      seq_p *= std::stod(
-          initiating_event_.GetAttribute("frequency")->value());
-
     for (PathCollector& pc : sequence.second)
       for (mef::Expression* e : pc.expressions) seq_p *= e->value();
 

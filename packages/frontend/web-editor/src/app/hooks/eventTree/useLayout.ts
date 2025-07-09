@@ -62,23 +62,32 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
 
   // Handle output nodes for end states (Sequence ID, Frequency, Release Category)
   const totalCols = cols.length;
+  const regularCols = cols.filter((col) => col.type === "columnNode");
+  const lastRegularColIndex = regularCols.length - 1;
+  const lastRegularCol = regularCols[lastRegularColIndex];
+
+  // First, align all output nodes to their correct columns
   nodes.forEach((node) => {
     if (node.type === "outputNode") {
-      let columnIndex = -1;
-
-      // Map node values to columns
-      if (node.data.label.length > 10) {
-        columnIndex = totalCols - 2;
-      } else if (node.data.label === "0.55") {
-        columnIndex = totalCols - 1;
+      // Find which output node this is by checking properties
+      if (node.data.isSequenceId) {
+        // Sequence ID - should align with the sequence ID column
+        const seqIdCol = regularCols.find((col) => col.data.label === "Sequence ID");
+        if (seqIdCol) {
+          node.position.x = seqIdCol.position.x;
+        }
+      } else if (node.data.isFrequencyNode) {
+        // Frequency node - should align with the Frequency column
+        const freqCol = regularCols.find((col) => col.data.label === "Frequency");
+        if (freqCol) {
+          node.position.x = freqCol.position.x;
+        }
       } else if (node.data.label.includes("Category")) {
-        columnIndex = totalCols;
-      }
-
-      // Align nodes to columns
-      if (columnIndex !== -1) {
-        const col = cols[columnIndex - 1]; // Adjust for 0-based index
-        node.position.x = col.position.x; // Align x-coordinate
+        // Release Category node - should align with the Release Category column
+        const catCol = regularCols.find((col) => col.data.label === "Release Category");
+        if (catCol) {
+          node.position.x = catCol.position.x;
+        }
       }
     }
   });
@@ -108,6 +117,7 @@ function useLayout(depth: number) {
     // splitting the nodeData into nodes and columns
     const nodes: Node[] = [];
     const cols: Node[] = [];
+
     console.log(nodeData, edges);
     nodeData.forEach((node) => {
       if (node.type === "columnNode") {

@@ -1,6 +1,20 @@
 import { Edge, Node } from "reactflow";
 import { GenerateUUID } from "../../../utils/treeUtils";
+import { ScientificNotation } from "../../../utils/scientificNotation";
+import { recalculateFrequencies } from "../../../utils/recalculateFrequencies";
+import { useEventTreeStore } from "./useEventTreeStore";
 
+/**
+ * Helper function to get initials
+ */
+
+export const getInitials = (str: string): string => {
+  return str
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+};
 /**
  * Utility function to create end states for a leaf node
  */
@@ -8,6 +22,7 @@ export const createEndStates = (
   leafNode: Node,
   nodeWidth: number,
   pos: { x: number; y: number },
+  isDefaultNode = false, // Add new parameter to identify default nodes
 ): { nodes: Node[]; edges: Edge[] } => {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
@@ -17,7 +32,7 @@ export const createEndStates = (
   nodes.push({
     id: sequenceIdNode,
     type: "outputNode",
-    data: { label: sequenceIdNode, width: nodeWidth },
+    data: { label: sequenceIdNode, width: nodeWidth, isSequenceId: true },
     position: pos,
   });
   edges.push({
@@ -30,10 +45,17 @@ export const createEndStates = (
 
   // Frequency Node
   const frequencyNode = GenerateUUID();
+  const frequencyValue = isDefaultNode ? 0.5 : 0.0;
   nodes.push({
     id: frequencyNode,
     type: "outputNode",
-    data: { label: "0.55", width: nodeWidth },
+    data: {
+      label: ScientificNotation.toScientific(frequencyValue),
+      frequency: frequencyValue,
+      width: nodeWidth,
+      isFrequencyNode: true,
+      isDefaultNode: isDefaultNode,
+    },
     position: pos,
   });
   edges.push({
@@ -70,13 +92,20 @@ export const createEndStates = (
 };
 
 /**
- * Main function for generating tree data
+ *Main function for generating tree data
  */
 const useTreeData = (
   inputLevels: number,
   outputLevels: number,
   nodeWidth: number,
 ): { nodes: Node[]; edges: Edge[] } => {
+  // Access Zustand store state
+  const { firstColumnLabel, setFirstColumnLabel } = useEventTreeStore.getState();
+
+  if (!firstColumnLabel) {
+    setFirstColumnLabel("Initiating Event"); // Default label if not set
+  }
+
   const pos = { x: 0, y: 0 };
   const verticalLevels = inputLevels + outputLevels;
 
@@ -91,7 +120,7 @@ const useTreeData = (
       id: rootId,
       type: "visibleNode",
       data: {
-        label: "Root Node",
+        label: getInitials(firstColumnLabel),
         inputDepth: inputLevels,
         outputDepth: outputLevels,
         width: nodeWidth,
@@ -116,6 +145,7 @@ const useTreeData = (
           type: "visibleNode",
           data: {
             label: `Success`,
+            probability: 0.5,
             depth: depth,
             width: nodeWidth,
             output: false,
@@ -131,6 +161,7 @@ const useTreeData = (
           type: "visibleNode",
           data: {
             label: `Failure`,
+            probability: 0.5,
             depth: depth,
             width: nodeWidth,
             output: false,
@@ -164,15 +195,22 @@ const useTreeData = (
 
     // Add end states for each leaf node
     prevNodes.forEach((leafNode) => {
-      const { nodes: endNodes, edges: endEdges } = createEndStates(leafNode, nodeWidth, {
-        x: leafNode.position.x,
-        y: leafNode.position.y, // Automatically aligned relative to leaf node
-      });
+      const { nodes: endNodes, edges: endEdges } = createEndStates(
+        leafNode,
+        nodeWidth,
+        {
+          x: leafNode.position.x,
+          y: leafNode.position.y, // Automatically aligned relative to leaf node
+        },
+        true,
+      );
       nodes.push(...endNodes);
       edges.push(...endEdges);
     });
 
-    return { nodes, edges };
+    // Apply frequency calculation to all nodes
+    const calculatedNodes = recalculateFrequencies(nodes, edges);
+    return { nodes: calculatedNodes, edges };
   };
 
   // Function to generate column nodes and edges
@@ -180,12 +218,16 @@ const useTreeData = (
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
+    const firstColumnLabel = "Initiating Event";
+    setFirstColumnLabel(firstColumnLabel);
+
     const rootColNode = GenerateUUID();
     const node: Node = {
       id: rootColNode,
       type: "columnNode",
       data: {
-        label: `Initiating Event`,
+        label: firstColumnLabel,
+        probability: 1.0,
         width: nodeWidth,
         depth: 1,
         output: false,
@@ -224,6 +266,8 @@ const useTreeData = (
           depth: column,
           output: column > inputLevels, // Columns after input levels are for end states
           allowAdd: column <= inputLevels,
+          // Allow delete for all functional events, including the first one
+          allowDelete: column <= inputLevels && column !== 1,
         },
         position: pos,
       };
@@ -245,9 +289,7 @@ const useTreeData = (
       // Update the previous node to the current node
       prevNode = nodeId;
     }
-    console.log("vertical cols", verticalLevels);
-    console.log("input levels", inputLevels);
-    console.log("output levels", outputLevels);
+
     return { nodes, edges };
   };
 

@@ -24,15 +24,15 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
       (node) => node.type !== "columnNode" && node.type !== "invisibleNode" && node.data.depth === currentDepth,
     );
 
-    if (!hasVisibleNodesInCurrentColumn) {
-      addToast({
-        id: GenerateUUID(),
-        title: "Warning",
-        color: "warning",
-        text: "At least one branch should exist in the current functional event to create a new one",
-      });
-      return;
-    }
+    // if (!hasVisibleNodesInCurrentColumn) {
+    //   addToast({
+    //     id: GenerateUUID(),
+    //     title: "Warning",
+    //     color: "warning",
+    //     text: "At least one branch should exist in the current functional event to create a new one",
+    //   });
+    //   return;
+    // }
 
     // Get nodes in the next column
     const nextColumnNodes = nodeData.filter(
@@ -92,7 +92,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
           id: newNodeId,
           type: clickedNode.data.output ? "outputNode" : "invisibleNode",
           data: {
-            label: `New Node (${clickedDepth + 1})`,
+            label: "New Node",
             depth: clickedDepth + 1,
             width: node.data.width,
           },
@@ -142,7 +142,8 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         width: clickedNode.data.width,
         output: clickedNode.data.output,
         allowAdd: true,
-        allowDelete: !clickedNode.data.output && clickedDepth + 1 !== 1 && clickedDepth + 1 !== 2 && true,
+        // allowDelete: !clickedNode.data.output && clickedDepth + 1 !== 1 && clickedDepth + 1 !== 2 && true,
+        allowDelete: !clickedNode.data.output && clickedDepth + 1 !== 1,
       },
       position: {
         x: clickedNode ? clickedNode.position.x : 0,

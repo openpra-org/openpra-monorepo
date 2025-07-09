@@ -22,39 +22,39 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
     const rootNode = nodes.find((node) => node.data.depth === 1);
     if (!rootNode) return;
 
-    // Find the first two nodes that were connected to root
-    // We can use edges to determine this as the first two edges from root
-    // would have been to Success and Failure nodes
-    const rootEdges = edges
-      .filter((edge) => edge.source === rootNode.id)
-      .sort((a, b) => {
-        // Sort by creation time if you have it in edge data
-        // or by edge ID which might preserve creation order
-        return a.id.localeCompare(b.id);
-      });
+    // Helper function to check if a node is an output node or invisible node
+    const isOutputOrInvisibleNode = (nodeId: string): boolean => {
+      const node = nodes.find((n) => n.id === nodeId);
+      if (!node) return false;
+      return node.type === "outputNode" || node.type === "invisibleNode";
+    };
 
-    // Get the first two target node IDs (original Success/Failure nodes)
-    const originalNodeIds = rootEdges.slice(0, 2).map((edge) => edge.target);
+    // Helper function to check if a node is a sequence ID node
+    const isSequenceIdNode = (nodeId: string): boolean => {
+      const node = nodes.find((n) => n.id === nodeId);
+      return node?.type === "outputNode" && node.data?.isSequenceId === true;
+    };
 
-    // Check if the node to delete is one of the original nodes
-    if (originalNodeIds.includes(clickedNodeId)) {
+    // Count sequence ID nodes
+    const sequenceIdNodes = nodes.filter((node) => node.type === "outputNode" && node.data.isSequenceId === true);
+
+    // Check if the node we're trying to delete has sequence ID nodes connected to it
+    const connectedOutputNodes = getConnectedOutputNodes(clickedNodeId);
+    const connectedSequenceIdNodes = connectedOutputNodes.filter((nodeId) => isSequenceIdNode(nodeId));
+
+    // If deleting would leave fewer than 2 sequence ID nodes, prevent deletion
+    if (sequenceIdNodes.length - connectedSequenceIdNodes.length < 2) {
       addToast({
         id: GenerateUUID(),
         title: "Warning",
         color: "warning",
-        text: "Cannot delete the original nodes of the first functional event.",
+        text: "Cannot delete this node. At least two sequences must be maintained.",
       });
       return;
     }
 
-    // Helper function to check if a node is an output node or invisible node
-    const isOutputOrInvisibleNode = (nodeId: string): boolean => {
-      const node = nodes.find((n) => n.id === nodeId);
-      return node?.type === "outputNode" || node?.type === "invisibleNode";
-    };
-
     // Get all connected output nodes that need to be deleted
-    const getConnectedOutputNodes = (nodeId: string): string[] => {
+    function getConnectedOutputNodes(nodeId: string): string[] {
       const outputNodes: string[] = [];
       const stack = [nodeId];
 
@@ -69,7 +69,7 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
       }
 
       return outputNodes;
-    };
+    }
 
     // Check if node has non-output, non-invisible children
     const hasChildren = edges.some((edge) => edge.source === clickedNodeId && !isOutputOrInvisibleNode(edge.target));
@@ -83,9 +83,6 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
       });
       return;
     }
-
-    // Get all output nodes that need to be handled
-    const connectedOutputNodes = getConnectedOutputNodes(clickedNodeId);
 
     // Find siblings (if any)
     const parentEdge = edges.find((edge) => edge.target === clickedNodeId);

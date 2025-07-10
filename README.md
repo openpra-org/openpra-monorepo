@@ -1,6 +1,6 @@
 # OpenPRA monorepo
 
-<a href="https://doi.org/10.5281/zenodo.10891407"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.10891407.svg" alt="DOI"></a>
+<a href="https://doi.org/10.5281/zenodo.10891407"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.10891407.svg" alt="DOI"></a> [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
 Welcome to the OpenPRA monorepo, the unified codebase for the [v2 OpenPRA App](https://v2-app.openpra.org/), which
 includes the web client, backend REST APIs, distributed microservices, wrappers for underlying C/C++ probabilistic risk
@@ -157,7 +157,7 @@ section.
 ## Citation
 ```bibtex
 @software{openpra_initiative_2024_10891408,
-  author       = {OpenPRA Initiative},
+  author       = {OpenPRA ORG Inc.},
   title        = {openpra-org/openpra-monorepo},
   month        = mar,
   year         = 2024,

@@ -1,0 +1,127 @@
+name: Monorepo CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+env:
+  REGISTRY: packages-space.openpra.org/p/openpra/containers
+  IMAGE_NAME: openpra-monorepo
+
+jobs:
+# ────────────────────────────────────────────────────
+  build-image:
+    runs-on: [self-hosted, swarm-worker]
+    outputs:
+      branch-slug:  ${{ steps.vars.outputs.branch_slug }}
+      build-type:   ${{ steps.vars.outputs.build_type }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- reproduce the Kotlin “Generate slugs” block ------------------
+      - id: vars
+        shell: bash
+        run: |
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          BRANCH_SLUG=$(echo "$BRANCH_NAME" | tr '[:upper:]' '[:lower:]' |
+                        sed -E 's/[^a-z0-9-]+/-/g' | sed -E 's/-+/-/g' |
+                        cut -c1-32)
+
+          if [[ "$BRANCH_NAME" == "main" ]]; then
+            BRANCH_SLUG="v2-app"
+            BUILD_TYPE="production"
+            DEBUG_MODE="false"
+            IS_REVIEW="false"
+          else
+            BRANCH_SLUG="app-review-${BRANCH_SLUG}"
+            BUILD_TYPE="development"
+            DEBUG_MODE="true"
+            IS_REVIEW="true"
+          fi
+
+          echo "branch_slug=$BRANCH_SLUG"   >> $GITHUB_OUTPUT
+          echo "build_type=$BUILD_TYPE"     >> $GITHUB_OUTPUT
+
+          echo "BRANCH_SLUG=$BRANCH_SLUG"   >> $GITHUB_ENV
+          echo "BUILD_TYPE=$BUILD_TYPE"     >> $GITHUB_ENV
+      # ------------------------------------------------------------------
+
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: packages-space.openpra.org
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Build & push CI image
+        shell: bash
+        run: |
+          REMOTE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+
+          docker pull "${REMOTE}:${BRANCH_SLUG}" || true
+          docker build -f ./docker/Dockerfile \
+                       --tag "${REMOTE}:${BRANCH_SLUG}" \
+                       --tag "${REMOTE}:ci-${GITHUB_RUN_NUMBER}-${BRANCH_SLUG}" .
+          docker push  "${REMOTE}:ci-${GITHUB_RUN_NUMBER}-${BRANCH_SLUG}"
+
+# ────────────────────────────────────────────────────
+  nx-tasks:
+    name: Nx targets
+    needs: build-image
+    runs-on: [self-hosted, swarm-worker]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # target                          allow-failure?
+          - cmd: frontend-web-editor:build  ; soft: false
+          - cmd: frontend-web-editor:test   ; soft: true
+          - cmd: frontend-web-editor:e2e-cli; soft: true
+          - cmd: frontend-web-editor:lint   ; soft: true
+
+          - cmd: web-backend:build          ; soft: false
+          - cmd: web-backend:test           ; soft: true
+          - cmd: web-backend:e2e            ; soft: true
+          - cmd: web-backend:lint           ; soft: true
+
+          - cmd: shared-types:build         ; soft: false
+          - cmd: shared-types:test          ; soft: false
+          - cmd: shared-types:lint          ; soft: true
+
+          - cmd: model-generator:build      ; soft: false
+          - cmd: model-generator:test       ; soft: false
+          - cmd: model-generator:lint       ; soft: false
+
+          - cmd: engine-scram-node:build    ; soft: false
+          - cmd: engine-scram-node:test     ; soft: false
+          - cmd: engine-scram-node:ctest    ; soft: false
+          - cmd: engine-scram-node:lint     ; soft: false
+
+          - cmd: mef-schema:build           ; soft: false
+          - cmd: mef-schema:test            ; soft: false
+          - cmd: mef-schema:lint            ; soft: false
+
+          - cmd: microservice-job-broker:build ; soft: false
+          - cmd: microservice-job-broker:test  ; soft: false
+          - cmd: microservice-job-broker:e2e   ; soft: false
+          - cmd: microservice-job-broker:lint  ; soft: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: packages-space.openpra.org
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Run nx ${{ matrix.cmd }}
+        shell: bash
+        continue-on-error: ${{ matrix.soft }}
+        run: |
+          REMOTE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+          IMG="${REMOTE}:ci-${GITHUB_RUN_NUMBER}-${{ needs.build-image.outputs.branch-slug }}"
+          docker pull "$IMG"
+          docker run --rm "$IMG" nx run ${{ matrix.cmd }}

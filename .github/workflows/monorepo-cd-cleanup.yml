@@ -1,0 +1,28 @@
+name: monorepo-cd-cleanup
+on:
+pull_request:
+types: [ closed ]
+
+jobs:
+remove-stack:
+# only clean up review stacks (closed ≠ merged)
+if: github.event.pull_request.merged == false
+runs-on: ubuntu-latest
+steps:
+- name: Compute branch slug
+id: vars
+shell: bash
+run: |
+RAW="${{ github.event.pull_request.head.ref }}"
+SLUG=$(echo "${RAW,,}" | sed -E 's/[^a-z0-9-]+/-/g' | sed -E 's/-+/-/g' | cut -c1-32)
+echo "slug=app-review-$SLUG" >> $GITHUB_OUTPUT
+  - name: Add SSH key
+    uses: webfactory/ssh-agent@v0.8.0
+    with:
+      ssh-private-key: ${{ secrets.SWARM_SSH_KEY }}
+
+  - name: Remove stack from Swarm
+    env:
+      DOCKER_HOST: "ssh://swarm@${{ secrets.SWARM_MANAGER_HOST }}"
+      STACK_NAME:  v2-${{ steps.vars.outputs.slug }}
+    run: docker -H "$DOCKER_HOST" stack rm "$STACK_NAME"

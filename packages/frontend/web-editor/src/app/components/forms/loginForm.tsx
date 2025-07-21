@@ -30,6 +30,7 @@ function LoginForm(): JSX.Element {
   async function handleLogin(): Promise<void> {
     setInvalid(false);
     const { username, password } = login;
+    console.log("Username: ", username, "Password: ", password);
     try {
       await ApiManager.signInWithUsernameAndPassword(username, password).then(() => {
         if (ApiManager.isLoggedIn()) {
@@ -45,7 +46,11 @@ function LoginForm(): JSX.Element {
           setInvalid(true);
         }
       });
-    } catch (error) {}
+    } catch (error) {
+      console.log("Error invalid credentials!")
+      setInvalid(true);
+
+    }
   }
 
   //Corrects the isInvalid when a user types something in a blank input field

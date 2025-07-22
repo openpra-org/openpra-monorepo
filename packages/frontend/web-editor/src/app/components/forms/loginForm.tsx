@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 import { useState, useEffect } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate} from "react-router-dom";
 import { EuiFieldText, EuiForm, EuiButton, EuiFormRow, EuiFieldPassword } from "@elastic/eui";
 import { LoginProps, LoginErrorProps } from "shared-types/src/lib/api/AuthTypes";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
@@ -24,6 +24,7 @@ function LoginForm(): JSX.Element {
   const [error, setError] = useState(DefaultErrorProps);
   const [invalid, setInvalid] = useState(false);
   const [redirectToHomepage, setRedirectToHomepage] = useState(false);
+  const [redirectToReset, setRedirectToReset] = useState(false);
   const ability = useContext(AbilityContext);
   const { addToast } = UseToastContext();
 
@@ -51,6 +52,13 @@ function LoginForm(): JSX.Element {
       setInvalid(true);
 
     }
+  }
+
+  function handlePasswordReset(){
+    console.log("Need to redirect to a password-reset page!")
+    console.log("Here the user will enter his email-id")
+    console.log("Then will click the button to reset password!")
+    setRedirectToReset(true)
   }
 
   //Corrects the isInvalid when a user types something in a blank input field
@@ -103,6 +111,13 @@ function LoginForm(): JSX.Element {
           // Optionally, you can also set an error state to display to the user
         });
     }
+  }
+  if(redirectToReset){
+    return (
+      <Navigate
+        to="password-reset"
+      />
+    );
   }
 
   if (redirectToHomepage) {
@@ -161,6 +176,16 @@ function LoginForm(): JSX.Element {
             type="submit"
           >
             Login
+          </EuiButton>
+        </EuiFormRow>
+
+
+        <EuiFormRow>
+          <EuiButton
+            fullWidth
+            onClick={handlePasswordReset}
+          >
+            Forgot Password?
           </EuiButton>
         </EuiFormRow>
       </EuiForm>

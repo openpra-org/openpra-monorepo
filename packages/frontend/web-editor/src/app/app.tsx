@@ -9,6 +9,7 @@ import { RootContainer } from "./pages/rootContainer";
 import { DataPage } from "./pages/routingPages/dataAnalysisPage";
 import { FullScopePage } from "./pages/routingPages/fullScope";
 import { LoginPage } from "./pages/LandingPage";
+import { PasswordResetPage } from "./pages/passwordResetPage";
 import { SettingsPage } from "./pages/routingPages/settingsPage";
 import { ToastProvider } from "./providers/toastProvider";
 import { GlobalToastList } from "./components/lists/globalToastList";
@@ -27,6 +28,10 @@ const routes: RouteObject[] = [
           {
             path: "",
             element: <LoginPage />,
+          },
+          {
+            path: "password-reset/*",
+            element: <PasswordResetPage />,
           },
           {
             path: "invite/:inviteId/*",

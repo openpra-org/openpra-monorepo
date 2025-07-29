@@ -24,7 +24,6 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          # Install build packages
           sudo apt-get install -y --no-install-recommends \
             make \
             cmake \
@@ -33,7 +32,6 @@ jobs:
             python3 \
             curl \
             ca-certificates \
-            # SCRAM build packages
             libxml2-dev \
             libomp-dev \
             libgoogle-perftools-dev \
@@ -44,7 +42,6 @@ jobs:
             libboost-test-dev \
             libboost-date-time-dev \
             libjemalloc-dev \
-            # SCRAM runtime packages
             libxml2 \
             libboost-filesystem1.74.0 \
             libboost-program-options1.74.0 \
@@ -58,8 +55,7 @@ jobs:
         run: npm install -g nx@19.6.2
 
       - name: Install dependencies
-        run: |
-          pnpm install
+        run: pnpm install
 
       - name: Build
         run: pnpm nx run shared-types:build
@@ -68,4 +64,4 @@ jobs:
         run: pnpm nx run shared-types:lint
 
       - name: Test
-        run: pnpm nx run shared-types:test 
+        run: pnpm nx run shared-types:test

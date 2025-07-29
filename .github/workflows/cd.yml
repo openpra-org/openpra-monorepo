@@ -37,10 +37,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --ignore-scripts
 
-      - name: Build scram-node
-        run: cd packages/engine/scram-node && pnpm run install
-
-      - name: Build frontend
+      - name: Build the app
         run: pnpm nx run-many --target=build --all
         env:
           NODE_ENV: ${{ env.DEPLOY_ENV }}

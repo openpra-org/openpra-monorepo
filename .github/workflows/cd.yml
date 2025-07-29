@@ -31,6 +31,33 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            make \
+            cmake \
+            g++ \
+            git \
+            python3 \
+            curl \
+            ca-certificates \
+            libxml2-dev \
+            libomp-dev \
+            libgoogle-perftools-dev \
+            libboost-program-options-dev \
+            libboost-math-dev \
+            libboost-random-dev \
+            libboost-filesystem-dev \
+            libboost-test-dev \
+            libboost-date-time-dev \
+            libjemalloc-dev \
+            libxml2 \
+            libboost-filesystem1.74.0 \
+            libboost-program-options1.74.0 \
+            libtcmalloc-minimal4 \
+            libjemalloc2
+
       - name: Install pnpm
         run: npm install -g pnpm@8
 

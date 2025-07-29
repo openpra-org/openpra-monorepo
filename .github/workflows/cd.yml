@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
-      url: https://${{ env.APP_URL }}
+      url: http://${{ env.APP_URL }}
     
     steps:
       - name: Checkout repository
@@ -55,7 +55,7 @@ jobs:
       - name: Configure deployment environment
         run: |
           echo "Setting up deployment for ${{ env.APP_NAME }}"
-          echo "Will be accessible at https://${{ env.APP_URL }}"
+          echo "Will be accessible at http://${{ env.APP_URL }}"
 
           # Stop and remove any existing deployment with this name
           docker ps -q --filter "name=${{ env.APP_NAME }}" | grep -q . && docker stop ${{ env.APP_NAME }} || true
@@ -75,27 +75,11 @@ jobs:
             --network openpra-net \
             -p 80:${{ env.FRONTEND_PORT }} \
             --restart unless-stopped \
-            -e "APP_URL=https://${{ env.APP_URL }}" \
+            -e "APP_URL=http://${{ env.APP_URL }}" \
             -e "NODE_ENV=${{ env.DEPLOY_ENV }}" \
             $(echo '${{ steps.meta.outputs.tags }}' | head -n 1)
 
-      - name: Install Certbot
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y certbot python3-certbot-nginx
-
-      - name: Setup DNS verification
-        run: |
-          # Verify DNS resolution
-          echo "Verifying DNS resolution for ${{ env.APP_URL }}"
-          if ! nslookup ${{ env.APP_URL }}; then
-            echo "DNS resolution failed for ${{ env.APP_URL }}"
-            echo "Please ensure DNS records are properly configured:"
-            echo "1. A record for ${{ env.APP_URL }} pointing to this server's IP"
-            exit 1
-          fi
-
-      - name: Configure Nginx and SSL
+      - name: Configure Nginx
         run: |
           # Install Nginx if not already installed
           sudo apt-get install -y nginx
@@ -103,7 +87,7 @@ jobs:
           # Make sure Nginx is started
           sudo systemctl start nginx
 
-          # Create initial Nginx configuration (HTTP only first)
+          # Create Nginx configuration
           sudo tee /etc/nginx/sites-available/${{ env.APP_NAME }} > /dev/null << 'EOF'
           server {
               listen 80;
@@ -130,26 +114,7 @@ jobs:
           sudo nginx -t
           sudo systemctl restart nginx
 
-      - name: Obtain SSL certificate
-        run: |
-          # Get SSL certificate from Let's Encrypt
-          sudo certbot --nginx \
-            --non-interactive \
-            --agree-tos \
-            --email ${{ secrets.SSL_EMAIL }} \
-            -d ${{ env.APP_URL }} \
-            --redirect
-
-      - name: Verify SSL configuration
-        run: |
-          # Test Nginx configuration
-          sudo nginx -t
-          
-          # Reload Nginx to apply changes
-          sudo systemctl restart nginx
-
       - name: Deployment status
         run: |
           echo "Deployment completed for ${{ env.APP_NAME }}"
-          echo "Application URL: https://${{ env.APP_URL }}"
-          echo "SSL: Enabled with Let's Encrypt"
+          echo "Application URL: http://${{ env.APP_URL }}"

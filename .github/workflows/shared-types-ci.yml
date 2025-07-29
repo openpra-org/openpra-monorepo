@@ -11,6 +11,16 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - frontend-web-editor
+          - web-backend
+          - shared-types
+          - model-generator
+          - engine-scram-node
+          - mef-schema
+          - microservice-job-broker
     
     steps:
       - name: Checkout repository
@@ -58,15 +68,24 @@ jobs:
         run: pnpm install --ignore-scripts
 
       - name: Build scram-node
+        if: matrix.package == 'engine-scram-node'
         run: cd packages/engine/scram-node && pnpm run install
 
       - name: Build
-        run: pnpm nx run shared-types:build
+        run: pnpm nx run ${{ matrix.package }}:build
 
       - name: Lint
         continue-on-error: true
-        run: pnpm nx run shared-types:lint
+        run: pnpm nx run ${{ matrix.package }}:lint
 
       - name: Test
         continue-on-error: true
-        run: pnpm nx run shared-types:test
+        run: pnpm nx run ${{ matrix.package }}:test
+
+      - name: E2E Tests
+        if: |
+          matrix.package == 'frontend-web-editor' ||
+          matrix.package == 'web-backend' ||
+          matrix.package == 'microservice-job-broker'
+        continue-on-error: true
+        run: pnpm nx run ${{ matrix.package }}:e2e

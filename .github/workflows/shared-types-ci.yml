@@ -16,16 +16,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js with pnpm
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@8
 
       - name: Install dependencies
-        run: |
-          corepack enable
-          pnpm install
+        run: pnpm install
 
       - name: Build
         run: pnpm nx run shared-types:build

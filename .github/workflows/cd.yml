@@ -1,0 +1,143 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches:
+      - '**'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  DEPLOY_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
+  APP_NAME: ${{ github.ref == 'refs/heads/main' && 'v2-app' || format('app-review-{0}', github.ref_name) }}
+  APP_URL: ${{ github.ref == 'refs/heads/main' && 'v2-app.openpra.org' || format('{0}.openpra.org', github.ref_name) }}
+  FRONTEND_PORT: 4200
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
+      url: https://${{ env.APP_URL }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,format=long
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_TYPE=${{ env.DEPLOY_ENV }}
+
+      - name: Configure deployment environment
+        run: |
+          echo "Setting up deployment for ${{ env.APP_NAME }}"
+          echo "Will be accessible at https://${{ env.APP_URL }}"
+
+          # Stop and remove any existing deployment with this name
+          docker ps -q --filter "name=${{ env.APP_NAME }}" | grep -q . && docker stop ${{ env.APP_NAME }} || true
+          docker ps -q --filter "name=${{ env.APP_NAME }}" | grep -q . && docker rm ${{ env.APP_NAME }} || true
+
+      - name: Deploy application
+        run: |
+          # Create network if it doesn't exist
+          docker network create openpra-net || true
+
+          # Start the application with proper networking
+          docker run -d \
+            --name ${{ env.APP_NAME }} \
+            --network openpra-net \
+            -p 80:${{ env.FRONTEND_PORT }} \
+            --restart unless-stopped \
+            -e "APP_URL=https://${{ env.APP_URL }}" \
+            -e "NODE_ENV=${{ env.DEPLOY_ENV }}" \
+            ${{ steps.meta.outputs.tags }}
+
+      - name: Install Certbot
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y certbot python3-certbot-nginx
+
+      - name: Setup DNS verification
+        run: |
+          # Verify DNS resolution
+          echo "Verifying DNS resolution for ${{ env.APP_URL }}"
+          if ! nslookup ${{ env.APP_URL }}; then
+            echo "DNS resolution failed for ${{ env.APP_URL }}"
+            echo "Please ensure DNS records are properly configured:"
+            echo "1. A record for ${{ env.APP_URL }} pointing to this server's IP"
+            exit 1
+          fi
+
+      - name: Configure Nginx and SSL
+        run: |
+          # Install Nginx if not already installed
+          sudo apt-get install -y nginx
+
+          # Create initial Nginx configuration (HTTP only first)
+          sudo tee /etc/nginx/sites-available/${{ env.APP_NAME }} > /dev/null << 'EOF'
+          server {
+              listen 80;
+              server_name ${{ env.APP_URL }};
+
+              location / {
+                  proxy_pass http://localhost:${{ env.FRONTEND_PORT }};
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection 'upgrade';
+                  proxy_set_header Host $host;
+                  proxy_cache_bypass $http_upgrade;
+              }
+          }
+          EOF
+
+          # Enable the site
+          sudo ln -sf /etc/nginx/sites-available/${{ env.APP_NAME }} /etc/nginx/sites-enabled/
+          sudo nginx -t && sudo systemctl reload nginx
+
+      - name: Obtain SSL certificate
+        run: |
+          # Get SSL certificate from Let's Encrypt
+          sudo certbot --nginx \
+            --non-interactive \
+            --agree-tos \
+            --email ${{ secrets.SSL_EMAIL }} \
+            -d ${{ env.APP_URL }} \
+            --redirect
+
+      - name: Verify SSL configuration
+        run: |
+          # Test Nginx configuration
+          sudo nginx -t
+          
+          # Reload Nginx to apply changes
+          sudo systemctl reload nginx
+
+      - name: Deployment status
+        run: |
+          echo "Deployment completed for ${{ env.APP_NAME }}"
+          echo "Application URL: https://${{ env.APP_URL }}"
+          echo "SSL: Enabled with Let's Encrypt"

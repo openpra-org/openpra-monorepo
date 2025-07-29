@@ -1,4 +1,4 @@
-name: Continuous Deployment
+name: CD
 
 on:
   push:
@@ -66,6 +66,9 @@ jobs:
           # Create network if it doesn't exist
           docker network create openpra-net || true
 
+          # Pull the image first
+          docker pull $(echo '${{ steps.meta.outputs.tags }}' | head -n 1)
+
           # Start the application with proper networking
           docker run -d \
             --name ${{ env.APP_NAME }} \
@@ -74,7 +77,7 @@ jobs:
             --restart unless-stopped \
             -e "APP_URL=https://${{ env.APP_URL }}" \
             -e "NODE_ENV=${{ env.DEPLOY_ENV }}" \
-            ${{ steps.meta.outputs.tags }}
+            $(echo '${{ steps.meta.outputs.tags }}' | head -n 1)
 
       - name: Install Certbot
         run: |

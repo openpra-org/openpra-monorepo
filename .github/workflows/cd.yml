@@ -100,6 +100,9 @@ jobs:
           # Install Nginx if not already installed
           sudo apt-get install -y nginx
 
+          # Make sure Nginx is started
+          sudo systemctl start nginx
+
           # Create initial Nginx configuration (HTTP only first)
           sudo tee /etc/nginx/sites-available/${{ env.APP_NAME }} > /dev/null << 'EOF'
           server {
@@ -119,7 +122,13 @@ jobs:
 
           # Enable the site
           sudo ln -sf /etc/nginx/sites-available/${{ env.APP_NAME }} /etc/nginx/sites-enabled/
-          sudo nginx -t && sudo systemctl reload nginx
+
+          # Remove default site if it exists
+          sudo rm -f /etc/nginx/sites-enabled/default
+
+          # Test and reload Nginx
+          sudo nginx -t
+          sudo systemctl restart nginx
 
       - name: Obtain SSL certificate
         run: |
@@ -137,7 +146,7 @@ jobs:
           sudo nginx -t
           
           # Reload Nginx to apply changes
-          sudo systemctl reload nginx
+          sudo systemctl restart nginx
 
       - name: Deployment status
         run: |

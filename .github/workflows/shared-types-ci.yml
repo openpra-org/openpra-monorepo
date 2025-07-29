@@ -9,8 +9,18 @@ on:
       - '**'
 
 jobs:
-  setup:
+  build-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - frontend-web-editor
+          - web-backend
+          - shared-types
+          - model-generator
+          - engine-scram-node
+          - mef-schema
+          - microservice-job-broker
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,6 +31,7 @@ jobs:
           node-version: '20.17.0'
 
       - name: Install system dependencies
+        if: matrix.package == matrix.package && strategy.job-index == 0
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -54,45 +65,12 @@ jobs:
         run: npm install -g nx@19.6.2
 
       - name: Install dependencies
+        if: matrix.package == matrix.package && strategy.job-index == 0
         run: pnpm install --ignore-scripts
 
       - name: Build scram-node
+        if: matrix.package == matrix.package && strategy.job-index == 0
         run: cd packages/engine/scram-node && pnpm run install
-
-      - name: Cache workspace
-        uses: actions/cache@v3
-        with:
-          path: |
-            node_modules
-            packages/*/node_modules
-            packages/engine/scram-node/build
-          key: ${{ runner.os }}-workspace-${{ github.sha }}
-
-  build:
-    needs: setup
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        package:
-          - frontend-web-editor
-          - web-backend
-          - shared-types
-          - model-generator
-          - engine-scram-node
-          - mef-schema
-          - microservice-job-broker
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Restore workspace
-        uses: actions/cache@v3
-        with:
-          path: |
-            node_modules
-            packages/*/node_modules
-            packages/engine/scram-node/build
-          key: ${{ runner.os }}-workspace-${{ github.sha }}
 
       - name: Build
         run: pnpm nx run ${{ matrix.package }}:build

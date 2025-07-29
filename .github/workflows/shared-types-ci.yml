@@ -55,7 +55,10 @@ jobs:
         run: npm install -g nx@19.6.2
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --ignore-scripts
+
+      - name: Build scram-node
+        run: cd packages/engine/scram-node && pnpm run install
 
       - name: Build
         run: pnpm nx run shared-types:build

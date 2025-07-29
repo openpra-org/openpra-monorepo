@@ -9,19 +9,8 @@ on:
       - '**'
 
 jobs:
-  build-and-test:
+  setup:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        package:
-          - frontend-web-editor
-          - web-backend
-          - shared-types
-          - model-generator
-          - engine-scram-node
-          - mef-schema
-          - microservice-job-broker
-    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -68,8 +57,42 @@ jobs:
         run: pnpm install --ignore-scripts
 
       - name: Build scram-node
-        if: matrix.package == 'engine-scram-node'
         run: cd packages/engine/scram-node && pnpm run install
+
+      - name: Cache workspace
+        uses: actions/cache@v3
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+            packages/engine/scram-node/build
+          key: ${{ runner.os }}-workspace-${{ github.sha }}
+
+  build:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - frontend-web-editor
+          - web-backend
+          - shared-types
+          - model-generator
+          - engine-scram-node
+          - mef-schema
+          - microservice-job-broker
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore workspace
+        uses: actions/cache@v3
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+            packages/engine/scram-node/build
+          key: ${{ runner.os }}-workspace-${{ github.sha }}
 
       - name: Build
         run: pnpm nx run ${{ matrix.package }}:build

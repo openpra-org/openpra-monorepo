@@ -61,9 +61,6 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm@8
 
-      - name: Install nx
-        run: npm install -g nx@19.6.2
-
       - name: Install dependencies
         if: matrix.package == matrix.package && strategy.job-index == 0
         run: pnpm install --ignore-scripts
@@ -73,15 +70,15 @@ jobs:
         run: cd packages/engine/scram-node && pnpm run install
 
       - name: Build
-        run: pnpm nx run ${{ matrix.package }}:build
+        run: npx nx run ${{ matrix.package }}:build
 
       - name: Lint
         continue-on-error: true
-        run: pnpm nx run ${{ matrix.package }}:lint
+        run: npx nx run ${{ matrix.package }}:lint
 
       - name: Test
         continue-on-error: true
-        run: pnpm nx run ${{ matrix.package }}:test
+        run: npx nx run ${{ matrix.package }}:test
 
       - name: E2E Tests
         if: |
@@ -89,4 +86,4 @@ jobs:
           matrix.package == 'web-backend' ||
           matrix.package == 'microservice-job-broker'
         continue-on-error: true
-        run: pnpm nx run ${{ matrix.package }}:e2e
+        run: npx nx run ${{ matrix.package }}:e2e

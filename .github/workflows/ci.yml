@@ -31,7 +31,6 @@ jobs:
           node-version: '20.17.0'
 
       - name: Install system dependencies
-        if: matrix.package == matrix.package && strategy.job-index == 0
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -62,25 +61,18 @@ jobs:
         run: npm install -g pnpm@8
 
       - name: Install dependencies
-        if: matrix.package == matrix.package && strategy.job-index == 0
-        run: |
-          pnpm install
-          pnpm exec nx reset
-
-      - name: Build scram-node
-        if: matrix.package == matrix.package && strategy.job-index == 0
-        run: cd packages/engine/scram-node && pnpm run install
+        run: pnpm install
 
       - name: Build
-        run: pnpm exec nx run ${{ matrix.package }}:build
+        run: pnpm nx run ${{ matrix.package }}:build
 
       - name: Lint
         continue-on-error: true
-        run: pnpm exec nx run ${{ matrix.package }}:lint
+        run: pnpm nx run ${{ matrix.package }}:lint
 
       - name: Test
         continue-on-error: true
-        run: pnpm exec nx run ${{ matrix.package }}:test
+        run: pnpm nx run ${{ matrix.package }}:test
 
       - name: E2E Tests
         if: |
@@ -88,4 +80,4 @@ jobs:
           matrix.package == 'web-backend' ||
           matrix.package == 'microservice-job-broker'
         continue-on-error: true
-        run: pnpm exec nx run ${{ matrix.package }}:e2e
+        run: pnpm nx run ${{ matrix.package }}:e2e

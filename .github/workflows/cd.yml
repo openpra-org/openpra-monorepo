@@ -75,7 +75,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist/packages/frontend-web-editor'
+          path: './dist/packages/frontend/web-editor'
 
       - name: Deploy to GitHub Pages
         id: deployment

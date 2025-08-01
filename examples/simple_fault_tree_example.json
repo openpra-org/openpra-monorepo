@@ -1,0 +1,30 @@
+{
+  "name": "SimpleFaultTree",
+  "faultTrees": {
+    "SimpleSystem": {
+      "name": "SimpleSystem",
+      "nodes": {
+        "TOP": {
+          "nodeType": "AND_GATE",
+          "name": "System Failure",
+          "inputs": ["EVENT_A", "EVENT_B"]
+        },
+        "EVENT_A": {
+          "nodeType": "BASIC_EVENT",
+          "name": "Component A Failure",
+          "probability": 1.0e-3
+        },
+        "EVENT_B": {
+          "nodeType": "BASIC_EVENT",
+          "name": "Component B Failure",
+          "probability": 2.0e-3
+        },
+        "HOUSE_EVENT_1": {
+          "nodeType": "HOUSE_EVENT",
+          "name": "Maintenance Mode",
+          "houseEventValue": false
+        }
+      }
+    }
+  }
+} 

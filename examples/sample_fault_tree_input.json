@@ -1,0 +1,161 @@
+{
+  "name": "SampleFaultTreeModel",
+  "faultTrees": {
+    "CoolingSystem": {
+      "name": "CoolingSystem",
+      "nodes": {
+        "TOP_EVENT": {
+          "nodeType": "AND_GATE",
+          "name": "Cooling System Failure",
+          "inputs": ["PUMP_A_FAIL", "PUMP_B_FAIL"]
+        },
+        "PUMP_A_FAIL": {
+          "nodeType": "BASIC_EVENT",
+          "name": "Pump A Failure",
+          "probability": 1.0e-3
+        },
+        "PUMP_B_FAIL": {
+          "nodeType": "BASIC_EVENT",
+          "name": "Pump B Failure",
+          "probability": 1.2e-3
+        },
+        "VALVE_FAIL": {
+          "nodeType": "BASIC_EVENT",
+          "name": "Valve Failure",
+          "probability": 5.0e-4
+        },
+        "MAINTENANCE_MODE": {
+          "nodeType": "HOUSE_EVENT",
+          "name": "Maintenance Mode",
+          "houseEventValue": false
+        },
+        "TRUE_EVENT_1": {
+          "nodeType": "TRUE_EVENT",
+          "name": "Always True Event"
+        },
+        "FALSE_EVENT_1": {
+          "nodeType": "FALSE_EVENT",
+          "name": "Always False Event"
+        },
+        "PASS_EVENT_1": {
+          "nodeType": "PASS_EVENT",
+          "name": "Pass Through Event"
+        }
+      },
+      "quantificationSettings": {
+        "method": "exact",
+        "truncationLimit": 1.0e-6,
+        "maxOrder": 3
+      }
+    },
+    "BackupSystem": {
+      "name": "BackupSystem",
+      "nodes": {
+        "BACKUP_TOP": {
+          "nodeType": "OR_GATE",
+          "name": "Backup System Failure",
+          "inputs": ["BACKUP_PUMP_FAIL", "BACKUP_VALVE_FAIL"]
+        },
+        "BACKUP_PUMP_FAIL": {
+          "nodeType": "BASIC_EVENT",
+          "name": "Backup Pump Failure",
+          "probability": 2.0e-3
+        },
+        "BACKUP_VALVE_FAIL": {
+          "nodeType": "BASIC_EVENT",
+          "name": "Backup Valve Failure",
+          "probability": 8.0e-4
+        },
+        "VOTE_GATE_1": {
+          "nodeType": "VOTE_GATE",
+          "name": "2-out-of-3 Voting",
+          "minNumber": 2,
+          "inputs": ["COMPONENT_1", "COMPONENT_2", "COMPONENT_3"]
+        },
+        "COMPONENT_1": {
+          "nodeType": "BASIC_EVENT",
+          "name": "Component 1 Failure",
+          "probability": 1.0e-2
+        },
+        "COMPONENT_2": {
+          "nodeType": "BASIC_EVENT",
+          "name": "Component 2 Failure",
+          "probability": 1.0e-2
+        },
+        "COMPONENT_3": {
+          "nodeType": "BASIC_EVENT",
+          "name": "Component 3 Failure",
+          "probability": 1.0e-2
+        }
+      }
+    },
+    "TransferExample": {
+      "name": "TransferExample",
+      "nodes": {
+        "TRANSFER_IN_NODE": {
+          "nodeType": "TRANSFER_IN",
+          "name": "Transfer In Node",
+          "transferTreeId": "CoolingSystem",
+          "sourceNodeId": "TOP_EVENT"
+        },
+        "TRANSFER_OUT_NODE": {
+          "nodeType": "TRANSFER_OUT",
+          "name": "Transfer Out Node",
+          "inputs": ["LOCAL_EVENT"]
+        },
+        "LOCAL_EVENT": {
+          "nodeType": "BASIC_EVENT",
+          "name": "Local Event",
+          "probability": 1.0e-4
+        }
+      }
+    }
+  },
+  "systemBasicEvents": {
+    "GLOBAL_EVENT_1": {
+      "name": "Global Basic Event 1",
+      "probability": 1.0e-5
+    },
+    "GLOBAL_EVENT_2": {
+      "name": "Global Basic Event 2",
+      "probability": 2.0e-5
+    }
+  },
+  "commonCauseFailureGroups": {
+    "PUMP_CCF": {
+      "modelType": "BETA_FACTOR",
+      "name": "Pump Common Cause Failure",
+      "members": {
+        "basicEvents": [
+          {
+            "id": "PUMP_A_FAIL"
+          },
+          {
+            "id": "PUMP_B_FAIL"
+          }
+        ]
+      },
+      "modelParameters": {
+        "beta": 0.1
+      }
+    },
+    "VALVE_CCF": {
+      "modelType": "MGL",
+      "name": "Valve Common Cause Failure",
+      "members": {
+        "basicEvents": [
+          {
+            "id": "VALVE_FAIL"
+          },
+          {
+            "id": "BACKUP_VALVE_FAIL"
+          }
+        ]
+      },
+      "modelParameters": {
+        "q1": 1.0e-3,
+        "q2": 1.0e-2
+      }
+    }
+  }
+} 

@@ -3,18 +3,14 @@
 #include <unordered_map>
 #include <algorithm>
 
-// Forward declarations
 void ParseModelRepresentation(const std::string& modelRep, scram::mef::FaultTree* ft, scram::mef::Model* model);
 void ProcessSystemBasicEvents(const Napi::Object& basicEvents, scram::mef::Model* model);
 
-// OpenPRA MEF to SCRAM Model Mapping
 std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel) {
-    // Create the top-level Model with a unique name
     std::string modelName;
     if (nodeModel.Has("name")) {
         modelName = nodeModel.Get("name").ToString().Utf8Value();
     } else {
-        // Generate a unique name based on timestamp
         auto now = std::chrono::system_clock::now();
         auto timestamp = std::chrono::duration_cast<std::chrono::milliseconds>(
             now.time_since_epoch()
@@ -23,27 +19,15 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
     }
     auto model = std::make_unique<scram::mef::Model>(modelName);
 
-    // Set default analysis settings
-    model->settings().probability_analysis(true);  // Always enable probability analysis
-    model->settings().importance_analysis(true);   // Always enable importance analysis
-    model->settings().ccf_analysis(true);         // Always enable CCF analysis
-    model->settings().approximation(false);       // Use exact analysis by default
-    model->settings().rare_event(false);          // Don't use rare event approximation by default
-    model->settings().mcub(false);                // Don't use MCUB by default
-    model->settings().limit_order(10);            // Reasonable default for cut set order
-    model->settings().cut_off(1e-12);            // Reasonable truncation probability
-    model->mission_time().value(8760);   // Default mission time: 1 year in hours
+    model->mission_time().value(8760);
 
     try {
-        // Validate basic structure
         if (!nodeModel.Has("faultTrees") && !nodeModel.Has("systemLogicModels")) {
             throw Napi::Error::New(nodeModel.Env(), 
                 "Model must have either faultTrees or systemLogicModels");
-            return nullptr;
         }
 
-        // Process fault trees - first check direct faultTrees
-    if (nodeModel.Has("faultTrees")) {
+        if (nodeModel.Has("faultTrees")) {
             auto faultTrees = nodeModel.Get("faultTrees").ToObject();
             auto names = faultTrees.GetPropertyNames();
             for (size_t i = 0; i < names.Length(); i++) {
@@ -54,7 +38,6 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
                 model->Add(std::move(ft));
             }
         }
-        // If no direct fault trees, try systemLogicModels
         else if (nodeModel.Has("systemLogicModels")) {
             auto logicModels = nodeModel.Get("systemLogicModels").ToObject();
             auto names = logicModels.GetPropertyNames();
@@ -62,34 +45,32 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
                 auto name = names.Get(i).ToString();
                 auto logicModel = logicModels.Get(name).ToObject();
                 auto ft = ProcessSystemLogicModel(logicModel, model.get());
-            ft->CollectTopEvents();
-            model->Add(std::move(ft));
+                ft->CollectTopEvents();
+                model->Add(std::move(ft));
+            }
         }
-    }
 
-        // Process system-wide basic events if present
         if (nodeModel.Has("systemBasicEvents")) {
             auto basicEvents = nodeModel.Get("systemBasicEvents").ToObject();
             ProcessSystemBasicEvents(basicEvents, model.get());
         }
 
-        // Process CCF groups if present
         if (nodeModel.Has("commonCauseFailureGroups")) {
             auto ccfGroups = nodeModel.Get("commonCauseFailureGroups").ToObject();
             ProcessOpenPRACCFGroups(ccfGroups, model.get());
-    }
+        }
 
-    return model;
+        return model;
 
     } catch (const Napi::Error& e) {
-        throw; // Rethrow Napi errors as is
+        throw;
     } catch (const std::exception& e) {
         throw Napi::Error::New(nodeModel.Env(), e.what());
     }
 }
 
 namespace {
-// Helper to convert OpenPRA MEF node types to SCRAM types
+
 scram::mef::Connective ConvertNodeType(const std::string& openPraType) {
     static const std::unordered_map<std::string, scram::mef::Connective> typeMap = {
         {"AND_GATE", scram::mef::kAnd},
@@ -97,7 +78,7 @@ scram::mef::Connective ConvertNodeType(const std::string& openPraType) {
         {"NAND_GATE", scram::mef::kNand},
         {"NOR_GATE", scram::mef::kNor},
         {"XOR_GATE", scram::mef::kXor},
-        {"VOTE_GATE", scram::mef::kAtleast},  // k-out-of-n gate
+        {"VOTE_GATE", scram::mef::kAtleast},
         {"NOT_GATE", scram::mef::kNot}
     };
     
@@ -108,7 +89,6 @@ scram::mef::Connective ConvertNodeType(const std::string& openPraType) {
     return it->second;
 }
 
-// Helper to check if a node type is a special event
 bool IsSpecialEventType(const std::string& nodeType) {
     return nodeType == "TRUE_EVENT" || 
            nodeType == "FALSE_EVENT" || 
@@ -116,12 +96,10 @@ bool IsSpecialEventType(const std::string& nodeType) {
            nodeType == "INIT_EVENT";
 }
 
-// Helper to check if a node type is a transfer gate
 bool IsTransferGate(const std::string& nodeType) {
     return nodeType == "TRANSFER_IN" || nodeType == "TRANSFER_OUT";
 }
 
-// Helper to create a special event
 std::unique_ptr<scram::mef::BasicEvent> CreateSpecialEvent(
     const std::string& name,
     const std::string& nodeType,
@@ -130,21 +108,17 @@ std::unique_ptr<scram::mef::BasicEvent> CreateSpecialEvent(
     auto event = std::make_unique<scram::mef::BasicEvent>(
         name, basePath, scram::mef::RoleSpecifier::kPrivate);
     
-    // Set probability based on event type
     if (nodeType == "TRUE_EVENT") {
         event->expression(&scram::mef::ConstantExpression::kOne);
     } else if (nodeType == "FALSE_EVENT") {
         event->expression(&scram::mef::ConstantExpression::kZero);
     } else if (nodeType == "PASS_EVENT") {
-        // Pass events are treated as TRUE events
         event->expression(&scram::mef::ConstantExpression::kOne);
     }
-    // INIT_EVENT is handled separately through initiating events
     
     return event;
 }
 
-// Helper to extract probability information from SystemBasicEvent
 double ExtractProbability(const Napi::Object& event) {
     if (event.Has("probability")) {
         return event.Get("probability").ToNumber().DoubleValue();
@@ -152,8 +126,6 @@ double ExtractProbability(const Napi::Object& event) {
     
     if (event.Has("probabilityModel")) {
         auto probModel = event.Get("probabilityModel").ToObject();
-        // Handle probability model conversion
-        // This is simplified - would need more complex handling for different models
         return probModel.Get("value").ToNumber().DoubleValue();
     }
     
@@ -162,23 +134,19 @@ double ExtractProbability(const Napi::Object& event) {
         if (expr.Has("value")) {
             return expr.Get("value").ToNumber().DoubleValue();
         }
-        // Handle other expression types
     }
     
     throw Napi::Error::New(event.Env(), "No valid probability information found");
 }
 
-// Process a fault tree from OpenPRA MEF format
 std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Object& faultTree, scram::mef::Model* model) {
     std::string name = faultTree.Get("name").ToString().Utf8Value();
     auto ft = std::make_unique<scram::mef::FaultTree>(name);
 
-    // Process nodes
     if (faultTree.Has("nodes")) {
         auto nodes = faultTree.Get("nodes").ToObject();
         auto nodeNames = nodes.GetPropertyNames();
         
-        // First pass: Create all nodes
         for (size_t i = 0; i < nodeNames.Length(); i++) {
             auto nodeName = nodeNames.Get(i).ToString();
             auto node = nodes.Get(nodeName).ToObject();
@@ -186,7 +154,6 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
             std::string nodeType = node.Get("nodeType").ToString().Utf8Value();
             
             if (nodeType == "HOUSE_EVENT") {
-                // Create house event
                 auto he = std::make_unique<scram::mef::HouseEvent>(nodeName.Utf8Value());
                 if (node.Has("houseEventValue")) {
                     he->state(node.Get("houseEventValue").ToBoolean().Value());
@@ -195,7 +162,6 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
                 model->Add(std::move(he));
             }
             else if (nodeType == "BASIC_EVENT" || nodeType == "UNDEVELOPED_EVENT") {
-                // Create basic event
                 auto be = std::make_unique<scram::mef::BasicEvent>(nodeName.Utf8Value());
                 if (node.Has("probability")) {
                     double prob = ExtractProbability(node);
@@ -207,14 +173,12 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
                 model->Add(std::move(be));
             }
             else if (IsSpecialEventType(nodeType)) {
-                // Create special event (TRUE, FALSE, PASS, INIT)
                 auto event = CreateSpecialEvent(nodeName.Utf8Value(), nodeType, ft->name());
                 ft->Add(event.get());
                 model->Add(std::move(event));
             }
             else if (IsTransferGate(nodeType)) {
                 if (nodeType == "TRANSFER_IN") {
-                    // Handle transfer-in gate
                     if (!node.Has("transferTreeId") || !node.Has("sourceNodeId")) {
                         throw std::runtime_error("Transfer-in gate missing required fields: " + nodeName.Utf8Value());
                     }
@@ -222,7 +186,6 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
                     std::string targetTree = node.Get("transferTreeId").ToString().Utf8Value();
                     std::string sourceNode = node.Get("sourceNodeId").ToString().Utf8Value();
                     
-                    // Create a proxy gate that will be resolved later
                     auto gate = std::make_unique<scram::mef::Gate>(nodeName.Utf8Value());
                     gate->SetAttribute({"transfer_tree", targetTree});
                     gate->SetAttribute({"source_node", sourceNode});
@@ -230,13 +193,10 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
                     ft->Add(gate.get());
                     model->Add(std::move(gate));
                 }
-                // TRANSFER_OUT is handled implicitly by being referenced
             }
             else {
-                // Create regular gate
                 auto gate = std::make_unique<scram::mef::Gate>(nodeName.Utf8Value());
                 
-                // For vote gates (k-out-of-n), handle additional parameters
                 if (nodeType == "VOTE_GATE" && node.Has("minNumber")) {
                     gate->SetAttribute({"min_number", 
                         std::to_string(node.Get("minNumber").ToNumber().Int32Value())});
@@ -247,18 +207,16 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
             }
         }
         
-        // Second pass: Connect nodes
         for (size_t i = 0; i < nodeNames.Length(); i++) {
             auto nodeName = nodeNames.Get(i).ToString();
             auto node = nodes.Get(nodeName).ToObject();
             
             if (node.Has("inputs")) {
-                auto inputs = node.Get("inputs").ToArray();
+                auto inputs = node.Get("inputs").As<Napi::Array>();
                 scram::mef::Formula::ArgSet argSet;
                 
                 for (size_t j = 0; j < inputs.Length(); j++) {
                     std::string inputName = inputs.Get(j).ToString().Utf8Value();
-                    // Find the referenced node - try gate first, then basic event
                     scram::mef::Gate* gate = nullptr;
                     scram::mef::BasicEvent* be = nullptr;
                     try {
@@ -280,30 +238,25 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
                 
                 std::string nodeType = node.Get("nodeType").ToString().Utf8Value();
                 
-                // Skip transfer-out gates as they are handled by transfer-in
                 if (nodeType == "TRANSFER_OUT") {
                     continue;
                 }
                 
                 scram::mef::Gate& gate = model->Get<scram::mef::Gate>(nodeName.Utf8Value());
                 
-                // Handle different gate types
                 if (nodeType == "TRANSFER_IN") {
-                    // Transfer gates are handled in a post-processing step
                     continue;
                 }
                 else if (nodeType == "VOTE_GATE") {
-                    // k-out-of-n gate
                     int minNumber = node.Get("minNumber").ToNumber().Int32Value();
                     auto formula = std::make_unique<scram::mef::Formula>(
                         scram::mef::kAtleast,
                         std::move(argSet),
-                        minNumber  // k in k-out-of-n
+                        minNumber
                     );
                     gate.formula(std::move(formula));
                 }
                 else {
-                    // Regular gates (AND, OR, NAND, NOR, etc.)
                     auto formula = std::make_unique<scram::mef::Formula>(
                         ConvertNodeType(nodeType),
                         std::move(argSet)
@@ -314,67 +267,9 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
         }
     }
 
-    // Post-process transfer gates
-    for (const auto& gate : model->table<scram::mef::Gate>()) {
-        if (gate.attributes().count("transfer_tree")) {
-            std::string targetTree = gate.attributes().at("transfer_tree");
-            std::string sourceNode = gate.attributes().at("source_node");
-            
-            // Find the target fault tree
-            const auto& faultTrees = model->table<scram::mef::FaultTree>();
-            auto targetFt = std::find_if(faultTrees.begin(), faultTrees.end(),
-                [&](const scram::mef::FaultTree& ft) { return ft.name() == targetTree; });
-                
-            if (targetFt == faultTrees.end()) {
-                throw std::runtime_error("Transfer target tree not found: " + targetTree);
-            }
-            
-            // Find the source node in the target tree
-            scram::mef::Gate& sourceGate = model->Get<scram::mef::Gate>(sourceNode);
-            
-            // Copy the formula from the source gate
-            auto formula = std::make_unique<scram::mef::Formula>(
-                sourceGate.formula().type(),
-                sourceGate.formula().args()
-            );
-            const_cast<scram::mef::Gate&>(gate).formula(std::move(formula));
-        }
-    }
-
-    // Handle quantification settings if present
     if (faultTree.Has("quantificationSettings")) {
         auto settings = faultTree.Get("quantificationSettings").ToObject();
         
-        // Set analysis method
-        if (settings.Has("method")) {
-            std::string method = settings.Get("method").ToString().Utf8Value();
-            
-            // Set the requested method - use string values for approximation
-            if (method == "exact") {
-                // Use exact analysis (default)
-                model->settings().approximation("none");
-            } else if (method == "rare-event") {
-                model->settings().approximation("rare-event");
-            } else if (method == "mcub") {
-                model->settings().approximation("mcub");
-            } else if (method == "mincut") {
-                model->settings().approximation("mcub");
-            }
-        }
-        
-        // Set truncation limit
-        if (settings.Has("truncationLimit")) {
-            double limit = settings.Get("truncationLimit").ToNumber().DoubleValue();
-            model->settings().cut_off(limit);
-        }
-        
-        // Set maximum order for products
-        if (settings.Has("maxOrder")) {
-            int maxOrder = settings.Get("maxOrder").ToNumber().Int32Value();
-            model->settings().limit_order(maxOrder);
-        }
-        
-        // Store settings as attributes for reference
         ft->SetAttribute({"quantification_method", 
             settings.Has("method") ? settings.Get("method").ToString().Utf8Value() : "exact"});
         
@@ -387,20 +282,15 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
             ft->SetAttribute({"max_order", 
                 std::to_string(settings.Get("maxOrder").ToNumber().Int32Value())});
         }
-    } else {
-        // Set default settings
-        model->settings().approximation("none");  // Use exact analysis by default
     }
 
     return ft;
 }
 
-// Process a system logic model into a fault tree
 std::unique_ptr<scram::mef::FaultTree> ProcessSystemLogicModel(const Napi::Object& logicModel, scram::mef::Model* model) {
     std::string name = logicModel.Get("systemReference").ToString().Utf8Value();
     auto ft = std::make_unique<scram::mef::FaultTree>(name);
 
-    // Process basic events first
     if (logicModel.Has("basicEvents")) {
         auto events = logicModel.Get("basicEvents").As<Napi::Array>();
         for (size_t i = 0; i < events.Length(); i++) {
@@ -420,7 +310,6 @@ std::unique_ptr<scram::mef::FaultTree> ProcessSystemLogicModel(const Napi::Objec
         }
     }
 
-    // Process model representation
     if (logicModel.Has("modelRepresentation")) {
         std::string modelRep = logicModel.Get("modelRepresentation").ToString().Utf8Value();
         ParseModelRepresentation(modelRep, ft.get(), model);
@@ -429,42 +318,34 @@ std::unique_ptr<scram::mef::FaultTree> ProcessSystemLogicModel(const Napi::Objec
     return ft;
 }
 
-// Helper function to parse a token and create/get the corresponding node
 scram::mef::Gate* ProcessLogicToken(
     const std::string& token,
     scram::mef::FaultTree* ft,
     scram::mef::Model* model,
     std::map<std::string, scram::mef::Gate*>& gateCache
 ) {
-    // Remove any whitespace
     std::string cleanToken = token;
     cleanToken.erase(0, cleanToken.find_first_not_of(" \t\n\r"));
     cleanToken.erase(cleanToken.find_last_not_of(" \t\n\r") + 1);
 
-    // Check if it's a gate in our cache
     if (gateCache.count(cleanToken)) {
         return gateCache[cleanToken];
     }
 
-    // Try to find existing gate
     try {
         scram::mef::Gate& existing = model->Get<scram::mef::Gate>(cleanToken);
         return &existing;
     } catch (...) {
-        // Not found, will create new one below
     }
 
-    // If not found, create a new basic event (for terminals)
     auto be = std::make_unique<scram::mef::BasicEvent>(cleanToken);
     auto* bePtr = be.get();
     ft->Add(bePtr);
     model->Add(std::move(be));
     
-    // Return nullptr to indicate this is a basic event, not a gate
     return nullptr;
 }
 
-// Helper function to parse model representation string
 void ParseModelRepresentation(
     const std::string& modelRep,
     scram::mef::FaultTree* ft,
@@ -475,7 +356,6 @@ void ParseModelRepresentation(
     std::stack<scram::mef::Formula::ArgSet> argStack;
     size_t gateCounter = 0;
 
-    // Remove whitespace and validate brackets
     std::string cleanRep = modelRep;
     cleanRep.erase(std::remove_if(cleanRep.begin(), cleanRep.end(), 
         [](char c) { return std::isspace(c); }), cleanRep.end());
@@ -512,16 +392,13 @@ void ParseModelRepresentation(
                     readingToken = false;
                 }
 
-                // Pop operator and create gate
                 if (!operatorStack.empty()) {
                     std::string op = operatorStack.top();
                     operatorStack.pop();
 
-                    // Create a new gate for this subexpression
                     std::string gateName = "G" + std::to_string(++gateCounter);
                     auto gate = std::make_unique<scram::mef::Gate>(gateName);
                     
-                    // Determine gate type from operator
                     scram::mef::Connective gateType;
                     if (op == "AND" || op == "[") {
                         gateType = scram::mef::kAnd;
@@ -531,18 +408,15 @@ void ParseModelRepresentation(
                         throw std::runtime_error("Unsupported operator: " + op);
                     }
 
-                    // Create formula for the gate
                     auto formula = std::make_unique<scram::mef::Formula>(
                         gateType, std::move(currentArgs));
                     gate->formula(std::move(formula));
 
-                    // Add gate to model and cache
                     auto* gatePtr = gate.get();
                     ft->Add(gatePtr);
                     model->Add(std::move(gate));
                     gateCache[gateName] = gatePtr;
 
-                    // Add this gate to parent's args if there is a parent
                     if (!argStack.empty()) {
                         currentArgs = std::move(argStack.top());
                         argStack.pop();
@@ -562,7 +436,7 @@ void ParseModelRepresentation(
                         readingToken = false;
                     }
                     operatorStack.push("AND");
-                    i += 2;  // Skip the rest of "AND"
+                    i += 2;
                 } else {
                     token += c;
                     readingToken = true;
@@ -580,7 +454,7 @@ void ParseModelRepresentation(
                         readingToken = false;
                     }
                     operatorStack.push("OR");
-                    i += 1;  // Skip the rest of "OR"
+                    i += 1;
                 } else {
                     token += c;
                     readingToken = true;
@@ -595,19 +469,14 @@ void ParseModelRepresentation(
         }
     }
 
-    // Handle any remaining token
     if (readingToken && !token.empty()) {
         auto* gate = ProcessLogicToken(token, ft, model, gateCache);
         if (gate) {
             currentArgs.Add(gate);
         }
     }
-
-    // The last gate created should be the top event
-    // Top events are automatically managed by the fault tree during CollectTopEvents()
 }
 
-// Process system-wide basic events
 void ProcessSystemBasicEvents(const Napi::Object& basicEvents, scram::mef::Model* model) {
     auto names = basicEvents.GetPropertyNames();
     for (size_t i = 0; i < names.Length(); i++) {
@@ -627,7 +496,6 @@ void ProcessSystemBasicEvents(const Napi::Object& basicEvents, scram::mef::Model
     }
 }
 
-// Process CCF groups from OpenPRA format
 void ProcessOpenPRACCFGroups(const Napi::Object& ccfGroups, scram::mef::Model* model) {
     auto names = ccfGroups.GetPropertyNames();
     for (size_t i = 0; i < names.Length(); i++) {
@@ -637,7 +505,6 @@ void ProcessOpenPRACCFGroups(const Napi::Object& ccfGroups, scram::mef::Model* m
         std::string modelType = group.Get("modelType").ToString().Utf8Value();
         std::unique_ptr<scram::mef::CcfGroup> ccf;
         
-        // Map OpenPRA CCF model types to SCRAM types
         if (modelType == "BETA_FACTOR") {
             ccf = std::make_unique<scram::mef::BetaFactorModel>(name.Utf8Value());
         } else if (modelType == "MGL") {
@@ -648,7 +515,6 @@ void ProcessOpenPRACCFGroups(const Napi::Object& ccfGroups, scram::mef::Model* m
             throw std::runtime_error("Unsupported CCF model type: " + modelType);
         }
         
-        // Add members
         if (group.Has("members")) {
             auto members = group.Get("members").ToObject();
             if (members.Has("basicEvents")) {
@@ -662,7 +528,6 @@ void ProcessOpenPRACCFGroups(const Napi::Object& ccfGroups, scram::mef::Model* m
             }
         }
         
-        // Add model parameters
         if (group.Has("modelParameters")) {
             auto params = group.Get("modelParameters").ToObject();
             auto paramNames = params.GetPropertyNames();
@@ -709,7 +574,6 @@ std::unique_ptr<scram::mef::EventTree> ScramNodeEventTree(const Napi::Object& no
     std::string name = nodeEventTree.Get("name").ToString().Utf8Value();
     auto et = std::make_unique<scram::mef::EventTree>(name);
 
-    // 1. Functional Events: collect all unique names from all sequences
     std::vector<std::string> functionalEventOrder;
     std::set<std::string> feNames;
     if (nodeEventTree.Has("eventSequences")) {
@@ -729,7 +593,6 @@ std::unique_ptr<scram::mef::EventTree> ScramNodeEventTree(const Napi::Object& no
         }
     }
 
-    // 2. Sequences (end states)
     if (nodeEventTree.Has("eventSequences")) {
         Napi::Array seqArr = nodeEventTree.Get("eventSequences").As<Napi::Array>();
         for (uint32_t i = 0; i < seqArr.Length(); ++i) {
@@ -739,27 +602,23 @@ std::unique_ptr<scram::mef::EventTree> ScramNodeEventTree(const Napi::Object& no
             et->Add(seq.get());
             model->Add(std::move(seq));
         }
-        // 3. Build the trie
+        
         EventTreeTrieNode trieRoot;
         BuildEventTreeTrie(trieRoot, seqArr);
 
-        // 4. Recursively build the event tree structure
         auto buildBranch = [&](EventTreeTrieNode* node, size_t level, auto&& buildBranchRef) -> std::unique_ptr<scram::mef::Branch> {
             auto branch = std::make_unique<scram::mef::Branch>();
-            // If this is a leaf, attach the sequence
             if (!node->endState.empty()) {
                 auto& seq = et->Get<scram::mef::Sequence>(node->endState);
                 branch->target(&seq);
                 return branch;
             }
-            // Otherwise, fork on the current functional event
             if (level < functionalEventOrder.size()) {
                 std::string feName = functionalEventOrder[level];
                 auto& fe = et->Get<scram::mef::FunctionalEvent>(feName);
                 std::vector<scram::mef::Path> paths;
                 for (auto& [state, child] : node->children) {
                     auto path = scram::mef::Path(state);
-                    // Attach collect-formula instruction if refGate is present
                     if (node->refGates.count(state)) {
                         scram::mef::Instruction* instr = nullptr;
                         Napi::Value refGateVal = node->refGates[state];
@@ -786,7 +645,6 @@ std::unique_ptr<scram::mef::EventTree> ScramNodeEventTree(const Napi::Object& no
                             path.instructions(instrs);
                         }
                     }
-                    // Recursively build the child branch
                     auto childBranch = buildBranchRef(child.get(), level + 1, buildBranchRef);
                     path.target(childBranch->target());
                     paths.push_back(std::move(path));
@@ -798,17 +656,13 @@ std::unique_ptr<scram::mef::EventTree> ScramNodeEventTree(const Napi::Object& no
             return branch;
         };
 
-        // 5. Set the initial state
         auto initialBranch = buildBranch(&trieRoot, 0, buildBranch);
         et->initial_state(*initialBranch);
     }
 
-    // 6. Initiating Event (optional, for OpenPSA compatibility)
-    // If the event tree has an initiating event, create and add it to the model
     if (nodeEventTree.Has("initiatingEvent")) {
         Napi::Object ieObj = nodeEventTree.Get("initiatingEvent").As<Napi::Object>();
         auto ie = ScramNodeInitiatingEvent(ieObj, model);
-        // Link the event tree to the initiating event
         ie->event_tree(et.get());
         model->Add(std::move(ie));
     }
@@ -822,9 +676,7 @@ std::unique_ptr<scram::mef::InitiatingEvent> ScramNodeInitiatingEvent(const Napi
     if (nodeIE.Has("description")) {
         ie->label(nodeIE.Get("description").ToString().Utf8Value());
     }
-    // Frequency/unit mapping
     if (nodeIE.Has("frequency")) {
-        // You may want to store this as an attribute or parameter
         double freq = nodeIE.Get("frequency").ToNumber().DoubleValue();
         ie->SetAttribute(scram::mef::Attribute("frequency", std::to_string(freq)));
     }
@@ -832,21 +684,17 @@ std::unique_ptr<scram::mef::InitiatingEvent> ScramNodeInitiatingEvent(const Napi
         std::string unit = nodeIE.Get("unit").ToString().Utf8Value();
         ie->SetAttribute(scram::mef::Attribute("unit", unit));
     }
-    // No eventTree field here!
     return ie;
 }
 
-// FaultTree mapping
 std::unique_ptr<scram::mef::FaultTree> ScramNodeFaultTree(const Napi::Object& nodeFaultTree, scram::mef::Model* model) {
     std::string name = nodeFaultTree.Get("name").ToString().Utf8Value();
     auto ft = std::make_unique<scram::mef::FaultTree>(name);
 
-    // Description
     if (nodeFaultTree.Has("description")) {
         ft->label(nodeFaultTree.Get("description").ToString().Utf8Value());
     }
 
-    // CCF Groups
     if (nodeFaultTree.Has("ccfGroups")) {
         Napi::Array ccfArr = nodeFaultTree.Get("ccfGroups").As<Napi::Array>();
         for (uint32_t i = 0; i < ccfArr.Length(); ++i) {
@@ -857,7 +705,6 @@ std::unique_ptr<scram::mef::FaultTree> ScramNodeFaultTree(const Napi::Object& no
         }
     }
 
-    // Top Event (Gate)
     if (nodeFaultTree.Has("topEvent")) {
         Napi::Object gateObj = nodeFaultTree.Get("topEvent").As<Napi::Object>();
         auto gate = ScramNodeGate(gateObj, model, ft->name());
@@ -868,7 +715,6 @@ std::unique_ptr<scram::mef::FaultTree> ScramNodeFaultTree(const Napi::Object& no
     return ft;
 }
 
-// Gate mapping (recursive)
 std::unique_ptr<scram::mef::Gate> ScramNodeGate(const Napi::Object& nodeGate, scram::mef::Model* model, const std::string& basePath) {
     std::string name = nodeGate.Get("name").ToString().Utf8Value();
     auto it = std::find_if(model->table<scram::mef::Gate>().begin(), model->table<scram::mef::Gate>().end(),
@@ -878,20 +724,16 @@ std::unique_ptr<scram::mef::Gate> ScramNodeGate(const Napi::Object& nodeGate, sc
     }
     auto gate = std::make_unique<scram::mef::Gate>(name, basePath, scram::mef::RoleSpecifier::kPublic);
 
-    // Description
     if (nodeGate.Has("description")) {
         gate->label(nodeGate.Get("description").ToString().Utf8Value());
     }
 
-    // Type
     scram::mef::Connective type = scram::mef::kAnd;
     if (nodeGate.Has("type")) {
         type = ScramNodeGateType(nodeGate.Get("type").ToString().Utf8Value());
     }
-    // Build formula
     scram::mef::Formula::ArgSet argSet;
 
-    // Gates (children)
     if (nodeGate.Has("gates")) {
         Napi::Array gatesArr = nodeGate.Get("gates").As<Napi::Array>();
         for (uint32_t i = 0; i < gatesArr.Length(); ++i) {
@@ -902,7 +744,6 @@ std::unique_ptr<scram::mef::Gate> ScramNodeGate(const Napi::Object& nodeGate, sc
         }
     }
 
-    // Events (children)
     if (nodeGate.Has("events")) {
         Napi::Array eventsArr = nodeGate.Get("events").As<Napi::Array>();
         for (uint32_t i = 0; i < eventsArr.Length(); ++i) {
@@ -917,7 +758,6 @@ std::unique_ptr<scram::mef::Gate> ScramNodeGate(const Napi::Object& nodeGate, sc
                 argSet.Add(he.get());
                 model->Add(std::move(he));
             } else if (eventType == "undeveloped") {
-                // For undeveloped, treat as basic event with no value
                 auto be = ScramNodeBasicEvent(eventObj, model, basePath);
                 argSet.Add(be.get());
                 model->Add(std::move(be));
@@ -927,7 +767,6 @@ std::unique_ptr<scram::mef::Gate> ScramNodeGate(const Napi::Object& nodeGate, sc
         }
     }
 
-    // Build formula
     std::optional<int> min_number, max_number;
     if (type == scram::mef::kAtleast || type == scram::mef::kCardinality) {
         if (nodeGate.Has("minNumber")) {
@@ -943,17 +782,14 @@ std::unique_ptr<scram::mef::Gate> ScramNodeGate(const Napi::Object& nodeGate, sc
     return gate;
 }
 
-// BasicEvent mapping
 std::unique_ptr<scram::mef::BasicEvent> ScramNodeBasicEvent(const Napi::Object& nodeEvent, scram::mef::Model* model, const std::string& basePath) {
     std::string name = nodeEvent.Get("name").ToString().Utf8Value();
     auto be = std::make_unique<scram::mef::BasicEvent>(name, basePath, scram::mef::RoleSpecifier::kPublic);
 
-    // Description
     if (nodeEvent.Has("description")) {
         be->label(nodeEvent.Get("description").ToString().Utf8Value());
     }
 
-    // Value (probability/expression)
     if (nodeEvent.Has("value")) {
         scram::mef::Expression* expr = ScramNodeValue(nodeEvent.Get("value"), model, basePath);
         be->expression(expr);
@@ -962,17 +798,14 @@ std::unique_ptr<scram::mef::BasicEvent> ScramNodeBasicEvent(const Napi::Object& 
     return be;
 }
 
-// HouseEvent mapping
 std::unique_ptr<scram::mef::HouseEvent> ScramNodeHouseEvent(const Napi::Object& nodeEvent, scram::mef::Model* model, const std::string& basePath) {
     std::string name = nodeEvent.Get("name").ToString().Utf8Value();
     auto he = std::make_unique<scram::mef::HouseEvent>(name, basePath, scram::mef::RoleSpecifier::kPublic);
 
-    // Description
     if (nodeEvent.Has("description")) {
         he->label(nodeEvent.Get("description").ToString().Utf8Value());
     }
 
-    // Value (state)
     if (nodeEvent.Has("value")) {
         bool state = nodeEvent.Get("value").ToBoolean().Value();
         he->state(state);
@@ -981,23 +814,19 @@ std::unique_ptr<scram::mef::HouseEvent> ScramNodeHouseEvent(const Napi::Object& 
     return he;
 }
 
-// Parameter mapping
 std::unique_ptr<scram::mef::Parameter> ScramNodeParameter(const Napi::Object& nodeParam, scram::mef::Model* model, const std::string& basePath) {
     std::string name = nodeParam.Get("name").ToString().Utf8Value();
     auto param = std::make_unique<scram::mef::Parameter>(name, basePath, scram::mef::RoleSpecifier::kPublic);
 
-    // Description
     if (nodeParam.Has("description")) {
         param->label(nodeParam.Get("description").ToString().Utf8Value());
     }
 
-    // Value
     if (nodeParam.Has("value")) {
         scram::mef::Expression* expr = ScramNodeValue(nodeParam.Get("value"), model, basePath);
         param->expression(expr);
     }
 
-    // Unit
     if (nodeParam.Has("unit")) {
         std::string unitStr = nodeParam.Get("unit").ToString().Utf8Value();
         param->unit(ScramNodeUnit(unitStr));
@@ -1006,7 +835,6 @@ std::unique_ptr<scram::mef::Parameter> ScramNodeParameter(const Napi::Object& no
     return param;
 }
 
-// CCF Group mapping
 std::unique_ptr<scram::mef::CcfGroup> ScramNodeCCFGroup(const Napi::Object& nodeCCF, scram::mef::Model* model, const std::string& basePath) {
     std::string name = nodeCCF.Get("name").ToString().Utf8Value();
     std::string modelType = ScramNodeCCFModelType(nodeCCF.Get("model").ToString().Utf8Value());
@@ -1021,12 +849,10 @@ std::unique_ptr<scram::mef::CcfGroup> ScramNodeCCFGroup(const Napi::Object& node
         throw std::runtime_error("Unknown CCF model type: " + modelType);
     }
 
-    // Description
     if (nodeCCF.Has("description")) {
         ccf->label(nodeCCF.Get("description").ToString().Utf8Value());
     }
 
-    // Members
     if (nodeCCF.Has("members")) {
         Napi::Array membersArr = nodeCCF.Get("members").As<Napi::Array>();
         for (uint32_t i = 0; i < membersArr.Length(); ++i) {
@@ -1037,13 +863,11 @@ std::unique_ptr<scram::mef::CcfGroup> ScramNodeCCFGroup(const Napi::Object& node
         }
     }
 
-    // Distribution
     if (nodeCCF.Has("distribution")) {
         scram::mef::Expression* distr = ScramNodeValue(nodeCCF.Get("distribution"), model, basePath);
         ccf->AddDistribution(distr);
     }
 
-    // Factors
     if (nodeCCF.Has("factors")) {
         Napi::Array factorsArr = nodeCCF.Get("factors").As<Napi::Array>();
         for (uint32_t i = 0; i < factorsArr.Length(); ++i) {
@@ -1057,7 +881,6 @@ std::unique_ptr<scram::mef::CcfGroup> ScramNodeCCFGroup(const Napi::Object& node
     return ccf;
 }
 
-// Value mapping (recursive)
 scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef::Model* model, const std::string& basePath) {
     if (nodeValue.IsBoolean()) {
         bool val = nodeValue.ToBoolean().Value();
@@ -1065,16 +888,13 @@ scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef:
     }
     if (nodeValue.IsNumber()) {
         double val = nodeValue.ToNumber().DoubleValue();
-        // Use float for all numbers
         auto expr = std::make_unique<scram::mef::ConstantExpression>(val);
         scram::mef::Expression* ptr = expr.get();
         model->Add(std::move(expr));
         return ptr;
     }
     if (nodeValue.IsString()) {
-        // Could be a parameter reference
         std::string paramName = nodeValue.ToString().Utf8Value();
-        // Try to find parameter in model
         const auto& params = model->table<scram::mef::Parameter>();
         auto it = std::find_if(params.begin(), params.end(), [&](const scram::mef::Parameter& p) { return p.name() == paramName; });
         if (it != params.end()) {
@@ -1085,7 +905,6 @@ scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef:
     }
     if (nodeValue.IsObject()) {
         Napi::Object obj = nodeValue.As<Napi::Object>();
-        // Built-in functions
         if (obj.Has("exponential")) {
             Napi::Array arr = obj.Get("exponential").As<Napi::Array>();
             if (arr.Length() != 2)
@@ -1122,7 +941,6 @@ scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef:
             std::vector<scram::mef::Expression*> args;
             for (uint32_t i = 0; i < arr.Length(); ++i)
                 args.push_back(ScramNodeValue(arr.Get(i), model, basePath));
-            // PeriodicTest has overloaded constructors, handle by arg count
             std::unique_ptr<scram::mef::PeriodicTest> expr;
             switch (args.size()) {
                 case 4: expr = std::make_unique<scram::mef::PeriodicTest>(args[0], args[1], args[2], args[3]); break;
@@ -1134,7 +952,6 @@ scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef:
             model->Add(std::move(expr));
             return ptr;
         }
-        // Random deviates
         if (obj.Has("uniformDeviate")) {
             Napi::Array arr = obj.Get("uniformDeviate").As<Napi::Array>();
             scram::mef::Expression* a = ScramNodeValue(arr.Get(uint32_t(0)), model, basePath);
@@ -1208,7 +1025,6 @@ scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef:
             model->Add(std::move(expr));
             return ptr;
         }
-        // For unary ops
         #define NUM_OP_UNARY(NAME, CLASS) \
             if (obj.Has(#NAME)) { \
                 auto val = obj.Get(#NAME); \
@@ -1219,7 +1035,6 @@ scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef:
                 return ptr; \
             }
 
-        // For n-ary ops
         #define NUM_OP_NARY(NAME, CLASS) \
             if (obj.Has(#NAME)) { \
                 auto val = obj.Get(#NAME); \
@@ -1232,7 +1047,6 @@ scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef:
                 model->Add(std::move(expr)); \
                 return ptr; \
             }
-        // Unary ops
         NUM_OP_UNARY(neg, scram::mef::Neg)
         NUM_OP_UNARY(abs, scram::mef::Abs)
         NUM_OP_UNARY(acos, scram::mef::Acos)
@@ -1251,7 +1065,6 @@ scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef:
         NUM_OP_UNARY(ceil, scram::mef::Ceil)
         NUM_OP_UNARY(floor, scram::mef::Floor)
 
-        // N-ary ops
         NUM_OP_NARY(add, scram::mef::Add)
         NUM_OP_NARY(sub, scram::mef::Sub)
         NUM_OP_NARY(mul, scram::mef::Mul)
@@ -1259,7 +1072,6 @@ scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef:
         NUM_OP_NARY(min, scram::mef::Min)
         NUM_OP_NARY(max, scram::mef::Max)
         NUM_OP_NARY(mean, scram::mef::Mean)
-        // Special cases for mod, pow
         if (obj.Has("mod")) {
             Napi::Array arr = obj.Get("mod").As<Napi::Array>();
             scram::mef::Expression* a = ScramNodeValue(arr.Get(uint32_t(0)), model, basePath);
@@ -1278,11 +1090,9 @@ scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef:
             model->Add(std::move(expr));
             return ptr;
         }
-        // pi
         if (obj.Has("pi")) {
             return &scram::mef::ConstantExpression::kPi;
         }
-        // Parameter
         if (obj.Has("parameter")) {
             Napi::Object paramObj = obj.Get("parameter").As<Napi::Object>();
             auto param = ScramNodeParameter(paramObj, model, basePath);
@@ -1290,12 +1100,9 @@ scram::mef::Expression* ScramNodeValue(const Napi::Value& nodeValue, scram::mef:
             model->Add(std::move(param));
             return ptr;
         }
-        // Built-in: systemMissionTime
         if (obj.Has("systemMissionTime")) {
-            // Use model's mission_time
             return &model->mission_time();
         }
-        // Fallback: error
         throw std::runtime_error("Unknown value object in ScramNodeValue");
     }
     throw std::runtime_error("Unsupported value type in ScramNodeValue");

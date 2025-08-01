@@ -1,0 +1,180 @@
+{
+  "settings": {
+    "mocus": true,
+    "bdd": false,
+    "zbdd": false,
+    "rareEvent": false,
+    "mcub": false,
+    "limitOrder": 3,
+    "cutOff": 1.0e-6,
+    "missionTime": 8760,
+    "timeStep": 1.0,
+    "numTrials": 10000,
+    "numQuantiles": 100,
+    "numBins": 50,
+    "seed": 12345,
+    "primeImplicants": false,
+    "probability": true,
+    "importance": true,
+    "uncertainty": false,
+    "ccf": true,
+    "sil": false
+  },
+  "model": {
+    "faultTrees": {
+      "CoolingSystem": {
+        "id": "cooling-system-001",
+        "name": "Cooling System Fault Tree",
+        "systemReference": {
+          "id": "system-001",
+          "name": "Primary Cooling System"
+        },
+        "description": "Fault tree for the primary cooling system failure analysis",
+        "topEventId": "TOP_EVENT",
+        "nodes": {
+          "TOP_EVENT": {
+            "id": "top-event-001",
+            "nodeType": "AND_GATE",
+            "name": "Cooling System Failure",
+            "description": "Complete failure of the cooling system",
+            "inputs": ["PUMP_A_FAIL", "PUMP_B_FAIL"]
+          },
+          "PUMP_A_FAIL": {
+            "id": "pump-a-001",
+            "nodeType": "BASIC_EVENT",
+            "name": "Pump A Failure",
+            "description": "Failure of primary pump A",
+            "probability": 1.0e-3
+          },
+          "PUMP_B_FAIL": {
+            "id": "pump-b-001",
+            "nodeType": "BASIC_EVENT",
+            "name": "Pump B Failure",
+            "description": "Failure of primary pump B",
+            "probability": 1.2e-3
+          },
+          "VALVE_FAIL": {
+            "id": "valve-001",
+            "nodeType": "BASIC_EVENT",
+            "name": "Valve Failure",
+            "description": "Failure of control valve",
+            "probability": 5.0e-4
+          },
+          "MAINTENANCE_MODE": {
+            "id": "maintenance-001",
+            "nodeType": "HOUSE_EVENT",
+            "name": "Maintenance Mode",
+            "description": "System in maintenance mode",
+            "houseEventValue": false
+          },
+          "VOTE_GATE_1": {
+            "id": "vote-001",
+            "nodeType": "VOTE_GATE",
+            "name": "2-out-of-3 Voting",
+            "description": "2-out-of-3 voting for redundant components",
+            "inputs": ["COMPONENT_1", "COMPONENT_2", "COMPONENT_3"]
+          },
+          "COMPONENT_1": {
+            "id": "comp-1-001",
+            "nodeType": "BASIC_EVENT",
+            "name": "Component 1 Failure",
+            "description": "Failure of redundant component 1",
+            "probability": 1.0e-2
+          },
+          "COMPONENT_2": {
+            "id": "comp-2-001",
+            "nodeType": "BASIC_EVENT",
+            "name": "Component 2 Failure",
+            "description": "Failure of redundant component 2",
+            "probability": 1.0e-2
+          },
+          "COMPONENT_3": {
+            "id": "comp-3-001",
+            "nodeType": "BASIC_EVENT",
+            "name": "Component 3 Failure",
+            "description": "Failure of redundant component 3",
+            "probability": 1.0e-2
+          }
+        }
+      },
+      "BackupSystem": {
+        "id": "backup-system-001",
+        "name": "Backup System Fault Tree",
+        "systemReference": {
+          "id": "system-002",
+          "name": "Backup Cooling System"
+        },
+        "description": "Fault tree for the backup cooling system failure analysis",
+        "topEventId": "BACKUP_TOP",
+        "nodes": {
+          "BACKUP_TOP": {
+            "id": "backup-top-001",
+            "nodeType": "OR_GATE",
+            "name": "Backup System Failure",
+            "description": "Complete failure of the backup system",
+            "inputs": ["BACKUP_PUMP_FAIL", "BACKUP_VALVE_FAIL"]
+          },
+          "BACKUP_PUMP_FAIL": {
+            "id": "backup-pump-001",
+            "nodeType": "BASIC_EVENT",
+            "name": "Backup Pump Failure",
+            "description": "Failure of backup pump",
+            "probability": 2.0e-3
+          },
+          "BACKUP_VALVE_FAIL": {
+            "id": "backup-valve-001",
+            "nodeType": "BASIC_EVENT",
+            "name": "Backup Valve Failure",
+            "description": "Failure of backup valve",
+            "probability": 8.0e-4
+          }
+        }
+      }
+    },
+    "commonCauseFailureGroups": {
+      "PUMP_CCF": {
+        "id": "pump-ccf-001",
+        "name": "Pump Common Cause Failure Group",
+        "description": "Common cause failure group for pump components",
+        "modelType": "BETA_FACTOR",
+        "members": {
+          "basicEvents": [
+            {
+              "id": "PUMP_A_FAIL",
+              "name": "Pump A Failure"
+            },
+            {
+              "id": "PUMP_B_FAIL",
+              "name": "Pump B Failure"
+            }
+          ]
+        },
+        "modelParameters": {
+          "beta": 0.1
+        }
+      },
+      "VALVE_CCF": {
+        "id": "valve-ccf-001",
+        "name": "Valve Common Cause Failure Group",
+        "description": "Common cause failure group for valve components",
+        "modelType": "MGL",
+        "members": {
+          "basicEvents": [
+            {
+              "id": "VALVE_FAIL",
+              "name": "Valve Failure"
+            },
+            {
+              "id": "BACKUP_VALVE_FAIL",
+              "name": "Backup Valve Failure"
+            }
+          ]
+        },
+        "modelParameters": {
+          "q1": 1.0e-3,
+          "q2": 1.0e-2
+        }
+      }
+    }
+  }
+} 

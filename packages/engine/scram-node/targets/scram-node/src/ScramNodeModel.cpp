@@ -69,6 +69,7 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
     }
 }
 
+// Helper functions in anonymous namespace
 namespace {
 
 scram::mef::Connective ConvertNodeType(const std::string& openPraType) {
@@ -139,6 +140,9 @@ double ExtractProbability(const Napi::Object& event) {
     throw Napi::Error::New(event.Env(), "No valid probability information found");
 }
 
+} // anonymous namespace
+
+// Main processing function - must be outside anonymous namespace for proper linking
 std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Object& faultTree, scram::mef::Model* model) {
     std::string name = faultTree.Get("name").ToString().Utf8Value();
     auto ft = std::make_unique<scram::mef::FaultTree>(name);
@@ -287,6 +291,7 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
     return ft;
 }
 
+// Main processing functions - must be outside anonymous namespace for proper linking
 std::unique_ptr<scram::mef::FaultTree> ProcessSystemLogicModel(const Napi::Object& logicModel, scram::mef::Model* model) {
     std::string name = logicModel.Get("systemReference").ToString().Utf8Value();
     auto ft = std::make_unique<scram::mef::FaultTree>(name);
@@ -477,6 +482,7 @@ void ParseModelRepresentation(
     }
 }
 
+// Additional processing functions - must be outside anonymous namespace for proper linking
 void ProcessSystemBasicEvents(const Napi::Object& basicEvents, scram::mef::Model* model) {
     auto names = basicEvents.GetPropertyNames();
     for (size_t i = 0; i < names.Length(); i++) {
@@ -543,8 +549,6 @@ void ProcessOpenPRACCFGroups(const Napi::Object& ccfGroups, scram::mef::Model* m
         model->Add(std::move(ccf));
     }
 }
-
-} // anonymous namespace
 
 static void BuildEventTreeTrie(
     EventTreeTrieNode& root,

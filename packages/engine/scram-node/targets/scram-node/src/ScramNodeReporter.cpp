@@ -32,9 +32,6 @@ Napi::Object ScramNodeReport(Napi::Env env, const scram::core::RiskAnalysis& ana
             // Additional quantitative results
             Napi::Object quantResults = Napi::Object::New(env);
             quantResults.Set("unavailability", pa.p_total());
-            if (pa.mean_unavailability() >= 0) {
-                quantResults.Set("meanUnavailability", pa.mean_unavailability());
-            }
             evaluation.Set("quantitativeResults", quantResults);
         }
 

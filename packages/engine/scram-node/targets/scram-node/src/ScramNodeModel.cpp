@@ -1,4 +1,11 @@
 #include "ScramNodeModel.h"
+#include <stack>
+#include <unordered_map>
+#include <algorithm>
+
+// Forward declarations
+void ParseModelRepresentation(const std::string& modelRep, scram::mef::FaultTree* ft, scram::mef::Model* model);
+void ProcessSystemBasicEvents(const Napi::Object& basicEvents, scram::mef::Model* model);
 
 // OpenPRA MEF to SCRAM Model Mapping
 std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel) {
@@ -17,14 +24,14 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
     auto model = std::make_unique<scram::mef::Model>(modelName);
 
     // Set default analysis settings
-    model->analysis().probability_analysis(true);  // Always enable probability analysis
-    model->analysis().importance_analysis(true);   // Always enable importance analysis
-    model->analysis().ccf_analysis(true);         // Always enable CCF analysis
-    model->analysis().approximation(false);       // Use exact analysis by default
-    model->analysis().rare_event(false);          // Don't use rare event approximation by default
-    model->analysis().mcub(false);                // Don't use MCUB by default
-    model->analysis().limit_order(10);            // Reasonable default for cut set order
-    model->analysis().cut_off(1e-12);            // Reasonable truncation probability
+    model->settings().probability_analysis(true);  // Always enable probability analysis
+    model->settings().importance_analysis(true);   // Always enable importance analysis
+    model->settings().ccf_analysis(true);         // Always enable CCF analysis
+    model->settings().approximation(false);       // Use exact analysis by default
+    model->settings().rare_event(false);          // Don't use rare event approximation by default
+    model->settings().mcub(false);                // Don't use MCUB by default
+    model->settings().limit_order(10);            // Reasonable default for cut set order
+    model->settings().cut_off(1e-12);            // Reasonable truncation probability
     model->mission_time().value(8760);   // Default mission time: 1 year in hours
 
     try {
@@ -87,7 +94,6 @@ scram::mef::Connective ConvertNodeType(const std::string& openPraType) {
     static const std::unordered_map<std::string, scram::mef::Connective> typeMap = {
         {"AND_GATE", scram::mef::kAnd},
         {"OR_GATE", scram::mef::kOr},
-        {"INHIBIT_GATE", scram::mef::kInhibit},
         {"NAND_GATE", scram::mef::kNand},
         {"NOR_GATE", scram::mef::kNor},
         {"XOR_GATE", scram::mef::kXor},
@@ -247,17 +253,29 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
             auto node = nodes.Get(nodeName).ToObject();
             
             if (node.Has("inputs")) {
-                auto inputs = node.Get("inputs").ToObject();
+                auto inputs = node.Get("inputs").ToArray();
                 scram::mef::Formula::ArgSet argSet;
                 
                 for (size_t j = 0; j < inputs.Length(); j++) {
                     std::string inputName = inputs.Get(j).ToString().Utf8Value();
-                    // Find the referenced node
-                    auto* arg = model->Get<scram::mef::Formula::Arg>(inputName);
-                    if (!arg) {
-                        throw std::runtime_error("Referenced node not found: " + inputName);
+                    // Find the referenced node - try gate first, then basic event
+                    scram::mef::Gate* gate = nullptr;
+                    scram::mef::BasicEvent* be = nullptr;
+                    try {
+                        gate = &model->Get<scram::mef::Gate>(inputName);
+                    } catch (...) {
+                        try {
+                            be = &model->Get<scram::mef::BasicEvent>(inputName);
+                        } catch (...) {
+                            throw std::runtime_error("Referenced node not found: " + inputName);
+                        }
                     }
-                    argSet.Add(arg);
+                    
+                    if (gate) {
+                        argSet.Add(gate);
+                    } else if (be) {
+                        argSet.Add(be);
+                    }
                 }
                 
                 std::string nodeType = node.Get("nodeType").ToString().Utf8Value();
@@ -267,10 +285,7 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
                     continue;
                 }
                 
-                auto* gate = model->Get<scram::mef::Gate>(nodeName.Utf8Value());
-                if (!gate) {
-                    throw std::runtime_error("Gate not found: " + nodeName.Utf8Value());
-                }
+                scram::mef::Gate& gate = model->Get<scram::mef::Gate>(nodeName.Utf8Value());
                 
                 // Handle different gate types
                 if (nodeType == "TRANSFER_IN") {
@@ -285,7 +300,7 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
                         std::move(argSet),
                         minNumber  // k in k-out-of-n
                     );
-                    gate->formula(std::move(formula));
+                    gate.formula(std::move(formula));
                 }
                 else {
                     // Regular gates (AND, OR, NAND, NOR, etc.)
@@ -293,7 +308,7 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
                         ConvertNodeType(nodeType),
                         std::move(argSet)
                     );
-                    gate->formula(std::move(formula));
+                    gate.formula(std::move(formula));
                 }
             }
         }
@@ -301,9 +316,9 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
 
     // Post-process transfer gates
     for (const auto& gate : model->table<scram::mef::Gate>()) {
-        if (gate.HasAttribute("transfer_tree")) {
-            std::string targetTree = gate.GetAttribute("transfer_tree").value;
-            std::string sourceNode = gate.GetAttribute("source_node").value;
+        if (gate.attributes().count("transfer_tree")) {
+            std::string targetTree = gate.attributes().at("transfer_tree");
+            std::string sourceNode = gate.attributes().at("source_node");
             
             // Find the target fault tree
             const auto& faultTrees = model->table<scram::mef::FaultTree>();
@@ -315,15 +330,12 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
             }
             
             // Find the source node in the target tree
-            auto* sourceGate = model->Get<scram::mef::Gate>(sourceNode);
-            if (!sourceGate) {
-                throw std::runtime_error("Transfer source node not found: " + sourceNode);
-            }
+            scram::mef::Gate& sourceGate = model->Get<scram::mef::Gate>(sourceNode);
             
             // Copy the formula from the source gate
             auto formula = std::make_unique<scram::mef::Formula>(
-                sourceGate->formula().type(),
-                sourceGate->formula().args()
+                sourceGate.formula().type(),
+                sourceGate.formula().args()
             );
             const_cast<scram::mef::Gate&>(gate).formula(std::move(formula));
         }
@@ -336,25 +348,17 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
         // Set analysis method
         if (settings.Has("method")) {
             std::string method = settings.Get("method").ToString().Utf8Value();
-            scram::core::Settings& analysisSettings = model->settings();
             
-            // Reset all method flags first
-            analysisSettings.approximation(false);
-            analysisSettings.rare_event(false);
-            analysisSettings.mcub(false);
-            
-            // Set the requested method
+            // Set the requested method - use string values for approximation
             if (method == "exact") {
                 // Use exact analysis (default)
-                analysisSettings.approximation(false);
+                model->settings().approximation("none");
             } else if (method == "rare-event") {
-                analysisSettings.rare_event(true);
-                analysisSettings.approximation(true);
+                model->settings().approximation("rare-event");
             } else if (method == "mcub") {
-                analysisSettings.mcub(true);
-                analysisSettings.approximation(true);
+                model->settings().approximation("mcub");
             } else if (method == "mincut") {
-                analysisSettings.approximation(true);
+                model->settings().approximation("mcub");
             }
         }
         
@@ -385,7 +389,7 @@ std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Objec
         }
     } else {
         // Set default settings
-        model->settings().approximation(false);  // Use exact analysis by default
+        model->settings().approximation("none");  // Use exact analysis by default
     }
 
     return ft;
@@ -398,7 +402,7 @@ std::unique_ptr<scram::mef::FaultTree> ProcessSystemLogicModel(const Napi::Objec
 
     // Process basic events first
     if (logicModel.Has("basicEvents")) {
-        auto events = logicModel.Get("basicEvents").ToArray();
+        auto events = logicModel.Get("basicEvents").As<Napi::Array>();
         for (size_t i = 0; i < events.Length(); i++) {
             auto event = events.Get(i).ToObject();
             std::string eventName = event.Get("id").ToString().Utf8Value();
@@ -426,7 +430,7 @@ std::unique_ptr<scram::mef::FaultTree> ProcessSystemLogicModel(const Napi::Objec
 }
 
 // Helper function to parse a token and create/get the corresponding node
-scram::mef::Formula::Arg* ProcessLogicToken(
+scram::mef::Gate* ProcessLogicToken(
     const std::string& token,
     scram::mef::FaultTree* ft,
     scram::mef::Model* model,
@@ -437,22 +441,27 @@ scram::mef::Formula::Arg* ProcessLogicToken(
     cleanToken.erase(0, cleanToken.find_first_not_of(" \t\n\r"));
     cleanToken.erase(cleanToken.find_last_not_of(" \t\n\r") + 1);
 
-    // Check if this token exists in the model
-    if (auto* existing = model->Get<scram::mef::Formula::Arg>(cleanToken)) {
-        return existing;
-    }
-
     // Check if it's a gate in our cache
     if (gateCache.count(cleanToken)) {
         return gateCache[cleanToken];
     }
 
-    // If not found, create a new basic event
+    // Try to find existing gate
+    try {
+        scram::mef::Gate& existing = model->Get<scram::mef::Gate>(cleanToken);
+        return &existing;
+    } catch (...) {
+        // Not found, will create new one below
+    }
+
+    // If not found, create a new basic event (for terminals)
     auto be = std::make_unique<scram::mef::BasicEvent>(cleanToken);
     auto* bePtr = be.get();
     ft->Add(bePtr);
     model->Add(std::move(be));
-    return bePtr;
+    
+    // Return nullptr to indicate this is a basic event, not a gate
+    return nullptr;
 }
 
 // Helper function to parse model representation string
@@ -481,8 +490,10 @@ void ParseModelRepresentation(
         switch (c) {
             case '[': {
                 if (readingToken) {
-                    auto* arg = ProcessLogicToken(token, ft, model, gateCache);
-                    currentArgs.Add(arg);
+                    auto* gate = ProcessLogicToken(token, ft, model, gateCache);
+                    if (gate) {
+                        currentArgs.Add(gate);
+                    }
                     token.clear();
                     readingToken = false;
                 }
@@ -493,8 +504,10 @@ void ParseModelRepresentation(
             }
             case ']': {
                 if (readingToken) {
-                    auto* arg = ProcessLogicToken(token, ft, model, gateCache);
-                    currentArgs.Add(arg);
+                    auto* gate = ProcessLogicToken(token, ft, model, gateCache);
+                    if (gate) {
+                        currentArgs.Add(gate);
+                    }
                     token.clear();
                     readingToken = false;
                 }
@@ -541,8 +554,10 @@ void ParseModelRepresentation(
             case 'A': {
                 if (i + 2 < cleanRep.length() && cleanRep.substr(i, 3) == "AND") {
                     if (readingToken) {
-                        auto* arg = ProcessLogicToken(token, ft, model, gateCache);
-                        currentArgs.Add(arg);
+                        auto* gate = ProcessLogicToken(token, ft, model, gateCache);
+                        if (gate) {
+                            currentArgs.Add(gate);
+                        }
                         token.clear();
                         readingToken = false;
                     }
@@ -557,8 +572,10 @@ void ParseModelRepresentation(
             case 'O': {
                 if (i + 1 < cleanRep.length() && cleanRep.substr(i, 2) == "OR") {
                     if (readingToken) {
-                        auto* arg = ProcessLogicToken(token, ft, model, gateCache);
-                        currentArgs.Add(arg);
+                        auto* gate = ProcessLogicToken(token, ft, model, gateCache);
+                        if (gate) {
+                            currentArgs.Add(gate);
+                        }
                         token.clear();
                         readingToken = false;
                     }
@@ -580,16 +597,34 @@ void ParseModelRepresentation(
 
     // Handle any remaining token
     if (readingToken && !token.empty()) {
-        auto* arg = ProcessLogicToken(token, ft, model, gateCache);
-        currentArgs.Add(arg);
+        auto* gate = ProcessLogicToken(token, ft, model, gateCache);
+        if (gate) {
+            currentArgs.Add(gate);
+        }
     }
 
     // The last gate created should be the top event
-    if (!gateCache.empty()) {
-        std::string topGateName = "G" + std::to_string(gateCounter);
-        ft->top_events().push_back(gateCache[topGateName]);
-    }
+    // Top events are automatically managed by the fault tree during CollectTopEvents()
 }
+
+// Process system-wide basic events
+void ProcessSystemBasicEvents(const Napi::Object& basicEvents, scram::mef::Model* model) {
+    auto names = basicEvents.GetPropertyNames();
+    for (size_t i = 0; i < names.Length(); i++) {
+        auto name = names.Get(i).ToString();
+        auto event = basicEvents.Get(name).ToObject();
+        
+        auto be = std::make_unique<scram::mef::BasicEvent>(name.Utf8Value());
+        
+        if (event.Has("probability")) {
+            double prob = ExtractProbability(event);
+            auto expr = std::make_unique<scram::mef::ConstantExpression>(prob);
+            be->expression(expr.get());
+            model->Add(std::move(expr));
+        }
+        
+        model->Add(std::move(be));
+    }
 }
 
 // Process CCF groups from OpenPRA format
@@ -617,15 +652,12 @@ void ProcessOpenPRACCFGroups(const Napi::Object& ccfGroups, scram::mef::Model* m
         if (group.Has("members")) {
             auto members = group.Get("members").ToObject();
             if (members.Has("basicEvents")) {
-                auto events = members.Get("basicEvents").ToArray();
+                auto events = members.Get("basicEvents").As<Napi::Array>();
                 for (size_t j = 0; j < events.Length(); j++) {
                     auto event = events.Get(j).ToObject();
                     std::string eventId = event.Get("id").ToString().Utf8Value();
-                    auto* be = model->Get<scram::mef::BasicEvent>(eventId);
-                    if (!be) {
-                        throw std::runtime_error("Referenced basic event not found: " + eventId);
-                    }
-                    ccf->AddMember(be);
+                    scram::mef::BasicEvent& be = model->Get<scram::mef::BasicEvent>(eventId);
+                    ccf->AddMember(&be);
                 }
             }
         }

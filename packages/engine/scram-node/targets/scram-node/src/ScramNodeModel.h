@@ -12,11 +12,18 @@
 #include "event_tree.h"
 #include "parameter.h"
 #include "ccf_group.h"
+#include "settings.h"
 #include "expression/constant.h"
 #include "expression/exponential.h"
 #include "expression/numerical.h"
 #include "expression/random_deviate.h"
 #include "expression/test_event.h"
+
+// Forward declarations
+std::unique_ptr<scram::mef::FaultTree> ProcessOpenPRAFaultTree(const Napi::Object& faultTree, scram::mef::Model* model);
+std::unique_ptr<scram::mef::FaultTree> ProcessSystemLogicModel(const Napi::Object& logicModel, scram::mef::Model* model);
+void ProcessSystemBasicEvents(const Napi::Object& basicEvents, scram::mef::Model* model);
+void ProcessOpenPRACCFGroups(const Napi::Object& ccfGroups, scram::mef::Model* model);
 
 // Forward declarations: recursive helpers for Model
 std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel);

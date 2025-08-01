@@ -17,20 +17,21 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
     auto model = std::make_unique<scram::mef::Model>(modelName);
 
     // Set default analysis settings
-    scram::core::Settings& settings = model->settings();
-    settings.probability_analysis(true);  // Always enable probability analysis
-    settings.importance_analysis(true);   // Always enable importance analysis
-    settings.ccf_analysis(true);         // Always enable CCF analysis
-    settings.approximation(false);       // Use exact analysis by default
-    settings.rare_event(false);          // Don't use rare event approximation by default
-    settings.mcub(false);                // Don't use MCUB by default
-    settings.limit_order(10);            // Reasonable default for cut set order
-    settings.cut_off(1e-12);            // Reasonable truncation probability
+    model->analysis().probability_analysis(true);  // Always enable probability analysis
+    model->analysis().importance_analysis(true);   // Always enable importance analysis
+    model->analysis().ccf_analysis(true);         // Always enable CCF analysis
+    model->analysis().approximation(false);       // Use exact analysis by default
+    model->analysis().rare_event(false);          // Don't use rare event approximation by default
+    model->analysis().mcub(false);                // Don't use MCUB by default
+    model->analysis().limit_order(10);            // Reasonable default for cut set order
+    model->analysis().cut_off(1e-12);            // Reasonable truncation probability
     model->mission_time().value(8760);   // Default mission time: 1 year in hours
 
     try {
         // Validate basic structure
-        if (!ValidateSystemsAnalysis(nodeModel)) {
+        if (!nodeModel.Has("faultTrees") && !nodeModel.Has("systemLogicModels")) {
+            throw Napi::Error::New(nodeModel.Env(), 
+                "Model must have either faultTrees or systemLogicModels");
             return nullptr;
         }
 
@@ -81,17 +82,6 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
 }
 
 namespace {
-
-// Helper to validate SystemsAnalysis structure
-bool ValidateSystemsAnalysis(const Napi::Object& obj) {
-    if (!obj.Has("systemLogicModels") && !obj.Has("faultTrees")) {
-        throw Napi::Error::New(obj.Env(), 
-            "SystemsAnalysis must have either systemLogicModels or faultTrees");
-        return false;
-    }
-    return true;
-}
-
 // Helper to convert OpenPRA MEF node types to SCRAM types
 scram::mef::Connective ConvertNodeType(const std::string& openPraType) {
     static const std::unordered_map<std::string, scram::mef::Connective> typeMap = {

@@ -9,7 +9,6 @@ import { BinaryQuantifyReport } from "shared-types/src/openpra-mef/util/quantify
 import { CommandLineOptions, NodeQuantRequest, ScramNodeOptions } from "shared-types/src/openpra-mef/util/quantify-request";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { Report } from "shared-types/src/openpra-mef/util/report";
-import '@types/node';
 
 @Injectable()
 export class QuantifyService {

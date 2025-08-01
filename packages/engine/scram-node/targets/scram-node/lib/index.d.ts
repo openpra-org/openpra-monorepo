@@ -1,8 +1,8 @@
 declare module "scram-node" {
   import { Callback } from "napi";
-  import { Model } from "shared-types/src/openpra-mef/util/model";
   import { Report } from "shared-types/src/openpra-mef/util/report";
   import { QuantifyRequest, ScramNodeOptions } from "shared-types/src/openpra-mef/util/quantify-request";
+  import { SystemsAnalysis } from "packages/shared-types/src/openpra-mef/technical-elements/systems-analysis/systems-analysis";
   /**
    * @remarks Defines a class for asynchronous execution of SCRAM engine.
    *
@@ -74,5 +74,5 @@ declare module "scram-node" {
    */
   export function RunScramCli(info: QuantifyRequest): void;
 
-  export function QuantifyModel(options?: ScramNodeOptions, model: Model): Report;
+  export function QuantifyModel(options?: ScramNodeOptions, model: Partial<SystemsAnalysis>): Report;
 }

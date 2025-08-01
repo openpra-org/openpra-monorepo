@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <chrono>
 
 #include "model.h"
 #include "fault_tree.h"

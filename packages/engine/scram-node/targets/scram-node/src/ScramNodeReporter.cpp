@@ -2,16 +2,134 @@
 #include <string>
 #include "ScramNodeReporter.h"
 
-// Main entry point: C++ to TypeScript Report Mapping
+// Main entry point: C++ to OpenPRA MEF Report Mapping
 Napi::Object ScramNodeReport(Napi::Env env, const scram::core::RiskAnalysis& analysis) {
     Napi::Object report = Napi::Object::New(env);
 
-    // Model features
+    // Model features for debugging/info
     report.Set("modelFeatures", ScramNodeModelFeatures(env, analysis.model()));
 
-    // Results
-    report.Set("results", ScramNodeResults(env, analysis));
+    // Convert to OpenPRA MEF SystemModelEvaluation format
+    Napi::Array systemEvaluations = Napi::Array::New(env);
+    uint32_t evalIndex = 0;
 
+    // Process each fault tree
+    for (const auto& result : analysis.results()) {
+        if (!result.fault_tree_analysis) continue;
+
+        Napi::Object evaluation = Napi::Object::New(env);
+        const auto& fta = *result.fault_tree_analysis;
+        const auto& ft = fta.top_event();
+
+        // System reference
+        evaluation.Set("system", ft.name());
+
+        // Top event probability
+        if (result.probability_analysis) {
+            const auto& pa = *result.probability_analysis;
+            evaluation.Set("topEventProbability", pa.p_total());
+
+            // Additional quantitative results
+            Napi::Object quantResults = Napi::Object::New(env);
+            quantResults.Set("unavailability", pa.p_total());
+            if (pa.mean_unavailability() >= 0) {
+                quantResults.Set("meanUnavailability", pa.mean_unavailability());
+            }
+            evaluation.Set("quantitativeResults", quantResults);
+        }
+
+        // Dominant contributors (from importance analysis)
+        if (result.importance_analysis) {
+            const auto& ia = *result.importance_analysis;
+            Napi::Array contributors = Napi::Array::New(env);
+            uint32_t contribIndex = 0;
+
+            for (const auto& imp : ia.importance()) {
+                Napi::Object contributor = Napi::Object::New(env);
+                contributor.Set("contributor", imp.event.name());
+                contributor.Set("contribution", imp.factors.dif);
+                contributors[contribIndex++] = contributor;
+            }
+            evaluation.Set("dominantContributors", contributors);
+        }
+
+        // Minimal cut sets
+        if (result.fault_tree_analysis) {
+            const auto& products = fta.products();
+            Napi::Array cutSets = Napi::Array::New(env);
+            uint32_t mcsIndex = 0;
+            double totalProb = result.probability_analysis ? result.probability_analysis->p_total() : 0;
+
+            for (const auto& product : products) {
+                Napi::Object cutSet = Napi::Object::New(env);
+
+                // Events in the cut set
+                Napi::Array events = Napi::Array::New(env);
+                Napi::Object eventProbs = Napi::Object::New(env);
+                uint32_t eventIndex = 0;
+
+                for (const auto& literal : product) {
+                    std::string eventName = literal.event.name();
+                    events[eventIndex++] = eventName;
+                    if (result.probability_analysis) {
+                        eventProbs.Set(eventName, literal.event.p());
+                    }
+                }
+
+                cutSet.Set("events", events);
+                cutSet.Set("order", product.size());
+                
+                if (result.probability_analysis) {
+                    cutSet.Set("eventProbabilities", eventProbs);
+                    cutSet.Set("probability", product.p());
+                    
+                    // Calculate importance if total probability is available
+                    if (totalProb > 0) {
+                        cutSet.Set("importance", product.p() / totalProb);
+                    }
+                }
+
+                cutSets[mcsIndex++] = cutSet;
+            }
+            evaluation.Set("minimalCutSets", cutSets);
+        }
+
+        // Qualitative insights
+        Napi::Array insights = Napi::Array::New(env);
+        uint32_t insightIndex = 0;
+
+        // Basic statistics
+        const auto& products = fta.products();
+        insights[insightIndex++] = Napi::String::New(env, 
+            "Total number of minimal cut sets: " + std::to_string(products.size()));
+
+        // Distribution of cut set orders
+        std::map<int, int> orderDist;
+        for (const auto& product : products) {
+            orderDist[product.size()]++;
+        }
+        for (const auto& [order, count] : orderDist) {
+            insights[insightIndex++] = Napi::String::New(env,
+                "Number of order " + std::to_string(order) + 
+                " cut sets: " + std::to_string(count));
+        }
+
+        // Add importance-based insights
+        if (result.importance_analysis) {
+            const auto& ia = *result.importance_analysis;
+            if (!ia.importance().empty()) {
+                const auto& mostImportant = ia.importance().front();
+                insights[insightIndex++] = Napi::String::New(env,
+                    "Most critical component: " + mostImportant.event.name() + 
+                    " (DIF = " + std::to_string(mostImportant.factors.dif) + ")");
+            }
+        }
+
+        evaluation.Set("qualitativeInsights", insights);
+        systemEvaluations[evalIndex++] = evaluation;
+    }
+
+    report.Set("systemModelEvaluations", systemEvaluations);
     return report;
 }
 

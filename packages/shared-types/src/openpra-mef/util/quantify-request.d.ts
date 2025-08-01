@@ -1,4 +1,4 @@
-import { Model } from "./model";
+import { SystemsAnalysis } from "../technical-elements/systems-analysis/systems-analysis";
 
 /**
  * Schema for command-line options
@@ -99,7 +99,7 @@ export interface CommandLineOptions {
 }
 
 /**
- * Schema for command-line options
+ * Schema for SCRAM node options
  */
 export interface ScramNodeOptions {
   mocus: boolean;
@@ -134,9 +134,26 @@ export interface ModelOptions {
   models: string[];
 }
 
+/**
+ * Request format for node-based quantification using OpenPRA MEF
+ */
 export interface NodeQuantRequest {
+  /**
+   * Analysis settings
+   */
   settings?: ScramNodeOptions;
-  model?: Model;
+  
+  /**
+   * The model to analyze in OpenPRA MEF format.
+   * 
+   * Using Partial<SystemsAnalysis> allows sending just the required fields
+   * for fault tree quantification:
+   * - faultTrees: Record<string, FaultTree>
+   * - commonCauseFailureGroups?: Record<string, CommonCauseFailureGroup>
+   * 
+   * Other fields from SystemsAnalysis are not required for quantification.
+   */
+  model?: Partial<SystemsAnalysis>;
 }
 
 export type QuantifyRequest = CommandLineOptions & ModelOptions;

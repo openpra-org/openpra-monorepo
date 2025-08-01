@@ -4,16 +4,18 @@ import path from "path";
 import { promises as promise_fs } from "fs";
 import { tmpdir } from "os";
 import { spawn } from "child_process";
-import { QuantifyModel } from "scram-node"
+import { QuantifyModel } from "scram-node";
 import { BinaryQuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
-import { CommandLineOptions, NodeQuantRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { CommandLineOptions, NodeQuantRequest, ScramNodeOptions } from "shared-types/src/openpra-mef/util/quantify-request";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { Report } from "shared-types/src/openpra-mef/util/report";
+import '@types/node';
 
 @Injectable()
 export class QuantifyService {
-  public async quantifyModel(scramNodeModel: NodeQuantRequest): Promise<Report> {
-    return QuantifyModel(scramNodeModel.settings, scramNodeModel.model);
+  public async quantifyModel(request: NodeQuantRequest): Promise<Report> {
+    // Pass through to SCRAM node wrapper which handles defaults
+    return QuantifyModel(request.settings, request.model);
   }
 
   // call shell commands from here.

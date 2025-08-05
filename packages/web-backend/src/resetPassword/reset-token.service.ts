@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from "@nestjs/common";
 import * as crypto from 'crypto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -11,7 +11,22 @@ export class ResetTokenService {
     private readonly resetTokenModel: Model<ResetTokenDocument>,
   ) {}
 
-  generateResetToken(email: string): string {
+  private RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+  private MAX_REQUESTS_PER_WINDOW = 3;
+
+  async generateResetToken(email: string): Promise<string> {
+    const now = new Date();
+    const windowStart = new Date(now.getTime() - this.RATE_LIMIT_WINDOW_MS);
+
+    const recentRequests = await this.resetTokenModel.countDocuments({
+      email,
+      createdAt: { $gte: windowStart },
+    });
+
+    if (recentRequests >= this.MAX_REQUESTS_PER_WINDOW) {
+      throw new BadRequestException("Too many reset requests. Try again later.");
+    }
+
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 

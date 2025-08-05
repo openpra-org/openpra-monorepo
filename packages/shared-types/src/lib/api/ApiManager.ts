@@ -9,6 +9,7 @@ const API_ENDPOINT = "/api";
 const collabEndpoint = `${API_ENDPOINT}/collab`;
 const authEndpoint = `${API_ENDPOINT}/auth`;
 const userPreferencesEndpoint = `${collabEndpoint}/user`;
+const forgotPasswordEndPoint = `${API_ENDPOINT}/forgot`
 
 const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, only-if-cached
 
@@ -142,6 +143,40 @@ export class ApiManager {
     if (AuthService.hasTokenExpired(token)) this.logout();
     return token !== null && !AuthService.hasTokenExpired(token);
   }
+
+  /**
+ * Sends password reset request using email (unauthenticated)
+ * @param email - user's email address
+ */
+static requestPasswordReset(email: string): Promise<void> {
+  return fetch(`${forgotPasswordEndPoint}/request-reset-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ email }),
+    })
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Failed to send reset email");
+        }
+      });
+  }
+
+  static async resetPassword(token: string, newPassword: string): Promise<void> {
+    const data = {
+      token,
+      newPassword,
+    };
+
+    const response = await ApiManager.post(`${forgotPasswordEndPoint}/reset-password`, JSON.stringify(data));
+
+    if (!response.ok) {
+      throw new Error("Failed to reset password");
+    }
+  }
+
 
   static getTokenTimer(): number {
     // Checks if there is a saved token and it's still valid

@@ -15,6 +15,7 @@ import { NestedModelModule } from "./nestedModels/nestedModel.module";
 import { QuantifyModule } from "./quantify/quantify.module";
 import { TypedModelModule } from "./typedModel/typedModel.module";
 import { RolesModule } from "./roles/roles.module";
+import { ResetModule } from "./resetPassword/reset.module";
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { RolesModule } from "./roles/roles.module";
     QuantifyModule,
     TypedModelModule,
     RolesModule,
+    ResetModule,
     ConfigModule.forRoot({
       envFilePath: ".env",
       isGlobal: true,

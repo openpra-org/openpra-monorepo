@@ -1,4 +1,3 @@
-import { StringID } from "../modelTypes/BasicModel";
 import { Label } from "../modelTypes/Label";
 import { TypedModel } from "../modelTypes/largeModels/TypedModel";
 import { NestedModelName } from "./NestedModelRequests";
@@ -13,32 +12,32 @@ export const TYPED_MODEL_NAMES = {
 export type TypedModelName = (typeof TYPED_MODEL_NAMES)[keyof typeof TYPED_MODEL_NAMES];
 
 export type TypedModelGetRequest = {
-  typeName: TypedModelName;
-  userId: StringID;
+  typedModelName: TypedModelName;
+  userId: number;
 };
 
 export type TypedModelPostRequest = {
-  typeName: TypedModelName;
+  typedModelName: TypedModelName;
   label: Label;
-  users: StringID[];
+  users: number[];
 };
 
 export type TypedModelPatchRequest = {
-  typeName: TypedModelName;
+  typedModelName: TypedModelName;
   typedModel: Partial<TypedModel>;
-  userId: StringID;
+  userId: number;
 };
 
 export type TypedModelNestedPatchRequest = {
-  typeName: TypedModelName;
-  nestedModelId: StringID;
+  typedModelName: TypedModelName;
+  nestedModelId: string;
   nestedModelType: NestedModelName;
-  userId: StringID;
+  userId: number;
 };
 
 export type TypedModelDeleteRequest = {
-  typeName: TypedModelName;
-  userId: StringID;
+  typedModelName: TypedModelName;
+  userId: number;
 };
 
 export type TypedModelNestedDeleteRequest = TypedModelNestedPatchRequest;

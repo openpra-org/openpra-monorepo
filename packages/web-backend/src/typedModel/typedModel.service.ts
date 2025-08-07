@@ -16,19 +16,19 @@ export class TypedModelService {
 
   // Get Typed Models
   async getTypedModels(typedModelReq: TypedModelGetRequest): Promise<TypedModel[]> {
-    const model = this.modelFactory.getModel(typedModelReq.typeName);
+    const model = this.modelFactory.getModel(typedModelReq.typedModelName);
     return model.find({ users: typedModelReq.userId });
   }
 
   // Get Typed Model by ID
   async getTypedModel(typedModelReq: TypedModelGetRequest, modelId: string): Promise<TypedModel> {
-    const model = this.modelFactory.getModel(typedModelReq.typeName);
+    const model = this.modelFactory.getModel(typedModelReq.typedModelName);
     return model.findOne({ _id: modelId, users: typedModelReq.userId });
   }
 
   // Create Typed Model
   async createTypedModel(typedModel: TypedModelPostRequest): Promise<TypedModel> {
-    const model = this.modelFactory.getModel(typedModel.typeName);
+    const model = this.modelFactory.getModel(typedModel.typedModelName);
     const newTypedModel = new model({ label: typedModel.label, users: typedModel.users });
     return newTypedModel.save();
   }
@@ -38,7 +38,7 @@ export class TypedModelService {
     // Find the document that matches the provided modelId and userId
     const query = { _id: modelId, users: typedModelReq.userId };
 
-    const model = this.modelFactory.getModel(typedModelReq.typeName);
+    const model = this.modelFactory.getModel(typedModelReq.typedModelName);
     const newTypedModel = new model(typedModelReq.typedModel);
 
     const updateData = {
@@ -53,7 +53,7 @@ export class TypedModelService {
 
   async deleteTypedModel(modelId: string, typedModelReq: TypedModelDeleteRequest): Promise<TypedModel> {
     const query = { _id: modelId };
-    const model = this.modelFactory.getModel(typedModelReq.typeName);
+    const model = this.modelFactory.getModel(typedModelReq.typedModelName);
 
     // To remove the userId from the list of users for the typed model
     const updateData = {
@@ -74,7 +74,7 @@ export class TypedModelService {
   async addNestedToTypedModel(modelId: string, typedModelReq: TypedModelNestedPatchRequest): Promise<TypedModel> {
     // Find the document that matches the provided modelId and userId
     const query = { _id: modelId };
-    const model = this.modelFactory.getModel(typedModelReq.typeName);
+    const model = this.modelFactory.getModel(typedModelReq.typedModelName);
 
     const updateData = {
       $push: {
@@ -90,7 +90,7 @@ export class TypedModelService {
   // Delete Nested Model from a Typed Model
   async deleteNestedFromTypedModel(modelId: string, typedModelReq: TypedModelNestedDeleteRequest): Promise<TypedModel> {
     const query = { _id: modelId };
-    const model = this.modelFactory.getModel(typedModelReq.typeName);
+    const model = this.modelFactory.getModel(typedModelReq.typedModelName);
 
     const updateData = {
       $pull: {

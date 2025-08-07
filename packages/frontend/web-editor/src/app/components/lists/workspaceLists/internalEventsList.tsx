@@ -3,12 +3,14 @@ import { ReactElement, useEffect, useState } from "react";
 import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
 import { CreateGenericList } from "../GenericList";
 import { UseGlobalStore } from "../../../zustand/Store";
+import { UseGlobalStore as UseGlobalStore_v2 } from "../../../zustand_v2/Store";
 import { GenericItemList } from "../GenericItemList";
 
 function InternalEventsList(): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
 
+  const setTypedModels = UseGlobalStore_v2.use.SetTypedModels();
   const internalEventsList = UseGlobalStore.use.InternalEvents();
   const setInternalEvents = UseGlobalStore.use.SetInternalEvents();
   const createInternalEvents = UseGlobalStore.use.AddInternalEvent();
@@ -17,10 +19,10 @@ function InternalEventsList(): JSX.Element {
 
   useEffect(() => {
     setIsLoading(true);
-    void setInternalEvents().then(() => {
+    void setTypedModels("internal-events").then(() => {
       setIsLoading(false);
     });
-  }, [setInternalEvents]);
+  }, [setTypedModels]);
 
   useEffect(() => {
     setGenericListItems(

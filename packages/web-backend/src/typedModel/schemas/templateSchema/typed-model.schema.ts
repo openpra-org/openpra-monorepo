@@ -7,11 +7,8 @@ export interface TypedModelJSON {
   users: number[];
 }
 
-@Schema({ _id: false, versionKey: false })
+@Schema({ versionKey: false })
 export class TypedModel {
-  @Prop({ required: true, unique: true })
-  id: number;
-
   @Prop({ type: LabelSchema, required: false })
   label: Label;
 

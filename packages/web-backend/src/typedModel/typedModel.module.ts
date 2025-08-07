@@ -9,6 +9,7 @@ import { ExternalHazards, ExternalHazardsSchema } from "./schemas/external-hazar
 import { FullScope, FullScopeSchema } from "./schemas/full-scope.schema";
 import { MetaTypedModelController } from "./metadata/meta-typed-model.controller";
 import { MetaTypedModelService } from "./metadata/meta-typed-model.service";
+import { ModelFactoryService } from "./modelFactory.service";
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { MetaTypedModelService } from "./metadata/meta-typed-model.service";
     ]),
   ],
   controllers: [TypedModelController, MetaTypedModelController],
-  providers: [TypedModelService, MetaTypedModelService],
+  providers: [TypedModelService, MetaTypedModelService, ModelFactoryService],
   exports: [TypedModelService, MetaTypedModelService],
 })
 export class TypedModelModule {}

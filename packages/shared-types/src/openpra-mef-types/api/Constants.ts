@@ -11,4 +11,9 @@ export const NESTED_MODEL_NAMES = {
   WEIBULL_ANALYSIS: "weibullAnalysis",
 } as const;
 
-export type NestedModelName = (typeof NESTED_MODEL_NAMES)[keyof typeof NESTED_MODEL_NAMES];
+export const TYPED_MODEL_NAMES = {
+  INTERNAL_EVENTS: "internal-events",
+  INTERNAL_HAZARDS: "internal-hazards",
+  EXTERNAL_HAZARDS: "external-hazards",
+  FULL_SCOPE: "full-scope",
+} as const;

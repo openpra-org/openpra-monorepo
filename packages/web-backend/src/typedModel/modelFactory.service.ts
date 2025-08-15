@@ -4,8 +4,9 @@ import { InternalEvents, InternalEventsDocument } from "./schemas/internal-event
 import { InternalHazards, InternalHazardsDocument } from "./schemas/internal-hazards.schema";
 import { ExternalHazards, ExternalHazardsDocument } from "./schemas/external-hazards.schema";
 import { FullScope, FullScopeDocument } from "./schemas/full-scope.schema";
-import { TYPED_MODEL_NAMES, TypedModelName } from "shared-types/src/openpra-mef-types/api/TypedModelRequest";
+import { TypedModelName } from "shared-types/src/openpra-mef-types/api/TypedModelRequest";
 import { Model } from "mongoose";
+import { TYPED_MODEL_NAMES } from "packages/shared-types/src/openpra-mef-types/api/Constants";
 
 // Factory service to provide the mongoose model based on the typed model name
 

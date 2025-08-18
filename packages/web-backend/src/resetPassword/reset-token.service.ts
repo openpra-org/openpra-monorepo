@@ -15,23 +15,11 @@ export class ResetTokenService {
   private MAX_REQUESTS_PER_WINDOW = 3;
 
   async generateResetToken(email: string): Promise<string> {
-    const now = new Date();
-    const windowStart = new Date(now.getTime() - this.RATE_LIMIT_WINDOW_MS);
-
-    const recentRequests = await this.resetTokenModel.countDocuments({
-      email,
-      createdAt: { $gte: windowStart },
-    });
-
-    if (recentRequests >= this.MAX_REQUESTS_PER_WINDOW) {
-      throw new BadRequestException("Too many reset requests. Try again later.");
-    }
-
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
 
     // Save token hash in DB
-    this.resetTokenModel.create({
+    await this.resetTokenModel.create({
       email,
       tokenHash,
       createdAt: new Date(),

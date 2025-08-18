@@ -18,7 +18,7 @@ export class ResetPasswordService {
     // Don't reveal whether user exists
     if (!user) return;
 
-    const token = this.resetTokenService.generateResetToken(email);
+    const token = await this.resetTokenService.generateResetToken(email);
     const baseURL = process.env.BASE_URL ?? "http://localhost:4200";
     const resetLink = `${baseURL}/reset-password?token=${token}`;
 

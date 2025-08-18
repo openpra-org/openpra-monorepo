@@ -13,7 +13,7 @@ export class ResetToken {
   @Prop({ required: true })
   tokenHash: string;
 
-  @Prop({ type: Date, default: Date.now })
+  @Prop({ type: Date, default: Date.now, expires: 60 * 15 })
   createdAt: Date;
 }
 

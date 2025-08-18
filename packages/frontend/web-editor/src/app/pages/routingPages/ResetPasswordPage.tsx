@@ -34,7 +34,7 @@ const ResetPasswordPage = (): JSX.Element => {
       addToast({
         id: GenerateUUID(),
         color: "danger",
-        text: "Password must be at least 8 characters.",
+        text: "Password must be at least 6 characters.",
       });
       return;
     }

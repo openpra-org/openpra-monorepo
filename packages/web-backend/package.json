@@ -21,6 +21,7 @@
     "dot-object": "2.1.4",
     "mongodb": "6.3.0",
     "mongoose": "8.0.1",
+    "nest-winston": "1.10.2",
     "nestjs-zod": "3.0.0",
     "passport": "0.6.0",
     "passport-jwt": "4.0.1",
@@ -29,7 +30,8 @@
     "rxjs": "7.8.1",
     "shared-types": "workspace:^",
     "supertest": "6.3.3",
-    "tmp": "0.2.3"
+    "tmp": "0.2.3",
+    "winston": "3.17.0"
   },
   "devDependencies": {
     "@darraghor/eslint-plugin-nestjs-typed": "5.0.18",

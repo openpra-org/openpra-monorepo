@@ -138,14 +138,14 @@ export class ApiManager {
 
   static isLoggedIn(): boolean {
     // Checks if there is a saved token and it's still valid
-    const token = AuthService.getEncodedToken(); // Getting token from localstorage
+    const token = AuthService.getEncodedToken(); // Getting token from sessionStorage
     if (AuthService.hasTokenExpired(token)) this.logout();
     return token !== null && !AuthService.hasTokenExpired(token);
   }
 
   static getTokenTimer(): number {
     // Checks if there is a saved token and it's still valid
-    const token = AuthService.getEncodedToken(); // Getting token from localstorage
+    const token = AuthService.getEncodedToken(); // Getting token from sessionStorage
     return AuthService.getTokenTimer(token);
   }
 

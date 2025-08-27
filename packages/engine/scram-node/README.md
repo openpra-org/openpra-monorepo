@@ -188,7 +188,7 @@ Pdag::Pdag(const mef::Gate& root, bool ccf, const mef::Model* model) noexcept {
 
 ### 2.2 Variable and Gate Indexing
 
-SCRAM uses a sophisticated indexing system:
+SCRAM uses the following indexing system:
 
 ```cpp
 void Pdag::GatherVariables(const mef::BasicEvent& basic_event, bool ccf,
@@ -977,59 +977,6 @@ double seq2_prob = 0;  // ECCS_Available = FALSE eliminates this sequence
 double total_risk = seq1_prob + seq2_prob = seq1_prob;
 ```
 
-## 7. Performance Optimizations
-
-### 7.1 Module Detection
-- Identifies independent subgraphs for separate analysis
-- Reduces analysis complexity from O(n²) to O(n log n)
-
-### 7.2 Gate Coalescing
-- Combines gates of the same type to reduce graph size
-- Example: `AND(AND(A,B), AND(C,D))` → `AND(A,B,C,D)`
-
-### 7.3 Boolean Optimization
-- Removes redundant connections
-- Eliminates paths that don't contribute to final result
-
-### 7.4 House Event Optimization
-- Eliminates sequences with zero probability
-- Skips analysis for trivial cases
-
-### 7.5 Constant Propagation
-- Propagates TRUE/FALSE constants through the graph
-- Simplifies expressions early in the process
-
-## 8. Key Features and Benefits
-
-### 8.1 Modular Architecture
-- Separate preprocessing and analysis phases
-- Pluggable analysis algorithms (BDD, ZBDD, MOCUS)
-- Extensible framework for new algorithms
-
-### 8.2 Robust Validation
-- MEF schema validation
-- Model consistency checks
-- Comprehensive error reporting
-
-### 8.3 Efficient Processing
-- Optimized PDAG structure
-- Sophisticated preprocessing algorithms
-- Memory-efficient data structures
-
-### 8.4 Comprehensive Analysis
-- Support for complex fault trees
-- Event tree integration
-- CCF group handling
-- Time-dependent analysis
-
-### 8.5 Scalability
-- Handles large-scale models
-- Efficient memory management
-- Parallel processing capabilities
-
 ## Conclusion
 
-This comprehensive workflow demonstrates how SCRAM transforms high-level risk models into optimized computational structures for efficient probabilistic analysis, providing a robust foundation for complex risk assessment calculations.
-
-The engine's sophisticated preprocessing pipeline, combined with its modular architecture and support for multiple analysis algorithms, makes it a powerful tool for probabilistic risk assessment in complex systems with event trees and fault trees.
-
+This workflow demonstrates how SCRAM transforms high-level risk models into PDAGs for probabilistic analysis.

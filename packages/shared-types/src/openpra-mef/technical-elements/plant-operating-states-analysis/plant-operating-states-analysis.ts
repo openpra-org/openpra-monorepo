@@ -20,7 +20,7 @@
 import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
-import { InitiatingEvent, BaseEvent, Frequency } from "../core/events";
+import { InitiatingEvent, BaseEvent, Frequency, FrequencyWithDistribution } from "../core/events";
 import { IdPatterns, ImportanceLevel, SensitivityStudy, ScreeningStatus, SuccessCriteriaId } from "../core/shared-patterns";
 import { DistributionType } from "../data-analysis/data-analysis";
 import { BaseAssumption } from "../core/documentation";
@@ -188,8 +188,11 @@ export interface TransitionEvent extends Unique {
     /** Duration of the transition */
     duration?: number;
     
-    /** Frequency of the transition (occurrences per year) */
-    frequency?: Frequency;
+    /** 
+     * Frequency of the transition (occurrences per year)
+     * @description Can be either a simple numeric frequency or a complex object with distribution information
+     */
+    frequency?: Frequency | FrequencyWithDistribution;
     
     /** Special considerations during the transition */
     specialConsiderations?: string[];
@@ -542,11 +545,17 @@ export interface OperatingStateRisk {
     
     /** Risk metrics for this operating state */
     riskMetrics: {
-        /** Core Damage Frequency */
-        CDF: Frequency;
+        /** 
+         * Core Damage Frequency 
+         * @description Can be either a simple numeric frequency or a complex object with distribution information
+         */
+        CDF: Frequency | FrequencyWithDistribution;
         
-        /** Large Early Release Frequency */
-        LERF: Frequency;
+        /** 
+         * Large Early Release Frequency 
+         * @description Can be either a simple numeric frequency or a complex object with distribution information
+         */
+        LERF: Frequency | FrequencyWithDistribution;
     };
     
     /** List of risk-significant contributors */
@@ -642,8 +651,11 @@ export interface PlantOperatingState extends Unique, Named {
     /** Mean time since shutdown in hours */
     meanTimeSinceShutdown?: number;
     
-    /** Mean frequency of the plant operating state */
-    meanFrequency?: Frequency;
+    /** 
+     * Mean frequency of the plant operating state 
+     * @description Can be either a simple numeric frequency or a complex object with distribution information
+     */
+    meanFrequency?: Frequency | FrequencyWithDistribution;
     
     /** Assumptions made in defining this operating state */
     assumptions?: string[];
@@ -713,7 +725,11 @@ export interface OperatingStatesFrequencyDuration {
         startDate: string;
         endDate: string;
         description: string;
-        frequencyPerYear: Frequency;
+        /** 
+         * Frequency per year
+         * @description Can be either a simple numeric frequency or a complex object with distribution information
+         */
+        frequencyPerYear: Frequency | FrequencyWithDistribution;
     }[];
     
     /** Maintenance plans and records */
@@ -721,7 +737,11 @@ export interface OperatingStatesFrequencyDuration {
         startDate: string;
         endDate: string;
         description: string;
-        frequencyPerYear: Frequency;
+        /** 
+         * Frequency per year
+         * @description Can be either a simple numeric frequency or a complex object with distribution information
+         */
+        frequencyPerYear: Frequency | FrequencyWithDistribution;
     }[];
     
     /** Operations data */

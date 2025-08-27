@@ -23,12 +23,14 @@ SCRAM is a C++ engine that performs probabilistic risk assessment calculations f
 
 1. [Input Processing and Model Construction](#1-input-processing-and-model-construction)
 2. [PDAG Construction](#2-pdag-construction)
+   - [PDAG Data Structures and Node Connections](#22-pdag-data-structures-and-node-connections)
+   - [Variable and Gate Indexing](#23-variable-and-gate-indexing)
+   - [Gate Construction](#24-gate-construction)
 3. [PDAG Preprocessing (5 Phases)](#3-pdag-preprocessing-5-phases)
+   - [Gate Coalescing](#gate-coalescing)
 4. [Event Tree Analysis with Linked Fault Trees](#4-event-tree-analysis-with-linked-fault-trees)
 5. [Analysis Execution](#5-analysis-execution)
 6. [Complete Example Workflow](#6-complete-example-workflow)
-7. [Performance Optimizations](#7-performance-optimizations)
-8. [Key Features and Benefits](#8-key-features-and-benefits)
 
 ## 1. Input Processing and Model Construction
 
@@ -186,7 +188,149 @@ Pdag::Pdag(const mef::Gate& root, bool ccf, const mef::Model* model) noexcept {
 }
 ```
 
-### 2.2 Variable and Gate Indexing
+### 2.2 PDAG Data Structures and Node Connections
+
+The PDAG uses a sophisticated **bidirectional connection system** with multiple data structures to efficiently manage relationships between nodes:
+
+#### **Core Data Structures**
+
+**NodeParentManager Class:**
+```cpp
+class NodeParentManager {
+  using Parent = std::pair<int, GateWeakPtr>;  // Parent index and weak pointer
+  using ParentMap = ext::linear_map<int, GateWeakPtr, ext::MoveEraser>;
+  
+private:
+  ParentMap parents_;  // All registered parents of this node
+};
+```
+
+**Gate Class Data Members:**
+```cpp
+class Gate : public Node {
+private:
+  ArgSet args_;                    // Set of argument indices (positive/negative)
+  ArgMap<Gate> gate_args_;         // Map of gate arguments: index → shared_ptr<Gate>
+  ArgMap<Variable> variable_args_; // Map of variable arguments: index → shared_ptr<Variable>
+  ConstantPtr constant_;           // Single constant argument (if any)
+};
+```
+
+#### **Bidirectional Connection System**
+
+Each node maintains **two types of connections**:
+
+**Child-to-Parent Connections (Upward):**
+- Every node (Gate, Variable, Constant) inherits from `NodeParentManager`
+- Stores **weak pointers** to its parent gates in `parents_` map
+- Key: parent gate's index, Value: weak pointer to parent gate
+- Uses `ext::linear_map` for efficient small-scale lookups
+
+**Parent-to-Child Connections (Downward):**
+- Gates store **shared pointers** to their child arguments
+- Three separate containers for different argument types:
+  - `gate_args_`: Child gates
+  - `variable_args_`: Child variables (basic events)
+  - `constant_`: Single constant child
+- `args_` set stores all argument indices (positive = normal, negative = complement)
+
+#### **Connection Management Methods**
+
+**Adding Arguments (Parent → Child):**
+```cpp
+template <class T>
+void Gate::AddArg(int index, const std::shared_ptr<T>& arg) noexcept {
+  args_.insert(index);                    // Add to index set
+  mutable_args<T>().data().emplace_back(index, arg);  // Add to type-specific map
+  arg->AddParent(shared_from_this());     // Establish child → parent link
+}
+```
+
+**Adding Parents (Child → Parent):**
+```cpp
+void NodeParentManager::AddParent(const GatePtr& gate) {
+  parents_.data().emplace_back(gate->index(), gate);  // Weak pointer
+}
+```
+
+#### **Data Structure Design Choices**
+
+**Why `ext::linear_map` instead of `std::unordered_map`?**
+- **Cache-friendly**: Contiguous memory layout for small collections
+- **Performance**: Outperforms hash maps for small numbers of entries (up to 50 entries)
+- **Memory efficiency**: No hash table overhead
+- **Predictable iteration**: Preserves insertion order
+
+**Why Weak Pointers for Parents?**
+- **Prevents circular references**: Avoids memory leaks
+- **Automatic cleanup**: When parent is destroyed, weak pointer becomes invalid
+- **Safe traversal**: Can check if parent still exists before accessing
+
+**Why Shared Pointers for Children?**
+- **Ownership semantics**: Gate owns its children
+- **Automatic cleanup**: Children are destroyed when last parent is destroyed
+- **Reference counting**: Multiple parents can share the same child
+
+#### **Example Connection Structure**
+
+```
+Gate G1 (index: 10)
+├── parents_: {} (root gate)
+├── args_: {2, 3, 15} (indices of children)
+├── gate_args_: {15 → shared_ptr<Gate G2>}
+└── variable_args_: {2 → shared_ptr<Variable A>, 3 → shared_ptr<Variable B>}
+
+Gate G2 (index: 15)
+├── parents_: {10 → weak_ptr<Gate G1>}
+├── args_: {4, 5}
+└── variable_args_: {4 → shared_ptr<Variable C>, 5 → shared_ptr<Variable D>}
+
+Variable A (index: 2)
+├── parents_: {10 → weak_ptr<Gate G1>}
+└── (no children)
+
+Variable B (index: 3)
+├── parents_: {10 → weak_ptr<Gate G1>}
+└── (no children)
+```
+
+#### **Traversal and Access Patterns**
+
+**Finding Children of a Gate:**
+```cpp
+// Get all gate children
+for (const auto& arg : gate.args<Gate>()) {
+  GatePtr child_gate = arg.second;  // shared_ptr<Gate>
+  // Process child_gate
+}
+
+// Get all variable children  
+for (const auto& arg : gate.args<Variable>()) {
+  VariablePtr child_var = arg.second;  // shared_ptr<Variable>
+  // Process child_var
+}
+```
+
+**Finding Parents of a Node:**
+```cpp
+// Get all parents
+for (const auto& parent : node.parents()) {
+  if (auto parent_gate = parent.second.lock()) {  // Convert weak_ptr to shared_ptr
+    // Process parent_gate
+  }
+}
+```
+
+#### **Performance Characteristics**
+
+- **Lookup time**: O(N) for linear_map (but very fast for small N due to cache locality)
+- **Memory usage**: Minimal overhead compared to hash maps
+- **Traversal**: Efficient bidirectional traversal
+- **Modification**: Fast insertion/deletion with MoveEraser policy
+- **Cache performance**: Contiguous memory layout provides excellent cache locality
+- **Memory safety**: Automatic cleanup through shared_ptr/weak_ptr reference counting
+
+### 2.3 Variable and Gate Indexing
 
 SCRAM uses the following indexing system:
 
@@ -215,7 +359,7 @@ void Pdag::GatherVariables(const mef::BasicEvent& basic_event, bool ccf,
 - **Indices 2, 3, 4, ...**: Variables (basic events)
 - **Higher indices**: Gates
 
-### 2.3 Gate Construction
+### 2.4 Gate Construction
 
 Gates are constructed recursively from MEF formulas:
 
@@ -378,6 +522,10 @@ G2 = OR(G1,C)  // Not a module: G1 is outside G2's time range
 ```
 
 #### Gate Coalescing
+
+Gate coalescing transforms nested gates of the same type into a flattened structure by moving child arguments up and removing intermediate gates.
+
+**Coalescing Algorithm:**
 ```cpp
 bool Preprocessor::CoalesceGates(const GatePtr& gate, bool common) noexcept {
     if (gate->mark()) return false;
@@ -412,11 +560,159 @@ bool Preprocessor::CoalesceGates(const GatePtr& gate, bool common) noexcept {
 }
 ```
 
-**Example:**
+**Core Coalescing Implementation:**
+```cpp
+void Gate::CoalesceGate(const GatePtr& arg_gate) noexcept {
+    // 1. Move all gate arguments from arg_gate to this gate
+    for (const auto& arg : arg_gate->gate_args_) {
+        AddArg(arg);  // This calls AddArg(index, shared_ptr)
+        if (constant()) return;
+    }
+    
+    // 2. Move all variable arguments from arg_gate to this gate  
+    for (const auto& arg : arg_gate->variable_args_) {
+        AddArg(arg);  // This calls AddArg(index, shared_ptr)
+        if (constant()) return;
+    }
+    
+    // 3. Remove the arg_gate from this gate's arguments
+    args_.erase(arg_gate->index());
+    gate_args_.erase(arg_gate->index());
+    
+    // 4. Remove this gate as parent of arg_gate
+    arg_gate->EraseParent(Node::index());
+}
 ```
-Before: AND(AND(A,B), AND(C,D))
-After:  AND(A,B,C,D)
+
+**Example Transformation: `AND(AND(A,B), AND(C,D))` → `AND(A,B,C,D)`**
+
+**Before Coalescing:**
 ```
+Gate G1 (index: 10) - Root AND gate
+├── parents_: {} (root gate)
+├── args_: {15, 20} (indices of child gates)
+├── gate_args_: {15 → shared_ptr<Gate G2>, 20 → shared_ptr<Gate G3>}
+└── variable_args_: {}
+
+Gate G2 (index: 15) - First inner AND gate
+├── parents_: {10 → weak_ptr<Gate G1>}
+├── args_: {2, 3} (indices of variables A, B)
+├── gate_args_: {}
+└── variable_args_: {2 → shared_ptr<Variable A>, 3 → shared_ptr<Variable B>}
+
+Gate G3 (index: 20) - Second inner AND gate  
+├── parents_: {10 → weak_ptr<Gate G1>}
+├── args_: {4, 5} (indices of variables C, D)
+├── gate_args_: {}
+└── variable_args_: {4 → shared_ptr<Variable C>, 5 → shared_ptr<Variable D>}
+
+Variable A (index: 2)
+├── parents_: {15 → weak_ptr<Gate G2>}
+└── (no children)
+
+Variable B (index: 3)
+├── parents_: {15 → weak_ptr<Gate G2>}
+└── (no children)
+
+Variable C (index: 4)
+├── parents_: {20 → weak_ptr<Gate G3>}
+└── (no children)
+
+Variable D (index: 5)
+├── parents_: {20 → weak_ptr<Gate G3>}
+└── (no children)
+```
+
+**After Coalescing:**
+```
+Gate G1 (index: 10) - Root AND gate (now directly connected to variables)
+├── parents_: {} (root gate)
+├── args_: {2, 3, 4, 5} (indices of variables A, B, C, D)
+├── gate_args_: {} (no more intermediate gates)
+└── variable_args_: {2 → shared_ptr<Variable A>, 3 → shared_ptr<Variable B>, 
+                     4 → shared_ptr<Variable C>, 5 → shared_ptr<Variable D>}
+
+Gate G2 (index: 15) - Orphaned (no parents, will be garbage collected)
+├── parents_: {} (empty - no longer referenced)
+├── args_: {2, 3} (still has children, but no parents)
+├── gate_args_: {}
+└── variable_args_: {2 → shared_ptr<Variable A>, 3 → shared_ptr<Variable B>}
+
+Gate G3 (index: 20) - Orphaned (no parents, will be garbage collected)
+├── parents_: {} (empty - no longer referenced)
+├── args_: {4, 5} (still has children, but no parents)
+├── gate_args_: {}
+└── variable_args_: {4 → shared_ptr<Variable C>, 5 → shared_ptr<Variable D>}
+
+Variable A (index: 2)
+├── parents_: {10 → weak_ptr<Gate G1>, 15 → weak_ptr<Gate G2>}
+└── (no children)
+
+Variable B (index: 3)
+├── parents_: {10 → weak_ptr<Gate G1>, 15 → weak_ptr<Gate G2>}
+└── (no children)
+
+Variable C (index: 4)
+├── parents_: {10 → weak_ptr<Gate G1>, 20 → weak_ptr<Gate G3>}
+└── (no children)
+
+Variable D (index: 5)
+├── parents_: {10 → weak_ptr<Gate G1>, 20 → weak_ptr<Gate G3>}
+└── (no children)
+```
+
+**Key Pointer Changes:**
+
+1. **Child-to-Parent Links (Variables → Gates)**:
+   - Variables A, B, C, D **gain a new parent** (G1)
+   - Variables A, B **keep their old parent** (G2) - but G2 becomes orphaned
+   - Variables C, D **keep their old parent** (G3) - but G3 becomes orphaned
+
+2. **Parent-to-Child Links (Gates → Variables)**:
+   - G1 **gains direct connections** to A, B, C, D
+   - G1 **loses connections** to G2 and G3
+   - G2 and G3 **keep their connections** to their variables but become unreachable
+
+3. **Intermediate Gates (G2, G3)**:
+   - **Lose their parent** (G1)
+   - **Keep their children** (A, B, C, D) but become orphaned
+   - **Will be garbage collected** when their shared_ptr reference count reaches 0
+
+4. **Memory Management**:
+   - G2 and G3 become **orphaned nodes** with no incoming references
+   - They will be **automatically cleaned up** by the shared_ptr reference counting
+   - The variables (A, B, C, D) are now **shared between the root gate and orphaned gates**
+   - When orphaned gates are destroyed, variables will **lose those parent references**
+
+**Final State After Garbage Collection:**
+```
+Gate G1 (index: 10) - Root AND gate
+├── parents_: {}
+├── args_: {2, 3, 4, 5}
+├── gate_args_: {}
+└── variable_args_: {2 → shared_ptr<Variable A>, 3 → shared_ptr<Variable B>, 
+                     4 → shared_ptr<Variable C>, 5 → shared_ptr<Variable D>}
+
+Variable A (index: 2)
+├── parents_: {10 → weak_ptr<Gate G1>}  // Only G1 remains
+└── (no children)
+
+Variable B (index: 3)
+├── parents_: {10 → weak_ptr<Gate G1>}  // Only G1 remains
+└── (no children)
+
+Variable C (index: 4)
+├── parents_: {10 → weak_ptr<Gate G1>}  // Only G1 remains
+└── (no children)
+
+Variable D (index: 5)
+├── parents_: {10 → weak_ptr<Gate G1>}  // Only G1 remains
+└── (no children)
+
+// G2 and G3 are destroyed and no longer exist
+```
+
+This transformation **flattens the hierarchy** by moving all leaf nodes (variables) directly under the root gate, eliminating the intermediate gates while preserving the logical structure. The memory management is handled automatically through shared_ptr reference counting.
 
 #### Boolean Optimization
 ```cpp

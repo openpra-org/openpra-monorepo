@@ -69,6 +69,8 @@ MEF Object Validation ✅
 Formula Creation (MEF Objects → MEF Formulas)
     ↓
 Model Setup and Validation ✅
+    ↓
+PDAG Construction (MEF Formulas → PDAG)
 ```
 
 ### 1.2 MEF Object Creation
@@ -133,7 +135,7 @@ BasicEvent* component_b = new BasicEvent("component-b");
 
 ### 1.3 Formula Creation
 
-MEF objects are converted to Boolean formulas:
+MEF objects are converted to Boolean formulas during the initialization phase:
 
 ```cpp
 template <>
@@ -149,15 +151,30 @@ void Initializer::Define(const xml::Element& gate_node, Gate* gate) {
 Formula(AND, {component_a, component_b})
 ```
 
+**Key Point:** MEF Formulas are essential intermediate representations that:
+- Provide validation of Boolean logic structure
+- Enable complex logic transformations (IFF, IMPLY, etc.)
+- Support dynamic modifications (house events, event trees)
+- Serve as the input for PDAG construction
+
+**Why MEF Formulas Cannot Be Skipped:**
+The MEF Formula layer cannot be eliminated because:
+1. **PDAG Construction Expects Formulas**: The `Pdag` constructor specifically takes `mef::Gate` objects and accesses their `formula()` method
+2. **Complex Logic Transformation**: Many MEF connectives need transformation into basic AND/OR logic before analysis
+3. **Validation Layer**: Formulas provide validation before analysis begins
+4. **Memory Management**: Formulas handle complex Boolean expressions with shared sub-expressions
+5. **Dynamic Modifications**: Event trees with house events require formula cloning and modification
+```
+
 ## 2. PDAG Construction
 
-### 2.1 PDAG Creation from Fault Trees
+### 2.1 PDAG Creation from MEF Formulas
 
-The PDAG (Propositional Directed Acyclic Graph) is constructed during analysis:
+The PDAG (Propositional Directed Acyclic Graph) is constructed from MEF Formulas, not directly from fault trees:
 
 ```cpp
 void FaultTreeAnalysis::Analyze() noexcept {
-    // Create PDAG from fault tree
+    // Create PDAG from the top event's formula
     graph_ = std::make_unique<Pdag>(top_event_, 
                                    Analysis::settings().ccf_analysis(), 
                                    model_);
@@ -175,10 +192,10 @@ void FaultTreeAnalysis::Analyze() noexcept {
 Pdag::Pdag(const mef::Gate& root, bool ccf, const mef::Model* model) noexcept {
     ProcessedNodes nodes;
     
-    // 1. Gather all variables (basic events)
+    // 1. Gather all variables (basic events) from the gate's formula
     GatherVariables(root.formula(), ccf, &nodes);
     
-    // 2. Construct gates recursively
+    // 2. Construct gates recursively from the formula structure
     root_ = ConstructGate(root.formula(), ccf, &nodes);
     
     // 3. Process substitutions if any
@@ -361,7 +378,7 @@ void Pdag::GatherVariables(const mef::BasicEvent& basic_event, bool ccf,
 
 ### 2.4 Gate Construction
 
-Gates are constructed recursively from MEF formulas:
+PDAG gates are constructed recursively from MEF formulas:
 
 ```cpp
 GatePtr Pdag::ConstructGate(const mef::Formula& formula, bool ccf,
@@ -382,7 +399,7 @@ GatePtr Pdag::ConstructGate(const mef::Formula& formula, bool ccf,
             break;
     }
     
-    // Add arguments
+    // Add arguments from the formula
     for (const mef::Formula::Arg& arg : formula.args()) {
         if (arg.complement)
             coherent_ = false;
@@ -1238,9 +1255,9 @@ top3->formula(AND(G,H));
 
 **Step 3: PDAG Construction**
 ```
-PDAG 1: TOP1 = AND(OR(A,B), OR(C,D))
-PDAG 2: TOP2 = OR(E,F)
-PDAG 3: TOP3 = AND(G,H)
+PDAG 1: Constructed from TOP1's formula: AND(OR(A,B), OR(C,D))
+PDAG 2: Constructed from TOP2's formula: OR(E,F)
+PDAG 3: Constructed from TOP3's formula: AND(G,H)
 ```
 
 **Step 4: Preprocessing (Phase 1-5)**
@@ -1275,4 +1292,4 @@ double total_risk = seq1_prob + seq2_prob = seq1_prob;
 
 ## Conclusion
 
-This workflow demonstrates how SCRAM transforms high-level risk models into PDAGs for probabilistic analysis.
+This workflow demonstrates how SCRAM transforms high-level risk models through MEF Formulas into PDAGs for probabilistic analysis. The MEF Formula layer is essential as it provides validation, enables complex logic transformations, and serves as the bridge between the declarative model structure and the computational analysis structure.

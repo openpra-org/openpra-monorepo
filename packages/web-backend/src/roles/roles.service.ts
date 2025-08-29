@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException, OnApplicationBootstrap } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { Roles, RolesDocument } from "./schemas/roles.schema";
@@ -6,6 +6,7 @@ import { PredefinedRoles, Role } from "./schemas/predefined-roles";
 
 @Injectable()
 export class RolesService implements OnApplicationBootstrap {
+  private readonly logger = new Logger(RolesService.name);
   constructor(
     @InjectModel(Roles.name)
     private readonly roleModel: Model<RolesDocument>,
@@ -50,6 +51,7 @@ export class RolesService implements OnApplicationBootstrap {
   async getRole(id: string): Promise<Roles> {
     const role = await this.roleModel.findOne({ id: id }).exec();
     if (role === null) {
+      this.logger.error(`Role with ID ${id} not found`);
       throw new NotFoundException(`Role with ID ${id} not found`);
     }
     return role;
@@ -62,6 +64,7 @@ export class RolesService implements OnApplicationBootstrap {
   async createRole(role: Role): Promise<void> {
     const checkRole = await this.roleModel.findOne({ id: role.id }).exec();
     if (checkRole !== null) {
+      this.logger.error(`Role with ID ${role.id} already exists`);
       throw new BadRequestException(`Role with Id ${role.id} already exists`);
     }
     await this.roleModel.insertMany([role]);
@@ -74,6 +77,7 @@ export class RolesService implements OnApplicationBootstrap {
   async updateRole(role: Role): Promise<void> {
     const checkRole = await this.roleModel.findOne({ id: role.id }).exec();
     if (checkRole === null) {
+      this.logger.error(`Role with ID ${role.id} not found`);
       throw new BadRequestException(`Role with Id ${role.id} not found`);
     }
     await this.roleModel.findOneAndUpdate({ id: role.id }, role).exec();
@@ -82,6 +86,7 @@ export class RolesService implements OnApplicationBootstrap {
   async deleteRole(id: string): Promise<void> {
     const checkRole = await this.roleModel.findOne({ id: id }).exec();
     if (checkRole === null) {
+      this.logger.error(`Role with ID ${id} doesn't exist`);
       throw new BadRequestException(`Role with Id ${id} doesn't exist`);
     }
     await this.roleModel.findOneAndDelete({ id: id }).exec();

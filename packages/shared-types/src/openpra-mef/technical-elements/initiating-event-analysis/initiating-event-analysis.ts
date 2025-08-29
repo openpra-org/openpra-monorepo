@@ -899,7 +899,13 @@ export interface HazardAnalysis extends Unique, Named {
 export const validateInitiatingEventsAnalysis = {
     validateFrequency: (event: InitiatorDefinition): string[] => {
         const errors: string[] = [];
-        if (event.frequency < 0) {
+        
+        // Handle both Frequency (number) and FrequencyWithDistribution (object) types
+        const frequencyValue = typeof event.frequency === 'number' 
+            ? event.frequency 
+            : event.frequency.value;
+            
+        if (frequencyValue < 0) {
             errors.push(`Initiating event frequency for ${event.name} (${event.id}) cannot be negative.`);
         }
         return errors;

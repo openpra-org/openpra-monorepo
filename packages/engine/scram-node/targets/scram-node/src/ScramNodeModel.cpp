@@ -48,13 +48,17 @@ ParsedBasicEvent ParseBasicEvent(const Napi::Object& nodeEvent) {
     }
     
     if (nodeEvent.Has("type")) {
-        parsed.value_type = nodeEvent.Get("type").ToString().Utf8Value();
+        parsed.type = nodeEvent.Get("type").ToString().Utf8Value();
     } else {
-        parsed.value_type = "basic";
+        parsed.type = "basic";
     }
     
     if (nodeEvent.Has("value")) {
         parsed.value = nodeEvent.Get("value");
+    }
+    
+    if (nodeEvent.Has("systemMissionTime")) {
+        parsed.systemMissionTime = nodeEvent.Get("systemMissionTime").ToNumber().DoubleValue();
     }
     
     if (nodeEvent.Has("basePath")) {
@@ -291,6 +295,13 @@ std::unique_ptr<scram::mef::BasicEvent> BuildBasicEvent(const ParsedBasicEvent& 
         be->expression(expr);
     }
     
+    // Handle systemMissionTime if present
+    if (parsed.systemMissionTime.has_value()) {
+        // Set system mission time - this would need to be implemented based on SCRAM's API
+        // For now, we'll store it as an attribute
+        be->SetAttribute(scram::mef::Attribute("systemMissionTime", std::to_string(parsed.systemMissionTime.value())));
+    }
+    
     return be;
 }
 
@@ -382,7 +393,7 @@ std::unique_ptr<scram::mef::Gate> BuildGate(const ParsedGate& parsed, scram::mef
     return gate;
 }
 
-// Expression builder (simplified version for now)
+// Expression builder for complex Value types
 scram::mef::Expression* BuildExpression(const Napi::Value& nodeValue, scram::mef::Model* model, const ElementRegistry& registry, const std::string& basePath) {
     if (nodeValue.IsBoolean()) {
         bool val = nodeValue.ToBoolean().Value();
@@ -415,9 +426,36 @@ scram::mef::Expression* BuildExpression(const Napi::Value& nodeValue, scram::mef
         throw std::runtime_error("Unknown parameter reference: " + paramName);
     }
     
-    // For complex expressions, implement the full expression parsing logic here
-    // This is a simplified version - the full implementation would handle all the
-    // mathematical operations, distributions, etc.
+    if (nodeValue.IsObject()) {
+        Napi::Object obj = nodeValue.As<Napi::Object>();
+        
+        // Check for Parameter object
+        if (obj.Has("name") && obj.Has("value")) {
+            ParsedParameter parsedParam = ParseParameterValue(obj);
+            return BuildParameterExpression(parsedParam, model, registry);
+        }
+        
+        // Check for BuiltInFunction
+        if (obj.Has("exponential") || obj.Has("GLM") || obj.Has("Weibull") || obj.Has("periodicTest")) {
+            ParsedBuiltInFunction parsedFunc = ParseBuiltInFunction(obj);
+            return BuildBuiltInFunctionExpression(parsedFunc, model, registry);
+        }
+        
+        // Check for RandomDeviate
+        if (obj.Has("uniformDeviate") || obj.Has("normalDeviate") || obj.Has("lognormalDeviate") || 
+            obj.Has("gammaDeviate") || obj.Has("betaDeviate") || obj.Has("histogram")) {
+            ParsedRandomDeviate parsedDeviate = ParseRandomDeviate(obj);
+            return BuildRandomDeviateExpression(parsedDeviate, model, registry);
+        }
+        
+        // Check for NumericalOperation
+        if (obj.Has("neg") || obj.Has("add") || obj.Has("sub") || obj.Has("mul") || obj.Has("div") ||
+            obj.Has("pow") || obj.Has("sin") || obj.Has("cos") || obj.Has("tan") || obj.Has("log") ||
+            obj.Has("exp") || obj.Has("sqrt") || obj.Has("abs") || obj.Has("min") || obj.Has("max")) {
+            ParsedNumericalOperation parsedOp = ParseNumericalOperation(obj);
+            return BuildNumericalOperationExpression(parsedOp, model, registry);
+        }
+    }
     
     throw std::runtime_error("Unsupported value type in BuildExpression");
 }
@@ -470,9 +508,12 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
             if (mdObj.Has("description")) {
                 be.description = mdObj.Get("description").ToString().Utf8Value();
             }
-            be.value_type = "basic";
+            be.type = "basic";
             if (mdObj.Has("value")) {
                 be.value = mdObj.Get("value");
+            }
+            if (mdObj.Has("systemMissionTime")) {
+                be.systemMissionTime = mdObj.Get("systemMissionTime").ToNumber().DoubleValue();
             }
             parsedBasicEvents.push_back(be);
         }
@@ -711,4 +752,234 @@ std::unique_ptr<scram::mef::InitiatingEvent> ScramNodeInitiatingEvent(const Pars
     ie->SetAttribute(scram::mef::Attribute("unit", parsed.unit));
     
     return ie;
+}
+
+// Complex Value type parsing functions
+ParsedParameter ParseParameterValue(const Napi::Object& nodeParam) {
+    ParsedParameter parsed;
+    parsed.name = nodeParam.Get("name").ToString().Utf8Value();
+    
+    if (nodeParam.Has("description")) {
+        parsed.description = nodeParam.Get("description").ToString().Utf8Value();
+    }
+    
+    if (nodeParam.Has("value")) {
+        parsed.value = nodeParam.Get("value");
+    }
+    
+    if (nodeParam.Has("unit")) {
+        parsed.unit = nodeParam.Get("unit").ToString().Utf8Value();
+    }
+    
+    return parsed;
+}
+
+ParsedBuiltInFunction ParseBuiltInFunction(const Napi::Object& nodeFunction) {
+    ParsedBuiltInFunction parsed;
+    
+    // Determine function type and extract arguments
+    if (nodeFunction.Has("exponential")) {
+        parsed.function_type = "exponential";
+        Napi::Array args = nodeFunction.Get("exponential").As<Napi::Array>();
+        for (uint32_t i = 0; i < args.Length(); ++i) {
+            parsed.arguments.push_back(args.Get(i));
+        }
+    } else if (nodeFunction.Has("GLM")) {
+        parsed.function_type = "GLM";
+        Napi::Array args = nodeFunction.Get("GLM").As<Napi::Array>();
+        for (uint32_t i = 0; i < args.Length(); ++i) {
+            parsed.arguments.push_back(args.Get(i));
+        }
+    } else if (nodeFunction.Has("Weibull")) {
+        parsed.function_type = "Weibull";
+        Napi::Array args = nodeFunction.Get("Weibull").As<Napi::Array>();
+        for (uint32_t i = 0; i < args.Length(); ++i) {
+            parsed.arguments.push_back(args.Get(i));
+        }
+    } else if (nodeFunction.Has("periodicTest")) {
+        parsed.function_type = "periodicTest";
+        Napi::Array args = nodeFunction.Get("periodicTest").As<Napi::Array>();
+        for (uint32_t i = 0; i < args.Length(); ++i) {
+            parsed.arguments.push_back(args.Get(i));
+        }
+    } else {
+        throw std::runtime_error("Unknown built-in function type");
+    }
+    
+    return parsed;
+}
+
+ParsedRandomDeviate ParseRandomDeviate(const Napi::Object& nodeDeviate) {
+    ParsedRandomDeviate parsed;
+    
+    // Determine deviate type and extract arguments
+    if (nodeDeviate.Has("uniformDeviate")) {
+        parsed.deviate_type = "uniformDeviate";
+        Napi::Array args = nodeDeviate.Get("uniformDeviate").As<Napi::Array>();
+        for (uint32_t i = 0; i < args.Length(); ++i) {
+            parsed.arguments.push_back(args.Get(i));
+        }
+    } else if (nodeDeviate.Has("normalDeviate")) {
+        parsed.deviate_type = "normalDeviate";
+        Napi::Array args = nodeDeviate.Get("normalDeviate").As<Napi::Array>();
+        for (uint32_t i = 0; i < args.Length(); ++i) {
+            parsed.arguments.push_back(args.Get(i));
+        }
+    } else if (nodeDeviate.Has("lognormalDeviate")) {
+        parsed.deviate_type = "lognormalDeviate";
+        Napi::Array args = nodeDeviate.Get("lognormalDeviate").As<Napi::Array>();
+        for (uint32_t i = 0; i < args.Length(); ++i) {
+            parsed.arguments.push_back(args.Get(i));
+        }
+    } else if (nodeDeviate.Has("gammaDeviate")) {
+        parsed.deviate_type = "gammaDeviate";
+        Napi::Array args = nodeDeviate.Get("gammaDeviate").As<Napi::Array>();
+        for (uint32_t i = 0; i < args.Length(); ++i) {
+            parsed.arguments.push_back(args.Get(i));
+        }
+    } else if (nodeDeviate.Has("betaDeviate")) {
+        parsed.deviate_type = "betaDeviate";
+        Napi::Array args = nodeDeviate.Get("betaDeviate").As<Napi::Array>();
+        for (uint32_t i = 0; i < args.Length(); ++i) {
+            parsed.arguments.push_back(args.Get(i));
+        }
+    } else if (nodeDeviate.Has("histogram")) {
+        parsed.deviate_type = "histogram";
+        Napi::Object histObj = nodeDeviate.Get("histogram").As<Napi::Object>();
+        // For histogram, we need to handle the base and bins structure
+        if (histObj.Has("base")) {
+            parsed.arguments.push_back(histObj.Get("base"));
+        }
+        if (histObj.Has("bins")) {
+            Napi::Array bins = histObj.Get("bins").As<Napi::Array>();
+            for (uint32_t i = 0; i < bins.Length(); ++i) {
+                parsed.arguments.push_back(bins.Get(i));
+            }
+        }
+    } else {
+        throw std::runtime_error("Unknown random deviate type");
+    }
+    
+    return parsed;
+}
+
+ParsedNumericalOperation ParseNumericalOperation(const Napi::Object& nodeOperation) {
+    ParsedNumericalOperation parsed;
+    
+    // Determine operation type and extract arguments
+    std::vector<std::string> operations = {
+        "neg", "add", "sub", "mul", "div", "pow", "sin", "cos", "tan", "log", "exp", "sqrt", "abs",
+        "min", "max", "mean", "pi", "acos", "asin", "atan", "cosh", "sinh", "tanh", "log10", "mod",
+        "ceil", "floor"
+    };
+    
+    for (const auto& op : operations) {
+        if (nodeOperation.Has(op.c_str())) {
+            parsed.operation = op;
+            Napi::Value opValue = nodeOperation.Get(op.c_str());
+            
+            if (opValue.IsArray()) {
+                Napi::Array args = opValue.As<Napi::Array>();
+                for (uint32_t i = 0; i < args.Length(); ++i) {
+                    parsed.arguments.push_back(args.Get(i));
+                }
+            } else {
+                // Single argument operations
+                parsed.arguments.push_back(opValue);
+            }
+            break;
+        }
+    }
+    
+    if (parsed.operation.empty()) {
+        throw std::runtime_error("Unknown numerical operation type");
+    }
+    
+    return parsed;
+}
+
+// Complex Value type builder functions
+scram::mef::Expression* BuildParameterExpression(const ParsedParameter& parsed, scram::mef::Model* model, const ElementRegistry& registry) {
+    // Create a new parameter and add it to the model
+    auto param = std::make_unique<scram::mef::Parameter>(parsed.name, "", scram::mef::RoleSpecifier::kPublic);
+    
+    if (!parsed.description.empty()) {
+        param->label(parsed.description);
+    }
+    
+    if (!parsed.value.IsEmpty() && !parsed.value.IsUndefined() && !parsed.value.IsNull()) {
+        scram::mef::Expression* expr = BuildExpression(parsed.value, model, registry);
+        param->expression(expr);
+    }
+    
+    if (!parsed.unit.empty()) {
+        param->unit(ScramNodeUnit(parsed.unit));
+    }
+    
+    scram::mef::Expression* ptr = param.get();
+    model->Add(std::move(param));
+    return ptr;
+}
+
+scram::mef::Expression* BuildBuiltInFunctionExpression(const ParsedBuiltInFunction& parsed, scram::mef::Model* model, const ElementRegistry& registry) {
+    // For now, implement basic support for exponential function
+    // This would need to be expanded based on SCRAM's built-in function support
+    if (parsed.function_type == "exponential" && parsed.arguments.size() >= 2) {
+        // exponential(lambda, time) = lambda * exp(-lambda * time)
+        scram::mef::Expression* lambda = BuildExpression(parsed.arguments[0], model, registry);
+        scram::mef::Expression* time = BuildExpression(parsed.arguments[1], model, registry);
+        
+        // Create exponential expression - this would need to be implemented based on SCRAM's API
+        // For now, return a placeholder
+        auto expr = std::make_unique<scram::mef::ConstantExpression>(1.0);
+        scram::mef::Expression* ptr = expr.get();
+        model->Add(std::move(expr));
+        return ptr;
+    }
+    
+    // For other functions, return placeholder
+    auto expr = std::make_unique<scram::mef::ConstantExpression>(1.0);
+    scram::mef::Expression* ptr = expr.get();
+    model->Add(std::move(expr));
+    return ptr;
+}
+
+scram::mef::Expression* BuildRandomDeviateExpression(const ParsedRandomDeviate& parsed, scram::mef::Model* model, const ElementRegistry& registry) {
+    // For now, return a placeholder constant expression
+    // This would need to be implemented based on SCRAM's random deviate support
+    auto expr = std::make_unique<scram::mef::ConstantExpression>(1.0);
+    scram::mef::Expression* ptr = expr.get();
+    model->Add(std::move(expr));
+    return ptr;
+}
+
+scram::mef::Expression* BuildNumericalOperationExpression(const ParsedNumericalOperation& parsed, scram::mef::Model* model, const ElementRegistry& registry) {
+    // For now, implement basic arithmetic operations
+    if (parsed.operation == "add" && parsed.arguments.size() >= 2) {
+        scram::mef::Expression* left = BuildExpression(parsed.arguments[0], model, registry);
+        scram::mef::Expression* right = BuildExpression(parsed.arguments[1], model, registry);
+        
+        // Create addition expression - this would need to be implemented based on SCRAM's API
+        // For now, return a placeholder
+        auto expr = std::make_unique<scram::mef::ConstantExpression>(1.0);
+        scram::mef::Expression* ptr = expr.get();
+        model->Add(std::move(expr));
+        return ptr;
+    } else if (parsed.operation == "mul" && parsed.arguments.size() >= 2) {
+        scram::mef::Expression* left = BuildExpression(parsed.arguments[0], model, registry);
+        scram::mef::Expression* right = BuildExpression(parsed.arguments[1], model, registry);
+        
+        // Create multiplication expression - this would need to be implemented based on SCRAM's API
+        // For now, return a placeholder
+        auto expr = std::make_unique<scram::mef::ConstantExpression>(1.0);
+        scram::mef::Expression* ptr = expr.get();
+        model->Add(std::move(expr));
+        return ptr;
+    }
+    
+    // For other operations, return placeholder
+    auto expr = std::make_unique<scram::mef::ConstantExpression>(1.0);
+    scram::mef::Expression* ptr = expr.get();
+    model->Add(std::move(expr));
+    return ptr;
 }

@@ -133,28 +133,28 @@ private:
 struct ParsedBasicEvent {
     std::string name;
     std::string description;
-    std::string value_type;
-    Napi::Value value;
+    std::string type;  // "basic", "house", "undeveloped"
+    Napi::Value value; // Complex Value type (boolean | number | Parameter | BuiltInFunction | RandomDeviate | NumericalOperation)
+    std::optional<double> systemMissionTime;
     std::string base_path;
 };
 
 struct ParsedGate {
     std::string name;
     std::string description;
-    std::string type;
-    std::vector<std::string> gate_refs;
-    std::vector<std::string> event_refs;
-    std::optional<int> min_number;
-    std::optional<int> max_number;
+    std::string type;  // GateType: "and" | "or" | "not" | "xor" | "nand" | "nor" | "iff" | "atleast" | "cardinality" | "imply"
+    std::vector<std::string> gate_refs;  // References to child gates by name
+    std::vector<std::string> event_refs; // References to child events by name
+    std::optional<int> min_number;       // For atleast/cardinality gates
+    std::optional<int> max_number;       // For cardinality gates
     std::string base_path;
 };
 
 struct ParsedParameter {
     std::string name;
     std::string description;
-    std::string value_type;
-    Napi::Value value;
-    std::string unit;
+    Napi::Value value; // Complex Value type
+    std::string unit;  // Unit type: "unitless" | "bool" | "int" | "float" | "hours" | "hour-1" | "years" | "year-1" | "fit" | "demands"
     std::string base_path;
 };
 
@@ -199,7 +199,24 @@ struct ParsedInitiatingEvent {
     std::string name;
     std::string description;
     double frequency;
-    std::string unit;
+    std::string unit;  // "yr-1" | "ryr-1" | "rcyr-1"
+};
+
+// Complex Value type structures
+
+struct ParsedBuiltInFunction {
+    std::string function_type; // "exponential", "GLM", "Weibull", "periodicTest"
+    std::vector<Napi::Value> arguments;
+};
+
+struct ParsedRandomDeviate {
+    std::string deviate_type; // "uniformDeviate", "normalDeviate", "lognormalDeviate", etc.
+    std::vector<Napi::Value> arguments;
+};
+
+struct ParsedNumericalOperation {
+    std::string operation; // "neg", "add", "sub", "mul", "div", "pow", "sin", "cos", etc.
+    std::vector<Napi::Value> arguments;
 };
 
 // Event Tree mapping
@@ -219,6 +236,12 @@ std::unique_ptr<scram::mef::CcfGroup> BuildCCFGroup(const ParsedCCFGroup& parsed
 // Expression builders
 scram::mef::Expression* BuildExpression(const Napi::Value& nodeValue, scram::mef::Model* model, const ElementRegistry& registry, const std::string& basePath = "");
 
+// Complex Value type builders
+scram::mef::Expression* BuildParameterExpression(const ParsedParameter& parsed, scram::mef::Model* model, const ElementRegistry& registry);
+scram::mef::Expression* BuildBuiltInFunctionExpression(const ParsedBuiltInFunction& parsed, scram::mef::Model* model, const ElementRegistry& registry);
+scram::mef::Expression* BuildRandomDeviateExpression(const ParsedRandomDeviate& parsed, scram::mef::Model* model, const ElementRegistry& registry);
+scram::mef::Expression* BuildNumericalOperationExpression(const ParsedNumericalOperation& parsed, scram::mef::Model* model, const ElementRegistry& registry);
+
 // Parsing functions (now separate from building)
 ParsedBasicEvent ParseBasicEvent(const Napi::Object& nodeEvent);
 ParsedGate ParseGate(const Napi::Object& nodeGate);
@@ -227,6 +250,12 @@ ParsedCCFGroup ParseCCFGroup(const Napi::Object& nodeCCF);
 ParsedFaultTree ParseFaultTree(const Napi::Object& nodeFaultTree);
 ParsedEventTree ParseEventTree(const Napi::Object& nodeEventTree);
 ParsedInitiatingEvent ParseInitiatingEvent(const Napi::Object& nodeIE);
+
+// Complex Value type parsing functions
+ParsedParameter ParseParameterValue(const Napi::Object& nodeParam);
+ParsedBuiltInFunction ParseBuiltInFunction(const Napi::Object& nodeFunction);
+ParsedRandomDeviate ParseRandomDeviate(const Napi::Object& nodeDeviate);
+ParsedNumericalOperation ParseNumericalOperation(const Napi::Object& nodeOperation);
 
 // Helper function to recursively parse gates and events from fault tree structure
 void ParseFaultTreeElements(const Napi::Object& node, 

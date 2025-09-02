@@ -1,5 +1,43 @@
 #include "ScramNodeModel.h"
 
+// Helper function to recursively parse gates and events from fault tree structure
+void ParseFaultTreeElements(const Napi::Object& node, 
+                           std::vector<ParsedGate>& parsedGates,
+                           std::vector<ParsedBasicEvent>& parsedBasicEvents,
+                           const std::string& basePath = "") {
+    
+    // If this is a gate
+    if (node.Has("type") && node.Get("type").ToString().Utf8Value() != "basic") {
+        ParsedGate gate = ParseGate(node);
+        gate.base_path = basePath;
+        parsedGates.push_back(gate);
+        
+        // Recursively parse child gates
+        if (node.Has("gates")) {
+            Napi::Array gatesArr = node.Get("gates").As<Napi::Array>();
+            for (uint32_t i = 0; i < gatesArr.Length(); ++i) {
+                Napi::Object childGateObj = gatesArr.Get(i).As<Napi::Object>();
+                ParseFaultTreeElements(childGateObj, parsedGates, parsedBasicEvents, basePath);
+            }
+        }
+        
+        // Parse child events
+        if (node.Has("events")) {
+            Napi::Array eventsArr = node.Get("events").As<Napi::Array>();
+            for (uint32_t i = 0; i < eventsArr.Length(); ++i) {
+                Napi::Object eventObj = eventsArr.Get(i).As<Napi::Object>();
+                ParseFaultTreeElements(eventObj, parsedGates, parsedBasicEvents, basePath);
+            }
+        }
+    }
+    // If this is a basic event
+    else if (node.Has("type") && node.Get("type").ToString().Utf8Value() == "basic") {
+        ParsedBasicEvent event = ParseBasicEvent(node);
+        event.base_path = basePath;
+        parsedBasicEvents.push_back(event);
+    }
+}
+
 // Step 1: Parse JSON into intermediate structures
 ParsedBasicEvent ParseBasicEvent(const Napi::Object& nodeEvent) {
     ParsedBasicEvent parsed;
@@ -422,6 +460,24 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
         }
     }
     
+    // Parse modelData (alternative format for basic events)
+    if (nodeModel.Has("modelData")) {
+        Napi::Array mdArr = nodeModel.Get("modelData").As<Napi::Array>();
+        for (uint32_t i = 0; i < mdArr.Length(); ++i) {
+            Napi::Object mdObj = mdArr.Get(i).As<Napi::Object>();
+            ParsedBasicEvent be;
+            be.name = mdObj.Get("name").ToString().Utf8Value();
+            if (mdObj.Has("description")) {
+                be.description = mdObj.Get("description").ToString().Utf8Value();
+            }
+            be.value_type = "basic";
+            if (mdObj.Has("value")) {
+                be.value = mdObj.Get("value");
+            }
+            parsedBasicEvents.push_back(be);
+        }
+    }
+    
     // Parse parameters
     if (nodeModel.Has("parameters")) {
         Napi::Array paramArr = nodeModel.Get("parameters").As<Napi::Array>();
@@ -449,12 +505,18 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
         }
     }
     
-    // Parse fault trees
+    // Parse fault trees and extract gates/events from hierarchical structure
     if (nodeModel.Has("faultTrees")) {
         Napi::Array ftArr = nodeModel.Get("faultTrees").As<Napi::Array>();
         for (uint32_t i = 0; i < ftArr.Length(); ++i) {
             Napi::Object ftObj = ftArr.Get(i).As<Napi::Object>();
             parsedFaultTrees.push_back(ParseFaultTree(ftObj));
+            
+            // Extract gates and events from the fault tree structure
+            if (ftObj.Has("topEvent")) {
+                Napi::Object topEventObj = ftObj.Get("topEvent").As<Napi::Object>();
+                ParseFaultTreeElements(topEventObj, parsedGates, parsedBasicEvents);
+            }
         }
     }
     

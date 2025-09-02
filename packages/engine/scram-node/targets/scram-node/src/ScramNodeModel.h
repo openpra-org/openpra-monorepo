@@ -228,6 +228,12 @@ ParsedFaultTree ParseFaultTree(const Napi::Object& nodeFaultTree);
 ParsedEventTree ParseEventTree(const Napi::Object& nodeEventTree);
 ParsedInitiatingEvent ParseInitiatingEvent(const Napi::Object& nodeIE);
 
+// Helper function to recursively parse gates and events from fault tree structure
+void ParseFaultTreeElements(const Napi::Object& node, 
+                           std::vector<ParsedGate>& parsedGates,
+                           std::vector<ParsedBasicEvent>& parsedBasicEvents,
+                           const std::string& basePath = "");
+
 struct EventTreeTrieNode {
     // Key: state string, Value: child node
     std::map<std::string, std::unique_ptr<EventTreeTrieNode>> children;

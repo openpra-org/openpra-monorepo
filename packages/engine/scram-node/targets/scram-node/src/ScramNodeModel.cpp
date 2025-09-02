@@ -5,6 +5,7 @@
 void ParseFaultTreeElements(const Napi::Object& node, 
                            std::vector<ParsedGate>& parsedGates,
                            std::vector<ParsedBasicEvent>& parsedBasicEvents,
+                           std::set<std::string>& seenBasicEvents,
                            const std::string& basePath) {
     
     std::string nodeName = node.Get("name").ToString().Utf8Value();
@@ -24,7 +25,7 @@ void ParseFaultTreeElements(const Napi::Object& node,
             Napi::Array gatesArr = node.Get("gates").As<Napi::Array>();
             for (uint32_t i = 0; i < gatesArr.Length(); ++i) {
                 Napi::Object childGateObj = gatesArr.Get(i).As<Napi::Object>();
-                ParseFaultTreeElements(childGateObj, parsedGates, parsedBasicEvents, basePath);
+                ParseFaultTreeElements(childGateObj, parsedGates, parsedBasicEvents, seenBasicEvents, basePath);
             }
         }
         
@@ -33,16 +34,22 @@ void ParseFaultTreeElements(const Napi::Object& node,
             Napi::Array eventsArr = node.Get("events").As<Napi::Array>();
             for (uint32_t i = 0; i < eventsArr.Length(); ++i) {
                 Napi::Object eventObj = eventsArr.Get(i).As<Napi::Object>();
-                ParseFaultTreeElements(eventObj, parsedGates, parsedBasicEvents, basePath);
+                ParseFaultTreeElements(eventObj, parsedGates, parsedBasicEvents, seenBasicEvents, basePath);
             }
         }
     }
     // If this is a basic event
     else if (node.Has("type") && node.Get("type").ToString().Utf8Value() == "basic") {
-        ParsedBasicEvent event = ParseBasicEvent(node);
-        event.base_path = basePath;
-        parsedBasicEvents.push_back(event);
-        std::cout << "    -> Added basic event: " << event.name << std::endl;
+        // Only add if we haven't seen this basic event before
+        if (seenBasicEvents.find(nodeName) == seenBasicEvents.end()) {
+            ParsedBasicEvent event = ParseBasicEvent(node);
+            event.base_path = basePath;
+            parsedBasicEvents.push_back(event);
+            seenBasicEvents.insert(nodeName);
+            std::cout << "    -> Added basic event: " << event.name << std::endl;
+        } else {
+            std::cout << "    -> Skipped duplicate basic event: " << nodeName << std::endl;
+        }
     }
 }
 
@@ -612,14 +619,15 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
             Napi::Object ftObj = ftArr.Get(i).As<Napi::Object>();
             parsedFaultTrees.push_back(ParseFaultTree(ftObj));
             
-            // Extract gates and events from the fault tree structure
-            if (ftObj.Has("topEvent")) {
-                Napi::Object topEventObj = ftObj.Get("topEvent").As<Napi::Object>();
-                std::cout << "Parsing fault tree elements from top event: " << topEventObj.Get("name").ToString().Utf8Value() << std::endl;
-                std::cout << "Starting with empty parsedGates.size() = " << parsedGates.size() << std::endl;
-                ParseFaultTreeElements(topEventObj, parsedGates, parsedBasicEvents);
-                std::cout << "After parsing, parsedGates.size() = " << parsedGates.size() << std::endl;
-            }
+                         // Extract gates and events from the fault tree structure
+             if (ftObj.Has("topEvent")) {
+                 Napi::Object topEventObj = ftObj.Get("topEvent").As<Napi::Object>();
+                 std::cout << "Parsing fault tree elements from top event: " << topEventObj.Get("name").ToString().Utf8Value() << std::endl;
+                 std::cout << "Starting with empty parsedGates.size() = " << parsedGates.size() << std::endl;
+                 std::set<std::string> seenBasicEvents;
+                 ParseFaultTreeElements(topEventObj, parsedGates, parsedBasicEvents, seenBasicEvents);
+                 std::cout << "After parsing, parsedGates.size() = " << parsedGates.size() << std::endl;
+             }
         }
     }
     

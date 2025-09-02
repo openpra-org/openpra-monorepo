@@ -146,12 +146,10 @@ struct ParsedFaultTree {
     std::vector<std::string> ccf_group_refs;
 };
 
-struct ParsedEventTree {
+struct ParsedFunctionalEvent {
     std::string name;
-    std::string description;
-    std::string initiating_event_ref;
-    std::vector<std::string> functional_event_refs;
-    std::vector<ParsedEventSequence> sequences;
+    std::string state;
+    std::string ref_gate_ref; // optional
 };
 
 struct ParsedEventSequence {
@@ -159,10 +157,12 @@ struct ParsedEventSequence {
     std::vector<ParsedFunctionalEvent> functional_events;
 };
 
-struct ParsedFunctionalEvent {
+struct ParsedEventTree {
     std::string name;
-    std::string state;
-    std::string ref_gate_ref; // optional
+    std::string description;
+    std::string initiating_event_ref;
+    std::vector<std::string> functional_event_refs;
+    std::vector<ParsedEventSequence> sequences;
 };
 
 struct ParsedInitiatingEvent {

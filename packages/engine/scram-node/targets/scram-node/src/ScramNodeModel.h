@@ -30,19 +30,19 @@ public:
     T* FindElement(const std::string& name) const {
         if constexpr (std::is_same_v<T, scram::mef::BasicEvent>) {
             auto it = basic_events_.find(name);
-            return it != basic_events_.end() ? it->second : nullptr;
+            return it != basic_events_.end() ? it->second.get() : nullptr;
         } else if constexpr (std::is_same_v<T, scram::mef::Gate>) {
             auto it = gates_.find(name);
-            return it != gates_.end() ? it->second : nullptr;
+            return it != gates_.end() ? it->second.get() : nullptr;
         } else if constexpr (std::is_same_v<T, scram::mef::Parameter>) {
             auto it = parameters_.find(name);
-            return it != parameters_.end() ? it->second : nullptr;
+            return it != parameters_.end() ? it->second.get() : nullptr;
         } else if constexpr (std::is_same_v<T, scram::mef::CcfGroup>) {
             auto it = ccf_groups_.find(name);
-            return it != ccf_groups_.end() ? it->second : nullptr;
+            return it != ccf_groups_.end() ? it->second.get() : nullptr;
         } else if constexpr (std::is_same_v<T, scram::mef::Expression>) {
             auto it = expressions_.find(name);
-            return it != expressions_.end() ? it->second : nullptr;
+            return it != expressions_.end() ? it->second.get() : nullptr;
         }
         return nullptr;
     }
@@ -50,23 +50,22 @@ public:
     // Register an element (takes ownership)
     template<typename T>
     void RegisterElement(const std::string& name, std::unique_ptr<T> element) {
-        T* ptr = element.get();
         if constexpr (std::is_same_v<T, scram::mef::BasicEvent>) {
-            basic_events_[name] = ptr;
+            basic_events_[name] = std::move(element);
         } else if constexpr (std::is_same_v<T, scram::mef::Gate>) {
-            gates_[name] = ptr;
+            gates_[name] = std::move(element);
         } else if constexpr (std::is_same_v<T, scram::mef::Parameter>) {
-            parameters_[name] = ptr;
+            parameters_[name] = std::move(element);
         } else if constexpr (std::is_same_v<T, scram::mef::CcfGroup>) {
-            ccf_groups_[name] = ptr;
+            ccf_groups_[name] = std::move(element);
         } else if constexpr (std::is_same_v<T, scram::mef::Expression>) {
-            expressions_[name] = ptr;
+            expressions_[name] = std::move(element);
         }
     }
     
     // Get all registered elements of a type
     template<typename T>
-    const std::unordered_map<std::string, T*>& GetElements() const {
+    const std::unordered_map<std::string, std::unique_ptr<T>>& GetElements() const {
         if constexpr (std::is_same_v<T, scram::mef::BasicEvent>) {
             return basic_events_;
         } else if constexpr (std::is_same_v<T, scram::mef::Gate>) {
@@ -78,7 +77,7 @@ public:
         } else if constexpr (std::is_same_v<T, scram::mef::Expression>) {
             return expressions_;
         }
-        static const std::unordered_map<std::string, T*> empty;
+        static const std::unordered_map<std::string, std::unique_ptr<T>> empty;
         return empty;
     }
     
@@ -90,13 +89,44 @@ public:
         ccf_groups_.clear();
         expressions_.clear();
     }
+    
+    // Extract all elements to transfer ownership to model
+    void ExtractAllToModel(scram::mef::Model* model) {
+        // Transfer basic events
+        for (auto& [name, element] : basic_events_) {
+            model->Add(std::move(element));
+        }
+        
+        // Transfer gates
+        for (auto& [name, element] : gates_) {
+            model->Add(std::move(element));
+        }
+        
+        // Transfer parameters
+        for (auto& [name, element] : parameters_) {
+            model->Add(std::move(element));
+        }
+        
+        // Transfer CCF groups
+        for (auto& [name, element] : ccf_groups_) {
+            model->Add(std::move(element));
+        }
+        
+        // Transfer expressions
+        for (auto& [name, element] : expressions_) {
+            model->Add(std::move(element));
+        }
+        
+        // Clear the maps (elements are now owned by the model)
+        Clear();
+    }
 
 private:
-    std::unordered_map<std::string, scram::mef::BasicEvent*> basic_events_;
-    std::unordered_map<std::string, scram::mef::Gate*> gates_;
-    std::unordered_map<std::string, scram::mef::Parameter*> parameters_;
-    std::unordered_map<std::string, scram::mef::CcfGroup*> ccf_groups_;
-    std::unordered_map<std::string, scram::mef::Expression*> expressions_;
+    std::unordered_map<std::string, std::unique_ptr<scram::mef::BasicEvent>> basic_events_;
+    std::unordered_map<std::string, std::unique_ptr<scram::mef::Gate>> gates_;
+    std::unordered_map<std::string, std::unique_ptr<scram::mef::Parameter>> parameters_;
+    std::unordered_map<std::string, std::unique_ptr<scram::mef::CcfGroup>> ccf_groups_;
+    std::unordered_map<std::string, std::unique_ptr<scram::mef::Expression>> expressions_;
 };
 
 // Intermediate parsed structures

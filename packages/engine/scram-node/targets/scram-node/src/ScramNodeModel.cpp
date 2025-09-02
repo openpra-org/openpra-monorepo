@@ -325,11 +325,6 @@ std::unique_ptr<scram::mef::CcfGroup> BuildCCFGroup(const ParsedCCFGroup& parsed
 }
 
 std::unique_ptr<scram::mef::Gate> BuildGate(const ParsedGate& parsed, scram::mef::Model* model, const ElementRegistry& registry) {
-    // Check if gate already exists
-    if (auto existing = registry.FindElement<scram::mef::Gate>(parsed.name)) {
-        return std::unique_ptr<scram::mef::Gate>(existing);
-    }
-    
     auto gate = std::make_unique<scram::mef::Gate>(parsed.name, parsed.base_path, scram::mef::RoleSpecifier::kPublic);
     
     if (!parsed.description.empty()) {
@@ -575,8 +570,8 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
         model->Add(std::move(ie));
     }
     
-    // Clear registry after model is built
-    registry.Clear();
+    // Transfer all elements from registry to model
+    registry.ExtractAllToModel(model.get());
     
     return model;
 }

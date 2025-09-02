@@ -1,4 +1,5 @@
 #include "ScramNodeModel.h"
+#include <iostream>
 
 // Helper function to recursively parse gates and events from fault tree structure
 void ParseFaultTreeElements(const Napi::Object& node, 

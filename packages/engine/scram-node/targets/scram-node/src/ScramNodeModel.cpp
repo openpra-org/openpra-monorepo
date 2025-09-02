@@ -4,7 +4,7 @@
 void ParseFaultTreeElements(const Napi::Object& node, 
                            std::vector<ParsedGate>& parsedGates,
                            std::vector<ParsedBasicEvent>& parsedBasicEvents,
-                           const std::string& basePath = "") {
+                           const std::string& basePath) {
     
     // If this is a gate
     if (node.Has("type") && node.Get("type").ToString().Utf8Value() != "basic") {

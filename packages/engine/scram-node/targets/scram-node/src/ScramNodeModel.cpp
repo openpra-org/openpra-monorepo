@@ -11,14 +11,14 @@ void ParseFaultTreeElements(const Napi::Object& node,
     std::string nodeName = node.Get("name").ToString().Utf8Value();
     std::string nodeType = node.Has("type") ? node.Get("type").ToString().Utf8Value() : "unknown";
     
-    std::cout << "  Parsing node: " << nodeName << " (type: " << nodeType << ")" << std::endl;
+    // std::cout << "  Parsing node: " << nodeName << " (type: " << nodeType << ")" << std::endl;
     
     // If this is a gate
     if (node.Has("type") && node.Get("type").ToString().Utf8Value() != "basic") {
         ParsedGate gate = ParseGate(node);
         gate.base_path = basePath;
         parsedGates.push_back(gate);
-        std::cout << "    -> Added gate: " << gate.name << " with " << gate.gate_refs.size() << " gate refs and " << gate.event_refs.size() << " event refs" << std::endl;
+        // std::cout << "    -> Added gate: " << gate.name << " with " << gate.gate_refs << " gate refs and " << gate.event_refs.size() << " event refs" << std::endl;
         
         // Recursively parse child gates
         if (node.Has("gates")) {
@@ -46,7 +46,7 @@ void ParseFaultTreeElements(const Napi::Object& node,
             event.base_path = basePath;
             parsedBasicEvents.push_back(event);
             seenBasicEvents.insert(nodeName);
-            std::cout << "    -> Added basic event: " << event.name << std::endl;
+            // std::cout << "    -> Added basic event: " << event.name << std::endl;
         } else {
             std::cout << "    -> Skipped duplicate basic event: " << nodeName << std::endl;
         }
@@ -579,8 +579,8 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
                 be.systemMissionTime = mdObj.Get("systemMissionTime").ToNumber().DoubleValue();
             }
             parsedBasicEvents.push_back(be);
-            std::cout << "  Added basic event from modelData: " << be.name << std::endl;
         }
+        std::cout << "  Added " << mdArr.Length() << " basic events from modelData" << std::endl;
     }
     
     // Parse parameters
@@ -623,10 +623,9 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
              if (ftObj.Has("topEvent")) {
                  Napi::Object topEventObj = ftObj.Get("topEvent").As<Napi::Object>();
                  std::cout << "Parsing fault tree elements from top event: " << topEventObj.Get("name").ToString().Utf8Value() << std::endl;
-                 std::cout << "Starting with empty parsedGates.size() = " << parsedGates.size() << std::endl;
                  std::set<std::string> seenBasicEvents;
                  ParseFaultTreeElements(topEventObj, parsedGates, parsedBasicEvents, seenBasicEvents);
-                 std::cout << "After parsing, parsedGates.size() = " << parsedGates.size() << std::endl;
+                 std::cout << "Extracted " << parsedGates.size() << " gates from fault tree structure" << std::endl;
              }
         }
     }
@@ -651,37 +650,37 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
     
     // Summary of parsing phase
     std::cout << "=== PARSING PHASE COMPLETE ===" << std::endl;
-    std::cout << "Parsed " << parsedBasicEvents.size() << " basic events" << std::endl;
-    std::cout << "Parsed " << parsedGates.size() << " gates" << std::endl;
-    std::cout << "Parsed " << parsedParameters.size() << " parameters" << std::endl;
-    std::cout << "Parsed " << parsedCCFGroups.size() << " CCF groups" << std::endl;
-    std::cout << "Parsed " << parsedFaultTrees.size() << " fault trees" << std::endl;
-    std::cout << "Parsed " << parsedEventTrees.size() << " event trees" << std::endl;
-    std::cout << "Parsed " << parsedInitiatingEvents.size() << " initiating events" << std::endl;
+    std::cout << "Parsed: " << parsedBasicEvents.size() << " basic events, " 
+              << parsedGates.size() << " gates, " << parsedFaultTrees.size() << " fault trees" << std::endl;
     
     // Phase 2: Build SCRAM elements in dependency order
     // First, build basic events and parameters (no dependencies)
     std::cout << "=== PHASE 2: Building Basic Elements ===" << std::endl;
-    std::cout << "Total parsed basic events: " << parsedBasicEvents.size() << std::endl;
-    std::cout << "Total parsed gates: " << parsedGates.size() << std::endl;
-    std::cout << "Total parsed parameters: " << parsedParameters.size() << std::endl;
-    
     std::cout << "Building " << parsedBasicEvents.size() << " basic events..." << std::endl;
     for (const auto& parsed : parsedBasicEvents) {
-        std::cout << "Building basic event: " << parsed.name << std::endl;
+        // std::cout << "Building basic event: " << parsed.name << std::endl;
         auto be = BuildBasicEvent(parsed, model.get(), registry);
         registry.RegisterElement(parsed.name, std::move(be));
     }
+    std::cout << "  ✓ Basic events built successfully" << std::endl;
     
-    for (const auto& parsed : parsedParameters) {
-        auto param = BuildParameter(parsed, model.get(), registry);
-        registry.RegisterElement(parsed.name, std::move(param));
+    if (!parsedParameters.empty()) {
+        std::cout << "Building " << parsedParameters.size() << " parameters..." << std::endl;
+        for (const auto& parsed : parsedParameters) {
+            auto param = BuildParameter(parsed, model.get(), registry);
+            registry.RegisterElement(parsed.name, std::move(param));
+        }
+        std::cout << "  ✓ Parameters built successfully" << std::endl;
     }
     
     // Then build CCF groups
-    for (const auto& parsed : parsedCCFGroups) {
-        auto ccf = BuildCCFGroup(parsed, model.get(), registry);
-        registry.RegisterElement(parsed.name, std::move(ccf));
+    if (!parsedCCFGroups.empty()) {
+        std::cout << "Building " << parsedCCFGroups.size() << " CCF groups..." << std::endl;
+        for (const auto& parsed : parsedCCFGroups) {
+            auto ccf = BuildCCFGroup(parsed, model.get(), registry);
+            registry.RegisterElement(parsed.name, std::move(ccf));
+        }
+        std::cout << "  ✓ CCF groups built successfully" << std::endl;
     }
     
     // Phase 3: Build gates with complete formulas in dependency order
@@ -689,23 +688,10 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
     std::cout << "Building " << parsedGates.size() << " gates in dependency order..." << std::endl;
     
     // Show what's available in the registry
-    std::cout << "Available basic events in registry:" << std::endl;
-    const auto& basicEvents = registry.GetElements<scram::mef::BasicEvent>();
-    for (const auto& [name, event] : basicEvents) {
-        std::cout << "  - " << name << std::endl;
-    }
+    std::cout << "Available basic events in registry: " << registry.GetElements<scram::mef::BasicEvent>().size() << " events" << std::endl;
     
-    // Print dependency information
-    for (const auto& gate : parsedGates) {
-        std::cout << "Gate " << gate.name << " depends on: ";
-        for (const auto& gateRef : gate.gate_refs) {
-            std::cout << "gate:" << gateRef << " ";
-        }
-        for (const auto& eventRef : gate.event_refs) {
-            std::cout << "event:" << eventRef << " ";
-        }
-        std::cout << std::endl;
-    }
+    // Print dependency information (summary)
+    std::cout << "Gate dependencies: " << parsedGates.size() << " gates to build" << std::endl;
     
     // Build gates in dependency order using topological sort
     std::vector<ParsedGate> remainingGates = parsedGates;
@@ -714,22 +700,18 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
     
     while (!remainingGates.empty()) {
         iteration++;
-        std::cout << "--- Iteration " << iteration << " ---" << std::endl;
-        std::cout << "Remaining gates: " << remainingGates.size() << std::endl;
+        std::cout << "Iteration " << iteration << ": " << remainingGates.size() << " gates remaining" << std::endl;
         
         bool progressMade = false;
         std::vector<ParsedGate> stillRemaining;
         
         for (const auto& parsed : remainingGates) {
-            std::cout << "  Checking gate " << parsed.name << "..." << std::endl;
-            
             // Check if all child gates and events are available
             bool allDependenciesAvailable = true;
             
             // Check child gates
             for (const auto& gateRef : parsed.gate_refs) {
                 if (builtGateNames.find(gateRef) == builtGateNames.end()) {
-                    std::cout << "    Gate " << parsed.name << " missing gate dependency: " << gateRef << std::endl;
                     allDependenciesAvailable = false;
                     break;
                 }
@@ -738,7 +720,6 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
             // Check child events
             for (const auto& eventRef : parsed.event_refs) {
                 if (!registry.FindElement<scram::mef::BasicEvent>(eventRef)) {
-                    std::cout << "    Gate " << parsed.name << " missing event dependency: " << eventRef << std::endl;
                     allDependenciesAvailable = false;
                     break;
                 }
@@ -746,7 +727,6 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
             
             if (allDependenciesAvailable) {
                 // Build gate with complete formula
-                std::cout << "    Building gate " << parsed.name << " (dependencies satisfied)" << std::endl;
                 auto gate = BuildGateWithFormula(parsed, model.get(), registry);
                 registry.RegisterElement(parsed.name, std::move(gate));
                 builtGateNames.insert(parsed.name);
@@ -769,45 +749,128 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
         remainingGates = std::move(stillRemaining);
     }
     
-    std::cout << "All gates built successfully in " << iteration << " iterations!" << std::endl;
+    std::cout << "All " << parsedGates.size() << " gates built successfully in " << iteration << " iterations!" << std::endl;
     
     // Phase 4: Resolve CCF group members
-    for (const auto& parsed : parsedCCFGroups) {
-        auto ccf = registry.FindElement<scram::mef::CcfGroup>(parsed.name);
-        if (ccf) {
-            for (const auto& memberRef : parsed.member_refs) {
-                auto member = registry.FindElement<scram::mef::BasicEvent>(memberRef);
-                if (member) {
-                    ccf->AddMember(member);
-                } else {
-                    throw std::runtime_error("CCF group member not found: " + memberRef);
+    if (!parsedCCFGroups.empty()) {
+        std::cout << "Resolving CCF group members..." << std::endl;
+        for (const auto& parsed : parsedCCFGroups) {
+            auto ccf = registry.FindElement<scram::mef::CcfGroup>(parsed.name);
+            if (ccf) {
+                for (const auto& memberRef : parsed.member_refs) {
+                    auto member = registry.FindElement<scram::mef::BasicEvent>(memberRef);
+                    if (member) {
+                        ccf->AddMember(member);
+                    } else {
+                        throw std::runtime_error("CCF group member not found: " + memberRef);
+                    }
                 }
             }
         }
+        std::cout << "  ✓ CCF group members resolved successfully" << std::endl;
     }
     
     // Phase 5: Build fault trees and event trees with resolved references
-    for (const auto& parsed : parsedFaultTrees) {
-        auto ft = ScramNodeFaultTree(parsed, model.get(), registry);
-        ft->CollectTopEvents();
-        model->Add(std::move(ft));
+    if (!parsedFaultTrees.empty()) {
+        std::cout << "Building " << parsedFaultTrees.size() << " fault trees..." << std::endl;
+        for (const auto& parsed : parsedFaultTrees) {
+            auto ft = ScramNodeFaultTree(parsed, model.get(), registry);
+            ft->CollectTopEvents();
+            model->Add(std::move(ft));
+        }
+        std::cout << "  ✓ Fault trees built successfully" << std::endl;
     }
     
-    for (const auto& parsed : parsedEventTrees) {
-        auto et = ScramNodeEventTree(parsed, model.get(), registry);
-        model->Add(std::move(et));
+    if (!parsedEventTrees.empty()) {
+        std::cout << "Building " << parsedEventTrees.size() << " event trees..." << std::endl;
+        for (const auto& parsed : parsedEventTrees) {
+            auto et = ScramNodeEventTree(parsed, model.get(), registry);
+            model->Add(std::move(et));
+        }
+        std::cout << "  ✓ Event trees built successfully" << std::endl;
     }
     
     // Phase 6: Build initiating events
-    for (const auto& parsed : parsedInitiatingEvents) {
-        auto ie = ScramNodeInitiatingEvent(parsed, model.get());
-        model->Add(std::move(ie));
+    if (!parsedInitiatingEvents.empty()) {
+        std::cout << "Building " << parsedInitiatingEvents.size() << " initiating events..." << std::endl;
+        for (const auto& parsed : parsedInitiatingEvents) {
+            auto ie = ScramNodeInitiatingEvent(parsed, model.get());
+            model->Add(std::move(ie));
+        }
+        std::cout << "  ✓ Initiating events built successfully" << std::endl;
     }
     
     // Transfer all elements from registry to model
+    std::cout << "Finalizing model..." << std::endl;
     registry.ExtractAllToModel(model.get());
     
+    std::cout << "=== MODEL BUILDING COMPLETE ===" << std::endl;
+    std::cout << "Final model contains: " << model->basic_events().size() << " basic events, " 
+              << model->gates().size() << " gates, " << model->fault_trees().size() << " fault trees" << std::endl;
+    
     return model;
+}
+
+// New function: Build model and return summary info without running analysis
+Napi::Value BuildModelOnly(const Napi::CallbackInfo& info) {
+    Napi::Env env = info.Env();
+    if (info.Length() < 1) {
+        Napi::TypeError::New(env, "Model object is required").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+    if (!info[0].IsObject()) {
+        Napi::TypeError::New(env, "Model object required").ThrowAsJavaScriptException();
+        return env.Null();
+    }
+
+    Napi::Object nodeModel = info[0].As<Napi::Object>();
+    
+    try {
+        // Build the model (this will show the diagnostic output)
+        auto model = ScramNodeModel(nodeModel);
+        
+        // Create a summary object to return
+        Napi::Object summary = Napi::Object::New(env);
+        
+        // Get model statistics
+        summary.Set("totalBasicEvents", model->basic_events().size());
+        summary.Set("totalGates", model->gates().size());
+        summary.Set("totalFaultTrees", model->fault_trees().size());
+        summary.Set("totalParameters", model->parameters().size());
+        summary.Set("totalCCFGroups", model->ccf_groups().size());
+        
+        // Get basic event names
+        Napi::Array basicEventNames = Napi::Array::New(env);
+        int i = 0;
+        for (const auto& event : model->basic_events()) {
+            basicEventNames.Set(i++, event->name());
+        }
+        summary.Set("basicEventNames", basicEventNames);
+        
+        // Get gate names
+        Napi::Array gateNames = Napi::Array::New(env);
+        i = 0;
+        for (const auto& gate : model->gates()) {
+            gateNames.Set(i++, gate->name());
+        }
+        summary.Set("gateNames", gateNames);
+        
+        // Get fault tree names
+        Napi::Array faultTreeNames = Napi::Array::New(env);
+        i = 0;
+        for (const auto& ft : model->fault_trees()) {
+            faultTreeNames.Set(i++, ft->name());
+        }
+        summary.Set("faultTreeNames", faultTreeNames);
+        
+        summary.Set("message", "Model built successfully! Use QuantifyModel() to run analysis.");
+        
+        return summary;
+        
+    } catch (const std::exception& e) {
+        Napi::Error::New(env, std::string("Failed to build model: ") + e.what()).ThrowAsJavaScriptException();
+        return env.Null();
+    }
 }
 
 // FaultTree building with resolved references

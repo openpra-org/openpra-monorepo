@@ -22,6 +22,9 @@
 // Forward declarations: recursive helpers for Model
 std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel);
 
+// New function: Build model and return summary info without running analysis
+Napi::Object BuildModelOnly(const Napi::CallbackInfo& info);
+
 // Element Registry for tracking parsed elements
 class ElementRegistry {
 public:

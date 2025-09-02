@@ -4,8 +4,7 @@
 // Helper function to recursively parse gates and events from fault tree structure
 void ParseFaultTreeElements(const Napi::Object& node, 
                            std::vector<ParsedGate>& parsedGates,
-                           std::vector<ParsedBasicEvent>& parsedBasicEvents,
-                           std::set<std::string>& seenBasicEvents,
+                           std::vector<ParsedBasicEvent>& parsedBasicEvents,                           std::set<std::string>& seenBasicEvents,
                            const std::string& basePath) {
     
     std::string nodeName = node.Get("name").ToString().Utf8Value();
@@ -843,7 +842,7 @@ Napi::Value BuildModelOnly(const Napi::CallbackInfo& info) {
         Napi::Array basicEventNames = Napi::Array::New(env);
         int i = 0;
         for (const auto& event : model->basic_events()) {
-            basicEventNames.Set(i++, event->name());
+            basicEventNames.Set(i++, event.name());
         }
         summary.Set("basicEventNames", basicEventNames);
         
@@ -851,7 +850,7 @@ Napi::Value BuildModelOnly(const Napi::CallbackInfo& info) {
         Napi::Array gateNames = Napi::Array::New(env);
         i = 0;
         for (const auto& gate : model->gates()) {
-            gateNames.Set(i++, gate->name());
+            gateNames.Set(i++, gate.name());
         }
         summary.Set("gateNames", gateNames);
         
@@ -859,7 +858,7 @@ Napi::Value BuildModelOnly(const Napi::CallbackInfo& info) {
         Napi::Array faultTreeNames = Napi::Array::New(env);
         i = 0;
         for (const auto& ft : model->fault_trees()) {
-            faultTreeNames.Set(i++, ft->name());
+            faultTreeNames.Set(i++, ft.name());
         }
         summary.Set("faultTreeNames", faultTreeNames);
         

@@ -393,6 +393,52 @@ std::unique_ptr<scram::mef::Gate> BuildGate(const ParsedGate& parsed, scram::mef
     return gate;
 }
 
+std::unique_ptr<scram::mef::Gate> BuildGateWithFormula(const ParsedGate& parsed, scram::mef::Model* model, const ElementRegistry& registry) {
+    auto gate = std::make_unique<scram::mef::Gate>(parsed.name, parsed.base_path, scram::mef::RoleSpecifier::kPublic);
+    
+    if (!parsed.description.empty()) {
+        gate->label(parsed.description);
+    }
+    
+    // Build complete formula with all arguments resolved
+    scram::mef::Connective type = ScramNodeGateType(parsed.type);
+    scram::mef::Formula::ArgSet argSet;
+    
+    // Add child gates
+    for (const auto& gateRef : parsed.gate_refs) {
+        auto childGate = registry.FindElement<scram::mef::Gate>(gateRef);
+        if (childGate) {
+            argSet.Add(childGate);
+        } else {
+            throw std::runtime_error("Child gate not found: " + gateRef);
+        }
+    }
+    
+    // Add child events
+    for (const auto& eventRef : parsed.event_refs) {
+        auto event = registry.FindElement<scram::mef::BasicEvent>(eventRef);
+        if (event) {
+            argSet.Add(event);
+        } else {
+            throw std::runtime_error("Child event not found: " + eventRef);
+        }
+    }
+    
+    // Validate that we have at least 2 arguments (SCRAM requirement)
+    if (argSet.size() < 2) {
+        throw std::runtime_error("Gate " + parsed.name + " must have at least 2 arguments, but has " + std::to_string(argSet.size()));
+    }
+    
+    // Build formula with proper min/max numbers and resolved arguments
+    std::optional<int> min_number = parsed.min_number;
+    std::optional<int> max_number = parsed.max_number;
+    
+    auto formula = std::make_unique<scram::mef::Formula>(type, std::move(argSet), min_number, max_number);
+    gate->formula(std::move(formula));
+    
+    return gate;
+}
+
 // Expression builder for complex Value types
 scram::mef::Expression* BuildExpression(const Napi::Value& nodeValue, scram::mef::Model* model, const ElementRegistry& registry, const std::string& basePath) {
     if (nodeValue.IsBoolean()) {
@@ -597,14 +643,39 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
         registry.RegisterElement(parsed.name, std::move(ccf));
     }
     
-    // Then build gates (may depend on other gates and events)
+    // Phase 3: Build gates with complete formulas (all arguments must be available)
     for (const auto& parsed : parsedGates) {
-        auto gate = BuildGate(parsed, model.get(), registry);
-        registry.RegisterElement(parsed.name, std::move(gate));
+        // Check if all child gates and events are available
+        bool allDependenciesAvailable = true;
+        
+        // Check child gates
+        for (const auto& gateRef : parsed.gate_refs) {
+            if (!registry.FindElement<scram::mef::Gate>(gateRef)) {
+                allDependenciesAvailable = false;
+                break;
+            }
+        }
+        
+        // Check child events
+        for (const auto& eventRef : parsed.event_refs) {
+            if (!registry.FindElement<scram::mef::BasicEvent>(eventRef)) {
+                allDependenciesAvailable = false;
+                break;
+            }
+        }
+        
+        if (allDependenciesAvailable) {
+            // Build gate with complete formula
+            auto gate = BuildGateWithFormula(parsed, model.get(), registry);
+            registry.RegisterElement(parsed.name, std::move(gate));
+        } else {
+            // Store for later processing
+            // This shouldn't happen with proper dependency ordering, but just in case
+            throw std::runtime_error("Gate " + parsed.name + " has unresolved dependencies");
+        }
     }
     
-    // Phase 3: Resolve all references and build complete model
-    // Resolve CCF group members
+    // Phase 4: Resolve CCF group members
     for (const auto& parsed : parsedCCFGroups) {
         auto ccf = registry.FindElement<scram::mef::CcfGroup>(parsed.name);
         if (ccf) {
@@ -619,43 +690,7 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
         }
     }
     
-    // Resolve gate arguments and build complete formulas
-    for (const auto& parsed : parsedGates) {
-        auto gate = registry.FindElement<scram::mef::Gate>(parsed.name);
-        if (gate) {
-            scram::mef::Formula::ArgSet argSet;
-            
-            // Add child gates
-            for (const auto& gateRef : parsed.gate_refs) {
-                auto childGate = registry.FindElement<scram::mef::Gate>(gateRef);
-                if (childGate) {
-                    argSet.Add(childGate);
-                } else {
-                    throw std::runtime_error("Child gate not found: " + gateRef);
-                }
-            }
-            
-            // Add child events
-            for (const auto& eventRef : parsed.event_refs) {
-                auto event = registry.FindElement<scram::mef::BasicEvent>(eventRef);
-                if (event) {
-                    argSet.Add(event);
-                } else {
-                    throw std::runtime_error("Child event not found: " + eventRef);
-                }
-            }
-            
-            // Rebuild formula with resolved arguments
-            scram::mef::Connective type = ScramNodeGateType(parsed.type);
-            std::optional<int> min_number = parsed.min_number;
-            std::optional<int> max_number = parsed.max_number;
-            
-            auto formula = std::make_unique<scram::mef::Formula>(type, std::move(argSet), min_number, max_number);
-            gate->formula(std::move(formula));
-        }
-    }
-    
-    // Phase 4: Build fault trees and event trees with resolved references
+    // Phase 5: Build fault trees and event trees with resolved references
     for (const auto& parsed : parsedFaultTrees) {
         auto ft = ScramNodeFaultTree(parsed, model.get(), registry);
         ft->CollectTopEvents();
@@ -667,7 +702,7 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
         model->Add(std::move(et));
     }
     
-    // Phase 5: Build initiating events
+    // Phase 6: Build initiating events
     for (const auto& parsed : parsedInitiatingEvents) {
         auto ie = ScramNodeInitiatingEvent(parsed, model.get());
         model->Add(std::move(ie));

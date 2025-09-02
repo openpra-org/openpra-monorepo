@@ -228,6 +228,7 @@ std::unique_ptr<scram::mef::FaultTree> ScramNodeFaultTree(const ParsedFaultTree&
 
 // Element builders (now separate from parsing)
 std::unique_ptr<scram::mef::Gate> BuildGate(const ParsedGate& parsed, scram::mef::Model* model, const ElementRegistry& registry);
+std::unique_ptr<scram::mef::Gate> BuildGateWithFormula(const ParsedGate& parsed, scram::mef::Model* model, const ElementRegistry& registry);
 std::unique_ptr<scram::mef::BasicEvent> BuildBasicEvent(const ParsedBasicEvent& parsed, scram::mef::Model* model, const ElementRegistry& registry);
 std::unique_ptr<scram::mef::HouseEvent> BuildHouseEvent(const ParsedBasicEvent& parsed, scram::mef::Model* model, const ElementRegistry& registry);
 std::unique_ptr<scram::mef::Parameter> BuildParameter(const ParsedParameter& parsed, scram::mef::Model* model, const ElementRegistry& registry);

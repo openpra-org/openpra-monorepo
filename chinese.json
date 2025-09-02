@@ -1,0 +1,640 @@
+chinese.xml
+chinese.xml(text/xml) - 6364 bytes, last modified: 8/30/2025 - 100% done
+Saving chinese.xml to chinese.xml
+export const model: Model = {
+  "name": "chinese",
+  "description": "",
+  "eventTrees": [],
+  "faultTrees": [
+    {
+      "name": "chinese",
+      "description": "",
+      "topEvent": {
+        "name": "r1",
+        "type": "and",
+        "gates": [
+          {
+            "name": "g1",
+            "type": "or",
+            "gates": [
+              {
+                "name": "g3",
+                "type": "and",
+                "gates": [
+                  {
+                    "name": "g7",
+                    "type": "or",
+                    "gates": [],
+                    "events": [
+                      {
+                        "name": "e12",
+                        "type": "basic"
+                      },
+                      {
+                        "name": "e13",
+                        "type": "basic"
+                      }
+                    ]
+                  },
+                  {
+                    "name": "g6",
+                    "type": "or",
+                    "gates": [
+                      {
+                        "name": "g10",
+                        "type": "and",
+                        "gates": [
+                          {
+                            "name": "g16",
+                            "type": "or",
+                            "gates": [],
+                            "events": [
+                              {
+                                "name": "e20",
+                                "type": "basic"
+                              },
+                              {
+                                "name": "e19",
+                                "type": "basic"
+                              },
+                              {
+                                "name": "e21",
+                                "type": "basic"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "g15",
+                            "type": "or",
+                            "gates": [],
+                            "events": [
+                              {
+                                "name": "e18",
+                                "type": "basic"
+                              },
+                              {
+                                "name": "e17",
+                                "type": "basic"
+                              }
+                            ]
+                          }
+                        ],
+                        "events": []
+                      }
+                    ],
+                    "events": [
+                      {
+                        "name": "e10",
+                        "type": "basic"
+                      },
+                      {
+                        "name": "e9",
+                        "type": "basic"
+                      },
+                      {
+                        "name": "e11",
+                        "type": "basic"
+                      }
+                    ]
+                  }
+                ],
+                "events": []
+              }
+            ],
+            "events": [
+              {
+                "name": "e1",
+                "type": "basic"
+              },
+              {
+                "name": "e2",
+                "type": "basic"
+              },
+              {
+                "name": "e3",
+                "type": "basic"
+              }
+            ]
+          },
+          {
+            "name": "g2",
+            "type": "and",
+            "gates": [
+              {
+                "name": "g5",
+                "type": "or",
+                "gates": [
+                  {
+                    "name": "g9",
+                    "type": "and",
+                    "gates": [
+                      {
+                        "name": "g13",
+                        "type": "or",
+                        "gates": [
+                          {
+                            "name": "g20",
+                            "type": "and",
+                            "gates": [
+                              {
+                                "name": "g24",
+                                "type": "or",
+                                "gates": [
+                                  {
+                                    "name": "g28",
+                                    "type": "and",
+                                    "gates": [
+                                      {
+                                        "name": "g32",
+                                        "type": "or",
+                                        "gates": [],
+                                        "events": [
+                                          {
+                                            "name": "e18",
+                                            "type": "basic"
+                                          },
+                                          {
+                                            "name": "e17",
+                                            "type": "basic"
+                                          },
+                                          {
+                                            "name": "e21",
+                                            "type": "basic"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "name": "g33",
+                                        "type": "or",
+                                        "gates": [],
+                                        "events": [
+                                          {
+                                            "name": "e20",
+                                            "type": "basic"
+                                          },
+                                          {
+                                            "name": "e19",
+                                            "type": "basic"
+                                          }
+                                        ]
+                                      }
+                                    ],
+                                    "events": []
+                                  }
+                                ],
+                                "events": [
+                                  {
+                                    "name": "e14",
+                                    "type": "basic"
+                                  },
+                                  {
+                                    "name": "e15",
+                                    "type": "basic"
+                                  },
+                                  {
+                                    "name": "e16",
+                                    "type": "basic"
+                                  }
+                                ]
+                              },
+                              {
+                                "name": "g25",
+                                "type": "and",
+                                "gates": [
+                                  {
+                                    "name": "g29",
+                                    "type": "or",
+                                    "gates": [],
+                                    "events": [
+                                      {
+                                        "name": "e22",
+                                        "type": "basic"
+                                      },
+                                      {
+                                        "name": "e23",
+                                        "type": "basic"
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "name": "g30",
+                                    "type": "or",
+                                    "gates": [],
+                                    "events": [
+                                      {
+                                        "name": "e24",
+                                        "type": "basic"
+                                      },
+                                      {
+                                        "name": "e25",
+                                        "type": "basic"
+                                      }
+                                    ]
+                                  }
+                                ],
+                                "events": []
+                              }
+                            ],
+                            "events": []
+                          }
+                        ],
+                        "events": [
+                          {
+                            "name": "e1",
+                            "type": "basic"
+                          },
+                          {
+                            "name": "e2",
+                            "type": "basic"
+                          },
+                          {
+                            "name": "e3",
+                            "type": "basic"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "g14",
+                        "type": "or",
+                        "gates": [
+                          {
+                            "name": "g21",
+                            "type": "and",
+                            "gates": [
+                              {
+                                "name": "g26",
+                                "type": "or",
+                                "gates": [
+                                  {
+                                    "name": "g31",
+                                    "type": "and",
+                                    "gates": [
+                                      {
+                                        "name": "g34",
+                                        "type": "or",
+                                        "gates": [],
+                                        "events": [
+                                          {
+                                            "name": "e20",
+                                            "type": "basic"
+                                          },
+                                          {
+                                            "name": "e19",
+                                            "type": "basic"
+                                          },
+                                          {
+                                            "name": "e21",
+                                            "type": "basic"
+                                          }
+                                        ]
+                                      },
+                                      {
+                                        "name": "g35",
+                                        "type": "or",
+                                        "gates": [],
+                                        "events": [
+                                          {
+                                            "name": "e18",
+                                            "type": "basic"
+                                          },
+                                          {
+                                            "name": "e17",
+                                            "type": "basic"
+                                          }
+                                        ]
+                                      }
+                                    ],
+                                    "events": []
+                                  }
+                                ],
+                                "events": [
+                                  {
+                                    "name": "e10",
+                                    "type": "basic"
+                                  },
+                                  {
+                                    "name": "e9",
+                                    "type": "basic"
+                                  },
+                                  {
+                                    "name": "e11",
+                                    "type": "basic"
+                                  }
+                                ]
+                              },
+                              {
+                                "name": "g27",
+                                "type": "or",
+                                "gates": [],
+                                "events": [
+                                  {
+                                    "name": "e12",
+                                    "type": "basic"
+                                  },
+                                  {
+                                    "name": "e13",
+                                    "type": "basic"
+                                  }
+                                ]
+                              }
+                            ],
+                            "events": []
+                          }
+                        ],
+                        "events": [
+                          {
+                            "name": "e5",
+                            "type": "basic"
+                          },
+                          {
+                            "name": "e7",
+                            "type": "basic"
+                          },
+                          {
+                            "name": "e4",
+                            "type": "basic"
+                          },
+                          {
+                            "name": "e6",
+                            "type": "basic"
+                          }
+                        ]
+                      }
+                    ],
+                    "events": []
+                  }
+                ],
+                "events": [
+                  {
+                    "name": "e8",
+                    "type": "basic"
+                  }
+                ]
+              },
+              {
+                "name": "g4",
+                "type": "or",
+                "gates": [
+                  {
+                    "name": "g8",
+                    "type": "and",
+                    "gates": [
+                      {
+                        "name": "g11",
+                        "type": "or",
+                        "gates": [
+                          {
+                            "name": "g17",
+                            "type": "and",
+                            "gates": [
+                              {
+                                "name": "g22",
+                                "type": "or",
+                                "gates": [],
+                                "events": [
+                                  {
+                                    "name": "e18",
+                                    "type": "basic"
+                                  },
+                                  {
+                                    "name": "e17",
+                                    "type": "basic"
+                                  },
+                                  {
+                                    "name": "e21",
+                                    "type": "basic"
+                                  }
+                                ]
+                              },
+                              {
+                                "name": "g23",
+                                "type": "or",
+                                "gates": [],
+                                "events": [
+                                  {
+                                    "name": "e20",
+                                    "type": "basic"
+                                  },
+                                  {
+                                    "name": "e19",
+                                    "type": "basic"
+                                  }
+                                ]
+                              }
+                            ],
+                            "events": []
+                          }
+                        ],
+                        "events": [
+                          {
+                            "name": "e14",
+                            "type": "basic"
+                          },
+                          {
+                            "name": "e15",
+                            "type": "basic"
+                          },
+                          {
+                            "name": "e16",
+                            "type": "basic"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "g12",
+                        "type": "and",
+                        "gates": [
+                          {
+                            "name": "g18",
+                            "type": "or",
+                            "gates": [],
+                            "events": [
+                              {
+                                "name": "e22",
+                                "type": "basic"
+                              },
+                              {
+                                "name": "e23",
+                                "type": "basic"
+                              }
+                            ]
+                          },
+                          {
+                            "name": "g19",
+                            "type": "or",
+                            "gates": [],
+                            "events": [
+                              {
+                                "name": "e24",
+                                "type": "basic"
+                              },
+                              {
+                                "name": "e25",
+                                "type": "basic"
+                              }
+                            ]
+                          }
+                        ],
+                        "events": []
+                      }
+                    ],
+                    "events": []
+                  }
+                ],
+                "events": [
+                  {
+                    "name": "e5",
+                    "type": "basic"
+                  },
+                  {
+                    "name": "e7",
+                    "type": "basic"
+                  },
+                  {
+                    "name": "e4",
+                    "type": "basic"
+                  },
+                  {
+                    "name": "e6",
+                    "type": "basic"
+                  }
+                ]
+              }
+            ],
+            "events": []
+          }
+        ],
+        "events": []
+      },
+      "ccfGroups": []
+    }
+  ],
+  "ccfGroups": [],
+  "modelData": [
+    {
+      "name": "e1",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e2",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e3",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e4",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e5",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e6",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e7",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e8",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e9",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e10",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e11",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e12",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e13",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e14",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e15",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e16",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e17",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e18",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e19",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e20",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e21",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e22",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e23",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e24",
+      "description": "",
+      "value": 0.01
+    },
+    {
+      "name": "e25",
+      "description": "",
+      "value": 0.01
+    }
+  ]
+};

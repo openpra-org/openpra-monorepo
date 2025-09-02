@@ -6,11 +6,17 @@ void ParseFaultTreeElements(const Napi::Object& node,
                            std::vector<ParsedBasicEvent>& parsedBasicEvents,
                            const std::string& basePath) {
     
+    std::string nodeName = node.Get("name").ToString().Utf8Value();
+    std::string nodeType = node.Has("type") ? node.Get("type").ToString().Utf8Value() : "unknown";
+    
+    std::cout << "  Parsing node: " << nodeName << " (type: " << nodeType << ")" << std::endl;
+    
     // If this is a gate
     if (node.Has("type") && node.Get("type").ToString().Utf8Value() != "basic") {
         ParsedGate gate = ParseGate(node);
         gate.base_path = basePath;
         parsedGates.push_back(gate);
+        std::cout << "    -> Added gate: " << gate.name << " with " << gate.gate_refs.size() << " gate refs and " << gate.event_refs.size() << " event refs" << std::endl;
         
         // Recursively parse child gates
         if (node.Has("gates")) {
@@ -35,6 +41,7 @@ void ParseFaultTreeElements(const Napi::Object& node,
         ParsedBasicEvent event = ParseBasicEvent(node);
         event.base_path = basePath;
         parsedBasicEvents.push_back(event);
+        std::cout << "    -> Added basic event: " << event.name << std::endl;
     }
 }
 
@@ -538,6 +545,7 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
     // Parse basic events
     if (nodeModel.Has("basicEvents")) {
         Napi::Array beArr = nodeModel.Get("basicEvents").As<Napi::Array>();
+        std::cout << "Found " << beArr.Length() << " items in basicEvents" << std::endl;
         for (uint32_t i = 0; i < beArr.Length(); ++i) {
             Napi::Object beObj = beArr.Get(i).As<Napi::Object>();
             parsedBasicEvents.push_back(ParseBasicEvent(beObj));
@@ -547,6 +555,7 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
     // Parse modelData (alternative format for basic events)
     if (nodeModel.Has("modelData")) {
         Napi::Array mdArr = nodeModel.Get("modelData").As<Napi::Array>();
+        std::cout << "Found " << mdArr.Length() << " items in modelData" << std::endl;
         for (uint32_t i = 0; i < mdArr.Length(); ++i) {
             Napi::Object mdObj = mdArr.Get(i).As<Napi::Object>();
             ParsedBasicEvent be;
@@ -562,6 +571,7 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
                 be.systemMissionTime = mdObj.Get("systemMissionTime").ToNumber().DoubleValue();
             }
             parsedBasicEvents.push_back(be);
+            std::cout << "  Added basic event from modelData: " << be.name << std::endl;
         }
     }
     
@@ -586,6 +596,7 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
     // Parse gates
     if (nodeModel.Has("gates")) {
         Napi::Array gateArr = nodeModel.Get("gates").As<Napi::Array>();
+        std::cout << "Found " << gateArr.Length() << " items in gates" << std::endl;
         for (uint32_t i = 0; i < gateArr.Length(); ++i) {
             Napi::Object gateObj = gateArr.Get(i).As<Napi::Object>();
             parsedGates.push_back(ParseGate(gateObj));
@@ -595,6 +606,7 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
     // Parse fault trees and extract gates/events from hierarchical structure
     if (nodeModel.Has("faultTrees")) {
         Napi::Array ftArr = nodeModel.Get("faultTrees").As<Napi::Array>();
+        std::cout << "Found " << ftArr.Length() << " fault trees" << std::endl;
         for (uint32_t i = 0; i < ftArr.Length(); ++i) {
             Napi::Object ftObj = ftArr.Get(i).As<Napi::Object>();
             parsedFaultTrees.push_back(ParseFaultTree(ftObj));
@@ -602,7 +614,10 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
             // Extract gates and events from the fault tree structure
             if (ftObj.Has("topEvent")) {
                 Napi::Object topEventObj = ftObj.Get("topEvent").As<Napi::Object>();
+                std::cout << "Parsing fault tree elements from top event: " << topEventObj.Get("name").ToString().Utf8Value() << std::endl;
+                std::cout << "Starting with empty parsedGates.size() = " << parsedGates.size() << std::endl;
                 ParseFaultTreeElements(topEventObj, parsedGates, parsedBasicEvents);
+                std::cout << "After parsing, parsedGates.size() = " << parsedGates.size() << std::endl;
             }
         }
     }
@@ -625,9 +640,26 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
         }
     }
     
+    // Summary of parsing phase
+    std::cout << "=== PARSING PHASE COMPLETE ===" << std::endl;
+    std::cout << "Parsed " << parsedBasicEvents.size() << " basic events" << std::endl;
+    std::cout << "Parsed " << parsedGates.size() << " gates" << std::endl;
+    std::cout << "Parsed " << parsedParameters.size() << " parameters" << std::endl;
+    std::cout << "Parsed " << parsedCCFGroups.size() << " CCF groups" << std::endl;
+    std::cout << "Parsed " << parsedFaultTrees.size() << " fault trees" << std::endl;
+    std::cout << "Parsed " << parsedEventTrees.size() << " event trees" << std::endl;
+    std::cout << "Parsed " << parsedInitiatingEvents.size() << " initiating events" << std::endl;
+    
     // Phase 2: Build SCRAM elements in dependency order
     // First, build basic events and parameters (no dependencies)
+    std::cout << "=== PHASE 2: Building Basic Elements ===" << std::endl;
+    std::cout << "Total parsed basic events: " << parsedBasicEvents.size() << std::endl;
+    std::cout << "Total parsed gates: " << parsedGates.size() << std::endl;
+    std::cout << "Total parsed parameters: " << parsedParameters.size() << std::endl;
+    
+    std::cout << "Building " << parsedBasicEvents.size() << " basic events..." << std::endl;
     for (const auto& parsed : parsedBasicEvents) {
+        std::cout << "Building basic event: " << parsed.name << std::endl;
         auto be = BuildBasicEvent(parsed, model.get(), registry);
         registry.RegisterElement(parsed.name, std::move(be));
     }
@@ -643,37 +675,92 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
         registry.RegisterElement(parsed.name, std::move(ccf));
     }
     
-    // Phase 3: Build gates with complete formulas (all arguments must be available)
-    for (const auto& parsed : parsedGates) {
-        // Check if all child gates and events are available
-        bool allDependenciesAvailable = true;
-        
-        // Check child gates
-        for (const auto& gateRef : parsed.gate_refs) {
-            if (!registry.FindElement<scram::mef::Gate>(gateRef)) {
-                allDependenciesAvailable = false;
-                break;
-            }
-        }
-        
-        // Check child events
-        for (const auto& eventRef : parsed.event_refs) {
-            if (!registry.FindElement<scram::mef::BasicEvent>(eventRef)) {
-                allDependenciesAvailable = false;
-                break;
-            }
-        }
-        
-        if (allDependenciesAvailable) {
-            // Build gate with complete formula
-            auto gate = BuildGateWithFormula(parsed, model.get(), registry);
-            registry.RegisterElement(parsed.name, std::move(gate));
-        } else {
-            // Store for later processing
-            // This shouldn't happen with proper dependency ordering, but just in case
-            throw std::runtime_error("Gate " + parsed.name + " has unresolved dependencies");
-        }
+    // Phase 3: Build gates with complete formulas in dependency order
+    std::cout << "=== PHASE 3: Building Gates ===" << std::endl;
+    std::cout << "Building " << parsedGates.size() << " gates in dependency order..." << std::endl;
+    
+    // Show what's available in the registry
+    std::cout << "Available basic events in registry:" << std::endl;
+    const auto& basicEvents = registry.GetElements<scram::mef::BasicEvent>();
+    for (const auto& [name, event] : basicEvents) {
+        std::cout << "  - " << name << std::endl;
     }
+    
+    // Print dependency information
+    for (const auto& gate : parsedGates) {
+        std::cout << "Gate " << gate.name << " depends on: ";
+        for (const auto& gateRef : gate.gate_refs) {
+            std::cout << "gate:" << gateRef << " ";
+        }
+        for (const auto& eventRef : gate.event_refs) {
+            std::cout << "event:" << eventRef << " ";
+        }
+        std::cout << std::endl;
+    }
+    
+    // Build gates in dependency order using topological sort
+    std::vector<ParsedGate> remainingGates = parsedGates;
+    std::set<std::string> builtGateNames;
+    int iteration = 0;
+    
+    while (!remainingGates.empty()) {
+        iteration++;
+        std::cout << "--- Iteration " << iteration << " ---" << std::endl;
+        std::cout << "Remaining gates: " << remainingGates.size() << std::endl;
+        
+        bool progressMade = false;
+        std::vector<ParsedGate> stillRemaining;
+        
+        for (const auto& parsed : remainingGates) {
+            std::cout << "  Checking gate " << parsed.name << "..." << std::endl;
+            
+            // Check if all child gates and events are available
+            bool allDependenciesAvailable = true;
+            
+            // Check child gates
+            for (const auto& gateRef : parsed.gate_refs) {
+                if (builtGateNames.find(gateRef) == builtGateNames.end()) {
+                    std::cout << "    Gate " << parsed.name << " missing gate dependency: " << gateRef << std::endl;
+                    allDependenciesAvailable = false;
+                    break;
+                }
+            }
+            
+            // Check child events
+            for (const auto& eventRef : parsed.event_refs) {
+                if (!registry.FindElement<scram::mef::BasicEvent>(eventRef)) {
+                    std::cout << "    Gate " << parsed.name << " missing event dependency: " << eventRef << std::endl;
+                    allDependenciesAvailable = false;
+                    break;
+                }
+            }
+            
+            if (allDependenciesAvailable) {
+                // Build gate with complete formula
+                std::cout << "    Building gate " << parsed.name << " (dependencies satisfied)" << std::endl;
+                auto gate = BuildGateWithFormula(parsed, model.get(), registry);
+                registry.RegisterElement(parsed.name, std::move(gate));
+                builtGateNames.insert(parsed.name);
+                progressMade = true;
+            } else {
+                // Keep for next iteration
+                stillRemaining.push_back(parsed);
+            }
+        }
+        
+        // If no progress was made in this iteration, we have a circular dependency
+        if (!progressMade && !stillRemaining.empty()) {
+            std::string errorMsg = "Circular dependency detected after " + std::to_string(iteration) + " iterations. Gates with unresolved dependencies: ";
+            for (const auto& gate : stillRemaining) {
+                errorMsg += gate.name + " ";
+            }
+            throw std::runtime_error(errorMsg);
+        }
+        
+        remainingGates = std::move(stillRemaining);
+    }
+    
+    std::cout << "All gates built successfully in " << iteration << " iterations!" << std::endl;
     
     // Phase 4: Resolve CCF group members
     for (const auto& parsed : parsedCCFGroups) {

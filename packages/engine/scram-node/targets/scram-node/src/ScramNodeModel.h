@@ -262,6 +262,7 @@ ParsedNumericalOperation ParseNumericalOperation(const Napi::Object& nodeOperati
 void ParseFaultTreeElements(const Napi::Object& node, 
                            std::vector<ParsedGate>& parsedGates,
                            std::vector<ParsedBasicEvent>& parsedBasicEvents,
+                           std::set<std::string>& seenBasicEvents,
                            const std::string& basePath = "");
 
 struct EventTreeTrieNode {

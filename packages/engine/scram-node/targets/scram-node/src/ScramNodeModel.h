@@ -21,16 +21,36 @@
 #include "expression/random_deviate.h"
 #include "expression/test_event.h"
 
-// Forward declarations: recursive helpers for Model
+// ----------------------------------------------------------------------------
+// Overview
+// ----------------------------------------------------------------------------
+// ScramNodeModel builds a scram::mef::Model from a JS/TS object.
+// It supports two input styles:
+// 1) Legacy JSON-style inputs (basicEvents/parameters/ccfGroups/gates/faultTrees/eventTrees)
+// 2) TS MVP FaultTree format: an FT object with { name, top: LogicExpr, basicEvents[], [houseEvents[]] }
+//
+// The building occurs in phases:
+//  - Parse (legacy) -> Intermediate structs (Parsed...)
+//  - Build basic elements and parameters
+//  - Build CCF groups
+//  - Build gates (dependency-ordered)
+//  - Build FaultTrees (legacy) or directly build TS MVP FaultTree (top LogicExpr)
+//  - Build EventTrees and InitiatingEvents; link IE -> ET by name
+//  - Transfer registry-owned elements into the Model
+// ----------------------------------------------------------------------------
+
+// Forward declaration: main model builder
 std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel);
 
 // New function: Build model and return summary info without running analysis
 Napi::Value BuildModelOnly(const Napi::CallbackInfo& info);
 
-// Element Registry for tracking parsed elements
+// ----------------------------------------------------------------------------
+// Element Registry for tracking parsed elements (legacy path)
+// ----------------------------------------------------------------------------
 class ElementRegistry {
 public:
-    // Check if element exists and return pointer if found
+    // Check if element exists and return pointer if found (non-owning)
     template<typename T>
     T* FindElement(const std::string& name) const {
         if constexpr (std::is_same_v<T, scram::mef::BasicEvent>) {
@@ -68,7 +88,7 @@ public:
         }
     }
     
-    // Get all registered elements of a type
+    // Get all registered elements of a type (non-owning view)
     template<typename T>
     const std::unordered_map<std::string, std::unique_ptr<T>>& GetElements() const {
         if constexpr (std::is_same_v<T, scram::mef::BasicEvent>) {
@@ -98,30 +118,25 @@ public:
     // Extract all elements to transfer ownership to model
     void ExtractAllToModel(scram::mef::Model* model) {
         // Transfer basic events
-        for (auto& [name, element] : basic_events_) {
+        for (auto& [_, element] : basic_events_) {
             model->Add(std::move(element));
         }
-        
         // Transfer gates
-        for (auto& [name, element] : gates_) {
+        for (auto& [_, element] : gates_) {
             model->Add(std::move(element));
         }
-        
         // Transfer parameters
-        for (auto& [name, element] : parameters_) {
+        for (auto& [_, element] : parameters_) {
             model->Add(std::move(element));
         }
-        
         // Transfer CCF groups
-        for (auto& [name, element] : ccf_groups_) {
+        for (auto& [_, element] : ccf_groups_) {
             model->Add(std::move(element));
         }
-        
         // Transfer expressions
-        for (auto& [name, element] : expressions_) {
+        for (auto& [_, element] : expressions_) {
             model->Add(std::move(element));
         }
-        
         // Clear the maps (elements are now owned by the model)
         Clear();
     }
@@ -134,12 +149,14 @@ private:
     std::unordered_map<std::string, std::unique_ptr<scram::mef::Expression>> expressions_;
 };
 
-// Intermediate parsed structures
+// ----------------------------------------------------------------------------
+// Intermediate parsed structures (legacy parsing path)
+// ----------------------------------------------------------------------------
 struct ParsedBasicEvent {
     std::string name;
     std::string description;
-    std::string type;  // "basic", "house", "undeveloped"
-    Napi::Value value; // Complex Value type (boolean | number | Parameter | BuiltInFunction | RandomDeviate | NumericalOperation)
+    std::string type;                      // "basic", "house"
+    Napi::Value value;                     // boolean | number | string | Parameter | BuiltInFunction | RandomDeviate | NumericalOperation
     std::optional<double> systemMissionTime;
     std::string base_path;
 };
@@ -147,28 +164,27 @@ struct ParsedBasicEvent {
 struct ParsedGate {
     std::string name;
     std::string description;
-    std::string type;  // GateType: "and" | "or" | "not" | "xor" | "nand" | "nor" | "iff" | "atleast" | "cardinality" | "imply"
-    std::vector<std::string> gate_refs;  // References to child gates by name
-    std::vector<std::string> event_refs; // References to child events by name
-    std::optional<int> min_number;       // For atleast/cardinality gates
-    std::optional<int> max_number;       // For cardinality gates
+    std::string type;                      // "and" | "or" | "not" | "xor" | "nand" | "nor" | "iff" | "atleast" | "cardinality" | "imply"
+    std::vector<std::string> gate_refs;    // Child gates by name
+    std::vector<std::string> event_refs;   // Child events by name
+    std::optional<int> min_number;         // For atleast/cardinality
+    std::optional<int> max_number;         // For cardinality
     std::string base_path;
 };
 
 struct ParsedParameter {
     std::string name;
     std::string description;
-    Napi::Value value; // Complex Value type
-    std::string unit;  // Unit type: "unitless" | "bool" | "int" | "float" | "hours" | "hour-1" | "years" | "year-1" | "fit" | "demands"
+    Napi::Value value;                     // Complex Value type
+    std::string unit;                      // "unitless" | "bool" | "int" | "float" | "hours" | "hour-1" | "years" | "year-1" | "fit" | "demands"
     std::string base_path;
 };
 
 struct ParsedCCFGroup {
     std::string name;
     std::string description;
-    std::string model_type;
+    std::string model_type;                // "beta-factor" | "MGL" | "alpha-factor"
     std::vector<std::string> member_refs;
-    std::string distribution_type;
     Napi::Value distribution;
     std::vector<std::pair<int, Napi::Value>> factors;
     std::string base_path;
@@ -177,14 +193,14 @@ struct ParsedCCFGroup {
 struct ParsedFaultTree {
     std::string name;
     std::string description;
-    std::string top_event_ref;
+    std::string top_event_ref;             // Top gate name (legacy path)
     std::vector<std::string> ccf_group_refs;
 };
 
 struct ParsedFunctionalEvent {
     std::string name;
-    std::string state;
-    std::string ref_gate_ref; // optional
+    std::string state;                     // "failure" | "success" | "bypass"
+    std::string ref_gate_ref;              // gate name (optional; empty string if none)
 };
 
 struct ParsedEventSequence {
@@ -195,7 +211,7 @@ struct ParsedEventSequence {
 struct ParsedEventTree {
     std::string name;
     std::string description;
-    std::string initiating_event_ref;
+    std::string initiating_event_ref;      // will be linked post-build
     std::vector<std::string> functional_event_refs;
     std::vector<ParsedEventSequence> sequences;
 };
@@ -203,82 +219,140 @@ struct ParsedEventTree {
 struct ParsedInitiatingEvent {
     std::string name;
     std::string description;
-    double frequency;
-    std::string unit;  // "yr-1" | "ryr-1" | "rcyr-1"
+    double frequency{1.0};
+    std::string unit;                      // e.g., "year-1"
 };
 
-// Complex Value type structures
+// ----------------------------------------------------------------------------
+// Complex Value type structures (legacy)
+// ----------------------------------------------------------------------------
 struct ParsedBuiltInFunction {
-    std::string function_type; // "exponential", "GLM", "Weibull", "periodicTest"
+    std::string function_type;             // "exponential", "GLM", "Weibull", "periodicTest"
     std::vector<Napi::Value> arguments;
 };
 
 struct ParsedRandomDeviate {
-    std::string deviate_type; // "uniformDeviate", "normalDeviate", "lognormalDeviate", etc.
-    std::vector<Napi::Value> arguments;
+    std::string deviate_type;              // "uniformDeviate", "normalDeviate", "lognormalDeviate", "gammaDeviate", "betaDeviate", "histogram"
+    std::vector<Napi::Value> arguments;    // or histogram base/bins flattened
 };
 
 struct ParsedNumericalOperation {
-    std::string operation; // "neg", "add", "sub", "mul", "div", "pow", "sin", "cos", etc.
+    std::string operation;                 // "neg", "add", "sub", "mul", "div", "pow", "sin", "cos", ... (see implementation)
     std::vector<Napi::Value> arguments;
 };
 
-// Event Tree mapping
-std::unique_ptr<scram::mef::EventTree> ScramNodeEventTree(const ParsedEventTree& parsed, scram::mef::Model* model, const ElementRegistry& registry);
-std::unique_ptr<scram::mef::InitiatingEvent> ScramNodeInitiatingEvent(const ParsedInitiatingEvent& parsed, scram::mef::Model* model);
+// ----------------------------------------------------------------------------
+// Event Tree mapping (legacy)
+// ----------------------------------------------------------------------------
+std::unique_ptr<scram::mef::EventTree> ScramNodeEventTree(
+    const ParsedEventTree& parsed,
+    scram::mef::Model* model,
+    const ElementRegistry& registry);
 
-// Fault Tree Mapping
-std::unique_ptr<scram::mef::FaultTree> ScramNodeFaultTree(const ParsedFaultTree& parsed, scram::mef::Model* model, const ElementRegistry& registry);
+std::unique_ptr<scram::mef::InitiatingEvent> ScramNodeInitiatingEvent(
+    const ParsedInitiatingEvent& parsed,
+    scram::mef::Model* model);
 
-// Element builders (now separate from parsing)
-std::unique_ptr<scram::mef::Gate> BuildGate(const ParsedGate& parsed, scram::mef::Model* model, const ElementRegistry& registry);
-std::unique_ptr<scram::mef::Gate> BuildGateWithFormula(const ParsedGate& parsed, scram::mef::Model* model, const ElementRegistry& registry);
-std::unique_ptr<scram::mef::BasicEvent> BuildBasicEvent(const ParsedBasicEvent& parsed, scram::mef::Model* model, const ElementRegistry& registry);
-std::unique_ptr<scram::mef::HouseEvent> BuildHouseEvent(const ParsedBasicEvent& parsed, scram::mef::Model* model, const ElementRegistry& registry);
-std::unique_ptr<scram::mef::Parameter> BuildParameter(const ParsedParameter& parsed, scram::mef::Model* model, const ElementRegistry& registry);
-std::unique_ptr<scram::mef::CcfGroup> BuildCCFGroup(const ParsedCCFGroup& parsed, scram::mef::Model* model, const ElementRegistry& registry);
+// ----------------------------------------------------------------------------
+// Fault Tree mapping (legacy)
+// ----------------------------------------------------------------------------
+std::unique_ptr<scram::mef::FaultTree> ScramNodeFaultTree(
+    const ParsedFaultTree& parsed,
+    scram::mef::Model* model,
+    const ElementRegistry& registry);
 
-// Expression builders
-scram::mef::Expression* BuildExpression(const Napi::Value& nodeValue, scram::mef::Model* model, const ElementRegistry& registry, const std::string& basePath = "");
+// ----------------------------------------------------------------------------
+// Element builders (legacy building path)
+// ----------------------------------------------------------------------------
+std::unique_ptr<scram::mef::Gate> BuildGate(
+    const ParsedGate& parsed,
+    scram::mef::Model* model,
+    const ElementRegistry& registry);
 
-// Complex Value type builders
-scram::mef::Expression* BuildParameterExpression(const ParsedParameter& parsed, scram::mef::Model* model, const ElementRegistry& registry);
-scram::mef::Expression* BuildBuiltInFunctionExpression(const ParsedBuiltInFunction& parsed, scram::mef::Model* model, const ElementRegistry& registry);
-scram::mef::Expression* BuildRandomDeviateExpression(const ParsedRandomDeviate& parsed, scram::mef::Model* model, const ElementRegistry& registry);
-scram::mef::Expression* BuildNumericalOperationExpression(const ParsedNumericalOperation& parsed, scram::mef::Model* model, const ElementRegistry& registry);
+std::unique_ptr<scram::mef::Gate> BuildGateWithFormula(
+    const ParsedGate& parsed,
+    scram::mef::Model* model,
+    const ElementRegistry& registry);
 
-// Parsing functions (now separate from building)
-ParsedBasicEvent ParseBasicEvent(const Napi::Object& nodeEvent);
-ParsedGate ParseGate(const Napi::Object& nodeGate);
-ParsedParameter ParseParameter(const Napi::Object& nodeParam);
-ParsedCCFGroup ParseCCFGroup(const Napi::Object& nodeCCF);
-ParsedFaultTree ParseFaultTree(const Napi::Object& nodeFaultTree);
-ParsedEventTree ParseEventTree(const Napi::Object& nodeEventTree);
+std::unique_ptr<scram::mef::BasicEvent> BuildBasicEvent(
+    const ParsedBasicEvent& parsed,
+    scram::mef::Model* model,
+    const ElementRegistry& registry);
+
+std::unique_ptr<scram::mef::HouseEvent> BuildHouseEvent(
+    const ParsedBasicEvent& parsed,
+    scram::mef::Model* model,
+    const ElementRegistry& registry);
+
+std::unique_ptr<scram::mef::Parameter> BuildParameter(
+    const ParsedParameter& parsed,
+    scram::mef::Model* model,
+    const ElementRegistry& registry);
+
+std::unique_ptr<scram::mef::CcfGroup> BuildCCFGroup(
+    const ParsedCCFGroup& parsed,
+    scram::mef::Model* model,
+    const ElementRegistry& registry);
+
+// ----------------------------------------------------------------------------
+// Expression builders (legacy)
+// ----------------------------------------------------------------------------
+scram::mef::Expression* BuildExpression(
+    const Napi::Value& nodeValue,
+    scram::mef::Model* model,
+    const ElementRegistry& registry,
+    const std::string& basePath = "");
+
+scram::mef::Expression* BuildParameterExpression(
+    const ParsedParameter& parsed,
+    scram::mef::Model* model,
+    const ElementRegistry& registry);
+
+scram::mef::Expression* BuildBuiltInFunctionExpression(
+    const ParsedBuiltInFunction& parsed,
+    scram::mef::Model* model,
+    const ElementRegistry& registry);
+
+scram::mef::Expression* BuildRandomDeviateExpression(
+    const ParsedRandomDeviate& parsed,
+    scram::mef::Model* model,
+    const ElementRegistry& registry);
+
+scram::mef::Expression* BuildNumericalOperationExpression(
+    const ParsedNumericalOperation& parsed,
+    scram::mef::Model* model,
+    const ElementRegistry& registry);
+
+// ----------------------------------------------------------------------------
+// Parsing functions (legacy path - separated from building)
+// ----------------------------------------------------------------------------
+ParsedBasicEvent    ParseBasicEvent(const Napi::Object& nodeEvent);
+ParsedGate          ParseGate(const Napi::Object& nodeGate);
+ParsedParameter     ParseParameter(const Napi::Object& nodeParam);
+ParsedCCFGroup      ParseCCFGroup(const Napi::Object& nodeCCF);
+ParsedFaultTree     ParseFaultTree(const Napi::Object& nodeFaultTree);
+ParsedEventTree     ParseEventTree(const Napi::Object& nodeEventTree);
 ParsedInitiatingEvent ParseInitiatingEvent(const Napi::Object& nodeIE);
 
-// Complex Value type parsing functions
-ParsedParameter ParseParameterValue(const Napi::Object& nodeParam);
-ParsedBuiltInFunction ParseBuiltInFunction(const Napi::Object& nodeFunction);
-ParsedRandomDeviate ParseRandomDeviate(const Napi::Object& nodeDeviate);
+// Complex Value type parsing
+ParsedParameter         ParseParameterValue(const Napi::Object& nodeParam);
+ParsedBuiltInFunction   ParseBuiltInFunction(const Napi::Object& nodeFunction);
+ParsedRandomDeviate     ParseRandomDeviate(const Napi::Object& nodeDeviate);
 ParsedNumericalOperation ParseNumericalOperation(const Napi::Object& nodeOperation);
 
-// Helper function to recursively parse gates and events from fault tree structure
-void ParseFaultTreeElements(const Napi::Object& node, 
-                           std::vector<ParsedGate>& parsedGates,
-                           std::vector<ParsedBasicEvent>& parsedBasicEvents,
-                           std::set<std::string>& seenBasicEvents,
-                           const std::string& basePath = "");
+// Helper function to recursively parse gates and events from a hierarchical fault tree (legacy)
+void ParseFaultTreeElements(
+    const Napi::Object& node, 
+    std::vector<ParsedGate>& parsedGates,
+    std::vector<ParsedBasicEvent>& parsedBasicEvents,
+    std::set<std::string>& seenBasicEvents,
+    const std::string& basePath = "");
 
-struct EventTreeTrieNode {
-    // Key: state string, Value: child node
-    std::map<std::string, std::unique_ptr<EventTreeTrieNode>> children;
-    // For each state, the refGate (if any) to collect at this step
-    std::map<std::string, std::string> ref_gate_refs;
-    // If this is a leaf, the end state name
-    std::string end_state;
-};
+// ----------------------------------------------------------------------------
+// Helper: Convert JS strings to underlying SCRAM enums/types
+// ----------------------------------------------------------------------------
 
-// Helper: Convert JS string to GateType enum
+// Convert JS string to GateType enum
 inline scram::mef::Connective ScramNodeGateType(const std::string& type) {
     using namespace scram::mef;
     if (type == "and") return kAnd;
@@ -294,14 +368,14 @@ inline scram::mef::Connective ScramNodeGateType(const std::string& type) {
     throw std::runtime_error("Unknown gate type: " + type);
 }
 
-// Helper: Convert JS string to CCF model type
+// Convert JS string to CCF model type (validate only; returns same string on success)
 inline std::string ScramNodeCCFModelType(const std::string& type) {
     if (type == "beta-factor" || type == "MGL" || type == "alpha-factor")
         return type;
     throw std::runtime_error("Unknown CCF model type: " + type);
 }
 
-// Helper: Convert JS string to Units enum
+// Convert JS string to Units enum
 inline scram::mef::Units ScramNodeUnit(const std::string& unit) {
     using namespace scram::mef;
     if (unit == "unitless") return kUnitless;
@@ -317,7 +391,7 @@ inline scram::mef::Units ScramNodeUnit(const std::string& unit) {
     throw std::runtime_error("Unknown unit: " + unit);
 }
 
-// Helper: Convert JS string to event type
+// Convert JS string to event type: currently "basic" or "house"
 inline std::string ScramNodeEventType(const std::string& type) {
     if (type == "basic" || type == "house")
         return type;

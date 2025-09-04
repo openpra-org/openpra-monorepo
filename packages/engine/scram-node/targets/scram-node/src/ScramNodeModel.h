@@ -6,6 +6,8 @@
 #include <map>
 #include <unordered_map>
 #include <set>
+#include <optional>
+#include <type_traits>
 
 #include "model.h"
 #include "fault_tree.h"
@@ -206,7 +208,6 @@ struct ParsedInitiatingEvent {
 };
 
 // Complex Value type structures
-
 struct ParsedBuiltInFunction {
     std::string function_type; // "exponential", "GLM", "Weibull", "periodicTest"
     std::vector<Napi::Value> arguments;
@@ -318,7 +319,7 @@ inline scram::mef::Units ScramNodeUnit(const std::string& unit) {
 
 // Helper: Convert JS string to event type
 inline std::string ScramNodeEventType(const std::string& type) {
-    if (type == "basic" || type == "house" || type == "undeveloped")
+    if (type == "basic" || type == "house")
         return type;
     throw std::runtime_error("Unknown event type: " + type);
 }

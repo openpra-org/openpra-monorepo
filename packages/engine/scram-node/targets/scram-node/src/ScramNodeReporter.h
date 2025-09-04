@@ -17,6 +17,5 @@ Napi::Object ScramNodeCurve(Napi::Env env, const scram::core::ProbabilityAnalysi
 Napi::Object ScramNodeStatisticalMeasure(Napi::Env env, const scram::core::UncertaintyAnalysis& ua);
 Napi::Object ScramNodeImportance(Napi::Env env, const scram::core::ImportanceAnalysis& ia);
 Napi::Object ScramNodeSumOfProducts(Napi::Env env, const scram::core::FaultTreeAnalysis& fta, const scram::core::ProbabilityAnalysis* pa);
-Napi::Array ScramNodeHistogram(Napi::Env env, const std::map<double, double>& hist);
-Napi::Array ScramNodeQuantiles(Napi::Env env, const std::vector<double>& quantiles, double mean, double sigma);
-Napi::Array ScramNodeProductList(Napi::Env env, const scram::core::ProductContainer& products, const scram::core::ProbabilityAnalysis* pa);
+Napi::Array  ScramNodeQuantiles(Napi::Env env, const std::vector<double>& quantiles, double mean, double sigma);
+Napi::Array  ScramNodeProductList(Napi::Env env, const scram::core::ProductContainer& products, const scram::core::ProbabilityAnalysis* pa);

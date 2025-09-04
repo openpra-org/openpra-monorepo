@@ -13,9 +13,6 @@
 static Napi::Object BuildSumOfProductsForGate(Napi::Env env,
                                               const scram::mef::Gate& gate,
                                               const scram::core::RiskAnalysis& analysis);
-static Napi::Array  ScramNodeProductList(Napi::Env env,
-                                         const scram::core::ProductContainer& products,
-                                         const scram::core::ProbabilityAnalysis* pa);
 
 // Main entry point: C++ to TypeScript Report Mapping
 Napi::Object ScramNodeReport(Napi::Env env, const scram::core::RiskAnalysis& analysis) {
@@ -210,8 +207,8 @@ Napi::Object ScramNodeStatisticalMeasure(Napi::Env env, const scram::core::Uncer
   // Confidence range (95%)
   Napi::Object conf = Napi::Object::New(env);
   conf.Set("percentage", Napi::Number::New(env, 95));
-  conf.Set("lowerBound", Napi::Number::New(env, ua.confdence_interval().first));
-  conf.Set("upperBound", Napi::Number::New(env, ua.confdence_interval().second));
+  conf.Set("lowerBound", Napi::Number::New(env, ua.confidence_interval().first));
+  conf.Set("upperBound", Napi::Number::New(env, ua.confidence_interval().second));
   stat.Set("confdenceRange", conf);
   // Error factor (95%)
   Napi::Object ef = Napi::Object::New(env);

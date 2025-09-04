@@ -298,7 +298,7 @@ ParsedInitiatingEvent ParseInitiatingEvent(const Napi::Object& nodeIE) {
 
 // Step 2: Build SCRAM elements from parsed structures
 std::unique_ptr<scram::mef::BasicEvent> BuildBasicEvent(const ParsedBasicEvent& parsed, scram::mef::Model* model, const ElementRegistry& registry) {
-	auto be = std::make_unique<scram::mef::BasicEvent>(parsed.name, parsed.base_path, scram::mef::RoleSpecifer::kPublic);
+	auto be = std::make_unique<scram::mef::BasicEvent>(parsed.name);
 
 	if (!parsed.description.empty()) {
 		be->label(parsed.description);
@@ -320,7 +320,7 @@ std::unique_ptr<scram::mef::BasicEvent> BuildBasicEvent(const ParsedBasicEvent& 
 }
 
 std::unique_ptr<scram::mef::HouseEvent> BuildHouseEvent(const ParsedBasicEvent& parsed, scram::mef::Model* model, const ElementRegistry& registry) {
-	auto he = std::make_unique<scram::mef::HouseEvent>(parsed.name, parsed.base_path, scram::mef::RoleSpecifer::kPublic);
+	auto he = std::make_unique<scram::mef::HouseEvent>(parsed.name);
 
 	if (!parsed.description.empty()) {
 		he->label(parsed.description);
@@ -336,7 +336,7 @@ std::unique_ptr<scram::mef::HouseEvent> BuildHouseEvent(const ParsedBasicEvent& 
 }
 
 std::unique_ptr<scram::mef::Parameter> BuildParameter(const ParsedParameter& parsed, scram::mef::Model* model, const ElementRegistry& registry) {
-	auto param = std::make_unique<scram::mef::Parameter>(parsed.name, parsed.base_path, scram::mef::RoleSpecifer::kPublic);
+	auto param = std::make_unique<scram::mef::Parameter>(parsed.name);
 
 	if (!parsed.description.empty()) {
 		param->label(parsed.description);
@@ -359,11 +359,11 @@ std::unique_ptr<scram::mef::CcfGroup> BuildCCFGroup(const ParsedCCFGroup& parsed
 	std::unique_ptr<scram::mef::CcfGroup> ccf;
 
 	if (modelType == "beta-factor") {
-		ccf = std::make_unique<scram::mef::BetaFactorModel>(parsed.name, parsed.base_path, scram::mef::RoleSpecifer::kPublic);
+		ccf = std::make_unique<scram::mef::BetaFactorModel>(parsed.name);
 	} else if (modelType == "MGL") {
-		ccf = std::make_unique<scram::mef::MglModel>(parsed.name, parsed.base_path, scram::mef::RoleSpecifer::kPublic);
+		ccf = std::make_unique<scram::mef::MglModel>(parsed.name);
 	} else if (modelType == "alpha-factor") {
-		ccf = std::make_unique<scram::mef::AlphaFactorModel>(parsed.name, parsed.base_path, scram::mef::RoleSpecifer::kPublic);
+		ccf = std::make_unique<scram::mef::AlphaFactorModel>(parsed.name);
 	} else {
 		throw std::runtime_error("Unknown CCF model type: " + modelType);
 	}
@@ -388,7 +388,7 @@ std::unique_ptr<scram::mef::CcfGroup> BuildCCFGroup(const ParsedCCFGroup& parsed
 }
 
 std::unique_ptr<scram::mef::Gate> BuildGate(const ParsedGate& parsed, scram::mef::Model* model, const ElementRegistry& registry) {
-	auto gate = std::make_unique<scram::mef::Gate>(parsed.name, parsed.base_path, scram::mef::RoleSpecifer::kPublic);
+	auto gate = std::make_unique<scram::mef::Gate>(parsed.name);
 
 	if (!parsed.description.empty()) {
 		gate->label(parsed.description);
@@ -408,7 +408,7 @@ std::unique_ptr<scram::mef::Gate> BuildGate(const ParsedGate& parsed, scram::mef
 }
 
 std::unique_ptr<scram::mef::Gate> BuildGateWithFormula(const ParsedGate& parsed, scram::mef::Model* model, const ElementRegistry& registry) {
-	auto gate = std::make_unique<scram::mef::Gate>(parsed.name, parsed.base_path, scram::mef::RoleSpecifer::kPublic);
+	auto gate = std::make_unique<scram::mef::Gate>(parsed.name);
 
 	if (!parsed.description.empty()) {
 		gate->label(parsed.description);
@@ -1026,7 +1026,7 @@ std::unique_ptr<scram::mef::EventTree> ScramNodeEventTree(const ParsedEventTree&
 			if (itFE == feByName.end()) {
 				throw std::runtime_error("EventTree '" + parsed.name + "': unknown functional event '" + feName + "' in order.");
 			}
-			auto fork = std::make_unique<Fork>(*itFE->second);
+			auto fork = std::make_unique<Fork>(*itFE->second, std::vector<scram::mef::Path>{});
 			Fork* forkPtr = fork.get();
 
 			std::array<const char*, 3> stateOrder{{"failure","success","bypass"}};
@@ -1260,7 +1260,7 @@ ParsedNumericalOperation ParseNumericalOperation(const Napi::Object& nodeOperati
 // Complex Value type builder functions
 scram::mef::Expression* BuildParameterExpression(const ParsedParameter& parsed, scram::mef::Model* model, const ElementRegistry& registry) {
 	// Create a new parameter and add it to the model
-	auto param = std::make_unique<scram::mef::Parameter>(parsed.name, "", scram::mef::RoleSpecifer::kPublic);
+	auto param = std::make_unique<scram::mef::Parameter>(parsed.name);
 
 	if (!parsed.description.empty()) {
 		param->label(parsed.description);

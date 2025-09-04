@@ -1,7 +1,4 @@
-chinese.xml
-chinese.xml(text/xml) - 6364 bytes, last modified: 8/30/2025 - 100% done
-Saving chinese.xml to chinese.xml
-export const model: Model = {
+{
   "name": "chinese",
   "description": "",
   "eventTrees": [],
@@ -637,4 +634,4 @@ export const model: Model = {
       "value": 0.01
     }
   ]
-};
+}

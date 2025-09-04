@@ -555,6 +555,9 @@ importers:
       rxjs:
         specifier: 7.8.1
         version: 7.8.1
+      scram-node:
+        specifier: workspace:^
+        version: link:../engine/scram-node
       shared-types:
         specifier: workspace:^
         version: link:../shared-types
@@ -564,6 +567,9 @@ importers:
       tmp:
         specifier: 0.2.3
         version: 0.2.3
+      webpack:
+        specifier: 5.94.0
+        version: 5.94.0(@swc/core@1.5.7(@swc/helpers@0.5.12))
     devDependencies:
       '@darraghor/eslint-plugin-nestjs-typed':
         specifier: 5.0.18
@@ -7469,9 +7475,6 @@ packages:
   pend@1.2.0:
     resolution: {integrity: sha512-F3asv42UuXchdzt+xXqfW1OGlVBe+mxa2mqI0pg5yAHZPvFmY3Y6drSf/GQ1A86WgWEN9Kzh/WrgKa6iGcHXLg==}
 
-  picocolors@1.0.1:
-    resolution: {integrity: sha512-anP1Z8qwhkbmu7MFP5iTt+wQKXgwzf7zTyGlcdzabySa9vd0Xt392U0rVmz9poOaBj0uHJKyyo9/upk0HrEQew==}
-
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
 
@@ -9736,7 +9739,7 @@ snapshots:
   '@babel/code-frame@7.24.7':
     dependencies:
       '@babel/highlight': 7.24.7
-      picocolors: 1.0.1
+      picocolors: 1.1.1
 
   '@babel/compat-data@7.25.4': {}
 
@@ -9933,7 +9936,7 @@ snapshots:
       '@babel/helper-validator-identifier': 7.24.7
       chalk: 2.4.2
       js-tokens: 4.0.0
-      picocolors: 1.0.1
+      picocolors: 1.1.1
 
   '@babel/parser@7.25.4':
     dependencies:
@@ -14441,7 +14444,7 @@ snapshots:
       caniuse-lite: 1.0.30001653
       fraction.js: 4.3.7
       normalize-range: 0.1.2
-      picocolors: 1.0.1
+      picocolors: 1.1.1
       postcss: 8.4.41
       postcss-value-parser: 4.2.0
 
@@ -17951,7 +17954,7 @@ snapshots:
 
   launch-editor@2.8.1:
     dependencies:
-      picocolors: 1.0.1
+      picocolors: 1.1.1
       shell-quote: 1.8.1
 
   lazy-cache@0.2.7: {}
@@ -18957,8 +18960,6 @@ snapshots:
 
   pend@1.2.0: {}
 
-  picocolors@1.0.1: {}
-
   picocolors@1.1.1: {}
 
   picomatch@2.3.1: {}
@@ -19215,7 +19216,7 @@ snapshots:
   postcss@8.4.41:
     dependencies:
       nanoid: 3.3.7
-      picocolors: 1.0.1
+      picocolors: 1.1.1
       source-map-js: 1.2.0
 
   prelude-ls@1.2.1: {}
@@ -20265,7 +20266,7 @@ snapshots:
       css-tree: 2.3.1
       css-what: 6.1.0
       csso: 5.0.5
-      picocolors: 1.0.1
+      picocolors: 1.1.1
 
   swagger-ui-dist@5.17.14: {}
 
@@ -20862,7 +20863,7 @@ snapshots:
     dependencies:
       browserslist: 4.23.3
       escalade: 3.1.2
-      picocolors: 1.0.1
+      picocolors: 1.1.1
 
   uri-js@4.4.1:
     dependencies:

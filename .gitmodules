@@ -7,3 +7,6 @@
 [submodule "fixtures/models/generic-pwr-model"]
 	path = fixtures/models/generic-pwr-model
 	url = https://github.com/openpra-org/generic-pwr-model.git
+[submodule "fixtures/models/aralia-json-dataset"]
+	path = fixtures/models/aralia-json-dataset
+	url = https://github.com/rasheeqqua/aralia-json-dataset.git

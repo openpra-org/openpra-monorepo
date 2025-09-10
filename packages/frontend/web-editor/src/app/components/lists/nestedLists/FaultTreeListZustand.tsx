@@ -30,10 +30,7 @@ function FaultTreeListZustand(props: FaultTreeListProps): JSX.Element {
         endpoint: name,
         getItemId: (item) => item.id,
         getItemName: (item) => item.name,
-        getItemDescription: (item) => item.description || "",
-        postNestedEndpoint: addFaultTree,
-        patchNestedEndpoint: editFaultTree,
-        deleteNestedEndpoint: deleteFaultTree,
+        getItemDescription: (item) => item.description || ""
       }),
     );
   }, [addFaultTree, deleteFaultTree, editFaultTree, faultTreeList, name]);

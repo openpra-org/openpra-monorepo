@@ -522,7 +522,7 @@ export function PatchBayesianEstimationLabel(id: string, data: LabelJSON): Promi
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export function PatchHeatBalanceFaultTreeLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchHeatBalanceFaultTreeLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
@@ -534,7 +534,7 @@ export function PatchHeatBalanceFaultTreeLabel(id: number, data: LabelJSON): Pro
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export function PatchFunctionalEventLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchFunctionalEventLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${FUNCTIONAL_EVENTS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
@@ -546,7 +546,7 @@ export function PatchFunctionalEventLabel(id: number, data: LabelJSON): Promise<
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export function PatchMarkovChainLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchMarkovChainLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${MARKOV_CHAINS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
@@ -565,21 +565,21 @@ export function PatchWeibullAnalysisLabel(id: number, data: LabelJSON): Promise<
 }
 
 // Risk Integration
-export function PatchRiskIntegrationLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchRiskIntegrationLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${RISK_INTEGRATION_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Radiological Consequence Analysis
-export function PatchRadiologicalConsequenceLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchRadiologicalConsequenceLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${RADIOLOGICAL_CONSEQUENCE_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Mechanistic Source Term
-export function PatchMechanisticSourceTermLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchMechanisticSourceTermLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${MECHANISTIC_SOURCE_TERM_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
@@ -600,28 +600,28 @@ export function PatchDataAnalysisLabel(id: string, data: LabelJSON): Promise<Nes
 }
 
 // Human Reliability Analysis
-export function PatchHumanReliabilityLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchHumanReliabilityLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${HUMAN_RELIABILITY_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Systems Analysis
-export function PatchSystemsAnalysisLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchSystemsAnalysisLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${SYSTEMS_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Success Criteria
-export function PatchSuccessCriteriaLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchSuccessCriteriaLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${SUCCESS_CRITERIA_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Operating State Analysis
-export function PatchOperatingStateLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchOperatingStateLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${OPERATING_STATE_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );

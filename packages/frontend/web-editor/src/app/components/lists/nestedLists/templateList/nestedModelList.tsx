@@ -59,8 +59,7 @@ const getFixtures = async (
     //now we map these events to what they should be and display them
     return nestedModelList.map((modelItem: NestedModel) => (
       <GenericListItem
-        itemName={modelItem.getLabel().getName()}
-        id={modelItem.getId()}
+        id={String(modelItem.getId())}
         key={modelItem.getId()} // Use a unique key for each item (e.g., the ID)
         label={{
           name: modelItem.getLabel().getName(),

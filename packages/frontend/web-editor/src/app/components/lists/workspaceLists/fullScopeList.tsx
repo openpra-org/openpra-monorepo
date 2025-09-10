@@ -26,6 +26,9 @@ function FullScopeList(): JSX.Element {
     setGenericListItems(
       CreateGenericList<FullScopeModelType>({
         modelList: fullScopeList,
+        getItemId: (item) => item.id,
+        getItemName: (item) => item.label.name,
+        getItemDescription: (item) => item.label.description,
         endpoint: "Full Scope",
         onEdit: editFullScope,
         onDelete: deleteFullScope,

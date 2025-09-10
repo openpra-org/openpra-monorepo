@@ -27,9 +27,11 @@ function InternalEventsList(): JSX.Element {
       CreateGenericList<InternalEventsModelType>({
         modelList: internalEventsList,
         endpoint: "Internal Events",
-        postTypedEndpoint: createInternalEvents,
-        patchTypedEndpoint: editInternalEvent,
-        deleteTypedEndpoint: deleteInternalEvent,
+        getItemId: (item) => item.id,
+        getItemName: (item) => item.label.name,
+        getItemDescription: (item) => item.label.description,
+        onEdit: editInternalEvent,
+        onDelete: deleteInternalEvent,
       }),
     );
   }, [createInternalEvents, deleteInternalEvent, editInternalEvent, internalEventsList]);

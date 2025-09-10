@@ -118,7 +118,7 @@ function TypedModelActionForm({
       };
 
       if (initialFormValues && patchEndpoint) {
-        void patchEndpoint(initialFormValues.id, userId, partialModel).then(() => {
+        void patchEndpoint(initialFormValues.id, partialModel).then(() => {
           onCancel && onCancel(false);
         });
       } else if (postEndpoint) {

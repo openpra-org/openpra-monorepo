@@ -45,7 +45,7 @@ export function useEventTreeContextMenuClick(id: NodeProps["id"]) {
   }
 
   const handleContextMenuClick = useCallback(
-    (contextMenuClickEvent: React.MouseEvent) => {
+    async (contextMenuClickEvent: React.MouseEvent) => {
       // we need the parent node object for positioning the new child node
       const parentNode = getNode(id);
       if (!parentNode) {
@@ -203,7 +203,7 @@ export function useEventTreeContextMenuClick(id: NodeProps["id"]) {
 
       setEdges(edges);
 
-      updateFaultTreeGraph(
+      await updateFaultTreeGraph(
         faultTreeId ?? "",
         {
           nodes: nodes,

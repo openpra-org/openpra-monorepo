@@ -1,10 +1,10 @@
 import { Edge, getOutgoers, Node, NodeProps } from "reactflow";
 import { useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { useStore } from "../../store/faultTreeStore";
-import { FaultTreeState, GetParentNode, getWorkflowEdge } from "../../../utils/treeUtils";
+import { GetParentNode, getWorkflowEdge } from "../../../utils/treeUtils";
 import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
+import { updateFaultTreeGraph } from "packages/shared-types/src/lib/api/NestedModelApiManager";
 
 /**
  * Hook handling click event on a grayed node.
@@ -66,12 +66,12 @@ const UseGrayedNodeClick = (id: NodeProps["id"]) => {
       setNodes(finalNodes);
       setEdges(finalEdges);
 
-      await GraphApiManager.storeFaultTree(
-        FaultTreeState({
+      await updateFaultTreeGraph(
+        faultTreeId ?? "",
+        {
           nodes: finalNodes,
           edges: finalEdges,
-          faultTreeId: faultTreeId ?? "",
-        }),
+        },
       );
     },
     [edges, faultTreeId, nodes, setEdges, setNodes],

@@ -1,10 +1,10 @@
 import { useCallback } from "react";
 import { Edge, Node, getOutgoers, NodeProps, useReactFlow } from "reactflow";
 
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { updateFaultTreeGraph } from "packages/shared-types/src/lib/api/NestedModelApiManager";
+import { FaultTree } from "packages/shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
 import { useParams } from "react-router-dom";
-import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import { FaultTreeState, GenerateUUID } from "../../../utils/treeUtils";
+import { GenerateUUID } from "../../../utils/treeUtils";
 import { BASIC_EVENT, LEAF_NODE_TYPES, NOT_GATE, WORKFLOW } from "../../../utils/constants";
 import { useStore } from "../../store/faultTreeStore";
 import { useUndoRedo } from "./useUndeRedo";
@@ -75,14 +75,14 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
     //set view
     setFocusNodeId(parentNode.id);
 
-    await GraphApiManager.storeFaultTree(
-      FaultTreeState({
+    await updateFaultTreeGraph(
+      faultTreeId ?? "",
+      {
         nodes: newNodes,
         edges: newEdges,
-        faultTreeId: faultTreeId ?? "",
-      }),
-    ).then((r: FaultTreeGraph) => {
-      // console.log(r);
+      },
+    ).then((r: FaultTree) => {
+      console.log(r);
     });
   }, [getNode, id, takeSnapshot, nodes, edges, setNodes, setEdges, setFocusNodeId, faultTreeId]);
 

@@ -1,12 +1,12 @@
 import { Node, EdgeProps, useReactFlow, Edge } from "reactflow";
 
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { FaultTree } from "packages/shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
 import { useParams } from "react-router-dom";
-import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { exitGrayedState, FaultTreeState, GenerateUUID, isSubgraphGrayed } from "../../../utils/treeUtils";
 import { NOT_GATE, WORKFLOW } from "../../../utils/constants";
 import { useStore } from "../../store/faultTreeStore";
 import { useUndoRedo } from "./useUndeRedo";
+import { updateFaultTreeGraph } from "packages/shared-types/src/lib/api/NestedModelApiManager";
 
 /**
  * Hook for handling click events on edges in a React Flow diagram.
@@ -104,14 +104,14 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
     setFocusNodeId(insertNodeId);
 
     // fitView({ nodes: [{ id: insertNode.id }], duration: 500, maxZoom: 1.6 });
-    void GraphApiManager.storeFaultTree(
-      FaultTreeState({
-        faultTreeId: faultTreeId ?? "",
+    void updateFaultTreeGraph(
+      faultTreeId ?? "",
+      {
         nodes: newNodes,
         edges: newEdges,
-      }),
-    ).then((r: FaultTreeGraph) => {
-      // console.log(r);
+      },
+    ).then((r: FaultTree) => {
+      console.log(r);
     });
   };
 

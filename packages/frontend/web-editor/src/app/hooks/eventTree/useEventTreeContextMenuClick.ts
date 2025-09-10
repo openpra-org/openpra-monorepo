@@ -1,8 +1,9 @@
 import { useCallback, useState } from "react";
 import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node, NodeProps, useReactFlow } from "reactflow";
-import _ from "lodash";
+import _, { update } from "lodash";
 import { useParams } from "react-router-dom";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { updateFaultTreeGraph } from "packages/shared-types/src/lib/api/NestedModelApiManager";
 import { GenerateUUID, FaultTreeState } from "../../../utils/treeUtils";
 
 /**
@@ -202,12 +203,12 @@ export function useEventTreeContextMenuClick(id: NodeProps["id"]) {
 
       setEdges(edges);
 
-      GraphApiManager.storeFaultTree(
-        FaultTreeState({
-          faultTreeId: faultTreeId!,
+      updateFaultTreeGraph(
+        faultTreeId ?? "",
+        {
           nodes: nodes,
           edges: edges,
-        }),
+        },
       ).then((r: any) => {
         console.log(r);
       });

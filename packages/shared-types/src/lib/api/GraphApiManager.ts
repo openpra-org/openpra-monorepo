@@ -162,23 +162,6 @@ export class GraphApiManager {
   /**
    * Read the API response and parse the fault tree data
    * @param res - Response from API
-   * @param faultTreeId - Fault tree id
-   * @returns FaultTreeGraph object, empty object if response is empty
-   */
-  private static async getFaultTreeResponse(res: Response, faultTreeId: string): Promise<FaultTreeGraph> {
-    const response = await res.text();
-    return response === ""
-      ? ({
-          faultTreeId: faultTreeId,
-          nodes: [],
-          edges: [],
-        } as FaultTreeGraph)
-      : (JSON.parse(response) as FaultTreeGraph);
-  }
-
-  /**
-   * Read the API response and parse the fault tree data
-   * @param res - Response from API
    * @param eventTreeId - Event tree id
    * @returns FaultTreeGraph object, empty object if response is empty
    */

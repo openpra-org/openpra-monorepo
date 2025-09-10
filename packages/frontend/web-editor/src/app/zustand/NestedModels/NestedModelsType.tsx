@@ -5,9 +5,10 @@ import { EventSequenceAnalysisType } from "./TypesHelpers/EventSequenceAnalysisT
 import { EventTreesType } from "./TypesHelpers/EventTreesType";
 import { BayesianNetworksType } from "./TypesHelpers/BayesianNetworksType";
 import { FaultTreesType } from "./TypesHelpers/FaultTreesType";
+import { FaultTree } from "packages/shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
 
 export interface NestedModelsStateType {
-  parentId: string;
+  modelId: string;
   // TODO:: Table of values
   OpStateAnalysis: string[];
   InitiatingEventsAnalysis: {
@@ -25,7 +26,7 @@ export interface NestedModelsStateType {
   };
   SystemAnalysis: {
     SystemAnalysisList: string[];
-    FaultTrees: NestedModelType[];
+    FaultTrees: FaultTree[];
     BayesianNetworks: NestedModelType[];
     MarkovChains: string[];
   };

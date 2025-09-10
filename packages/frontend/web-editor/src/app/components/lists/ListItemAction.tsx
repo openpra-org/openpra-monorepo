@@ -35,7 +35,6 @@ export function ListItemContextMenuButton(props: GenericListItemProps): JSX.Elem
     >
       <ListItemContextMenu
         {...props}
-        itemName={name}
         onEdit={() => {
           setIsEditModalVisible(true);
           return Promise.resolve();

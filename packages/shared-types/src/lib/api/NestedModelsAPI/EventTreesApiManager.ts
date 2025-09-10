@@ -26,7 +26,7 @@ export async function GetEventTrees(id: string): Promise<NestedModelType[]> {
 // TODO:: === work on changing this to Partial<NestedModelJSON> ===
 export async function PostEventTree(data: NestedModelJSON, typedModel: string): Promise<NestedModelType> {
   try {
-    const response = await Post(`${EVENT_TREES_ENDPOINT}/`, data, typedModel);
+    const response = await Post(`${EVENT_TREES_ENDPOINT}/`, data);
     return (await response.json()) as Promise<NestedModelType>;
   } catch (error) {
     console.error("Failed to post event tree:", error);

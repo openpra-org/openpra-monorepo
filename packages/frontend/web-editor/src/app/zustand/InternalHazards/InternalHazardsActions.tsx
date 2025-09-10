@@ -30,7 +30,7 @@ export const AddInternalHazard = async (data: Partial<TypedModelJSON>): Promise<
 };
 
 export const EditInternalHazard = async (
-  modelId: number,
+  modelId: string,
   userId: number,
   data: Partial<TypedModelJSON>,
 ): Promise<void> => {
@@ -48,7 +48,7 @@ export const EditInternalHazard = async (
   } catch (error) {}
 };
 
-export const DeleteInternalHazard = async (id: number): Promise<void> => {
+export const DeleteInternalHazard = async (id: string): Promise<void> => {
   try {
     await DeleteInternalHazardAPI(id);
 

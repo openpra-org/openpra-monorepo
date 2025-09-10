@@ -14,7 +14,7 @@ export const SetBayesianNetworks = async (parentId: string): Promise<void> => {
     const BayesianNetworks = await GetBayesianNetworks(parentId);
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
-        state.NestedModels.parentId = parentId;
+        state.NestedModels.modelId = parentId;
         state.NestedModels.SystemAnalysis.BayesianNetworks = BayesianNetworks;
       }),
     );

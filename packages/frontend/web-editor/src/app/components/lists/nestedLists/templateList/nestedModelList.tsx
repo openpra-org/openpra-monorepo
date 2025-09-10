@@ -11,10 +11,10 @@ import { UseGlobalStore } from "../../../../zustand/Store";
 
 export interface NestedModelListProps {
   name: string;
-  getNestedEndpoint?: (id: number) => Promise<NestedModel[]>;
+  getNestedEndpoint?: (id: string) => Promise<NestedModel[]>;
   getNestedEndpointString?: (id: string) => Promise<NestedModel[]>;
-  deleteNestedEndpoint: (id: number) => NonNullable<unknown>;
-  patchNestedEndpoint: (id: number, data: LabelJSON) => NonNullable<unknown>;
+  deleteNestedEndpoint: (id: string) => NonNullable<unknown>;
+  patchNestedEndpoint: (id: string, data: LabelJSON) => NonNullable<unknown>;
 }
 
 //grabs the model List

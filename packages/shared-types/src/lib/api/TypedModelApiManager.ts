@@ -30,7 +30,7 @@ const MD_INTERNAL_EVENTS_ENDPOINT = `${METADATA_ENDPOINT}/internal-events`;
  * @param id - the id of the user whose events we want to load
  * @returns a promise with an internal event list
  */
-export function GetInternalEventsMetadata(id = -1): Promise<InternalEventsMetadata[]> {
+export function GetInternalEventsMetadata(id: string): Promise<InternalEventsMetadata[]> {
   return Get(`${MD_INTERNAL_EVENTS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<InternalEventsMetadata[]>) // Parse the response as JSON
     .catch((error) => {
@@ -43,7 +43,7 @@ export function GetInternalEventsMetadata(id = -1): Promise<InternalEventsMetada
  * @param id - the id of the user whose events we want to load
  * @returns a promise with an internal event list
  */
-export function GetInternalEvents(id = -1): Promise<InternalEventsModelType[]> {
+export function GetInternalEvents(id: string): Promise<InternalEventsModelType[]> {
   return Get(`${INTERNAL_EVENTS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<InternalEventsModelType[]>) // Parse the response as JSON
     .catch((error) => {
@@ -56,7 +56,7 @@ export function GetInternalEvents(id = -1): Promise<InternalEventsModelType[]> {
  * @param id - the id of the user whose events we want to load
  * @returns a promise with an external hazards list
  */
-export function GetExternalHazards(id = -1): Promise<ExternalHazardsModelType[]> {
+export function GetExternalHazards(id: string): Promise<ExternalHazardsModelType[]> {
   return Get(`${EXTERNAL_HAZARDS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<ExternalHazardsModelType[]>) // Parse the response as JSON
     .catch((error) => {
@@ -69,7 +69,7 @@ export function GetExternalHazards(id = -1): Promise<ExternalHazardsModelType[]>
  * @param id - the id of the user whose models we want to load
  * @returns a promise with an internal hazards list
  */
-export function GetInternalHazards(id = -1): Promise<InternalHazardsModelType[]> {
+export function GetInternalHazards(id: string): Promise<InternalHazardsModelType[]> {
   return Get(`${INTERNAL_HAZARDS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<InternalHazardsModelType[]>) // Parse the response as JSON
     .catch((error) => {
@@ -82,7 +82,7 @@ export function GetInternalHazards(id = -1): Promise<InternalHazardsModelType[]>
  * @param id - the id of the user whose models we want to load
  * @returns a promise with a full scope list
  */
-export function GetFullScopeModels(id = -1): Promise<FullScopeModelType[]> {
+export function GetFullScopeModels(id: string): Promise<FullScopeModelType[]> {
   return Get(`${FULL_SCOPE_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<FullScopeModelType[]>) // Parse the response as JSON
     .catch((error) => {
@@ -250,7 +250,7 @@ export function PatchExternalHazard(
  * @returns the newly patched model in a promise
  */
 export function PatchInternalHazard(
-  modelId: number,
+  modelId: string,
   userId: number,
   data: Partial<TypedModelJSON>,
 ): Promise<InternalHazardsModelType> {
@@ -307,7 +307,7 @@ function Patch(
  * @param id - id of model
  * @returns a promise with the deleted internal event
  */
-export async function DeleteInternalEvent(id = -1): Promise<InternalEventsModelType> {
+export async function DeleteInternalEvent(id: string): Promise<InternalEventsModelType> {
   await RemoveParentIds(id);
   const userId = ApiManager.getCurrentUser().user_id;
   return await DeleteCall(`${INTERNAL_EVENTS_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`)
@@ -322,7 +322,7 @@ export async function DeleteInternalEvent(id = -1): Promise<InternalEventsModelT
  * @param id - id of model
  * @returns a promise with the deleted external hazard
  */
-export async function DeleteExternalHazard(id = -1): Promise<ExternalHazardsModelType> {
+export async function DeleteExternalHazard(id: string): Promise<ExternalHazardsModelType> {
   await RemoveParentIds(id);
   const userId = ApiManager.getCurrentUser().user_id;
   return await DeleteCall(`${EXTERNAL_HAZARDS_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`)
@@ -337,7 +337,7 @@ export async function DeleteExternalHazard(id = -1): Promise<ExternalHazardsMode
  * @param id - id of model
  * @returns a promise with the deleted internal hazard
  */
-export async function DeleteInternalHazard(id = -1): Promise<InternalHazardsModelType> {
+export async function DeleteInternalHazard(id: string): Promise<InternalHazardsModelType> {
   await RemoveParentIds(id);
   const userId = ApiManager.getCurrentUser().user_id;
   return await DeleteCall(`${INTERNAL_HAZARDS_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`)
@@ -352,7 +352,7 @@ export async function DeleteInternalHazard(id = -1): Promise<InternalHazardsMode
  * @param id - id of model
  * @returns a promise with the deleted full scope
  */
-export async function DeleteFullScope(id = -1): Promise<FullScopeModelType> {
+export async function DeleteFullScope(id: string): Promise<FullScopeModelType> {
   await RemoveParentIds(id);
   const userId = ApiManager.getCurrentUser().user_id;
   return await DeleteCall(`${FULL_SCOPE_ENDPOINT}/?modelId=${Number(id)}&userId=${Number(userId)}`)

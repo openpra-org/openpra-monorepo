@@ -25,7 +25,7 @@ export function CreateGenericList<T>(options: CreateGenericListOptions<T>): Reac
   return modelList.map((model) => (
     <GenericListItem
       key={getItemId(model)}
-      id={Number(getItemId(model))}
+      id={getItemId(model)}
       name={getItemName(model)}
       description={getItemDescription(model)}
       endpoint={endpoint}

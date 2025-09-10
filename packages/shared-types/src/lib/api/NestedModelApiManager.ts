@@ -510,7 +510,7 @@ export async function Get(url: string): Promise<Response> {
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export function PatchBayesianEstimationLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchBayesianEstimationLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${BAYESIAN_ESTIMATION_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
@@ -586,14 +586,14 @@ export function PatchMechanisticSourceTermLabel(id: number, data: LabelJSON): Pr
 }
 
 // Event Sequence Quantification Diagram
-export function PatchEventSequenceQuantificationDiagramLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchEventSequenceQuantificationDiagramLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${EVENT_SEQUENCE_QUANTIFICATION_DIAGRAM_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Data Analysis
-export function PatchDataAnalysisLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchDataAnalysisLabel(id: string, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${DATA_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );

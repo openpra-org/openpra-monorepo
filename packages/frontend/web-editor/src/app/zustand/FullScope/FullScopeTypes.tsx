@@ -8,6 +8,6 @@ export interface FullScopeType {
 export interface FullScopeActionsType {
   SetFullScope: () => Promise<void>;
   AddFullScope: (data: Partial<TypedModelJSON>) => Promise<void>;
-  EditFullScope: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
+  EditFullScope: (modelId: string, data: Partial<TypedModelJSON>) => Promise<TypedModelJSON>;
   DeleteFullScope: (id: number) => Promise<void>;
 }

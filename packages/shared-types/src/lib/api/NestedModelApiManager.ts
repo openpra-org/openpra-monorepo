@@ -652,12 +652,9 @@ export function Patch<T>(url: string, data: T): Promise<Response> {
  * @param id - the id of the model to be Deleted
  * @returns the Deleted model
  */
-export async function DeleteFunctionalEvent(id: string): Promise<NestedModel> {
-  const response = await Delete(`${FUNCTIONAL_EVENTS_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteFunctionalEvent(id: string): Promise<void> {
+  await Delete(`${FUNCTIONAL_EVENTS_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "functionalEvents");
-  return response;
 }
 
 /**
@@ -665,12 +662,9 @@ export async function DeleteFunctionalEvent(id: string): Promise<NestedModel> {
  * @param id - the id of the model to be Deleted
  * @returns the Deleted model
  */
-export async function DeleteHeatBalanceFaultTree(id: string): Promise<NestedModel> {
-  const response = await Delete(`${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteHeatBalanceFaultTree(id: string): Promise<void> {
+  await Delete(`${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "faultTrees");
-  return response;
 }
 
 /**
@@ -678,12 +672,9 @@ export async function DeleteHeatBalanceFaultTree(id: string): Promise<NestedMode
  * @param id - the id of the model to be Deleted
  * @returns the Deleted model
  */
-export async function DeleteMarkovChain(id: string): Promise<NestedModel> {
-  const response = await Delete(`${MARKOV_CHAINS_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteMarkovChain(id: string): Promise<void> {
+  await Delete(`${MARKOV_CHAINS_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "markovChains");
-  return response;
 }
 
 /**
@@ -691,12 +682,9 @@ export async function DeleteMarkovChain(id: string): Promise<NestedModel> {
  * @param id - the id of the model to be Deleted
  * @returns the Deleted model
  */
-export async function DeleteBayesianEstimation(id: string): Promise<NestedModel> {
-  const response = await Delete(`${BAYESIAN_ESTIMATION_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteBayesianEstimation(id: string): Promise<void> {
+  await Delete(`${BAYESIAN_ESTIMATION_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "bayesianEstimations");
-  return response;
 }
 
 /**
@@ -710,84 +698,57 @@ export async function DeleteWeibullAnalysis(id: string): Promise<void> {
 }
 
 // Risk Integration
-export async function DeleteRiskIntegration(id: string): Promise<NestedModel> {
-  const response = await Delete(`${RISK_INTEGRATION_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteRiskIntegration(id: string): Promise<void> {
+  await Delete(`${RISK_INTEGRATION_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "riskIntegration");
-  return response;
 }
 
 // Radiological Consequence Analysis
-export async function DeleteRadiologicalConsequenceAnalysis(id: string): Promise<NestedModel> {
-  const response = await Delete(`${RADIOLOGICAL_CONSEQUENCE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteRadiologicalConsequenceAnalysis(id: string): Promise<void> {
+  await Delete(`${RADIOLOGICAL_CONSEQUENCE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "radiologicalConsequenceAnalysis");
-  return response;
 }
 
 // Mechanistic Source Term
-export async function DeleteMechanisticSourceTerm(id: string): Promise<NestedModel> {
-  const response = await Delete(`${MECHANISTIC_SOURCE_TERM_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteMechanisticSourceTerm(id: string): Promise<void> {
+  await Delete(`${MECHANISTIC_SOURCE_TERM_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "mechanisticSourceTerms");
-  return response;
 }
 
 // Event Sequence Quantification Diagram
-export async function DeleteEventSequenceQuantificationDiagram(id: string): Promise<NestedModel> {
-  const response = await Delete(`${EVENT_SEQUENCE_QUANTIFICATION_DIAGRAM_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteEventSequenceQuantificationDiagram(id: string): Promise<void> {
+  await Delete(`${EVENT_SEQUENCE_QUANTIFICATION_DIAGRAM_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "eventSequenceQuantificationDiagrams");
-  return response;
 }
 
 // Data Analysis
-export async function DeleteDataAnalysis(id: string): Promise<NestedModel> {
-  const response = await Delete(`${DATA_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteDataAnalysis(id: string): Promise<void> {
+  await Delete(`${DATA_ANALYSIS_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "dataAnalysis");
-  return response;
 }
 
 // Human Reliability Analysis
-export async function DeleteHumanReliabilityAnalysis(id: string): Promise<NestedModel> {
-  const response = await Delete(`${HUMAN_RELIABILITY_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteHumanReliabilityAnalysis(id: string): Promise<void> {
+  await Delete(`${HUMAN_RELIABILITY_ANALYSIS_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "humanReliabilityAnalysis");
-  return response;
 }
 
 // Systems Analysis
-export async function DeleteSystemsAnalysis(id: string): Promise<NestedModel> {
-  const response = await Delete(`${SYSTEMS_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteSystemsAnalysis(id: string): Promise<void> {
+  const response = await Delete(`${SYSTEMS_ANALYSIS_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "systemsAnalysis");
-  return response;
 }
 
 // Success Criteria
-export async function DeleteSuccessCriteria(id: string): Promise<NestedModel> {
-  const response = await Delete(`${SUCCESS_CRITERIA_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteSuccessCriteria(id: string): Promise<void> {
+  const response = await Delete(`${SUCCESS_CRITERIA_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "successCriteria");
-  return response;
 }
 
 // Operating State Analysis
-export async function DeleteOperatingStateAnalysis(id: string): Promise<NestedModel> {
-  const response = await Delete(`${OPERATING_STATE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteOperatingStateAnalysis(id: string): Promise<void> {
+  await Delete(`${OPERATING_STATE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "operatingStateAnalysis");
-  return response;
 }
 
 //Delete for parent ids

@@ -27,9 +27,8 @@ function FullScopeList(): JSX.Element {
       CreateGenericList<FullScopeModelType>({
         modelList: fullScopeList,
         endpoint: "Full Scope",
-        postTypedEndpoint: createFullScope,
-        patchTypedEndpoint: editFullScope,
-        deleteTypedEndpoint: deleteFullScope,
+        onEdit: editFullScope,
+        onDelete: deleteFullScope,
       }),
     );
   }, [createFullScope, deleteFullScope, editFullScope, fullScopeList]);

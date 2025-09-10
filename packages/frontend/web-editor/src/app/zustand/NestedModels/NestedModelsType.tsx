@@ -9,7 +9,6 @@ import { FaultTree } from "packages/shared-types/src/lib/api/NestedModelsAPI/Fau
 
 export interface NestedModelsStateType {
   modelId: string;
-  // TODO:: Table of values
   OpStateAnalysis: string[];
   InitiatingEventsAnalysis: {
     InitiatingEvents: NestedModelType[];

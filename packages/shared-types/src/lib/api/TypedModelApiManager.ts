@@ -216,7 +216,7 @@ export function Post(url: string, data: Partial<TypedModelJSON>): Promise<Respon
  * @returns the newly patched model in a promise
  */
 export function PatchInternalEvent(
-  modelId: number,
+  modelId: string,
   userId: number,
   data: Partial<TypedModelJSON>,
 ): Promise<InternalEventsModelType> {
@@ -233,7 +233,7 @@ export function PatchInternalEvent(
  * @returns the newly patched model in a promise
  */
 export function PatchExternalHazard(
-  modelId: number,
+  modelId: string,
   userId: number,
   data: Partial<TypedModelJSON>,
 ): Promise<ExternalHazardsModelType> {
@@ -267,7 +267,7 @@ export function PatchInternalHazard(
  * @returns the newly patched model in a promise
  */
 export function PatchFullScope(
-  modelId: number,
+  modelId: string,
   userId: number,
   data: Partial<TypedModelJSON>,
 ): Promise<FullScopeModelType> {
@@ -384,7 +384,7 @@ export function DeleteCall(url: string): Promise<Response> {
  * @returns a promise with the updated model
  */
 export function AddNestedToInternalEvent(body: {
-  modelId: number;
+  modelId: string;
   nestedId: number;
   nestedType: string;
 }): Promise<InternalEventsModel> {
@@ -397,7 +397,7 @@ export function AddNestedToInternalEvent(body: {
  * @returns a promise with the updated model
  */
 export function AddNestedToInternalHazard(body: {
-  modelId: number;
+  modelId: string;
   nestedId: number;
   nestedType: string;
 }): Promise<InternalHazardsModel> {
@@ -410,7 +410,7 @@ export function AddNestedToInternalHazard(body: {
  * @returns a promise with the updated model
  */
 export function AddNestedToExternalHazard(body: {
-  modelId: number;
+  modelId: string;
   nestedId: number;
   nestedType: string;
 }): Promise<ExternalHazardsModel> {
@@ -423,7 +423,7 @@ export function AddNestedToExternalHazard(body: {
  * @returns a promise with the updated model
  */
 export function AddNestedToFullScope(body: {
-  modelId: number;
+  modelId: string;
   nestedId: number;
   nestedType: string;
 }): Promise<FullScopeModel> {
@@ -439,7 +439,7 @@ export function AddNestedToFullScope(body: {
  * @returns a promise with the updated model
  */
 export function DeleteNestedFromInternalEvent(
-  modelId: number,
+  modelId: string,
   body: { nestedId: number | string; nestedType: string },
 ): Promise<InternalEventsModel> {
   return Patch(`${INTERNAL_EVENTS_ENDPOINT}/${modelId}/${DELETE_NESTED_END}`, body).then(
@@ -454,7 +454,7 @@ export function DeleteNestedFromInternalEvent(
  * @returns a promise with the updated model
  */
 export function DeleteNestedFromInternalHazard(
-  modelId: number,
+  modelId: string,
   body: { nestedId: number | string; nestedType: string },
 ): Promise<InternalHazardsModel> {
   return Patch(`${INTERNAL_HAZARDS_ENDPOINT}/${modelId}/${DELETE_NESTED_END}`, body).then(
@@ -469,7 +469,7 @@ export function DeleteNestedFromInternalHazard(
  * @returns a promise with the updated model
  */
 export function DeleteNestedFromExternalHazard(
-  modelId: number,
+  modelId: string,
   body: { nestedId: number | string; nestedType: string },
 ): Promise<ExternalHazardsModel> {
   return Patch(`${EXTERNAL_HAZARDS_ENDPOINT}/${modelId}/${DELETE_NESTED_END}`, body).then(
@@ -484,7 +484,7 @@ export function DeleteNestedFromExternalHazard(
  * @returns a promise with the updated model
  */
 export function DeleteNestedFromFullScope(
-  modelId: number,
+  modelId: string,
   body: { nestedId: number | string; nestedType: string },
 ): Promise<FullScopeModel> {
   return Patch(`${FULL_SCOPE_ENDPOINT}/${modelId}/${DELETE_NESTED_END}`, body).then(

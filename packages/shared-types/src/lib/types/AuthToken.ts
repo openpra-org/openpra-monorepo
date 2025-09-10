@@ -2,7 +2,7 @@ import { JwtPayload } from "jwt-decode";
 import { CollabRole } from "../data/predefiniedRoles";
 
 export interface AuthTokenAdditionals {
-  user_id?: number;
+  user_id?: string;
   username?: string;
   email?: string;
   orig_iat?: number;

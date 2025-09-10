@@ -234,10 +234,9 @@ export function PatchInternalEvent(
  */
 export function PatchExternalHazard(
   modelId: string,
-  userId: number,
   data: Partial<TypedModelJSON>,
 ): Promise<ExternalHazardsModelType> {
-  return Patch(`${EXTERNAL_HAZARDS_ENDPOINT}/${modelId}/?userId=${Number(userId)}`, data).then(
+  return Patch(`${EXTERNAL_HAZARDS_ENDPOINT}/?modelId=${modelId}/`, data).then(
     (response) => response.json() as Promise<ExternalHazardsModelType>,
   );
 }
@@ -268,10 +267,9 @@ export function PatchInternalHazard(
  */
 export function PatchFullScope(
   modelId: string,
-  userId: number,
   data: Partial<TypedModelJSON>,
 ): Promise<FullScopeModelType> {
-  return Patch(`${FULL_SCOPE_ENDPOINT}/${modelId}/?userId=${Number(userId)}`, data).then(
+  return Patch(`${FULL_SCOPE_ENDPOINT}/?modelId=${modelId}/`, data).then(
     (response) => response.json() as Promise<FullScopeModelType>,
   );
 }

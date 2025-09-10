@@ -11,7 +11,7 @@ import { UseGlobalStore } from "../Store";
 
 export const SetFullScope = async (): Promise<void> => {
   try {
-    const fullScopeList: FullScopeModelType[] = await GetFullScopeModels(ApiManager.getCurrentUser().user_id);
+    const fullScopeList: FullScopeModelType[] = await GetFullScopeModels(ApiManager.getCurrentUser().user_id ?? "");
     UseGlobalStore.setState({
       FullScope: fullScopeList,
     });
@@ -27,9 +27,9 @@ export const AddFullScope = async (data: Partial<TypedModelJSON>): Promise<void>
   } catch (error) {}
 };
 
-export const EditFullScope = async (modelId: number, userId: number, data: Partial<TypedModelJSON>): Promise<void> => {
+export const EditFullScope = async (modelId: string, data: Partial<TypedModelJSON>): Promise<void> => {
   try {
-    const fsr: FullScopeModelType = await PatchFullScope(modelId, userId, data);
+    const fsr: FullScopeModelType = await PatchFullScope(modelId, data);
     UseGlobalStore.setState((state) => ({
       FullScope: state.FullScope.map((fs: FullScopeModelType) => {
         if (fs.id === modelId) {
@@ -42,7 +42,7 @@ export const EditFullScope = async (modelId: number, userId: number, data: Parti
   } catch (error) {}
 };
 
-export const DeleteFullScope = async (id: number): Promise<void> => {
+export const DeleteFullScope = async (id: string): Promise<void> => {
   try {
     await DeleteFullScopeAPI(id);
 

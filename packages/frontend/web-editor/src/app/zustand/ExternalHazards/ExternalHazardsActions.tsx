@@ -11,9 +11,7 @@ import { UseGlobalStore } from "../Store";
 
 export const SetExternalHazards = async (): Promise<void> => {
   try {
-    const externalHazardsList: ExternalHazardsModelType[] = await GetExternalHazards(
-      ApiManager.getCurrentUser().user_id,
-    );
+    const externalHazardsList: ExternalHazardsModelType[] = await GetExternalHazards(ApiManager.getCurrentUser().user_id ?? "");
     UseGlobalStore.setState({
       ExternalHazards: externalHazardsList,
     });
@@ -30,12 +28,11 @@ export const AddExternalHazard = async (data: Partial<TypedModelJSON>): Promise<
 };
 
 export const EditExternalHazard = async (
-  modelId: number,
-  userId: number,
+  modelId: string,
   data: Partial<TypedModelJSON>,
 ): Promise<void> => {
   try {
-    const ehr: ExternalHazardsModelType = await PatchExternalHazard(modelId, userId, data);
+    const ehr: ExternalHazardsModelType = await PatchExternalHazard(modelId, data);
     UseGlobalStore.setState((state) => ({
       ExternalHazards: state.ExternalHazards.map((eh: ExternalHazardsModelType) => {
         if (eh.id === modelId) {
@@ -48,7 +45,7 @@ export const EditExternalHazard = async (
   } catch (error) {}
 };
 
-export const DeleteExternalHazard = async (id: number): Promise<void> => {
+export const DeleteExternalHazard = async (id: string): Promise<void> => {
   try {
     await DeleteExternalHazardAPI(id);
 

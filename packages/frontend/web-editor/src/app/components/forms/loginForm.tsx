@@ -9,6 +9,7 @@ import { UpdateAbility } from "../../casl/ability";
 import { AbilityContext } from "../../providers/abilityProvider";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";
+import { Link } from "react-router-dom";
 
 function LoginForm(): JSX.Element {
   const DefaultProps: LoginProps = {
@@ -158,6 +159,9 @@ function LoginForm(): JSX.Element {
             Login
           </EuiButton>
         </EuiFormRow>
+        <div style={{ textAlign: "right", marginTop: "0.5rem" }}>
+          <Link to="/forgot-password">Forgot password? Click here to reset.</Link>
+        </div>
       </EuiForm>
     );
   }

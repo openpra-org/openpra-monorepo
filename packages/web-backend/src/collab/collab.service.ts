@@ -174,6 +174,16 @@ export class CollabService {
   }
 
   /**
+   *
+   * This function returns a user with a particular id
+   * @param email - email of the user you want to find
+   */
+  async findUserByEmail(email: string): Promise<User | null> {
+    return this.userModel.findOne({ email });
+  }
+
+
+  /**
    * There are some hard-coded data provided alongside the request body for creating a 'user' document:
    *   1. The password is encrypted using the 'argon2id' method.
    *   2. The UserID is generated in an incremental order using getNextUserValue() function.
@@ -323,5 +333,9 @@ export class CollabService {
         upsert: false,
       })
       .lean();
+  }
+
+  async updateUserPasswordByEmail(email: string, hashedPassword: string): Promise<void> {
+    await this.userModel.updateOne({ email }, { $set: { password: hashedPassword } });
   }
 }

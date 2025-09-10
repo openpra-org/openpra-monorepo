@@ -15,6 +15,8 @@ import { GlobalToastList } from "./components/lists/globalToastList";
 import { InvitePage } from "./pages/invitePage";
 import { AbilityContext } from "./providers/abilityProvider";
 import { DefaultAbility } from "./casl/ability";
+import { ResetPasswordPage } from "./pages/routingPages/ResetPasswordPage";
+import { ForgotPasswordPage } from "./pages/routingPages/ForgotPasswordPage";
 
 const routes: RouteObject[] = [
   {
@@ -31,6 +33,14 @@ const routes: RouteObject[] = [
           {
             path: "invite/:inviteId/*",
             element: <InvitePage />,
+          },
+          {
+            path: "forgot-password",
+            element: <ForgotPasswordPage />,
+          },
+          {
+            path: "reset-password",
+            element: <ResetPasswordPage />,
           },
           {
             path: "internal-events/*",

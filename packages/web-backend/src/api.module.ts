@@ -15,6 +15,8 @@ import { NestedModelModule } from "./nestedModels/nestedModel.module";
 import { QuantifyModule } from "./quantify/quantify.module";
 import { TypedModelModule } from "./typedModel/typedModel.module";
 import { RolesModule } from "./roles/roles.module";
+import { ResetModule } from "./resetPassword/reset.module";
+import { ThrottlerModule } from '@nestjs/throttler';
 
 @Module({
   imports: [
@@ -27,6 +29,7 @@ import { RolesModule } from "./roles/roles.module";
     QuantifyModule,
     TypedModelModule,
     RolesModule,
+    ResetModule,
     ConfigModule.forRoot({
       envFilePath: ".env",
       isGlobal: true,
@@ -83,6 +86,11 @@ import { RolesModule } from "./roles/roles.module";
           },
         ],
       },
+    ]),
+    ThrottlerModule.forRoot([{
+        limit: 100,
+        ttl: 60,
+      }
     ]),
   ],
   controllers: [ApiController],

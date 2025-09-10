@@ -8,6 +8,6 @@ export interface InternalHazardsType {
 export interface InternalHazardsActionsType {
   SetInternalHazards: () => Promise<void>;
   AddInternalHazard: (data: Partial<TypedModelJSON>) => Promise<void>;
-  EditInternalHazard: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
+  EditInternalHazard: (modelId: string, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
   DeleteInternalHazard: (id: string) => Promise<void>;
 }

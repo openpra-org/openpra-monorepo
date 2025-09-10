@@ -30,7 +30,9 @@ function FaultTreeListZustand(props: FaultTreeListProps): JSX.Element {
         endpoint: name,
         getItemId: (item) => item.id,
         getItemName: (item) => item.name,
-        getItemDescription: (item) => item.description || ""
+        getItemDescription: (item) => item.description || "",
+        onEdit: editFaultTree,
+        onDelete: deleteFaultTree,
       }),
     );
   }, [addFaultTree, deleteFaultTree, editFaultTree, faultTreeList, name]);

@@ -116,10 +116,10 @@ export function GetCurrentModelIdString(): string {
   return splitPath[TYPED_MODEL_ID_LOCATION];
 }
 
-export function GetCurrentModelId(): number {
+export function GetCurrentModelId(): string {
   //setting up data so get current model doesn't need any parameters, as it will probably be called frequently
   const splitPath = window.location.pathname.split("/"); // Gets the path part of the URL (/internal-events/2) // Splits the path into segments using the '/' character // The second part is "internal-events"
-  return parseInt(splitPath[TYPED_MODEL_ID_LOCATION]);
+  return splitPath[TYPED_MODEL_ID_LOCATION];
 }
 
 export function GetCurrentModelType(): string {

@@ -56,11 +56,11 @@ export class NestedModel extends BasicModel {
 }
 
 export interface NestedModelType {
+  id: string;
   _id: string;
   label: {
     name: string;
     description: string;
   };
-  id: number;
   parentIds: string[];
 }

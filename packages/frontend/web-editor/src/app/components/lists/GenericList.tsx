@@ -7,7 +7,7 @@ interface CreateGenericListOptions<T> {
   getItemId: (item: T) => string;
   getItemName: (item: T) => string;
   getItemDescription: (item: T) => string;
-  onEdit: (id: string, data: any) => Promise<void>;
+  onEdit: (id: string, data: any) => Promise<any>;
   onDelete: (id: string) => Promise<void>;
 }
 

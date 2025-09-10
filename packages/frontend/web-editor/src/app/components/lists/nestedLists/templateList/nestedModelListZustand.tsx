@@ -34,9 +34,11 @@ function NestedModelListZustand(props: NestedModelListProps): JSX.Element {
       CreateGenericList<NestedModelType>({
         modelList: NestedModelList,
         endpoint: name,
-        postNestedEndpoint: AddNestedModel,
-        patchNestedEndpoint: EditNestedModel,
-        deleteNestedEndpoint: DeleteNestedModel,
+        getItemId: (item) => item.id,
+        getItemName: (item) => item.label.name,
+        getItemDescription: (item) => item.label.description,
+        onEdit: EditNestedModel,
+        onDelete: DeleteNestedModel
       }),
     );
   }, [AddNestedModel, DeleteNestedModel, EditNestedModel, NestedModelList, name]);

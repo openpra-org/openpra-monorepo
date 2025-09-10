@@ -11,13 +11,14 @@ import {
 import { Link } from "react-router-dom";
 import { LastActionText } from "./LastActionText";
 import { ListItemContextMenuButton } from "./ListItemAction";
+import { NestedModel } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 
 export interface GenericListItemProps {
   id: string;
   name: string;
   description: string;
   endpoint: string;
-  onEdit: (id: string, data: any) => Promise<void>;
+  onEdit: (id: string, data: any) => Promise<any>;
   onDelete: (id: string) => Promise<void>;
 }
 

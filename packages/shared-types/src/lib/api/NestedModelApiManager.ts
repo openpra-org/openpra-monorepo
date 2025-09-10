@@ -558,7 +558,7 @@ export function PatchMarkovChainLabel(id: string, data: LabelJSON): Promise<Nest
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export function PatchWeibullAnalysisLabel(id: number, data: LabelJSON): Promise<NestedModel> {
+export function PatchWeibullAnalysisLabel(id: string, data: any): Promise<NestedModel> {
   return Patch(`${WEIBULL_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
@@ -704,12 +704,9 @@ export async function DeleteBayesianEstimation(id: string): Promise<NestedModel>
  * @param id - the id of the model to be Deleted
  * @returns the Deleted model
  */
-export async function DeleteWeibullAnalysis(id: string): Promise<NestedModel> {
-  const response = await Delete(`${WEIBULL_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
-    (response) => response.json() as Promise<NestedModel>,
-  );
+export async function DeleteWeibullAnalysis(id: string): Promise<void> {
+  await Delete(`${WEIBULL_ANALYSIS_ENDPOINT}/?id=${Number(id)}`);
   await RemoveNestedIds(id, "weibullAnalysis");
-  return response;
 }
 
 // Risk Integration

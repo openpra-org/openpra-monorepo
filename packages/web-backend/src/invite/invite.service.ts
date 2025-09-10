@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { InvitedUserDetailsDto, InvitedUserDto } from "packages/shared-types/src/lib/types/userInvites/InvitedUser";
@@ -7,6 +7,7 @@ import { InvitedUser, InvitedUserDocument } from "./schemas/invite.schema";
 
 @Injectable()
 export class InviteService {
+  private readonly logger = new Logger(InviteService.name);
   constructor(
     @InjectModel(InvitedUser.name)
     private readonly invitedUserModel: Model<InvitedUserDocument>,
@@ -43,10 +44,12 @@ export class InviteService {
   async verifyUserInvite(guid: string): Promise<InvitedUser | null> {
     const invitedUser = await this.invitedUserModel.findOne({ id: guid });
     if (invitedUser === null) {
+      this.logger.error(`Invalid invite: ${guid}`);
       return null;
     }
     if (new Date() > invitedUser.expiry || invitedUser.numberOfInvites < 1) {
       await this.invitedUserModel.findOneAndDelete({ id: guid });
+      this.logger.error(`Expired or used invite: ${guid}`);
       return null;
     }
     return invitedUser;

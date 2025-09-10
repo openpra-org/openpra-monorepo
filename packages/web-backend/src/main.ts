@@ -1,11 +1,13 @@
 import { NestFactory } from "@nestjs/core";
 import { CorsConfig } from "./cors";
 import { ApiModule } from "./api.module";
+import { LoggerFactory } from "./factory/logger.factory";
 
-async function bootstrap() {
+async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(ApiModule);
   app.enableCors(CorsConfig);
+  app.useLogger(LoggerFactory("web-backend"));
   await app.listen(8000);
 }
 
-bootstrap();
+void bootstrap();

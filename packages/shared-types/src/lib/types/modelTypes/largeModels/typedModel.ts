@@ -7,7 +7,7 @@ export interface TypedModelJSON {
     name: string;
     description: string;
   };
-  users: number[];
+  users: string[];
 }
 
 export type TypedModelJSONMap = Record<string, TypedModelJSON>;

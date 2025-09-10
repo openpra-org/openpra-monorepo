@@ -217,10 +217,9 @@ export function Post(url: string, data: Partial<TypedModelJSON>): Promise<Respon
  */
 export function PatchInternalEvent(
   modelId: string,
-  userId: number,
   data: Partial<TypedModelJSON>,
 ): Promise<InternalEventsModelType> {
-  return Patch(`${INTERNAL_EVENTS_ENDPOINT}/${modelId}/?userId=${Number(userId)}`, data).then(
+  return Patch(`${INTERNAL_EVENTS_ENDPOINT}/?modelId=${modelId}/`, data).then(
     (response) => response.json() as Promise<InternalEventsModelType>,
   );
 }
@@ -250,10 +249,9 @@ export function PatchExternalHazard(
  */
 export function PatchInternalHazard(
   modelId: string,
-  userId: number,
   data: Partial<TypedModelJSON>,
 ): Promise<InternalHazardsModelType> {
-  return Patch(`${INTERNAL_HAZARDS_ENDPOINT}/${modelId}/?userId=${Number(userId)}`, data).then(
+  return Patch(`${INTERNAL_HAZARDS_ENDPOINT}/?modelId=${modelId}`, data).then(
     (response) => response.json() as Promise<InternalHazardsModelType>,
   );
 }

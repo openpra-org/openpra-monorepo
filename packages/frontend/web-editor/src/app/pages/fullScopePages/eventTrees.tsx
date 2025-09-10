@@ -95,7 +95,7 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
 
   useEffect(() => {
     const loadGraph = async (): Promise<void> => {
-      await GraphApiManager.getEventTree(eventTreeId).then((res: EventTreeGraph) => {
+      await GraphApiManager.getEventTree(eventTreeId ?? "").then((res: EventTreeGraph) => {
         setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
         setEdges(res.edges.length !== 0 ? res.edges : edgeData);
         setLoading(false);

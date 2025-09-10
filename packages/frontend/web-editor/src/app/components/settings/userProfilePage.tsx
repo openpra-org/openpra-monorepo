@@ -20,7 +20,7 @@ import { ApiManager } from "shared-types/src/lib/api/ApiManager";
  * Function returns the main user profile page
  *
  */
-export function UserProfilePage({ id }: { id: number }): JSX.Element {
+export function UserProfilePage({ id }: { id: string }): JSX.Element {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [onDetails, setOnDetails] = useState<boolean>(false);
   const [currentMember, setCurrentMember] = useState<MemberResult>();

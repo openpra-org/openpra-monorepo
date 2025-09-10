@@ -11,7 +11,7 @@ import { UseGlobalStore } from "../Store";
 
 export const SetInternalEvents = async (): Promise<void> => {
   try {
-    const internalEventsList: InternalEventsModelType[] = await GetInternalEvents(ApiManager.getCurrentUser().user_id);
+    const internalEventsList: InternalEventsModelType[] = await GetInternalEvents(ApiManager.getCurrentUser().user_id ?? "");
     UseGlobalStore.setState({
       InternalEvents: internalEventsList,
     });
@@ -28,12 +28,11 @@ export const AddInternalEvent = async (data: Partial<TypedModelJSON>): Promise<v
 };
 
 export const EditInternalEvent = async (
-  modelId: number,
-  userId: number,
+  modelId: string,
   data: Partial<TypedModelJSON>,
 ): Promise<void> => {
   try {
-    const ier: InternalEventsModelType = await PatchInternalEvent(modelId, userId, data);
+    const ier: InternalEventsModelType = await PatchInternalEvent(modelId, data);
     UseGlobalStore.setState((state) => ({
       InternalEvents: state.InternalEvents.map((ie: InternalEventsModelType) => {
         if (ie.id === modelId) {
@@ -46,7 +45,7 @@ export const EditInternalEvent = async (
   } catch (error) {}
 };
 
-export const DeleteInternalEvent = async (id: number): Promise<void> => {
+export const DeleteInternalEvent = async (id: string): Promise<void> => {
   try {
     await DeleteInternalEventAPI(id);
 

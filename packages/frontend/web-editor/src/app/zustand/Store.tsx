@@ -12,19 +12,27 @@ import { FullScopeActionsType, FullScopeType } from "./FullScope/FullScopeTypes"
 import { NestedModelsSlice } from "./NestedModels/NestedModelsSlice";
 import { NestedModelActionsType, NestedModelsType } from "./NestedModels/NestedModelsType";
 
+export interface CurrentModel {
+  id: string;
+}
+
 export const SliceResetFns = new Set<() => void>();
 
 export type StoreStateType = InternalEventsType &
   InternalHazardsType &
   ExternalHazardsType &
   FullScopeType &
-  NestedModelsType;
+  NestedModelsType & {
+    currentModel: CurrentModel | null;
+  };
 
 export type StoreActionType = InternalEventsActionsType &
   FullScopeActionsType &
   ExternalHazardsActionsType &
   InternalHazardsActionsType &
-  NestedModelActionsType;
+  NestedModelActionsType & {
+    setCurrentModel: (model: CurrentModel) => void;
+  };
 
 const ResetAllSlices = (): void => {
   SliceResetFns.forEach((resetFn) => {
@@ -34,13 +42,16 @@ const ResetAllSlices = (): void => {
 
 const UseGlobalStoreBase = create<StoreStateType & StoreActionType>()(
   devtools(
-    (...args) => ({
-      ...InternalEventsSlice(...args),
-      ...InternalHazardsSlice(...args),
-      ...ExternalHazardsSlice(...args),
-      ...FullScopeSlice(...args),
-      ...NestedModelsSlice(...args),
-    }),
+    (...args) => {
+      const [set, get, store] = args;
+      return {...InternalEventsSlice(...args),
+        ...InternalHazardsSlice(...args),
+        ...ExternalHazardsSlice(...args),
+        ...FullScopeSlice(...args),
+        ...NestedModelsSlice(...args),
+        currentModel: null,
+        setCurrentModel: (model: CurrentModel) => set({ currentModel: model })}
+    },
     {
       enabled: true,
       name: "Zustand Model Store",

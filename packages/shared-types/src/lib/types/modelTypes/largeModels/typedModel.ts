@@ -99,6 +99,7 @@ export default class TypedModel extends BasicModel /** implements Parsable<Typed
 }
 
 export interface typedModelType {
+  id: string;
   _id: string;
   label: {
     name: string;
@@ -115,5 +116,4 @@ export interface typedModelType {
   markovChains?: string[];
   bayesianEstimations?: string[];
   weibullAnalysis?: string[];
-  id: number;
 }

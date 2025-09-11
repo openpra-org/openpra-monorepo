@@ -1,0 +1,21 @@
+ERROR in ./packages/frontend/web-editor/src/app/components/treeEdges/faultTreeEdges/workFlowEdge.tsx:39:26
+TS2339: Property 'isGrayed' does not exist on type 'object'.
+    37 |         id={id}
+    38 |         style={style}
+  > 39 |         className={data?.isGrayed ? stylesMap.placeholderPath : stylesMap.edgePath}
+       |                          ^^^^^^^^
+    40 |         d={edgePath}
+    41 |         markerEnd={markerEnd}
+    42 |       />
+
+ERROR in ./packages/frontend/web-editor/src/app/components/treeEdges/faultTreeEdges/workFlowEdge.tsx:43:14
+TS2339: Property 'isGrayed' does not exist on type 'object'.
+    41 |         markerEnd={markerEnd}
+    42 |       />
+  > 43 |       {data?.isGrayed ? (
+       |              ^^^^^^^^
+    44 |         ""
+    45 |       ) : (
+    46 |         <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
+
+Found 41 errors in 596 ms.

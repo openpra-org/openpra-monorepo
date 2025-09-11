@@ -26,6 +26,7 @@ import {
 import styles from "./styles/faultTreeNodeStyles.module.css";
 import { FaultTreeNodeProps } from "./faultTreeNodeType";
 import { FaultTreeNodeLabel } from "./faultTreeNodeLabel";
+import { hasIsGrayed, hasBranchId } from "../../../../utils/treeUtils";
 
 const stylesMap = styles as Record<string, string>;
 
@@ -38,14 +39,15 @@ export type FaultTreeNodeTypes =
   | "houseEvent"
   | "basicEvent";
 
-function getNodeIcon(type: string, id: string, selected: boolean | undefined, data: FaultTreeNodeProps): JSX.Element {
+function getNodeIcon(type: string, id: string, selected: boolean | undefined, data: object): JSX.Element {
+  const isGrayed = hasIsGrayed(data) ? data.isGrayed : false;
   switch (type) {
     case AND_GATE:
       return (
         <NodeIcon
           nodeType={NodeTypes.AndGate}
           selected={selected}
-          isGrayed={data?.isGrayed ? data.isGrayed : false}
+          isGrayed={isGrayed}
           iconProps={{
             width: "30px",
             height: "100%",
@@ -57,7 +59,7 @@ function getNodeIcon(type: string, id: string, selected: boolean | undefined, da
       return (
         <NodeIcon
           selected={selected}
-          isGrayed={data?.isGrayed ? data.isGrayed : false}
+          isGrayed={isGrayed}
           nodeType={NodeTypes.AtLeastGate}
           iconProps={{
             width: "30px",
@@ -70,7 +72,7 @@ function getNodeIcon(type: string, id: string, selected: boolean | undefined, da
       return (
         <NodeIcon
           selected={selected}
-          isGrayed={data?.isGrayed ? data.isGrayed : false}
+          isGrayed={isGrayed}
           nodeType={NodeTypes.OrGate}
           iconProps={{
             width: "30px",
@@ -83,7 +85,7 @@ function getNodeIcon(type: string, id: string, selected: boolean | undefined, da
       return (
         <NodeIcon
           selected={selected}
-          isGrayed={data?.isGrayed ? data.isGrayed : false}
+          isGrayed={isGrayed}
           nodeType={NodeTypes.HouseEvent}
           iconProps={{ width: "30px", height: "100%", viewBox: "0 0 42 42" }}
         />
@@ -92,7 +94,7 @@ function getNodeIcon(type: string, id: string, selected: boolean | undefined, da
       return (
         <NodeIcon
           selected={selected}
-          isGrayed={data?.isGrayed ? data.isGrayed : false}
+          isGrayed={isGrayed}
           nodeType={NodeTypes.TransferGate}
           iconProps={{
             width: "30px",
@@ -105,7 +107,7 @@ function getNodeIcon(type: string, id: string, selected: boolean | undefined, da
       return (
         <NodeIcon
           selected={selected}
-          isGrayed={data?.isGrayed ? data.isGrayed : false}
+          isGrayed={isGrayed}
           nodeType={NodeTypes.BasicEvent}
           iconProps={{
             width: "30px",
@@ -118,7 +120,7 @@ function getNodeIcon(type: string, id: string, selected: boolean | undefined, da
       return (
         <NodeIcon
           selected={selected}
-          isGrayed={data?.isGrayed ? data.isGrayed : false}
+          isGrayed={isGrayed}
           nodeType={NodeTypes.NotGate}
           iconProps={{
             width: "30px",
@@ -160,28 +162,32 @@ function FaultTreeNode(
     const { handleNodeDoubleClick } = UseNodeDoubleClick(id);
     const { handleMouseEnter, handleMouseLeave } = UseGrayedNodeHover(id);
     const { handleGrayedNodeClick } = UseGrayedNodeClick(id);
+
+    const branchId = hasBranchId(data) ? data.branchId : undefined;
+    const isGrayed = hasIsGrayed(data) ? data.isGrayed : false;
+
     const mouseEnterHandler = (): void => {
-      handleMouseEnter(data.branchId);
+      handleMouseEnter(branchId);
     };
     const mouseLeaveHandler = (): void => {
-      handleMouseLeave(data.branchId);
+      handleMouseLeave(branchId);
     };
     const grayedNodeClickHandler = async (): Promise<void> => {
-      await handleGrayedNodeClick(data.branchId);
+      await handleGrayedNodeClick(branchId);
     };
 
     return (
       <div
         className={stylesMap.node_container}
         onDoubleClick={(event) => void handleNodeDoubleClick(event)}
-        onClick={data.branchId !== undefined ? grayedNodeClickHandler : undefined}
+        onClick={branchId !== undefined ? grayedNodeClickHandler : undefined}
         onMouseEnter={mouseEnterHandler}
         onMouseLeave={mouseLeaveHandler}
       >
         <div className={stylesMap.node_quantification}>0.05</div>
         <div
           className={
-            data.isGrayed
+            isGrayed
               ? `${stylesMap.node} ${stylesMap.placeholder}`
               : `${stylesMap.node} ${selected ? stylesMap.selected : ``}`
           }
@@ -201,7 +207,7 @@ function FaultTreeNode(
             isConnectable={false}
           />
         </div>
-        {getNodeIcon(type, id, selected, data as object)}
+        {getNodeIcon(type, id, selected, data)}
       </div>
     );
   });

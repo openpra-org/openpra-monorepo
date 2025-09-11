@@ -2,7 +2,7 @@ import { Edge, getOutgoers, Node, NodeProps } from "reactflow";
 import { useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useStore } from "../../store/faultTreeStore";
-import { GetParentNode, getWorkflowEdge } from "../../../utils/treeUtils";
+import { GetParentNode, getWorkflowEdge, hasBranchId, hasIsGrayed } from "../../../utils/treeUtils";
 import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 import { updateFaultTreeGraph } from "packages/shared-types/src/lib/api/NestedModelApiManager";
 
@@ -21,21 +21,36 @@ import { updateFaultTreeGraph } from "packages/shared-types/src/lib/api/NestedMo
 const UseGrayedNodeClick = (id: NodeProps["id"]) => {
   const { nodes, edges, setNodes, setEdges } = useStore();
   const { faultTreeId } = useParams();
+
   //Solidifies the branch of the clicked node, takes in the branchId of the clicked node as a parameter
   const handleGrayedNodeClick = useCallback(
     async (branchId: string | undefined) => {
       //loop through all nodes to find the parent (the node to be deleted)
-      const parentNode = nodes.filter((node) => node.data?.branchId === undefined && node.data?.isGrayed === true);
+      const parentNode = nodes.filter(
+        (node) =>
+          node.data &&
+          (!hasBranchId(node.data) || node.data.branchId === undefined) &&
+          hasIsGrayed(node.data) &&
+          node.data.isGrayed === true
+      );
 
       //get parent of parent node (the NOT gate)
       const notGateNode = GetParentNode(parentNode[0], nodes, edges);
 
       //filter out the unwanted branches
       const solidifiedNodes = nodes.filter(
-        (node) => node.data?.branchId === branchId || node.data?.branchId === undefined,
+        (node) =>
+          node.data &&
+          ((hasBranchId(node.data) && node.data.branchId === branchId) ||
+            !hasBranchId(node.data) ||
+            node.data.branchId === undefined)
       );
       const solidifiedEdges = edges.filter(
-        (edge) => edge.data?.branchId === branchId || edge.data?.branchId === undefined,
+        (edge) =>
+          edge.data &&
+          ((hasBranchId(edge.data) && edge.data.branchId === branchId) ||
+            !hasBranchId(edge.data) ||
+            edge.data.branchId === undefined)
       );
 
       //from the remaining nodes, find outgoer of parentNode (there should be only 1)

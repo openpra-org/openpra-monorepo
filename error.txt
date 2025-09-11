@@ -1,21 +1,61 @@
-ERROR in ./packages/frontend/web-editor/src/app/components/treeEdges/faultTreeEdges/workFlowEdge.tsx:39:26
-TS2339: Property 'isGrayed' does not exist on type 'object'.
-    37 |         id={id}
-    38 |         style={style}
-  > 39 |         className={data?.isGrayed ? stylesMap.placeholderPath : stylesMap.edgePath}
-       |                          ^^^^^^^^
-    40 |         d={edgePath}
-    41 |         markerEnd={markerEnd}
-    42 |       />
+ERROR in ./packages/frontend/web-editor/src/app/hooks/faultTree/useGrayedNodeClick.ts:28:60
+TS2339: Property 'branchId' does not exist on type 'object'.
+    26 |     async (branchId: string | undefined) => {
+    27 |       //loop through all nodes to find the parent (the node to be deleted)
+  > 28 |       const parentNode = nodes.filter((node) => node.data?.branchId === undefined && node.data?.isGrayed === true);
+       |                                                            ^^^^^^^^
+    29 |
+    30 |       //get parent of parent node (the NOT gate)
+    31 |       const notGateNode = GetParentNode(parentNode[0], nodes, edges);
 
-ERROR in ./packages/frontend/web-editor/src/app/components/treeEdges/faultTreeEdges/workFlowEdge.tsx:43:14
+ERROR in ./packages/frontend/web-editor/src/app/hooks/faultTree/useGrayedNodeClick.ts:28:97
 TS2339: Property 'isGrayed' does not exist on type 'object'.
-    41 |         markerEnd={markerEnd}
-    42 |       />
-  > 43 |       {data?.isGrayed ? (
-       |              ^^^^^^^^
-    44 |         ""
-    45 |       ) : (
-    46 |         <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
+    26 |     async (branchId: string | undefined) => {
+    27 |       //loop through all nodes to find the parent (the node to be deleted)
+  > 28 |       const parentNode = nodes.filter((node) => node.data?.branchId === undefined && node.data?.isGrayed === true);
+       |                                                                                                 ^^^^^^^^
+    29 |
+    30 |       //get parent of parent node (the NOT gate)
+    31 |       const notGateNode = GetParentNode(parentNode[0], nodes, edges);
 
-Found 41 errors in 596 ms.
+ERROR in ./packages/frontend/web-editor/src/app/hooks/faultTree/useGrayedNodeClick.ts:35:30
+TS2339: Property 'branchId' does not exist on type 'object'.
+    33 |       //filter out the unwanted branches
+    34 |       const solidifiedNodes = nodes.filter(
+  > 35 |         (node) => node.data?.branchId === branchId || node.data?.branchId === undefined,
+       |                              ^^^^^^^^
+    36 |       );
+    37 |       const solidifiedEdges = edges.filter(
+    38 |         (edge) => edge.data?.branchId === branchId || edge.data?.branchId === undefined,
+
+ERROR in ./packages/frontend/web-editor/src/app/hooks/faultTree/useGrayedNodeClick.ts:35:66
+TS2339: Property 'branchId' does not exist on type 'object'.
+    33 |       //filter out the unwanted branches
+    34 |       const solidifiedNodes = nodes.filter(
+  > 35 |         (node) => node.data?.branchId === branchId || node.data?.branchId === undefined,
+       |                                                                  ^^^^^^^^
+    36 |       );
+    37 |       const solidifiedEdges = edges.filter(
+    38 |         (edge) => edge.data?.branchId === branchId || edge.data?.branchId === undefined,
+
+ERROR in ./packages/frontend/web-editor/src/app/hooks/faultTree/useGrayedNodeClick.ts:38:30
+TS2339: Property 'branchId' does not exist on type 'object'.
+    36 |       );
+    37 |       const solidifiedEdges = edges.filter(
+  > 38 |         (edge) => edge.data?.branchId === branchId || edge.data?.branchId === undefined,
+       |                              ^^^^^^^^
+    39 |       );
+    40 |
+    41 |       //from the remaining nodes, find outgoer of parentNode (there should be only 1)
+
+ERROR in ./packages/frontend/web-editor/src/app/hooks/faultTree/useGrayedNodeClick.ts:38:66
+TS2339: Property 'branchId' does not exist on type 'object'.
+    36 |       );
+    37 |       const solidifiedEdges = edges.filter(
+  > 38 |         (edge) => edge.data?.branchId === branchId || edge.data?.branchId === undefined,
+       |                                                                  ^^^^^^^^
+    39 |       );
+    40 |
+    41 |       //from the remaining nodes, find outgoer of parentNode (there should be only 1)
+
+Found 6 errors in 17222 ms.

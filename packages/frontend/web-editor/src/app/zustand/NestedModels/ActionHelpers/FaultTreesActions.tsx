@@ -7,13 +7,13 @@ import {
 import { FaultTree } from "shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
 import { produce } from "immer";
 import { StoreStateType, UseGlobalStore } from "../../Store";
-import { UseToastContext } from "../../../providers/toastProvider";
 import { GenerateUUID } from "../../../../utils/treeUtils";
 import { allToasts } from "../../../../utils/faultTreeData";
 
-const { addToast } = UseToastContext();
-
-export const SetFaultTrees = async (modelId: string): Promise<void> => {
+export const SetFaultTrees = async (
+  modelId: string,
+  addToast: (toast: any) => void
+): Promise<void> => {
   try {
     const faultTrees = await getFaultTrees(modelId);
     UseGlobalStore.setState(
@@ -32,7 +32,10 @@ export const SetFaultTrees = async (modelId: string): Promise<void> => {
   }
 };
 
-export const AddFaultTree = async (data: Omit<FaultTree, "id">): Promise<void> => {
+export const AddFaultTree = async (
+  data: Omit<FaultTree, "id">,
+  addToast: (toast: any) => void
+): Promise<void> => {
   try {
     const faultTree: FaultTree = await createFaultTree(data);
     UseGlobalStore.setState(
@@ -52,7 +55,8 @@ export const AddFaultTree = async (data: Omit<FaultTree, "id">): Promise<void> =
 
 export const EditFaultTree = async (
   id: string,
-  data: Partial<Pick<FaultTree, "name" | "description">>
+  data: Partial<Pick<FaultTree, "name" | "description">>,
+  addToast: (toast: any) => void
 ): Promise<void> => {
   try {
     const updatedTree: FaultTree = await updateFaultTreeMetadata(id, data);
@@ -73,7 +77,10 @@ export const EditFaultTree = async (
   }
 };
 
-export const DeleteFaultTree = async (id: string): Promise<void> => {
+export const DeleteFaultTree = async (
+  id: string,
+  addToast: (toast: any) => void
+): Promise<void> => {
   try {
     await deleteFaultTree(id);
     UseGlobalStore.setState(

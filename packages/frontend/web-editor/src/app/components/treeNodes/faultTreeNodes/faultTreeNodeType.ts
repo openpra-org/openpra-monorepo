@@ -1,12 +1,7 @@
 import { NodeTypes } from "reactflow";
 import { FaultTreeNode } from "./faultTreeNode";
 
-export type FaultTreeNodeProps =
-  | {
-      isGrayed?: boolean | undefined;
-      branchId?: string | undefined;
-    }
-  | undefined;
+export type FaultTreeNodeProps = object;
 
 // two different node types are needed for our example: workflow and placeholder nodes
 const FaultTreeNodeTypes: NodeTypes = {

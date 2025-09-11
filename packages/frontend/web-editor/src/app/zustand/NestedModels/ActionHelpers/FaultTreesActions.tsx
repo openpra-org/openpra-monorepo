@@ -7,13 +7,8 @@ import {
 import { FaultTree } from "shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
 import { produce } from "immer";
 import { StoreStateType, UseGlobalStore } from "../../Store";
-import { GenerateUUID } from "../../../../utils/treeUtils";
-import { allToasts } from "../../../../utils/faultTreeData";
 
-export const SetFaultTrees = async (
-  modelId: string,
-  addToast: (toast: any) => void
-): Promise<void> => {
+export const SetFaultTrees = async (modelId: string): Promise<void> => {
   try {
     const faultTrees = await getFaultTrees(modelId);
     UseGlobalStore.setState(
@@ -23,19 +18,11 @@ export const SetFaultTrees = async (
       }),
     );
   } catch (error) {
-    addToast({
-      id: GenerateUUID(),
-      ...allToasts.find((t) => t.type === "error")!,
-      title: "Failed to load fault trees",
-      text: error instanceof Error ? error.message : String(error),
-    });
+    console.error("Failed to load fault trees:", error);
   }
 };
 
-export const AddFaultTree = async (
-  data: Omit<FaultTree, "id">,
-  addToast: (toast: any) => void
-): Promise<void> => {
+export const AddFaultTree = async (data: Omit<FaultTree, "id">): Promise<void> => {
   try {
     const faultTree: FaultTree = await createFaultTree(data);
     UseGlobalStore.setState(
@@ -44,19 +31,13 @@ export const AddFaultTree = async (
       }),
     );
   } catch (error) {
-    addToast({
-      id: GenerateUUID(),
-      ...allToasts.find((t) => t.type === "error")!,
-      title: "Failed to create fault tree",
-      text: error instanceof Error ? error.message : String(error),
-    });
+    console.error("Failed to create fault tree:", error);
   }
 };
 
 export const EditFaultTree = async (
   id: string,
-  data: Partial<Pick<FaultTree, "name" | "description">>,
-  addToast: (toast: any) => void
+  data: Partial<Pick<FaultTree, "name" | "description">>
 ): Promise<void> => {
   try {
     const updatedTree: FaultTree = await updateFaultTreeMetadata(id, data);
@@ -68,19 +49,11 @@ export const EditFaultTree = async (
       }),
     );
   } catch (error) {
-    addToast({
-      id: GenerateUUID(),
-      ...allToasts.find((t) => t.type === "error")!,
-      title: "Failed to update fault tree",
-      text: error instanceof Error ? error.message : String(error),
-    });
+    console.error("Failed to update fault tree:", error);
   }
 };
 
-export const DeleteFaultTree = async (
-  id: string,
-  addToast: (toast: any) => void
-): Promise<void> => {
+export const DeleteFaultTree = async (id: string): Promise<void> => {
   try {
     await deleteFaultTree(id);
     UseGlobalStore.setState(
@@ -91,11 +64,6 @@ export const DeleteFaultTree = async (
       }),
     );
   } catch (error) {
-    addToast({
-      id: GenerateUUID(),
-      ...allToasts.find((t) => t.type === "error")!,
-      title: "Failed to delete fault tree",
-      text: error instanceof Error ? error.message : String(error),
-    });
+    console.error("Failed to delete fault tree:", error);
   }
 };

@@ -224,54 +224,75 @@ ParsedFaultTree ParseFaultTree(const Napi::Object& nodeFaultTree) {
 }
 
 ParsedEventTree ParseEventTree(const Napi::Object& nodeEventTree) {
- ParsedEventTree parsed;
- parsed.name = nodeEventTree.Get("name").ToString().Utf8Value();
+  ParsedEventTree parsed;
+  parsed.name = nodeEventTree.Get("name").ToString().Utf8Value();
  
- if (nodeEventTree.Has("description")) {
-  parsed.description = nodeEventTree.Get("description").ToString().Utf8Value();
- }
+  if (nodeEventTree.Has("description")) {
+   parsed.description = nodeEventTree.Get("description").ToString().Utf8Value();
+  }
  
- if (nodeEventTree.Has("initiatingEvent")) {
-  Napi::Object ieObj = nodeEventTree.Get("initiatingEvent").As<Napi::Object>();
-  parsed.initiating_event_ref = ieObj.Get("name").ToString().Utf8Value();
- }
+  if (nodeEventTree.Has("initiatingEvent")) {
+   Napi::Object ieObj = nodeEventTree.Get("initiatingEvent").As<Napi::Object>();
+   parsed.initiating_event_ref = ieObj.Get("name").ToString().Utf8Value();
+  }
  
- // Parse sequences to extract functional events
- if (nodeEventTree.Has("eventSequences")) {
-  Napi::Array seqArr = nodeEventTree.Get("eventSequences").As<Napi::Array>();
-  std::set<std::string> feNames;
+  // Parse sequences (new schema) to extract functional states and infer references
+  if (nodeEventTree.Has("sequences")) {
+   Napi::Array seqArr = nodeEventTree.Get("sequences").As<Napi::Array>();
+   std::set<std::string> namesFromSequences;
  
-  for (uint32_t i = 0; i < seqArr.Length(); ++i) {
-   Napi::Object seqObj = seqArr.Get(i).As<Napi::Object>();
-   ParsedEventSequence sequence;
-   sequence.end_state = seqObj.Get("endState").ToString().Utf8Value();
+   for (uint32_t i = 0; i < seqArr.Length(); ++i) {
+    Napi::Object seqObj = seqArr.Get(i).As<Napi::Object>();
+    ParsedEventSequence sequence;
+    sequence.end_state = seqObj.Get("endState").ToString().Utf8Value();
  
-   Napi::Array feArr = seqObj.Get("functionalEvents").As<Napi::Array>();
-   for (uint32_t j = 0; j < feArr.Length(); ++j) {
-    Napi::Object feObj = feArr.Get(j).As<Napi::Object>();
-    ParsedFunctionalEvent fe;
-    fe.name  = feObj.Get("name").ToString().Utf8Value();
-    fe.state = feObj.Get("state").ToString().Utf8Value();
- 
-    if (feObj.Has("refGate")) {
-      Napi::Object refGateObj = feObj.Get("refGate").As<Napi::Object>();
-      fe.ref_gate_ref = refGateObj.Get("name").ToString().Utf8Value();
+    if (seqObj.Has("functionalStates")) {
+      Napi::Array fsArr = seqObj.Get("functionalStates").As<Napi::Array>();
+      for (uint32_t j = 0; j < fsArr.Length(); ++j) {
+        Napi::Object fsObj = fsArr.Get(j).As<Napi::Object>();
+        ParsedFunctionalEvent fe;
+        fe.name  = fsObj.Get("name").ToString().Utf8Value();
+        fe.state = fsObj.Get("state").ToString().Utf8Value();
+        // Allow explicit refGate; otherwise treat the name as a gate/FT alias
+        if (fsObj.Has("refGate")) {
+          Napi::Object refGateObj = fsObj.Get("refGate").As<Napi::Object>();
+          fe.ref_gate_ref = refGateObj.Get("name").ToString().Utf8Value();
+        } else {
+          fe.ref_gate_ref = fe.name;
+        }
+        sequence.functional_events.push_back(fe);
+        namesFromSequences.insert(fe.name);
+      }
     }
  
-    sequence.functional_events.push_back(fe);
- 
-    // Collect unique functional event names
-    if (feNames.insert(fe.name).second) {
-      parsed.functional_event_refs.push_back(fe.name);
-    }
+    parsed.sequences.push_back(sequence);
    }
  
-   parsed.sequences.push_back(sequence);
+   // Determine functional event ordering: prefer top-level definition if it matches; else derive from sequences
+   std::vector<std::string> order;
+   if (nodeEventTree.Has("functionalEvents")) {
+     Napi::Array feDefs = nodeEventTree.Get("functionalEvents").As<Napi::Array>();
+     std::vector<std::string> defs;
+     defs.reserve(feDefs.Length());
+     for (uint32_t i = 0; i < feDefs.Length(); ++i) {
+       Napi::Object feDef = feDefs.Get(i).As<Napi::Object>();
+       std::string n = feDef.Get("name").ToString().Utf8Value();
+       defs.push_back(n);
+     }
+     bool allPresent = !defs.empty();
+     for (const auto& n : defs) {
+       if (namesFromSequences.find(n) == namesFromSequences.end()) { allPresent = false; break; }
+     }
+     if (allPresent) order = std::move(defs);
+   }
+   if (order.empty()) {
+     order.assign(namesFromSequences.begin(), namesFromSequences.end());
+   }
+   parsed.functional_event_refs = std::move(order);
   }
- }
  
- return parsed;
-}
+  return parsed;
+ }
 
 ParsedInitiatingEvent ParseInitiatingEvent(const Napi::Object& nodeIE) {
  ParsedInitiatingEvent parsed;
@@ -810,6 +831,17 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
      if (!topGate) {
        throw std::runtime_error("Failed to build top gate for FaultTree '" + ftName + "'");
      }
+
+     // Create an alias gate under the FaultTree name that references the built top gate.
+    // This allows EventTrees to reference the FT directly by name in functionalStates.
+    {
+      scram::mef::Formula::ArgSet as;
+      as.Add(topGate);
+      auto alias = std::make_unique<scram::mef::Gate>(ftName);
+      auto f = std::make_unique<scram::mef::Formula>(scram::mef::kNull, std::move(as));
+      alias->formula(std::move(f));
+      registry.RegisterElement(ftName, std::move(alias));
+    }
 
      // Now ensure FT top event is discoverable
      ft->CollectTopEvents();

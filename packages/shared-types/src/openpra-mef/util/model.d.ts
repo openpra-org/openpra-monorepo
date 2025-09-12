@@ -48,7 +48,7 @@ export interface InitiatingEvent {
 
 export interface FunctionalEventDef {
   name: string;
-  faultTree: string;
+  description?: string;
 }
 
 export interface EventSequence {
@@ -60,6 +60,6 @@ export interface EventSequence {
 }
 
 export interface FunctionalState {
-  name: string; // must match a FunctionalEventDef.name in this EventTree
+  name: string;
   state: "failure" | "success";
 }

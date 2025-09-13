@@ -185,7 +185,7 @@ ParsedCCFGroup ParseCCFGroup(const Napi::Object& nodeCCF) {
   for (uint32_t i = 0; i < factorsArr.Length(); ++i) {
    Napi::Object factorObj = factorsArr.Get(i).As<Napi::Object>();
    int level = factorObj.Has("level") ? factorObj.Get("level").ToNumber().Int32Value() : 0;
-   Napi::Value factorValue = factorObj.Get("factorValue");
+   Napi::Value factorValue = factorObj.Has("value") ? factorObj.Get("value").ToNumber().DoubleValue() : 0;
    parsed.factors.emplace_back(level, factorValue);
   }
  }
@@ -388,6 +388,8 @@ registry) {
   ccf = std::make_unique<scram::mef::MglModel>(parsed.name);
  } else if (modelType == "alpha-factor") {
   ccf = std::make_unique<scram::mef::AlphaFactorModel>(parsed.name);
+ } else if (modelType == "phi-factor") {
+  ccf = std::make_unique<scram::mef::PhiFactorModel>(parsed.name);
  } else {
   throw std::runtime_error("Unknown CCF model type: " + modelType);
  }
@@ -618,15 +620,15 @@ static scram::mef::Gate* BuildGateFromLogicExprTS(
     }
   }
 
-  // AND / OR
+  // Gates with args
   if (obj.Has("op")) {
     std::string op = obj.Get("op").ToString().Utf8Value();
-    if (op != "and" && op != "or") {
-      Napi::TypeError::New(env, "Only and/or/not are supported in top").ThrowAsJavaScriptException();
+    if (op != "and" && op != "or" && op != "xor" && op != "nand" && op != "nor" && op != "atleast") {
+      Napi::TypeError::New(env, "Only and/or/not/xor/nand/nor/atleast are supported in top").ThrowAsJavaScriptException();
       return nullptr;
     }
     if (!obj.Has("args") || !obj.Get("args").IsArray()) {
-      Napi::TypeError::New(env, "and/or require args[]").ThrowAsJavaScriptException();
+      Napi::TypeError::New(env, "gate requires args[]").ThrowAsJavaScriptException();
       return nullptr;
     }
     Napi::Array arr = obj.Get("args").As<Napi::Array>();
@@ -658,13 +660,36 @@ static scram::mef::Gate* BuildGateFromLogicExprTS(
       }
     }
 
-    // Single argument? Build a kNull pass-through
-    scram::mef::Connective k = (op == "and" ? scram::mef::kAnd : scram::mef::kOr);
-    if (arr.Length() == 1) {
+    // Determine connective and optional cardinality
+    scram::mef::Connective k = scram::mef::kAnd;
+    std::optional<int> min_number;
+    std::optional<int> max_number;
+    if (op == "and") k = scram::mef::kAnd;
+    else if (op == "or") k = scram::mef::kOr;
+    else if (op == "xor") k = scram::mef::kXor;
+    else if (op == "nand") k = scram::mef::kNand;
+    else if (op == "nor") k = scram::mef::kNor;
+    else if (op == "atleast") {
+      k = scram::mef::kAtleast;
+      if (!obj.Has("k") || !obj.Get("k").IsNumber()) {
+        Napi::TypeError::New(env, "atleast.k (number) is required").ThrowAsJavaScriptException();
+        return nullptr;
+      }
+      int kval = obj.Get("k").ToNumber().Int32Value();
+      if (kval <= 0 || static_cast<uint32_t>(kval) > arr.Length()) {
+        Napi::TypeError::New(env, "atleast.k must be in 1..args.length").ThrowAsJavaScriptException();
+        return nullptr;
+      }
+      min_number = kval;
+    }
+
+    // Single argument pass-through for simple gates
+    if ((op == "and" || op == "or") && arr.Length() == 1) {
       k = scram::mef::kNull;
     }
+
     auto g = std::make_unique<Gate>(NextFTGateName(ft, gateCounter));
-    auto f = std::make_unique<Formula>(k, std::move(as));
+    auto f = std::make_unique<Formula>(k, std::move(as), min_number, max_number);
     Gate* gp = g.get();
     model->Add(std::move(g));
     ft->Add(gp);
@@ -1002,6 +1027,14 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
    if (ccf) {
     for (const auto& memberRef : parsed.member_refs) {
      auto member = registry.FindElement<scram::mef::BasicEvent>(memberRef);
+     if (!member) {
+      // Fallback to model lookup (TS path may have added directly to model)
+      const auto& bes = model->basic_events();
+      auto it = std::find_if(bes.begin(), bes.end(), [&](const scram::mef::BasicEvent& e){ return e.name() == memberRef; });
+      if (it != bes.end()) {
+       member = const_cast<scram::mef::BasicEvent*>(&(*it));
+      }
+     }
      if (member) {
       ccf->AddMember(member);
      } else {

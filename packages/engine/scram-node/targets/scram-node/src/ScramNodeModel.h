@@ -370,7 +370,7 @@ inline scram::mef::Connective ScramNodeGateType(const std::string& type) {
 
 // Convert JS string to CCF model type (validate only; returns same string on success)
 inline std::string ScramNodeCCFModelType(const std::string& type) {
-    if (type == "beta-factor" || type == "MGL" || type == "alpha-factor")
+    if (type == "beta-factor" || type == "MGL" || type == "alpha-factor" || type == "phi-factor")
         return type;
     throw std::runtime_error("Unknown CCF model type: " + type);
 }

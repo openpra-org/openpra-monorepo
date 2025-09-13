@@ -185,8 +185,8 @@ struct ParsedCCFGroup {
     std::string description;
     std::string model_type;                // "beta-factor" | "MGL" | "alpha-factor"
     std::vector<std::string> member_refs;
-    Napi::Value distribution;
-    std::vector<std::pair<int, Napi::Value>> factors;
+    std::optional<double> distribution;
+    std::vector<std::pair<int, double>> factors;
     std::string base_path;
 };
 

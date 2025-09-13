@@ -176,7 +176,7 @@ ParsedCCFGroup ParseCCFGroup(const Napi::Object& nodeCCF) {
  
  // Parse distribution
  if (nodeCCF.Has("distribution")) {
-  parsed.distribution = nodeCCF.Get("distribution");
+  parsed.distribution = nodeCCF.Get("distribution").ToNumber().DoubleValue();
  }
  
  // Parse factors
@@ -185,7 +185,7 @@ ParsedCCFGroup ParseCCFGroup(const Napi::Object& nodeCCF) {
   for (uint32_t i = 0; i < factorsArr.Length(); ++i) {
    Napi::Object factorObj = factorsArr.Get(i).As<Napi::Object>();
    int level = factorObj.Has("level") ? factorObj.Get("level").ToNumber().Int32Value() : 0;
-   Napi::Value factorValue = factorObj.Has("value") ? factorObj.Get("value").ToNumber().DoubleValue() : 0;
+   double factorValue = factorObj.Has("value") ? factorObj.Get("value").ToNumber().DoubleValue() : 0.0;
    parsed.factors.emplace_back(level, factorValue);
   }
  }
@@ -399,15 +399,19 @@ registry) {
  }
  
  // Add distribution
- if (!parsed.distribution.IsEmpty() && !parsed.distribution.IsUndefined() && !parsed.distribution.IsNull()) {
-  scram::mef::Expression* distr = BuildExpression(parsed.distribution, model, registry, parsed.base_path);
-  ccf->AddDistribution(distr);
+ if (parsed.distribution.has_value()) {
+  auto ce = std::make_unique<scram::mef::ConstantExpression>(parsed.distribution.value());
+  scram::mef::Expression* cePtr = ce.get();
+  model->Add(std::move(ce));
+  ccf->AddDistribution(cePtr);
  }
  
  // Add factors
- for (const auto& [level, factorValue] : parsed.factors) {
-  scram::mef::Expression* factorExpr = BuildExpression(factorValue, model, registry, parsed.base_path);
-  ccf->AddFactor(factorExpr, level ? std::optional<int>(level) : std::nullopt);
+ for (const auto& [level, value] : parsed.factors) {
+  auto fe = std::make_unique<scram::mef::ConstantExpression>(value);
+  scram::mef::Expression* fePtr = fe.get();
+  model->Add(std::move(fe));
+  ccf->AddFactor(fePtr, level ? std::optional<int>(level) : std::nullopt);
  }
  
  return ccf;

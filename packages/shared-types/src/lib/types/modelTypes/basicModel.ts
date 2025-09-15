@@ -1,16 +1,12 @@
 import Label from "../Label";
 
-function generateId(length: number = 6): string {
-  return Math.random().toString(36).substring(2, length + 2);
-}
-
 /**
  * basic model class to be implemented by all other models in the future, any functionality we want within all models
  * should be contained here
  */
 export abstract class BasicModel {
   //state for a basic model
-  private id: string;
+  private id: number;
   private readonly label: Label;
 
   //TODO attach a wiki object here in the basic model if desired.
@@ -20,9 +16,9 @@ export abstract class BasicModel {
    * @param {string} name
    * @param {string} description
    */
-  constructor(label: Label, id: string) {
+  constructor(label: Label, id = -1) {
     this.label = label;
-    this.id = id || generateId();
+    this.id = id || -1;
   }
 
   getLabel(): Label {
@@ -30,16 +26,16 @@ export abstract class BasicModel {
   }
 
   /**
-   * @return {string} id number
+   * @return {number} id number
    */
-  getId(): string {
+  getId(): number {
     return this.id;
   }
 
   /**
    * @param {number} id takes the id number
    */
-  setId(id: string) {
+  setId(id: number) {
     this.id = id;
   }
 }

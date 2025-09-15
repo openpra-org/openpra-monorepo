@@ -4,6 +4,7 @@ import { AuthService } from "./AuthService";
 const ApiEndpoint = "/api";
 const GraphEndpoint = `${ApiEndpoint}/graph-models`;
 const EventSequenceDiagramEndpoint = `${GraphEndpoint}/event-sequence-diagram-graph`;
+const FaultTreeGraphEndpoint = `${GraphEndpoint}/fault-tree-graph`;
 const EventTreeGraphEndpoint = `${GraphEndpoint}/event-tree-graph`;
 
 /**
@@ -13,11 +14,37 @@ export class GraphApiManager {
   OPTIONS = "no-cache";
 
   /**
+   * Store (create/update) the fault tree graph based on the latest state of the graph
+   * @param data - Current state of fault tree graph
+   * @returns Updated fault tree graph
+   */
+  static async storeFaultTree(data: FaultTreeGraph): Promise<FaultTreeGraph> {
+    return await this.post(FaultTreeGraphEndpoint, data)
+      .then((res) => this.getFaultTreeResponse(res, data.faultTreeId))
+      .catch((err) => {
+        throw err;
+      });
+  }
+
+  /**
+   * Fetch the fault tree graph based on the fault tree id
+   * @param faultTreeId - Fault tree id
+   * @returns Latest fault tree graph
+   */
+  static async getFaultTree(faultTreeId = "-1"): Promise<FaultTreeGraph> {
+    return await this.get(`${FaultTreeGraphEndpoint}/?faultTreeId=${faultTreeId}`)
+      .then((res) => this.getFaultTreeResponse(res, faultTreeId))
+      .catch((error) => {
+        throw error;
+      });
+  }
+
+  /**
    * Fetch the event sequence graph based on the event sequence id
    * @param eventSequenceId - Event sequence id
    * @returns Latest event sequence graph
    */
-  static async getEventSequence(eventSequenceId: string): Promise<EventSequenceGraph> {
+  static async getEventSequence(eventSequenceId = "-1"): Promise<EventSequenceGraph> {
     return await this.get(`${EventSequenceDiagramEndpoint}/?eventSequenceId=${eventSequenceId}`)
       .then((res) => this.getEventSequenceResponse(res, eventSequenceId))
       .catch((error) => {
@@ -43,7 +70,7 @@ export class GraphApiManager {
    * @param eventTreeId - Fault tree id
    * @returns Latest fault tree graph
    */
-  static async getEventTree(eventTreeId: string): Promise<EventTreeGraph> {
+  static async getEventTree(eventTreeId = "-1"): Promise<EventTreeGraph> {
     return await this.get(`${EventTreeGraphEndpoint}/?eventTreeId=${eventTreeId}`)
       .then((res) => this.getEventTreeResponse(res, eventTreeId))
       .catch((error) => {
@@ -157,6 +184,23 @@ export class GraphApiManager {
   private static async getEventSequenceBooleanResponse(res: Response): Promise<boolean> {
     const response = await res.text();
     return response === "true";
+  }
+
+  /**
+   * Read the API response and parse the fault tree data
+   * @param res - Response from API
+   * @param faultTreeId - Fault tree id
+   * @returns FaultTreeGraph object, empty object if response is empty
+   */
+  private static async getFaultTreeResponse(res: Response, faultTreeId: string): Promise<FaultTreeGraph> {
+    const response = await res.text();
+    return response === ""
+      ? ({
+          faultTreeId: faultTreeId,
+          nodes: [],
+          edges: [],
+        } as FaultTreeGraph)
+      : (JSON.parse(response) as FaultTreeGraph);
   }
 
   /**

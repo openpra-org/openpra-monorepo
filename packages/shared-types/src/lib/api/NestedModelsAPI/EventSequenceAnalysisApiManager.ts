@@ -28,7 +28,7 @@ export async function PostEventSequenceAnalysis(data: NestedModelJSON, typedMode
   try {
     console.log(data);
     console.log(typedModel);
-    const response = await Post(`${EVENT_SEQUENCE_ANALYSIS_ENDPOINT}/`, data);
+    const response = await Post(`${EVENT_SEQUENCE_ANALYSIS_ENDPOINT}/`, data, typedModel);
     return (await response.json()) as Promise<NestedModelType>;
   } catch (error) {
     console.error("Failed to post event sequence analysis:", error);

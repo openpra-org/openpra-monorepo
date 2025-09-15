@@ -85,12 +85,10 @@ import {
 } from "./NestedModelsAPI/BayesianNetworksApiManager";
 
 import {
-  getFaultTrees,
-  getFaultTree,
-  createFaultTree,
-  updateFaultTreeMetadata,
-  updateFaultTreeGraph,
-  deleteFaultTree,
+  DeleteFaultTree,
+  GetFaultTrees,
+  PostFaultTree,
+  PatchFaultTreeLabel,
 } from "./NestedModelsAPI/FaultTreesApiManager";
 
 // Get Methods
@@ -100,7 +98,7 @@ export {
   GetEventSequenceAnalysis,
   GetEventTrees,
   GetBayesianNetworks,
-  getFaultTrees,
+  GetFaultTrees,
 };
 
 // Post Methods
@@ -110,7 +108,7 @@ export {
   PostEventSequenceAnalysis,
   PostEventTree,
   PostBayesianNetwork,
-  createFaultTree,
+  PostFaultTree,
 };
 
 // Patch Methods
@@ -120,8 +118,7 @@ export {
   PatchEventSequenceAnalysisLabel,
   PatchEventTreeLabel,
   PatchBayesianNetworkLabel,
-  updateFaultTreeMetadata,
-  updateFaultTreeGraph,
+  PatchFaultTreeLabel,
 };
 
 // Delete Methods
@@ -131,7 +128,7 @@ export {
   DeleteEventSequenceAnalysis,
   DeleteEventTree,
   DeleteBayesianNetwork,
-  deleteFaultTree,
+  DeleteFaultTree,
 };
 
 //Don't use '' keyword, dynamically passing functions hates it on the frontend
@@ -313,9 +310,10 @@ async function AddNestedModelToTypedModel(type: string): Promise<void> {
  * generic Post for all the types of methods
  * @param url - the url we are Posting to
  * @param data - the nested model we are using to Post
+ * @param typedModel is the typedmodel to be updated
  * @returns the nested model promise after Posting
  */
-export async function Post<T>(url: string, data: T): Promise<Response> {
+export async function Post(url: string, data: NestedModelJSON, typedModel = ""): Promise<Response> {
   return fetch(url, {
     method: "POST",
     cache: OPTION_CACHE,
@@ -323,12 +321,12 @@ export async function Post<T>(url: string, data: T): Promise<Response> {
       "Content-Type": "application/json",
       Authorization: `JWT ${AuthService.getEncodedToken()}`,
     },
-    body: JSON.stringify({ data }),
+    body: JSON.stringify({ data, typedModel }), // body data type must match "Content-Type" header
   });
 }
 
 //Get methods
-export function GetHeatBalanceFaultTrees(id: string): Promise<NestedModel[]> {
+export function GetHeatBalanceFaultTrees(id = -1): Promise<NestedModel[]> {
   return Get(`${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
     .catch((error) => {
@@ -341,7 +339,7 @@ export function GetHeatBalanceFaultTrees(id: string): Promise<NestedModel[]> {
  * @param id - the parent model id, the parent whose list is to be retrieved
  * @returns a list of the nested models at  endpoint in a promise
  */
-export function GetFunctionalEvents(id: string): Promise<NestedModel[]> {
+export function GetFunctionalEvents(id = -1): Promise<NestedModel[]> {
   return Get(`${FUNCTIONAL_EVENTS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
     .catch((error) => {
@@ -354,7 +352,7 @@ export function GetFunctionalEvents(id: string): Promise<NestedModel[]> {
  * @param id - the parent model id, the parent whose list is to be retrieved
  * @returns a list of the nested models at  endpoint in a promise
  */
-export function GetMarkovChains(id: string): Promise<NestedModel[]> {
+export function GetMarkovChains(id = -1): Promise<NestedModel[]> {
   return Get(`${MARKOV_CHAINS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
     .catch((error) => {
@@ -367,7 +365,7 @@ export function GetMarkovChains(id: string): Promise<NestedModel[]> {
  * @param id - the parent model id, the parent whose list is to be retrieved
  * @returns a list of the nested models at  endpoint in a promise
  */
-export function GetBayesianEstimations(id: string): Promise<NestedModel[]> {
+export function GetBayesianEstimations(id = -1): Promise<NestedModel[]> {
   return Get(`${BAYESIAN_ESTIMATION_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
     .catch((error) => {
@@ -380,7 +378,7 @@ export function GetBayesianEstimations(id: string): Promise<NestedModel[]> {
  * @param id - the parent model id, the parent whose list is to be retrieved
  * @returns a list of the nested models at  endpoint in a promise
  */
-export function GetWeibullAnalysis(id: string): Promise<NestedModel[]> {
+export function GetWeibullAnalysis(id = -1): Promise<NestedModel[]> {
   return Get(`${WEIBULL_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
     .catch((error) => {
@@ -389,7 +387,7 @@ export function GetWeibullAnalysis(id: string): Promise<NestedModel[]> {
 }
 
 // Risk Integration
-export function GetRiskIntegration(id: string): Promise<NestedModel[]> {
+export function GetRiskIntegration(id = -1): Promise<NestedModel[]> {
   return Get(`${RISK_INTEGRATION_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
     .catch((error) => {
@@ -398,7 +396,7 @@ export function GetRiskIntegration(id: string): Promise<NestedModel[]> {
 }
 
 // Radiological Consequence Analysis
-export function GetRadiologicalConsequenceAnalysis(id: string): Promise<NestedModel[]> {
+export function GetRadiologicalConsequenceAnalysis(id = -1): Promise<NestedModel[]> {
   return Get(`${RADIOLOGICAL_CONSEQUENCE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
     .catch((error) => {
@@ -407,7 +405,7 @@ export function GetRadiologicalConsequenceAnalysis(id: string): Promise<NestedMo
 }
 
 // Mechanistic Source Term
-export function GetMechanisticSourceTerm(id: string): Promise<NestedModel[]> {
+export function GetMechanisticSourceTerm(id = -1): Promise<NestedModel[]> {
   return Get(`${MECHANISTIC_SOURCE_TERM_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
     .catch((error) => {
@@ -416,7 +414,7 @@ export function GetMechanisticSourceTerm(id: string): Promise<NestedModel[]> {
 }
 
 // Event Sequence Quantification Diagram
-export function GetEventSequenceQuantificationDiagram(id: string): Promise<NestedModel[]> {
+export function GetEventSequenceQuantificationDiagram(id = -1): Promise<NestedModel[]> {
   return Get(`${EVENT_SEQUENCE_QUANTIFICATION_DIAGRAM_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
     .catch((error) => {
@@ -425,7 +423,7 @@ export function GetEventSequenceQuantificationDiagram(id: string): Promise<Neste
 }
 
 // Data Analysis
-export function GetDataAnalysis(id: string): Promise<NestedModel[]> {
+export function GetDataAnalysis(id = -1): Promise<NestedModel[]> {
   return Get(`${DATA_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
     .catch((error) => {
@@ -434,7 +432,7 @@ export function GetDataAnalysis(id: string): Promise<NestedModel[]> {
 }
 
 // Human Reliability Analysis
-export function GetHumanReliabilityAnalysis(id: string): Promise<NestedModel[]> {
+export function GetHumanReliabilityAnalysis(id = -1): Promise<NestedModel[]> {
   return Get(`${HUMAN_RELIABILITY_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
     .catch((error) => {
@@ -443,7 +441,7 @@ export function GetHumanReliabilityAnalysis(id: string): Promise<NestedModel[]> 
 }
 
 // Systems Analysis
-export function GetSystemsAnalysis(id: string): Promise<NestedModel[]> {
+export function GetSystemsAnalysis(id = -1): Promise<NestedModel[]> {
   return Get(`${SYSTEMS_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
     .catch((error) => {
@@ -452,7 +450,7 @@ export function GetSystemsAnalysis(id: string): Promise<NestedModel[]> {
 }
 
 // Success Criteria
-export function GetSuccessCriteria(id: string): Promise<NestedModel[]> {
+export function GetSuccessCriteria(id = -1): Promise<NestedModel[]> {
   return Get(`${SUCCESS_CRITERIA_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
     .catch((error) => {
@@ -461,7 +459,7 @@ export function GetSuccessCriteria(id: string): Promise<NestedModel[]> {
 }
 
 // Operating State Analysis
-export function GetOperatingStateAnalysis(id: string): Promise<NestedModel[]> {
+export function GetOperatingStateAnalysis(id = -1): Promise<NestedModel[]> {
   return Get(`${OPERATING_STATE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
     .catch((error) => {
@@ -510,7 +508,7 @@ export async function Get(url: string): Promise<Response> {
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export function PatchBayesianEstimationLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchBayesianEstimationLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${BAYESIAN_ESTIMATION_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
@@ -522,7 +520,7 @@ export function PatchBayesianEstimationLabel(id: string, data: LabelJSON): Promi
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export function PatchHeatBalanceFaultTreeLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchHeatBalanceFaultTreeLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
@@ -534,7 +532,7 @@ export function PatchHeatBalanceFaultTreeLabel(id: string, data: LabelJSON): Pro
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export function PatchFunctionalEventLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchFunctionalEventLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${FUNCTIONAL_EVENTS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
@@ -546,7 +544,7 @@ export function PatchFunctionalEventLabel(id: string, data: LabelJSON): Promise<
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export function PatchMarkovChainLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchMarkovChainLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${MARKOV_CHAINS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
@@ -558,70 +556,70 @@ export function PatchMarkovChainLabel(id: string, data: LabelJSON): Promise<Nest
  * @param data - a labelJSON with a name and optional description
  * @returns a promise with the new updated model, with its label
  */
-export function PatchWeibullAnalysisLabel(id: string, data: any): Promise<NestedModel> {
+export function PatchWeibullAnalysisLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${WEIBULL_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Risk Integration
-export function PatchRiskIntegrationLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchRiskIntegrationLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${RISK_INTEGRATION_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Radiological Consequence Analysis
-export function PatchRadiologicalConsequenceLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchRadiologicalConsequenceLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${RADIOLOGICAL_CONSEQUENCE_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Mechanistic Source Term
-export function PatchMechanisticSourceTermLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchMechanisticSourceTermLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${MECHANISTIC_SOURCE_TERM_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Event Sequence Quantification Diagram
-export function PatchEventSequenceQuantificationDiagramLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchEventSequenceQuantificationDiagramLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${EVENT_SEQUENCE_QUANTIFICATION_DIAGRAM_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Data Analysis
-export function PatchDataAnalysisLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchDataAnalysisLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${DATA_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Human Reliability Analysis
-export function PatchHumanReliabilityLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchHumanReliabilityLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${HUMAN_RELIABILITY_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Systems Analysis
-export function PatchSystemsAnalysisLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchSystemsAnalysisLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${SYSTEMS_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Success Criteria
-export function PatchSuccessCriteriaLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchSuccessCriteriaLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${SUCCESS_CRITERIA_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
 }
 
 // Operating State Analysis
-export function PatchOperatingStateLabel(id: string, data: LabelJSON): Promise<NestedModel> {
+export function PatchOperatingStateLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${OPERATING_STATE_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
     (response) => response.json() as Promise<NestedModel>,
   );
@@ -633,7 +631,7 @@ export function PatchOperatingStateLabel(id: string, data: LabelJSON): Promise<N
  * @param data - the partial of a model that at least contains a label and users list
  * @returns the newly Patched model in a promise
  */
-export function Patch<T>(url: string, data: T): Promise<Response> {
+export function Patch(url: string, data: unknown): Promise<Response> {
   return fetch(url, {
     method: "PATCH",
     cache: OPTION_CACHE,
@@ -652,9 +650,12 @@ export function Patch<T>(url: string, data: T): Promise<Response> {
  * @param id - the id of the model to be Deleted
  * @returns the Deleted model
  */
-export async function DeleteFunctionalEvent(id: string): Promise<void> {
-  await Delete(`${FUNCTIONAL_EVENTS_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteFunctionalEvent(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${FUNCTIONAL_EVENTS_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "functionalEvents");
+  return response;
 }
 
 /**
@@ -662,9 +663,12 @@ export async function DeleteFunctionalEvent(id: string): Promise<void> {
  * @param id - the id of the model to be Deleted
  * @returns the Deleted model
  */
-export async function DeleteHeatBalanceFaultTree(id: string): Promise<void> {
-  await Delete(`${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteHeatBalanceFaultTree(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "faultTrees");
+  return response;
 }
 
 /**
@@ -672,9 +676,12 @@ export async function DeleteHeatBalanceFaultTree(id: string): Promise<void> {
  * @param id - the id of the model to be Deleted
  * @returns the Deleted model
  */
-export async function DeleteMarkovChain(id: string): Promise<void> {
-  await Delete(`${MARKOV_CHAINS_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteMarkovChain(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${MARKOV_CHAINS_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "markovChains");
+  return response;
 }
 
 /**
@@ -682,9 +689,12 @@ export async function DeleteMarkovChain(id: string): Promise<void> {
  * @param id - the id of the model to be Deleted
  * @returns the Deleted model
  */
-export async function DeleteBayesianEstimation(id: string): Promise<void> {
-  await Delete(`${BAYESIAN_ESTIMATION_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteBayesianEstimation(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${BAYESIAN_ESTIMATION_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "bayesianEstimations");
+  return response;
 }
 
 /**
@@ -692,63 +702,93 @@ export async function DeleteBayesianEstimation(id: string): Promise<void> {
  * @param id - the id of the model to be Deleted
  * @returns the Deleted model
  */
-export async function DeleteWeibullAnalysis(id: string): Promise<void> {
-  await Delete(`${WEIBULL_ANALYSIS_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteWeibullAnalysis(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${WEIBULL_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "weibullAnalysis");
+  return response;
 }
 
 // Risk Integration
-export async function DeleteRiskIntegration(id: string): Promise<void> {
-  await Delete(`${RISK_INTEGRATION_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteRiskIntegration(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${RISK_INTEGRATION_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "riskIntegration");
+  return response;
 }
 
 // Radiological Consequence Analysis
-export async function DeleteRadiologicalConsequenceAnalysis(id: string): Promise<void> {
-  await Delete(`${RADIOLOGICAL_CONSEQUENCE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteRadiologicalConsequenceAnalysis(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${RADIOLOGICAL_CONSEQUENCE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "radiologicalConsequenceAnalysis");
+  return response;
 }
 
 // Mechanistic Source Term
-export async function DeleteMechanisticSourceTerm(id: string): Promise<void> {
-  await Delete(`${MECHANISTIC_SOURCE_TERM_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteMechanisticSourceTerm(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${MECHANISTIC_SOURCE_TERM_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "mechanisticSourceTerms");
+  return response;
 }
 
 // Event Sequence Quantification Diagram
-export async function DeleteEventSequenceQuantificationDiagram(id: string): Promise<void> {
-  await Delete(`${EVENT_SEQUENCE_QUANTIFICATION_DIAGRAM_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteEventSequenceQuantificationDiagram(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${EVENT_SEQUENCE_QUANTIFICATION_DIAGRAM_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "eventSequenceQuantificationDiagrams");
+  return response;
 }
 
 // Data Analysis
-export async function DeleteDataAnalysis(id: string): Promise<void> {
-  await Delete(`${DATA_ANALYSIS_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteDataAnalysis(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${DATA_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "dataAnalysis");
+  return response;
 }
 
 // Human Reliability Analysis
-export async function DeleteHumanReliabilityAnalysis(id: string): Promise<void> {
-  await Delete(`${HUMAN_RELIABILITY_ANALYSIS_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteHumanReliabilityAnalysis(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${HUMAN_RELIABILITY_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "humanReliabilityAnalysis");
+  return response;
 }
 
 // Systems Analysis
-export async function DeleteSystemsAnalysis(id: string): Promise<void> {
-  const response = await Delete(`${SYSTEMS_ANALYSIS_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteSystemsAnalysis(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${SYSTEMS_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "systemsAnalysis");
+  return response;
 }
 
 // Success Criteria
-export async function DeleteSuccessCriteria(id: string): Promise<void> {
-  const response = await Delete(`${SUCCESS_CRITERIA_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteSuccessCriteria(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${SUCCESS_CRITERIA_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "successCriteria");
+  return response;
 }
 
 // Operating State Analysis
-export async function DeleteOperatingStateAnalysis(id: string): Promise<void> {
-  await Delete(`${OPERATING_STATE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`);
+export async function DeleteOperatingStateAnalysis(id = -1): Promise<NestedModel> {
+  const response = await Delete(`${OPERATING_STATE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
+    (response) => response.json() as Promise<NestedModel>,
+  );
   await RemoveNestedIds(id, "operatingStateAnalysis");
+  return response;
 }
 
 //Delete for parent ids
@@ -756,7 +796,7 @@ export async function DeleteOperatingStateAnalysis(id: string): Promise<void> {
  * removes all instanced of the parent ids, and Deleted the models with nothing left
  * @param parentId - parent id to be removed from nested models
  */
-export async function RemoveParentIds(parentId: string): Promise<number> {
+export async function RemoveParentIds(parentId = -1): Promise<number> {
   return await Delete(`${NESTED_ENDPOINT}/?modelId=${Number(parentId)}`).then(
     (response) => response.json() as Promise<number>,
   );

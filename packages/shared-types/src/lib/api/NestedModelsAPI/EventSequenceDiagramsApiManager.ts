@@ -26,7 +26,7 @@ export async function GetEventSequenceDiagrams(id: string): Promise<NestedModelT
 // TODO:: === work on changing this to Partial<NestedModelJSON> ===
 export async function PostEventSequenceDiagram(data: NestedModelJSON, typedModel: string): Promise<NestedModelType> {
   try {
-    const response = await Post(`${EVENT_SEQUENCE_DIAGRAMS_ENDPOINT}/`, data);
+    const response = await Post(`${EVENT_SEQUENCE_DIAGRAMS_ENDPOINT}/`, data, typedModel);
     return (await response.json()) as Promise<NestedModelType>;
   } catch (error) {
     console.error("Failed to post event sequence diagram:", error);

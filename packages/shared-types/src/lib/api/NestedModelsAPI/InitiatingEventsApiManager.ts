@@ -26,7 +26,7 @@ export async function GetInitiatingEvents(id: string): Promise<NestedModelType[]
 // TODO:: === work on changing this to Partial<NestedModelJSON> ===
 export async function PostInitiatingEvent(data: NestedModelJSON, typedModel: string): Promise<NestedModelType> {
   try {
-    const response = await Post(`${INITIATING_EVENTS_ENDPOINT}/`, data);
+    const response = await Post(`${INITIATING_EVENTS_ENDPOINT}/`, data, typedModel);
     return (await response.json()) as Promise<NestedModelType>;
   } catch (error) {
     console.error("Failed to post initiating event:", error);

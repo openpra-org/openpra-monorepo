@@ -1,27 +1,16 @@
-import { FAULT_TREES_ENDPOINT, Get, Post, Patch, Delete } from "../NestedModelApiManager";
-import { Graph } from "../../types/reactflowGraph/Graph";
-
-const ApiEndpoint = "/api";
-const GraphEndpoint = `${ApiEndpoint}/graph-models`;
-
-// Unified fault tree type combining metadata and graph
-export interface FaultTree {
-  id: string;
-  name: string;
-  description?: string;
-  modelId: string; // Parent model ID
-  graph: Graph;
-}
+import { Delete, Get, FAULT_TREES_ENDPOINT, Patch, Post } from "../NestedModelApiManager";
+import { NestedModelJSON, NestedModelType } from "../../types/modelTypes/innerModels/nestedModel";
+import { LabelJSON } from "../../types/Label";
 
 /**
- * Get all fault trees for a model
- * @param modelId - Parent model ID
- * @returns List of fault trees
+ * Gets the list of the type of nested model
+ * @param id - the parent model id, the parent whose list is to be retrieved
+ * @returns a list of the nested models at  endpoint in a promise
  */
-export async function getFaultTrees(modelId: string): Promise<FaultTree[]> {
+export async function GetFaultTrees(id: string): Promise<NestedModelType[]> {
   try {
-    const response = await Get(`${FAULT_TREES_ENDPOINT}/?modelId=${modelId}`);
-    return await response.json();
+    const response = await Get(`${FAULT_TREES_ENDPOINT}/?id=${id}`);
+    return (await response.json()) as Promise<NestedModelType[]>;
   } catch (error) {
     console.error("Failed to fetch fault trees:", error);
     throw error;
@@ -29,80 +18,47 @@ export async function getFaultTrees(modelId: string): Promise<FaultTree[]> {
 }
 
 /**
- * Get a single fault tree by ID
- * @param id - Fault tree ID
- * @returns Full fault tree data
+ * Posts the type of nested model, and adds its id to its parent
+ * @param data - a nestedModelJSON containing a label and a parent id
+ * @param typedModel - the typed model to be updated
+ * @returns a promise with the nested model, containing only those features
  */
-export async function getFaultTree(id: string): Promise<FaultTree> {
+// TODO:: === work on changing this to Partial<NestedModelJSON> ===
+export async function PostFaultTree(data: NestedModelJSON, typedModel: string): Promise<NestedModelType> {
   try {
-    const response = await Get(`${FAULT_TREES_ENDPOINT}/?id=${id}`);
-    return await response.json();
+    const response = await Post(`${FAULT_TREES_ENDPOINT}/`, data, typedModel);
+    return (await response.json()) as Promise<NestedModelType>;
   } catch (error) {
-    console.error("Failed to fetch fault tree:", error);
+    console.error("Failed to post fault tree:", error);
     throw error;
   }
 }
 
 /**
- * Create a new fault tree
- * @param data - Fault tree data
- * @returns Created fault tree
+ * updates the label for the type of nested model
+ * @param id - the id of the nested model
+ * @param data - a labelJSON with a name and optional description
+ * @returns a promise with the new updated model, with its label
  */
-export async function createFaultTree(data: Omit<FaultTree, 'id'>): Promise<FaultTree> {
+export async function PatchFaultTreeLabel(id: string, data: LabelJSON): Promise<NestedModelType> {
   try {
-    const response = await Post(FAULT_TREES_ENDPOINT, data);
-    return await response.json();
+    const response = await Patch(`${FAULT_TREES_ENDPOINT}/${id}`, data);
+    return (await response.json()) as Promise<NestedModelType>;
   } catch (error) {
-    console.error("Failed to create fault tree:", error);
+    console.error("Failed to patch fault tree:", error);
     throw error;
   }
 }
 
 /**
- * Update fault tree metadata
- * @param id - Fault tree ID
- * @param data - Partial metadata to update
- * @returns Updated fault tree
+ * Deletes a nested model from the typed model and database
+ * @param id - the id of the model to be Deleted
+ * @param type - the typed model that this nested model belongs to
+ * @returns the Deleted model
  */
-export async function updateFaultTreeMetadata(
-  id: string,
-  data: Partial<Pick<FaultTree, 'name' | 'description'>>
-): Promise<FaultTree> {
+export async function DeleteFaultTree(id: string, type: string): Promise<void> {
   try {
-    const response = await Patch(`${FAULT_TREES_ENDPOINT}/metadata/?id=${id}`, data);
-    return await response.json();
-  } catch (error) {
-    console.error("Failed to update fault tree metadata:", error);
-    throw error;
-  }
-}
-
-/**
- * Update fault tree graph
- * @param id - Fault tree ID
- * @param graph - Updated graph data
- * @returns Updated fault tree
- */
-export async function updateFaultTreeGraph(
-  id: string,
-  graph: Graph
-): Promise<FaultTree> {
-  try {
-    const response = await Patch(`${FAULT_TREES_ENDPOINT}/graph/?id=${id}`, graph);
-    return await response.json();
-  } catch (error) {
-    console.error("Failed to update fault tree graph:", error);
-    throw error;
-  }
-}
-
-/**
- * Delete a fault tree
- * @param id - Fault tree ID
- */
-export async function deleteFaultTree(id: string): Promise<void> {
-  try {
-    await Delete(`${FAULT_TREES_ENDPOINT}/?id=${id}`);
+    await Delete(`${FAULT_TREES_ENDPOINT}/?id=${id}&type=${type}`);
   } catch (error) {
     console.error("Failed to delete fault tree:", error);
     throw error;

@@ -1,12 +1,13 @@
-import { Node, Edge } from "reactflow";
+import { GraphNode } from "./GraphNode";
+import { GraphEdge } from "./GraphEdge";
 import { EventTreeData } from "./graphData/EventTreeData";
 
 /**
  * Graph type with list of GraphNodes and GraphEdges
  */
 export interface Graph {
-  nodes: Node<object>[];
-  edges: Edge<object>[];
+  nodes: GraphNode<object>[];
+  edges: GraphEdge<object>[];
 }
 
 /**
@@ -29,6 +30,6 @@ export type FaultTreeGraph = {
 export type EventTreeGraph = {
   eventTreeId: string;
 } & {
-  nodes: Node<EventTreeData>[];
-  edges: Edge<EventTreeData>[];
+  nodes: GraphNode<EventTreeData>[];
+  edges: GraphEdge<EventTreeData>[];
 };

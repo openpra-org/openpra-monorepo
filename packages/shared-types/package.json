@@ -14,7 +14,6 @@
   "dependencies": {
     "axios": "1.7.5",
     "jwt-decode": "4.0.0",
-    "reactflow": "11.11.4",
     "tslib": "2.5.2",
     "typia": "6.9.0"
   }

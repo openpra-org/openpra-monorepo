@@ -1,10 +1,6 @@
 import Label from "../../Label";
 import { BasicModel } from "../basicModel";
 
-function generateId(length: number = 6): string {
-  return Math.random().toString(36).substring(2, length + 2);
-}
-
 //interface that will maybe be used to pass partials to the database
 export interface NestedModelJSON {
   label: {
@@ -38,7 +34,7 @@ export class NestedModel extends BasicModel {
    * @param id - the id of the current model
    * @param parentIds - the id of the parent model this is attached to
    */
-  constructor(name = "", description = "", id: string = generateId(), parentIds = []) {
+  constructor(name = "", description = "", id = -1, parentIds = []) {
     super(new Label(name, description), id);
     this.parentIds = parentIds;
   }
@@ -60,11 +56,11 @@ export class NestedModel extends BasicModel {
 }
 
 export interface NestedModelType {
-  id: string;
   _id: string;
   label: {
     name: string;
     description: string;
   };
+  id: number;
   parentIds: string[];
 }

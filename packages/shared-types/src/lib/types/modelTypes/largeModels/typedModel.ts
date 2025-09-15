@@ -1,23 +1,19 @@
 import Label from "../../Label";
 import { BasicModel } from "../basicModel";
 
-function generateId(length: number = 6): string {
-  return Math.random().toString(36).substring(2, length + 2);
-}
-
 export interface TypedModelJSON {
-  id: string;
+  id: number;
   label: {
     name: string;
     description: string;
   };
-  users: string[];
+  users: number[];
 }
 
 export type TypedModelJSONMap = Record<string, TypedModelJSON>;
 
 export const DEFAULT_TYPED_MODEL_JSON: TypedModelJSON = {
-  id: generateId(),
+  id: -1,
   label: {
     name: "",
     description: "",
@@ -26,7 +22,7 @@ export const DEFAULT_TYPED_MODEL_JSON: TypedModelJSON = {
 };
 
 export default class TypedModel extends BasicModel /** implements Parsable<TypedModelJSONMap, TypedModelJSON> */ {
-  users: string[];
+  users: number[];
 
   /**
    * @param {TypedModelJSON} obj - dictionary object to parse
@@ -40,20 +36,20 @@ export default class TypedModel extends BasicModel /** implements Parsable<Typed
    * @param {string} description
    * @param {number []} users a list of users represented by their id numbers
    */
-  constructor(id = generateId(), name = "", description = "", users: string[] = []) {
+  constructor(id = -1, name = "", description = "", users: number[] = []) {
     super(new Label(name, description), id);
     this.users = users;
   }
 
   // Implement the getter and setter methods for ids
-  getUsers(): string[] {
+  getUsers(): number[] {
     return this.users;
   }
 
   /**
    * @param {number []} users sets the users
    */
-  setUsers(users: string[]): void {
+  setUsers(users: number[]): void {
     this.users = users;
   }
 
@@ -103,7 +99,6 @@ export default class TypedModel extends BasicModel /** implements Parsable<Typed
 }
 
 export interface typedModelType {
-  id: string;
   _id: string;
   label: {
     name: string;
@@ -120,4 +115,5 @@ export interface typedModelType {
   markovChains?: string[];
   bayesianEstimations?: string[];
   weibullAnalysis?: string[];
+  id: number;
 }

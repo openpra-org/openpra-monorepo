@@ -20,14 +20,14 @@ export const EnterEmailForm: React.FC<Props> = ({ email, loading, error, onChang
   <>
     <EuiText>
       <h1>Forgot Your Password?</h1>
-      <p>No worries! Enter your email address below and we'll send you a code to reset your password.</p>
+      <p>No worries! Enter your email address below and we'll send you further instructions to reset your password.</p>
     </EuiText>
     <EuiSpacer />
     <EuiForm component="form" onSubmit={onSubmit}>
       <EuiFormRow label="Email Address" isInvalid={!!error} error={error}>
         <EuiFieldText
           placeholder="name@example.com"
-          name="username"
+          name="email"
           value={email}
           onChange={onChange}
           isInvalid={!!error}

@@ -10,6 +10,7 @@ import { PaginationDto } from "./dtos/pagination.dto";
 import { UserPreferencesDto } from "./dtos/user-preferences.dto";
 import { UserCounter, UserCounterDocument } from "./schemas/user-counter.schema";
 import { User, UserDocument } from "./schemas/user.schema";
+import { password } from "nestjs-zod/z";
 
 @Injectable()
 export class CollabService {
@@ -238,6 +239,24 @@ export class CollabService {
     });
     return !response;
   }
+
+/**
+ * This function updates the password for a user with the given email.
+ * @param email - Email of the user
+ * @param password - New plain-text password
+ * @returns true if the password was updated successfully
+ */
+async updatePassword(email: string, password: string): Promise<boolean> {
+  const hashedPassword = await argon2.hash(password);
+
+  const response = await this.userModel.updateOne(
+    { email },
+    { $set: { password: hashedPassword } }
+  );
+
+  return response.modifiedCount > 0;
+}
+
 
   /**
    * This function will return true if username exists in the database

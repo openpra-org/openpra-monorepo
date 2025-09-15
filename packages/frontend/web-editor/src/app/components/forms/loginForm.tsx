@@ -55,9 +55,6 @@ function LoginForm(): JSX.Element {
   }
 
   function handlePasswordReset(){
-    console.log("Need to redirect to a password-reset page!")
-    console.log("Here the user will enter his email-id")
-    console.log("Then will click the button to reset password!")
     setRedirectToReset(true)
   }
 

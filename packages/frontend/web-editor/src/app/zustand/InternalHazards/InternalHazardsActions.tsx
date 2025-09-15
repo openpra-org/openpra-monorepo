@@ -11,7 +11,9 @@ import { UseGlobalStore } from "../Store";
 
 export const SetInternalHazards = async (): Promise<void> => {
   try {
-    const internalHazardsList: InternalHazardsModelType[] = await GetInternalHazards(ApiManager.getCurrentUser().user_id ?? "");
+    const internalHazardsList: InternalHazardsModelType[] = await GetInternalHazards(
+      ApiManager.getCurrentUser().user_id,
+    );
     UseGlobalStore.setState({
       InternalHazards: internalHazardsList,
     });
@@ -28,11 +30,12 @@ export const AddInternalHazard = async (data: Partial<TypedModelJSON>): Promise<
 };
 
 export const EditInternalHazard = async (
-  modelId: string,
+  modelId: number,
+  userId: number,
   data: Partial<TypedModelJSON>,
 ): Promise<void> => {
   try {
-    const ihr: InternalHazardsModelType = await PatchInternalHazard(modelId, data);
+    const ihr: InternalHazardsModelType = await PatchInternalHazard(modelId, userId, data);
     UseGlobalStore.setState((state) => ({
       InternalHazards: state.InternalHazards.map((ih: InternalHazardsModelType) => {
         if (ih.id === modelId) {
@@ -45,7 +48,7 @@ export const EditInternalHazard = async (
   } catch (error) {}
 };
 
-export const DeleteInternalHazard = async (id: string): Promise<void> => {
+export const DeleteInternalHazard = async (id: number): Promise<void> => {
   try {
     await DeleteInternalHazardAPI(id);
 

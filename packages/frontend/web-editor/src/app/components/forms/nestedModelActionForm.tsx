@@ -25,7 +25,7 @@ export interface NestedItemFormProps {
   _id?: string;
   postEndpoint?: (data: NestedModelJSON) => NonNullable<unknown>;
   patchEndpoint?: (id: number, data: LabelJSON) => NonNullable<unknown>;
-  postNestedEndpoint?: (data: any) => Promise<void>;
+  postNestedEndpoint?: (data: NestedModelJSON) => Promise<void>;
   patchNestedEndpoint?: (modelId: string, data: Partial<NestedModelJSON>) => Promise<void>;
   onSuccess?: () => NonNullable<unknown>;
   onFail?: () => NonNullable<unknown>;

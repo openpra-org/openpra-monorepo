@@ -9,67 +9,105 @@ import {
   EuiFlexItem,
 } from "@elastic/eui";
 import { Link } from "react-router-dom";
+import { LabelJSON } from "shared-types/src/lib/types/Label";
+import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+import { NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LastActionText } from "./LastActionText";
 import { ListItemContextMenuButton } from "./ListItemAction";
-import { NestedModel } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 
+// TODO: After all nested models are converted to use Zustand
+// TODO: Remove patchNestedEndpoint and replace it with patchNestedEndpointNew renamed to patchNestedEndpoint
+// TODO: Remove deleteNestedEndpoint and replace it with deleteNestedEndpointNew renamed to deleteNestedEndpoint
 export interface GenericListItemProps {
-  id: string;
-  name: string;
-  description: string;
+  id: number;
+  label: LabelJSON;
   endpoint: string;
-  onEdit: (id: string, data: any) => Promise<any>;
-  onDelete: (id: string) => Promise<void>;
+  deleteTypedEndpoint?: (id: number) => Promise<void>;
+  postTypedEndpoint?: (data: Partial<TypedModelJSON>) => Promise<void>;
+  patchTypedEndpoint?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
+  postNestedEndpoint?: (data: NestedModelJSON) => Promise<void>;
+  patchNestedEndpointNew?: (modelId: string, data: Partial<NestedModelJSON>) => Promise<void>;
+  patchNestedEndpoint?: (id: number, data: LabelJSON) => NonNullable<unknown>;
+  deleteNestedEndpointNew?: (id: string) => Promise<void>;
+  deleteNestedEndpoint?: (id: number) => NonNullable<unknown>;
+  users?: number[] | null;
+  path: string;
+  itemName: string;
+  _id?: string;
 }
 
-export function GenericListItem(props: GenericListItemProps): JSX.Element {
-  const { id, name, description, endpoint, onEdit, onDelete } = props;
+/**
+ * @param props - that contains all the input props for the component
+ */
+function GenericListItem(props: GenericListItemProps): JSX.Element {
+  //grabs the props
+  const { label, id, path } = props;
+
+  // TODO
+  //setting theming constants to be used later
   const border = useEuiTheme().euiTheme.border;
   const borderLine = logicalStyle("border-bottom", `${border.width.thin} solid ${border.color}`);
   const paddingLine = logicalStyle("padding-vertical", `${useEuiPaddingSize("s")}`);
   const customStyles = { ...borderLine, ...paddingLine };
-
   return (
     <EuiListGroupItem
       style={customStyles}
       icon={
-        <Link to={`${endpoint}/${id}`}>
+        <Link to={path}>
+          {/** avatar with the abbreviation for the item, it is in a  link as is the other part so that clicks are seamless */}
           <EuiAvatar
-            name={name}
+            name={label.name ? label.name : ""}
             size="l"
             type="space"
           />
         </Link>
       }
       label={
-        <EuiFlexGroup direction="row" alignItems="center" responsive={false}>
+        <EuiFlexGroup
+          direction="row"
+          alignItems="center"
+          responsive={false}
+        >
           <EuiFlexItem grow={5}>
-            <Link to={`${endpoint}/${id}`}>
-              <EuiText size="m" color="default" grow={false}>
-                <strong>{name}</strong>
+            <Link to={path}>
+              {/** this is the title for the item */}
+              <EuiText
+                size="m"
+                color="default"
+                grow={false}
+              >
+                <strong>{label.name}</strong>
               </EuiText>
             </Link>
-            <EuiText size="s" color="subdued" grow={false}>
-              {description}
+            {/** this is the description for the item */}
+            <EuiText
+              size="s"
+              color="subdued"
+              grow={false}
+            >
+              {label.description}
             </EuiText>
           </EuiFlexItem>
+
           <EuiFlexItem grow={false}>
-            <EuiText color="subdued" textAlign="right">
+            <EuiText
+              color="subdued"
+              textAlign="right"
+            >
               <small>
-                <LastActionText action="viewed" timestamp={Date.now()} />
+                <LastActionText
+                  action="viewed"
+                  timestamp={Date.now()}
+                />
               </small>
             </EuiText>
           </EuiFlexItem>
           <EuiFlexItem grow={false}>
-            <EuiFlexGroup direction="row" gutterSize="s">
-              <ListItemContextMenuButton
-                id={id}
-                name={name}
-                description={description}
-                endpoint={endpoint}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
+            <EuiFlexGroup
+              direction="row"
+              gutterSize="s"
+            >
+              <ListItemContextMenuButton {...props} />
             </EuiFlexGroup>
           </EuiFlexItem>
         </EuiFlexGroup>
@@ -77,6 +115,7 @@ export function GenericListItem(props: GenericListItemProps): JSX.Element {
       key={id}
       size="l"
       wrapText={false}
-    />
+    ></EuiListGroupItem>
   );
 }
+export { GenericListItem };

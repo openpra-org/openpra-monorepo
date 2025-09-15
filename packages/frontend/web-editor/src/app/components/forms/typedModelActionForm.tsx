@@ -22,7 +22,7 @@ import { ToTitleCase } from "../../../utils/StringUtils";
 export interface ItemFormProps {
   itemName: string;
   postEndpoint?: (data: Partial<TypedModelJSON>) => Promise<void>;
-  patchEndpoint?: (modelId: string, data: Partial<TypedModelJSON>) => Promise<void>;
+  patchEndpoint?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
   onSuccess?: () => NonNullable<unknown>;
   onFail?: () => NonNullable<unknown>;
   onCancel?: (func: any) => void;
@@ -42,7 +42,7 @@ function TypedModelActionForm({
   patchEndpoint,
   postEndpoint,
 }: ItemFormProps): JSX.Element {
-  const userId = ApiManager.getCurrentUser().user_id ?? "";
+  const userId = ApiManager.getCurrentUser().user_id ?? -1;
 
   //setting up initial values depending on what has been sent, if init form values are passed it's assumed to be updating instead of adding
   const formInitials = initialFormValues ? initialFormValues : DEFAULT_TYPED_MODEL_JSON;
@@ -60,7 +60,7 @@ function TypedModelActionForm({
   const [selectedUsersList, setSelectedUsersList] = useState<EuiComboBoxOptionOption<any>[]>([]);
 
   //list of the user ids which we add to the api calls
-  const [usersListId, setUsersListId] = useState<string[]>([]);
+  const [usersListId, setUsersListId] = useState<number[]>([]);
 
   //use effect to set up users, only runs if init form values is passed which is only passed on edit!
   if (initialFormValues) {
@@ -96,7 +96,7 @@ function TypedModelActionForm({
 
     //use effect hook that updates the list of users we are setting
     useEffect(() => {
-      const idList: string[] = selectedUsersList.map((item: any) => item.key);
+      const idList: number[] = selectedUsersList.map((item: any) => item.key);
       //sets certain data
       setUsersListId(idList);
     }, [selectedUsersList]);
@@ -118,7 +118,7 @@ function TypedModelActionForm({
       };
 
       if (initialFormValues && patchEndpoint) {
-        void patchEndpoint(initialFormValues.id, partialModel).then(() => {
+        void patchEndpoint(initialFormValues.id, userId, partialModel).then(() => {
           onCancel && onCancel(false);
         });
       } else if (postEndpoint) {

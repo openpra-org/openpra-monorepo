@@ -7,7 +7,7 @@ export interface ExternalHazardsType {
 
 export interface ExternalHazardsActionsType {
   SetExternalHazards: () => Promise<void>;
-  AddExternalHazard: (data: Partial<TypedModelJSON>) => Promise<any>;
-  EditExternalHazard: (modelId: string, data: any) => Promise<any>;
-  DeleteExternalHazard: (id: string) => Promise<void>;
+  AddExternalHazard: (data: Partial<TypedModelJSON>) => Promise<void>;
+  EditExternalHazard: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
+  DeleteExternalHazard: (id: number) => Promise<void>;
 }

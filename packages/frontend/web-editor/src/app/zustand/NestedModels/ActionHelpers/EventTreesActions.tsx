@@ -14,7 +14,7 @@ export const SetEventTrees = async (parentId: string): Promise<void> => {
     const EventTrees = await GetEventTrees(parentId);
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
-        state.NestedModels.modelId = parentId;
+        state.NestedModels.parentId = parentId;
         state.NestedModels.EventSequenceAnalysis.EventTrees = EventTrees;
       }),
     );

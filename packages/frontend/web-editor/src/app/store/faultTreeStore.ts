@@ -12,7 +12,6 @@ import {
 } from "reactflow";
 import { initialEdges, initialNodes } from "../../utils/faultTreeData";
 import { FaultTreeNodeProps } from "../components/treeNodes/faultTreeNodes/faultTreeNodeType";
-import { FaultTree, updateFaultTreeGraph } from "packages/shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
 
 export interface RFState {
   nodes: Node<FaultTreeNodeProps>[];
@@ -28,7 +27,6 @@ export interface RFState {
   future: HistoryItem[];
   setPast: (past: HistoryItem[]) => void;
   setFuture: (future: HistoryItem[]) => void;
-  saveFaultTree: (faultTreeId: string) => Promise<void>;
 }
 
 export type HistoryItem =
@@ -76,13 +74,6 @@ const useStore = create<RFState>((set, get) => ({
   },
   setFuture: (future: HistoryItem[]): void => {
     set({ future });
-  },
-  saveFaultTree: async (faultTreeId: string): Promise<void> => {
-    const { nodes, edges } = get();
-    await updateFaultTreeGraph(faultTreeId, {
-      nodes: nodes as Node<object>[],
-      edges: edges as Edge<object>[]
-    });
   },
 }));
 

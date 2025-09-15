@@ -29,30 +29,18 @@ import {
   SetFaultTrees,
   SetInitiatingEvents,
 } from "./NestedModelsActions";
-import { FaultTree } from "shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
 
-const patchedNestedModelsState = {
-  ...NestedModelsState,
-  NestedModels: {
-    ...NestedModelsState.NestedModels,
-    SystemAnalysis: {
-      ...NestedModelsState.NestedModels.SystemAnalysis,
-      FaultTrees: [] as FaultTree[],
-    },
-  },
-};
-
-export const NestedModelsSlice: StateCreator<
+const NestedModelsSlice: StateCreator<
   StoreStateType & StoreActionType,
   [],
   [["zustand/immer", never]],
   NestedModelsType & NestedModelActionsType
 > = immer((set) => {
   SliceResetFns.add(() => {
-    set(patchedNestedModelsState);
+    set(NestedModelsState);
   });
   return {
-    NestedModels: patchedNestedModelsState.NestedModels,
+    NestedModels: NestedModelsState.NestedModels,
 
     // Initiating Events
     SetInitiatingEvents: SetInitiatingEvents,
@@ -91,3 +79,5 @@ export const NestedModelsSlice: StateCreator<
     DeleteFaultTree: DeleteFaultTree,
   };
 });
+
+export { NestedModelsSlice };

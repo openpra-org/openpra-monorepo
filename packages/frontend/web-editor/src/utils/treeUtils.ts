@@ -63,13 +63,6 @@ export interface OnGrayedState {
   grayedEdges: Edge<FaultTreeNodeProps>[];
 }
 
-export function hasIsGrayed(data: object | undefined): data is { isGrayed: boolean } {
-  return !!data && typeof data === "object" && "isGrayed" in data;
-}
-
-export function hasBranchId(data: object | undefined): data is { branchId: string } {
-  return !!data && typeof data === "object" && "branchId" in data;
-}
 /**
  * Common type to store grayed nodes and edges data
  */
@@ -180,7 +173,7 @@ export const filterDuplicateData = (currentData: GrayedNodeData[]) => {
   return currentData.reduce((acc: GrayedNodeData[], curr: GrayedNodeData) => {
     const existingItem: GrayedNodeData | undefined = acc.find((item: GrayedNodeData): boolean => item.id === curr.id);
     if (existingItem) {
-      if (hasBranchId(curr.data)) {
+      if (curr.data?.branchId) {
         // Replace the existing item if the current item has branchId
         return acc.map((item) => (item.id === curr.id ? curr : item));
       } else {
@@ -210,7 +203,7 @@ export const grayOutSubgraph = (
   const grayedEdges: Edge[] = [...currentEdges];
 
   //gray out current node
-  if (node.data) hasIsGrayed(node.data) && node.data.isGrayed === true;
+  if (node.data) node.data.isGrayed = true;
   grayedNodes.push(node);
 
   //first we will get the subgraph which we want to gray out
@@ -239,17 +232,17 @@ export const grayOutSubgraph = (
       ...childEdge,
       animated: true,
       data: {
-        branchId: hasBranchId(targetNode.data) ? targetNode.data.branchId : undefined,
+        branchId: targetNode.data?.branchId,
         isGrayed: true,
       },
     };
   });
   grayedEdges.push(...grayedChildEdges);
 
-  branchRootNodes.map((branchRootNode: Node<object>) => {
+  branchRootNodes.map((branchRootNode: Node<FaultTreeNodeProps>) => {
     const { grayedNodes: grayedBranchNodes, grayedEdges: grayedBranchEdges } = grayOutBranch(
       branchRootNode,
-      hasBranchId(branchRootNode.data) ? branchRootNode.data.branchId : undefined,
+      branchRootNode.data?.branchId,
       nodes,
       edges,
     );
@@ -308,9 +301,8 @@ export const grayOutBranch = (
  */
 export const isSubgraphGrayed = (nodes: Node[], edges: Edge[]) => {
   return !(
-    nodes.findIndex((n: Node<object>) => hasIsGrayed(n.data) && n.data.isGrayed === true
-) &&
-    edges.findIndex((e: Edge<object>) => hasIsGrayed(e.data) && e.data.isGrayed === true)
+    nodes.findIndex((n: Node<FaultTreeNodeProps>) => n.data?.isGrayed === true) === -1 &&
+    edges.findIndex((e: Edge<FaultTreeNodeProps>) => e.data?.isGrayed === true) === -1
   );
 };
 

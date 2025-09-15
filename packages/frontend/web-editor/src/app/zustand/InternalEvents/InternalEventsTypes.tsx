@@ -8,6 +8,6 @@ export interface InternalEventsType {
 export interface InternalEventsActionsType {
   SetInternalEvents: () => Promise<void>;
   AddInternalEvent: (data: Partial<TypedModelJSON>) => Promise<void>;
-  EditInternalEvent: (modelId: string, data: Partial<TypedModelJSON>) => Promise<void>;
-  DeleteInternalEvent: (id: string) => Promise<void>;
+  EditInternalEvent: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
+  DeleteInternalEvent: (id: number) => Promise<void>;
 }

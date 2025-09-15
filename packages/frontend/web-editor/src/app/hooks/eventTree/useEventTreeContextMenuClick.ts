@@ -1,9 +1,8 @@
 import { useCallback, useState } from "react";
 import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node, NodeProps, useReactFlow } from "reactflow";
-import _, { update } from "lodash";
+import _ from "lodash";
 import { useParams } from "react-router-dom";
 import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
-import { updateFaultTreeGraph } from "packages/shared-types/src/lib/api/NestedModelApiManager";
 import { GenerateUUID, FaultTreeState } from "../../../utils/treeUtils";
 
 /**
@@ -45,7 +44,7 @@ export function useEventTreeContextMenuClick(id: NodeProps["id"]) {
   }
 
   const handleContextMenuClick = useCallback(
-    async (contextMenuClickEvent: React.MouseEvent) => {
+    (contextMenuClickEvent: React.MouseEvent) => {
       // we need the parent node object for positioning the new child node
       const parentNode = getNode(id);
       if (!parentNode) {
@@ -203,12 +202,12 @@ export function useEventTreeContextMenuClick(id: NodeProps["id"]) {
 
       setEdges(edges);
 
-      await updateFaultTreeGraph(
-        faultTreeId ?? "",
-        {
+      GraphApiManager.storeFaultTree(
+        FaultTreeState({
+          faultTreeId: faultTreeId!,
           nodes: nodes,
           edges: edges,
-        },
+        }),
       ).then((r: any) => {
         console.log(r);
       });

@@ -27,11 +27,9 @@ function InternalHazardsList(): JSX.Element {
       CreateGenericList<InternalEventsModelType>({
         modelList: internalHazardsList,
         endpoint: "Internal Hazards",
-        getItemId: (item) => item.id,
-        getItemName: (item) => item.label.name,
-        getItemDescription: (item) => item.label.description,
-        onEdit: editInternalHazard,
-        onDelete: deleteInternalHazard,
+        postTypedEndpoint: createInternalHazards,
+        patchTypedEndpoint: editInternalHazard,
+        deleteTypedEndpoint: deleteInternalHazard,
       }),
     );
   }, [createInternalHazards, deleteInternalHazard, editInternalHazard, internalHazardsList]);

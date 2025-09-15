@@ -14,7 +14,7 @@ export const SetEventSequenceDiagrams = async (parentId: string): Promise<void> 
     const EventSequenceDiagrams = await GetEventSequenceDiagrams(parentId);
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
-        state.NestedModels.modelId = parentId;
+        state.NestedModels.parentId = parentId;
         state.NestedModels.EventSequenceAnalysis.EventSequenceDiagrams = EventSequenceDiagrams;
       }),
     );

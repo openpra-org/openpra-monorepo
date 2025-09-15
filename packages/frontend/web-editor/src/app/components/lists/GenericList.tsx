@@ -1,36 +1,54 @@
 import { ReactElement } from "react";
+import { TypedModelJSON, typedModelType } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
+import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { GenericListItem } from "./GenericListItem";
 
-interface CreateGenericListOptions<T> {
+interface CreateGenericListPropTypes<T> {
   modelList: T[];
   endpoint: string;
-  getItemId: (item: T) => string;
-  getItemName: (item: T) => string;
-  getItemDescription: (item: T) => string;
-  onEdit: (id: string, data: any) => Promise<any>;
-  onDelete: (id: string) => Promise<void>;
+  postTypedEndpoint?: (data: Partial<TypedModelJSON>) => Promise<void>;
+  patchTypedEndpoint?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
+  deleteTypedEndpoint?: (id: number) => Promise<void>;
+  postNestedEndpoint?: (data: NestedModelJSON) => Promise<void>;
+  patchNestedEndpoint?: (modelId: string, data: Partial<NestedModelJSON>) => Promise<void>;
+  deleteNestedEndpoint?: (id: string) => Promise<void>;
 }
 
-export function CreateGenericList<T>(options: CreateGenericListOptions<T>): ReactElement[] {
+function CreateGenericList<T extends typedModelType | NestedModelType>(
+  props: CreateGenericListPropTypes<T>,
+): ReactElement[] {
   const {
     modelList,
     endpoint,
-    getItemId,
-    getItemName,
-    getItemDescription,
-    onEdit,
-    onDelete,
-  } = options;
+    postTypedEndpoint,
+    patchTypedEndpoint,
+    deleteTypedEndpoint,
+    postNestedEndpoint,
+    patchNestedEndpoint,
+    deleteNestedEndpoint,
+  } = props;
 
-  return modelList.map((model) => (
+  return modelList.map((modelItem: T) => (
     <GenericListItem
-      key={getItemId(model)}
-      id={getItemId(model)}
-      name={getItemName(model)}
-      description={getItemDescription(model)}
-      endpoint={endpoint}
-      onEdit={onEdit}
-      onDelete={onDelete}
+      itemName={modelItem.label.name}
+      id={modelItem.id}
+      key={modelItem._id} // Use a unique key for each item (e.g., the ID)
+      label={{
+        name: modelItem.label.name,
+        description: modelItem.label.description,
+      }}
+      path={modelItem._id}
+      endpoint={endpoint} // Adjust this based on your model's structure
+      postTypedEndpoint={postTypedEndpoint}
+      deleteTypedEndpoint={deleteTypedEndpoint}
+      patchTypedEndpoint={patchTypedEndpoint}
+      postNestedEndpoint={postNestedEndpoint}
+      patchNestedEndpointNew={patchNestedEndpoint}
+      deleteNestedEndpointNew={deleteNestedEndpoint}
+      users={"users" in modelItem ? modelItem.users : null}
+      _id={modelItem._id}
     />
-  ));
+  )) as ReactElement[];
 }
+
+export { CreateGenericList };

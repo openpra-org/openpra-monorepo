@@ -2,7 +2,7 @@ import { NestedModelType } from "shared-types/src/lib/types/modelTypes/innerMode
 
 export const NestedModelsState = {
   NestedModels: {
-    modelId: "",
+    parentId: "",
     OpStateAnalysis: [] as string[],
     InitiatingEventsAnalysis: {
       InitiatingEvents: [] as NestedModelType[],

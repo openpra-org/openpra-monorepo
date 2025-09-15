@@ -1,8 +1,10 @@
 import { useCallback } from "react";
 import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node, NodeProps, useReactFlow } from "reactflow";
 import { useParams } from "react-router-dom";
-import { FaultTree } from "packages/shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import {
+  FaultTreeState,
   getBasicEventNode,
   GetSubgraph,
   GetParentNode,
@@ -25,7 +27,6 @@ import {
 import { useStore } from "../../store/faultTreeStore";
 import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 import { useUndoRedo } from "./useUndeRedo";
-import { updateFaultTreeGraph } from "packages/shared-types/src/lib/api/NestedModelApiManager";
 
 /**
  * Hook for handling context menu click event.
@@ -223,13 +224,14 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
           maxZoom: 1.6,
         });
       }
-      await updateFaultTreeGraph(
-        faultTreeId ?? "",
-        {
+      await GraphApiManager.storeFaultTree(
+        FaultTreeState({
           nodes: nodes,
           edges: edges,
-        }).then((r: FaultTree): void => {
-        console.log(r);
+          faultTreeId: faultTreeId ?? "", // Use empty string as default value,
+        }),
+      ).then((r: FaultTreeGraph): void => {
+        //console.log(r);
       });
     },
     [clickedNode, takeSnapshot, nodes, setNodes, edges, setEdges, faultTreeId, id],

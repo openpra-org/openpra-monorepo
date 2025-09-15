@@ -4,10 +4,11 @@ import { EventSequenceDiagramsType } from "./TypesHelpers/EventSequenceDiagramsT
 import { EventSequenceAnalysisType } from "./TypesHelpers/EventSequenceAnalysisType";
 import { EventTreesType } from "./TypesHelpers/EventTreesType";
 import { BayesianNetworksType } from "./TypesHelpers/BayesianNetworksType";
-import { FaultTree } from "shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
+import { FaultTreesType } from "./TypesHelpers/FaultTreesType";
 
 export interface NestedModelsStateType {
-  modelId: string;
+  parentId: string;
+  // TODO:: Table of values
   OpStateAnalysis: string[];
   InitiatingEventsAnalysis: {
     InitiatingEvents: NestedModelType[];
@@ -24,9 +25,9 @@ export interface NestedModelsStateType {
   };
   SystemAnalysis: {
     SystemAnalysisList: string[];
+    FaultTrees: NestedModelType[];
     BayesianNetworks: NestedModelType[];
     MarkovChains: string[];
-    FaultTrees: FaultTree[]; // <-- Use FaultTree[] here
   };
   HumanReliabilityAnalysis: {
     HumanReliabilityAnalysisList: string[];
@@ -55,13 +56,6 @@ export interface NestedModelsStateType {
   RiskIntegration: {
     RiskIntegrationList: string[];
   };
-}
-
-export interface FaultTreesType {
-  SetFaultTrees: (modelId: string) => Promise<void>;
-  AddFaultTree: (data: Omit<FaultTree, "id">) => Promise<void>;
-  EditFaultTree: (id: string, data: Partial<FaultTree>) => Promise<void>;
-  DeleteFaultTree: (id: string) => Promise<void>;
 }
 
 export interface NestedModelsType {

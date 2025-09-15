@@ -1,69 +1,73 @@
 import {
-  getFaultTrees,
-  createFaultTree,
-  updateFaultTreeMetadata,
-  deleteFaultTree,
-} from "shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
-import { FaultTree } from "shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
+  GetFaultTrees,
+  PostFaultTree,
+  PatchFaultTreeLabel,
+  DeleteFaultTree as DeleteFaultTreeAPI,
+} from "shared-types/src/lib/api/NestedModelApiManager";
+import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { produce } from "immer";
 import { StoreStateType, UseGlobalStore } from "../../Store";
+import { AddToParentModel, GetTypedModelName, RemoveFromParentModel } from "../Helper";
 
-export const SetFaultTrees = async (modelId: string): Promise<void> => {
+export const SetFaultTrees = async (parentId: string): Promise<void> => {
   try {
-    const faultTrees = await getFaultTrees(modelId);
+    const FaultTrees = await GetFaultTrees(parentId);
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
-        state.NestedModels.modelId = modelId;
-        state.NestedModels.SystemAnalysis.FaultTrees = faultTrees;
+        state.NestedModels.parentId = parentId;
+        state.NestedModels.SystemAnalysis.FaultTrees = FaultTrees;
       }),
     );
-  } catch (error) {
-    console.error("Failed to load fault trees:", error);
-  }
+  } catch (error) {}
 };
 
-export const AddFaultTree = async (data: Omit<FaultTree, "id">): Promise<void> => {
+export const AddFaultTree = async (data: NestedModelJSON): Promise<void> => {
   try {
-    const faultTree: FaultTree = await createFaultTree(data);
+    const typedModelName: keyof StoreStateType = GetTypedModelName();
+    const FaultTree: NestedModelType = await PostFaultTree(data, typedModelName);
+
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
-        state.NestedModels.SystemAnalysis.FaultTrees.push(faultTree);
+        state.NestedModels.SystemAnalysis.FaultTrees.push(FaultTree);
+
+        state[typedModelName] = AddToParentModel(state, FaultTree._id, FaultTree.parentIds);
       }),
     );
-  } catch (error) {
-    console.error("Failed to create fault tree:", error);
-  }
+  } catch (error) {}
 };
 
-export const EditFaultTree = async (
-  id: string,
-  data: Partial<Pick<FaultTree, "name" | "description">>
-): Promise<void> => {
+export const EditFaultTree = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
+  if (!data.label) {
+    return;
+  }
+
   try {
-    const updatedTree: FaultTree = await updateFaultTreeMetadata(id, data);
+    const ftr: NestedModelType = await PatchFaultTreeLabel(modelId, data.label);
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
         state.NestedModels.SystemAnalysis.FaultTrees = state.NestedModels.SystemAnalysis.FaultTrees.map(
-          (ft: FaultTree) => (ft.id === id ? updatedTree : ft),
+          (ft: NestedModelType) => (ft._id === modelId ? ftr : ft),
         );
       }),
     );
-  } catch (error) {
-    console.error("Failed to update fault tree:", error);
-  }
+  } catch (error) {}
 };
 
 export const DeleteFaultTree = async (id: string): Promise<void> => {
   try {
-    await deleteFaultTree(id);
+    const typedModelName: keyof StoreStateType = GetTypedModelName();
+    await DeleteFaultTreeAPI(id, typedModelName);
+
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
+        const parentIds = state.NestedModels.SystemAnalysis.FaultTrees.find((ft) => ft._id === id)?.parentIds ?? [];
+
         state.NestedModels.SystemAnalysis.FaultTrees = state.NestedModels.SystemAnalysis.FaultTrees.filter(
-          (ft: FaultTree) => ft.id !== id,
+          (ft: NestedModelType) => ft._id !== id,
         );
+
+        state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
-  } catch (error) {
-    console.error("Failed to delete fault tree:", error);
-  }
+  } catch (error) {}
 };

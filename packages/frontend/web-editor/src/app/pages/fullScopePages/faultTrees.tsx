@@ -22,9 +22,9 @@ import ReactFlow, {
   ReactFlowProvider,
 } from "reactflow";
 
-import { getFaultTree, updateFaultTreeGraph } from "shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
-import type { FaultTree } from "shared-types/src/lib/api/NestedModelsAPI/FaultTreesApiManager";
+import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
 import { EuiButtonIcon, EuiFlexGroup, EuiFlexItem, EuiPopover, EuiSkeletonRectangle } from "@elastic/eui";
+import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { Route, Routes, useParams } from "react-router-dom";
 import { shallow } from "zustand/shallow";
 import { UseLayout } from "../../hooks/faultTree/useLayout";
@@ -77,7 +77,6 @@ function ReactFlowPro(): JSX.Element {
   const ref = useRef(document.createElement("div"));
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
   const { nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges } = useStore(selector, shallow);
-  const { saveFaultTree } = useStore();
   const [isLoading, setIsLoading] = useState(true);
   const { faultTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
@@ -85,15 +84,15 @@ function ReactFlowPro(): JSX.Element {
 
   useEffect(() => {
     const loadGraph = async (): Promise<void> => {
-      await getFaultTree(faultTreeId as string).then((res: FaultTree) => {
-        // Use the graph data from the response
-        setNodes(res.graph.nodes.length !== 0 ? res.graph.nodes : initialNodes);
-        setEdges(res.graph.edges.length !== 0 ? res.graph.edges : initialEdges);
+      await GraphApiManager.getFaultTree(faultTreeId).then((res: FaultTreeGraph) => {
+        setNodes(res.nodes.length !== 0 ? res.nodes : initialNodes);
+        setEdges(res.edges.length !== 0 ? res.edges : initialEdges);
+
         setIsLoading(false);
       });
     };
     void (isLoading && loadGraph());
-  }, [faultTreeId, isLoading, setEdges, setNodes]);
+  }, [faultTreeId, isLoading, nodes, setEdges, setNodes]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {
@@ -141,15 +140,6 @@ function ReactFlowPro(): JSX.Element {
     const toast = allToasts.filter((toast) => toast.type === type)[0];
     addToast({ id: GenerateUUID(), ...toast });
   };
-
-  const saveFaultTreeGraph = useCallback(async () => {
-    try {
-      await saveFaultTree(faultTreeId as string);
-      addToastHandler("success");
-    } catch (error) {
-      addToastHandler("error");
-    }
-  }, [faultTreeId, saveFaultTree, addToast]);
 
   return isLoading ? (
     <EuiSkeletonRectangle
@@ -207,16 +197,6 @@ function ReactFlowPro(): JSX.Element {
               iconType={EDITOR_REDO}
               display={"base"}
               aria-label="redo"
-            />
-          </EuiFlexItem>
-          <EuiFlexItem
-            grow={false}
-            onClick={saveFaultTreeGraph}
-          >
-            <EuiButtonIcon
-              iconType="save"
-              display={"base"}
-              aria-label="save"
             />
           </EuiFlexItem>
         </EuiFlexGroup>

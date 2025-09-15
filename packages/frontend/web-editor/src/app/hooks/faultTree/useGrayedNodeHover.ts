@@ -1,7 +1,7 @@
 import { Edge, Node, NodeProps } from "reactflow";
 import { useStore } from "../../store/faultTreeStore";
 import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
-import { isSubgraphGrayed, hasIsGrayed, hasBranchId } from "../../../utils/treeUtils";
+import { isSubgraphGrayed } from "../../../utils/treeUtils";
 
 /**
  * Hook for handling grayed node hover functionality.
@@ -21,27 +21,14 @@ const UseGrayedNodeHover = (id: NodeProps["id"]) => {
     const handleMouseEnter = (branchId: string | undefined): void => {
       if (branchId !== undefined) {
         const solidNodes = nodes.map((node) => {
-          if (
-            node.data &&
-            hasBranchId(node.data) &&
-            hasIsGrayed(node.data) &&
-            node.data.branchId !== undefined &&
-            node.data.isGrayed === true &&
-            node.data.branchId === branchId
-          ) {
+          if (node.data?.branchId !== undefined && node.data.isGrayed === true && node.data.branchId === branchId) {
             node.data.isGrayed = false;
           }
           return node;
         });
 
         const solidEdges: Edge<FaultTreeNodeProps>[] = edges.map((edge) => {
-          if (
-            edge.data &&
-            hasIsGrayed(edge.data) &&
-            hasBranchId(edge.data) &&
-            edge.data.isGrayed === true &&
-            edge.data.branchId === branchId
-          ) {
+          if (edge.data && edge.data.isGrayed === true && edge.data.branchId === branchId) {
             edge.data.isGrayed = false;
             edge.animated = false;
           }
@@ -56,27 +43,14 @@ const UseGrayedNodeHover = (id: NodeProps["id"]) => {
     const handleMouseLeave = (branchId: string | undefined): void => {
       if (branchId !== undefined) {
         const grayedNodes: Node<FaultTreeNodeProps>[] = nodes.map((node) => {
-          if (
-            node.data &&
-            hasIsGrayed(node.data) &&
-            hasBranchId(node.data) &&
-            node.data.isGrayed !== undefined &&
-            !node.data.isGrayed &&
-            node.data.branchId === branchId
-          ) {
+          if (node.data?.isGrayed !== undefined && !node.data.isGrayed && node.data.branchId === branchId) {
             node.data.isGrayed = true;
           }
           return node;
         });
 
         const grayedEdges: Edge<FaultTreeNodeProps>[] = edges.map((edge) => {
-          if (
-            edge.data &&
-            hasIsGrayed(edge.data) &&
-            hasBranchId(edge.data) &&
-            edge.data.isGrayed === false &&
-            edge.data.branchId === branchId
-          ) {
+          if (edge.data !== undefined && edge.data.isGrayed === false && edge.data.branchId === branchId) {
             edge.data.isGrayed = true;
             edge.animated = true;
           }

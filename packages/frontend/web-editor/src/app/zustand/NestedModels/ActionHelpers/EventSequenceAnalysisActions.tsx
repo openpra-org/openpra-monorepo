@@ -14,7 +14,7 @@ export const SetEventSequenceAnalysis = async (parentId: string): Promise<void> 
     const EventSequenceAnalysis = await GetEventSequenceAnalysis(parentId);
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
-        state.NestedModels.modelId = parentId;
+        state.NestedModels.parentId = parentId;
         state.NestedModels.EventSequenceAnalysis.EventSequenceAnalysisList = EventSequenceAnalysis;
       }),
     );

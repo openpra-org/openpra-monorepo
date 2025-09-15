@@ -11,20 +11,26 @@ import { UseGlobalStore } from "../../../../zustand/Store";
 
 export interface NestedModelListProps {
   name: string;
-  getNestedEndpoint?: (id: string) => Promise<NestedModel[]>;
-  deleteNestedEndpoint: (id: string) => Promise<void>;
-  patchNestedEndpoint: (id: string, data: any) => Promise<NestedModel>;
+  getNestedEndpoint?: (id: number) => Promise<NestedModel[]>;
+  getNestedEndpointString?: (id: string) => Promise<NestedModel[]>;
+  deleteNestedEndpoint: (id: number) => NonNullable<unknown>;
+  patchNestedEndpoint: (id: number, data: LabelJSON) => NonNullable<unknown>;
 }
 
-// Grabs the model List
+//grabs the model List
 async function fetchModelList(
-  getNestedEndpoint?: (id: string) => Promise<NestedModel[]>,
+  getNestedEndpoint?: (id: number) => Promise<NestedModel[]>,
+  getNestedEndpointString?: (id: string) => Promise<NestedModel[]>,
 ): Promise<NestedModel[]> {
+  // const modelId = GetCurrentModelIdString();
   try {
     const modelList = getNestedEndpoint
       ? await getNestedEndpoint(GetCurrentModelId())
+      : getNestedEndpointString
+      ? await getNestedEndpointString(GetCurrentModelIdString())
       : [];
     return modelList;
+    // return await getNestedEndpointString(modelId);
   } catch (error) {
     return [];
   }
@@ -34,14 +40,17 @@ async function fetchModelList(
 //this works but poorly, need to fix how ids are done
 //I also cant really get the items to know what type they are, I'm assuming typedmodeljson
 const getFixtures = async (
+  deleteNestedEndpoint: (id: number) => NonNullable<unknown>,
+  patchNestedEndpoint: (id: number, data: LabelJSON) => NonNullable<unknown>,
   name: string,
-  deleteNestedEndpoint: (id: string) => Promise<void>,
-  patchNestedEndpoint: (id: string, data: any) => Promise<NestedModel>,
-  getNestedEndpoint?: (id: string) => Promise<NestedModel[]>,
+  getNestedEndpoint?: (id: number) => Promise<NestedModel[]>,
+  getNestedEndpointString?: (id: string) => Promise<NestedModel[]>,
 ): Promise<JSX.Element[]> => {
   try {
     const modelList = getNestedEndpoint
-      ? await fetchModelList(getNestedEndpoint)
+      ? await fetchModelList(getNestedEndpoint, undefined)
+      : getNestedEndpointString
+      ? await fetchModelList(undefined, getNestedEndpointString)
       : [];
     const nestedModelList: NestedModel[] = modelList.map(
       (item: any) => new NestedModel(item.label.name, item.label.description, item.id, item.parentIds),
@@ -50,13 +59,17 @@ const getFixtures = async (
     //now we map these events to what they should be and display them
     return nestedModelList.map((modelItem: NestedModel) => (
       <GenericListItem
-        id={String(modelItem.getId())}
+        itemName={modelItem.getLabel().getName()}
+        id={modelItem.getId()}
         key={modelItem.getId()} // Use a unique key for each item (e.g., the ID)
-        name={modelItem.getLabel().getName()}
-        description={modelItem.getLabel().getDescription()}
-        endpoint={name}
-        onEdit={patchNestedEndpoint}
-        onDelete={deleteNestedEndpoint}
+        label={{
+          name: modelItem.getLabel().getName(),
+          description: modelItem.getLabel().getDescription(),
+        }}
+        path={`${modelItem.getId()}`}
+        endpoint={name} // Adjust this based on your model's structure
+        deleteNestedEndpoint={deleteNestedEndpoint}
+        patchNestedEndpoint={patchNestedEndpoint}
       />
     ));
   } catch (error) {
@@ -68,16 +81,17 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
   const [genericListItems, setGenericListItems] = useState<ReactElement[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const { name, deleteNestedEndpoint, getNestedEndpoint, patchNestedEndpoint } = props;
+  const { name, deleteNestedEndpoint, getNestedEndpoint, getNestedEndpointString, patchNestedEndpoint } = props;
 
   useEffect(() => {
     const fetchGenericListItems = async (): Promise<void> => {
       try {
         const items = await getFixtures(
-          name,
           deleteNestedEndpoint,
           patchNestedEndpoint,
+          name,
           getNestedEndpoint,
+          getNestedEndpointString,
         );
         setGenericListItems(items);
         setIsLoading(false);

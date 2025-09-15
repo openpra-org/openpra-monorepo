@@ -27,11 +27,9 @@ function ExternalHazardsList(): JSX.Element {
       CreateGenericList<ExternalHazardsModelType>({
         modelList: externalHazardsList,
         endpoint: "External Hazards",
-        getItemId: (item) => item.id,
-        getItemName: (item) => item.label.name,
-        getItemDescription: (item) => item.label.description,
-        onEdit: editExternalHazard,
-        onDelete: deleteExternalHazard,
+        postTypedEndpoint: createExternalHazards,
+        patchTypedEndpoint: editExternalHazard,
+        deleteTypedEndpoint: deleteExternalHazard,
       }),
     );
   }, [createExternalHazards, deleteExternalHazard, editExternalHazard, externalHazardsList]);

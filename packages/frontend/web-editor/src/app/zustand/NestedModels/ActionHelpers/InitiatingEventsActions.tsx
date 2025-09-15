@@ -14,7 +14,7 @@ export const SetInitiatingEvents = async (parentId: string): Promise<void> => {
     const InitiatingEvents = await GetInitiatingEvents(parentId);
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
-        state.NestedModels.modelId = parentId;
+        state.NestedModels.parentId = parentId;
         state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents = InitiatingEvents;
       }),
     );

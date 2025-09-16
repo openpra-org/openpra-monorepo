@@ -3,6 +3,13 @@
 #include <array>
 #include <functional>
 
+// Structure to hold basic event information during collection phase
+struct BasicEventInfo {
+  std::string name;
+  std::string description;
+  double probability;
+};
+
 // ============ Helpers for parsing legacy/old JSON/XML-style ============
 
 // Helper function to recursively parse gates and events from fault tree structure
@@ -559,6 +566,32 @@ static std::string NextFTGateName(const scram::mef::FaultTree* ft, int& counter)
   return ft->name() + "_g" + std::to_string(++counter);
 }
 
+// Helper function to collect basic events from a fault tree into a map
+static void CollectBasicEventsFromFaultTree(
+  const Napi::Object& ftObj, 
+  std::unordered_map<std::string, BasicEventInfo>& allBasicEvents) {
+  
+  if (ftObj.Has("basicEvents")) {
+    Napi::Array beArr = ftObj.Get("basicEvents").As<Napi::Array>();
+    for (uint32_t j = 0; j < beArr.Length(); ++j) {
+      Napi::Object beO = beArr.Get(j).As<Napi::Object>();
+      std::string name = beO.Get("name").ToString().Utf8Value();
+      double p = beO.Get("p").ToNumber().DoubleValue();
+      
+      // If event doesn't exist yet, add it
+      if (allBasicEvents.find(name) == allBasicEvents.end()) {
+        BasicEventInfo bei;
+        bei.name = name;
+        bei.probability = p;
+        if (beO.Has("description")) {
+          bei.description = beO.Get("description").ToString().Utf8Value();
+        }
+        allBasicEvents[name] = bei;
+      }
+    }
+  }
+}
+
 // Recursively build a Gate from TS LogicExpr (supports {event}, {op:"and"/"or"/"not"})
 // Returns a Gate* owned by the model (and added to the FT). May return nullptr for single-leaf pass-through.
 static scram::mef::Gate* BuildGateFromLogicExprTS(
@@ -798,57 +831,107 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
   }
  }
  
- // Parse fault trees and extract gates/events from hierarchical structure or TS MVP
+ // FIRST PASS: Collect all basic events from all fault trees
+ std::unordered_map<std::string, BasicEventInfo> allBasicEvents;
+ std::unordered_map<std::string, std::vector<std::string>> ftHouseEvents; // Map of FT name to house event names
+
+ // Parse fault trees and first collect all basic events
  if (nodeModel.Has("faultTrees")) {
   Napi::Array ftArr = nodeModel.Get("faultTrees").As<Napi::Array>();
   std::cout << "Found " << ftArr.Length() << " fault trees" << std::endl;
+  
+  // FIRST PASS: Collect all basic events
   for (uint32_t i = 0; i < ftArr.Length(); ++i) {
-   Napi::Object ftObj = ftArr.Get(i).As<Napi::Object>();
-
-   // === NEW: TS MVP format path ===
-   if (ftObj.Has("top") && ftObj.Has("basicEvents")) {
-     std::string ftName = ftObj.Get("name").ToString().Utf8Value();
-     auto ft = std::make_unique<scram::mef::FaultTree>(ftName);
-
-     // Build maps of events for this FT
-     std::unordered_map<std::string, scram::mef::BasicEvent*> beMap;
-     std::unordered_map<std::string, scram::mef::HouseEvent*> heMap;
-
-     // Create BasicEvents with ConstantExpression(p) and add to model + FT
-     Napi::Array beArr = ftObj.Get("basicEvents").As<Napi::Array>();
-     for (uint32_t j = 0; j < beArr.Length(); ++j) {
-       Napi::Object beO = beArr.Get(j).As<Napi::Object>();
-       std::string name = beO.Get("name").ToString().Utf8Value();
-       double p = beO.Get("p").ToNumber().DoubleValue();
-       auto be = std::make_unique<scram::mef::BasicEvent>(name);
-       auto ce = std::make_unique<scram::mef::ConstantExpression>(p);
-       scram::mef::Expression* cePtr = ce.get();
-       ft->Add(be.get());
-       be->expression(cePtr);
-       // ownership
-       model->Add(std::move(ce));
-       beMap.emplace(name, be.get());
-       model->Add(std::move(be));
-     }
-
-     // Optional houseEvents
-     if (ftObj.Has("houseEvents")) {
-       Napi::Array heArr = ftObj.Get("houseEvents").As<Napi::Array>();
-       for (uint32_t j = 0; j < heArr.Length(); ++j) {
-         Napi::Object heO = heArr.Get(j).As<Napi::Object>();
-         std::string name = heO.Get("name").ToString().Utf8Value();
-         bool state = heO.Get("state").ToBoolean().Value();
-         auto he = std::make_unique<scram::mef::HouseEvent>(name);
-         he->state(state);
-         heMap.emplace(name, he.get());
-         ft->Add(he.get());
-         model->Add(std::move(he));
-       }
-     }
-
-     // Build top gate from LogicExpr
-     int gateCounter = 0;
-     scram::mef::Gate* topGate = BuildGateFromLogicExprTS(
+    Napi::Object ftObj = ftArr.Get(i).As<Napi::Object>();
+    
+    // === TS MVP format path ===
+    if (ftObj.Has("top") && ftObj.Has("basicEvents")) {
+      // Collect basic events from this fault tree
+      CollectBasicEventsFromFaultTree(ftObj, allBasicEvents);
+      
+      // Store house events for later processing
+      std::string ftName = ftObj.Get("name").ToString().Utf8Value();
+      if (ftObj.Has("houseEvents")) {
+        Napi::Array heArr = ftObj.Get("houseEvents").As<Napi::Array>();
+        std::vector<std::string> heNames;
+        for (uint32_t j = 0; j < heArr.Length(); ++j) {
+          Napi::Object heO = heArr.Get(j).As<Napi::Object>();
+          std::string name = heO.Get("name").ToString().Utf8Value();
+          heNames.push_back(name);
+        }
+        ftHouseEvents[ftName] = heNames;
+      }
+    } else if (ftObj.Has("topEvent")) {
+      // Legacy path - extract gates and events for later processing
+      parsedFaultTrees.push_back(ParseFaultTree(ftObj));
+    }
+  }
+  
+  std::cout << "Collected " << allBasicEvents.size() << " unique basic events from all fault trees" << std::endl;
+  
+  // SECOND PASS: Register all unique basic events to the model once
+  std::unordered_map<std::string, scram::mef::BasicEvent*> globalBeMap;
+  for (const auto& [name, info] : allBasicEvents) {
+    auto be = std::make_unique<scram::mef::BasicEvent>(name);
+    if (!info.description.empty()) {
+      be->label(info.description);
+    }
+    auto ce = std::make_unique<scram::mef::ConstantExpression>(info.probability);
+    scram::mef::Expression* cePtr = ce.get();
+    be->expression(cePtr);
+    scram::mef::BasicEvent* bePtr = be.get();
+    model->Add(std::move(ce));
+    model->Add(std::move(be));
+    globalBeMap[name] = bePtr;
+  }
+  
+  // THIRD PASS: Build fault trees using the registered basic events
+  for (uint32_t i = 0; i < ftArr.Length(); ++i) {
+    Napi::Object ftObj = ftArr.Get(i).As<Napi::Object>();
+    
+    // === TS MVP format path ===
+    if (ftObj.Has("top") && ftObj.Has("basicEvents")) {
+      std::string ftName = ftObj.Get("name").ToString().Utf8Value();
+      auto ft = std::make_unique<scram::mef::FaultTree>(ftName);
+      
+      // Build maps of events for this FT using the global registered events
+      std::unordered_map<std::string, scram::mef::BasicEvent*> beMap;
+      std::unordered_map<std::string, scram::mef::HouseEvent*> heMap;
+      
+      // Add the already registered basic events to this fault tree
+      Napi::Array beArr = ftObj.Get("basicEvents").As<Napi::Array>();
+      for (uint32_t j = 0; j < beArr.Length(); ++j) {
+        Napi::Object beO = beArr.Get(j).As<Napi::Object>();
+        std::string name = beO.Get("name").ToString().Utf8Value();
+        
+        // Find the pre-registered basic event and add it to this fault tree
+        auto beIt = globalBeMap.find(name);
+        if (beIt != globalBeMap.end()) {
+          ft->Add(beIt->second);
+          beMap[name] = beIt->second;
+        } else {
+          throw std::runtime_error("Basic event not found in global map: " + name);
+        }
+      }
+      
+      // Process house events
+      if (ftObj.Has("houseEvents")) {
+        Napi::Array heArr = ftObj.Get("houseEvents").As<Napi::Array>();
+        for (uint32_t j = 0; j < heArr.Length(); ++j) {
+          Napi::Object heO = heArr.Get(j).As<Napi::Object>();
+          std::string name = heO.Get("name").ToString().Utf8Value();
+          bool state = heO.Get("state").ToBoolean().Value();
+          auto he = std::make_unique<scram::mef::HouseEvent>(name);
+          he->state(state);
+          heMap.emplace(name, he.get());
+          ft->Add(he.get());
+          model->Add(std::move(he));
+        }
+      }
+      
+      // Build top gate from LogicExpr
+      int gateCounter = 0;
+      scram::mef::Gate* topGate = BuildGateFromLogicExprTS(
         nodeModel.Env(),
         ftObj.Get("top"),
         model.get(),
@@ -856,42 +939,36 @@ std::unique_ptr<scram::mef::Model> ScramNodeModel(const Napi::Object& nodeModel)
         beMap,
         heMap,
         gateCounter);
-
-     if (!topGate) {
-       throw std::runtime_error("Failed to build top gate for FaultTree '" + ftName + "'");
-     }
-
-     // Create an alias gate under the FaultTree name that references the built top gate.
-    // This allows EventTrees to reference the FT directly by name in functionalStates.
-    {
-      scram::mef::Formula::ArgSet as;
-      as.Add(topGate);
-      auto alias = std::make_unique<scram::mef::Gate>(ftName);
-      auto f = std::make_unique<scram::mef::Formula>(scram::mef::kNull, std::move(as));
-      alias->formula(std::move(f));
-      registry.RegisterElement(ftName, std::move(alias));
+        
+      if (!topGate) {
+        throw std::runtime_error("Failed to build top gate for FaultTree '" + ftName + "'");
+      }
+      
+      // Create an alias gate under the FaultTree name that references the built top gate.
+      // This allows EventTrees to reference the FT directly by name in functionalStates.
+      {
+        scram::mef::Formula::ArgSet as;
+        as.Add(topGate);
+        auto alias = std::make_unique<scram::mef::Gate>(ftName);
+        auto f = std::make_unique<scram::mef::Formula>(scram::mef::kNull, std::move(as));
+        alias->formula(std::move(f));
+        registry.RegisterElement(ftName, std::move(alias));
+      }
+      
+      // Now ensure FT top event is discoverable
+      ft->CollectTopEvents();
+      model->Add(std::move(ft));
+    } else if (ftObj.Has("topEvent")) {
+      // Legacy path - Extract gates and events from the fault tree structure (legacy hierarchical)
+      Napi::Object topEventObj = ftObj.Get("topEvent").As<Napi::Object>();
+      std::cout << "Parsing fault tree elements from top event: " << topEventObj.Get("name").ToString().Utf8Value() << std::endl;
+      std::set<std::string> seenBasicEvents;
+      ParseFaultTreeElements(topEventObj, parsedGates, parsedBasicEvents, seenBasicEvents, "");
+      std::cout << "Extracted " << parsedGates.size() << " gates from fault tree structure" << std::endl;
     }
-
-     // Now ensure FT top event is discoverable
-     ft->CollectTopEvents();
-     model->Add(std::move(ft));
-     continue; // handled TS path; skip legacy path
-   }
-   // === END TS MVP path ===
-
-   parsedFaultTrees.push_back(ParseFaultTree(ftObj));
-
-   // Extract gates and events from the fault tree structure (legacy hierarchical)
-   if (ftObj.Has("topEvent")) {
-     Napi::Object topEventObj = ftObj.Get("topEvent").As<Napi::Object>();
-     std::cout << "Parsing fault tree elements from top event: " << topEventObj.Get("name").ToString().Utf8Value() << std::endl;
-     std::set<std::string> seenBasicEvents;
-     ParseFaultTreeElements(topEventObj, parsedGates, parsedBasicEvents, seenBasicEvents);
-     std::cout << "Extracted " << parsedGates.size() << " gates from fault tree structure" << std::endl;
-   }
   }
  }
- 
+
  // Parse event trees (legacy-style input JSON for ET)
  if (nodeModel.Has("eventTrees")) {
   Napi::Array etArr = nodeModel.Get("eventTrees").As<Napi::Array>();

@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   EuiText,
   EuiSpacer,
@@ -6,7 +6,7 @@ import {
   EuiFormRow,
   EuiFieldText,
   EuiButton,
-} from '@elastic/eui';
+} from "@elastic/eui";
 
 interface Props {
   email: string;

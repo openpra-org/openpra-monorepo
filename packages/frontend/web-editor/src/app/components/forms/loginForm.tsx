@@ -1,6 +1,6 @@
 import React, { useContext } from "react";
 import { useState, useEffect } from "react";
-import { Navigate} from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { EuiFieldText, EuiForm, EuiButton, EuiFormRow, EuiFieldPassword } from "@elastic/eui";
 import { LoginProps, LoginErrorProps } from "shared-types/src/lib/api/AuthTypes";
 import { ApiManager } from "shared-types/src/lib/api/ApiManager";
@@ -31,7 +31,6 @@ function LoginForm(): JSX.Element {
   async function handleLogin(): Promise<void> {
     setInvalid(false);
     const { username, password } = login;
-    console.log("Username: ", username, "Password: ", password);
     try {
       await ApiManager.signInWithUsernameAndPassword(username, password).then(() => {
         if (ApiManager.isLoggedIn()) {
@@ -39,7 +38,7 @@ function LoginForm(): JSX.Element {
             .then((res) => {
               setRedirectToHomepage(true);
             })
-            .catch((error) => {
+            .catch((error : unknown) => {
               addToast(GetESToast("danger", "Something went wrong while getting abilities"));
               setInvalid(true);
             });
@@ -47,8 +46,7 @@ function LoginForm(): JSX.Element {
           setInvalid(true);
         }
       });
-    } catch (error) {
-      console.log("Error invalid credentials!")
+    } catch (error : unknown) {
       setInvalid(true);
 
     }
@@ -103,7 +101,7 @@ function LoginForm(): JSX.Element {
             );
           }
         })
-        .catch((error) => {
+        .catch((error : unknown) => {
           // Handle login error
           // Optionally, you can also set an error state to display to the user
         });

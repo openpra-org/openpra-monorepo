@@ -7,7 +7,7 @@ import {
   EuiFieldText,
   EuiButton,
   EuiCallOut, 
-} from '@elastic/eui';
+} from "@elastic/eui";
 
 interface Props {
   email: string;

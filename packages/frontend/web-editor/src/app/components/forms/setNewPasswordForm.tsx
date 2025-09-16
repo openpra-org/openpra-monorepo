@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 import {
   EuiText,
   EuiSpacer,
@@ -7,7 +7,7 @@ import {
   EuiFieldPassword,
   EuiButton,
   EuiCallOut,
-} from '@elastic/eui';
+} from "@elastic/eui";
 
 interface Props {
   formData: {

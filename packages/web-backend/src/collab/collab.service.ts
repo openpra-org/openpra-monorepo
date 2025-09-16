@@ -10,7 +10,6 @@ import { PaginationDto } from "./dtos/pagination.dto";
 import { UserPreferencesDto } from "./dtos/user-preferences.dto";
 import { UserCounter, UserCounterDocument } from "./schemas/user-counter.schema";
 import { User, UserDocument } from "./schemas/user.schema";
-import { password } from "nestjs-zod/z";
 
 @Injectable()
 export class CollabService {

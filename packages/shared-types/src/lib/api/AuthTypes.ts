@@ -21,6 +21,10 @@ export type SignUpWithRole<Type> = {
   roles: string[];
 } & SignUpPropsGeneric<Type>;
 
+export type PasswordResetCredentials<Type> = {
+  username: Type
+}
+
 export type SignUpProps = SignUpPropsGeneric<string>;
 export type SignUpPropsWithRole = SignUpWithRole<string>;
 export type SignUpErrorProps = SignUpPropsGeneric<boolean>;
@@ -29,3 +33,6 @@ export type SignUpCredentialsWithRole = SignUpCredentialsGenericWithRole<string>
 
 export type LoginProps = LoginCredentials<string>;
 export type LoginErrorProps = LoginCredentials<boolean>;
+
+export type PasswordResetProps = PasswordResetCredentials<string>;
+export type PasswordResetErrorProps = PasswordResetCredentials<boolean>;

@@ -15,10 +15,12 @@ import { NestedModelModule } from "./nestedModels/nestedModel.module";
 import { QuantifyModule } from "./quantify/quantify.module";
 import { TypedModelModule } from "./typedModel/typedModel.module";
 import { RolesModule } from "./roles/roles.module";
-
+import { PasswordResetModule } from "./password-reset/passwordreset.module";
+import { ThrottlerModule } from '@nestjs/throttler';
 @Module({
   imports: [
     AuthModule,
+    PasswordResetModule,
     CollabModule,
     FmeaModule,
     GraphModelModule,
@@ -27,6 +29,14 @@ import { RolesModule } from "./roles/roles.module";
     QuantifyModule,
     TypedModelModule,
     RolesModule,
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          ttl: 60000 * 30,
+          limit: 10,
+        },
+      ],
+    }),
     ConfigModule.forRoot({
       envFilePath: ".env",
       isGlobal: true,
@@ -48,6 +58,10 @@ import { RolesModule } from "./roles/roles.module";
           {
             path: "auth",
             module: AuthModule,
+          },
+          {
+            path: "password-reset",
+            module: PasswordResetModule,
           },
           {
             path: "collab",

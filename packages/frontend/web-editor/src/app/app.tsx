@@ -9,12 +9,14 @@ import { RootContainer } from "./pages/rootContainer";
 import { DataPage } from "./pages/routingPages/dataAnalysisPage";
 import { FullScopePage } from "./pages/routingPages/fullScope";
 import { LoginPage } from "./pages/LandingPage";
+import { PasswordResetPage } from "./pages/passwordResetPages/passwordResetPage";
 import { SettingsPage } from "./pages/routingPages/settingsPage";
 import { ToastProvider } from "./providers/toastProvider";
 import { GlobalToastList } from "./components/lists/globalToastList";
 import { InvitePage } from "./pages/invitePage";
 import { AbilityContext } from "./providers/abilityProvider";
 import { DefaultAbility } from "./casl/ability";
+import { CreateNewPasswordPage } from "./pages/passwordResetPages/createNewPassword";
 
 const routes: RouteObject[] = [
   {
@@ -27,6 +29,14 @@ const routes: RouteObject[] = [
           {
             path: "",
             element: <LoginPage />,
+          },
+          {
+            path: "password-reset/*",
+            element: <PasswordResetPage />,
+          },
+          {
+            path: "create-new-password/*",
+            element: <CreateNewPasswordPage />,
           },
           {
             path: "invite/:inviteId/*",

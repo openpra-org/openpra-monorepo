@@ -24,6 +24,7 @@ function LoginForm(): JSX.Element {
   const [error, setError] = useState(DefaultErrorProps);
   const [invalid, setInvalid] = useState(false);
   const [redirectToHomepage, setRedirectToHomepage] = useState(false);
+  const [redirectToReset, setRedirectToReset] = useState(false);
   const ability = useContext(AbilityContext);
   const { addToast } = UseToastContext();
 
@@ -37,7 +38,7 @@ function LoginForm(): JSX.Element {
             .then((res) => {
               setRedirectToHomepage(true);
             })
-            .catch((error) => {
+            .catch((error : unknown) => {
               addToast(GetESToast("danger", "Something went wrong while getting abilities"));
               setInvalid(true);
             });
@@ -45,7 +46,14 @@ function LoginForm(): JSX.Element {
           setInvalid(true);
         }
       });
-    } catch (error) {}
+    } catch (error : unknown) {
+      setInvalid(true);
+
+    }
+  }
+
+  function handlePasswordReset(){
+    setRedirectToReset(true)
   }
 
   //Corrects the isInvalid when a user types something in a blank input field
@@ -93,11 +101,18 @@ function LoginForm(): JSX.Element {
             );
           }
         })
-        .catch((error) => {
+        .catch((error : unknown) => {
           // Handle login error
           // Optionally, you can also set an error state to display to the user
         });
     }
+  }
+  if(redirectToReset){
+    return (
+      <Navigate
+        to="password-reset"
+      />
+    );
   }
 
   if (redirectToHomepage) {
@@ -156,6 +171,16 @@ function LoginForm(): JSX.Element {
             type="submit"
           >
             Login
+          </EuiButton>
+        </EuiFormRow>
+
+
+        <EuiFormRow>
+          <EuiButton
+            fullWidth
+            onClick={handlePasswordReset}
+          >
+            Forgot Password?
           </EuiButton>
         </EuiFormRow>
       </EuiForm>

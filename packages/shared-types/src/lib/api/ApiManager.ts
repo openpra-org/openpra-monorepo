@@ -185,6 +185,38 @@ export class ApiManager {
     });
   }
 
+  // TODO: Refactor to use post()
+  static async getResetPasswordInstructions(email: string): Promise<Response> {
+    const data = { email };
+    // console.log("Reset Email: ", email);
+    return await fetch("api/password-reset", {
+      method: "POST",
+      cache: OPTION_CACHE,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+  static async resetPasswordWithToken(token: string, password: string): Promise<Response> {
+    // console.log("Password: ", password, "Token: ", token);
+    const data = { 
+      password,
+      token 
+    };
+
+    return await fetch("/api/password-reset/create-new-password", {
+      method: "POST",
+      cache: OPTION_CACHE,
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(data),
+    });
+  }
+
+
   static put<DataType>(url: string, data: DataType): Promise<Response> {
     return fetch(url, {
       method: "PUT",

@@ -10,15 +10,19 @@ export class MinioService implements OnModuleInit {
   private minioClient: Minio.Client;
   private readonly inputBucket: string;
   private readonly outputBucket: string;
+  private readonly endpoint: string;
+  private readonly port: number;
 
   constructor(private readonly configSvc: ConfigService) {
     this.inputBucket = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_MINIO_INPUT_BUCKET);
     this.outputBucket = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_MINIO_OUTPUT_BUCKET);
+    this.endpoint = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_MINIO_ENDPOINT);
+    this.port = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.ENV_MINIO_PORT));
     
     this.minioClient = new Minio.Client({
-      endPoint: this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_MINIO_ENDPOINT),
-      port: Number(this.configSvc.getOrThrow<number>(EnvVarKeys.ENV_MINIO_PORT)),
-      useSSL: Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.ENV_MINIO_USE_SSL)),
+      endPoint: this.endpoint,
+      port: this.port,
+      useSSL: false,
       accessKey: this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_MINIO_ACCESS_KEY),
       secretKey: this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_MINIO_SECRET_KEY),
     });

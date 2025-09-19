@@ -1,7 +1,6 @@
 export enum MinioConfigKeys{
   ENV_MINIO_ENDPOINT = 'MINIO_ENDPOINT',
   ENV_MINIO_PORT = 'MINIO_PORT',
-  ENV_MINIO_USE_SSL = 'MINIO_USE_SSL',
   ENV_MINIO_ACCESS_KEY = 'MINIO_ACCESS_KEY',
   ENV_MINIO_SECRET_KEY = 'MINIO_SECRET_KEY',
   ENV_MINIO_INPUT_BUCKET = 'MINIO_INPUT_BUCKET',
@@ -11,7 +10,6 @@ export enum MinioConfigKeys{
 export interface MinioEnvVars {
   [MinioConfigKeys.ENV_MINIO_ENDPOINT]: string;
   [MinioConfigKeys.ENV_MINIO_PORT]: number;
-  [MinioConfigKeys.ENV_MINIO_USE_SSL]: boolean;
   [MinioConfigKeys.ENV_MINIO_ACCESS_KEY]: string;
   [MinioConfigKeys.ENV_MINIO_SECRET_KEY]: string;
   [MinioConfigKeys.ENV_MINIO_INPUT_BUCKET]: string;

@@ -42,7 +42,6 @@ function saveOutput(data, filename, suffix = '') {
   const outputPath = path.join(OUTPUT_DIR, outputFilename);
   
   fs.writeFileSync(outputPath, JSON.stringify(data, null, 2));
-  console.log(`Saved to: ${outputPath}`);
   return outputPath;
 }
 
@@ -56,7 +55,6 @@ async function testBrotliCompression(inputFilename) {
     
     console.log(`Original size: ${requestBuffer.length} bytes`);
     console.log(`Compressed size: ${compressedBuffer.length} bytes`);
-    console.log(`Compression ratio: ${((1 - compressedBuffer.length / requestBuffer.length) * 100).toFixed(2)}%`);
   } catch (error) {
     console.error('Compression test failed:', error.message);
   }
@@ -187,36 +185,16 @@ async function main() {
   }
 
   try {
-    console.log(`Processing input file: ${inputFilename}`);
-    
-    // Test compression first
     await testBrotliCompression(inputFilename);
     
-    // Make the quantify request
     const minioResponse = await makeQuantifyRequest(inputFilename);
-    
     if (minioResponse.status === 'error') {
       console.error('Quantification failed:', minioResponse.error);
       return;
     }
     
-    // Retrieve the input data from MinIO
-    const retrievedInput = await getInputData(minioResponse.inputId, inputFilename);
-    
-    // Retrieve the output data from MinIO
-    const retrievedOutput = await getOutputData(minioResponse.outputId, inputFilename);
-    
-    console.log('\n=== Summary ===');
-    console.log(`Input ID: ${minioResponse.inputId}`);
-    console.log(`Output ID: ${minioResponse.outputId}`);
-    console.log(`Timestamp: ${minioResponse.timestamp}`);
-    console.log('All data successfully retrieved and saved to output directory');
-    
-    // Verify the retrieved input matches the original
-    const originalInput = readInputFile(inputFilename);
-    const inputMatches = JSON.stringify(originalInput) === JSON.stringify(retrievedInput);
-    console.log(`Input data integrity check: ${inputMatches ? 'PASSED' : 'FAILED'}`);
-    
+    await getInputData(minioResponse.inputId, inputFilename);
+    await getOutputData(minioResponse.outputId, inputFilename);
   } catch (error) {
     console.error('Test failed:', error.message);
     process.exit(1);

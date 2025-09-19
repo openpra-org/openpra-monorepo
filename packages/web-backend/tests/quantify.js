@@ -2,7 +2,7 @@ const brotli = require('brotli');
 const fs = require('fs');
 const path = require('path');
 
-// Run with: node quantify.js <input-filename>
+// Run using this command: node quantify.js <input-filename>
 const SERVER_URL = 'http://localhost:8000/api/quantify/scram-node';
 const INPUT_DIR = './input';
 const OUTPUT_DIR = './output';
@@ -10,12 +10,12 @@ const OUTPUT_DIR = './output';
 function ensureDirectories() {
   if (!fs.existsSync(INPUT_DIR)) {
     fs.mkdirSync(INPUT_DIR, { recursive: true });
-    console.log(`📁 Created input directory: ${INPUT_DIR}`);
+    console.log(`Created input directory: ${INPUT_DIR}`);
   }
   
   if (!fs.existsSync(OUTPUT_DIR)) {
     fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    console.log(`📁 Created output directory: ${OUTPUT_DIR}`);
+    console.log(`Created output directory: ${OUTPUT_DIR}`);
   }
 }
 
@@ -67,20 +67,10 @@ async function testBrotliCompression(inputFilename) {
       throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
     }
 
-    console.log('Response headers:');
-    for (const [key, value] of response.headers.entries()) {
-      console.log(`  ${key}: ${value}`);
-    }
-
-    const isCompressed = response.headers.get('x-compression') === 'brotli';
-    console.log(`Response is compressed: ${isCompressed}`);
-
     const compressedResponse = await response.arrayBuffer();
     const responseBuffer = new Uint8Array(compressedResponse);
-    
     console.log(`Compressed response size: ${responseBuffer.length} bytes`);
-    
-    // Decompress the response
+
     const decompressedArray = brotli.decompress(responseBuffer);
     console.log(`Decompressed response size: ${decompressedArray.length} bytes`);
     
@@ -88,26 +78,16 @@ async function testBrotliCompression(inputFilename) {
       throw new Error('Decompression returned empty result');
     }
     
-    // Convert the array of char codes to actual string
     const responseJson = String.fromCharCode(...decompressedArray);
-    console.log(`Response JSON length: ${responseJson.length} characters`);
-    console.log(`First 100 chars: ${responseJson.substring(0, 100)}`);
-    
-    // Parse the JSON
     const result = JSON.parse(responseJson);
-    
     saveOutput(result, inputFilename, 'compressed-response');
-    console.log('✅ Successfully decompressed and parsed response');
-    
     return result;
-
   } catch (error) {
     console.error('Compressed test failed:', error.message);
     throw error;
   }
 }
 
-// Main execution
 async function main() {
   ensureDirectories();
 

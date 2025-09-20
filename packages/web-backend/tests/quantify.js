@@ -2,7 +2,9 @@ const brotli = require('brotli');
 const fs = require('fs');
 const path = require('path');
 
-// Run using this command: node quantify.js <input-filename>
+// Run using these commands:
+// cd packages/web-backend/tests (if you are in the main directory)
+// node quantify.js <input-filename> (for exmple: node quantify.js GAS_LEAK.json)
 const SERVER_URL = 'http://localhost:8000/api/quantify/scram-node';
 const GET_INPUT_URL = 'http://localhost:8000/api/quantify/get-input-data';
 const GET_OUTPUT_URL = 'http://localhost:8000/api/quantify/get-output-data';

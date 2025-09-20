@@ -1,3 +1,5 @@
+import { Model } from "./model";
+
 /**
  * Schema for command-line options
  */
@@ -96,7 +98,32 @@ export interface CommandLineOptions {
   output?: string;
 }
 
-export interface QuantifyRequest2 {
+/**
+ * Schema for command-line options
+ */
+export interface ScramNodeOptions {
+  mocus: boolean;
+  bdd: boolean;
+  zbdd: boolean;
+  rareEvent: boolean;
+  mcub: boolean;
+  limitOrder?: number;
+  cutOff?: number;
+  missionTime?: number;
+  timeStep?: number;
+  numTrials?: number;
+  numQuantiles?: number;
+  numBins?: number;
+  seed?: number;
+  primeImplicants?: boolean;
+  probability?: boolean;
+  importance?: boolean;
+  uncertainty?: boolean;
+  ccf?: boolean;
+  sil?: boolean;
+}
+
+export interface ModelOptions {
   /**
    * BSON type ID of the MongoDB document
    */
@@ -107,5 +134,9 @@ export interface QuantifyRequest2 {
   models: string[];
 }
 
-export type QuantifyRequest = QuantifyRequest1 & QuantifyRequest2;
-export type QuantifyRequest1 = CommandLineOptions;
+export interface NodeQuantRequest {
+  settings?: ScramNodeOptions;
+  model?: Model;
+}
+
+export type QuantifyRequest = CommandLineOptions & ModelOptions;

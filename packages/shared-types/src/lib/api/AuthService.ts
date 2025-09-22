@@ -44,17 +44,17 @@ class AuthService {
 
   static setEncodedToken(idToken: string | null): void {
     if (idToken) {
-      localStorage.setItem("id_token", idToken);
+      sessionStorage.setItem("id_token", idToken);
     }
   }
 
   static getEncodedToken(): string | null {
-    const idToken = localStorage.getItem("id_token");
+    const idToken = sessionStorage.getItem("id_token");
     return idToken === "undefined" ? null : idToken;
   }
 
   static logout(): boolean {
-    localStorage.removeItem("id_token");
+    sessionStorage.removeItem("id_token");
     return AuthService.getEncodedToken() === null;
   }
 

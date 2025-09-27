@@ -1,108 +1,86 @@
-import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import amqp from "amqplib";
-import typia, { TypeGuardError } from "typia";
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from "@nestjs/common";
+import { Connection, Channel } from "amqplib";
+import typia from "typia";
 import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-import { EnvVarKeys } from "../../../config/env_vars.config";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { RpcException } from "@nestjs/microservices";
+import { QueueService, RabbitMQConnectionService, QueueConfig, QueueConfigFactory } from "../../shared";
+import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 
 @Injectable()
-export class ProducerService implements OnApplicationBootstrap {
+export class ProducerService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(ProducerService.name);
-  private channelModel: amqp.ChannelModel | null = null;
-  private channel: amqp.Channel | null = null;
-  constructor(private readonly configSvc: ConfigService) {}
+  private readonly queueConfig: QueueConfig;
+  private connection: Connection | null = null;
+  private channel: Channel | null = null;
 
-  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.ChannelModel> {
-    let attempt = 0;
-    while (attempt < retryCount) {
-      try {
-        const channelModel = await amqp.connect(url);
-        this.logger.log("Quantification-producer successfully connected to the RabbitMQ broker.");
-        return channelModel;
-      } catch {
-        attempt++;
-        this.logger.error(
-          `Attempt ${String(
-            attempt,
-          )}: Failed to connect to RabbitMQ broker from quantification-producer side. Retrying in 10 seconds...`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-      }
-    }
-    throw new Error(
-      "Failed to connect to the RabbitMQ broker after several attempts from quantification-producer side.",
-    );
+  constructor(
+    @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
+    private readonly queueService: QueueService,
+    private readonly rabbitmqService: RabbitMQConnectionService,
+    private readonly queueConfigFactory: QueueConfigFactory,
+  ) {
+    this.queueConfig = this.queueConfigFactory.createQuantJobQueueConfig();
   }
 
+  /**
+   * Initialize the queue when the application bootstraps
+   */
   async onApplicationBootstrap(): Promise<void> {
-    try {
-      console.log("Producer is connecting to the broker");
-      const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
-      this.channelModel = await this.connectWithRetry(url, 3);
-      this.channel = await this.channelModel.createChannel();
-
-      console.log("Producer is initializing the queues");
-      await this.setupQueuesAndExchanges();
-      this.logger.log("ProducerService initialized and ready to send messages.");
-    } catch (error) {
-      this.logger.error("Failed to initialize ProducerService:", error);
-    }
+    this.logger.debug("Connecting to the broker");
+    this.connection = await this.rabbitmqService.getConnection(QueueService.name);
+    this.channel = await this.rabbitmqService.getChannel(this.connection, QueueService.name);
+    await this.queueService.setupQueue(this.queueConfig, this.channel);
+    this.logger.debug("Initialized and ready to send messages");
   }
 
-  private async setupQueuesAndExchanges(): Promise<void> {
-    // check for channel
-    if (!this.channel) {
-      this.logger.error("Channel is not available. Cannot set up queues and exchanges.");
-      return;
-    }
-    // set up dead letter exchange and queue
-    const quantJobDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE);
-    const quantJobDeadLetterX = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_EXCHANGE);
-    const isquantJobDeadLetterQDurable = Boolean(
-      this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE_DURABLE),
-    );
-    await this.channel.assertExchange(quantJobDeadLetterX, "direct", { durable: isquantJobDeadLetterQDurable });
-    await this.channel.assertQueue(quantJobDeadLetterQ, { durable: isquantJobDeadLetterQDurable });
-    await this.channel.bindQueue(quantJobDeadLetterQ, quantJobDeadLetterX, "");
-
-    // setup quantification job queue
-    const quantJobQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_QUEUE);
-    const jobTtl = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_MSG_TTL));
-    const isJobQDurable = Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_QUEUE_DURABLE));
-    const jobQMaxLength = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_QUEUE_MAXLENGTH));
-    await this.channel.assertQueue(quantJobQ, {
-      durable: isJobQDurable,
-      deadLetterExchange: quantJobDeadLetterX,
-      messageTtl: jobTtl,
-      maxLength: jobQMaxLength,
-    });
-  }
-
-  public createAndQueueQuant(quantRequest: QuantifyRequest): void {
-    try {
-      // check for channel
-      if (!this.channel) {
-        this.logger.error("Channel is not available. Cannot send message.");
-        return;
+  /**
+   * Creates and queues a quantification job
+   *
+   * @param quantRequest - Request data for the quantification job
+   */
+  public async createAndQueueQuant(quantRequest: QuantifyRequest): Promise<void> {
+    const modelsData = ((): string => {
+      try {
+        this.logger.debug("Gets the request body from the Quantification controller");
+        return typia.json.assertStringify<QuantifyRequest>(quantRequest);
+      } catch (err) {
+        throw new RpcException(`Invalid schema: JobID <${String(quantRequest._id)}>`);
       }
+    })();
 
-      console.log("Producer gets the request body from the Quantification controller");
-      const modelsData = typia.json.assertStringify<QuantifyRequest>(quantRequest);
+    try {
+      this.logger.debug("Queueing the quantification job");
+      await this.channel?.checkExchange(this.queueConfig.exchange.name);
+      this.channel?.publish(
+        this.queueConfig.exchange.name,
+        this.queueConfig.exchange.routingKey,
+        Buffer.from(modelsData),
+        {
+          persistent: true,
+        },
+      );
+    } catch (err) {
+      throw new RpcException(`${this.queueConfig.exchange.name} does not exist.`);
+    }
 
-      const quantJobQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_QUEUE);
-      console.log("Producer is queueing the quantification job");
-      this.channel.sendToQueue(quantJobQ, Buffer.from(modelsData), {
-        persistent: true,
+    try {
+      await this.quantificationJobModel.findByIdAndUpdate(quantRequest._id, {
+        $set: { status: "pending" },
       });
-      console.log("Producer has queued the quantification job");
-    } catch (error) {
-      // Handle specific TypeGuardError for validation issues, logging the detailed path and expected type.
-      // Log a generic error message for any other types of errors encountered during the process.
-      if (error instanceof TypeGuardError) {
-        this.logger.error(error);
-      } else {
-        this.logger.error(error);
-      }
+    } catch (err) {
+      throw new RpcException(`Failed to update <pending> status of: JobID ${String(quantRequest._id)}`);
+    }
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    try {
+      await this.channel?.deleteExchange(this.queueConfig.exchange.name);
+      await this.channel?.close();
+      await this.connection?.close();
+    } catch (err) {
+      throw new RpcException(`${ProducerService.name} failed to stop RabbitMQ services.`);
     }
   }
 }

@@ -7,7 +7,7 @@
   // "build": {
   //  "dockerfile": "standalone.Dockerfile"
   // },
-  "forwardPorts": [5672, 15672, 27017],
+  "forwardPorts": [5672, 15672, 27017, 9000, 9001],
   "workspaceFolder": "/workspaces/openpra-monorepo",
   "hostRequirements": {
     "memory": "8gb",

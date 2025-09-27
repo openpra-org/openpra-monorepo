@@ -1,6 +1,7 @@
 volumes:
   mongo_data:
   rabbitmq_data:
+  minio_data:
 
 configs:
   rabbitmq_plugins:
@@ -17,6 +18,8 @@ services:
       - "5672:5672"
       - "15672:15672"
       - "27017:27017"
+      - "9000:9000"
+      - "9001:9001"
 
   rabbitmq:
     image: rabbitmq:management-alpine
@@ -34,4 +37,14 @@ services:
     volumes:
       - mongo_data:/data/db
     network_mode: "service:devcontainer"
-      
+
+  minio:
+    image: quay.io/minio/minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    network_mode: "service:devcontainer"

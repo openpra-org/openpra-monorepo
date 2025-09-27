@@ -1,3 +1,5 @@
+import { Model } from "./model";
+
 /**
  * Schema for command-line options
  */
@@ -96,16 +98,40 @@ export interface CommandLineOptions {
   output?: string;
 }
 
-export interface QuantifyRequest2 {
-  /**
-   * BSON type ID of the MongoDB document
-   */
+/**
+ * Schema for command-line options
+ */
+export interface ScramNodeOptions {
+  mocus: boolean;
+  bdd: boolean;
+  zbdd: boolean;
+  rareEvent: boolean;
+  mcub: boolean;
+  limitOrder?: number;
+  cutOff?: number;
+  missionTime?: number;
+  timeStep?: number;
+  numTrials?: number;
+  numQuantiles?: number;
+  numBins?: number;
+  seed?: number;
+  primeImplicants?: boolean;
+  probability?: boolean;
+  importance?: boolean;
+  uncertainty?: boolean;
+  ccf?: boolean;
+  sil?: boolean;
+}
+
+export interface ModelOptions {
   _id?: string;
-  /**
-   * String-encoded array of OpenPSA MEF XMLs
-   */
   models: string[];
 }
 
-export type QuantifyRequest = QuantifyRequest1 & QuantifyRequest2;
-export type QuantifyRequest1 = CommandLineOptions;
+export interface NodeQuantRequest {
+  _id?: string;
+  settings?: ScramNodeOptions;
+  model?: Model;
+}
+
+export type QuantifyRequest = CommandLineOptions & ModelOptions;

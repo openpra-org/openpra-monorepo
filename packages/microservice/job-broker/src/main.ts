@@ -1,7 +1,7 @@
 import { NestFactory } from "@nestjs/core";
 import { NestiaSwaggerComposer } from "@nestia/sdk";
 import { OpenAPIObject, SwaggerModule } from "@nestjs/swagger";
-import { INestApplication } from "@nestjs/common";
+import { INestApplication, Logger } from "@nestjs/common";
 import { json, urlencoded } from "express";
 import { HttpExceptionFilter } from "./http-exception.filter";
 import { JobBrokerModule } from "./job-broker.module";
@@ -21,12 +21,14 @@ import { JobBrokerModule } from "./job-broker.module";
  *          listening for incoming connections.
  */
 async function bootstrap(): Promise<void> {
-  console.log("Creating the app");
+  const logger = new Logger();
+
   // Creating an instance of the application by passing the root module (`JobBrokerModule`) to `NestFactory.create`.
+  logger.debug("Initializing the app...");
   const app: INestApplication = await NestFactory.create(JobBrokerModule);
 
-  console.log("Attaching the exception filter");
   // Apply the HttpExceptionFilter globally to handle all HTTP exceptions.
+  logger.debug("Attaching the exception filter...");
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const document: OpenAPIObject = (await NestiaSwaggerComposer.document(app, {
@@ -56,7 +58,7 @@ async function bootstrap(): Promise<void> {
     additional: true,
   })) as OpenAPIObject;
 
-  console.log("Exposing the API for documentation");
+  logger.debug("Creating the API Documentation...");
   SwaggerModule.setup("/q/docs", app, document, {
     customSiteTitle: "OpenPRA-MQ API Docs",
     explorer: true,
@@ -68,8 +70,8 @@ async function bootstrap(): Promise<void> {
   app.use(urlencoded({ extended: true, limit: "50mb" }));
 
   // Start listening for incoming requests on port 3000.
-  console.log("Starting the server");
-  await app.listen(3_000);
+  logger.debug("Microservices have been initialized.");
+  await app.listen(3000);
 }
 
 // Executing the `bootstrap` function to start the application.

@@ -1,5 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
+import { QueueModule } from "../shared";
 import { JobBrokerMiddleware } from "../middleware/job-broker.middleware";
 import { QuantificationJobReport, QuantificationJobSchema } from "../middleware/schemas/quantification-job.schema";
 import { ExecutableJobReport, ExecutableJobSchema } from "../middleware/schemas/executable-job.schema";
@@ -10,6 +11,7 @@ import { StorageService } from "./services/storage.service";
 
 @Module({
   imports: [
+    QueueModule,
     MongooseModule.forFeature([
       { name: QuantificationJobReport.name, schema: QuantificationJobSchema },
       { name: ExecutableJobReport.name, schema: ExecutableJobSchema },

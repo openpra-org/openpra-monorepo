@@ -124,17 +124,12 @@ export interface ScramNodeOptions {
 }
 
 export interface ModelOptions {
-  /**
-   * BSON type ID of the MongoDB document
-   */
   _id?: string;
-  /**
-   * String-encoded array of OpenPSA MEF XMLs
-   */
   models: string[];
 }
 
 export interface NodeQuantRequest {
+  _id?: string;
   settings?: ScramNodeOptions;
   model?: Model;
 }

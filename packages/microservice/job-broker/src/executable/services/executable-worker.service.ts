@@ -2,25 +2,25 @@ import { execSync, ExecSyncOptionsWithStringEncoding } from "node:child_process"
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { Channel, Connection, ConsumeMessage } from "amqplib";
+import { Channel, ChannelModel, ConsumeMessage } from "amqplib";
 import typia from "typia";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
 import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
 import { RpcException } from "@nestjs/microservices";
-import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQConnectionService } from "../../shared";
+import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQChannelModelService } from "../../shared";
 import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 
 @Injectable()
 export class ExecutableWorkerService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(ExecutableWorkerService.name);
   private readonly queueConfig: QueueConfig;
-  private connection: Connection | null = null;
+  private channelModel: ChannelModel | null = null;
   private channel: Channel | null = null;
 
   constructor(
     @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
     private readonly queueService: QueueService,
-    private readonly rabbitmqService: RabbitMQConnectionService,
+    private readonly rabbitmqService: RabbitMQChannelModelService,
     private readonly queueConfigFactory: QueueConfigFactory,
   ) {
     this.queueConfig = this.queueConfigFactory.createExecTaskQueueConfig();
@@ -31,8 +31,8 @@ export class ExecutableWorkerService implements OnApplicationBootstrap, OnApplic
    */
   async onApplicationBootstrap(): Promise<void> {
     this.logger.debug("Connecting to the broker");
-    this.connection = await this.rabbitmqService.getConnection(ExecutableWorkerService.name);
-    this.channel = await this.rabbitmqService.getChannel(this.connection, ExecutableWorkerService.name);
+    this.channelModel = await this.rabbitmqService.getChannelModel(ExecutableWorkerService.name);
+    this.channel = await this.rabbitmqService.getChannel(this.channelModel, ExecutableWorkerService.name);
     await this.queueService.setupQueue(this.queueConfig, this.channel);
     this.logger.debug("Initialized and consuming messages");
     await this.consumeExecutableTasks();
@@ -149,7 +149,7 @@ export class ExecutableWorkerService implements OnApplicationBootstrap, OnApplic
     try {
       await this.channel?.deleteQueue(this.queueConfig.name);
       await this.channel?.close();
-      await this.connection?.close();
+      await this.channelModel?.close();
     } catch (err) {
       throw new RpcException(`${ExecutableWorkerService.name} failed to stop RabbitMQ services.`);
     }

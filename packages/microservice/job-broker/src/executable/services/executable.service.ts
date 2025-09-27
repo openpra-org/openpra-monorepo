@@ -1,24 +1,24 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { Channel, Connection } from "amqplib";
+import { Channel, ChannelModel } from "amqplib";
 import typia from "typia";
 import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
 import { RpcException } from "@nestjs/microservices";
-import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQConnectionService } from "../../shared";
+import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQChannelModelService } from "../../shared";
 import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 
 @Injectable()
 export class ExecutableService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(ExecutableService.name);
   private readonly queueConfig: QueueConfig;
-  private connection: Connection | null = null;
+  private channelModel: ChannelModel | null = null;
   private channel: Channel | null = null;
 
   constructor(
     @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
     private readonly queueService: QueueService,
-    private readonly rabbitmqService: RabbitMQConnectionService,
+    private readonly rabbitmqService: RabbitMQChannelModelService,
     private readonly queueConfigFactory: QueueConfigFactory,
   ) {
     this.queueConfig = this.queueConfigFactory.createExecTaskQueueConfig();
@@ -29,8 +29,8 @@ export class ExecutableService implements OnApplicationBootstrap, OnApplicationS
    */
   async onApplicationBootstrap(): Promise<void> {
     this.logger.debug("Connecting to the broker");
-    this.connection = await this.rabbitmqService.getConnection(ExecutableService.name);
-    this.channel = await this.rabbitmqService.getChannel(this.connection, ExecutableService.name);
+    this.channelModel = await this.rabbitmqService.getChannelModel(ExecutableService.name);
+    this.channel = await this.rabbitmqService.getChannel(this.channelModel, ExecutableService.name);
     await this.queueService.setupQueue(this.queueConfig, this.channel);
     this.logger.debug("Initialized and ready to send messages");
   }
@@ -76,7 +76,7 @@ export class ExecutableService implements OnApplicationBootstrap, OnApplicationS
     try {
       await this.channel?.deleteExchange(this.queueConfig.exchange.name);
       await this.channel?.close();
-      await this.connection?.close();
+      await this.channelModel?.close();
     } catch (err) {
       throw new RpcException(`${ExecutableService.name} failed to stop RabbitMQ services.`);
     }

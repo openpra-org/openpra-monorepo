@@ -5,6 +5,7 @@ export enum MinioConfigKeys{
   ENV_MINIO_SECRET_KEY = 'MINIO_SECRET_KEY',
   ENV_MINIO_INPUT_BUCKET = 'MINIO_INPUT_BUCKET',
   ENV_MINIO_OUTPUT_BUCKET = 'MINIO_OUTPUT_BUCKET',
+  ENV_MINIO_JOBS_BUCKET = 'MINIO_JOBS_BUCKET',
 }
 
 export interface MinioEnvVars {
@@ -14,4 +15,5 @@ export interface MinioEnvVars {
   [MinioConfigKeys.ENV_MINIO_SECRET_KEY]: string;
   [MinioConfigKeys.ENV_MINIO_INPUT_BUCKET]: string;
   [MinioConfigKeys.ENV_MINIO_OUTPUT_BUCKET]: string;
+  [MinioConfigKeys.ENV_MINIO_JOBS_BUCKET]: string;
 }

@@ -66,7 +66,7 @@ export interface EventSequence {
 
 export interface FunctionalState {
   name: string;
-  state: "failure" | "success";
+  state: "failure" | "success" | "bypass";
 }
 
 export interface CcfGroup {

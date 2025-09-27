@@ -1,52 +1,48 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from "@nestjs/common";
-import { Connection, Channel } from "amqplib";
+import { ChannelModel, Channel } from "amqplib";
 import typia from "typia";
-import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import { v4 as uuidv4 } from "uuid";
+import { NodeQuantRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { RpcException } from "@nestjs/microservices";
-import { QueueService, RabbitMQConnectionService, QueueConfig, QueueConfigFactory } from "../../shared";
-import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
+import { QueueService, RabbitMQChannelModelService, QueueConfig, QueueConfigFactory, MinioService } from "../../shared";
 
 @Injectable()
 export class ProducerService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(ProducerService.name);
   private readonly queueConfig: QueueConfig;
-  private connection: Connection | null = null;
+  private channelModel: ChannelModel | null = null;
   private channel: Channel | null = null;
 
   constructor(
-    @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
     private readonly queueService: QueueService,
-    private readonly rabbitmqService: RabbitMQConnectionService,
+    private readonly rabbitmqService: RabbitMQChannelModelService,
     private readonly queueConfigFactory: QueueConfigFactory,
+    private readonly minioService: MinioService,
   ) {
     this.queueConfig = this.queueConfigFactory.createQuantJobQueueConfig();
   }
 
-  /**
-   * Initialize the queue when the application bootstraps
-   */
   async onApplicationBootstrap(): Promise<void> {
     this.logger.debug("Connecting to the broker");
-    this.connection = await this.rabbitmqService.getConnection(QueueService.name);
-    this.channel = await this.rabbitmqService.getChannel(this.connection, QueueService.name);
+    this.channelModel = await this.rabbitmqService.getChannelModel(QueueService.name);
+    this.channel = await this.rabbitmqService.getChannel(this.channelModel, QueueService.name);
     await this.queueService.setupQueue(this.queueConfig, this.channel);
     this.logger.debug("Initialized and ready to send messages");
   }
 
-  /**
-   * Creates and queues a quantification job
-   *
-   * @param quantRequest - Request data for the quantification job
-   */
-  public async createAndQueueQuant(quantRequest: QuantifyRequest): Promise<void> {
+  public async createAndQueueQuant(quantRequest: NodeQuantRequest): Promise<string> {
+    const jobId = uuidv4();
+    quantRequest._id = jobId;
+    const inputId = await this.minioService.storeInputData(quantRequest);
+
+    await this.minioService.createJobMetadata(jobId, inputId);
+
     const modelsData = ((): string => {
       try {
         this.logger.debug("Gets the request body from the Quantification controller");
-        return typia.json.assertStringify<QuantifyRequest>(quantRequest);
+        return typia.json.assertStringify<NodeQuantRequest>(quantRequest);
       } catch (err) {
-        throw new RpcException(`Invalid schema: JobID <${String(quantRequest._id)}>`);
+        throw new RpcException(`Invalid schema: JobID <${jobId}>`);
       }
     })();
 
@@ -66,19 +62,21 @@ export class ProducerService implements OnApplicationBootstrap, OnApplicationShu
     }
 
     try {
-      await this.quantificationJobModel.findByIdAndUpdate(quantRequest._id, {
-        $set: { status: "pending" },
+      await this.minioService.updateJobMetadata(jobId, {
+        status: "pending",
       });
     } catch (err) {
-      throw new RpcException(`Failed to update <pending> status of: JobID ${String(quantRequest._id)}`);
+      throw new RpcException(`Failed to update <pending> status of: JobID ${jobId}`);
     }
+
+    return jobId;
   }
 
   async onApplicationShutdown(): Promise<void> {
     try {
       await this.channel?.deleteExchange(this.queueConfig.exchange.name);
       await this.channel?.close();
-      await this.connection?.close();
+      await this.channelModel?.close();
     } catch (err) {
       throw new RpcException(`${ProducerService.name} failed to stop RabbitMQ services.`);
     }

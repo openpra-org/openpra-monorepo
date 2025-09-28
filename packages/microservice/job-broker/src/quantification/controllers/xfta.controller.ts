@@ -6,7 +6,7 @@ import { QuantificationJobReport } from "../../middleware/schemas/quantification
 import { StorageService } from "../services/storage.service";
 
 @Controller()
-export class FtrexController {
+export class XftaController {
   constructor(
     private readonly producerService: ProducerService,
     private readonly storageService: StorageService,
@@ -19,7 +19,7 @@ export class FtrexController {
    * @returns A promise that resolves to void.
    * @throws {@link InternalServerErrorException} When there is a problem queueing the quantification job.
    */
-  @TypedRoute.Post("/ftrex")
+  @TypedRoute.Post("/xfta")
   public async createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): Promise<void> {
     try {
       await this.producerService.createAndQueueQuant(quantRequest);
@@ -29,13 +29,13 @@ export class FtrexController {
   }
 
   /**
-   * Controller method to handle GET requests for quantified reports at the "/ftrex" endpoint.
+   * Controller method to handle GET requests for quantified reports at the "/xfta" endpoint.
    *
    * @returns A promise that resolves to an array of QuantifiedReport objects.
    * @throws {@link NotFoundException} Throws an exception if the server is unable to find the requested list of quantified reports.
    */
-  @TypedRoute.Get("/ftrex")
-  public async getQuantifiedReports(): Promise<QuantificationJobReport[]> {
+  @TypedRoute.Get("/xfta")
+  public async getQuantifiedReports(): Promise<QuantificationJobReport[]> {``
     try {
       return this.storageService.getQuantifiedReports();
     } catch {

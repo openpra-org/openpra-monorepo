@@ -8,7 +8,8 @@ export interface JobMetadata {
   jobId: string;
   inputId: string;
   outputId?: string;
-  status: 'pending' | 'running' | 'completed' | 'failed';
+  childJobs?: string[];
+  status: 'processing' |'pending' | 'running' | 'completed' | 'failed';
   timestamp: string;
   error?: string;
 }

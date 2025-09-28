@@ -1,5 +1,5 @@
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
-import { TypedRoute, TypedBody, TypedParam } from "@nestia/core";
+import { TypedRoute, TypedQuery, TypedParam, TypedBody } from "@nestia/core";
 import { NodeQuantRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { ProducerService } from "../services/producer.service";
 import { StorageService } from "../services/storage.service";
@@ -13,10 +13,19 @@ export class ScramController {
   ) {}
 
   @TypedRoute.Post("/scram")
-  public async createAndQueueQuant(@TypedBody() quantRequest: NodeQuantRequest): Promise<{ jobId: string }> {
+  public async createAndQueueQuant(
+    @TypedBody() quantRequest: NodeQuantRequest,
+    @TypedQuery() query?: { distributedSequences?: string }
+  ): Promise<{ parentJobId: string; sequenceJobIds: string[]; } | { jobId: string; }> {
     try {
-      const jobId = await this.producerService.createAndQueueQuant(quantRequest);
-      return { jobId };
+      if (query?.distributedSequences === "yes") {
+        const sequenceJobIds = await this.producerService.createAndQueueSequenceBatch(quantRequest);
+        const parentJobId = sequenceJobIds[0].split('-').slice(0, -1).join('-');
+        return { parentJobId, sequenceJobIds };
+      } else {
+        const jobId = await this.producerService.createAndQueueQuant(quantRequest);
+        return { jobId };
+      }
     } catch {
       throw new InternalServerErrorException("Server encountered a problem while queueing SCRAM quantification job.");
     }

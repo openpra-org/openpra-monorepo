@@ -5,7 +5,7 @@ import { JobBrokerMiddleware } from "../middleware/job-broker.middleware";
 import { QuantificationJobReport, QuantificationJobSchema } from "../middleware/schemas/quantification-job.schema";
 import { ExecutableJobReport, ExecutableJobSchema } from "../middleware/schemas/executable-job.schema";
 import { ScramController } from "./controllers/scram.controller";
-import { FtrexController } from "./controllers/ftrex.controller";
+import { XftaController } from "./controllers/xfta.controller";
 import { ProducerService } from "./services/producer.service";
 import { StorageService } from "./services/storage.service";
 
@@ -17,12 +17,12 @@ import { StorageService } from "./services/storage.service";
       { name: ExecutableJobReport.name, schema: ExecutableJobSchema },
     ]),
   ],
-  controllers: [ScramController, FtrexController],
+  controllers: [ScramController, XftaController],
   providers: [ProducerService, StorageService],
 })
 export class QuantificationModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(JobBrokerMiddleware).forRoutes(ScramController);
-    consumer.apply(JobBrokerMiddleware).forRoutes(FtrexController);
+    consumer.apply(JobBrokerMiddleware).forRoutes(XftaController);
   }
 }

@@ -13,7 +13,7 @@ struct BasicEventInfo {
 // ============ Helpers for parsing legacy/old JSON/XML-style ============
 
 // Helper function to recursively parse gates and events from fault tree structure
-void ParseFaultTreeElements(const Napi::Object& node, 
+void ParseFaultTreeElements(const Napi::Object& node,
  std::vector<ParsedGate>& parsedGates,
  std::vector<ParsedBasicEvent>& parsedBasicEvents, std::set<std::string>& seenBasicEvents,
  const std::string& basePath) {
@@ -299,7 +299,7 @@ ParsedEventTree ParseEventTree(const Napi::Object& nodeEventTree) {
   }
  
   return parsed;
- }
+}
 
 ParsedInitiatingEvent ParseInitiatingEvent(const Napi::Object& nodeIE) {
  ParsedInitiatingEvent parsed;

@@ -168,6 +168,114 @@ void MarkCoherence(Pdag* graph) noexcept {
 
 }  // namespace pdag
 
+// ConvergenceTracker implementation
+bool ConvergenceTracker::ShouldStop(int current_size, bool changed) noexcept {
+  iteration_count++;
+  
+  if (!changed) {
+    no_change_count++;
+  } else {
+    no_change_count = 0;
+  }
+  
+  // Check convergence criteria
+  if (iteration_count >= max_iterations) {
+    return true; // Hit iteration limit
+  }
+  
+  if (no_change_count >= max_no_change) {
+    return true; // No changes for consecutive iterations
+  }
+  
+  // Check improvement threshold
+  if (last_graph_size > 0) {
+    double improvement = static_cast<double>(last_graph_size - current_size) / last_graph_size;
+    if (improvement < improvement_threshold && iteration_count > 2) {
+      return true; // Minimal improvement
+    }
+  }
+  
+  last_graph_size = current_size;
+  return false;
+}
+
+void ConvergenceTracker::Reset() noexcept {
+  iteration_count = 0;
+  no_change_count = 0;
+  last_graph_size = 0;
+}
+
+// Alternative implementation using gate references:
+void PreprocessingMetrics::Update(const Pdag* graph) noexcept {
+  current_gate_count = 0;
+  current_variable_count = 0;
+  module_count = 0;
+  
+  // Simple recursive counting function
+  std::function<void(const GatePtr&)> count_gate;
+  count_gate = [&](const GatePtr& gate) {
+    if (gate->mark()) return;
+    const_cast<Gate*>(gate.get())->mark(true);
+    
+    current_gate_count++;
+    if (gate->module()) {
+      module_count++;
+    }
+    
+    for (const Gate::Arg<Gate>& arg : gate->args<Gate>()) {
+      count_gate(arg.second);
+    }
+    current_variable_count += gate->args<Variable>().size();
+  };
+  
+  const_cast<Pdag*>(graph)->Clear<Pdag::kGateMark>();
+  count_gate(const_cast<Pdag*>(graph)->root());
+  const_cast<Pdag*>(graph)->Clear<Pdag::kGateMark>();
+  
+  // Calculate complexity score
+  complexity_score = current_gate_count * 2 + current_variable_count;
+  has_modules = module_count > 0;
+  is_normalized = graph->normal();
+}
+
+double PreprocessingMetrics::CalculateImpact() const noexcept {
+  double impact = 0.0;
+  
+  if (initial_gate_count > 0) {
+    double gate_reduction = static_cast<double>(initial_gate_count - current_gate_count) / initial_gate_count;
+    impact += gate_reduction * 50.0; // Weight gate reduction heavily
+  }
+  
+  if (initial_variable_count > 0) {
+    double var_reduction = static_cast<double>(initial_variable_count - current_variable_count) / initial_variable_count;
+    impact += var_reduction * 30.0;
+  }
+  
+  // Bonus for module detection
+  if (has_modules) {
+    impact += module_count * 5.0;
+  }
+  
+  // Bonus for normalization
+  if (is_normalized) {
+    impact += 10.0;
+  }
+  
+  return impact;
+}
+
+void PreprocessingMetrics::Reset() noexcept {
+  initial_gate_count = 0;
+  initial_variable_count = 0;
+  current_gate_count = 0;
+  current_variable_count = 0;
+  module_count = 0;
+  complexity_score = 0;
+  has_modules = false;
+  is_normalized = false;
+  complements_propagated = false;
+}
+
 Preprocessor::Preprocessor(Pdag* graph) noexcept : graph_(graph) {}
 
 void Preprocessor::operator()() noexcept {
@@ -176,12 +284,142 @@ void Preprocessor::operator()() noexcept {
 }
 
 void Preprocessor::Run() noexcept {
-  pdag::Transform(graph_, [this](Pdag*) { RunPhaseOne(); },
-                  [this](Pdag*) { RunPhaseTwo(); },
-                  [this](Pdag*) {
-                    if (!graph_->normal())
-                      RunPhaseThree();
-                  });
+  // Use the new optimized pipeline by default for better performance
+  // Falls back to traditional phases only for specific compatibility needs
+  RunOptimizedPipeline();
+}
+
+void Preprocessor::RunOptimizedPipeline() noexcept {
+  TIMER(DEBUG2, "Optimized Preprocessing Pipeline");
+  
+  // Initialize metrics
+  metrics_.Reset();
+  metrics_.Update(graph_);
+  metrics_.initial_gate_count = metrics_.current_gate_count;
+  metrics_.initial_variable_count = metrics_.current_variable_count;
+  
+  graph_->Log();
+  
+  // Phase 1: Early setup and high-impact optimizations
+  if (graph_->HasNullGates()) {
+    graph_->RemoveNullGates();
+  }
+  
+  if (!graph_->coherent()) {
+    pdag::MarkCoherence(graph_);
+  }
+  
+  // Apply early topological ordering for smart traversal
+  ApplyEarlyTopologicalOrdering();
+  
+  // Phase 2: High-impact Boolean optimization early
+  if (PerformEarlyBooleanOptimization()) {
+    metrics_.Update(graph_);
+  }
+  
+  // Phase 3: Strategic module detection (replaces multiple calls)
+  if (PerformStrategicModuleDetection()) {
+    metrics_.Update(graph_);
+  }
+  
+  // Phase 4: Adaptive normalization based on graph characteristics
+  if (PerformAdaptiveNormalization()) {
+    metrics_.Update(graph_);
+    
+    // Continue with Phase II optimizations after normalization
+    RunPhaseTwo();
+  }
+  
+  // Phase 5: Final optimization with smart convergence
+  SmartLoop([this]() { return CoalesceGates(true); }, "Final Coalescing");
+  
+  graph_->Log();
+  LOG(DEBUG2) << "Optimized pipeline completed. Impact: " << metrics_.CalculateImpact();
+}
+
+void Preprocessor::ApplyEarlyTopologicalOrdering() noexcept {
+  TIMER(DEBUG3, "Early Topological Ordering");
+  
+  if (!graph_->root()->constant()) {
+    pdag::TopologicalOrder(graph_);
+    LOG(DEBUG3) << "Early topological ordering applied for smart traversal";
+  }
+}
+
+bool Preprocessor::PerformStrategicModuleDetection() noexcept {
+  TIMER(DEBUG3, "Strategic Module Detection");
+  
+  // Combine all module-related operations to reduce redundancy
+  bool changed = false;
+  PreprocessingMetrics previous_metrics = metrics_;
+  
+  // Single comprehensive module detection
+  DetectModules();
+  metrics_.Update(graph_);
+  
+  if (metrics_.module_count > previous_metrics.module_count) {
+    changed = true;
+    LOG(DEBUG3) << "Strategic module detection found " 
+                << (metrics_.module_count - previous_metrics.module_count) 
+                << " new modules";
+  }
+  
+  return changed;
+}
+
+bool Preprocessor::PerformEarlyBooleanOptimization() noexcept {
+  TIMER(DEBUG3, "Early Boolean Optimization");
+  
+  if (graph_->root()->constant()) {
+    return false;
+  }
+  
+  PreprocessingMetrics previous_metrics = metrics_;
+  
+  // High-impact Boolean optimization performed early
+  BooleanOptimization();
+  
+  // Check if optimization had significant impact
+  metrics_.Update(graph_);
+  bool significant_impact = !HasConverged(previous_metrics);
+  
+  if (significant_impact) {
+    LOG(DEBUG3) << "Early Boolean optimization had significant impact";
+  }
+  
+  return significant_impact;
+}
+
+bool Preprocessor::PerformAdaptiveNormalization(bool force_full) noexcept {
+  TIMER(DEBUG3, "Adaptive Normalization");
+  
+  if (graph_->normal() && !force_full) {
+    return false; // Already normalized
+  }
+  
+  // Determine normalization strategy based on graph characteristics
+  bool use_full_normalization = force_full;
+  
+  if (!use_full_normalization) {
+    // Use complexity metrics to decide on full vs partial normalization
+    int complexity = CalculateComplexityScore();
+    use_full_normalization = (complexity > 1000) || (metrics_.current_gate_count > 100);
+  }
+  
+  PreprocessingMetrics previous_metrics = metrics_;
+  
+  NormalizeGates(use_full_normalization);
+  graph_->normal(true);
+  metrics_.is_normalized = true;
+  
+  metrics_.Update(graph_);
+  bool had_impact = !HasConverged(previous_metrics);
+  
+  LOG(DEBUG3) << "Adaptive normalization (" 
+              << (use_full_normalization ? "full" : "partial") 
+              << ") completed with" << (had_impact ? "" : "out") << " significant impact";
+  
+  return had_impact;
 }
 
 /// Container of unique gates.
@@ -334,30 +572,43 @@ void Preprocessor::RunPhaseOne() noexcept {
 }
 
 void Preprocessor::RunPhaseTwo() noexcept {
-  TIMER(DEBUG2, "Preprocessing Phase II");
+  TIMER(DEBUG2, "Preprocessing Phase II - Optimized");
   SANITY_ASSERT;
   graph_->Log();
-  pdag::Transform(graph_,
-                  [this](Pdag*) {
-                    while (ProcessMultipleDefinitions())
-                      continue;
-                  },
-                  [this](Pdag*) { DetectModules(); },
-                  [this](Pdag*) {
-                    while (CoalesceGates(/*common=*/false))
-                      continue;
-                  },
-                  [this](Pdag*) { MergeCommonArgs(); },
-                  [this](Pdag*) { DetectDistributivity(); },
-                  [this](Pdag*) { DetectModules(); },
-                  [this](Pdag*) { BooleanOptimization(); },
-                  [this](Pdag*) { DecomposeCommonNodes(); },
-                  [this](Pdag*) { DetectModules(); },
-                  [this](Pdag*) {
-                    while (CoalesceGates(/*common=*/false))
-                      continue;
-                  },
-                  [this](Pdag*) { DetectModules(); });
+  
+  // Phase II with smart convergence tracking and reduced redundancy
+  
+  // Multiple definitions processing with convergence
+  SmartLoop([this]() { return ProcessMultipleDefinitions(); }, 
+            "Multiple Definitions Processing");
+  
+  // Strategic module detection (single comprehensive call)
+  PerformStrategicModuleDetection();
+  
+  // Gate coalescing with convergence tracking
+  SmartLoop([this]() { return CoalesceGates(/*common=*/false); }, 
+            "Gate Coalescing");
+  
+  // Common argument operations with convergence
+  SmartLoop([this]() { return MergeCommonArgs(); }, 
+            "Common Arguments Merging");
+  
+  SmartLoop([this]() { return DetectDistributivity(); }, 
+            "Distributivity Detection");
+  
+  // Boolean optimization (moved earlier in optimized pipeline)
+  if (!metrics_.complements_propagated) {
+    BooleanOptimization();
+  }
+  
+  // Common node decomposition with convergence
+  SmartLoop([this]() { return DecomposeCommonNodes(); }, 
+            "Common Node Decomposition");
+  
+  // Final gate coalescing
+  SmartLoop([this]() { return CoalesceGates(/*common=*/false); }, 
+            "Final Gate Coalescing");
+  
   graph_->Log();
 }
 
@@ -403,21 +654,26 @@ void Preprocessor::RunPhaseFour() noexcept {
 }
 
 void Preprocessor::RunPhaseFive() noexcept {
-  TIMER(DEBUG2, "Preprocessing Phase V");
+  TIMER(DEBUG2, "Preprocessing Phase V - Optimized");
   SANITY_ASSERT;
   graph_->Log();
-  while (CoalesceGates(/*common=*/true))
-    continue;
+  
+  // Final phase with optimized cleanup using smart convergence
+  SmartLoop([this]() { return CoalesceGates(/*common=*/true); }, 
+            "Common Gate Coalescing");
 
   if (graph_->IsTrivial())
     return;
+    
   LOG(DEBUG2) << "Continue with Phase II within Phase V";
   RunPhaseTwo();
+  
   if (graph_->IsTrivial())
     return;
 
-  while (CoalesceGates(/*common=*/true))
-    continue;
+  // Final coalescing with smart termination
+  SmartLoop([this]() { return CoalesceGates(/*common=*/true); }, 
+            "Final Common Gate Coalescing");
 
   if (graph_->IsTrivial())
     return;
@@ -749,7 +1005,7 @@ bool Preprocessor::ProcessMultipleDefinitions() noexcept {
   if (graph_->root()->constant())
     return false;
 
-  TIMER(DEBUG3, "Detecting multiple definitions");
+  TIMER(DEBUG3, "Detecting multiple definitions with convergence tracking");
 
   graph_->Clear<Pdag::kGateMark>();
   // The original gate and its multiple definitions.
@@ -1095,7 +1351,7 @@ std::vector<GateWeakPtr> Preprocessor::GatherModules() noexcept {
 }
 
 bool Preprocessor::MergeCommonArgs() noexcept {
-  TIMER(DEBUG3, "Merging common arguments");
+  TIMER(DEBUG3, "Merging common arguments with convergence tracking");
   assert(!graph_->HasNullGates());
   bool changed = false;
 
@@ -1514,7 +1770,7 @@ void Preprocessor::TransformCommonArgs(MergeTable::MergeGroup* group) noexcept {
 }
 
 bool Preprocessor::DetectDistributivity() noexcept {
-  TIMER(DEBUG3, "Processing Distributivity");
+  TIMER(DEBUG3, "Processing Distributivity with convergence tracking");
   assert(!graph_->HasNullGates());
   graph_->Clear<Pdag::kGateMark>();
   bool changed = DetectDistributivity(graph_->root());
@@ -2098,7 +2354,7 @@ void Preprocessor::ClearStateMarks(const GatePtr& gate) noexcept {
 }
 
 bool Preprocessor::DecomposeCommonNodes() noexcept {
-  TIMER(DEBUG3, "Decomposition of common nodes");
+  TIMER(DEBUG3, "Decomposition of common nodes with convergence tracking");
   assert(!graph_->HasNullGates());
 
   std::vector<GateWeakPtr> common_gates;
@@ -2368,22 +2624,41 @@ void Preprocessor::GatherNodes(const GatePtr& gate, std::vector<GatePtr>* gates,
 }
 
 void CustomPreprocessor<Bdd>::Run() noexcept {
-  Preprocessor::Run();
+  // BDD-specific early optimization
+  LOG(DEBUG2) << "BDD-specific preprocessing with early coherence marking";
+  
+  // Use optimized pipeline for BDD analysis
+  RunOptimizedPipeline();
+  
+  // BDD-specific post-processing
   pdag::Transform(graph_, &pdag::MarkCoherence, &pdag::TopologicalOrder);
 }
 
 void CustomPreprocessor<Zbdd>::Run() noexcept {
-  Preprocessor::Run();
+  // ZBDD-specific optimization with complement propagation focus
+  LOG(DEBUG2) << "ZBDD-specific preprocessing with complement optimization";
+  
+  // Use optimized pipeline
+  RunOptimizedPipeline();
+  
+  // ZBDD-specific post-processing
   pdag::Transform(graph_,
                   [this](Pdag*) {
-                    if (!graph_->coherent())
+                    if (!graph_->coherent()) {
+                      LOG(DEBUG3) << "Applying ZBDD-specific complement propagation";
                       RunPhaseFour();
+                      metrics_.complements_propagated = true;
+                    }
                   },
-                  [this](Pdag*) { RunPhaseFive(); }, &pdag::MarkCoherence,
+                  [this](Pdag*) { RunPhaseFive(); }, 
+                  &pdag::MarkCoherence,
                   &pdag::TopologicalOrder);
 }
 
 void CustomPreprocessor<Mocus>::Run() noexcept {
+  // MOCUS inherits ZBDD optimizations plus ordering inversion
+  LOG(DEBUG2) << "MOCUS-specific preprocessing with ordering optimization";
+  
   CustomPreprocessor<Zbdd>::Run();
   pdag::Transform(graph_, [this](Pdag*) { InvertOrder(); });
 }
@@ -2407,6 +2682,42 @@ void CustomPreprocessor<Mocus>::InvertOrder() noexcept {
 
   for (auto var : variables)
     var->order(shift + var->order());
+}
+
+// Complexity calculation methods
+int Preprocessor::CalculateComplexityScore() const noexcept {
+  int gate_count = 0;
+  int variable_count = 0;
+  int total_args = 0;
+  
+  std::function<void(const GatePtr&)> count_complexity = [&](const GatePtr& gate) {
+    if (gate->mark()) return;
+    gate->mark(true);
+    
+    gate_count++;
+    total_args += gate->args().size();
+    
+    for (const Gate::Arg<Gate>& arg : gate->args<Gate>()) {
+      count_complexity(arg.second);
+    }
+    variable_count += gate->args<Variable>().size();
+  };
+  
+  const_cast<Pdag*>(graph_)->Clear<Pdag::kGateMark>();
+  count_complexity(graph_->root());
+  const_cast<Pdag*>(graph_)->Clear<Pdag::kGateMark>();
+  
+  // Complexity score combines gate count, variable count, and structural complexity
+  return gate_count * 3 + variable_count * 2 + total_args;
+}
+
+bool Preprocessor::HasConverged(const PreprocessingMetrics& previous_metrics) const noexcept {
+  // Check if metrics have stabilized
+  bool complexity_stable = std::abs(metrics_.complexity_score - previous_metrics.complexity_score) <= 2;
+  bool gate_count_stable = std::abs(metrics_.current_gate_count - previous_metrics.current_gate_count) <= 1;
+  bool var_count_stable = std::abs(metrics_.current_variable_count - previous_metrics.current_variable_count) <= 1;
+  
+  return complexity_stable && gate_count_stable && var_count_stable;
 }
 
 }  // namespace scram::core

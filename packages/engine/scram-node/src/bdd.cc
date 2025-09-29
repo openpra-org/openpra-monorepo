@@ -43,7 +43,6 @@ namespace scram::core {
         coherent_(graph->coherent()),
         kOne_(new Terminal<Ite>(true)),
         function_id_(2),
-        initial_bdd_size_(0),
         reordering_enabled_(true) {
     TIMER(DEBUG3, "Converting PDAG into BDD");
     if (graph->IsTrivial()) {
@@ -67,10 +66,8 @@ namespace scram::core {
     ClearMarks(false);
     TestStructure(root_.vertex);
     
-    initial_bdd_size_ = CountIteNodes(root_.vertex);
-    ClearMarks(false);
-    
-    if (initial_bdd_size_ > 1000 && reordering_enabled_) {
+    // Apply dynamic sifting by default after BDD construction
+    if (reordering_enabled_) {
       PerformSifting();
     }
     
@@ -186,11 +183,6 @@ namespace scram::core {
     }
     ClearTables();
     assert(result.vertex);
-
-    // Check if reordering should be triggered after significant computation
-    if (function_id_ % 100 == 0) {  // Check every 100 new vertices
-      CheckAndTriggerReordering();
-    }
 
     if (gate.module())
       modules_.emplace(gate.index(), result);
@@ -392,11 +384,6 @@ namespace scram::core {
     int current_size = CountIteNodes(root_.vertex);
     ClearMarks(false);
     
-    if (initial_bdd_size_ > 0 && 
-        current_size < initial_bdd_size_ * growth_threshold) {
-      return;
-    }
-    
     LOG(DEBUG3) << "Starting SIFTING reordering. Current BDD size: " << current_size;
     
     int best_size = current_size;
@@ -573,22 +560,6 @@ namespace scram::core {
           }
         }
       }
-    }
-  }
-
-  void Bdd::CheckAndTriggerReordering() noexcept {
-    if (!reordering_enabled_)
-      return;
-      
-    int current_size = CountIteNodes(root_.vertex);
-    ClearMarks(false);
-    
-    if (initial_bdd_size_ > 0 && current_size > initial_bdd_size_ * 2.0) {
-      LOG(DEBUG3) << "BDD size has grown significantly. Triggering reordering.";
-      PerformSifting(5, 1.2);
-      
-      initial_bdd_size_ = CountIteNodes(root_.vertex);
-      ClearMarks(false);
     }
   }
 

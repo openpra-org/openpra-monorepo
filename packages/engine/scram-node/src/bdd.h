@@ -29,7 +29,7 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include<unordered_set>
+#include <unordered_set>
 
 #include <boost/functional/hash.hpp>
 #include <boost/noncopyable.hpp>
@@ -712,42 +712,6 @@ class Bdd : private boost::noncopyable {
     }
   };
 
-  /// Performs SIFTING variable reordering to minimize BDD size.
-  ///
-  /// @param[in] max_iterations  Maximum number of SIFTING iterations.
-  /// @param[in] growth_threshold  Threshold for BDD growth to trigger reordering.
-  void PerformSifting(int max_iterations = 10, double growth_threshold = 1.5) noexcept;
-
-  /// Swaps two adjacent variables in the variable ordering.
-  ///
-  /// @param[in] var_index  Index of the variable to swap with its successor.
-  ///
-  /// @returns The change in BDD size after swapping.
-  int SwapAdjacentVariables(int var_index) noexcept;
-
-  /// Finds the optimal position for a variable using SIFTING.
-  ///
-  /// @param[in] var_index  Index of the variable to optimize.
-  ///
-  /// @returns The best position (order) for the variable.
-  int FindOptimalPosition(int var_index) noexcept;
-
-  /// Updates the ordering after variable position changes.
-  ///
-  /// @param[in] var_index  Index of the variable that moved.
-  /// @param[in] new_order  New order for the variable.
-  void UpdateVariableOrdering(int var_index, int new_order) noexcept;
-
-  /// Triggers dynamic reordering if BDD has grown significantly.
-  void CheckAndTriggerReordering() noexcept;
-
-  /// Swaps variables in a BDD subgraph during reordering.
-  Function SwapVariablesInSubgraph(const Function& func, int var1_index, int var2_index,
-                                   std::unordered_map<ItePtr, ItePtr>* substitution_map) noexcept;
-
-  /// Gets the variable index for an ITE node.
-  int GetVariableIndex(const ItePtr& ite) noexcept;
-
   /// Provides access to consensus calculation private facilities.
   class Consensus {
     friend class Zbdd;  // Access for calculation of prime implicants.
@@ -812,13 +776,51 @@ class Bdd : private boost::noncopyable {
   ///
   /// @pre Analysis is done.
   const Zbdd& products() const {
-    assert(zbdd_ && "Analysis is not done.");
+    if (!zbdd_) {
+      throw std::runtime_error("BDD analysis not performed - no products available");
+    }
     return *zbdd_;
   }
 
  private:
   using IteWeakPtr = WeakIntrusivePtr<Ite>;  ///< Pointer in containers.
   using ComputeTable = CacheTable<Function>;  ///< Computation results.
+
+  /// Performs SIFTING variable reordering to minimize BDD size.
+  ///
+  /// @param[in] max_iterations  Maximum number of SIFTING iterations.
+  /// @param[in] growth_threshold  Threshold for BDD growth to trigger reordering.
+  void PerformSifting(int max_iterations = 10, double growth_threshold = 1.5) noexcept;
+
+  /// Swaps two adjacent variables in the variable ordering.
+  ///
+  /// @param[in] var_index  Index of the variable to swap with its successor.
+  ///
+  /// @returns The change in BDD size after swapping.
+  int SwapAdjacentVariables(int var_index) noexcept;
+
+  /// Finds the optimal position for a variable using SIFTING.
+  ///
+  /// @param[in] var_index  Index of the variable to optimize.
+  ///
+  /// @returns The best position (order) for the variable.
+  int FindOptimalPosition(int var_index) noexcept;
+
+  /// Updates the ordering after variable position changes.
+  ///
+  /// @param[in] var_index  Index of the variable that moved.
+  /// @param[in] new_order  New order for the variable.
+  void UpdateVariableOrdering(int var_index, int new_order) noexcept;
+
+  /// Triggers dynamic reordering if BDD has grown significantly.
+  void CheckAndTriggerReordering() noexcept;
+
+  /// Swaps variables in a BDD subgraph during reordering.
+  Function SwapVariablesInSubgraph(const Function& func, int var1_index, int var2_index,
+                                   std::unordered_map<ItePtr, ItePtr>* substitution_map) noexcept;
+
+  /// Gets the variable index for an ITE node.
+  int GetVariableIndex(const ItePtr& ite) noexcept;
 
   /// Finds or adds a unique if-then-else vertex in BDD.
   /// All vertices in the BDD must be created with this functions.
@@ -1024,7 +1026,6 @@ class Bdd : private boost::noncopyable {
   int function_id_;  ///< Identification assignment for new function graphs.
   std::unique_ptr<Zbdd> zbdd_;  ///< ZBDD as a result of analysis.
 
-  int initial_bdd_size_;  ///< Initial BDD size for growth comparison.
   bool reordering_enabled_;  ///< Flag to enable/disable dynamic reordering.
 };
 

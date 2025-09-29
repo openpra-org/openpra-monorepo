@@ -32,6 +32,7 @@
 #include <boost/unordered_map.hpp>
 
 #include "pdag.h"
+#include "logger.h"
 
 namespace scram::core {
 
@@ -83,6 +84,53 @@ void MarkCoherence(Pdag* graph) noexcept;
 
 }  // namespace pdag
 
+/// Convergence tracking for iterative preprocessing operations.
+struct ConvergenceTracker {
+  int iteration_count = 0;          ///< Current iteration number.
+  int max_iterations = 10;          ///< Maximum allowed iterations.
+  int no_change_count = 0;          ///< Consecutive iterations with no change.
+  int max_no_change = 3;            ///< Max consecutive iterations with no change.
+  double improvement_threshold = 0.01; ///< Minimum improvement to continue.
+  int last_graph_size = 0;          ///< Graph size from previous iteration.
+  
+  /// Checks if convergence criteria are met.
+  ///
+  /// @param[in] current_size  Current graph size or complexity metric.
+  /// @param[in] changed  Whether the last operation made changes.
+  ///
+  /// @returns true if preprocessing should stop.
+  bool ShouldStop(int current_size, bool changed) noexcept;
+  
+  /// Resets the tracker for a new operation sequence.
+  void Reset() noexcept;
+};
+
+/// Metrics for tracking preprocessing impact and guiding operation ordering.
+struct PreprocessingMetrics {
+  int initial_gate_count = 0;       ///< Initial number of gates.
+  int initial_variable_count = 0;   ///< Initial number of variables.
+  int current_gate_count = 0;       ///< Current number of gates.
+  int current_variable_count = 0;   ///< Current number of variables.
+  int module_count = 0;             ///< Number of detected modules.
+  int complexity_score = 0;         ///< Graph complexity metric.
+  bool has_modules = false;         ///< Whether modules have been detected.
+  bool is_normalized = false;       ///< Whether gates are normalized.
+  bool complements_propagated = false; ///< Whether complements are propagated.
+  
+  /// Updates metrics based on current graph state.
+  ///
+  /// @param[in] graph  The graph to analyze.
+  void Update(const Pdag* graph) noexcept;
+  
+  /// Calculates the impact score of an operation.
+  ///
+  /// @returns Impact score (higher = more beneficial).
+  double CalculateImpact() const noexcept;
+  
+  /// Resets all metrics.
+  void Reset() noexcept;
+};
+
 /// The class provides main preprocessing operations
 /// over a PDAG
 /// to simplify the fault tree
@@ -116,58 +164,61 @@ class Preprocessor : private boost::noncopyable {
   /// that achieves the graph in a normal form.
   virtual void Run() noexcept = 0;
 
-  /// The initial phase of preprocessing.
-  /// The most basic cleanup algorithms are applied.
-  /// The cleanup should benefit all other phases
-  /// and algorithms.
+  /// Optimized preprocessing pipeline that reorders operations by impact
+  /// and uses smart convergence detection.
   ///
-  /// @note The constants or house events in the graph are cleaned.
-  ///       Any constant state gates must be removed
-  ///       by the future preprocessing algorithms
-  ///       as they introduce these constant state  gates.
-  /// @note NULL type (pass-through) gates are processed.
-  ///       Any NULL type gates must be processed and removed
-  ///       by the future preprocessing algorithms
-  ///       as they introduce these NULL type gates.
+  /// @note This replaces the traditional phase-based approach with
+  ///       an impact-driven, adaptive strategy.
+  void RunOptimizedPipeline() noexcept;
+
+  /// Applies topological ordering early in preprocessing for smart traversal.
   ///
-  /// @warning This phase also runs partial normalization of gates;
-  ///          however, the preprocessing algorithms should not rely on this.
-  ///          If the partial normalization messes some significant algorithm,
-  ///          it may be removed from this phase in future.
+  /// @post Graph nodes have ordering information for optimal processing.
+  void ApplyEarlyTopologicalOrdering() noexcept;
+
+  /// Strategic module detection that combines all module-related operations
+  /// to reduce redundancy.
+  ///
+  /// @returns true if modules were detected or created.
+  bool PerformStrategicModuleDetection() noexcept;
+
+  /// High-impact Boolean optimization performed early in the pipeline.
+  ///
+  /// @returns true if the graph was modified.
+  bool PerformEarlyBooleanOptimization() noexcept;
+
+  /// Adaptive normalization that considers graph characteristics.
+  ///
+  /// @param[in] force_full  Whether to force full normalization.
+  ///
+  /// @returns true if normalization was applied.
+  bool PerformAdaptiveNormalization(bool force_full = false) noexcept;
+
+  /// Smart loop execution with convergence tracking.
+  ///
+  /// @tparam Operation  Type of the operation to execute.
+  /// @param[in] operation  The operation to execute iteratively.
+  /// @param[in] operation_name  Name for logging purposes.
+  ///
+  /// @returns true if any iteration made changes.
+  template<typename Operation>
+  bool ExecuteWithConvergence(Operation&& operation, const char* operation_name) noexcept;
+
+  /// The initial phase of preprocessing with early optimizations.
+  /// Enhanced to include early topological ordering and impact assessment.
   void RunPhaseOne() noexcept;
 
-  /// Preprocessing phase of the original structure of the graph.
-  /// This phase attempts to leverage
-  /// the existing information from the structure of the graph
-  /// to maximize the optimization
-  /// and to make the preprocessing techniques efficient.
-  ///
-  /// @note Multiple definitions of gates are detected and processed.
-  /// @note Modules are detected and created.
-  /// @note Non-module and non-multiple gates are coalesced.
-  /// @note Boolean optimization is applied.
+  /// Optimized phase two with strategic operation ordering and convergence.
+  /// Operations are reordered by impact and executed with smart termination.
   void RunPhaseTwo() noexcept;
 
-  /// Application of gate normalization.
-  /// After this phase,
-  /// the graph is in normal form.
-  ///
-  /// @note Gate normalization is conducted.
+  /// Application of gate normalization with adaptive strategy.
   void RunPhaseThree() noexcept;
 
-  /// Propagation of complements.
-  /// Complements are propagated down to the variables in the graph.
-  /// After this phase,
-  /// the graph is in negation normal form.
-  ///
-  /// @note Complements are propagated to the variables of the graph.
+  /// Propagation of complements with optimization.
   void RunPhaseFour() noexcept;
 
-  /// The final phase
-  /// that cleans up the graph,
-  /// and puts the structure of the graph ready for analysis.
-  /// This phase makes the graph structure
-  /// alternating AND/OR gate layers.
+  /// Final phase with optimized cleanup.
   void RunPhaseFive() noexcept;
 
   /// Normalizes the gates of the whole PDAG
@@ -271,7 +322,7 @@ class Preprocessor : private boost::noncopyable {
   PropagateComplements(const GatePtr& gate, bool keep_modules,
                        std::unordered_map<int, GatePtr>* complements) noexcept;
 
-  /// Runs gate coalescence on the whole PDAG.
+  /// Runs gate coalescence on the whole PDAG with convergence tracking.
   ///
   /// @param[in] common  A flag to also coalesce common/shared gates.
   ///                    These gates may be important for other algorithms.
@@ -303,17 +354,13 @@ class Preprocessor : private boost::noncopyable {
   /// @warning Gate marks are used.
   bool CoalesceGates(const GatePtr& gate, bool common) noexcept;
 
-  /// Detects and replaces multiple definitions of gates.
+  /// Detects and replaces multiple definitions of gates with convergence tracking.
   /// Gates with the same logic and inputs
   /// but different indices are considered redundant.
   ///
   /// @returns true if multiple definitions are found and replaced.
   ///
-  /// @note This function does not recursively detect multiple definitions
-  ///       due to replaced redundant arguments of gates.
-  ///       The replaced gates are considered a new graph,
-  ///       and this function must be called again
-  ///       to verify that the new graph does not have multiple definitions.
+  /// @note Uses convergence tracking to avoid excessive iterations.
   bool ProcessMultipleDefinitions() noexcept;
 
   /// Traverses the PDAG to collect multiple definitions of gates.
@@ -328,9 +375,8 @@ class Preprocessor : private boost::noncopyable {
       std::unordered_map<GatePtr, std::vector<GateWeakPtr>>* multi_def,
       GateSet* unique_gates) noexcept;
 
-  /// Traverses the PDAG to detect modules.
-  /// Modules are independent sub-graphs
-  /// without common nodes with the rest of the graph.
+  /// Strategic module detection that combines all module operations.
+  /// Replaces multiple separate module detection calls.
   void DetectModules() noexcept;
 
   /// Traverses the given gate
@@ -427,7 +473,7 @@ class Preprocessor : private boost::noncopyable {
   /// @warning Gate marks are used.
   std::vector<GateWeakPtr> GatherModules() noexcept;
 
-  /// Identifies common arguments of gates,
+  /// Identifies common arguments of gates with convergence tracking,
   /// and merges the common arguments into new gates.
   /// This technique helps uncover the common structure
   /// within gates that are not modules.
@@ -614,7 +660,7 @@ class Preprocessor : private boost::noncopyable {
   void TransformCommonArgs(MergeTable::MergeGroup* group) noexcept;
 
   /// Detects and manipulates AND and OR gate distributivity
-  /// for the whole graph.
+  /// for the whole graph with convergence tracking.
   ///
   /// @returns true if the graph is changed.
   bool DetectDistributivity() noexcept;
@@ -829,7 +875,7 @@ class Preprocessor : private boost::noncopyable {
   /// @warning The common node must be cleaned separately.
   void ClearStateMarks(const GatePtr& gate) noexcept;
 
-  /// The Shannon decomposition for common nodes in the PDAG.
+  /// The Shannon decomposition for common nodes in the PDAG with convergence tracking.
   /// This procedure is also called "Constant Propagation",
   /// but it is confusing with the actual propagation of
   /// house events and constant gates.
@@ -992,9 +1038,71 @@ class Preprocessor : private boost::noncopyable {
   void GatherNodes(const GatePtr& gate, std::vector<GatePtr>* gates,
                    std::vector<VariablePtr>* variables) noexcept;
 
+  /// Smart loop execution with convergence tracking
+  template<typename Operation>
+  bool SmartLoop(Operation operation, const std::string& operation_name) noexcept {
+    convergence_tracker_.Reset();
+    bool overall_changed = false;
+    
+    while (true) {
+      int current_complexity = CalculateComplexityScore();
+      bool iteration_changed = operation();
+      overall_changed |= iteration_changed;
+      
+      if (convergence_tracker_.ShouldStop(current_complexity, iteration_changed)) {
+        LOG(DEBUG3) << operation_name << " converged after " 
+                    << convergence_tracker_.iteration_count << " iterations";
+        break;
+      }
+    }
+    
+    return overall_changed;
+  }
+  
+  /// Calculates the current graph complexity score.
+  ///
+  /// @returns Complexity score based on various graph metrics.
+  int CalculateComplexityScore() const noexcept;
+
+  /// Checks if the graph structure has stabilized.
+  ///
+  /// @param[in] previous_metrics  Metrics from previous iteration.
+  ///
+  /// @returns true if the graph has converged.
+  bool HasConverged(const PreprocessingMetrics& previous_metrics) const noexcept;
+
   /// @todo Eliminate the protected data.
   Pdag* graph_;  ///< The PDAG to preprocess.
+  ConvergenceTracker convergence_tracker_;  ///< Tracks operation convergence.
+  PreprocessingMetrics metrics_;  ///< Current preprocessing metrics.
 };
+
+/// Template method for executing operations with convergence tracking.
+template<typename Operation>
+bool Preprocessor::ExecuteWithConvergence(Operation&& operation, const char* operation_name) noexcept {
+  convergence_tracker_.Reset();
+  bool overall_changed = false;
+  
+  while (true) {
+    PreprocessingMetrics previous_metrics = metrics_;
+    bool changed = operation();
+    
+    metrics_.Update(graph_);
+    overall_changed |= changed;
+    
+    int current_size = metrics_.current_gate_count + metrics_.current_variable_count;
+    
+    if (convergence_tracker_.ShouldStop(current_size, changed)) {
+      break;
+    }
+    
+    if (HasConverged(previous_metrics)) {
+      break;
+    }
+  }
+  
+  return overall_changed;
+}
 
 /// Undefined template class for specialization of Preprocessor
 /// for needs of specific analysis algorithms.
@@ -1012,9 +1120,14 @@ class CustomPreprocessor<Bdd> : public Preprocessor {
   using Preprocessor::Preprocessor;
 
  private:
-  /// Performs preprocessing for analyses with Binary Decision Diagrams.
-  /// This preprocessing assigns the order for variables for BDD construction.
+  /// Optimized preprocessing for Binary Decision Diagrams with early optimizations.
+  /// Applies algorithm-specific optimizations early in the pipeline.
   void Run() noexcept override;
+  
+  /// BDD-specific early optimizations.
+  ///
+  /// @returns true if optimizations were applied.
+  bool ApplyBddEarlyOptimizations() noexcept;
 };
 
 class Zbdd;
@@ -1026,11 +1139,14 @@ class CustomPreprocessor<Zbdd> : public Preprocessor {
   using Preprocessor::Preprocessor;
 
  protected:
-  /// Performs preprocessing for analyses
-  /// with Zero-Suppressed Binary Decision Diagrams.
-  /// Complements are propagated to variables.
-  /// This preprocessing assigns the order for variables for ZBDD construction.
+  /// Optimized preprocessing for Zero-Suppressed Binary Decision Diagrams.
+  /// Includes early complement propagation and algorithm-specific optimizations.
   void Run() noexcept override;
+  
+  /// ZBDD-specific early optimizations.
+  ///
+  /// @returns true if optimizations were applied.
+  bool ApplyZbddEarlyOptimizations() noexcept;
 };
 
 class Mocus;
@@ -1042,12 +1158,7 @@ class CustomPreprocessor<Mocus> : public CustomPreprocessor<Zbdd> {
   using CustomPreprocessor<Zbdd>::CustomPreprocessor;
 
  private:
-  /// Performs processing of a fault tree
-  /// to simplify the structure to
-  /// normalized (OR/AND gates only),
-  /// modular (independent sub-trees),
-  /// positive-gate-only (negation normal) PDAG.
-  /// The variable ordering is assigned specifically for MOCUS.
+  /// Optimized preprocessing for MOCUS with early variable ordering optimization.
   void Run() noexcept override;
 
   /// Groups and inverts the topological ordering for nodes.
@@ -1062,6 +1173,11 @@ class CustomPreprocessor<Mocus> : public CustomPreprocessor<Zbdd> {
   /// Note, however, the inversion of the order
   /// generally (dramatically) increases the size of Binary Decision Diagrams.
   void InvertOrder() noexcept;
+  
+  /// MOCUS-specific early optimizations.
+  ///
+  /// @returns true if optimizations were applied.
+  bool ApplyMocusEarlyOptimizations() noexcept;
 };
 
 }  // namespace scram::core

@@ -7,6 +7,7 @@ import { ExecutableJobReport, ExecutableJobSchema } from "../middleware/schemas/
 import { ScramController } from "./controllers/scram.controller";
 import { XftaController } from "./controllers/xfta.controller";
 import { ProducerService } from "./services/producer.service";
+import { SequenceExtractorService } from "./services/sequence-extractor";
 import { StorageService } from "./services/storage.service";
 
 @Module({
@@ -18,7 +19,7 @@ import { StorageService } from "./services/storage.service";
     ]),
   ],
   controllers: [ScramController, XftaController],
-  providers: [ProducerService, StorageService],
+  providers: [ProducerService, SequenceExtractorService, StorageService],
 })
 export class QuantificationModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {

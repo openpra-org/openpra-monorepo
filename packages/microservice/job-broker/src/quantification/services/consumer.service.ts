@@ -164,10 +164,24 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
 
     this.logger.debug(`Processing sequence job ${sequenceJobId} for parent ${parentJobId}`);
 
+    // Store sequence job input and create proper metadata
+    const inputId = await this.minioService.storeInputData(nodeQuantRequest);
+    await this.minioService.createJobMetadata(sequenceJobId, inputId);
+    
+    // Update sequence job status to running
+    await this.minioService.updateJobMetadata(sequenceJobId, { status: "running" });
+
     // Perform quantification on sequence
     const result = await this.performQuantification(nodeQuantRequest);
 
-    // Mark this sequence as completed
+    // Store sequence result in its own metadata
+    const outputId = await this.minioService.storeOutputData(JSON.stringify(result), sequenceJobId);
+    await this.minioService.updateJobMetadata(sequenceJobId, {
+      status: "completed",
+      outputId: outputId,
+    });
+
+    // Mark this sequence as completed in parent
     await this.markSequenceCompleted(parentJobId, sequenceJobId);
 
     // Check if all sequences are complete
@@ -215,10 +229,12 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
       
       // Get all individual sequence results
       const allSequenceResults = [];
-      for (const sequenceJobId of parentMetadata.childJobs) {
-        const sequenceMetadata = await this.minioService.getJobMetadata(sequenceJobId);
-        const sequenceOutput = await this.minioService.getOutputData(String(sequenceMetadata.outputId));
-        allSequenceResults.push(JSON.parse(sequenceOutput));
+      if (parentMetadata.childJobs) {
+        for (const sequenceJobId of parentMetadata.childJobs) {
+          const sequenceMetadata = await this.minioService.getJobMetadata(sequenceJobId);
+          const sequenceOutput = await this.minioService.getOutputData(String(sequenceMetadata.outputId));
+          allSequenceResults.push(JSON.parse(sequenceOutput));
+        }
       }
       
       // Aggregate results

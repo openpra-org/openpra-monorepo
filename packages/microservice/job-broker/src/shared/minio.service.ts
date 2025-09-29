@@ -8,9 +8,9 @@ export interface JobMetadata {
   jobId?: string;
   inputId?: string;
   outputId?: string;
-  childJobs: string[];
-  completedSequences?: string[]
-  status?: 'processing' |'pending' | 'running' | 'completed' | 'failed';
+  childJobs?: string[];
+  completedSequences?: string[];
+  status?: 'processing' | 'pending' | 'running' | 'completed' | 'failed';
   timestamp?: string;
   error?: string;
 }

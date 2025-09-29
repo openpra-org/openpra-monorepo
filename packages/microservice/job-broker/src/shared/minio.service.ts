@@ -5,12 +5,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { EnvVarKeys } from '../../config/env_vars.config';
 
 export interface JobMetadata {
-  jobId: string;
-  inputId: string;
+  jobId?: string;
+  inputId?: string;
   outputId?: string;
-  childJobs?: string[];
-  status: 'processing' |'pending' | 'running' | 'completed' | 'failed';
-  timestamp: string;
+  childJobs: string[];
+  completedSequences?: string[]
+  status?: 'processing' |'pending' | 'running' | 'completed' | 'failed';
+  timestamp?: string;
   error?: string;
 }
 

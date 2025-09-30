@@ -1,6 +1,7 @@
 volumes:
   mongo_data:
   rabbitmq_data:
+  minio_data:
 
 networks:
   db_net:
@@ -57,9 +58,17 @@ services:
     networks:
       - db_net
       - rmq_net
+      - svc_net
     depends_on:
-      - mongodb
-      - rabbitmq
+      mongodb:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
       <<: *healthcheck-fragments
@@ -70,11 +79,19 @@ services:
     networks:
       - db_net
       - rmq_net
+      - svc_net
     depends_on:
-      - mongodb
-      - rabbitmq
+      mongodb:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
     deploy:
-      replicas: 2
+      replicas: 4
 
   backend:
     <<: *base-image
@@ -82,7 +99,10 @@ services:
       - "8000:8000"
     command: "nx run --verbose web-backend:serve:development"
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_started
+      minio:
+        condition: service_healthy
     networks:
       - db_net
       - svc_net
@@ -90,6 +110,9 @@ services:
       - JWT_SECRET
     environment:
       JWT_SECRET_KEY_FILE: /run/secrets/JWT_SECRET
+      # Ensure in-cluster services talk to MinIO via service name rather than localhost
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: 9000
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
       <<: *healthcheck-fragments
@@ -119,3 +142,25 @@ services:
       - db_net
     volumes:
       - mongo_data:/data/db
+
+  minio:
+    image: quay.io/minio/minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - svc_net
+      - db_net
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

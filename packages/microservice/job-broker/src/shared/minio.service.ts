@@ -52,8 +52,27 @@ export class MinioService implements OnModuleInit {
       for (const bucket of buckets) {
         const exists = await this.minioClient.bucketExists(bucket);
         if (!exists) {
-          await this.minioClient.makeBucket(bucket);
-          this.logger.log(`Created bucket: ${bucket}`);
+          try {
+            await this.minioClient.makeBucket(bucket);
+            this.logger.log(`Created bucket: ${bucket}`);
+          } catch (err: any) {
+            // Handle race: another worker may have created the bucket between
+            // our existence check and makeBucket call.
+            const alreadyExists = await this.minioClient
+              .bucketExists(bucket)
+              .catch(() => false);
+            if (
+              alreadyExists ||
+              err?.code === 'BucketAlreadyOwnedByYou' ||
+              err?.code === 'BucketAlreadyExists' ||
+              err?.statusCode === 409 ||
+              /already (own|exist)s?/i.test(String(err?.message || ''))
+            ) {
+              this.logger.debug(`Bucket ${bucket} already present (race handled).`);
+            } else {
+              throw err;
+            }
+          }
         } else {
           this.logger.log(`Bucket already exists: ${bucket}`);
         }

@@ -127,16 +127,25 @@ void FaultTreeAnalysis::Analyze() noexcept {
   if (Analysis::settings().preprocessor)
     return;  // Preprocessor only option.
 #endif
-  CLOCK(algo_time);
-  LOG(DEBUG2) << "Launching the algorithm...";
-  const Zbdd& products = this->GenerateProducts(graph_.get());
-  LOG(DEBUG2) << "The algorithm finished in " << DUR(algo_time);
-  LOG(DEBUG2) << "# of products: " << products.size();
+  // If products are required (most cases), run the algorithm to enumerate.
+  // Otherwise (BDD probability-only kNone), skip product generation.
+  if (Analysis::settings().requires_products()) {
+    CLOCK(algo_time);
+    LOG(DEBUG2) << "Launching the algorithm...";
+    const Zbdd& products = this->GenerateProducts(graph_.get());
+    LOG(DEBUG2) << "The algorithm finished in " << DUR(algo_time);
+    LOG(DEBUG2) << "# of products: " << products.size();
 
-  Analysis::AddAnalysisTime(DUR(analysis_time));
-  CLOCK(store_time);
-  Store(products, *graph_);
-  LOG(DEBUG2) << "Stored the result for reporting in " << DUR(store_time);
+    Analysis::AddAnalysisTime(DUR(analysis_time));
+    CLOCK(store_time);
+    Store(products, *graph_);
+    LOG(DEBUG2) << "Stored the result for reporting in " << DUR(store_time);
+  } else {
+    // For BDD probability-only mode, algorithm invocation is deferred to
+    // the ProbabilityAnalyzer which constructs/evaluates directly on BDD.
+    LOG(DEBUG2) << "Skipping product enumeration (BDD probability-only mode).";
+    Analysis::AddAnalysisTime(DUR(analysis_time));
+  }
 }
 
 void FaultTreeAnalysis::Store(const Zbdd& products,

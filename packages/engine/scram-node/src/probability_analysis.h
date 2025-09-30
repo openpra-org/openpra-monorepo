@@ -193,7 +193,20 @@ class ProbabilityAnalyzerBase : public ProbabilityAnalysis {
                           mef::MissionTime* mission_time)
       : ProbabilityAnalysis(fta, mission_time),
         graph_(fta->graph()),
-        products_(fta->algorithm()->products()) {
+        products_(&fta->algorithm()->products()) {
+    ExtractVariableProbabilities();
+  }
+
+  /// Constructs probability analyzer from a fault tree analyzer
+  /// while controlling whether to bind enumerated products.
+  /// This enables BDD probability-only flow where products may be absent.
+  template <class Algorithm>
+  ProbabilityAnalyzerBase(const FaultTreeAnalyzer<Algorithm>* fta,
+                          mef::MissionTime* mission_time,
+                          bool use_products)
+      : ProbabilityAnalysis(fta, mission_time),
+        graph_(fta->graph()),
+        products_(use_products ? &fta->algorithm()->products() : nullptr) {
     ExtractVariableProbabilities();
   }
 
@@ -201,7 +214,10 @@ class ProbabilityAnalyzerBase : public ProbabilityAnalysis {
   const Pdag* graph() const { return graph_; }
 
   /// @returns The resulting products of the fault tree analyzer.
-  const Zbdd& products() const { return products_; }
+  const Zbdd& products() const {
+    assert(products_ && "Products are not available in this analysis.");
+    return *products_;
+  }
 
   /// @returns A mapping for probability values with indices.
   const Pdag::IndexMap<double>& p_vars() const { return p_vars_; }
@@ -240,7 +256,7 @@ class ProbabilityAnalyzerBase : public ProbabilityAnalysis {
   void ExtractVariableProbabilities();
 
   const Pdag* graph_;  ///< PDAG from the fault tree analysis.
-  const Zbdd& products_;  ///< A collection of products.
+  const Zbdd* products_;  ///< Optional collection of products.
   Pdag::IndexMap<double> p_vars_;  ///< Variable probabilities.
 };
 
@@ -276,7 +292,7 @@ class ProbabilityAnalyzer<Bdd> : public ProbabilityAnalyzerBase {
   template <class Algorithm>
   ProbabilityAnalyzer(const FaultTreeAnalyzer<Algorithm>* fta,
                       mef::MissionTime* mission_time)
-      : ProbabilityAnalyzerBase(fta, mission_time),
+      : ProbabilityAnalyzerBase(fta, mission_time, fta->settings().requires_products()),
         current_mark_(false),
         owner_(true) {
     CreateBdd(*fta);

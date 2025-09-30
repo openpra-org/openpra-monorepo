@@ -269,6 +269,72 @@ export class MinioService implements OnModuleInit {
     }
   }
 
+  /**
+   * Mark a child sequence as completed in a race-safe way by writing a
+   * standalone marker object. This avoids read-modify-write races on the
+   * parent metadata object when many sequences complete concurrently.
+   */
+  async markSequenceCompleted(parentJobId: string, sequenceJobId: string): Promise<void> {
+    const markerKey = `job-${parentJobId}/completed/${sequenceJobId}.marker`;
+    try {
+      await this.minioClient.putObject(
+        this.jobsBucket,
+        markerKey,
+        Buffer.from('1', 'utf8'),
+        undefined,
+        {
+          'Content-Type': 'text/plain',
+          'X-Parent-Job-ID': parentJobId,
+          'X-Sequence-Job-ID': sequenceJobId,
+        }
+      );
+      this.logger.debug(`Marked sequence ${sequenceJobId} completed for parent ${parentJobId}`);
+    } catch (error: any) {
+      this.logger.error(`Failed to mark sequence completion for parent ${parentJobId}: ${error.message}`);
+      throw new Error(`Failed to mark sequence completion: ${error.message}`);
+    }
+  }
+
+  /**
+   * Count completed sequence markers for a parent job.
+   */
+  async getCompletedSequenceCount(parentJobId: string): Promise<number> {
+    const prefix = `job-${parentJobId}/completed/`;
+    try {
+      let count = 0;
+      const stream = this.minioClient.listObjects(this.jobsBucket, prefix, true);
+      for await (const _ of stream) {
+        count += 1;
+      }
+      return count;
+    } catch (error: any) {
+      this.logger.error(`Failed to count completed sequences for parent ${parentJobId}: ${error.message}`);
+      throw new Error(`Failed to count completed sequences: ${error.message}`);
+    }
+  }
+
+  /**
+   * Optionally list the completed sequence job IDs.
+   */
+  async listCompletedSequences(parentJobId: string): Promise<string[]> {
+    const prefix = `job-${parentJobId}/completed/`;
+    try {
+      const result: string[] = [];
+      const stream = this.minioClient.listObjects(this.jobsBucket, prefix, true);
+      for await (const obj of stream) {
+        // Extract sequence ID from key suffix
+        const name = obj.name; // e.g., job-<parent>/completed/<sequenceId>.marker
+        const lastPart = name.substring(name.lastIndexOf('/') + 1);
+        const seqId = lastPart.replace(/\.marker$/, '');
+        if (seqId) result.push(seqId);
+      }
+      return result;
+    } catch (error: any) {
+      this.logger.error(`Failed to list completed sequences for parent ${parentJobId}: ${error.message}`);
+      throw new Error(`Failed to list completed sequences: ${error.message}`);
+    }
+  }
+
   async getJobMetadata(jobId: string): Promise<JobMetadata> {
     try {
       const objectName = `job-${jobId}.json`;

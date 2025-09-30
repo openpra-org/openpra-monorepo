@@ -203,24 +203,17 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
   }
 
   private async markSequenceCompleted(parentJobId: string, sequenceJobId: string): Promise<void> {
-    const parentMetadata = await this.minioService.getJobMetadata(parentJobId);
-    
-    if (!parentMetadata.completedSequences) {
-      parentMetadata.completedSequences = [];
-    }
-    
-    parentMetadata.completedSequences.push(sequenceJobId);
-    await this.minioService.updateJobMetadata(parentJobId, parentMetadata);
+    // Use race-safe marker-based completion to avoid overwriting parent metadata
+    await this.minioService.markSequenceCompleted(parentJobId, sequenceJobId);
   }
 
   private async checkAllSequencesCompleted(parentJobId: string): Promise<boolean> {
     const parentMetadata = await this.minioService.getJobMetadata(parentJobId);
-    
-    if (!parentMetadata.childJobs || !parentMetadata.completedSequences) {
+    if (!parentMetadata.childJobs || parentMetadata.childJobs.length === 0) {
       return false;
     }
-
-    return parentMetadata.completedSequences.length === parentMetadata.childJobs.length;
+    const completedCount = await this.minioService.getCompletedSequenceCount(parentJobId);
+    return completedCount === parentMetadata.childJobs.length;
   }
 
   private async aggregateParentJob(parentJobId: string): Promise<void> {
@@ -246,8 +239,7 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
       // Update parent job as completed
       await this.minioService.updateJobMetadata(parentJobId, {
         status: "completed",
-        outputId,
-        completedSequences: undefined // Clean up
+        outputId
       });
 
       this.logger.debug(`Parent job ${parentJobId} completed with aggregated results`);

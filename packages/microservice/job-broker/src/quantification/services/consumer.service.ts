@@ -261,43 +261,65 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
   }
 
   private aggregateSequenceResults(sequenceResults: any[]): any {
-    // Take model features from first result (identical across all sequences)
+    // Defensive: if no results, return minimal shape
+    if (!sequenceResults || sequenceResults.length === 0) {
+      return { modelFeatures: {}, results: { initiatingEvents: [], sumOfProducts: [] } };
+    }
+
+    // Take model features from first result (assumed identical across children)
     const aggregatedResult = {
-      modelFeatures: sequenceResults[0].modelFeatures,
+      modelFeatures: sequenceResults[0]?.modelFeatures ?? {},
       results: {
         initiatingEvents: [] as any[],
         sumOfProducts: [] as any[],
-      }
+      },
     };
 
-    // Aggregate sequences and sum of products
-    const allSequences: any[] = [];
-    const allSumOfProducts: any[] = [];
+    // Merge initiating events by name and concatenate unique sequences
+    const ieMap = new Map<string, { name: string; description?: string; sequences: any[] }>();
 
-    for (const result of sequenceResults) {
-      if (result.results?.initiatingEvents?.length > 0) {
-        const initiatingEvent = result.results.initiatingEvents[0];
-        if (initiatingEvent.sequences) {
-          allSequences.push(...initiatingEvent.sequences);
+    for (const res of sequenceResults) {
+      const ies = res?.results?.initiatingEvents ?? [];
+      for (const ie of ies) {
+        const key: string = ie.name;
+        if (!ieMap.has(key)) {
+          ieMap.set(key, { name: ie.name, description: ie.description, sequences: [] });
+        }
+        const entry = ieMap.get(key)!;
+        const seqs = ie?.sequences ?? [];
+        for (const seq of seqs) {
+          // De-duplicate by sequence name
+          const exists = entry.sequences.some((s: any) => s?.name === seq?.name);
+          if (!exists) {
+            entry.sequences.push(seq);
+          }
         }
       }
-      
-      if (result.results?.sumOfProducts) {
-        allSumOfProducts.push(...result.results.sumOfProducts);
+    }
+
+    // Sort sequences by name (e.g., S1, S2, ...), preserving natural order when possible
+    for (const entry of ieMap.values()) {
+      entry.sequences.sort((a: any, b: any) => {
+        const an = String(a?.name ?? "");
+        const bn = String(b?.name ?? "");
+        const anum = parseInt(an.replace(/\D+/g, ""), 10);
+        const bnum = parseInt(bn.replace(/\D+/g, ""), 10);
+        if (!isNaN(anum) && !isNaN(bnum)) return anum - bnum;
+        return an.localeCompare(bn);
+      });
+    }
+
+    aggregatedResult.results.initiatingEvents = Array.from(ieMap.values());
+
+    // For sumOfProducts: pick a canonical set from the first child that provides it, to avoid duplicates
+    // across children (which often recompute identical FT targets). If none, leave empty.
+    for (const res of sequenceResults) {
+      const sop = res?.results?.sumOfProducts ?? [];
+      if (sop.length > 0) {
+        aggregatedResult.results.sumOfProducts = sop;
+        break;
       }
     }
-
-    // Reconstruct initiating events with combined sequences
-    if (sequenceResults[0].results?.initiatingEvents?.length > 0) {
-      const firstInitiatingEvent = sequenceResults[0].results.initiatingEvents[0];
-      aggregatedResult.results.initiatingEvents = [{
-        ...firstInitiatingEvent,
-        sequences: allSequences
-      }];
-    }
-
-    // Add combined sum of products
-    aggregatedResult.results.sumOfProducts = allSumOfProducts;
 
     return aggregatedResult;
   }

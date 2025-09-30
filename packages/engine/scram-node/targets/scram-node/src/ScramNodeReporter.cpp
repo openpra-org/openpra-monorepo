@@ -276,6 +276,17 @@ Napi::Object ScramNodeImportance(Napi::Env env, const scram::core::ImportanceAna
 // Sum of Products (Cut Sets) for fault tree analyses (already computed by RiskAnalysis)
 Napi::Object ScramNodeSumOfProducts(Napi::Env env, const scram::core::FaultTreeAnalysis& fta, const scram::core::ProbabilityAnalysis* pa) {
   Napi::Object sop = Napi::Object::New(env);
+  // Products may not be generated in BDD probability-only mode.
+  if (!fta.has_products()) {
+    sop.Set("basicEvents", Napi::Number::New(env, 0));
+    sop.Set("products",    Napi::Number::New(env, 0));
+    if (pa) {
+      sop.Set("probability", Napi::Number::New(env, pa->p_total()));
+    }
+    // Do not set distribution or productList when products are not available.
+    return sop;
+  }
+
   const auto& products = fta.products();
   sop.Set("basicEvents", Napi::Number::New(env, products.product_events().size()));
   sop.Set("products",    Napi::Number::New(env, products.size()));
@@ -345,10 +356,25 @@ static Napi::Object BuildSumOfProductsForGate(Napi::Env env,
   if (settings.algorithm() == Algorithm::kMocus) {
     scram::core::FaultTreeAnalyzer<scram::core::Mocus> fta(gate, settings);
     fta.Analyze();
-    const auto& products = fta.products();
+    const bool has_products = fta.has_products();
 
-    sop.Set("basicEvents", Napi::Number::New(env, products.product_events().size()));
-    sop.Set("products",    Napi::Number::New(env, products.size()));
+    if (!has_products) {
+      sop.Set("basicEvents", Napi::Number::New(env, 0));
+      sop.Set("products",    Napi::Number::New(env, 0));
+    }
+    else {
+      const auto& products = fta.products();
+      sop.Set("basicEvents", Napi::Number::New(env, products.product_events().size()));
+      sop.Set("products",    Napi::Number::New(env, products.size()));
+      // Distribution
+      if (!products.distribution().empty()) {
+        Napi::Array dist = Napi::Array::New(env, products.distribution().size());
+        for (size_t i = 0; i < products.distribution().size(); ++i) {
+          dist.Set(i, Napi::Number::New(env, products.distribution()[i]));
+        }
+        sop.Set("distribution", dist);
+      }
+    }
 
     // Probability analysis (approximation or exact depending on settings)
     std::unique_ptr<scram::core::ProbabilityAnalysis> pa;
@@ -358,26 +384,18 @@ static Napi::Object BuildSumOfProductsForGate(Napi::Env env,
           const_cast<scram::mef::MissionTime*>(&analysis.model().mission_time()));
         paLocal->Analyze();
         sop.Set("probability", Napi::Number::New(env, paLocal->p_total()));
-        sop.Set("productList", ScramNodeProductList(env, products, paLocal.get()));
+        if (has_products) sop.Set("productList", ScramNodeProductList(env, fta.products(), paLocal.get()));
         pa = std::move(paLocal);
       } else { // rare-event default for MOCUS
         auto paLocal = std::make_unique<scram::core::ProbabilityAnalyzer<scram::core::RareEventCalculator>>(&fta,
           const_cast<scram::mef::MissionTime*>(&analysis.model().mission_time()));
         paLocal->Analyze();
         sop.Set("probability", Napi::Number::New(env, paLocal->p_total()));
-        sop.Set("productList", ScramNodeProductList(env, products, paLocal.get()));
+        if (has_products) sop.Set("productList", ScramNodeProductList(env, fta.products(), paLocal.get()));
         pa = std::move(paLocal);
       }
     } else {
-      sop.Set("productList", ScramNodeProductList(env, products, nullptr));
-    }
-
-    if (!products.distribution().empty()) {
-      Napi::Array dist = Napi::Array::New(env, products.distribution().size());
-      for (size_t i = 0; i < products.distribution().size(); ++i) {
-        dist.Set(i, Napi::Number::New(env, products.distribution()[i]));
-      }
-      sop.Set("distribution", dist);
+      if (has_products) sop.Set("productList", ScramNodeProductList(env, fta.products(), nullptr));
     }
     return sop;
   }
@@ -385,10 +403,23 @@ static Napi::Object BuildSumOfProductsForGate(Napi::Env env,
   if (settings.algorithm() == Algorithm::kZbdd) {
     scram::core::FaultTreeAnalyzer<scram::core::Zbdd> fta(gate, settings);
     fta.Analyze();
-    const auto& products = fta.products();
+    const bool has_products = fta.has_products();
 
-    sop.Set("basicEvents", Napi::Number::New(env, products.product_events().size()));
-    sop.Set("products",    Napi::Number::New(env, products.size()));
+    if (!has_products) {
+      sop.Set("basicEvents", Napi::Number::New(env, 0));
+      sop.Set("products",    Napi::Number::New(env, 0));
+    } else {
+      const auto& products = fta.products();
+      sop.Set("basicEvents", Napi::Number::New(env, products.product_events().size()));
+      sop.Set("products",    Napi::Number::New(env, products.size()));
+      if (!products.distribution().empty()) {
+        Napi::Array dist = Napi::Array::New(env, products.distribution().size());
+        for (size_t i = 0; i < products.distribution().size(); ++i) {
+          dist.Set(i, Napi::Number::New(env, products.distribution()[i]));
+        }
+        sop.Set("distribution", dist);
+      }
+    }
 
     std::unique_ptr<scram::core::ProbabilityAnalysis> pa;
     if (settings.probability_analysis()) {
@@ -397,26 +428,18 @@ static Napi::Object BuildSumOfProductsForGate(Napi::Env env,
           const_cast<scram::mef::MissionTime*>(&analysis.model().mission_time()));
         paLocal->Analyze();
         sop.Set("probability", Napi::Number::New(env, paLocal->p_total()));
-        sop.Set("productList", ScramNodeProductList(env, products, paLocal.get()));
+        if (has_products) sop.Set("productList", ScramNodeProductList(env, fta.products(), paLocal.get()));
         pa = std::move(paLocal);
       } else { // rare-event default for ZBDD
         auto paLocal = std::make_unique<scram::core::ProbabilityAnalyzer<scram::core::RareEventCalculator>>(&fta,
           const_cast<scram::mef::MissionTime*>(&analysis.model().mission_time()));
         paLocal->Analyze();
         sop.Set("probability", Napi::Number::New(env, paLocal->p_total()));
-        sop.Set("productList", ScramNodeProductList(env, products, paLocal.get()));
+        if (has_products) sop.Set("productList", ScramNodeProductList(env, fta.products(), paLocal.get()));
         pa = std::move(paLocal);
       }
     } else {
-      sop.Set("productList", ScramNodeProductList(env, products, nullptr));
-    }
-
-    if (!products.distribution().empty()) {
-      Napi::Array dist = Napi::Array::New(env, products.distribution().size());
-      for (size_t i = 0; i < products.distribution().size(); ++i) {
-        dist.Set(i, Napi::Number::New(env, products.distribution()[i]));
-      }
-      sop.Set("distribution", dist);
+      if (has_products) sop.Set("productList", ScramNodeProductList(env, fta.products(), nullptr));
     }
     return sop;
   }
@@ -425,10 +448,22 @@ static Napi::Object BuildSumOfProductsForGate(Napi::Env env,
   {
     scram::core::FaultTreeAnalyzer<scram::core::Bdd> fta(gate, settings);
     fta.Analyze();
-    const auto& products = fta.products();
-
-    sop.Set("basicEvents", Napi::Number::New(env, products.product_events().size()));
-    sop.Set("products",    Napi::Number::New(env, products.size()));
+    const bool has_products = fta.has_products();
+    if (!has_products) {
+      sop.Set("basicEvents", Napi::Number::New(env, 0));
+      sop.Set("products",    Napi::Number::New(env, 0));
+    } else {
+      const auto& products = fta.products();
+      sop.Set("basicEvents", Napi::Number::New(env, products.product_events().size()));
+      sop.Set("products",    Napi::Number::New(env, products.size()));
+      if (!products.distribution().empty()) {
+        Napi::Array dist = Napi::Array::New(env, products.distribution().size());
+        for (size_t i = 0; i < products.distribution().size(); ++i) {
+          dist.Set(i, Napi::Number::New(env, products.distribution()[i]));
+        }
+        sop.Set("distribution", dist);
+      }
+    }
 
     std::unique_ptr<scram::core::ProbabilityAnalysis> pa;
     if (settings.probability_analysis()) {
@@ -436,18 +471,10 @@ static Napi::Object BuildSumOfProductsForGate(Napi::Env env,
         const_cast<scram::mef::MissionTime*>(&analysis.model().mission_time()));
       paLocal->Analyze();
       sop.Set("probability", Napi::Number::New(env, paLocal->p_total()));
-      sop.Set("productList", ScramNodeProductList(env, products, paLocal.get()));
+      if (has_products) sop.Set("productList", ScramNodeProductList(env, fta.products(), paLocal.get()));
       pa = std::move(paLocal);
     } else {
-      sop.Set("productList", ScramNodeProductList(env, products, nullptr));
-    }
-
-    if (!products.distribution().empty()) {
-      Napi::Array dist = Napi::Array::New(env, products.distribution().size());
-      for (size_t i = 0; i < products.distribution().size(); ++i) {
-        dist.Set(i, Napi::Number::New(env, products.distribution()[i]));
-      }
-      sop.Set("distribution", dist);
+      if (has_products) sop.Set("productList", ScramNodeProductList(env, fta.products(), nullptr));
     }
     return sop;
   }

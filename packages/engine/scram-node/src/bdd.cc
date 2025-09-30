@@ -66,9 +66,16 @@ namespace scram::core {
     ClearMarks(false);
     TestStructure(root_.vertex);
     
-    // Apply dynamic sifting by default after BDD construction
+    // Apply dynamic sifting only for sufficiently large BDDs
     if (reordering_enabled_) {
-      PerformSifting();
+      int nodes = CountIteNodes(root_.vertex);
+      ClearMarks(false);
+      if (nodes > 1000 && index_to_order_.size() > 1) {
+        PerformSifting();
+      } else {
+        LOG(DEBUG4) << "Skipping SIFTING: size=" << nodes
+                    << ", variables=" << index_to_order_.size();
+      }
     }
     
     LOG(DEBUG4) << "# of BDD vertices created: " << function_id_ - 1;
@@ -388,9 +395,15 @@ namespace scram::core {
   void Bdd::PerformSifting(int max_iterations, double growth_threshold) noexcept {
     if (!reordering_enabled_)
       return;
-      
+    
     int current_size = CountIteNodes(root_.vertex);
     ClearMarks(false);
+    // Early exit on tiny graphs or too few variables
+    if (current_size <= 1000 || index_to_order_.size() < 2) {
+      LOG(DEBUG4) << "SIFTING disabled (threshold not met): size=" << current_size
+                  << ", variables=" << index_to_order_.size();
+      return;
+    }
     
     LOG(DEBUG3) << "Starting SIFTING reordering. Current BDD size: " << current_size;
     

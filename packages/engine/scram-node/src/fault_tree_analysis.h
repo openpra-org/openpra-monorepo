@@ -239,6 +239,9 @@ class FaultTreeAnalysis : public Analysis {
     return *products_;
   }
 
+  /// @returns true if products were generated and stored.
+  bool has_products() const noexcept { return static_cast<bool>(products_); }
+
  protected:
   /// @returns Pointer to the PDAG representing the fault tree.
   const Pdag* graph() const { return graph_.get(); }

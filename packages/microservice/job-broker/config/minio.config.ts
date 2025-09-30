@@ -1,0 +1,19 @@
+export enum MinioConfigKeys{
+  ENV_MINIO_ENDPOINT = 'MINIO_ENDPOINT',
+  ENV_MINIO_PORT = 'MINIO_PORT',
+  ENV_MINIO_ACCESS_KEY = 'MINIO_ACCESS_KEY',
+  ENV_MINIO_SECRET_KEY = 'MINIO_SECRET_KEY',
+  ENV_MINIO_INPUT_BUCKET = 'MINIO_INPUT_BUCKET',
+  ENV_MINIO_OUTPUT_BUCKET = 'MINIO_OUTPUT_BUCKET',
+  ENV_MINIO_JOBS_BUCKET = 'MINIO_JOBS_BUCKET',
+}
+
+export interface MinioEnvVars {
+  [MinioConfigKeys.ENV_MINIO_ENDPOINT]: string;
+  [MinioConfigKeys.ENV_MINIO_PORT]: number;
+  [MinioConfigKeys.ENV_MINIO_ACCESS_KEY]: string;
+  [MinioConfigKeys.ENV_MINIO_SECRET_KEY]: string;
+  [MinioConfigKeys.ENV_MINIO_INPUT_BUCKET]: string;
+  [MinioConfigKeys.ENV_MINIO_OUTPUT_BUCKET]: string;
+  [MinioConfigKeys.ENV_MINIO_JOBS_BUCKET]: string;
+}

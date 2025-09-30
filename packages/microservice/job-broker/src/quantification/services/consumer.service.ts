@@ -1,209 +1,346 @@
-import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
-import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
-import amqp from "amqplib";
-import { ConsumeMessage } from "amqplib/properties";
-import tmp from "tmp";
-import typia, { TypeGuardError } from "typia";
-import { RunScramCli } from "scram-node";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-
-import { EnvVarKeys } from "../../../config/env_vars.config";
-import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from "@nestjs/common";
+import { Channel, ChannelModel, ConsumeMessage } from "amqplib";
+import typia from "typia";
+import { QuantifyModel } from "scram-node";
+import { NodeQuantRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { RpcException } from "@nestjs/microservices";
+import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQChannelModelService, MinioService } from "../../shared";
 
 @Injectable()
-export class ConsumerService implements OnApplicationBootstrap {
-  // Importing ConfigService for accessing environment variables.
+export class ConsumerService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(ConsumerService.name);
+  private readonly quantQueueConfig: QueueConfig;
+  private readonly distributedSequencesQueueConfig: QueueConfig;
+  private channelModel: ChannelModel | null = null;
+  private channel: Channel | null = null;
 
   constructor(
-    @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
-    private readonly configSvc: ConfigService,
-  ) {}
-
-  /**
-   * Attempts to establish a connection to the RabbitMQ server with retry logic.
-   *
-   * This method tries to connect to the RabbitMQ server using the provided URL. If the connection attempt fails,
-   * it retries until the maximum number of attempts (`retryCount`) is reached. Between each retry, it waits for 10 seconds.
-   * Logs are generated to indicate the success or failure of each connection attempt.
-   *
-   * @param url - The URL of the RabbitMQ server.
-   * @param retryCount - The maximum number of allowed attempts to connect to the server.
-   * @returns A promise that resolves to a RabbitMQ connection.
-   * @throws Error if the connection could not be established after the specified number of retries.
-   */
-  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.ChannelModel> {
-    let attempt = 0; // Initialize the attempt counter.
-    while (attempt < retryCount) {
-      // Continue trying until the retry count is reached.
-      try {
-        const channelModel = await amqp.connect(url); // Attempt to connect to RabbitMQ.
-        this.logger.log("Quantification-consumer successfully connected to the RabbitMQ broker."); // Log successful connection.
-        return channelModel; // Return the established connection.
-      } catch {
-        attempt++; // Increase the attempt count upon failure.
-        this.logger.error(
-          `Attempt ${String(
-            attempt,
-          )}: Failed to connect to RabbitMQ broker from quantification-consumer side. Retrying in 10 seconds...`, // Log the failure and retry intention.
-        );
-        await new Promise((resolve) => setTimeout(resolve, 10000)); // Wait for 10 seconds before retrying.
-      }
-    }
-    // If the loop exits without returning a connection, throw an error indicating failure to connect.
-    throw new Error(
-      "Failed to connect to the RabbitMQ broker after several attempts from quantification-consumer side.",
-    );
+    private readonly queueService: QueueService,
+    private readonly rabbitmqService: RabbitMQChannelModelService,
+    private readonly queueConfigFactory: QueueConfigFactory,
+    private readonly minioService: MinioService,
+  ) {
+    this.quantQueueConfig = this.queueConfigFactory.createQuantJobQueueConfig();
+    this.distributedSequencesQueueConfig = this.queueConfigFactory.createDistributedSequencesJobQueueConfig();
   }
 
-  /**
-   * Initializes the consumer service and starts consuming messages from RabbitMQ upon module initialization.
-   *
-   * Sets up the environment by loading necessary env variables, establishing a connection to RabbitMQ,
-   * and preparing the service to consume messages from the initial job queue. It ensures that all required environment
-   * variables are set, connects to RabbitMQ with retry logic, and sets up message consumption with appropriate error
-   * handling and acknowledgment.
-   *
-   * @returns A promise that resolves when the module initialization process is complete.
-   */
-  public async onApplicationBootstrap(): Promise<void> {
-    // Connect to the RabbitMQ server and create a channel.
-    const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
-    const channelModel = await this.connectWithRetry(url, 3);
-    const channel = await channelModel.createChannel();
+  async onApplicationBootstrap(): Promise<void> {
+    this.logger.debug("Connecting to the broker");
+    this.channelModel = await this.rabbitmqService.getChannelModel(ConsumerService.name);
+    this.channel = await this.rabbitmqService.getChannel(this.channelModel, ConsumerService.name);
+    await this.queueService.setupQueue(this.quantQueueConfig, this.channel);
+    await this.queueService.setupQueue(this.distributedSequencesQueueConfig, this.channel);
+    this.logger.debug("Initialized and consuming from both queues");
+    await this.consumeQuantJobs();
+    await this.consumeDistributedSequenceJobs();
+  }
 
-    // Ensure the dead letter exchange and queue are set up for handling failed messages.
-    const quantJobDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE);
-    const quantJobDeadLetterX = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_EXCHANGE);
-    const quantJobDeadLetterQDurable = Boolean(
-      this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_DEAD_LETTER_QUEUE_DURABLE),
-    );
-    await channel.assertExchange(quantJobDeadLetterX, "direct", { durable: quantJobDeadLetterQDurable });
-    await channel.assertQueue(quantJobDeadLetterQ, { durable: quantJobDeadLetterQDurable });
-    await channel.bindQueue(quantJobDeadLetterQ, quantJobDeadLetterX, "");
+  private async consumeQuantJobs(): Promise<void> {
+    try {
+      await this.channel?.checkQueue(this.quantQueueConfig.name);
+    } catch (err) {
+      throw new RpcException(`Queue: ${this.quantQueueConfig.name} does not exist.`);
+    }
 
-    // Assert the existence of the initial job queue with specific configurations,
-    // including durability, dead letter exchange, time-to-live duration, and maximum queue length.
-    const quantJobQ = this.configSvc.getOrThrow<string>(EnvVarKeys.QUANT_JOB_QUEUE);
-    const jobTtl = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_MSG_TTL));
-    const isJobQDurable = Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.QUANT_JOB_QUEUE_DURABLE));
-    const jobQMaxLength = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_QUEUE_MAXLENGTH));
-    const jobPrefetch = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.QUANT_JOB_MSG_PREFETCH));
-    await channel.assertQueue(quantJobQ, {
-      durable: isJobQDurable,
-      deadLetterExchange: quantJobDeadLetterX,
-      messageTtl: jobTtl,
-      maxLength: jobQMaxLength,
-    });
-    await channel.prefetch(jobPrefetch);
-
-    // Consume the jobs from the initial queue
-    await channel.consume(
-      quantJobQ,
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    await this.channel?.consume(
+      this.quantQueueConfig.name,
       async (msg: ConsumeMessage | null) => {
         if (msg === null) {
-          this.logger.error("Unable to parse message from initial quantification queue");
+          throw new RpcException(
+            `${ConsumerService.name} consumed a null message from ${this.quantQueueConfig.name} queue.`,
+          );
+        }
+
+        const modelsData = ((): NodeQuantRequest => {
+          try {
+            this.logger.debug("Gets the message body from the Quantification queue");
+            return typia.json.assertParse<NodeQuantRequest>(msg.content.toString());
+          } catch (err) {
+            this.channel?.nack(msg, false, false);
+            throw new RpcException(
+              `${ConsumerService.name} consumed an invalid message from ${this.quantQueueConfig.name} queue.`,
+            );
+          }
+        })();
+
+        try {
+          await this.handleRegularJob(modelsData);
+        } catch (err: any) {
+          this.channel?.nack(msg, false, false);
+          await this.minioService.updateJobMetadata(String(modelsData._id), {
+            status: "failed",
+            error: err.message,
+          });
+          this.logger.error(`Failed to quantify regular job: ${String(modelsData._id)}`);
           return;
         }
 
-        try {
-          const modelsData: QuantifyRequest = typia.json.assertParse<QuantifyRequest>(msg.content.toString());
-          const { _id, ...modelsWithConfigs } = modelsData;
-          const result: string[] = this.performQuantification(modelsWithConfigs);
-          await this.quantificationJobModel.findByIdAndUpdate(_id, { $set: { results: result, status: "completed" } });
-
-          channel.ack(msg);
-          console.log(`${String(_id)}: Consumer has acknowledged`);
-        } catch (error) {
-          // Handle validation errors and other generic exceptions, logging details and negatively
-          // acknowledging the message.
-          if (error instanceof TypeGuardError) {
-            this.logger.error(error);
-            channel.nack(msg, false, false);
-          } else {
-            this.logger.error(error);
-            channel.nack(msg, false, false);
-          }
-        }
+        this.channel?.ack(msg);
+        this.logger.debug(`Acknowledged regular job: ${String(modelsData._id)}`);
       },
-      {
-        noAck: false, // Disable automatic acknowledgment to allow manual control over message acknowledgment.
-      },
+      { noAck: false },
     );
   }
 
-  /**
-   * Performs quantification by invoking the scram-node-addon with the provided configurations.
-   * This method processes quantification requests by writing model data to temporary files,
-   * invoking the SCRAM CLI through the scram-node-addon, and reading the results from an output file.
-   * It handles the creation and cleanup of all temporary files used during the process.
-   *
-   * @param modelsWithConfigs - The quantification request containing model data and configurations.
-   * @returns A `QuantifyReport` object containing the results of the quantification process.
-   */
-  public performQuantification(modelsWithConfigs: QuantifyRequest): string[] {
-    // Extract model data from the request.
-    const models = modelsWithConfigs.models;
-
-    // Write the model data to temporary XML files and store the file paths.
-    const modelFilePaths = this.writeNodeAddonModelFilesBase64(models);
-    modelsWithConfigs.models = modelFilePaths;
-
-    // Create a temporary file to store the output of the SCRAM CLI.
-    const outputFilePath = String(tmp.fileSync({ prefix: "result", postfix: ".xml" }).name);
-    modelsWithConfigs.output = outputFilePath;
-
+  private async consumeDistributedSequenceJobs(): Promise<void> {
     try {
-      // Invoke the SCRAM CLI with the updated request, which now includes file paths
-      // to the input model and output files.
-      console.log(`${JSON.stringify(modelsWithConfigs)} is running`);
-      RunScramCli(modelsWithConfigs);
-      console.log(`${JSON.stringify(modelsWithConfigs)} has been quantified`);
+      await this.channel?.checkQueue(this.distributedSequencesQueueConfig.name);
+    } catch (err) {
+      throw new RpcException(`Queue: ${this.distributedSequencesQueueConfig.name} does not exist.`);
+    }
 
-      // Read the quantification results from the output file.
-      const outputContent = readFileSync(outputFilePath, "utf8");
+    await this.channel?.consume(
+      this.distributedSequencesQueueConfig.name,
+      async (msg: ConsumeMessage | null) => {
+        if (msg === null) {
+          throw new RpcException(
+            `${ConsumerService.name} consumed a null message from ${this.distributedSequencesQueueConfig.name} queue.`,
+          );
+        }
 
-      // Construct and return the quantification report along with the configurations.
-      return [outputContent]; // The quantification results.
-    } catch (error) {
-      // In case of an error during quantification, return a report indicating the failure.
-      this.logger.error(error);
-      return ["Error during scram-cli operation"];
-    } finally {
-      // Cleanup: Remove all temporary files created during the process.
-      modelFilePaths.forEach(unlinkSync); // Remove model data files.
-      unlinkSync(outputFilePath); // Remove the output file.
+        const modelsData = ((): NodeQuantRequest => {
+          try {
+            this.logger.debug("Gets the message body from the Distributed Sequences queue");
+            return typia.json.assertParse<NodeQuantRequest>(msg.content.toString());
+          } catch (err) {
+            this.channel?.nack(msg, false, false);
+            throw new RpcException(
+              `${ConsumerService.name} consumed an invalid message from ${this.distributedSequencesQueueConfig.name} queue.`,
+            );
+          }
+        })();
+
+        try {
+          await this.handleSequenceJob(modelsData);
+        } catch (err: any) {
+          this.channel?.nack(msg, false, false);
+          
+          // Mark parent job as failed if any sequence fails
+          const parentJobId = this.extractParentJobId(String(modelsData._id));
+          if (parentJobId) {
+            await this.minioService.updateJobMetadata(parentJobId, {
+              status: "failed",
+              error: `Sequence job ${modelsData._id} failed: ${err.message}`,
+            });
+          }
+          
+          this.logger.error(`Failed to quantify sequence job: ${String(modelsData._id)}`);
+          return;
+        }
+
+        this.channel?.ack(msg);
+        this.logger.debug(`Acknowledged sequence job: ${String(modelsData._id)}`);
+      },
+      { noAck: false },
+    );
+  }
+
+  private async handleRegularJob(nodeQuantRequest: NodeQuantRequest): Promise<void> {
+    const jobId = String(nodeQuantRequest._id);
+    
+    this.logger.debug(`Running regular job: ${jobId}`);
+    await this.minioService.updateJobMetadata(jobId, { status: "running" });
+
+    const result = await this.performQuantification(nodeQuantRequest);
+    
+    const outputDataString = JSON.stringify(result);
+    const outputId = await this.minioService.storeOutputData(outputDataString, jobId);
+    
+    await this.minioService.updateJobMetadata(jobId, {
+      status: "completed",
+      outputId: outputId,
+    });
+    
+    this.logger.debug(`Completed regular job: ${jobId}`);
+  }
+
+  private async handleSequenceJob(nodeQuantRequest: NodeQuantRequest): Promise<void> {
+    const sequenceJobId = String(nodeQuantRequest._id);
+    const parentJobId = this.extractParentJobId(sequenceJobId);
+    
+    if (!parentJobId) {
+      throw new Error(`Invalid sequence job ID format: ${sequenceJobId}`);
+    }
+
+    this.logger.debug(`Processing sequence job ${sequenceJobId} for parent ${parentJobId}`);
+
+    // Store sequence job input and create proper metadata
+    const inputId = await this.minioService.storeInputData(nodeQuantRequest);
+    await this.minioService.createJobMetadata(sequenceJobId, inputId);
+    
+    // Update sequence job status to running
+    await this.minioService.updateJobMetadata(sequenceJobId, { status: "running" });
+
+    // Perform quantification on sequence
+    const result = await this.performQuantification(nodeQuantRequest);
+
+    // Store sequence result in its own metadata
+    const outputId = await this.minioService.storeOutputData(JSON.stringify(result), sequenceJobId);
+    await this.minioService.updateJobMetadata(sequenceJobId, {
+      status: "completed",
+      outputId: outputId,
+    });
+
+    // Mark this sequence as completed in parent
+    await this.markSequenceCompleted(parentJobId, sequenceJobId);
+
+    // Check if all sequences are complete
+    const allCompleted = await this.checkAllSequencesCompleted(parentJobId);
+    
+    if (allCompleted) {
+      this.logger.debug(`All sequences completed for parent ${parentJobId}, aggregating results`);
+      await this.aggregateParentJob(parentJobId);
     }
   }
 
-  /**
-   * Writes model data, provided as Base64 encoded strings, to temporary XML files.
-   *
-   * Iterates over an array of model data strings, each encoded in Base64. For each model,
-   * it decodes the string into UTF-8 format and writes the resulting content to a temporary file.
-   * This is necessary for processing the model data with external tools or libraries that require
-   * file input. The temporary files are prefixed with "models-" and suffixed with ".xml" to indicate
-   * their content and format.
-   *
-   * @param models - An array of Base64 encoded strings representing the model data.
-   * @returns An array of strings, where each string is the path to a temporary file containing the decoded model data.
-   */
-  public writeNodeAddonModelFilesBase64(models: string[]): string[] {
-    const files: string[] = []; // Initialize an array to hold the paths of the temporary files.
-
-    for (const model of models) {
-      // Iterate over each model in the provided array.
-      const tempFile = tmp.fileSync({ prefix: "models", postfix: ".xml" }); // Create a temporary file for each model.
-
-      // Decode the Base64 encoded model string to UTF-8.
-      const modelContent = Buffer.from(model, "base64").toString("utf8");
-      writeFileSync(tempFile.name, modelContent); // Write the decoded content to the temporary file.
-      files.push(tempFile.name); // Add the path of the temporary file to the array.
+  private extractParentJobId(sequenceJobId: string): string | null {
+    const parts = sequenceJobId.split('-');
+    // UUID has 5 parts (4 dashes), sequence job has 6 parts (5 dashes)
+    if (parts.length === 6) {
+      return parts.slice(0, 5).join('-'); // Take first 5 parts (parent UUID)
     }
-    return files; // Return the array containing the paths of all temporary files created.
+    return null;
+  }
+
+  private async markSequenceCompleted(parentJobId: string, sequenceJobId: string): Promise<void> {
+    // Use race-safe marker-based completion to avoid overwriting parent metadata
+    await this.minioService.markSequenceCompleted(parentJobId, sequenceJobId);
+  }
+
+  private async checkAllSequencesCompleted(parentJobId: string): Promise<boolean> {
+    const parentMetadata = await this.minioService.getJobMetadata(parentJobId);
+    if (!parentMetadata.childJobs || parentMetadata.childJobs.length === 0) {
+      return false;
+    }
+    const completedCount = await this.minioService.getCompletedSequenceCount(parentJobId);
+    return completedCount === parentMetadata.childJobs.length;
+  }
+
+  private async aggregateParentJob(parentJobId: string): Promise<void> {
+    try {
+      const parentMetadata = await this.minioService.getJobMetadata(parentJobId);
+      
+      // Get all individual sequence results
+      const allSequenceResults = [];
+      if (parentMetadata.childJobs) {
+        for (const sequenceJobId of parentMetadata.childJobs) {
+          const sequenceMetadata = await this.minioService.getJobMetadata(sequenceJobId);
+          const sequenceOutput = await this.minioService.getOutputData(String(sequenceMetadata.outputId));
+          allSequenceResults.push(JSON.parse(sequenceOutput));
+        }
+      }
+      
+      // Aggregate results
+      const aggregatedResult = this.aggregateSequenceResults(allSequenceResults);
+
+      // Store aggregated results
+      const outputId = await this.minioService.storeOutputData(JSON.stringify(aggregatedResult), parentJobId);
+      
+      // Update parent job as completed
+      await this.minioService.updateJobMetadata(parentJobId, {
+        status: "completed",
+        outputId
+      });
+
+      this.logger.debug(`Parent job ${parentJobId} completed with aggregated results`);
+    } catch (error: any) {
+      this.logger.error(`Failed to aggregate results for parent ${parentJobId}: ${error}`);
+      await this.minioService.updateJobMetadata(parentJobId, { 
+        status: "failed", 
+        error: `Aggregation failed: ${error.message}` 
+      });
+    }
+  }
+
+  private aggregateSequenceResults(sequenceResults: any[]): any {
+    // Defensive: if no results, return minimal shape
+    if (!sequenceResults || sequenceResults.length === 0) {
+      return { modelFeatures: {}, results: { initiatingEvents: [], sumOfProducts: [] } };
+    }
+
+    // Take model features from first result (assumed identical across children)
+    const aggregatedResult = {
+      modelFeatures: sequenceResults[0]?.modelFeatures ?? {},
+      results: {
+        initiatingEvents: [] as any[],
+        sumOfProducts: [] as any[],
+      },
+    };
+
+    // Merge initiating events by name and concatenate unique sequences
+    const ieMap = new Map<string, { name: string; description?: string; sequences: any[] }>();
+
+    for (const res of sequenceResults) {
+      const ies = res?.results?.initiatingEvents ?? [];
+      for (const ie of ies) {
+        const key: string = ie.name;
+        if (!ieMap.has(key)) {
+          ieMap.set(key, { name: ie.name, description: ie.description, sequences: [] });
+        }
+        const entry = ieMap.get(key)!;
+        const seqs = ie?.sequences ?? [];
+        for (const seq of seqs) {
+          // De-duplicate by sequence name
+          const exists = entry.sequences.some((s: any) => s?.name === seq?.name);
+          if (!exists) {
+            entry.sequences.push(seq);
+          }
+        }
+      }
+    }
+
+    // Sort sequences by name (e.g., S1, S2, ...), preserving natural order when possible
+    for (const entry of ieMap.values()) {
+      entry.sequences.sort((a: any, b: any) => {
+        const an = String(a?.name ?? "");
+        const bn = String(b?.name ?? "");
+        const anum = parseInt(an.replace(/\D+/g, ""), 10);
+        const bnum = parseInt(bn.replace(/\D+/g, ""), 10);
+        if (!isNaN(anum) && !isNaN(bnum)) return anum - bnum;
+        return an.localeCompare(bn);
+      });
+    }
+
+    aggregatedResult.results.initiatingEvents = Array.from(ieMap.values());
+
+    // For sumOfProducts: pick a canonical set from the first child that provides it, to avoid duplicates
+    // across children (which often recompute identical FT targets). If none, leave empty.
+    for (const res of sequenceResults) {
+      const sop = res?.results?.sumOfProducts ?? [];
+      if (sop.length > 0) {
+        aggregatedResult.results.sumOfProducts = sop;
+        break;
+      }
+    }
+
+    return aggregatedResult;
+  }
+
+  public async performQuantification(nodeQuantRequest: NodeQuantRequest): Promise<any> {
+    const { _id, ...quantRequest } = nodeQuantRequest;
+
+    try {
+      this.logger.debug(`${String(_id)} is running with scram-node`);
+      
+      const report = await QuantifyModel(quantRequest.settings, quantRequest.model);
+      
+      this.logger.debug(`${String(_id)} has been quantified using scram-node`);
+      
+      return report;
+    } catch (error) {
+      this.logger.error(`Quantification failed for job ${String(_id)}:`, error);
+      throw error;
+    }
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    try {
+      await this.channel?.deleteQueue(this.quantQueueConfig.name);
+      await this.channel?.deleteQueue(this.distributedSequencesQueueConfig.name);
+      await this.channel?.close();
+      await this.channelModel?.close();
+    } catch (err) {
+      throw new RpcException(`${ConsumerService.name} failed to stop RabbitMQ services.`);
+    }
   }
 }

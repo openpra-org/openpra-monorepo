@@ -1,110 +1,84 @@
-import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
-import amqp from "amqplib";
-import typia, { TypeGuardError } from "typia";
-import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
+import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { ConfigService } from "@nestjs/config";
-
-import { EnvVarKeys } from "../../../config/env_vars.config";
+import { Channel, ChannelModel } from "amqplib";
+import typia from "typia";
+import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
+import { RpcException } from "@nestjs/microservices";
+import { QueueService, QueueConfig, QueueConfigFactory, RabbitMQChannelModelService } from "../../shared";
 import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 
 @Injectable()
-export class ExecutableService implements OnApplicationBootstrap {
+export class ExecutableService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(ExecutableService.name);
-  private channelModel: amqp.ChannelModel | null = null;
-  private channel: amqp.Channel | null = null;
+  private readonly queueConfig: QueueConfig;
+  private channelModel: ChannelModel | null = null;
+  private channel: Channel | null = null;
 
   constructor(
     @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
-    private readonly configSvc: ConfigService,
-  ) {}
-
-  private async connectWithRetry(url: string, retryCount: number): Promise<amqp.ChannelModel> {
-    let attempt = 0;
-    while (attempt < retryCount) {
-      try {
-        const channelModel = await amqp.connect(url);
-        this.logger.log("Executable-task-producer successfully connected to the RabbitMQ broker.");
-        return channelModel;
-      } catch {
-        attempt++;
-        this.logger.error(
-          `Attempt ${String(
-            attempt,
-          )}: Failed to connect to RabbitMQ broker from executable-task-producer side. Retrying in 10 seconds...`,
-        );
-        await new Promise((resolve) => setTimeout(resolve, 10000));
-      }
-    }
-    throw new Error(
-      "Failed to connect to the RabbitMQ broker after several attempts from executable-task-producer side.",
-    );
+    private readonly queueService: QueueService,
+    private readonly rabbitmqService: RabbitMQChannelModelService,
+    private readonly queueConfigFactory: QueueConfigFactory,
+  ) {
+    this.queueConfig = this.queueConfigFactory.createExecTaskQueueConfig();
   }
 
+  /**
+   * Initialize the service when the application bootstraps
+   */
   async onApplicationBootstrap(): Promise<void> {
-    try {
-      const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
-      this.channelModel = await this.connectWithRetry(url, 3);
-      this.channel = await this.channelModel.createChannel();
-
-      await this.setupQueuesAndExchanges();
-      this.logger.log("ExecutableService initialized and ready to send messages.");
-    } catch (error) {
-      this.logger.error("Failed to initialize ExecutableService:", error);
-    }
+    this.logger.debug("Connecting to the broker");
+    this.channelModel = await this.rabbitmqService.getChannelModel(ExecutableService.name);
+    this.channel = await this.rabbitmqService.getChannel(this.channelModel, ExecutableService.name);
+    await this.queueService.setupQueue(this.queueConfig, this.channel);
+    this.logger.debug("Initialized and ready to send messages");
   }
 
-  private async setupQueuesAndExchanges(): Promise<void> {
-    if (!this.channel) {
-      this.logger.error("Channel is not available. Cannot set up queues and exchanges.");
-      return;
-    }
-
-    // set up dead letter exchange and queue
-    const execTaskDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_QUEUE);
-    const execTaskDeadLetterX = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_EXCHANGE);
-    const execTaskDeadLetterDurable = Boolean(
-      this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_DEAD_LETTER_QUEUE_DURABLE),
-    );
-    await this.channel.assertExchange(execTaskDeadLetterX, "direct", { durable: execTaskDeadLetterDurable });
-    await this.channel.assertQueue(execTaskDeadLetterQ, { durable: execTaskDeadLetterDurable });
-    await this.channel.bindQueue(execTaskDeadLetterQ, execTaskDeadLetterX, "");
-
-    // setup exec task queue
-    const taskQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_QUEUE);
-    const taskTtl = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_MSG_TTL));
-    const taskQDurable = Boolean(this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_TASK_QUEUE_DURABLE));
-    const taskQMaxLength = Number(this.configSvc.getOrThrow<number>(EnvVarKeys.EXEC_TASK_QUEUE_MAXLENGTH));
-    await this.channel.assertQueue(taskQ, {
-      durable: taskQDurable,
-      deadLetterExchange: execTaskDeadLetterX,
-      messageTtl: taskTtl,
-      maxLength: taskQMaxLength,
-    });
-  }
-
+  /**
+   * Creates and queues an execution task
+   *
+   * @param task - The execution task to queue
+   */
   public async createAndQueueTask(task: ExecutionTask): Promise<void> {
-    try {
-      if (!this.channel) {
-        this.logger.error("Channel is not available. Cannot send message.");
-        return;
+    const taskData = ((): string => {
+      try {
+        this.logger.debug("Gets the request body from the Executable controller");
+        return typia.json.assertStringify<ExecutionTask>(task);
+      } catch (err) {
+        throw new RpcException(`Invalid schema: TaskID <${String(task._id)}>`);
       }
+    })();
 
-      const taskData = typia.json.assertStringify<ExecutionTask>(task);
-      const taskQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_TASK_QUEUE);
-      this.channel.sendToQueue(taskQ, Buffer.from(taskData), {
-        persistent: true,
-      });
-      await this.executableJobModel.updateOne({ _id: task._id }, { $set: { status: "queued" } });
-    } catch (error) {
-      // Handle validation errors specifically, logging the path and expected vs actual values.
-      if (error instanceof TypeGuardError) {
-        this.logger.error(error);
-      } else {
-        // Log a generic error message for other types of errors.
-        this.logger.error(error);
-      }
+    try {
+      this.logger.debug("Queueing the executable task");
+      await this.channel?.checkExchange(this.queueConfig.exchange.name);
+      this.channel?.publish(
+        this.queueConfig.exchange.name,
+        this.queueConfig.exchange.routingKey,
+        Buffer.from(taskData),
+        {
+          persistent: true,
+        },
+      );
+    } catch (err) {
+      throw new RpcException(`${this.queueConfig.exchange.name} does not exist.`);
+    }
+
+    try {
+      await this.executableJobModel.findByIdAndUpdate(task._id, { $set: { status: "pending" } });
+    } catch (err) {
+      throw new RpcException(`Failed to update <pending> status of: TaskID ${String(task._id)}`);
+    }
+  }
+
+  async onApplicationShutdown(): Promise<void> {
+    try {
+      await this.channel?.deleteExchange(this.queueConfig.exchange.name);
+      await this.channel?.close();
+      await this.channelModel?.close();
+    } catch (err) {
+      throw new RpcException(`${ExecutableService.name} failed to stop RabbitMQ services.`);
     }
   }
 }

@@ -50,13 +50,13 @@ export class JobBrokerService {
     };
   }
 
-  public async getQueuedJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
-    const queuedQuantifyJobs = await this.quantificationJobModel.find({ status: "queued" }).lean();
-    const queuedExecuteTasks = await this.executableJobModel.find({ status: "queued" }).lean();
+  public async getRunningJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
+    const runningQuantifyJobs = await this.quantificationJobModel.find({ status: "running" }).lean();
+    const runningExecuteTasks = await this.executableJobModel.find({ status: "running" }).lean();
 
     return {
-      jobs: queuedQuantifyJobs,
-      tasks: queuedExecuteTasks,
+      jobs: runningQuantifyJobs,
+      tasks: runningExecuteTasks,
     };
   }
 

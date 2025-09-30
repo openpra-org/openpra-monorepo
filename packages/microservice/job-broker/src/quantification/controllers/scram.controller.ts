@@ -1,50 +1,71 @@
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
-import { TypedRoute, TypedBody } from "@nestia/core";
-import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { TypedRoute, TypedQuery, TypedParam, TypedBody } from "@nestia/core";
+import { NodeQuantRequest } from "shared-types/src/openpra-mef/util/quantify-request";
 import { ProducerService } from "../services/producer.service";
-import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 import { StorageService } from "../services/storage.service";
+import { JobMetadata } from "../../shared/minio.service";
 
 @Controller()
 export class ScramController {
-  /**
-   * Constructs the ScramController with the necessary service.
-   * @param producerService - The service to handle creation and queueing of quantification jobs.
-   * @param storageService - The service to retrieve quantified reports
-   */
   constructor(
     private readonly producerService: ProducerService,
     private readonly storageService: StorageService,
   ) {}
 
-  /**
-   * Endpoint to create and queue a quantification job for SCRAM.
-   *
-   * @param quantRequest - The quantification request object containing necessary model data.
-   * @returns A promise that resolves to void.
-   * @throws {@link InternalServerErrorException} When there is a problem queueing the quantification job.
-   */
   @TypedRoute.Post("/scram")
-  public createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): void {
+  public async createAndQueueQuant(
+    @TypedBody() quantRequest: NodeQuantRequest,
+    @TypedQuery() query?: { distributedSequences?: string }
+  ): Promise<{ parentJobId: string; sequenceJobIds: string[]; } | { jobId: string; }> {
     try {
-      this.producerService.createAndQueueQuant(quantRequest);
+      if (query?.distributedSequences === "yes") {
+        const sequenceJobIds = await this.producerService.createAndQueueSequenceBatch(quantRequest);
+        const parentJobId = sequenceJobIds[0].split('-').slice(0, -1).join('-');
+        return { parentJobId, sequenceJobIds };
+      } else {
+        const jobId = await this.producerService.createAndQueueQuant(quantRequest);
+        return { jobId };
+      }
     } catch {
       throw new InternalServerErrorException("Server encountered a problem while queueing SCRAM quantification job.");
     }
   }
 
-  /**
-   * Controller method to handle GET requests for quantified reports at the "/scram" endpoint.
-   *
-   * @returns A promise that resolves to an array of QuantifiedReport objects.
-   * @throws {@link NotFoundException} Throws an exception if the server is unable to find the requested list of quantified reports.
-   */
   @TypedRoute.Get("/scram")
-  public async getQuantifiedReports(): Promise<QuantificationJobReport[]> {
+  public async getQuantifiedReports(): Promise<JobMetadata[]> {
     try {
       return this.storageService.getQuantifiedReports();
     } catch {
       throw new NotFoundException("Server was unable to find the requested list of quantified reports.");
+    }
+  }
+
+  @TypedRoute.Get("/scram/:jobId")
+  public async getJobStatus(@TypedParam("jobId") jobId: string): Promise<JobMetadata> {
+    try {
+      return this.storageService.getJobStatus(jobId);
+    } catch {
+      throw new NotFoundException(`Job with ID ${jobId} not found.`);
+    }
+  }
+
+  @TypedRoute.Get("/scram/input/:inputId")
+  public async getInputData(@TypedParam("inputId") inputId: string): Promise<any> {
+    try {
+      const inputData = await this.storageService.getInputData(inputId);
+      return JSON.parse(inputData);
+    } catch {
+      throw new NotFoundException(`Input data with ID ${inputId} not found.`);
+    }
+  }
+
+  @TypedRoute.Get("/scram/output/:outputId")
+  public async getOutputData(@TypedParam("outputId") outputId: string): Promise<any> {
+    try {
+      const outputData = await this.storageService.getOutputData(outputId);
+      return JSON.parse(outputData);
+    } catch {
+      throw new NotFoundException(`Output data with ID ${outputId} not found.`);
     }
   }
 }

@@ -385,14 +385,19 @@ void Reporter::ReportResults(const core::RiskAnalysis::Result::Id& id,
   if (!warning.empty())
     sum_of_products.SetAttribute("warning", warning);
 
-  sum_of_products
-      .SetAttribute("basic-events", fta.products().product_events().size())
-      .SetAttribute("products", fta.products().size());
+  // If products are unavailable (BDD probability-only mode), skip product metrics.
+  bool has_products = fta.has_products();
+
+  if (has_products) {
+    sum_of_products
+        .SetAttribute("basic-events", fta.products().product_events().size())
+        .SetAttribute("products", fta.products().size());
+  }
 
   if (prob_analysis)
     sum_of_products.SetAttribute("probability", prob_analysis->p_total());
 
-  if (fta.products().empty() == false) {
+  if (has_products && fta.products().empty() == false) {
     sum_of_products.SetAttribute(
         "distribution",
         boost::join(fta.products().distribution() |
@@ -402,21 +407,23 @@ void Reporter::ReportResults(const core::RiskAnalysis::Result::Id& id,
   }
 
   double sum = 0;  // Sum of probabilities for contribution calculations.
-  if (prob_analysis) {
-    for (const core::Product& product_set : fta.products())
-      sum += product_set.p();
-  }
-  for (const core::Product& product_set : fta.products()) {
-    xml::StreamElement product = sum_of_products.AddChild("product");
-    product.SetAttribute("order", product_set.order());
+  if (has_products) {
     if (prob_analysis) {
-      double prob = product_set.p();
-      product.SetAttribute("probability", prob);
-      if (sum != 0)
-        product.SetAttribute("contribution", prob / sum);
+      for (const core::Product& product_set : fta.products())
+        sum += product_set.p();
     }
-    for (const core::Literal& literal : product_set) {
-      ReportLiteral(literal, &product);
+    for (const core::Product& product_set : fta.products()) {
+      xml::StreamElement product = sum_of_products.AddChild("product");
+      product.SetAttribute("order", product_set.order());
+      if (prob_analysis) {
+        double prob = product_set.p();
+        product.SetAttribute("probability", prob);
+        if (sum != 0)
+          product.SetAttribute("contribution", prob / sum);
+      }
+      for (const core::Literal& literal : product_set) {
+        ReportLiteral(literal, &product);
+      }
     }
   }
 }

@@ -63,12 +63,12 @@ export class JobBrokerController {
     }
   }
 
-  @TypedRoute.Get("/queued-jobs")
-  public async getQueuedJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
+  @TypedRoute.Get("/running-jobs")
+  public async getRunningJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
     try {
-      return this.jobBrokerService.getQueuedJobs();
+      return this.jobBrokerService.getRunningJobs();
     } catch {
-      throw new NotFoundException("Server was unable to find the requested list of queued jobs.");
+      throw new NotFoundException("Server was unable to find the requested list of running jobs.");
     }
   }
 

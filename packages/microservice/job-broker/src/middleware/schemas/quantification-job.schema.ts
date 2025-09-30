@@ -91,7 +91,7 @@ export class QuantificationJobRequest {
  */
 @Schema()
 export class QuantificationJobReport {
-  @Prop({ required: false, default: "pending" })
+  @Prop({ required: false })
   status?: string;
 
   @Prop({ required: false, default: "quantification" })

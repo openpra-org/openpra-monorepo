@@ -251,11 +251,21 @@ ProbabilityAnalyzerBase::CalculateProbabilityOverTime() noexcept {
 
 ProbabilityAnalyzer<Bdd>::ProbabilityAnalyzer(FaultTreeAnalyzer<Bdd>* fta,
                                               mef::MissionTime* mission_time)
-    : ProbabilityAnalyzerBase(fta, mission_time), owner_(false) {
-  LOG(DEBUG2) << "Re-using BDD from FaultTreeAnalyzer for ProbabilityAnalyzer";
-  bdd_graph_ = fta->algorithm();
-  const Bdd::VertexPtr& root = bdd_graph_->root().vertex;
-  current_mark_ = root->terminal() ? false : Ite::Ref(root).mark();
+    : ProbabilityAnalyzerBase(fta, mission_time, fta->settings().requires_products()),
+      owner_(false) {
+  if (!fta->settings().requires_products() || fta->algorithm() == nullptr) {
+    // No BDD constructed in FTA (no products path) or algorithm absent; build our own.
+    owner_ = true;
+    CreateBdd(*fta);
+    const Bdd::VertexPtr& root = bdd_graph_->root().vertex;
+    current_mark_ = root->terminal() ? false : Ite::Ref(root).mark();
+    LOG(DEBUG2) << "Created BDD in ProbabilityAnalyzer (no product reuse).";
+  } else {
+    LOG(DEBUG2) << "Re-using BDD from FaultTreeAnalyzer for ProbabilityAnalyzer";
+    bdd_graph_ = fta->algorithm();
+    const Bdd::VertexPtr& root = bdd_graph_->root().vertex;
+    current_mark_ = root->terminal() ? false : Ite::Ref(root).mark();
+  }
 }
 
 ProbabilityAnalyzer<Bdd>::~ProbabilityAnalyzer() noexcept {

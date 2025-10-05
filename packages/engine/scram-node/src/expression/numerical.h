@@ -92,7 +92,7 @@ class Mean : public ExpressionFormula<Mean> {
   /// @throws ValidityError  The number of arguments is fewer than 2.
   explicit Mean(std::vector<Expression*> args);
 
-  Interval interval() noexcept override {
+  Interval interval() override {
     double min_value = 0;
     double max_value = 0;
     for (Expression* arg : Expression::args()) {
@@ -107,7 +107,7 @@ class Mean : public ExpressionFormula<Mean> {
 
   /// Computes the expression value with a given argument value extractor.
   template <typename F>
-  double Compute(F&& eval) noexcept {
+  double Compute(F&& eval) {
     double sum = 0;
     for (Expression* arg : Expression::args())
       sum += eval(arg);
@@ -161,29 +161,29 @@ inline void Sqrt::Validate() const {
 /// Interval specialization for math functions.
 /// @{
 template <>
-inline Interval Acos::interval() noexcept {
+inline Interval Acos::interval() {
   return Interval::closed(0, ConstantExpression::kPi.value());
 }
 
 template <>
-inline Interval Asin::interval() noexcept {
+inline Interval Asin::interval() {
   double half_pi = ConstantExpression::kPi.value() / 2;
   return Interval::closed(-half_pi, half_pi);
 }
 
 template <>
-inline Interval Atan::interval() noexcept {
+inline Interval Atan::interval() {
   double half_pi = ConstantExpression::kPi.value() / 2;
   return Interval::closed(-half_pi, half_pi);
 }
 
 template <>
-inline Interval Cos::interval() noexcept {
+inline Interval Cos::interval() {
   return Interval::closed(-1, 1);
 }
 
 template <>
-inline Interval Sin::interval() noexcept {
+inline Interval Sin::interval() {
   return Interval::closed(-1, 1);
 }
 /// @}

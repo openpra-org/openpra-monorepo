@@ -36,7 +36,7 @@ namespace ext {
 ///
 /// @note The implementation does not deal with overflows and underflows.
 ///       Therefore, the compared numbers must not be too large or small.
-inline bool is_close(double lhs, double rhs, double tolerance) noexcept {
+inline bool is_close(double lhs, double rhs, double tolerance) {
   assert(tolerance < 1 && "Invalid tolerance for float comparison.");
   return std::abs(lhs - rhs) <= std::abs(lhs) * tolerance;
 }

@@ -45,7 +45,7 @@ T as(const std::variant<Ts...>& var) {
 ///
 /// @todo Require patched GCC 8 instead of this workaround.
 template <typename... Ts>
-void swap(std::variant<Ts...>& lhs, std::variant<Ts...>& rhs) noexcept {
+void swap(std::variant<Ts...>& lhs, std::variant<Ts...>& rhs) {
 #if __GNUC__ == 8 && __GNUC_MINOR__ < 3
   auto tmp = std::move(rhs);
   rhs = std::move(lhs);

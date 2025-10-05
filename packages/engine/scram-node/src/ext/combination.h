@@ -5,8 +5,6 @@
 //  License, Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
 //  http://www.boost.org/LICENSE_1_0.txt).
 
-
-
 /// @file
 /// n-choose-k combination generation facilities from
 /// http://howardhinnant.github.io/combinations.html

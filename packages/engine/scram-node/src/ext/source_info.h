@@ -21,16 +21,32 @@
 
 #pragma once
 
+#include <string_view>
+#include <cstring>
+
 /// Check if CMake provides required definitions.
 #ifndef PROJECT_SOURCE_DIR
 #error "The project source directory is not provided w/ CMake."
 #endif
 
+/// Helper function to extract relative path at compile time
+constexpr const char* extract_filename(const char* path) {
+  constexpr const char* source_dir = PROJECT_SOURCE_DIR;
+  constexpr size_t source_dir_len = std::string_view(PROJECT_SOURCE_DIR).length();
+  
+  // Check if path starts with source directory
+  if (std::string_view(path).length() > source_dir_len &&
+      std::string_view(path).substr(0, source_dir_len) == source_dir) {
+    // Skip source directory and potential path separator
+    const char* result = path + source_dir_len;
+    if (*result == '/' || *result == '\\') {
+      result++;
+    }
+    return result;
+  }
+  return path;  // Return original path if it doesn't start with source dir
+}
+
 /// The current file path relative to the project source directory.
 /// With CMake, the default __FILE__ is absolute.
-#define FILE_REL_PATH                                                      \
-  [] {                                                                     \
-    static_assert(sizeof(__FILE__) > sizeof(PROJECT_SOURCE_DIR),           \
-                  "The source file is not inside the project directory."); \
-    return __FILE__ + sizeof(PROJECT_SOURCE_DIR);                          \
-  }()
+#define FILE_REL_PATH extract_filename(__FILE__)

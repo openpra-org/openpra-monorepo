@@ -143,7 +143,7 @@ class ExternFunction : public ExternFunctionBase {
         fptr_(library.get<R(Args...)>(symbol)) {}
 
   /// Calls the library function with the given numeric arguments.
-  R operator()(Args... args) const noexcept { return fptr_(args...); }
+  R operator()(Args... args) const { return fptr_(args...); }
 
   /// @copydoc ExternFunction<void>::apply
   std::unique_ptr<Expression>
@@ -176,7 +176,7 @@ class ExternExpression
 
   /// Computes the extern function with the given evaluator for arguments.
   template <typename F>
-  double Compute(F&& eval) noexcept {
+  double Compute(F&& eval) {
     return Marshal(std::forward<F>(eval),
                    std::make_index_sequence<sizeof...(Args)>());
   }
@@ -194,7 +194,7 @@ class ExternExpression
   ///
   /// @pre The number of arguments is exactly the same at runtime.
   template <typename F, std::size_t... Is>
-  double Marshal(F&& eval, std::index_sequence<Is...>) noexcept {
+  double Marshal(F&& eval, std::index_sequence<Is...>) {
     return extern_function_(eval(Expression::args()[Is])...);
   }
 

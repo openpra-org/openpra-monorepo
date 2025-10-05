@@ -36,11 +36,11 @@ class Ite : public ExpressionFormula<Ite> {
   Ite(Expression* condition, Expression* then_arm, Expression* else_arm)
       : ExpressionFormula<Ite>({condition, then_arm, else_arm}) {}
 
-  Interval interval() noexcept override;
+  Interval interval() override;
 
   /// Computes the if-then-else expression with the given evaluator.
   template <typename F>
-  double Compute(F&& eval) noexcept {
+  double Compute(F&& eval) {
     assert(args().size() == 3);
     return eval(args()[0]) ? eval(args()[1]) : eval(args()[2]);
   }
@@ -59,11 +59,11 @@ class Switch : public ExpressionFormula<Switch> {
   /// @param[in] default_value  The default value if all cases are false.
   Switch(std::vector<Case> cases, Expression* default_value);
 
-  Interval interval() noexcept override;
+  Interval interval() override;
 
   /// Computes the switch-case expression with the given evaluator.
   template <typename F>
-  double Compute(F&& eval) noexcept {
+  double Compute(F&& eval) {
     for (Case& case_arm : cases_) {
       if (eval(&case_arm.condition))
         return eval(&case_arm.value);

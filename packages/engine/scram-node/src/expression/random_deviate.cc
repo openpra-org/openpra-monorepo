@@ -49,7 +49,7 @@ void UniformDeviate::Validate() const {
   }
 }
 
-double UniformDeviate::DoSample() noexcept {
+double UniformDeviate::DoSample() {
   return std::uniform_real_distribution(min_.value(),
                                         max_.value())(RandomDeviate::rng());
 }
@@ -63,7 +63,7 @@ void NormalDeviate::Validate() const {
   }
 }
 
-double NormalDeviate::DoSample() noexcept {
+double NormalDeviate::DoSample() {
   return std::normal_distribution(mean_.value(),
                                   sigma_.value())(RandomDeviate::rng());
 }
@@ -89,22 +89,22 @@ void LognormalDeviate::Logarithmic::Validate() const {
   }
 }
 
-double LognormalDeviate::DoSample() noexcept {
+double LognormalDeviate::DoSample() {
   return std::lognormal_distribution(flavor_->location(),
                                      flavor_->scale())(RandomDeviate::rng());
 }
 
-Interval LognormalDeviate::interval() noexcept {
+Interval LognormalDeviate::interval() {
   double high_estimate = std::exp(3 * flavor_->scale() + flavor_->location());
   return Interval::left_open(0, high_estimate);
 }
 
-double LognormalDeviate::Logarithmic::scale() noexcept {
+double LognormalDeviate::Logarithmic::scale() {
   double z = -std::sqrt(2) * boost::math::erfc_inv(2 * level_.value());
   return std::log(ef_.value()) / z;
 }
 
-double LognormalDeviate::Logarithmic::location() noexcept {
+double LognormalDeviate::Logarithmic::location() {
   return std::log(mean_.value()) - std::pow(scale(), 2) / 2;
 }
 
@@ -113,7 +113,7 @@ void LognormalDeviate::Normal::Validate() const {
     SCRAM_THROW(DomainError("Standard deviation cannot be negative or zero."));
 }
 
-double LognormalDeviate::Normal::mean() noexcept {
+double LognormalDeviate::Normal::mean() {
   return std::exp(location() + std::pow(scale(), 2) / 2);
 }
 
@@ -132,7 +132,7 @@ void GammaDeviate::Validate() const {
   }
 }
 
-Interval GammaDeviate::interval() noexcept {
+Interval GammaDeviate::interval() {
   using boost::math::gamma_q;
   double k_max = k_.value();
   double high_estimate =
@@ -140,7 +140,7 @@ Interval GammaDeviate::interval() noexcept {
   return Interval::left_open(0, high_estimate);
 }
 
-double GammaDeviate::DoSample() noexcept {
+double GammaDeviate::DoSample() {
   return std::gamma_distribution(k_.value())(RandomDeviate::rng()) *
          theta_.value();
 }
@@ -160,13 +160,13 @@ void BetaDeviate::Validate() const {
   }
 }
 
-Interval BetaDeviate::interval() noexcept {
+Interval BetaDeviate::interval() {
   double high_estimate =
       std::pow(boost::math::ibeta(alpha_.value(), beta_.value(), 0.99), -1);
   return Interval::closed(0, high_estimate);
 }
 
-double BetaDeviate::DoSample() noexcept {
+double BetaDeviate::DoSample() {
   return boost::random::beta_distribution(alpha_.value(),
                                           beta_.value())(RandomDeviate::rng());
 }
@@ -201,7 +201,7 @@ void Histogram::Validate() const {
   }
 }
 
-double Histogram::value() noexcept {
+double Histogram::value() {
   double sum_weights = 0;
   double sum_product = 0;
   auto it_b = boundaries_.begin();
@@ -226,7 +226,7 @@ auto make_sampler(const Iterator& it) {
 
 }  // namespace
 
-double Histogram::DoSample() noexcept {
+double Histogram::DoSample() {
   // clang-format off
   return std::piecewise_constant_distribution<double>(
       make_sampler(boundaries_.begin()),

@@ -40,15 +40,15 @@ class Exponential : public ExpressionFormula<Exponential> {
 
   /// @throws DomainError  The failure rate or time is negative.
   void Validate() const override;
-  Interval interval() noexcept override { return Interval::closed(0, 1); }
+  Interval interval() override { return Interval::closed(0, 1); }
 
   /// Evaluates the expression.
   /// @{
   template <typename T>
-  double Compute(T&& eval) noexcept {
+  double Compute(T&& eval) {
     return Compute(eval(&lambda_), eval(&time_));
   }
-  double Compute(double lambda, double time) noexcept;
+  double Compute(double lambda, double time);
   /// @}
 
  private:
@@ -69,15 +69,15 @@ class Glm : public ExpressionFormula<Glm> {
   Glm(Expression* gamma, Expression* lambda, Expression* mu, Expression* t);
 
   void Validate() const override;
-  Interval interval() noexcept override { return Interval::closed(0, 1); }
+  Interval interval() override { return Interval::closed(0, 1); }
 
   /// Computes the value for GLM expression.
   /// @{
   template <typename T>
-  double Compute(T&& eval) noexcept {
+  double Compute(T&& eval) {
     return Compute(eval(&gamma_), eval(&lambda_), eval(&mu_), eval(&time_));
   }
-  double Compute(double gamma, double lambda, double mu, double time) noexcept;
+  double Compute(double gamma, double lambda, double mu, double time);
   /// @}
 
  private:
@@ -100,15 +100,15 @@ class Weibull : public ExpressionFormula<Weibull> {
           Expression* time);
 
   void Validate() const override;
-  Interval interval() noexcept override { return Interval::closed(0, 1); }
+  Interval interval() override { return Interval::closed(0, 1); }
 
   /// Calculates Weibull expression.
   /// @{
   template <typename T>
-  double Compute(T&& eval) noexcept {
+  double Compute(T&& eval) {
     return Compute(eval(&alpha_), eval(&beta_), eval(&t0_), eval(&time_));
   }
-  double Compute(double alpha, double beta, double t0, double time) noexcept;
+  double Compute(double alpha, double beta, double t0, double time);
   /// @}
 
  private:
@@ -154,11 +154,11 @@ class PeriodicTest : public Expression {
                Expression* sigma, Expression* omega, Expression* time);
 
   void Validate() const override { flavor_->Validate(); }
-  double value() noexcept override { return flavor_->value(); }
-  Interval interval() noexcept override { return Interval::closed(0, 1); }
+  double value() override { return flavor_->value(); }
+  Interval interval() override { return Interval::closed(0, 1); }
 
  private:
-  double DoSample() noexcept override { return flavor_->Sample(); }
+  double DoSample() override { return flavor_->Sample(); }
 
   /// The base class for various flavors of periodic-test computation.
   struct Flavor {
@@ -166,9 +166,9 @@ class PeriodicTest : public Expression {
     /// @copydoc Expression::Validate
     virtual void Validate() const = 0;
     /// @copydoc Expression::value
-    virtual double value() noexcept = 0;
+    virtual double value() = 0;
     /// @copydoc Expression::Sample
-    virtual double Sample() noexcept = 0;
+    virtual double Sample() = 0;
   };
 
   /// The tests and repairs are instantaneous and always successful.
@@ -180,8 +180,8 @@ class PeriodicTest : public Expression {
         : lambda_(*lambda), tau_(*tau), theta_(*theta), time_(*time) {}
 
     void Validate() const override;
-    double value() noexcept override;
-    double Sample() noexcept override;
+    double value() override;
+    double Sample() override;
 
    protected:
     Expression& lambda_;  ///< The failure rate when functioning.
@@ -192,7 +192,7 @@ class PeriodicTest : public Expression {
    private:
     /// Computes the expression value.
     double Compute(double lambda, double tau, double theta,
-                   double time) noexcept;
+                   double time);
   };
 
   /// The tests are instantaneous and always successful,
@@ -205,8 +205,8 @@ class PeriodicTest : public Expression {
         : InstantRepair(lambda, tau, theta, time), mu_(*mu) {}
 
     void Validate() const override;
-    double value() noexcept override;
-    double Sample() noexcept override;
+    double value() override;
+    double Sample() override;
 
    protected:
     Expression& mu_;  ///< The repair rate.
@@ -214,7 +214,7 @@ class PeriodicTest : public Expression {
    private:
     /// Computes the expression value.
     double Compute(double lambda, double mu, double tau, double theta,
-                   double time) noexcept;
+                   double time);
   };
 
   /// The full representation of periodic test with 11 arguments.
@@ -234,15 +234,15 @@ class PeriodicTest : public Expression {
           omega_(*omega) {}
 
     void Validate() const override;
-    double value() noexcept override;
-    double Sample() noexcept override;
+    double value() override;
+    double Sample() override;
 
    private:
     /// Computes the expression value.
     double Compute(double lambda, double lambda_test, double mu, double tau,
                    double theta, double gamma, double test_duration,
                    bool available_at_test, double sigma, double omega,
-                   double time) noexcept;
+                   double time);
 
     Expression& lambda_test_;  ///< The failure rate while under test.
     Expression& gamma_;  ///< The failure probability due to or at test start.

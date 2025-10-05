@@ -38,11 +38,11 @@ class ConstantExpression : public Expression {
   /// @param[in] value  Numerical value.
   explicit ConstantExpression(double value) : value_(value) {}
 
-  double value() noexcept override { return value_; }
-  bool IsDeviate() noexcept override { return false; }
+  double value() override { return value_; }
+  bool IsDeviate() override { return false; }
 
  private:
-  double DoSample() noexcept override { return value_; }
+  double DoSample() override { return value_; }
 
   const double value_;  ///< The universal value to represent int, bool, double.
 };

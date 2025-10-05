@@ -25,7 +25,7 @@
 
 namespace scram::mef {
 
-Interval Ite::interval() noexcept {
+Interval Ite::interval() {
   assert(args().size() == 3);
   Interval then_interval = args()[1]->interval();
   Interval else_interval = args()[2]->interval();
@@ -44,7 +44,7 @@ Switch::Switch(std::vector<Case> cases, Expression* default_value)
   }
 }
 
-Interval Switch::interval() noexcept {
+Interval Switch::interval() {
   Interval default_interval = default_value_.interval();
   double min_value = default_interval.lower();
   double max_value = default_interval.upper();

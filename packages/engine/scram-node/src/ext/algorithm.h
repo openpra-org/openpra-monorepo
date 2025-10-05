@@ -42,7 +42,7 @@ namespace ext {
 /// @returns true if the [first1, last1) and [first2, last2) ranges intersect.
 template <typename Iterator1, typename Iterator2>
 bool intersects(Iterator1 first1, Iterator1 last1, Iterator2 first2,
-                Iterator2 last2) noexcept {
+                Iterator2 last2) {
   while (first1 != last1 && first2 != last2) {
     if (*first1 < *first2) {
       ++first1;

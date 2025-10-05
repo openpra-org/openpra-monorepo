@@ -41,14 +41,14 @@ class TestEvent : public Expression {
   /// @param[in] context  The event-tree walk context.
   explicit TestEvent(const Context* context) : context_(*context) {}
 
-  Interval interval() noexcept override { return Interval::closed(0, 1); }
-  bool IsDeviate() noexcept override { return false; }
+  Interval interval() override { return Interval::closed(0, 1); }
+  bool IsDeviate() override { return false; }
 
  protected:
   const Context& context_;  ///< The evaluation context.
 
  private:
-  double DoSample() noexcept override { return false; }
+  double DoSample() override { return false; }
 };
 
 /// Upon event-tree walk, tests whether an initiating event has occurred.
@@ -60,7 +60,7 @@ class TestInitiatingEvent : public TestEvent {
       : TestEvent(context), name_(std::move(name)) {}
 
   /// @returns true if the initiating event has occurred in the event-tree walk.
-  double value() noexcept override;
+  double value() override;
 
  private:
   std::string name_;  ///< The name of the initiating event.
@@ -77,7 +77,7 @@ class TestFunctionalEvent : public TestEvent {
       : TestEvent(context), name_(std::move(name)), state_(std::move(state)) {}
 
   /// @returns true if the functional event has occurred and is in given state.
-  double value() noexcept override;
+  double value() override;
 
  private:
   std::string name_;  ///< The name of the functional event.

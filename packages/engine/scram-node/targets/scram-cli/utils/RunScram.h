@@ -20,21 +20,18 @@
 
 #pragma once
 
-#include <cstdarg>
 #include <cstdio> // vsnprintf
-
-#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <boost/exception/all.hpp>
-#include <boost/program_options.hpp>
 #include "initializer.h"
 #include "reporter.h"
 #include "risk_analysis.h"
 #include "serialization.h"
 #include "settings.h"
+#include <boost/exception/all.hpp>
+#include <boost/program_options.hpp>
 
 #include "ConstructSettings.h"
 
@@ -42,48 +39,46 @@ namespace po = boost::program_options;
 
 namespace ScramCLI {
 
-    /// Main body of command-line entrance to run the program.
-    ///
-    /// @param[in] vm  Variables map of program options.
-    ///
-    /// @throws Error  Exceptions specific to SCRAM.
-    /// @throws boost::exception  Boost errors with the variables map.
-    /// @throws std::exception  All other problems.
-    inline void RunScram(const po::variables_map &vm) {
-        scram::core::Settings settings;// Analysis settings.
-        std::vector<std::string> input_files;
-        ConstructSettings(vm, &settings);
-        if (vm.count("input-files")) {
-            auto cmd_input = vm["input-files"].as<std::vector<std::string>>();
-            input_files.insert(input_files.end(), cmd_input.begin(), cmd_input.end());
-        }
-        // Process input files
-        // into valid analysis containers and constructs.
-        // Throws if anything is invalid.
-        std::unique_ptr<scram::mef::Model> model =
-                scram::mef::Initializer(input_files, settings, vm.count("allow-extern"))
-                        .model();
-#ifndef NDEBUG
-        if (vm.count("serialize"))
-            return Serialize(*model, stdout);
-#endif
-        if (vm.count("validate"))
-            return;// Stop if only validation is requested.
-
-        // Initiate risk analysis with the given information.
-        scram::core::RiskAnalysis analysis(model.get(), settings);
-        analysis.Analyze();
-#ifndef NDEBUG
-        if (vm.count("no-report") || vm.count("preprocessor") || vm.count("print"))
-            return;
-#endif
-        scram::Reporter reporter;
-        bool indent = vm.count("no-indent") ? false : true;
-        if (vm.count("output")) {
-            reporter.Report(analysis, vm["output"].as<std::string>(), indent);
-        } else {
-            reporter.Report(analysis, stdout, indent);
-        }
+/// Main body of command-line entrance to run the program.
+///
+/// @param[in] vm  Variables map of program options.
+///
+/// @throws Error  Exceptions specific to SCRAM.
+/// @throws boost::exception  Boost errors with the variables map.
+/// @throws std::exception  All other problems.
+inline void RunScram(const po::variables_map &vm) {
+    scram::core::Settings settings; // Analysis settings.
+    std::vector<std::string> input_files;
+    ConstructSettings(vm, &settings);
+    if (vm.contains("input-files")) {
+        auto cmd_input = vm["input-files"].as<std::vector<std::string>>();
+        input_files.insert(input_files.end(), cmd_input.begin(), cmd_input.end());
     }
+    // Make the CLI-provided input files available inside the analysis settings instance.
+    settings.input_files(input_files);
+    // Process input files
+    // into valid analysis containers and constructs.
+    // Throws if anything is invalid.
+    std::unique_ptr<scram::mef::Model> model = scram::mef::Initializer(input_files, settings, vm.contains("allow-extern")).model();
+    settings.model(model.get());
 
-}// namespace ScramCLI
+    if (vm.contains("serialize"))
+        return Serialize(*model, stdout);
+    if (vm.contains("validate"))
+        return; // Stop if only validation is requested.
+
+    // Initiate risk analysis with the given information.
+    scram::core::RiskAnalysis analysis(model.get(), settings);
+    analysis.Analyze();
+    if (vm.contains("no-report") || vm.contains("preprocessor") || vm.contains("print"))
+        return;
+    scram::Reporter reporter;
+    const bool indent = !(vm.contains("no-indent"));
+    if (vm.contains("output")) {
+        reporter.Report(analysis, vm["output"].as<std::string>(), indent);
+    } else {
+        reporter.Report(analysis, stdout, indent);
+    }
+}
+
+} // namespace ScramCLI

@@ -17,23 +17,19 @@
  */
 
 /// @file
-#include <omp.h>
-
-#include <cstdarg>
-#include <cstdio> // vsnprintf
-#include <cstring>// strerror
-
-#include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
+#include <libxml/parser.h>  // xmlInitParser, xmlCleanupParser
+#include <libxml/xmlversion.h>  // LIBXML_TEST_VERSION, LIBXML_DOTTED_VERSION
 
 #include <boost/core/typeinfo.hpp>
 #include <boost/exception/all.hpp>
 #include <boost/program_options.hpp>
-
-#include <libxml/parser.h>    // xmlInitParser, xmlCleanupParser
-#include <libxml/xmlversion.h>// LIBXML_TEST_VERSION, LIBXML_DOTTED_VERSION
+#include <cstdarg>
+#include <cstdio>  // vsnprintf
+#include <cstring>  // strerror
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
 
 #include "error.h"
 #include "ext/scope_guard.h"
@@ -41,10 +37,9 @@
 #include "logger.h"
 #include "reporter.h"
 #include "risk_analysis.h"
-
-#include "utils/XmlLogger.h"
 #include "utils/ParseArguments.h"
 #include "utils/RunScram.h"
+#include "utils/XmlLogger.h"
 
 namespace po = boost::program_options;
 

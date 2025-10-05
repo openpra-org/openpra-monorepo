@@ -103,18 +103,18 @@ namespace ScramCLI {
             print_help(std::cerr);
             return 1;
         }
-        if ((vm->count("bdd") + vm->count("zbdd") + vm->count("mocus")) > 1) {
+        if ((vm->count("bdd") + vm->count("pdag") + vm->count("zbdd") + vm->count("mocus")) > 1) {
             std::cerr << "Mutually exclusive qualitative analysis algorithms.\n"
-                      << "(MOCUS/BDD/ZBDD) cannot be applied at the same time.\n\n";
+                      << "(MOCUS/BDD/ZBDD/PDAG) cannot be applied at the same time.\n\n";
             print_help(std::cerr);
             return 1;
         }
-        if (vm->count("rare-event") && vm->count("mcub")) {
-            std::cerr << "The rare event and MCUB approximations cannot be "
-                      << "applied at the same time.\n\n";
+        if ((vm->count("rare-event") + vm->count("mcub") + vm->count("monte-carlo")) > 1) {
+            std::cerr << "Mutually exclusive quantitative analysis algorithms.\n"
+                      << "(rare-event/mcub/monte-carlo) cannot be applied at the same time.\n\n";
             print_help(std::cerr);
             return 1;
         }
         return 0;
     }
-}// namespace ScramCLI
+}// namespace SCRAMCLI

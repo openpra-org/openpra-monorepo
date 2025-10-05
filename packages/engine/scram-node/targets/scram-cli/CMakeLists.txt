@@ -21,13 +21,13 @@ set_target_properties(scram-cli PROPERTIES
     BUILD_WITH_INSTALL_RPATH TRUE
     OUTPUT_NAME scram-cli
 )
-target_link_libraries(scram-cli scram-cli-utils scram ${Boost_LIBRARIES})
+target_link_libraries(scram-cli scram-cli-utils scram ${Boost_LIBRARIES} mc)
 #target_compile_options(scram-cli PRIVATE $<$<CONFIG:DEBUG>:${SCRAM_CXX_FLAGS_DEBUG}>)
 
 # Install the executable to ~/.local/bin
 install(
         TARGETS scram-cli
-        RUNTIME DESTINATION ${INSTALL_BASE_DIR}/bin
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
         COMPONENT scram-cli
 )
 

@@ -8,15 +8,11 @@ set(SCRAM_CLI_UTILS_HEADERS
         RunScram.h
 )
 
-set(SCRAM_CLI_UTILS_LIB_SOURCES
-        stub_scram-cli-utils.cpp
-)
-
 if (NOT TARGET scram-cli-utils)
-    # Create utils
-    add_library(scram-cli-utils STATIC ${SCRAM_CLI_UTILS_HEADERS} ${SCRAM_CLI_UTILS_LIB_SOURCES})
-    target_include_directories(scram-cli-utils PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+    # Create header-only interface library since all functions are inline
+    add_library(scram-cli-utils INTERFACE)
+    target_include_directories(scram-cli-utils INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 endif ()
 
 # Link utils against Boost libraries
-target_link_libraries(scram-cli-utils scram ${LIBS})
+target_link_libraries(scram-cli-utils INTERFACE scram ${LIBS})

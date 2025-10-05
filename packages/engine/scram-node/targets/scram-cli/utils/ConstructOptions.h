@@ -19,66 +19,89 @@
 /// @file
 
 #pragma once
-#include <iostream>
 #include <string>
-
 
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
 
 namespace ScramCLI {
-    /// Provides an options value type.
+/// Provides an options value type.
 #define OPT_VALUE(type) po::value<type>()->value_name(#type)
 
-    /// @returns Command-line option descriptions.
-    inline po::options_description ConstructOptions() {
-        using path = std::string;// To print argument type as path.
+/// @returns Command-line option descriptions.
+inline po::options_description ConstructOptions() {
+    using path = std::string; // To print argument type as path.
 
-        po::options_description desc("Options");
-        // clang-format off
+    // ------------------------------------------------------------------
+    //  Monte-Carlo specific options
+    // ------------------------------------------------------------------
+    po::options_description mc("Monte Carlo Options");
+    mc.add_options()
+        ("monte-carlo", "enable monte carlo sampling")
+        ("early-stop", "stop on convergence (implied if N=0)")
+        ("seed", OPT_VALUE(int)->default_value(372), "PRNG seed")
+        ("num-trials,N", OPT_VALUE(double)->default_value(0), "bernoulli trials [N ∈ ℕ, 0=auto]")
+        ("overhead-ratio,r", OPT_VALUE(double),"allocator overhead per node [0.05]")
+        ("delta,d", OPT_VALUE(double)->default_value(0.001),"compute as ε=δ·p̂ [δ > 0]")
+        ("burn-in,b", OPT_VALUE(double)->default_value(1<<20), "trials before convergence check [0=off]")
+        ("confidence,a", OPT_VALUE(double), "two-sided conf. lvl [0.99]")
+        ("policy,P", OPT_VALUE(std::string)->default_value("bayes"), "convergence policy [bayes|wald]");
+
+    // ------------------------------------------------------------------
+    //  graph compilation specific options
+    // ------------------------------------------------------------------
+    po::options_description gc("Graph Compilation Options");
+    gc.add_options()
+        ("no-kn", "expand k/n to and/or [off]")
+        ("no-xor", "expand xor to and/or [off]")
+        ("nnf", "compile to negation normal form [off]")
+        ("preprocessor", "stop analysis after preprocessing")
+        ("compilation-passes,c", OPT_VALUE(int)->default_value(2), "0=off 1=null-only 2=optimize 4-8=multipass");
+
+    // ------------------------------------------------------------------
+    //  Debug options
+    // ------------------------------------------------------------------
+    po::options_description debug("Debug Options");
+    debug.add_options()
+        ("watch,w", "enable watch mode [off]")
+        ("oracle,p", OPT_VALUE(double)->default_value(-1.0), "true µ [µ ∈ [0,∞), -1=off]")
+        ("help,h", "display this help message")
+        ("verbosity,V", OPT_VALUE(int)->default_value(0), "set log verbosity [0,7]")
+        ("version,v", "display version information")
+        ("print", "print analysis results to terminal")
+        ("serialize", "serialize the input model and exit")
+        ("no-report", "don't generate analysis report")
+        ("no-indent", "omit indented whitespace in output XML");
+
+        po::options_description desc("Legacy Options");
         desc.add_options()
-            ("help", "Display this help message")
-            ("version", "Display version information")
-            ("project", OPT_VALUE(path), "Project file with analysis configurations")
-            ("allow-extern", "**UNSAFE** Allow external libraries")
-            ("validate", "Validate input files without analysis")
-            ("bdd", "Perform qualitative analysis with BDD")
-            ("zbdd", "Perform qualitative analysis with ZBDD")
-            ("mocus", "Perform qualitative analysis with MOCUS")
-            ("prime-implicants", "Calculate prime implicants")
-            ("probability", "Perform probability analysis")
-            ("importance", "Perform importance analysis")
-            ("uncertainty", "Perform uncertainty analysis")
-            ("ccf", "Perform common-cause failure analysis")
-            ("sil", "Compute the Safety Integrity Level metrics")
-            ("rare-event", "Use the rare event approximation")
-            ("mcub", "Use the MCUB approximation")
-            ("limit-order,l", OPT_VALUE(int), "Upper limit for the product order")
-            ("cut-off", OPT_VALUE(double), "Cut-off probability for products")
-            ("mission-time", OPT_VALUE(double), "System mission time in hours")
-            ("time-step", OPT_VALUE(double),
-             "Time step in hours for probability analysis")
-            ("num-trials", OPT_VALUE(int),
-             "Number of trials for Monte Carlo simulations")
-            ("num-quantiles", OPT_VALUE(int),
-             "Number of quantiles for distributions")
-            ("num-bins", OPT_VALUE(int), "Number of bins for histograms")
-            ("seed", OPT_VALUE(int), "Seed for the pseudo-random number generator")
-            ("output,o", OPT_VALUE(path), "Output file for reports")
-            ("no-indent", "Omit indentation whitespace in output XML")
-            ("verbosity", OPT_VALUE(int), "Set log verbosity");
-#ifndef NDEBUG
-        po::options_description debug("Debug Options");
-        debug.add_options()
-            ("serialize", "Serialize the input model without further analysis")
-            ("preprocessor", "Stop analysis after the preprocessing step")
-            ("print", "Print analysis results in a terminal friendly way")
-            ("no-report", "Don't generate analysis report");
-        desc.add(debug);
-#endif
-        // clang-format on
-        return desc;
-    }
-#undef OPT_VALUE
+            ("project", OPT_VALUE(path), "project analysis config file")
+            ("allow-extern", "**UNSAFE** allow external libraries")
+            ("validate", "validate input files without analysis")
+            ("pdag", "perform qualitative analysis with PDAG")
+            ("bdd", "perform qualitative analysis with BDD")
+            ("zbdd", "perform qualitative analysis with ZBDD")
+            ("mocus", "perform qualitative analysis with MOCUS")
+            ("prime-implicants", "calculate prime implicants")
+            ("probability", "perform probability analysis")
+            ("importance", "perform importance analysis")
+            ("uncertainty", "perform uncertainty analysis")
+            ("ccf", "compute common-cause failures")
+            ("sil", "compute safety-integrity-level metrics")
+            ("rare-event", "use the rare event approximation")
+            ("mcub", "use the MCUB approximation")
+            ("limit-order,l", OPT_VALUE(int), "upper limit for the product order")
+            ("cut-off", OPT_VALUE(double), "cut-off probability for products")
+            ("mission-time", OPT_VALUE(double), "system mission time in hours")
+            ("time-step", OPT_VALUE(double), "timestep in hours")
+            ("num-quantiles", OPT_VALUE(int),"number of quantiles for distributions")
+            ("num-bins", OPT_VALUE(int), "number of bins for histograms")
+            ("output,o", OPT_VALUE(path), "output file for reports");
+
+        mc.add(gc).add(debug).add(desc);
+    // clang-format on
+    return mc;
 }
+#undef OPT_VALUE
+} // namespace ScramCLI

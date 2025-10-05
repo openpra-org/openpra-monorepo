@@ -69,7 +69,7 @@ class Product {
   ///
   /// @param[in] data  The underlying set.
   /// @param[in] graph  The graph with indices to events map.
-  Product(const std::vector<int>& data, const Pdag& graph) noexcept
+  Product(const std::vector<int>& data, const Pdag& graph)
       : data_(data), graph_(graph) {}
 
   /// @returns true for unity product with no literals.
@@ -124,7 +124,7 @@ class ProductContainer {
   ///
   /// @param[in] products  Sets with indices of events from calculations.
   /// @param[in] graph  PDAG with basic event indices and pointers.
-  ProductContainer(const Zbdd& products, const Pdag& graph) noexcept;
+  ProductContainer(const Zbdd& products, const Pdag& graph) ;
 
   /// @returns Collection of basic events that are in the products.
   const std::unordered_set<const mef::BasicEvent*>& product_events() const {
@@ -229,7 +229,7 @@ class FaultTreeAnalysis : public Analysis {
   /// @warning If the fault tree structure has changed
   ///          since the construction of the analysis,
   ///          the analysis will be invalid or fail.
-  void Analyze() noexcept;
+  void Analyze() ;
 
   /// @returns A collection of Boolean products as the analysis results.
   ///
@@ -242,9 +242,11 @@ class FaultTreeAnalysis : public Analysis {
   /// @returns true if products were generated and stored.
   bool has_products() const noexcept { return static_cast<bool>(products_); }
 
+ [[nodiscard]] std::shared_ptr<Pdag> pdag() { return std::move(graph_); }
+
  protected:
   /// @returns Pointer to the PDAG representing the fault tree.
-  const Pdag* graph() const { return graph_.get(); }
+  [[nodiscard]] Pdag* graph() const { return graph_.get(); }
 
  private:
   /// Preprocesses a PDAG for future analysis with a specific algorithm.
@@ -252,7 +254,7 @@ class FaultTreeAnalysis : public Analysis {
   /// @param[in,out] graph  A valid PDAG for analysis.
   ///
   /// @post The graph transformation is semantically equivalent/isomorphic.
-  virtual void Preprocess(Pdag* graph) noexcept = 0;
+  virtual void Preprocess(Pdag* graph)  = 0;
 
   /// Generates a sum of products from a preprocessed PDAG.
   ///
@@ -263,13 +265,13 @@ class FaultTreeAnalysis : public Analysis {
   /// @pre The graph is specifically preprocessed for the algorithm.
   ///
   /// @post The result ZBDD lives as long as the host analysis.
-  virtual const Zbdd& GenerateProducts(const Pdag* graph) noexcept = 0;
+  virtual const Zbdd& GenerateProducts(const Pdag* graph)  = 0;
 
   /// Stores resultant sets of products for future reporting.
   ///
   /// @param[in] products  Sets with indices of events from calculations.
   /// @param[in] graph  PDAG with basic event indices and pointers.
-  void Store(const Zbdd& products, const Pdag& graph) noexcept;
+  void Store(const Zbdd& products, const Pdag& graph) ;
 
   const mef::Gate& top_event_;  ///< The root of the graph under analysis.
   const mef::Model* model_;  ///< The optional Model with substitutions.
@@ -294,11 +296,12 @@ class FaultTreeAnalyzer : public FaultTreeAnalysis {
   /// @}
 
  private:
-  void Preprocess(Pdag* graph) noexcept override {
-    CustomPreprocessor<Algorithm>{graph}();
+  void Preprocess(Pdag* graph)  override {
+    std::optional<Settings>  settings_opt = std::optional<Settings>(settings());
+    CustomPreprocessor<Algorithm>{graph,settings_opt}();
   }
 
-  const Zbdd& GenerateProducts(const Pdag* graph) noexcept override {
+  const Zbdd& GenerateProducts(const Pdag* graph)  override {
     algorithm_ = std::make_unique<Algorithm>(graph, Analysis::settings());
     algorithm_->Analyze(graph);
     return algorithm_->products();

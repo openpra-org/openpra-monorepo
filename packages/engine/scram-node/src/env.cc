@@ -20,34 +20,22 @@
 /// The environment variables discovered at run-time.
 
 #include "env.h"
+#include "schemas.h"
 
 #include <cstdlib>
-#include <stdexcept>
 
 namespace scram::env {
 
-const std::string& project_schema() {
-  static const std::string schema_path = install_dir() + "/share/scram/project.rng";
-  return schema_path;
+const std::string_view& project_schema() {
+  return schemas::get_PROJECT_SCHEMA();
 }
 
-const std::string& input_schema() {
-  static const std::string schema_path = install_dir() + "/share/scram/input.rng";
-  return schema_path;
+const std::string_view& input_schema() {
+  return schemas::get_INPUT_SCHEMA();
 }
 
-const std::string& report_schema() {
-  static const std::string schema_path = install_dir() + "/share/scram/report.rng";
-  return schema_path;
-}
-
-const std::string& install_dir() {
-  static const char* home = std::getenv("HOME");
-  if (!home) {
-    throw std::runtime_error("Environment variable HOME is not set.");
-  }
-  static const std::string install_path = std::string(home) + "/.local";
-  return install_path;
+const std::string_view& report_schema() {
+  return schemas::get_REPORT_SCHEMA();
 }
 
 }  // namespace scram::env

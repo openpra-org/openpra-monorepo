@@ -56,10 +56,10 @@ using errinfo_value = boost::error_info<struct tag_value, std::string>;
 /// The Error class is the base class
 /// for all exceptions specific to the SCRAM code.
 ///
-/// @note The copy constructor is not noexcept as required by std::exception.
+/// @note The copy constructor is not  as required by std::exception.
 ///       However, this class may only throw std::bad_alloc upon copy,
 ///       which may be produced anyway
-///       even if the copy constructor were noexcept.
+///       even if the copy constructor were .
 class Error : virtual public std::exception, virtual public boost::exception {
  public:
   /// Constructs a new error with a provided message.

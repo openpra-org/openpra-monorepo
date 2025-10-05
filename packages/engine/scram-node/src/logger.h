@@ -101,7 +101,7 @@ const int kMaxVerbosity = 7;  ///< The index of the last level.
 class Logger : private boost::noncopyable {
  public:
   /// Flashes all the logs into the standard error upon destruction.
-  ~Logger() noexcept;
+  ~Logger();
 
   /// @returns Reference to the cut-off level for reporting.
   static LogLevel report_level() { return report_level_; }

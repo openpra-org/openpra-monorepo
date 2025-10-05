@@ -21,23 +21,36 @@
 
 #pragma once
 
+#include "model.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <stdexcept>
 
 #include <string_view>
+#include <string>
+#include <vector>
 
 namespace scram::core {
 
 /// Qualitative analysis algorithms.
-enum class Algorithm : std::uint8_t { kBdd = 0, kZbdd, kMocus };
+enum class Algorithm : std::uint8_t { kBdd = 0, kZbdd, kMocus, kDirect };
 
 /// String representations for algorithms.
-const char* const kAlgorithmToString[] = {"bdd", "zbdd", "mocus"};
+const char* const kAlgorithmToString[] = { "bdd", "zbdd", "mocus", "pdag" };
 
 /// Quantitative analysis approximations.
-enum class Approximation : std::uint8_t { kNone = 0, kRareEvent, kMcub };
+enum class Approximation : std::uint8_t { kNone = 0, kRareEvent, kMcub, kMonteCarlo };
 
 /// String representations for approximations.
-const char* const kApproximationToString[] = {"none", "rare-event", "mcub"};
+const char* const kApproximationToString[] = { "none", "rare-event", "mcub", "monte-carlo" };
+
+/// Convergence interval policy for Monte-Carlo stopping criterion
+enum class CIPolicy : std::uint8_t { kBayes = 0, kWald };
+
+inline constexpr const char* kCIPolicyToString[] = { "bayes", "wald" };
 
 /// Builder for analysis settings.
 /// Analysis facilities are guaranteed not to throw or fail
@@ -50,7 +63,7 @@ const char* const kApproximationToString[] = {"none", "rare-event", "mcub"};
 class Settings {
  public:
   /// @returns The Qualitative analysis algorithm.
-  Algorithm algorithm() const { return algorithm_; }
+  [[nodiscard]] Algorithm algorithm() const { return algorithm_; }
 
   /// Sets the algorithm for Qualitative analysis.
   /// Appropriate defaults are given to other settings
@@ -63,7 +76,7 @@ class Settings {
   /// @param[in] value  The algorithm kind.
   ///
   /// @returns Reference to this object.
-  Settings& algorithm(Algorithm value) noexcept;
+  Settings& algorithm(Algorithm value) ;
 
   /// Provides a convenient wrapper for algorithm setting from a string.
   ///
@@ -75,7 +88,7 @@ class Settings {
   Settings& algorithm(std::string_view value);
 
   /// @returns The quantitative analysis approximation.
-  Approximation approximation() const { return approximation_; }
+  [[nodiscard]] Approximation approximation() const { return approximation_; }
 
   /// Sets the approximation for quantitative analysis.
   ///
@@ -92,7 +105,7 @@ class Settings {
 
   /// @returns true if prime implicants are to be calculated
   ///               instead of minimal cut sets.
-  bool prime_implicants() const { return prime_implicants_; }
+  [[nodiscard]] bool prime_implicants() const { return prime_implicants_; }
 
   /// Sets a flag to calculate prime implicants instead of minimal cut sets.
   /// Prime implicants can only be calculated with BDD-based algorithms.
@@ -108,7 +121,7 @@ class Settings {
   Settings& prime_implicants(bool flag);
 
   /// @returns The limit on the size of products.
-  int limit_order() const { return limit_order_; }
+  [[nodiscard]] int limit_order() const { return limit_order_; }
 
   /// Sets the limit order for products.
   ///
@@ -120,7 +133,7 @@ class Settings {
   Settings& limit_order(int order);
 
   /// @returns The minimum required probability for products.
-  double cut_off() const { return cut_off_; }
+  [[nodiscard]] double cut_off() const { return cut_off_; }
 
   /// Sets the cut-off probability for products
   /// to be considered for analysis.
@@ -133,7 +146,7 @@ class Settings {
   Settings& cut_off(double prob);
 
   /// @returns The number of trials for Monte-Carlo simulations.
-  int num_trials() const { return num_trials_; }
+  [[nodiscard]] std::size_t num_trials() const { return num_trials_; }
 
   /// Sets the number of trials for Monte Carlo simulations.
   ///
@@ -142,10 +155,34 @@ class Settings {
   /// @returns Reference to this object.
   ///
   /// @throws SettingsError  The number is less than 1.
-  Settings& num_trials(int n);
+  Settings& num_trials(std::double_t n);
+
+  /// @returns The batch size for Monte-Carlo simulations.
+  [[nodiscard]] std::size_t batch_size() const { return batch_size_; }
+
+  /// Sets the batch size for Monte Carlo simulations.
+  ///
+  /// @param[in] n  A natural number for the batch size.
+  ///
+  /// @returns Reference to this object.
+  ///
+  /// @throws SettingsError  The number is less than 1.
+  Settings& batch_size(std::size_t n) { batch_size_ = n; return *this; }
+
+  /// @returns The batch size for Monte-Carlo simulations.
+  [[nodiscard]] std::size_t sample_size() const { return sample_size_; }
+
+  /// Sets the sample size for Monte Carlo simulations.
+  ///
+  /// @param[in] n  A natural number for the sample size.
+  ///
+  /// @returns Reference to this object.
+  ///
+  /// @throws SettingsError  The number is less than 1.
+  Settings& sample_size(std::size_t n) { sample_size_ = n; return *this; }
 
   /// @returns The number of quantiles for distributions.
-  int num_quantiles() const { return num_quantiles_; }
+  [[nodiscard]] int num_quantiles() const { return num_quantiles_; }
 
   /// Sets the number of quantiles for distributions.
   ///
@@ -157,7 +194,7 @@ class Settings {
   Settings& num_quantiles(int n);
 
   /// @returns The number of bins for histograms.
-  int num_bins() const { return num_bins_; }
+  [[nodiscard]] int num_bins() const { return num_bins_; }
 
   /// Sets the number of bins for histograms.
   ///
@@ -169,7 +206,7 @@ class Settings {
   Settings& num_bins(int n);
 
   /// @returns The seed of the pseudo-random number generator.
-  int seed() const { return seed_; }
+  [[nodiscard]] int seed() const { return seed_; }
 
   /// Sets the seed for the pseudo-random number generator.
   ///
@@ -181,7 +218,7 @@ class Settings {
   Settings& seed(int s);
 
   /// @returns The length time of the system under risk.
-  double mission_time() const { return mission_time_; }
+  [[nodiscard]] double mission_time() const { return mission_time_; }
 
   /// Sets the system mission time.
   ///
@@ -194,7 +231,7 @@ class Settings {
 
   /// @returns The time step in hours for probability analyses.
   ///          0 if the time step doesn't apply.
-  double time_step() const { return time_step_; }
+  [[nodiscard]] double time_step() const { return time_step_; }
 
   /// Sets the time step for probability analyses.
   /// 0 value signifies that the time step doesn't apply.
@@ -209,7 +246,7 @@ class Settings {
   Settings& time_step(double time);
 
   /// @returns true if probability analysis is requested.
-  bool probability_analysis() const { return probability_analysis_; }
+  [[nodiscard]] bool probability_analysis() const { return probability_analysis_; }
 
   /// Sets the flag for probability analysis.
   /// If another analysis requires probability analysis,
@@ -227,8 +264,21 @@ class Settings {
     return *this;
   }
 
+  /// Sets the flag for skipping products calculation.
+  ///
+  /// @param[in] flag  True or false for turning on or off the products calculation.
+  ///
+  /// @returns Reference to this object.
+  Settings& skip_products(bool flag) {
+    skip_products_ = flag;
+    return *this;
+  }
+
+  /// @returns true if the products calculation will be skipped.
+  [[nodiscard]] bool skip_products() const { return skip_products_; }
+
   /// @returns true if the SIL metrics are requested.
-  bool safety_integrity_levels() const { return safety_integrity_levels_; }
+  [[nodiscard]] bool safety_integrity_levels() const { return safety_integrity_levels_; }
 
   /// Sets the flag for calculation of the SIL metrics.
   /// This requires that time-step is set.
@@ -241,7 +291,7 @@ class Settings {
   Settings& safety_integrity_levels(bool flag);
 
   /// @returns true if importance analysis is requested.
-  bool importance_analysis() const { return importance_analysis_; }
+  [[nodiscard]] bool importance_analysis() const { return importance_analysis_; }
 
   /// Sets the flag for importance analysis.
   /// Importance analysis is performed
@@ -259,7 +309,7 @@ class Settings {
   }
 
   /// @returns true if uncertainty analysis is requested.
-  bool uncertainty_analysis() const { return uncertainty_analysis_; }
+  [[nodiscard]] bool uncertainty_analysis() const { return uncertainty_analysis_; }
 
   /// Sets the flag for uncertainty analysis.
   /// Uncertainty analysis implies probability analysis,
@@ -275,79 +325,148 @@ class Settings {
     return *this;
   }
 
-  /// @returns true if qualitative product enumeration is required
-  ///          for the requested analyses under current settings.
-  ///
-  /// This is primarily used to skip cut set enumeration for BDD when
-  /// only probability with exact calculation (no approximation) is requested.
-  /// In all other cases (ZBDD/MOCUS algorithms, approximations, prime
-  /// implicants, importance/uncertainty, or debug printing), products are
-  /// required.
-  bool requires_products() const {
-    // Non-BDD algorithms inherently require cut sets for quantification.
-    if (algorithm_ != Algorithm::kBdd)
-      return true;
-
-    // If probability analysis isn't requested, keep default behavior
-    // (qualitative runs enumerate products).
-    if (!probability_analysis_)
-      return true;
-
-    // Features that depend on product enumeration.
-    if (prime_implicants_ || importance_analysis_ || uncertainty_analysis_)
-      return true;
-
-#ifndef NDEBUG
-    // Developer debug printing of products requires enumeration.
-    if (print)
-      return true;
-#endif
-
-    // Approximations rely on cut sets.
-    if (approximation_ != Approximation::kNone)
-      return true;
-
-    // Otherwise, BDD can compute probabilities directly without products.
-    return false;
-  }
-
   /// @returns true if CCF groups must be incorporated into analysis.
-  bool ccf_analysis() const { return ccf_analysis_; }
+  [[nodiscard]] bool ccf_analysis() const { return ccf_analysis_; }
 
   /// Sets the flag for CCF analysis.
   ///
   /// @param[in] flag  True or false for turning on or off the analysis.
   ///
   /// @returns Reference to this object.
-  Settings& ccf_analysis(bool flag) {
-    ccf_analysis_ = flag;
+  Settings& ccf_analysis(bool flag) { ccf_analysis_ = flag; return *this; }
+
+  /// @returns The desired confidence level for automatic CI tuning (0 disables).
+  [[nodiscard]] double ci_confidence() const { return std::clamp(ci_confidence_, 0.0, 1.0); }
+
+  /// Sets the confidence level (two-sided) used when automatically choosing
+  /// the number of Monte-Carlo trials.  Accepts values in (0,1).
+  Settings& ci_confidence(const double p) { ci_confidence_ = std::clamp(p, 0.0, 1.0); return *this; }
+
+  /// @returns The relative margin of error δ (fraction of p̂) if set (>0), otherwise 0.
+  [[nodiscard]] double ci_rel_margin_error() const { return std::abs(ci_rel_margin_error_); }
+
+  /// Sets the relative margin of error δ used to derive an absolute ε as δ·p̂. negative values are set to 0.
+  Settings& ci_rel_margin_error(const double delta) { ci_rel_margin_error_ =  delta > 0 ? delta : 0; return *this; }
+
+  // ---------------------------------------------------------------------
+  //  Convergence policy selection (Bayes vs Wald)
+  // ---------------------------------------------------------------------
+  [[nodiscard]] CIPolicy ci_policy() const { return ci_policy_; }
+
+  Settings& ci_policy(const CIPolicy p) { ci_policy_ = p; return *this; }
+
+  Settings& ci_policy(std::string_view s) {
+    if (s == "bayes")      return ci_policy(CIPolicy::kBayes);
+    if (s == "wald")       return ci_policy(CIPolicy::kWald);
+    throw std::invalid_argument("unknown ci-policy: " + std::string{s});
+  }
+
+  /// @returns Number of burn-in trials to run before enabling convergence checks.
+  [[nodiscard]] std::size_t ci_burnin_trials() const { return static_cast<std::size_t>(ci_burnin_trials_); }
+
+  /// Sets the number of pilot iterations (non-negative).
+  Settings& ci_burnin_trials(const double n) { ci_burnin_trials_= n > 0 ? std::round(n) : 0; return *this; }
+
+  [[nodiscard]] bool early_stop() const { return early_stop_; }
+
+  Settings& early_stop(const bool on) { early_stop_ = on; return *this; }
+
+  [[nodiscard]] bool watch_mode() const { return watch_mode_; }
+
+  Settings& watch_mode(const bool on) { watch_mode_ = on; return *this; }
+
+  [[nodiscard]] bool expand_atleast_gates() const { return expand_atleast_gates_; }
+  [[nodiscard]] bool expand_xor_gates() const { return expand_xor_gates_; }
+  [[nodiscard]] bool keep_null_gates() const { return keep_null_gates_; }
+  [[nodiscard]] int compilation_level() const { return compilation_level_; }
+
+  Settings& expand_xor_gates(const bool on) { expand_xor_gates_ = on; return *this; }
+  Settings& expand_atleast_gates(const bool on) { expand_atleast_gates_ = on; return *this; }
+  Settings& keep_null_gates(const bool on) { keep_null_gates_ = on; return *this; }
+  Settings& compilation_level(const int level) { compilation_level_ = std::clamp(level, 0, 8); return *this; }
+
+  /// @returns The known ground-truth probability provided by the user (negative when unset).
+  [[nodiscard]] double oracle_p() const { return oracle_p_; }
+
+  /// Sets the ground-truth probability/frequency that will be used for diagnostic statistics.
+  /// Accepts non-negative values. Negative values are simply set as -1 to unset the variable.
+  Settings &oracle_p(const double p) { oracle_p_ = p >= 0 ? p : -1.0; return *this; }
+
+    /// @returns Node allocation overhead ratio
+    [[nodiscard]] double overhead_ratio() const { return overhead_ratio_; }
+
+    /// Sets the ground-truth probability/frequency that will be used for diagnostic statistics.
+    /// Accepts non-negative values. Negative values are simply set as -1 to unset the variable.
+    Settings &overhead_ratio(const double r) { overhead_ratio_ = r >= 0 ? r : 0.; return *this; }
+
+  /// @returns the list of MEF input files provided for the analysis (can be empty).
+  [[nodiscard]] const std::vector<std::string>& input_files() const { return input_files_; }
+
+  /// Sets/overwrites the list of MEF input files (primarily called by CLI glue code).
+  /// A reference is not kept – a copy of the vector is stored inside the Settings instance.
+  Settings& input_files(const std::vector<std::string>& files) {
+    input_files_ = files;
     return *this;
   }
 
-#ifndef NDEBUG
+  /// @returns an optional shared pointer to the MEF model
+  [[nodiscard]] mef::Model* model() const { return model_; }
+
+    /// Sets/overwrites the list of MEF input files (primarily called by CLI glue code).
+    /// A reference is not kept – a copy of the vector is stored inside the Settings instance.
+  Settings& model(mef::Model *model) {
+      model_ = model;
+      return *this;
+  }
+
   bool preprocessor = false;  ///< Stop analysis after preprocessor.
   bool print = false;  ///< Print analysis results in a terminal friendly way.
-#endif
+
+  bool watch_mode_ = false;  ///< Display analysis status on TTY.
+  CIPolicy ci_policy_ = CIPolicy::kBayes;
 
  private:
-  bool probability_analysis_ = false;  ///< A flag for probability analysis.
-  bool safety_integrity_levels_ = false;  ///< Calculation of the SIL metrics.
-  bool importance_analysis_ = false;  ///< A flag for importance analysis.
-  bool uncertainty_analysis_ = false;  ///< A flag for uncertainty analysis.
-  bool ccf_analysis_ = false;  ///< A flag for common-cause analysis.
-  bool prime_implicants_ = false;  ///< Calculation of prime implicants.
-  /// Qualitative analysis algorithm.
-  Algorithm algorithm_ = Algorithm::kBdd;
-  /// The approximations for calculations.
-  Approximation approximation_ = Approximation::kNone;
-  int limit_order_ = 20;  ///< Limit on the order of products.
-  int seed_ = 0;  ///< The seed for the pseudo-random number generator.
-  int num_trials_ = 1e3;  ///< The number of trials for Monte Carlo simulations.
-  int num_quantiles_ = 20;  ///< The number of quantiles for distributions.
-  int num_bins_ = 20;  ///< The number of bins for histograms.
-  double mission_time_ = 8760;  ///< System mission time.
-  double time_step_ = 0;  ///< The time step for probability analyses.
-  double cut_off_ = 1e-8;  ///< The cut-off probability for products.
+  Algorithm algorithm_ = Algorithm::kDirect;                  ///< Algorithm for minimal cut set / prime implicant analysis
+  Approximation approximation_ = Approximation::kMonteCarlo ; ///< The approximations for calculations
+  bool probability_analysis_ = false;                 ///< A flag for probability analysis.
+  bool safety_integrity_levels_ = false;              ///< Calculation of the SIL metrics.
+  bool importance_analysis_ = false;                  ///< A flag for importance analysis.
+  bool uncertainty_analysis_ = false;                 ///< A flag for uncertainty analysis.
+  bool ccf_analysis_ = false;                         ///< A flag for common-cause analysis.
+  bool prime_implicants_ = false;                     ///< Calculation of prime implicants.
+  bool skip_products_ = false;                        ///< Do not compute the products.
+  int limit_order_ = 20;                              ///< Limit on the order of products.
+  int seed_ = 372;                                    ///< The seed for the pseudo-random number generator.
+  std::size_t num_trials_  = 0;                       ///< The number of trials for Monte Carlo simulations (default 2^26).
+  std::size_t batch_size_  = 0;                       ///< Batch size for Monte Carlo simulations.
+  std::size_t sample_size_ = 0;                       ///< Sample size for Monte Carlo simulations.
+  int num_quantiles_ = 20;                            ///< The number of quantiles for distributions.
+  int num_bins_ = 20;                                 ///< The number of bins for histograms.
+  double mission_time_ = 8760;                        ///< System mission time.
+  double time_step_ = 0;                              ///< The time step for probability analyses.
+  double cut_off_ = 1e-8;                             ///< The cut-off probability for products.
+
+
+  double oracle_p_           = -1.0;    ///< negative means unset.
+
+  // --- NEW: adaptive Monte-Carlo CI tuning ---------------------------------
+  bool   early_stop_          = true;    ///< stop as soon as convergence occurs
+  double ci_confidence_       = 0.99;    ///< two-sided confidence level (0.99 default)
+  double ci_rel_margin_error_ = 0.001;   ///< δ (relative ε). 0 → disabled.
+  double ci_burnin_trials_    = 1 << 20; ///< burn-in trials before convergence checks (2^20 default), 0 → disabled.
+
+  // Graph Compilation Options
+  bool keep_null_gates_ = false;
+  bool expand_atleast_gates_ = false;
+  bool expand_xor_gates_ = false;
+  int compilation_level_ = 2;
+
+  double overhead_ratio_ = 0.05;
+
+  // A copy of the final list of MEF input files passed on the command-line.  Read-only access is provided via the getter above.
+  std::vector<std::string> input_files_;
+
+  mef::Model* model_ = nullptr;
 };
 
 }  // namespace scram::core

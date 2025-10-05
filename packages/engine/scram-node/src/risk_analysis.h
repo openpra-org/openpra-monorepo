@@ -26,6 +26,7 @@
 #include <utility>
 #include <variant>
 #include <vector>
+#include <unordered_set>
 
 #include "alignment.h"
 #include "analysis.h"
@@ -53,9 +54,7 @@ class RiskAnalysis : public Analysis {
   struct Result {
     /// The analysis target type as a unique identifier.
     struct Id {
-      std::variant<const mef::Gate*, std::pair<const mef::InitiatingEvent&,
-                                               const mef::Sequence&>>
-          target;  ///< The main input to the analysis.
+      std::variant<const mef::Gate*, std::pair<const mef::InitiatingEvent&, const mef::Sequence&>> target;  ///< The main input to the analysis.
       std::optional<Context> context;  ///< Optional analysis context.
     };
 
@@ -101,7 +100,7 @@ class RiskAnalysis : public Analysis {
   ///       with or without its probabilities.
   ///
   /// @pre The analysis is performed only once.
-  void Analyze() noexcept;
+  void Analyze();
 
   /// @returns The results of the analysis.
   const std::vector<Result>& results() const { return results_; }
@@ -109,6 +108,43 @@ class RiskAnalysis : public Analysis {
   /// @returns The results of the event tree analysis.
   const std::vector<EtaResult>& event_tree_results() const {
     return event_tree_results_;
+  }
+
+  // Convenience single-event overload.
+  template<typename mef_type>
+    RiskAnalysis &observe_for_tallies(const mef_type *event) {
+    if (event) watched_for_tallies_.insert(event);
+    return *this;
+  }
+
+  // Register MEF events that must remain observable (i.e. not optimized away) in
+  // the PDAG built during analysis.  Returns *this for chaining.
+  template<typename mef_type>
+  RiskAnalysis &observe_for_tallies(const std::vector<const mef_type *> &events) {
+      for (const auto& event : events) {
+          this->observe_for_tallies(event);
+      }
+      return *this;
+  }
+
+  // Convenience single-event overload.
+  template<typename mef_type>
+    RiskAnalysis &observe_for_convergence(const mef_type *event) {
+      if (event) {
+          watched_for_tallies_.insert(event);
+          watched_for_tallies_and_convergence_.insert(event);
+      }
+      return *this;
+  }
+
+  // Register MEF events that must remain observable (i.e. not optimized away) in
+  // the PDAG built during analysis.  Returns *this for chaining.
+  template<typename mef_type>
+  RiskAnalysis &observe_for_convergence(const std::vector<const mef_type *> &events) {
+    for (const auto& event : events) {
+        this->observe_for_convergence(event);
+    }
+    return *this;
   }
 
  private:
@@ -119,14 +155,14 @@ class RiskAnalysis : public Analysis {
   /// @pre The model is in pristine.
   ///
   /// @post The model is restored to the original state.
-  void RunAnalysis(std::optional<Context> context = {}) noexcept;
+  void RunAnalysis(const std::optional<Context> &context = {}) ;
 
   /// Runs all possible analysis on a given target.
   /// Analysis types are deduced from the settings.
   ///
   /// @param[in] target  Analysis target.
   /// @param[in,out] result  The result container element.
-  void RunAnalysis(const mef::Gate& target, Result* result) noexcept;
+  void RunAnalysis(const mef::Gate& target, Result* result) ;
 
   /// Defines and runs Qualitative analysis on the target.
   /// Calls the Quantitative analysis if requested in settings.
@@ -136,7 +172,7 @@ class RiskAnalysis : public Analysis {
   /// @param[in] target  Analysis target.
   /// @param[in,out] result  The result container element.
   template <class Algorithm>
-  void RunAnalysis(const mef::Gate& target, Result* result) noexcept;
+  void RunAnalysis(const mef::Gate& target, Result* result) ;
 
   /// Defines and runs Quantitative analysis on the target.
   ///
@@ -149,11 +185,28 @@ class RiskAnalysis : public Analysis {
   /// @pre FaultTreeAnalyzer is ready to tolerate
   ///      giving its internals to Quantitative analyzers.
   template <class Algorithm, class Calculator>
-  void RunAnalysis(FaultTreeAnalyzer<Algorithm>* fta, Result* result) noexcept;
+  void RunAnalysis(FaultTreeAnalyzer<Algorithm>* fta, Result* result) ;
+
+  /// Runs a single combined analysis for all sequences of an event tree when
+  /// the DirectEval Monte-Carlo back-end is requested.  A synthetic OR gate is
+  /// built that feeds every sequence gate, allowing the creation of one PDAG
+  /// spanning the entire tree.
+  ///
+  /// @param initiating_event  The unique initiating event being analysed.
+  /// @param[in,out] eta       The completed event-tree analysis whose sequence
+  ///                          gates will be merged.
+  /// @param[in] context       The optional alignment/phase context.
+  void RunCombinedEtaAnalysis(const mef::InitiatingEvent& initiating_event,
+                               EventTreeAnalysis* eta,
+                              const std::optional<Context> &context);
 
   mef::Model* model_;  ///< The model with constructs.
   std::vector<Result> results_;  ///< The analysis result storage.
   std::vector<EtaResult> event_tree_results_;  ///< Grouping of sequences.
+
+  // Gates that must stay intact for Monte-Carlo observation.
+  std::unordered_set<const mef::Gate *> watched_for_tallies_;
+  std::unordered_set<const mef::Gate *> watched_for_tallies_and_convergence_;
 };
 
 }  // namespace scram::core

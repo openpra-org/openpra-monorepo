@@ -26,11 +26,6 @@
 
 #pragma once
 
-#include <unordered_map>
-#include <vector>
-
-#include <boost/noncopyable.hpp>
-
 #include "pdag.h"
 #include "settings.h"
 #include "zbdd.h"
@@ -54,24 +49,24 @@ class Mocus : private boost::noncopyable {
   /// Finds minimal cut sets from the PDAG.
   ///
   /// @param[in] graph  The optional PDAG with non-declarative substitutions.
-  void Analyze(const Pdag* graph = nullptr) noexcept;
+  void Analyze(const Pdag* graph = nullptr) ;
 
   /// @returns Generated minimal cut sets with basic event indices.
-  const Zbdd& products() const {
+  [[nodiscard]] const Zbdd& products() const {
     assert(zbdd_ && "Analysis is not done.");
     return *zbdd_;
   }
 
  private:
   /// Runs analysis on a module gate.
-  /// All sub-modules are analyzed and joined recursively.
+  /// All submodules are analyzed and joined recursively.
   ///
   /// @param[in] gate  A PDAG gate for analysis.
   /// @param[in] settings  Settings for analysis.
   ///
   /// @returns Fully processed, minimized Zbdd cut set container.
   std::unique_ptr<zbdd::CutSetContainer>
-  AnalyzeModule(const Gate& gate, const Settings& settings) noexcept;
+  AnalyzeModule(const Gate& gate, const Settings& settings) ;
 
   const Pdag* graph_;  ///< The analysis PDAG.
   const Settings kSettings_;  ///< Analysis settings.

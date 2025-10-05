@@ -68,12 +68,12 @@ class MissionTime : public Expression {
   /// @throws LogicError  The time value is negative.
   void value(double time);
 
-  double value() noexcept override { return value_; }
-  Interval interval() noexcept override { return Interval::closed(0, value_); }
-  bool IsDeviate() noexcept override { return false; }
+  double value() override { return value_; }
+  Interval interval() override { return Interval::closed(0, value_); }
+  bool IsDeviate() override { return false; }
 
  private:
-  double DoSample() noexcept override { return value_; }
+  double DoSample() override { return value_; }
 
   Units unit_;  ///< Units of this parameter.
   double value_;  ///< The universal value to represent int, bool, double.
@@ -104,11 +104,11 @@ class Parameter : public Expression, public Id, public NodeMark, public Usage {
   /// @param[in] unit  A valid unit.
   void unit(Units unit) { unit_ = unit; }
 
-  double value() noexcept override { return expression_->value(); }
-  Interval interval() noexcept override { return expression_->interval(); }
+  double value() override { return expression_->value(); }
+  Interval interval() override { return expression_->interval(); }
 
  private:
-  double DoSample() noexcept override { return expression_->Sample(); }
+  double DoSample() override { return expression_->Sample(); }
 
   Units unit_ = kUnitless;  ///< Units of this parameter.
   Expression* expression_ = nullptr;  ///< Expression for this parameter.

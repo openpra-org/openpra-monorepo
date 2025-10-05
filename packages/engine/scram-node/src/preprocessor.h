@@ -28,11 +28,11 @@
 #include <utility>
 #include <vector>
 
-#include <boost/noncopyable.hpp>
 #include <boost/unordered_map.hpp>
 
 #include "pdag.h"
-#include "logger.h"
+
+#include "mc/core/direct_eval.h"
 
 namespace scram::core {
 
@@ -44,7 +44,7 @@ namespace pdag {
 /// @param[in] unary_op  The first operation to be applied.
 /// @param[in] unary_ops  The rest of transformations to apply.
 template <typename T, typename... Ts>
-void Transform(Pdag* graph, T&& unary_op, Ts&&... unary_ops) noexcept {
+void Transform(Pdag* graph, T&& unary_op, Ts&&... unary_ops)  {
   if (graph->IsTrivial())
     return;
 
@@ -63,7 +63,7 @@ void Transform(Pdag* graph, T&& unary_op, Ts&&... unary_ops) noexcept {
 ///
 /// @returns An ordered, stable list of arguments.
 template <class T>
-std::vector<T*> OrderArguments(Gate* gate) noexcept;
+std::vector<T*> OrderArguments(Gate* gate) ;
 
 /// Assigns topological ordering to nodes of the PDAG.
 /// The ordering is assigned to the node order marks.
@@ -73,63 +73,27 @@ std::vector<T*> OrderArguments(Gate* gate) noexcept;
 /// @param[in,out] graph  The graph to be processed.
 ///
 /// @post The root and descendant node order marks contain the ordering.
-void TopologicalOrder(Pdag* graph) noexcept;
+void TopologicalOrder(Pdag* graph) ;
+
+/// Assigns layered topological ordering to nodes of the PDAG.
+/// Nodes at the same layer are assigned the same order value.
+/// The ordering is assigned to the node order marks.
+/// The highest order value belongs to the root node.
+/// The ordering ensures that all dependencies are assigned to lower layers.
+///
+/// @param[in,out] graph  The graph to be processed.
+///
+/// @post The root and descendant node order marks contain the layered ordering.
+void LayeredTopologicalOrder(Pdag* graph) ;
 
 /// Marks coherence of the whole graph.
 ///
 /// @param[in,out] graph  The graph to be processed.
 ///
 /// @post Gate traversal marks are dirty.
-void MarkCoherence(Pdag* graph) noexcept;
+void MarkCoherence(Pdag* graph) ;
 
 }  // namespace pdag
-
-/// Convergence tracking for iterative preprocessing operations.
-struct ConvergenceTracker {
-  int iteration_count = 0;          ///< Current iteration number.
-  int max_iterations = 10;          ///< Maximum allowed iterations.
-  int no_change_count = 0;          ///< Consecutive iterations with no change.
-  int max_no_change = 3;            ///< Max consecutive iterations with no change.
-  double improvement_threshold = 0.01; ///< Minimum improvement to continue.
-  int last_graph_size = 0;          ///< Graph size from previous iteration.
-  
-  /// Checks if convergence criteria are met.
-  ///
-  /// @param[in] current_size  Current graph size or complexity metric.
-  /// @param[in] changed  Whether the last operation made changes.
-  ///
-  /// @returns true if preprocessing should stop.
-  bool ShouldStop(int current_size, bool changed) noexcept;
-  
-  /// Resets the tracker for a new operation sequence.
-  void Reset() noexcept;
-};
-
-/// Metrics for tracking preprocessing impact and guiding operation ordering.
-struct PreprocessingMetrics {
-  int initial_gate_count = 0;       ///< Initial number of gates.
-  int initial_variable_count = 0;   ///< Initial number of variables.
-  int current_gate_count = 0;       ///< Current number of gates.
-  int current_variable_count = 0;   ///< Current number of variables.
-  int module_count = 0;             ///< Number of detected modules.
-  int complexity_score = 0;         ///< Graph complexity metric.
-  bool has_modules = false;         ///< Whether modules have been detected.
-  bool is_normalized = false;       ///< Whether gates are normalized.
-  bool complements_propagated = false; ///< Whether complements are propagated.
-  
-  /// Updates metrics based on current graph state.
-  ///
-  /// @param[in] graph  The graph to analyze.
-  void Update(const Pdag* graph) noexcept;
-  
-  /// Calculates the impact score of an operation.
-  ///
-  /// @returns Impact score (higher = more beneficial).
-  double CalculateImpact() const noexcept;
-  
-  /// Resets all metrics.
-  void Reset() noexcept;
-};
 
 /// The class provides main preprocessing operations
 /// over a PDAG
@@ -137,89 +101,96 @@ struct PreprocessingMetrics {
 /// and to help analysis run more efficiently.
 class Preprocessor : private boost::noncopyable {
  public:
-  /// Constructs a preprocessor of a PDAG
-  /// representing a fault tree.
-  ///
-  /// @param[in] graph  The PDAG to be preprocessed.
-  ///
-  /// @warning There should not be another shared pointer to the root gate
-  ///          outside of the passed PDAG.
-  ///          Upon preprocessing a new root gate may be assigned to the graph,
-  ///          and, if there is an extra pointer to the previous top gate
-  ///          outside of the graph,
-  ///          the destructor will not be called
-  ///          as expected by the preprocessing algorithms,
-  ///          which will mess the new structure of the PDAG.
-  explicit Preprocessor(Pdag* graph) noexcept;
+    explicit Preprocessor(Pdag *graph) ;
+    /// Constructs a preprocessor of a PDAG
+    /// representing a fault tree.
+    ///
+    /// @param[in] graph  The PDAG to be preprocessed.
+    /// @param settings
+    ///
+    /// @warning There should not be another shared pointer to the root gate
+    ///          outside of the passed PDAG.
+    ///          Upon preprocessing a new root gate may be assigned to the graph,
+    ///          and, if there is an extra pointer to the previous top gate
+    ///          outside of the graph,
+    ///          the destructor will not be called
+    ///          as expected by the preprocessing algorithms,
+    ///          which will mess the new structure of the PDAG.
+  explicit Preprocessor(Pdag* graph, const std::optional<Settings> &settings);
 
   virtual ~Preprocessor() = default;
 
   /// Runs the graph preprocessing.
-  void operator()() noexcept;
+  void operator()() ;
 
  protected:
+
+ enum NormalizationType {
+     NONE,
+     XOR,
+     ATLEAST,
+     ALL,
+ };
+
   class GateSet;  ///< Container of unique gates by semantics.
 
   /// Runs the default preprocessing
   /// that achieves the graph in a normal form.
-  virtual void Run() noexcept = 0;
+  virtual void Run()  = 0;
 
-  /// Optimized preprocessing pipeline that reorders operations by impact
-  /// and uses smart convergence detection.
+  /// The initial phase of preprocessing.
+  /// The most basic cleanup algorithms are applied.
+  /// The cleanup should benefit all other phases
+  /// and algorithms.
   ///
-  /// @note This replaces the traditional phase-based approach with
-  ///       an impact-driven, adaptive strategy.
-  void RunOptimizedPipeline() noexcept;
-
-  /// Applies topological ordering early in preprocessing for smart traversal.
+  /// @note The constants or house events in the graph are cleaned.
+  ///       Any constant state gates must be removed
+  ///       by the future preprocessing algorithms
+  ///       as they introduce these constant state  gates.
+  /// @note NULL type (pass-through) gates are processed.
+  ///       Any NULL type gates must be processed and removed
+  ///       by the future preprocessing algorithms
+  ///       as they introduce these NULL type gates.
   ///
-  /// @post Graph nodes have ordering information for optimal processing.
-  void ApplyEarlyTopologicalOrdering() noexcept;
+  /// @warning This phase also runs partial normalization of gates;
+  ///          however, the preprocessing algorithms should not rely on this.
+  ///          If the partial normalization messes some significant algorithm,
+  ///          it may be removed from this phase in future.
+  void RunPhaseOne() ;
 
-  /// Strategic module detection that combines all module-related operations
-  /// to reduce redundancy.
+  /// Preprocessing phase of the original structure of the graph.
+  /// This phase attempts to leverage
+  /// the existing information from the structure of the graph
+  /// to maximize the optimization
+  /// and to make the preprocessing techniques efficient.
   ///
-  /// @returns true if modules were detected or created.
-  bool PerformStrategicModuleDetection() noexcept;
+  /// @note Multiple definitions of gates are detected and processed.
+  /// @note Modules are detected and created.
+  /// @note Non-module and non-multiple gates are coalesced.
+  /// @note Boolean optimization is applied.
+  void RunPhaseTwo() ;
 
-  /// High-impact Boolean optimization performed early in the pipeline.
+  /// Application of gate normalization.
+  /// After this phase,
+  /// the graph is in normal form.
   ///
-  /// @returns true if the graph was modified.
-  bool PerformEarlyBooleanOptimization() noexcept;
+  /// @note Gate normalization is conducted.
+  void RunPhaseThree() ;
 
-  /// Adaptive normalization that considers graph characteristics.
+  /// Propagation of complements.
+  /// Complements are propagated down to the variables in the graph.
+  /// After this phase,
+  /// the graph is in negation normal form.
   ///
-  /// @param[in] force_full  Whether to force full normalization.
-  ///
-  /// @returns true if normalization was applied.
-  bool PerformAdaptiveNormalization(bool force_full = false) noexcept;
+  /// @note Complements are propagated to the variables of the graph.
+  void RunPhaseFour() ;
 
-  /// Smart loop execution with convergence tracking.
-  ///
-  /// @tparam Operation  Type of the operation to execute.
-  /// @param[in] operation  The operation to execute iteratively.
-  /// @param[in] operation_name  Name for logging purposes.
-  ///
-  /// @returns true if any iteration made changes.
-  template<typename Operation>
-  bool ExecuteWithConvergence(Operation&& operation, const char* operation_name) noexcept;
-
-  /// The initial phase of preprocessing with early optimizations.
-  /// Enhanced to include early topological ordering and impact assessment.
-  void RunPhaseOne() noexcept;
-
-  /// Optimized phase two with strategic operation ordering and convergence.
-  /// Operations are reordered by impact and executed with smart termination.
-  void RunPhaseTwo() noexcept;
-
-  /// Application of gate normalization with adaptive strategy.
-  void RunPhaseThree() noexcept;
-
-  /// Propagation of complements with optimization.
-  void RunPhaseFour() noexcept;
-
-  /// Final phase with optimized cleanup.
-  void RunPhaseFive() noexcept;
+  /// The final phase
+  /// that cleans up the graph,
+  /// and puts the structure of the graph ready for analysis.
+  /// This phase makes the graph structure
+  /// alternating AND/OR gate layers.
+  void RunPhaseFive() ;
 
   /// Normalizes the gates of the whole PDAG
   /// into OR, AND gates.
@@ -239,7 +210,9 @@ class Preprocessor : private boost::noncopyable {
   /// @warning Gate marks are used.
   /// @warning Node ordering may be used for full normalization.
   /// @warning Node visit information is used.
-  void NormalizeGates(bool full) noexcept;
+  void NormalizeGates(bool full);
+
+  void NormalizeGates(NormalizationType type);
 
   /// Notifies all parents of negative gates,
   /// such as NOT, NOR, and NAND,
@@ -255,7 +228,7 @@ class Preprocessor : private boost::noncopyable {
   /// @warning This function does not change the types of gates.
   /// @warning The root gate does not have parents,
   ///          so it is not handled here.
-  void NotifyParentsOfNegativeGates(const GatePtr& gate) noexcept;
+  void NotifyParentsOfNegativeGates(const GatePtr& gate) ;
 
   /// Normalizes complex gates into OR, AND gates.
   ///
@@ -269,7 +242,9 @@ class Preprocessor : private boost::noncopyable {
   /// @warning Gate marks must be clear.
   /// @warning The parents of negative gates are assumed to be
   ///          notified about the change of their arguments' types.
-  void NormalizeGate(const GatePtr& gate, bool full) noexcept;
+  void NormalizeGate(const GatePtr& gate, bool full) ;
+
+  void NormalizeGate(const GatePtr& gate, NormalizationType type) ;
 
   /// Normalizes a gate with XOR logic.
   /// This is a helper function
@@ -278,7 +253,7 @@ class Preprocessor : private boost::noncopyable {
   /// @param[in,out] gate  The gate to normalize.
   ///
   /// @note This is a helper function for NormalizeGate.
-  void NormalizeXorGate(const GatePtr& gate) noexcept;
+  void NormalizeXorGate(const GatePtr& gate) ;
 
   /// Normalizes a ATLEAST gate with a atleast number.
   /// The gate is turned into an OR gate of
@@ -297,7 +272,7 @@ class Preprocessor : private boost::noncopyable {
   ///
   /// @pre Variable ordering is assigned to arguments.
   /// @pre This helper function is called from NormalizeGate.
-  void NormalizeAtleastGate(const GatePtr& gate) noexcept;
+  void NormalizeAtleastGate(const GatePtr& gate) ;
 
   /// Propagates complements of argument gates down to leafs
   /// according to the De Morgan's law
@@ -320,9 +295,9 @@ class Preprocessor : private boost::noncopyable {
   ///          must be inverted according to the logic of the root gate.
   void
   PropagateComplements(const GatePtr& gate, bool keep_modules,
-                       std::unordered_map<int, GatePtr>* complements) noexcept;
+                       std::unordered_map<int, GatePtr>* complements) ;
 
-  /// Runs gate coalescence on the whole PDAG with convergence tracking.
+  /// Runs gate coalescence on the whole PDAG.
   ///
   /// @param[in] common  A flag to also coalesce common/shared gates.
   ///                    These gates may be important for other algorithms.
@@ -332,7 +307,7 @@ class Preprocessor : private boost::noncopyable {
   /// @note Module gates are omitted from coalescing to preserve them.
   ///
   /// @warning Gate marks are used.
-  bool CoalesceGates(bool common) noexcept;
+  bool CoalesceGates(bool common) ;
 
   /// Coalesces positive argument gates
   /// with the same OR or AND logic as parents.
@@ -352,16 +327,20 @@ class Preprocessor : private boost::noncopyable {
   /// @note Module gates are omitted from coalescing to preserve them.
   ///
   /// @warning Gate marks are used.
-  bool CoalesceGates(const GatePtr& gate, bool common) noexcept;
+  bool CoalesceGates(const GatePtr& gate, bool common) ;
 
-  /// Detects and replaces multiple definitions of gates with convergence tracking.
+  /// Detects and replaces multiple definitions of gates.
   /// Gates with the same logic and inputs
   /// but different indices are considered redundant.
   ///
   /// @returns true if multiple definitions are found and replaced.
   ///
-  /// @note Uses convergence tracking to avoid excessive iterations.
-  bool ProcessMultipleDefinitions() noexcept;
+  /// @note This function does not recursively detect multiple definitions
+  ///       due to replaced redundant arguments of gates.
+  ///       The replaced gates are considered a new graph,
+  ///       and this function must be called again
+  ///       to verify that the new graph does not have multiple definitions.
+  bool ProcessMultipleDefinitions() ;
 
   /// Traverses the PDAG to collect multiple definitions of gates.
   ///
@@ -373,11 +352,12 @@ class Preprocessor : private boost::noncopyable {
   void DetectMultipleDefinitions(
       const GatePtr& gate,
       std::unordered_map<GatePtr, std::vector<GateWeakPtr>>* multi_def,
-      GateSet* unique_gates) noexcept;
+      GateSet* unique_gates) ;
 
-  /// Strategic module detection that combines all module operations.
-  /// Replaces multiple separate module detection calls.
-  void DetectModules() noexcept;
+  /// Traverses the PDAG to detect modules.
+  /// Modules are independent sub-graphs
+  /// without common nodes with the rest of the graph.
+  void DetectModules() ;
 
   /// Traverses the given gate
   /// and assigns time of visit to nodes.
@@ -386,14 +366,14 @@ class Preprocessor : private boost::noncopyable {
   /// @param[in,out] gate  The gate to traverse and assign time to.
   ///
   /// @returns The final time of traversing.
-  int AssignTiming(int time, const GatePtr& gate) noexcept;
+  int AssignTiming(int time, const GatePtr& gate) ;
 
   /// Determines modules from original gates
   /// that have been already timed.
   /// This function can also create new modules from the existing graph.
   ///
   /// @param[in,out] gate  The gate to test for modularity.
-  void FindModules(const GatePtr& gate) noexcept;
+  void FindModules(const GatePtr& gate) ;
 
   /// Processes gate arguments found during the module detection.
   ///
@@ -405,7 +385,7 @@ class Preprocessor : private boost::noncopyable {
       const GatePtr& gate,
       const std::vector<std::pair<int, NodePtr>>& non_shared_args,
       std::vector<std::pair<int, NodePtr>>* modular_args,
-      std::vector<std::pair<int, NodePtr>>* non_modular_args) noexcept;
+      std::vector<std::pair<int, NodePtr>>* non_modular_args) ;
 
   /// Creates a new module
   /// as an argument of an existing gate
@@ -422,7 +402,7 @@ class Preprocessor : private boost::noncopyable {
   /// @returns Pointer to the new module if it is created.
   GatePtr
   CreateNewModule(const GatePtr& gate,
-                  const std::vector<std::pair<int, NodePtr>>& args) noexcept;
+                  const std::vector<std::pair<int, NodePtr>>& args) ;
 
   /// Checks if a group of modular arguments share
   /// anything with non-modular arguments.
@@ -435,7 +415,7 @@ class Preprocessor : private boost::noncopyable {
   /// @param[in,out] non_modular_args  Non modular arguments.
   void FilterModularArgs(
       std::vector<std::pair<int, NodePtr>>* modular_args,
-      std::vector<std::pair<int, NodePtr>>* non_modular_args) noexcept;
+      std::vector<std::pair<int, NodePtr>>* non_modular_args) ;
 
   /// Groups modular arguments by their common elements.
   /// The gates created with these modular arguments
@@ -445,7 +425,7 @@ class Preprocessor : private boost::noncopyable {
   /// @param[out] groups  Grouped modular arguments.
   void GroupModularArgs(
       std::vector<std::pair<int, NodePtr>>* modular_args,
-      std::vector<std::vector<std::pair<int, NodePtr>>>* groups) noexcept;
+      std::vector<std::vector<std::pair<int, NodePtr>>>* groups) ;
 
   /// Creates new module gates
   /// from groups of modular arguments
@@ -462,7 +442,7 @@ class Preprocessor : private boost::noncopyable {
   void CreateNewModules(
       const GatePtr& gate,
       const std::vector<std::pair<int, NodePtr>>& modular_args,
-      const std::vector<std::vector<std::pair<int, NodePtr>>>& groups) noexcept;
+      const std::vector<std::vector<std::pair<int, NodePtr>>>& groups) ;
 
   /// Gathers all modules in the PDAG.
   ///
@@ -471,9 +451,9 @@ class Preprocessor : private boost::noncopyable {
   /// @pre Module detection and marking has already been performed.
   ///
   /// @warning Gate marks are used.
-  std::vector<GateWeakPtr> GatherModules() noexcept;
+  std::vector<GateWeakPtr> GatherModules() ;
 
-  /// Identifies common arguments of gates with convergence tracking,
+  /// Identifies common arguments of gates,
   /// and merges the common arguments into new gates.
   /// This technique helps uncover the common structure
   /// within gates that are not modules.
@@ -487,7 +467,7 @@ class Preprocessor : private boost::noncopyable {
   ///
   /// @warning Gate marks are used for traversal.
   /// @warning Node counts are used for common node detection.
-  bool MergeCommonArgs() noexcept;
+  bool MergeCommonArgs() ;
 
   /// Merges common arguments for a specific group of gates.
   /// The gates are grouped by their connectives.
@@ -503,7 +483,7 @@ class Preprocessor : private boost::noncopyable {
   ///
   /// @warning Gate marks are used for traversal.
   /// @warning Node counts are used for common node detection.
-  bool MergeCommonArgs(Connective op) noexcept;
+  bool MergeCommonArgs(Connective op) ;
 
   /// Marks common arguments of gates with a specific connective.
   ///
@@ -514,7 +494,7 @@ class Preprocessor : private boost::noncopyable {
   /// @note Node count information is used to mark the common arguments.
   ///
   /// @warning Gate marks are used for linear traversal.
-  void MarkCommonArgs(const GatePtr& gate, Connective op) noexcept;
+  void MarkCommonArgs(const GatePtr& gate, Connective op) ;
 
   /// Helper struct for algorithms
   /// that must make an optimal decision
@@ -553,7 +533,7 @@ class Preprocessor : private boost::noncopyable {
   ///
   /// @warning Gate marks are used for linear traversal.
   void GatherCommonArgs(const GatePtr& gate, Connective op,
-                        MergeTable::Candidates* group) noexcept;
+                        MergeTable::Candidates* group) ;
 
   /// Filters merge candidates and their shared arguments
   /// to detect opportunities for simplifications like gate substitutions.
@@ -566,7 +546,7 @@ class Preprocessor : private boost::noncopyable {
   /// @warning May produce NULL type and constant gates.
   ///
   /// @todo Consider repeating until no change can be made.
-  void FilterMergeCandidates(MergeTable::Candidates* candidates) noexcept;
+  void FilterMergeCandidates(MergeTable::Candidates* candidates) ;
 
   /// Groups candidates with common arguments.
   /// The groups do not intersect
@@ -578,7 +558,7 @@ class Preprocessor : private boost::noncopyable {
   /// @note Groups with only one member are discarded.
   void
   GroupCandidatesByArgs(MergeTable::Candidates* candidates,
-                        std::vector<MergeTable::Candidates>* groups) noexcept;
+                        std::vector<MergeTable::Candidates>* groups) ;
 
   /// Finds intersections of common arguments of gates.
   /// Gates with the same common arguments are grouped
@@ -592,7 +572,7 @@ class Preprocessor : private boost::noncopyable {
   /// @note The common arguments are sorted.
   void GroupCommonParents(int num_common_args,
                           const MergeTable::Candidates& group,
-                          MergeTable::Collection* parents) noexcept;
+                          MergeTable::Collection* parents) ;
 
   /// Groups common args for merging.
   /// The common parents of arguments are isolated into groups
@@ -601,7 +581,7 @@ class Preprocessor : private boost::noncopyable {
   /// @param[in] options  Combinations of common args and distributive gates.
   /// @param[out] table  Groups of distributive gates for separate manipulation.
   void GroupCommonArgs(const MergeTable::Collection& options,
-                       MergeTable* table) noexcept;
+                       MergeTable* table) ;
 
   /// Finds an optimal way of grouping options.
   /// The goal of this function is
@@ -641,7 +621,7 @@ class Preprocessor : private boost::noncopyable {
   /// @todo The current logic misses opportunities
   ///       that may branch with the same base option.
   void FindOptionGroup(MergeTable::MergeGroup* all_options,
-                       MergeTable::OptionGroup* best_group) noexcept;
+                       MergeTable::OptionGroup* best_group) ;
 
   /// Finds the starting option for group formation.
   ///
@@ -651,19 +631,19 @@ class Preprocessor : private boost::noncopyable {
   /// @param[out] best_option  The optimal starting option if any.
   ///                          If not found, iterator at the end of the group.
   void FindBaseOption(MergeTable::MergeGroup* all_options,
-                      MergeTable::MergeGroup::iterator* best_option) noexcept;
+                      MergeTable::MergeGroup::iterator* best_option) ;
 
   /// Transforms common arguments of gates
   /// into new gates.
   ///
   /// @param[in,out] group  Group of merge options for manipulation.
-  void TransformCommonArgs(MergeTable::MergeGroup* group) noexcept;
+  void TransformCommonArgs(MergeTable::MergeGroup* group) ;
 
   /// Detects and manipulates AND and OR gate distributivity
-  /// for the whole graph with convergence tracking.
+  /// for the whole graph.
   ///
   /// @returns true if the graph is changed.
-  bool DetectDistributivity() noexcept;
+  bool DetectDistributivity() ;
 
   /// Detects and manipulates AND and OR gate distributivity.
   /// For example,
@@ -677,7 +657,7 @@ class Preprocessor : private boost::noncopyable {
   /// @note NULL type gates are registered if produced.
   ///
   /// @warning Gate marks must be clear.
-  bool DetectDistributivity(const GatePtr& gate) noexcept;
+  bool DetectDistributivity(const GatePtr& gate) ;
 
   /// Manipulates gates with distributive arguments.
   /// Designed to work with distributivity detection and manipulation logic.
@@ -688,7 +668,7 @@ class Preprocessor : private boost::noncopyable {
   ///
   /// @returns true if transformations are performed.
   bool HandleDistributiveArgs(const GatePtr& gate, Connective distr_type,
-                              std::vector<GatePtr>* candidates) noexcept;
+                              std::vector<GatePtr>* candidates) ;
 
   /// Detects relationships between the gate and its distributive arguments
   /// to remove unnecessary candidates.
@@ -703,7 +683,7 @@ class Preprocessor : private boost::noncopyable {
   ///
   /// @note The redundant candidates are also removed from the gate.
   bool FilterDistributiveArgs(const GatePtr& gate,
-                              std::vector<GatePtr>* candidates) noexcept;
+                              std::vector<GatePtr>* candidates) ;
 
   /// Groups distributive gate arguments
   /// for future factorization.
@@ -715,7 +695,7 @@ class Preprocessor : private boost::noncopyable {
   ///
   /// @todo Evaluate various grouping strategies as in common arg merging.
   void GroupDistributiveArgs(const MergeTable::Collection& options,
-                             MergeTable* table) noexcept;
+                             MergeTable* table) ;
 
   /// Transforms distributive of arguments gates
   /// into a new subgraph.
@@ -724,7 +704,7 @@ class Preprocessor : private boost::noncopyable {
   /// @param[in] distr_type  The type of distributive arguments.
   /// @param[in,out] group  Group of distributive args options for manipulation.
   void TransformDistributiveArgs(const GatePtr& gate, Connective distr_type,
-                                 MergeTable::MergeGroup* group) noexcept;
+                                 MergeTable::MergeGroup* group) ;
 
   /// Propagates failures of common nodes to detect redundancy.
   /// The graph structure is optimized
@@ -735,7 +715,7 @@ class Preprocessor : private boost::noncopyable {
   /// @warning Node visit information is manipulated.
   /// @warning Gate marks are manipulated.
   /// @warning Node optimization values are manipulated.
-  void BooleanOptimization() noexcept;
+  void BooleanOptimization() ;
 
   /// Traverses the graph to find nodes
   /// that have more than one parent.
@@ -750,7 +730,7 @@ class Preprocessor : private boost::noncopyable {
   /// @warning Node visit information is manipulated.
   void GatherCommonNodes(
       std::vector<GateWeakPtr>* common_gates,
-      std::vector<std::weak_ptr<Variable>>* common_variables) noexcept;
+      std::vector<std::weak_ptr<Variable>>* common_variables) ;
 
   /// Tries to simplify the graph by removing redundancies
   /// generated by a common node.
@@ -759,7 +739,7 @@ class Preprocessor : private boost::noncopyable {
   ///
   /// @param[in] common_node  A node with more than one parent.
   template <class N>
-  void ProcessCommonNode(const std::weak_ptr<N>& common_node) noexcept;
+  void ProcessCommonNode(const std::weak_ptr<N>& common_node) ;
 
   /// Marks ancestor gates true.
   /// The marking stops at the root
@@ -774,7 +754,7 @@ class Preprocessor : private boost::noncopyable {
   ///          cleanup must be performed after/with the use of the ancestors.
   ///          If the cleanup is done improperly or not at all,
   ///          the default global contract of clean marks will be broken.
-  void MarkAncestors(const NodePtr& node, GatePtr* module) noexcept;
+  void MarkAncestors(const NodePtr& node, GatePtr* module) ;
 
   /// Propagates failure or success of a common node
   /// by setting its ancestors' optimization values to 1 or -1
@@ -792,7 +772,7 @@ class Preprocessor : private boost::noncopyable {
   ///
   /// @post The marks of all ancestor gates are reset to 'false'.
   /// @post All ancestor gates are marked with the descendant index.
-  int PropagateState(const GatePtr& gate, const NodePtr& node) noexcept;
+  int PropagateState(const GatePtr& gate, const NodePtr& node) ;
 
   /// Determines if a gate fails or succeeds
   /// due to failed/succeeded arguments.
@@ -804,7 +784,7 @@ class Preprocessor : private boost::noncopyable {
   /// @param[in] num_failure  The number of failure (TRUE/1) arguments.
   /// @param[in] num_success  The number of success (FALSE/-1) arguments.
   void DetermineGateState(const GatePtr& gate, int num_failure,
-                          int num_success) noexcept;
+                          int num_success) ;
 
   /// Collects failure or success destinations
   /// and marks non-redundant nodes.
@@ -817,7 +797,7 @@ class Preprocessor : private boost::noncopyable {
   /// @returns The number of encounters with the destinations.
   int CollectStateDestinations(
       const GatePtr& gate, int index,
-      std::unordered_map<int, GateWeakPtr>* destinations) noexcept;
+      std::unordered_map<int, GateWeakPtr>* destinations) ;
 
   /// Detects if parents of a node are redundant.
   ///
@@ -832,7 +812,7 @@ class Preprocessor : private boost::noncopyable {
   ///       if the semantics of the transformations is equivalent.
   void CollectRedundantParents(
       const NodePtr& node, std::unordered_map<int, GateWeakPtr>* destinations,
-      std::vector<GateWeakPtr>* redundant_parents) noexcept;
+      std::vector<GateWeakPtr>* redundant_parents) ;
 
   /// Detects if parents of a node are redundant.
   /// If there are redundant parents,
@@ -848,7 +828,7 @@ class Preprocessor : private boost::noncopyable {
   /// @note Null type gates are registered for removal.
   void ProcessRedundantParents(
       const NodePtr& node,
-      const std::vector<GateWeakPtr>& redundant_parents) noexcept;
+      const std::vector<GateWeakPtr>& redundant_parents) ;
 
   /// Transforms failure or success destination
   /// according to the logic and the common node.
@@ -863,7 +843,7 @@ class Preprocessor : private boost::noncopyable {
   template <class N>
   void ProcessStateDestinations(
       const std::shared_ptr<N>& node,
-      const std::unordered_map<int, GateWeakPtr>& destinations) noexcept;
+      const std::unordered_map<int, GateWeakPtr>& destinations) ;
 
   /// Clears all the ancestor marks used in Boolean optimization steps.
   ///
@@ -873,9 +853,9 @@ class Preprocessor : private boost::noncopyable {
   /// @pre The common node itself is not the ancestor.
   ///
   /// @warning The common node must be cleaned separately.
-  void ClearStateMarks(const GatePtr& gate) noexcept;
+  void ClearStateMarks(const GatePtr& gate) ;
 
-  /// The Shannon decomposition for common nodes in the PDAG with convergence tracking.
+  /// The Shannon decomposition for common nodes in the PDAG.
   /// This procedure is also called "Constant Propagation",
   /// but it is confusing with the actual propagation of
   /// house events and constant gates.
@@ -897,7 +877,7 @@ class Preprocessor : private boost::noncopyable {
   /// @warning Gate ancestor marks are used.
   /// @warning Node visit information is used.
   /// @warning Gate marks are used.
-  bool DecomposeCommonNodes() noexcept;
+  bool DecomposeCommonNodes() ;
 
   /// Functor for processing of decomposition setups with common nodes.
   class DecompositionProcessor {
@@ -915,7 +895,7 @@ class Preprocessor : private boost::noncopyable {
     ///
     /// @returns true if the decomposition setups are found and processed.
     bool operator()(const std::weak_ptr<Node>& common_node,
-                    Preprocessor* preprocessor) noexcept;
+                    Preprocessor* preprocessor) ;
 
    private:
     /// Marks destinations for common node decomposition.
@@ -932,7 +912,7 @@ class Preprocessor : private boost::noncopyable {
     /// @pre Marking is limited by a single root module.
     ///
     /// @post The ancestor gate descendant marks are set to the index.
-    void MarkDestinations(const GatePtr& parent) noexcept;
+    void MarkDestinations(const GatePtr& parent) ;
 
     /// Processes decomposition destinations
     /// with the decomposition setups.
@@ -945,7 +925,7 @@ class Preprocessor : private boost::noncopyable {
     /// @warning Gate descendant marks are used to detect ancestor.
     /// @warning Gate ancestor marks are used to detect sub-graphs.
     /// @warning Gate visit time information is used to detect shared nodes.
-    bool ProcessDestinations(const std::vector<GateWeakPtr>& dest) noexcept;
+    bool ProcessDestinations(const std::vector<GateWeakPtr>& dest) ;
 
     /// Processes decomposition ancestors
     /// in the link to the decomposition destinations.
@@ -965,7 +945,7 @@ class Preprocessor : private boost::noncopyable {
     /// @warning Gate ancestor marks are used to detect sub-graphs.
     /// @warning Gate visit time information is used to detect shared nodes.
     bool ProcessAncestors(const GatePtr& ancestor, bool state,
-                          const GatePtr& root) noexcept;
+                          const GatePtr& root) ;
 
     /// Determines if none of the gate ancestors of the node
     /// is outside of the given graph.
@@ -982,7 +962,7 @@ class Preprocessor : private boost::noncopyable {
     /// @post The ancestor gates are marked with the signed root gate index
     ///       as explained in the precondition.
     static bool IsAncestryWithinGraph(const GatePtr& gate,
-                                      const GatePtr& root) noexcept;
+                                      const GatePtr& root) ;
 
     /// Clears only the used ancestor marks.
     ///
@@ -992,7 +972,7 @@ class Preprocessor : private boost::noncopyable {
     ///
     /// @post Gate ancestor marks are set to 0.
     static void ClearAncestorMarks(const GatePtr& gate,
-                                   const GatePtr& root) noexcept;
+                                   const GatePtr& root) ;
 
     NodePtr node_;  ///< The common node to process.
     Preprocessor* preprocessor_ = nullptr;  ///< The host preprocessor.
@@ -1008,7 +988,7 @@ class Preprocessor : private boost::noncopyable {
   ///
   /// @post If any parent becomes constant or NULL type,
   ///       the parent is registered for removal.
-  void ReplaceGate(const GatePtr& gate, const GatePtr& replacement) noexcept;
+  void ReplaceGate(const GatePtr& gate, const GatePtr& replacement) ;
 
   /// Registers mutated gates for potential deletion later.
   ///
@@ -1017,7 +997,7 @@ class Preprocessor : private boost::noncopyable {
   /// @returns true if the gate is registered for clearance.
   ///
   /// @pre The caller will later call the appropriate cleanup functions.
-  bool RegisterToClear(const GatePtr& gate) noexcept;
+  bool RegisterToClear(const GatePtr& gate) ;
 
   /// Gathers all nodes in the PDAG.
   ///
@@ -1026,7 +1006,7 @@ class Preprocessor : private boost::noncopyable {
   ///
   /// @warning Node visit information is manipulated.
   void GatherNodes(std::vector<GatePtr>* gates,
-                   std::vector<VariablePtr>* variables) noexcept;
+                   std::vector<VariablePtr>* variables) ;
 
   /// Gathers nodes in the sub-graph.
   ///
@@ -1036,73 +1016,13 @@ class Preprocessor : private boost::noncopyable {
   ///
   /// @pre Visited nodes are marked.
   void GatherNodes(const GatePtr& gate, std::vector<GatePtr>* gates,
-                   std::vector<VariablePtr>* variables) noexcept;
-
-  /// Smart loop execution with convergence tracking
-  template<typename Operation>
-  bool SmartLoop(Operation operation, const std::string& operation_name) noexcept {
-    convergence_tracker_.Reset();
-    bool overall_changed = false;
-    
-    while (true) {
-      int current_complexity = CalculateComplexityScore();
-      bool iteration_changed = operation();
-      overall_changed |= iteration_changed;
-      
-      if (convergence_tracker_.ShouldStop(current_complexity, iteration_changed)) {
-        LOG(DEBUG3) << operation_name << " converged after " 
-                    << convergence_tracker_.iteration_count << " iterations";
-        break;
-      }
-    }
-    
-    return overall_changed;
-  }
-  
-  /// Calculates the current graph complexity score.
-  ///
-  /// @returns Complexity score based on various graph metrics.
-  int CalculateComplexityScore() const noexcept;
-
-  /// Checks if the graph structure has stabilized.
-  ///
-  /// @param[in] previous_metrics  Metrics from previous iteration.
-  ///
-  /// @returns true if the graph has converged.
-  bool HasConverged(const PreprocessingMetrics& previous_metrics) const noexcept;
+                   std::vector<VariablePtr>* variables) ;
 
   /// @todo Eliminate the protected data.
   Pdag* graph_;  ///< The PDAG to preprocess.
-  ConvergenceTracker convergence_tracker_;  ///< Tracks operation convergence.
-  PreprocessingMetrics metrics_;  ///< Current preprocessing metrics.
-};
 
-/// Template method for executing operations with convergence tracking.
-template<typename Operation>
-bool Preprocessor::ExecuteWithConvergence(Operation&& operation, const char* operation_name) noexcept {
-  convergence_tracker_.Reset();
-  bool overall_changed = false;
-  
-  while (true) {
-    PreprocessingMetrics previous_metrics = metrics_;
-    bool changed = operation();
-    
-    metrics_.Update(graph_);
-    overall_changed |= changed;
-    
-    int current_size = metrics_.current_gate_count + metrics_.current_variable_count;
-    
-    if (convergence_tracker_.ShouldStop(current_size, changed)) {
-      break;
-    }
-    
-    if (HasConverged(previous_metrics)) {
-      break;
-    }
-  }
-  
-  return overall_changed;
-}
+  std::optional<Settings> settings_; ///< optional settings, passed down to preprocessor
+};
 
 /// Undefined template class for specialization of Preprocessor
 /// for needs of specific analysis algorithms.
@@ -1120,14 +1040,9 @@ class CustomPreprocessor<Bdd> : public Preprocessor {
   using Preprocessor::Preprocessor;
 
  private:
-  /// Optimized preprocessing for Binary Decision Diagrams with early optimizations.
-  /// Applies algorithm-specific optimizations early in the pipeline.
-  void Run() noexcept override;
-  
-  /// BDD-specific early optimizations.
-  ///
-  /// @returns true if optimizations were applied.
-  bool ApplyBddEarlyOptimizations() noexcept;
+  /// Performs preprocessing for analyses with Binary Decision Diagrams.
+  /// This preprocessing assigns the order for variables for BDD construction.
+  void Run()  override;
 };
 
 class Zbdd;
@@ -1139,14 +1054,11 @@ class CustomPreprocessor<Zbdd> : public Preprocessor {
   using Preprocessor::Preprocessor;
 
  protected:
-  /// Optimized preprocessing for Zero-Suppressed Binary Decision Diagrams.
-  /// Includes early complement propagation and algorithm-specific optimizations.
-  void Run() noexcept override;
-  
-  /// ZBDD-specific early optimizations.
-  ///
-  /// @returns true if optimizations were applied.
-  bool ApplyZbddEarlyOptimizations() noexcept;
+  /// Performs preprocessing for analyses
+  /// with Zero-Suppressed Binary Decision Diagrams.
+  /// Complements are propagated to variables.
+  /// This preprocessing assigns the order for variables for ZBDD construction.
+  void Run()  override;
 };
 
 class Mocus;
@@ -1158,8 +1070,13 @@ class CustomPreprocessor<Mocus> : public CustomPreprocessor<Zbdd> {
   using CustomPreprocessor<Zbdd>::CustomPreprocessor;
 
  private:
-  /// Optimized preprocessing for MOCUS with early variable ordering optimization.
-  void Run() noexcept override;
+  /// Performs processing of a fault tree
+  /// to simplify the structure to
+  /// normalized (OR/AND gates only),
+  /// modular (independent sub-trees),
+  /// positive-gate-only (negation normal) PDAG.
+  /// The variable ordering is assigned specifically for MOCUS.
+  void Run()  override;
 
   /// Groups and inverts the topological ordering for nodes.
   /// The inversion is done to simplify the work of MOCUS facilities,
@@ -1172,12 +1089,19 @@ class CustomPreprocessor<Mocus> : public CustomPreprocessor<Zbdd> {
   ///
   /// Note, however, the inversion of the order
   /// generally (dramatically) increases the size of Binary Decision Diagrams.
-  void InvertOrder() noexcept;
-  
-  /// MOCUS-specific early optimizations.
-  ///
-  /// @returns true if optimizations were applied.
-  bool ApplyMocusEarlyOptimizations() noexcept;
+  void InvertOrder() ;
 };
+
+  /// Specialization of preprocessing for DirectEval analysis.
+template <>
+class CustomPreprocessor<mc::DirectEval> : public Preprocessor {
+  public:
+    using Preprocessor::Preprocessor;
+
+  private:
+    void Run()  override;
+    void InvertOrder() ;
+    [[nodiscard]] auto remove_null_gates() const;
+  };
 
 }  // namespace scram::core

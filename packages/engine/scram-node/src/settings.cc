@@ -20,18 +20,20 @@
 /// Implementation of Settings Builder.
 
 #include "settings.h"
+#include "error.h"
 
 #include <string>
-
 #include <boost/range/algorithm.hpp>
-
-#include "error.h"
 
 namespace scram::core {
 
-Settings& Settings::algorithm(Algorithm value) noexcept {
+Settings& Settings::algorithm(Algorithm value)  {
   algorithm_ = value;
   switch (algorithm_) {
+    case Algorithm::kDirect:
+      approximation(Approximation::kMonteCarlo);
+      skip_products(true);
+      break;
     case Algorithm::kBdd:
       approximation(Approximation::kNone);
       break;
@@ -56,9 +58,9 @@ Settings& Settings::algorithm(std::string_view value) {
 }
 
 Settings& Settings::approximation(Approximation value) {
-  if (value != Approximation::kNone && prime_implicants_)
-    SCRAM_THROW(SettingsError(
-        "Prime implicants require no quantitative approximation."));
+    if (prime_implicants_ && (value == Approximation::kMcub || value == Approximation::kRareEvent)) {
+        SCRAM_THROW(SettingsError("Prime implicants cannot be compute when using mcub or rare-event approximations."));
+    }
   approximation_ = value;
   return *this;
 }
@@ -75,13 +77,9 @@ Settings& Settings::approximation(std::string_view value) {
 }
 
 Settings& Settings::prime_implicants(bool flag) {
-  if (flag && algorithm_ != Algorithm::kBdd)
-    SCRAM_THROW(
-        SettingsError("Prime implicants can only be calculated with BDD"));
-
+  if (flag && (algorithm_ == Algorithm::kMocus || algorithm_ == Algorithm::kZbdd))
+    SCRAM_THROW(SettingsError("Prime implicants can only be calculated with BDD or PDAG"));
   prime_implicants_ = flag;
-  if (prime_implicants_)
-    approximation(Approximation::kNone);
   return *this;
 }
 
@@ -105,12 +103,12 @@ Settings& Settings::cut_off(double prob) {
   return *this;
 }
 
-Settings& Settings::num_trials(int n) {
-  if (n < 1)
-    SCRAM_THROW(SettingsError("The number of trials cannot be less than 1."))
-        << errinfo_value(std::to_string(n));
-
-  num_trials_ = n;
+Settings& Settings::num_trials(const std::double_t n) {
+  const std::size_t nt = static_cast<std::size_t>(std::round(std::max(0.0, n)));
+  if (!nt) {
+    early_stop_ = true;
+  }
+  num_trials_ = nt;
   return *this;
 }
 

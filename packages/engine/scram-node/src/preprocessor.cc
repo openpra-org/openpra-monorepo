@@ -95,7 +95,7 @@ namespace scram::core {
 namespace pdag {
 
 template <class T>
-std::vector<T*> OrderArguments(Gate* gate) noexcept {
+std::vector<T*> OrderArguments(Gate* gate)  {
   std::vector<T*> args;
   for (const Gate::Arg<T>& arg : gate->args<T>()) {
     args.push_back(arg.second.get());
@@ -106,7 +106,7 @@ std::vector<T*> OrderArguments(Gate* gate) noexcept {
   return args;
 }
 
-void TopologicalOrder(Pdag* graph) noexcept {
+void TopologicalOrder(Pdag* graph)  {
   // Assigns the order starting from the given gate arguments.
   auto topological_order = [](auto& self, Gate* root, int order) {
     if (root->order())
@@ -127,7 +127,55 @@ void TopologicalOrder(Pdag* graph) noexcept {
   topological_order(topological_order, graph->root().get(), 0);
 }
 
-void MarkCoherence(Pdag* graph) noexcept {
+void LayeredTopologicalOrder(Pdag* graph)  {
+    std::unordered_map<Node*, int> depths;
+
+    std::function<int(Node*)> compute_depth = [&](Node* node) -> int {
+        // Memoization check.
+        auto it = depths.find(node);
+        if (it != depths.end()) {
+            return it->second;
+        }
+
+        // Leaf node case.
+        if (dynamic_cast<Variable*>(node) || dynamic_cast<Constant*>(node)) {
+            node->order(0);
+            depths[node] = 0;
+            return 0;
+        }
+
+        // Gate node case.
+        Gate* gate = dynamic_cast<Gate*>(node);
+        assert(gate && "Node is neither a Variable, Constant, nor a Gate.");
+
+        int max_child_depth = -1;
+
+        // Compute depths of Variable arguments.
+        for (const Gate::Arg<Variable>& arg_pair : gate->args<Variable>()) {
+            Node* child = arg_pair.second.get();
+            int child_depth = compute_depth(child);
+            max_child_depth = std::max(max_child_depth, child_depth);
+        }
+
+        // Compute depths of Gate arguments.
+        for (const Gate::Arg<Gate>& arg_pair : gate->args<Gate>()) {
+            Node* child = arg_pair.second.get();
+            int child_depth = compute_depth(child);
+            max_child_depth = std::max(max_child_depth, child_depth);
+        }
+
+        // Assign depth and order to the gate.
+        int depth = max_child_depth + 1;
+        gate->order(depth);
+        depths[gate] = depth;
+        return depth;
+    };
+
+    graph->Clear<Pdag::kOrder>();
+    compute_depth(graph->root().get());
+}
+
+void MarkCoherence(Pdag* graph)  {
   auto mark_coherence = [](auto& self, const GatePtr& gate) {
     if (gate->mark())
       return;
@@ -168,258 +216,22 @@ void MarkCoherence(Pdag* graph) noexcept {
 
 }  // namespace pdag
 
-// ConvergenceTracker implementation
-bool ConvergenceTracker::ShouldStop(int current_size, bool changed) noexcept {
-  iteration_count++;
-  
-  if (!changed) {
-    no_change_count++;
-  } else {
-    no_change_count = 0;
-  }
-  
-  // Check convergence criteria
-  if (iteration_count >= max_iterations) {
-    return true; // Hit iteration limit
-  }
-  
-  if (no_change_count >= max_no_change) {
-    return true; // No changes for consecutive iterations
-  }
-  
-  // Check improvement threshold
-  if (last_graph_size > 0) {
-    double improvement = static_cast<double>(last_graph_size - current_size) / last_graph_size;
-    if (improvement < improvement_threshold && iteration_count > 2) {
-      return true; // Minimal improvement
-    }
-  }
-  
-  last_graph_size = current_size;
-  return false;
-}
+Preprocessor::Preprocessor(Pdag *graph)  : graph_(graph) {}
 
-void ConvergenceTracker::Reset() noexcept {
-  iteration_count = 0;
-  no_change_count = 0;
-  last_graph_size = 0;
-}
-
-// Alternative implementation using gate references:
-void PreprocessingMetrics::Update(const Pdag* graph) noexcept {
-  current_gate_count = 0;
-  current_variable_count = 0;
-  module_count = 0;
-  
-  // Simple recursive counting function
-  std::function<void(const GatePtr&)> count_gate;
-  count_gate = [&](const GatePtr& gate) {
-    if (gate->mark()) return;
-    const_cast<Gate*>(gate.get())->mark(true);
-    
-    current_gate_count++;
-    if (gate->module()) {
-      module_count++;
-    }
-    
-    for (const Gate::Arg<Gate>& arg : gate->args<Gate>()) {
-      count_gate(arg.second);
-    }
-    current_variable_count += gate->args<Variable>().size();
-  };
-  
-  const_cast<Pdag*>(graph)->Clear<Pdag::kGateMark>();
-  count_gate(const_cast<Pdag*>(graph)->root());
-  const_cast<Pdag*>(graph)->Clear<Pdag::kGateMark>();
-  
-  // Calculate complexity score
-  complexity_score = current_gate_count * 2 + current_variable_count;
-  has_modules = module_count > 0;
-  is_normalized = graph->normal();
-}
-
-double PreprocessingMetrics::CalculateImpact() const noexcept {
-  double impact = 0.0;
-  
-  if (initial_gate_count > 0) {
-    double gate_reduction = static_cast<double>(initial_gate_count - current_gate_count) / initial_gate_count;
-    impact += gate_reduction * 50.0; // Weight gate reduction heavily
-  }
-  
-  if (initial_variable_count > 0) {
-    double var_reduction = static_cast<double>(initial_variable_count - current_variable_count) / initial_variable_count;
-    impact += var_reduction * 30.0;
-  }
-  
-  // Bonus for module detection
-  if (has_modules) {
-    impact += module_count * 5.0;
-  }
-  
-  // Bonus for normalization
-  if (is_normalized) {
-    impact += 10.0;
-  }
-  
-  return impact;
-}
-
-void PreprocessingMetrics::Reset() noexcept {
-  initial_gate_count = 0;
-  initial_variable_count = 0;
-  current_gate_count = 0;
-  current_variable_count = 0;
-  module_count = 0;
-  complexity_score = 0;
-  has_modules = false;
-  is_normalized = false;
-  complements_propagated = false;
-}
-
-Preprocessor::Preprocessor(Pdag* graph) noexcept : graph_(graph) {}
-
-void Preprocessor::operator()() noexcept {
+Preprocessor::Preprocessor(Pdag *graph, const std::optional<Settings> &settings) : graph_(graph), settings_(settings) {}
+void Preprocessor::operator()()  {
   TIMER(DEBUG2, "Preprocessing");
   this->Run();
 }
 
-void Preprocessor::Run() noexcept {
-  // Use the new optimized pipeline by default for better performance
-  // Falls back to traditional phases only for specific compatibility needs
-  RunOptimizedPipeline();
-}
-
-void Preprocessor::RunOptimizedPipeline() noexcept {
-  TIMER(DEBUG2, "Optimized Preprocessing Pipeline");
-  
-  // Initialize metrics
-  metrics_.Reset();
-  metrics_.Update(graph_);
-  metrics_.initial_gate_count = metrics_.current_gate_count;
-  metrics_.initial_variable_count = metrics_.current_variable_count;
-  
-  graph_->Log();
-  
-  // Phase 1: Early setup and high-impact optimizations
-  if (graph_->HasNullGates()) {
-    graph_->RemoveNullGates();
-  }
-  
-  if (!graph_->coherent()) {
-    pdag::MarkCoherence(graph_);
-  }
-  
-  // Apply early topological ordering for smart traversal
-  ApplyEarlyTopologicalOrdering();
-  
-  // Phase 2: High-impact Boolean optimization early
-  if (PerformEarlyBooleanOptimization()) {
-    metrics_.Update(graph_);
-  }
-  
-  // Phase 3: Strategic module detection (replaces multiple calls)
-  if (PerformStrategicModuleDetection()) {
-    metrics_.Update(graph_);
-  }
-  
-  // Phase 4: Adaptive normalization based on graph characteristics
-  if (PerformAdaptiveNormalization()) {
-    metrics_.Update(graph_);
-    
-    // Continue with Phase II optimizations after normalization
-    RunPhaseTwo();
-  }
-  
-  // Phase 5: Final optimization with smart convergence
-  SmartLoop([this]() { return CoalesceGates(true); }, "Final Coalescing");
-  
-  graph_->Log();
-  LOG(DEBUG2) << "Optimized pipeline completed. Impact: " << metrics_.CalculateImpact();
-}
-
-void Preprocessor::ApplyEarlyTopologicalOrdering() noexcept {
-  TIMER(DEBUG3, "Early Topological Ordering");
-  
-  if (!graph_->root()->constant()) {
-    pdag::TopologicalOrder(graph_);
-    LOG(DEBUG3) << "Early topological ordering applied for smart traversal";
-  }
-}
-
-bool Preprocessor::PerformStrategicModuleDetection() noexcept {
-  TIMER(DEBUG3, "Strategic Module Detection");
-  
-  // Combine all module-related operations to reduce redundancy
-  bool changed = false;
-  PreprocessingMetrics previous_metrics = metrics_;
-  
-  // Single comprehensive module detection
-  DetectModules();
-  metrics_.Update(graph_);
-  
-  if (metrics_.module_count > previous_metrics.module_count) {
-    changed = true;
-    LOG(DEBUG3) << "Strategic module detection found " 
-                << (metrics_.module_count - previous_metrics.module_count) 
-                << " new modules";
-  }
-  
-  return changed;
-}
-
-bool Preprocessor::PerformEarlyBooleanOptimization() noexcept {
-  TIMER(DEBUG3, "Early Boolean Optimization");
-  
-  if (graph_->root()->constant()) {
-    return false;
-  }
-  
-  PreprocessingMetrics previous_metrics = metrics_;
-  
-  // High-impact Boolean optimization performed early
-  BooleanOptimization();
-  
-  // Check if optimization had significant impact
-  metrics_.Update(graph_);
-  bool significant_impact = !HasConverged(previous_metrics);
-  
-  if (significant_impact) {
-    LOG(DEBUG3) << "Early Boolean optimization had significant impact";
-  }
-  
-  return significant_impact;
-}
-
-bool Preprocessor::PerformAdaptiveNormalization(bool force_full) noexcept {
-  TIMER(DEBUG3, "Adaptive Normalization");
-  
-  if (graph_->normal() && !force_full) {
-    return false; // Already normalized
-  }
-  
-  // Determine normalization strategy based on graph characteristics
-  bool use_full_normalization = force_full;
-  
-  if (!use_full_normalization) {
-    // Use complexity metrics to decide on full vs partial normalization
-    int complexity = CalculateComplexityScore();
-    use_full_normalization = (complexity > 1000) || (metrics_.current_gate_count > 100);
-  }
-  
-  PreprocessingMetrics previous_metrics = metrics_;
-  
-  NormalizeGates(use_full_normalization);
-  graph_->normal(true);
-  metrics_.is_normalized = true;
-  
-  metrics_.Update(graph_);
-  bool had_impact = !HasConverged(previous_metrics);
-  
-  LOG(DEBUG3) << "Adaptive normalization (" 
-              << (use_full_normalization ? "full" : "partial") 
-              << ") completed with" << (had_impact ? "" : "out") << " significant impact";
-  
-  return had_impact;
+void Preprocessor::Run()  {
+  TIMER(DEBUG2, "Preprocessor:: Running Transform Phases I, II, and III...");
+  pdag::Transform(graph_, [this](Pdag*) { RunPhaseOne(); },
+                  [this](Pdag*) { RunPhaseTwo(); },
+                  [this](Pdag*) {
+                    if (!graph_->normal())
+                      RunPhaseThree();
+                  });
 }
 
 /// Container of unique gates.
@@ -437,7 +249,7 @@ class Preprocessor::GateSet {
   ///
   /// @returns A pair of the unique gate and
   ///          the insertion success flag.
-  std::pair<GatePtr, bool> insert(const GatePtr& gate) noexcept {
+  std::pair<GatePtr, bool> insert(const GatePtr& gate)  {
     auto result = table_[gate->type()].insert(gate);
     return {*result.first, result.second};
   }
@@ -453,7 +265,7 @@ class Preprocessor::GateSet {
     ///
     /// @returns Hash value of the gate
     ///          from its arguments but not logic.
-    std::size_t operator()(const GatePtr& gate) const noexcept {
+    std::size_t operator()(const GatePtr& gate) const  {
       return boost::hash_range(gate->args().begin(), gate->args().end());
     }
   };
@@ -467,7 +279,7 @@ class Preprocessor::GateSet {
     /// @param[in] rhs  The second gate.
     ///
     /// @returns true if the gate arguments are equal.
-    bool operator()(const GatePtr& lhs, const GatePtr& rhs) const noexcept {
+    bool operator()(const GatePtr& lhs, const GatePtr& rhs) const  {
       assert(lhs->type() == rhs->type());
       if (lhs->args() != rhs->args())
         return false;
@@ -493,7 +305,7 @@ class TestGateMarks {
   /// @param[in] mark  Assumed mark of the whole graph.
   ///
   /// @returns true if the job is done.
-  bool operator()(const Gate& gate, bool mark) noexcept {
+  bool operator()(const Gate& gate, bool mark)  {
     if (tested_gates_.insert(gate.index()).second == false)
       return false;
     assert(gate.mark() == mark && "Found discontinuous gate mark.");
@@ -516,7 +328,7 @@ class TestGateStructure {
   /// @param[in] gate  The starting gate to traverse.
   ///
   /// @returns true if the job is done.
-  bool operator()(const Gate& gate) noexcept {
+  bool operator()(const Gate& gate)  {
     if (tested_gates_.insert(gate.index()).second == false)
       return false;
     assert(!gate.constant() && "Constant gates are not clear!");
@@ -530,7 +342,7 @@ class TestGateStructure {
         break;
       case kAtleast:
         assert(gate.min_number() > 1 && "K/N has wrong K!");
-        assert(gate.args().size() > gate.min_number() && "K/N has wrong N!");
+        assert(static_cast<int>(gate.args().size()) > gate.min_number() && "K/N has wrong N!");
         break;
       default:
         assert(gate.args().size() > 1 && "Missing arguments!");
@@ -556,7 +368,7 @@ class TestGateStructure {
   assert(TestGateStructure()(*graph_->root()));                            \
   assert(TestGateMarks()(*graph_->root(), graph_->root()->mark()))
 
-void Preprocessor::RunPhaseOne() noexcept {
+void Preprocessor::RunPhaseOne()  {
   TIMER(DEBUG2, "Preprocessing Phase I");
   graph_->Log();
   if (graph_->HasNullGates()) {
@@ -571,48 +383,35 @@ void Preprocessor::RunPhaseOne() noexcept {
   }
 }
 
-void Preprocessor::RunPhaseTwo() noexcept {
-  TIMER(DEBUG2, "Preprocessing Phase II - Optimized");
+void Preprocessor::RunPhaseTwo()  {
+  TIMER(DEBUG2, "Preprocessing Phase II");
   SANITY_ASSERT;
   graph_->Log();
-  
-  // Phase II with smart convergence tracking and reduced redundancy
-  
-  // Multiple definitions processing with convergence
-  SmartLoop([this]() { return ProcessMultipleDefinitions(); }, 
-            "Multiple Definitions Processing");
-  
-  // Strategic module detection (single comprehensive call)
-  PerformStrategicModuleDetection();
-  
-  // Gate coalescing with convergence tracking
-  SmartLoop([this]() { return CoalesceGates(/*common=*/false); }, 
-            "Gate Coalescing");
-  
-  // Common argument operations with convergence
-  SmartLoop([this]() { return MergeCommonArgs(); }, 
-            "Common Arguments Merging");
-  
-  SmartLoop([this]() { return DetectDistributivity(); }, 
-            "Distributivity Detection");
-  
-  // Boolean optimization (moved earlier in optimized pipeline)
-  if (!metrics_.complements_propagated) {
-    BooleanOptimization();
-  }
-  
-  // Common node decomposition with convergence
-  SmartLoop([this]() { return DecomposeCommonNodes(); }, 
-            "Common Node Decomposition");
-  
-  // Final gate coalescing
-  SmartLoop([this]() { return CoalesceGates(/*common=*/false); }, 
-            "Final Gate Coalescing");
-  
+  pdag::Transform(graph_,
+                  [this](Pdag*) {
+                    while (ProcessMultipleDefinitions())
+                      continue;
+                  },
+                  [this](Pdag*) { DetectModules(); },
+                  [this](Pdag*) {
+                    while (CoalesceGates(/*common=*/false))
+                      continue;
+                  },
+                  [this](Pdag*) { MergeCommonArgs(); },
+                  [this](Pdag*) { DetectDistributivity(); },
+                  [this](Pdag*) { DetectModules(); },
+                  [this](Pdag*) { BooleanOptimization(); },
+                  [this](Pdag*) { DecomposeCommonNodes(); },
+                  [this](Pdag*) { DetectModules(); },
+                  [this](Pdag*) {
+                    while (CoalesceGates(/*common=*/false))
+                      continue;
+                  },
+                  [this](Pdag*) { DetectModules(); });
   graph_->Log();
 }
 
-void Preprocessor::RunPhaseThree() noexcept {
+void Preprocessor::RunPhaseThree()  {
   TIMER(DEBUG2, "Preprocessing Phase III");
   SANITY_ASSERT;
   graph_->Log();
@@ -626,7 +425,7 @@ void Preprocessor::RunPhaseThree() noexcept {
   RunPhaseTwo();
 }
 
-void Preprocessor::RunPhaseFour() noexcept {
+void Preprocessor::RunPhaseFour()  {
   TIMER(DEBUG2, "Preprocessing Phase IV");
   SANITY_ASSERT;
   graph_->Log();
@@ -653,27 +452,22 @@ void Preprocessor::RunPhaseFour() noexcept {
   RunPhaseTwo();
 }
 
-void Preprocessor::RunPhaseFive() noexcept {
-  TIMER(DEBUG2, "Preprocessing Phase V - Optimized");
+void Preprocessor::RunPhaseFive()  {
+  TIMER(DEBUG2, "Preprocessing Phase V");
   SANITY_ASSERT;
   graph_->Log();
-  
-  // Final phase with optimized cleanup using smart convergence
-  SmartLoop([this]() { return CoalesceGates(/*common=*/true); }, 
-            "Common Gate Coalescing");
+  while (CoalesceGates(/*common=*/true))
+    continue;
 
   if (graph_->IsTrivial())
     return;
-    
   LOG(DEBUG2) << "Continue with Phase II within Phase V";
   RunPhaseTwo();
-  
   if (graph_->IsTrivial())
     return;
 
-  // Final coalescing with smart termination
-  SmartLoop([this]() { return CoalesceGates(/*common=*/true); }, 
-            "Final Common Gate Coalescing");
+  while (CoalesceGates(/*common=*/true))
+    continue;
 
   if (graph_->IsTrivial())
     return;
@@ -692,7 +486,7 @@ namespace {  // Helper functions for all preprocessing algorithms.
 /// @param[in] b_max  The upper boundary of the second range.
 ///
 /// @returns true if there's overlap in the ranges.
-bool DetectOverlap(int a_min, int a_max, int b_min, int b_max) noexcept {
+bool DetectOverlap(int a_min, int a_max, int b_min, int b_max)  {
   assert(a_min < a_max);
   assert(b_min < b_max);
   return a_min <= b_max && a_max >= b_min;
@@ -706,7 +500,7 @@ bool DetectOverlap(int a_min, int a_max, int b_min, int b_max) noexcept {
 ///
 /// @returns true if the node within the graph visit times.
 bool IsNodeWithinGraph(const NodePtr& node, int enter_time,
-                       int exit_time) noexcept {
+                       int exit_time)  {
   assert(enter_time > 0);
   assert(exit_time > enter_time);
   assert(node->EnterTime() >= 0);
@@ -724,7 +518,7 @@ bool IsNodeWithinGraph(const NodePtr& node, int enter_time,
 ///
 /// @returns true if the subgraph within the graph visit times.
 bool IsSubgraphWithinGraph(const GatePtr& root, int enter_time,
-                           int exit_time) noexcept {
+                           int exit_time)  {
   assert(enter_time > 0);
   assert(exit_time > enter_time);
   assert(root->min_time() > 0);
@@ -734,11 +528,16 @@ bool IsSubgraphWithinGraph(const GatePtr& root, int enter_time,
 
 }  // namespace
 
-void Preprocessor::NormalizeGates(bool full) noexcept {
-  TIMER(DEBUG3, (full ? "Full normalization" : "Partial normalization"));
+void Preprocessor::NormalizeGates(NormalizationType normalization_type)  {
+  TIMER(DEBUG3, "NormalizeGates :: ");
+  if (graph_->HasNullGates()) {
+      TIMER(DEBUG3, "Removing NULL gates first");
+      graph_->RemoveNullGates();
+  }
   assert(!graph_->HasNullGates());
-  if (full)
-    pdag::TopologicalOrder(graph_);  // K/N gates need order.
+  if (normalization_type == NormalizationType::ALL || normalization_type == NormalizationType::ATLEAST) {
+      pdag::TopologicalOrder(graph_);  // K/N gates need order.
+  }
 
   const GatePtr& root_gate = graph_->root();
   Connective type = root_gate->type();
@@ -759,13 +558,17 @@ void Preprocessor::NormalizeGates(bool full) noexcept {
   NotifyParentsOfNegativeGates(root_gate);
 
   graph_->Clear<Pdag::kGateMark>();
-  NormalizeGate(root_gate, full);  // Registers null gates only.
+  NormalizeGate(root_gate, normalization_type);  // Registers null gates only.
 
   assert(!graph_->HasConstants());
   graph_->RemoveNullGates();
 }
 
-void Preprocessor::NotifyParentsOfNegativeGates(const GatePtr& gate) noexcept {
+void Preprocessor::NormalizeGates(const bool full)  {
+    Preprocessor::NormalizeGates(full ? NormalizationType::ALL : NormalizationType::NONE);
+}
+
+void Preprocessor::NotifyParentsOfNegativeGates(const GatePtr& gate)  {
   if (gate->mark())
     return;
   gate->mark(true);
@@ -775,48 +578,52 @@ void Preprocessor::NotifyParentsOfNegativeGates(const GatePtr& gate) noexcept {
   }
 }
 
-void Preprocessor::NormalizeGate(const GatePtr& gate, bool full) noexcept {
-  if (gate->mark())
-    return;
-  gate->mark(true);
-  assert(!gate->constant());
-  assert(!gate->args().empty());
-  // Depth-first traversal before the arguments may get changed.
-  for (const Gate::Arg<Gate>& arg : gate->args<Gate>()) {
-    NormalizeGate(arg.second, full);
-  }
+void Preprocessor::NormalizeGate(const GatePtr& gate, NormalizationType normalization_type)  {
+    if (gate->mark())
+        return;
+    gate->mark(true);
+    assert(!gate->constant());
+    assert(!gate->args().empty());
+    // Depth-first traversal before the arguments may get changed.
+    for (const Gate::Arg<Gate>& arg : gate->args<Gate>()) {
+        NormalizeGate(arg.second, normalization_type);
+    }
 
-  switch (gate->type()) {  // Negation is already processed.
+    switch (gate->type()) {  // Negation is already processed.
     case kNor:
-      assert(gate->args().size() > 1);
-      gate->type(kOr);
-      break;
+        assert(gate->args().size() > 1);
+        gate->type(kOr);
+        break;
     case kNand:
-      assert(gate->args().size() > 1);
-      gate->type(kAnd);
-      break;
+        assert(gate->args().size() > 1);
+        gate->type(kAnd);
+        break;
     case kXor:
-      assert(gate->args().size() == 2);
-      if (full)
-        NormalizeXorGate(gate);
-      break;
+        assert(gate->args().size() == 2);
+        if (normalization_type == NormalizationType::XOR || normalization_type == NormalizationType::ALL)
+            NormalizeXorGate(gate);
+        break;
     case kAtleast:
-      assert(gate->args().size() > 2);
-      assert(gate->min_number() > 1);
-      if (full)
-        NormalizeAtleastGate(gate);
-      break;
+        assert(gate->args().size() > 2);
+        assert(gate->min_number() > 1);
+        if (normalization_type == NormalizationType::ATLEAST || normalization_type == NormalizationType::ALL)
+            NormalizeAtleastGate(gate);
+        break;
     case kNot:
-      assert(gate->args().size() == 1);
-      gate->type(kNull);
-      break;
+        assert(gate->args().size() == 1);
+        gate->type(kNull);
+        break;
     default:  // Already normal gates.
-      assert(gate->type() == kAnd || gate->type() == kOr);
-      assert(gate->args().size() > 1);
-  }
+        assert(gate->type() == kAnd || gate->type() == kOr);
+        assert(gate->args().size() > 1);
+    }
 }
 
-void Preprocessor::NormalizeXorGate(const GatePtr& gate) noexcept {
+void Preprocessor::NormalizeGate(const GatePtr& gate, bool full)  {
+    Preprocessor::NormalizeGate(gate, full ? NormalizationType::ALL : NormalizationType::NONE);
+}
+
+void Preprocessor::NormalizeXorGate(const GatePtr& gate)  {
   assert(gate->args().size() == 2);
   auto gate_one = std::make_shared<Gate>(kAnd, graph_);
   auto gate_two = std::make_shared<Gate>(kAnd, graph_);
@@ -839,13 +646,13 @@ void Preprocessor::NormalizeXorGate(const GatePtr& gate) noexcept {
   gate->AddArg(gate_two);
 }
 
-void Preprocessor::NormalizeAtleastGate(const GatePtr& gate) noexcept {
+void Preprocessor::NormalizeAtleastGate(const GatePtr& gate)  {
   assert(gate->type() == kAtleast);
   int min_number = gate->min_number();
 
   assert(min_number > 0);  // Min number can be 1 for special OR gates.
   assert(gate->args().size() > 1);
-  if (gate->args().size() == min_number) {
+  if (static_cast<int>(gate->args().size()) == min_number) {
     gate->type(kAnd);
     return;
   } else if (min_number == 1) {
@@ -887,7 +694,7 @@ void Preprocessor::NormalizeAtleastGate(const GatePtr& gate) noexcept {
 
 void Preprocessor::PropagateComplements(
     const GatePtr& gate, bool keep_modules,
-    std::unordered_map<int, GatePtr>* complements) noexcept {
+    std::unordered_map<int, GatePtr>* complements)  {
   if (gate->mark())
     return;
   gate->mark(true);
@@ -937,7 +744,7 @@ void Preprocessor::PropagateComplements(
   }
 }
 
-bool Preprocessor::CoalesceGates(bool common) noexcept {
+bool Preprocessor::CoalesceGates(bool common)  {
   TIMER(DEBUG3, "Coalescing gates");
   assert(!graph_->HasNullGates());
   if (graph_->root()->constant())
@@ -949,7 +756,7 @@ bool Preprocessor::CoalesceGates(bool common) noexcept {
   return ret;
 }
 
-bool Preprocessor::CoalesceGates(const GatePtr& gate, bool common) noexcept {
+bool Preprocessor::CoalesceGates(const GatePtr& gate, bool common)  {
   if (gate->mark())
     return false;
   gate->mark(true);
@@ -1000,12 +807,12 @@ bool Preprocessor::CoalesceGates(const GatePtr& gate, bool common) noexcept {
   return changed;
 }
 
-bool Preprocessor::ProcessMultipleDefinitions() noexcept {
+bool Preprocessor::ProcessMultipleDefinitions()  {
   assert(!graph_->HasNullGates());
   if (graph_->root()->constant())
     return false;
 
-  TIMER(DEBUG3, "Detecting multiple definitions with convergence tracking");
+  TIMER(DEBUG3, "Detecting multiple definitions");
 
   graph_->Clear<Pdag::kGateMark>();
   // The original gate and its multiple definitions.
@@ -1035,7 +842,7 @@ bool Preprocessor::ProcessMultipleDefinitions() noexcept {
 void Preprocessor::DetectMultipleDefinitions(
     const GatePtr& gate,
     std::unordered_map<GatePtr, std::vector<GateWeakPtr>>* multi_def,
-    GateSet* unique_gates) noexcept {
+    GateSet* unique_gates)  {
   if (gate->mark())
     return;
   gate->mark(true);
@@ -1055,7 +862,7 @@ void Preprocessor::DetectMultipleDefinitions(
   }
 }
 
-void Preprocessor::DetectModules() noexcept {
+void Preprocessor::DetectModules()  {
   TIMER(DEBUG3, "Module detection");
   assert(!graph_->HasNullGates());
   const GatePtr& root_gate = graph_->root();  // No change in this algorithm.
@@ -1074,7 +881,7 @@ void Preprocessor::DetectModules() noexcept {
   assert(root_gate->max_time() == root_gate->ExitTime());
 }
 
-int Preprocessor::AssignTiming(int time, const GatePtr& gate) noexcept {
+int Preprocessor::AssignTiming(int time, const GatePtr& gate)  {
   if (gate->Visit(++time))
     return time;  // Revisited gate.
   assert(!gate->constant());
@@ -1091,7 +898,7 @@ int Preprocessor::AssignTiming(int time, const GatePtr& gate) noexcept {
   return time;
 }
 
-void Preprocessor::FindModules(const GatePtr& gate) noexcept {
+void Preprocessor::FindModules(const GatePtr& gate)  {
   if (gate->mark())
     return;
   gate->mark(true);
@@ -1160,7 +967,7 @@ void Preprocessor::ProcessModularArgs(
     const GatePtr& gate,
     const std::vector<std::pair<int, NodePtr>>& non_shared_args,
     std::vector<std::pair<int, NodePtr>>* modular_args,
-    std::vector<std::pair<int, NodePtr>>* non_modular_args) noexcept {
+    std::vector<std::pair<int, NodePtr>>* non_modular_args)  {
   assert(gate->args().size() == (non_shared_args.size() + modular_args->size() +
                                  non_modular_args->size()) &&
          "Module detection has messed up grouping of arguments.");
@@ -1186,7 +993,7 @@ void Preprocessor::ProcessModularArgs(
 
 GatePtr Preprocessor::CreateNewModule(
     const GatePtr& gate,
-    const std::vector<std::pair<int, NodePtr>>& args) noexcept {
+    const std::vector<std::pair<int, NodePtr>>& args)  {
   GatePtr module;  // Empty pointer as an indication of a failure.
   if (args.empty())
     return module;
@@ -1224,7 +1031,7 @@ GatePtr Preprocessor::CreateNewModule(
 
 void Preprocessor::FilterModularArgs(
     std::vector<std::pair<int, NodePtr>>* modular_args,
-    std::vector<std::pair<int, NodePtr>>* non_modular_args) noexcept {
+    std::vector<std::pair<int, NodePtr>>* non_modular_args)  {
   if (modular_args->empty() || non_modular_args->empty())
     return;
   auto it_end = modular_args->end();
@@ -1253,7 +1060,7 @@ void Preprocessor::FilterModularArgs(
 
 void Preprocessor::GroupModularArgs(
     std::vector<std::pair<int, NodePtr>>* modular_args,
-    std::vector<std::vector<std::pair<int, NodePtr>>>* groups) noexcept {
+    std::vector<std::vector<std::pair<int, NodePtr>>>* groups)  {
   if (modular_args->empty())
     return;
   assert(modular_args->size() > 1);
@@ -1298,7 +1105,7 @@ void Preprocessor::GroupModularArgs(
 void Preprocessor::CreateNewModules(
     const GatePtr& gate,
     const std::vector<std::pair<int, NodePtr>>& modular_args,
-    const std::vector<std::vector<std::pair<int, NodePtr>>>& groups) noexcept {
+    const std::vector<std::vector<std::pair<int, NodePtr>>>& groups)  {
   if (modular_args.empty())
     return;
   assert(modular_args.size() > 1);
@@ -1322,7 +1129,7 @@ void Preprocessor::CreateNewModules(
   }
 }
 
-std::vector<GateWeakPtr> Preprocessor::GatherModules() noexcept {
+std::vector<GateWeakPtr> Preprocessor::GatherModules()  {
   graph_->Clear<Pdag::kGateMark>();
   const GatePtr& root = graph_->root();
   assert(!root->mark());
@@ -1350,8 +1157,8 @@ std::vector<GateWeakPtr> Preprocessor::GatherModules() noexcept {
   return modules;
 }
 
-bool Preprocessor::MergeCommonArgs() noexcept {
-  TIMER(DEBUG3, "Merging common arguments with convergence tracking");
+bool Preprocessor::MergeCommonArgs()  {
+  TIMER(DEBUG3, "Merging common arguments");
   assert(!graph_->HasNullGates());
   bool changed = false;
 
@@ -1367,7 +1174,7 @@ bool Preprocessor::MergeCommonArgs() noexcept {
   return changed;
 }
 
-bool Preprocessor::MergeCommonArgs(Connective op) noexcept {
+bool Preprocessor::MergeCommonArgs(Connective op)  {
   assert(op == kAnd || op == kOr);
   graph_->Clear<Pdag::kCount>();
   graph_->Clear<Pdag::kGateMark>();
@@ -1414,7 +1221,7 @@ bool Preprocessor::MergeCommonArgs(Connective op) noexcept {
   return changed;
 }
 
-void Preprocessor::MarkCommonArgs(const GatePtr& gate, Connective op) noexcept {
+void Preprocessor::MarkCommonArgs(const GatePtr& gate, Connective op)  {
   if (gate->mark())
     return;
   gate->mark(true);
@@ -1439,7 +1246,7 @@ void Preprocessor::MarkCommonArgs(const GatePtr& gate, Connective op) noexcept {
 }
 
 void Preprocessor::GatherCommonArgs(const GatePtr& gate, Connective op,
-                                    MergeTable::Candidates* group) noexcept {
+                                    MergeTable::Candidates* group)  {
   if (gate->mark())
     return;
   gate->mark(true);
@@ -1478,7 +1285,7 @@ void Preprocessor::GatherCommonArgs(const GatePtr& gate, Connective op,
 }
 
 void Preprocessor::FilterMergeCandidates(
-    MergeTable::Candidates* candidates) noexcept {
+    MergeTable::Candidates* candidates)  {
   assert(candidates->size() > 1);
   boost::stable_sort(*candidates, [](const MergeTable::Candidate& lhs,
                                      const MergeTable::Candidate& rhs) {
@@ -1536,7 +1343,7 @@ void Preprocessor::FilterMergeCandidates(
 
 void Preprocessor::GroupCandidatesByArgs(
     MergeTable::Candidates* candidates,
-    std::vector<MergeTable::Candidates>* groups) noexcept {
+    std::vector<MergeTable::Candidates>* groups)  {
   if (candidates->empty())
     return;
   assert(candidates->size() > 1);
@@ -1580,8 +1387,8 @@ void Preprocessor::GroupCandidatesByArgs(
       super_group.pop_front();
 
       int prev_size = 0;  // To track the change in group arguments.
-      while (prev_size < group_args.size()) {
-        prev_size = group_args.size();
+      while (prev_size < static_cast<int>(group_args.size())) {
+        prev_size = static_cast<int>(group_args.size());
         for (auto it = super_group.begin(); it != super_group.end();) {
           const MergeTable::CommonArgs& member_args = (*it)->second;
           if (ext::intersects(member_args, group_args)) {
@@ -1603,18 +1410,18 @@ void Preprocessor::GroupCandidatesByArgs(
 
 void Preprocessor::GroupCommonParents(
     int num_common_args, const MergeTable::Candidates& group,
-    MergeTable::Collection* parents) noexcept {
-  for (int i = 0; i < group.size(); ++i) {
+    MergeTable::Collection* parents)  {
+  for (int i = 0; i < static_cast<int>(group.size()); ++i) {
     const std::vector<int>& args_gate = group[i].second;
     assert(args_gate.size() > 1);
     int j = i;
-    for (++j; j < group.size(); ++j) {
+    for (++j; j < static_cast<int>(group.size()); ++j) {
       const std::vector<int>& args_comp = group[j].second;
       assert(args_comp.size() > 1);
 
       std::vector<int> common;
       boost::set_intersection(args_gate, args_comp, std::back_inserter(common));
-      if (common.size() < num_common_args)
+      if (static_cast<int>(common.size()) < num_common_args)
         continue;  // Doesn't satisfy.
       MergeTable::CommonParents& common_parents = (*parents)[common];
       common_parents.insert(group[i].first);
@@ -1624,7 +1431,7 @@ void Preprocessor::GroupCommonParents(
 }
 
 void Preprocessor::GroupCommonArgs(const MergeTable::Collection& options,
-                                   MergeTable* table) noexcept {
+                                   MergeTable* table)  {
   assert(!options.empty());
   MergeTable::MergeGroup all_options(options.begin(), options.end());
   boost::stable_sort(all_options, [](const MergeTable::Option& lhs,
@@ -1662,7 +1469,7 @@ void Preprocessor::GroupCommonArgs(const MergeTable::Collection& options,
 
 void Preprocessor::FindOptionGroup(
     MergeTable::MergeGroup* all_options,
-    MergeTable::OptionGroup* best_group) noexcept {
+    MergeTable::OptionGroup* best_group)  {
   assert(best_group->empty());
   // Find the best starting option.
   MergeTable::MergeGroup::iterator best_option;
@@ -1695,7 +1502,7 @@ void Preprocessor::FindOptionGroup(
 
 void Preprocessor::FindBaseOption(
     MergeTable::MergeGroup* all_options,
-    MergeTable::MergeGroup::iterator* best_option) noexcept {
+    MergeTable::MergeGroup::iterator* best_option)  {
   *best_option = all_options->end();
   std::array<int, 3> best_counts{};  // The number of extra parents.
   for (auto it = all_options->begin(); it != all_options->end(); ++it) {
@@ -1726,7 +1533,7 @@ void Preprocessor::FindBaseOption(
   }
 }
 
-void Preprocessor::TransformCommonArgs(MergeTable::MergeGroup* group) noexcept {
+void Preprocessor::TransformCommonArgs(MergeTable::MergeGroup* group)  {
   MergeTable::MergeGroup::iterator it;
   for (it = group->begin(); it != group->end(); ++it) {
     MergeTable::CommonParents& common_parents = it->second;
@@ -1769,8 +1576,8 @@ void Preprocessor::TransformCommonArgs(MergeTable::MergeGroup* group) noexcept {
   }
 }
 
-bool Preprocessor::DetectDistributivity() noexcept {
-  TIMER(DEBUG3, "Processing Distributivity with convergence tracking");
+bool Preprocessor::DetectDistributivity()  {
+  TIMER(DEBUG3, "Processing Distributivity");
   assert(!graph_->HasNullGates());
   graph_->Clear<Pdag::kGateMark>();
   bool changed = DetectDistributivity(graph_->root());
@@ -1779,7 +1586,7 @@ bool Preprocessor::DetectDistributivity() noexcept {
   return changed;
 }
 
-bool Preprocessor::DetectDistributivity(const GatePtr& gate) noexcept {
+bool Preprocessor::DetectDistributivity(const GatePtr& gate)  {
   if (gate->mark())
     return false;
   gate->mark(true);
@@ -1819,7 +1626,7 @@ bool Preprocessor::DetectDistributivity(const GatePtr& gate) noexcept {
 
 bool Preprocessor::HandleDistributiveArgs(
     const GatePtr& gate, Connective distr_type,
-    std::vector<GatePtr>* candidates) noexcept {
+    std::vector<GatePtr>* candidates)  {
   if (candidates->empty())
     return false;
   assert(gate->args().size() > 1 && "Malformed parent gate.");
@@ -1878,7 +1685,7 @@ bool Preprocessor::HandleDistributiveArgs(
 }
 
 bool Preprocessor::FilterDistributiveArgs(
-    const GatePtr& gate, std::vector<GatePtr>* candidates) noexcept {
+    const GatePtr& gate, std::vector<GatePtr>* candidates)  {
   assert(!candidates->empty());
   // Handling a special case of fast constant propagation.
   std::vector<int> to_erase;  // Late erase for more opportunities.
@@ -1933,7 +1740,7 @@ bool Preprocessor::FilterDistributiveArgs(
 }
 
 void Preprocessor::GroupDistributiveArgs(const MergeTable::Collection& options,
-                                         MergeTable* table) noexcept {
+                                         MergeTable* table)  {
   assert(!options.empty());
   MergeTable::MergeGroup all_options(options.begin(), options.end());
   boost::stable_sort(all_options, [](const MergeTable::Option& lhs,
@@ -1965,7 +1772,7 @@ void Preprocessor::GroupDistributiveArgs(const MergeTable::Collection& options,
 
 void Preprocessor::TransformDistributiveArgs(
     const GatePtr& gate, Connective distr_type,
-    MergeTable::MergeGroup* group) noexcept {
+    MergeTable::MergeGroup* group)  {
   if (group->empty())
     return;
   assert(distr_type == kAnd || distr_type == kOr);
@@ -2032,7 +1839,7 @@ void Preprocessor::TransformDistributiveArgs(
   TransformDistributiveArgs(sub_parent, distr_type, group);
 }
 
-void Preprocessor::BooleanOptimization() noexcept {
+void Preprocessor::BooleanOptimization()  {
   TIMER(DEBUG3, "Boolean optimization");
   assert(!graph_->HasNullGates());
   graph_->Clear<Pdag::kGateMark>();
@@ -2052,7 +1859,7 @@ void Preprocessor::BooleanOptimization() noexcept {
 
 void Preprocessor::GatherCommonNodes(
     std::vector<GateWeakPtr>* common_gates,
-    std::vector<std::weak_ptr<Variable>>* common_variables) noexcept {
+    std::vector<std::weak_ptr<Variable>>* common_variables)  {
   graph_->Clear<Pdag::kVisit>();
   std::queue<Gate*> gates_queue;
   gates_queue.push(graph_->root().get());
@@ -2082,7 +1889,7 @@ void Preprocessor::GatherCommonNodes(
 
 template <class N>
 void Preprocessor::ProcessCommonNode(
-    const std::weak_ptr<N>& common_node) noexcept {
+    const std::weak_ptr<N>& common_node)  {
   assert(!graph_->HasNullGates());
   if (common_node.expired())
     return;  // The node has been deleted.
@@ -2133,7 +1940,7 @@ void Preprocessor::ProcessCommonNode(
 }
 
 void Preprocessor::MarkAncestors(const NodePtr& node,
-                                 GatePtr* module) noexcept {
+                                 GatePtr* module)  {
   for (const Node::Parent& member : node->parents()) {
     assert(!member.second.expired());
     GatePtr parent = member.second.lock();
@@ -2150,7 +1957,7 @@ void Preprocessor::MarkAncestors(const NodePtr& node,
 }
 
 int Preprocessor::PropagateState(const GatePtr& gate,
-                                 const NodePtr& node) noexcept {
+                                 const NodePtr& node)  {
   if (!gate->mark())
     return 0;
   gate->mark(false);  // Cleaning up the marks of the ancestors.
@@ -2192,7 +1999,7 @@ int Preprocessor::PropagateState(const GatePtr& gate,
 }
 
 void Preprocessor::DetermineGateState(const GatePtr& gate, int num_failure,
-                                      int num_success) noexcept {
+                                      int num_success)  {
   assert(!gate->opti_value() && "Unclear initial optimization value.");
   assert(num_failure >= 0 && "Illegal arguments or corrupted state.");
   assert(num_success >= 0 && "Illegal arguments or corrupted state.");
@@ -2220,7 +2027,7 @@ void Preprocessor::DetermineGateState(const GatePtr& gate, int num_failure,
       gate->opti_value(compute_state(gate->args().size(), 1));
       break;
     case kAtleast:
-      assert(gate->args().size() > gate->min_number());
+      assert(static_cast<int>(gate->args().size()) > gate->min_number());
       gate->opti_value(compute_state(
           gate->min_number(), gate->args().size() - gate->min_number() + 1));
       break;
@@ -2246,7 +2053,7 @@ void Preprocessor::DetermineGateState(const GatePtr& gate, int num_failure,
 
 int Preprocessor::CollectStateDestinations(
     const GatePtr& gate, int index,
-    std::unordered_map<int, GateWeakPtr>* destinations) noexcept {
+    std::unordered_map<int, GateWeakPtr>* destinations)  {
   if (!gate->descendant())
     return 0;  // Deal with ancestors only.
   assert(gate->descendant() == index && "Corrupted descendant marks.");
@@ -2271,7 +2078,7 @@ int Preprocessor::CollectStateDestinations(
 
 void Preprocessor::CollectRedundantParents(
     const NodePtr& node, std::unordered_map<int, GateWeakPtr>* destinations,
-    std::vector<GateWeakPtr>* redundant_parents) noexcept {
+    std::vector<GateWeakPtr>* redundant_parents)  {
   for (const Node::Parent& member : node->parents()) {
     assert(!member.second.expired());
     GatePtr parent = member.second.lock();
@@ -2296,7 +2103,7 @@ void Preprocessor::CollectRedundantParents(
 
 void Preprocessor::ProcessRedundantParents(
     const NodePtr& node,
-    const std::vector<GateWeakPtr>& redundant_parents) noexcept {
+    const std::vector<GateWeakPtr>& redundant_parents)  {
   // The node behaves like a constant False for redundant parents.
   for (const GateWeakPtr& ptr : redundant_parents) {
     if (ptr.expired())
@@ -2309,7 +2116,7 @@ void Preprocessor::ProcessRedundantParents(
 template <class N>
 void Preprocessor::ProcessStateDestinations(
     const std::shared_ptr<N>& node,
-    const std::unordered_map<int, GateWeakPtr>& destinations) noexcept {
+    const std::unordered_map<int, GateWeakPtr>& destinations)  {
   for (const auto& ptr : destinations) {
     if (ptr.second.expired())
       continue;
@@ -2340,7 +2147,7 @@ void Preprocessor::ProcessStateDestinations(
   }
 }
 
-void Preprocessor::ClearStateMarks(const GatePtr& gate) noexcept {
+void Preprocessor::ClearStateMarks(const GatePtr& gate)  {
   if (!gate->descendant())
     return;  // Clean only 'dirty' gates.
   gate->descendant(0);
@@ -2353,8 +2160,8 @@ void Preprocessor::ClearStateMarks(const GatePtr& gate) noexcept {
   }
 }
 
-bool Preprocessor::DecomposeCommonNodes() noexcept {
-  TIMER(DEBUG3, "Decomposition of common nodes with convergence tracking");
+bool Preprocessor::DecomposeCommonNodes()  {
+  TIMER(DEBUG3, "Decomposition of common nodes");
   assert(!graph_->HasNullGates());
 
   std::vector<GateWeakPtr> common_gates;
@@ -2387,7 +2194,7 @@ bool Preprocessor::DecomposeCommonNodes() noexcept {
 
 bool Preprocessor::DecompositionProcessor::operator()(  // clang-format confuse?
     const std::weak_ptr<Node>& common_node,
-    Preprocessor* preprocessor) noexcept {
+    Preprocessor* preprocessor)  {
   assert(preprocessor);
   if (common_node.expired())
     return false;  // The node has been deleted.
@@ -2447,7 +2254,7 @@ bool Preprocessor::DecompositionProcessor::operator()(  // clang-format confuse?
 }
 
 void Preprocessor::DecompositionProcessor::MarkDestinations(
-    const GatePtr& parent) noexcept {
+    const GatePtr& parent)  {
   if (parent->module())
     return;  // Limited with independent subgraphs.
   for (const Node::Parent& member : parent->parents()) {
@@ -2461,7 +2268,7 @@ void Preprocessor::DecompositionProcessor::MarkDestinations(
 }
 
 bool Preprocessor::DecompositionProcessor::ProcessDestinations(
-    const std::vector<GateWeakPtr>& dest) noexcept {
+    const std::vector<GateWeakPtr>& dest)  {
   bool changed = false;
   for (const auto& ptr : dest) {
     if (ptr.expired())
@@ -2501,7 +2308,7 @@ bool Preprocessor::DecompositionProcessor::ProcessDestinations(
 }
 
 bool Preprocessor::DecompositionProcessor::ProcessAncestors(
-    const GatePtr& ancestor, bool state, const GatePtr& root) noexcept {
+    const GatePtr& ancestor, bool state, const GatePtr& root)  {
   if (ancestor->mark())
     return false;
   ancestor->mark(true);
@@ -2553,7 +2360,7 @@ bool Preprocessor::DecompositionProcessor::ProcessAncestors(
 }
 
 bool Preprocessor::DecompositionProcessor::IsAncestryWithinGraph(
-    const GatePtr& gate, const GatePtr& root) noexcept {
+    const GatePtr& gate, const GatePtr& root)  {
   if (gate == root)
     return true;
   if (gate->ancestor() == root->index())
@@ -2574,7 +2381,7 @@ bool Preprocessor::DecompositionProcessor::IsAncestryWithinGraph(
 }
 
 void Preprocessor::DecompositionProcessor::ClearAncestorMarks(
-    const GatePtr& gate, const GatePtr& root) noexcept {
+    const GatePtr& gate, const GatePtr& root)  {
   assert(root->ancestor() == 0 && "The root mark is dirty.");
   if (gate->ancestor() == 0)
     return;
@@ -2586,7 +2393,7 @@ void Preprocessor::DecompositionProcessor::ClearAncestorMarks(
 }
 
 void Preprocessor::ReplaceGate(const GatePtr& gate,
-                               const GatePtr& replacement) noexcept {
+                               const GatePtr& replacement)  {
   assert(!gate->parents().empty());
   while (!gate->parents().empty()) {
     GatePtr parent = gate->parents().begin()->second.lock();
@@ -2596,18 +2403,18 @@ void Preprocessor::ReplaceGate(const GatePtr& gate,
   }
 }
 
-bool Preprocessor::RegisterToClear(const GatePtr& gate) noexcept {
+bool Preprocessor::RegisterToClear(const GatePtr& gate)  {
   return gate->constant() || gate->type() == kNull;  // automatic register.
 }
 
 void Preprocessor::GatherNodes(std::vector<GatePtr>* gates,
-                               std::vector<VariablePtr>* variables) noexcept {
+                               std::vector<VariablePtr>* variables)  {
   graph_->Clear<Pdag::kVisit>();
   GatherNodes(graph_->root(), gates, variables);
 }
 
 void Preprocessor::GatherNodes(const GatePtr& gate, std::vector<GatePtr>* gates,
-                               std::vector<VariablePtr>* variables) noexcept {
+                               std::vector<VariablePtr>* variables)  {
   if (gate->Visited())
     return;
   gate->Visit(1);
@@ -2623,47 +2430,28 @@ void Preprocessor::GatherNodes(const GatePtr& gate, std::vector<GatePtr>* gates,
   }
 }
 
-void CustomPreprocessor<Bdd>::Run() noexcept {
-  // BDD-specific early optimization
-  LOG(DEBUG2) << "BDD-specific preprocessing with early coherence marking";
-  
-  // Use optimized pipeline for BDD analysis
-  RunOptimizedPipeline();
-  
-  // BDD-specific post-processing
+void CustomPreprocessor<Bdd>::Run()  {
+  Preprocessor::Run();
   pdag::Transform(graph_, &pdag::MarkCoherence, &pdag::TopologicalOrder);
 }
 
-void CustomPreprocessor<Zbdd>::Run() noexcept {
-  // ZBDD-specific optimization with complement propagation focus
-  LOG(DEBUG2) << "ZBDD-specific preprocessing with complement optimization";
-  
-  // Use optimized pipeline
-  RunOptimizedPipeline();
-  
-  // ZBDD-specific post-processing
+void CustomPreprocessor<Zbdd>::Run()  {
+  Preprocessor::Run();
   pdag::Transform(graph_,
                   [this](Pdag*) {
-                    if (!graph_->coherent()) {
-                      LOG(DEBUG3) << "Applying ZBDD-specific complement propagation";
+                    if (!graph_->coherent())
                       RunPhaseFour();
-                      metrics_.complements_propagated = true;
-                    }
                   },
-                  [this](Pdag*) { RunPhaseFive(); }, 
-                  &pdag::MarkCoherence,
+                  [this](Pdag*) { RunPhaseFive(); }, &pdag::MarkCoherence,
                   &pdag::TopologicalOrder);
 }
 
-void CustomPreprocessor<Mocus>::Run() noexcept {
-  // MOCUS inherits ZBDD optimizations plus ordering inversion
-  LOG(DEBUG2) << "MOCUS-specific preprocessing with ordering optimization";
-  
+void CustomPreprocessor<Mocus>::Run()  {
   CustomPreprocessor<Zbdd>::Run();
   pdag::Transform(graph_, [this](Pdag*) { InvertOrder(); });
 }
 
-void CustomPreprocessor<Mocus>::InvertOrder() noexcept {
+void CustomPreprocessor<Mocus>::InvertOrder()  {
   std::vector<GatePtr> gates;
   std::vector<VariablePtr> variables;
   Preprocessor::GatherNodes(&gates, &variables);
@@ -2684,40 +2472,22 @@ void CustomPreprocessor<Mocus>::InvertOrder() noexcept {
     var->order(shift + var->order());
 }
 
-// Complexity calculation methods
-int Preprocessor::CalculateComplexityScore() const noexcept {
-  int gate_count = 0;
-  int variable_count = 0;
-  int total_args = 0;
-  
-  std::function<void(const GatePtr&)> count_complexity = [&](const GatePtr& gate) {
-    if (gate->mark()) return;
-    gate->mark(true);
-    
-    gate_count++;
-    total_args += gate->args().size();
-    
-    for (const Gate::Arg<Gate>& arg : gate->args<Gate>()) {
-      count_complexity(arg.second);
-    }
-    variable_count += gate->args<Variable>().size();
-  };
-  
-  const_cast<Pdag*>(graph_)->Clear<Pdag::kGateMark>();
-  count_complexity(graph_->root());
-  const_cast<Pdag*>(graph_)->Clear<Pdag::kGateMark>();
-  
-  // Complexity score combines gate count, variable count, and structural complexity
-  return gate_count * 3 + variable_count * 2 + total_args;
-}
+void CustomPreprocessor<mc::DirectEval>::InvertOrder()  {
+    std::vector<GatePtr> gates;
+    std::vector<VariablePtr> variables;
+    Preprocessor::GatherNodes(&gates, &variables);
+    auto middle = boost::partition(gates, [](const GatePtr &gate) { return gate->module(); });
 
-bool Preprocessor::HasConverged(const PreprocessingMetrics& previous_metrics) const noexcept {
-  // Check if metrics have stabilized
-  bool complexity_stable = std::abs(metrics_.complexity_score - previous_metrics.complexity_score) <= 2;
-  bool gate_count_stable = std::abs(metrics_.current_gate_count - previous_metrics.current_gate_count) <= 1;
-  bool var_count_stable = std::abs(metrics_.current_variable_count - previous_metrics.current_variable_count) <= 1;
-  
-  return complexity_stable && gate_count_stable && var_count_stable;
+    std::sort(middle, gates.end(), [](const GatePtr &lhs, const GatePtr &rhs) { return lhs->order() < rhs->order(); });
+    for (auto it = middle; it != gates.end(); ++it)
+        (*it)->order(gates.end() - it); // Inversion.
+
+    int shift = gates.end() - middle;
+    for (auto it = gates.begin(); it != middle; ++it)
+        (*it)->order(shift + (*it)->order());
+
+    for (auto var : variables)
+        var->order(shift + var->order());
 }
 
 }  // namespace scram::core

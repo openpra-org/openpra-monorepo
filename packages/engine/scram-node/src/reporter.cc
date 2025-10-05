@@ -86,9 +86,14 @@ void Reporter::Report(const core::RiskAnalysis& risk_an, std::FILE* out,
   }
 
   for (const core::RiskAnalysis::Result& result : risk_an.results()) {
-    if (result.fault_tree_analysis)
-      ReportResults(result.id, *result.fault_tree_analysis,
-                    result.probability_analysis.get(), &results);
+    if (result.fault_tree_analysis) {
+        if (result.fault_tree_analysis->settings().skip_products()) {
+
+        } else {
+            ReportResults(result.id, *result.fault_tree_analysis,result.probability_analysis.get(), &results);
+        }
+    }
+
 
     if (result.probability_analysis)
       ReportResults(result.id, *result.probability_analysis, &results);
@@ -138,6 +143,10 @@ void Reporter::ReportCalculatedQuantity<core::FaultTreeAnalysis>(
         break;
       case core::Algorithm::kMocus:
         methods.SetAttribute("name", "MOCUS");
+        break;
+      case core::Algorithm::kDirect:
+          methods.SetAttribute("name", "Direct Evaluation");
+        break;
     }
     methods.AddChild("limits")
         .AddChild("product-order")
@@ -174,6 +183,10 @@ void Reporter::ReportCalculatedQuantity<core::ProbabilityAnalysis>(
       break;
     case core::Approximation::kMcub:
       methods.SetAttribute("name", "MCUB Approximation");
+      break;
+    case core::Approximation::kMonteCarlo:
+      methods.SetAttribute("name", "Direct Monte-Carlo Sampler");
+      break;
   }
   xml::StreamElement limits = methods.AddChild("limits");
   limits.AddChild("mission-time").AddText(settings.mission_time());
@@ -269,7 +282,7 @@ void Reporter::ReportSoftwareInformation(xml::StreamElement* information) {
   information->AddChild("software")
       .SetAttribute("name", "SCRAM")
       .SetAttribute("version", "UNSET")
-      .SetAttribute("contacts", "https://openpra.org");
+      .SetAttribute("contacts", "");
 
   std::time_t current_time = std::time(nullptr);
   char iso_extended[20] = {};
@@ -385,19 +398,14 @@ void Reporter::ReportResults(const core::RiskAnalysis::Result::Id& id,
   if (!warning.empty())
     sum_of_products.SetAttribute("warning", warning);
 
-  // If products are unavailable (BDD probability-only mode), skip product metrics.
-  bool has_products = fta.has_products();
-
-  if (has_products) {
-    sum_of_products
-        .SetAttribute("basic-events", fta.products().product_events().size())
-        .SetAttribute("products", fta.products().size());
-  }
+  sum_of_products
+      .SetAttribute("basic-events", fta.products().product_events().size())
+      .SetAttribute("products", fta.products().size());
 
   if (prob_analysis)
     sum_of_products.SetAttribute("probability", prob_analysis->p_total());
 
-  if (has_products && fta.products().empty() == false) {
+  if (fta.products().empty() == false) {
     sum_of_products.SetAttribute(
         "distribution",
         boost::join(fta.products().distribution() |
@@ -407,23 +415,21 @@ void Reporter::ReportResults(const core::RiskAnalysis::Result::Id& id,
   }
 
   double sum = 0;  // Sum of probabilities for contribution calculations.
-  if (has_products) {
+  if (prob_analysis) {
+    for (const core::Product& product_set : fta.products())
+      sum += product_set.p();
+  }
+  for (const core::Product& product_set : fta.products()) {
+    xml::StreamElement product = sum_of_products.AddChild("product");
+    product.SetAttribute("order", product_set.order());
     if (prob_analysis) {
-      for (const core::Product& product_set : fta.products())
-        sum += product_set.p();
+      double prob = product_set.p();
+      product.SetAttribute("probability", prob);
+      if (sum != 0)
+        product.SetAttribute("contribution", prob / sum);
     }
-    for (const core::Product& product_set : fta.products()) {
-      xml::StreamElement product = sum_of_products.AddChild("product");
-      product.SetAttribute("order", product_set.order());
-      if (prob_analysis) {
-        double prob = product_set.p();
-        product.SetAttribute("probability", prob);
-        if (sum != 0)
-          product.SetAttribute("contribution", prob / sum);
-      }
-      for (const core::Literal& literal : product_set) {
-        ReportLiteral(literal, &product);
-      }
+    for (const core::Literal& literal : product_set) {
+      ReportLiteral(literal, &product);
     }
   }
 }

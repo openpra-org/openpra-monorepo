@@ -45,7 +45,7 @@ namespace scram::core {
 #define CHECK_ZBDD(full)  ///< No checks on release.
 #endif
 
-void Zbdd::Log() noexcept {
+void Zbdd::Log()  {
   CHECK_ZBDD(false);
   LOG(DEBUG4) << "# of ZBDD nodes created: " << set_id_ - 1;
   LOG(DEBUG4) << "# of entries in unique table: " << unique_table_.size();
@@ -60,12 +60,12 @@ void Zbdd::Log() noexcept {
   ClearMarks(root_, false);
 }
 
-Zbdd::Zbdd(Bdd* bdd, const Settings& settings) noexcept
+Zbdd::Zbdd(Bdd* bdd, const Settings& settings)
     : Zbdd(bdd->root(), bdd->coherent(), bdd, settings) {
   CHECK_ZBDD(true);
 }
 
-Zbdd::Zbdd(const Pdag* graph, const Settings& settings) noexcept
+Zbdd::Zbdd(const Pdag* graph, const Settings& settings)
     : Zbdd(graph->root(), settings) {
   assert(!graph->complement() && "Complements must be propagated.");
   if (graph->IsTrivial()) {
@@ -85,7 +85,7 @@ Zbdd::Zbdd(const Pdag* graph, const Settings& settings) noexcept
   CHECK_ZBDD(true);
 }
 
-void Zbdd::Analyze(const Pdag* graph) noexcept {
+void Zbdd::Analyze(const Pdag* graph)  {
   CLOCK(zbdd_time);
   assert(root_->terminal() ||
          SetNode::Ref(root_).max_set_order() <= kSettings_.limit_order());
@@ -102,7 +102,7 @@ void Zbdd::Analyze(const Pdag* graph) noexcept {
   LOG(DEBUG3) << "G" << module_index_ << " analysis time: " << DUR(zbdd_time);
 }
 
-Zbdd::Zbdd(const Settings& settings, bool coherent, int module_index) noexcept
+Zbdd::Zbdd(const Settings& settings, bool coherent, int module_index)
     : kBase_(new Terminal<SetNode>(true)),
       kEmpty_(new Terminal<SetNode>(false)),
       kSettings_(settings),
@@ -112,7 +112,7 @@ Zbdd::Zbdd(const Settings& settings, bool coherent, int module_index) noexcept
       set_id_(2) {}
 
 Zbdd::Zbdd(const Bdd::Function& module, bool coherent, Bdd* bdd,
-           const Settings& settings, int module_index) noexcept
+           const Settings& settings, int module_index)
     : Zbdd(settings, coherent, module_index) {
   CLOCK(init_time);
   LOG(DEBUG2) << "Creating ZBDD from BDD: G" << module_index;
@@ -152,7 +152,7 @@ Zbdd::Zbdd(const Bdd::Function& module, bool coherent, Bdd* bdd,
   }
 }
 
-Zbdd::Zbdd(const Gate& gate, const Settings& settings) noexcept
+Zbdd::Zbdd(const Gate& gate, const Settings& settings)
     : Zbdd(settings, gate.coherent(), gate.index()) {
   if (gate.constant() || gate.type() == kNull)
     return;
@@ -198,7 +198,7 @@ Zbdd::Zbdd(const Gate& gate, const Settings& settings) noexcept
 
 SetNodePtr Zbdd::FindOrAddVertex(int index, const VertexPtr& high,
                                  const VertexPtr& low, int order, bool module,
-                                 bool coherent) noexcept {
+                                 bool coherent)  {
   assert(high->id() != low->id() && "Reduction failure.");
 
   SetNodeWeakPtr& in_table =
@@ -219,7 +219,7 @@ SetNodePtr Zbdd::FindOrAddVertex(int index, const VertexPtr& high,
 }
 
 SetNodePtr Zbdd::FindOrAddVertex(const SetNodePtr& node, const VertexPtr& high,
-                                 const VertexPtr& low) noexcept {
+                                 const VertexPtr& low)  {
   if (node->high()->id() == high->id() && node->low()->id() == low->id())
     return node;
   return FindOrAddVertex(node->index(), high, low, node->order(),
@@ -227,14 +227,14 @@ SetNodePtr Zbdd::FindOrAddVertex(const SetNodePtr& node, const VertexPtr& high,
 }
 
 SetNodePtr Zbdd::FindOrAddVertex(const Gate& gate, const VertexPtr& high,
-                                 const VertexPtr& low) noexcept {
+                                 const VertexPtr& low)  {
   return FindOrAddVertex(gate.index(), high, low, gate.order(), gate.module(),
                          gate.coherent());
 }
 
 Zbdd::VertexPtr Zbdd::GetReducedVertex(const ItePtr& ite, bool complement,
                                        const VertexPtr& high,
-                                       const VertexPtr& low) noexcept {
+                                       const VertexPtr& low)  {
   if (high->id() == low->id())
     return low;
   if (high->terminal() && !Terminal<SetNode>::Ref(high).value())
@@ -248,7 +248,7 @@ Zbdd::VertexPtr Zbdd::GetReducedVertex(const ItePtr& ite, bool complement,
 
 Zbdd::VertexPtr Zbdd::GetReducedVertex(const SetNodePtr& node,
                                        const VertexPtr& high,
-                                       const VertexPtr& low) noexcept {
+                                       const VertexPtr& low)  {
   if (high->id() == low->id())
     return low;
   if (high->terminal() && !Terminal<SetNode>::Ref(high).value())
@@ -262,7 +262,7 @@ Zbdd::VertexPtr Zbdd::GetReducedVertex(const SetNodePtr& node,
 
 Zbdd::VertexPtr Zbdd::ConvertBdd(const Bdd::VertexPtr& vertex, bool complement,
                                  Bdd* bdd_graph, int limit_order,
-                                 PairTable<VertexPtr>* ites) noexcept {
+                                 PairTable<VertexPtr>* ites)  {
   if (vertex->terminal())
     return complement ? kEmpty_ : kBase_;
   VertexPtr& result =
@@ -283,7 +283,7 @@ Zbdd::VertexPtr Zbdd::ConvertBdd(const Bdd::VertexPtr& vertex, bool complement,
 
 Zbdd::VertexPtr Zbdd::ConvertBdd(const ItePtr& ite, bool complement,
                                  Bdd* bdd_graph, int limit_order,
-                                 PairTable<VertexPtr>* ites) noexcept {
+                                 PairTable<VertexPtr>* ites)  {
   if (ite->module() && !ite->coherent())
     return ConvertBddPrimeImplicants(ite, complement, bdd_graph, limit_order,
                                      ites);
@@ -301,7 +301,7 @@ Zbdd::VertexPtr Zbdd::ConvertBdd(const ItePtr& ite, bool complement,
 
 Zbdd::VertexPtr Zbdd::ConvertBddPrimeImplicants(
     const ItePtr& ite, bool complement, Bdd* bdd_graph, int limit_order,
-    PairTable<VertexPtr>* ites) noexcept {
+    PairTable<VertexPtr>* ites)  {
   Bdd::Function common = Bdd::Consensus()(bdd_graph, ite, complement);
   VertexPtr consensus = ConvertBdd(common.vertex, common.complement, bdd_graph,
                                    limit_order, ites);
@@ -325,14 +325,14 @@ Zbdd::VertexPtr Zbdd::ConvertBddPrimeImplicants(
 
 Zbdd::VertexPtr Zbdd::ConvertGraph(
     const Gate& gate, std::unordered_map<int, std::pair<VertexPtr, int>>* gates,
-    std::unordered_map<int, const Gate*>* module_gates) noexcept {
+    std::unordered_map<int, const Gate*>* module_gates)  {
   assert(!gate.constant() && "Unexpected constant gate!");
   VertexPtr result;
   if (auto it_entry = ext::find(*gates, gate.index())) {
     std::pair<VertexPtr, int>& entry = it_entry->second;
     result = entry.first;
-    assert(entry.second < gate.parents().size());
-    if (++entry.second == gate.parents().size())
+    assert(entry.second < static_cast<int>(gate.parents().size()));
+    if (++entry.second == static_cast<int>(gate.parents().size()))
       gates->erase(it_entry);
     return result;
   }
@@ -371,7 +371,7 @@ Zbdd::VertexPtr Zbdd::ConvertGraph(
 }
 
 Triplet Zbdd::GetResultKey(const VertexPtr& arg_one, const VertexPtr& arg_two,
-                           int order) noexcept {
+                           int order)  {
   assert(order >= 0 && "Illegal order for computations.");
   assert(!arg_one->terminal() && !arg_two->terminal());
   assert(arg_one->id() && arg_two->id());
@@ -386,18 +386,18 @@ Triplet Zbdd::GetResultKey(const VertexPtr& arg_one, const VertexPtr& arg_two,
 template <>
 Zbdd::VertexPtr Zbdd::Apply<kAnd>(const VertexPtr& arg_one,
                                   const VertexPtr& arg_two,
-                                  int limit_order) noexcept;
+                                  int limit_order) ;
 template <>
 Zbdd::VertexPtr Zbdd::Apply<kOr>(const VertexPtr& arg_one,
                                  const VertexPtr& arg_two,
-                                 int limit_order) noexcept;
+                                 int limit_order) ;
 /// @}
 
 /// Specialization of Apply for AND connective for non-terminal ZBDD vertices.
 template <>
 Zbdd::VertexPtr Zbdd::Apply<kAnd>(const SetNodePtr& arg_one,
                                   const SetNodePtr& arg_two,
-                                  int limit_order) noexcept {
+                                  int limit_order)  {
   VertexPtr high;
   VertexPtr low;
   int limit_high = limit_order - !MayBeUnity(*arg_one);
@@ -433,7 +433,7 @@ Zbdd::VertexPtr Zbdd::Apply<kAnd>(const SetNodePtr& arg_one,
 template <>
 Zbdd::VertexPtr Zbdd::Apply<kAnd>(const VertexPtr& arg_one,
                                   const VertexPtr& arg_two,
-                                  int limit_order) noexcept {
+                                  int limit_order)  {
   if (limit_order < 0)
     return kEmpty_;
   if (arg_one->terminal()) {
@@ -471,7 +471,7 @@ Zbdd::VertexPtr Zbdd::Apply<kAnd>(const VertexPtr& arg_one,
 template <>
 Zbdd::VertexPtr Zbdd::Apply<kOr>(const SetNodePtr& arg_one,
                                  const SetNodePtr& arg_two,
-                                 int limit_order) noexcept {
+                                 int limit_order)  {
   VertexPtr high;
   VertexPtr low;
   int limit_high = limit_order - !MayBeUnity(*arg_one);
@@ -501,7 +501,7 @@ Zbdd::VertexPtr Zbdd::Apply<kOr>(const SetNodePtr& arg_one,
 template <>
 Zbdd::VertexPtr Zbdd::Apply<kOr>(const VertexPtr& arg_one,
                                  const VertexPtr& arg_two,
-                                 int limit_order) noexcept {
+                                 int limit_order)  {
   if (limit_order < 0)
     return kEmpty_;
   if (arg_one->terminal()) {
@@ -537,7 +537,7 @@ Zbdd::VertexPtr Zbdd::Apply<kOr>(const VertexPtr& arg_one,
 
 Zbdd::VertexPtr Zbdd::Apply(Connective type, const VertexPtr& arg_one,
                             const VertexPtr& arg_two,
-                            int limit_order) noexcept {
+                            int limit_order)  {
   if (type == kAnd)
     return Apply<kAnd>(arg_one, arg_two, limit_order);
   assert(type == kOr && "Only normalized operations in BDD.");
@@ -546,7 +546,7 @@ Zbdd::VertexPtr Zbdd::Apply(Connective type, const VertexPtr& arg_one,
 
 Zbdd::VertexPtr Zbdd::EliminateComplements(
     const VertexPtr& vertex,
-    std::unordered_map<int, VertexPtr>* wide_results) noexcept {
+    std::unordered_map<int, VertexPtr>* wide_results)  {
   if (vertex->terminal())
     return vertex;
   VertexPtr& result = (*wide_results)[vertex->id()];
@@ -561,7 +561,7 @@ Zbdd::VertexPtr Zbdd::EliminateComplements(
 
 Zbdd::VertexPtr Zbdd::EliminateComplement(const SetNodePtr& node,
                                           const VertexPtr& high,
-                                          const VertexPtr& low) noexcept {
+                                          const VertexPtr& low)  {
   // Cut-off does not matter with the OR operation with conforming inputs.
   assert(high->terminal() ||
          SetNode::Ref(high).max_set_order() <= kSettings_.limit_order());
@@ -572,7 +572,7 @@ Zbdd::VertexPtr Zbdd::EliminateComplement(const SetNodePtr& node,
   return Minimize(GetReducedVertex(node, high, low));
 }
 
-void Zbdd::EliminateConstantModules() noexcept {
+void Zbdd::EliminateConstantModules()  {
   if (ext::any_of(modules_, [](const ModuleEntry& module) {
         return module.second->root_->terminal();
       })) {
@@ -584,7 +584,7 @@ void Zbdd::EliminateConstantModules() noexcept {
 
 Zbdd::VertexPtr Zbdd::EliminateConstantModules(
     const VertexPtr& vertex,
-    std::unordered_map<int, VertexPtr>* results) noexcept {
+    std::unordered_map<int, VertexPtr>* results)  {
   if (vertex->terminal())
     return vertex;
   VertexPtr& result = (*results)[vertex->id()];
@@ -599,7 +599,7 @@ Zbdd::VertexPtr Zbdd::EliminateConstantModules(
 
 Zbdd::VertexPtr Zbdd::EliminateConstantModule(const SetNodePtr& node,
                                               const VertexPtr& high,
-                                              const VertexPtr& low) noexcept {
+                                              const VertexPtr& low)  {
   if (node->module()) {
     Zbdd* module = modules_.find(node->index())->second.get();
     if (module->root_->terminal()) {
@@ -611,7 +611,7 @@ Zbdd::VertexPtr Zbdd::EliminateConstantModule(const SetNodePtr& node,
   return Minimize(GetReducedVertex(node, high, low));
 }
 
-Zbdd::VertexPtr Zbdd::Minimize(const VertexPtr& vertex) noexcept {
+Zbdd::VertexPtr Zbdd::Minimize(const VertexPtr& vertex)  {
   if (vertex->terminal())
     return vertex;
   SetNodePtr node = SetNode::Ptr(vertex);
@@ -634,7 +634,7 @@ Zbdd::VertexPtr Zbdd::Minimize(const VertexPtr& vertex) noexcept {
 }
 
 Zbdd::VertexPtr Zbdd::Subsume(const VertexPtr& high,
-                              const VertexPtr& low) noexcept {
+                              const VertexPtr& low)  {
   if (low->terminal())
     return Terminal<SetNode>::Ref(low).value() ? kEmpty_ : high;
   if (high->terminal())
@@ -677,7 +677,7 @@ Zbdd::VertexPtr Zbdd::Subsume(const VertexPtr& high,
   return computed;
 }
 
-Zbdd::VertexPtr Zbdd::Prune(const VertexPtr& vertex, int limit_order) noexcept {
+Zbdd::VertexPtr Zbdd::Prune(const VertexPtr& vertex, int limit_order)  {
   if (limit_order < 0)
     return kEmpty_;
   if (vertex->terminal())
@@ -699,7 +699,7 @@ Zbdd::VertexPtr Zbdd::Prune(const VertexPtr& vertex, int limit_order) noexcept {
   return result;
 }
 
-bool Zbdd::MayBeUnity(const SetNode& node) noexcept {
+bool Zbdd::MayBeUnity(const SetNode& node)  {
   if (kSettings_.prime_implicants())
     return false;
   // Unity node tests for minimal cut sets.
@@ -715,7 +715,7 @@ bool Zbdd::MayBeUnity(const SetNode& node) noexcept {
 }
 
 int Zbdd::GatherModules(const VertexPtr& vertex, int current_order,
-                        std::map<int, std::pair<bool, int>>* modules) noexcept {
+                        std::map<int, std::pair<bool, int>>* modules)  {
   assert(current_order >= 0);
   if (vertex->terminal())
     return Terminal<SetNode>::Ref(vertex).value() ? 0 : -1;
@@ -743,7 +743,7 @@ int Zbdd::GatherModules(const VertexPtr& vertex, int current_order,
 }
 
 void Zbdd::ApplySubstitutions(
-    const std::vector<Pdag::Substitution>& substitutions) noexcept {
+    const std::vector<Pdag::Substitution>& substitutions)  {
   if (substitutions.empty())
     return;
   ClearTables();
@@ -782,7 +782,7 @@ void Zbdd::ApplySubstitutions(
   root_ = Minimize(root_);
 }
 
-int Zbdd::CountSetNodes(const VertexPtr& vertex) noexcept {
+int Zbdd::CountSetNodes(const VertexPtr& vertex)  {
   if (vertex->terminal())
     return 0;
   SetNode& node = SetNode::Ref(vertex);
@@ -793,7 +793,7 @@ int Zbdd::CountSetNodes(const VertexPtr& vertex) noexcept {
 }
 
 std::int64_t Zbdd::CountProducts(const VertexPtr& vertex,
-                                 bool modules) noexcept {
+                                 bool modules)  {
   if (vertex->terminal())
     return Terminal<SetNode>::Ref(vertex).value();
 
@@ -811,7 +811,7 @@ std::int64_t Zbdd::CountProducts(const VertexPtr& vertex,
   return node.count();
 }
 
-void Zbdd::ClearMarks(const VertexPtr& vertex, bool modules) noexcept {
+void Zbdd::ClearMarks(const VertexPtr& vertex, bool modules)  {
   if (vertex->terminal())
     return;
   SetNode& node = SetNode::Ref(vertex);
@@ -826,7 +826,7 @@ void Zbdd::ClearMarks(const VertexPtr& vertex, bool modules) noexcept {
   ClearMarks(node.low(), modules);
 }
 
-void Zbdd::ClearCounts(const VertexPtr& vertex, bool modules) noexcept {
+void Zbdd::ClearCounts(const VertexPtr& vertex, bool modules)  {
   if (vertex->terminal())
     return;
   SetNode& node = SetNode::Ref(vertex);
@@ -842,7 +842,7 @@ void Zbdd::ClearCounts(const VertexPtr& vertex, bool modules) noexcept {
   ClearCounts(node.low(), modules);
 }
 
-void Zbdd::TestStructure(const VertexPtr& vertex, bool modules) noexcept {
+void Zbdd::TestStructure(const VertexPtr& vertex, bool modules)  {
   if (vertex->terminal())
     return;
   SetNode& node = SetNode::Ref(vertex);
@@ -884,11 +884,11 @@ void Zbdd::TestStructure(const VertexPtr& vertex, bool modules) noexcept {
 namespace zbdd {
 
 CutSetContainer::CutSetContainer(const Settings& settings, int module_index,
-                                 int gate_index_bound) noexcept
+                                 int gate_index_bound)
     : Zbdd(settings, /*coherence=*/false, module_index),
       gate_index_bound_(gate_index_bound) {}
 
-Zbdd::VertexPtr CutSetContainer::ConvertGate(const Gate& gate) noexcept {
+Zbdd::VertexPtr CutSetContainer::ConvertGate(const Gate& gate)  {
   assert(gate.type() == kAnd || gate.type() == kOr);
   assert(!gate.constant());
   assert(gate.args().size() > 1);
@@ -914,7 +914,7 @@ Zbdd::VertexPtr CutSetContainer::ConvertGate(const Gate& gate) noexcept {
 }
 
 Zbdd::VertexPtr
-CutSetContainer::ExtractIntermediateCutSets(int index) noexcept {
+CutSetContainer::ExtractIntermediateCutSets(int index)  {
   assert(index && index > gate_index_bound_);
   assert(!root()->terminal() && "Impossible to have intermediate cut sets.");
   assert(index == SetNode::Ref(root()).index() && "Broken ordering!");
@@ -926,7 +926,7 @@ CutSetContainer::ExtractIntermediateCutSets(int index) noexcept {
 }
 
 Zbdd::VertexPtr CutSetContainer::ExpandGate(
-    const VertexPtr& gate_zbdd, const VertexPtr& cut_sets) noexcept {
+    const VertexPtr& gate_zbdd, const VertexPtr& cut_sets)  {
   assert(gate_zbdd->terminal() ||
          SetNode::Ref(gate_zbdd).max_set_order() <= settings().limit_order());
   assert(cut_sets->terminal() ||
@@ -934,7 +934,7 @@ Zbdd::VertexPtr CutSetContainer::ExpandGate(
   return Apply<kAnd>(gate_zbdd, cut_sets, settings().limit_order());
 }
 
-void CutSetContainer::Merge(const VertexPtr& vertex) noexcept {
+void CutSetContainer::Merge(const VertexPtr& vertex)  {
   assert(vertex->terminal() ||
          SetNode::Ref(vertex).max_set_order() <= settings().limit_order());
   root(Apply<kOr>(root(), vertex, settings().limit_order()));

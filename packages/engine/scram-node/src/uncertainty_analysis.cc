@@ -22,6 +22,7 @@
 #include "uncertainty_analysis.h"
 
 #include <cmath>
+#include <algorithm>            // std::clamp
 
 #include <boost/accumulators/accumulators.hpp>
 #include <boost/accumulators/statistics/density.hpp>
@@ -33,17 +34,51 @@
 #include "event.h"
 #include "expression.h"
 #include "logger.h"
+#include "mc/stats/tally_node.h"
 
 namespace scram::core {
 
-UncertaintyAnalysis::UncertaintyAnalysis(
-    const ProbabilityAnalysis* prob_analysis)
+// ---------------------------------------------------------------------------
+//  Compatibility constructor – retains original behavior when built from a
+//  completed ProbabilityAnalysis.
+// ---------------------------------------------------------------------------
+UncertaintyAnalysis::UncertaintyAnalysis(const ProbabilityAnalysis* prob_analysis)
     : Analysis(prob_analysis->settings()),
       mean_(0),
       sigma_(0),
       error_factor_(1) {}
 
-void UncertaintyAnalysis::Analyze() noexcept {
+UncertaintyAnalysis::UncertaintyAnalysis(const mc::stats::tally& tally)
+    : Analysis(Settings{}),  // use default settings – analysis won’t be run
+      mean_(tally.mean),
+      sigma_(0),
+      error_factor_(1) {
+  using stats_t = mc::stats::tally;
+  const stats_t& stats = tally;
+
+  // Estimate the standard deviation (σ) from the standard error (SE).
+  // SE = σ / √N   ⇒   σ = SE·√N
+  const double n = static_cast<double>(stats.total_bits);
+  sigma_ = n > 0 ? stats.std_err * std::sqrt(n) : 0.0;
+
+  // 95 % error factor (log-normal assumption, as in original implementation).
+  error_factor_ = std::exp(1.96 * sigma_);
+
+  // 95 % confidence interval for the mean (two-sided).
+  const double hw95 = 1.96 * stats.std_err;
+  confidence_interval_.first  = std::clamp(mean_ - hw95, 0.0, 1.0);
+  confidence_interval_.second = std::clamp(mean_ + hw95, 0.0, 1.0);
+
+  // Minimal placeholder distributions/quantiles so Reporter can iterate safely.
+  quantiles_.clear();
+  quantiles_.push_back(mean_);
+
+  distribution_.clear();
+  distribution_.push_back({0.0, mean_});
+  distribution_.push_back({1.0, mean_});
+}
+
+void UncertaintyAnalysis::Analyze()  {
   CLOCK(analysis_time);
   CLOCK(sample_time);
   LOG(DEBUG3) << "Sampling probabilities...";
@@ -60,7 +95,7 @@ void UncertaintyAnalysis::Analyze() noexcept {
 }
 
 std::vector<std::pair<int, mef::Expression&>>
-UncertaintyAnalysis::GatherDeviateExpressions(const Pdag* graph) noexcept {
+UncertaintyAnalysis::GatherDeviateExpressions(const Pdag* graph)  {
   std::vector<std::pair<int, mef::Expression&>> deviate_expressions;
   int index = Pdag::kVariableStartIndex;
   for (const mef::BasicEvent* event : graph->basic_events()) {
@@ -73,7 +108,7 @@ UncertaintyAnalysis::GatherDeviateExpressions(const Pdag* graph) noexcept {
 
 void UncertaintyAnalysis::SampleExpressions(
     const std::vector<std::pair<int, mef::Expression&>>& deviate_expressions,
-    Pdag::IndexMap<double>* p_vars) noexcept {
+    Pdag::IndexMap<double>* p_vars)  {
   // Reset distributions.
   for (const auto& expression : deviate_expressions)
     expression.second.Reset();
@@ -86,7 +121,7 @@ void UncertaintyAnalysis::SampleExpressions(
 }
 
 void UncertaintyAnalysis::CalculateStatistics(
-    const std::vector<double>& samples) noexcept {
+    const std::vector<double>& samples)  {
   using namespace boost;  // NOLINT
   using namespace boost::accumulators;  // NOLINT
   using histogram_type =

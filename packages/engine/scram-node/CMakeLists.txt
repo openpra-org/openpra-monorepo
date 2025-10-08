@@ -100,8 +100,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-sign-compare -Wno-missing-field-ini
 # NOTE: This is a list unlike CMAKE_CXX_FLAGS.
 #set(SCRAM_CXX_FLAGS_DEBUG -Wall -Wextra -Werror -Wnon-virtual-dtor -Wno-old-style-cast)
 
+# GCC-specific flags (stored in variable to apply to targets later)
+set(SCRAM_GCC_SPECIFIC_FLAGS "")
+
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-new-ttp-matching")  # TODO: Boost ICL failure.
+  # Don't add to CMAKE_CXX_FLAGS to avoid passing to AdaptiveCpp/Clang
+  set(SCRAM_GCC_SPECIFIC_FLAGS "-fno-new-ttp-matching")  # TODO: Boost ICL failure.
   CHECK_COMPILER_VERSION("7.1")
 
 elseif("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")

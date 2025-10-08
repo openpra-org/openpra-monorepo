@@ -277,7 +277,7 @@ Napi::Object ScramNodeImportance(Napi::Env env, const scram::core::ImportanceAna
 Napi::Object ScramNodeSumOfProducts(Napi::Env env, const scram::core::FaultTreeAnalysis& fta, const scram::core::ProbabilityAnalysis* pa) {
   Napi::Object sop = Napi::Object::New(env);
   // Products may not be generated in BDD probability-only mode.
-  if (!fta.has_products()) {
+  if (fta.products().empty()) {
     sop.Set("basicEvents", Napi::Number::New(env, 0));
     sop.Set("products",    Napi::Number::New(env, 0));
     if (pa) {
@@ -356,7 +356,7 @@ static Napi::Object BuildSumOfProductsForGate(Napi::Env env,
   if (settings.algorithm() == Algorithm::kMocus) {
     scram::core::FaultTreeAnalyzer<scram::core::Mocus> fta(gate, settings);
     fta.Analyze();
-    const bool has_products = fta.has_products();
+    const bool has_products = !fta.products().empty();
 
     if (!has_products) {
       sop.Set("basicEvents", Napi::Number::New(env, 0));
@@ -403,7 +403,7 @@ static Napi::Object BuildSumOfProductsForGate(Napi::Env env,
   if (settings.algorithm() == Algorithm::kZbdd) {
     scram::core::FaultTreeAnalyzer<scram::core::Zbdd> fta(gate, settings);
     fta.Analyze();
-    const bool has_products = fta.has_products();
+    const bool has_products = !fta.products().empty();
 
     if (!has_products) {
       sop.Set("basicEvents", Napi::Number::New(env, 0));
@@ -448,7 +448,7 @@ static Napi::Object BuildSumOfProductsForGate(Napi::Env env,
   {
     scram::core::FaultTreeAnalyzer<scram::core::Bdd> fta(gate, settings);
     fta.Analyze();
-    const bool has_products = fta.has_products();
+    const bool has_products = !fta.products().empty();
     if (!has_products) {
       sop.Set("basicEvents", Napi::Number::New(env, 0));
       sop.Set("products",    Napi::Number::New(env, 0));

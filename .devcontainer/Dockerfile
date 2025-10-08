@@ -3,7 +3,7 @@ FROM node:20.17.0-slim AS base
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NX_VERSION=19.6.2
 ENV NX_SOCKET_DIR="/tmp/nx"
-ENV BUILD_PACKAGES="make cmake g++ git python3 curl ca-certificates libboost-all-dev"
+ENV BUILD_PACKAGES="make cmake g++ git python3 curl ca-certificates libboost-all-dev wget lsb-release software-properties-common gnupg"
 ENV CLANG_VERSION=18
 ENV LLVM_PACKAGES="libclang-18-dev clang-tools-18 libomp-18-dev llvm-18-dev lld-18"
 

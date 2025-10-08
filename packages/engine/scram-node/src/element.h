@@ -1,18 +1,17 @@
 /*
  * Copyright (C) 2014-2018 Olzhas Rakhimov
- * Copyright (C) 2023 OpenPRA ORG Inc.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -201,7 +200,7 @@ class Element : public ContainerElement, private boost::noncopyable {
   ///
   /// @warning Pointers or references
   ///          to existing attributes may get invalidated.
-  void SetAttribute(Attribute attr);
+  void SetAttribute(Attribute attr) ;
 
   /// @param[in] name  The name of the attribute.
   ///
@@ -212,7 +211,7 @@ class Element : public ContainerElement, private boost::noncopyable {
   ///          Do not store the returned pointer.
   ///
   /// @note Attributes can be inherited from parent containers.
-  const Attribute* GetAttribute(std::string_view name) const;
+  const Attribute* GetAttribute(std::string_view name) const ;
 
   /// Removes an attribute of this element.
   ///
@@ -221,7 +220,7 @@ class Element : public ContainerElement, private boost::noncopyable {
   /// @returns The removed attribute if any.
   ///
   /// @post No inherited attributes are affected.
-  std::optional<Attribute> RemoveAttribute(std::string_view name);
+  std::optional<Attribute> RemoveAttribute(std::string_view name) ;
 
  protected:
   ~Element() = default;

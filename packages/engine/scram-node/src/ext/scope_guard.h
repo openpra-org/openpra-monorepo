@@ -1,5 +1,4 @@
 //                     Copyright Yuri Kilochek 2017.
-//                  Copyright OpenPRA ORG Inc. 2023.
 //        Distributed under the Boost Software License, Version 1.0.
 //           (See accompanying file LICENSE_1_0.txt or copy at
 //                 http://www.boost.org/LICENSE_1_0.txt)
@@ -35,7 +34,7 @@ auto apply_impl(Fn&& fn, Args&& args, std::index_sequence<I...>) noexcept(
                      std::get<I>(std::forward<Args>(args))...);
 }
 
-// Like `std::apply` but SFINAE friendly.
+// Like `std::apply` but SFINAE friendly and propagates ``ness.
 template <class Fn, typename Args>
 auto apply(Fn&& fn, Args&& args) noexcept(noexcept(apply_impl(
     std::forward<Fn>(fn), std::forward<Args>(args),

@@ -1,18 +1,17 @@
 /*
  * Copyright (C) 2014-2018 Olzhas Rakhimov
- * Copyright (C) 2023 OpenPRA ORG Inc.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -92,7 +91,7 @@ class Mean : public ExpressionFormula<Mean> {
   /// @throws ValidityError  The number of arguments is fewer than 2.
   explicit Mean(std::vector<Expression*> args);
 
-  Interval interval() override {
+  Interval interval()  override {
     double min_value = 0;
     double max_value = 0;
     for (Expression* arg : Expression::args()) {
@@ -107,7 +106,7 @@ class Mean : public ExpressionFormula<Mean> {
 
   /// Computes the expression value with a given argument value extractor.
   template <typename F>
-  double Compute(F&& eval) {
+  double Compute(F&& eval)  {
     double sum = 0;
     for (Expression* arg : Expression::args())
       sum += eval(arg);
@@ -161,29 +160,29 @@ inline void Sqrt::Validate() const {
 /// Interval specialization for math functions.
 /// @{
 template <>
-inline Interval Acos::interval() {
+inline Interval Acos::interval()  {
   return Interval::closed(0, ConstantExpression::kPi.value());
 }
 
 template <>
-inline Interval Asin::interval() {
+inline Interval Asin::interval()  {
   double half_pi = ConstantExpression::kPi.value() / 2;
   return Interval::closed(-half_pi, half_pi);
 }
 
 template <>
-inline Interval Atan::interval() {
+inline Interval Atan::interval()  {
   double half_pi = ConstantExpression::kPi.value() / 2;
   return Interval::closed(-half_pi, half_pi);
 }
 
 template <>
-inline Interval Cos::interval() {
+inline Interval Cos::interval()  {
   return Interval::closed(-1, 1);
 }
 
 template <>
-inline Interval Sin::interval() {
+inline Interval Sin::interval()  {
   return Interval::closed(-1, 1);
 }
 /// @}

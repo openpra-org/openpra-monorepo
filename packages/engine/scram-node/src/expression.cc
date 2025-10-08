@@ -1,18 +1,17 @@
 /*
  * Copyright (C) 2014-2018 Olzhas Rakhimov
- * Copyright (C) 2023 OpenPRA ORG Inc.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -32,7 +31,7 @@ namespace scram::mef {
 Expression::Expression(std::vector<Expression*> args)
     : args_(std::move(args)), sampled_value_(0), sampled_(false) {}
 
-double Expression::Sample() {
+double Expression::Sample()  {
   if (!sampled_) {
     sampled_ = true;
     sampled_value_ = this->DoSample();
@@ -40,7 +39,7 @@ double Expression::Sample() {
   return sampled_value_;
 }
 
-void Expression::Reset() {
+void Expression::Reset()  {
   if (!sampled_)
     return;
   sampled_ = false;
@@ -48,7 +47,7 @@ void Expression::Reset() {
     arg->Reset();
 }
 
-bool Expression::IsDeviate() {
+bool Expression::IsDeviate()  {
   return ext::any_of(args_, [](Expression* arg) { return arg->IsDeviate(); });
 }
 

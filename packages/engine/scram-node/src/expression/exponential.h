@@ -1,18 +1,17 @@
 /*
  * Copyright (C) 2014-2018 Olzhas Rakhimov
- * Copyright (C) 2023 OpenPRA ORG Inc.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -40,15 +39,15 @@ class Exponential : public ExpressionFormula<Exponential> {
 
   /// @throws DomainError  The failure rate or time is negative.
   void Validate() const override;
-  Interval interval() override { return Interval::closed(0, 1); }
+  Interval interval()  override { return Interval::closed(0, 1); }
 
   /// Evaluates the expression.
   /// @{
   template <typename T>
-  double Compute(T&& eval) {
+  double Compute(T&& eval)  {
     return Compute(eval(&lambda_), eval(&time_));
   }
-  double Compute(double lambda, double time);
+  double Compute(double lambda, double time) ;
   /// @}
 
  private:
@@ -69,15 +68,15 @@ class Glm : public ExpressionFormula<Glm> {
   Glm(Expression* gamma, Expression* lambda, Expression* mu, Expression* t);
 
   void Validate() const override;
-  Interval interval() override { return Interval::closed(0, 1); }
+  Interval interval()  override { return Interval::closed(0, 1); }
 
   /// Computes the value for GLM expression.
   /// @{
   template <typename T>
-  double Compute(T&& eval) {
+  double Compute(T&& eval)  {
     return Compute(eval(&gamma_), eval(&lambda_), eval(&mu_), eval(&time_));
   }
-  double Compute(double gamma, double lambda, double mu, double time);
+  double Compute(double gamma, double lambda, double mu, double time) ;
   /// @}
 
  private:
@@ -100,15 +99,15 @@ class Weibull : public ExpressionFormula<Weibull> {
           Expression* time);
 
   void Validate() const override;
-  Interval interval() override { return Interval::closed(0, 1); }
+  Interval interval()  override { return Interval::closed(0, 1); }
 
   /// Calculates Weibull expression.
   /// @{
   template <typename T>
-  double Compute(T&& eval) {
+  double Compute(T&& eval)  {
     return Compute(eval(&alpha_), eval(&beta_), eval(&t0_), eval(&time_));
   }
-  double Compute(double alpha, double beta, double t0, double time);
+  double Compute(double alpha, double beta, double t0, double time) ;
   /// @}
 
  private:
@@ -154,11 +153,11 @@ class PeriodicTest : public Expression {
                Expression* sigma, Expression* omega, Expression* time);
 
   void Validate() const override { flavor_->Validate(); }
-  double value() override { return flavor_->value(); }
-  Interval interval() override { return Interval::closed(0, 1); }
+  double value()  override { return flavor_->value(); }
+  Interval interval()  override { return Interval::closed(0, 1); }
 
  private:
-  double DoSample() override { return flavor_->Sample(); }
+  double DoSample()  override { return flavor_->Sample(); }
 
   /// The base class for various flavors of periodic-test computation.
   struct Flavor {
@@ -166,9 +165,9 @@ class PeriodicTest : public Expression {
     /// @copydoc Expression::Validate
     virtual void Validate() const = 0;
     /// @copydoc Expression::value
-    virtual double value() = 0;
+    virtual double value()  = 0;
     /// @copydoc Expression::Sample
-    virtual double Sample() = 0;
+    virtual double Sample()  = 0;
   };
 
   /// The tests and repairs are instantaneous and always successful.
@@ -180,8 +179,8 @@ class PeriodicTest : public Expression {
         : lambda_(*lambda), tau_(*tau), theta_(*theta), time_(*time) {}
 
     void Validate() const override;
-    double value() override;
-    double Sample() override;
+    double value()  override;
+    double Sample()  override;
 
    protected:
     Expression& lambda_;  ///< The failure rate when functioning.
@@ -192,7 +191,7 @@ class PeriodicTest : public Expression {
    private:
     /// Computes the expression value.
     double Compute(double lambda, double tau, double theta,
-                   double time);
+                   double time) ;
   };
 
   /// The tests are instantaneous and always successful,
@@ -205,8 +204,8 @@ class PeriodicTest : public Expression {
         : InstantRepair(lambda, tau, theta, time), mu_(*mu) {}
 
     void Validate() const override;
-    double value() override;
-    double Sample() override;
+    double value()  override;
+    double Sample()  override;
 
    protected:
     Expression& mu_;  ///< The repair rate.
@@ -214,7 +213,7 @@ class PeriodicTest : public Expression {
    private:
     /// Computes the expression value.
     double Compute(double lambda, double mu, double tau, double theta,
-                   double time);
+                   double time) ;
   };
 
   /// The full representation of periodic test with 11 arguments.
@@ -234,15 +233,15 @@ class PeriodicTest : public Expression {
           omega_(*omega) {}
 
     void Validate() const override;
-    double value() override;
-    double Sample() override;
+    double value()  override;
+    double Sample()  override;
 
    private:
     /// Computes the expression value.
     double Compute(double lambda, double lambda_test, double mu, double tau,
                    double theta, double gamma, double test_duration,
                    bool available_at_test, double sigma, double omega,
-                   double time);
+                   double time) ;
 
     Expression& lambda_test_;  ///< The failure rate while under test.
     Expression& gamma_;  ///< The failure probability due to or at test start.

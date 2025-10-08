@@ -1,18 +1,17 @@
 /*
  * Copyright (C) 2014-2018 Olzhas Rakhimov
- * Copyright (C) 2023 OpenPRA ORG Inc.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -33,7 +32,7 @@ namespace scram::core {
 ImportanceAnalysis::ImportanceAnalysis(const ProbabilityAnalysis* prob_analysis)
     : Analysis(prob_analysis->settings()) {}
 
-void ImportanceAnalysis::Analyze() {
+void ImportanceAnalysis::Analyze()  {
   CLOCK(imp_time);
   LOG(DEBUG3) << "Calculating importance factors...";
   double p_total = this->p_total();
@@ -62,7 +61,7 @@ void ImportanceAnalysis::Analyze() {
   Analysis::AddAnalysisTime(DUR(imp_time));
 }
 
-std::vector<int> ImportanceAnalyzerBase::occurrences() {
+std::vector<int> ImportanceAnalyzerBase::occurrences()  {
   Pdag::IndexMap<int> result(prob_analyzer_->graph()->basic_events().size());
   for (const std::vector<int>& product : prob_analyzer_->products()) {
     for (int index : product)
@@ -71,7 +70,7 @@ std::vector<int> ImportanceAnalyzerBase::occurrences() {
   return result;
 }
 
-double ImportanceAnalyzer<Bdd>::CalculateMif(int index) {
+double ImportanceAnalyzer<Bdd>::CalculateMif(int index)  {
   index += Pdag::kVariableStartIndex;
   const Bdd::VertexPtr& root = bdd_graph_->root().vertex;
   if (root->terminal())
@@ -85,7 +84,7 @@ double ImportanceAnalyzer<Bdd>::CalculateMif(int index) {
 }
 
 double ImportanceAnalyzer<Bdd>::CalculateMif(const Bdd::VertexPtr& vertex,
-                                             int order, bool mark) {
+                                             int order, bool mark)  {
   if (vertex->terminal())
     return 0;
   Ite& ite = Ite::Ref(vertex);
@@ -139,7 +138,7 @@ double ImportanceAnalyzer<Bdd>::CalculateMif(const Bdd::VertexPtr& vertex,
 }
 
 double ImportanceAnalyzer<Bdd>::RetrieveProbability(
-    const Bdd::VertexPtr& vertex) {
+    const Bdd::VertexPtr& vertex)  {
   if (vertex->terminal())
     return 1;
   return Ite::Ref(vertex).p();

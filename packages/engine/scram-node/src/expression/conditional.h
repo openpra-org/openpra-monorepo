@@ -1,18 +1,17 @@
 /*
- * Copyright (C) 2014-2018 Olzhas Rakhimov
- * Copyright (C) 2023 OpenPRA ORG Inc.
+ * Copyright (C) 2017-2018 Olzhas Rakhimov
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -36,11 +35,11 @@ class Ite : public ExpressionFormula<Ite> {
   Ite(Expression* condition, Expression* then_arm, Expression* else_arm)
       : ExpressionFormula<Ite>({condition, then_arm, else_arm}) {}
 
-  Interval interval() override;
+  Interval interval()  override;
 
   /// Computes the if-then-else expression with the given evaluator.
   template <typename F>
-  double Compute(F&& eval) {
+  double Compute(F&& eval)  {
     assert(args().size() == 3);
     return eval(args()[0]) ? eval(args()[1]) : eval(args()[2]);
   }
@@ -59,11 +58,11 @@ class Switch : public ExpressionFormula<Switch> {
   /// @param[in] default_value  The default value if all cases are false.
   Switch(std::vector<Case> cases, Expression* default_value);
 
-  Interval interval() override;
+  Interval interval()  override;
 
   /// Computes the switch-case expression with the given evaluator.
   template <typename F>
-  double Compute(F&& eval) {
+  double Compute(F&& eval)  {
     for (Case& case_arm : cases_) {
       if (eval(&case_arm.condition))
         return eval(&case_arm.value);

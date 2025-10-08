@@ -1,18 +1,17 @@
 /*
  * Copyright (C) 2014-2018 Olzhas Rakhimov
- * Copyright (C) 2023 OpenPRA ORG Inc.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -44,14 +43,14 @@ class RandomDeviate : public Expression {
  public:
   using Expression::Expression;
 
-  bool IsDeviate() override { return true; }
+  bool IsDeviate()  override { return true; }
 
   /// Sets the seed of the underlying random number generator.
   ///
   /// @param[in] seed  The seed for RNGs.
   ///
   /// @note This is static! Used by all the deriving deviates.
-  static void seed(unsigned seed) { rng_.seed(seed); }
+  static void seed(unsigned seed)  { rng_.seed(seed); }
 
  protected:
   /// @returns RNG to be used by derived classes.
@@ -73,13 +72,13 @@ class UniformDeviate : public RandomDeviate {
   /// @throws ValidityError  The min value is more or equal to max value.
   void Validate() const override;
 
-  double value() override { return (min_.value() + max_.value()) / 2; }
-  Interval interval() override {
+  double value()  override { return (min_.value() + max_.value()) / 2; }
+  Interval interval()  override {
     return Interval::closed(min_.value(), max_.value());
   }
 
  private:
-  double DoSample() override;
+  double DoSample()  override;
 
   Expression& min_;  ///< Minimum value of the distribution.
   Expression& max_;  ///< Maximum value of the distribution.
@@ -97,16 +96,16 @@ class NormalDeviate : public RandomDeviate {
   /// @throws DomainError  The sigma is negative or zero.
   void Validate() const override;
 
-  double value() override { return mean_.value(); }
+  double value()  override { return mean_.value(); }
   /// @returns ~99.9% confidence interval.
-  Interval interval() override {
+  Interval interval()  override {
     double mean = mean_.value();
     double delta = 6 * sigma_.value();
     return Interval::closed(mean - delta, mean + delta);
   }
 
  private:
-  double DoSample() override;
+  double DoSample()  override;
 
   Expression& mean_;  ///< Mean value of normal distribution.
   Expression& sigma_;  ///< Standard deviation of normal distribution.
@@ -136,22 +135,22 @@ class LognormalDeviate : public RandomDeviate {
   LognormalDeviate(Expression* mu, Expression* sigma);
 
   void Validate() const override { flavor_->Validate(); };
-  double value() override { return flavor_->mean(); }
+  double value()  override { return flavor_->mean(); }
   /// The high is 99.9 percentile estimate.
-  Interval interval() override;
+  Interval interval()  override;
 
  private:
-  double DoSample() override;
+  double DoSample()  override;
 
   /// Support for parametrization differences.
   struct Flavor {
     virtual ~Flavor() = default;
     /// @returns Scale parameter (sigma) value.
-    virtual double scale() = 0;
+    virtual double scale()  = 0;
     /// @returns Value of location parameter (mu) value.
-    virtual double location() = 0;
+    virtual double location()  = 0;
     /// @returns The mean value of the distribution.
-    virtual double mean() = 0;
+    virtual double mean()  = 0;
     /// @copydoc Expression::Validate
     virtual void Validate() const = 0;
   };
@@ -162,9 +161,9 @@ class LognormalDeviate : public RandomDeviate {
     /// @copydoc LognormalDeviate::LognormalDeviate
     Logarithmic(Expression* mean, Expression* ef, Expression* level)
         : mean_(*mean), ef_(*ef), level_(*level) {}
-    double scale() override;
-    double location() override;
-    double mean() override { return mean_.value(); }
+    double scale()  override;
+    double location()  override;
+    double mean()  override { return mean_.value(); }
     /// @throws DomainError  (mean <= 0) or (ef <= 0) or invalid level.
     void Validate() const override;
 
@@ -180,9 +179,9 @@ class LognormalDeviate : public RandomDeviate {
     /// @param[in] mu  The mean of the normal distribution.
     /// @param[in] sigma  The standard deviation of the normal distribution.
     Normal(Expression* mu, Expression* sigma) : mu_(*mu), sigma_(*sigma) {}
-    double scale() override { return sigma_.value(); }
-    double location() override { return mu_.value(); }
-    double mean() override;
+    double scale()  override { return sigma_.value(); }
+    double location()  override { return mu_.value(); }
+    double mean()  override;
     /// @throws DomainError  (sigma <= 0).
     void Validate() const override;
 
@@ -206,12 +205,12 @@ class GammaDeviate : public RandomDeviate {
   /// @throws DomainError  (k <= 0) or (theta <= 0)
   void Validate() const override;
 
-  double value() override { return k_.value() * theta_.value(); }
+  double value()  override { return k_.value() * theta_.value(); }
   /// The high is 99 percentile.
-  Interval interval() override;
+  Interval interval()  override;
 
  private:
-  double DoSample() override;
+  double DoSample()  override;
 
   Expression& k_;  ///< The shape parameter of the gamma distribution.
   Expression& theta_;  ///< The scale factor of the gamma distribution.
@@ -229,16 +228,16 @@ class BetaDeviate : public RandomDeviate {
   /// @throws DomainError  (alpha <= 0) or (beta <= 0)
   void Validate() const override;
 
-  double value() override {
+  double value()  override {
     double alpha_mean = alpha_.value();
     return alpha_mean / (alpha_mean + beta_.value());
   }
 
   /// @returns 99 percentile.
-  Interval interval() override;
+  Interval interval()  override;
 
  private:
-  double DoSample() override;
+  double DoSample()  override;
 
   Expression& alpha_;  ///< The alpha shape parameter.
   Expression& beta_;  ///< The beta shape parameter.
@@ -264,8 +263,8 @@ class Histogram : public RandomDeviate {
   ///                        or weights are negative.
   void Validate() const override;
 
-  double value() override;
-  Interval interval() override {
+  double value()  override;
+  Interval interval()  override {
     return Interval::closed((*boundaries_.begin())->value(),
                             (*std::prev(boundaries_.end()))->value());
   }
@@ -275,7 +274,7 @@ class Histogram : public RandomDeviate {
   using IteratorRange =
       boost::iterator_range<std::vector<Expression*>::const_iterator>;
 
-  double DoSample() override;
+  double DoSample()  override;
 
   IteratorRange boundaries_;  ///< Boundaries of the intervals.
   IteratorRange weights_;  ///< Weights of the intervals.

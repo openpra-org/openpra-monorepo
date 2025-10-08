@@ -284,8 +284,8 @@ FetchContent_MakeAvailable(indicators)
 include_directories(${indicators_SOURCE_DIR}/include)
 
 # Include all the discovered system directories.
-include_directories(SYSTEM "${Boost_INCLUDE_DIR}")
-include_directories(SYSTEM "${LIBXML2_INCLUDE_DIR}")
+include_directories(SYSTEM "${Boost_INCLUDE_DIRS}")
+include_directories(SYSTEM "${LIBXML2_INCLUDE_DIRS}")
 
 include_directories("${CMAKE_SOURCE_DIR}")  # Include the core headers via "src".
 include_directories("src")  # Include the core headers via "src".
@@ -299,7 +299,7 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/GenerateEmbeddedSchemas.cmake")
 
 
 add_subdirectory(src)
-add_subdirectory(targets/scram-cli)
+add_subdirectory(targets/scram)
 add_subdirectory(targets/scram-node)
 
 #if(BUILD_TESTS)

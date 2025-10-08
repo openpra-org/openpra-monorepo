@@ -1,18 +1,17 @@
 /*
  * Copyright (C) 2014-2018 Olzhas Rakhimov
- * Copyright (C) 2023 OpenPRA ORG Inc.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -49,7 +48,7 @@ void UniformDeviate::Validate() const {
   }
 }
 
-double UniformDeviate::DoSample() {
+double UniformDeviate::DoSample()  {
   return std::uniform_real_distribution(min_.value(),
                                         max_.value())(RandomDeviate::rng());
 }
@@ -63,7 +62,7 @@ void NormalDeviate::Validate() const {
   }
 }
 
-double NormalDeviate::DoSample() {
+double NormalDeviate::DoSample()  {
   return std::normal_distribution(mean_.value(),
                                   sigma_.value())(RandomDeviate::rng());
 }
@@ -89,22 +88,22 @@ void LognormalDeviate::Logarithmic::Validate() const {
   }
 }
 
-double LognormalDeviate::DoSample() {
+double LognormalDeviate::DoSample()  {
   return std::lognormal_distribution(flavor_->location(),
                                      flavor_->scale())(RandomDeviate::rng());
 }
 
-Interval LognormalDeviate::interval() {
+Interval LognormalDeviate::interval()  {
   double high_estimate = std::exp(3 * flavor_->scale() + flavor_->location());
   return Interval::left_open(0, high_estimate);
 }
 
-double LognormalDeviate::Logarithmic::scale() {
+double LognormalDeviate::Logarithmic::scale()  {
   double z = -std::sqrt(2) * boost::math::erfc_inv(2 * level_.value());
   return std::log(ef_.value()) / z;
 }
 
-double LognormalDeviate::Logarithmic::location() {
+double LognormalDeviate::Logarithmic::location()  {
   return std::log(mean_.value()) - std::pow(scale(), 2) / 2;
 }
 
@@ -113,7 +112,7 @@ void LognormalDeviate::Normal::Validate() const {
     SCRAM_THROW(DomainError("Standard deviation cannot be negative or zero."));
 }
 
-double LognormalDeviate::Normal::mean() {
+double LognormalDeviate::Normal::mean()  {
   return std::exp(location() + std::pow(scale(), 2) / 2);
 }
 
@@ -132,7 +131,7 @@ void GammaDeviate::Validate() const {
   }
 }
 
-Interval GammaDeviate::interval() {
+Interval GammaDeviate::interval()  {
   using boost::math::gamma_q;
   double k_max = k_.value();
   double high_estimate =
@@ -140,7 +139,7 @@ Interval GammaDeviate::interval() {
   return Interval::left_open(0, high_estimate);
 }
 
-double GammaDeviate::DoSample() {
+double GammaDeviate::DoSample()  {
   return std::gamma_distribution(k_.value())(RandomDeviate::rng()) *
          theta_.value();
 }
@@ -160,13 +159,13 @@ void BetaDeviate::Validate() const {
   }
 }
 
-Interval BetaDeviate::interval() {
+Interval BetaDeviate::interval()  {
   double high_estimate =
       std::pow(boost::math::ibeta(alpha_.value(), beta_.value(), 0.99), -1);
   return Interval::closed(0, high_estimate);
 }
 
-double BetaDeviate::DoSample() {
+double BetaDeviate::DoSample()  {
   return boost::random::beta_distribution(alpha_.value(),
                                           beta_.value())(RandomDeviate::rng());
 }
@@ -201,7 +200,7 @@ void Histogram::Validate() const {
   }
 }
 
-double Histogram::value() {
+double Histogram::value()  {
   double sum_weights = 0;
   double sum_product = 0;
   auto it_b = boundaries_.begin();
@@ -226,7 +225,7 @@ auto make_sampler(const Iterator& it) {
 
 }  // namespace
 
-double Histogram::DoSample() {
+double Histogram::DoSample()  {
   // clang-format off
   return std::piecewise_constant_distribution<double>(
       make_sampler(boundaries_.begin()),

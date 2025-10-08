@@ -1,18 +1,17 @@
 /*
  * Copyright (C) 2014-2018 Olzhas Rakhimov
- * Copyright (C) 2023 OpenPRA ORG Inc.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -68,12 +67,12 @@ class MissionTime : public Expression {
   /// @throws LogicError  The time value is negative.
   void value(double time);
 
-  double value() override { return value_; }
-  Interval interval() override { return Interval::closed(0, value_); }
-  bool IsDeviate() override { return false; }
+  double value()  override { return value_; }
+  Interval interval()  override { return Interval::closed(0, value_); }
+  bool IsDeviate()  override { return false; }
 
  private:
-  double DoSample() override { return value_; }
+  double DoSample()  override { return value_; }
 
   Units unit_;  ///< Units of this parameter.
   double value_;  ///< The universal value to represent int, bool, double.
@@ -104,11 +103,11 @@ class Parameter : public Expression, public Id, public NodeMark, public Usage {
   /// @param[in] unit  A valid unit.
   void unit(Units unit) { unit_ = unit; }
 
-  double value() override { return expression_->value(); }
-  Interval interval() override { return expression_->interval(); }
+  double value()  override { return expression_->value(); }
+  Interval interval()  override { return expression_->interval(); }
 
  private:
-  double DoSample() override { return expression_->Sample(); }
+  double DoSample()  override { return expression_->Sample(); }
 
   Units unit_ = kUnitless;  ///< Units of this parameter.
   Expression* expression_ = nullptr;  ///< Expression for this parameter.

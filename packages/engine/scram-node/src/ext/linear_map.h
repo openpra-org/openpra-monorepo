@@ -1,18 +1,17 @@
 /*
- * Copyright (C) 2014-2018 Olzhas Rakhimov
- * Copyright (C) 2023 OpenPRA ORG Inc.
+ * Copyright (C) 2016-2018 Olzhas Rakhimov
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -158,7 +157,7 @@ class linear_map {
   /// @}
 
   /// Friend swap definition for convenience sake.
-  friend void swap(linear_map& lhs, linear_map& rhs) { lhs.swap(rhs); }
+  friend void swap(linear_map& lhs, linear_map& rhs)  { lhs.swap(rhs); }
 
  public:
   /// Public typedefs.
@@ -350,7 +349,7 @@ class linear_map {
   /// Swaps data with another linear map.
   ///
   /// @param[in] other  Another linear map.
-  void swap(linear_map& other) { map_.swap(other.map_); }
+  void swap(linear_map& other)  { map_.swap(other.map_); }
 
   /// @returns The number of entries in the map.
   size_type size() const { return map_.size(); }
@@ -359,7 +358,7 @@ class linear_map {
   bool empty() const { return map_.empty(); }
 
   /// Erases all entries in the map.
-  void clear() { map_.clear(); }
+  void clear()  { map_.clear(); }
 
   /// Prepares the linear map for a specified number of entries.
   ///

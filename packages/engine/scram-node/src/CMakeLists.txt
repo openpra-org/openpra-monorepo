@@ -49,11 +49,18 @@ set(SCRAM_CORE_SRC
   risk_analysis.cc
   )
 ### End SCRAM core source list ### }}}
-
 # Build scram as shared library explicitly (dependencies are static)
 add_library(scram SHARED ${SCRAM_CORE_SRC})
 target_link_libraries(scram ${LIBS})
 target_compile_options(scram PRIVATE $<$<CONFIG:DEBUG>:${SCRAM_CXX_FLAGS_DEBUG}>)
+
+# Allow undefined symbols in libscram.so to be resolved by libmc.so at runtime
+target_link_options(scram PRIVATE "-Wl,--allow-shlib-undefined")
+
+# Apply GCC-specific flags to scram target only (not to mc/SYCL targets)
+if(SCRAM_GCC_SPECIFIC_FLAGS)
+  target_compile_options(scram PRIVATE ${SCRAM_GCC_SPECIFIC_FLAGS})
+endif()
 
 # Disable unused variable warnings for generated schema files
 set_source_files_properties(
@@ -78,3 +85,4 @@ add_subdirectory(mc)
 # Make the SYCL mc library available to downstream targets
 # by appending it to the common ${LIBS} list that all executables use.
 list(APPEND LIBS mc)
+

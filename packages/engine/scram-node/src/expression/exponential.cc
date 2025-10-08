@@ -1,18 +1,17 @@
 /*
  * Copyright (C) 2014-2018 Olzhas Rakhimov
- * Copyright (C) 2023 OpenPRA ORG Inc.
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -67,7 +66,7 @@ void Exponential::Validate() const {
   EnsureNonNegative(&time_, "mission time");
 }
 
-double Exponential::Compute(double lambda, double time) {
+double Exponential::Compute(double lambda, double time)  {
   return p_exp(lambda, time);
 }
 
@@ -86,7 +85,7 @@ void Glm::Validate() const {
 }
 
 double Glm::Compute(double gamma, double lambda, double mu,
-                    double time) {
+                    double time)  {
   double r = lambda + mu;
   return (lambda - (lambda - gamma * r) * std::exp(-r * time)) / r;
 }
@@ -107,7 +106,7 @@ void Weibull::Validate() const {
 }
 
 double Weibull::Compute(double alpha, double beta, double t0,
-                        double time) {
+                        double time)  {
   return time <= t0 ? 0 : 1 - std::exp(-std::pow((time - t0) / alpha, beta));
 }
 
@@ -162,7 +161,7 @@ void PeriodicTest::Complete::Validate() const {
 
 double PeriodicTest::InstantRepair::Compute(double lambda, double tau,
                                             double theta,
-                                            double time) {
+                                            double time)  {
   if (time <= theta)  // No test has been performed.
     return p_exp(lambda, time);
   double delta = time - theta;
@@ -170,17 +169,17 @@ double PeriodicTest::InstantRepair::Compute(double lambda, double tau,
   return p_exp(lambda, time_after_test ? time_after_test : tau);
 }
 
-double PeriodicTest::InstantRepair::value() {
+double PeriodicTest::InstantRepair::value()  {
   return Compute(lambda_.value(), tau_.value(), theta_.value(), time_.value());
 }
 
-double PeriodicTest::InstantRepair::Sample() {
+double PeriodicTest::InstantRepair::Sample()  {
   return Compute(lambda_.Sample(), tau_.Sample(), theta_.Sample(),
                  time_.Sample());
 }
 
 double PeriodicTest::InstantTest::Compute(double lambda, double mu, double tau,
-                                          double theta, double time) {
+                                          double theta, double time)  {
   if (time <= theta)  // No test has been performed.
     return p_exp(lambda, time);
 
@@ -207,12 +206,12 @@ double PeriodicTest::InstantTest::Compute(double lambda, double mu, double tau,
                   time_after_test);
 }
 
-double PeriodicTest::InstantTest::value() {
+double PeriodicTest::InstantTest::value()  {
   return Compute(lambda_.value(), mu_.value(), tau_.value(), theta_.value(),
                  time_.value());
 }
 
-double PeriodicTest::InstantTest::Sample() {
+double PeriodicTest::InstantTest::Sample()  {
   return Compute(lambda_.Sample(), mu_.Sample(), tau_.Sample(), theta_.Sample(),
                  time_.Sample());
 }
@@ -221,7 +220,7 @@ double PeriodicTest::Complete::Compute(double lambda, double lambda_test,
                                        double mu, double tau, double theta,
                                        double gamma, double test_duration,
                                        bool available_at_test, double sigma,
-                                       double omega, double time) {
+                                       double omega, double time)  {
   if (time <= theta)  // No test has been performed.
     return p_exp(lambda, time);
 
@@ -290,14 +289,14 @@ double PeriodicTest::Complete::Compute(double lambda, double lambda_test,
   return 1 - p_available;
 }
 
-double PeriodicTest::Complete::value() {
+double PeriodicTest::Complete::value()  {
   return Compute(lambda_.value(), lambda_test_.value(), mu_.value(),
                  tau_.value(), theta_.value(), gamma_.value(),
                  test_duration_.value(), available_at_test_.value(),
                  sigma_.value(), omega_.value(), time_.value());
 }
 
-double PeriodicTest::Complete::Sample() {
+double PeriodicTest::Complete::Sample()  {
   return Compute(lambda_.Sample(), lambda_test_.Sample(), mu_.Sample(),
                  tau_.Sample(), theta_.Sample(), gamma_.Sample(),
                  test_duration_.Sample(), available_at_test_.Sample(),

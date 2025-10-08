@@ -1,18 +1,17 @@
 /*
- * Copyright (C) 2014-2018 Olzhas Rakhimov
- * Copyright (C) 2023 OpenPRA ORG Inc.
+ * Copyright (C) 2017-2018 Olzhas Rakhimov
  *
  * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
+ * it under the terms of the GNU Affero General Public License as published by
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * GNU Affero General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
+ * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
@@ -143,7 +142,7 @@ class ExternFunction : public ExternFunctionBase {
         fptr_(library.get<R(Args...)>(symbol)) {}
 
   /// Calls the library function with the given numeric arguments.
-  R operator()(Args... args) const { return fptr_(args...); }
+  R operator()(Args... args) const  { return fptr_(args...); }
 
   /// @copydoc ExternFunction<void>::apply
   std::unique_ptr<Expression>
@@ -176,7 +175,7 @@ class ExternExpression
 
   /// Computes the extern function with the given evaluator for arguments.
   template <typename F>
-  double Compute(F&& eval) {
+  double Compute(F&& eval)  {
     return Marshal(std::forward<F>(eval),
                    std::make_index_sequence<sizeof...(Args)>());
   }
@@ -194,7 +193,7 @@ class ExternExpression
   ///
   /// @pre The number of arguments is exactly the same at runtime.
   template <typename F, std::size_t... Is>
-  double Marshal(F&& eval, std::index_sequence<Is...>) {
+  double Marshal(F&& eval, std::index_sequence<Is...>)  {
     return extern_function_(eval(Expression::args()[Is])...);
   }
 

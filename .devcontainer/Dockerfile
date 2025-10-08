@@ -1,4 +1,4 @@
-FROM node:20.17.0-slim AS base
+FROM node:20-bookworm-slim AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NX_VERSION=19.6.2

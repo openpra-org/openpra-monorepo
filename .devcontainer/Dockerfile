@@ -4,20 +4,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV NX_VERSION=19.6.2
 ENV NX_SOCKET_DIR="/tmp/nx"
 ENV BUILD_PACKAGES="make cmake g++ git python3 curl ca-certificates"
-
-ENV SCRAM_BUILD_PACKAGES="libxml2-dev libomp-dev \
-    libxml2-dev libomp-dev \
-    libgoogle-perftools-dev libboost-program-options-dev \
-    libboost-math-dev libboost-random-dev libboost-filesystem-dev \
-    libboost-test-dev libboost-date-time-dev libjemalloc-dev"
-
-ENV SCRAM_RUNTIME_PACKAGES="libxml2 \
-    libboost-filesystem1.74.0 libboost-program-options1.74.0 \
-    libtcmalloc-minimal4 libjemalloc2"
-
-ENV ADAPTIVECPP_BUILD_PACKAGES="clang-18 llvm-18-dev libclang-18-dev \
-    libomp-18-dev lld-18"
-
+ENV SCRAM_BUILD_PACKAGES="libxml2-dev libomp-dev libgoogle-perftools-dev libboost-program-options-dev libboost-math-dev libboost-random-dev libboost-filesystem-dev libboost-test-dev libboost-date-time-dev libjemalloc-dev"
+ENV SCRAM_RUNTIME_PACKAGES="libxml2 libboost-filesystem1.74.0 libboost-program-options1.74.0 libtcmalloc-minimal4 libjemalloc2"
+ENV ADAPTIVECPP_BUILD_PACKAGES="clang-18 llvm-18-dev libclang-18-dev libomp-18-dev lld-18"
 ENV PATH="/root/.local/bin:${PATH}"
 
 WORKDIR /workspaces/openpra-monorepo
@@ -26,7 +15,7 @@ RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
     --mount=target=/var/cache/apt,type=cache,sharing=locked \
     rm -f /etc/apt/apt.conf.d/docker-clean && \
     apt update && \
-    apt install -y curl ca-certificates && \
+    apt install -y curl ca-certificates gnupg && \
     # Install LLVM/Clang 18 repository
     curl -o llvm.sh https://apt.llvm.org/llvm.sh && \
     chmod +x llvm.sh && \

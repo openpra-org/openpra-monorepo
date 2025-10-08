@@ -15,7 +15,7 @@ RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
     --mount=target=/var/cache/apt,type=cache,sharing=locked \
     rm -f /etc/apt/apt.conf.d/docker-clean && \
     apt update && \
-    apt install -y curl ca-certificates gnupg && \
+    apt install -y curl ca-certificates gnupg lsb-release wget software-properties-common && \
     # Install LLVM/Clang 18 repository
     curl -o llvm.sh https://apt.llvm.org/llvm.sh && \
     chmod +x llvm.sh && \

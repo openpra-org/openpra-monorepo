@@ -33,8 +33,6 @@ struct progress {
         last_tick_time_ = std::chrono::high_resolution_clock::now();
         first_tick_ = true;
 
-        watch_mode_ = watch_mode || log_to_file; // watch if explicitly asked to watch, or passed a progressbar logfile
-
         // if passed a progressbar log file, initialize the logger
         if (log_to_file) {
             const std::string& filepath = *log_to_file;
@@ -42,8 +40,11 @@ struct progress {
             LOG(DEBUG2) << "Progress log in :: " << filepath;
         }
 
-        // Configure progress bar only if watch mode is supported OR if progress bar log file is set
-        if ((!isatty(fileno(stdout)) || !isatty(fileno(stderr))) && !log_to_file) {
+        // Check if we can actually display progress bars (need TTY)
+        const bool has_tty = isatty(fileno(stdout)) && isatty(fileno(stderr));
+        
+        // Configure progress bar only if watch mode is enabled AND we have a TTY
+        if (!has_tty && !log_to_file) {
             LOG(WARNING) << "Disabling progressbar since neither STDOUT nor STDERR are TTYs.";
             watch_mode_ = false;
             return;
@@ -53,6 +54,16 @@ struct progress {
             LOG(WARNING) << "Disabling progressbar since watch mode is disabled. Enable with --watch flag";
         }
 
+        // Only create visual progress bars if we have a TTY, but set watch_mode_ 
+        // to true if either watch_mode or log_to_file is set (for logging purposes)
+        watch_mode_ = watch_mode || log_to_file;
+        
+        // Don't create progress bar widgets if there's no TTY to display them
+        if (!has_tty) {
+            LOG(WARNING) << "Disabling visual progress bars (no TTY), but continuing with logging.";
+            return;
+        }
+        
         if (!watch_mode_) {
             return;
         }
@@ -720,6 +731,8 @@ struct progress {
         //const std::string str_prefix = "["+str_ite+"] :: ";
         return std::make_unique<indicators::ProgressBar>(
             indicators::option::BarWidth{bar_width_},
+            indicators::option::PrefixText{""},
+            indicators::option::PostfixText{""},
             indicators::option::Start{"["},
             indicators::option::Fill{"■"},
             indicators::option::Lead{"■"},
@@ -731,6 +744,7 @@ struct progress {
         return std::make_unique<indicators::ProgressBar>(
             indicators::option::BarWidth{0},
             indicators::option::PrefixText{pretext ? *pretext : ""},
+            indicators::option::PostfixText{""},
             indicators::option::Start{""},
             indicators::option::Fill{""},
             indicators::option::Lead{""},

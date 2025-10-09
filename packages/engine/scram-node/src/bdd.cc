@@ -82,10 +82,18 @@ Bdd::Bdd(const Pdag* graph, const Settings& settings)
 Bdd::~Bdd()  = default;
 
 void Bdd::Analyze(const Pdag* graph)  {
-  zbdd_ = std::make_unique<Zbdd>(this, kSettings_);
-  zbdd_->Analyze(graph);
-  if (!coherent_)  // The BDD has been used by the ZBDD.
-    Freeze();
+  // Only build ZBDD/products if required by settings; otherwise, keep just BDD.
+  if (kSettings_.requires_products()) {
+    zbdd_ = std::make_unique<Zbdd>(this, kSettings_);
+    zbdd_->Analyze(graph);
+    if (!coherent_)  // The BDD has been used by the ZBDD.
+      Freeze();
+  } else {
+    // No ZBDD requested; ensure any transient tables are cleared.
+    ClearTables();
+    if (!coherent_)
+      Freeze();
+  }
 }
 
 ItePtr Bdd::FindOrAddVertex(int index, const VertexPtr& high,

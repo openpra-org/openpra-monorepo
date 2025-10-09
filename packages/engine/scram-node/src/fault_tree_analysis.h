@@ -239,6 +239,9 @@ class FaultTreeAnalysis : public Analysis {
     return *products_;
   }
 
+  /// @returns true if products were generated and stored.
+  [[nodiscard]] bool has_products() const { return static_cast<bool>(products_); }
+
   [[nodiscard]] std::shared_ptr<Pdag> pdag() { return std::move(graph_); }
 
  protected:

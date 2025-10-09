@@ -69,7 +69,24 @@ namespace ScramCLI {
         }
         SET("time-step", double, time_step);
         settings->safety_integrity_levels(vm.contains("sil"));
-        settings->probability_analysis(vm.contains("probability"));
+        // For BDD algorithm: enable probability analysis by default UNLESS prime-implicants is requested alone
+        // This allows:
+        // --bdd => probability only
+        // --bdd --probability => probability only  
+        // --bdd --prime-implicants => products only
+        // --bdd --prime-implicants --probability => both products and probability
+        if (vm.contains("bdd")) {
+            if (vm.contains("prime-implicants")) {
+                // Only enable probability if explicitly requested
+                settings->probability_analysis(vm.contains("probability"));
+            } else {
+                // Enable probability by default for BDD (unless explicitly using --prime-implicants)
+                settings->probability_analysis(true);
+            }
+        } else {
+            // For non-BDD algorithms, only enable probability if flag is present
+            settings->probability_analysis(vm.contains("probability"));
+        }
         settings->importance_analysis(vm.contains("importance"));
         settings->uncertainty_analysis(vm.contains("uncertainty"));
         settings->ccf_analysis(vm.contains("ccf"));

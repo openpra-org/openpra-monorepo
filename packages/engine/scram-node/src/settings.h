@@ -277,6 +277,38 @@ class Settings {
   /// @returns true if the products calculation will be skipped.
   [[nodiscard]] bool skip_products() const { return skip_products_; }
 
+  /// @returns true if qualitative product enumeration is required
+  ///          for the requested analyses under current settings.
+  ///
+  /// This is primarily used to skip cut set enumeration for BDD when
+  /// only probability with exact calculation (no approximation) is requested.
+  /// In all other cases (ZBDD/MOCUS algorithms, approximations, prime
+  /// implicants, importance/uncertainty, or debug printing), products are
+  /// required.
+  [[nodiscard]] bool requires_products() const {
+    // Non-BDD algorithms inherently require cut sets for quantification.
+    if (algorithm_ != Algorithm::kBdd)
+      return true;
+
+    // For BDD: products are ONLY required when explicitly requested via prime_implicants
+    // or when other analyses depend on them.
+    if (prime_implicants_ || importance_analysis_ || uncertainty_analysis_)
+      return true;
+
+#ifndef NDEBUG
+    // Developer debug printing of products requires enumeration.
+    if (print)
+      return true;
+#endif
+
+    // Approximations rely on cut sets.
+    if (approximation_ != Approximation::kNone)
+      return true;
+
+    // Otherwise, BDD can compute probabilities directly without products.
+    return false;
+  }
+
   /// @returns true if the SIL metrics are requested.
   [[nodiscard]] bool safety_integrity_levels() const { return safety_integrity_levels_; }
 

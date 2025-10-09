@@ -198,7 +198,7 @@ namespace scram::core {
                                 mef::MissionTime *mission_time)
             : ProbabilityAnalysis(fta, mission_time),
               graph_(fta->graph()) {
-            if (!settings().skip_products()) {
+            if (!settings().skip_products() && settings().requires_products()) {
                 const Zbdd& zbdd = (fta->algorithm()->products());
                 products_ = &zbdd;
             }

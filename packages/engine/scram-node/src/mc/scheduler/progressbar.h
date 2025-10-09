@@ -29,82 +29,12 @@ template <typename policy_t_, typename bitpack_t_, typename prob_t_, typename si
 struct progress {
 
     void initialize(const convergence_controller<policy_t_, bitpack_t_, prob_t_, size_t_> *controller, const bool watch_mode, const std::optional<std::string> &log_to_file = std::nullopt) {
-        // Initialize timing for throughput tracking
-        last_tick_time_ = std::chrono::high_resolution_clock::now();
-        first_tick_ = true;
-
-        // if passed a progressbar log file, initialize the logger
-        if (log_to_file) {
-            const std::string& filepath = *log_to_file;
-            progress_logger_.emplace(filepath);
-            LOG(DEBUG2) << "Progress log in :: " << filepath;
-        }
-
-        // Check if we can actually display progress bars (need TTY)
-        const bool has_tty = isatty(fileno(stdout)) && isatty(fileno(stderr));
-        
-        // Configure progress bar only if watch mode is enabled AND we have a TTY
-        if (!has_tty && !log_to_file) {
-            LOG(WARNING) << "Disabling progressbar since neither STDOUT nor STDERR are TTYs.";
-            watch_mode_ = false;
-            return;
-        }
-
-        if (!watch_mode) {
-            LOG(WARNING) << "Disabling progressbar since watch mode is disabled. Enable with --watch flag";
-        }
-
-        // Only create visual progress bars if we have a TTY, but set watch_mode_ 
-        // to true if either watch_mode or log_to_file is set (for logging purposes)
-        watch_mode_ = watch_mode || log_to_file;
-        
-        // Don't create progress bar widgets if there's no TTY to display them
-        if (!has_tty) {
-            LOG(WARNING) << "Disabling visual progress bars (no TTY), but continuing with logging.";
-            return;
-        }
-        
-        if (!watch_mode_) {
-            return;
-        }
-
-        bars_ = std::make_unique<indicators::DynamicProgress<indicators::ProgressBar>>();
-        bars_->set_option(indicators::option::HideBarWhenComplete{false});
-        indicators::show_console_cursor(false);
-
-        // all-inclusive progress bar, will be dynamically updated
-        setup_fixed_bar(*controller);
-        setup_burn_in_bar(*controller);
-        setup_convergence_bar(*controller);
-        setup_log_convergence_bar(*controller);
-        setup_estimate(*controller);
-        if (controller->diagnostics_enabled()) {
-            setup_diagnostics(*controller);
-            setup_accuracy_metrics(*controller);
-        }
-        setup_throughput(*controller);
-        setup_info_gain(*controller);
-
-        // Launch background worker that will handle UI refreshes without
-        // blocking the sampling loop.
-        worker_thread_ = std::thread([this]() { worker_loop(); });
+        // Progress bars and CSV logging completely disabled
+        watch_mode_ = false;
     }
 
     void tick(const convergence_controller<policy_t_, bitpack_t_, prob_t_, size_t_> *controller) {
-        // Fast path: if we are *not* in watch mode, behave exactly as before.
-        if (!watch_mode_) {
-            // No terminal attached – fallback to lightweight logging only.
-            LOG(DEBUG2) << controller->current_tally();
-            return;
-        }
-
-        {
-            std::lock_guard<std::mutex> lk(cv_mutex_);
-            pending_controller_ = controller;
-            burn_in_pending_    = false;
-            tick_pending_.store(true, std::memory_order_release);
-        }
-        cv_.notify_one();
+        // Progress bars and CSV logging completely disabled - do nothing
     }
 
     void finalize() {

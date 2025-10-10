@@ -67,11 +67,12 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
           await this.handleRegularJob(modelsData);
         } catch (err: any) {
           this.channel?.nack(msg, false, false);
+          const errorMessage = err?.message || String(err);
+          this.logger.error(`Failed to quantify regular job ${String(modelsData._id)}: ${errorMessage}`);
           await this.minioService.updateJobMetadata(String(modelsData._id), {
             status: "failed",
-            error: err.message,
+            error: errorMessage,
           });
-          this.logger.error(`Failed to quantify regular job: ${String(modelsData._id)}`);
           return;
         }
 
@@ -114,17 +115,18 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
           await this.handleSequenceJob(modelsData);
         } catch (err: any) {
           this.channel?.nack(msg, false, false);
+          const errorMessage = err?.message || String(err);
+          this.logger.error(`Failed to quantify sequence job ${String(modelsData._id)}: ${errorMessage}`);
           
           // Mark parent job as failed if any sequence fails
           const parentJobId = this.extractParentJobId(String(modelsData._id));
           if (parentJobId) {
             await this.minioService.updateJobMetadata(parentJobId, {
               status: "failed",
-              error: `Sequence job ${modelsData._id} failed: ${err.message}`,
+              error: `Sequence job ${modelsData._id} failed: ${errorMessage}`,
             });
           }
           
-          this.logger.error(`Failed to quantify sequence job: ${String(modelsData._id)}`);
           return;
         }
 
@@ -327,9 +329,16 @@ export class ConsumerService implements OnApplicationBootstrap, OnApplicationShu
       this.logger.debug(`${String(_id)} has been quantified using scram-node`);
       
       return report;
-    } catch (error) {
-      this.logger.error(`Quantification failed for job ${String(_id)}:`, error);
-      throw error;
+    } catch (error: any) {
+      // Log the error with job ID for debugging
+      this.logger.error(`Quantification failed for job ${String(_id)}: ${error?.message || String(error)}`);
+      
+      // Re-throw with additional context
+      const enhancedError = new Error(
+        `SCRAM quantification failed for job ${String(_id)}: ${error?.message || String(error)}`
+      );
+      enhancedError.stack = error?.stack;
+      throw enhancedError;
     }
   }
 

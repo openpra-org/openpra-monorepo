@@ -4,7 +4,7 @@
 scram::core::Settings ScramNodeOptions(const Napi::Object& nodeOptions) {
     scram::core::Settings settings;
 
-    // Algorithm (mocus, bdd, zbdd)
+    // Algorithm (mocus, bdd, zbdd, pdag)
     if (nodeOptions.Has("mocus")) {
         if (nodeOptions.Get("mocus").ToBoolean().Value())
             settings.algorithm("mocus");
@@ -14,17 +14,23 @@ scram::core::Settings ScramNodeOptions(const Napi::Object& nodeOptions) {
     } else if (nodeOptions.Has("zbdd")) {
         if (nodeOptions.Get("zbdd").ToBoolean().Value())
             settings.algorithm("zbdd");
+    } else if (nodeOptions.Has("pdag")) {
+        if (nodeOptions.Get("pdag").ToBoolean().Value())
+            settings.algorithm("pdag");
     } else {
         settings.algorithm("mocus");
     }
 
-    // Approximation (rare-event, mcub, none)
+    // Approximation (rare-event, mcub, monte-carlo, none)
     if (nodeOptions.Has("rareEvent")) {
         if (nodeOptions.Get("rareEvent").ToBoolean().Value())
             settings.approximation("rare-event");
     } else if (nodeOptions.Has("mcub")) {
         if (nodeOptions.Get("mcub").ToBoolean().Value())
             settings.approximation("mcub");
+    } else if (nodeOptions.Has("monteCarlo")) {
+        if (nodeOptions.Get("monteCarlo").ToBoolean().Value())
+            settings.approximation("monte-carlo");
     } else {
         settings.approximation("none");
     }
@@ -97,6 +103,79 @@ scram::core::Settings ScramNodeOptions(const Napi::Object& nodeOptions) {
     // Seed (int)
     if (nodeOptions.Has("seed")) {
         settings.seed(nodeOptions.Get("seed").ToNumber().Int32Value());
+    }
+
+    // Monte Carlo specific parameters
+    // Confidence level for convergence (double, 0-1)
+    if (nodeOptions.Has("confidence")) {
+        settings.ci_confidence(nodeOptions.Get("confidence").ToNumber().DoubleValue());
+    }
+
+    // Relative margin of error (delta) for convergence (double, >0)
+    if (nodeOptions.Has("delta")) {
+        settings.ci_rel_margin_error(nodeOptions.Get("delta").ToNumber().DoubleValue());
+    }
+
+    // Burn-in trials before convergence checks (int)
+    if (nodeOptions.Has("burnIn")) {
+        settings.ci_burnin_trials(nodeOptions.Get("burnIn").ToNumber().DoubleValue());
+    }
+
+    // Early stopping on convergence (bool)
+    if (nodeOptions.Has("earlyStop")) {
+        settings.early_stop(nodeOptions.Get("earlyStop").ToBoolean().Value());
+    }
+
+    // Convergence interval policy (string: "bayes" or "wald")
+    if (nodeOptions.Has("ciPolicy")) {
+        std::string policy = nodeOptions.Get("ciPolicy").ToString().Utf8Value();
+        settings.ci_policy(policy);
+    }
+
+    // Batch size for Monte Carlo (int)
+    if (nodeOptions.Has("batchSize")) {
+        settings.batch_size(nodeOptions.Get("batchSize").ToNumber().Int32Value());
+    }
+
+    // Sample size for Monte Carlo (int)
+    if (nodeOptions.Has("sampleSize")) {
+        settings.sample_size(nodeOptions.Get("sampleSize").ToNumber().Int32Value());
+    }
+
+    // Node allocation overhead ratio (double, >=0)
+    if (nodeOptions.Has("overheadRatio")) {
+        settings.overhead_ratio(nodeOptions.Get("overheadRatio").ToNumber().DoubleValue());
+    }
+
+    // Graph compilation and preprocessing flags
+    // Expand at-least gates (--no-kn flag disables K/N gate optimization)
+    if (nodeOptions.Has("noKn")) {
+        settings.expand_atleast_gates(nodeOptions.Get("noKn").ToBoolean().Value());
+    }
+
+    // Expand XOR gates (--no-xor flag disables XOR gate optimization)
+    if (nodeOptions.Has("noXor")) {
+        settings.expand_xor_gates(nodeOptions.Get("noXor").ToBoolean().Value());
+    }
+
+    // Keep null gates (don't remove gates with no effect)
+    if (nodeOptions.Has("keepNullGates")) {
+        settings.keep_null_gates(nodeOptions.Get("keepNullGates").ToBoolean().Value());
+    }
+
+    // Compilation level (0-8, higher = more optimization)
+    if (nodeOptions.Has("compilationLevel")) {
+        settings.compilation_level(nodeOptions.Get("compilationLevel").ToNumber().Int32Value());
+    }
+
+    // Oracle probability for diagnostics (double, >=0)
+    if (nodeOptions.Has("oracleP")) {
+        settings.oracle_p(nodeOptions.Get("oracleP").ToNumber().DoubleValue());
+    }
+
+    // Watch mode (display analysis status on TTY)
+    if (nodeOptions.Has("watchMode")) {
+        settings.watch_mode(nodeOptions.Get("watchMode").ToBoolean().Value());
     }
 
     return settings;

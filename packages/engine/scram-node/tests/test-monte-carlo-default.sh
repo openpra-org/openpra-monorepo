@@ -82,7 +82,7 @@ run_test() {
     START_TIME=$(date +%s)
     
     # Build the command
-    CMD="scram-cli --monte-carlo --num-trials $NUM_TRIALS --limit-order $limit_order --cut-off $cut_off $INPUT_DIR/$INPUT_FILE --output $output_file"
+    CMD="scram-cli --monte-carlo --probability --num-trials $NUM_TRIALS --limit-order $limit_order --cut-off $cut_off $INPUT_DIR/$INPUT_FILE --output $output_file"
     
     # Run the command and capture output
     EXIT_CODE=0

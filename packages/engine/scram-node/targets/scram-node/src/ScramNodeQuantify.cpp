@@ -23,18 +23,24 @@ Napi::Value QuantifyModel(const Napi::CallbackInfo& info) {
     Napi::Object nodeOptions = info[0].As<Napi::Object>();
     Napi::Object nodeModel = info[1].As<Napi::Object>();
 
-    // 1. Map Node options/model to C++
-    auto settings = ScramNodeOptions(nodeOptions);
-    auto model = ScramNodeModel(nodeModel);
-
     try {
+        // 1. Map Node options/model to C++
+        auto settings = ScramNodeOptions(nodeOptions);
+        auto model = ScramNodeModel(nodeModel);
+
         // 2. Run analysis
         scram::core::RiskAnalysis analysis(model.get(), settings);
         analysis.Analyze();
         // 3. Map result to Node
         return ScramNodeReport(env, analysis);
     } catch (const std::exception& e) {
-        Napi::Error::New(env, "Failed to run the analysis").ThrowAsJavaScriptException();
+        // Preserve the actual error message from SCRAM
+        std::string errorMsg = "SCRAM Error: ";
+        errorMsg += e.what();
+        Napi::Error::New(env, errorMsg).ThrowAsJavaScriptException();
+        return env.Null();
+    } catch (...) {
+        Napi::Error::New(env, "SCRAM Error: Unknown exception occurred").ThrowAsJavaScriptException();
         return env.Null();
     }
 }

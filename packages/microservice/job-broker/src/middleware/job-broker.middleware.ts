@@ -2,8 +2,8 @@ import { Injectable, NestMiddleware } from "@nestjs/common";
 import { Request, Response, NextFunction } from "express";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
+import { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
+import { ExecutionTask } from "mef-types/openpra-mef/util/execution-task";
 import { QuantificationJobReport } from "./schemas/quantification-job.schema";
 import { ExecutableJobReport } from "./schemas/executable-job.schema";
 

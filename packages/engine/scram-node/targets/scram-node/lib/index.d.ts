@@ -1,6 +1,6 @@
 declare module "scram-node" {
   import { Callback } from "napi";
-  import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+  import { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
   /**
    * @remarks Defines a class for asynchronous execution of SCRAM engine.
    *

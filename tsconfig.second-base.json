@@ -10,7 +10,10 @@
   "incremental": false,
   "compilerOptions": {
     "baseUrl": ".",
-    "paths": {},
+    "paths": {
+      "mef-types": ["packages/mef-types/src/index.ts"],
+      "mef-types/*": ["packages/mef-types/src/*"]
+    },
     "types": [
       "jest",
       "node",

@@ -1,5 +1,3 @@
-import { Role } from "../../openpra-mef/role/role-type";
-
 export interface Members {
   count: number;
   next: any;

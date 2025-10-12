@@ -1,0 +1,49 @@
+name: "CI: Lint Report (non-blocking)"
+
+on:
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  lint-report:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        package:
+          - frontend-web-editor
+          - web-backend
+          - shared-types
+          - shared-sdk
+          - model-generator
+          - engine-scram-node
+          - mef-schema
+          - mef-types
+          - microservice-job-broker
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.17.0'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.18.2
+
+      - name: Install dependencies (skip scripts)
+        run: pnpm install --ignore-scripts --no-frozen-lockfile
+
+      - name: Run lint (JSON)
+        continue-on-error: true
+        run: pnpm nx run ${{ matrix.package }}:lint -- --format json --outputFile=lint-report.json | tee lint-report.txt
+
+      - name: Upload lint artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-${{ matrix.package }}
+          path: |
+            lint-report.json
+            lint-report.txt

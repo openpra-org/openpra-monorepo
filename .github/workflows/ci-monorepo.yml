@@ -75,6 +75,11 @@ jobs:
       - name: Build scram-node
         run: cd packages/engine/scram-node && pnpm run install
 
+      - name: Install scram-cli (CI)
+        run: |
+          # Ensure scram-cli and libs are installed even when postinstall is skipped in CI
+          make -C packages/engine/scram-node/build install
+
       - name: Build
         run: pnpm nx run ${{ matrix.package }}:build --verbose
 
@@ -91,7 +96,10 @@ jobs:
       - name: Test
         env:
           MONGO_URI: mongodb://localhost:27017/test
-        run: pnpm nx run ${{ matrix.package }}:test -- --test-timeout=60000 --verbose
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          export LD_LIBRARY_PATH="$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
+          pnpm nx run ${{ matrix.package }}:test -- --test-timeout=60000 --verbose
 
       - name: E2E Tests
         if: |
@@ -101,4 +109,7 @@ jobs:
         continue-on-error: true
         env:
           MONGO_URI: mongodb://localhost:27017/test
-        run: pnpm nx run ${{ matrix.package }}:e2e
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          export LD_LIBRARY_PATH="$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
+          pnpm nx run ${{ matrix.package }}:e2e

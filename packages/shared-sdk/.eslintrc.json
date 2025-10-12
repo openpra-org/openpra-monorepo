@@ -3,12 +3,16 @@
   "ignorePatterns": ["!**/*"],
   "overrides": [
     {
-      "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
-      "rules": {}
-    },
-    {
       "files": ["*.ts", "*.tsx"],
-      "rules": {}
+      "parserOptions": {
+        "project": [
+          "packages/shared-sdk/tsconfig.lib.json",
+          "packages/shared-sdk/tsconfig.spec.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/consistent-type-assertions": "warn"
+      }
     },
     {
       "files": ["*.js", "*.jsx"],

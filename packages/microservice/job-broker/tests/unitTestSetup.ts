@@ -2,29 +2,21 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/naming-convention,no-var
-  var __MONGOSERVER__: MongoMemoryServer;
+  var __MONGOSERVER__: MongoMemoryServer | undefined;
 }
 
 /**
- * Global variable to store the instance of the in-memory MongoDB server.
- */
-const mongoServer: MongoMemoryServer = new MongoMemoryServer();
-
-/**
- * Asynchronously starts the MongoDB in-memory server and sets the connection URI in the environment variables.
- * This function is typically used in a testing setup to initialize the database before running tests.
- * It also logs the server start and URI to the console.
+ * Jest global setup for microservice tests.
+ * - Use MONGO_URI if provided (e.g., CI real MongoDB); otherwise start mongodb-memory-server locally.
  */
 module.exports = async (): Promise<void> => {
+  const externalUri = process.env.MONGO_URI;
+  if (externalUri && externalUri.length > 0) {
+    return;
+  }
+
+  const mongoServer = new MongoMemoryServer();
   await mongoServer.start();
-
-  /**
-   * Store the MongoDB URI in an environment variable for global access across the application.
-   */
   process.env.MONGO_URI = mongoServer.getUri();
-
-  /**
-   * Attach the MongoMemoryServer instance to the global object for potential use in other parts of the application.
-   */
   global.__MONGOSERVER__ = mongoServer;
 };

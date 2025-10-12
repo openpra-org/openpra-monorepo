@@ -3,7 +3,7 @@ import React, { FC, ReactElement, useCallback, useEffect, useRef, useState } fro
 import ReactFlow, { Background, Controls, Edge, Node, ProOptions, ReactFlowProvider, useReactFlow } from "reactflow";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import useTreeData from "../../hooks/eventTree/useTreeData";
 import { EventTreeList } from "../../components/lists/nestedLists/eventTreeList";
 import { CategoryProvider } from "../../hooks/eventTree/useCreateReleaseCategory";

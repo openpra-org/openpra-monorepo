@@ -5,6 +5,7 @@
     "sourceMap": true,
     "declaration": true,
     "declarationDir": "../../dist/types/shared-types",
+    "composite": true
   },
   "references": [
     {

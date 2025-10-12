@@ -3,7 +3,7 @@ import { memo, MemoExoticComponent, useCallback, useState } from "react";
 import cx from "classnames";
 import { EuiTextArea, useEuiFontSize } from "@elastic/eui";
 import { debounce } from "lodash";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { UseNodeClick } from "../../../hooks/eventSequence/useNodeClick";
 import { GetESToast } from "../../../../utils/treeUtils";
 import { UseToastContext } from "../../../providers/toastProvider";

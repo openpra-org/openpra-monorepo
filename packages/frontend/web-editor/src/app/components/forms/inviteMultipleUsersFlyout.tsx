@@ -19,7 +19,7 @@ import {
   copyToClipboard,
 } from "@elastic/eui";
 import { ChangeEvent, useState } from "react";
-import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
+import { UserInviteApi } from "shared-sdk/lib/api/invites/userInviteApi";
 import { InviteIdDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 import { ExpiryOptions } from "../settings/users";
 import { DefaultSignupProps } from "../login/signUp";

@@ -1,6 +1,6 @@
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute, TypedBody } from "@nestia/core";
-import { ExecutionTask } from "shared-types/src/openpra-mef/util/execution-task";
+import { ExecutionTask } from "mef-types/openpra-mef/util/execution-task";
 import { ExecutableJobReport } from "../middleware/schemas/executable-job.schema";
 import { ExecutableService } from "./services/executable.service";
 import { ExecutableStorageService } from "./services/executable-storage.service";

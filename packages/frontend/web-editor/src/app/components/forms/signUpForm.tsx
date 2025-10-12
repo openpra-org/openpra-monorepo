@@ -1,9 +1,9 @@
 import { EuiButton, EuiForm, EuiFormRow } from "@elastic/eui";
 import React, { useEffect, useMemo } from "react";
 import { useState } from "react";
-import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
-import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
+import { SignUpPropsWithRole } from "shared-sdk/lib/api/AuthTypes";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
+import { EmailValidationForm, UsernameValidationForm } from "shared-sdk/lib/api/FormValidation";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { PasswordForm } from "./passwordForm";

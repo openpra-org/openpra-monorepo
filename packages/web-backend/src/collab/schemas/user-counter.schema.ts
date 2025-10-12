@@ -6,7 +6,7 @@ export class UserCounter {
   @Prop()
   _id: string;
 
-  @Prop({ unique: true })
+  @Prop()
   seq: number;
 }
 

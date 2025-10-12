@@ -1,7 +1,7 @@
 import { Edge, getOutgoers, Node, NodeProps } from "reactflow";
 import { useCallback } from "react";
 import { useParams } from "react-router-dom";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { useStore } from "../../store/faultTreeStore";
 import { FaultTreeState, GetParentNode, getWorkflowEdge } from "../../../utils/treeUtils";
 import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";

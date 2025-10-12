@@ -12,7 +12,7 @@ import {
   EuiSkeletonRectangle,
 } from "@elastic/eui";
 import TypedModel from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
-import { GetCurrentTypedModel } from "shared-types/src/lib/api/TypedModelApiManager";
+import { GetCurrentTypedModel } from "shared-sdk/lib/api/TypedModelApiManager";
 import { TypedModelActionForm } from "../forms/typedModelActionForm";
 import { UseGlobalStore } from "../../zustand/Store";
 import { SettingsAccordian } from "./SettingsAccordian";

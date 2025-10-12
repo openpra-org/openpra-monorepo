@@ -12,7 +12,7 @@ import {
 import { InvitedUserDetailsDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 import { useMemo, useState } from "react";
 import { DefaultItemAction } from "@elastic/eui/src/components/basic_table/action_types";
-import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
+import { UserInviteApi } from "shared-sdk/lib/api/invites/userInviteApi";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 

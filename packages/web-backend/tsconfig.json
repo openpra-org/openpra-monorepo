@@ -1,5 +1,5 @@
 {
-  "extends": "../../tsconfig.second-base.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "module": "commonjs",
     "sourceMap": true,
@@ -32,6 +32,12 @@
     },
     {
       "path": "./tsconfig.spec.json"
+    },
+    {
+      "path": "../shared-types/tsconfig.lib.json"
+    },
+    {
+      "path": "../shared-sdk/tsconfig.lib.json"
     }
   ]
 }

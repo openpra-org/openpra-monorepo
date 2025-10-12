@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node, NodeProps, useReactFlow } from "reactflow";
 import _ from "lodash";
 import { useParams } from "react-router-dom";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { GenerateUUID, FaultTreeState } from "../../../utils/treeUtils";
 
 /**

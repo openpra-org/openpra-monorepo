@@ -5,9 +5,9 @@ import { tmpdir } from "os";
 import { spawn } from "child_process";
 
 import { Injectable } from "@nestjs/common";
-import { CommandLineOptions } from "shared-types/src/openpra-mef/util/quantify-request";
-import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
-import { BinaryQuantifyReport } from "shared-types/src/openpra-mef/util/quantify-report";
+import { CommandLineOptions } from "mef-types/openpra-mef/util/quantify-request";
+import { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
+import { BinaryQuantifyReport } from "mef-types/openpra-mef/util/quantify-report";
 
 @Injectable()
 export class QuantifyService {

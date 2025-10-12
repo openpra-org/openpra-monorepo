@@ -7,6 +7,7 @@ import { BayesianEstimation, BayesianEstimationSchema } from "./schemas/bayesian
 import { EventSequenceDiagram, EventSequenceDiagramSchema } from "./schemas/event-sequence-diagram.schema";
 import { EventTree, EventTreeSchema } from "./schemas/event-tree.schema";
 import { FaultTree, FaultTreeSchema } from "./schemas/fault-tree.schema";
+import { HeatBalanceFaultTree, HeatBalanceFaultTreeSchema } from "./schemas/heat-balance-fault-tree.schema";
 import { InitiatingEvent, InitiatingEventSchema } from "./schemas/initiating-event.schema";
 import { MarkovChain, MarkovChainSchema } from "./schemas/markov-chain.schema";
 import { WeibullAnalysis, WeibullAnalysisSchema } from "./schemas/weibull-analysis.schema";
@@ -71,6 +72,7 @@ describe("CollabService", () => {
           },
           { name: EventTree.name, schema: EventTreeSchema },
           { name: FaultTree.name, schema: FaultTreeSchema },
+          { name: HeatBalanceFaultTree.name, schema: HeatBalanceFaultTreeSchema },
           { name: InitiatingEvent.name, schema: InitiatingEventSchema },
           { name: MarkovChain.name, schema: MarkovChainSchema },
           { name: WeibullAnalysis.name, schema: WeibullAnalysisSchema },

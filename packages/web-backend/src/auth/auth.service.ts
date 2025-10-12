@@ -92,8 +92,8 @@ export class AuthService {
   async verifyPassword(username: string, password: string): Promise<boolean> {
     const user = await this.collabService.loginUser(username);
     try {
-      await argon2.verify(user.password, password);
-      return true;
+      const match = await argon2.verify(user.password, password);
+      return match;
     } catch (e) {
       return false;
     }

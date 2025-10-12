@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
-import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose, { Connection } from "mongoose";
 import { ModelCounter, ModelCounterSchema } from "../schemas/model-counter.schema";
 import { Fmea, FmeaSchema } from "./schemas/fmea.schema";
@@ -8,7 +7,6 @@ import { FmeaService } from "./fmea.service";
 
 describe("CollabService", () => {
   let fmeaService: FmeaService;
-  let mongoServer: MongoMemoryServer;
   let connection: Connection;
   /**
    * Before all tests
@@ -18,9 +16,7 @@ describe("CollabService", () => {
    * define connection and collabService
    */
   beforeAll(async () => {
-    mongoServer = new MongoMemoryServer();
-    await mongoServer.start();
-    const mongoUri = mongoServer.getUri();
+  const mongoUri = process.env.MONGO_URI;
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongoUri),
@@ -48,8 +44,7 @@ describe("CollabService", () => {
    * Stop mongoDB server
    */
   afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
+  await mongoose.disconnect();
   });
 
   describe("FmeaService", () => {
@@ -423,8 +418,10 @@ describe("CollabService", () => {
         dropdownOptions: [],
       };
       await fmeaService.addColumn(fmea.id, addColumnObject2);
-      await fmeaService.addRow(fmea.id);
-      const res = await fmeaService.deleteRow(fmea.id, 1);
+      const added = await fmeaService.addRow(fmea.id);
+      const current = await fmeaService.getFmeaById(fmea.id);
+      const rowId = current?.rows?.[0]?.id as string;
+      const res = await fmeaService.deleteRow(fmea.id, rowId);
       expect(res).toBeDefined();
       expect(res.rows.length).toEqual(0);
     });

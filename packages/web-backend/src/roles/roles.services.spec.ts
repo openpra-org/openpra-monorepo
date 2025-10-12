@@ -71,7 +71,7 @@ describe("rolesService", () => {
     it("Should return all roles in database", async () => {
       const roles = connection.collection<Roles>("roles");
       await roles.insertMany([...BootstrapRoles]);
-      const fetchedRoles = await rolesService.getAllRoles();
+  const fetchedRoles = await rolesService.getAllRoles(undefined);
       expect(fetchedRoles.length).toEqual(2);
       expect(fetchedRoles[0].id).toEqual(BootstrapRoles[0].id);
       expect(fetchedRoles[1].id).toEqual(BootstrapRoles[1].id);

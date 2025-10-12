@@ -1,0 +1,44 @@
+{
+  "extends": ["../../.eslintrc.json"],
+  "ignorePatterns": ["!**/*"],
+  "parserOptions": {
+    "project": [
+      "packages/mef-types/tsconfig.*?.json"
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
+      "parserOptions": {
+        "project": [
+          "./tsconfig.lib.json",
+          "./tsconfig.spec.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/consistent-type-assertions": "off"
+      }
+    },
+    {
+      "files": ["**/*.ts", "**/*.tsx"],
+      "parserOptions": {
+        "project": [
+          "./tsconfig.lib.json",
+          "./tsconfig.spec.json"
+        ]
+      },
+      "rules": {}
+    },
+    {
+      "files": ["**/*.js", "**/*.jsx"],
+      "rules": {}
+    },
+    {
+      "files": ["*.json"],
+      "parser": "jsonc-eslint-parser",
+      "rules": {
+        "@nx/dependency-checks": "error"
+      }
+    }
+  ]
+}

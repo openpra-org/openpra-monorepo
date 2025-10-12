@@ -1,6 +1,6 @@
 import { AbilityBuilder, createMongoAbility, MongoAbility, RawRuleOf } from "@casl/ability";
-import { Role } from "shared-types/src/openpra-mef/role/role-type";
-import { GetAllRoles } from "shared-types/src/lib/api/roles/rolesApi";
+import { Role } from "mef-types/openpra-mef/role/role-type";
+import { GetAllRoles } from "shared-sdk/lib/api/roles/rolesApi";
 
 type Actions = "create" | "read" | "update" | "delete" | "manage";
 type Subjects = "users" | "roles" | "invitation" | "all";

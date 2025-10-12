@@ -1,4 +1,4 @@
-import { MemberRole } from "shared-types/src/lib/data/predefiniedRoles";
+import { MemberRole } from "shared-sdk";
 import { CreateNewUserSchemaDto } from "../dtos/createNewUser-schema";
 
 export const CreateUserObject: CreateNewUserSchemaDto = {

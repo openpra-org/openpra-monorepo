@@ -1,8 +1,7 @@
 import mongoose, { Connection } from "mongoose";
 import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { Test, TestingModule } from "@nestjs/testing";
-import { MemberResult } from "shared-types/src/lib/api/Members";
-import { expect } from "@playwright/test";
+import { MemberResult } from "shared-sdk";
 import * as argon2 from "argon2";
 import { CollabService } from "./collab.service";
 import { User, UserSchema } from "./schemas/user.schema";
@@ -62,7 +61,7 @@ describe("CollabService", () => {
 
   describe("createNewUser", () => {
     it("should be defined", () => {
-      expect(collabService.createNewUser(CreateUserObject)).toBeDefined();
+      expect(collabService.createNewUser).toBeDefined();
     });
 
     /**
@@ -71,7 +70,7 @@ describe("CollabService", () => {
      * expect response to be defined
      */
     it("should create user and return object", async () => {
-      const response = await collabService.createNewUser(CreateUserObject);
+  const response = await collabService.createNewUser({ ...CreateUserObject, roles: [] } as any);
       expect(response).toBeDefined();
     });
 
@@ -86,7 +85,7 @@ describe("CollabService", () => {
       const response = await collabService.createNewUser(CreateUserObject);
       expect(response).toBeDefined();
       try {
-        await collabService.createNewUser(CreateUserObject); // calling create new_user again with same username
+  await collabService.createNewUser({ ...CreateUserObject, roles: [] } as any); // calling create new_user again with same username
       } catch (err) {
         expect(err).toBeInstanceOf(Error); // expect an error to be thrown
       }
@@ -116,7 +115,7 @@ describe("CollabService", () => {
      * expect result to be defined
      */
     it("should return user document if user logged in successfully", async () => {
-      await collabService.createNewUser(CreateUserObject); // create a new user
+  await collabService.createNewUser({ ...CreateUserObject, roles: [] } as any); // create a new user
       const result = await collabService.loginUser(CreateUserObject.username); // call loginUser function
       expect(result).toBeDefined(); //expect result to be defined, if login is successful
     });
@@ -134,7 +133,7 @@ describe("CollabService", () => {
      * expect result to be defined
      */
     it("should return user preferences", async () => {
-      const response = await collabService.createNewUser(CreateUserObject); // create a new user
+  const response = await collabService.createNewUser({ ...CreateUserObject, roles: [] } as any); // create a new user
       if (typeof response !== "string") {
         const returnedValue = await collabService.getUserPreferences(String(response.id)); // calling getUserPreferences
         expect(returnedValue).toBeDefined(); // user preferences should be defined
@@ -144,7 +143,7 @@ describe("CollabService", () => {
 
   describe("getUserById", () => {
     it("should be defined", (): void => {
-      expect(collabService.getUserById("1")).toBeDefined();
+      expect(collabService.getUserById).toBeDefined();
     });
 
     it("should return a single user", async (): Promise<void> => {
@@ -267,15 +266,15 @@ describe("CollabService", () => {
       const member: MemberResult = {
         account_created: "",
         last_login: "",
-        permissions: {},
         preferences: undefined,
         recently_accessed: undefined,
+        roles: [],
         firstName: "Test",
         lastName: "String",
         username: "TestString",
         email: "TestString@gmail.com",
-        id: 786,
-        password: "password",
+  id: 786,
+  password: "password",
       };
       const user = new User();
       user.email = member.email;

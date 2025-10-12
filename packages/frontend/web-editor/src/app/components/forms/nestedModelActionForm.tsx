@@ -12,7 +12,7 @@ import {
 } from "@elastic/eui";
 import { useState } from "react";
 
-import { GetCurrentModelIdString } from "shared-types/src/lib/api/TypedModelApiManager";
+import { GetCurrentModelIdString } from "shared-sdk/lib/api/TypedModelApiManager";
 import { DefaultNestedModelJSON, NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 

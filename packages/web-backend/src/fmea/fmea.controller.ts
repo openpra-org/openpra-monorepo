@@ -57,7 +57,7 @@ export class FmeaController {
    * @returns the updated FMEA object
    */
   @Put(":id/cell")
-  async updateCell(@Param("id") id: number, @Body() body): Promise<Fmea> {
+  async updateCell(@Param("id") id: number, @Body() body): Promise<boolean> {
     return this.fmeaService.updateCell(id, body.rowId, body.column, body.value);
   }
 
@@ -84,7 +84,7 @@ export class FmeaController {
   }
 
   @Delete(":fmeaid/:rowid/delete")
-  async deleteRow(@Param("fmeaid") fmeaId: number, @Param("rowid") rowId: number): Promise<Fmea | null> {
+  async deleteRow(@Param("fmeaid") fmeaId: number, @Param("rowid") rowId: string): Promise<Fmea | null> {
     return this.fmeaService.deleteRow(fmeaId, rowId);
   }
 

@@ -17,6 +17,15 @@
     },
     {
       "path": "./tsconfig.spec.json"
+    },
+    {
+      "path": "../../shared-types/tsconfig.lib.json"
+    },
+    {
+      "path": "../../shared-sdk/tsconfig.lib.json"
+    },
+    {
+      "path": "../../mef-types/tsconfig.lib.json"
     }
   ]
 }

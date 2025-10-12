@@ -1,7 +1,7 @@
 import { EuiIcon, EuiPageTemplate, EuiSkeletonRectangle } from "@elastic/eui";
 import { Outlet } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { GetAllRoles } from "shared-types/src/lib/api/roles/rolesApi";
+import { GetAllRoles } from "shared-sdk/lib/api/roles/rolesApi";
 import { NavInsideNav, NavItemHeader } from "../sidenavs/genericNav";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GetESToast } from "../../../utils/treeUtils";

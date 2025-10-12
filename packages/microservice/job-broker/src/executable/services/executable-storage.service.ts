@@ -4,7 +4,7 @@ import mongoose, { Model } from "mongoose";
 import * as amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import typia, { TypeGuardError } from "typia";
-import { ExecutionResult } from "shared-types/src/openpra-mef/util/execution-result";
+import { ExecutionResult } from "mef-types/openpra-mef/util/execution-result";
 import { ConfigService } from "@nestjs/config";
 import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 import { EnvVarKeys } from "../../../config/env_vars.config";

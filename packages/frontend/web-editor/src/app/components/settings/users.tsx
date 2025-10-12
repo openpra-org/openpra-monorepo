@@ -12,12 +12,12 @@ import {
   copyToClipboard,
 } from "@elastic/eui";
 import { ChangeEvent, useEffect, useState } from "react";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
-import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
-import { MemberResult, Members } from "shared-types/src/lib/api/Members";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
+import { UserInviteApi } from "shared-sdk/lib/api/invites/userInviteApi";
+import { MemberResult, Members } from "shared-sdk/lib/api/Members";
 import { EuiBasicTableColumn } from "@elastic/eui/src/components/basic_table/basic_table";
 import { Link } from "react-router-dom";
-import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
+import { SignUpPropsWithRole } from "shared-sdk/lib/api/AuthTypes";
 import { InviteIdDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 import { GenericModal } from "../modals/genericModal";
 import { DefaultSignupProps } from "../login/signUp";
@@ -86,29 +86,29 @@ export function Users(): JSX.Element {
    */
   const handleSignup = (): void => {
     ApiManager.signupWithoutSignIn(signup)
-      .then((_) => {
+      .then(() => {
         addToast(GetESToast("success", "User created successfully!!!"));
         setIsNewUserModalVisible(false);
       })
-      .catch((_) => {
+      .catch(() => {
         addToast(GetESToast("danger", "Something went wrong"));
       });
   };
 
   const inviteUser = (): void => {
     UserInviteApi.inviteUser(signup, expiry, 1)
-      .then((result) => {
+      .then((result: Response) => {
         result
           .json()
           .then((res: InviteIdDto) => {
             setGeneratedUserId(res.id ?? "");
           })
-          .catch((_) => {
+          .catch(() => {
             addToast(GetESToast("danger", "Something went wrong"));
           });
         setIsNewUserModalVisible(false);
       })
-      .catch((_) => {
+      .catch(() => {
         addToast(GetESToast("danger", "Something went wrong"));
       });
   };

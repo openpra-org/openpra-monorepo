@@ -1,0 +1,34 @@
+import { AuthToken } from "shared-types/src/lib/types/AuthToken";
+import { SignUpCredentials, SignUpCredentialsWithRole, SignUpPropsWithRole } from "./AuthTypes";
+import { MemberResult, Members } from "./Members";
+export declare class ApiManager {
+    static API_ENDPOINT: string;
+    static LOGIN_URL: string;
+    static getWithOptions(url: string): Promise<Response>;
+    static logout(): boolean;
+    static login(creds: any): Promise<void>;
+    static signInWithUsernameAndPassword(username: string, password: string): Promise<void>;
+    signInWithUsernameAndPassword(username: any, password: any): Promise<void>;
+    static signup(data: SignUpCredentialsWithRole): Promise<void>;
+    static signupWithoutSignIn(data: SignUpCredentials): Promise<void>;
+    signup(username: string, email: string, firstName: string, lastName: string, password: string, roles: string[]): Promise<void>;
+    static checkStatus(response: any): any;
+    static isLoggedIn(): boolean;
+    static getTokenTimer(): number;
+    static getCurrentUser(): AuthToken;
+    static getUsers(): Promise<Members>;
+    static getUsersWithRole(roleId: string): Promise<Members>;
+    static post(url: string, data: BodyInit): Promise<Response>;
+    static put<DataType>(url: string, data: DataType): Promise<Response>;
+    static delete(url: RequestInfo | URL | string): Promise<Response>;
+    static getUserById(id: string): Promise<MemberResult>;
+    static updateUser<DataType>(id: string | number, data: DataType): Promise<Response>;
+    static isValidEmail(email: string): Promise<boolean>;
+    static isValidUsername(username: string): Promise<boolean>;
+    static verifyPassword(username: string, password: string): Promise<Response>;
+    static validUserName: (signup: SignUpPropsWithRole) => Promise<boolean>;
+    static checkUserName: (onValidationComplete: (isValid: boolean) => void) => ((signup: SignUpPropsWithRole) => void);
+    static isValidEmailFormat(email: string): boolean;
+    static validEmail: (signup: SignUpPropsWithRole) => Promise<boolean>;
+    static checkEmail: (onValidationComplete: (isValid: boolean) => void) => ((signup: SignUpPropsWithRole) => void);
+}

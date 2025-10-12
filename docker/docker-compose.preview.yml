@@ -1,0 +1,95 @@
+version: "3.8"
+
+# Preview stack for PR environments on a single self-hosted machine
+# Images are expected to come from GHCR and be provided via environment variables.
+
+services:
+  mongo:
+    image: mongo:6
+    container_name: ${COMPOSE_PROJECT_NAME}-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: openpra_preview
+    volumes:
+      - mongo-data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ${COMPOSE_PROJECT_NAME}-rabbitmq
+    restart: unless-stopped
+    ports:
+      # Management UI
+      - "${RABBITMQ_MGMT_PORT}:15672"
+
+  backend:
+    image: ${BACKEND_IMAGE}
+    container_name: ${COMPOSE_PROJECT_NAME}-backend
+    depends_on:
+      - mongo
+      - rabbitmq
+    restart: unless-stopped
+    environment:
+      # NestJS backend expects PORT to be 8000 per repo conventions
+      PORT: 8000
+      NODE_ENV: production
+      # JWT secret (preview only). In production, use JWT_SECRET_KEY_FILE secret mount.
+      UNSAFE_JWT_SECRET_KEY: preview-only-secret
+      # Service dependencies
+      MONGO_URI: mongodb://mongo:27017/openpra_preview
+      # Both variable names are set to satisfy different consumers if needed
+      RABBITMQ_URL: amqp://rabbitmq:5672
+      ENV_RABBITMQ_URL: amqp://rabbitmq:5672
+    ports:
+      - "${BACKEND_PORT}:8000"
+
+  job-broker:
+    image: ${JOB_BROKER_IMAGE}
+    container_name: ${COMPOSE_PROJECT_NAME}-job-broker
+    depends_on:
+      - mongo
+      - rabbitmq
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      MONGO_URI: mongodb://mongo:27017/openpra_preview
+      # Broker uses ENV_RABBITMQ_URL internally
+      ENV_RABBITMQ_URL: amqp://rabbitmq:5672
+    ports:
+      # Optional external exposure for broker HTTP (e.g. /q endpoints)
+      - "${JOB_BROKER_PORT:-0}:3000"
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: ${COMPOSE_PROJECT_NAME}-mongo-express
+    depends_on:
+      - mongo
+    restart: unless-stopped
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_BASICAUTH_ENABLED: "false"
+    ports:
+      - "${MONGO_EXPRESS_PORT}:8081"
+
+  frontend:
+    image: ${FRONTEND_IMAGE}
+    container_name: ${COMPOSE_PROJECT_NAME}-frontend
+    depends_on:
+      - backend
+    restart: unless-stopped
+    volumes:
+      - type: bind
+        source: ./nginx-frontend.preview.conf
+        target: /etc/nginx/conf.d/default.conf
+    environment:
+      NODE_ENV: production
+      # Try to support multiple frontend configs (CRA/Vite/custom) via common envs
+      API_BASE_URL: http://localhost:${BACKEND_PORT}/api
+      REACT_APP_API_BASE_URL: http://localhost:${BACKEND_PORT}/api
+      VITE_API_BASE_URL: http://localhost:${BACKEND_PORT}/api
+    ports:
+      - "${FRONTEND_PORT}:80"
+
+volumes:
+  mongo-data:
+    driver: local

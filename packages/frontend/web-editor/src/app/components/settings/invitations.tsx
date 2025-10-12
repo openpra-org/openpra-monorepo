@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
+import { UserInviteApi } from "shared-sdk/lib/api/invites/userInviteApi";
 import { InvitedUserDetailsDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 import { EuiButton, EuiPageHeader, EuiPageTemplate, EuiSkeletonLoading, EuiText } from "@elastic/eui";
 import { UseToastContext } from "../../providers/toastProvider";

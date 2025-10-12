@@ -12,8 +12,7 @@ import {
   UseGuards,
   HttpException,
 } from "@nestjs/common";
-import { MemberResult } from "shared-types/src/lib/api/Members";
-import { EmailValidationForm, UsernameValidationForm } from "shared-types/src/lib/api/FormValidation";
+import { MemberResult, EmailValidationForm, UsernameValidationForm } from "shared-sdk";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { Public } from "../guards/public.guard";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";

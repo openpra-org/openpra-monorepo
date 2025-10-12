@@ -2,7 +2,7 @@ import {
   DeleteEventSequenceQuantificationDiagram,
   GetEventSequenceQuantificationDiagram,
   PatchEventSequenceQuantificationDiagramLabel,
-} from "shared-types/src/lib/api/NestedModelApiManager";
+} from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
 
 function EventSequenceQuantificationDiagramList(): JSX.Element {

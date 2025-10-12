@@ -23,6 +23,7 @@
           }
         ],
         "outputPath": "dist/packages/microservice/job-broker",
+  "generatePackageJson": true,
         "main": "packages/microservice/job-broker/src/main.ts",
         "tsConfig": "packages/microservice/job-broker/tsconfig.app.json",
         "assets": ["packages/microservice/job-broker/src/assets"],

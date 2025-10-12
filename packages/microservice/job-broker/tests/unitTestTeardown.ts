@@ -2,7 +2,7 @@ import { MongoMemoryServer } from "mongodb-memory-server";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/naming-convention,no-var
-  var __MONGOSERVER__: MongoMemoryServer;
+  var __MONGOSERVER__: MongoMemoryServer | undefined;
 }
 
 /**
@@ -14,7 +14,9 @@ module.exports = async (): Promise<void> => {
     /**
      * Stop the MongoMemoryServer instance.
      */
-    await global.__MONGOSERVER__.stop();
+    if (global.__MONGOSERVER__) {
+      await global.__MONGOSERVER__.stop();
+    }
   } catch (e) {
     return;
   }

@@ -1,0 +1,29 @@
+{
+  "name": "mef-types",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/mef-types/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/mef-types",
+        "main": "packages/mef-types/src/index.ts",
+        "tsConfig": "packages/mef-types/tsconfig.lib.json",
+        "assets": ["packages/mef-types/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "packages/mef-types/jest.config.ts"
+      }
+    }
+  }
+}

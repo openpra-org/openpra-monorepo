@@ -4,7 +4,7 @@ import { ReactElement, useEffect, useState } from "react";
 import { NestedModel } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { LabelJSON } from "shared-types/src/lib/types/Label";
 
-import { GetCurrentModelId, GetCurrentModelIdString } from "shared-types/src/lib/api/TypedModelApiManager";
+import { GetCurrentModelId, GetCurrentModelIdString } from "shared-sdk/lib/api/TypedModelApiManager";
 import { GenericListItem } from "../../GenericListItem";
 import { GenericItemList } from "../../GenericItemList";
 import { UseGlobalStore } from "../../../../zustand/Store";

@@ -3,8 +3,8 @@ import {
   GetInternalEvents,
   PatchInternalEvent,
   PostInternalEvent,
-} from "shared-types/src/lib/api/TypedModelApiManager";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+} from "shared-sdk/lib/api/TypedModelApiManager";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { UseGlobalStore } from "../Store";

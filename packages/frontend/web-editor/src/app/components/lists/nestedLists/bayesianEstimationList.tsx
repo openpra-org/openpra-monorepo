@@ -2,7 +2,7 @@ import {
   DeleteBayesianEstimation,
   GetBayesianEstimations,
   PatchBayesianEstimationLabel,
-} from "shared-types/src/lib/api/NestedModelApiManager";
+} from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
 
 function BayesianEstimationList(): JSX.Element {

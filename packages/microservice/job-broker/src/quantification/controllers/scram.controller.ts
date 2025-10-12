@@ -1,6 +1,6 @@
 import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { TypedRoute, TypedBody } from "@nestia/core";
-import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
 import { ProducerService } from "../services/producer.service";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 import { StorageService } from "../services/storage.service";

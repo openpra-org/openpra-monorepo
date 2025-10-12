@@ -15,7 +15,7 @@ import {
 import React, { useEffect, useState } from "react";
 
 import { DEFAULT_TYPED_MODEL_JSON, TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 
 import { ToTitleCase } from "../../../utils/StringUtils";
 

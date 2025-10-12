@@ -73,8 +73,8 @@ describe("CollabController", () => {
         username: "testUser",
         password: "12345678",
       };
-      const response = await collabController.createNewUser(user_object);
-      expect(response).toBeDefined(); //expect result to be defined, if login is successfulexpect(result).toBeDefined();
+  const response = await collabController.createNewUser(user_object as any);
+  expect(response).toBeDefined();
     });
   });
 
@@ -96,8 +96,8 @@ describe("CollabController", () => {
         username: "testUser",
         password: "12345678",
       };
-      const response = await collabService.createNewUser(user_object);
-      const userId = String(response.id);
+  const response: any = await collabService.createNewUser({ ...user_object, roles: [] } as any);
+  const userId = String(response.id ?? response?.toJSON?.().id ?? response?._doc?.id);
       const result = await collabController.getUserPreferences(userId);
       expect(result).toBeDefined(); //expect preferences to be defined for user
     });
@@ -122,10 +122,10 @@ describe("CollabController", () => {
         username: "testUser",
         password: "12345678",
       };
-      const userPreferenceObject = { preferences: { theme: "Dark" } };
-      const response = await collabService.createNewUser(user_object);
-      const userId = String(response.id);
-      const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
+  const userPreferenceObject = { preferences: { theme: "Dark" } };
+  const response: any = await collabService.createNewUser({ ...user_object, roles: [] } as any);
+  const userId = String(response?.id ?? response?.toJSON?.().id ?? response?._doc?.id);
+  const result: any = await collabController.updateUserPreferences(userId, userPreferenceObject as any);
       expect(result.preferences.theme).toMatch("Dark");
     });
 
@@ -138,9 +138,9 @@ describe("CollabController", () => {
         password: "12345678",
       };
       const userPreferenceObject = { preferences: { nodeIdsVisible: false } };
-      const response = await collabService.createNewUser(user_object);
-      const userId = String(response.id);
-      const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
+  const response: any = await collabService.createNewUser({ ...user_object, roles: [] } as any);
+  const userId = String(response.id ?? response?.toJSON?.().id ?? response?._doc?.id);
+  const result: any = await collabController.updateUserPreferences(userId, userPreferenceObject as any);
       expect(result.preferences.nodeIdsVisible).toBeFalsy();
     });
 
@@ -153,9 +153,9 @@ describe("CollabController", () => {
         password: "12345678",
       };
       const userPreferenceObject = { preferences: { outlineVisible: false } };
-      const response = await collabService.createNewUser(user_object);
-      const userId = String(response.id);
-      const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
+  const response: any = await collabService.createNewUser({ ...user_object, roles: [] } as any);
+  const userId = String(response.id ?? response?.toJSON?.().id ?? response?._doc?.id);
+  const result: any = await collabController.updateUserPreferences(userId, userPreferenceObject as any);
       expect(result.preferences.outlineVisible).toBeFalsy();
     });
   });

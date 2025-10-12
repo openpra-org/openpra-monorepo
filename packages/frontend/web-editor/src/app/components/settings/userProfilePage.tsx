@@ -12,9 +12,9 @@ import {
   useIsWithinBreakpoints,
 } from "@elastic/eui";
 import { useEffect, useState } from "react";
-import { MemberResult } from "shared-types/src/lib/api/Members";
+import { MemberResult } from "shared-sdk/lib/api/Members";
 import { useNavigate } from "react-router-dom";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 
 /**
  * Function returns the main user profile page

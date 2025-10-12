@@ -3,7 +3,8 @@
   "compilerOptions": {
     "types": ["jest", "node"],
     "sourceMap": false,
-    "declaration": false
+    "declaration": false,
+    "composite": true
   },
   /**
   * @link https://www.typescriptlang.org/tsconfig/#include

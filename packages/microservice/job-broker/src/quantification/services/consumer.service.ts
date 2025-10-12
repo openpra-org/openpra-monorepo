@@ -8,7 +8,7 @@ import typia, { TypeGuardError } from "typia";
 import { RunScramCli } from "scram-node";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { QuantifyRequest } from "shared-types/src/openpra-mef/util/quantify-request";
+import { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
 
 import { EnvVarKeys } from "../../../config/env_vars.config";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";

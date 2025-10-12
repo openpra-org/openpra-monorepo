@@ -3,7 +3,7 @@ import { EdgeProps, getBezierPath, Edge, useReactFlow } from "reactflow";
 import { EuiFieldText } from "@elastic/eui";
 import cx from "classnames";
 import { debounce } from "lodash";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { UseEdgeClick } from "../../../hooks/eventSequence/useEdgeClick";
 import { GetESToast } from "../../../../utils/treeUtils";
 import { UseToastContext } from "../../../providers/toastProvider";

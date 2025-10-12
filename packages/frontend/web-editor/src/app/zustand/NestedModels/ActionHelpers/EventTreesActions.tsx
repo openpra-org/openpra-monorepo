@@ -3,7 +3,7 @@ import {
   PostEventTree,
   PatchEventTreeLabel,
   DeleteEventTree as DeleteEventTreeAPI,
-} from "shared-types/src/lib/api/NestedModelApiManager";
+} from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 import { produce } from "immer";
 import { StoreStateType, UseGlobalStore } from "../../Store";

@@ -1,5 +1,5 @@
 import { Outlet, useLocation } from "react-router-dom";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 import { ReactElement, useEffect, useRef, useState } from "react";
 import { RootHeader } from "../components/headers/rootHeader";
 

@@ -1,10 +1,10 @@
 import React, { useContext } from "react";
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
-import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
-import { AuthService } from "shared-types/src/lib/api/AuthService";
-import { MemberRole } from "shared-types/src/lib/data/predefiniedRoles";
+import { SignUpPropsWithRole } from "shared-sdk/lib/api/AuthTypes";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
+import { AuthService } from "shared-sdk/lib/api/AuthService";
+import { MemberRole } from "shared-sdk/lib/data/predefiniedRoles";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 import { SignUpForm } from "../forms/signUpForm";

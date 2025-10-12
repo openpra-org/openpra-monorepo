@@ -11,7 +11,7 @@ import ReactFlow, {
 } from "reactflow";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { EventSequenceGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { EventSequenceList } from "../../components/lists/nestedLists/eventSequenceList";
 import { UseLayout } from "../../hooks/eventSequence/useLayout";

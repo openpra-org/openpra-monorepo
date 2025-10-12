@@ -18,8 +18,7 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME}-rabbitmq
     restart: unless-stopped
     ports:
-      # AMQP (optional external debug port) and Management UI
-      - "${AMQP_PORT:-0}:5672"
+      # Management UI
       - "${RABBITMQ_MGMT_PORT}:15672"
 
   backend:

@@ -17,10 +17,7 @@ jobs:
         ports:
           - 27017:27017
         options: >-
-          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'" \
-          --health-interval 10s \
-          --health-timeout 5s \
-          --health-retries 5
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'" --health-interval 10s --health-timeout 5s --health-retries 5
     strategy:
       matrix:
         package:
@@ -70,10 +67,10 @@ jobs:
             libjemalloc2
 
       - name: Install pnpm
-        run: npm install -g pnpm@8
+        run: npm install -g pnpm@10.18.2
 
       - name: Install dependencies
-        run: pnpm install --ignore-scripts
+        run: pnpm install --ignore-scripts --no-frozen-lockfile
 
       - name: Build scram-node
         run: cd packages/engine/scram-node && pnpm run install
@@ -82,13 +79,10 @@ jobs:
         run: pnpm nx run ${{ matrix.package }}:build --verbose
 
       - name: Wait for MongoDB service
-        env:
-          MONGO_URI: mongodb://localhost:27017/test
         run: |
           set -e
           for i in $(seq 1 60); do
-            if mongosh --quiet --eval 'db.adminCommand("ping")' --host localhost --port 27017 >/dev/null 2>&1; then
-              echo "MongoDB is ready"; break; fi; sleep 2; done
+            if (echo > /dev/tcp/127.0.0.1/27017) >/dev/null 2>&1; then echo "MongoDB is listening"; break; fi; sleep 2; done
 
       - name: Lint
         run: pnpm nx run ${{ matrix.package }}:lint --verbose

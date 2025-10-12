@@ -66,30 +66,31 @@ jobs:
             echo "channel_tag=preview" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create Dockerfile (web-backend)
+      - name: Prepare web-backend build context
         run: |
-          cat > Dockerfile.web-backend <<'EOF'
+          mkdir -p docker-context/web-backend
+          cp -r dist/packages/web-backend/* docker-context/web-backend/
+          cp packages/web-backend/package.json docker-context/web-backend/package.json
+          cat > docker-context/web-backend/Dockerfile <<'EOF'
           FROM node:20-slim
           WORKDIR /app
-          # Copy built dist for web-backend
-          COPY dist/packages/web-backend/ ./
-          # Install runtime deps from package manifest
-          COPY packages/web-backend/package.json ./package.json
+          # Copy built app and package.json into image
+          COPY . ./
           RUN npm install --omit=dev && npm cache clean --force
           ENV NODE_ENV=production
           EXPOSE 8000
           CMD ["node","main.js"]
           EOF
 
-      - name: Create Dockerfile (job-broker)
+      - name: Prepare job-broker build context
         run: |
-          cat > Dockerfile.job-broker <<'EOF'
+          mkdir -p docker-context/job-broker
+          cp -r dist/packages/microservice/job-broker/* docker-context/job-broker/
+          cp packages/microservice/job-broker/package.json docker-context/job-broker/package.json
+          cat > docker-context/job-broker/Dockerfile <<'EOF'
           FROM node:20-slim
           WORKDIR /app
-          # Copy built dist for microservice job-broker
-          COPY dist/packages/microservice/job-broker/ ./
-          # Install runtime deps from package manifest
-          COPY packages/microservice/job-broker/package.json ./package.json
+          COPY . ./
           RUN npm install --omit=dev && npm cache clean --force
           ENV NODE_ENV=production
           EXPOSE 3000
@@ -99,8 +100,8 @@ jobs:
       - name: Build and push web-backend image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: Dockerfile.web-backend
+          context: docker-context/web-backend
+          file: docker-context/web-backend/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-web-backend:${{ steps.prep.outputs.short_sha }}
@@ -110,17 +111,19 @@ jobs:
       - name: Build and push job-broker image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: Dockerfile.job-broker
+          context: docker-context/job-broker
+          file: docker-context/job-broker/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-job-broker:${{ steps.prep.outputs.short_sha }}
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-job-broker:${{ steps.prep.outputs.branch_slug }}
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-job-broker:${{ steps.prep.outputs.channel_tag }}
 
-      - name: Create Dockerfile (frontend)
+      - name: Prepare frontend build context
         run: |
-          cat > nginx-frontend.conf <<'EOF'
+          mkdir -p docker-context/frontend
+          cp -r dist/packages/frontend/web-editor/* docker-context/frontend/
+          cat > docker-context/frontend/nginx-frontend.conf <<'EOF'
           server {
             listen 80;
             server_name _;
@@ -134,18 +137,18 @@ jobs:
             }
           }
           EOF
-          cat > Dockerfile.frontend <<'EOF'
+          cat > docker-context/frontend/Dockerfile <<'EOF'
           FROM nginx:1.25-alpine
           COPY nginx-frontend.conf /etc/nginx/conf.d/default.conf
-          COPY dist/packages/frontend/web-editor/ /usr/share/nginx/html/
+          COPY . /usr/share/nginx/html/
           EXPOSE 80
           EOF
 
       - name: Build and push frontend image
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: Dockerfile.frontend
+          context: docker-context/frontend
+          file: docker-context/frontend/Dockerfile
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.short_sha }}

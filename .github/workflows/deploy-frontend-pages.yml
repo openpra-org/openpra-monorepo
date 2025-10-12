@@ -1,0 +1,87 @@
+name: "Deploy: Frontend — GitHub Pages"
+
+on:
+  push:
+    branches:
+      - main
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@8
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Build frontend (production)
+        env:
+          # Prefer the PR head ref, fallback to the ref name on push
+          RAW_BRANCH: ${{ github.head_ref || github.ref_name }}
+          NODE_ENV: production
+          ENABLE_SENTRY: ""
+        run: |
+          # Slugify branch (replace / with -)
+          BRANCH_SLUG="${RAW_BRANCH//\//-}"
+          export BRANCH_SLUG
+          echo "Building for BRANCH_SLUG=$BRANCH_SLUG"
+          pnpm nx run frontend-web-editor:build:production
+
+      - name: Compute base path and add SPA fallback
+        run: |
+          DIST_DIR="dist/packages/frontend/web-editor"
+          # For GitHub Pages project sites, the site is served under /<repo>/
+          BASE_PATH="/${{ github.event.repository.name }}/"
+          # Update base href in index.html if present
+          if grep -q '<base ' "$DIST_DIR/index.html"; then
+            sed -i "s|<base href=\"/\"|<base href=\"${BASE_PATH}\"|" "$DIST_DIR/index.html" || true
+          else
+            # Insert base before closing head if no base tag exists
+            sed -i "s|</head>|  <base href=\"${BASE_PATH}\" />\n</head>|" "$DIST_DIR/index.html" || true
+          fi
+          # Create SPA fallback for GitHub Pages
+          cp "$DIST_DIR/index.html" "$DIST_DIR/404.html"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/packages/frontend/web-editor
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          preview: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}

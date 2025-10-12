@@ -1,6 +1,6 @@
 import { NodeProps, useReactFlow } from "reactflow";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";

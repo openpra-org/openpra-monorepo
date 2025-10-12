@@ -14,7 +14,9 @@ This document defines repository-wide guidance for AI-assisted edits and code ge
 - Packages:
   - `packages/frontend/web-editor`: React 18 + TS, Elastic UI, React Router, SWR.
   - `packages/web-backend`: NestJS 10 + Mongoose 8.
-  - `packages/shared-types`: Central TS types; single source of truth for MEF schemas.
+  - `packages/shared-types`: Pure types-only library; central domain types and DTOs (no runtime). MEF schemas are generated from these types.
+  - `packages/shared-sdk`: Runtime SDK (AuthService, ApiManager, invites, roles, predefined roles); imports types from `shared-types`.
+  - `packages/mef-types`: MEF technical element types extracted from shared-types.
   - `packages/mef-schema`: Generated MEF JSON schemas from shared-types.
   - `packages/engine/scram-node`: Node wrappers for SCRAM engine.
   - `packages/model-generator`, `packages/microservice/job-broker`: utilities/services.
@@ -50,8 +52,14 @@ This document defines repository-wide guidance for AI-assisted edits and code ge
 
 ### Shared Types
 - Source of truth for interfaces/types used across frontend/backend.
+- Pure: no runtime code or framework dependencies. Keep NestJS/React runtime in other packages.
 - Update exports in `packages/shared-types/src/lib/index.ts` when adding new types.
 - When schema JSON is needed, generate via `mef-schema` package (follow existing pattern).
+
+### Shared SDK (runtime)
+- Runtime-only utilities and APIs: `AuthService`, `ApiManager`, roles and invites APIs, predefined roles.
+- Depends on `shared-types` for types and DTOs.
+- Frontend and backend should import runtime helpers from `shared-sdk` instead of `shared-types`.
 
 ## Quality Gates (Green-Before-Done)
 - Build: `nx run-many -t build` must pass.

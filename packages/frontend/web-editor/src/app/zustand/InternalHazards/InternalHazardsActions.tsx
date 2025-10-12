@@ -3,8 +3,8 @@ import {
   GetInternalHazards,
   PatchInternalHazard,
   PostInternalHazard,
-} from "shared-types/src/lib/api/TypedModelApiManager";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+} from "shared-sdk/lib/api/TypedModelApiManager";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 import { InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { UseGlobalStore } from "../Store";

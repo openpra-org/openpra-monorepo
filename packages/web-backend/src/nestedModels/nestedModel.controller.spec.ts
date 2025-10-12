@@ -4,10 +4,17 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { NestedCounter, NestedCounterSchema } from "../schemas/tree-counter.schema";
 import { NestedModelController } from "./nestedModel.controller";
 import { NestedModelService } from "./nestedModel.service";
+import { InitiatingEventsService } from "./NestedModelsHelpers/initiating-events.service";
+import { EventSequenceDiagramService } from "./NestedModelsHelpers/event-sequence-diagram.service";
+import { EventSequenceAnalysisService } from "./NestedModelsHelpers/event-sequence-analysis.service";
+import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
+import { BayesianNetworksService } from "./NestedModelsHelpers/bayesian-networks.service";
+import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
 import { BayesianEstimation, BayesianEstimationSchema } from "./schemas/bayesian-estimation.schema";
 import { EventSequenceDiagram, EventSequenceDiagramSchema } from "./schemas/event-sequence-diagram.schema";
 import { EventTree, EventTreeSchema } from "./schemas/event-tree.schema";
 import { FaultTree, FaultTreeSchema } from "./schemas/fault-tree.schema";
+import { HeatBalanceFaultTree, HeatBalanceFaultTreeSchema } from "./schemas/heat-balance-fault-tree.schema";
 import { InitiatingEvent, InitiatingEventSchema } from "./schemas/initiating-event.schema";
 import { MarkovChain, MarkovChainSchema } from "./schemas/markov-chain.schema";
 import { WeibullAnalysis, WeibullAnalysisSchema } from "./schemas/weibull-analysis.schema";
@@ -73,6 +80,7 @@ describe("CollabController", () => {
           },
           { name: EventTree.name, schema: EventTreeSchema },
           { name: FaultTree.name, schema: FaultTreeSchema },
+          { name: HeatBalanceFaultTree.name, schema: HeatBalanceFaultTreeSchema },
           { name: InitiatingEvent.name, schema: InitiatingEventSchema },
           { name: MarkovChain.name, schema: MarkovChainSchema },
           { name: WeibullAnalysis.name, schema: WeibullAnalysisSchema },
@@ -107,7 +115,56 @@ describe("CollabController", () => {
           },
         ]),
       ],
-      providers: [NestedModelService],
+      providers: [
+        NestedModelService,
+        { provide: InitiatingEventsService, useValue: { createInitiatingEvent: jest.fn(async (d) => ({ ...d, id: 1 })) } },
+        {
+          provide: EventSequenceDiagramService,
+          useValue: {
+            createEventSequenceDiagram: jest.fn(async (d) => ({ ...d, id: 1 })),
+            getSingleEventSequenceDiagram: jest.fn(async () => ({ id: 1, parentIds: [1] })),
+          },
+        },
+        {
+          provide: EventSequenceAnalysisService,
+          useValue: { createEventSequenceAnalysis: jest.fn(async (d) => ({ ...d, id: 1 })) },
+        },
+        {
+          provide: EventTreesService,
+          useValue: {
+            createEventTree: jest.fn(async (d) => ({ ...d, id: 1 })),
+            getSingleEventTree: jest.fn(async () => ({ id: 1, parentIds: [1] })),
+          },
+        },
+        {
+          provide: BayesianNetworksService,
+          useValue: {
+            createBayesianNetwork: jest.fn(async (d) => ({ ...d, id: 1 })),
+            getSingleBayesianNetwork: jest.fn(async () => ({ id: 1, parentIds: [1] })),
+          },
+        },
+        {
+          provide: FaultTreesService,
+          useValue: {
+            createFaultTree: jest.fn(async (d) => ({ ...d, id: 1 })),
+            getSingleFaultTree: jest.fn(async () => ({ id: 1, parentIds: [1] })),
+          },
+        },
+        {
+          provide: InitiatingEventsService,
+          useValue: {
+            createInitiatingEvent: jest.fn(async (d) => ({ ...d, id: 1 })),
+            getSingleInitiatingEvent: jest.fn(async () => ({ id: 1, parentIds: [1] })),
+          },
+        },
+        {
+          provide: EventSequenceAnalysisService,
+          useValue: {
+            createEventSequenceAnalysis: jest.fn(async (d) => ({ ...d, id: 1 })),
+            getSingleEventSequenceAnalysis: jest.fn(async () => ({ id: 1, parentIds: [1] })),
+          },
+        },
+      ],
       controllers: [NestedModelController],
     }).compile();
     connection = await module.get(getConnectionToken()); // create mongoose connection object to call functions like put, get, find

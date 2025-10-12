@@ -3,7 +3,7 @@ import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
 import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
 import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node } from "reactflow";
 import _ from "lodash";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { Toast } from "@elastic/eui/src/components/toast/global_toast_list";
 import { EuiToastProps } from "@elastic/eui/src/components/toast/toast";
 import {

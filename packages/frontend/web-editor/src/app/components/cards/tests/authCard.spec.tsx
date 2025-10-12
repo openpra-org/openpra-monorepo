@@ -1,5 +1,22 @@
 import { queryAllByRole, render } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { AuthCard } from "../authCard";
+import { ToastProvider } from "../../../providers/toastProvider";
+import { AbilityContext } from "../../../providers/abilityProvider";
+import { DefaultAbility } from "../../../casl/ability";
+
+// Ensure SignUp does not redirect during test render
+jest.mock("shared-sdk/lib/api/ApiManager", () => ({
+  ApiManager: {
+    isLoggedIn: jest.fn(() => false),
+    // Debounced validators used by SignUpForm
+    checkUserName: jest.fn((cb: (result: boolean) => void) => (/* signup */) => cb(true)),
+    checkEmail: jest.fn((cb: (result: boolean) => void) => (/* signup */) => cb(true)),
+    // Promise-based validators used on submit
+    isValidEmail: jest.fn(async () => true),
+    isValidUsername: jest.fn(async () => true),
+  },
+}));
 
 describe("AuthCard", () => {
   // before(() => {
@@ -8,7 +25,15 @@ describe("AuthCard", () => {
   // });
 
   it("renders AuthCard component with correct elements", () => {
-    const { getByText, getByAltText, getByTestId } = render(<AuthCard />);
+    const { getByText, getByAltText, getByTestId } = render(
+      <MemoryRouter>
+        <AbilityContext.Provider value={DefaultAbility()}>
+          <ToastProvider>
+            <AuthCard />
+          </ToastProvider>
+        </AbilityContext.Provider>
+      </MemoryRouter>,
+    );
 
     // Test title and logo
     const titleElement = getByText("OpenPRA App");

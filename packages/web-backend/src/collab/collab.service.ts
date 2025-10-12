@@ -4,7 +4,7 @@ import { Model } from "mongoose";
 import * as argon2 from "argon2";
 import * as dot from "dot-object";
 import { UpdateOneModel } from "mongodb";
-import { MemberResult } from "shared-types/src/lib/api/Members";
+import { MemberResult } from "shared-sdk";
 import { CreateNewUserSchemaDto } from "./dtos/createNewUser-schema";
 import { PaginationDto } from "./dtos/pagination.dto";
 import { UserPreferencesDto } from "./dtos/user-preferences.dto";
@@ -44,12 +44,11 @@ export class CollabService {
    * @returns {number} ID number
    */
   async getNextUserValue(name: string): Promise<number> {
-    const record = await this.userCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
-    if (!record) {
-      const newCounter = new this.userCounterModel({ _id: name, seq: 1 });
-      await newCounter.save();
-      return newCounter.seq;
-    }
+    const record = await this.userCounterModel.findByIdAndUpdate(
+      name,
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true },
+    );
     return record.seq;
   }
 
@@ -224,7 +223,7 @@ export class CollabService {
         currentlySelected: " ",
       },
     };
-    newUser.roles = body.roles;
+    newUser.roles = body.roles ?? [];
     return newUser.save();
   }
 
@@ -283,7 +282,7 @@ export class CollabService {
    * @param body - Request body
    * @returns Updated preferences of the user
    */
-  async updateUserPreferences(user_id: string, body: UserPreferencesDto): Promise<void> {
+  async updateUserPreferences(user_id: string, body: UserPreferencesDto) {
     const user = await this.userModel.findOne({ id: Number(user_id) }).lean();
     return this.userModel.findByIdAndUpdate(
       user._id,

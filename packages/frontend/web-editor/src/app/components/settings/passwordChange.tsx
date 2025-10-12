@@ -12,11 +12,11 @@ import {
   EuiFieldPassword,
   useGeneratedHtmlId,
 } from "@elastic/eui";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 import moment from "moment";
 import { useContext, useEffect, useState } from "react";
-import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
-import { CollabRole } from "shared-types/src/lib/data/predefiniedRoles";
+import { SignUpPropsWithRole } from "shared-sdk/lib/api/AuthTypes";
+import { CollabRole } from "shared-sdk/lib/data/predefiniedRoles";
 import { GenericModal } from "../modals/genericModal";
 import { PasswordForm } from "../forms/passwordForm";
 import { PreferenceContext, PreferenceContextType } from "./preferences";

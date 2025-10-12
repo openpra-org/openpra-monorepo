@@ -6,7 +6,15 @@
     "baseUrl": ".",
     "paths": {
       "mef-types": ["packages/mef-types/src/index.ts"],
-      "mef-types/*": ["packages/mef-types/src/*"]
+      "mef-types/*": ["packages/mef-types/src/*"],
+      "shared-sdk": ["packages/shared-sdk/src/index.ts"],
+      "shared-sdk/*": ["packages/shared-sdk/src/*"],
+      "shared-types": ["packages/shared-types/src/index.ts"],
+  "shared-types/*": ["packages/shared-types/*"],
+  "shared-types/src/*": ["packages/shared-types/src/*"],
+  "shared-types/src/openpra-zod-mef/*": ["packages/shared-types/src/openpra-zod-mef/*"],
+      "shared-types/src/lib/api/*": ["packages/shared-sdk/src/lib/api/*"],
+      "shared-types/src/lib/data/*": ["packages/shared-sdk/src/lib/data/*"]
     },
     "types": ["jest", "node", "@types/jest"],
     "plugins": [

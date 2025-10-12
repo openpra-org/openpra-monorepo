@@ -101,7 +101,7 @@ describe("ContextAddButton", () => {
 
   it("Renders the bayesian estimations button", () => {
     const { getByText } = render(
-      <MemoryRouter initialEntries={["/internal-events/bayesian-estimations"]}>
+      <MemoryRouter initialEntries={["/internal-events/bayesian-estimation"]}>
         <ContextAddButton />
       </MemoryRouter>,
     );

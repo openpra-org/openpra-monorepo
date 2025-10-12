@@ -29,7 +29,7 @@ export class RolesService implements OnApplicationBootstrap {
   /**
    * This function returns all the roles from the database
    */
-  async getAllRoles(roleId: string[] | null): Promise<Roles[]> {
+  async getAllRoles(roleId?: string[] | null): Promise<Roles[]> {
     let roles: Roles[];
     if (roleId !== undefined && roleId.length > 0) {
       roles = await this.roleModel.find({ id: { $in: roleId } }).exec();

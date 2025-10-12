@@ -1,5 +1,5 @@
 import { Edge, NodeProps, Node, useReactFlow } from "reactflow";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";

@@ -2,7 +2,7 @@ import {
   DeleteSystemsAnalysis,
   GetSystemsAnalysis,
   PatchSystemsAnalysisLabel,
-} from "shared-types/src/lib/api/NestedModelApiManager";
+} from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
 
 function SystemsAnalysisList(): JSX.Element {

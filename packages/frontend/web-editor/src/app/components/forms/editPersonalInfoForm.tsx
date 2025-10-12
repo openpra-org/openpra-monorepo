@@ -9,7 +9,7 @@ import {
   EuiButton,
 } from "@elastic/eui";
 import { useContext } from "react";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 import { PreferenceContext, PreferenceContextType } from "../settings/preferences";
 
 /**

@@ -36,8 +36,8 @@ export class Fmea {
 
   @Prop()
   rows: {
-    id: number;
-    row_data: Map<string, string>;
+    id: string;
+    row_data: Record<string, string>;
   }[];
 }
 

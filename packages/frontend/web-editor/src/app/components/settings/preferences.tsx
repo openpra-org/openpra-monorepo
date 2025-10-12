@@ -1,8 +1,8 @@
 import { EuiIcon, EuiPageTemplate, EuiSkeletonLoading, EuiText } from "@elastic/eui";
 import { Outlet, useParams } from "react-router-dom";
 import { useContext, useEffect, useState } from "react";
-import { MemberResult } from "shared-types/src/lib/api/Members";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { MemberResult } from "shared-sdk/lib/api/Members";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 import React from "react";
 import { NavInsideNav } from "../sidenavs/genericNav";
 import { AbilityContext } from "../../providers/abilityProvider";

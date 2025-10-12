@@ -24,6 +24,6 @@ export * from "./types/modelTypes/largeModels/internalHazardsModel";
 export * from "./types/modelTypes/largeModels/typedModel";
 export * from "./types/modelTypes/innerModels/nestedModel";
 export * from "./types/userInvites/InvitedUser";
-export * from "./data/predefiniedRoles";
+export * from "./types/roles/RoleSchemaDto";
 // Note: openpra-mef types have moved to the separate mef-types package
 

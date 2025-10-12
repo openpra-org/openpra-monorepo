@@ -11,6 +11,4 @@ export default {
   globalSetup: "<rootDir>/tests/unitTestSetup.ts",
   globalTeardown: "<rootDir>/tests/unitTestTeardown.ts",
   maxWorkers: 1,
-  collectCoverage: true,
-  coverageDirectory: "../../../coverage/packages/microservice-job-broker",
 };

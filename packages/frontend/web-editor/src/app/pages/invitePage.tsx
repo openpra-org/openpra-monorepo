@@ -1,11 +1,11 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
-import { UserInviteApi } from "shared-types/src/lib/api/invites/userInviteApi";
 import { InvitedUserDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
-import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
 import { EuiPageTemplate, EuiSkeletonLoading } from "@elastic/eui";
-import { MemberRole } from "shared-types/src/lib/data/predefiniedRoles";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
+import { UserInviteApi } from "shared-sdk/lib/api/invites/userInviteApi";
+import { SignUpPropsWithRole } from "shared-sdk/lib/api/AuthTypes";
+import { MemberRole } from "shared-sdk/lib/data/predefiniedRoles";
 import { DefaultSignupProps } from "../components/login/signUp";
 import { UseToastContext } from "../providers/toastProvider";
 import { GenerateUUID } from "../../utils/treeUtils";

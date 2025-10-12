@@ -14,7 +14,7 @@ import {
   PostSuccessCriteria,
   PostSystemsAnalysis,
   PostWeibullAnalysis,
-} from "shared-types/src/lib/api/NestedModelApiManager";
+} from "shared-sdk/lib/api/NestedModelApiManager";
 import { ItemFormProps } from "../forms/typedModelActionForm";
 import { NestedItemFormProps, NestedModelActionForm } from "../forms/nestedModelActionForm";
 import { TypedModelActionForm } from "../forms/typedModelActionForm";

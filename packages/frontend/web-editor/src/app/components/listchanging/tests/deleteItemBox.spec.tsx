@@ -62,9 +62,8 @@ describe("DeleteItemBox", () => {
         />
       </BrowserRouter>,
     );
-    const deleteItemButton: HTMLInputElement = screen.getByTestId("delete-item-button");
-    const buttonAttribute = deleteItemButton.getAttribute("disabled");
-    expect(buttonAttribute).toBe("true");
+    const deleteItemButton: HTMLButtonElement = screen.getByTestId("delete-item-button");
+    expect(deleteItemButton).toBeDisabled();
   });
 
   //test for enabled delete button after getting input in input box

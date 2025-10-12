@@ -15,7 +15,9 @@ Included within this monorepo are the following packages:
 - `mef-schema`: OpenPRA MEF JSON Schema definitions, generated using the `shared-types` package.
 - `microservice-job-broker`: RabbitMQ based distributed queues for scaling quantification requests.
 - `model-generator`: A tool for creating synthetic PRA models.
-- `shared-types`: Shared TypeScript type definitions, serving as the single source of truth for all data types.
+- `shared-types`: Pure TypeScript type definitions (no runtime/framework deps); the single source of truth for domain data types and DTOs used across apps/services.
+- `shared-sdk`: Runtime SDK with `AuthService`, `ApiManager`, roles and invites APIs, and predefined roles (imports types from `shared-types`).
+- `mef-types`: MEF technical element TypeScript types extracted from `shared-types` for clearer separation of MEF concerns.
 - `web-backend`: A NestJS REST-API backend service written in TypeScript.
 
 We're managing this monorepo using the [Nx](https://nx.dev) build system, which enables flexible package bundling. For

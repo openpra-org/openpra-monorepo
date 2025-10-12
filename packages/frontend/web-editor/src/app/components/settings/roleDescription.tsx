@@ -1,7 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { MemberResult } from "shared-types/src/lib/api/Members";
-import { ApiManager } from "shared-types/src/lib/api/ApiManager";
+import { MemberResult } from "shared-sdk/lib/api/Members";
+import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 import {
   EuiBasicTable,
   EuiBasicTableColumn,
@@ -13,8 +13,8 @@ import {
   EuiSkeletonRectangle,
   EuiSpacer,
 } from "@elastic/eui";
-import { GetRoleById } from "shared-types/src/lib/api/roles/rolesApi";
-import { RoleSchemaDto } from "shared-types/src/openpra-zod-mef/role/role-schema";
+import { GetRoleById } from "shared-sdk/lib/api/roles/rolesApi";
+import { RoleSchemaDto } from "shared-types/src/lib/types/roles/RoleSchemaDto";
 import { Can } from "../../providers/abilityProvider";
 import { GenericModal } from "../modals/genericModal";
 import { UseToastContext } from "../../providers/toastProvider";

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node, NodeProps, useReactFlow } from "reactflow";
 import { useParams } from "react-router-dom";
-import { GraphApiManager } from "shared-types/src/lib/api/GraphApiManager";
+import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import {
   FaultTreeState,

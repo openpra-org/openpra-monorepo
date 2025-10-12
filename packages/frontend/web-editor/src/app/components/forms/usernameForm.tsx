@@ -1,6 +1,6 @@
 import { EuiFieldText, EuiFormRow } from "@elastic/eui";
 import React from "react";
-import { SignUpPropsWithRole } from "shared-types/src/lib/api/AuthTypes";
+import { SignUpPropsWithRole } from "shared-sdk/lib/api/AuthTypes";
 
 /**
  * This is form with the following details: Firstname, Lastname, Email and Username

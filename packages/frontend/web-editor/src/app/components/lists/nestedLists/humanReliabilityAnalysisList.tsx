@@ -2,7 +2,7 @@ import {
   DeleteHumanReliabilityAnalysis,
   GetHumanReliabilityAnalysis,
   PatchHumanReliabilityLabel,
-} from "shared-types/src/lib/api/NestedModelApiManager";
+} from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
 
 function HumanReliabilityAnalysisList(): JSX.Element {

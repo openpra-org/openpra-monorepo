@@ -69,7 +69,7 @@ describe("AuthService", () => {
         password: "12345678",
       };
       const correctPassword = user_object.password;
-      const response = await collabService.createNewUser(user_object); // create a new user
+  const response: any = await collabService.createNewUser({ ...user_object, roles: [] } as any); // create a new user
       const result = await authService.loginUser(user_object.username, correctPassword); // call loginUser function
       expect(result).toBeInstanceOf(Object); //expect result to be an instance of User
     });
@@ -89,7 +89,7 @@ describe("AuthService", () => {
         password: "12345678",
       };
       const incorrectPassword = "123";
-      await collabService.createNewUser(user_object); // create a new user
+  await collabService.createNewUser({ ...user_object, roles: [] } as any); // create a new user
       try {
         await authService.loginUser(user_object.username, incorrectPassword); // call loginUser function
       } catch (err) {
@@ -112,7 +112,7 @@ describe("AuthService", () => {
         password: "12345678",
       };
       const incorrectUsername = "testUserABCD";
-      await collabService.createNewUser(user_object); // create a new user
+  await collabService.createNewUser({ ...user_object, roles: [] } as any); // create a new user
       try {
         await authService.loginUser(incorrectUsername, user_object.password); // call loginUser function
       } catch (err) {
@@ -130,7 +130,7 @@ describe("AuthService", () => {
         username: "testUser",
         password: "12345678",
       };
-      await collabService.createNewUser(userObject); // create a new user
+  await collabService.createNewUser({ ...userObject, roles: [] } as any); // create a new user
       const correctPassword = "12345678";
       const passwordMatch = await authService.verifyPassword(userObject.username, correctPassword);
       expect(passwordMatch).toBe(true);
@@ -144,7 +144,7 @@ describe("AuthService", () => {
         username: "testUser",
         password: "12345678",
       };
-      await collabService.createNewUser(userObject); // create a new user
+  await collabService.createNewUser({ ...userObject, roles: [] } as any); // create a new user
       const correctPassword = "1234568";
       const passwordMatch = await authService.verifyPassword(userObject.username, correctPassword);
       expect(passwordMatch).toBe(false);

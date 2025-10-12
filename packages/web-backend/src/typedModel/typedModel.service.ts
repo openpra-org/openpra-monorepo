@@ -501,18 +501,12 @@ export class TypedModelService {
     nestedId: number | string,
     nestedType: string,
   ): Promise<TypedModelJSON> {
-    // Find the document that matches the provided modelId and userId
-    let query: FilterQuery<InternalEventsDocument>;
-
-    if (typeof nestedId === "string") {
-      query = { _id: nestedId };
-    } else {
-      query = { id: Number(nestedId) };
-    }
+    // Find the document that matches the provided modelId
+    const query: FilterQuery<InternalEventsDocument> = { id: Number(modelId) };
 
     const updateData = {
       $pull: {
-        [nestedType]: nestedId,
+        [nestedType]: Number(nestedId),
       },
     };
 

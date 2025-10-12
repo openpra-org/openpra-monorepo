@@ -1,6 +1,5 @@
 import { Test, TestingModule } from "@nestjs/testing";
 import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
-import { MongoMemoryServer } from "mongodb-memory-server";
 import mongoose, { Connection } from "mongoose";
 import { ModelCounter, ModelCounterSchema } from "../schemas/model-counter.schema";
 import { FmeaController } from "./fmea.controller";
@@ -10,13 +9,10 @@ import { Fmea, FmeaSchema } from "./schemas/fmea.schema";
 describe("FmeaController", () => {
   let fmeaService: FmeaService;
   let fmeaController: FmeaController;
-  let mongoServer: MongoMemoryServer;
   let connection: Connection;
 
   beforeAll(async () => {
-    mongoServer = new MongoMemoryServer();
-    await mongoServer.start();
-    const mongoUri = mongoServer.getUri();
+  const mongoUri = process.env.MONGO_URI;
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongoUri),
@@ -45,8 +41,7 @@ describe("FmeaController", () => {
    * Stop mongoDB server
    */
   afterAll(async () => {
-    await mongoose.disconnect();
-    await mongoServer.stop();
+  await mongoose.disconnect();
   });
 
   describe("createFmea", () => {
@@ -134,8 +129,8 @@ describe("FmeaController", () => {
       const returned_fmea = await fmeaController.addRow(createdFmea.id);
       expect(returned_fmea.rows[0].row_data.test).toEqual("");
       const updateCellObject = { rowId: returned_fmea.rows[0].id, column: "test", value: "test" };
-      const updateResult = await fmeaController.updateCell(createdFmea.id, updateCellObject);
-      expect(updateResult).toEqual(true);
+  const updateResult = await fmeaController.updateCell(createdFmea.id, updateCellObject);
+  expect(updateResult).toEqual(true);
     });
   });
 

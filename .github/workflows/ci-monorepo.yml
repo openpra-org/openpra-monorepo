@@ -79,17 +79,24 @@ jobs:
         run: cd packages/engine/scram-node && pnpm run install
 
       - name: Build
-        run: pnpm nx run ${{ matrix.package }}:build
+        run: pnpm nx run ${{ matrix.package }}:build --verbose
 
-      - name: Lint
-        continue-on-error: true
-        run: pnpm nx run ${{ matrix.package }}:lint
-
-      - name: Test
-        continue-on-error: true
+      - name: Wait for MongoDB service
         env:
           MONGO_URI: mongodb://localhost:27017/test
-        run: pnpm nx run ${{ matrix.package }}:test -- --test-timeout=60000
+        run: |
+          set -e
+          for i in $(seq 1 60); do
+            if mongosh --quiet --eval 'db.adminCommand("ping")' --host localhost --port 27017 >/dev/null 2>&1; then
+              echo "MongoDB is ready"; break; fi; sleep 2; done
+
+      - name: Lint
+        run: pnpm nx run ${{ matrix.package }}:lint --verbose
+
+      - name: Test
+        env:
+          MONGO_URI: mongodb://localhost:27017/test
+        run: pnpm nx run ${{ matrix.package }}:test -- --test-timeout=60000 --verbose
 
       - name: E2E Tests
         if: |

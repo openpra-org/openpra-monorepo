@@ -78,7 +78,12 @@ jobs:
       - name: Install scram-cli (CI)
         run: |
           # Ensure scram-cli and libs are installed even when postinstall is skipped in CI
-          make -C packages/engine/scram-node/build install
+          # Prefer cmake --install which works across generators; guard if install scripts are absent
+          if [ -f packages/engine/scram-node/build/cmake_install.cmake ]; then
+            cmake --install packages/engine/scram-node/build
+          else
+            echo "No CMake install script found; skipping scram-cli install"
+          fi
 
       - name: Build
         run: pnpm nx run ${{ matrix.package }}:build --verbose

@@ -29,6 +29,7 @@
  */
 
 #include "probability_analysis.h"
+#include <iostream>
 #include "logger.h"
 #include "logger/log_convergence.h"
 #include "logger/log_pdag.h"
@@ -86,56 +87,83 @@ ProbabilityAnalyzer<mc::DirectEval>::ProbabilityAnalyzer(FaultTreeAnalyzer<mc::D
  * @see Settings for parameter configuration options
  */
 double ProbabilityAnalyzer<mc::DirectEval>::CalculateTotalProbability(const Pdag::IndexMap<double> &p_vars) {
+    std::cout << "[MC::CalculateTotalProbability] Starting..." << std::endl;
+    std::cout << "[MC::CalculateTotalProbability] Getting root..." << std::endl;
     const auto &root_id = this->graph()->root()->index();
+    std::cout << "[MC::CalculateTotalProbability] Root index: " << root_id << std::endl;
     // add the root node to observed for convergence map
+    std::cout << "[MC::CalculateTotalProbability] Observing root node..." << std::endl;
     observe(std::unordered_set<int>{root_id}, true, false);
+    std::cout << "[MC::CalculateTotalProbability] Computing tallies..." << std::endl;
     ComputeTallies();
+    std::cout << "[MC::CalculateTotalProbability] Tallies computed, getting mean..." << std::endl;
     const double mean = monitored_[root_id].tally_stats.mean;
     LOG(DEBUG1) << "Root Event Probability: " << mean;
+    std::cout << "[MC::CalculateTotalProbability] Mean: " << mean << std::endl;
     return mean;
 }
 
 void ProbabilityAnalyzer<mc::DirectEval>::ComputeTallies(const bool converge_on_root_only) {
 
+    std::cout << "[MC::ComputeTallies] Starting..." << std::endl;
     SanitizeWatchState();
+    std::cout << "[MC::ComputeTallies] Watch state sanitized." << std::endl;
 
     CLOCK(calc_time);
 
+    std::cout << "[MC::ComputeTallies] Getting PDAG and settings..." << std::endl;
     Pdag *pdag = this->graph();
     const auto &settings = this->settings();
     const std::size_t N = settings.num_trials();
+    std::cout << "[MC::ComputeTallies] Number of trials: " << N << std::endl;
 
     LOG(DEBUG3) << "Watching " << monitored_.size() << " tallies";
+    std::cout << "[MC::ComputeTallies] Monitored size: " << monitored_.size() << std::endl;
 
     using bitpack_t_ = std::uint64_t;
+    std::cout << "[MC::ComputeTallies] Creating layer_manager..." << std::endl;
     const mc::stats::TallyNodeMap &tally_node_map = this->monitored();
     mc::queue::layer_manager<bitpack_t_> manager(pdag, N, tally_node_map, settings.overhead_ratio());
+    std::cout << "[MC::ComputeTallies] layer_manager created." << std::endl;
 
     using bayes_t = mc::stats::bayes_policy;
     using wald_t  = mc::stats::wald_policy;
 
+    std::cout << "[MC::ComputeTallies] Creating convergence_controller with bayes_policy..." << std::endl;
     std::variant<mc::scheduler::convergence_controller<bayes_t, bitpack_t_>,
                  mc::scheduler::convergence_controller<wald_t,  bitpack_t_>> scheduler_var{std::in_place_type<mc::scheduler::convergence_controller<bayes_t, bitpack_t_>>, manager, settings};
+    std::cout << "[MC::ComputeTallies] convergence_controller created." << std::endl;
 
     auto make_scheduler = [&](auto tag){
         using pol_t = std::decay_t<decltype(tag)>;
         return mc::scheduler::convergence_controller<pol_t, bitpack_t_>{manager, settings};
     };
 
+    std::cout << "[MC::ComputeTallies] Checking CI policy: " << static_cast<int>(settings.ci_policy()) << std::endl;
     if (settings.ci_policy() == scram::core::CIPolicy::kWald) {
+        std::cout << "[MC::ComputeTallies] Emplacing Wald policy scheduler..." << std::endl;
         scheduler_var.emplace<mc::scheduler::convergence_controller<wald_t, bitpack_t_> >(manager, settings);
+        std::cout << "[MC::ComputeTallies] Wald scheduler emplaced." << std::endl;
     }
 
+    std::cout << "[MC::ComputeTallies] Setting up visit_sched lambda..." << std::endl;
     auto visit_sched = [&](auto &scheduler){
+        std::cout << "[MC::visit_sched] Starting..." << std::endl;
         // Time the result() execution with high precision
         const auto start_time = std::chrono::high_resolution_clock::now();
 
+        std::cout << "[MC::visit_sched] converge_on_root_only: " << converge_on_root_only << std::endl;
         mc::event::tally<bitpack_t_> tally;
         if (converge_on_root_only) {
+            std::cout << "[MC::visit_sched] Running to convergence on root index: " << this->graph()->root()->index() << std::endl;
             tally = scheduler.run_to_convergence(this->graph()->root()->index());
+            std::cout << "[MC::visit_sched] run_to_convergence completed." << std::endl;
         } else {
+            std::cout << "[MC::visit_sched] Running to convergence on monitored set (size: " << this->monitored_.size() << ")" << std::endl;
             tally = scheduler.run_to_convergence(this->monitored_);
+            std::cout << "[MC::visit_sched] run_to_convergence completed." << std::endl;
         }
+        std::cout << "[MC::visit_sched] Collecting tallies..." << std::endl;
         // collect observed tallies anyway
         manager.collect_tallies(this->monitored_);
         const auto end_time = std::chrono::high_resolution_clock::now();

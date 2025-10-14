@@ -1,4 +1,5 @@
 #include <napi.h>
+#include <iostream>
 #include "ScramNodeSettings.h"
 #include "ScramNodeModel.h"
 #include "ScramNodeReporter.h"
@@ -25,13 +26,19 @@ Napi::Value QuantifyModel(const Napi::CallbackInfo& info) {
 
     try {
         // 1. Map Node options/model to C++
+        std::cout << "[QuantifyModel] Creating settings..." << std::endl;
         auto settings = ScramNodeOptions(nodeOptions);
+        std::cout << "[QuantifyModel] Creating model..." << std::endl;
         auto model = ScramNodeModel(nodeModel);
 
         // 2. Run analysis
+        std::cout << "[QuantifyModel] Creating RiskAnalysis..." << std::endl;
         scram::core::RiskAnalysis analysis(model.get(), settings);
+        std::cout << "[QuantifyModel] Starting Analyze()..." << std::endl;
         analysis.Analyze();
+        std::cout << "[QuantifyModel] Analyze() complete!" << std::endl;
         // 3. Map result to Node
+        std::cout << "[QuantifyModel] Generating report..." << std::endl;
         return ScramNodeReport(env, analysis);
     } catch (const std::exception& e) {
         // Preserve the actual error message from SCRAM

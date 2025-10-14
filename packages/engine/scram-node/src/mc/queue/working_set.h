@@ -25,6 +25,7 @@
 #include "mc/event/node.h"
 
 #include <cstddef>
+#include <stdexcept>
 #include <sycl/sycl.hpp>
 
 namespace scram::mc {
@@ -564,7 +565,11 @@ namespace scram::mc {
                     local_range = compute_optimal_local_range_3d_for_gpu(limits);
                     break;
             }
-            assert(local_range[0] * local_range[1] * local_range[2] <= max_work_group_size);
+            const auto total_work_items = local_range[0] * local_range[1] * local_range[2];
+            if (total_work_items > max_work_group_size) {
+                throw std::runtime_error("Computed local range exceeds max work group size: " + 
+                    std::to_string(total_work_items) + " > " + std::to_string(max_work_group_size));
+            }
             return local_range;
         }
     };

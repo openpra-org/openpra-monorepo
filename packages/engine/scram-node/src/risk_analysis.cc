@@ -21,6 +21,7 @@
 
 #include "risk_analysis.h"
 
+#include <iostream>
 #include "bdd.h"
 #include "event.h"
 #include "expression/random_deviate.h"
@@ -195,37 +196,53 @@ void RiskAnalysis::RunAnalysis(const mef::Gate& target, Result* result)  {
 template <class Algorithm>
 void RiskAnalysis::RunAnalysis(const mef::Gate& target,
                                Result* result)  {
+  std::cout << "[RiskAnalysis::RunAnalysis] Starting for gate: " << target.id() << std::endl;
   WatchGuard wg(&watched_for_tallies_and_convergence_);
   auto fta = std::make_unique<FaultTreeAnalyzer<Algorithm>>(target, Analysis::settings(), model_);
+  std::cout << "[RiskAnalysis::RunAnalysis] Calling fta->Analyze()..." << std::endl;
   fta->Analyze();
+  std::cout << "[RiskAnalysis::RunAnalysis] fta->Analyze() complete." << std::endl;
   if (Analysis::settings().probability_analysis()) {
+    std::cout << "[RiskAnalysis::RunAnalysis] Probability analysis enabled, approximation: " << static_cast<int>(Analysis::settings().approximation()) << std::endl;
     switch (Analysis::settings().approximation()) {
       case Approximation::kNone:
+        std::cout << "[RiskAnalysis::RunAnalysis] Running with Bdd approximation..." << std::endl;
         RunAnalysis<Algorithm, Bdd>(fta.get(), result);
         break;
       case Approximation::kRareEvent:
+        std::cout << "[RiskAnalysis::RunAnalysis] Running with RareEvent approximation..." << std::endl;
         RunAnalysis<Algorithm, RareEventCalculator>(fta.get(), result);
         break;
       case Approximation::kMcub:
+        std::cout << "[RiskAnalysis::RunAnalysis] Running with MCUB approximation..." << std::endl;
         RunAnalysis<Algorithm, McubCalculator>(fta.get(), result);
         break;
       case Approximation::kMonteCarlo:
+        std::cout << "[RiskAnalysis::RunAnalysis] Running with MonteCarlo approximation..." << std::endl;
         RunAnalysis<Algorithm, mc::DirectEval>(fta.get(), result);
+        break;
     }
   }
+  std::cout << "[RiskAnalysis::RunAnalysis] Moving fta to result..." << std::endl;
   result->fault_tree_analysis = std::move(fta);
+  std::cout << "[RiskAnalysis::RunAnalysis] Complete!" << std::endl;
 }
 
 template <class Algorithm, class Calculator>
 void RiskAnalysis::RunAnalysis(FaultTreeAnalyzer<Algorithm>* fta,
                                Result* result)  {
+  std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Creating ProbabilityAnalyzer..." << std::endl;
   auto pa = std::make_unique<ProbabilityAnalyzer<Calculator>>(fta, &model_->mission_time());
+  std::cout << "[RiskAnalysis::RunAnalysis<A,C>] ProbabilityAnalyzer created." << std::endl;
 
   if constexpr (std::is_same_v<Calculator, mc::DirectEval>) {
+    std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Monte Carlo path - getting graph..." << std::endl;
     // retrieve the set of "watched" nodes, i.e. the nodes the pdag is aware of. These are the ones we need to track in
     // our convergence and/or tallies
 
+      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Walking and collecting MEF gates..." << std::endl;
       ext::bimap<int, const mef::Gate*> bimap = WalkAndCollectMefGatesWithIndices(pa->graph());
+      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Collected " << bimap.A_to_B.size() << " gates." << std::endl;
 
       std::unordered_set<int> watched_for_tallies;
       for (const auto &mef_event : watched_for_tallies_) {
@@ -233,18 +250,25 @@ void RiskAnalysis::RunAnalysis(FaultTreeAnalyzer<Algorithm>* fta,
               watched_for_tallies.insert(bimap.B_to_A[mef_event]);
           }
       }
+      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Observing " << watched_for_tallies.size() << " tallies..." << std::endl;
       pa->observe(watched_for_tallies, false, false);
+      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Tallies observed." << std::endl;
 
+      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Observing " << watched_for_tallies_and_convergence_.size() << " convergence nodes..." << std::endl;
       std::unordered_set<int> watched_for_convergence;
       for (const auto &mef_event : watched_for_tallies_and_convergence_) {
           if (bimap.B_to_A.contains(mef_event)) {
               watched_for_convergence.insert(bimap.B_to_A[mef_event]);
           }
       }
+      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Observing " << watched_for_convergence.size() << " convergence indices..." << std::endl;
       pa->observe(watched_for_convergence, true, false);
+      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Convergence observed." << std::endl;
   }
 
+  std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Calling pa->Analyze()..." << std::endl;
   pa->Analyze();
+  std::cout << "[RiskAnalysis::RunAnalysis<A,C>] pa->Analyze() complete." << std::endl;
   if (Analysis::settings().importance_analysis()) {
     auto ia = std::make_unique<ImportanceAnalyzer<Calculator>>(pa.get());
     ia->Analyze();

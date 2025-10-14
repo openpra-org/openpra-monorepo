@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <iostream>
 #include <string>
 #include <utility>
 #include "ScramNodeReporter.h"
@@ -6,6 +7,7 @@
 #include "mocus.h"
 #include "bdd.h"
 #include "zbdd.h"
+#include "mc/core/direct_eval.h"
 #include "probability_analysis.h"
 #include "fault_tree_analysis.h"
 
@@ -16,11 +18,15 @@ static Napi::Object BuildSumOfProductsForGate(Napi::Env env,
 
 // Main entry point: C++ to TypeScript Report Mapping
 Napi::Object ScramNodeReport(Napi::Env env, const scram::core::RiskAnalysis& analysis) {
+  std::cout << "[ScramNodeReport] Starting report generation..." << std::endl;
   Napi::Object report = Napi::Object::New(env);
   // Model features
+  std::cout << "[ScramNodeReport] Building model features..." << std::endl;
   report.Set("modelFeatures", ScramNodeModelFeatures(env, analysis.model()));
   // Results
+  std::cout << "[ScramNodeReport] Building results..." << std::endl;
   report.Set("results", ScramNodeResults(env, analysis));
+  std::cout << "[ScramNodeReport] Report generation complete!" << std::endl;
   return report;
 }
 
@@ -41,9 +47,11 @@ Napi::Object ScramNodeModelFeatures(Napi::Env env, const scram::mef::Model& mode
 
 // Results Layer: integrates event tree and fault tree results
 Napi::Object ScramNodeResults(Napi::Env env, const scram::core::RiskAnalysis& analysis) {
+  std::cout << "[ScramNodeResults] Starting results processing..." << std::endl;
   Napi::Object results = Napi::Object::New(env);
 
   // --- Event Tree Results (with per-sequence cut sets) ---
+  std::cout << "[ScramNodeResults] Checking event tree results..." << std::endl;
   if (!analysis.event_tree_results().empty()) {
     Napi::Array ieArr = Napi::Array::New(env, analysis.event_tree_results().size());
     uint32_t idx = 0;
@@ -93,6 +101,9 @@ Napi::Object ScramNodeResults(Napi::Env env, const scram::core::RiskAnalysis& an
   }
 
   // --- Fault Tree and Other Results ---
+  std::cout << "[ScramNodeResults] Processing fault tree results..." << std::endl;
+  std::cout << "[ScramNodeResults] Number of results: " << analysis.results().size() << std::endl;
+  
   // Safety Integrity Levels (SIL)
   Napi::Array silArr = Napi::Array::New(env);
   uint32_t silIdx = 0;
@@ -114,10 +125,14 @@ Napi::Object ScramNodeResults(Napi::Env env, const scram::core::RiskAnalysis& an
   uint32_t sopIdx = 0;
 
   // For each result (per analysis target)
+  std::cout << "[ScramNodeResults] Iterating over results..." << std::endl;
   for (const auto& result : analysis.results()) {
+    std::cout << "[ScramNodeResults] Processing result..." << std::endl;
     // Fault Tree Analysis (Sum of Products)
     if (result.fault_tree_analysis) {
+      std::cout << "[ScramNodeResults] Building sum of products..." << std::endl;
       sopArr.Set(sopIdx++, ScramNodeSumOfProducts(env, *result.fault_tree_analysis, result.probability_analysis.get()));
+      std::cout << "[ScramNodeResults] Sum of products complete." << std::endl;
     }
     // Probability Analysis (Curve, SIL)
     if (result.probability_analysis) {
@@ -275,23 +290,30 @@ Napi::Object ScramNodeImportance(Napi::Env env, const scram::core::ImportanceAna
 
 // Sum of Products (Cut Sets) for fault tree analyses (already computed by RiskAnalysis)
 Napi::Object ScramNodeSumOfProducts(Napi::Env env, const scram::core::FaultTreeAnalysis& fta, const scram::core::ProbabilityAnalysis* pa) {
+  std::cout << "[ScramNodeSumOfProducts] Starting..." << std::endl;
   Napi::Object sop = Napi::Object::New(env);
   // Products may not be generated in BDD probability-only mode.
-  if (fta.products().empty()) {
+  std::cout << "[ScramNodeSumOfProducts] Checking if products exist..." << std::endl;
+  if (!fta.has_products()) {
+    std::cout << "[ScramNodeSumOfProducts] No products available, returning minimal report" << std::endl;
     sop.Set("basicEvents", Napi::Number::New(env, 0));
     sop.Set("products",    Napi::Number::New(env, 0));
     if (pa) {
       sop.Set("probability", Napi::Number::New(env, pa->p_total()));
     }
     // Do not set distribution or productList when products are not available.
+    std::cout << "[ScramNodeSumOfProducts] Returning empty result" << std::endl;
     return sop;
   }
 
+  std::cout << "[ScramNodeSumOfProducts] Products exist, processing..." << std::endl;
   const auto& products = fta.products();
+  std::cout << "[ScramNodeSumOfProducts] Product count: " << products.size() << std::endl;
   sop.Set("basicEvents", Napi::Number::New(env, products.product_events().size()));
   sop.Set("products",    Napi::Number::New(env, products.size()));
   if (pa) sop.Set("probability", Napi::Number::New(env, pa->p_total()));
   // Distribution
+  std::cout << "[ScramNodeSumOfProducts] Building distribution..." << std::endl;
   if (!products.distribution().empty()) {
     Napi::Array dist = Napi::Array::New(env, products.distribution().size());
     for (size_t i = 0; i < products.distribution().size(); ++i) {
@@ -300,19 +322,26 @@ Napi::Object ScramNodeSumOfProducts(Napi::Env env, const scram::core::FaultTreeA
     sop.Set("distribution", dist);
   }
   // Product List
+  std::cout << "[ScramNodeSumOfProducts] Building product list..." << std::endl;
   sop.Set("productList", ScramNodeProductList(env, products, pa));
+  std::cout << "[ScramNodeSumOfProducts] Complete!" << std::endl;
   return sop;
 }
 
 // Product List (Minimal Cut Sets)
 Napi::Array ScramNodeProductList(Napi::Env env, const scram::core::ProductContainer& products, const scram::core::ProbabilityAnalysis* pa) {
+  std::cout << "[ScramNodeProductList] Starting with " << products.size() << " products..." << std::endl;
   Napi::Array arr = Napi::Array::New(env, products.size());
   size_t idx = 0;
   double sum = 0;
   if (pa) {
+    std::cout << "[ScramNodeProductList] Calculating probability sum..." << std::endl;
     for (const auto& product : products) sum += product.p();
+    std::cout << "[ScramNodeProductList] Sum calculated: " << sum << std::endl;
   }
+  std::cout << "[ScramNodeProductList] Iterating over products..." << std::endl;
   for (const auto& product : products) {
+    std::cout << "[ScramNodeProductList] Processing product " << idx << " with " << product.size() << " literals..." << std::endl;
     Napi::Object prod = Napi::Object::New(env);
     prod.Set("order", Napi::Number::New(env, product.size()));
     if (pa) {
@@ -321,21 +350,27 @@ Napi::Array ScramNodeProductList(Napi::Env env, const scram::core::ProductContai
       if (sum != 0) prod.Set("contribution", Napi::Number::New(env, prob / sum));
     }
     // Literals
+    std::cout << "[ScramNodeProductList] Building literals array..." << std::endl;
     Napi::Array literals = Napi::Array::New(env, product.size());
     size_t lidx = 0;
     for (const auto& literal : product) {
+      std::cout << "[ScramNodeProductList] Processing literal " << lidx << "..." << std::endl;
       Napi::Object lit = Napi::Object::New(env);
       if (literal.complement) {
         lit.Set("type", "not-basic-event");
       } else {
         lit.Set("type", "basic-event");
       }
+      std::cout << "[ScramNodeProductList] Getting event name..." << std::endl;
       lit.Set("name", literal.event.name());
+      std::cout << "[ScramNodeProductList] Event name: " << literal.event.name() << std::endl;
       literals.Set(lidx++, lit);
     }
     prod.Set("literals", literals);
     arr.Set(idx++, prod);
+    std::cout << "[ScramNodeProductList] Product " << (idx-1) << " complete." << std::endl;
   }
+  std::cout << "[ScramNodeProductList] All products processed!" << std::endl;
   return arr;
 }
 
@@ -440,6 +475,33 @@ static Napi::Object BuildSumOfProductsForGate(Napi::Env env,
       }
     } else {
       if (has_products) sop.Set("productList", ScramNodeProductList(env, fta.products(), nullptr));
+    }
+    return sop;
+  }
+
+  // Algorithm::kDirect (PDAG/Monte Carlo)
+  if (settings.algorithm() == Algorithm::kDirect) {
+    scram::core::FaultTreeAnalyzer<scram::mc::DirectEval> fta(gate, settings);
+    fta.Analyze();
+    
+    // Monte Carlo doesn't generate traditional minimal cut sets
+    // It provides direct probability estimation through sampling
+    sop.Set("basicEvents", Napi::Number::New(env, 0));
+    sop.Set("products",    Napi::Number::New(env, 0));
+
+    // Probability analysis using Monte Carlo DirectEval
+    if (settings.probability_analysis()) {
+      auto paLocal = std::make_unique<scram::core::ProbabilityAnalyzer<scram::mc::DirectEval>>(&fta,
+        const_cast<scram::mef::MissionTime*>(&analysis.model().mission_time()));
+      paLocal->Analyze();
+      sop.Set("probability", Napi::Number::New(env, paLocal->p_total()));
+      
+      // Monte Carlo specific results
+      if (settings.approximation() == Approximation::kMonteCarlo) {
+        // Add confidence interval if available
+        // Note: SCRAM's DirectEval may provide additional statistics
+        // that can be exposed here in the future (e.g., variance, CI bounds)
+      }
     }
     return sop;
   }

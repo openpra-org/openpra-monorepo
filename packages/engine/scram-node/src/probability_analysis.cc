@@ -38,15 +38,21 @@ namespace scram::core {
         : Analysis(fta->settings()), p_total_(0), mission_time_(mission_time) {}
 
     void ProbabilityAnalysis::Analyze()  {
+        std::cout << "[ProbabilityAnalysis::Analyze] Starting..." << std::endl;
         CLOCK(p_time);
         LOG(DEBUG3) << "Calculating probabilities...";
         // Get the total probability.
+        std::cout << "[ProbabilityAnalysis::Analyze] Calling CalculateTotalProbability()..." << std::endl;
         p_total_ = this->CalculateTotalProbability();
+        std::cout << "[ProbabilityAnalysis::Analyze] Total probability: " << p_total_ << std::endl;
+        std::cout << "[ProbabilityAnalysis::Analyze] Calling CalculateProbabilityOverTime()..." << std::endl;
         p_time_ = this->CalculateProbabilityOverTime();
+        std::cout << "[ProbabilityAnalysis::Analyze] ProbabilityOverTime complete." << std::endl;
         if (Analysis::settings().safety_integrity_levels())
             ComputeSil();
         LOG(DEBUG3) << "Finished probability calculations in " << DUR(p_time);
         Analysis::AddAnalysisTime(DUR(p_time));
+        std::cout << "[ProbabilityAnalysis::Analyze] Complete!" << std::endl;
     }
 
     ///< @todo Use Boost math integration instead.

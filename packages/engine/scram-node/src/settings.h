@@ -286,7 +286,12 @@ class Settings {
   /// implicants, importance/uncertainty, or debug printing), products are
   /// required.
   [[nodiscard]] bool requires_products() const {
-    // Non-BDD algorithms inherently require cut sets for quantification.
+    // Monte Carlo (DirectEval) with kDirect algorithm does NOT require products.
+    // It performs direct probability evaluation on the PDAG.
+    if (algorithm_ == Algorithm::kDirect && approximation_ == Approximation::kMonteCarlo)
+      return false;
+
+    // Non-BDD algorithms (except DirectEval+MonteCarlo) inherently require cut sets for quantification.
     if (algorithm_ != Algorithm::kBdd)
       return true;
 

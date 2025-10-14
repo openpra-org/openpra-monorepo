@@ -4,7 +4,19 @@
 scram::core::Settings ScramNodeOptions(const Napi::Object& nodeOptions) {
     scram::core::Settings settings;
 
+    // Set a default input file name for Monte Carlo progress logging
+    // (required by convergence_controller for timestamp_string generation)
+    std::vector<std::string> input_files = {"scram-node-model"};
+    settings.input_files(input_files);
+
+    // Check if Monte Carlo is requested (needs PDAG algorithm)
+    bool needsPdag = false;
+    if (nodeOptions.Has("monteCarlo") && nodeOptions.Get("monteCarlo").ToBoolean().Value()) {
+        needsPdag = true;
+    }
+
     // Algorithm (mocus, bdd, zbdd, pdag)
+    // If monteCarlo is set and no algorithm is explicitly specified, default to pdag
     if (nodeOptions.Has("mocus")) {
         if (nodeOptions.Get("mocus").ToBoolean().Value())
             settings.algorithm("mocus");
@@ -18,10 +30,16 @@ scram::core::Settings ScramNodeOptions(const Napi::Object& nodeOptions) {
         if (nodeOptions.Get("pdag").ToBoolean().Value())
             settings.algorithm("pdag");
     } else {
-        settings.algorithm("mocus");
+        // Default: use PDAG if Monte Carlo is requested, otherwise MOCUS
+        if (needsPdag) {
+            settings.algorithm("pdag");
+        } else {
+            settings.algorithm("mocus");
+        }
     }
 
     // Approximation (rare-event, mcub, monte-carlo, none)
+    // Only set if explicitly provided - otherwise let the algorithm setter choose the default
     if (nodeOptions.Has("rareEvent")) {
         if (nodeOptions.Get("rareEvent").ToBoolean().Value())
             settings.approximation("rare-event");
@@ -31,9 +49,8 @@ scram::core::Settings ScramNodeOptions(const Napi::Object& nodeOptions) {
     } else if (nodeOptions.Has("monteCarlo")) {
         if (nodeOptions.Get("monteCarlo").ToBoolean().Value())
             settings.approximation("monte-carlo");
-    } else {
-        settings.approximation("none");
     }
+    // Note: No "else" clause - let the algorithm() setter choose the appropriate default approximation
 
     // Prime implicants (bool)
     if (nodeOptions.Has("primeImplicants")) {

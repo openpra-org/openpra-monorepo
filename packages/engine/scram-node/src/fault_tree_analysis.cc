@@ -118,19 +118,26 @@ namespace scram::core {
         : Analysis(settings), top_event_(root), model_(model) {}
 
     void FaultTreeAnalysis::Analyze()  {
+        std::cout << "[FaultTreeAnalysis::Analyze] Starting..." << std::endl;
         CLOCK(analysis_time);
+        std::cout << "[FaultTreeAnalysis::Analyze] Creating PDAG..." << std::endl;
         graph_ = std::make_unique<Pdag>(top_event_, Analysis::settings().ccf_analysis(), model_);
+        std::cout << "[FaultTreeAnalysis::Analyze] PDAG created, starting preprocessing..." << std::endl;
         this->Preprocess(graph_.get());
+        std::cout << "[FaultTreeAnalysis::Analyze] Preprocessing complete." << std::endl;
 #ifndef NDEBUG
         if (Analysis::settings().preprocessor)
             return;  // Preprocessor only option.
 #endif
         // If products are required (most cases), run the algorithm to enumerate.
         // Otherwise (BDD probability-only kNone), skip product generation.
+        std::cout << "[FaultTreeAnalysis::Analyze] Checking if products required: " << Analysis::settings().requires_products() << std::endl;
         if (Analysis::settings().requires_products()) {
             CLOCK(algo_time);
             LOG(DEBUG2) << "Launching the algorithm...";
+            std::cout << "[FaultTreeAnalysis::Analyze] Generating products..." << std::endl;
             const Zbdd &products = this->GenerateProducts(graph_.get());
+            std::cout << "[FaultTreeAnalysis::Analyze] Products generated." << std::endl;
             LOG(DEBUG2) << "The algorithm finished in " << DUR(algo_time);
             LOG(DEBUG2) << "# of products: " << products.size();
             Analysis::AddAnalysisTime(DUR(analysis_time));
@@ -141,8 +148,10 @@ namespace scram::core {
             // For BDD probability-only mode, algorithm invocation is deferred to
             // the ProbabilityAnalyzer which constructs/evaluates directly on BDD.
             LOG(DEBUG2) << "Skipping product enumeration (BDD probability-only mode).";
+            std::cout << "[FaultTreeAnalysis::Analyze] Skipping product generation." << std::endl;
             Analysis::AddAnalysisTime(DUR(analysis_time));
         }
+        std::cout << "[FaultTreeAnalysis::Analyze] Complete!" << std::endl;
     }
 
     void FaultTreeAnalysis::Store(const Zbdd &products,

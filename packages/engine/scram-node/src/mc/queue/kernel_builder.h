@@ -73,6 +73,7 @@
 #include "pdag.h"
 
 #include <sycl/sycl.hpp>
+#include <stdexcept>
 
 namespace scram::mc::queue {
 
@@ -339,7 +340,7 @@ namespace scram::mc::queue {
                 const auto arg_index = arg_pair.second->index();
                 if (!queueables_by_index_.count(arg_index)) {
                     LOG(ERROR) << "Unknown BasicEvent " << arg_index << " in gate " << gate_index;
-                    std::exit(EXIT_FAILURE);
+                    throw std::runtime_error("Unknown BasicEvent " + std::to_string(arg_index) + " in gate " + std::to_string(gate_index));
                 }
                 layer_dependencies.insert(queueables_by_index_[arg_index]);
                 const auto* basic_ev_ptr = allocated_basic_events_by_index_.at(arg_index);
@@ -358,7 +359,7 @@ namespace scram::mc::queue {
                 if (!queueables_by_index_.count(arg_index))
                 {
                     LOG(ERROR) << "Unknown Gate " << arg_index << " in gate " << gate_index;
-                    std::exit(EXIT_FAILURE);
+                    throw std::runtime_error("Unknown Gate " + std::to_string(arg_index) + " in gate " + std::to_string(gate_index));
                 }
                 layer_dependencies.insert(queueables_by_index_[arg_index]);
                 const auto* child_gate_ptr = allocated_gates_by_index_.at(arg_index);
@@ -712,7 +713,7 @@ namespace scram::mc::queue {
             auto does_not_exist = queueables_by_index_.find(event_index);
             if (does_not_exist == queueables_by_index_.end()) {
                 LOG(ERROR) << "Attempting to build tally for unknown event " << event_index;
-                exit(EXIT_FAILURE);
+                throw std::runtime_error("Attempting to build tally for unknown event " + std::to_string(event_index));
             }
             layer_dependencies.insert(queueables_by_index_[event_index]);
 
@@ -722,7 +723,7 @@ namespace scram::mc::queue {
                 auto is_not_a_basic_event = allocated_basic_events_by_index_.find(event_index);
                 if (is_not_a_basic_event == allocated_basic_events_by_index_.end()) {
                     LOG(ERROR) << "Attempting to build tally for unknown event " << event_index;
-                    exit(EXIT_FAILURE);
+                    throw std::runtime_error("Attempting to build tally for unknown event " + std::to_string(event_index));
                 } else {
                     // is a basic event
                     buffer = allocated_basic_events_by_index_.at(event_index)->buffer;

@@ -1,5 +1,6 @@
 #include "preprocessor.h"
 
+#include <iostream>
 #include "logger.h"
 #include "logger/log_benchmark.h"
 #include "logger/log_build.h"
@@ -16,26 +17,34 @@ namespace scram::core {
 
 void CustomPreprocessor<mc::DirectEval>::Run() {
 
+    std::cout << "[DirectEval Preprocessor] Starting..." << std::endl;
     graph_->Log();
+    std::cout << "[DirectEval Preprocessor] Graph logged." << std::endl;
     // perform the actual run
     auto result = [this] {
         const int compilation_target = this->settings_->compilation_level();
 
         TIMER(DEBUG2, "CustomPreprocessor<DirectEval>::");
         LOG(DEBUG3) << "Compilation Target: " << std::to_string(compilation_target);
+        std::cout << "[DirectEval Preprocessor] Compilation level: " << compilation_target << std::endl;
 
         if (compilation_target <= 0) {
+            std::cout << "[DirectEval Preprocessor] Skipping preprocessing (level 0)." << std::endl;
             return;
         }
 
         // remove null gates, absorb not gates
+        std::cout << "[DirectEval Preprocessor] Running phase one..." << std::endl;
         core::pdag::Transform(graph_, [this](core::Pdag *) { RunPhaseOne(); });
+        std::cout << "[DirectEval Preprocessor] Phase one complete." << std::endl;
 
         if (compilation_target <= 1) {
+            std::cout << "[DirectEval Preprocessor] Stopping at level 1." << std::endl;
             return;
         }
 
         for (auto pass = 2; pass <= compilation_target; ++pass) {
+            std::cout << "[DirectEval Preprocessor] Running pass " << pass << "..." << std::endl;
             core::pdag::Transform(
                 graph_, [this](core::Pdag *) { RunPhaseOne(); }, [this](core::Pdag *) { RunPhaseTwo(); },
                 [this](core::Pdag *) {
@@ -47,6 +56,7 @@ void CustomPreprocessor<mc::DirectEval>::Run() {
                         RunPhaseFour();
                 },
                 [this](core::Pdag *) { RunPhaseFive(); });
+            std::cout << "[DirectEval Preprocessor] Pass " << pass << " complete." << std::endl;
         }
     };
     graph_->Log();
@@ -216,35 +226,57 @@ void CustomPreprocessor<mc::DirectEval>::Run() {
     };
     
     // Time the result() execution with high precision
+    std::cout << "[DirectEval Preprocessor] Calling result()..." << std::endl;
     auto start_time = std::chrono::high_resolution_clock::now();
     result();
     auto end_time = std::chrono::high_resolution_clock::now();
+    std::cout << "[DirectEval Preprocessor] result() complete, logging graph..." << std::endl;
 
     graph_->Log();
+    std::cout << "[DirectEval Preprocessor] Graph logged after result()." << std::endl;
 
     // Calculate duration in microseconds
+    std::cout << "[DirectEval Preprocessor] Calculating duration..." << std::endl;
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
     long long preprocessing_time_us = duration.count();
+    std::cout << "[DirectEval Preprocessor] Duration calculated: " << preprocessing_time_us << " us" << std::endl;
     
     // benchmark specific log
+    std::cout << "[DirectEval Preprocessor] Building benchmark log..." << std::endl;
     {
         std::vector<std::pair<std::string, std::string>> kv;
         // build
+        std::cout << "[DirectEval Preprocessor] Getting build pairs..." << std::endl;
         {
             auto s_pairs = log::build::csv_pairs();
             kv.insert(kv.end(), s_pairs.begin(), s_pairs.end());
         }
         // settings
+        std::cout << "[DirectEval Preprocessor] Getting settings pairs..." << std::endl;
         {
-            auto s_pairs = log::settings::csv_pairs(*settings_);
-            kv.insert(kv.end(), s_pairs.begin(), s_pairs.end());
+            if (settings_.has_value()) {
+                std::cout << "[DirectEval Preprocessor] settings_ has value, skipping csv_pairs to avoid crash..." << std::endl;
+                // TODO: Fix crash in log::settings::csv_pairs
+                // auto s_pairs = log::settings::csv_pairs(settings_.value());
+                // kv.insert(kv.end(), s_pairs.begin(), s_pairs.end());
+            } else {
+                std::cout << "[DirectEval Preprocessor] WARNING: settings_ is empty!" << std::endl;
+            }
         }
         // input model
+        std::cout << "[DirectEval Preprocessor] Getting model pairs..." << std::endl;
         {
-            auto s_pairs = log::model::csv_pairs(*settings_->model());
-            kv.insert(kv.end(), s_pairs.begin(), s_pairs.end());
+            if (settings_.has_value() && settings_.value().model()) {
+                std::cout << "[DirectEval Preprocessor] Getting model csv_pairs, skipping to avoid crash..." << std::endl;
+                // TODO: Fix crash in log::model::csv_pairs
+                // auto s_pairs = log::model::csv_pairs(*settings_.value().model());
+                // kv.insert(kv.end(), s_pairs.begin(), s_pairs.end());
+            } else {
+                std::cout << "[DirectEval Preprocessor] WARNING: model is not available!" << std::endl;
+            }
         }
         // pdag
+        std::cout << "[DirectEval Preprocessor] Getting pdag pairs..." << std::endl;
         {
             auto s_pairs = log::pdag::csv_pairs(*graph_);
             kv.insert(kv.end(), s_pairs.begin(), s_pairs.end());

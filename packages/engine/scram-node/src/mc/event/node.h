@@ -34,6 +34,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <stdexcept>
 #include <sycl/sycl.hpp>
 #include <vector>
 
@@ -541,9 +542,12 @@ namespace scram::mc::event {
             const std::size_t n_in    = gate_inputs.size();
             const std::size_t n_neg   = inputs_per_gate[i].second;
 
-            assert(n_neg <= n_in);
+            if (n_neg > n_in) {
+                throw std::runtime_error("Invalid gate configuration: negated inputs (" + 
+                    std::to_string(n_neg) + ") exceeds total inputs (" + std::to_string(n_in) + ")");
+            }
 
-            // Slice in all_inputs where this gate’s pointers will live.
+            // Slice in all_inputs where this gate's pointers will live.
             gates[i].inputs                = all_inputs + cursor;
             gates[i].num_inputs            = static_cast<size_t_>(n_in);
             gates[i].negated_inputs_offset = static_cast<size_t_>(n_in - n_neg);
@@ -665,9 +669,12 @@ namespace scram::mc::event {
             const std::size_t n_in    = gate_inputs.size();
             const std::size_t n_neg   = inputs_per_gate[i].second;
 
-            assert(n_neg <= n_in);
+            if (n_neg > n_in) {
+                throw std::runtime_error("Invalid atleast gate configuration: negated inputs (" + 
+                    std::to_string(n_neg) + ") exceeds total inputs (" + std::to_string(n_in) + ")");
+            }
 
-            // Slice in all_inputs where this gate’s pointers will live.
+            // Slice in all_inputs where this gate's pointers will live.
             gates[i].inputs                = all_inputs + cursor;
             gates[i].num_inputs            = static_cast<size_t_>(n_in);
             gates[i].negated_inputs_offset = static_cast<size_t_>(n_in - n_neg);

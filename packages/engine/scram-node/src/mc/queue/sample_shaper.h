@@ -30,6 +30,7 @@
 #include <sycl/sycl.hpp>
 #include <algorithm>
 #include <limits>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -254,7 +255,10 @@ struct sample_shaper {
         shape.bitpacks_per_batch = best_ss;
 
         // Sanity: never exceed requested capacity
-        assert(shape.num_bitpacks() <= bitpack_count);
+        if (shape.num_bitpacks() > bitpack_count) {
+            throw std::runtime_error("Sample shape exceeds requested bitpack capacity: " + 
+                std::to_string(shape.num_bitpacks()) + " > " + std::to_string(bitpack_count));
+        }
         return shape;
     }
 
@@ -329,7 +333,10 @@ struct sample_shaper {
         shape.bitpacks_per_batch = best_ss;
 
         // Never exceed per-iteration capacity.
-        assert(shape.num_bitpacks() <= max_bitpack_capacity);
+        if (shape.num_bitpacks() > max_bitpack_capacity) {
+            throw std::runtime_error("Sample shape exceeds maximum bitpack capacity: " + 
+                std::to_string(shape.num_bitpacks()) + " > " + std::to_string(max_bitpack_capacity));
+        }
         return shape;
     }
 

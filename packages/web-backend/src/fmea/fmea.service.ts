@@ -257,7 +257,7 @@ export class FmeaService {
    */
   async deleteColumn(fmeaId: number, column: string): Promise<Fmea | null> {
     const fmea = await this.getFmeaById(fmeaId);
-    fmea.columns = fmea.columns.filter((columnObject) => columnObject.id != column);
+  fmea.columns = fmea.columns.filter((columnObject) => columnObject.id !== column);
     for (let i = 0; i < fmea.rows.length; i++) {
       //delete key
       delete fmea.rows[i].row_data[column];
@@ -277,7 +277,7 @@ export class FmeaService {
     //get fmea object
   const fmea = await this.getFmeaById(fmeaId);
   //remove the row from the rows array
-  const rows = fmea.rows.filter((row) => row.id != String(rowId));
+  const rows = fmea.rows.filter((row) => row.id !== String(rowId));
 
     //update the rows in the database
     return this.fmeaModel.findOneAndUpdate({ id: fmeaId }, { $set: { rows: rows } }, { new: true }).lean();
@@ -353,13 +353,13 @@ export class FmeaService {
     const columns = fmea.columns;
     let result;
     const column = columns.find((column) => column.id === prev_name);
-    if (column_body.name != column.name) {
+  if (column_body.name !== column.name) {
       result = await this.updateColumnName(fmea.id, column.id, column_body.name);
     }
-    if (column_body.type != column.type) {
+  if (column_body.type !== column.type) {
       result = await this.updateColumnType(fmea.id, column_body);
     }
-    if (column_body.type === "dropdown" && column_body.dropdownOptions != column.dropdownOptions) {
+  if (column_body.type === "dropdown" && column_body.dropdownOptions !== column.dropdownOptions) {
       result = await this.updateDropdownOptions(fmea.id, column_body.id, column_body.dropdownOptions);
     }
     return result;

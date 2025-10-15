@@ -4,7 +4,7 @@ import { SignUp } from "./signup.spec";
 test.describe("Internal Events", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
-    const username = "playwright" + Math.floor(Math.random() * 1000);
+    const username = `playwright${String(Math.floor(Math.random() * 1000))}`;
     await SignUp({ page, username });
   });
   // if we want to access alias in test, we need to change arrow function => to function ()

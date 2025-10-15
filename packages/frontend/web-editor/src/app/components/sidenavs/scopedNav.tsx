@@ -18,6 +18,7 @@ interface TreeItem {
   label: JSX.Element;
   children?: TreeItem[];
   icon?: JSX.Element;
+  iconType?: string;
   callback?: () => NonNullable<unknown>;
 }
 
@@ -528,12 +529,22 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
       );
     }
 
+    const getIconType = (icon?: JSX.Element): string | undefined => {
+      if (!icon) return undefined;
+      const props = (icon as React.ReactElement).props as { type?: unknown; iconType?: unknown };
+      const t = props.type;
+      if (typeof t === "string") return t;
+      const it = props.iconType;
+      if (typeof it === "string") return it;
+      return undefined;
+    };
+
     //single node
     if (!items[0].children) {
       return (
         <EuiCollapsibleNavGroup
           title={items[0].label}
-          iconType={items[0].icon?.props.type}
+          iconType={items[0].iconType ?? getIconType(items[0].icon)}
           iconSize="m"
           titleSize="xs"
           key={i}
@@ -548,7 +559,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
     return (
       <EuiCollapsibleNavGroup
         title={items[0].label}
-        iconType={items[0].icon?.props.type}
+        iconType={items[0].iconType ?? getIconType(items[0].icon)}
         iconSize="m"
         titleSize="xs"
         key={i}

@@ -132,7 +132,7 @@ function UseLayout(): void {
       }
     });
 
-    return () => {
+    return (): void => {
       t.stop();
     };
   }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges, focusNodeId, resetFocusNodeId]);

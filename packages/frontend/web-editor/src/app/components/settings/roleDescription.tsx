@@ -80,17 +80,17 @@ const RoleDescription = (): JSX.Element => {
       .then((results) => {
         setIsLoading(false);
       })
-      .catch((errors) => {
+      .catch((errors: unknown) => {
         setIsLoading(false);
       });
-  }, [roleName]);
+  }, [roleName, addToast]);
 
   let modal;
 
   const optionsStatic: EuiComboBoxOptionOption<string>[] = members
-    .filter((member) => !member.roles.includes(roleName as unknown as string))
+    .filter((member) => !member.roles.includes(String(roleName)))
     .map((member) => ({
-      label: member.firstName + " " + member.lastName,
+      label: `${String(member.firstName)} ${String(member.lastName)}`,
       id: String(member.id),
     }));
 
@@ -108,17 +108,16 @@ const RoleDescription = (): JSX.Element => {
       roles: [...member.roles, roleName],
     }));
     const promises = updatedMembers.map((member) => ApiManager.updateUser(member.id, JSON.stringify(member)));
-    void Promise.all(promises).then((_) => {
-      setIsModalVisible(false);
-      setRoleMembers((prev) => [...prev, ...filteredMembers]);
-      setSelected([]);
-    });
+    await Promise.all(promises);
+    setIsModalVisible(false);
+    setRoleMembers((prev) => [...prev, ...filteredMembers]);
+    setSelected([]);
   };
 
   if (isModalVisible) {
     modal = (
       <GenericModal
-        title={`New ${currRole?.name.toLowerCase()}`}
+        title={`New ${String(currRole?.name ?? "").toLowerCase()}`}
         showButtons={true}
         body={
           <EuiComboBox
@@ -167,7 +166,7 @@ const RoleDescription = (): JSX.Element => {
                   setIsModalVisible(true);
                 }}
               >
-                Assign {currRole?.name.toLowerCase() ?? ""}
+                Assign {String(currRole?.name ?? "").toLowerCase()}
               </EuiButton>
             </Can>,
           ]}

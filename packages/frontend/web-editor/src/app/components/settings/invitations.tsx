@@ -24,7 +24,7 @@ const Invitations = (): JSX.Element => {
             setInvitedUsers(invites);
             setIsLoading(false);
           })
-          .catch((_) => {
+          .catch((_: unknown) => {
             setIsLoading(false);
             addToast({
               id: GenerateUUID(),
@@ -33,7 +33,7 @@ const Invitations = (): JSX.Element => {
             });
           });
       })
-      .catch((_) => {
+      .catch((_: unknown) => {
         setIsLoading(false);
         addToast({
           id: GenerateUUID(),

@@ -1,5 +1,5 @@
 import { EuiButton, EuiFlexGroup, EuiFlexItem, EuiForm, EuiFormRow, EuiSelect, EuiText } from "@elastic/eui";
-import React, { ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import React, { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { SignUpPropsWithRole } from "shared-sdk/lib/api/AuthTypes";
 import { EmailValidationForm, UsernameValidationForm } from "shared-sdk/lib/api/FormValidation";
 import { ApiManager } from "shared-sdk/lib/api/ApiManager";
@@ -61,7 +61,7 @@ const GenerateUserForm = ({
                 handleSignup();
               }
             })
-            .catch((_) => {
+            .catch((_: unknown) => {
               addToast({
                 id: GenerateUUID(),
                 color: "danger",
@@ -70,7 +70,7 @@ const GenerateUserForm = ({
             });
         }
       })
-      .catch((_) => {
+      .catch((_: unknown) => {
         addToast({
           id: GenerateUUID(),
           color: "danger",
@@ -98,7 +98,7 @@ const GenerateUserForm = ({
 
   useEffect(() => {
     debouncedCheckUserName(signup);
-  }, [signup.username, debouncedCheckUserName]);
+  }, [signup, debouncedCheckUserName]);
 
   useEffect(() => {
     if (signup.email.length === 0 && !signupButtonClicked) {
@@ -106,7 +106,7 @@ const GenerateUserForm = ({
       return;
     }
     debouncedCheckEmail(signup);
-  }, [signup.email, debouncedCheckEmail]);
+  }, [signup, signupButtonClicked, debouncedCheckEmail]);
 
   return (
     <EuiForm

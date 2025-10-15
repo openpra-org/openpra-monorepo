@@ -6,7 +6,7 @@ interface TooltipProps {
   children: React.ReactNode; // The element that the tooltip is attached to
 }
 
-const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
+export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
   return (
     <div className="custom-tooltip">
       {children}
@@ -57,4 +57,5 @@ const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
   );
 };
 
+// eslint-disable-next-line import/no-default-export
 export default Tooltip;

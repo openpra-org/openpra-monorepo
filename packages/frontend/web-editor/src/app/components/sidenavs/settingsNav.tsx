@@ -86,7 +86,7 @@ export function SettingsNav(): JSX.Element {
           {
             iconType: "preferences",
             callback: () => {
-              navigate("preferences/" + userId + "/personal-data");
+              navigate("preferences/" + String(userId) + "/personal-data");
             },
           },
           1,

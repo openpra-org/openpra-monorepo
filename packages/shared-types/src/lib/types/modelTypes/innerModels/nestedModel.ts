@@ -34,7 +34,7 @@ export class NestedModel extends BasicModel {
    * @param id - the id of the current model
    * @param parentIds - the id of the parent model this is attached to
    */
-  constructor(name = "", description = "", id = -1, parentIds = []) {
+  constructor(name = "", description = "", id = -1, parentIds: number[] = []) {
     super(new Label(name, description), id);
     this.parentIds = parentIds;
   }

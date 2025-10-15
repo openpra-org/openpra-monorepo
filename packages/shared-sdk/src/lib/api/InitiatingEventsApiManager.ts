@@ -14,7 +14,11 @@ export default class FmeaApiManager {
       if (showSuccess) {
         this.callSnackbar("success", res, override);
       }
-    } catch {}
+    } catch (e: unknown) {
+      // Intentionally ignore UI feedback errors
+      // eslint-disable-next-line no-console
+      console.debug("defaultSuccessCallback: ignoring showSuccess error", e);
+    }
     return res;
   }
 
@@ -24,7 +28,11 @@ export default class FmeaApiManager {
       if (showFailure) {
         this.callSnackbar("error", res, override);
       }
-    } catch {}
+    } catch (e: unknown) {
+      // Intentionally ignore UI feedback errors
+      // eslint-disable-next-line no-console
+      console.debug("defaultFailCallback: ignoring showFailure error", e);
+    }
     return res;
   }
 

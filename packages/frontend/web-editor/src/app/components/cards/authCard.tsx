@@ -1,12 +1,28 @@
-import { EuiCard, logicalStyle, EuiTabbedContent } from "@elastic/eui";
+import { EuiCard, EuiTabbedContent, type EuiTabbedContentTab } from "@elastic/eui";
 import { LoginForm } from "../forms/loginForm";
 import { SignUp } from "../login/signUp";
 import OpenPRALogo from "../../../assets/images/logos/OpenPRA_vs_0.1x.png";
 
-//required to show version number!
-const packageJson = require("../../../../../../../package.json");
+// required to show version number!
+interface RootPackageJsonUnknown {
+  version?: unknown;
+}
+// The require is safe for this display-only use; keep unknown and extract via helper.
+// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-assignment
+const pkgUnknown: unknown = require("../../../../../../../package.json");
 
-const tabs = [
+const getVersionString = (pkg: unknown): string => {
+  if (typeof pkg === "object" && pkg !== null) {
+    const maybe = pkg as RootPackageJsonUnknown;
+    const v = maybe.version;
+    if (typeof v === "string") return v;
+  }
+  return "";
+};
+
+const versionStr = getVersionString(pkgUnknown);
+
+const tabs: EuiTabbedContentTab[] = [
   {
     id: "signup",
     name: "Sign Up",
@@ -31,11 +47,11 @@ function AuthCardContent(): JSX.Element {
 }
 
 function AuthCard(): JSX.Element {
-  const cardStyle = {
-    ...logicalStyle("width", 300),
-    ...logicalStyle("margin-horizontal", "auto"),
+  const cardStyle: React.CSSProperties = {
+    width: 300,
+    marginInline: "auto",
   };
-  const version = "v" + packageJson.version;
+  const version = `v${versionStr}`;
   return (
     <EuiCard
       style={cardStyle}

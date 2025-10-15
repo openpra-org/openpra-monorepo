@@ -24,7 +24,7 @@ const execPromise = (cmd: string): Promise<number> => {
       if (stderr) {
         //console.error(stderr);
       }
-      if (error?.code != null) {
+      if (typeof error?.code === "number") {
         resolve(error.code);
       } else {
         resolve(0);

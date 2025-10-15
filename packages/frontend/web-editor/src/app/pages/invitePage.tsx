@@ -47,25 +47,27 @@ const InvitePage = (): JSX.Element => {
               });
               setIsLoading(false);
             })
-            .catch((error: { message: string }) => {
+            .catch((error: unknown) => {
+              const message = (error as { message?: string }).message ?? "unknown error";
               addToast({
                 id: GenerateUUID(),
                 color: "danger",
-                text: `Error while signing in: ${error.message}`,
+                text: `Error while signing in: ${message}`,
               });
               setIsLoading(false);
             });
         })
-        .catch((err: { message: string }) => {
+        .catch((err: unknown) => {
+          const message = (err as { message?: string }).message ?? "unknown error";
           addToast({
             id: GenerateUUID(),
             color: "danger",
-            text: `Error while signing in: ${err.message}`,
+            text: `Error while signing in: ${message}`,
           });
           setIsLoading(false);
         });
     }
-  }, [inviteId]);
+  }, [inviteId, addToast]);
 
   function handleSignup(): void {
     const { passConfirm, ...signupData } = signup;
@@ -76,12 +78,13 @@ const InvitePage = (): JSX.Element => {
           navigate("/");
         }
       })
-      .catch((signInError: { message: string }) => {
+      .catch((signInError: unknown) => {
+        const message = (signInError as { message?: string }).message ?? "unknown error";
         // Send a toast message saying there was an error while logging in
         addToast({
           id: GenerateUUID(),
           color: "danger",
-          text: `Error while signing in: ${signInError.message}`,
+          text: `Error while signing in: ${message}`,
         });
       });
   }

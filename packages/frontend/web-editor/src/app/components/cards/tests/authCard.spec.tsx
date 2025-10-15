@@ -6,17 +6,33 @@ import { AbilityContext } from "../../../providers/abilityProvider";
 import { DefaultAbility } from "../../../casl/ability";
 
 // Ensure SignUp does not redirect during test render
-jest.mock("shared-sdk/lib/api/ApiManager", () => ({
-  ApiManager: {
-    isLoggedIn: jest.fn(() => false),
-    // Debounced validators used by SignUpForm
-    checkUserName: jest.fn((cb: (result: boolean) => void) => (/* signup */) => cb(true)),
-    checkEmail: jest.fn((cb: (result: boolean) => void) => (/* signup */) => cb(true)),
-    // Promise-based validators used on submit
-    isValidEmail: jest.fn(async () => true),
-    isValidUsername: jest.fn(async () => true),
-  },
-}));
+jest.mock("shared-sdk/lib/api/ApiManager", () => {
+  return {
+    ApiManager: {
+      isLoggedIn: jest.fn(function isLoggedInMock(): boolean {
+        return false;
+      }),
+      // Debounced validators used by SignUpForm
+      checkUserName: jest.fn(function checkUserNameMock(cb: (result: boolean) => void) {
+        return function debouncedValidator(): void {
+          cb(true);
+        };
+      }),
+      checkEmail: jest.fn(function checkEmailMock(cb: (result: boolean) => void) {
+        return function debouncedValidator(): void {
+          cb(true);
+        };
+      }),
+      // Promise-based validators used on submit
+      isValidEmail: jest.fn(function isValidEmailMock(): Promise<boolean> {
+        return Promise.resolve(true);
+      }),
+      isValidUsername: jest.fn(function isValidUsernameMock(): Promise<boolean> {
+        return Promise.resolve(true);
+      }),
+    },
+  };
+});
 
 describe("AuthCard", () => {
   // before(() => {

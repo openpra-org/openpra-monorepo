@@ -1834,7 +1834,7 @@ export const validateEventTree = {
         // Validate chronological ordering of functional events
         const functionalEventsByOrder = Object.values(eventTree.functionalEvents)
             .filter(fe => fe.order !== undefined)
-            .sort((a, b) => (a.order || 0) - (b.order || 0));
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
             
         // Check if ordering in the event tree structure matches the declared order
         // This would require analyzing the structure of branches and paths

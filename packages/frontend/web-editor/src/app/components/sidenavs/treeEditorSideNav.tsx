@@ -1,9 +1,13 @@
 import React, { DragEvent } from "react";
-import styles from "./styles.module.css";
+import rawStyles from "./styles.module.css";
+const styles: Record<string, string> = rawStyles as Record<string, string>;
 function TreeEditorSideNav(): JSX.Element {
-  const onDragStart = (nodeData: any) => (event: DragEvent) => {
-    const dataString = JSON.stringify(nodeData);
-    event.dataTransfer.setData("application/reactflow", dataString);
+  type DraggableNodeData = Record<string, unknown>;
+  const onDragStart = (nodeData: DraggableNodeData): ((event: DragEvent) => void) => {
+    return (event: DragEvent): void => {
+      const dataString = JSON.stringify(nodeData);
+      event.dataTransfer.setData("application/reactflow", dataString);
+    };
   };
   return (
     <div className={styles.sidebar}>
@@ -17,14 +21,14 @@ function TreeEditorSideNav(): JSX.Element {
           Node A
         </div>
         <div
-          onDragStart={onDragStart}
+          onDragStart={onDragStart({ id: "B" })}
           draggable
           className={styles.sidebarNode}
         >
           Node B
         </div>
         <div
-          onDragStart={onDragStart}
+          onDragStart={onDragStart({ id: "C" })}
           draggable
           className={styles.sidebarNode}
         >

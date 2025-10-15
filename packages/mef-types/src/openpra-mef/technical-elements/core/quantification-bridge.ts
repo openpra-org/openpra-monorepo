@@ -160,7 +160,7 @@ export class QuantificationReferenceManager {
         id: `quant_ref_${systemBasicEventId}`,
         systemBasicEventId,
         dataAnalysisReference,
-        referenceType: options?.referenceType || "direct",
+  referenceType: options?.referenceType ?? "direct",
         quantificationMethod: options?.quantificationMethod,
         metadata: options?.metadata
       };

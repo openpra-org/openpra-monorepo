@@ -19,9 +19,12 @@ module.exports = async (): Promise<void> => {
   }
 
   // Local/dev: spin up in-memory MongoDB
-  const mongoServer = new MongoMemoryServer();
+  // Debian 12 (bookworm) ships OpenSSL 3; old MongoDB binaries require OpenSSL 1.1 and will fail.
+  // Force a MongoDB binary compatible with OpenSSL 3 by selecting a MongoDB 7.x version.
+  const requestedVersion = process.env.MONGOMS_VERSION ?? "7.0.14";
+  let mongoServer: MongoMemoryServer;
   try {
-    await mongoServer.start();
+    mongoServer = await MongoMemoryServer.create({ binary: { version: requestedVersion } });
   } catch (err: unknown) {
     const message = (err as Error)?.message || String(err);
     // Common failure on Debian 12 (bookworm): missing libcrypto.so.1.1 (OpenSSL 1.1)

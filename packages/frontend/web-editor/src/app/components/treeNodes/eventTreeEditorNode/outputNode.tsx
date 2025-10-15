@@ -1,4 +1,5 @@
-import { Handle, NodeProps, Position } from "reactflow";
+/* eslint-disable import/no-default-export */
+import { Handle, Node, NodeProps, Position } from "reactflow";
 import React, { useState, useEffect, useCallback } from "react";
 import { EuiText, EuiIcon, EuiButton, EuiSuperSelect, EuiFlexGroup, EuiFlexItem, EuiSpacer } from "@elastic/eui";
 import { useStore } from "reactflow";
@@ -8,6 +9,14 @@ import { useCategoryContext } from "../../../hooks/eventTree/useCreateReleaseCat
 import Tooltip from "../../tooltips/customTooltip";
 import { GenericModal } from "../../modals/genericModal";
 
+interface OutputNodeData {
+  label: string;
+  isSequenceId?: boolean;
+  isFrequencyNode?: boolean;
+  frequency?: number;
+  width?: number;
+}
+
 const ManageCategoriesForm = ({
   categories,
   addCategory,
@@ -16,7 +25,7 @@ const ManageCategoriesForm = ({
   categories: { value: string; text: string }[];
   addCategory: (category: string) => void;
   deleteCategory: (category: string) => void;
-}) => {
+}): JSX.Element => {
   const [newCategory, setNewCategory] = useState("");
 
   return (
@@ -87,17 +96,18 @@ const ManageCategoriesForm = ({
 // Store first column label
 let firstColumnLabel = "Initiating Event";
 
-export const setFirstColumnLabel = (label: string) => {
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const setFirstColumnLabel = (label: string): void => {
   firstColumnLabel = label;
 };
 
-function OutputNode({ id, data }: NodeProps) {
+function OutputNode({ id, data }: NodeProps<OutputNodeData>): JSX.Element {
   const { categories, addCategory, deleteCategory } = useCategoryContext();
   const [releaseCategory, setReleaseCategory] = useState(data.label);
   const [displayLabel, setDisplayLabel] = useState(data.label);
   const [isManageModalVisible, setIsManageModalVisible] = useState(false);
   const [sequenceId, setSequenceId] = useState<string | null>(null);
-  const nodes = useStore((store) => store.getNodes());
+  const nodes = useStore((store) => store.getNodes() as Node<OutputNodeData>[]);
 
   // Transform categories to work with EuiSuperSelect - keep display simple
   const superSelectOptions = categories.map((category) => ({
@@ -106,7 +116,7 @@ function OutputNode({ id, data }: NodeProps) {
     dropdownDisplay: category.text || category.value,
   }));
 
-  const updateSequenceId = useCallback(() => {
+  const updateSequenceId = useCallback((): void => {
     if (data.isSequenceId) {
       const sequenceIdNodes = nodes
         .filter((node) => node.type === "outputNode" && node.data.isSequenceId)
@@ -115,7 +125,7 @@ function OutputNode({ id, data }: NodeProps) {
       sequenceIdNodes.forEach((node, index) => {
         if (node.id === id) {
           const initials = getInitials(firstColumnLabel);
-          const calculatedSequenceId = `${initials}-${index + 1}`;
+          const calculatedSequenceId = `${initials}-${String(index + 1)}`;
           if (sequenceId !== calculatedSequenceId) {
             setSequenceId(calculatedSequenceId);
             setDisplayLabel(calculatedSequenceId);
@@ -137,15 +147,16 @@ function OutputNode({ id, data }: NodeProps) {
     updateSequenceId();
   }, [updateSequenceId]);
 
-  const handleCategoryChange = (value: string) => {
+  const handleCategoryChange = (value: string): void => {
     setReleaseCategory(value);
   };
 
-  const handleModalSubmit = async (): Promise<void> => {
+  const handleModalSubmit = (): Promise<void> => {
     setIsManageModalVisible(false);
+    return Promise.resolve();
   };
 
-  const handleModalClose = () => {
+  const handleModalClose = (): void => {
     setIsManageModalVisible(false);
   };
 

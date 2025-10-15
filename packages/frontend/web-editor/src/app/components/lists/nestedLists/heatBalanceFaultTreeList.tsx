@@ -5,7 +5,7 @@ import {
 } from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
 
-function HeatBalanceFaultTreeList() {
+function HeatBalanceFaultTreeList(): JSX.Element {
   return (
     <NestedModelList
       getNestedEndpoint={GetHeatBalanceFaultTrees}

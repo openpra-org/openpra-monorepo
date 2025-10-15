@@ -18,16 +18,18 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
   public description: string;
 
   /**
-   * @param {LabelJSON} obj - dictionary object to parse
-   * @return {HCLText.ts}
+   * Build a Label from its JSON representation.
+   * @param obj - JSON object to parse
+   * @returns A new Label instance
    */
   static build(obj: LabelJSON): Label {
     return new Label(obj.name, obj.description);
   }
 
   /**
-   * @param {string} name
-   * @param {string} description
+   * Create a new Label.
+   * @param name - The label name
+   * @param description - The label description
    */
   constructor(name = "", description = "") {
     this.name = name || "";
@@ -35,35 +37,35 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
   }
 
   /**
-   * @return {string}
+   * @returns The label name
    */
   getName(): string {
     return this.name;
   }
 
   /**
-   * @param {string} name
+   * @param name - New label name
    */
-  setName(name: string) {
+  setName(name: string): void {
     this.name = name;
   }
 
   /**
-   * @return {string}
+   * @returns The label description
    */
   getDescription(): string {
     return this.description;
   }
 
   /**
-   * @param {string} description
+   * @param description - New label description
    */
-  setDescription(description: string) {
+  setDescription(description: string): void {
     this.description = description;
   }
 
   /**
-   * @return {LabelJSON} - dictionary object that represents this
+   * @returns Dictionary object that represents this label
    */
   toJSON(): LabelJSON {
     return {

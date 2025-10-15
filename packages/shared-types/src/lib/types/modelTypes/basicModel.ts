@@ -12,9 +12,9 @@ export abstract class BasicModel {
   //TODO attach a wiki object here in the basic model if desired.
 
   /**
-   * the name = '' and description = '' automatically tell typscript that these are strings
-   * @param {string} name
-   * @param {string} description
+   * Construct a basic model.
+   * @param label - The model label metadata
+   * @param id - The identifier for the model (defaults to -1)
    */
   constructor(label: Label, id = -1) {
     this.label = label;
@@ -26,16 +26,16 @@ export abstract class BasicModel {
   }
 
   /**
-   * @return {number} id number
+   * @returns id number
    */
   getId(): number {
     return this.id;
   }
 
   /**
-   * @param {number} id takes the id number
+   * @param id - sets the id number
    */
-  setId(id: number) {
+  setId(id: number): void {
     this.id = id;
   }
 }

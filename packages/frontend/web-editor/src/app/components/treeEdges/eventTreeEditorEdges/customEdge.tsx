@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { BaseEdge, EdgeProps, getSmoothStepPath, getStraightPath } from "reactflow";
+import { BaseEdge, EdgeProps, getSmoothStepPath } from "reactflow";
 import { memo } from "react";
 
 interface CustomEdgeData {
@@ -33,4 +33,5 @@ const CustomEdge: FC<EdgeProps<CustomEdgeData>> = memo(
     );
   },
 );
+// eslint-disable-next-line import/no-default-export
 export default CustomEdge;

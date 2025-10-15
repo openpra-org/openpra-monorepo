@@ -1,18 +1,68 @@
 {
   "extends": ["../../.eslintrc.json"],
-  "ignorePatterns": ["!**/*"],
+  "parserOptions": {
+    "project": [
+      "packages/shared-sdk/tsconfig.eslint.json"
+    ]
+  },
+  "ignorePatterns": ["!**/*", "**/*.d.ts"],
   "overrides": [
     {
-      "files": ["*.ts", "*.tsx"],
+      "files": ["src/**/*.ts", "src/**/*.tsx"],
       "parserOptions": {
         "project": [
-          "packages/shared-sdk/tsconfig.lib.json",
-          "packages/shared-sdk/tsconfig.spec.json"
+          "packages/shared-sdk/tsconfig.eslint.json"
         ]
       },
       "rules": {
-        "@typescript-eslint/consistent-type-assertions": "warn"
+        "@typescript-eslint/consistent-type-assertions": "warn",
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+  "@typescript-eslint/use-unknown-in-catch-callback-variable": "warn",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/consistent-indexed-object-style": "warn",
+        "@typescript-eslint/no-unnecessary-type-assertion": "warn",
+        "@typescript-eslint/unbound-method": "warn",
+        "@typescript-eslint/no-empty-interface": "warn",
+        "@typescript-eslint/no-unsafe-assignment": "warn",
+        "@typescript-eslint/no-unsafe-member-access": "warn",
+        "@typescript-eslint/no-unsafe-argument": "warn",
+        "@typescript-eslint/no-unsafe-return": "warn",
+        "@typescript-eslint/no-unsafe-call": "warn",
+        "@typescript-eslint/restrict-plus-operands": "warn",
+        "@typescript-eslint/restrict-template-expressions": "warn",
+        "@typescript-eslint/no-unnecessary-condition": "warn",
+        "@typescript-eslint/prefer-for-of": "warn",
+        "@typescript-eslint/require-await": "warn",
+        "@typescript-eslint/no-misused-promises": "warn",
+        "@typescript-eslint/no-non-null-asserted-optional-chain": "warn",
+        "@typescript-eslint/no-dynamic-delete": "warn",
+        "@typescript-eslint/dot-notation": "warn"
       }
+    },
+    {
+      "files": ["**/*.spec.ts", "**/*.spec.tsx"],
+      "rules": {
+        "@typescript-eslint/no-unsafe-call": "warn",
+        "@typescript-eslint/no-unsafe-argument": "warn",
+        "@typescript-eslint/restrict-plus-operands": "warn",
+        "@typescript-eslint/no-confusing-void-expression": "warn",
+        "@typescript-eslint/no-empty-function": "warn"
+      }
+    },
+    {
+      "files": ["**/*.d.ts"],
+      "extends": ["plugin:@typescript-eslint/disable-type-checked"],
+      "rules": {}
     },
     {
       "files": ["*.js", "*.jsx"],
@@ -21,6 +71,7 @@
     {
       "files": ["*.json"],
       "parser": "jsonc-eslint-parser",
+      "extends": ["plugin:@typescript-eslint/disable-type-checked"],
       "rules": {
         "@nx/dependency-checks": "error"
       }

@@ -18,7 +18,9 @@ export const SetEventSequenceAnalysis = async (parentId: string): Promise<void> 
         state.NestedModels.EventSequenceAnalysis.EventSequenceAnalysisList = EventSequenceAnalysis;
       }),
     );
-  } catch (error) {}
+  } catch (error: unknown) {
+    // Intentionally ignore: state remains unchanged on failure
+  }
 };
 
 export const AddEventSequenceAnalysis = async (data: NestedModelJSON): Promise<void> => {
@@ -33,7 +35,9 @@ export const AddEventSequenceAnalysis = async (data: NestedModelJSON): Promise<v
         state[typedModelName] = AddToParentModel(state, EventSequenceAnalysis._id, EventSequenceAnalysis.parentIds);
       }),
     );
-  } catch (error) {}
+  } catch (error: unknown) {
+    // Intentionally ignore: state remains unchanged on failure
+  }
 };
 
 export const EditEventSequenceAnalysis = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
@@ -51,7 +55,9 @@ export const EditEventSequenceAnalysis = async (modelId: string, data: Partial<N
           );
       }),
     );
-  } catch (error) {}
+  } catch (error: unknown) {
+    // Intentionally ignore: state remains unchanged on failure
+  }
 };
 
 export const DeleteEventSequenceAnalysis = async (id: string): Promise<void> => {
@@ -73,5 +79,7 @@ export const DeleteEventSequenceAnalysis = async (id: string): Promise<void> => 
         state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
-  } catch (error) {}
+  } catch (error: unknown) {
+    // Intentionally ignore: state remains unchanged on failure
+  }
 };

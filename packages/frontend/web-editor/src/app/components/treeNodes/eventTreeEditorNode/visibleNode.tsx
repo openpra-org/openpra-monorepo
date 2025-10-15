@@ -1,4 +1,5 @@
-import { Handle, NodeProps, Position, useReactFlow } from "reactflow";
+/* eslint-disable import/no-default-export */
+import { Handle, Node, NodeProps, Position, useReactFlow } from "reactflow";
 import React, { useState } from "react";
 import { EuiText } from "@elastic/eui";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
@@ -9,23 +10,31 @@ import { GenerateUUID } from "../../../../utils/treeUtils";
 import Tooltip from "../../tooltips/customTooltip";
 import { recalculateFrequencies } from "../../../../utils/recalculateFrequencies";
 import styles from "./styles/nodeTypes.module.css";
+const css = styles as Record<string, string>;
 
-function VisibleNode({ id, data }: NodeProps) {
+interface VisibleNodeData {
+  label: string;
+  width: number;
+  depth: number;
+  probability?: number;
+}
+
+function VisibleNode({ id, data }: NodeProps<VisibleNodeData>): JSX.Element {
   const onClickCreate = useCreateNodeClick(id);
   const onClickDelete = useDeleteNodeClick(id);
   const [isEditingFreq, setIsEditingFreq] = useState(false);
   const [isEditingLabel, setIsEditingLabel] = useState(false);
-  const { setNodes, getNodes, getEdges } = useReactFlow();
+  const { setNodes, getEdges } = useReactFlow<VisibleNodeData, unknown>();
   const { addToast } = UseToastContext();
 
-  const updateNodeLabel = (newValue: string) => {
-    setNodes((nodes) =>
+  const updateNodeLabel = (newValue: string): void => {
+    setNodes((nodes: Node<VisibleNodeData>[]) =>
       nodes.map((node) => (node.id === id ? { ...node, data: { ...node.data, label: newValue } } : node)),
     );
   };
 
-  const updateNodeProbability = (newValue: number) => {
-    setNodes((nodes) => {
+  const updateNodeProbability = (newValue: number): void => {
+    setNodes((nodes: Node<VisibleNodeData>[]) => {
       const edges = getEdges();
 
       // Find the parent of this node
@@ -85,7 +94,7 @@ function VisibleNode({ id, data }: NodeProps) {
     });
   };
 
-  const getDefaultProbability = () => {
+  const getDefaultProbability = (): number => {
     if (data.depth === 1) return 1.0;
     if (data.depth === 2 && (data.label === "Success" || data.label === "Failure")) return 0.5;
     return 0.0;
@@ -116,7 +125,7 @@ function VisibleNode({ id, data }: NodeProps) {
         }}
       >
         <div
-          className={styles.inputNode}
+          className={css.inputNode}
           onDoubleClick={() => {
             setIsEditingFreq(true);
           }}
@@ -134,15 +143,15 @@ function VisibleNode({ id, data }: NodeProps) {
                 background: "transparent",
                 outline: "none",
               }}
-              onBlur={(e) => {
-                let value;
+              onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
+                let value: number;
 
                 const scientificValue = ScientificNotation.fromScientific(e.target.value);
-                if (!isNaN(scientificValue)) {
+                if (!Number.isNaN(scientificValue)) {
                   value = scientificValue;
                 } else {
                   const regularValue = parseFloat(e.target.value);
-                  value = isNaN(regularValue) ? 0 : regularValue;
+                  value = Number.isNaN(regularValue) ? 0 : regularValue;
                 }
 
                 value = Math.max(0, Math.min(1, value));
@@ -199,13 +208,13 @@ function VisibleNode({ id, data }: NodeProps) {
           >
             <p
               onClick={onClickCreate}
-              className={styles.addNodeButtonText}
+              className={css.addNodeButtonText}
             >
               +
             </p>
             <p
               onClick={onClickDelete}
-              className={styles.addNodeButtonText}
+              className={css.addNodeButtonText}
             >
               -
             </p>

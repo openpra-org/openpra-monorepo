@@ -358,7 +358,7 @@ export class FailureRateEstimator {
         method: 'maxLikelihood' | 'bayesian' = 'maxLikelihood'
     ): FailureRateEstimationResult {
         // Get relevant data points
-        const dataPointIds = dataRegistry.dataByFailureMode?.[failureModeRef] || [];
+    const dataPointIds = dataRegistry.dataByFailureMode?.[failureModeRef] ?? [];
         const dataPoints = dataPointIds
             .map(id => dataRegistry.dataPoints.find(dp => dp.id === id))
             .filter(dp => dp && dp.componentTypeReference === componentTypeRef) as OperationalDataPoint[];

@@ -31,11 +31,12 @@ const Roles = (): JSX.Element => {
         setNavItems(navItems);
         setIsLoading(false);
       })
-      .catch((err: Error) => {
-        addToast(GetESToast("danger", err.message));
+      .catch((err: unknown) => {
+        const message = (err as { message?: string }).message ?? "Unknown error";
+        addToast(GetESToast("danger", message));
         setIsLoading(false);
       });
-  }, []);
+  }, [addToast]);
   return (
     <EuiPageTemplate
       panelled={false}

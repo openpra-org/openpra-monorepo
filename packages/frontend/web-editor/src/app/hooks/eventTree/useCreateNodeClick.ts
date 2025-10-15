@@ -1,3 +1,5 @@
+/* eslint-disable import/no-default-export */
+/* eslint-disable @typescript-eslint/naming-convention */
 import { Edge, NodeProps, Node, useReactFlow } from "reactflow";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
@@ -6,13 +8,25 @@ import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
 import { recalculateFrequencies } from "../../../utils/recalculateFrequencies";
 import { createEndStates } from "./useTreeData";
 
-function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
+// Minimal data shape used in Event Tree reactflow nodes within this hook
+interface EventTreeNodeData {
+  label: string;
+  depth: number;
+  width: number;
+  output?: boolean;
+  isSequenceId?: boolean;
+  sequenceId?: string | null;
+  inputDepth?: number;
+  outputDepth?: number;
+}
+
+function useCreateNodeClick(clickedNodeId: NodeProps["id"]): () => void {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
 
-  const addNode = () => {
+  const addNode: () => void = () => {
     // Get current nodes and edges
-    let nodes = getNodes();
+    let nodes = getNodes() as Node<EventTreeNodeData>[];
     const edges = getEdges();
 
     // Find the root node
@@ -25,7 +39,10 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     }
 
     // Extract the output depth from the root node
-    const [outputLevels, inputLevels] = [rootNode.data?.outputDepth, rootNode.data?.inputDepth] as [number, number];
+    const [outputLevels, inputLevels] = [rootNode.data.outputDepth ?? 0, rootNode.data.inputDepth ?? 0] as [
+      number,
+      number,
+    ];
 
     const rightmostNodeIndices = findRightmostNodeIndicesAtEachLevel(
       clickedNodeId,
@@ -37,7 +54,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
 
     // Find the clicked node
     const clickedNodeIndex = nodes.findIndex((node) => node.id === clickedNodeId);
-    const clickedNode = clickedNodeIndex !== -1 ? nodes[clickedNodeIndex] : null;
+    const clickedNode: Node<EventTreeNodeData> | null = clickedNodeIndex !== -1 ? nodes[clickedNodeIndex] : null;
 
     // put the clicked node as activated (for an invisible node)
     if (clickedNode?.type === "invisibleNode") {
@@ -51,7 +68,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     const clickedNodeEdge = edges.find((edge) => edge.target === clickedNodeId);
 
     // Determine the depth of the new node
-    const clickedNodeDepth = clickedNode?.data.depth;
+    const clickedNodeDepth = clickedNode?.data.depth ?? 0;
 
     // Initialize placeholders for new nodes and edges
 
@@ -70,7 +87,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
         level === 0 ? "visibleNode" : level <= inputLevels - clickedNodeDepth ? "invisibleNode" : "outputNode";
 
       // Create the new node based on the level and type
-      const newNode: Node = {
+      const newNode: Node<EventTreeNodeData> = {
         id: newNodeId,
         type: nodeType,
         data: {
@@ -82,8 +99,8 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
           sequenceId: level >= inputLevels - clickedNodeDepth ? "" : null, // Set to null if its not a sequence
         },
         position: {
-          x: clickedNode?.position.x!,
-          y: clickedNode?.position.y!,
+          x: clickedNode?.position.x ?? 0,
+          y: clickedNode?.position.y ?? 0,
         },
       };
 
@@ -110,7 +127,11 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
 
       // Replace Output Node Logic with End States
       if (level >= inputLevels - clickedNodeDepth) {
-        const { nodes: endNodes, edges: endEdges } = createEndStates(newNode, rootNode.data.width, newNode.position);
+        const { nodes: endNodes, edges: endEdges } = createEndStates(
+          newNode as unknown as Node, // keep external helper signature unchanged
+          rootNode.data.width,
+          newNode.position,
+        );
 
         nodes.push(...endNodes);
 
@@ -145,7 +166,7 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
     setEdges(updatedEdges);
 
     // Then recalculate frequencies and update nodes
-    const recalculatedNodes = recalculateFrequencies(nodes, updatedEdges);
+    const recalculatedNodes = recalculateFrequencies(nodes as unknown as Node[], updatedEdges);
     setNodes(recalculatedNodes);
 
     const eventTreeCurrentState: EventTreeGraph = EventTreeState({
@@ -154,7 +175,9 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]) {
       edges: updatedEdges,
     });
 
-    void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {});
+    void GraphApiManager.storeEventTree(eventTreeCurrentState).then(() => {
+      // no-op: state persisted
+    });
   };
 
   return addNode;
@@ -164,7 +187,7 @@ export default useCreateNodeClick;
 
 function findRightmostNodeIndicesAtEachLevel(
   clickedNodeId: string,
-  nodes: Node[],
+  nodes: Node<EventTreeNodeData>[],
   edges: Edge[],
   inputLevel: number,
   outputLevel: number,
@@ -178,10 +201,10 @@ function findRightmostNodeIndicesAtEachLevel(
 
   // Calculate total depth to explore from the clicked node
   const totalDepth = inputLevel + outputLevel - clickedNodeDepth + 1;
-  const rightmostNodeIndices: number[] = new Array(totalDepth).fill(-1);
+  const rightmostNodeIndices: number[] = Array.from({ length: totalDepth }, () => -1 as number);
 
   // DFS to find rightmost nodes
-  function dfs(nodeId: string, currentDepth: number) {
+  function dfs(nodeId: string, currentDepth: number): void {
     const node = nodes.find((node) => node.id === nodeId);
     if (!node) return;
 

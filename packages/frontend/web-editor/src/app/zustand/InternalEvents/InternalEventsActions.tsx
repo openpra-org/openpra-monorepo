@@ -15,7 +15,9 @@ export const SetInternalEvents = async (): Promise<void> => {
     UseGlobalStore.setState({
       InternalEvents: internalEventsList,
     });
-  } catch (error) {}
+  } catch (error: unknown) {
+    // Intentionally ignore: state remains unchanged on failure
+  }
 };
 
 export const AddInternalEvent = async (data: Partial<TypedModelJSON>): Promise<void> => {
@@ -24,7 +26,9 @@ export const AddInternalEvent = async (data: Partial<TypedModelJSON>): Promise<v
     UseGlobalStore.setState((state) => ({
       InternalEvents: [...state.InternalEvents, ier],
     }));
-  } catch (error) {}
+  } catch (error: unknown) {
+    // Intentionally ignore: state remains unchanged on failure
+  }
 };
 
 export const EditInternalEvent = async (
@@ -43,7 +47,9 @@ export const EditInternalEvent = async (
         }
       }),
     }));
-  } catch (error) {}
+  } catch (error: unknown) {
+    // Intentionally ignore: state remains unchanged on failure
+  }
 };
 
 export const DeleteInternalEvent = async (id: number): Promise<void> => {
@@ -53,5 +59,7 @@ export const DeleteInternalEvent = async (id: number): Promise<void> => {
     UseGlobalStore.setState((state) => ({
       InternalEvents: state.InternalEvents.filter((ie: InternalEventsModelType) => ie.id !== id),
     }));
-  } catch (error) {}
+  } catch (error: unknown) {
+    // Intentionally ignore: state remains unchanged on failure
+  }
 };

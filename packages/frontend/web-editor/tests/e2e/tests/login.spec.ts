@@ -5,14 +5,14 @@ test.describe("Signup", () => {
   // if we want to access alias in test, we need to change arrow function => to function ()
   test("can register a new account", async ({ page }) => {
     // added delay as sometimes it can make tests flaky if typing too fast (default is 10)
-    const username = "playwright" + Math.floor(Math.random() * 1000);
+    const username = `playwright${String(Math.floor(Math.random() * 1000))}`;
     await SignUp({ page, username });
     await expect(page.getByTestId("user-menu")).toBeVisible();
   });
 
   test("Account already created", async ({ page }) => {
     // added delay as sometimes it can make tests flaky if typing too fast (default is 10)
-    const username = "playwright" + Math.floor(Math.random() * 1000);
+    const username = `playwright${String(Math.floor(Math.random() * 1000))}`;
     await SignUp({ page, username });
     await LogOut({ page });
     await SignUp({ page, username });
@@ -38,7 +38,7 @@ test.describe("Login", () => {
   });
   // if we want to access alias in test, we need to change arrow function => to function ()
   test("Can Login", async ({ page }) => {
-    const username = "playwright" + Math.floor(Math.random() * 1000);
+    const username = `playwright${String(Math.floor(Math.random() * 1000))}`;
     await SignUp({ page, username });
     await LogOut({ page });
     await page.getByRole("tab", { name: "Login" }).click();
@@ -49,7 +49,7 @@ test.describe("Login", () => {
   });
 
   test("Invalid input", async ({ page }) => {
-    const username = "playwright" + Math.floor(Math.random() * 1000);
+    const username = `playwright${String(Math.floor(Math.random() * 1000))}`;
     await page.getByRole("tab", { name: "Login" }).click();
     await page.getByPlaceholder("Username").fill(username);
     await page.getByPlaceholder("Password", { exact: true }).fill("Playwright12");

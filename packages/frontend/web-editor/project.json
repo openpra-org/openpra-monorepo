@@ -78,7 +78,8 @@
       "outputs": ["{options.outputFile}"],
       "options": {
         "lintFilePatterns": [
-          "{projectRoot}/**/*.{ts,tsx,js,jsx}"
+          "{projectRoot}/**/*.{ts,tsx}",
+          "{projectRoot}/**/*.{js,jsx}"
         ]
       }
     },

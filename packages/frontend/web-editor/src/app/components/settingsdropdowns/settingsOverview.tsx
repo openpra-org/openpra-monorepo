@@ -15,7 +15,7 @@ import {
   EuiFieldNumber,
   EuiSpacer,
 } from "@elastic/eui";
-import { useState } from "react";
+import { useState, ChangeEvent } from "react";
 import { SettingsAccordian } from "./SettingsAccordian";
 
 const buttonContent = (
@@ -58,7 +58,7 @@ function SettingsOverview(): JSX.Element {
     { value: "bayesianNetwork", text: "Bayesian Network" },
   ];
 
-  const onChange = (e: any): void => {
+  const onChange = (e: ChangeEvent<HTMLSelectElement>): void => {
     setOverviewValue(e.target.value);
   };
 

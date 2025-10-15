@@ -18,12 +18,16 @@ import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/fa
  * const { handleGrayedNodeClick } = UseGrayedNodeClick(id);
  * ```
  */
-const UseGrayedNodeClick = (id: NodeProps["id"]) => {
+const UseGrayedNodeClick = (
+  id: NodeProps["id"],
+): {
+  handleGrayedNodeClick: (branchId: string | undefined) => Promise<void>;
+} => {
   const { nodes, edges, setNodes, setEdges } = useStore();
   const { faultTreeId } = useParams();
   //Solidifies the branch of the clicked node, takes in the branchId of the clicked node as a parameter
   const handleGrayedNodeClick = useCallback(
-    async (branchId: string | undefined) => {
+    async (branchId: string | undefined): Promise<void> => {
       //loop through all nodes to find the parent (the node to be deleted)
       const parentNode = nodes.filter((node) => node.data?.branchId === undefined && node.data?.isGrayed === true);
 

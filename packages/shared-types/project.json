@@ -30,7 +30,9 @@
       "outputs": ["{options.outputFile}"],
       "options": {
         "lintFilePatterns": [
-          "{projectRoot}/**/*.{ts,js}"
+          "{projectRoot}/**/*.ts",
+          "{projectRoot}/**/*.js",
+          "!{projectRoot}/**/*.d.ts"
         ]
       }
     },

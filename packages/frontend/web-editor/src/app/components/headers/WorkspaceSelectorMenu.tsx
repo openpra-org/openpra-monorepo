@@ -34,7 +34,7 @@ function WorkspaceSelectorMenu(): JSX.Element {
   };
   useEffect(() => {
     if (isMountedRef.current) {
-      navigate("/" + selectedSpace.key);
+      navigate(`/${String(selectedSpace.key)}`);
     }
 
     return (): void => {

@@ -1,4 +1,4 @@
-import { memo, MemoExoticComponent, useCallback, useState } from "react";
+import { memo, MemoExoticComponent, useCallback, useEffect, useMemo, useState } from "react";
 import { EdgeProps, getBezierPath, Edge, useReactFlow } from "reactflow";
 import { EuiFieldText } from "@elastic/eui";
 import cx from "classnames";
@@ -37,28 +37,35 @@ function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentTyp
       });
       const [edgeLabel, setEdgeLabel] = useState(data.label ?? "");
       const { addToast } = UseToastContext();
-      const updateHandler = useCallback(
-        debounce((newLabel: string): void => {
-          setEdges(
-            getEdges().map((n: Edge<EventSequenceEdgeProps>) => {
-              if (n.id === id) {
-                n.data = { ...n.data, label: newLabel };
-              }
-              return n;
-            }),
-          );
-          GraphApiManager.updateESLabel(id, newLabel, "edge")
-            .then((r) => {
-              if (!r) {
+      const updateHandler = useMemo(
+        () =>
+          debounce((newLabel: string): void => {
+            setEdges(
+              getEdges().map((n: Edge<EventSequenceEdgeProps>) => {
+                if (n.id === id) {
+                  n.data = { ...n.data, label: newLabel };
+                }
+                return n;
+              }),
+            );
+            GraphApiManager.updateESLabel(id, newLabel, "edge")
+              .then((r) => {
+                if (!r) {
+                  addToast(GetESToast("danger", "Something went wrong"));
+                }
+              })
+              .catch(() => {
                 addToast(GetESToast("danger", "Something went wrong"));
-              }
-            })
-            .catch(() => {
-              addToast(GetESToast("danger", "Something went wrong"));
-            });
-        }, 500),
-        [getEdges, id, setEdges],
+              });
+          }, 500),
+        [getEdges, id, setEdges, addToast],
       );
+
+      useEffect((): (() => void) => {
+        return () => {
+          updateHandler.cancel();
+        };
+      }, [updateHandler]);
       const onEdgeLabelChange = useCallback(
         (e: React.ChangeEvent<HTMLInputElement>): void => {
           const newLabel = e.target.value;
@@ -89,7 +96,7 @@ function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentTyp
           </foreignObject>
         );
       const edgeBtn = (
-        <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
+        <g transform={`translate(${String(edgeCenterX)}, ${String(edgeCenterY)})`}>
           <rect
             onClick={onClick}
             x={-5}
@@ -120,7 +127,7 @@ function EventSequenceEdge(type: string): MemoExoticComponent<React.ComponentTyp
             d={edgePath}
             markerEnd={markerEnd}
           />
-          {data.tentative ? <button style={{ width: 0 }}></button> : edgeBtn}
+          {data.tentative ? <button style={{ width: 0 }} /> : edgeBtn}
         </>
       );
     },

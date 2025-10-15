@@ -28,14 +28,14 @@ export function EditPersonalInfoForm(): JSX.Element {
       restrictWidth={true}
     >
       <EuiPageHeader
-        pageTitle={currentUser?.firstName + " " + currentUser?.lastName}
+        pageTitle={`${String(currentUser?.firstName ?? "")} ${String(currentUser?.lastName ?? "")}`}
         paddingSize="xl"
         data-testid="profile-name"
       ></EuiPageHeader>
       <EuiPageTemplate.Section grow={true}>
         <EuiAvatar
           size="xl"
-          name={currentUser?.firstName + " " + currentUser?.lastName}
+          name={`${String(currentUser?.firstName ?? "")} ${String(currentUser?.lastName ?? "")}`}
           type="space"
         />
         <EuiSpacer />

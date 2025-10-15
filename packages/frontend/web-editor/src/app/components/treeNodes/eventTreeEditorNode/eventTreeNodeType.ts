@@ -2,7 +2,7 @@ import { NodeTypes } from "reactflow";
 import VisibleNode from "./visibleNode";
 import ColumnNode from "./columnNode";
 import OutputNode from "./outputNode";
-import InvisibleNode from "./invisibleNode";
+import { InvisibleNode } from "./invisibleNode";
 
 export const nodeTypes: NodeTypes = {
   visibleNode: VisibleNode,
@@ -11,4 +11,5 @@ export const nodeTypes: NodeTypes = {
   columnNode: ColumnNode,
 };
 
+// eslint-disable-next-line import/no-default-export
 export default nodeTypes;

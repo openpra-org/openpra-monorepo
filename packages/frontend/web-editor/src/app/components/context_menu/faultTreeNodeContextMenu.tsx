@@ -1,5 +1,5 @@
 import React from "react";
-import { EuiContextMenu, EuiIcon } from "@elastic/eui";
+import { EuiIcon } from "@elastic/eui";
 import { UseFaultTreeContextMenuClick } from "../../hooks/faultTree/useFaultTreeContextMenuClick";
 import {
   AND_GATE,
@@ -36,6 +36,7 @@ import NotGateIcon from "../../../assets/images/faultTreeNodeIcons/NotGateIcon.s
 import TransferGateIcon from "../../../assets/images/faultTreeNodeIcons/TransferGateIcon.svg";
 import BasicEventIcon from "../../../assets/images/faultTreeNodeIcons/BasicEventIcon.svg";
 import HouseEventIcon from "../../../assets/images/faultTreeNodeIcons/HouseEventIcon.svg";
+import { MenuPanel, MenuPanelItem, TypedContextMenu } from "./contextMenuTypes";
 
 export interface TreeNodeContextMenuProps {
   id: string;
@@ -47,6 +48,18 @@ export interface TreeNodeContextMenuProps {
   addToastHandler?: (type: string) => void;
 }
 
+// Allowed action identifiers for the fault tree context menu.
+type FaultTreeAction =
+  | typeof AND_GATE
+  | typeof OR_GATE
+  | typeof ATLEAST_GATE
+  | typeof NOT_GATE
+  | typeof TRANSFER_GATE
+  | typeof HOUSE_EVENT
+  | typeof BASIC_EVENT
+  | "deleteNode"
+  | "deleteSubtree";
+
 const FaultTreeNodeContextMenu = ({
   id,
   top,
@@ -57,7 +70,7 @@ const FaultTreeNodeContextMenu = ({
   ...props
 }: TreeNodeContextMenuProps): JSX.Element => {
   const { handleContextMenuClick, validateFaultTreeContextMenuClick } = UseFaultTreeContextMenuClick(id);
-  const basePanelItems = [
+  const basePanelItems: MenuPanelItem[] = [
     {
       name: UPDATE_NODE_TYPE,
       icon: (
@@ -94,7 +107,7 @@ const FaultTreeNodeContextMenu = ({
     });
   }
 
-  const onItemClick = async (id: string, type: string): Promise<void> => {
+  const onItemClick = async (id: string, type: FaultTreeAction): Promise<void> => {
     const toast = validateFaultTreeContextMenuClick(id, type);
     if (toast) {
       addToastHandler && addToastHandler(toast);
@@ -104,7 +117,7 @@ const FaultTreeNodeContextMenu = ({
     const { onClick } = props;
     onClick && onClick();
   };
-  const panels = [
+  const panels: readonly MenuPanel[] = [
     {
       id: 0,
       items: basePanelItems,
@@ -205,13 +218,13 @@ const FaultTreeNodeContextMenu = ({
       items: [
         {
           name: DELETE_NODE,
-          onClick: async () => {
+          onClick: async (): Promise<void> => {
             await onItemClick(id, "deleteNode");
           },
         },
         {
           name: DELETE_SUBTREE,
-          onClick: async () => {
+          onClick: async (): Promise<void> => {
             await onItemClick(id, "deleteSubtree");
           },
         },
@@ -219,10 +232,10 @@ const FaultTreeNodeContextMenu = ({
     },
   ];
   return (
-    <EuiContextMenu
+    <TypedContextMenu
       initialPanelId={0}
       panels={panels}
-      size={"s"}
+      size="s"
     />
   );
 };

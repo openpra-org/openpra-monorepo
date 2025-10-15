@@ -79,7 +79,9 @@ function EditCurrentModel(): JSX.Element {
         const model = await fetchCurrentTypedModel();
         updateCurrentModel(model);
         setIsLoaded(true);
-      } catch (error) {}
+      } catch (error: unknown) {
+        // Intentionally ignore; skeleton remains visible until data loads or user retries
+      }
     };
     void fetchModel();
   }, []);

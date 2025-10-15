@@ -16,20 +16,21 @@ import {
   EuiDataGrid,
   EuiDataGridCellValueElementProps,
   EuiGlobalToastList,
-  EuiToast,
   EuiResizableContainer,
 } from "@elastic/eui";
 import React, { useCallback, useEffect, useState } from "react";
 import { Route, Routes } from "react-router-dom";
+import { Toast } from "@elastic/eui/src/components/toast/global_toast_list";
 
 import { Column } from "shared-types/src/lib/types/fmea/Column";
 import { Row } from "shared-types/src/lib/types/fmea/Row";
 
 import FmeaApiManager from "shared-sdk/lib/api/InitiatingEventsApiManager";
 
-import { ApiManager } from "shared-sdk/lib/api/ApiManager";
-import InitiatorList from "../../components/lists/InitiatorList";
+import { InitiatorList } from "../../components/lists/InitiatorList";
 import { InitiatingEventsList } from "../../components/lists/nestedLists/initiatingEventsList";
+
+// Use EUI's Toast type for EuiGlobalToastList compatibility
 
 export function EditableTable(): JSX.Element | null {
   const [data, setData] = useState<Row[]>([]);
@@ -49,32 +50,26 @@ export function EditableTable(): JSX.Element | null {
     { number: 1, description: "low" },
   ]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isInvalid, setIsInvalid] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const [toasts, setToasts] = useState<any[]>([]);
-  const [dataGridWidth, setDataGridWidth] = useState("calc(100% - 300px)");
-  const [sidePanelWidth, setSidePanelWidth] = useState("300px");
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const [isSidePanelVisible, setIsSidePanelVisible] = useState(false);
   const [selectedRowIdSidePanel, setSelectedRowIdSidePanel] = useState<string>("");
   // // Toggle the side panel and adjust the width of the data grid accordingly
-  const toggleSidePanel = () => {
-    setIsSidePanelVisible(!isSidePanelVisible);
-    if (isSidePanelVisible) {
-      // If side panel is visible, hide it and extend the main grid
-      setSidePanelWidth("0px");
-    } else {
-      // If side panel is hidden, show it and shrink the main grid
-      setSidePanelWidth("300px");
-    }
-  };
-  const addToast = (toast: any) => {
-    setToasts(toasts.concat(toast));
-  };
+  const toggleSidePanel = useCallback((): void => {
+    setIsSidePanelVisible((prev) => {
+      const next = !prev;
+      return next;
+    });
+  }, []);
 
-  const removeToast = (removedToast: any) => {
-    setToasts(toasts.filter((toast) => toast.id !== removedToast.id));
-  };
+  const addToast = useCallback((toast: Toast): void => {
+    setToasts((prev: Toast[]) => [...prev, toast]);
+  }, []);
+
+  const removeToast = useCallback((removedToast: Toast): void => {
+    setToasts((prev: Toast[]) => prev.filter((toast: Toast) => toast.id !== removedToast.id));
+  }, []);
 
   interface DatagridColumn {
     id: string;
@@ -111,16 +106,33 @@ export function EditableTable(): JSX.Element | null {
     void loadFmea();
   }, []);
 
+  const updateCell = useCallback((rowId: string, column: string, value: string): void => {
+    const update = async (): Promise<void> => {
+      const res = await FmeaApiManager.updateCell(3, {
+        rowId,
+        column,
+        value,
+      });
+      const updatedColumns = [
+        ...res.columns,
+        { id: "actions", name: "actions", type: "string", dropdownOptions: [] },
+        { id: "details", name: "details", type: "string", dropdownOptions: [] },
+      ];
+      setColumn(updatedColumns);
+      setData(res.rows);
+    };
+    void update();
+  }, []);
+
   function showModal(columnName: string): void {
     if (columnName) {
-      const columnToEdit = columns.find((col) => col.name === columnName);
+      const columnToEdit = columns.find((c) => c.name === columnName);
       if (columnToEdit) {
-        setEditingColumn({
-          ...columnToEdit,
-        });
+        setEditingColumn(columnToEdit);
         setOriginalColumnId(columnToEdit.id);
         setNewColumn({
-          ...columnToEdit,
+          name: columnToEdit.name,
+          type: columnToEdit.type,
           dropdownOptions: columnToEdit.dropdownOptions,
         });
         if (columnToEdit.type === "dropdown") {
@@ -130,39 +142,9 @@ export function EditableTable(): JSX.Element | null {
     } else {
       setEditingColumn(null);
       setOriginalColumnId("");
-      setNewColumn({
-        name: "",
-        type: "string",
-        dropdownOptions: [{ number: 1, description: "low" }],
-      });
+      setNewColumn({ name: "", type: "string", dropdownOptions: [{ number: 1, description: "low" }] });
     }
     setIsModalVisible(true);
-  }
-
-  function updateCell(id: string, column: string, value: string): void {
-    const update = async (): Promise<void> => {
-      const res = await FmeaApiManager.updateCell(3, {
-        rowId: id,
-        column,
-        value,
-      });
-
-      // Create a new object/array that includes the modifications you want to make.
-      const updatedColumns = [
-        ...res.columns,
-        { id: "actions", name: "actions", type: "string", dropdownOptions: [] },
-        {
-          id: "details",
-          name: "details",
-          type: "string",
-          dropdownOptions: [],
-        },
-      ];
-
-      setColumn(updatedColumns);
-      setData(res.rows);
-    };
-    void update();
   }
 
   const datagridColumns: DatagridColumn[] = columns.map((column) => {
@@ -183,7 +165,7 @@ export function EditableTable(): JSX.Element | null {
         ),
       };
     } else {
-      if (column.name == "actions") {
+      if (column.name === "actions") {
         return {
           id: "actions",
           displayAsText: "Actions",
@@ -197,7 +179,7 @@ export function EditableTable(): JSX.Element | null {
     }
   });
 
-  function deleteRow(id: string): void {
+  const deleteRow = useCallback((id: string): void => {
     const del = async (): Promise<void> => {
       const res = await FmeaApiManager.deleteRow(3, id);
 
@@ -217,7 +199,7 @@ export function EditableTable(): JSX.Element | null {
       setData(res.rows);
     };
     void del();
-  }
+  }, []);
 
   const addNewRow = (): void => {
     const callAddRow = async (): Promise<void> => {
@@ -233,10 +215,10 @@ export function EditableTable(): JSX.Element | null {
     setNewColumn({ name: "", type: "string", dropdownOptions: [] });
     setDropdownOptions([{ number: 1, description: "low" }]);
   };
-  const showErrorToast = () => {
+  const showErrorToast = (): void => {
     addToast({
       id: "formErrorToast",
-      title: "Error addinf new column",
+      title: "Error adding new column",
       color: "danger",
       iconType: "alert",
       text: <p>Minimum 1 DropDown Options Required. Try Again.</p>,
@@ -246,7 +228,7 @@ export function EditableTable(): JSX.Element | null {
     const isInvalid = newColumn.name.trim() === "";
     setIsSubmitted(true);
     if (!isInvalid) {
-      if (newColumn.type == "dropdown" && newColumn.dropdownOptions.length == 0) {
+      if (newColumn.type === "dropdown" && newColumn.dropdownOptions.length === 0) {
         showErrorToast();
       } else {
         if (editingColumn) {
@@ -385,7 +367,7 @@ export function EditableTable(): JSX.Element | null {
                 dropdownOptions.map((option, index) => (
                   <EuiFormRow
                     key={index}
-                    label={`Option ${index + 1}`}
+                    label={`Option ${String(index + 1)}`}
                   >
                     <div style={{ display: "flex", alignItems: "center" }}>
                       <EuiFieldNumber
@@ -401,7 +383,7 @@ export function EditableTable(): JSX.Element | null {
                         onClick={(): void => {
                           deleteDropdownOption(index);
                         }}
-                        aria-label={`Delete option ${index + 1}`}
+                        aria-label={`Delete option ${String(index + 1)}`}
                       />
                     </div>
                   </EuiFormRow>
@@ -429,15 +411,18 @@ export function EditableTable(): JSX.Element | null {
   }
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
-  const onSelectionChange = (itemId: string) => {
-    const newSelection = new Set(selectedItems);
-    if (newSelection.has(itemId)) {
-      newSelection.delete(itemId);
-    } else {
-      newSelection.add(itemId);
-    }
-    setSelectedItems(newSelection);
-  };
+  const onSelectionChange = useCallback(
+    (itemId: string): void => {
+      const newSelection = new Set(selectedItems);
+      if (newSelection.has(itemId)) {
+        newSelection.delete(itemId);
+      } else {
+        newSelection.add(itemId);
+      }
+      setSelectedItems(newSelection);
+    },
+    [selectedItems],
+  );
   type RowData = Record<string, unknown>;
   const renderCellValue = useCallback(
     ({ rowIndex, columnId }: EuiDataGridCellValueElementProps) => {
@@ -448,7 +433,7 @@ export function EditableTable(): JSX.Element | null {
       if (column !== undefined) {
         const value = item[column.id] as string;
         // Use `value` here within the if block
-        if (columnId == "id") {
+        if (columnId === "id") {
           const id = data[rowIndex].id;
           return (
             <input
@@ -457,7 +442,7 @@ export function EditableTable(): JSX.Element | null {
               onChange={() => {
                 onSelectionChange(id);
               }}
-              aria-label={`Select row with id ${id}`}
+              aria-label={`Select row with id ${String(id)}`}
             />
           );
         }
@@ -468,7 +453,7 @@ export function EditableTable(): JSX.Element | null {
                 contentEditable
                 suppressContentEditableWarning
                 onBlur={(e): void => {
-                  updateCell(rowID, column.id, e.currentTarget.textContent ?? "");
+                  updateCell(rowID, column.id, e.currentTarget.textContent || "");
                 }}
                 // onDoubleClick={() => {
                 //   setEditingCell({ rowIndex, columnId });
@@ -496,7 +481,7 @@ export function EditableTable(): JSX.Element | null {
             );
           }
         } else {
-          if (column.name == "actions") {
+          if (column.name === "actions") {
             return (
               <EuiButtonIcon
                 onClick={(): void => {
@@ -522,7 +507,7 @@ export function EditableTable(): JSX.Element | null {
         }
       }
     },
-    [data, columns, updateCell],
+    [data, columns, updateCell, selectedItems, onSelectionChange, toggleSidePanel, deleteRow],
   );
   return (
     <div>
@@ -621,7 +606,7 @@ export function EditableTable(): JSX.Element | null {
                         {columns
                           .filter((column) => column.id !== "actions" && column.id !== "details")
                           .map((column) => {
-                            const row = data.filter((r) => r.id == selectedRowIdSidePanel);
+                            const row = data.filter((r) => r.id === selectedRowIdSidePanel);
                             const value = row[0].row_data[column.id] as string;
                             return (
                               <EuiFormRow

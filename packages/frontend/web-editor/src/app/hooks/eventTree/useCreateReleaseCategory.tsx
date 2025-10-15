@@ -11,7 +11,7 @@ interface CategoryContextType {
 const CategoryContext = createContext<CategoryContextType | undefined>(undefined);
 
 // Provider component
-export const CategoryProvider = ({ children }: { children: ReactNode }) => {
+export const CategoryProvider = ({ children }: { children: ReactNode }): JSX.Element => {
   // Store categories in state
   const [categories, setCategories] = useState([
     { value: "Category A", text: "Category A" },
@@ -19,11 +19,11 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
   ]);
 
   // Function to add a new category
-  const addCategory = (newCategory: string) => {
+  const addCategory = (newCategory: string): void => {
     setCategories((prevCategories) => [...prevCategories, { value: newCategory, text: newCategory }]);
   };
 
-  const deleteCategory = (categoryToDelete: string) => {
+  const deleteCategory = (categoryToDelete: string): void => {
     setCategories((prevCategories) => prevCategories.filter((cat) => cat.value !== categoryToDelete));
   };
 
@@ -33,7 +33,7 @@ export const CategoryProvider = ({ children }: { children: ReactNode }) => {
 };
 
 // Hook to use the context
-export const useCategoryContext = () => {
+export const useCategoryContext = (): CategoryContextType => {
   const context = useContext(CategoryContext);
   if (!context) {
     throw new Error("useCategoryContext must be used within a CategoryProvider");

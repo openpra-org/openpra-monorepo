@@ -35,12 +35,16 @@ function constructColumns(): EuiBasicTableColumn<MemberResult>[] {
     {
       name: "Users",
       render: (item: MemberResult): JSX.Element => (
-        <Link to={"../preferences/" + item.id + "/personal-data"}>{item.firstName + " " + item.lastName}</Link>
+        <Link to={`../preferences/${String(item.id)}/personal-data`}>{`${String(item.firstName)} ${String(
+          item.lastName,
+        )}`}</Link>
       ),
       mobileOptions: {
         render: (item: MemberResult): JSX.Element => (
           <span>
-            <Link to={"../preferences/" + item.id + "/personal-data"}>{item.firstName + " " + item.lastName}</Link>
+            <Link to={`../preferences/${String(item.id)}/personal-data`}>{`${String(item.firstName)} ${String(
+              item.lastName,
+            )}`}</Link>
           </span>
         ),
         header: false,

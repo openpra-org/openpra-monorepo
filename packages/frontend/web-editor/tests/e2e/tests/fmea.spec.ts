@@ -1,11 +1,11 @@
 import { test, expect } from "@playwright/test";
-import { signUp } from "../../e2e/tests/signup.spec";
+import { SignUp } from "../../e2e/tests/signup.spec";
 
 test.describe("Fmea test", () => {
-  const internalEvent = "IE" + Math.floor(Math.random() * 1000000);
+  const internalEvent = `IE${String(Math.floor(Math.random() * 1000000))}`;
   test.beforeEach(async ({ page }) => {
-    const username = "test" + Math.floor(Math.random() * 1000000);
-    await signUp({ page, username });
+    const username = `test${String(Math.floor(Math.random() * 1000000))}`;
+    await SignUp({ page, username });
 
     await page.getByRole("button", { name: "Create Internal Events" }).click();
 
@@ -23,7 +23,7 @@ test.describe("Fmea test", () => {
     await page.locator("a").filter({ hasText: internalEvent }).click();
     await page.getByRole("button").filter({ hasText: "Initiating Events" }).click();
 
-    const initiatingEventName = "Initiating Event" + Math.floor(Math.random() * 1000);
+    const initiatingEventName = `Initiating Event${String(Math.floor(Math.random() * 1000))}`;
 
     await page.getByRole("button").filter({ hasText: "Create Initiating Event" }).click();
     await page.getByLabel("Initiating Event name").fill(initiatingEventName);
@@ -41,7 +41,7 @@ test.describe("Fmea test", () => {
     await page.locator("a").filter({ hasText: internalEvent }).click();
     await page.getByRole("button").filter({ hasText: "Initiating Events" }).click();
 
-    const initiatingEventName = "Initiating Event" + Math.floor(Math.random() * 1000);
+    const initiatingEventName = `Initiating Event${String(Math.floor(Math.random() * 1000))}`;
 
     await page.getByRole("button").filter({ hasText: "Create Initiating Event" }).click();
     await page.getByLabel("Initiating Event name").fill(initiatingEventName);
@@ -60,7 +60,7 @@ test.describe("Fmea test", () => {
     await page.locator("a").filter({ hasText: internalEvent }).click();
     await page.getByRole("button").filter({ hasText: "Initiating Events" }).click();
 
-    const initiatingEventName = "Initiating Event" + Math.floor(Math.random() * 1000);
+    const initiatingEventName = `Initiating Event${String(Math.floor(Math.random() * 1000))}`;
 
     await page.getByRole("button").filter({ hasText: "Create Initiating Event" }).click();
     await page.getByLabel("Initiating Event name").fill(initiatingEventName);
@@ -79,7 +79,7 @@ test.describe("Fmea test", () => {
     await page.locator("a").filter({ hasText: internalEvent }).click();
     await page.getByRole("button").filter({ hasText: "Initiating Events" }).click();
 
-    const initiatingEventName = "Initiating Event" + Math.floor(Math.random() * 1000);
+    const initiatingEventName = `Initiating Event${String(Math.floor(Math.random() * 1000))}`;
 
     await page.getByRole("button").filter({ hasText: "Create Initiating Event" }).click();
     await page.getByLabel("Initiating Event name").fill(initiatingEventName);
@@ -101,7 +101,7 @@ test.describe("Fmea test", () => {
     await page.locator("a").filter({ hasText: internalEvent }).click();
     await page.getByRole("button").filter({ hasText: "Initiating Events" }).click();
 
-    const initiatingEventName = "Initiating Event" + Math.floor(Math.random() * 1000);
+    const initiatingEventName = `Initiating Event${String(Math.floor(Math.random() * 1000))}`;
 
     await page.getByRole("button").filter({ hasText: "Create Initiating Event" }).click();
     await page.getByLabel("Initiating Event name").fill(initiatingEventName);
@@ -130,7 +130,7 @@ test.describe("Fmea test", () => {
     await page.locator("a").filter({ hasText: internalEvent }).click();
     await page.getByRole("button").filter({ hasText: "Initiating Events" }).click();
 
-    const initiatingEventName = "Initiating Event" + Math.floor(Math.random() * 1000);
+    const initiatingEventName = `Initiating Event${String(Math.floor(Math.random() * 1000))}`;
 
     await page.getByRole("button").filter({ hasText: "Create Initiating Event" }).click();
     await page.getByLabel("Initiating Event name").fill(initiatingEventName);
@@ -162,7 +162,7 @@ test.describe("Fmea test", () => {
     await page.locator("a").filter({ hasText: internalEvent }).click();
     await page.getByRole("button").filter({ hasText: "Initiating Events" }).click();
 
-    const initiatingEventName = "Initiating Event" + Math.floor(Math.random() * 1000);
+    const initiatingEventName = `Initiating Event${String(Math.floor(Math.random() * 1000))}`;
 
     await page.getByRole("button").filter({ hasText: "Create Initiating Event" }).click();
     await page.getByLabel("Initiating Event name").fill(initiatingEventName);

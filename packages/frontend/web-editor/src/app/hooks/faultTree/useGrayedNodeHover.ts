@@ -14,7 +14,12 @@ import { isSubgraphGrayed } from "../../../utils/treeUtils";
  * const { handleMouseEnter, handleMouseLeave } = UseGrayedNodeHover(id);
  * ```
  */
-const UseGrayedNodeHover = (id: NodeProps["id"]) => {
+const UseGrayedNodeHover = (
+  id: NodeProps["id"],
+): {
+  handleMouseEnter: (branchId: string | undefined) => void;
+  handleMouseLeave: (branchId: string | undefined) => void;
+} => {
   const { nodes, edges, setNodes, setEdges } = useStore();
 
   if (isSubgraphGrayed(nodes, edges)) {

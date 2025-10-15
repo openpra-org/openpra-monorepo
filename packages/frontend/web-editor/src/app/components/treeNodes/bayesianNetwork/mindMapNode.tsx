@@ -28,7 +28,7 @@ const MindMapNode: React.FC<NodeProps<NodeData>> = ({ id, data }) => {
   // Adjust the width of the input based on the label length
   useLayoutEffect(() => {
     if (inputRef.current) {
-      inputRef.current.style.width = `${data.label.length * 8.8}px`;
+      inputRef.current.style.width = `${String(data.label.length * 8.8)}px`;
     }
   }, [data.label]);
 

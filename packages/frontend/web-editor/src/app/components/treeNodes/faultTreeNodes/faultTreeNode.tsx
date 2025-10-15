@@ -166,8 +166,8 @@ function FaultTreeNode(
     const mouseLeaveHandler = (): void => {
       handleMouseLeave(data.branchId);
     };
-    const grayedNodeClickHandler = async (): Promise<void> => {
-      await handleGrayedNodeClick(data.branchId);
+    const grayedNodeClickHandler = (): void => {
+      void handleGrayedNodeClick(data.branchId);
     };
 
     return (

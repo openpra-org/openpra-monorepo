@@ -28,8 +28,9 @@ const List: React.FC = () => {
   const params = useParams<RouteParams>();
   const [intiatingEventId, setIntiatingEventId] = useState("");
   useEffect(() => {
-    setIntiatingEventId(params.intiatingEventId ? params.intiatingEventId : "");
-  }, []);
+    const v = params.intiatingEventId ? params.intiatingEventId : "";
+    setIntiatingEventId(v);
+  }, [params]);
   return (
     <EuiPageTemplate
       panelled={false}
@@ -50,7 +51,7 @@ const List: React.FC = () => {
             gutterSize="s"
           >
             {items.map((item) => (
-              <EuiFlexItem key={`${item.id}`}>
+              <EuiFlexItem key={String(item.id)}>
                 <EuiPanel>
                   <EuiFlexGroup
                     justifyContent="spaceBetween"
@@ -60,7 +61,7 @@ const List: React.FC = () => {
                       <EuiText>{item.name}</EuiText>
                     </EuiFlexItem>
                     <EuiFlexItem grow={false}>
-                      <Link to={`${item.id}`}>
+                      <Link to={String(item.id)}>
                         <EuiButton size="s">FMEA</EuiButton>
                       </Link>
                     </EuiFlexItem>
@@ -84,4 +85,4 @@ const InitiatorList: React.FC = () => (
   </Routes>
 );
 
-export default InitiatorList;
+export { InitiatorList };

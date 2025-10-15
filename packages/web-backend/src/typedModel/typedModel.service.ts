@@ -303,7 +303,7 @@ export class TypedModelService {
     };
 
     const result = await this.internalEventsModel.findOne(query);
-    if (result.users.length == 1) {
+  if (result.users.length === 1) {
       return await this.internalEventsModel.findOneAndDelete(query);
     } else {
       return await this.internalEventsModel.findOneAndUpdate(query, updateData, { new: true }).lean();
@@ -328,12 +328,12 @@ export class TypedModelService {
     };
 
     const result = await this.internalHazardsModel.findOne(query);
-    if (result.users.length == 1) {
+  if (result.users.length === 1) {
       return await this.internalHazardsModel.findOneAndDelete(query, {
         new: true,
       });
     } else {
-      result.users = result.users.filter((user) => user != userId);
+  result.users = result.users.filter((user) => user !== userId);
       return await this.internalHazardsModel.findOneAndUpdate(query, updateData, { new: true }).lean();
     }
   }
@@ -356,10 +356,10 @@ export class TypedModelService {
     };
 
     const result = await this.externalHazardsModel.findOne(query);
-    if (result.users.length == 1) {
+  if (result.users.length === 1) {
       return await this.externalHazardsModel.findOneAndDelete(query);
     } else {
-      result.users = result.users.filter((user) => user != userId);
+      result.users = result.users.filter((user) => user !== userId);
       return await this.externalHazardsModel.findOneAndUpdate(query, updateData, { new: true }).lean();
     }
   }
@@ -382,7 +382,7 @@ export class TypedModelService {
     };
 
     const result = await this.fullScopeModel.findOne(query);
-    if (result.users.length == 1) {
+    if (result.users.length === 1) {
       return await this.fullScopeModel.findOneAndDelete(query);
     } else {
       return await this.fullScopeModel.findOneAndUpdate(query, updateData, {

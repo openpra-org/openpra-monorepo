@@ -24,8 +24,8 @@ const BayesianNodeContextMenu: React.FC<BayesianNodeContextMenuProps> = ({
 }) => {
   const menuStyle: React.CSSProperties = {
     position: "absolute",
-    left: `${position.x}px`,
-    top: `${position.y}px`,
+    left: `${String(position.x)}px`,
+    top: `${String(position.y)}px`,
     background: "white",
     zIndex: 1000,
   };

@@ -14,7 +14,9 @@ interface PreferenceContextType {
 
 const PreferenceContext = React.createContext<PreferenceContextType>({
   currentUser: undefined,
-  setCurrentUser: () => {},
+  setCurrentUser: (_: MemberResult) => {
+    // no-op default implementation
+  },
 });
 
 const GENERAL = {

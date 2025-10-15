@@ -19,7 +19,6 @@ import {
   EuiText,
   useGeneratedHtmlId,
 } from "@elastic/eui";
-import { AuthService } from "shared-sdk/lib/api/AuthService";
 import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 import { EuiBreadcrumb } from "@elastic/eui/src/components/breadcrumbs";
 import { Link, useLocation, useNavigate } from "react-router-dom";

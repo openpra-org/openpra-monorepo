@@ -79,14 +79,14 @@ const InviteMultipleUsersFlyout = ({
         result
           .json()
           .then((res: InviteIdDto) => {
-            copyToClipboard(window.location.origin + "/invite/" + res.id);
+            copyToClipboard(window.location.origin + "/invite/" + String(res.id ?? ""));
           })
-          .catch((_) => {
+          .catch((_: unknown) => {
             addToast(GetESToast("danger", "Something went wrong"));
           });
         setIsFlyoutVisible(false);
       })
-      .catch((_) => {
+      .catch((_: unknown) => {
         addToast(GetESToast("danger", "Something went wrong"));
       });
   };

@@ -16,6 +16,7 @@ import React, { useEffect, useState } from "react";
 
 import { DEFAULT_TYPED_MODEL_JSON, TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { ApiManager } from "shared-sdk/lib/api/ApiManager";
+import type { MemberResult } from "shared-sdk/lib/api/Members";
 
 import { ToTitleCase } from "../../../utils/StringUtils";
 
@@ -23,15 +24,16 @@ export interface ItemFormProps {
   itemName: string;
   postEndpoint?: (data: Partial<TypedModelJSON>) => Promise<void>;
   patchEndpoint?: (modelId: number, userId: number, data: Partial<TypedModelJSON>) => Promise<void>;
-  onSuccess?: () => NonNullable<unknown>;
-  onFail?: () => NonNullable<unknown>;
-  onCancel?: (func: any) => void;
+  onSuccess?: () => void; // reserved for future success handling
+  onFail?: () => void; // reserved for future error handling
+  onCancel?: () => void; // simplified signature (was (func:any) => void)
   action: "create" | "edit"; // TODO: Use this in the title with .ToTitleCase() to prettify
   initialFormValues?: TypedModelJSON;
   compressed?: boolean;
   noHeader?: boolean;
 }
-
+// We encode the numeric user id into the string value field expected by EUI options.
+type UserOption = EuiComboBoxOptionOption<string>;
 function TypedModelActionForm({
   itemName,
   onCancel,
@@ -45,62 +47,53 @@ function TypedModelActionForm({
   const userId = ApiManager.getCurrentUser().user_id ?? -1;
 
   //setting up initial values depending on what has been sent, if init form values are passed it's assumed to be updating instead of adding
-  const formInitials = initialFormValues ? initialFormValues : DEFAULT_TYPED_MODEL_JSON;
-
-  //initial users is set depending on if things are new or not, essential sets other people innately if they were already set
-  const initUsers = initialFormValues ? initialFormValues.users : [userId];
+  const formInitials: TypedModelJSON = initialFormValues ? initialFormValues : DEFAULT_TYPED_MODEL_JSON;
 
   //sets the current typed model using our formInitials in a React state, so we can pass it around
-  const [typedModel, setTypedModel] = useState(formInitials);
+  const [typedModel, setTypedModel] = useState<TypedModelJSON>(formInitials);
 
   //need a state for the list of user ids, going dummy it out for now
-  const [usersList, setUsersList] = useState<EuiComboBoxOptionOption<any>[]>([]);
+  const [usersList, setUsersList] = useState<UserOption[]>([]);
 
   //need a state for selected list of users for the EuiComboBox
-  const [selectedUsersList, setSelectedUsersList] = useState<EuiComboBoxOptionOption<any>[]>([]);
+  const [selectedUsersList, setSelectedUsersList] = useState<UserOption[]>([]);
 
   //list of the user ids which we add to the api calls
   const [usersListId, setUsersListId] = useState<number[]>([]);
 
-  //use effect to set up users, only runs if init form values is passed which is only passed on edit!
-  if (initialFormValues) {
-    // TODO:: BROKEN
-    useEffect(() => {
-      const logFetchedData = async (): Promise<void> => {
-        try {
-          const usersData = await ApiManager.getUsers();
-          const resultList = usersData.results;
-          // Filters out the current user from the list since it's implied that they want to see their own model
-          const results = resultList.filter((x: any) => x.id !== ApiManager.getCurrentUser().user_id);
-          // Creates the objects that will go in the EuiSelectable
-          const listWithoutCurrentUser = results.map((item: any) => ({
-            label: item.firstName + " " + item.lastName,
-            key: item.id,
-          }));
+  // Fetch users and pre-select when editing (always call hook; guard internally)
+  useEffect(() => {
+    if (!initialFormValues) return;
+    const logFetchedData = async (): Promise<void> => {
+      try {
+        const usersData = await ApiManager.getUsers();
+        const resultList: MemberResult[] = usersData.results;
+        // Filters out the current user from the list since it's implied that they want to see their own model
+        const results = resultList.filter((x: MemberResult) => x.id !== ApiManager.getCurrentUser().user_id);
+        const listWithoutCurrentUser: UserOption[] = results.map((item: MemberResult) => ({
+          label: `${String(item.firstName)} ${String(item.lastName)}`,
+          value: String(item.id),
+        }));
+        const presetUsers: number[] = initialFormValues.users;
+        const selectedList: UserOption[] = listWithoutCurrentUser.filter((opt) =>
+          presetUsers.includes(Number(opt.value)),
+        );
+        setSelectedUsersList(selectedList);
+        setUsersList(listWithoutCurrentUser);
+      } catch (error: unknown) {
+        // Intentionally ignored: failure to fetch users should not block editing; selection list will be empty.
+      }
+    };
+    void logFetchedData();
+  }, [initialFormValues]);
 
-          const selectedList: EuiComboBoxOptionOption[] = [];
-          listWithoutCurrentUser.forEach((item: any) => {
-            if (initUsers.includes(item.key)) {
-              selectedList.push({
-                label: item.label,
-                key: item.key,
-              });
-            }
-          });
-          setSelectedUsersList(selectedList);
-          setUsersList(listWithoutCurrentUser);
-        } catch (error) {}
-      };
-      void logFetchedData();
-    }, [initUsers]);
-
-    //use effect hook that updates the list of users we are setting
-    useEffect(() => {
-      const idList: number[] = selectedUsersList.map((item: any) => item.key);
-      //sets certain data
-      setUsersListId(idList);
-    }, [selectedUsersList]);
-  }
+  // Update the list of user ids whenever the selected user options change
+  useEffect(() => {
+    const idList: number[] = selectedUsersList
+      .map((item: UserOption) => Number(item.value))
+      .filter((n) => !Number.isNaN(n));
+    setUsersListId(idList);
+  }, [selectedUsersList]);
 
   //Handles the click for the submit button, functionality depends on whether initform values are passed, indicating an update
   const handleAction = (e: React.FormEvent<HTMLFormElement>): void => {
@@ -108,8 +101,7 @@ function TypedModelActionForm({
 
     if (typedModel.label.name !== "") {
       //this creates the finalIdList that is added when updated or added to the model
-      const finalIdList = usersListId;
-      finalIdList.push(userId);
+      const finalIdList = [...usersListId, userId];
 
       //creating a partial model to pass for update, may update to work for adding later as well
       const partialModel: Partial<TypedModelJSON> = {
@@ -119,11 +111,11 @@ function TypedModelActionForm({
 
       if (initialFormValues && patchEndpoint) {
         void patchEndpoint(initialFormValues.id, userId, partialModel).then(() => {
-          onCancel && onCancel(false);
+          onCancel && onCancel();
         });
       } else if (postEndpoint) {
         void postEndpoint(partialModel).then(() => {
-          onCancel && onCancel(false);
+          onCancel && onCancel();
         });
       } else {
         alert("Please enter a valid name");

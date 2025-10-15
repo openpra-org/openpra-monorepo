@@ -7,12 +7,13 @@ interface CustomMiniMapProps {
   nodeBorderRadius?: number;
 }
 
+/* eslint-disable import/no-default-export */
 const CustomMiniMap: React.FC<CustomMiniMapProps> = ({
-  nodeColor = () => "#0984e3", // Provide a default function for nodeColor
+  nodeColor = (): string => "#0984e3", // Provide a default function for nodeColor
   nodeStrokeWidth = 3, // Default stroke width
   nodeBorderRadius = 2, // Default border radius
   ...props
-}) => (
+}): JSX.Element => (
   <MiniMap
     zoomable
     pannable

@@ -38,16 +38,17 @@ function SignUp(): JSX.Element {
     ApiManager.signup(signupData)
       .then(() => {
         if (ApiManager.isLoggedIn()) {
-          UpdateAbility(ability, AuthService.getRole());
+          void UpdateAbility(ability, AuthService.getRole());
           setRedirectToHomepage(true);
         }
       })
-      .catch((signInError: { message: string }) => {
+      .catch((signInError: unknown) => {
+        const message = (signInError as { message?: string }).message ?? "unknown error";
         // Send a toast message saying there was an error while logging in
         addToast({
           id: GenerateUUID(),
           color: "danger",
-          text: `Error while signing in: ${signInError.message}`,
+          text: `Error while signing in: ${message}`,
         });
       });
   }

@@ -1,10 +1,10 @@
 import { Route, Routes, useParams } from "react-router-dom";
-import React, { FC, ReactElement, useCallback, useEffect, useRef, useState } from "react";
+import React, { ReactElement, useCallback, useEffect, useRef, useState } from "react";
 import ReactFlow, { Background, Controls, Edge, Node, ProOptions, ReactFlowProvider, useReactFlow } from "reactflow";
 import { EuiPopover, useGeneratedHtmlId } from "@elastic/eui";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
-import useTreeData from "../../hooks/eventTree/useTreeData";
+import { useTreeData } from "../../hooks/eventTree/useTreeData";
 import { EventTreeList } from "../../components/lists/nestedLists/eventTreeList";
 import { CategoryProvider } from "../../hooks/eventTree/useCreateReleaseCategory";
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
@@ -14,13 +14,10 @@ import nodeTypes from "../../components/treeNodes/eventTreeEditorNode/eventTreeN
 import edgeTypes from "../../components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
 
 import useLayout from "../../hooks/eventTree/useLayout";
-import EventTreeNodeContextMenu, { treeNodeContextMenuProps } from "../../components/menus/eventTreeNodeContextMenu";
+import EventTreeNodeContextMenu, { TreeNodeContextMenuProps } from "../../components/menus/eventTreeNodeContextMenu";
 import { LoadingCard } from "../../components/cards/loadingCard";
 
-/**
- * Initial set of nodes to be used in the ReactFlow component.
- * @type {Node[]}
- */
+// Initial set of nodes to be used in the ReactFlow component.
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
@@ -32,17 +29,17 @@ const fitViewOptions = {
 };
 
 // Component to handle proper fitting of the viewport
-const FitViewHandler = () => {
+const FitViewHandler: React.FC = (): null => {
   const reactFlowInstance = useReactFlow();
 
   useEffect(() => {
     // Wait for nodes to be properly rendered
-    const timer = setTimeout(() => {
+    const timer = setTimeout((): void => {
       // Start slightly zoomed out to ensure we can see everything
       reactFlowInstance.setViewport({ zoom: 0.8, x: 0, y: 0 }, { duration: 0 });
 
       // Then fit properly with a slight delay
-      setTimeout(() => {
+      setTimeout((): void => {
         reactFlowInstance.fitView({
           ...fitViewOptions,
           duration: 200,
@@ -50,7 +47,7 @@ const FitViewHandler = () => {
       }, 50);
     }, 250);
 
-    return () => {
+    return (): void => {
       clearTimeout(timer);
     };
   }, [reactFlowInstance]);
@@ -78,11 +75,11 @@ interface CustomNodeData {
   inputDepth?: number;
   outputDepth?: number;
 }
-const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
+const ReactFlowPro = ({ nodeData, edgeData, depth }: Props): ReactElement => {
   // this hook call ensures that the layout is re-calculated every time the graph changes
   useLayout(depth);
 
-  const [menu, setMenu] = useState<treeNodeContextMenuProps | null>(null);
+  const [menu, setMenu] = useState<TreeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
   const headerAppPopoverId = useGeneratedHtmlId({ prefix: "headerAppPopover" });
 
@@ -93,7 +90,7 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
   const { eventTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
 
-  useEffect(() => {
+  useEffect((): void => {
     const loadGraph = async (): Promise<void> => {
       await GraphApiManager.getEventTree(eventTreeId).then((res: EventTreeGraph) => {
         setNodes(res.nodes.length !== 0 ? res.nodes : nodeData);
@@ -102,32 +99,29 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
       });
     };
     void (loading && loadGraph());
-  }, [eventTreeId, loading, nodes]);
+  }, [eventTreeId, loading, nodeData, edgeData]);
 
-  const onNodeContextMenu = useCallback(
-    (event: React.MouseEvent, node: Node) => {
-      // Prevent native context menu from showing
-      event.preventDefault();
-      // Calculate position of the context menu. We want to make sure it
-      // doesn't get positioned off-screen.
-      setIsOpen(!isOpen);
-      const pane = ref.current.getBoundingClientRect();
-      setMenu({
-        id: node.id,
-        top: event.clientY < pane.height - 200 && event.clientY,
-        left: event.clientX - 320 < pane.width - 200 && event.clientX - 320,
-        right: event.clientX - 320 >= pane.width - 200 && pane.width - event.clientX - 800,
-        bottom: event.clientY >= pane.height - 200 && pane.height - event.clientY - 800,
-      });
-    },
-    [setMenu],
-  );
+  const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node): void => {
+    // Prevent native context menu from showing
+    event.preventDefault();
+    // Calculate position of the context menu. We want to make sure it
+    // doesn't get positioned off-screen.
+    setIsOpen((prev) => !prev);
+    const pane = ref.current.getBoundingClientRect();
+    setMenu({
+      id: node.id,
+      top: event.clientY < pane.height - 200 && event.clientY,
+      left: event.clientX - 320 < pane.width - 200 && event.clientX - 320,
+      right: event.clientX - 320 >= pane.width - 200 && pane.width - event.clientX - 800,
+      bottom: event.clientY >= pane.height - 200 && pane.height - event.clientY - 800,
+    });
+  }, []);
 
   // Close the context menu if it's open whenever the window is clicked.
-  const onPaneClick = useCallback(() => {
+  const onPaneClick = useCallback((): void => {
     setMenu(null);
     setIsOpen(false);
-  }, [setMenu, isOpen]);
+  }, []);
 
   return loading ? (
     <LoadingCard />
@@ -163,7 +157,7 @@ const ReactFlowPro: React.FC<Props> = ({ nodeData, edgeData, depth }) => {
         <FitViewHandler />
         <EuiPopover
           id={headerAppPopoverId}
-          button={<></>}
+          button={<span />}
           isOpen={isOpen}
           anchorPosition="downRight"
           style={{
@@ -196,7 +190,7 @@ export const EventTreeEditor = (): ReactElement => {
   const { nodes, edges } = useTreeData(input, output, 140);
 
   // Add some CSS to ensure the container can show the entire graph
-  useEffect(() => {
+  useEffect((): (() => void) => {
     const styleEl = document.createElement("style");
     styleEl.textContent = `
       .react-flow-wrapper {
@@ -247,7 +241,7 @@ function EventTrees(): ReactElement {
         <Route
           path=":eventTreeId"
           element={<EventTreeEditor />}
-        ></Route>
+        />
       </Routes>
     </CategoryProvider>
   );

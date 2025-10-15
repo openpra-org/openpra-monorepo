@@ -8,7 +8,7 @@ export interface WorkspaceOption {
   checked?: "on" | "off";
   disabled?: boolean;
   isGroupLabel?: boolean;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
 }
 
 //Each item in object checks the url to determine if it will have the 'checked' property

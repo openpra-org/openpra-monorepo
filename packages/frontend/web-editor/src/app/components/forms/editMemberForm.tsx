@@ -30,7 +30,7 @@ export function MemberForm(): JSX.Element {
         setCurrentUser(result);
         setIsLoading(false);
       })
-      .catch((reason) => {
+      .catch((reason: unknown) => {
         //TODO : Handle this scenario
         setIsLoading(false);
       });

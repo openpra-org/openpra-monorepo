@@ -1,7 +1,5 @@
 import React, { useCallback } from "react";
-import { EuiContextMenu, EuiIcon } from "@elastic/eui";
-import { EuiContextMenuPanelDescriptor } from "@elastic/eui/src/components/context_menu";
-import { EuiContextMenuPanelItemDescriptor } from "@elastic/eui/src/components/context_menu/context_menu";
+import { EuiIcon } from "@elastic/eui";
 import { useReactFlow, Node, NodeProps } from "reactflow";
 import { useParams } from "react-router-dom";
 import { EventSequenceNodeProps, EventSequenceNodeTypes } from "../treeNodes/eventSequenceNodes/eventSequenceNodeType";
@@ -23,12 +21,15 @@ import UndevelopedNodeIcon from "../../../assets/images/nodeIcons/undevelopedNod
 import { UseToastContext } from "../../providers/toastProvider";
 import { UseFocusContext } from "../../providers/focusProvider";
 import { EventSequenceContextMenuOptions } from "./interfaces/eventSequenceContextMenuOptions.interface";
+import { MenuPanel, MenuPanelItem, TypedContextMenu } from "./contextMenuTypes";
 
 /**
  * @public The context menu with different types of nodes of Event Sequence Diagram
  * @param EventSequenceContextMenuOptions - options to load the menu
  * @returns JSX Element
  */
+type EventSequenceMenuAction = "delete" | EventSequenceNodeTypes;
+
 function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequenceContextMenuOptions): JSX.Element {
   const { fitView, getNode, getNodes, getEdges, setNodes, setEdges } = useReactFlow();
   const { addToast } = UseToastContext();
@@ -36,12 +37,11 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
   const { setFocus } = UseFocusContext();
 
   const onItemClick = useCallback(
-    (id: NodeProps["id"], type: "delete" | EventSequenceNodeTypes) => {
+    (id: NodeProps["id"], type: EventSequenceMenuAction) => {
       // we need the parent node object for positioning the new child node
-      const parentNode: Node<EventSequenceNodeProps, EventSequenceNodeTypes> | undefined = getNode(id) as
-        | Node<EventSequenceNodeProps, EventSequenceNodeTypes>
-        | undefined;
-      const currentNodes = getNodes();
+      const parentNode = getNode(id) as Node<EventSequenceNodeProps, EventSequenceNodeTypes> | undefined;
+      // React Flow generics are not preserved at runtime; assert types once and keep subsequent usage strongly typed.
+      const currentNodes = getNodes() as Node<EventSequenceNodeProps, EventSequenceNodeTypes>[];
       const currentEdges = getEdges();
       if (!parentNode) {
         return;
@@ -64,12 +64,13 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
         } else {
           setFocus(GetParentNode(parentNode, currentNodes, currentEdges).id);
         }
-        const onDeleteState = DeleteEventSequenceNode(parentNode, currentNodes, currentEdges);
-        if (onDeleteState !== undefined) {
-          setNodes(onDeleteState.updatedState.nodes);
-          setEdges(onDeleteState.updatedState.edges);
-          if (onDeleteState.syncState) {
-            UpdateEventSequenceDiagram(eventSequenceId, onDeleteState.updatedSubgraph, onDeleteState.deletedSubgraph)
+        const deleteState = DeleteEventSequenceNode(parentNode, currentNodes, currentEdges);
+        if (deleteState) {
+          const { updatedState, syncState, updatedSubgraph, deletedSubgraph } = deleteState;
+          setNodes(updatedState.nodes as Node<EventSequenceNodeProps, EventSequenceNodeTypes>[]);
+          setEdges(updatedState.edges);
+          if (syncState) {
+            UpdateEventSequenceDiagram(eventSequenceId, updatedSubgraph, deletedSubgraph)
               .then((r) => {
                 if (!r) {
                   addToast(GetESToast("danger", "Something went wrong"));
@@ -97,11 +98,12 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
       parentNode.data.label = GetDefaultLabelOfNode(type);
 
       const state = UpdateEventSequenceNode(parentNode, currentNodes, currentEdges);
-      if (state !== undefined) {
-        setNodes(state.updatedState.nodes);
-        setEdges(state.updatedState.edges);
-        if (state.syncState) {
-          UpdateEventSequenceDiagram(eventSequenceId, state.updatedSubgraph, state.deletedSubgraph)
+      if (state) {
+        const { updatedState, syncState, updatedSubgraph, deletedSubgraph } = state;
+        setNodes(updatedState.nodes as Node<EventSequenceNodeProps, EventSequenceNodeTypes>[]);
+        setEdges(updatedState.edges);
+        if (syncState) {
+          UpdateEventSequenceDiagram(eventSequenceId, updatedSubgraph, deletedSubgraph)
             .then((r) => {
               if (!r) {
                 addToast(GetESToast("danger", "Something went wrong"));
@@ -126,7 +128,7 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
     [addToast, eventSequenceId, fitView, getEdges, getNode, getNodes, onClick, setEdges, setFocus, setNodes],
   );
 
-  const basePanelItems: EuiContextMenuPanelItemDescriptor[] = [
+  const basePanelItems: MenuPanelItem[] = [
     {
       name: "Update node type",
       icon: (
@@ -155,7 +157,8 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
     });
   }
 
-  const panels: EuiContextMenuPanelDescriptor[] | undefined = [
+  // Build panels as a readonly literal so item shapes remain inferred without any widening.
+  const panels: readonly MenuPanel[] = [
     {
       id: 0,
       items: basePanelItems,
@@ -241,10 +244,10 @@ function EventSequenceContextMenu({ id, onClick, isDelete = false }: EventSequen
   ];
 
   return (
-    <EuiContextMenu
+    <TypedContextMenu
       initialPanelId={0}
       panels={panels}
-      size={"s"}
+      size="s"
     />
   );
 }

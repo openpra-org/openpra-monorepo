@@ -56,10 +56,10 @@ const GenericModal = ({
             onClick={(): void => {
               setIsLoading(true);
               onSubmit()
-                .then((_) => {
+                .then(() => {
                   setIsLoading(false);
                 })
-                .catch((_) => {
+                .catch((_: unknown) => {
                   setIsLoading(false);
                 });
             }}

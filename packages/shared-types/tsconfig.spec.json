@@ -3,6 +3,7 @@
   "compilerOptions": {
     "types": ["jest", "node"],
     "sourceMap": false,
+    "composite": true,
     "declaration": false
   },
   /**

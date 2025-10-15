@@ -1,31 +1,29 @@
 import { BasicEventSchema } from "shared-types/src/openpra-mef/basic-event";
-import { PointEstimateSchema } from "shared-types/src/openpra-mef/data/point-estimate";
-import { throwInvalidNumberError } from "jsonc-eslint-parser/lib/parser/errors";
+import { PointEstimate } from "shared-types/src/openpra-mef/data/point-estimate"; // Equivalent to Probability import
 import { Event } from "./Event";
 
 export class BasicEvent extends Event implements BasicEventSchema {
-  protected _probability: PointEstimateSchema = 0;
+  private __probability: PointEstimate; // Private attribute like Python's __probability
 
-  constructor(name: string, parents: Event[] = [], probability: PointEstimateSchema = 0) {
-    super(name, parents); // Call the constructor of the base Event class
-    this.probability = probability;
+  constructor(name: string, probability: PointEstimate) {
+    super(name); // Call the constructor of the base Event class
+    this.__probability = probability; // Set the probability directly
+  }
+  get probability(): number {
+    return this.__probability.value;
   }
 
-  get probability(): PointEstimateSchema {
-    return this._probability;
+  set probability(value: number) {
+    this.__probability.value = value;
   }
 
-  set probability(toSet) {
-    if (BasicEvent.validateProbability(toSet)) {
-      this._probability = toSet;
-    } else {
-      throwInvalidNumberError("Probability must be between 0 and 1.", { range: [0, 1] });
-    }
+  toXml(printer: (line: string) => void): void {
+    printer(`<define-basic-event name="${this.name}">`);
+    this.__probability.toXml(printer); // Delegate to the probability object's toXml method
+    printer(`</define-basic-event>`);
   }
-  /**
-   * Validates the probability to ensure it is between 0 and 1.
-   */
-  protected static validateProbability(toValidate: PointEstimateSchema): boolean {
-    return toValidate >= 0 && toValidate <= 1;
+
+  toAralia(printer: (line: string) => void): void {
+    throw new Error("Not implemented"); // Equivalent to Python's NotImplementedError
   }
 }

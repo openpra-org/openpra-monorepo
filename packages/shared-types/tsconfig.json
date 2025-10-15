@@ -1,5 +1,5 @@
 {
-  "extends": "../../tsconfig.base.json",
+  "extends": "/workspaces/openpra-monorepo/tsconfig.base.json",
   "compilerOptions": {
     "module": "commonjs",
     "sourceMap": true,

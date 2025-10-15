@@ -1,7 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["node"]
+    "types": ["node"],
+    "composite": true
   },
   /**
   * @link https://www.typescriptlang.org/tsconfig/#include

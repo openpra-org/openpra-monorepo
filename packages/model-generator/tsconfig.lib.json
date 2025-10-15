@@ -4,6 +4,7 @@
     "module": "commonjs",
     "sourceMap": true,
     "declaration": true,
+    "composite": true,
     "declarationDir": "../../dist/types/model-generator"
   },
   /**

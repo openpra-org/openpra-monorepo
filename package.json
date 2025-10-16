@@ -55,6 +55,7 @@
     "eslint-plugin-tsdoc": "0.2.17",
     "html-webpack-plugin": "5.5.0",
     "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
     "jest": "29.7.0",
     "jest-environment-jsdom": "29.7.0",
     "jest-environment-node": "29.7.0",
@@ -95,5 +96,14 @@
   },
   "scripts": {
     "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "pnpm exec eslint --fix --max-warnings=0",
+      "pnpm exec prettier --write"
+    ],
+    "*.{json,md,yml,yaml,css,scss}": [
+      "pnpm exec prettier --write"
+    ]
   }
 }

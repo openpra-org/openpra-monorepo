@@ -1,2 +1,2 @@
-# Run a quick sanity check. Adjust as needed (e.g., lint-staged)
-pnpm nx format:check || true
+# Run lint-staged to lint/format only staged files; keep fast and focused
+pnpm exec lint-staged

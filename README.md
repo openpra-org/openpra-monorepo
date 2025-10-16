@@ -149,6 +149,68 @@ Check code quality with ESLint:
 nx run-many -t lint
 ```
 
+## Versioning & Releases (Nx Release)
+
+We use Nx Release with Conventional Commits to version the monorepo, generate changelogs, publish to npm, and create GitHub releases.
+
+- Local dry-run (no files changed):
+
+```bash
+pnpm nx release version --dry-run
+```
+
+- Full local release (apply changes):
+
+```bash
+# 1) Bump versions from conventional commits
+pnpm nx release version
+
+# 2) Generate/update changelog(s)
+pnpm nx release changelog
+
+# 3) Publish to npm (requires NPM_TOKEN)
+pnpm nx release publish
+
+# 4) Create a GitHub Release from the new tag(s)
+pnpm nx release github
+```
+
+- CI workflow: `.github/workflows/release.yml`
+  - Manual dispatch supports a dry-run toggle.
+  - On pushes to `main`, the workflow builds and tests. Use manual dispatch to apply version/changelog/publish steps.
+  - Required GitHub secrets:
+    - `NPM_TOKEN` for publishing to npm.
+    - `MONGO_URI` for backend tests in CI.
+
+Notes:
+- We default to a single global version across the workspace (configured in `nx.json`).
+- Backend tests in certain local containers (Debian 12) require `MONGO_URI` to point to an external MongoDB.
+
+## Conventional Commits, Commitlint & Husky
+
+Commit messages must follow Conventional Commits. A Husky `commit-msg` hook runs Commitlint to enforce this.
+
+- Format: `type(scope): short description`
+- Common types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `build`, `ci`.
+
+Examples:
+
+```text
+feat(web-editor): add searchable initiator list
+fix(web-backend): handle invalid ObjectId in GET /items/:id
+chore(release): add commitlint + husky hook
+```
+
+Getting blocked by the hook?
+
+```bash
+# Amend your last commit message to conform
+git commit --amend
+git push --force-with-lease
+```
+
+Husky installs automatically via the `prepare` script on `pnpm install`. If hooks are missing, re-run `pnpm install`.
+
 ## Additional Documentation
 
 Additional documentation can be found in the [Extended README](README/README.md)

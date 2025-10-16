@@ -17,7 +17,6 @@
         "main": "packages/web-backend/src/main.ts",
         "tsConfig": "packages/web-backend/tsconfig.app.json",
         "assets": ["packages/web-backend/src/assets"],
-        "isolatedConfig": true,
         "webpackConfig": "packages/web-backend/webpack.config.js",
         "transformers": [
           "typia/lib/transform",

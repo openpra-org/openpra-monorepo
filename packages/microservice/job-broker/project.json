@@ -27,7 +27,6 @@
         "main": "packages/microservice/job-broker/src/main.ts",
         "tsConfig": "packages/microservice/job-broker/tsconfig.app.json",
         "assets": ["packages/microservice/job-broker/src/assets"],
-        "isolatedConfig": true,
         "webpackConfig": "packages/microservice/job-broker/webpack.config.js"
       },
       "configurations": {
@@ -88,7 +87,6 @@
         "main": "packages/microservice/job-broker/src/main-consumer.ts",
         "tsConfig": "packages/microservice/job-broker/tsconfig.app.json",
         "assets": ["packages/microservice/job-broker/src/assets"],
-        "isolatedConfig": true,
         "webpackConfig": "packages/microservice/job-broker/webpack.config.js"
       },
       "configurations": {

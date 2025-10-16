@@ -19,7 +19,6 @@
         "assets": ["packages/frontend/web-editor/src/favicon.ico", "packages/frontend/web-editor/src/assets"],
         "styles": ["packages/frontend/web-editor/src/styles.css"],
         "scripts": [],
-        "isolatedConfig": true,
         "transformers": [
           "typia/lib/transform",
           {

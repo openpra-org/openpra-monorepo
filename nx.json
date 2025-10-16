@@ -1,4 +1,21 @@
 {
+  "release": {
+    "projects": [
+      "packages/*",
+      "packages/*/*" 
+    ],
+    "changelog": {
+      "workspaceChangelog": true
+    },
+    "version": {
+      "generatorOptions": {
+        "conventionalCommits": true
+      }
+    },
+    "publish": {
+      "registry": "https://registry.npmjs.org"
+    }
+  },
   "pluginsConfig": {
     "@nx/js": {
       "analyzeSourceFiles": true
@@ -12,7 +29,16 @@
     },
     "@nx/jest:jest": {
       "cache": true,
-      "inputs": ["default", "^default", "{workspaceRoot}/jest.preset.js"],
+      "inputs": [
+        "default",
+        "^default",
+        "{workspaceRoot}/jest.preset.js",
+        { "env": "MONGO_URI" },
+        { "env": "MONGOMS_VERSION" },
+        { "env": "TZ" },
+        { "env": "CI" },
+        { "runtime": "node -p process.version" }
+      ],
       "options": {
         "passWithNoTests": true,
         "codeCoverage": true

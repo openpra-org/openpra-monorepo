@@ -342,7 +342,7 @@ class TestGateStructure {
         break;
       case kAtleast:
         assert(gate.min_number() > 1 && "K/N has wrong K!");
-        assert(static_cast<int>(gate.args().size()) > gate.min_number() && "K/N has wrong N!");
+        assert(gate.args().size() > gate.min_number() && "K/N has wrong N!");
         break;
       default:
         assert(gate.args().size() > 1 && "Missing arguments!");

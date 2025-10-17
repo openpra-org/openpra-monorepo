@@ -59,7 +59,7 @@ Settings& Settings::algorithm(std::string_view value) {
 
 Settings& Settings::approximation(Approximation value) {
     if (prime_implicants_ && (value == Approximation::kMcub || value == Approximation::kRareEvent)) {
-        SCRAM_THROW(SettingsError("Prime implicants cannot be compute when using mcub or rare-event approximations."));
+        SCRAM_THROW(SettingsError("Prime implicants cannot be computed when using mcub or rare-event approximations."));
     }
   approximation_ = value;
   return *this;

@@ -109,13 +109,10 @@ void RiskAnalysis::RunAnalysis(const std::optional<Context> &context) {
         }
     }
 
-    // If the user requested Monte-Carlo probability analysis with the
-    // DirectEval engine, run *one* combined PDAG for every sequence of this
-    // event-tree.  Fall back to the legacy per-sequence path otherwise.
-    const bool combined_mc_path =
-        Analysis::settings().algorithm() == Algorithm::kDirect &&
-        Analysis::settings().approximation() == Approximation::kMonteCarlo &&
-        Analysis::settings().probability_analysis();
+    // Monte Carlo with event trees: use per-sequence analysis
+    // The combined path has PDAG optimization issues that prevent proper
+    // sequence gate tracking, so we disable it.
+    const bool combined_mc_path = false;
 
   // todo:: combine all initiating events and linked event trees into a unified PDAG if using MonteCarlo DirectEval Probability
   // note:: multiple initiating events may point to the same event tree, which is totally fine, it should be a simple
@@ -231,44 +228,29 @@ void RiskAnalysis::RunAnalysis(const mef::Gate& target,
 template <class Algorithm, class Calculator>
 void RiskAnalysis::RunAnalysis(FaultTreeAnalyzer<Algorithm>* fta,
                                Result* result)  {
-  std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Creating ProbabilityAnalyzer..." << std::endl;
   auto pa = std::make_unique<ProbabilityAnalyzer<Calculator>>(fta, &model_->mission_time());
-  std::cout << "[RiskAnalysis::RunAnalysis<A,C>] ProbabilityAnalyzer created." << std::endl;
 
   if constexpr (std::is_same_v<Calculator, mc::DirectEval>) {
-    std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Monte Carlo path - getting graph..." << std::endl;
-    // retrieve the set of "watched" nodes, i.e. the nodes the pdag is aware of. These are the ones we need to track in
-    // our convergence and/or tallies
+    ext::bimap<int, const mef::Gate*> bimap = WalkAndCollectMefGatesWithIndices(pa->graph());
 
-      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Walking and collecting MEF gates..." << std::endl;
-      ext::bimap<int, const mef::Gate*> bimap = WalkAndCollectMefGatesWithIndices(pa->graph());
-      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Collected " << bimap.A_to_B.size() << " gates." << std::endl;
-
-      std::unordered_set<int> watched_for_tallies;
-      for (const auto &mef_event : watched_for_tallies_) {
-          if (bimap.B_to_A.contains(mef_event)) {
-              watched_for_tallies.insert(bimap.B_to_A[mef_event]);
-          }
+    std::unordered_set<int> watched_for_tallies;
+    for (const auto &mef_event : watched_for_tallies_) {
+      if (bimap.B_to_A.contains(mef_event)) {
+        watched_for_tallies.insert(bimap.B_to_A[mef_event]);
       }
-      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Observing " << watched_for_tallies.size() << " tallies..." << std::endl;
-      pa->observe(watched_for_tallies, false, false);
-      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Tallies observed." << std::endl;
+    }
+    pa->observe(watched_for_tallies, false, false);
 
-      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Observing " << watched_for_tallies_and_convergence_.size() << " convergence nodes..." << std::endl;
-      std::unordered_set<int> watched_for_convergence;
-      for (const auto &mef_event : watched_for_tallies_and_convergence_) {
-          if (bimap.B_to_A.contains(mef_event)) {
-              watched_for_convergence.insert(bimap.B_to_A[mef_event]);
-          }
+    std::unordered_set<int> watched_for_convergence;
+    for (const auto &mef_event : watched_for_tallies_and_convergence_) {
+      if (bimap.B_to_A.contains(mef_event)) {
+        watched_for_convergence.insert(bimap.B_to_A[mef_event]);
       }
-      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Observing " << watched_for_convergence.size() << " convergence indices..." << std::endl;
-      pa->observe(watched_for_convergence, true, false);
-      std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Convergence observed." << std::endl;
+    }
+    pa->observe(watched_for_convergence, true, false);
   }
 
-  std::cout << "[RiskAnalysis::RunAnalysis<A,C>] Calling pa->Analyze()..." << std::endl;
   pa->Analyze();
-  std::cout << "[RiskAnalysis::RunAnalysis<A,C>] pa->Analyze() complete." << std::endl;
   if (Analysis::settings().importance_analysis()) {
     auto ia = std::make_unique<ImportanceAnalyzer<Calculator>>(pa.get());
     ia->Analyze();

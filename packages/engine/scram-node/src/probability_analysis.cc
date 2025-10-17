@@ -44,6 +44,11 @@ namespace scram::core {
         // Get the total probability.
         std::cout << "[ProbabilityAnalysis::Analyze] Calling CalculateTotalProbability()..." << std::endl;
         p_total_ = this->CalculateTotalProbability();
+        assert(p_total_ >= 0 && p_total_ <= 1 && "p_total_ is out of [0, 1] range.");
+        if (p_total_ < 0 || p_total_ > 1) {
+            LOG(WARNING) << "ProbabilityAnalysis: p_total_ (" << p_total_ << ") is out of [0, 1] range. Adjusting to fit.";
+            p_total_ = std::max(0.0, std::min(1.0, p_total_));
+        }
         std::cout << "[ProbabilityAnalysis::Analyze] Total probability: " << p_total_ << std::endl;
         std::cout << "[ProbabilityAnalysis::Analyze] Calling CalculateProbabilityOverTime()..." << std::endl;
         p_time_ = this->CalculateProbabilityOverTime();

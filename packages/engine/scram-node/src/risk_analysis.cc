@@ -196,36 +196,36 @@ void RiskAnalysis::RunAnalysis(const mef::Gate& target, Result* result)  {
 template <class Algorithm>
 void RiskAnalysis::RunAnalysis(const mef::Gate& target,
                                Result* result)  {
-  std::cout << "[RiskAnalysis::RunAnalysis] Starting for gate: " << target.id() << std::endl;
+  LOG(INFO) << "[RiskAnalysis::RunAnalysis] Starting for gate: " << target.id();
   WatchGuard wg(&watched_for_tallies_and_convergence_);
   auto fta = std::make_unique<FaultTreeAnalyzer<Algorithm>>(target, Analysis::settings(), model_);
-  std::cout << "[RiskAnalysis::RunAnalysis] Calling fta->Analyze()..." << std::endl;
+  LOG(INFO) << "[RiskAnalysis::RunAnalysis] Calling fta->Analyze()...";
   fta->Analyze();
-  std::cout << "[RiskAnalysis::RunAnalysis] fta->Analyze() complete." << std::endl;
+  LOG(INFO) << "[RiskAnalysis::RunAnalysis] fta->Analyze() complete.";
   if (Analysis::settings().probability_analysis()) {
-    std::cout << "[RiskAnalysis::RunAnalysis] Probability analysis enabled, approximation: " << static_cast<int>(Analysis::settings().approximation()) << std::endl;
+    LOG(INFO) << "[RiskAnalysis::RunAnalysis] Probability analysis enabled, approximation: " << static_cast<int>(Analysis::settings().approximation());
     switch (Analysis::settings().approximation()) {
       case Approximation::kNone:
-        std::cout << "[RiskAnalysis::RunAnalysis] Running with Bdd approximation..." << std::endl;
+        LOG(INFO) << "[RiskAnalysis::RunAnalysis] Running with Bdd approximation...";
         RunAnalysis<Algorithm, Bdd>(fta.get(), result);
         break;
       case Approximation::kRareEvent:
-        std::cout << "[RiskAnalysis::RunAnalysis] Running with RareEvent approximation..." << std::endl;
+        LOG(INFO) << "[RiskAnalysis::RunAnalysis] Running with RareEvent approximation...";
         RunAnalysis<Algorithm, RareEventCalculator>(fta.get(), result);
         break;
       case Approximation::kMcub:
-        std::cout << "[RiskAnalysis::RunAnalysis] Running with MCUB approximation..." << std::endl;
+        LOG(INFO) << "[RiskAnalysis::RunAnalysis] Running with MCUB approximation...";
         RunAnalysis<Algorithm, McubCalculator>(fta.get(), result);
         break;
       case Approximation::kMonteCarlo:
-        std::cout << "[RiskAnalysis::RunAnalysis] Running with MonteCarlo approximation..." << std::endl;
+        LOG(INFO) << "[RiskAnalysis::RunAnalysis] Running with MonteCarlo approximation...";
         RunAnalysis<Algorithm, mc::DirectEval>(fta.get(), result);
         break;
     }
   }
-  std::cout << "[RiskAnalysis::RunAnalysis] Moving fta to result..." << std::endl;
+  LOG(INFO) << "[RiskAnalysis::RunAnalysis] Moving fta to result...";
   result->fault_tree_analysis = std::move(fta);
-  std::cout << "[RiskAnalysis::RunAnalysis] Complete!" << std::endl;
+  LOG(INFO) << "[RiskAnalysis::RunAnalysis] Complete!";
 }
 
 template <class Algorithm, class Calculator>

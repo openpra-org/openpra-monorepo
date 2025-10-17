@@ -17,6 +17,10 @@ export interface CommandLineOptions {
    */
   mocus?: boolean;
   /**
+   * Perform analysis with PDAG (direct) algorithm
+   */
+  pdag?: boolean;
+  /**
    * Calculate prime implicants
    */
   "prime-implicants"?: boolean;
@@ -48,6 +52,10 @@ export interface CommandLineOptions {
    * Use the MCUB approximation
    */
   mcub?: boolean;
+  /**
+   * Use Monte Carlo simulation
+   */
+  "monte-carlo"?: boolean;
   /**
    * Upper limit for the product order
    */
@@ -81,6 +89,62 @@ export interface CommandLineOptions {
    */
   seed?: number;
   /**
+   * Confidence level for Monte Carlo convergence (0-1)
+   */
+  confidence?: number;
+  /**
+   * Relative margin of error (delta) for convergence
+   */
+  delta?: number;
+  /**
+   * Burn-in trials before convergence checks
+   */
+  "burn-in"?: number;
+  /**
+   * Enable early stopping on convergence
+   */
+  "early-stop"?: boolean;
+  /**
+   * Convergence interval policy (bayes or wald)
+   */
+  "ci-policy"?: "bayes" | "wald";
+  /**
+   * Batch size for Monte Carlo simulations
+   */
+  "batch-size"?: number;
+  /**
+   * Sample size for Monte Carlo simulations
+   */
+  "sample-size"?: number;
+  /**
+   * Node allocation overhead ratio
+   */
+  "overhead-ratio"?: number;
+  /**
+   * Expand at-least gates (disable K/N optimization)
+   */
+  "no-kn"?: boolean;
+  /**
+   * Expand XOR gates (disable XOR optimization)
+   */
+  "no-xor"?: boolean;
+  /**
+   * Keep null gates
+   */
+  "keep-null-gates"?: boolean;
+  /**
+   * Compilation level (0-8)
+   */
+  "compilation-level"?: number;
+  /**
+   * Oracle probability for diagnostics
+   */
+  "oracle-p"?: number;
+  /**
+   * Display analysis status on TTY
+   */
+  "watch-mode"?: boolean;
+  /**
    * Omit indentation whitespace in output XML
    */
   "no-indent"?: boolean;
@@ -102,11 +166,26 @@ export interface CommandLineOptions {
  * Schema for command-line options
  */
 export interface ScramNodeOptions {
-  mocus: boolean;
-  bdd: boolean;
-  zbdd: boolean;
-  rareEvent: boolean;
-  mcub: boolean;
+  // Algorithms
+  mocus?: boolean;
+  bdd?: boolean;
+  zbdd?: boolean;
+  pdag?: boolean;
+  
+  // Approximations
+  rareEvent?: boolean;
+  mcub?: boolean;
+  monteCarlo?: boolean;
+  
+  // Analysis types
+  primeImplicants?: boolean;
+  probability?: boolean;
+  importance?: boolean;
+  uncertainty?: boolean;
+  ccf?: boolean;
+  sil?: boolean;
+  
+  // Basic parameters
   limitOrder?: number;
   cutOff?: number;
   missionTime?: number;
@@ -115,12 +194,26 @@ export interface ScramNodeOptions {
   numQuantiles?: number;
   numBins?: number;
   seed?: number;
-  primeImplicants?: boolean;
-  probability?: boolean;
-  importance?: boolean;
-  uncertainty?: boolean;
-  ccf?: boolean;
-  sil?: boolean;
+  
+  // Monte Carlo specific parameters
+  confidence?: number;        // Confidence level for convergence (0-1)
+  delta?: number;             // Relative margin of error for convergence (>0)
+  burnIn?: number;            // Burn-in trials before convergence checks
+  earlyStop?: boolean;        // Enable early stopping on convergence
+  ciPolicy?: "bayes" | "wald"; // Convergence interval policy
+  batchSize?: number;         // Batch size for Monte Carlo
+  sampleSize?: number;        // Sample size for Monte Carlo
+  overheadRatio?: number;     // Node allocation overhead ratio (>=0)
+  
+  // Graph compilation and preprocessing flags
+  noKn?: boolean;             // Expand at-least gates (disable K/N optimization)
+  noXor?: boolean;            // Expand XOR gates (disable XOR optimization)
+  keepNullGates?: boolean;    // Keep null gates (don't remove gates with no effect)
+  compilationLevel?: number;  // Compilation level (0-8, higher = more optimization)
+  
+  // Diagnostics
+  oracleP?: number;           // Oracle probability for diagnostics (>=0)
+  watchMode?: boolean;        // Display analysis status on TTY
 }
 
 export interface ModelOptions {

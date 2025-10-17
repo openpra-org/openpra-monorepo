@@ -1,4 +1,5 @@
 #include <napi.h>
+#include <iostream>
 #include "ScramNodeSettings.h"
 #include "ScramNodeModel.h"
 #include "ScramNodeReporter.h"
@@ -23,18 +24,30 @@ Napi::Value QuantifyModel(const Napi::CallbackInfo& info) {
     Napi::Object nodeOptions = info[0].As<Napi::Object>();
     Napi::Object nodeModel = info[1].As<Napi::Object>();
 
-    // 1. Map Node options/model to C++
-    auto settings = ScramNodeOptions(nodeOptions);
-    auto model = ScramNodeModel(nodeModel);
-
     try {
+        // 1. Map Node options/model to C++
+        std::cout << "[QuantifyModel] Creating settings..." << std::endl;
+        auto settings = ScramNodeOptions(nodeOptions);
+        std::cout << "[QuantifyModel] Creating model..." << std::endl;
+        auto model = ScramNodeModel(nodeModel);
+
         // 2. Run analysis
+        std::cout << "[QuantifyModel] Creating RiskAnalysis..." << std::endl;
         scram::core::RiskAnalysis analysis(model.get(), settings);
+        std::cout << "[QuantifyModel] Starting Analyze()..." << std::endl;
         analysis.Analyze();
+        std::cout << "[QuantifyModel] Analyze() complete!" << std::endl;
         // 3. Map result to Node
+        std::cout << "[QuantifyModel] Generating report..." << std::endl;
         return ScramNodeReport(env, analysis);
     } catch (const std::exception& e) {
-        Napi::Error::New(env, "Failed to run the analysis").ThrowAsJavaScriptException();
+        // Preserve the actual error message from SCRAM
+        std::string errorMsg = "SCRAM Error: ";
+        errorMsg += e.what();
+        Napi::Error::New(env, errorMsg).ThrowAsJavaScriptException();
+        return env.Null();
+    } catch (...) {
+        Napi::Error::New(env, "SCRAM Error: Unknown exception occurred").ThrowAsJavaScriptException();
         return env.Null();
     }
 }

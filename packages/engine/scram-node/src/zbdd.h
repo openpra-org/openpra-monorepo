@@ -96,7 +96,7 @@ struct PairHash {
   /// @param[in] p  The pair of numbers.
   ///
   /// @returns Hash value of the pair.
-  std::size_t operator()(const std::pair<int, int>& p) const noexcept {
+  std::size_t operator()(const std::pair<int, int>& p) const  {
     return boost::hash_value(p);
   }
 };
@@ -116,7 +116,7 @@ struct TripletHash {
   /// @param[in] triplet  Three numbers.
   ///
   /// @returns Hash value of the triplet.
-  std::size_t operator()(const Triplet& triplet) const noexcept {
+  std::size_t operator()(const Triplet& triplet) const  {
     return boost::hash_range(triplet.begin(), triplet.end());
   }
 };
@@ -170,7 +170,7 @@ class Zbdd : private boost::noncopyable {
       }
 
       /// Only single iterator per module is allowed.
-      module_iterator(module_iterator&&) noexcept = default;
+      module_iterator(module_iterator&&)  = default;
 
       /// @returns true if a new product has been generated for the host set.
       explicit operator bool() const { return !sentinel_; }
@@ -180,9 +180,9 @@ class Zbdd : private boost::noncopyable {
         if (sentinel_)
           return;
         assert(end_pos_ >= start_pos_ && "Corrupted sentinel.");
-        while (start_pos_ != it_.product_.size()) {
+        while (start_pos_ != static_cast<int>(it_.product_.size())) {
           if (!module_stack_.empty() &&
-              it_.product_.size() == module_stack_.back().end_pos_) {
+              static_cast<int>(it_.product_.size()) == module_stack_.back().end_pos_) {
             const SetNode* node = module_stack_.back().node_;
             for (++module_stack_.back(); module_stack_.back();
                  ++module_stack_.back()) {
@@ -211,10 +211,10 @@ class Zbdd : private boost::noncopyable {
       ///
       /// @post If the new product is generated,
       ///       the product and stack containers are updated accordingly.
-      bool GenerateProduct(const VertexPtr& vertex) noexcept {
+      bool GenerateProduct(const VertexPtr& vertex)  {
         if (vertex->terminal())
           return Terminal<SetNode>::Ref(vertex).value();
-        if (it_.product_.size() >= it_.zbdd_.settings().limit_order())
+        if (static_cast<int>(it_.product_.size()) >= it_.zbdd_.settings().limit_order())
           return false;
         const SetNode& node = SetNode::Ref(vertex);
         if (node.module()) {
@@ -224,7 +224,7 @@ class Zbdd : private boost::noncopyable {
             if (GenerateProduct(node.high()))
               return true;
           }
-          assert(it_.product_.size() == module_stack_.back().start_pos_);
+          assert(static_cast<int>(it_.product_.size()) == module_stack_.back().start_pos_);
           module_stack_.pop_back();
           return GenerateProduct(node.low());
 
@@ -237,8 +237,8 @@ class Zbdd : private boost::noncopyable {
       /// Removes the current leaf node from the product.
       ///
       /// @returns The current leaf node in the product.
-      const SetNode* Pop() noexcept {
-        assert(start_pos_ < it_.product_.size() && "Access beyond the range!");
+      const SetNode* Pop()  {
+        assert(start_pos_ < static_cast<int>(it_.product_.size()) && "Access beyond the range!");
         const SetNode* leaf = it_.node_stack_.back();
         it_.node_stack_.pop_back();
         it_.product_.pop_back();
@@ -248,7 +248,7 @@ class Zbdd : private boost::noncopyable {
       /// Updates the current product with a literal.
       ///
       /// @param[in] set_node  The current leaf set node to add to the product.
-      void Push(const SetNode* set_node) noexcept {
+      void Push(const SetNode* set_node)  {
         it_.node_stack_.push_back(set_node);
         it_.product_.push_back(set_node->index());
       }
@@ -276,7 +276,7 @@ class Zbdd : private boost::noncopyable {
     /// The copy constructor is only for begin and end iterators.
     ///
     /// @param[in] other  Begin or End iterator.
-    const_iterator(const const_iterator& other) noexcept
+    const_iterator(const const_iterator& other)
         : sentinel_(other.sentinel_),
           zbdd_(other.zbdd_),
           it_(nullptr, zbdd_, this, sentinel_) {
@@ -322,7 +322,7 @@ class Zbdd : private boost::noncopyable {
   /// @note The input BDD is not passed as a constant
   ///       because ZBDD needs BDD facilities to calculate prime implicants.
   ///       However, ZBDD guarantees to preserve the original BDD structure.
-  Zbdd(Bdd* bdd, const Settings& settings) noexcept;
+  Zbdd(Bdd* bdd, const Settings& settings) ;
 
   /// Constructor with the analysis target.
   /// ZBDD is directly produced from a PDAG.
@@ -332,9 +332,9 @@ class Zbdd : private boost::noncopyable {
   ///
   /// @pre The passed PDAG already has variable ordering.
   /// @note The construction may take considerable time.
-  Zbdd(const Pdag* graph, const Settings& settings) noexcept;
+  Zbdd(const Pdag* graph, const Settings& settings) ;
 
-  virtual ~Zbdd() noexcept = default;
+  virtual ~Zbdd()  = default;
 
   /// Runs the analysis
   /// with the representation of a PDAG as ZBDD.
@@ -342,7 +342,7 @@ class Zbdd : private boost::noncopyable {
   /// @param[in] graph  The optional PDAG with non-declarative substitutions.
   ///
   /// @post Substitutions destroy all the modules.
-  void Analyze(const Pdag* graph = nullptr) noexcept;
+  void Analyze(const Pdag* graph = nullptr) ;
 
   /// @returns Products generated by the analysis.
   const Zbdd& products() const { return *this; }
@@ -372,7 +372,7 @@ class Zbdd : private boost::noncopyable {
   /// @param[in] coherent  A flag for coherent modular functions.
   /// @param[in] module_index  The index of a module if known.
   explicit Zbdd(const Settings& settings, bool coherent = false,
-                int module_index = 0) noexcept;
+                int module_index = 0) ;
 
   /// @returns Current root vertex of the ZBDD.
   const VertexPtr& root() const { return root_; }
@@ -391,7 +391,7 @@ class Zbdd : private boost::noncopyable {
   }
 
   /// Logs properties of the Zbdd.
-  void Log() noexcept;
+  void Log() ;
 
   /// Finds or adds a unique SetNode in the ZBDD.
   /// All vertices in the ZBDD must be created with this function.
@@ -411,7 +411,7 @@ class Zbdd : private boost::noncopyable {
   SetNodePtr FindOrAddVertex(int index, const VertexPtr& high,
                              const VertexPtr& low, int order,
                              bool module = false,
-                             bool coherent = false) noexcept;
+                             bool coherent = false) ;
 
   /// Find or adds a ZBDD SetNode vertex using information from gates.
   ///
@@ -423,7 +423,7 @@ class Zbdd : private boost::noncopyable {
   ///
   /// @warning This function is not aware of reduction rules.
   SetNodePtr FindOrAddVertex(const Gate& gate, const VertexPtr& high,
-                             const VertexPtr& low) noexcept;
+                             const VertexPtr& low) ;
 
   /// Applies Boolean operation to two vertices representing sets.
   /// This is the main function for the operation.
@@ -439,7 +439,7 @@ class Zbdd : private boost::noncopyable {
   /// @post The limit on the set order is guaranteed.
   template <Connective Type>
   VertexPtr Apply(const VertexPtr& arg_one, const VertexPtr& arg_two,
-                  int limit_order) noexcept;
+                  int limit_order) ;
 
   /// Applies Boolean operation to two vertices representing sets.
   /// This is a convenience function
@@ -456,7 +456,7 @@ class Zbdd : private boost::noncopyable {
   ///
   /// @post The limit on the set order is guaranteed.
   VertexPtr Apply(Connective type, const VertexPtr& arg_one,
-                  const VertexPtr& arg_two, int limit_order) noexcept;
+                  const VertexPtr& arg_two, int limit_order) ;
 
   /// Applies Boolean operation to ZBDD graph non-terminal vertices.
   ///
@@ -471,7 +471,7 @@ class Zbdd : private boost::noncopyable {
   /// @pre Argument vertices are ordered.
   template <Connective Type>
   VertexPtr Apply(const SetNodePtr& arg_one, const SetNodePtr& arg_two,
-                  int limit_order) noexcept;
+                  int limit_order) ;
 
   /// Removes complements of variables from products.
   /// This procedure only needs to be performed for non-coherent graphs
@@ -486,7 +486,7 @@ class Zbdd : private boost::noncopyable {
   /// @post Complements of modules are not eliminated.
   VertexPtr EliminateComplements(
       const VertexPtr& vertex,
-      std::unordered_map<int, VertexPtr>* wide_results) noexcept;
+      std::unordered_map<int, VertexPtr>* wide_results) ;
 
   /// Removes constant modules from products.
   /// Constant modules are likely to happen after complement elimination.
@@ -495,14 +495,14 @@ class Zbdd : private boost::noncopyable {
   /// that the modules have already been pre-processed.
   ///
   /// @pre All modules have been processed.
-  void EliminateConstantModules() noexcept;
+  void EliminateConstantModules() ;
 
   /// Removes subsets in ZBDD.
   ///
   /// @param[in] vertex  The variable node in the set.
   ///
   /// @returns Processed vertex.
-  VertexPtr Minimize(const VertexPtr& vertex) noexcept;
+  VertexPtr Minimize(const VertexPtr& vertex) ;
 
   /// Traverses ZBDD to find modules and adjusted cut-offs.
   /// Modules within modules are not gathered.
@@ -516,16 +516,16 @@ class Zbdd : private boost::noncopyable {
   ///
   /// @pre The ZBDD is minimal.
   int GatherModules(const VertexPtr& vertex, int current_order,
-                    std::map<int, std::pair<bool, int>>* modules) noexcept;
+                    std::map<int, std::pair<bool, int>>* modules) ;
 
   /// Applies non-declarative substitutions at the end of analysis.
   ///
   /// @param[in] substitutions  The substitutions defined in PDAG.
   void ApplySubstitutions(
-      const std::vector<Pdag::Substitution>& substitutions) noexcept;
+      const std::vector<Pdag::Substitution>& substitutions) ;
 
   /// Clears all memoization tables.
-  void ClearTables() noexcept {
+  void ClearTables()  {
     and_table_.clear();
     or_table_.clear();
     minimal_results_.clear();
@@ -537,7 +537,7 @@ class Zbdd : private boost::noncopyable {
   /// Releases all possible memory from memoization and unique tables.
   ///
   /// @pre No more graph modifications after the freeze.
-  void Freeze() noexcept {
+  void Freeze()  {
     unique_table_.Release();
     Zbdd::ClearTables();
     and_table_.reserve(0);
@@ -553,7 +553,7 @@ class Zbdd : private boost::noncopyable {
   ///
   /// @pre The module products are final,
   ///      and no more processing or sanitizing is needed.
-  void JoinModule(int index, std::unique_ptr<Zbdd> container) noexcept {
+  void JoinModule(int index, std::unique_ptr<Zbdd> container)  {
     assert(!modules_.count(index));
     assert(container->root()->terminal() ||
            SetNode::Ref(container->root()).minimal());
@@ -589,7 +589,7 @@ class Zbdd : private boost::noncopyable {
   ///       because ZBDD needs BDD facilities to calculate prime implicants.
   ///       However, ZBDD guarantees to preserve the original BDD structure.
   Zbdd(const Bdd::Function& module, bool coherent, Bdd* bdd,
-       const Settings& settings, int module_index = 0) noexcept;
+       const Settings& settings, int module_index = 0) ;
 
   /// Constructs ZBDD from modular PDAGs.
   /// This constructor does not handle constant or single variable graphs.
@@ -604,7 +604,7 @@ class Zbdd : private boost::noncopyable {
   ///
   /// @post The root vertex pointer is uninitialized
   ///       if the PDAG is constant or single variable.
-  Zbdd(const Gate& gate, const Settings& settings) noexcept;
+  Zbdd(const Gate& gate, const Settings& settings) ;
 
   /// Finds a replacement for an existing node
   /// or adds a new node based on an existing node.
@@ -617,7 +617,7 @@ class Zbdd : private boost::noncopyable {
   ///
   /// @warning This function is not aware of reduction rules.
   SetNodePtr FindOrAddVertex(const SetNodePtr& node, const VertexPtr& high,
-                             const VertexPtr& low) noexcept;
+                             const VertexPtr& low) ;
 
   /// Adds a new or finds an existing reduced ZBDD vertex
   /// with parameters of a prototype BDD ITE vertex.
@@ -630,7 +630,7 @@ class Zbdd : private boost::noncopyable {
   /// @returns Resultant reduced vertex.
   VertexPtr GetReducedVertex(const ItePtr& ite, bool complement,
                              const VertexPtr& high,
-                             const VertexPtr& low) noexcept;
+                             const VertexPtr& low) ;
 
   /// Finds a replacement reduced vertex for an existing node,
   /// or adds a new node based on an existing node.
@@ -641,7 +641,7 @@ class Zbdd : private boost::noncopyable {
   ///
   /// @returns Set node for a replacement.
   VertexPtr GetReducedVertex(const SetNodePtr& node, const VertexPtr& high,
-                             const VertexPtr& low) noexcept;
+                             const VertexPtr& low) ;
 
   /// Computes the key for computation results.
   /// The key is used in computation memoisation tables.
@@ -657,7 +657,7 @@ class Zbdd : private boost::noncopyable {
   /// @pre Even though the arguments are not SetNodePtr type,
   ///      they are ZBDD SetNode vertices.
   Triplet GetResultKey(const VertexPtr& arg_one, const VertexPtr& arg_two,
-                       int limit_order) noexcept;
+                       int limit_order) ;
 
   /// Converts BDD graph into ZBDD graph.
   ///
@@ -672,7 +672,7 @@ class Zbdd : private boost::noncopyable {
   /// @post The input BDD structure is not changed.
   VertexPtr ConvertBdd(const Bdd::VertexPtr& vertex, bool complement,
                        Bdd* bdd_graph, int limit_order,
-                       PairTable<VertexPtr>* ites) noexcept;
+                       PairTable<VertexPtr>* ites) ;
 
   /// Converts BDD if-then-else vertex into ZBDD graph.
   /// This overload differs in that
@@ -688,7 +688,7 @@ class Zbdd : private boost::noncopyable {
   ///
   /// @returns Pointer to the root vertex of the ZBDD graph.
   VertexPtr ConvertBdd(const ItePtr& ite, bool complement, Bdd* bdd_graph,
-                       int limit_order, PairTable<VertexPtr>* ites) noexcept;
+                       int limit_order, PairTable<VertexPtr>* ites) ;
 
   /// Converts BDD if-then-else vertex into ZBDD graph for prime implicants.
   /// This is used by the BDD vertex to ZBDD converter,
@@ -703,7 +703,7 @@ class Zbdd : private boost::noncopyable {
   /// @returns Pointer to the root vertex of the ZBDD graph.
   VertexPtr ConvertBddPrimeImplicants(const ItePtr& ite, bool complement,
                                       Bdd* bdd_graph, int limit_order,
-                                      PairTable<VertexPtr>* ites) noexcept;
+                                      PairTable<VertexPtr>* ites) ;
 
   /// Transforms a PDAG gate into a Zbdd set graph.
   ///
@@ -719,7 +719,7 @@ class Zbdd : private boost::noncopyable {
   VertexPtr
   ConvertGraph(const Gate& gate,
                std::unordered_map<int, std::pair<VertexPtr, int>>* gates,
-               std::unordered_map<int, const Gate*>* module_gates) noexcept;
+               std::unordered_map<int, const Gate*>* module_gates) ;
 
   /// Processes complements in a SetNode with processed high/low edges.
   ///
@@ -732,7 +732,7 @@ class Zbdd : private boost::noncopyable {
   /// @post Sub-modules are not processed.
   /// @post Complements of modules are not eliminated.
   VertexPtr EliminateComplement(const SetNodePtr& node, const VertexPtr& high,
-                                const VertexPtr& low) noexcept;
+                                const VertexPtr& low) ;
 
   /// Removes constant modules from products.
   ///
@@ -744,7 +744,7 @@ class Zbdd : private boost::noncopyable {
   /// @pre All sub-modules are already processed.
   VertexPtr EliminateConstantModules(
       const VertexPtr& vertex,
-      std::unordered_map<int, VertexPtr>* results) noexcept;
+      std::unordered_map<int, VertexPtr>* results) ;
 
   /// Processes constant modules in a SetNode with processed high/low edges.
   ///
@@ -757,7 +757,7 @@ class Zbdd : private boost::noncopyable {
   /// @pre All sub-modules are already processed.
   VertexPtr EliminateConstantModule(const SetNodePtr& node,
                                     const VertexPtr& high,
-                                    const VertexPtr& low) noexcept;
+                                    const VertexPtr& low) ;
 
   /// Applies subsume operation on two sets.
   /// Subsume operation removes
@@ -767,7 +767,7 @@ class Zbdd : private boost::noncopyable {
   /// @param[in] low  False/else/low branch of a variable.
   ///
   /// @returns Minimized high branch for a variable.
-  VertexPtr Subsume(const VertexPtr& high, const VertexPtr& low) noexcept;
+  VertexPtr Subsume(const VertexPtr& high, const VertexPtr& low) ;
 
   /// Prunes the ZBDD graph with the cut-off.
   ///
@@ -778,7 +778,7 @@ class Zbdd : private boost::noncopyable {
   ///
   /// @post If the ZBDD is minimal,
   ///       the resultant pruned ZBDD is minimal.
-  VertexPtr Prune(const VertexPtr& vertex, int limit_order) noexcept;
+  VertexPtr Prune(const VertexPtr& vertex, int limit_order) ;
 
   /// Checks if a set node represents a gate.
   /// Apply operations and truncation operations
@@ -788,14 +788,14 @@ class Zbdd : private boost::noncopyable {
   /// @param[in] node  A node to be tested.
   ///
   /// @returns true for modules by default.
-  virtual bool IsGate(const SetNode& node) noexcept { return node.module(); }
+  virtual bool IsGate(const SetNode& node)  { return node.module(); }
 
   /// Checks if a node have a possibility to represent Unity.
   ///
   /// @param[in] node  SetNode to test for possibility of Unity.
   ///
   /// @returns false if the passed node can never be Unity.
-  bool MayBeUnity(const SetNode& node) noexcept;
+  bool MayBeUnity(const SetNode& node) ;
 
   /// Counts the number of SetNodes
   /// excluding the nodes in the modules.
@@ -806,7 +806,7 @@ class Zbdd : private boost::noncopyable {
   ///          including vertices in modules.
   ///
   /// @pre SetNode marks are clear (false).
-  int CountSetNodes(const VertexPtr& vertex) noexcept;
+  int CountSetNodes(const VertexPtr& vertex) ;
 
   /// Counts the total number of sets in ZBDD.
   ///
@@ -816,7 +816,7 @@ class Zbdd : private boost::noncopyable {
   /// @returns The number of products in ZBDD.
   ///
   /// @pre SetNode marks are clear (false).
-  std::int64_t CountProducts(const VertexPtr& vertex, bool modules) noexcept;
+  std::int64_t CountProducts(const VertexPtr& vertex, bool modules) ;
 
   /// Cleans up non-terminal vertex marks
   /// by setting them to "false".
@@ -825,7 +825,7 @@ class Zbdd : private boost::noncopyable {
   /// @param[in] modules  Clear marks in modules as well.
   ///
   /// @pre The graph is marked "true" contiguously.
-  void ClearMarks(const VertexPtr& vertex, bool modules) noexcept;
+  void ClearMarks(const VertexPtr& vertex, bool modules) ;
 
   /// Cleans up non-terminal vertex count fields
   /// by setting them to 0.
@@ -836,7 +836,7 @@ class Zbdd : private boost::noncopyable {
   /// @pre The graph node marks are clear.
   ///
   /// @post Traversed marks are set to 'true'.
-  void ClearCounts(const VertexPtr& vertex, bool modules) noexcept;
+  void ClearCounts(const VertexPtr& vertex, bool modules) ;
 
   /// Checks ZBDD graphs for errors in the structure.
   /// Errors are assertions that fail at runtime.
@@ -845,7 +845,7 @@ class Zbdd : private boost::noncopyable {
   /// @param[in] modules  Test modules as well.
   ///
   /// @pre SetNode marks are clear (false).
-  void TestStructure(const VertexPtr& vertex, bool modules) noexcept;
+  void TestStructure(const VertexPtr& vertex, bool modules) ;
 
   const Settings kSettings_;  ///< Analysis settings.
   VertexPtr root_;  ///< The root vertex of ZBDD.
@@ -897,14 +897,14 @@ class CutSetContainer : public Zbdd {
   /// @pre Basic events are indexed sequentially
   ///      up to a number less than or equal to the given lower bound.
   CutSetContainer(const Settings& settings, int module_index,
-                  int gate_index_bound) noexcept;
+                  int gate_index_bound) ;
 
   /// Converts a PDAG gate into intermediate cut sets.
   ///
   /// @param[in] gate  The target AND/OR gate with arguments.
   ///
   /// @returns The root vertex of the ZBDD representing the gate cut sets.
-  VertexPtr ConvertGate(const Gate& gate) noexcept;
+  VertexPtr ConvertGate(const Gate& gate) ;
 
   /// Finds a gate in intermediate cut sets.
   ///
@@ -912,7 +912,7 @@ class CutSetContainer : public Zbdd {
   /// @returns 0 if no gates are found.
   ///
   /// @pre Variable ordering puts the gate to the top (root).
-  int GetNextGate() noexcept {
+  int GetNextGate()  {
     if (Zbdd::root()->terminal())
       return 0;
     SetNode& node = SetNode::Ref(Zbdd::root());
@@ -930,7 +930,7 @@ class CutSetContainer : public Zbdd {
   ///
   /// @post The extracted cut sets are pre-processed
   ///       by removing the vertex with the index of the gate.
-  VertexPtr ExtractIntermediateCutSets(int index) noexcept;
+  VertexPtr ExtractIntermediateCutSets(int index) ;
 
   /// Expands the intermediate ZBDD representation of a gate
   /// in intermediate cut sets containing the gate.
@@ -943,14 +943,14 @@ class CutSetContainer : public Zbdd {
   /// @pre The intermediate cut sets are pre-processed
   ///      by removing the vertex with the index of the gate.
   VertexPtr ExpandGate(const VertexPtr& gate_zbdd,
-                       const VertexPtr& cut_sets) noexcept;
+                       const VertexPtr& cut_sets) ;
 
   /// Merges a set of cut sets into the main container.
   ///
   /// @param[in] vertex  The root ZBDD vertex representing the cut sets.
   ///
   /// @pre The argument ZBDD cut sets are managed by this container.
-  void Merge(const VertexPtr& vertex) noexcept;
+  void Merge(const VertexPtr& vertex) ;
 
   /// Eliminates all complements from cut sets.
   /// This can only be done
@@ -959,7 +959,7 @@ class CutSetContainer : public Zbdd {
   /// @pre The cut sets have negative literals, i.e., non-coherent.
   ///
   /// @post Sub-modules are not processed.
-  void EliminateComplements() noexcept {
+  void EliminateComplements()  {
     std::unordered_map<int, VertexPtr> wide_results;
     Zbdd::root(Zbdd::EliminateComplements(Zbdd::root(), &wide_results));
   }
@@ -968,17 +968,17 @@ class CutSetContainer : public Zbdd {
   /// Constant modules are likely to happen after complement elimination.
   ///
   /// @pre All modules have been processed.
-  void EliminateConstantModules() noexcept { Zbdd::EliminateConstantModules(); }
+  void EliminateConstantModules()  { Zbdd::EliminateConstantModules(); }
 
   /// Minimizes cut sets in the container.
   ///
   /// @post Sub-modules are not processed.
-  void Minimize() noexcept { Zbdd::root(Zbdd::Minimize(Zbdd::root())); }
+  void Minimize()  { Zbdd::root(Zbdd::Minimize(Zbdd::root())); }
 
   /// Gathers all module indices in the cut sets.
   ///
   /// @returns An unordered map module of indices, coherence, and cut-offs.
-  std::map<int, std::pair<bool, int>> GatherModules() noexcept {
+  std::map<int, std::pair<bool, int>> GatherModules()  {
     assert(Zbdd::modules().empty() && "Unexpected call with defined modules?!");
     std::map<int, std::pair<bool, int>> modules;
     Zbdd::GatherModules(Zbdd::root(), 0, &modules);
@@ -997,7 +997,7 @@ class CutSetContainer : public Zbdd {
   ///
   /// @pre There are no complements of gates.
   /// @pre Gate indices have a lower bound.
-  bool IsGate(const SetNode& node) noexcept override {
+  bool IsGate(const SetNode& node)  override {
     return node.index() > gate_index_bound_;
   }
 

@@ -54,7 +54,7 @@ class EventTreeAnalysis : public Analysis {
                     const Settings& settings, mef::Context* context);
 
   /// Analyzes an event tree given the initiating event.
-  void Analyze() noexcept;
+  void Analyze() ;
 
   /// @returns The initiating event of the event tree analysis.
   const mef::InitiatingEvent& initiating_event() const {
@@ -93,7 +93,7 @@ class EventTreeAnalysis : public Analysis {
   ///
   /// @post The sequences in the result are joined and unique.
   void CollectSequences(const mef::Branch& initial_state,
-                        SequenceCollector* result) noexcept;
+                        SequenceCollector* result) ;
 
   const mef::InitiatingEvent& initiating_event_;  ///< The analysis initiator.
   std::vector<Result> sequences_;  ///< Gathered sequences.

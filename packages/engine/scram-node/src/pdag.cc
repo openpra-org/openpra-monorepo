@@ -34,19 +34,26 @@
 #include <boost/range/algorithm.hpp>
 
 #include "event.h"
-#include "ext/algorithm.h"
 #include "logger.h"
 #include "model.h"
+#include "preprocessor.h"
 #include "substitution.h"
 
 namespace scram::core {
+
+// Initialize the static watched‐gate pointer
+const std::unordered_set<const mef::Gate *> *Pdag::watched_gates_ = nullptr;
+
+void Pdag::SetWatchedGates(const std::unordered_set<const mef::Gate *> *gates) {
+  watched_gates_ = gates;
+}
 
 void NodeParentManager::AddParent(const GatePtr& gate) {
   assert(!parents_.count(gate->index()) && "Adding an existing parent.");
   parents_.data().emplace_back(gate->index(), gate);
 }
 
-Node::Node(Pdag* graph) noexcept
+Node::Node(Pdag* graph)
     : index_(Pdag::NodeIndexGenerator()(graph)),
       order_(0),
       visits_{},
@@ -57,7 +64,7 @@ Node::Node(Pdag* graph) noexcept
 
 Node::~Node() = default;
 
-Gate::Gate(Connective type, Pdag* graph) noexcept
+Gate::Gate(Connective type, Pdag* graph)
     : Node(graph),
       type_(type),
       mark_(false),
@@ -66,6 +73,7 @@ Gate::Gate(Connective type, Pdag* graph) noexcept
       min_number_(0),
       descendant_(0),
       ancestor_(0),
+      origin_(nullptr),
       min_time_(0),
       max_time_(0) {}
 
@@ -77,7 +85,10 @@ void Gate::type(Connective type) {  // Don't use in Gate constructor!
     Pdag::NullGateRegistrar()(shared_from_this());
 }
 
-GatePtr Gate::Clone() noexcept {
+const mef::Gate* core::Gate::mef_origin_ptr() const { return origin_; }
+void core::Gate::mef_origin_ptr(const mef::Gate* g) { origin_ = g; }
+
+GatePtr Gate::Clone()  {
   BLOG(DEBUG5, module_) << "WARNING: Cloning module G" << Node::index();
   assert(!constant() && type_ != kNull);
   auto clone = std::make_shared<Gate>(type_, &Node::graph());  // The same type.
@@ -88,6 +99,7 @@ GatePtr Gate::Clone() noexcept {
   clone->gate_args_ = gate_args_;
   clone->variable_args_ = variable_args_;
   clone->constant_ = constant_;
+  clone->origin_ = origin_;
   // Introducing the new parent to the args.
   for (const auto& arg : gate_args_)
     arg.second->AddParent(clone);
@@ -100,7 +112,7 @@ GatePtr Gate::Clone() noexcept {
 
 /// Specialization to handle True constant arg addition.
 template <>
-void Gate::AddConstantArg<true>() noexcept {
+void Gate::AddConstantArg<true>()  {
   switch (type_) {
     case kNull:
     case kOr:
@@ -132,7 +144,7 @@ void Gate::AddConstantArg<true>() noexcept {
 
 /// Specialization to handle False constant arg addition.
 template <>
-void Gate::AddConstantArg<false>() noexcept {
+void Gate::AddConstantArg<false>()  {
   switch (type_) {
     case kNull:
     case kAnd:
@@ -161,13 +173,13 @@ void Gate::AddConstantArg<false>() noexcept {
 
 /// Convenient wrapper to dispatch appropriate constant arg handler.
 template <>
-void Gate::AddArg<Constant>(int index, const ConstantPtr& arg) noexcept {
+void Gate::AddArg<Constant>(int index, const ConstantPtr& arg)  {
   assert(!constant_);
   assert(arg->value());
   return index > 0 ? AddConstantArg<true>() : AddConstantArg<false>();
 }
 
-void Gate::TransferArg(int index, const GatePtr& recipient) noexcept {
+void Gate::TransferArg(int index, const GatePtr& recipient)  {
   assert(!constant() && "Improper use case.");
   assert(index != 0);
   assert(args_.count(index));
@@ -186,7 +198,7 @@ void Gate::TransferArg(int index, const GatePtr& recipient) noexcept {
   }
 }
 
-void Gate::ShareArg(int index, const GatePtr& recipient) noexcept {
+void Gate::ShareArg(int index, const GatePtr& recipient)  {
   assert(!constant() && "Improper use case.");
   assert(index != 0);
   assert(args_.count(index));
@@ -197,7 +209,7 @@ void Gate::ShareArg(int index, const GatePtr& recipient) noexcept {
   }
 }
 
-void Gate::NegateArgs() noexcept {
+void Gate::NegateArgs()  {
   /* assert(!constant() && "Improper use case."); */
   /// @todo Consider in place inversion.
   ArgSet inverted_args;
@@ -211,7 +223,7 @@ void Gate::NegateArgs() noexcept {
     arg.first *= -1;
 }
 
-void Gate::NegateArg(int existing_arg) noexcept {
+void Gate::NegateArg(int existing_arg)  {
   assert(!constant() && "Improper use case.");
   assert(args_.count(existing_arg));
   assert(!args_.count(-existing_arg));
@@ -228,7 +240,7 @@ void Gate::NegateArg(int existing_arg) noexcept {
   }
 }
 
-void Gate::CoalesceGate(const GatePtr& arg_gate) noexcept {
+void Gate::CoalesceGate(const GatePtr& arg_gate)  {
   assert(!constant() && "Improper use case.");
   assert(args_.count(arg_gate->index()) && "Cannot join complement gate.");
   assert(!arg_gate->constant() && "Impossible to join.");
@@ -250,7 +262,7 @@ void Gate::CoalesceGate(const GatePtr& arg_gate) noexcept {
   arg_gate->EraseParent(Node::index());
 }
 
-void Gate::JoinNullGate(int index) noexcept {
+void Gate::JoinNullGate(int index)  {
   assert(index != 0);
   assert(args_.count(index));
   assert(gate_args_.count(index));
@@ -277,7 +289,7 @@ void Gate::JoinNullGate(int index) noexcept {
   }
 }
 
-void Gate::ProcessConstantArg(const NodePtr& arg, bool state) noexcept {
+void Gate::ProcessConstantArg(const NodePtr& arg, bool state)  {
   int index = GetArgSign(arg) * arg->index();
   if (index < 0)
     state = !state;
@@ -285,7 +297,7 @@ void Gate::ProcessConstantArg(const NodePtr& arg, bool state) noexcept {
   return state ? AddConstantArg<true>() : AddConstantArg<false>();
 }
 
-void Gate::EraseArg(int index) noexcept {
+void Gate::EraseArg(int index)  {
   assert(index != 0);
   assert(args_.count(index));
   args_.erase(index);
@@ -305,7 +317,7 @@ void Gate::EraseArg(int index) noexcept {
   }
 }
 
-void Gate::EraseArgs() noexcept {
+void Gate::EraseArgs()  {
   args_.clear();
   for (const auto& arg : gate_args_)
     arg.second->EraseParent(Node::index());
@@ -320,7 +332,7 @@ void Gate::EraseArgs() noexcept {
   constant_ = nullptr;
 }
 
-void Gate::MakeConstant(bool state) noexcept {
+void Gate::MakeConstant(bool state)  {
   assert(!constant());
   EraseArgs();
   type(kNull);
@@ -330,7 +342,7 @@ void Gate::MakeConstant(bool state) noexcept {
   constant_->AddParent(shared_from_this());
 }
 
-void Gate::ProcessDuplicateArg(int index) noexcept {
+void Gate::ProcessDuplicateArg(int index)  {
   assert(type_ != kNot && type_ != kNull);
   assert(args_.count(index));
   LOG(DEBUG5) << "Handling duplicate argument for G" << Node::index();
@@ -358,20 +370,20 @@ void Gate::ProcessDuplicateArg(int index) noexcept {
   }
 }
 
-void Gate::ProcessAtleastGateDuplicateArg(int index) noexcept {
+void Gate::ProcessAtleastGateDuplicateArg(int index)  {
   LOG(DEBUG5) << "Handling special case of K/N duplicate argument!";
   assert(type_ == kAtleast);
   // This is a very special handling of K/N duplicates.
   // @(k, [x, x, y_i]) = x & @(k-2, [y_i]) | @(k, [y_i])
   assert(min_number_ > 1);
-  assert(args_.size() >= min_number_);
+  assert(static_cast<int>(args_.size()) >= min_number_);
   if (args_.size() == 2) {  // @(2, [x, x, z]) = x
     assert(min_number_ == 2);
     this->EraseArg(index);
     this->type(kNull);
     return;
   }
-  if (min_number_ == args_.size()) {  // @(k, [y_i]) is NULL set.
+  if (min_number_ == static_cast<int>(args_.size())) {  // @(k, [y_i]) is NULL set.
     assert(min_number_ > 2 && "Corrupted number of gate arguments.");
     GatePtr clone_two = this->Clone();
     clone_two->min_number(min_number_ - 2);  // @(k-2, [y_i])
@@ -408,12 +420,12 @@ void Gate::ProcessAtleastGateDuplicateArg(int index) noexcept {
     assert(and_gate->args().size() == 2);
     assert(this->args_.size() == 2);
   }
-  assert(clone_one->min_number() <= clone_one->args().size());
-  if (clone_one->args().size() == clone_one->min_number())
+  assert(clone_one->min_number() <= static_cast<int>(clone_one->args().size()));
+  if (static_cast<int>(clone_one->args().size()) == clone_one->min_number())
     clone_one->type(kAnd);
 }
 
-void Gate::ProcessComplementArg(int index) noexcept {
+void Gate::ProcessComplementArg(int index)  {
   assert(type_ != kNot && type_ != kNull);
   assert(args_.count(-index));
   LOG(DEBUG5) << "Handling complement argument for G" << Node::index();
@@ -430,7 +442,7 @@ void Gate::ProcessComplementArg(int index) noexcept {
     case kAtleast:
       LOG(DEBUG5) << "Handling special case of K/N complement argument!";
       assert(min_number_ > 1 && "Min number is wrong.");
-      assert((args_.size() + 1) > min_number_ && "Malformed K/N gate.");
+      assert((static_cast<int>(args_.size()) + 1) > min_number_ && "Malformed K/N gate.");
       // @(k, [x, x', y_i]) = @(k-1, [y_i])
       EraseArg(-index);
       --min_number_;
@@ -438,7 +450,7 @@ void Gate::ProcessComplementArg(int index) noexcept {
         type(kNull);
       } else if (min_number_ == 1) {
         type(kOr);
-      } else if (min_number_ == args_.size()) {
+      } else if (min_number_ == static_cast<int>(args_.size())) {
         type(kAnd);
       }
       break;
@@ -447,7 +459,7 @@ void Gate::ProcessComplementArg(int index) noexcept {
   }
 }
 
-Pdag::Pdag() noexcept
+Pdag::Pdag()
     : node_index_(0),
       complement_(false),
       coherent_(true),
@@ -455,7 +467,7 @@ Pdag::Pdag() noexcept
       register_null_gates_(true),
       constant_(new Constant(this)) {}
 
-Pdag::Pdag(const mef::Gate& root, bool ccf, const mef::Model* model) noexcept
+Pdag::Pdag(const mef::Gate& root, bool ccf, const mef::Model* model)
     : Pdag() {
   TIMER(DEBUG2, "PDAG Construction");
   ProcessedNodes nodes;
@@ -503,7 +515,7 @@ constexpr bool CheckConnectiveEnums() {
 }  // namespace
 
 void Pdag::GatherVariables(const mef::Formula& formula, bool ccf,
-                           ProcessedNodes* nodes) noexcept {
+                           ProcessedNodes* nodes)  {
   struct {
     void operator()(const mef::BasicEvent* arg) {
       graph->GatherVariables(*arg, ccf, nodes);
@@ -525,7 +537,7 @@ void Pdag::GatherVariables(const mef::Formula& formula, bool ccf,
 }
 
 void Pdag::GatherVariables(const mef::BasicEvent& basic_event, bool ccf,
-                           ProcessedNodes* nodes) noexcept {
+                           ProcessedNodes* nodes)  {
   if (ccf && basic_event.HasCcf()) {  // Gather CCF events.
     if (nodes->gates.emplace(&basic_event.ccf_gate(), nullptr).second)
       GatherVariables(basic_event.ccf_gate().formula(), ccf, nodes);
@@ -534,13 +546,13 @@ void Pdag::GatherVariables(const mef::BasicEvent& basic_event, bool ccf,
     if (!var) {
       basic_events_.push_back(&basic_event);
       var = std::make_shared<Variable>(this);  // Sequential indices.
-      assert((kVariableStartIndex + basic_events_.size() - 1) == var->index());
+      assert((kVariableStartIndex + static_cast<int>(basic_events_.size()) - 1) == var->index());
     }
   }
 }
 
 void Pdag::GatherVariables(const mef::Substitution& substitution, bool ccf,
-                           ProcessedNodes* nodes) noexcept {
+                           ProcessedNodes* nodes)  {
   GatherVariables(substitution.hypothesis(), ccf, nodes);
 
   for (const mef::BasicEvent* event : substitution.source()) {
@@ -554,7 +566,7 @@ void Pdag::GatherVariables(const mef::Substitution& substitution, bool ccf,
 
 template <class T>
 void Pdag::AddArg(const GatePtr& parent, const T& event, bool complement,
-                  bool ccf, ProcessedNodes* nodes) noexcept {
+                  bool ccf, ProcessedNodes* nodes)  {
   if constexpr (std::is_same_v<T, mef::HouseEvent>) {
     (void)ccf;
     (void)nodes;
@@ -568,6 +580,12 @@ void Pdag::AddArg(const GatePtr& parent, const T& event, bool complement,
     GatePtr& pdag_gate = nodes->gates.find(&event)->second;
     if (!pdag_gate) {
       pdag_gate = ConstructGate(event.formula(), ccf, nodes);
+    }
+
+    if (Pdag::watched_gates_ && Pdag::watched_gates_->contains(&event)) {
+      if (!pdag_gate->mef_origin_ptr()) {
+          pdag_gate->mef_origin_ptr(&event);
+      }
     }
     parent->AddArg(pdag_gate, complement);
 
@@ -587,7 +605,7 @@ void Pdag::AddArg(const GatePtr& parent, const T& event, bool complement,
 void Pdag::AddArg(
     const GatePtr& parent,
     const std::variant<mef::Gate*, mef::BasicEvent*, mef::HouseEvent*>& event,
-    bool complement, bool ccf, ProcessedNodes* nodes) noexcept {
+    bool complement, bool ccf, ProcessedNodes* nodes)  {
   std::visit(
       [&](const auto* arg_event) {
         AddArg(parent, *arg_event, complement, ccf, nodes);
@@ -596,7 +614,7 @@ void Pdag::AddArg(
 }
 
 GatePtr Pdag::ConstructGate(const mef::Formula& formula, bool ccf,
-                            ProcessedNodes* nodes) noexcept {
+                            ProcessedNodes* nodes)  {
   static_assert(kNumConnectives == 8, "Unspecified formula connectives.");
   static_assert(kNumConnectives < mef::kNumConnectives,
                 "MEF and Core connective mismatch.");
@@ -638,7 +656,7 @@ GatePtr Pdag::ConstructGate(const mef::Formula& formula, bool ccf,
 }
 
 GatePtr Pdag::ConstructComplexGate(const mef::Formula& formula, bool ccf,
-                                   ProcessedNodes* nodes) noexcept {
+                                   ProcessedNodes* nodes)  {
   assert(formula.connective() >= kNumConnectives);
   coherent_ = false;
   switch (formula.connective()) {
@@ -665,7 +683,7 @@ GatePtr Pdag::ConstructComplexGate(const mef::Formula& formula, bool ccf,
       return parent;
     }
     case mef::kCardinality: {
-      assert(formula.args().size() >= *formula.max_number());
+      assert(static_cast<int>(formula.args().size()) >= *formula.max_number());
       assert(*formula.min_number() <= *formula.max_number());
       normal_ = false;
       auto parent = std::make_shared<Gate>(kAnd, this);
@@ -683,7 +701,7 @@ GatePtr Pdag::ConstructComplexGate(const mef::Formula& formula, bool ccf,
           atleast->MakeConstant(true);
         } else if (atleast->min_number() == 1) {
           atleast->type(kOr);
-        } else if (atleast->min_number() == atleast->args().size()) {
+        } else if (atleast->min_number() == static_cast<int>(atleast->args().size())) {
           atleast->type(kAnd);
         }
       };
@@ -701,7 +719,7 @@ GatePtr Pdag::ConstructComplexGate(const mef::Formula& formula, bool ccf,
 }
 
 GatePtr Pdag::ConstructSubstitution(const mef::Substitution& substitution,
-                                    bool ccf, ProcessedNodes* nodes) noexcept {
+                                    bool ccf, ProcessedNodes* nodes)  {
   assert(substitution.declarative() && "Only declarative substitutions.");
   auto implication = std::make_shared<Gate>(kOr, this);
   implication->AddArg(ConstructGate(substitution.hypothesis(), ccf, nodes),
@@ -716,7 +734,7 @@ GatePtr Pdag::ConstructSubstitution(const mef::Substitution& substitution,
 }
 
 void Pdag::CollectSubstitution(const mef::Substitution& substitution,
-                               ProcessedNodes* nodes) noexcept {
+                               ProcessedNodes* nodes)  {
   assert(!substitution.declarative() && "Only non-declarative substitutions.");
   int target = [&substitution, &nodes] {
     if (auto* event = std::get_if<mef::BasicEvent*>(&substitution.target()))
@@ -758,7 +776,7 @@ void Pdag::CollectSubstitution(const mef::Substitution& substitution,
   }
 }
 
-bool Pdag::IsTrivial() noexcept {
+bool Pdag::IsTrivial()  {
   assert(root_.use_count() == 1 && "Graph gate pointers outside of the graph!");
   /// @todo Enable the code by decoupling the order assignment!
   /* if (std::as_const(*this).IsTrivial()) */
@@ -794,7 +812,7 @@ bool Pdag::IsTrivial() noexcept {
   return true;
 }
 
-void Pdag::RemoveNullGates() noexcept {
+void Pdag::RemoveNullGates()  {
   BLOG(DEBUG5, HasConstants()) << "Got CONST gates to clear!";
   BLOG(DEBUG5, HasNullGates()) << "Got NULL gates to clear!";
   Clear<kGateMark>();  // New gates may get created without marks!
@@ -810,7 +828,7 @@ void Pdag::RemoveNullGates() noexcept {
   assert(root()->type() == kNull || !HasNullGates());
 }
 
-void Pdag::PropagateNullGate(const GatePtr& gate) noexcept {
+void Pdag::PropagateNullGate(const GatePtr& gate)  {
   assert(gate->type() == kNull);
   while (!gate->parents().empty()) {
     GatePtr parent = gate->parents().begin()->second.lock();
@@ -830,14 +848,14 @@ struct GraphLogger {
   /// because it doesn't have parents.
   ///
   /// @param[in] gate  The root gate of the PDAG.
-  explicit GraphLogger(const GatePtr& gate) noexcept {
+  explicit GraphLogger(const GatePtr& gate)  {
     gates.insert(gate->index());
   }
 
   /// Traverses a PDAG to collect information.
   ///
   /// @param[in] gate  The starting gate for traversal.
-  void GatherInformation(const GatePtr& gate) noexcept {
+  void GatherInformation(const GatePtr& gate)  {
     TraverseGates(gate, [this](const GatePtr& node) { Log(node); });
   }
 
@@ -846,7 +864,7 @@ struct GraphLogger {
   /// @param[in] gate  Valid gate with arguments.
   ///
   /// @pre The gate has not been passed before.
-  void Log(const GatePtr& gate) noexcept {
+  void Log(const GatePtr& gate)  {
     ++gate_types[gate->type()];
     if (gate->module())
       ++num_modules;
@@ -859,7 +877,7 @@ struct GraphLogger {
   /// @param[in] container  Collection of indices of elements.
   ///
   /// @returns The total number of unique elements.
-  int Count(const std::unordered_set<int>& container) noexcept {
+  int Count(const std::unordered_set<int>& container)  {
     return boost::count_if(container, [&container](int index) {
       return index > 0 || !container.count(-index);
     });
@@ -868,14 +886,14 @@ struct GraphLogger {
   /// @param[in] container  Collection of indices of elements.
   ///
   /// @returns The total number of complement elements.
-  int CountComplements(const std::unordered_set<int>& container) noexcept {
+  int CountComplements(const std::unordered_set<int>& container)  {
     return boost::count_if(container, [](int index) { return index < 0; });
   }
 
   /// @param[in] container  Collection of indices of elements.
   ///
   /// @returns The number of literals appearing as positive and negative.
-  int CountOverlap(const std::unordered_set<int>& container) noexcept {
+  int CountOverlap(const std::unordered_set<int>& container)  {
     return boost::count_if(container, [&container](int index) {
       return index < 0 && container.count(-index);
     });
@@ -889,7 +907,7 @@ struct GraphLogger {
 
 }  // namespace
 
-void Pdag::Log() noexcept {
+void Pdag::Log()  {
   if (DEBUG4 > scram::Logger::report_level())
     return;
   Clear<kGateMark>();

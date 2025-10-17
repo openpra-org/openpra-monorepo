@@ -33,6 +33,17 @@ module.exports = composePlugins(withNx(), (config) => {
   };
 
   /**
+   * Mark scram-node as external to prevent webpack from trying to bundle the native addon.
+   * Native addons must be loaded at runtime, not bundled.
+   */
+  config.externals = config.externals || [];
+  if (Array.isArray(config.externals)) {
+    config.externals.push('scram-node');
+  } else {
+    config.externals = ['scram-node', config.externals];
+  }
+
+  /**
    * Add rule for .node files.
    * This allows webpack to properly handle native Node.js addons.
    */
@@ -50,6 +61,26 @@ module.exports = composePlugins(withNx(), (config) => {
         { from: "./node_modules/swagger-ui-dist/swagger-ui-standalone-preset.js", to: "." },
         { from: "./node_modules/swagger-ui-dist/favicon-16x16.png", to: "." },
         { from: "./node_modules/swagger-ui-dist/favicon-32x32.png", to: "." },
+        // Copy scram-node package to node_modules in dist
+        { 
+          from: "../../../packages/engine/scram-node", 
+          to: "node_modules/scram-node",
+          globOptions: {
+            ignore: [
+              '**/build/_deps/**',
+              '**/build/CMakeFiles/**',
+              '**/build/cmake_install.cmake',
+              '**/build/CMakeCache.txt',
+              '**/build/Makefile',
+              '**/src/**',
+              '**/tests/**',
+              '**/cmake/**',
+              '**/targets/**',
+              '**/*.md',
+              '**/.git*',
+            ]
+          }
+        },
       ],
     }),
   );

@@ -37,7 +37,7 @@ Mocus::Mocus(const Pdag* graph, const Settings& settings)
   assert(!graph->complement() && "Complements must be propagated.");
 }
 
-void Mocus::Analyze(const Pdag*) noexcept {
+void Mocus::Analyze(const Pdag*)  {
   if (graph_->IsTrivial()) {
     LOG(DEBUG2) << "The PDAG is trivial!";
     zbdd_ = std::make_unique<Zbdd>(graph_, kSettings_);
@@ -51,7 +51,7 @@ void Mocus::Analyze(const Pdag*) noexcept {
 }
 
 std::unique_ptr<zbdd::CutSetContainer>
-Mocus::AnalyzeModule(const Gate& gate, const Settings& settings) noexcept {
+Mocus::AnalyzeModule(const Gate& gate, const Settings& settings)  {
   assert(gate.module() && "Expected only module gates.");
   CLOCK(gen_time);
   LOG(DEBUG3) << "Finding cut sets from module: G" << gate.index();
@@ -62,10 +62,8 @@ Mocus::AnalyzeModule(const Gate& gate, const Settings& settings) noexcept {
       gates.emplace(arg.first, &arg.second);
   };
   add_gates(gate.args<Gate>());
-  const int kMaxVariableIndex =
-      Pdag::kVariableStartIndex + graph_->basic_events().size() - 1;
-  auto container = std::make_unique<zbdd::CutSetContainer>(
-      kSettings_, gate.index(), kMaxVariableIndex);
+  const int kMaxVariableIndex = Pdag::kVariableStartIndex + graph_->basic_events().size() - 1;
+  auto container = std::make_unique<zbdd::CutSetContainer>(kSettings_, gate.index(), kMaxVariableIndex);
   container->Merge(container->ConvertGate(gate));
   while (int next_gate_index = container->GetNextGate()) {
     LOG(DEBUG5) << "Expanding gate G" << next_gate_index;
@@ -98,8 +96,7 @@ Mocus::AnalyzeModule(const Gate& gate, const Settings& settings) noexcept {
     }
     Settings adjusted(settings);
     adjusted.limit_order(limit);
-    container->JoinModule(index,
-                          AnalyzeModule(*gates.find(index)->second, adjusted));
+    container->JoinModule(index,AnalyzeModule(*gates.find(index)->second, adjusted));
   }
   container->EliminateConstantModules();
   container->Minimize();

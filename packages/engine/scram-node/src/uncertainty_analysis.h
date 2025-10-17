@@ -28,6 +28,7 @@
 #include "analysis.h"
 #include "probability_analysis.h"
 #include "settings.h"
+#include "mc/stats/tally_node.h"
 
 namespace scram::mef {  // Decouple from the implementation dependence.
 class Expression;
@@ -47,12 +48,23 @@ class UncertaintyAnalysis : public Analysis {
   /// @param[in] prob_analysis  Completed probability analysis.
   explicit UncertaintyAnalysis(const ProbabilityAnalysis* prob_analysis);
 
+  /// Constructs uncertainty analysis statistics directly from a Monte-Carlo tally.
+  ///
+  /// This overload is used when the Monte-Carlo simulation has already been
+  /// performed elsewhere (e.g. on the GPU) and the results are summarized in a
+  /// `scram::mc::stats::TallyNode`. Only a subset of the usual statistics are
+  /// populated because this flavor of the object is intended solely for
+  /// reporting / logging – no sampling functionality will be invoked.
+  ///
+  /// @param[in] tally_node  Pre-computed tally statistics gathered during the MC run.
+  explicit UncertaintyAnalysis(const mc::stats::tally& tally);
+
   virtual ~UncertaintyAnalysis() = default;
 
   /// Performs quantitative analysis on the total probability.
   ///
   /// @note  Undefined behavior if analysis called two or more times.
-  void Analyze() noexcept;
+  void Analyze() ;
 
   /// @returns Mean of the final distribution.
   double mean() const { return mean_; }
@@ -83,7 +95,7 @@ class UncertaintyAnalysis : public Analysis {
   ///
   /// @returns The gathered deviate expressions with variable indices.
   std::vector<std::pair<int, mef::Expression&>>
-  GatherDeviateExpressions(const Pdag* graph) noexcept;
+  GatherDeviateExpressions(const Pdag* graph) ;
 
   /// Samples uncertain probabilities.
   ///
@@ -91,20 +103,20 @@ class UncertaintyAnalysis : public Analysis {
   /// @param[in,out] p_vars  Indices to probabilities mapping with values.
   void SampleExpressions(
       const std::vector<std::pair<int, mef::Expression&>>& deviate_expressions,
-      Pdag::IndexMap<double>* p_vars) noexcept;
+      Pdag::IndexMap<double>* p_vars) ;
 
  private:
   /// Performs Monte Carlo Simulation
-  /// by sampling the probability distributions
-  /// and providing the final sampled values of the final probability.
-  ///
-  /// @returns Sampled values.
-  virtual std::vector<double> Sample() noexcept = 0;
+   /// by sampling the probability distributions
+   /// and providing the final sampled values of the final probability.
+   ///
+   /// @returns Sampled values.
+   virtual std::vector<double> Sample() { return{}; };
 
   /// Calculates statistical values from the final distribution.
   ///
   /// @param[in] samples  Gathered samples for statistical analysis.
-  void CalculateStatistics(const std::vector<double>& samples) noexcept;
+  void CalculateStatistics(const std::vector<double>& samples) ;
 
   double mean_;  ///< The mean of the final distribution.
   double sigma_;  ///< The standard deviation of the final distribution.
@@ -133,14 +145,14 @@ class UncertaintyAnalyzer : public UncertaintyAnalysis {
 
  private:
   /// @returns Samples of the total probability.
-  std::vector<double> Sample() noexcept override;
+  std::vector<double> Sample()  override;
 
   /// Calculator of the total probability.
   ProbabilityAnalyzer<Calculator>* prob_analyzer_;
 };
 
 template <class Calculator>
-std::vector<double> UncertaintyAnalyzer<Calculator>::Sample() noexcept {
+std::vector<double> UncertaintyAnalyzer<Calculator>::Sample()  {
   std::vector<std::pair<int, mef::Expression&>> deviate_expressions =
       UncertaintyAnalysis::GatherDeviateExpressions(prob_analyzer_->graph());
   Pdag::IndexMap<double> p_vars = prob_analyzer_->p_vars();  // Private copy!

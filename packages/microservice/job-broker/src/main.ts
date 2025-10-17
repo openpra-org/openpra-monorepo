@@ -6,6 +6,21 @@ import { json, urlencoded } from "express";
 import { HttpExceptionFilter } from "./http-exception.filter";
 import { JobBrokerModule } from "./job-broker.module";
 
+// Setup global error handlers to prevent process crashes
+const logger = new Logger('ProcessErrorHandler');
+
+process.on('uncaughtException', (error: Error) => {
+  logger.error('Uncaught Exception detected:', error);
+  logger.error('Stack trace:', error.stack);
+  // Don't exit - let the consumer continue running
+});
+
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  logger.error('Unhandled Rejection detected at:', promise);
+  logger.error('Rejection reason:', reason);
+  // Don't exit - let the consumer continue running
+});
+
 /**
  * Asynchronously bootstraps the application.
  *

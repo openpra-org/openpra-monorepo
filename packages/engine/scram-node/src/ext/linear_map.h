@@ -158,7 +158,7 @@ class linear_map {
   /// @}
 
   /// Friend swap definition for convenience sake.
-  friend void swap(linear_map& lhs, linear_map& rhs) noexcept { lhs.swap(rhs); }
+  friend void swap(linear_map& lhs, linear_map& rhs)  { lhs.swap(rhs); }
 
  public:
   /// Public typedefs.
@@ -350,7 +350,7 @@ class linear_map {
   /// Swaps data with another linear map.
   ///
   /// @param[in] other  Another linear map.
-  void swap(linear_map& other) noexcept { map_.swap(other.map_); }
+  void swap(linear_map& other)  { map_.swap(other.map_); }
 
   /// @returns The number of entries in the map.
   size_type size() const { return map_.size(); }
@@ -359,7 +359,7 @@ class linear_map {
   bool empty() const { return map_.empty(); }
 
   /// Erases all entries in the map.
-  void clear() noexcept { map_.clear(); }
+  void clear()  { map_.clear(); }
 
   /// Prepares the linear map for a specified number of entries.
   ///

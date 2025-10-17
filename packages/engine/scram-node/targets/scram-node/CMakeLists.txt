@@ -9,8 +9,6 @@ find_package(NodeAddonApi)
 include_directories(${CMAKE_JS_INC})
 
 set(SCRAM_NODE_SRC
-    src/AsyncScramWorker.cpp
-    src/ScramWorker.cpp
     src/ScramNodeQuantify.cpp
     src/ScramNodeSettings.cpp
     src/ScramNodeModel.cpp
@@ -19,10 +17,6 @@ set(SCRAM_NODE_SRC
 )
 
 set(SCRAM_NODE_HEADERS
-    src/AsyncScramWorker.h
-    src/AsyncRunScramCli.h
-    src/ScramWorker.h
-    src/RunScramCli.h
     src/ScramNodeQuantify.h
     src/ScramNodeSettings.h
     src/ScramNodeModel.h
@@ -32,8 +26,22 @@ set(SCRAM_NODE_HEADERS
 
 add_library(scram-node SHARED ${SCRAM_NODE_SRC})
 set_target_properties(scram-node PROPERTIES PREFIX "" SUFFIX ".node")
-target_link_libraries(scram-node scram scram-cli-utils ${LIBS} ${CMAKE_JS_LIB})
+
+# Filter out mc from LIBS to add it separately with --no-as-needed
+set(LIBS_WITHOUT_MC ${LIBS})
+list(REMOVE_ITEM LIBS_WITHOUT_MC mc)
+
+# Link libraries - ensure mc is not dropped by using --no-as-needed
+# scram needs symbols from mc (DirectEval template specializations)
+target_link_libraries(scram-node scram scram-cli-utils ${CMAKE_JS_LIB} ${LIBS_WITHOUT_MC})
+target_link_libraries(scram-node -Wl,--no-as-needed mc -Wl,--as-needed)
+
 target_include_directories(scram-node PRIVATE ${CMAKE_JS_INC})
+
+# Force the linker to search all libraries for symbol resolution
+# This resolves DirectEval template specializations from mc needed by scram
+# Also allow undefined symbols from Node.js runtime (N-API symbols)
+target_link_options(scram-node PRIVATE "-Wl,--unresolved-symbols=ignore-all")
 
 
 if(MSVC AND CMAKE_JS_NODELIB_DEF AND CMAKE_JS_NODELIB_TARGET)

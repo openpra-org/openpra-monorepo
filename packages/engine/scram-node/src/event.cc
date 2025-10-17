@@ -33,6 +33,13 @@ namespace scram::mef {
 
 Event::~Event() = default;
 
+BasicEvent::~BasicEvent() = default;
+
+void BasicEvent::ccf_gate(std::unique_ptr<Gate> gate) {
+  assert(!ccf_gate_);
+  ccf_gate_ = std::move(gate);
+}
+
 HouseEvent HouseEvent::kTrue = []() {
   HouseEvent house_event("__true__");
   house_event.state(true);

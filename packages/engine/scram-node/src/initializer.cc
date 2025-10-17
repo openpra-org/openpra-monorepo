@@ -28,6 +28,7 @@
 #include <boost/exception/errinfo_at_line.hpp>
 #include <boost/exception/errinfo_file_name.hpp>
 #include <boost/filesystem.hpp>
+#include <boost/regex.hpp>
 #include <boost/range/adaptor/filtered.hpp>
 #include <boost/range/adaptor/indirected.hpp>
 #include <boost/range/algorithm.hpp>
@@ -166,14 +167,91 @@ Initializer::Initializer(const std::vector<std::string>& xml_files,
   ProcessInputFiles(xml_files);
 }
 
-void Initializer::CheckFileExistence(
-    const std::vector<std::string>& xml_files) {
-  for (auto& xml_file : xml_files) {
-    if (boost::filesystem::exists(xml_file) == false) {
-      SCRAM_THROW(IOError("Input file doesn't exist."))
-          << boost::errinfo_file_name(xml_file);
+std::string Initializer::GlobToRegex(const std::string& glob) {
+    std::string regex;
+    regex.reserve(glob.size() * 2); // Reserve enough space to avoid reallocations
+    regex += '^'; // Match the start of the string
+    for (char c : glob) {
+        switch (c) {
+            case '*':
+                regex += ".*";
+            break;
+            case '?':
+                regex += '.';
+            break;
+            case '.':
+                regex += "\\.";
+            break;
+            case '\\':
+                regex += "\\\\";
+            break;
+            default:
+                if (std::ispunct(static_cast<unsigned char>(c))) {
+                    regex += '\\';
+                }
+            regex += c;
+            break;
+        }
     }
-  }
+    regex += '$'; // Match the end of the string
+    return regex;
+}
+
+std::vector<std::string> Initializer::ExpandWildcards(const std::vector<std::string>& xml_files) {
+    namespace fs = boost::filesystem;
+    std::vector<std::string> expanded_files;
+
+    for (const auto& path_str : xml_files) {
+        // Check if the path contains wildcard characters
+        if (path_str.find('*') != std::string::npos || path_str.find('?') != std::string::npos) {
+            fs::path path(path_str);
+            fs::path dir = path.parent_path();
+            std::string pattern = path.filename().string();
+
+            // If directory is empty, use current directory
+            if (dir.empty()) {
+                dir = fs::current_path();
+            }
+
+            // Convert glob pattern to regex
+            std::string regex_pattern = GlobToRegex(pattern);
+
+            // Create regex object
+            boost::regex re(regex_pattern);
+
+            // Iterate over directory entries
+            try {
+                for (const auto& entry : fs::directory_iterator(dir)) {
+                    const fs::path& entry_path = entry.path();
+                    std::string filename = entry_path.filename().string();
+                    if (boost::regex_match(filename, re)) {
+                        expanded_files.push_back(entry_path.string());
+                    }
+                }
+            } catch (const fs::filesystem_error& e) {
+                // Handle errors, such as directory not existing
+                throw IOError("Error accessing directory") << boost::errinfo_file_name(dir.string());
+            }
+        } else {
+            // No wildcards; add the path as is
+            expanded_files.push_back(path_str);
+        }
+    }
+
+    if (expanded_files.empty()) {
+        throw IOError("No files match the provided wildcard patterns.");
+    }
+
+    return expanded_files;
+}
+
+void Initializer::CheckFileExistence(const std::vector<std::string> &xml_files) {
+    for (auto &xml_file: xml_files) {
+        if (boost::filesystem::exists(xml_file) == false) {
+            SCRAM_THROW(IOError("Input file doesn't exist."))
+                    << boost::errinfo_file_name(xml_file);
+        }
+    }
 }
 
 void Initializer::CheckDuplicateFiles(
@@ -190,13 +268,16 @@ void Initializer::CheckDuplicateFiles(
 }
 
 void Initializer::ProcessInputFiles(const std::vector<std::string>& xml_files) {
-  static xml::Validator validator(env::input_schema());
+  // Expand wildcards before proceeding
+  std::vector<std::string> expanded_files = ExpandWildcards(xml_files);
+
+  static xml::Validator validator = xml::Validator::from_memory(env::input_schema());
 
   CLOCK(input_time);
   LOG(DEBUG1) << "Processing input files";
-  CheckFileExistence(xml_files);
-  CheckDuplicateFiles(xml_files);
-  for (const auto& xml_file : xml_files) {
+  CheckFileExistence(expanded_files);
+  CheckDuplicateFiles(expanded_files);
+  for (const auto& xml_file : expanded_files) {
     CLOCK(parse_time);
     LOG(DEBUG3) << "Parsing " << xml_file << " ...";
     xml::Document document(xml_file, &validator);
@@ -1426,7 +1507,7 @@ const int kNumInterfaces = 126;  ///< All possible interfaces.
 ///
 /// @pre The number of parameters is less than log_base(max int).
 template <class SinglePassRange>
-int Encode(const SinglePassRange& args) noexcept {
+int Encode(const SinglePassRange& args)  {
   assert(!args.empty());
   auto to_digit = [](const xml::Element& node) -> int {
     std::string_view name = node.name();
@@ -1450,7 +1531,7 @@ int Encode(const SinglePassRange& args) noexcept {
 
 /// Encodes function parameter types at compile-time.
 template <typename T, typename... Ts>
-constexpr int Encode(int base_power = 1) noexcept {
+constexpr int Encode(int base_power = 1)  {
   if constexpr (sizeof...(Ts)) {
     return Encode<T>(base_power) + Encode<Ts...>(base_power * kExternTypeBase);
 

@@ -204,7 +204,7 @@ class StreamElement {
   ///          It can happen if the destructor is called explicitly,
   ///          or if the objects are allocated on the heap
   ///          with different lifetimes.
-  ~StreamElement() noexcept {
+  ~StreamElement()  {
     assert(active_ && "The child element may still be alive.");
     assert(!(parent_ && parent_->active_) && "The parent must be inactive.");
     if (parent_)

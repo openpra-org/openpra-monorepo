@@ -33,7 +33,7 @@ namespace scram::core {
 ImportanceAnalysis::ImportanceAnalysis(const ProbabilityAnalysis* prob_analysis)
     : Analysis(prob_analysis->settings()) {}
 
-void ImportanceAnalysis::Analyze() noexcept {
+void ImportanceAnalysis::Analyze()  {
   CLOCK(imp_time);
   LOG(DEBUG3) << "Calculating importance factors...";
   double p_total = this->p_total();
@@ -62,7 +62,7 @@ void ImportanceAnalysis::Analyze() noexcept {
   Analysis::AddAnalysisTime(DUR(imp_time));
 }
 
-std::vector<int> ImportanceAnalyzerBase::occurrences() noexcept {
+std::vector<int> ImportanceAnalyzerBase::occurrences()  {
   Pdag::IndexMap<int> result(prob_analyzer_->graph()->basic_events().size());
   for (const std::vector<int>& product : prob_analyzer_->products()) {
     for (int index : product)
@@ -71,7 +71,7 @@ std::vector<int> ImportanceAnalyzerBase::occurrences() noexcept {
   return result;
 }
 
-double ImportanceAnalyzer<Bdd>::CalculateMif(int index) noexcept {
+double ImportanceAnalyzer<Bdd>::CalculateMif(int index)  {
   index += Pdag::kVariableStartIndex;
   const Bdd::VertexPtr& root = bdd_graph_->root().vertex;
   if (root->terminal())
@@ -85,7 +85,7 @@ double ImportanceAnalyzer<Bdd>::CalculateMif(int index) noexcept {
 }
 
 double ImportanceAnalyzer<Bdd>::CalculateMif(const Bdd::VertexPtr& vertex,
-                                             int order, bool mark) noexcept {
+                                             int order, bool mark)  {
   if (vertex->terminal())
     return 0;
   Ite& ite = Ite::Ref(vertex);
@@ -139,7 +139,7 @@ double ImportanceAnalyzer<Bdd>::CalculateMif(const Bdd::VertexPtr& vertex,
 }
 
 double ImportanceAnalyzer<Bdd>::RetrieveProbability(
-    const Bdd::VertexPtr& vertex) noexcept {
+    const Bdd::VertexPtr& vertex)  {
   if (vertex->terminal())
     return 1;
   return Ite::Ref(vertex).p();

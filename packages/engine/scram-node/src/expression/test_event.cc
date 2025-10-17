@@ -25,11 +25,11 @@
 
 namespace scram::mef {
 
-double TestInitiatingEvent::value() noexcept {
+double TestInitiatingEvent::value()  {
   return context_.initiating_event == name_;
 }
 
-double TestFunctionalEvent::value() noexcept {
+double TestFunctionalEvent::value()  {
   if (auto it = ext::find(context_.functional_events, name_))
     return it->second == state_;
   return false;

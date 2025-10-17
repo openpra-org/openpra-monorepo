@@ -66,3 +66,7 @@ lerna-debug.log*
 **/coverage/**/*
 /packages/frontend/web-editor/e2e/.auth/
 #/fixtures/
+
+# Don't addd test input and output folders
+packages/engine/scram-node/tests/input
+packages/engine/scram-node/tests/output

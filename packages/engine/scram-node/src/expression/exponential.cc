@@ -67,7 +67,7 @@ void Exponential::Validate() const {
   EnsureNonNegative(&time_, "mission time");
 }
 
-double Exponential::Compute(double lambda, double time) noexcept {
+double Exponential::Compute(double lambda, double time)  {
   return p_exp(lambda, time);
 }
 
@@ -86,7 +86,7 @@ void Glm::Validate() const {
 }
 
 double Glm::Compute(double gamma, double lambda, double mu,
-                    double time) noexcept {
+                    double time)  {
   double r = lambda + mu;
   return (lambda - (lambda - gamma * r) * std::exp(-r * time)) / r;
 }
@@ -107,7 +107,7 @@ void Weibull::Validate() const {
 }
 
 double Weibull::Compute(double alpha, double beta, double t0,
-                        double time) noexcept {
+                        double time)  {
   return time <= t0 ? 0 : 1 - std::exp(-std::pow((time - t0) / alpha, beta));
 }
 
@@ -162,7 +162,7 @@ void PeriodicTest::Complete::Validate() const {
 
 double PeriodicTest::InstantRepair::Compute(double lambda, double tau,
                                             double theta,
-                                            double time) noexcept {
+                                            double time)  {
   if (time <= theta)  // No test has been performed.
     return p_exp(lambda, time);
   double delta = time - theta;
@@ -170,17 +170,17 @@ double PeriodicTest::InstantRepair::Compute(double lambda, double tau,
   return p_exp(lambda, time_after_test ? time_after_test : tau);
 }
 
-double PeriodicTest::InstantRepair::value() noexcept {
+double PeriodicTest::InstantRepair::value()  {
   return Compute(lambda_.value(), tau_.value(), theta_.value(), time_.value());
 }
 
-double PeriodicTest::InstantRepair::Sample() noexcept {
+double PeriodicTest::InstantRepair::Sample()  {
   return Compute(lambda_.Sample(), tau_.Sample(), theta_.Sample(),
                  time_.Sample());
 }
 
 double PeriodicTest::InstantTest::Compute(double lambda, double mu, double tau,
-                                          double theta, double time) noexcept {
+                                          double theta, double time)  {
   if (time <= theta)  // No test has been performed.
     return p_exp(lambda, time);
 
@@ -207,12 +207,12 @@ double PeriodicTest::InstantTest::Compute(double lambda, double mu, double tau,
                   time_after_test);
 }
 
-double PeriodicTest::InstantTest::value() noexcept {
+double PeriodicTest::InstantTest::value()  {
   return Compute(lambda_.value(), mu_.value(), tau_.value(), theta_.value(),
                  time_.value());
 }
 
-double PeriodicTest::InstantTest::Sample() noexcept {
+double PeriodicTest::InstantTest::Sample()  {
   return Compute(lambda_.Sample(), mu_.Sample(), tau_.Sample(), theta_.Sample(),
                  time_.Sample());
 }
@@ -221,7 +221,7 @@ double PeriodicTest::Complete::Compute(double lambda, double lambda_test,
                                        double mu, double tau, double theta,
                                        double gamma, double test_duration,
                                        bool available_at_test, double sigma,
-                                       double omega, double time) noexcept {
+                                       double omega, double time)  {
   if (time <= theta)  // No test has been performed.
     return p_exp(lambda, time);
 
@@ -290,14 +290,14 @@ double PeriodicTest::Complete::Compute(double lambda, double lambda_test,
   return 1 - p_available;
 }
 
-double PeriodicTest::Complete::value() noexcept {
+double PeriodicTest::Complete::value()  {
   return Compute(lambda_.value(), lambda_test_.value(), mu_.value(),
                  tau_.value(), theta_.value(), gamma_.value(),
                  test_duration_.value(), available_at_test_.value(),
                  sigma_.value(), omega_.value(), time_.value());
 }
 
-double PeriodicTest::Complete::Sample() noexcept {
+double PeriodicTest::Complete::Sample()  {
   return Compute(lambda_.Sample(), lambda_test_.Sample(), mu_.Sample(),
                  tau_.Sample(), theta_.Sample(), gamma_.Sample(),
                  test_duration_.Sample(), available_at_test_.Sample(),

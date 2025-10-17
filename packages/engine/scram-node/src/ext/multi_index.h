@@ -18,10 +18,9 @@
 
 /// @file
 /// Helper functions to boost multi_index_container.
+#pragma once
 
 #include <boost/multi_index_container.hpp>
-
-#pragma once
 
 namespace ext {
 
@@ -41,7 +40,7 @@ namespace ext {
 ///       by modifying the value outside of the container.
 template <typename T, typename... Ts>
 T extract(typename boost::multi_index_container<T, Ts...>::iterator it,
-          boost::multi_index_container<T, Ts...>* container) noexcept {
+          boost::multi_index_container<T, Ts...>* container)  {
   assert(it != container->end());
   T result = std::move(const_cast<T&>(*it));  // Theft, contract-violation.
   container->erase(it);  // Requires valid iterator but not value.
@@ -51,7 +50,7 @@ T extract(typename boost::multi_index_container<T, Ts...>::iterator it,
 /// The same extraction but with an existing key-value.
 template <typename T, typename... Ts>
 T extract(const typename boost::multi_index_container<T, Ts...>::key_type& key,
-          boost::multi_index_container<T, Ts...>* container) noexcept {
+          boost::multi_index_container<T, Ts...>* container)  {
   return extract(container->find(key), container);
 }
 

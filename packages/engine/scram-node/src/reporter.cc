@@ -86,9 +86,14 @@ void Reporter::Report(const core::RiskAnalysis& risk_an, std::FILE* out,
   }
 
   for (const core::RiskAnalysis::Result& result : risk_an.results()) {
-    if (result.fault_tree_analysis)
-      ReportResults(result.id, *result.fault_tree_analysis,
-                    result.probability_analysis.get(), &results);
+    if (result.fault_tree_analysis) {
+        if (result.fault_tree_analysis->settings().skip_products()) {
+
+        } else {
+            ReportResults(result.id, *result.fault_tree_analysis,result.probability_analysis.get(), &results);
+        }
+    }
+
 
     if (result.probability_analysis)
       ReportResults(result.id, *result.probability_analysis, &results);
@@ -138,6 +143,10 @@ void Reporter::ReportCalculatedQuantity<core::FaultTreeAnalysis>(
         break;
       case core::Algorithm::kMocus:
         methods.SetAttribute("name", "MOCUS");
+        break;
+      case core::Algorithm::kDirect:
+          methods.SetAttribute("name", "Direct Evaluation");
+        break;
     }
     methods.AddChild("limits")
         .AddChild("product-order")
@@ -174,6 +183,10 @@ void Reporter::ReportCalculatedQuantity<core::ProbabilityAnalysis>(
       break;
     case core::Approximation::kMcub:
       methods.SetAttribute("name", "MCUB Approximation");
+      break;
+    case core::Approximation::kMonteCarlo:
+      methods.SetAttribute("name", "Direct Monte-Carlo Sampler");
+      break;
   }
   xml::StreamElement limits = methods.AddChild("limits");
   limits.AddChild("mission-time").AddText(settings.mission_time());
@@ -269,7 +282,7 @@ void Reporter::ReportSoftwareInformation(xml::StreamElement* information) {
   information->AddChild("software")
       .SetAttribute("name", "SCRAM")
       .SetAttribute("version", "UNSET")
-      .SetAttribute("contacts", "https://openpra.org");
+      .SetAttribute("contacts", "");
 
   std::time_t current_time = std::time(nullptr);
   char iso_extended[20] = {};

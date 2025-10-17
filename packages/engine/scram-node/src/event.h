@@ -83,7 +83,7 @@ class BasicEvent : public Event {
 
   using Event::Event;
 
-  virtual ~BasicEvent() = default;
+  virtual ~BasicEvent();
 
   /// @returns true if the probability expression is set.
   bool HasExpression() const { return expression_ != nullptr; }
@@ -108,7 +108,7 @@ class BasicEvent : public Event {
   ///
   /// @note The user of this function should make sure
   ///       that the returned value is acceptable for calculations.
-  double p() const noexcept {
+  double p() const  {
     assert(expression_ && "The basic event's expression is not set.");
     return expression_->value();
   }
@@ -138,10 +138,7 @@ class BasicEvent : public Event {
   /// CCF group application.
   ///
   /// @param[in] gate  CCF group gate.
-  void ccf_gate(std::unique_ptr<Gate> gate) {
-    assert(!ccf_gate_);
-    ccf_gate_ = std::move(gate);
-  }
+  void ccf_gate(std::unique_ptr<Gate> gate);
 
  private:
   /// Expression that describes this basic event
@@ -372,7 +369,7 @@ using FormulaPtr = std::unique_ptr<Formula>;  ///< Convenience alias.
 
 /// Comparison of formula arguments.
 inline bool operator==(const Formula::Arg& lhs,
-                       const Formula::Arg& rhs) noexcept {
+                       const Formula::Arg& rhs)  {
   return lhs.complement == rhs.complement && lhs.event == rhs.event;
 }
 

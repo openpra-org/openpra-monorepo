@@ -29,7 +29,6 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-#include <unordered_set>
 
 #include <boost/functional/hash.hpp>
 #include <boost/noncopyable.hpp>
@@ -83,13 +82,13 @@ class WeakIntrusivePtr final : private boost::noncopyable {
 
  public:
   /// Default constructor is to allow initialization in tables.
-  WeakIntrusivePtr() noexcept : vertex_(nullptr) {}
+  WeakIntrusivePtr()  : vertex_(nullptr) {}
 
   /// Constructs from the shared pointer.
   /// However, there is no weak-to-shared constructor.
   ///
   /// @param[in] ptr  Fully initialized intrusive pointer.
-  explicit WeakIntrusivePtr(const IntrusivePtr<T>& ptr) noexcept
+  explicit WeakIntrusivePtr(const IntrusivePtr<T>& ptr)
       : vertex_(ptr.get()) {
     assert(vertex_->table_ptr_ == nullptr && "Non-unique table pointers.");
     vertex_->table_ptr_ = this;
@@ -101,14 +100,14 @@ class WeakIntrusivePtr final : private boost::noncopyable {
   /// @param[in] ptr  Fully initialized intrusive pointer.
   ///
   /// @returns Reference to this.
-  WeakIntrusivePtr& operator=(const IntrusivePtr<T>& ptr) noexcept {
+  WeakIntrusivePtr& operator=(const IntrusivePtr<T>& ptr)  {
     this->~WeakIntrusivePtr();
     new (this) WeakIntrusivePtr(ptr);
     return *this;
   }
 
   /// Communicates the pointer destruction to the vertex.
-  ~WeakIntrusivePtr() noexcept {
+  ~WeakIntrusivePtr()  {
     if (vertex_)
       vertex_->table_ptr_ = nullptr;
   }
@@ -147,7 +146,7 @@ class Vertex : private boost::noncopyable {
   /// Increases the reference count for new intrusive pointers.
   ///
   /// @param[in] ptr  Vertex pointer managed by intrusive pointers.
-  friend void intrusive_ptr_add_ref(Vertex<T>* ptr) noexcept {
+  friend void intrusive_ptr_add_ref(Vertex<T>* ptr)  {
     ptr->use_count_++;
   }
 
@@ -156,7 +155,7 @@ class Vertex : private boost::noncopyable {
   /// the object is deleted.
   ///
   /// @param[in] ptr  Vertex pointer managed by intrusive pointers.
-  friend void intrusive_ptr_release(Vertex<T>* ptr) noexcept {
+  friend void intrusive_ptr_release(Vertex<T>* ptr)  {
     assert(ptr->use_count_ > 0 && "Missing reference counts.");
     if (--ptr->use_count_ == 0) {
       if (!ptr->terminal()) {  // Likely.
@@ -190,7 +189,7 @@ class Vertex : private boost::noncopyable {
   /// Communicates the destruction
   /// via the pointer to the unique table entry
   /// if there's any.
-  ~Vertex() noexcept {
+  ~Vertex()  {
     if (table_ptr_)
       table_ptr_->vertex_ = nullptr;
   }
@@ -238,10 +237,10 @@ class NonTerminal : public Vertex<T>, public IntrusivePtrCast<T> {
   ///
   /// @returns Numbers that can be used to uniquely identify the arg vertex.
   /// @{
-  friend int get_high_id(const NonTerminal<T>& vertex) noexcept {
+  friend int get_high_id(const NonTerminal<T>& vertex)  {
     return vertex.high_->id();
   }
-  friend int get_low_id(const NonTerminal<T>& vertex) noexcept {
+  friend int get_low_id(const NonTerminal<T>& vertex)  {
     return vertex.low_->id();
   }
   /// @}
@@ -332,7 +331,7 @@ class Ite : public NonTerminal<Ite> {
   /// @param[in] ite  Ite vertex.
   ///
   /// @returns The signed number for complement low id.
-  friend int get_low_id(const Ite& ite) noexcept {
+  friend int get_low_id(const Ite& ite)  {
     return ite.complement_edge_ ? -ite.low()->id() : ite.low()->id();
   }
 
@@ -449,7 +448,7 @@ class UniqueTable {
   /// @param[in] low_id  The id of the low vertex.
   ///
   /// @returns Reference to the weak pointer.
-  WeakIntrusivePtr<T>& FindOrAdd(int index, int high_id, int low_id) noexcept {
+  WeakIntrusivePtr<T>& FindOrAdd(int index, int high_id, int low_id)  {
     if (size_ >= (max_load_factor_ * capacity_))
       Rehash(GetNextCapacity(capacity_));
 
@@ -706,7 +705,7 @@ class Bdd : private boost::noncopyable {
     void reset() { vertex = nullptr; }
 
     /// Swaps with another function.
-    void swap(Function& other) noexcept {
+    void swap(Function& other)  {
       std::swap(complement, other.complement);
       vertex.swap(other.vertex);
     }
@@ -723,7 +722,7 @@ class Bdd : private boost::noncopyable {
     /// @param[in] complement  Interpretation of the BDD vertex.
     ///
     /// @returns The consensus BDD function.
-    Function operator()(Bdd* bdd, const ItePtr& ite, bool complement) noexcept {
+    Function operator()(Bdd* bdd, const ItePtr& ite, bool complement)  {
       return bdd->CalculateConsensus(ite, complement);
     }
   };
@@ -740,7 +739,7 @@ class Bdd : private boost::noncopyable {
   Bdd(const Pdag* graph, const Settings& settings);
 
   /// To handle incomplete ZBDD type with unique pointers.
-  ~Bdd() noexcept;
+  ~Bdd() ;
 
   /// @returns The root function of the ROBDD.
   const Function& root() const { return root_; }
@@ -770,57 +769,19 @@ class Bdd : private boost::noncopyable {
   /// with the representation of a PDAG as ROBDD.
   ///
   /// @param[in] graph  The optional PDAG with non-declarative substitutions.
-  void Analyze(const Pdag* graph = nullptr) noexcept;
+  void Analyze(const Pdag* graph = nullptr) ;
 
   /// @returns Products generated by the analysis.
   ///
   /// @pre Analysis is done.
   const Zbdd& products() const {
-    if (!zbdd_) {
-      throw std::runtime_error("BDD analysis not performed - no products available");
-    }
+    assert(zbdd_ && "Analysis is not done.");
     return *zbdd_;
   }
 
  private:
   using IteWeakPtr = WeakIntrusivePtr<Ite>;  ///< Pointer in containers.
   using ComputeTable = CacheTable<Function>;  ///< Computation results.
-
-  /// Performs SIFTING variable reordering to minimize BDD size.
-  ///
-  /// @param[in] max_iterations  Maximum number of SIFTING iterations.
-  /// @param[in] growth_threshold  Threshold for BDD growth to trigger reordering.
-  void PerformSifting(int max_iterations = 10, double growth_threshold = 1.5) noexcept;
-
-  /// Swaps two adjacent variables in the variable ordering.
-  ///
-  /// @param[in] var_index  Index of the variable to swap with its successor.
-  ///
-  /// @returns The change in BDD size after swapping.
-  int SwapAdjacentVariables(int var_index) noexcept;
-
-  /// Finds the optimal position for a variable using SIFTING.
-  ///
-  /// @param[in] var_index  Index of the variable to optimize.
-  ///
-  /// @returns The best position (order) for the variable.
-  int FindOptimalPosition(int var_index) noexcept;
-
-  /// Updates the ordering after variable position changes.
-  ///
-  /// @param[in] var_index  Index of the variable that moved.
-  /// @param[in] new_order  New order for the variable.
-  void UpdateVariableOrdering(int var_index, int new_order) noexcept;
-
-  /// Triggers dynamic reordering if BDD has grown significantly.
-  void CheckAndTriggerReordering() noexcept;
-
-  /// Swaps variables in a BDD subgraph during reordering.
-  Function SwapVariablesInSubgraph(const Function& func, int var1_index, int var2_index,
-                                   std::unordered_map<ItePtr, ItePtr>* substitution_map) noexcept;
-
-  /// Gets the variable index for an ITE node.
-  int GetVariableIndex(const ItePtr& ite) noexcept;
 
   /// Finds or adds a unique if-then-else vertex in BDD.
   /// All vertices in the BDD must be created with this functions.
@@ -837,7 +798,7 @@ class Bdd : private boost::noncopyable {
   /// @pre Non-expired pointers in the unique table are
   ///      either in the BDD or in the computation table.
   ItePtr FindOrAddVertex(int index, const VertexPtr& high, const VertexPtr& low,
-                         bool complement_edge, int order) noexcept;
+                         bool complement_edge, int order) ;
 
   /// Finds or adds a replacement for an existing node
   /// or a new node based on an existing node.
@@ -851,7 +812,7 @@ class Bdd : private boost::noncopyable {
   ///
   /// @warning This function is not aware of reduction rules.
   ItePtr FindOrAddVertex(const ItePtr& ite, const VertexPtr& high,
-                         const VertexPtr& low, bool complement_edge) noexcept;
+                         const VertexPtr& low, bool complement_edge) ;
 
   /// Find or adds a BDD ITE vertex using information from gates.
   ///
@@ -866,7 +827,7 @@ class Bdd : private boost::noncopyable {
   ///
   /// @warning This function is not aware of reduction rules.
   ItePtr FindOrAddVertex(const Gate& gate, const VertexPtr& high,
-                         const VertexPtr& low, bool complement_edge) noexcept;
+                         const VertexPtr& low, bool complement_edge) ;
 
   /// Converts all gates in the PDAG
   /// into function BDD graphs.
@@ -880,7 +841,7 @@ class Bdd : private boost::noncopyable {
   /// @pre The memoization container is not used outside of this function.
   Function ConvertGraph(
       const Gate& gate,
-      std::unordered_map<int, std::pair<Function, int>>* gates) noexcept;
+      std::unordered_map<int, std::pair<Function, int>>* gates) ;
 
   /// Computes minimum and maximum ids for keys in computation tables.
   ///
@@ -897,7 +858,7 @@ class Bdd : private boost::noncopyable {
   ///      they are if-then-else vertices.
   std::pair<int, int> GetMinMaxId(const VertexPtr& arg_one,
                                   const VertexPtr& arg_two, bool complement_one,
-                                  bool complement_two) noexcept;
+                                  bool complement_two) ;
 
   /// Applies Boolean operation to BDD graphs.
   /// This is the main function for the operation.
@@ -915,7 +876,7 @@ class Bdd : private boost::noncopyable {
   /// @note The order of arguments does not matter for two variable connectives.
   template <Connective Type>
   Function Apply(const VertexPtr& arg_one, const VertexPtr& arg_two,
-                 bool complement_one, bool complement_two) noexcept;
+                 bool complement_one, bool complement_two) ;
 
   /// Applies Boolean operation to BDD ITE graphs.
   ///
@@ -929,7 +890,7 @@ class Bdd : private boost::noncopyable {
   /// @returns The BDD function as a result of operation.
   template <Connective Type>
   Function Apply(ItePtr ite_one, ItePtr ite_two, bool complement_one,
-                 bool complement_two) noexcept;
+                 bool complement_two) ;
 
   /// Applies Boolean operation to BDD graphs.
   /// This is a convenience function
@@ -948,7 +909,7 @@ class Bdd : private boost::noncopyable {
   /// @note The order of arguments does not matter for two variable connectives.
   Function Apply(Connective type, const VertexPtr& arg_one,
                  const VertexPtr& arg_two, bool complement_one,
-                 bool complement_two) noexcept;
+                 bool complement_two) ;
 
   /// Calculates consensus of high and low of an if-then-else BDD vertex.
   ///
@@ -956,7 +917,7 @@ class Bdd : private boost::noncopyable {
   /// @param[in] complement  Interpretation of the BDD vertex.
   ///
   /// @returns The consensus BDD function.
-  Function CalculateConsensus(const ItePtr& ite, bool complement) noexcept;
+  Function CalculateConsensus(const ItePtr& ite, bool complement) ;
 
   /// Counts the number of if-then-else nodes.
   ///
@@ -965,7 +926,7 @@ class Bdd : private boost::noncopyable {
   /// @returns The number of ITE nodes in the BDD.
   ///
   /// @pre Non-terminal node marks are clear (false).
-  int CountIteNodes(const VertexPtr& vertex) noexcept;
+  int CountIteNodes(const VertexPtr& vertex) ;
 
   /// Clears marks of vertices in BDD graph.
   ///
@@ -973,7 +934,7 @@ class Bdd : private boost::noncopyable {
   /// @param[in] mark  The desired mark for the vertices.
   ///
   /// @note Marks will propagate to modules as well.
-  void ClearMarks(const VertexPtr& vertex, bool mark) noexcept;
+  void ClearMarks(const VertexPtr& vertex, bool mark) ;
 
   /// Checks BDD graphs for errors in the structure.
   /// Errors are assertions that fail at runtime.
@@ -981,10 +942,10 @@ class Bdd : private boost::noncopyable {
   /// @param[in] vertex  The root vertex of BDD.
   ///
   /// @pre Non-terminal node marks are clear (false).
-  void TestStructure(const VertexPtr& vertex) noexcept;
+  void TestStructure(const VertexPtr& vertex) ;
 
   /// Clears all memoization tables.
-  void ClearTables() noexcept {
+  void ClearTables()  {
     and_table_.clear();
     or_table_.clear();
   }
@@ -993,7 +954,7 @@ class Bdd : private boost::noncopyable {
   /// Releases all possible memory from memoization and unique tables.
   ///
   /// @pre No more graph modifications after the freeze.
-  void Freeze() noexcept {
+  void Freeze()  {
     unique_table_.Release();
     ClearTables();
     and_table_.reserve(0);
@@ -1025,8 +986,6 @@ class Bdd : private boost::noncopyable {
   const TerminalPtr kOne_;  ///< Terminal True.
   int function_id_;  ///< Identification assignment for new function graphs.
   std::unique_ptr<Zbdd> zbdd_;  ///< ZBDD as a result of analysis.
-
-  bool reordering_enabled_;  ///< Flag to enable/disable dynamic reordering.
 };
 
 }  // namespace scram::core

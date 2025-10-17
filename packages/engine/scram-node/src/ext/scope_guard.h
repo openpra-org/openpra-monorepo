@@ -35,7 +35,7 @@ auto apply_impl(Fn&& fn, Args&& args, std::index_sequence<I...>) noexcept(
                      std::get<I>(std::forward<Args>(args))...);
 }
 
-// Like `std::apply` but SFINAE friendly and propagates `noexcept`ness.
+// Like `std::apply` but SFINAE friendly and propagates ``ness.
 template <class Fn, typename Args>
 auto apply(Fn&& fn, Args&& args) noexcept(noexcept(apply_impl(
     std::forward<Fn>(fn), std::forward<Args>(args),

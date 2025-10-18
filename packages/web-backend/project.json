@@ -19,7 +19,7 @@
         "assets": ["packages/web-backend/src/assets"],
         "webpackConfig": "packages/web-backend/webpack.config.js",
         "transformers": [
-          "typia/lib/transform",
+          { "name": "typia/lib/transform" },
           {
             "name": "@nestia/core/lib/transform",
             "options": {
@@ -70,9 +70,7 @@
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
-        "lintFilePatterns": [
-          "{projectRoot}/**/*.ts"
-        ]
+        "lintFilePatterns": ["{projectRoot}/**/*.ts"]
       }
     },
     "test": {

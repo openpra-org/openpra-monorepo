@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { test, expect } from "@playwright/test";
 
 test.describe("SignUp Form Tests", () => {
@@ -67,6 +69,12 @@ test.describe("SignUp Form Tests", () => {
 
     await page.getByRole("button", { name: "Sign Up" }).click();
     await expect(page.getByTestId("user-menu")).toBeVisible();
+
+    // Persist authenticated storage state for dependent projects (e.g., Admin Tests)
+    const storageDir = path.join("packages", "frontend", "web-editor", "e2e", ".auth");
+    const storageFile = path.join(storageDir, "user.json");
+    await fs.promises.mkdir(storageDir, { recursive: true });
+    await page.context().storageState({ path: storageFile });
   });
 
   test("prevents duplicate registration after logout", async ({ page }) => {

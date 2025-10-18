@@ -80,11 +80,25 @@
         "jestConfig": "packages/web-backend/jest.config.ts"
       }
     },
+    "test-local": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "MONGO_URI=\"mongodb://127.0.0.1:27017/test\" pnpm nx run web-backend:test --skip-nx-cache -- --test-timeout=60000",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "e2e": {
       "executor": "@nx/jest:jest",
       "options": {
         "jestConfig": "packages/web-backend/tests/jest-e2e.json",
         "passWithNoTests": false
+      }
+    },
+    "e2e-local": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "MONGO_URI=\"mongodb://127.0.0.1:27017/test\" pnpm nx run web-backend:e2e --skip-nx-cache -- --test-timeout=60000",
+        "cwd": "{workspaceRoot}"
       }
     }
   }

@@ -14,6 +14,10 @@ export MONGO_URI="mongodb://localhost:27017/openpra-test"
 
 # Then run tests
 pnpm nx test web-backend
+
+# Or use the convenience Nx targets (set MONGO_URI for you):
+pnpm nx run web-backend:test-local
+pnpm nx run web-backend:e2e-local
 ```
 
 Notes:

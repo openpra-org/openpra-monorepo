@@ -1,11 +1,10 @@
+/* eslint-disable tsdoc/syntax, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/naming-convention, @typescript-eslint/prefer-for-of, @typescript-eslint/no-dynamic-delete, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 import crypto from "crypto";
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import mongoose from "mongoose";
-import validator from "validator";
 import { ModelCounter, ModelCounterDocument } from "../schemas/model-counter.schema";
 import { Fmea, FmeaDocument } from "./schemas/fmea.schema";
-import isUUID = validator.isUUID;
 @Injectable()
 export class FmeaService {
   constructor(
@@ -22,7 +21,7 @@ export class FmeaService {
    * Generates an ID for the newly created user in an incremental order of 1. Initially if no model exists, the serial ID starts from 1.
    * @returns {number} ID number
    */
-  async getNextValue(name: string) {
+  async getNextValue(name: string): Promise<number> {
     const record = await this.ModelCounterModel.findByIdAndUpdate(name, { $inc: { seq: 1 } }, { new: true });
     if (!record) {
       const newCounter = new this.ModelCounterModel({ _id: name, seq: 1 });
@@ -59,7 +58,7 @@ export class FmeaService {
       rows: [],
     });
     //save the fmea to the database
-  await newfmea.save();
+    await newfmea.save();
     return newfmea;
   }
 
@@ -257,7 +256,7 @@ export class FmeaService {
    */
   async deleteColumn(fmeaId: number, column: string): Promise<Fmea | null> {
     const fmea = await this.getFmeaById(fmeaId);
-  fmea.columns = fmea.columns.filter((columnObject) => columnObject.id !== column);
+    fmea.columns = fmea.columns.filter((columnObject) => columnObject.id !== column);
     for (let i = 0; i < fmea.rows.length; i++) {
       //delete key
       delete fmea.rows[i].row_data[column];
@@ -275,9 +274,9 @@ export class FmeaService {
    */
   async deleteRow(fmeaId: number, rowId: string | number): Promise<Fmea | null> {
     //get fmea object
-  const fmea = await this.getFmeaById(fmeaId);
-  //remove the row from the rows array
-  const rows = fmea.rows.filter((row) => row.id !== String(rowId));
+    const fmea = await this.getFmeaById(fmeaId);
+    //remove the row from the rows array
+    const rows = fmea.rows.filter((row) => row.id !== String(rowId));
 
     //update the rows in the database
     return this.fmeaModel.findOneAndUpdate({ id: fmeaId }, { $set: { rows: rows } }, { new: true }).lean();
@@ -316,9 +315,7 @@ export class FmeaService {
     const fmea = await this.getFmeaById(fmeaId);
     const columns = fmea.columns;
     const columnObject = columns.find((columnObject) => columnObject.id === body.id);
-    console.log(body);
     // update the column name and type
-    console.log(columnObject, "ddd");
     columnObject.name = body.name;
     columnObject.type = body.type;
 
@@ -353,13 +350,13 @@ export class FmeaService {
     const columns = fmea.columns;
     let result;
     const column = columns.find((column) => column.id === prev_name);
-  if (column_body.name !== column.name) {
+    if (column_body.name !== column.name) {
       result = await this.updateColumnName(fmea.id, column.id, column_body.name);
     }
-  if (column_body.type !== column.type) {
+    if (column_body.type !== column.type) {
       result = await this.updateColumnType(fmea.id, column_body);
     }
-  if (column_body.type === "dropdown" && column_body.dropdownOptions !== column.dropdownOptions) {
+    if (column_body.type === "dropdown" && column_body.dropdownOptions !== column.dropdownOptions) {
       result = await this.updateDropdownOptions(fmea.id, column_body.id, column_body.dropdownOptions);
     }
     return result;

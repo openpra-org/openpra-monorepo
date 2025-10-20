@@ -114,7 +114,7 @@ export class Factors {
       throw new FactorError(`common_b not in (0, ${String(maxCommon)}].`);
     }
     if (commonG <= 0 || commonG > maxCommon) {
-      throw new FactorError(`common_g not in (0, ${String(maxCommon)}]..`);
+      throw new FactorError(`common_g not in (0, ${String(maxCommon)}].`);
     }
     const maxParent = 100; // also a practical limit
     if (parentsB < 2 || parentsB > maxParent) {

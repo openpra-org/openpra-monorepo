@@ -12,13 +12,15 @@ export class AuthService {
   ) {}
 
   /**
-   * @param {string} username
-   * @param {string} password
-   * @description
-   * 1. The Local Strategy (AuthGuard('local')) sends the User credentials to loginUser() method.
-   * 2. The loginUser() method checks if the User exists in the database using the CollabService.loginUser() method.
-   * 3. If the User exists, then the password is verified as well.
-   * @returns A mongoose document of the user | 401 HTTP status
+     * Authenticates a user by username and password.
+     *
+     * 1. The Local Strategy (AuthGuard('local')) sends the User credentials to loginUser() method.
+     * 2. The loginUser() method checks if the User exists in the database using the CollabService.loginUser() method.
+     * 3. If the User exists, then the password is verified as well.
+     *
+     * @param username - Username string
+     * @param password - Password string
+     * @returns A mongoose document of the user or throws 401 HTTP status
    */
   async loginUser(username: string, password: string): Promise<User> {
     const user = await this.collabService.loginUser(username);
@@ -35,11 +37,13 @@ export class AuthService {
   }
 
   /**
-   * @param user User object extracted from the request headers
-   * @description
-   * 1. After the Local Strategy verifies the User credentials, the User object is sent to getJwtToken() method.
-   * 2. The userID, username, and email is extracted from the User object. Then a JWT is generated against these data.
-   * @returns JWT token
+     * Generates a JWT token for the authenticated user.
+     *
+     * 1. After the Local Strategy verifies the User credentials, the User object is sent to getJwtToken() method.
+     * 2. The userID, username, and email are extracted from the User object. Then a JWT is generated against these data.
+     *
+     * @param user - User object extracted from the request headers
+     * @returns JWT token
    */
   async getJwtToken(user: User) {
     const payload = {
@@ -57,19 +61,30 @@ export class AuthService {
   async updateJwtToken(refreshToken: string) {
     try {
       // Verify the refresh token
-      const decodedToken = this.jwtService.verify(refreshToken);
+      interface TokenPayload {
+        user_id?: unknown;
+        username?: unknown;
+        email?: unknown;
+      }
+      const decodedToken = this.jwtService.verify<TokenPayload>(refreshToken);
       // Check if the token is valid and not expired
-      if (decodedToken?.user_id) {
+      const userId =
+        typeof decodedToken?.user_id === "number"
+          ? decodedToken.user_id
+          : typeof decodedToken?.user_id === "string"
+            ? Number(decodedToken.user_id)
+            : undefined;
+      if (typeof userId === "number" && Number.isFinite(userId)) {
         // Create a new access token with a new expiration time (e.g., 15 minutes)
         const payload = {
-          user_id: decodedToken.user_id,
-          username: decodedToken.username,
-          email: decodedToken.email,
+          user_id: userId,
+          username: typeof decodedToken.username === "string" ? decodedToken.username : undefined,
+          email: typeof decodedToken.email === "string" ? decodedToken.email : undefined,
         };
         const accessToken = this.jwtService.sign(payload, { expiresIn: "24h" });
 
         // You can also update the last login here if needed
-        await this.collabService.updateLastLogin(decodedToken.user_id);
+        await this.collabService.updateLastLogin(userId);
 
         return {
           token: accessToken,
@@ -78,7 +93,7 @@ export class AuthService {
         // Token is not valid or expired, handle the error
         throw new Error("Invalid or expired refresh token");
       }
-    } catch (err) {
+    } catch {
       // Handle verification or any other errors that may occur
       throw new Error("Error verifying the refresh token");
     }
@@ -94,7 +109,7 @@ export class AuthService {
     try {
       const match = await argon2.verify(user.password, password);
       return match;
-    } catch (e) {
+    } catch {
       return false;
     }
   }

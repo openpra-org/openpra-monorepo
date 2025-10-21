@@ -21,7 +21,6 @@ interface EventTreeState {
 }
 
 // Create Zustand store
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const useEventTreeStore = create<EventTreeState>((set) => ({
   nodes: [],
   edges: [],
@@ -72,7 +71,7 @@ export const useEventTreeStore = create<EventTreeState>((set) => ({
     set({ edges });
   },
 
-  updateNode: (id: string, newData: Partial<Node<EventTreeNodeData>["data"]>): void => {
+  updateNode: (id: string, _newData: Partial<Node<EventTreeNodeData>["data"]>): void => {
     set((state: EventTreeState): Partial<EventTreeState> => {
       const initials = getInitials(state.firstColumnLabel); // Always use the latest column name
 

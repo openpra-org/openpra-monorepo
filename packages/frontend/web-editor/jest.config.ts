@@ -1,4 +1,3 @@
-/* eslint-disable */
 export default {
   displayName: "frontend-web-editor",
   preset: "../../../jest.preset.js",

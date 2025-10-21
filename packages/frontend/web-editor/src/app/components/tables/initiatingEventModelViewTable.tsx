@@ -21,7 +21,6 @@ import {
   EuiResizableContainer,
   EuiSelect,
 } from "@elastic/eui";
-import "@elastic/eui/dist/eui_theme_light.css";
 import { useEffect } from "react";
 import { groupBy } from "lodash";
 // Define the interface for a single row of data.
@@ -503,7 +502,7 @@ const App: React.FC = () => {
             // aria-label={`Select row ${String(rowId)}`}
 
             label={""} // Since we don't need a label next to each checkbox, we can leave this empty
-            compressed // Use the compressed style if space is limited
+            // compressed // Use the compressed style if space is limited (property no longer supported in our EUI version)
           />
         );
       },
@@ -562,28 +561,22 @@ const App: React.FC = () => {
   // Modify handleSaveData to handle both adding and editing rows
   const handleSaveData = useCallback(
     (editedData: DataRow): void => {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
       setData((currentData) => {
         const rowIndex = currentData.findIndex((row) => row.id === editedData.id);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let newData: any[];
+        let newData: DataRow[];
         if (rowIndex !== -1) {
           // Edit existing row
-          /* eslint-disable @typescript-eslint/no-unsafe-assignment */
           newData = [...currentData];
           newData[rowIndex] = { ...newData[rowIndex], ...editedData };
         } else {
           newData = [editedData, ...currentData];
           if (groupbyColumn !== "") {
             const temp = ungroup(newData);
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
             const groupedData = makeGroups(temp, groupbyColumn);
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-            return groupedData;
+            return groupedData as unknown as DataRow[];
           }
         }
         // Return as DataRow[]; grouping maintains DataRow shape for non-header rows
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-return
         return newData as unknown as DataRow[];
       });
       setIsModalVisible(false);
@@ -877,30 +870,31 @@ const App: React.FC = () => {
   };
 
   // store column by which grouping is done
-  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access */
-  function makeGroups(rows: any[], columnId: string): any[] {
-    const grouped = groupBy(rows, columnId);
-    const groupedRows: any[] = [];
+  type HeaderRow = { isHeader: true; group: string };
+  function makeGroups(rows: DataRow[], columnId: string): Array<DataRow | HeaderRow> {
+    const grouped = groupBy(rows, columnId) as Record<string, DataRow[]>;
+    const groupedRows: Array<DataRow | HeaderRow> = [];
     for (const group in grouped) {
-      const headerRow = { isHeader: true, group };
+      const headerRow: HeaderRow = { isHeader: true, group };
       groupedRows.push(headerRow);
-      grouped[group].forEach((row: any) => {
-        //add group: group to row
-        row.group = group;
-        groupedRows.push(row);
-      });
+      for (const row of grouped[group]) {
+        // add group to row
+        const updated: DataRow = { ...row, group };
+        groupedRows.push(updated);
+      }
     }
     return groupedRows;
   }
-  function ungroup(rows: any[]): any[] {
-    const updatedData: any[] = [];
+  const isHeaderRow = (row: DataRow | HeaderRow): row is HeaderRow => (row as HeaderRow).isHeader === true;
+  function ungroup(rows: Array<DataRow | HeaderRow>): DataRow[] {
+    const updatedData: DataRow[] = [];
     for (const row of rows) {
-      if (row.isHeader) continue;
+      if (isHeaderRow(row)) continue;
       updatedData.push(row);
     }
     return updatedData;
   }
-  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access */
+  
 
   //handle the click on column name in popover
   //if column clicked on is same as groupby column then remove grouping
@@ -917,9 +911,9 @@ const App: React.FC = () => {
       setGroupbyColumn(columnId);
       if (groupbyColumn !== "") {
         const temp = ungroup(data);
-        setData(makeGroups(temp, columnId));
+        setData(makeGroups(temp, columnId) as unknown as DataRow[]);
       } else {
-        setData(makeGroups(data, columnId));
+        setData(makeGroups(data, columnId) as unknown as DataRow[]);
       }
       closeGroupbyPopover();
     },

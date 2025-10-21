@@ -18,7 +18,7 @@ export const SetInitiatingEvents = async (parentId: string): Promise<void> => {
         state.NestedModels.InitiatingEventsAnalysis.InitiatingEvents = InitiatingEvents;
       }),
     );
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
   }
 };
@@ -35,7 +35,7 @@ export const AddInitiatingEvent = async (data: NestedModelJSON): Promise<void> =
         state[typedModelName] = AddToParentModel(state, InitiatingEvent._id, InitiatingEvent.parentIds);
       }),
     );
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
   }
 };
@@ -55,7 +55,7 @@ export const EditInitiatingEvent = async (modelId: string, data: Partial<NestedM
           );
       }),
     );
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
   }
 };
@@ -76,7 +76,7 @@ export const DeleteInitiatingEvent = async (id: string): Promise<void> => {
         state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
   }
 };

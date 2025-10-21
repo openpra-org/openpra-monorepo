@@ -10,6 +10,3 @@ export const nodeTypes: NodeTypes = {
   outputNode: OutputNode,
   columnNode: ColumnNode,
 };
-
-// eslint-disable-next-line import/no-default-export
-export default nodeTypes;

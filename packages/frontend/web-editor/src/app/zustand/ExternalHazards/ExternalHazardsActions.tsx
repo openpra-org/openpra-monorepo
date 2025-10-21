@@ -17,7 +17,7 @@ export const SetExternalHazards = async (): Promise<void> => {
     UseGlobalStore.setState({
       ExternalHazards: externalHazardsList,
     });
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
   }
 };
@@ -28,7 +28,7 @@ export const AddExternalHazard = async (data: Partial<TypedModelJSON>): Promise<
     UseGlobalStore.setState((state) => ({
       ExternalHazards: [...state.ExternalHazards, ehr],
     }));
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
   }
 };
@@ -49,7 +49,7 @@ export const EditExternalHazard = async (
         }
       }),
     }));
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
   }
 };
@@ -61,7 +61,7 @@ export const DeleteExternalHazard = async (id: number): Promise<void> => {
     UseGlobalStore.setState((state) => ({
       ExternalHazards: state.ExternalHazards.filter((eh: ExternalHazardsModelType) => eh.id !== id),
     }));
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
   }
 };

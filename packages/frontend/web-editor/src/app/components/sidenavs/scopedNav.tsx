@@ -70,13 +70,11 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
 
   const navigate = useNavigate();
 
-  //here we are listing off all the different possible options that can be in a menu
-
   const POS = [
     createTreeItem("Plant Operating State Analysis", {
       icon: <EuiToken iconType="sparkles" />,
       callback: () => {
-        navigate("plant-operating-state-analysis");
+        void navigate("plant-operating-state-analysis");
       },
       isExpanded: true,
       children: [
@@ -85,7 +83,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="shard" />,
             callback: () => {
-              navigate("operating-state-analysis");
+              void navigate("operating-state-analysis");
             },
           },
           1,
@@ -98,7 +96,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
     createTreeItem("Initiating Event Analysis", {
       isExpanded: true,
       callback: () => {
-        navigate("initiating-event-analysis");
+        void navigate("initiating-event-analysis");
       },
       children: [
         createTreeItem(
@@ -106,7 +104,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="shard" />,
             callback: () => {
-              navigate("initiating-events");
+              void navigate("initiating-events");
             },
           },
           1,
@@ -116,7 +114,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="shard" />,
             callback: () => {
-              navigate("initiating-events-model-view");
+              void navigate("initiating-events-model-view");
             },
           },
           1,
@@ -126,7 +124,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="tokenRepo" />,
             callback: () => {
-              navigate("heat-balance-fault-trees");
+              void navigate("heat-balance-fault-trees");
             },
           },
           1,
@@ -139,7 +137,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
     createTreeItem("Event Sequence Analysis", {
       isExpanded: true,
       callback: () => {
-        navigate("event-sequence-analysis");
+        void navigate("event-sequence-analysis");
       },
       children: [
         createTreeItem(
@@ -147,7 +145,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="aggregate" />,
             callback: () => {
-              navigate("event-sequence-analysis");
+              void navigate("event-sequence-analysis");
             },
           },
           1,
@@ -157,7 +155,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="tokenRepo" />,
             callback: () => {
-              navigate("event-sequence-diagrams");
+              void navigate("event-sequence-diagrams");
             },
           },
           1,
@@ -172,7 +170,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("event-trees");
+              void navigate("event-trees");
             },
           },
           1,
@@ -185,7 +183,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
     createTreeItem("Success Criteria Developement", {
       isExpanded: true,
       callback: () => {
-        navigate("success-criteria-developement");
+        void navigate("success-criteria-developement");
       },
       children: [
         createTreeItem(
@@ -193,7 +191,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="stats" />,
             callback: () => {
-              navigate("success-criteria");
+              void navigate("success-criteria");
             },
           },
           1,
@@ -203,7 +201,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="tokenRepo" />,
             callback: () => {
-              navigate("functional-events");
+              void navigate("functional-events");
             },
           },
           1,
@@ -211,11 +209,12 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
       ],
     }),
   ];
+
   const SY = [
     createTreeItem("Systems Analysis", {
       isExpanded: true,
       callback: () => {
-        navigate("systems-analysis");
+        void navigate("systems-analysis");
       },
       children: [
         createTreeItem(
@@ -228,7 +227,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("systems-analysis");
+              void navigate("systems-analysis");
             },
           },
           1,
@@ -238,7 +237,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="tokenRepo" />,
             callback: () => {
-              navigate("fault-trees");
+              void navigate("fault-trees");
             },
           },
           1,
@@ -253,7 +252,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("bayesian-networks");
+              void navigate("bayesian-networks");
             },
           },
           1,
@@ -268,7 +267,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("markov-chains");
+              void navigate("markov-chains");
             },
           },
           1,
@@ -280,7 +279,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const HR = [
     createTreeItem("Human Reliability Analysis", {
       callback: () => {
-        navigate("human-reliability-analysis");
+        void navigate("human-reliability-analysis");
       },
       isExpanded: true,
       children: [
@@ -289,7 +288,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="tokenRepo" />,
             callback: () => {
-              navigate("human-reliability-analysis");
+              void navigate("human-reliability-analysis");
             },
           },
           1,
@@ -302,7 +301,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
     createTreeItem("Data Analysis", {
       isExpanded: true,
       callback: () => {
-        navigate("data-analysis");
+        void navigate("data-analysis");
       },
       children: [
         createTreeItem(
@@ -315,7 +314,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("data-analysis");
+              void navigate("data-analysis");
             },
           },
           1,
@@ -325,7 +324,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="tokenRepo" />,
             callback: () => {
-              navigate("bayesian-estimation");
+              void navigate("bayesian-estimation");
             },
           },
           1,
@@ -340,7 +339,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("weibull-analysis");
+              void navigate("weibull-analysis");
             },
           },
           1,
@@ -352,7 +351,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const FL = [
     createTreeItem("Internal Flood PRA", {
       callback: () => {
-        navigate("internal-flood-pra");
+        void navigate("internal-flood-pra");
       },
     }),
   ];
@@ -360,7 +359,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const F = [
     createTreeItem("Internal Fire PRA", {
       callback: () => {
-        navigate("internal-fire-pra");
+        void navigate("internal-fire-pra");
       },
     }),
   ];
@@ -368,7 +367,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const S = [
     createTreeItem("Seismic PRA", {
       callback: () => {
-        navigate("seismic-pra");
+        void navigate("seismic-pra");
       },
     }),
   ];
@@ -376,7 +375,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const HS = [
     createTreeItem("Hazards Screening Analysis", {
       callback: () => {
-        navigate("hazards-screening-analysis");
+        void navigate("hazards-screening-analysis");
       },
     }),
   ];
@@ -384,7 +383,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const W = [
     createTreeItem("High Winds PRA", {
       callback: () => {
-        navigate("high-winds-pra");
+        void navigate("high-winds-pra");
       },
     }),
   ];
@@ -392,7 +391,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const XF = [
     createTreeItem("External Flooding PRA", {
       callback: () => {
-        navigate("external-flooding-pra");
+        void navigate("external-flooding-pra");
       },
     }),
   ];
@@ -400,7 +399,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const O = [
     createTreeItem("Other Hazards PRA", {
       callback: () => {
-        navigate("other-hazards-pra");
+        void navigate("other-hazards-pra");
       },
     }),
   ];
@@ -408,7 +407,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const ESQ = [
     createTreeItem("Event Sequence Quantification", {
       callback: () => {
-        navigate("event-sequence-quantification");
+        void navigate("event-sequence-quantification");
       },
       isExpanded: true,
       children: [
@@ -417,7 +416,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="tokenRepo" />,
             callback: () => {
-              navigate("event-sequence-quantification-diagrams");
+              void navigate("event-sequence-quantification-diagrams");
             },
           },
           1,
@@ -429,7 +428,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const MS = [
     createTreeItem("Mechanistic Source Term Analysis", {
       callback: () => {
-        navigate("mechanistic-source-term-analysis");
+        void navigate("mechanistic-source-term-analysis");
       },
       isExpanded: true,
       children: [
@@ -438,7 +437,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="tokenRepo" />,
             callback: () => {
-              navigate("mechanistic-source-terms");
+              void navigate("mechanistic-source-terms");
             },
           },
           1,
@@ -450,7 +449,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const RC = [
     createTreeItem("Radiological Consequence Analysis", {
       callback: () => {
-        navigate("radiological-consequence-analysis");
+        void navigate("radiological-consequence-analysis");
       },
       isExpanded: true,
       children: [
@@ -459,7 +458,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="tokenRepo" />,
             callback: () => {
-              navigate("radiological-consequence-analysis");
+              void navigate("radiological-consequence-analysis");
             },
           },
           1,
@@ -471,7 +470,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const RI = [
     createTreeItem("Risk Integration", {
       callback: () => {
-        navigate("risk-integration");
+        void navigate("risk-integration");
       },
       isExpanded: true,
       children: [
@@ -480,7 +479,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
           {
             icon: <EuiToken iconType="tokenRepo" />,
             callback: () => {
-              navigate("risk-integration");
+              void navigate("risk-integration");
             },
           },
           1,
@@ -495,21 +494,18 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
       {
         icon: <EuiIcon type="gear" />,
         callback: () => {
-          navigate("settings");
+          void navigate("settings");
         },
       },
       0,
     ),
   ];
 
-  const padding = useEuiPaddingSize("s") ?? "0px";
+  const padding = useEuiPaddingSize("s");
 
   const createTreeView = (items: TreeItem[], i: number, forceTreeView = false): JSX.Element => {
-    //TODO
     if (forceTreeView) {
       const style = {
-        //commented this out because I think it adds a bit of unneeded color, I will see what some other people think
-        //background: backgroundColor,
         borderWidth: euiTheme.border.width.thin,
         borderRadius: euiTheme.border.radius.medium,
         borderColor: euiTheme.border.color,
@@ -523,7 +519,6 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
             aria-label="Model Sidebar"
             expandByDefault={false}
             showExpansionArrows
-            // display="compressed"
           />
         </div>
       );
@@ -539,7 +534,6 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
       return undefined;
     };
 
-    //single node
     if (!items[0].children) {
       return (
         <EuiCollapsibleNavGroup
@@ -572,7 +566,6 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
     );
   };
 
-  //here is where we set the different options to be available depending on the type of page being accessed
   let treeItems = [POS];
 
   if (type === "InternalEvents") {
@@ -592,12 +585,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   const createTreeViews = (items = treeItems): JSX.Element[] => {
     const viewItems: JSX.Element[] = [];
     items.forEach((item, i) => {
-      viewItems.push(
-        ...[
-          createTreeView(item, i),
-          // <EuiHorizontalRule margin="xs" key={items.length + i} />,
-        ],
-      );
+      viewItems.push(createTreeView(item, i));
     });
     return viewItems;
   };

@@ -1,4 +1,3 @@
-/* eslint-disable import/no-default-export */
 import { Handle, Node, NodeProps, Position } from "reactflow";
 import React, { useState, useEffect, useCallback } from "react";
 import { EuiText, EuiIcon, EuiButton, EuiSuperSelect, EuiFlexGroup, EuiFlexItem, EuiSpacer } from "@elastic/eui";
@@ -96,7 +95,6 @@ const ManageCategoriesForm = ({
 // Store first column label
 let firstColumnLabel = "Initiating Event";
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const setFirstColumnLabel = (label: string): void => {
   firstColumnLabel = label;
 };

@@ -1,4 +1,3 @@
-/* eslint-disable */
 export default {
   displayName: "mef-types",
   preset: "../../jest.preset.js",

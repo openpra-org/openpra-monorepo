@@ -76,10 +76,18 @@
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
+        "eslintConfig": "packages/frontend/web-editor/eslint.config.mjs",
         "lintFilePatterns": [
           "{projectRoot}/**/*.{ts,tsx}",
           "{projectRoot}/**/*.{js,jsx}"
         ]
+      }
+    },
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter frontend-web-editor run lint:canary",
+        "cwd": "{workspaceRoot}"
       }
     },
     "serve-static": {

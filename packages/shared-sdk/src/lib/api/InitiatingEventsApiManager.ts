@@ -1,36 +1,39 @@
-import { Fmea } from "shared-types/src/lib/types/fmea/Fmea";
+import { Fmea } from "shared-types";
 
 const API_ENDPOINT = "/api";
 const FMEA_ENDPOINT = `${API_ENDPOINT}/fmea`;
 
+type SnackbarStatus = 'success' | 'error';
+type CallbackOverride = { showSuccess?: boolean; showFailure?: boolean } | null;
+type SuccessCallback = (res: string | Response, override: CallbackOverride) => unknown;
+type FailCallback = (res: unknown, override: CallbackOverride) => unknown;
+
 export default class FmeaApiManager {
-  static callSnackbar(status: any, res: any, override: any) {
+  static callSnackbar(_status: SnackbarStatus, _res: unknown, _override: CallbackOverride) {
     //TODO::
   }
 
-  static defaultSuccessCallback(res: any, override: any) {
+  static defaultSuccessCallback(this: void, res: string | Response, override: CallbackOverride) {
     try {
-      const { showSuccess } = override;
+      const showSuccess = !!override?.showSuccess;
       if (showSuccess) {
-        this.callSnackbar("success", res, override);
+        FmeaApiManager.callSnackbar("success", res, override);
       }
     } catch (e: unknown) {
       // Intentionally ignore UI feedback errors
-      // eslint-disable-next-line no-console
       console.debug("defaultSuccessCallback: ignoring showSuccess error", e);
     }
     return res;
   }
 
-  static defaultFailCallback(res: any, override: any) {
+  static defaultFailCallback(this: void, res: unknown, override: CallbackOverride) {
     try {
-      const { showFailure } = override;
+      const showFailure = !!override?.showFailure;
       if (showFailure) {
-        this.callSnackbar("error", res, override);
+        FmeaApiManager.callSnackbar("error", res, override);
       }
     } catch (e: unknown) {
       // Intentionally ignore UI feedback errors
-      // eslint-disable-next-line no-console
       console.debug("defaultFailCallback: ignoring showFailure error", e);
     }
     return res;
@@ -38,9 +41,9 @@ export default class FmeaApiManager {
 
   static async storeFmea(
     data: Fmea,
-    override: any = null,
-    onSuccessCallback = this.defaultSuccessCallback,
-    onFailCallback = this.defaultFailCallback,
+    override: CallbackOverride = null,
+    onSuccessCallback: SuccessCallback = this.defaultSuccessCallback,
+    onFailCallback: FailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
     return await fetch(FMEA_ENDPOINT, {
       method: "POST",
@@ -50,18 +53,34 @@ export default class FmeaApiManager {
       },
       body: JSON.stringify(data),
     })
-      .then((res) => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
-      .catch((err) => onFailCallback(err, override));
+      .then(async (res: Response) => {
+        if (res.ok) {
+          const text = await res.text();
+          onSuccessCallback(text, override);
+          return text;
+        }
+        onFailCallback(res, override);
+        return "";
+      })
+      .then((responseText: string) =>
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+      )
+      .catch((err: unknown) => {
+        onFailCallback(err, override);
+        return {} as Fmea;
+      });
   }
 
   static async getFmea(
-    fmeaId: any = "-1",
-    override: any = null,
-    onSuccessCallback = this.defaultSuccessCallback,
-    onFailCallback = this.defaultFailCallback,
+    fmeaId: string | number = "-1",
+    override: CallbackOverride = null,
+    onSuccessCallback: SuccessCallback = this.defaultSuccessCallback,
+    onFailCallback: FailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
     return this.get(`${FMEA_ENDPOINT}/${fmeaId}`, override, onSuccessCallback, onFailCallback)
-      .then((response) => (!response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea)))
+      .then((responseText: string) =>
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+      )
       .catch((error) => {
         console.error("Error fetching fault tree diagram:", error);
         throw error;
@@ -70,10 +89,10 @@ export default class FmeaApiManager {
 
   static async addColumn(
     fmeaId: number,
-    body: any,
-    override: any = null,
-    onSuccessCallback = this.defaultSuccessCallback,
-    onFailCallback = this.defaultFailCallback,
+    body: unknown,
+    override: CallbackOverride = null,
+    onSuccessCallback: SuccessCallback = this.defaultSuccessCallback,
+    onFailCallback: FailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
     return await fetch(`${FMEA_ENDPOINT}/${fmeaId}/column`, {
       method: "PUT",
@@ -83,16 +102,29 @@ export default class FmeaApiManager {
       },
       body: JSON.stringify(body),
     })
-      .then((res) => (res.ok ? onSuccessCallback(res.text(), override) : onFailCallback(res, override)))
-      .then((response) => (!response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea)))
-      .catch((err) => onFailCallback(err, override));
+      .then(async (res: Response) => {
+        if (res.ok) {
+          const text = await res.text();
+          onSuccessCallback(text, override);
+          return text;
+        }
+        onFailCallback(res, override);
+        return "";
+      })
+      .then((responseText: string) =>
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+      )
+      .catch((err: unknown) => {
+        onFailCallback(err, override);
+        return {} as Fmea;
+      });
   }
 
   static async addRow(
     fmeaId: number,
-    override: any = null,
-    onSuccessCallback = this.defaultSuccessCallback,
-    onFailCallback = this.defaultFailCallback,
+    override: CallbackOverride = null,
+    onSuccessCallback: SuccessCallback = this.defaultSuccessCallback,
+    onFailCallback: FailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
     return await fetch(`${FMEA_ENDPOINT}/${fmeaId}/row`, {
       method: "PUT",
@@ -101,17 +133,30 @@ export default class FmeaApiManager {
         "Content-Type": "application/json",
       },
     })
-      .then((res) => (res.ok ? onSuccessCallback(res.text(), override) : onFailCallback(res, override)))
-      .then((response) => (!response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea)))
-      .catch((err) => onFailCallback(err, override));
+      .then(async (res: Response) => {
+        if (res.ok) {
+          const text = await res.text();
+          onSuccessCallback(text, override);
+          return text;
+        }
+        onFailCallback(res, override);
+        return "";
+      })
+      .then((responseText: string) =>
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+      )
+      .catch((err: unknown) => {
+        onFailCallback(err, override);
+        return {} as Fmea;
+      });
   }
 
   static async updateCell(
     fmeaId: number,
-    body: any,
-    override: any = null,
-    onSuccessCallback = this.defaultSuccessCallback,
-    onFailCallback = this.defaultFailCallback,
+    body: unknown,
+    override: CallbackOverride = null,
+    onSuccessCallback: SuccessCallback = this.defaultSuccessCallback,
+    onFailCallback: FailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
     return await fetch(`${FMEA_ENDPOINT}/${fmeaId}/cell`, {
       method: "PUT",
@@ -121,17 +166,30 @@ export default class FmeaApiManager {
       },
       body: JSON.stringify(body),
     })
-      .then((res) => (res.ok ? onSuccessCallback(res.text(), override) : onFailCallback(res, override)))
-      .then((response) => (!response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea)))
-      .catch((err) => onFailCallback(err, override));
+      .then(async (res: Response) => {
+        if (res.ok) {
+          const text = await res.text();
+          onSuccessCallback(text, override);
+          return text;
+        }
+        onFailCallback(res, override);
+        return "";
+      })
+      .then((responseText: string) =>
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+      )
+      .catch((err: unknown) => {
+        onFailCallback(err, override);
+        return {} as Fmea;
+      });
   }
 
   static async updateDropdownOptions(
     fmeaId: number,
-    body: any,
-    override: any = null,
-    onSuccessCallback = this.defaultSuccessCallback,
-    onFailCallback = this.defaultFailCallback,
+    body: Record<string, unknown>,
+    override: CallbackOverride = null,
+    onSuccessCallback: SuccessCallback = this.defaultSuccessCallback,
+    onFailCallback: FailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
     return await fetch(`${FMEA_ENDPOINT}/${fmeaId}/dropdown`, {
       method: "PUT",
@@ -141,16 +199,30 @@ export default class FmeaApiManager {
       },
       body: JSON.stringify(body),
     })
-      .then((res) => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
-      .catch((err) => onFailCallback(err, override));
+      .then(async (res: Response) => {
+        if (res.ok) {
+          const text = await res.text();
+          onSuccessCallback(text, override);
+          return text;
+        }
+        onFailCallback(res, override);
+        return "";
+      })
+      .then((responseText: string) =>
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+      )
+      .catch((err: unknown) => {
+        onFailCallback(err, override);
+        return {} as Fmea;
+      });
   }
 
   static async deleteColumn(
     fmeaId: number,
     column: string,
-    override: any = null,
-    onSuccessCallback = this.defaultSuccessCallback,
-    onFailCallback = this.defaultFailCallback,
+    override: CallbackOverride = null,
+    onSuccessCallback: SuccessCallback = this.defaultSuccessCallback,
+    onFailCallback: FailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
     return this.put(`${FMEA_ENDPOINT}/${fmeaId}/${column}/delete`, override, onSuccessCallback, onFailCallback);
   }
@@ -158,9 +230,9 @@ export default class FmeaApiManager {
   static async deleteRow(
     fmeaId: number,
     rowId: string,
-    override: any = null,
-    onSuccessCallback = this.defaultSuccessCallback,
-    onFailCallback = this.defaultFailCallback,
+    override: CallbackOverride = null,
+    onSuccessCallback: SuccessCallback = this.defaultSuccessCallback,
+    onFailCallback: FailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
     return await fetch(`${FMEA_ENDPOINT}/${fmeaId}/${rowId}/delete`, {
       method: "DELETE",
@@ -169,16 +241,29 @@ export default class FmeaApiManager {
         "Content-Type": "application/json",
       },
     })
-      .then((res) => (res.ok ? onSuccessCallback(res.text(), override) : onFailCallback(res, override)))
-      .then((response) => (!response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea)))
-      .catch((err) => onFailCallback(err, override));
+      .then(async (res: Response) => {
+        if (res.ok) {
+          const text = await res.text();
+          onSuccessCallback(text, override);
+          return text;
+        }
+        onFailCallback(res, override);
+        return "";
+      })
+      .then((responseText: string) =>
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+      )
+      .catch((err: unknown) => {
+        onFailCallback(err, override);
+        return {} as Fmea;
+      });
   }
 
   static async deleteFmea(
     fmeaId: number,
-    override: any = null,
-    onSuccessCallback = this.defaultSuccessCallback,
-    onFailCallback = this.defaultFailCallback,
+    override: CallbackOverride = null,
+    onSuccessCallback: SuccessCallback = this.defaultSuccessCallback,
+    onFailCallback: FailCallback = this.defaultFailCallback,
   ): Promise<boolean> {
     return await fetch(`${FMEA_ENDPOINT}/${fmeaId}/delete`, {
       method: "PUT",
@@ -187,18 +272,34 @@ export default class FmeaApiManager {
         "Content-Type": "application/json",
       },
     })
-      .then((res) => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
-      .catch((err) => onFailCallback(err, override));
+      .then((res: Response) => {
+        if (res.ok) {
+          onSuccessCallback(res, override);
+          return true;
+        }
+        onFailCallback(res, override);
+        return false;
+      })
+      .catch((err: unknown) => {
+        onFailCallback(err, override);
+        return false;
+      });
   }
 
   static async updateColumnDetails(
     fmeaId: number,
-    body: any,
-    override: any = null,
-    onSuccessCallback = this.defaultSuccessCallback,
-    onFailCallback = this.defaultFailCallback,
+    body: { prev_column_name: string } | Record<string, unknown>,
+    override: CallbackOverride = null,
+    onSuccessCallback: SuccessCallback = this.defaultSuccessCallback,
+    onFailCallback: FailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
-    return await fetch(`${FMEA_ENDPOINT}/${fmeaId}/${body.prev_column_name}/update`, {
+    const prevValue =
+      typeof body === 'object' && body !== null && 'prev_column_name' in body
+        ? (body as { prev_column_name?: unknown }).prev_column_name
+        : undefined;
+    const prev =
+      typeof prevValue === 'string' || typeof prevValue === 'number' ? String(prevValue) : '';
+    return await fetch(`${FMEA_ENDPOINT}/${fmeaId}/${prev}/update`, {
       method: "PUT",
       cache: "no-cache",
       headers: {
@@ -206,16 +307,29 @@ export default class FmeaApiManager {
       },
       body: JSON.stringify(body),
     })
-      .then((res) => (res.ok ? onSuccessCallback(res.text(), override) : onFailCallback(res, override)))
-      .then((response) => (!response.trim() ? ({} as Fmea) : (JSON.parse(response) as Fmea)))
-      .catch((err) => onFailCallback(err, override));
+      .then(async (res: Response) => {
+        if (res.ok) {
+          const text = await res.text();
+          onSuccessCallback(text, override);
+          return text;
+        }
+        onFailCallback(res, override);
+        return "";
+      })
+      .then((responseText: string) =>
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+      )
+      .catch((err: unknown) => {
+        onFailCallback(err, override);
+        return {} as Fmea;
+      });
   }
 
   static async get(
     url: string,
-    override: any = null,
-    onSuccessCallback = this.defaultSuccessCallback,
-    onFailCallback = this.defaultFailCallback,
+    override: CallbackOverride = null,
+    onSuccessCallback: SuccessCallback = this.defaultSuccessCallback,
+    onFailCallback: FailCallback = this.defaultFailCallback,
   ) {
     return await fetch(url, {
       method: "GET",
@@ -224,15 +338,26 @@ export default class FmeaApiManager {
         "Content-Type": "application/json",
       },
     })
-      .then((res) => (res.ok ? onSuccessCallback(res.text(), override) : onFailCallback(res, override)))
-      .catch((err) => onFailCallback(err, override));
+      .then(async (res: Response) => {
+        if (res.ok) {
+          const text = await res.text();
+          onSuccessCallback(text, override);
+          return text;
+        }
+        onFailCallback(res, override);
+        return "";
+      })
+      .catch((err: unknown) => {
+        onFailCallback(err, override);
+        return "";
+      });
   }
 
   static async put(
     url: string,
-    override: any = null,
-    onSuccessCallback = this.defaultSuccessCallback,
-    onFailCallback = this.defaultFailCallback,
+    override: CallbackOverride = null,
+    onSuccessCallback: SuccessCallback = this.defaultSuccessCallback,
+    onFailCallback: FailCallback = this.defaultFailCallback,
   ) {
     return await fetch(url, {
       method: "PUT",
@@ -241,7 +366,21 @@ export default class FmeaApiManager {
         "Content-Type": "application/json",
       },
     })
-      .then((res) => (res.ok ? onSuccessCallback(res, override) : onFailCallback(res, override)))
-      .catch((err) => onFailCallback(err, override));
+      .then(async (res: Response) => {
+        if (res.ok) {
+          const text = await res.text();
+          onSuccessCallback(text, override);
+          return text;
+        }
+        onFailCallback(res, override);
+        return "";
+      })
+      .then((responseText: string) =>
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+      )
+      .catch((err: unknown) => {
+        onFailCallback(err, override);
+        return {} as Fmea;
+      });
   }
 }

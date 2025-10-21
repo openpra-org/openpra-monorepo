@@ -29,11 +29,19 @@
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
+        "eslintConfig": "packages/shared-types/eslint.config.mjs",
         "lintFilePatterns": [
           "{projectRoot}/**/*.ts",
           "{projectRoot}/**/*.js",
           "!{projectRoot}/**/*.d.ts"
         ]
+      }
+    },
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter shared-types run lint:canary",
+        "cwd": "{workspaceRoot}"
       }
     },
     "test": {

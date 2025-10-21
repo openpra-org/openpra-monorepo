@@ -14,7 +14,6 @@ export class JobBrokerMiddleware implements NestMiddleware {
     @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
   ) {}
 
-  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
   private isQuantifyRequest(body: any): body is QuantifyRequest {
     return body && Array.isArray(body.models) && body.models.every((item: any) => typeof item === "string");
   }
@@ -23,7 +22,6 @@ export class JobBrokerMiddleware implements NestMiddleware {
     const executables = ["scram-cli", "saphsolve", "ftrex", "xfta", "xfta2", "dpc", "acube", "qrecover"];
     return body && typeof body.executable === "string" && executables.includes(body.executable);
   }
-  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
 
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     console.log("Checking whether it is a quantification or executable request");

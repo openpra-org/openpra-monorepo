@@ -1,6 +1,4 @@
 import { Edge } from "reactflow";
-// eslint-disable-next-line @typescript-eslint/naming-convention
-
 export const edgeData: Edge[] = [
   {
     id: "horizontal-1-2a",

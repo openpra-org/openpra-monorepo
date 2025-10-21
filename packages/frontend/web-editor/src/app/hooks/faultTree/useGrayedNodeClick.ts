@@ -19,7 +19,7 @@ import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/fa
  * ```
  */
 const UseGrayedNodeClick = (
-  id: NodeProps["id"],
+  _id: NodeProps["id"],
 ): {
   handleGrayedNodeClick: (branchId: string | undefined) => Promise<void>;
 } => {
@@ -49,7 +49,7 @@ const UseGrayedNodeClick = (
       //filter out the parentNode (deleting the node which we wanted)
       const finalNodes: Node<FaultTreeNodeProps>[] = solidifiedNodes
         .filter((node) => node.id !== parentNode[0].id)
-        .map(({ data, ...node }) => ({
+        .map(({ data: _data, ...node }) => ({
           ...node,
           data: { isGrayed: undefined, branchId: undefined },
         }));
@@ -57,7 +57,7 @@ const UseGrayedNodeClick = (
         .filter((edge) => {
           return edge.source !== notGateNode.id && edge.source !== parentNode[0].id;
         })
-        .map(({ data, animated, ...edge }) => ({
+        .map(({ data: _data, animated: _animated, ...edge }) => ({
           ...edge,
           animated: false,
           data: { isGrayed: undefined, branchId: undefined },

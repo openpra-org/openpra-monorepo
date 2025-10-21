@@ -80,7 +80,7 @@ function TypedModelActionForm({
         );
         setSelectedUsersList(selectedList);
         setUsersList(listWithoutCurrentUser);
-      } catch (error: unknown) {
+      } catch (_error: unknown) {
         // Intentionally ignored: failure to fetch users should not block editing; selection list will be empty.
       }
     };

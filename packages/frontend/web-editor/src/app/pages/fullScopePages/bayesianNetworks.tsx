@@ -1,7 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import "reactflow/dist/style.css";
 import { Route, Routes } from "react-router-dom";
-import { shallow } from "zustand/shallow";
 import ReactFlow, {
   Node,
   Background,
@@ -85,7 +84,7 @@ type ExtendedNode = {
  * @returns \{JSX.Element\} The rendered React Flow environment with nodes and edges.
  */
 function ReactFlowPro(): JSX.Element {
-  const { nodes, edges, onNodesChange, onEdgesChange } = UseStore(selector, shallow);
+  const { nodes, edges, onNodesChange, onEdgesChange } = UseStore(selector);
   const reactFlow = useReactFlow();
   const connectingNodeId = useRef<string | null>(null);
   const store = useStoreApi();

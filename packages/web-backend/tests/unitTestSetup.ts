@@ -1,7 +1,7 @@
 import { MongoMemoryServer } from "mongodb-memory-server";
 
 declare global {
-  // eslint-disable-next-line @typescript-eslint/naming-convention,no-var
+  // Allow global for Jest; CJS interop pattern
   var __MONGOSERVER__: MongoMemoryServer | undefined;
 }
 
@@ -26,22 +26,19 @@ module.exports = async (): Promise<void> => {
   try {
     mongoServer = await MongoMemoryServer.create({ binary: { version: requestedVersion } });
   } catch (err: unknown) {
-    const message = (err as Error)?.message || String(err);
+    const message = err instanceof Error ? err.message : "";
     // Common failure on Debian 12 (bookworm): missing libcrypto.so.1.1 (OpenSSL 1.1)
     if (message.includes("libcrypto.so.1.1")) {
       // Provide a clear, actionable hint instead of a cryptic error
       // CI sets MONGO_URI and avoids this path entirely.
-      throw new Error(
-        [
-          "mongodb-memory-server failed to start: missing libcrypto.so.1.1 (OpenSSL 1.1).",
-          "This is common on Debian 12-based dev containers.",
-          "Workaround: run tests against an external MongoDB and set MONGO_URI (CI already does this).",
-          "For example, run a MongoDB locally and then:",
-          "  export MONGO_URI='mongodb://127.0.0.1:27017/test'",
-          "Then re-run: pnpm nx test web-backend -- --test-timeout=60000 or run",
-          "  MONGO_URI='mongodb://127.0.0.1:27017/test' pnpm -w nx run-many -t test --skip-nx-cache -- --test-timeout=60000",
-        ].join("\n")
-      );
+      const hint = `mongodb-memory-server failed to start: missing libcrypto.so.1.1 (OpenSSL 1.1).
+This is common on Debian 12-based dev containers.
+Workaround: run tests against an external MongoDB and set MONGO_URI (CI already does this).
+For example, run a MongoDB locally and then:
+  export MONGO_URI='mongodb://127.0.0.1:27017/test'
+Then re-run: pnpm nx test web-backend -- --test-timeout=60000 or run
+  MONGO_URI='mongodb://127.0.0.1:27017/test' pnpm -w nx run-many -t test --skip-nx-cache -- --test-timeout=60000`;
+      throw new Error(hint);
     }
     throw err;
   }

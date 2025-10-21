@@ -55,7 +55,7 @@ const RoleDescription = (): JSX.Element => {
           if (role !== null) {
             setCurrRole(role);
           }
-        } catch (err) {
+        } catch {
           addToast(GetESToast("danger", "Failed to fetch role information"));
           setCurrRole(undefined);
         }
@@ -68,19 +68,19 @@ const RoleDescription = (): JSX.Element => {
         const members = await ApiManager.getUsers();
         setRoleMembers(roleMembers.results);
         setMembers(members.results);
-      } catch (err) {
+      } catch {
         addToast(GetESToast("danger", "Failed to fetch users of this role"));
         setRoleMembers([]);
-        setMembers([]);
+        setMembers([]); 
       }
     }
 
     setIsLoading(true);
     Promise.all([fetchRole(), fetchUsers()])
-      .then((results) => {
+      .then((_results) => {
         setIsLoading(false);
       })
-      .catch((errors: unknown) => {
+      .catch((_errors: unknown) => {
         setIsLoading(false);
       });
   }, [roleName, addToast]);

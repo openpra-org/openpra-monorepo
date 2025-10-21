@@ -10,7 +10,7 @@ import { CategoryProvider } from "../../hooks/eventTree/useCreateReleaseCategory
 // TODO:: Need a nx or @nx/webpack based approach to bundle external CSS
 import "reactflow/dist/style.css";
 
-import nodeTypes from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
+import { nodeTypes } from "../../components/treeNodes/eventTreeEditorNode/eventTreeNodeType";
 import edgeTypes from "../../components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType";
 
 import useLayout from "../../hooks/eventTree/useLayout";

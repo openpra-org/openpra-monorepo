@@ -11,7 +11,7 @@ function TemplatedPageBody({
   children,
   restrictWidth,
   sectionProps,
-  headerProps,
+  headerProps: _headerProps,
   ...rest
 }: TemplatedPageBodyProps): JSX.Element {
   const largeScreenBreakpoint = useEuiTheme().euiTheme.breakpoint.l;

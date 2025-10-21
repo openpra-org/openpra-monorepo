@@ -1,0 +1,65 @@
+name: "CI: Lint Canary (non-blocking)"
+
+on:
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  lint-canary:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: lint-canary-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.17.0'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.18.2
+
+      - name: Install dependencies (skip scripts)
+        run: pnpm install --ignore-scripts --no-frozen-lockfile
+
+      - name: Run canary lint (non-blocking)
+        continue-on-error: true
+        run: pnpm -w run lint:canary:all | tee lint-canary.txt
+
+      - name: Upload canary lint artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-canary
+          path: |
+            lint-canary.txt
+
+      - name: Comment summary on PR
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let body = `Canary ESLint (ESLint 9 flat-config) run completed.\n\n`;
+            try {
+              const log = fs.readFileSync('lint-canary.txt', 'utf8');
+              // Try to extract the Nx summary line
+              const summaryLine = (log.split('\n').reverse().find(l => l.includes('Successfully ran target lint-canary')) || '').trim();
+              if (summaryLine) {
+                body += `Summary: ${summaryLine}\n\n`;
+              }
+            } catch (e) {
+              // ignore
+            }
+            body += `Artifacts: lint-canary.txt uploaded (see workflow artifacts).`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });

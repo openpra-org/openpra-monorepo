@@ -5,7 +5,6 @@ import { EventTreeState } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 function useDeleteColClick(clickedColumnId: string): () => void {
   const { setNodes, setEdges, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
@@ -120,5 +119,4 @@ function useDeleteColClick(clickedColumnId: string): () => void {
   return deleteColumn;
 }
 
-// eslint-disable-next-line import/no-default-export
 export default useDeleteColClick;

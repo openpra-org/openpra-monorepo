@@ -7,7 +7,7 @@ const ApiEndpoint = "/api";
 const GetRole = (): string[] => {
   try {
     return AuthService.getRole();
-  } catch (e) {
+  } catch {
     throw new Error("The user is not logged in or token expired");
   }
 };

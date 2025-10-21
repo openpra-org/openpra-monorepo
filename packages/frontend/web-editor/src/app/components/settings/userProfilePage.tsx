@@ -31,7 +31,7 @@ export function UserProfilePage({ id }: { id: number }): JSX.Element {
         setCurrentMember(result);
         setIsLoading(false);
       })
-      .catch((reason: unknown) => {
+      .catch((_reason: unknown) => {
         setIsLoading(false);
       });
   }, [id]);
@@ -97,7 +97,7 @@ export function UserProfilePage({ id }: { id: number }): JSX.Element {
                     grow={false}
                     style={{ cursor: "pointer" }}
                     onClick={(): void => {
-                      navigate(`/settings/${String(currentMember?.id ?? "")}`);
+                      void navigate(`/settings/${String(currentMember?.id ?? "")}`);
                     }}
                     data-testid="profile-details-pencil"
                   >

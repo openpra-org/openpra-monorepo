@@ -1003,8 +1003,9 @@ export class NestedModelService {
     //number of completely removed models which is what will be returned
     let numberRemoved = 0;
 
-    //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
-    let result;
+  //this will be the pull result data and will be used a lot for seeing things form requests to remove properly
+  type WithParents = { parentIds: number[] } | null;
+  let result: WithParents;
 
     //query to search based on this field
     const query = { parentIds: Number(modelId) };
@@ -1019,8 +1020,8 @@ export class NestedModelService {
     //goes through each model type, checks if the id is on any of those
     //then checks if its the *only* one, and either updates and removes or delete it accordingly
     //when a model is permanently removed from the database the removed value does up
-    while ((result = await this.bayesianEstimationModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.bayesianEstimationModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.bayesianEstimationModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1028,8 +1029,8 @@ export class NestedModelService {
       }
     }
 
-    while ((result = await this.bayesianNetworkModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.bayesianNetworkModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.bayesianNetworkModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1037,8 +1038,8 @@ export class NestedModelService {
       }
     }
 
-    while ((result = await this.initiatingEventModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.initiatingEventModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.initiatingEventModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1046,8 +1047,8 @@ export class NestedModelService {
       }
     }
 
-    while ((result = await this.eventSequenceDiagramModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.eventSequenceDiagramModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.eventSequenceDiagramModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1055,8 +1056,8 @@ export class NestedModelService {
       }
     }
 
-    while ((result = await this.eventTreeModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.eventTreeModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.eventTreeModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1064,8 +1065,8 @@ export class NestedModelService {
       }
     }
 
-    while ((result = await this.faultTreeModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.faultTreeModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.faultTreeModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1073,8 +1074,8 @@ export class NestedModelService {
       }
     }
 
-    while ((result = await this.heatBalanceFaultTreeModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.heatBalanceFaultTreeModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.heatBalanceFaultTreeModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1082,8 +1083,8 @@ export class NestedModelService {
       }
     }
 
-    while ((result = await this.functionalEventsModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.functionalEventsModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.functionalEventsModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1091,8 +1092,8 @@ export class NestedModelService {
       }
     }
 
-    while ((result = await this.markovChainModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.markovChainModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.markovChainModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1100,8 +1101,8 @@ export class NestedModelService {
       }
     }
 
-    while ((result = await this.weibullAnalysisModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.weibullAnalysisModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.weibullAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1110,8 +1111,8 @@ export class NestedModelService {
     }
 
     // For Risk Integration
-    while ((result = await this.riskIntegrationModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.riskIntegrationModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.riskIntegrationModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1120,8 +1121,8 @@ export class NestedModelService {
     }
 
     // For Radiological Consequence Analysis
-    while ((result = await this.radiologicalConsequenceAnalysisModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.radiologicalConsequenceAnalysisModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.radiologicalConsequenceAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1130,8 +1131,8 @@ export class NestedModelService {
     }
 
     // For Mechanistic Source Term
-    while ((result = await this.mechanisticSourceTermModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.mechanisticSourceTermModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.mechanisticSourceTermModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1140,8 +1141,8 @@ export class NestedModelService {
     }
 
     // For Event Sequence Quantification Diagram
-    while ((result = await this.eventSequenceQuantificationDiagramModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.eventSequenceQuantificationDiagramModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.eventSequenceQuantificationDiagramModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1150,8 +1151,8 @@ export class NestedModelService {
     }
 
     // For Data Analysis
-    while ((result = await this.dataAnalysisModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.dataAnalysisModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.dataAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1160,8 +1161,8 @@ export class NestedModelService {
     }
 
     // For Human Reliability Analysis
-    while ((result = await this.humanReliabilityAnalysisModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.humanReliabilityAnalysisModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.humanReliabilityAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1170,8 +1171,8 @@ export class NestedModelService {
     }
 
     // For Systems Analysis
-    while ((result = await this.systemsAnalysisModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.systemsAnalysisModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.systemsAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1180,8 +1181,8 @@ export class NestedModelService {
     }
 
     // For Success Criteria
-    while ((result = await this.successCriteriaModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.successCriteriaModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.successCriteriaModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1190,8 +1191,8 @@ export class NestedModelService {
     }
 
     // For Event Sequence Analysis
-    while ((result = await this.eventSequenceAnalysisModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.eventSequenceAnalysisModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.eventSequenceAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {
@@ -1200,8 +1201,8 @@ export class NestedModelService {
     }
 
     // For Operating State Analysis
-    while ((result = await this.operatingStateAnalysisModel.findOne(query))) {
-      if (result.parentIds.length === 1) {
+    while ((result = (await this.operatingStateAnalysisModel.findOne(query)) as WithParents)) {
+      if (result && result.parentIds.length === 1) {
         await this.operatingStateAnalysisModel.findOneAndDelete(query);
         numberRemoved++;
       } else {

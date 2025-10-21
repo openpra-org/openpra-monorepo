@@ -62,10 +62,10 @@ type FaultTreeAction =
 
 const FaultTreeNodeContextMenu = ({
   id,
-  top,
-  left,
-  right,
-  bottom,
+  top: _top,
+  left: _left,
+  right: _right,
+  bottom: _bottom,
   addToastHandler,
   ...props
 }: TreeNodeContextMenuProps): JSX.Element => {

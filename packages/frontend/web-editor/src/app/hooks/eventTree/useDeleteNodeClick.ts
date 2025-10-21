@@ -1,5 +1,3 @@
-/* eslint-disable import/no-default-export */
-/* eslint-disable @typescript-eslint/naming-convention */
 import { Edge, Node, NodeProps, useReactFlow } from "reactflow";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";

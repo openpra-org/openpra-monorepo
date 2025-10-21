@@ -19,22 +19,25 @@
     "amqplib": "0.10.9",
     "argon2": "0.41.1",
     "dot-object": "2.1.5",
-    "mongodb": "6.3.0",
-    "mongoose": "8.0.1",
+  "mongodb": "6.20.0",
+  "mongoose": "8.0.1",
     "nestjs-zod": "3.0.0",
     "passport": "0.6.0",
     "passport-jwt": "4.0.1",
     "passport-local": "1.0.0",
-    "reflect-metadata": "0.1.13",
+  "reflect-metadata": "0.1.13",
+  "class-transformer": "0.5.1",
+  "class-validator": "0.14.1",
     "rxjs": "7.8.2",
     "shared-types": "workspace:^",
-    "supertest": "6.3.3",
     "tmp": "0.2.5"
   },
   "devDependencies": {
+    "eslint": "9.14.0",
+    "typescript-eslint": "8.14.0",
     "@darraghor/eslint-plugin-nestjs-typed": "5.0.18",
-    "@nestjs/testing": "10.4.1",
-    "@sentry/node": "7.81.1",
+    "@nestjs/testing": "10.4.20",
+    "@sentry/node": "7.120.4",
     "@types/dot-object": "2.1.6",
     "@types/express": "4.17.21",
     "@types/jest": "29.5.14",
@@ -46,6 +49,10 @@
     "mongodb-memory-server": "10.2.3",
     "node-loader": "2.1.0",
     "source-map-support": "0.5.21",
-    "supertest": "6.3.3"
+    "supertest": "6.3.4"
+  }
+  ,
+  "scripts": {
+    "lint:canary": "eslint --config ./eslint.config.mjs \"src/**/*.ts\" \"tests/**/*.ts\""
   }
 }

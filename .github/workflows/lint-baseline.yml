@@ -1,0 +1,34 @@
+name: "CI: Lint (baseline)"
+
+on:
+  pull_request:
+    branches:
+      - '**'
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: lint-baseline-${{ github.head_ref || github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.17.0'
+          cache: 'pnpm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm@10.18.2
+
+      - name: Install dependencies (skip scripts)
+        run: pnpm install --ignore-scripts --no-frozen-lockfile
+
+      - name: Run baseline lint (Nx)
+        run: pnpm -w nx run-many -t lint --all

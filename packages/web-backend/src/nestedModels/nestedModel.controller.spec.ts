@@ -117,51 +117,82 @@ describe("CollabController", () => {
       ],
       providers: [
         NestedModelService,
-        { provide: InitiatingEventsService, useValue: { createInitiatingEvent: jest.fn(async (d) => ({ ...d, id: 1 })) } },
+        {
+          provide: InitiatingEventsService,
+          useValue: {
+            createInitiatingEvent: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as {
+              id: number;
+            })),
+          },
+        },
         {
           provide: EventSequenceDiagramService,
           useValue: {
-            createEventSequenceDiagram: jest.fn(async (d) => ({ ...d, id: 1 })),
-            getSingleEventSequenceDiagram: jest.fn(async () => ({ id: 1, parentIds: [1] })),
+            createEventSequenceDiagram: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as {
+              id: number;
+            })),
+            getSingleEventSequenceDiagram: jest.fn(async (): Promise<{ id: number; parentIds: number[] }> => ({
+              id: 1,
+              parentIds: [1],
+            })),
           },
         },
         {
           provide: EventSequenceAnalysisService,
-          useValue: { createEventSequenceAnalysis: jest.fn(async (d) => ({ ...d, id: 1 })) },
+          useValue: {
+            createEventSequenceAnalysis: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as {
+              id: number;
+            })),
+          },
         },
         {
           provide: EventTreesService,
           useValue: {
-            createEventTree: jest.fn(async (d) => ({ ...d, id: 1 })),
-            getSingleEventTree: jest.fn(async () => ({ id: 1, parentIds: [1] })),
+            createEventTree: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as { id: number })),
+            getSingleEventTree: jest.fn(async (): Promise<{ id: number; parentIds: number[] }> => ({ id: 1, parentIds: [1] })),
           },
         },
         {
           provide: BayesianNetworksService,
           useValue: {
-            createBayesianNetwork: jest.fn(async (d) => ({ ...d, id: 1 })),
-            getSingleBayesianNetwork: jest.fn(async () => ({ id: 1, parentIds: [1] })),
+            createBayesianNetwork: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as {
+              id: number;
+            })),
+            getSingleBayesianNetwork: jest.fn(async (): Promise<{ id: number; parentIds: number[] }> => ({
+              id: 1,
+              parentIds: [1],
+            })),
           },
         },
         {
           provide: FaultTreesService,
           useValue: {
-            createFaultTree: jest.fn(async (d) => ({ ...d, id: 1 })),
-            getSingleFaultTree: jest.fn(async () => ({ id: 1, parentIds: [1] })),
+            createFaultTree: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as { id: number })),
+            getSingleFaultTree: jest.fn(async (): Promise<{ id: number; parentIds: number[] }> => ({ id: 1, parentIds: [1] })),
           },
         },
         {
           provide: InitiatingEventsService,
           useValue: {
-            createInitiatingEvent: jest.fn(async (d) => ({ ...d, id: 1 })),
-            getSingleInitiatingEvent: jest.fn(async () => ({ id: 1, parentIds: [1] })),
+            createInitiatingEvent: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as {
+              id: number;
+            })),
+            getSingleInitiatingEvent: jest.fn(async (): Promise<{ id: number; parentIds: number[] }> => ({
+              id: 1,
+              parentIds: [1],
+            })),
           },
         },
         {
           provide: EventSequenceAnalysisService,
           useValue: {
-            createEventSequenceAnalysis: jest.fn(async (d) => ({ ...d, id: 1 })),
-            getSingleEventSequenceAnalysis: jest.fn(async () => ({ id: 1, parentIds: [1] })),
+            createEventSequenceAnalysis: jest.fn(async (d: Record<string, unknown>) => ({ ...(d as object), id: 1 } as {
+              id: number;
+            })),
+            getSingleEventSequenceAnalysis: jest.fn(async (): Promise<{ id: number; parentIds: number[] }> => ({
+              id: 1,
+              parentIds: [1],
+            })),
           },
         },
       ],
@@ -838,7 +869,10 @@ describe("CollabController", () => {
     });
     it("should delete a BayesianEstimation", async () => {
       const result = await nestedModelController.createBayesianEstimation(createBayesianEstimationObject);
-      const singleResult = await nestedModelController.deleteBayesianEstimation(result.id);
+      const singleResult = (await nestedModelController.deleteBayesianEstimation(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Bayesian Estimation Model");
@@ -857,7 +891,10 @@ describe("CollabController", () => {
     });
     it("should delete a BayesianNetwork", async () => {
       const result = await nestedModelController.createBayesianNetwowrk(createBayesianNetworkObject);
-      const singleResult = await nestedModelController.deleteBayesianNetwork(result.id);
+      const singleResult = (await nestedModelController.deleteBayesianNetwork(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Bayesian Network Model");
@@ -876,7 +913,10 @@ describe("CollabController", () => {
     });
     it("should delete a EventSequenceDiagram", async () => {
       const result = await nestedModelController.createEventSequenceDiagram(createEventSequenceDiagramObject);
-      const singleResult = await nestedModelController.deleteEventSequenceDiagram(result.id);
+      const singleResult = (await nestedModelController.deleteEventSequenceDiagram(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Event Sequence Diagram Model");
@@ -895,7 +935,10 @@ describe("CollabController", () => {
     });
     it("should delete a EventTree", async () => {
       const result = await nestedModelController.createEventTree(createEventTreeObject);
-      const singleResult = await nestedModelController.deleteEventTree(result.id);
+      const singleResult = (await nestedModelController.deleteEventTree(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Event Tree Model");
@@ -913,7 +956,10 @@ describe("CollabController", () => {
     });
     it("should delete a FaultTree", async () => {
       const result = await nestedModelController.createFaultTree(createFaultTreeObject);
-      const singleResult = await nestedModelController.deleteFaultTree(result.id);
+      const singleResult = (await nestedModelController.deleteFaultTree(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Fault Tree Model");
@@ -931,7 +977,10 @@ describe("CollabController", () => {
     });
     it("should delete a FunctionalEvent", async () => {
       const result = await nestedModelController.createFunctionalEvent(createFunctionalEventObject);
-      const singleResult = await nestedModelController.deleteFunctionalEvent(result.id);
+      const singleResult = (await nestedModelController.deleteFunctionalEvent(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Functional Event Model");
@@ -949,7 +998,10 @@ describe("CollabController", () => {
     });
     it("should delete a InitiatingEvent", async () => {
       const result = await nestedModelController.createInitiatingEvent(createInitiatingEventObject);
-      const singleResult = await nestedModelController.deleteInitiatingEvent(result.id);
+      const singleResult = (await nestedModelController.deleteInitiatingEvent(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Initiating Event Model");
@@ -967,7 +1019,10 @@ describe("CollabController", () => {
     });
     it("should delete a MarkovChain", async () => {
       const result = await nestedModelController.createMarkovChain(createMarkovChainObject);
-      const singleResult = await nestedModelController.deleteMarkovChain(result.id);
+      const singleResult = (await nestedModelController.deleteMarkovChain(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Markov Chain Model");
@@ -985,7 +1040,10 @@ describe("CollabController", () => {
     });
     it("should delete a WeibullAnalysis", async () => {
       const result = await nestedModelController.createWeibullAnalysis(createWeibullAnalysisObject);
-      const singleResult = await nestedModelController.deleteWeibullAnalysis(result.id);
+      const singleResult = (await nestedModelController.deleteWeibullAnalysis(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Weibull Analysis Model");
@@ -1003,7 +1061,10 @@ describe("CollabController", () => {
     });
     it("should delete a RiskIntegration", async () => {
       const result = await nestedModelController.createRiskIntegration(createRiskIntegrationObject);
-      const singleResult = await nestedModelController.deleteRiskIntegration(result.id);
+      const singleResult = (await nestedModelController.deleteRiskIntegration(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Risk Integration Model");
@@ -1023,7 +1084,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createRadiologicalConsequenceAnalysis(
         createRadiologicalConsequenceAnalysisObject,
       );
-      const singleResult = await nestedModelController.deleteRadiologicalConsequenceAnalysis(result.id);
+      const singleResult = (await nestedModelController.deleteRadiologicalConsequenceAnalysis(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Radiological Consequence Analysis Model");
@@ -1042,7 +1106,10 @@ describe("CollabController", () => {
     });
     it("should delete a MechanisticSourceTerm", async () => {
       const result = await nestedModelController.createMechanisticSourceTerm(createMechanisticSourceTermObject);
-      const singleResult = await nestedModelController.deleteMechanisticSourceTerm(result.id);
+      const singleResult = (await nestedModelController.deleteMechanisticSourceTerm(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Mechanistic Source Term Model");
@@ -1062,7 +1129,10 @@ describe("CollabController", () => {
       const result = await nestedModelController.createEventSequenceQuantificationDiagram(
         createEventSequenceQuantificationDiagramObject,
       );
-      const singleResult = await nestedModelController.deleteEventSequenceQuantificationDiagram(result.id);
+      const singleResult = (await nestedModelController.deleteEventSequenceQuantificationDiagram(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Event Sequence Quantification Diagram Model");
@@ -1081,7 +1151,10 @@ describe("CollabController", () => {
     });
     it("should delete a DataAnalysis", async () => {
       const result = await nestedModelController.createDataAnalysis(createDataAnalysisObject);
-      const singleResult = await nestedModelController.deleteDataAnalysis(result.id);
+      const singleResult = (await nestedModelController.deleteDataAnalysis(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Data Analysis Model");
@@ -1099,7 +1172,10 @@ describe("CollabController", () => {
     });
     it("should delete a HumanReliabilityAnalysis", async () => {
       const result = await nestedModelController.createHumanReliabilityAnalysis(createHumanReliabilityAnalysisObject);
-      const singleResult = await nestedModelController.deleteHumanReliabilityAnalysis(result.id);
+      const singleResult = (await nestedModelController.deleteHumanReliabilityAnalysis(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Human Reliability Analysis Model");
@@ -1117,7 +1193,10 @@ describe("CollabController", () => {
     });
     it("should delete a SystemsAnalysis", async () => {
       const result = await nestedModelController.createSystemsAnalysis(createSystemsAnalysisObject);
-      const singleResult = await nestedModelController.deleteSystemsAnalysis(result.id);
+      const singleResult = (await nestedModelController.deleteSystemsAnalysis(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Systems Analysis Model");
@@ -1135,7 +1214,10 @@ describe("CollabController", () => {
     });
     it("should delete a SuccessCriteria", async () => {
       const result = await nestedModelController.createSuccessCriteria(createSuccessCriteriaObject);
-      const singleResult = await nestedModelController.deleteSuccessCriteria(result.id);
+      const singleResult = (await nestedModelController.deleteSuccessCriteria(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Success Criteria Model");
@@ -1153,7 +1235,10 @@ describe("CollabController", () => {
     });
     it("should delete a EventSequenceAnalysis", async () => {
       const result = await nestedModelController.createEventSequenceAnalysis(createEventSequenceAnalysisObject);
-      const singleResult = await nestedModelController.deleteEventSequenceAnalysis(result.id);
+      const singleResult = (await nestedModelController.deleteEventSequenceAnalysis(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Event Sequence Analysis Model");
@@ -1171,7 +1256,10 @@ describe("CollabController", () => {
     });
     it("should delete a OperatingStateAnalysis", async () => {
       const result = await nestedModelController.createOperatingStateAnalysis(createOperatingStateAnalysisObject);
-      const singleResult = await nestedModelController.deleteOperatingStateAnalysis(result.id);
+      const singleResult = (await nestedModelController.deleteOperatingStateAnalysis(result.id)) as {
+        id: number;
+        label: { name: string; description?: string };
+      };
       expect(singleResult).toHaveProperty("label");
       expect(singleResult).toHaveProperty("id");
       expect(singleResult.label.name).toBe("Operating State Analysis Model");

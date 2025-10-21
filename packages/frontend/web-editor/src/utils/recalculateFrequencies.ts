@@ -19,7 +19,6 @@ function isOutputNode(n?: Node): n is Node<OutputData> {
   return Boolean(n && n.type === "outputNode");
 }
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export function recalculateFrequencies(nodes: Node[], edges: Edge[]): Node[] {
   // Find the root node (Initiating Event)
   const rootNode = nodes.find(

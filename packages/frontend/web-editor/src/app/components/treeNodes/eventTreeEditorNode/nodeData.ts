@@ -3,7 +3,6 @@ import { Node, Position } from "reactflow";
 const xDistance = 140;
 const pos = { x: 0, y: 0 };
 
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const nodeData: Node[] = [
   {
     id: "horizontal-1",

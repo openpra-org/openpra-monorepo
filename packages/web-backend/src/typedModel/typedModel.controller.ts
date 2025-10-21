@@ -10,7 +10,6 @@ import {
   Delete,
   UseGuards,
   UseFilters,
-  HttpStatus,
 } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { InternalEventsModel } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
@@ -32,6 +31,11 @@ export class TypedModelController {
   constructor(private readonly typedModelService: TypedModelService) {}
 
   //all the post methods go here
+
+  private getUserId(req: unknown): number | undefined {
+    const u = (req as { user?: { user_id?: unknown } })?.user?.user_id;
+    return typeof u === "number" ? u : typeof u === "string" ? Number(u) : undefined;
+  }
 
   /**
    *
@@ -87,7 +91,7 @@ export class TypedModelController {
     @Param("id") modelId: string,
     @Body() model: Partial<InternalEvents>,
   ): Promise<InternalEvents> {
-    return this.typedModelService.patchInternalEvent(modelId, req.user.user_id, model);
+    return this.typedModelService.patchInternalEvent(modelId, this.getUserId(req) as number, model);
   }
 
   /**
@@ -102,7 +106,7 @@ export class TypedModelController {
     @Param("id") modelId: string,
     @Body() model: Partial<InternalHazards>,
   ): Promise<InternalHazards> {
-    return this.typedModelService.patchInternalHazard(modelId, req.user.user_id, model);
+    return this.typedModelService.patchInternalHazard(modelId, this.getUserId(req) as number, model);
   }
 
   /**
@@ -117,7 +121,7 @@ export class TypedModelController {
     @Param("id") modelId: string,
     @Body() model: Partial<ExternalHazards>,
   ): Promise<ExternalHazards> {
-    return this.typedModelService.patchExternalHazard(modelId, req.user.user_id, model);
+    return this.typedModelService.patchExternalHazard(modelId, this.getUserId(req) as number, model);
   }
 
   /**
@@ -132,7 +136,7 @@ export class TypedModelController {
     @Param("id") modelId: string,
     @Body() model: Partial<FullScope>,
   ): Promise<FullScope> {
-    return this.typedModelService.patchFullScope(modelId, req.user.user_id, model);
+    return this.typedModelService.patchFullScope(modelId, this.getUserId(req) as number, model);
   }
 
   //get methods for collections
@@ -144,7 +148,7 @@ export class TypedModelController {
    */
   @Get("/internal-events/")
   async getInternalEvents(@Request() req): Promise<InternalEvents[]> {
-    return this.typedModelService.getInternalEvents(req.user.user_id);
+    return this.typedModelService.getInternalEvents(this.getUserId(req) as number);
   }
 
   /**
@@ -154,7 +158,7 @@ export class TypedModelController {
    */
   @Get("/internal-hazards/")
   async getInternalHazards(@Request() req): Promise<InternalHazards[]> {
-    return this.typedModelService.getInternalHazards(req.user.user_id);
+    return this.typedModelService.getInternalHazards(this.getUserId(req) as number);
   }
 
   /**
@@ -164,7 +168,7 @@ export class TypedModelController {
    */
   @Get("/external-hazards/")
   async getExternalHazards(@Request() req): Promise<ExternalHazards[]> {
-    return this.typedModelService.getExternalHazards(req.user.user_id);
+    return this.typedModelService.getExternalHazards(this.getUserId(req) as number);
   }
 
   /**
@@ -174,7 +178,7 @@ export class TypedModelController {
    */
   @Get("/full-scope/")
   async getFullScopes(@Request() req): Promise<FullScope[]> {
-    return this.typedModelService.getFullScopes(req.user.user_id);
+    return this.typedModelService.getFullScopes(this.getUserId(req) as number);
   }
 
   //get methods for singles
@@ -187,7 +191,7 @@ export class TypedModelController {
    */
   @Get("/internal-events/:id/")
   async getInternalEvent(@Request() req, @Param("id") modelId: string): Promise<InternalEvents> {
-    return this.typedModelService.getInternalEvent(modelId, req.user.user_id);
+    return this.typedModelService.getInternalEvent(modelId, this.getUserId(req) as number);
   }
 
   /**
@@ -198,7 +202,7 @@ export class TypedModelController {
    */
   @Get("/internal-hazards/:id/")
   async getInternalHazard(@Request() req, @Param("id") modelId: string): Promise<InternalHazards> {
-    return this.typedModelService.getInternalHazard(modelId, req.user.user_id);
+    return this.typedModelService.getInternalHazard(modelId, this.getUserId(req) as number);
   }
 
   /**
@@ -209,7 +213,7 @@ export class TypedModelController {
    */
   @Get("/external-hazards/:id/")
   async getExternalHazard(@Request() req, @Param("id") modelId: string): Promise<ExternalHazards> {
-    return this.typedModelService.getExternalHazard(modelId, req.user.user_id);
+    return this.typedModelService.getExternalHazard(modelId, this.getUserId(req) as number);
   }
 
   /**
@@ -220,7 +224,7 @@ export class TypedModelController {
    */
   @Get("/full-scope/:id/")
   async getFullScope(@Request() req, @Param("id") modelId: string): Promise<FullScope> {
-    return this.typedModelService.getFullScope(modelId, req.user.user_id);
+    return this.typedModelService.getFullScope(modelId, this.getUserId(req) as number);
   }
 
   //delete methods
@@ -232,7 +236,7 @@ export class TypedModelController {
    */
   @Delete("/internal-events/")
   async deleteInternalEvent(@Request() req, @Query("modelId") modelId: string): Promise<InternalEventsModel> {
-    return this.typedModelService.deleteInternalEvent(Number(modelId), req.user.user_id);
+    return this.typedModelService.deleteInternalEvent(Number(modelId), this.getUserId(req) as number);
   }
 
   /**
@@ -242,7 +246,7 @@ export class TypedModelController {
    */
   @Delete("/external-hazards/")
   async deleteExternalHazard(@Request() req, @Query("modelId") modelId: string): Promise<ExternalHazardsModel> {
-    return this.typedModelService.deleteExternalHazard(Number(modelId), req.user.user_id);
+    return this.typedModelService.deleteExternalHazard(Number(modelId), this.getUserId(req) as number);
   }
 
   /**
@@ -252,12 +256,12 @@ export class TypedModelController {
    */
   @Delete("/internal-hazards/")
   async deleteInternalHazard(@Request() req, @Query("modelId") modelId: string): Promise<InternalHazardsModel> {
-    return this.typedModelService.deleteInternalHazard(Number(modelId), req.user.user_id);
+    return this.typedModelService.deleteInternalHazard(Number(modelId), this.getUserId(req) as number);
   }
 
   @Delete("/full-scope/")
   async deleteFullScope(@Request() req, @Query("modelId") modelId: string): Promise<FullScopeModel> {
-    return this.typedModelService.deleteFullScope(Number(modelId), req.user.user_id);
+    return this.typedModelService.deleteFullScope(Number(modelId), this.getUserId(req) as number);
   }
 
   //endpoints for adding a nested model id

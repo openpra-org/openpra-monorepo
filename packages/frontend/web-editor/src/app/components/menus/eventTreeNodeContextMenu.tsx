@@ -1,4 +1,3 @@
-/* eslint-disable import/no-default-export */
 import React from "react";
 
 import { useEventTreeContextMenuClick } from "../../hooks/eventTree/useEventTreeContextMenuClick";
@@ -14,11 +13,11 @@ export interface TreeNodeContextMenuProps {
 
 export default function EventTreeNodeContextMenu({
   id,
-  top,
-  left,
-  right,
-  bottom,
-  ...props
+  top: _top,
+  left: _left,
+  right: _right,
+  bottom: _bottom,
+  ..._props
 }: TreeNodeContextMenuProps): JSX.Element {
   const { handleContextMenuClick } = useEventTreeContextMenuClick(id);
   return <div onClick={handleContextMenuClick}>awdawdwd </div>;

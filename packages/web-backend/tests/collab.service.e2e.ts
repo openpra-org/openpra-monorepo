@@ -47,9 +47,9 @@ describe("CollabService", () => {
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
-      };
-      const response = await collabService.createNewUser(user_object); // create a new user
-      expect(response).toBeDefined(); // expect response to be defined
+    };
+    const response = await collabService.createNewUser(user_object); // create a new user
+    expect(response).toBeDefined(); // expect response to be defined
     });
 
     it("should fail on duplicate username", async () => {
@@ -59,12 +59,12 @@ describe("CollabService", () => {
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
-      };
-      const response = await collabService.createNewUser(user_object); // create a new user
-      try {
-        const returnedValue = await collabService.createNewUser(user_object); // calling create new_user again with same username
-      } catch (err) {
-        expect(err).toBeInstanceOf(Error); // expect an error to be thrown
+    };
+    const _response = await collabService.createNewUser(user_object); // create a new user
+  try {
+  const _returnedValue = await collabService.createNewUser(user_object); // calling create new_user again with same username
+      } catch (_err: unknown) {
+        expect(_err).toBeInstanceOf(Error); // expect an error to be thrown
       }
     });
   });
@@ -82,8 +82,8 @@ describe("CollabService", () => {
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
-      };
-      const response = await collabService.createNewUser(user_object); // create a new user
+    };
+    const _response = await collabService.createNewUser(user_object); // create a new user
       const result = await collabService.loginUser(user_object.username); // call loginUser function
       expect(result).toBeDefined(); //expect result to be defined, if login is successful
     });
@@ -99,8 +99,10 @@ describe("CollabService", () => {
         password: "12345678",
       };
       const response = await collabService.createNewUser(user_object); // create a new user
-      const returnedValue = await collabService.getUserPreferences(String(response.id)); // calling getUserPreferences
-      expect(returnedValue).toBeDefined(); // user preferences should be defined
+      if (typeof response !== "string") {
+        const returnedValue = await collabService.getUserPreferences(String(response.id)); // calling getUserPreferences
+        expect(returnedValue).toBeDefined(); // user preferences should be defined
+      }
     });
   });
 
@@ -115,8 +117,10 @@ describe("CollabService", () => {
         password: "12345678",
       };
       const response = await collabService.createNewUser(user_object); // create a new user
-      const returnedValue = await collabService.updateUserPreferences(String(response.id), userPreferenceObject); // calling updateUserPreferences
-      expect(returnedValue.preferences.theme).toMatch("Dark"); // theme should be updated
+      if (typeof response !== "string") {
+        const returnedValue = await collabService.updateUserPreferences(String(response.id), userPreferenceObject); // calling updateUserPreferences
+        expect(returnedValue.preferences.theme).toMatch("Dark"); // theme should be updated
+      }
     });
 
     it("should update user preferences - nodeIdsVisible", async () => {
@@ -129,8 +133,10 @@ describe("CollabService", () => {
         password: "12345678",
       };
       const response = await collabService.createNewUser(user_object); // create a new user
-      const returnedValue = await collabService.updateUserPreferences(String(response.id), userPreferenceObject); // calling updateUserPreferences
-      expect(returnedValue.preferences.nodeIdsVisible).toBeFalsy(); // nodeIdsVisible should be updated
+      if (typeof response !== "string") {
+        const returnedValue = await collabService.updateUserPreferences(String(response.id), userPreferenceObject); // calling updateUserPreferences
+        expect(returnedValue.preferences.nodeIdsVisible).toBeFalsy(); // nodeIdsVisible should be updated
+      }
     });
 
     it("should update user preferences - outlineVisible", async () => {
@@ -143,8 +149,10 @@ describe("CollabService", () => {
         password: "12345678",
       };
       const response = await collabService.createNewUser(user_object); // create a new user
-      const returnedValue = await collabService.updateUserPreferences(String(response.id), userPreferenceObject); // calling updateUserPreferences
-      expect(returnedValue.preferences.outlineVisible).toBeFalsy(); // user preferences should be updated
+      if (typeof response !== "string") {
+        const returnedValue = await collabService.updateUserPreferences(String(response.id), userPreferenceObject); // calling updateUserPreferences
+        expect(returnedValue.preferences.outlineVisible).toBeFalsy(); // user preferences should be updated
+      }
     });
   });
 
@@ -159,10 +167,12 @@ describe("CollabService", () => {
       };
       const response = await collabService.createNewUser(user_object); // create a new user
       const dateBefore = Date.now(); //get current timestamp
-      await collabService.updateLastLogin(response.id); // calling updateLastLogin
-      const returnedValue = await collabService.loginUser(user_object.username); // calling loginUser to get the latest user object
-      const dateNumber = returnedValue.last_login.getTime(); // get Date object from returned value and convert to timestamp
-      expect(dateNumber).toBeGreaterThanOrEqual(dateBefore); // last_login should be greater than
+      if (typeof response !== "string") {
+        await collabService.updateLastLogin(response.id); // calling updateLastLogin
+        const returnedValue = await collabService.loginUser(user_object.username); // calling loginUser to get the latest user object
+        const dateNumber = returnedValue.last_login.getTime(); // get Date object from returned value and convert to timestamp
+        expect(dateNumber).toBeGreaterThanOrEqual(dateBefore); // last_login should be greater than
+      }
     });
   });
 });

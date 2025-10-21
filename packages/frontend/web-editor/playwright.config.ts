@@ -1,4 +1,4 @@
-import path = require("path");
+import path from "node:path";
 import { defineConfig } from "@playwright/test";
 import { nxE2EPreset } from "@nx/playwright/preset";
 import { workspaceRoot } from "@nx/devkit";
@@ -11,7 +11,6 @@ const baseURL = process.env.BASE_URL ?? "http://localhost:4200";
  */
 const storageState = path.join(workspaceRoot, "packages/frontend/web-editor/e2e/.auth/user.json");
 
-// eslint-disable-next-line import/no-default-export
 export default defineConfig({
   ...nxE2EPreset(__filename, { testDir: "./tests" }),
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */

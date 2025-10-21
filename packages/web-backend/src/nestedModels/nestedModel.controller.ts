@@ -73,15 +73,16 @@ export class NestedModelController {
   async createBayesianNetwork(
     @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
-    if ((body as any).typedModel) {
-      const b = body as { data: Partial<NestedModel>; typedModel: TypedModelType };
-      return this.bayesianNetworkService.createBayesianNetwork(b.data, b.typedModel);
+    const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
+      typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
+    if (hasTypedModel(body)) {
+      return this.bayesianNetworkService.createBayesianNetwork(body.data, body.typedModel);
     }
     return this.nestedModelService.createBayesianNetwork(body as Partial<NestedModel>);
   }
 
   // Back-compat: some specs call a misspelled method name; delegate to the correct one
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+  
   async createBayesianNetwowrk(
     body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
@@ -100,9 +101,10 @@ export class NestedModelController {
   async createEventSequenceDiagram(
     @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
-    if ((body as any).typedModel) {
-      const b = body as { data: Partial<NestedModel>; typedModel: TypedModelType };
-      return this.eventSequenceDiagramService.createEventSequenceDiagram(b.data, b.typedModel);
+    const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
+      typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
+    if (hasTypedModel(body)) {
+      return this.eventSequenceDiagramService.createEventSequenceDiagram(body.data, body.typedModel);
     }
     return this.nestedModelService.createEventSequenceDiagram(body as Partial<NestedModel>);
   }
@@ -119,9 +121,10 @@ export class NestedModelController {
   async createEventTree(
     @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
-    if ((body as any).typedModel) {
-      const b = body as { data: Partial<NestedModel>; typedModel: TypedModelType };
-      return this.eventTreeService.createEventTree(b.data, b.typedModel);
+    const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
+      typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
+    if (hasTypedModel(body)) {
+      return this.eventTreeService.createEventTree(body.data, body.typedModel);
     }
     return this.nestedModelService.createEventTree(body as Partial<NestedModel>);
   }
@@ -138,9 +141,10 @@ export class NestedModelController {
   async createFaultTree(
     @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
-    if ((body as any).typedModel) {
-      const b = body as { data: Partial<NestedModel>; typedModel: TypedModelType };
-      return this.faultTreesService.createFaultTree(b.data, b.typedModel);
+    const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
+      typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
+    if (hasTypedModel(body)) {
+      return this.faultTreesService.createFaultTree(body.data, body.typedModel);
     }
     return this.nestedModelService.createFaultTree(body as Partial<NestedModel>);
   }
@@ -179,9 +183,10 @@ export class NestedModelController {
   async createInitiatingEvent(
     @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
-    if ((body as any).typedModel) {
-      const b = body as { data: Partial<NestedModel>; typedModel: TypedModelType };
-      return this.initiatingEventsService.createInitiatingEvent(b.data, b.typedModel);
+    const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
+      typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
+    if (hasTypedModel(body)) {
+      return this.initiatingEventsService.createInitiatingEvent(body.data, body.typedModel);
     }
     return this.nestedModelService.createInitiatingEvent(body as Partial<NestedModel>);
   }
@@ -269,9 +274,10 @@ export class NestedModelController {
   async createEventSequenceAnalysis(
     @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
-    if ((body as any).typedModel) {
-      const b = body as { data: Partial<NestedModel>; typedModel: TypedModelType };
-      return this.eventSequenceAnalysisService.createEventSequenceAnalysis(b.data, b.typedModel);
+    const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
+      typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
+    if (hasTypedModel(body)) {
+      return this.eventSequenceAnalysisService.createEventSequenceAnalysis(body.data, body.typedModel);
     }
     return this.nestedModelService.createEventSequenceAnalysis(body as Partial<NestedModel>);
   }

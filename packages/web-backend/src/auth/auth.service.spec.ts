@@ -7,6 +7,7 @@ import { CollabService } from "../collab/collab.service";
 import { User, UserSchema } from "../collab/schemas/user.schema";
 import { UserCounter, UserCounterSchema } from "../collab/schemas/user-counter.schema";
 import { AuthService } from "./auth.service";
+import { CreateNewUserSchemaDto } from "../collab/dtos/createNewUser-schema";
 
 describe("AuthService", () => {
   let authService: AuthService;
@@ -61,15 +62,16 @@ describe("AuthService", () => {
      * expect result to be an instance of User
      */
     it("should process login with correct password", async () => {
-      const user_object = {
+      const user_object: CreateNewUserSchemaDto = {
         firstName: "User1",
         lastName: "Last1",
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: [],
       };
       const correctPassword = user_object.password;
-  const response: any = await collabService.createNewUser({ ...user_object, roles: [] } as any); // create a new user
+      const _response = await collabService.createNewUser(user_object); // create a new user
       const result = await authService.loginUser(user_object.username, correctPassword); // call loginUser function
       expect(result).toBeInstanceOf(Object); //expect result to be an instance of User
     });
@@ -81,19 +83,20 @@ describe("AuthService", () => {
      * expect result to be an instance of Error
      */
     it("should fail login with incorrect password", async () => {
-      const user_object = {
+      const user_object: CreateNewUserSchemaDto = {
         firstName: "User1",
         lastName: "Last1",
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: [],
       };
       const incorrectPassword = "123";
-  await collabService.createNewUser({ ...user_object, roles: [] } as any); // create a new user
+      await collabService.createNewUser(user_object); // create a new user
       try {
         await authService.loginUser(user_object.username, incorrectPassword); // call loginUser function
-      } catch (err) {
-        expect(err).toBeInstanceOf(Error); //expect result to be an instance of User
+      } catch (_err: unknown) {
+        expect(_err).toBeInstanceOf(Error); //expect result to be an instance of User
       }
     });
 
@@ -104,47 +107,50 @@ describe("AuthService", () => {
      * expect result to be an instance of Error
      */
     it("should fail login with incorrect username", async () => {
-      const user_object = {
+      const user_object: CreateNewUserSchemaDto = {
         firstName: "User1",
         lastName: "Last1",
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: [],
       };
       const incorrectUsername = "testUserABCD";
-  await collabService.createNewUser({ ...user_object, roles: [] } as any); // create a new user
+      await collabService.createNewUser(user_object); // create a new user
       try {
         await authService.loginUser(incorrectUsername, user_object.password); // call loginUser function
-      } catch (err) {
-        expect(err).toBeInstanceOf(Error); //expect result to be an instance of User
+      } catch (_err: unknown) {
+        expect(_err).toBeInstanceOf(Error); //expect result to be an instance of User
       }
     });
   });
 
   describe("verifyPassword", () => {
     it("should return true for correct password", async () => {
-      const userObject = {
+      const userObject: CreateNewUserSchemaDto = {
         firstName: "User1",
         lastName: "Last1",
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: [],
       };
-  await collabService.createNewUser({ ...userObject, roles: [] } as any); // create a new user
+      await collabService.createNewUser(userObject); // create a new user
       const correctPassword = "12345678";
       const passwordMatch = await authService.verifyPassword(userObject.username, correctPassword);
       expect(passwordMatch).toBe(true);
     });
 
     it("should return false for incorrect password", async () => {
-      const userObject = {
+      const userObject: CreateNewUserSchemaDto = {
         firstName: "User1",
         lastName: "Last1",
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: [],
       };
-  await collabService.createNewUser({ ...userObject, roles: [] } as any); // create a new user
+      await collabService.createNewUser(userObject); // create a new user
       const correctPassword = "1234568";
       const passwordMatch = await authService.verifyPassword(userObject.username, correctPassword);
       expect(passwordMatch).toBe(false);

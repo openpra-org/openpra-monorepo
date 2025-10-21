@@ -223,5 +223,4 @@ export function useEventTreeContextMenuClick(id: NodeProps["id"]): {
   return { handleContextMenuClick };
 }
 
-// eslint-disable-next-line import/no-default-export
 export default useEventTreeContextMenuClick;

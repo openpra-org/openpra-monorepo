@@ -235,7 +235,7 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]): {
           edges: edges,
           faultTreeId: faultTreeId ?? "", // Use empty string as default value,
         }),
-      ).then((r: FaultTreeGraph): void => {
+      ).then((_r: FaultTreeGraph): void => {
         //console.log(r);
       });
     },

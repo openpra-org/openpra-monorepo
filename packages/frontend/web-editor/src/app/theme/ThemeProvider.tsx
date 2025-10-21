@@ -106,7 +106,7 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
     try {
       localStorage.setItem(LOCALSTORAGE_KEY_THEME_PREFERENCES, JSON.stringify(theme));
       return theme;
-    } catch (e) {
+    } catch (_e) {
       return theme;
     }
   };
@@ -122,7 +122,7 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
         return DEFAULT_LOCALSTORAGE_PREFERENCES;
       }
       return JSON.parse(storedPreferences) as Theme;
-    } catch (e) {
+    } catch (_e) {
       return DEFAULT_LOCALSTORAGE_PREFERENCES;
     }
   };
@@ -210,7 +210,7 @@ class ThemeProvider extends React.Component<ThemeProviderProps, Theme> {
       if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
         return PreferenceModes.DARK;
       }
-    } catch (e) {
+    } catch (_e) {
       // should log this error if needed
     }
     return PreferenceModes.LIGHT;

@@ -179,7 +179,7 @@ export class QuantifyService {
   public async readReportFile(filePath: string): Promise<string> {
     try {
       return await promise_fs.readFile(filePath, { encoding: "utf8" });
-    } catch (error) {
+    } catch {
       throw new Error(`Failed to read report file at ${filePath}.`);
     }
   }

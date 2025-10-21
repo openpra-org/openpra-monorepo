@@ -102,7 +102,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
       initialFocusedItemIndex: 1,
       title: "Quick Edit",
       content: (
-        <div style={{ padding: useEuiPaddingSize("s") ?? "35px" }}>
+        <div style={{ padding: useEuiPaddingSize("s") }}>
           {patchTypedEndpoint ? (
             <TypedModelActionForm
               noHeader
@@ -136,7 +136,7 @@ const ListItemContextMenu = (props: ListItemContextMenuProps): JSX.Element => {
       initialFocusedItemIndex: 3,
       title: "Delete",
       content: (
-        <div style={{ padding: useEuiPaddingSize("s") ?? "35px" }}>
+        <div style={{ padding: useEuiPaddingSize("s") }}>
           <DeleteItemBox
             id={id}
             _id={_id}

@@ -7,7 +7,6 @@ interface CustomMiniMapProps {
   nodeBorderRadius?: number;
 }
 
-/* eslint-disable import/no-default-export */
 const CustomMiniMap: React.FC<CustomMiniMapProps> = ({
   nodeColor = (): string => "#0984e3", // Provide a default function for nodeColor
   nodeStrokeWidth = 3, // Default stroke width

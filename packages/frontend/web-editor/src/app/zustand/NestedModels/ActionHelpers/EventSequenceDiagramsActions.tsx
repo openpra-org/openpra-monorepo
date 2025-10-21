@@ -18,7 +18,7 @@ export const SetEventSequenceDiagrams = async (parentId: string): Promise<void> 
         state.NestedModels.EventSequenceAnalysis.EventSequenceDiagrams = EventSequenceDiagrams;
       }),
     );
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: no local state impact on failure
   }
 };
@@ -35,7 +35,7 @@ export const AddEventSequenceDiagram = async (data: NestedModelJSON): Promise<vo
         state[typedModelName] = AddToParentModel(state, EventSequenceDiagram._id, EventSequenceDiagram.parentIds);
       }),
     );
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: no local state impact on failure
   }
 };
@@ -55,7 +55,7 @@ export const EditEventSequenceDiagram = async (modelId: string, data: Partial<Ne
           );
       }),
     );
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: no local state impact on failure
   }
 };
@@ -78,7 +78,7 @@ export const DeleteEventSequenceDiagram = async (id: string): Promise<void> => {
         state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: no local state impact on failure
   }
 };

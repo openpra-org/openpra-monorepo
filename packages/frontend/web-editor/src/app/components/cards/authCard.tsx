@@ -8,7 +8,7 @@ interface RootPackageJsonUnknown {
   version?: unknown;
 }
 // The require is safe for this display-only use; keep unknown and extract via helper.
-// eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-unsafe-assignment
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const pkgUnknown: unknown = require("../../../../../../../package.json");
 
 const getVersionString = (pkg: unknown): string => {

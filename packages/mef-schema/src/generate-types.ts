@@ -70,7 +70,7 @@ export async function GenerateTypescript(jsonFiles: string[], rootDir: string): 
       });
       // Write .d.ts file asynchronously
       await fs.writeFile(dtsFile, ts);
-    } catch (error) {
+    } catch (_error) {
       /* empty */
     }
   }
@@ -87,7 +87,7 @@ export async function Generate(inputDirectory: string, outputDirectory: string):
     const jsonFiles = await FindJSONFiles(inputDirectory);
     // Generate TypeScript declaration files from the found JSON files
     await GenerateTypescript(jsonFiles, outputDirectory);
-  } catch (error) {
+  } catch (_error) {
     /*empty*/
   }
 }

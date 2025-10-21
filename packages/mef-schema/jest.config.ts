@@ -1,4 +1,3 @@
-/* eslint-disable */
 export default {
   displayName: "mef-schema",
   preset: "../../jest.preset.js",
@@ -8,3 +7,4 @@ export default {
   },
   moduleFileExtensions: ["ts", "js", "html"],
 };
+// Removed unused eslint-disable directive

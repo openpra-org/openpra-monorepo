@@ -6,7 +6,7 @@ import { ModelCounter, ModelCounterDocument } from "../schemas/model-counter.sch
 import { Fmea, FmeaDocument } from "./schemas/fmea.schema";
 @Injectable()
 export class FmeaService {
-  /* eslint-disable tsdoc/syntax, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/naming-convention, @typescript-eslint/prefer-for-of, @typescript-eslint/no-dynamic-delete, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+  /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
   constructor(
     @InjectModel(Fmea.name)
     private readonly fmeaModel: mongoose.Model<FmeaDocument>,
@@ -361,5 +361,5 @@ export class FmeaService {
     }
     return result;
   }
-  /* eslint-enable tsdoc/syntax, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unnecessary-condition, @typescript-eslint/naming-convention, @typescript-eslint/prefer-for-of, @typescript-eslint/no-dynamic-delete, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+  /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 }

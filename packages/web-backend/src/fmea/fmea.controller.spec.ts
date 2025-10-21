@@ -7,7 +7,7 @@ import { FmeaService } from "./fmea.service";
 import { Fmea, FmeaSchema } from "./schemas/fmea.schema";
 
 describe("FmeaController", () => {
-  let fmeaService: FmeaService;
+  let _fmeaService: FmeaService;
   let fmeaController: FmeaController;
   let connection: Connection;
 
@@ -25,7 +25,7 @@ describe("FmeaController", () => {
       providers: [FmeaService],
     }).compile();
     connection = await module.get(getConnectionToken());
-    fmeaService = module.get<FmeaService>(FmeaService);
+  _fmeaService = module.get<FmeaService>(FmeaService);
     fmeaController = module.get<FmeaController>(FmeaController);
   });
   /**

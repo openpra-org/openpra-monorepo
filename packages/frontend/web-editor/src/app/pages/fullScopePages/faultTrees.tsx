@@ -26,7 +26,6 @@ import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { EuiButtonIcon, EuiFlexGroup, EuiFlexItem, EuiPopover, EuiSkeletonRectangle } from "@elastic/eui";
 import { FaultTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { Route, Routes, useParams } from "react-router-dom";
-import { shallow } from "zustand/shallow";
 import { UseLayout } from "../../hooks/faultTree/useLayout";
 import { FaultTreeNodeTypes } from "../../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 import { EdgeTypes } from "../../components/treeEdges/faultTreeEdges/faultTreeEdgeType";
@@ -76,7 +75,7 @@ function ReactFlowPro(): JSX.Element {
   const [menu, setMenu] = useState<TreeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
-  const { nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges } = useStore(selector, shallow);
+  const { nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges } = useStore(selector);
   const [isLoading, setIsLoading] = useState(true);
   const { faultTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);

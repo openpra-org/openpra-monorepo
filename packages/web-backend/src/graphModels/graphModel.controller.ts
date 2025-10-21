@@ -19,7 +19,7 @@ export class GraphModelController {
   async createFaultTreeGraph(@Body() data: Partial<FaultTreeGraph>): Promise<boolean> {
     try {
       return this.graphModelService.saveFaultTreeGraph(data);
-    } catch (_) {
+    } catch {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -34,7 +34,7 @@ export class GraphModelController {
   async createEventTreeGraph(@Body() data: Partial<EventTreeGraph>): Promise<boolean> {
     try {
       return this.graphModelService.saveEventTreeGraph(data);
-    } catch (_) {
+    } catch {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -76,7 +76,7 @@ export class GraphModelController {
   ): Promise<boolean> {
     try {
       return this.graphModelService.updateESLabel(id, type, label);
-    } catch (_) {
+    } catch {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
@@ -89,7 +89,7 @@ export class GraphModelController {
   ): Promise<boolean> {
     try {
       return this.graphModelService.updateESSubgraph(eventSequenceId, updatedSubgraph, deletedSubgraph);
-    } catch (_) {
+    } catch {
       throw new HttpException("Something went wrong", HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }

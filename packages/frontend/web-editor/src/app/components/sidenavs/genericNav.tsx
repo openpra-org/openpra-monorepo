@@ -37,7 +37,7 @@ function NavInsideNav({ items }: { items: NavItemHeader[] }): JSX.Element {
       isSelected: selectedItemName === name,
       onClick: (): void => {
         selectItem(name);
-        navigate(url);
+        void navigate(url);
       },
       ...data,
     });

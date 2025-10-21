@@ -50,7 +50,7 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
       } else {
         // deleteEndpoint(id)
       }
-    } catch (e) {
+    } catch {
       // TODO:: Log this right
     }
     // TODO:: Implement delete functionality for nested models
@@ -81,8 +81,8 @@ function DeleteItemBox(props: DeleteItemProps): JSX.Element {
             placeholder="Please type yes to proceed"
             value={confirmDelete}
             data-testid="delete-item-input"
-            onChange={(e): void => {
-              setConfirmDelete(e.target.value);
+            onChange={(_e): void => {
+              setConfirmDelete(_e.target.value);
             }}
           />
         </EuiFormRow>

@@ -69,7 +69,7 @@ function DataSidenav(): JSX.Element {
     createTreeItem("Parameter Estimates", {
       isExpanded: true,
       callback: () => {
-        navigate("data-analysis");
+        void navigate("data-analysis");
       },
       icon: <EuiIcon type="tableDensityNormal" />,
       children: [
@@ -85,7 +85,7 @@ function DataSidenav(): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("special-events");
+              void navigate("special-events");
             },
           },
           1,
@@ -102,7 +102,7 @@ function DataSidenav(): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("component-reliability");
+              void navigate("component-reliability");
             },
           },
           1,
@@ -119,7 +119,7 @@ function DataSidenav(): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("initiating-events");
+              void navigate("initiating-events");
             },
           },
           1,
@@ -136,7 +136,7 @@ function DataSidenav(): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("train-ua");
+              void navigate("train-ua");
             },
           },
           1,
@@ -153,7 +153,7 @@ function DataSidenav(): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("ccf");
+              void navigate("ccf");
             },
           },
           1,
@@ -163,7 +163,7 @@ function DataSidenav(): JSX.Element {
   ];
 
   const backgroundColor = useEuiBackgroundColor("plain");
-  const padding = useEuiPaddingSize("s") ?? "0px";
+  const padding = useEuiPaddingSize("s");
 
   const createTreeView = (items: TreeItem[], i: number, forceTreeView = false): JSX.Element => {
     const getIconType = (icon?: JSX.Element): string | undefined => {

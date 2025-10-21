@@ -70,7 +70,15 @@
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
+        "eslintConfig": "packages/web-backend/eslint.config.mjs",
         "lintFilePatterns": ["{projectRoot}/**/*.ts"]
+      }
+    },
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter web-backend run lint:canary",
+        "cwd": "{workspaceRoot}"
       }
     },
     "test": {

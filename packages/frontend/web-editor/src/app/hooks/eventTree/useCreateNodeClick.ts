@@ -1,5 +1,3 @@
-/* eslint-disable import/no-default-export */
-/* eslint-disable @typescript-eslint/naming-convention */
 import { Edge, NodeProps, Node, useReactFlow } from "reactflow";
 import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";

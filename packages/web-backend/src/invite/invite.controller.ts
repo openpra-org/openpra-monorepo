@@ -11,11 +11,7 @@ import {
   UseGuards,
   HttpException,
 } from "@nestjs/common";
-import {
-  InvitedUserDetailsDto,
-  InvitedUserDto,
-  InviteIdDto,
-} from "packages/shared-types/src/lib/types/userInvites/InvitedUser";
+import { InvitedUserDetailsDto, InvitedUserDto, InviteIdDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { Public } from "../guards/public.guard";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";

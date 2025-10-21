@@ -418,7 +418,7 @@ describe("CollabService", () => {
         dropdownOptions: [],
       };
       await fmeaService.addColumn(fmea.id, addColumnObject2);
-      const added = await fmeaService.addRow(fmea.id);
+  const _added = await fmeaService.addRow(fmea.id);
       const current = await fmeaService.getFmeaById(fmea.id);
       const rowId = current?.rows?.[0]?.id as string;
       const res = await fmeaService.deleteRow(fmea.id, rowId);

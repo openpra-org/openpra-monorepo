@@ -20,7 +20,6 @@ import {
   EuiResizableContainer,
   EuiSelect,
 } from "@elastic/eui";
-import "@elastic/eui/dist/eui_theme_light.css";
 import { OperatingStateAnalysisList } from "../../components/lists/nestedLists/operatingStateAnalysisList";
 // Define the interface for a single row of data.
 interface DataRow {
@@ -635,7 +634,7 @@ const App: React.FC = () => {
               handleRowSelectionChange(rowId);
             }}
             label="" // Since we don't need a label next to each checkbox, we can leave this empty
-            compressed // Use the compressed style if space is limited
+            // compressed // Use the compressed style if space is limited (property no longer supported in our EUI version)
           />
         );
       },

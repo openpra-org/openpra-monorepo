@@ -3,10 +3,16 @@ import { Test, TestingModule } from "@nestjs/testing";
 import request from "supertest";
 import { ApiModule } from "../src/api.module";
 
-describe("OpenPRA web-backend endpoints testing (e2e)", () => {
+const baseUrl = process.env.BACKEND_BASE_URL ?? "http://localhost:8000/api";
+const RUN_EXTERNAL = process.env.RUN_EXTERNAL_E2E === "true" || !!process.env.BACKEND_BASE_URL;
+
+const maybeDescribe = RUN_EXTERNAL ? describe : describe.skip;
+
+maybeDescribe("OpenPRA web-backend endpoints testing (e2e)", () => {
   let app: INestApplication;
 
   beforeAll(async () => {
+    process.env.UNSAFE_JWT_SECRET_KEY = process.env.UNSAFE_JWT_SECRET_KEY ?? "test-secret";
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [ApiModule],
     }).compile();
@@ -27,23 +33,26 @@ describe("OpenPRA web-backend endpoints testing (e2e)", () => {
 
   describe("user login", () => {
     it("token-obtain", async () => {
-      const res = await request("http://localhost:8000/api").post("/auth/token-obtain/").send({
+  const res = await request(baseUrl).post("/auth/token-obtain/").send({
         username: "test2",
         password: "123456",
       });
-      jwttoken = res.body.token;
+      const body: { token?: string } = res.body as { token?: string };
+      jwttoken = body.token ?? "";
       expect(res.status).toBe(200);
     });
 
     it("Get Model List", async () => {
-      const res = await request("http://localhost:8000/api")
+      const res = await request(baseUrl)
         .get("/collab/model/?type=hcl")
         .set("Authorization", "JWT " + jwttoken);
       expect(res.status).toBe(200);
-      expect(res.body.count).toBe(0);
-      expect(res.body.next).toBe(null);
-      expect(res.body.previous).toBe(null);
-      expect(res.body.results).toBe([]);
+      type Paginated<T> = { count: number; next: string | null; previous: string | null; results: T[] };
+      const body = res.body as Paginated<unknown>;
+      expect(body.count).toBe(0);
+      expect(body.next).toBe(null);
+      expect(body.previous).toBe(null);
+      expect(body.results).toEqual([]);
     });
   });
 });

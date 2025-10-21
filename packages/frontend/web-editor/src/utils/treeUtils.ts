@@ -155,7 +155,7 @@ export const getBasicEventNode = (): Node => ({
  * Generates a new workflow edge.
  * @returns a new workflow edge.
  */
-export const getWorkflowEdge = (parentNodeId: string, childNodeId: string, label = ""): Edge<FaultTreeNodeProps> => ({
+export const getWorkflowEdge = (parentNodeId: string, childNodeId: string, _label = ""): Edge<FaultTreeNodeProps> => ({
   id: `${parentNodeId}=>${childNodeId}`,
   source: parentNodeId,
   target: childNodeId,
@@ -312,13 +312,13 @@ export const isSubgraphGrayed = (nodes: Node[], edges: Edge[]): boolean => {
  * @param edges - Current edges
  */
 export const exitGrayedState = (nodes: Node[], edges: Edge[]): { newNodes: Node[]; newEdges: Edge[] } => {
-  const newNodes: Node[] = nodes.map(({ data, ...node }) => ({
+  const newNodes: Node[] = nodes.map(({ data: _data, ...node }) => ({
     ...node,
     data: {
       isGrayed: false,
     },
   }));
-  const newEdges: Edge[] = edges.map(({ data, ...edge }) => ({
+  const newEdges: Edge[] = edges.map(({ data: _data, ...edge }) => ({
     ...edge,
     animated: false,
     data: {

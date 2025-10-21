@@ -66,14 +66,15 @@ describe("CollabController", () => {
      * expect result to be defined
      */
     it("should create a user", async () => {
-      const user_object = {
+      const user_object: import("./dtos/createNewUser-schema").CreateNewUserSchemaDto = {
         firstName: "User1",
         lastName: "Last1",
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: [],
       };
-  const response = await collabController.createNewUser(user_object as any);
+  const response = await collabController.createNewUser(user_object);
   expect(response).toBeDefined();
     });
   });
@@ -89,15 +90,17 @@ describe("CollabController", () => {
      * expect preferences to be defined for user
      */
     it("should return user preferences", async () => {
-      const user_object = {
+      const user_object: import("./dtos/createNewUser-schema").CreateNewUserSchemaDto = {
         firstName: "User1",
         lastName: "Last1",
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: [],
       };
-  const response: any = await collabService.createNewUser({ ...user_object, roles: [] } as any);
-  const userId = String(response.id ?? response?.toJSON?.().id ?? response?._doc?.id);
+  await collabService.createNewUser(user_object);
+  const created = await collabService.loginUser(user_object.username);
+  const userId = String(created?.id ?? "");
       const result = await collabController.getUserPreferences(userId);
       expect(result).toBeDefined(); //expect preferences to be defined for user
     });
@@ -115,47 +118,53 @@ describe("CollabController", () => {
      * expect preferences to be updated for user
      */
     it("should update user preferences - theme", async () => {
-      const user_object = {
+      const user_object: import("./dtos/createNewUser-schema").CreateNewUserSchemaDto = {
         firstName: "User1",
         lastName: "Last1",
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: [],
       };
-  const userPreferenceObject = { preferences: { theme: "Dark" } };
-  const response: any = await collabService.createNewUser({ ...user_object, roles: [] } as any);
-  const userId = String(response?.id ?? response?.toJSON?.().id ?? response?._doc?.id);
-  const result: any = await collabController.updateUserPreferences(userId, userPreferenceObject as any);
+  const userPreferenceObject: import("./dtos/user-preferences.dto").UserPreferencesDto = { preferences: { theme: "Dark" } } as unknown as import("./dtos/user-preferences.dto").UserPreferencesDto;
+  await collabService.createNewUser(user_object);
+  const created1 = await collabService.loginUser(user_object.username);
+  const userId = String(created1?.id ?? "");
+  const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
       expect(result.preferences.theme).toMatch("Dark");
     });
 
     it("should update user preferences - nodeIdsVisible", async () => {
-      const user_object = {
+      const user_object: import("./dtos/createNewUser-schema").CreateNewUserSchemaDto = {
         firstName: "User1",
         lastName: "Last1",
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: [],
       };
-      const userPreferenceObject = { preferences: { nodeIdsVisible: false } };
-  const response: any = await collabService.createNewUser({ ...user_object, roles: [] } as any);
-  const userId = String(response.id ?? response?.toJSON?.().id ?? response?._doc?.id);
-  const result: any = await collabController.updateUserPreferences(userId, userPreferenceObject as any);
+      const userPreferenceObject: import("./dtos/user-preferences.dto").UserPreferencesDto = { preferences: { nodeIdsVisible: false } } as unknown as import("./dtos/user-preferences.dto").UserPreferencesDto;
+  await collabService.createNewUser(user_object);
+  const created2 = await collabService.loginUser(user_object.username);
+  const userId = String(created2?.id ?? "");
+  const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
       expect(result.preferences.nodeIdsVisible).toBeFalsy();
     });
 
     it("should update user preferences - outlineVisible", async () => {
-      const user_object = {
+      const user_object: import("./dtos/createNewUser-schema").CreateNewUserSchemaDto = {
         firstName: "User1",
         lastName: "Last1",
         email: "xyz@gmail.com",
         username: "testUser",
         password: "12345678",
+        roles: [],
       };
-      const userPreferenceObject = { preferences: { outlineVisible: false } };
-  const response: any = await collabService.createNewUser({ ...user_object, roles: [] } as any);
-  const userId = String(response.id ?? response?.toJSON?.().id ?? response?._doc?.id);
-  const result: any = await collabController.updateUserPreferences(userId, userPreferenceObject as any);
+      const userPreferenceObject: import("./dtos/user-preferences.dto").UserPreferencesDto = { preferences: { outlineVisible: false } } as unknown as import("./dtos/user-preferences.dto").UserPreferencesDto;
+  await collabService.createNewUser(user_object);
+  const created3 = await collabService.loginUser(user_object.username);
+  const userId = String(created3?.id ?? "");
+  const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
       expect(result.preferences.outlineVisible).toBeFalsy();
     });
   });

@@ -70,12 +70,12 @@ const InvitePage = (): JSX.Element => {
   }, [inviteId, addToast]);
 
   function handleSignup(): void {
-    const { passConfirm, ...signupData } = signup;
+    const { passConfirm: _passConfirm, ...signupData } = signup;
     ApiManager.signup(signupData)
       .then(() => {
         if (ApiManager.isLoggedIn()) {
           void UserInviteApi.updateInvite(inviteId ?? "");
-          navigate("/");
+          void navigate("/");
         }
       })
       .catch((signInError: unknown) => {

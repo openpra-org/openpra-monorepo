@@ -1,5 +1,5 @@
 import { jwtDecode } from "jwt-decode";
-import { AuthToken, EMPTY_TOKEN } from "shared-types/src/lib/types/AuthToken";
+import { AuthToken, EMPTY_TOKEN } from "shared-types";
 import { MemberRole } from "../data/predefiniedRoles";
 
 class AuthService {
@@ -17,7 +17,7 @@ class AuthService {
         return true;
       }
       return Date.now() / 1000 > payload.exp;
-    } catch (err) {
+    } catch (_err) {
       return true;
     }
   }
@@ -37,7 +37,7 @@ class AuthService {
         return -1;
       }
       return payload.exp - Date.now() / 1000;
-    } catch (err) {
+    } catch (_err) {
       return -1;
     }
   }
@@ -65,7 +65,7 @@ class AuthService {
         return EMPTY_TOKEN;
       }
       return jwtDecode<AuthToken>(encodedToken);
-    } catch (e) {
+    } catch (_e) {
       return EMPTY_TOKEN;
     }
   }
@@ -84,7 +84,7 @@ class AuthService {
         return [MemberRole];
       }
       return decodedToken.roles ?? [MemberRole];
-    } catch (e) {
+    } catch (_e) {
       // Something bad happened
       throw new Error("The user is not logged in or token expired");
     }

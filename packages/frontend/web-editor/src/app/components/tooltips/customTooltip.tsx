@@ -57,5 +57,4 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
   );
 };
 
-// eslint-disable-next-line import/no-default-export
 export default Tooltip;

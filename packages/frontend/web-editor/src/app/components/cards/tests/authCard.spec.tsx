@@ -41,7 +41,7 @@ describe("AuthCard", () => {
   // });
 
   it("renders AuthCard component with correct elements", () => {
-    const { getByText, getByAltText, getByTestId } = render(
+  const { getByText, getByAltText, getByTestId } = render(
       <MemoryRouter>
         <AbilityContext.Provider value={DefaultAbility()}>
           <ToastProvider>
@@ -59,7 +59,7 @@ describe("AuthCard", () => {
     const versionNumberPattern = /^v\d*\.\d*\.\d*$/;
 
     // Test description
-    const descriptionElement = getByText((content, element) =>
+    const descriptionElement = getByText((content, _element) =>
       // Use the regex to check if the content matches the version number pattern
       versionNumberPattern.test(content),
     );

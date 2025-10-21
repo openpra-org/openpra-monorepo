@@ -31,7 +31,7 @@ async function fetchModelList(
       : [];
     return modelList;
     // return await getNestedEndpointString(modelId);
-  } catch (error) {
+  } catch {
     return [];
   }
 }
@@ -78,7 +78,7 @@ const getFixtures = async (
         patchNestedEndpoint={patchNestedEndpoint}
       />
     ));
-  } catch (error) {
+  } catch {
     return []; // Return an empty array or handle the error as needed
   }
 };

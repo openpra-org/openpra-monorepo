@@ -40,10 +40,18 @@
       },
       "dependsOn": []
     },
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter mef-schema run lint:canary",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "lint": {
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
+        "eslintConfig": "packages/mef-schema/eslint.config.mjs",
         "lintFilePatterns": [
           "{projectRoot}/**/*.{ts,js}"
         ]

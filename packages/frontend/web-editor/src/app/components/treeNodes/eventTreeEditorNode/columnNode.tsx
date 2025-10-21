@@ -1,4 +1,3 @@
-/* eslint-disable import/no-default-export */
 import { Handle, Node, NodeProps, Position, useReactFlow } from "reactflow";
 import React, { memo, useState } from "react";
 import { EuiTextArea } from "@elastic/eui";

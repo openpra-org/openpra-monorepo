@@ -310,7 +310,7 @@ async function AddNestedModelToTypedModel(type: string): Promise<void> {
  * generic Post for all the types of methods
  * @param url - the url we are Posting to
  * @param data - the nested model we are using to Post
- * @param typedModel is the typedmodel to be updated
+ * @param typedModel - the typed model to be updated
  * @returns the nested model promise after Posting
  */
 export async function Post(url: string, data: NestedModelJSON, typedModel = ""): Promise<Response> {

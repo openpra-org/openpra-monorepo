@@ -34,10 +34,10 @@ function LoginForm(): JSX.Element {
       await ApiManager.signInWithUsernameAndPassword(username, password).then(() => {
         if (ApiManager.isLoggedIn()) {
           UpdateAbility(ability, AuthService.getRole())
-            .then((res) => {
+            .then((_res) => {
               setRedirectToHomepage(true);
             })
-            .catch((error: unknown) => {
+            .catch((_error: unknown) => {
               addToast(GetESToast("danger", "Something went wrong while getting abilities"));
               setInvalid(true);
             });
@@ -45,7 +45,7 @@ function LoginForm(): JSX.Element {
           setInvalid(true);
         }
       });
-    } catch (error: unknown) {
+    } catch (_error: unknown) {
       // Intentionally ignoring error here; invalid state is handled via setInvalid
     }
   }
@@ -95,7 +95,7 @@ function LoginForm(): JSX.Element {
             );
           }
         })
-        .catch((error: unknown) => {
+        .catch((_error: unknown) => {
           // Handle login error
           // Optionally, you can also set an error state to display to the user
         });

@@ -34,7 +34,7 @@ function SignUp(): JSX.Element {
    * The function to call when user clicks on signup
    */
   function handleSignup(): void {
-    const { passConfirm, ...signupData } = signup;
+    const { passConfirm: _passConfirm, ...signupData } = signup;
     ApiManager.signup(signupData)
       .then(() => {
         if (ApiManager.isLoggedIn()) {

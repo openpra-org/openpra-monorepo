@@ -18,7 +18,7 @@ export const SetEventTrees = async (parentId: string): Promise<void> => {
         state.NestedModels.EventSequenceAnalysis.EventTrees = EventTrees;
       }),
     );
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
   }
 };
@@ -35,7 +35,7 @@ export const AddEventTree = async (data: NestedModelJSON): Promise<void> => {
         state[typedModelName] = AddToParentModel(state, EventTree._id, EventTree.parentIds);
       }),
     );
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
   }
 };
@@ -54,7 +54,7 @@ export const EditEventTree = async (modelId: string, data: Partial<NestedModelJS
         );
       }),
     );
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
   }
 };
@@ -75,7 +75,7 @@ export const DeleteEventTree = async (id: string): Promise<void> => {
         state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),
     );
-  } catch (error: unknown) {
+  } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
   }
 };

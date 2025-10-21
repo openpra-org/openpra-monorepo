@@ -22,7 +22,7 @@ const TYPED_MODEL_TYPE_LOCATION = 1;
 async function fetchCurrentTypedModel(): Promise<TypedModel> {
   try {
     return await GetCurrentTypedModel();
-  } catch (error) {
+  } catch {
     throw new Error("Error fetching current typed model: ");
   }
 }
@@ -79,7 +79,7 @@ function EditCurrentModel(): JSX.Element {
         const model = await fetchCurrentTypedModel();
         updateCurrentModel(model);
         setIsLoaded(true);
-      } catch (error: unknown) {
+      } catch {
         // Intentionally ignore; skeleton remains visible until data loads or user retries
       }
     };

@@ -70,7 +70,7 @@ describe("CollabService", () => {
      * expect response to be defined
      */
     it("should create user and return object", async () => {
-  const response = await collabService.createNewUser({ ...CreateUserObject, roles: [] } as any);
+      const response = await collabService.createNewUser({ ...CreateUserObject, roles: [] });
       expect(response).toBeDefined();
     });
 
@@ -85,7 +85,7 @@ describe("CollabService", () => {
       const response = await collabService.createNewUser(CreateUserObject);
       expect(response).toBeDefined();
       try {
-  await collabService.createNewUser({ ...CreateUserObject, roles: [] } as any); // calling create new_user again with same username
+        await collabService.createNewUser({ ...CreateUserObject, roles: [] }); // calling create new_user again with same username
       } catch (err) {
         expect(err).toBeInstanceOf(Error); // expect an error to be thrown
       }
@@ -115,7 +115,7 @@ describe("CollabService", () => {
      * expect result to be defined
      */
     it("should return user document if user logged in successfully", async () => {
-  await collabService.createNewUser({ ...CreateUserObject, roles: [] } as any); // create a new user
+      await collabService.createNewUser({ ...CreateUserObject, roles: [] }); // create a new user
       const result = await collabService.loginUser(CreateUserObject.username); // call loginUser function
       expect(result).toBeDefined(); //expect result to be defined, if login is successful
     });
@@ -133,7 +133,7 @@ describe("CollabService", () => {
      * expect result to be defined
      */
     it("should return user preferences", async () => {
-  const response = await collabService.createNewUser({ ...CreateUserObject, roles: [] } as any); // create a new user
+      const response = await collabService.createNewUser({ ...CreateUserObject, roles: [] }); // create a new user
       if (typeof response !== "string") {
         const returnedValue = await collabService.getUserPreferences(String(response.id)); // calling getUserPreferences
         expect(returnedValue).toBeDefined(); // user preferences should be defined
@@ -342,8 +342,9 @@ describe("CollabService", () => {
       expect(returnedValue).toBeDefined(); // users list should be defined
       expect(returnedValue.count).toBe(30); // users list should have 10 users
       expect(returnedValue.results.length).toBe(10); // result should have 10 user objects
+      const results = returnedValue.results as Array<{ username: string }>;
       for (let i = 0; i < 10; i++) {
-        expect(returnedValue.results[i].username).toMatch("testUser" + String(i)); // first 10 users should be testUser0 to testUser9
+        expect(results[i].username).toMatch("testUser" + String(i)); // first 10 users should be testUser0 to testUser9
       }
       expect(returnedValue.next).toMatch("?limit=10&offset=10"); // next page url should be ?limit=10&offset=10
     }, 30000);
@@ -376,8 +377,9 @@ describe("CollabService", () => {
       expect(returnedValue).toBeDefined(); // users list should be defined
       expect(returnedValue.count).toBe(30); // users list should have 10 users
       expect(returnedValue.results.length).toBe(10); // users list should have 10 users
+      const resultsMid = returnedValue.results as Array<{ username: string }>;
       for (let i = 0; i < 10; i++) {
-        expect(returnedValue.results[i].username).toMatch("testUser" + String(i + 10)); // last 10 users should be testUser10 to testUser19
+        expect(resultsMid[i].username).toMatch("testUser" + String(i + 10)); // last 10 users should be testUser10 to testUser19
       }
       expect(returnedValue.next).toMatch("limit=10&offset=20");
       expect(returnedValue.previous).toMatch("limit=10&offset=0");
@@ -396,7 +398,7 @@ describe("CollabService", () => {
      * NOTE: increase timeout of test to 30 seconds as it takes time to create 30 users
      */
     it("should return last page of users with limit 10 and offset 20 if 30 users in database", async () => {
-      //add 30 users to database using for loop
+      // add 30 users to database using for loop
       for (let i = 0; i < 30; i++) {
         const userObject = {
           firstName: "User" + String(i),
@@ -412,8 +414,9 @@ describe("CollabService", () => {
       expect(returnedValue).toBeDefined(); // users list should be defined
       expect(returnedValue.count).toBe(30); // users list should have 10 users
       expect(returnedValue.results.length).toBe(10); // users list should have 10 users
+      const resultsLast = returnedValue.results as Array<{ username: string }>;
       for (let i = 0; i < 10; i++) {
-        expect(returnedValue.results[i].username).toMatch("testUser" + String(i + 20)); // last 10 users should be testUser20to testUser29
+        expect(resultsLast[i].username).toMatch("testUser" + String(i + 20)); // last 10 users should be testUser20 to testUser29
       }
       expect(returnedValue.next).toBeNull(); // next page url should be null
       expect(returnedValue.previous).toMatch("limit=10&offset=10"); // previous page url should be ?limit=10&offset=20
@@ -447,8 +450,9 @@ describe("CollabService", () => {
       expect(returnedValue).toBeDefined(); // users list should be defined
       expect(returnedValue.count).toBe(3); // users list should have 3 users
       expect(returnedValue.results.length).toBe(3); // users list should have 3 users
+      const resultsAll = returnedValue.results as Array<{ username: string }>;
       for (let i = 0; i < 3; i++) {
-        expect(returnedValue.results[i].username).toMatch("testUser" + String(i));
+        expect(resultsAll[i].username).toMatch("testUser" + String(i));
       }
       expect(returnedValue.next).toBeNull(); // next page url should be null
       expect(returnedValue.previous).toBeNull(); // previous page url should be null

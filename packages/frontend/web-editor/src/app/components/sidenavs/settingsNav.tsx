@@ -76,7 +76,7 @@ export function SettingsNav(): JSX.Element {
           {
             iconType: "users",
             callback: () => {
-              navigate("users");
+              void navigate("users");
             },
           },
           1,
@@ -86,7 +86,7 @@ export function SettingsNav(): JSX.Element {
           {
             iconType: "preferences",
             callback: () => {
-              navigate("preferences/" + String(userId) + "/personal-data");
+              void navigate("preferences/" + String(userId) + "/personal-data");
             },
           },
           1,
@@ -106,7 +106,7 @@ export function SettingsNav(): JSX.Element {
           {
             iconType: "usersRolesApp",
             callback: () => {
-              navigate("roles");
+              void navigate("roles");
             },
           },
           1,
@@ -116,7 +116,7 @@ export function SettingsNav(): JSX.Element {
           {
             iconType: "email",
             callback: () => {
-              navigate("invitations");
+              void navigate("invitations");
             },
           },
           1,
@@ -125,7 +125,7 @@ export function SettingsNav(): JSX.Element {
     }),
   ];
 
-  const padding = useEuiPaddingSize("s") ?? "0px";
+  const padding = useEuiPaddingSize("s");
 
   const createTreeView = (items: TreeItem[], i: number, forceTreeView = false): JSX.Element => {
     //TODO

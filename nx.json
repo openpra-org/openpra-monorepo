@@ -58,7 +58,7 @@
       }
     },
     "@nx/eslint:lint": {
-      "inputs": ["default", "{workspaceRoot}/.eslintrc.json", "{workspaceRoot}/.eslintignore"],
+      "inputs": ["default", "{workspaceRoot}/eslint.config.mjs", "{workspaceRoot}/eslint.config.canary.mjs"],
       "cache": true
     },
     "@nx/js:tsc": {
@@ -87,5 +87,5 @@
   },
   "useInferencePlugins": false,
   "nxCloudId": "68f500e88caaff7347609ca6",
-  "useLegacyCache": true
+  "useLegacyCache": false
 }

@@ -29,7 +29,7 @@ export default tseslint.config(
         }
       ],
       '@typescript-eslint/require-await': 'error',
-      'tsdoc/syntax': 'warn'
+      'tsdoc/syntax': 'error'
     }
   },
   // Tests: keep canary non-blocking while ratcheting source
@@ -40,7 +40,8 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': [
         'warn',
         { args: 'after-used', argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
-      ]
+      ],
+      'tsdoc/syntax': 'off'
     }
   }
 );

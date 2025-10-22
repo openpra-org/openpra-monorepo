@@ -26,13 +26,15 @@ export class InviteController {
   /**
    * This endpoint will generate an invitation id for a user
    * @param body - The InvitedUserDto object
-   * @example - Sample Request body
+   * @example - Sample request body
+   * ```json
    * {
-   *   "firstname" : "xyz"
-   *   "lastname" : "abc"
-   *   "email" : "abcxyz@gmail.com"
-   *   "username" : "xyzabc"
+   *   "firstname": "xyz",
+   *   "lastname": "abc",
+   *   "email": "abcxyz\@gmail.com",
+   *   "username": "xyzabc"
    * }
+   * ```
    */
   @Post("/invite/")
   async generateInvitationLink(@Body() body: InvitedUserDto): Promise<InviteIdDto> {
@@ -53,10 +55,12 @@ export class InviteController {
    * This public endpoint will check if an invite id is correct and not expired.
    * @returns - InvitedUserDto object or null
    * @param body - InviteIDDto object
-   * @example - Sample Request
+   * @example - Sample request
+   * ```json
    * {
-   *   "id" : "abcde-fghij-klmnon-asdnj"
+   *   "id": "abcde-fghij-klmnon-asdnj"
    * }
+   * ```
    */
   @Public()
   @Post("/verify-invite/")

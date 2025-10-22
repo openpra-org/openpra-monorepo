@@ -36,7 +36,26 @@ export default tseslint.config(
         }
       ],
       '@typescript-eslint/require-await': 'error',
-      'tsdoc/syntax': 'warn'
+      'tsdoc/syntax': 'error'
+    }
+  },
+  // Targeted ratchet: hooks, api, providers, casl, and store — ensure promises are handled
+  {
+    files: [
+      `${relDir}/src/app/hooks/**/*.{ts,tsx}`,
+      `${relDir}/src/app/api/**/*.{ts,tsx}`,
+      `${relDir}/src/app/providers/**/*.{ts,tsx}`,
+      `${relDir}/src/app/casl/**/*.{ts,tsx}`,
+      `${relDir}/src/app/store/**/*.{ts,tsx}`
+    ],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        {
+          checksVoidReturn: false
+        }
+      ]
     }
   },
   // Targeted ratchet: components/headers only (safe, small scope)
@@ -71,6 +90,56 @@ export default tseslint.config(
       ]
     }
   },
+  // Targeted ratchet: broader logic subtrees (zustand, workspaces, page containers)
+  {
+    files: [
+      `${relDir}/src/app/zustand/**/*.{ts,tsx}`,
+      `${relDir}/src/app/workspaces/**/*.{ts,tsx}`,
+      `${relDir}/src/app/components/pageContainers/**/*.{ts,tsx}`
+    ],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        {
+          checksVoidReturn: false
+        }
+      ]
+    }
+  },
+  // Targeted ratchet: UI orchestrators (modals, context menus) where async actions are triggered
+  {
+    files: [
+      `${relDir}/src/app/components/modals/**/*.{ts,tsx}`,
+      `${relDir}/src/app/components/context_menu/**/*.{ts,tsx}`
+    ],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        {
+          checksVoidReturn: false
+        }
+      ]
+    }
+  },
+  // Targeted ratchet: forms, lists, and menus often perform async data ops
+  {
+    files: [
+      `${relDir}/src/app/components/forms/**/*.{ts,tsx}`,
+      `${relDir}/src/app/components/lists/**/*.{ts,tsx}`,
+      `${relDir}/src/app/components/menus/**/*.{ts,tsx}`
+    ],
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        {
+          checksVoidReturn: false
+        }
+      ]
+    }
+  },
   // Tests: keep canary non-blocking while ratcheting source
   {
     files: [
@@ -86,7 +155,8 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': [
         'warn',
         { args: 'after-used', argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
-      ]
+      ],
+      'tsdoc/syntax': 'off'
     }
   }
 );

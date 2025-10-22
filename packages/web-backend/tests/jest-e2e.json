@@ -3,7 +3,24 @@
   "rootDir": ".",
   "testEnvironment": "node",
   "testRegex": ".e2e.ts$",
+  "globalSetup": "<rootDir>/unitTestSetup.ts",
+  "globalTeardown": "<rootDir>/unitTestTeardown.ts",
+  "moduleNameMapper": {
+    "^shared-sdk$": "<rootDir>/../../shared-sdk/src/index.ts",
+    "^shared-types$": "<rootDir>/../../shared-types/src/index.ts"
+  },
   "transform": {
-    "^.+\\.(t|j)s$": "ts-jest"
+    "^.+\\.(t|j)s$": [
+      "@swc/jest",
+      {
+        "jsc": {
+          "parser": { "syntax": "typescript", "tsx": false, "decorators": true },
+          "target": "es2020",
+          "transform": { "decoratorMetadata": true }
+        },
+        "module": { "type": "commonjs" },
+        "sourceMaps": "inline"
+      }
+    ]
   }
 }

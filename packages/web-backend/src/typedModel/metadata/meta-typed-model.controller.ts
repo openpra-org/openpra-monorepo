@@ -14,7 +14,7 @@ export class MetaTypedModelController {
 
   /**
    *
-   * @param id the id of the user whose models you want to retrieve
+   * @param id - the id of the user whose models you want to retrieve
    * @returns a list of the internal hazards moodels the user is on
    */
   @Get("/metadata/internal-events/")

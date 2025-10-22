@@ -1,9 +1,9 @@
-name: "CI: Lint Canary (non-blocking)"
+name: "CI: Lint Canary"
 
 on:
   pull_request:
     branches:
-      - '**'
+      - "**"
 
 jobs:
   lint-canary:
@@ -18,8 +18,8 @@ jobs:
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20.17.0'
-          cache: 'pnpm'
+          node-version: "20.17.0"
+          cache: "pnpm"
 
       - name: Install pnpm
         run: npm install -g pnpm@10.18.2
@@ -27,9 +27,11 @@ jobs:
       - name: Install dependencies (skip scripts)
         run: pnpm install --ignore-scripts --no-frozen-lockfile
 
-      - name: Run canary lint (non-blocking)
-        continue-on-error: true
-        run: pnpm -w run lint:canary:all | tee lint-canary.txt
+      - name: Run canary lint
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm -w run lint:canary:all | tee lint-canary.txt
 
       - name: Upload canary lint artifact
         if: always()

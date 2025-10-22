@@ -12,6 +12,7 @@
       "options": {
         "target": "node",
         "compiler": "tsc",
+        "generateLockfile": false,
         "transformers": [
           "typia/lib/transform",
           {
@@ -23,15 +24,19 @@
           }
         ],
         "outputPath": "dist/packages/microservice/job-broker",
-  "generatePackageJson": true,
+        "generatePackageJson": false,
         "main": "packages/microservice/job-broker/src/main.ts",
         "tsConfig": "packages/microservice/job-broker/tsconfig.app.json",
         "assets": ["packages/microservice/job-broker/src/assets"],
         "webpackConfig": "packages/microservice/job-broker/webpack.config.js"
       },
       "configurations": {
-        "development": {},
-        "production": {}
+        "development": {
+          "generateLockfile": false
+        },
+        "production": {
+          "generateLockfile": false
+        }
       }
     },
     "serve": {
@@ -73,6 +78,7 @@
       "options": {
         "target": "node",
         "compiler": "tsc",
+        "generateLockfile": false,
         "transformers": [
           "typia/lib/transform",
           {
@@ -84,14 +90,19 @@
           }
         ],
         "outputPath": "dist/packages/microservice/job-broker-consumer",
+        "generatePackageJson": false,
         "main": "packages/microservice/job-broker/src/main-consumer.ts",
         "tsConfig": "packages/microservice/job-broker/tsconfig.app.json",
         "assets": ["packages/microservice/job-broker/src/assets"],
         "webpackConfig": "packages/microservice/job-broker/webpack.config.js"
       },
       "configurations": {
-        "development": {},
-        "production": {}
+        "development": {
+          "generateLockfile": false
+        },
+        "production": {
+          "generateLockfile": false
+        }
       }
     },
     "serve-consumer": {
@@ -142,9 +153,7 @@
       "outputs": ["{options.outputFile}"],
       "options": {
         "eslintConfig": "packages/microservice/job-broker/eslint.config.mjs",
-        "lintFilePatterns": [
-          "{projectRoot}/**/*.ts"
-        ]
+        "lintFilePatterns": ["{projectRoot}/**/*.ts"]
       }
     },
     "test": {

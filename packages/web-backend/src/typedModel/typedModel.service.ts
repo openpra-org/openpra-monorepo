@@ -70,7 +70,7 @@ export class TypedModelService {
 
   /**
    * method for creating a new internal evnet model in the database
-   * @param body takes in the model type that is requested in the name
+   * @param body - takes in the model type that is requested in the name
    * @returns promise with the model type
    */
   async createExternalHazardModel(body: Partial<ExternalHazards>): Promise<TypedModel> {
@@ -81,7 +81,7 @@ export class TypedModelService {
 
   /**
    * method for creating a new internal event model in the database
-   * @param body takes in the model type that is requested in the name
+   * @param body - takes in the model type that is requested in the name
    * @returns promise with the model type
    */
   async createFullScopeModel(body: Partial<FullScope>): Promise<TypedModel> {
@@ -94,9 +94,9 @@ export class TypedModelService {
 
   /**
    * updates a single model at the given id, replacing it with a new one
-   * @param modelId the id of the model to be updated
-   * @param userId the user who must be on the model
-   * @param model the new model we want to put at the id
+   * @param modelId - the id of the model to be updated
+   * @param userId - the user who must be on the model
+   * @param model - the new model we want to put at the id
    * @returns the new InternalEventsModel
    */
   async patchInternalEvent(modelId: string, userId: number, model: Partial<InternalEvents>): Promise<InternalEvents> {
@@ -119,9 +119,9 @@ export class TypedModelService {
 
   /**
    * updates a single model at the given id, replacing it with a new one
-   * @param modelId the id of the model to be updated
-   * @param userId the user who must be on the model
-   * @param model the new model we want to put at the id
+   * @param modelId - the id of the model to be updated
+   * @param userId - the user who must be on the model
+   * @param model - the new model we want to put at the id
    * @returns the new InternalHazardsModel
    */
   async patchInternalHazard(
@@ -148,9 +148,9 @@ export class TypedModelService {
 
   /**
    * updates a single model at the given id, replacing it with a new one
-   * @param modelId the id of the model to be updated
-   * @param userId the user who must be on the model
-   * @param model the new model we want to put at the id
+   * @param modelId - the id of the model to be updated
+   * @param userId - the user who must be on the model
+   * @param model - the new model we want to put at the id
    * @returns the new ExternalHazardsModel
    */
   async patchExternalHazard(
@@ -177,9 +177,9 @@ export class TypedModelService {
 
   /**
    * updates a single model at the given id, replacing it with a new one
-   * @param modelId the id of the model to be updated
-   * @param userId the user who must be on the model
-   * @param model the new model we want to put at the id
+   * @param modelId - the id of the model to be updated
+   * @param userId - the user who must be on the model
+   * @param model - the new model we want to put at the id
    * @returns the new FulLScopeModel
    */
   async patchFullScope(modelId: string, userId: number, model: Partial<FullScope>): Promise<FullScope> {
@@ -204,7 +204,7 @@ export class TypedModelService {
 
   /**
    * function to return all of the desired model type of a given user
-   * @param userId the user who's models are to be loaded
+   * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
   async getInternalEvents(userId: number): Promise<InternalEvents[]> {
@@ -215,7 +215,7 @@ export class TypedModelService {
 
   /**
    * function to return all of the desired model type of a given user
-   * @param userId the user who's models are to be loaded
+   * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
   async getInternalHazards(userId: number): Promise<InternalHazards[]> {
@@ -224,7 +224,7 @@ export class TypedModelService {
 
   /**
    * function to return all of the desired model type of a given user
-   * @param userId the user who's models are to be loaded
+   * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
   async getExternalHazards(userId: number): Promise<ExternalHazards[]> {
@@ -233,7 +233,7 @@ export class TypedModelService {
 
   /**
    * function to return all of the desired model type of a given user
-   * @param userId the user who's models are to be loaded
+   * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
   async getFullScopes(userId: number): Promise<FullScope[]> {
@@ -245,7 +245,7 @@ export class TypedModelService {
   /**
    * note for all: the id thing is to exclude the _id mongoose stuff from being in the output
    * function to return all of the desired model type of a given user
-   * @param userId the user who's models are to be loaded
+   * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
   async getInternalEvent(modelId: string, userId: number): Promise<InternalEvents> {
@@ -256,7 +256,7 @@ export class TypedModelService {
 
   /**
    * function to return all of the desired model type of a given user
-   * @param userId the user who's models are to be loaded
+   * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
   async getInternalHazard(modelId: string, userId: number): Promise<InternalHazards> {
@@ -265,7 +265,7 @@ export class TypedModelService {
 
   /**
    * function to return all of the desired model type of a given user
-   * @param userId the user who's models are to be loaded
+   * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
   async getExternalHazard(modelId: string, userId: number): Promise<ExternalHazards> {
@@ -274,7 +274,7 @@ export class TypedModelService {
 
   /**
    * function to return all of the desired model type of a given user
-   * @param userId the user who's models are to be loaded
+   * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
   async getFullScope(modelId: string, userId: number): Promise<FullScope> {
@@ -285,8 +285,8 @@ export class TypedModelService {
 
   /**
    * deletes an internal event with the given id from a user, and from the database if these is only 1 user
-   * @param modelId the id of the internal event to be deleted
-   * @param userId the user for which model is to be deleted
+   * @param modelId - the id of the internal event to be deleted
+   * @param userId - the user for which model is to be deleted
    * @returns the deleted model
    */
   async deleteInternalEvent(modelId: number, userId: number): Promise<InternalEventsModel> {
@@ -303,7 +303,7 @@ export class TypedModelService {
     };
 
     const result = await this.internalEventsModel.findOne(query);
-  if (result.users.length === 1) {
+    if (result.users.length === 1) {
       return await this.internalEventsModel.findOneAndDelete(query);
     } else {
       return await this.internalEventsModel.findOneAndUpdate(query, updateData, { new: true }).lean();
@@ -312,8 +312,8 @@ export class TypedModelService {
 
   /**
    * deletes an internal hazard with the given id from a user, and from the database if these is only 1 user
-   * @param modelId the id of the internal hazard to be deleted
-   * @param userId the user for whom the model is to be deleted
+   * @param modelId - the id of the internal hazard to be deleted
+   * @param userId - the user for whom the model is to be deleted
    * @returns the deleted model
    */
   async deleteInternalHazard(modelId: number, userId: number): Promise<InternalHazardsModel> {
@@ -328,20 +328,20 @@ export class TypedModelService {
     };
 
     const result = await this.internalHazardsModel.findOne(query);
-  if (result.users.length === 1) {
+    if (result.users.length === 1) {
       return await this.internalHazardsModel.findOneAndDelete(query, {
         new: true,
       });
     } else {
-  result.users = result.users.filter((user) => user !== userId);
+      result.users = result.users.filter((user) => user !== userId);
       return await this.internalHazardsModel.findOneAndUpdate(query, updateData, { new: true }).lean();
     }
   }
 
   /**
    * deletes an external hazard with the given id from a user, and from the database if these is only 1 user
-   * @param modelId the id of the external hazard to be deleted
-   * @param userId the id of the user for whom model is to be deleted
+   * @param modelId - the id of the external hazard to be deleted
+   * @param userId - the id of the user for whom model is to be deleted
    * @returns the deleted model
    */
   async deleteExternalHazard(modelId: number, userId: number): Promise<ExternalHazardsModel> {
@@ -356,7 +356,7 @@ export class TypedModelService {
     };
 
     const result = await this.externalHazardsModel.findOne(query);
-  if (result.users.length === 1) {
+    if (result.users.length === 1) {
       return await this.externalHazardsModel.findOneAndDelete(query);
     } else {
       result.users = result.users.filter((user) => user !== userId);
@@ -366,8 +366,8 @@ export class TypedModelService {
 
   /**
    * deletes a full scope with the given id from a user, and from the database if these is only 1 user
-   * @param modelId the id of the full scope to be deleted
-   * @param userId the user for whom the model is supposed to be deleted
+   * @param modelId - the id of the full scope to be deleted
+   * @param userId - the user for whom the model is supposed to be deleted
    * @returns the deleted model
    */
   async deleteFullScope(modelId: number, userId: number): Promise<FullScopeModel> {
@@ -393,9 +393,9 @@ export class TypedModelService {
 
   /**
    * adds a nested model to a larger model
-   * @param modelId id of the typed model
-   * @param nestedId id of the nested model
-   * @param nestedType string in camelCase of the nested model type
+   * @param modelId - id of the typed model
+   * @param nestedId - id of the nested model
+   * @param nestedType - string in camelCase of the nested model type
    * @returns a promise with the new typed model
    */
   async addNestedToInternalEvent(modelId: number, nestedId: number, nestedType: string): Promise<TypedModelJSON> {
@@ -417,9 +417,9 @@ export class TypedModelService {
 
   /**
    * adds a nested model to a larger model
-   * @param modelId id of the typed model
-   * @param nestedId id of the nested model
-   * @param nestedType string in camelCase of the nested model type
+   * @param modelId - id of the typed model
+   * @param nestedId - id of the nested model
+   * @param nestedType - string in camelCase of the nested model type
    * @returns a promise with the new typed model
    */
   async addNestedToInternalHazard(modelId: number, nestedId: number, nestedType: string): Promise<TypedModelJSON> {
@@ -441,9 +441,9 @@ export class TypedModelService {
 
   /**
    * adds a nested model to a larger model
-   * @param modelId id of the typed model
-   * @param nestedId id of the nested model
-   * @param nestedType string in camelCase of the nested model type
+   * @param modelId - id of the typed model
+   * @param nestedId - id of the nested model
+   * @param nestedType - string in camelCase of the nested model type
    * @returns a promise with the new typed model
    */
   async addNestedToExternalHazard(modelId: number, nestedId: number, nestedType: string): Promise<TypedModelJSON> {
@@ -465,9 +465,9 @@ export class TypedModelService {
 
   /**
    * adds a nested model to a larger model
-   * @param modelId id of the typed model
-   * @param nestedId id of the nested model
-   * @param nestedType string in camelCase of the nested model type
+   * @param modelId - id of the typed model
+   * @param nestedId - id of the nested model
+   * @param nestedType - string in camelCase of the nested model type
    * @returns a promise with the new typed model
    */
   async addNestedToFullScope(modelId: number, nestedId: number, nestedType: string): Promise<TypedModelJSON> {
@@ -491,9 +491,9 @@ export class TypedModelService {
 
   /**
    * deletes a nested model to a larger model
-   * @param modelId id of the typed model
-   * @param nestedId id of the nested model
-   * @param nestedType string in camelCase of the nested model type
+   * @param modelId - id of the typed model
+   * @param nestedId - id of the nested model
+   * @param nestedType - string in camelCase of the nested model type
    * @returns a promise with the new typed model
    */
   async deleteNestedFromInternalEvent(
@@ -519,9 +519,9 @@ export class TypedModelService {
 
   /**
    * deletes a nested model to a larger model
-   * @param modelId id of the typed model
-   * @param nestedId id of the nested model
-   * @param nestedType string in camelCase of the nested model type
+   * @param modelId - id of the typed model
+   * @param nestedId - id of the nested model
+   * @param nestedType - string in camelCase of the nested model type
    * @returns a promise with the new typed model
    */
   async deleteNestedFromInternalHazard(modelId: string, nestedId: number, nestedType: string): Promise<TypedModelJSON> {
@@ -543,9 +543,9 @@ export class TypedModelService {
 
   /**
    * deletes a nested model to a larger model
-   * @param modelId id of the typed model
-   * @param nestedId id of the nested model
-   * @param nestedType string in camelCase of the nested model type
+   * @param modelId - id of the typed model
+   * @param nestedId - id of the nested model
+   * @param nestedType - string in camelCase of the nested model type
    * @returns a promise with the new typed model
    */
   async deleteNestedFromExternalHazard(modelId: string, nestedId: number, nestedType: string): Promise<TypedModelJSON> {
@@ -567,9 +567,9 @@ export class TypedModelService {
 
   /**
    * deletes a nested model to a larger model
-   * @param modelId id of the typed model
-   * @param nestedId id of the nested model
-   * @param nestedType string in camelCase of the nested model type
+   * @param modelId - id of the typed model
+   * @param nestedId - id of the nested model
+   * @param nestedType - string in camelCase of the nested model type
    * @returns a promise with the new typed model
    */
   async deleteNestedFromFullScope(modelId: string, nestedId: number, nestedType: string): Promise<TypedModelJSON> {

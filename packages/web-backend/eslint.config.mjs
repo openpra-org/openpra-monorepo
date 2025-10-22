@@ -85,6 +85,67 @@ export default tseslint.config(
       'tsdoc/syntax': 'warn'
     }
   },
+  {
+    files: [`${relDir}/src/invite/**/*.{ts,tsx}`],
+    rules: {
+      'tsdoc/syntax': 'warn'
+    }
+  },
+  {
+    files: [`${relDir}/src/graphModels/**/*.{ts,tsx}`],
+    rules: {
+      'tsdoc/syntax': 'warn'
+    }
+  },
+  {
+    files: [`${relDir}/src/quantify/**/*.{ts,tsx}`],
+    rules: {
+      'tsdoc/syntax': 'warn'
+    }
+  },
+  {
+    files: [`${relDir}/src/nestedModels/**/*.{ts,tsx}`],
+    rules: {
+      'tsdoc/syntax': 'warn'
+    }
+  },
+  {
+    files: [`${relDir}/src/fmea/**/*.{ts,tsx}`],
+    rules: {
+      'tsdoc/syntax': 'warn'
+    }
+  },
+  {
+    files: [`${relDir}/src/roles/**/*.{ts,tsx}`],
+    rules: {
+      'tsdoc/syntax': 'warn'
+    }
+  },
+  {
+    files: [`${relDir}/src/guards/**/*.{ts,tsx}`],
+    rules: {
+      'tsdoc/syntax': 'warn'
+    }
+  },
+  {
+    files: [`${relDir}/src/filters/**/*.{ts,tsx}`],
+    rules: {
+      'tsdoc/syntax': 'warn'
+    }
+  },
+  {
+    files: [`${relDir}/src/typedModel/**/*.{ts,tsx}`],
+    rules: {
+      'tsdoc/syntax': 'warn'
+    }
+  },
+  // Full coverage: enforce TSDoc across all source files
+  {
+    files: [`${relDir}/src/**/*.{ts,tsx}`],
+    rules: {
+      'tsdoc/syntax': 'error'
+    }
+  },
   // Tests: keep canary non-blocking while ratcheting source
   {
     files: [
@@ -99,7 +160,8 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': [
         'warn',
         { args: 'after-used', argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
-      ]
+      ],
+      'tsdoc/syntax': 'off'
     }
   }
 );

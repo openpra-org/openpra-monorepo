@@ -13,7 +13,8 @@
         "target": "node",
         "compiler": "tsc",
         "outputPath": "dist/packages/web-backend",
-        "generatePackageJson": true,
+        "generatePackageJson": false,
+        "generateLockfile": false,
         "main": "packages/web-backend/src/main.ts",
         "tsConfig": "packages/web-backend/tsconfig.app.json",
         "assets": ["packages/web-backend/src/assets"],
@@ -30,8 +31,12 @@
         ]
       },
       "configurations": {
-        "development": {},
-        "production": {}
+        "development": {
+          "generateLockfile": false
+        },
+        "production": {
+          "generateLockfile": false
+        }
       }
     },
     "serve": {

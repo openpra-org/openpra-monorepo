@@ -29,7 +29,16 @@ export default tseslint.config(
         }
       ],
       '@typescript-eslint/require-await': 'error',
-      'tsdoc/syntax': 'warn'
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        {
+          checksVoidReturn: false
+        }
+      ],
+      '@typescript-eslint/unbound-method': 'error',
+      '@typescript-eslint/no-unsafe-return': 'error',
+      'tsdoc/syntax': 'error'
     }
   },
   // Tests: keep canary non-blocking while ratcheting source
@@ -45,7 +54,9 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': [
         'warn',
         { args: 'after-used', argsIgnorePattern: '^_', varsIgnorePattern: '^_' }
-      ]
+      ],
+      '@typescript-eslint/unbound-method': 'off',
+      'tsdoc/syntax': 'off'
     }
   }
 );

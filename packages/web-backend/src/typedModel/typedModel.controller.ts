@@ -39,7 +39,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param internalEventsModel takes in an internal events model that needs to be added to the database with a dummy id
+   * @param internalEventsModel - takes in an internal events model that needs to be added to the database with a dummy id
    * @returns a promise of internalEventsModel
    */
   @Post("/internal-events/")
@@ -49,7 +49,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param internalHazardsModel takes in an internalHazardsModel with all fields but a dummy id
+   * @param internalHazardsModel - takes in an internalHazardsModel with all fields but a dummy id
    * @returns a promise with an internalHazardsModel
    */
   @Post("/internal-hazards/")
@@ -59,7 +59,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param externalHazardsModel takes in an externalHazardsModel with all fields, and a dummy id
+   * @param externalHazardsModel - takes in an externalHazardsModel with all fields, and a dummy id
    * @returns promise of an externalHazardsModel
    */
   @Post("/external-hazards/")
@@ -69,7 +69,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param fullScopeModel takes in a fullScopeModel with a dummy id
+   * @param fullScopeModel - takes in a fullScopeModel with a dummy id
    * @returns a promise of fullScopeModel
    */
   @Post("/full-scope/")
@@ -81,8 +81,8 @@ export class TypedModelController {
 
   /**
    * gets a single internal event
-   * @param modelId id of the model to be returned
-   * @param userId id of the user getting the model
+   * @param modelId - id of the model to be returned
+   * @param userId - id of the user getting the model
    * @returns the internal event the user has with the modelId
    */
   @Patch("/internal-events/:id/")
@@ -96,8 +96,8 @@ export class TypedModelController {
 
   /**
    * gets a single internal hazard
-   * @param modelId id of the model to be returned
-   * @param userId id of the user getting the model
+   * @param modelId - id of the model to be returned
+   * @param userId - id of the user getting the model
    * @returns the internal hazard the user has with the modelId
    */
   @Patch("/internal-hazards/:id/")
@@ -111,8 +111,8 @@ export class TypedModelController {
 
   /**
    * updates and replaces a single
-   * @param modelId id of the model to be returned
-   * @param userId id of the user getting the model
+   * @param modelId - id of the model to be returned
+   * @param userId - id of the user getting the model
    * @returns the external hazard the user has with the modelId
    */
   @Patch("/external-hazards/:id/")
@@ -126,8 +126,8 @@ export class TypedModelController {
 
   /**
    * gets a single full scope
-   * @param modelId id of the model to be returned
-   * @param userId id of the user getting the model
+   * @param modelId - id of the model to be returned
+   * @param userId - id of the user getting the model
    * @returns the full scope the user has with the modelId
    */
   @Patch("/full-scope/:id/")
@@ -143,7 +143,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param id the id of the user whose models you want to retrieve
+   * @param id - the id of the user whose models you want to retrieve
    * @returns a list of the internal hazards moodels the user is on
    */
   @Get("/internal-events/")
@@ -153,7 +153,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param id the id of the user whose models you want to retrieve
+   * @param id - the id of the user whose models you want to retrieve
    * @returns a list of the internal hazards moodels the user is on
    */
   @Get("/internal-hazards/")
@@ -163,7 +163,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param id the id of the user whose models you want to retrieve
+   * @param id - the id of the user whose models you want to retrieve
    * @returns a list of the internal hazards moodels the user is on
    */
   @Get("/external-hazards/")
@@ -173,7 +173,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param id the id of the user whose models you want to retrieve
+   * @param id - the id of the user whose models you want to retrieve
    * @returns a list of the full scope models the user is on
    */
   @Get("/full-scope/")
@@ -185,8 +185,8 @@ export class TypedModelController {
 
   /**
    * gets a single internal event
-   * @param modelId id of the model to be returned
-   * @param userId id of the user getting the model
+   * @param modelId - id of the model to be returned
+   * @param userId - id of the user getting the model
    * @returns the internal event the user has with the modelId
    */
   @Get("/internal-events/:id/")
@@ -196,8 +196,8 @@ export class TypedModelController {
 
   /**
    * gets a single internal hazard
-   * @param modelId id of the model to be returned
-   * @param userId id of the user getting the model
+   * @param modelId - id of the model to be returned
+   * @param userId - id of the user getting the model
    * @returns the internal hazard the user has with the modelId
    */
   @Get("/internal-hazards/:id/")
@@ -207,8 +207,8 @@ export class TypedModelController {
 
   /**
    * gets a single external hazard
-   * @param modelId id of the model to be returned
-   * @param userId id of the user getting the model
+   * @param modelId - id of the model to be returned
+   * @param userId - id of the user getting the model
    * @returns the external hazard the user has with the modelId
    */
   @Get("/external-hazards/:id/")
@@ -218,8 +218,8 @@ export class TypedModelController {
 
   /**
    * gets a single full scope
-   * @param modelId id of the model to be returned
-   * @param userId id of the user getting the model
+   * @param modelId - id of the model to be returned
+   * @param userId - id of the user getting the model
    * @returns the full scope the user has with the modelId
    */
   @Get("/full-scope/:id/")
@@ -231,7 +231,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param modelId id of the model to be deleted
+   * @param modelId - id of the model to be deleted
    * @returns the deleted model in a promise
    */
   @Delete("/internal-events/")
@@ -241,7 +241,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param modelId id of the model to be deleted
+   * @param modelId - id of the model to be deleted
    * @returns the deleted model in a promise
    */
   @Delete("/external-hazards/")
@@ -251,7 +251,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param modelId id of the model to be deleted
+   * @param modelId - id of the model to be deleted
    * @returns the deleted model in a promise
    */
   @Delete("/internal-hazards/")
@@ -268,7 +268,7 @@ export class TypedModelController {
 
   /**
    * updates internal events model
-   * @param body modelId number, nestedId number, and a nestedType camelCase string
+   * @param body - modelId number, nestedId number, and a nestedType camelCase string
    * @returns promise with udpated model
    */
   @Patch("/internal-events/")
@@ -280,7 +280,7 @@ export class TypedModelController {
 
   /**
    * updates internal hazards model
-   * @param body modelId number, nestedId number, and a nestedType camelCase string
+   * @param body - modelId number, nestedId number, and a nestedType camelCase string
    * @returns promise with udpated model
    */
   @Patch("/internal-hazards/")
@@ -292,7 +292,7 @@ export class TypedModelController {
 
   /**
    * updates external hazards model
-   * @param body modelId number, nestedId number, and a nestedType camelCase string
+   * @param body - modelId number, nestedId number, and a nestedType camelCase string
    * @returns promise with udpated model
    */
   @Patch("/external-hazard/")
@@ -304,7 +304,7 @@ export class TypedModelController {
 
   /**
    * updates full scope model
-   * @param body modelId number, nestedId number, and a nestedType camelCase string
+   * @param body - modelId number, nestedId number, and a nestedType camelCase string
    * @returns promise with udpated model
    */
   @Patch("/full-scope/")

@@ -30,8 +30,15 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-return': 'error',
       '@typescript-eslint/require-await': 'error',
       '@typescript-eslint/no-floating-promises': 'error',
-      // Start surfacing TSDoc issues without blocking
-      'tsdoc/syntax': 'warn'
+      '@typescript-eslint/no-misused-promises': [
+        'error',
+        {
+          checksVoidReturn: false
+        }
+      ],
+      '@typescript-eslint/unbound-method': 'error',
+      // Enforce TSDoc in source
+      'tsdoc/syntax': 'error'
     }
   },
   // Test overrides: keep canary non-blocking in tests while we ratchet source
@@ -50,8 +57,11 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/unbound-method': 'off',
       // Unuseds in tests are okay; allow them to avoid noise
-      '@typescript-eslint/no-unused-vars': 'off'
+      '@typescript-eslint/no-unused-vars': 'off',
+      // Keep TSDoc off in tests
+      'tsdoc/syntax': 'off'
     }
   }
 );

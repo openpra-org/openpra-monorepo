@@ -23,8 +23,34 @@ pnpm nx run web-backend:e2e-local
 Notes:
 
 - mongodb-memory-server is pinned but may not start on Debian 12 due to OpenSSL incompatibilities.
+- On Debian 12, the Jest global setup will automatically use a local MongoDB if it’s reachable and MONGO_URI isn’t set, otherwise it prints a clear recommendation to set MONGO_URI.
 - CI supplies `MONGO_URI` and tests pass there; locally prefer a real MongoDB (7.x recommended).
 - Ensure the database is disposable; tests may create/drop collections.
+
+## Jest + SWC quick note
+
+This package uses `@swc/jest` for fast TypeScript tests with NestJS decorators enabled. Relevant bits from `jest.config.ts`:
+
+```ts
+transform: {
+	"^.+\\.[tj]s$": [
+		"@swc/jest",
+		{
+			jsc: {
+				parser: { syntax: "typescript", decorators: true },
+				target: "es2020",
+				transform: { decoratorMetadata: true },
+			},
+			module: { type: "commonjs" },
+			sourceMaps: "inline",
+		},
+	],
+},
+```
+
+If tests import from workspace packages’ sources, use `moduleNameMapper` entries (already configured for `shared-sdk` and `shared-types`). For types-only packages (like `mef-types`), prefer `import type { ... }` to avoid runtime `.d.ts` resolution.
+
+See the root README section "Jest + SWC (fast TypeScript tests)" and "Troubleshooting (Debian 12 / OpenSSL 3)" for details.
 
 ## External e2e (opt-in)
 
@@ -52,3 +78,9 @@ Notes:
 docker run -d --name mongo -p 27017:27017 mongo:7
 export MONGO_URI="mongodb://localhost:27017/openpra-test"
 ```
+
+## Deploy and lockfile
+
+- Deployments run Nx inside the repository image that was installed from the root `pnpm-lock.yaml`.
+- We do not generate a pruned lockfile or a dist `package.json` for this app (`generateLockfile: false`, `generatePackageJson: false` in `project.json`).
+- If you have a different deploy flow that expects a `dist/package.json`, re-enable `generatePackageJson` and ensure your environment supports pruned lockfile generation.

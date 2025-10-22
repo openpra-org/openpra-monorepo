@@ -1,4 +1,51 @@
 import { MongoMemoryServer } from "mongodb-memory-server";
+import fs from "node:fs";
+import net from "node:net";
+
+function isDebian12(): boolean {
+  try {
+    const content = fs.readFileSync("/etc/os-release", "utf8");
+    return (
+      /ID=debian/.test(content) && (/VERSION_ID=\"?12\"?/.test(content) || /VERSION_CODENAME=bookworm/.test(content))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function libcrypto11Present(): boolean {
+  // Heuristic: common lib path on Debian/Ubuntu. If missing, mongodb-memory-server may fail with OpenSSL 1.1 errors.
+  const candidates = ["/usr/lib/x86_64-linux-gnu/libcrypto.so.1.1", "/lib/x86_64-linux-gnu/libcrypto.so.1.1"];
+  return candidates.some((p) => {
+    try {
+      return fs.existsSync(p);
+    } catch {
+      return false;
+    }
+  });
+}
+
+async function canConnectLocalMongo(): Promise<boolean> {
+  // Quick TCP probe with short timeout; avoids pulling driver just for connectivity check.
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    const timeoutMs = 250;
+    socket.setTimeout(timeoutMs);
+    socket
+      .once("connect", () => {
+        socket.destroy();
+        resolve(true);
+      })
+      .once("timeout", () => {
+        socket.destroy();
+        resolve(false);
+      })
+      .once("error", () => {
+        resolve(false);
+      })
+      .connect(27017, "127.0.0.1");
+  });
+}
 
 declare global {
   // Allow global for Jest; CJS interop pattern
@@ -16,6 +63,21 @@ module.exports = async (): Promise<void> => {
   if (externalUri && externalUri.length > 0) {
     // Use externally provided MongoDB (e.g., GitHub Actions service)
     return;
+  }
+
+  // Proactive helper: Debian 12 + missing libcrypto 1.1 often breaks mongodb-memory-server binaries.
+  // If we detect that environment and a local mongod is reachable, auto-switch to MONGO_URI with a notice.
+  if (isDebian12() && !libcrypto11Present()) {
+    if (await canConnectLocalMongo()) {
+      const fallbackUri = process.env.MONGO_URI ?? "mongodb://127.0.0.1:27017/test";
+      process.env.MONGO_URI = fallbackUri;
+      console.warn("Detected Debian 12 without libcrypto 1.1; using local MongoDB via MONGO_URI=" + fallbackUri);
+      return;
+    }
+    console.warn(
+      "Detected Debian 12 without libcrypto 1.1. mongodb-memory-server may fail. " +
+        "Start a local MongoDB and set MONGO_URI (e.g., mongodb://127.0.0.1:27017/test) for fastest results.",
+    );
   }
 
   // Local/dev: spin up in-memory MongoDB

@@ -13,16 +13,7 @@
         "main": "packages/mef-schema/src/index.ts",
         "tsConfig": "packages/mef-schema/tsconfig.lib.json",
         "assets": ["packages/mef-schema/*.md"],
-        "transformers": [
-          "typia/lib/transform",
-          {
-            "name": "@nestia/core/lib/transform",
-            "options": {
-              "validate": "assert",
-              "stringify": "assert"
-            }
-          }
-        ]
+        "transformers": []
       }
     },
     "generate-types": {
@@ -52,9 +43,7 @@
       "outputs": ["{options.outputFile}"],
       "options": {
         "eslintConfig": "packages/mef-schema/eslint.config.mjs",
-        "lintFilePatterns": [
-          "{projectRoot}/**/*.{ts,js}"
-        ]
+        "lintFilePatterns": ["{projectRoot}/**/*.{ts,js}"]
       }
     },
     "test": {

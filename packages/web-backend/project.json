@@ -18,17 +18,7 @@
         "main": "packages/web-backend/src/main.ts",
         "tsConfig": "packages/web-backend/tsconfig.app.json",
         "assets": ["packages/web-backend/src/assets"],
-        "webpackConfig": "packages/web-backend/webpack.config.js",
-        "transformers": [
-          { "name": "typia/lib/transform" },
-          {
-            "name": "@nestia/core/lib/transform",
-            "options": {
-              "validate": "assert",
-              "stringify": "assert"
-            }
-          }
-        ]
+        "webpackConfig": "packages/web-backend/webpack.config.js"
       },
       "configurations": {
         "development": {

@@ -13,16 +13,6 @@
         "target": "node",
         "compiler": "tsc",
         "generateLockfile": false,
-        "transformers": [
-          "typia/lib/transform",
-          {
-            "name": "@nestia/core/lib/transform",
-            "options": {
-              "validate": "assert",
-              "stringify": "assert"
-            }
-          }
-        ],
         "outputPath": "dist/packages/microservice/job-broker",
         "generatePackageJson": false,
         "main": "packages/microservice/job-broker/src/main.ts",
@@ -79,16 +69,6 @@
         "target": "node",
         "compiler": "tsc",
         "generateLockfile": false,
-        "transformers": [
-          "typia/lib/transform",
-          {
-            "name": "@nestia/core/lib/transform",
-            "options": {
-              "validate": "assert",
-              "stringify": "assert"
-            }
-          }
-        ],
         "outputPath": "dist/packages/microservice/job-broker-consumer",
         "generatePackageJson": false,
         "main": "packages/microservice/job-broker/src/main-consumer.ts",

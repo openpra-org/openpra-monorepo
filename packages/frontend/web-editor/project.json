@@ -19,16 +19,6 @@
         "assets": ["packages/frontend/web-editor/src/favicon.ico", "packages/frontend/web-editor/src/assets"],
         "styles": ["packages/frontend/web-editor/src/styles.css"],
         "scripts": [],
-        "transformers": [
-          "typia/lib/transform",
-          {
-            "name": "@nestia/core/lib/transform",
-            "options": {
-              "validate": "assert",
-              "stringify": "assert"
-            }
-          }
-        ],
         "webpackConfig": "packages/frontend/web-editor/webpack.config.js"
       },
       "configurations": {
@@ -77,10 +67,7 @@
       "outputs": ["{options.outputFile}"],
       "options": {
         "eslintConfig": "packages/frontend/web-editor/eslint.config.mjs",
-        "lintFilePatterns": [
-          "{projectRoot}/**/*.{ts,tsx}",
-          "{projectRoot}/**/*.{js,jsx}"
-        ]
+        "lintFilePatterns": ["{projectRoot}/**/*.{ts,tsx}", "{projectRoot}/**/*.{js,jsx}"]
       }
     },
     "lint-canary": {
@@ -124,9 +111,7 @@
     "e2e": {
       "executor": "nx:run-commands",
       "options": {
-        "commands": [
-          "nx e2e-cli frontend-web-editor -- --project=setup"
-        ],
+        "commands": ["nx e2e-cli frontend-web-editor -- --project=setup"],
         "parallel": false
       }
     },

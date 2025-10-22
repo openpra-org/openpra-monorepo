@@ -13,16 +13,7 @@
         "main": "packages/shared-types/src/index.ts",
         "tsConfig": "packages/shared-types/tsconfig.lib.json",
         "assets": ["packages/shared-types/*.md"],
-        "transformers": [
-          "typia/lib/transform",
-          {
-            "name": "@nestia/core/lib/transform",
-            "options": {
-              "validate": "assert",
-              "stringify": "assert"
-            }
-          }
-        ]
+        "transformers": []
       }
     },
     "lint": {
@@ -30,11 +21,7 @@
       "outputs": ["{options.outputFile}"],
       "options": {
         "eslintConfig": "packages/shared-types/eslint.config.mjs",
-        "lintFilePatterns": [
-          "{projectRoot}/**/*.ts",
-          "{projectRoot}/**/*.js",
-          "!{projectRoot}/**/*.d.ts"
-        ]
+        "lintFilePatterns": ["{projectRoot}/**/*.ts", "{projectRoot}/**/*.js", "!{projectRoot}/**/*.d.ts"]
       }
     },
     "lint-canary": {

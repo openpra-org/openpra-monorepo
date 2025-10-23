@@ -3,10 +3,10 @@ name: "Containers: Build & Publish (GHCR)"
 on:
   push:
     branches:
-      - '**'
+      - "**"
   pull_request:
     branches:
-      - '**'
+      - "**"
   workflow_dispatch:
 
 permissions:
@@ -27,7 +27,7 @@ jobs:
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20.17.0'
+          node-version: "20.17.0"
 
       - name: Install pnpm
         run: npm install -g pnpm@10.18.2
@@ -70,6 +70,8 @@ jobs:
         run: |
           mkdir -p docker-context/web-backend
           cp -r dist/packages/web-backend/* docker-context/web-backend/
+          # Copy source package.json into the docker context so we can prune workspace deps
+          cp packages/web-backend/package.json docker-context/web-backend/package.json
           # Ensure package.json has no workspace: protocol deps for container installs
           node -e '
             const fs=require("fs"); const pth="docker-context/web-backend/package.json";
@@ -97,6 +99,8 @@ jobs:
         run: |
           mkdir -p docker-context/job-broker
           cp -r dist/packages/microservice/job-broker/* docker-context/job-broker/
+          # Copy source package.json into the docker context so we can prune workspace deps
+          cp packages/microservice/job-broker/package.json docker-context/job-broker/package.json
           # Ensure package.json has no workspace: protocol deps for container installs
           node -e '
             const fs=require("fs"); const pth="docker-context/job-broker/package.json";

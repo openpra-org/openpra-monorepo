@@ -101,17 +101,24 @@ Once prerequisites are installed, initialize the project with these commands:
 ```shell
 pnpm setup
 pnpm install
-pnpm install --global nx@19.6.2
+```
+
+We recommend using the local Nx CLI via pnpm in this workspace (no global install required). You can verify Nx with:
+
+```bash
+pnpm nx --version
 ```
 
 ## Running the Project
 
 ### Start All Services Concurrently
 
-To serve all packages at once, run:
+To serve all packages at once, run one of the following:
 
 ```bash
-nx run-many -t serve --all
+pnpm run dev:all
+# or
+pnpm nx run-many -t serve --all
 ```
 
 ### Start Individual Services
@@ -121,13 +128,13 @@ To serve a specific package, run:
 - **Web Editor**:
 
   ```bash
-  nx serve frontend-web-editor
+  pnpm nx serve frontend-web-editor
   ```
 
 - **Web Backend**:
 
   ```bash
-  nx serve web-backend
+  pnpm nx serve web-backend
   ```
 
 ## Testing and Linting
@@ -137,7 +144,7 @@ To serve a specific package, run:
 Execute Jest unit tests:
 
 ```bash
-nx run-many -t test
+pnpm nx run-many -t test
 ```
 
 ### Run Linting
@@ -145,8 +152,14 @@ nx run-many -t test
 Check code quality with ESLint:
 
 ```bash
-nx run-many -t lint
+pnpm nx run-many -t lint
 ```
+
+### Nx Cloud caching (optional)
+
+If you see local warnings about Nx Cloud not being connected (401), you can either connect the workspace to Nx Cloud
+for distributed caching or use local caching only. For most local development, using the local Nx CLI via `pnpm nx`
+is sufficient without connecting Nx Cloud.
 
 ## Jest + SWC (fast TypeScript tests)
 

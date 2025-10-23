@@ -95,7 +95,12 @@
   },
   "scripts": {
     "prepare": "husky",
-    "lint:canary:all": "pnpm nx run-many -t lint-canary --all --parallel=3"
+    "lint:canary:all": "pnpm nx run-many -t lint-canary --all --parallel=3",
+    "dev:all": "pnpm nx run-many -t serve --all",
+    "build:all": "pnpm nx run-many -t build --all",
+    "test:all": "pnpm nx run-many -t test --all",
+    "lint:all": "pnpm nx run-many -t lint --all",
+    "graph": "pnpm nx graph"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [

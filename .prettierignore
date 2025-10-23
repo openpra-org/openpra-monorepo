@@ -9,3 +9,6 @@ tmp
 build
 cmake-build-*
 cmake
+
+/.nx/cache
+/.nx/workspace-data

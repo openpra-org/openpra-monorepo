@@ -3,10 +3,10 @@ name: "CI: Monorepo — Build & Test"
 on:
   push:
     branches:
-      - '**'
+      - "**"
   pull_request:
     branches:
-      - '**'
+      - "**"
 
 jobs:
   build-and-test:
@@ -37,7 +37,7 @@ jobs:
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20.17.0'
+          node-version: "20.17.0"
 
       - name: Install system dependencies
         run: |
@@ -86,6 +86,10 @@ jobs:
           fi
 
       - name: Build
+        env:
+          NX_CLOUD_ACCESS_TOKEN: "${{ secrets.NX_CLOUD_ACCESS_TOKEN }}"
+          NX_BRANCH: "${{ github.ref_name }}"
+          NX_RUN_GROUP: "ci-${{ github.run_id }}"
         run: pnpm nx run ${{ matrix.package }}:build --verbose
 
       - name: Wait for MongoDB service
@@ -101,6 +105,9 @@ jobs:
       - name: Test
         env:
           MONGO_URI: mongodb://localhost:27017/test
+          NX_CLOUD_ACCESS_TOKEN: "${{ secrets.NX_CLOUD_ACCESS_TOKEN }}"
+          NX_BRANCH: "${{ github.ref_name }}"
+          NX_RUN_GROUP: "ci-${{ github.run_id }}"
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           export LD_LIBRARY_PATH="$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
@@ -114,6 +121,9 @@ jobs:
         continue-on-error: true
         env:
           MONGO_URI: mongodb://localhost:27017/test
+          NX_CLOUD_ACCESS_TOKEN: "${{ secrets.NX_CLOUD_ACCESS_TOKEN }}"
+          NX_BRANCH: "${{ github.ref_name }}"
+          NX_RUN_GROUP: "ci-${{ github.run_id }}"
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           export LD_LIBRARY_PATH="$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"

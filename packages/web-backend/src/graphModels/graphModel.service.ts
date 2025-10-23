@@ -99,9 +99,27 @@ export class GraphModelService {
    * @returns A promise with the fault tree diagram graph
    */
   async getFaultTreeGraph(faultTreeId: string): Promise<FaultTreeGraph> {
-    const result = this.faultTreeGraphModel.findOne({ faultTreeId: faultTreeId }, { _id: 0 });
+    const result = await this.faultTreeGraphModel.findOne({ faultTreeId: faultTreeId }, { _id: 0 });
     if (result !== null) {
-      return result;
+      // Proactive migration: if an existing doc is empty, seed defaults and persist once
+      const hasEmptyNodes = !Array.isArray(result.nodes) || result.nodes.length === 0;
+      const hasEmptyEdges = !Array.isArray(result.edges) || result.edges.length === 0;
+      if (hasEmptyNodes && hasEmptyEdges) {
+        const defaults = this.getDefaultFaultTreeGraph();
+        // need a hydrated doc with _id to save; refetch without projection
+        const hydrated = await this.faultTreeGraphModel.findOne({ faultTreeId: faultTreeId });
+        if (hydrated) {
+          hydrated.nodes = defaults.nodes as unknown as typeof hydrated.nodes;
+          hydrated.edges = defaults.edges as unknown as typeof hydrated.edges;
+          await hydrated.save();
+          return {
+            faultTreeId,
+            nodes: defaults.nodes as unknown as FaultTreeGraph["nodes"],
+            edges: defaults.edges as unknown as FaultTreeGraph["edges"],
+          } as FaultTreeGraph;
+        }
+      }
+      return result as unknown as FaultTreeGraph;
     } else {
       return {
         id: "",
@@ -137,9 +155,9 @@ export class GraphModelService {
    * @returns A promise with the event tree diagram graph
    */
   async getEventTreeGraph(eventTreeId: string): Promise<EventTreeGraph> {
-    const result = this.eventTreeGraphModel.findOne({ eventTreeId: eventTreeId }, { _id: 0 });
+    const result = await this.eventTreeGraphModel.findOne({ eventTreeId: eventTreeId }, { _id: 0 });
     if (result !== null) {
-      return result;
+      return result as unknown as EventTreeGraph;
     } else {
       return {
         id: "",
@@ -225,6 +243,16 @@ export class GraphModelService {
       await graph.save();
     } else {
       const newGraph = this.getModel(modelType, body);
+      // Seed defaults for Fault Trees when creating a new graph with empty payload
+      if (
+        modelType === GraphTypes.FaultTree &&
+        (body.nodes === undefined || body.nodes.length === 0) &&
+        (body.edges === undefined || body.edges.length === 0)
+      ) {
+        const defaults = this.getDefaultFaultTreeGraph();
+        newGraph.nodes = defaults.nodes as unknown as typeof newGraph.nodes;
+        newGraph.edges = defaults.edges as unknown as typeof newGraph.edges;
+      }
       newGraph.id = new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
       newGraph._id = new mongoose.Types.ObjectId();
       await newGraph.save();
@@ -325,5 +353,53 @@ export class GraphModelService {
     ];
 
     return { nodes: defaultNodes, edges: defaultEdges };
+  }
+
+  private getDefaultFaultTreeGraph(): Partial<BaseGraphDocument> {
+    // Mirror the frontend starter graph: one OR gate (id "1") and two basic events (id "2" and "3")
+    const defaultNodes: GraphNode<object>[] = [
+      {
+        id: "1",
+        data: { label: "OR Gate" },
+        position: { x: 0, y: 0 },
+        type: "orGate",
+      },
+      {
+        id: "2",
+        data: { label: "Basic Event" },
+        position: { x: 0, y: 150 },
+        type: "basicEvent",
+      },
+      {
+        id: "3",
+        data: { label: "Basic Event" },
+        position: { x: 0, y: 150 },
+        type: "basicEvent",
+      },
+    ];
+
+    const defaultEdges: GraphEdge<object>[] = [
+      {
+        id: "1=>2",
+        source: "1",
+        target: "2",
+        type: "workflow",
+        animated: false,
+        data: {},
+      },
+      {
+        id: "1=>3",
+        source: "1",
+        target: "3",
+        type: "workflow",
+        animated: false,
+        data: {},
+      },
+    ];
+
+    return {
+      nodes: defaultNodes as unknown as BaseGraphDocument["nodes"],
+      edges: defaultEdges as unknown as BaseGraphDocument["edges"],
+    };
   }
 }

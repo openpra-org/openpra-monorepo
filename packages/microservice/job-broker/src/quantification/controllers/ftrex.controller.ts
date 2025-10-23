@@ -1,5 +1,4 @@
-import { Controller, InternalServerErrorException, NotFoundException } from "@nestjs/common";
-import { TypedRoute, TypedBody } from "@nestia/core";
+import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Post } from "@nestjs/common";
 import type { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
 import { ProducerService } from "../services/producer.service";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
@@ -19,8 +18,8 @@ export class FtrexController {
    * @returns A promise that resolves to void.
    * @throws {@link InternalServerErrorException} When there is a problem queueing the quantification job.
    */
-  @TypedRoute.Post("/ftrex")
-  public createAndQueueQuant(@TypedBody() quantRequest: QuantifyRequest): void {
+  @Post("/ftrex")
+  public createAndQueueQuant(@Body() quantRequest: QuantifyRequest): void {
     try {
       this.producerService.createAndQueueQuant(quantRequest);
     } catch {
@@ -34,7 +33,7 @@ export class FtrexController {
    * @returns A promise that resolves to an array of QuantifiedReport objects.
    * @throws {@link NotFoundException} Throws an exception if the server is unable to find the requested list of quantified reports.
    */
-  @TypedRoute.Get("/ftrex")
+  @Get("/ftrex")
   public async getQuantifiedReports(): Promise<QuantificationJobReport[]> {
     try {
       return this.storageService.getQuantifiedReports();

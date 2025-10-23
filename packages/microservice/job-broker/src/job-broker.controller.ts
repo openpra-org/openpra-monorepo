@@ -1,5 +1,4 @@
-import { Controller, Query, InternalServerErrorException, NotFoundException } from "@nestjs/common";
-import { TypedRoute } from "@nestia/core";
+import { Controller, Query, InternalServerErrorException, NotFoundException, Get, Post } from "@nestjs/common";
 import { JobBrokerService } from "./job-broker.service";
 import { QuantificationJobReport } from "./middleware/schemas/quantification-job.schema";
 import { ExecutableJobReport } from "./middleware/schemas/executable-job.schema";
@@ -22,7 +21,7 @@ export class JobBrokerController {
    * @returns An object containing a message with the list of job types.
    * @throws {@link NotFoundException} When the list of job types cannot be found.
    */
-  @TypedRoute.Get("/job-types")
+  @Get("/job-types")
   public getJobTypes(): JobResponse {
     try {
       return this.jobBrokerService.getJobTypes();
@@ -37,7 +36,7 @@ export class JobBrokerController {
    * @returns An object containing a message with the list of pending jobs.
    * @throws {@link NotFoundException} When the list of pending jobs cannot be found.
    */
-  @TypedRoute.Get("/jobs")
+  @Get("/jobs")
   public async getJobs(
     @Query("status") status: string,
   ): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
@@ -54,7 +53,7 @@ export class JobBrokerController {
    * @returns An object containing a message with the list of pending jobs.
    * @throws {@link NotFoundException} When the list of pending jobs cannot be found.
    */
-  @TypedRoute.Get("/pending-jobs")
+  @Get("/pending-jobs")
   public async getPendingJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
     try {
       return this.jobBrokerService.getPendingJobs();
@@ -63,7 +62,7 @@ export class JobBrokerController {
     }
   }
 
-  @TypedRoute.Get("/queued-jobs")
+  @Get("/queued-jobs")
   public async getQueuedJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
     try {
       return this.jobBrokerService.getQueuedJobs();
@@ -72,7 +71,7 @@ export class JobBrokerController {
     }
   }
 
-  @TypedRoute.Get("/completed-jobs")
+  @Get("/completed-jobs")
   public async getCompletedJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
     try {
       return this.jobBrokerService.getCompletedJobs();
@@ -87,7 +86,7 @@ export class JobBrokerController {
    * @returns An object containing a message confirming the job creation.
    * @throws {@link InternalServerErrorException} When there is a problem creating the job.
    */
-  @TypedRoute.Post("/create-job")
+  @Post("/create-job")
   public createJob(): JobResponse {
     try {
       return this.jobBrokerService.createJob();

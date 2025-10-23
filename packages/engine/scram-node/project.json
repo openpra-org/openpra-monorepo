@@ -6,6 +6,9 @@
     "production": ["!{projectRoot}/**/*.spec.tsx"]
   },
   "targets": {
+    "install": {
+      "dependsOn": ["build"]
+    },
     "build": {
       "executor": "nx:run-script",
       "options": {
@@ -35,9 +38,7 @@
       "outputs": ["{options.outputFile}"],
       "options": {
         "eslintConfig": "packages/engine/scram-node/eslint.config.mjs",
-        "lintFilePatterns": [
-          "{projectRoot}/tests/**/*.{ts,js}"
-        ]
+        "lintFilePatterns": ["{projectRoot}/tests/**/*.{ts,js}"]
       }
     },
     "lint-canary": {

@@ -1,5 +1,6 @@
 import { jwtDecode } from "jwt-decode";
 import { AuthToken, EMPTY_TOKEN } from "shared-types";
+import { emitAuthEvent } from "./AuthEvents";
 import { MemberRole } from "../data/predefiniedRoles";
 
 class AuthService {
@@ -45,6 +46,13 @@ class AuthService {
   static setEncodedToken(idToken: string | null): void {
     if (idToken) {
       localStorage.setItem("id_token", idToken);
+      // Notify subscribers that a login occurred
+      try {
+        const decoded = jwtDecode<AuthToken>(idToken);
+        emitAuthEvent({ type: "login", user: decoded });
+      } catch (_e) {
+        emitAuthEvent({ type: "login" });
+      }
     }
   }
 
@@ -55,6 +63,7 @@ class AuthService {
 
   static logout(): boolean {
     localStorage.removeItem("id_token");
+    emitAuthEvent({ type: "logout", user: null });
     return AuthService.getEncodedToken() === null;
   }
 

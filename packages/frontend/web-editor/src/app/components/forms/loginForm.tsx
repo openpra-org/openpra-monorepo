@@ -86,10 +86,10 @@ function LoginForm(): JSX.Element {
         .then(() => {
           // Handle successful login
           if (redirectToHomepage) {
-            // Redirect to the homepage
+            // Redirect to the homepage (root) to show recent models
             return (
               <Navigate
-                to="internal-events"
+                to="/"
                 replace={true}
               />
             );
@@ -105,7 +105,7 @@ function LoginForm(): JSX.Element {
   if (redirectToHomepage) {
     return (
       <Navigate
-        to="internal-events"
+        to="/"
         replace={true}
       />
     );

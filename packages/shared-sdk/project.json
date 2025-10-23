@@ -27,9 +27,7 @@
       "outputs": ["{options.outputFile}"],
       "options": {
         "eslintConfig": "packages/shared-sdk/eslint.config.mjs",
-        "lintFilePatterns": [
-          "{projectRoot}/**/*.ts"
-        ]
+        "lintFilePatterns": ["{projectRoot}/**/*.ts"]
       }
     },
     "test": {

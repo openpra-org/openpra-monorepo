@@ -71,7 +71,7 @@ describe("rolesService", () => {
     it("Should return all roles in database", async () => {
       const roles = connection.collection<Roles>("roles");
       await roles.insertMany([...BootstrapRoles]);
-  const fetchedRoles = await rolesService.getAllRoles(undefined);
+      const fetchedRoles = await rolesService.getAllRoles(undefined);
       expect(fetchedRoles.length).toEqual(2);
       expect(fetchedRoles[0].id).toEqual(BootstrapRoles[0].id);
       expect(fetchedRoles[1].id).toEqual(BootstrapRoles[1].id);
@@ -89,7 +89,7 @@ describe("rolesService", () => {
     it("Should return 404 if we find a role that doesnt exist", async () => {
       const roles = connection.collection<Roles>("roles");
       await roles.insertMany([...BootstrapRoles]);
-      await expect(rolesService.getRole("some-role-that-doesnt-exist")).rejects.toThrowError(NotFoundException);
+      await expect(rolesService.getRole("some-role-that-doesnt-exist")).rejects.toThrow(NotFoundException);
     });
 
     it("Should update a role in database if it exists", async () => {

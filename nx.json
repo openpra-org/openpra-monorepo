@@ -10,9 +10,7 @@
       "workspaceChangelog": true
     },
     "version": {
-      "generatorOptions": {
-        "conventionalCommits": true
-      }
+      "preserveLocalDependencyProtocols": false
     },
     "publish": {
       "registry": "https://registry.npmjs.org"

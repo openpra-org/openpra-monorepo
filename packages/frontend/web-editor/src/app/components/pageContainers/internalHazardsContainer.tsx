@@ -15,7 +15,10 @@ const InternalHazardsContainer = (): JSX.Element => (
       minWidth={320}
       responsive={[]}
     >
-      <ScopedNav type="InternalHazards" />
+      <ScopedNav
+        type="InternalHazards"
+        variant="sidenav"
+      />
     </EuiPageTemplate.Sidebar>
     <Outlet />
   </EuiPageTemplate>

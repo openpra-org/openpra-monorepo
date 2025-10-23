@@ -44,6 +44,7 @@ import { useUndoRedo } from "../../hooks/faultTree/useUndeRedo";
 import { EDITOR_REDO, EDITOR_UNDO, SMALL } from "../../../utils/constants";
 import Minimap from "../../components/minimap/minimap";
 import { UseToastContext } from "../../providers/toastProvider";
+import { getGraphSignature, shouldApplyGraph } from "../../hooks/faultTree/graphApplyGuard";
 
 const proOptions: ProOptions = { account: "paid-pro", hideAttribution: true };
 
@@ -70,8 +71,6 @@ const selector = (
 });
 
 function ReactFlowPro(): JSX.Element {
-  // this hook call ensures that the layout is re-calculated every time the graph changes
-  UseLayout();
   const [menu, setMenu] = useState<TreeNodeContextMenuProps | null>(null);
   const ref = useRef(document.createElement("div"));
   const { undo, redo, canUndo, canRedo } = useUndoRedo();
@@ -80,18 +79,72 @@ function ReactFlowPro(): JSX.Element {
   const { faultTreeId } = useParams();
   const [isOpen, setIsOpen] = useState(false);
   const { addToast } = UseToastContext();
+  // ensure layout only runs after initial load to avoid re-entrant state updates while loading
+  UseLayout(!isLoading);
+  // instrumentation & re-apply guard
+  const lastAppliedSigRef = useRef<string | undefined>(undefined);
+  const loadRunsRef = useRef<number>(0);
+
+  // if the route param changes, reset loading state and last-applied signature
+  // so we fetch and apply the new graph
+  useEffect(() => {
+    lastAppliedSigRef.current = undefined;
+    setIsLoading(true);
+  }, [faultTreeId]);
 
   useEffect(() => {
-    const loadGraph = async (): Promise<void> => {
-      await GraphApiManager.getFaultTree(faultTreeId).then((res: FaultTreeGraph) => {
-        setNodes(res.nodes.length !== 0 ? res.nodes : initialNodes);
-        setEdges(res.edges.length !== 0 ? res.edges : initialEdges);
+    // fetch and initialize graph only once per id when loading
+    if (!isLoading) return;
+    if (!faultTreeId) return;
 
-        setIsLoading(false);
-      });
+    let cancelled = false;
+    const loadGraph = async (): Promise<void> => {
+      loadRunsRef.current += 1;
+      try {
+        const res: FaultTreeGraph = await GraphApiManager.getFaultTree(faultTreeId);
+        if (cancelled) return;
+        const backendEmpty = res.nodes.length === 0 && res.edges.length === 0;
+        if (backendEmpty) {
+          addToast({ id: GenerateUUID(), title: "No saved fault tree found; showing starter graph", color: "warning" });
+        }
+        const nextNodes = backendEmpty ? initialNodes : res.nodes;
+        const nextEdges = backendEmpty ? initialEdges : res.edges;
+        const nextSig = getGraphSignature(nextNodes, nextEdges);
+        if (lastAppliedSigRef.current && !shouldApplyGraph(lastAppliedSigRef.current, nextSig)) {
+          // same graph shape as last applied; skip to avoid redundant state updates
+          // eslint-disable-next-line no-console
+          console.debug("[FaultTreeEditor] loadGraph skipped redundant apply", {
+            runs: loadRunsRef.current,
+            faultTreeId,
+            nextSig,
+          });
+        } else {
+          setNodes(nextNodes);
+          setEdges(nextEdges);
+          lastAppliedSigRef.current = nextSig;
+          // eslint-disable-next-line no-console
+          console.debug("[FaultTreeEditor] loadGraph applied", { runs: loadRunsRef.current, faultTreeId, nextSig });
+        }
+      } catch (_err) {
+        // graceful fallback if API is down or unauthorized
+        if (cancelled) return;
+        const fallbackSig = getGraphSignature(initialNodes, initialEdges);
+        if (!lastAppliedSigRef.current || shouldApplyGraph(lastAppliedSigRef.current, fallbackSig)) {
+          setNodes(initialNodes);
+          setEdges(initialEdges);
+          lastAppliedSigRef.current = fallbackSig;
+        }
+        addToast({ id: GenerateUUID(), title: "Failed to load fault tree", color: "warning" });
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
     };
-    void (isLoading && loadGraph());
-  }, [faultTreeId, isLoading, nodes, setEdges, setNodes]);
+
+    void loadGraph();
+    return () => {
+      cancelled = true;
+    };
+  }, [faultTreeId, isLoading]);
 
   const onNodeContextMenu = useCallback(
     (event: React.MouseEvent, node: Node) => {

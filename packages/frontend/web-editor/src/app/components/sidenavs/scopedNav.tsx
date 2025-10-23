@@ -1,15 +1,17 @@
 import {
-  EuiIcon,
   EuiTreeView,
-  slugify,
   EuiToken,
   useEuiTheme,
   EuiText,
   EuiCollapsibleNavGroup,
   useEuiPaddingSize,
+  EuiSideNav,
 } from "@elastic/eui";
-import { Node } from "@elastic/eui/src/components/tree_view/tree_view";
-import { useNavigate } from "react-router-dom";
+import type { EuiTreeViewProps, EuiSideNavProps } from "@elastic/eui";
+import { useLocation, useNavigate } from "react-router-dom";
+import { NAV_BY_SCOPE } from "./navConfig";
+import type { NavNode, ScopedNavScope } from "./types";
+import { useEffect, useMemo, useState } from "react";
 
 interface TreeItem {
   id: string;
@@ -19,17 +21,20 @@ interface TreeItem {
   children?: TreeItem[];
   icon?: JSX.Element;
   iconType?: string;
-  callback?: () => NonNullable<unknown>;
+  callback?: () => void;
 }
 
 export interface ScopedNavProps {
   type: string;
+  /** optional: try the new EuiSideNav renderer without changing existing UI */
+  variant?: "legacy" | "sidenav";
 }
 
 function ScopedNav(props: ScopedNavProps): JSX.Element {
-  const { type } = props;
+  const { type, variant = "sidenav" } = props;
 
   const { euiTheme } = useEuiTheme();
+  const location = useLocation();
 
   const createTreeItem = (label: string, data = {}, depth = 0): TreeItem => {
     let size: "xs" | "s" | "m" | "relative" = "relative";
@@ -51,10 +56,9 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
         color = "primary";
         break;
     }
-    const slug = slugify(label);
     return {
-      id: slug,
-      key: slug,
+      id: (data as { id?: string }).id ?? label,
+      key: (data as { id?: string }).id ?? label,
       label: (
         <EuiText
           size={size}
@@ -69,439 +73,35 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
   };
 
   const navigate = useNavigate();
-
-  const POS = [
-    createTreeItem("Plant Operating State Analysis", {
-      icon: <EuiToken iconType="sparkles" />,
-      callback: () => {
-        void navigate("plant-operating-state-analysis");
-      },
-      isExpanded: true,
-      children: [
-        createTreeItem(
-          "Operating State Analysis",
-          {
-            icon: <EuiToken iconType="shard" />,
-            callback: () => {
-              void navigate("operating-state-analysis");
-            },
-          },
-          1,
-        ),
-      ],
-    }),
-  ];
-
-  const IE = [
-    createTreeItem("Initiating Event Analysis", {
-      isExpanded: true,
-      callback: () => {
-        void navigate("initiating-event-analysis");
-      },
-      children: [
-        createTreeItem(
-          "Initiating Events",
-          {
-            icon: <EuiToken iconType="shard" />,
-            callback: () => {
-              void navigate("initiating-events");
-            },
-          },
-          1,
-        ),
-        createTreeItem(
-          "Model View",
-          {
-            icon: <EuiToken iconType="shard" />,
-            callback: () => {
-              void navigate("initiating-events-model-view");
-            },
-          },
-          1,
-        ),
-        createTreeItem(
-          "Heat Balance fault Trees",
-          {
-            icon: <EuiToken iconType="tokenRepo" />,
-            callback: () => {
-              void navigate("heat-balance-fault-trees");
-            },
-          },
-          1,
-        ),
-      ],
-    }),
-  ];
-
-  const ES = [
-    createTreeItem("Event Sequence Analysis", {
-      isExpanded: true,
-      callback: () => {
-        void navigate("event-sequence-analysis");
-      },
-      children: [
-        createTreeItem(
-          "Event Sequence Analysis",
-          {
-            icon: <EuiToken iconType="aggregate" />,
-            callback: () => {
-              void navigate("event-sequence-analysis");
-            },
-          },
-          1,
-        ),
-        createTreeItem(
-          "Event Sequence Diagrams",
-          {
-            icon: <EuiToken iconType="tokenRepo" />,
-            callback: () => {
-              void navigate("event-sequence-diagrams");
-            },
-          },
-          1,
-        ),
-        createTreeItem(
-          "Event Trees",
-          {
-            icon: (
-              <EuiToken
-                iconType="editorBold"
-                shape="square"
-              />
-            ),
-            callback: () => {
-              void navigate("event-trees");
-            },
-          },
-          1,
-        ),
-      ],
-    }),
-  ];
-
-  const SC = [
-    createTreeItem("Success Criteria Developement", {
-      isExpanded: true,
-      callback: () => {
-        void navigate("success-criteria-developement");
-      },
-      children: [
-        createTreeItem(
-          "Success Criteria",
-          {
-            icon: <EuiToken iconType="stats" />,
-            callback: () => {
-              void navigate("success-criteria");
-            },
-          },
-          1,
-        ),
-        createTreeItem(
-          "Functional Events",
-          {
-            icon: <EuiToken iconType="tokenRepo" />,
-            callback: () => {
-              void navigate("functional-events");
-            },
-          },
-          1,
-        ),
-      ],
-    }),
-  ];
-
-  const SY = [
-    createTreeItem("Systems Analysis", {
-      isExpanded: true,
-      callback: () => {
-        void navigate("systems-analysis");
-      },
-      children: [
-        createTreeItem(
-          "Systems Analysis",
-          {
-            icon: (
-              <EuiToken
-                iconType="aggregate"
-                shape="square"
-              />
-            ),
-            callback: () => {
-              void navigate("systems-analysis");
-            },
-          },
-          1,
-        ),
-        createTreeItem(
-          "Fault Trees",
-          {
-            icon: <EuiToken iconType="tokenRepo" />,
-            callback: () => {
-              void navigate("fault-trees");
-            },
-          },
-          1,
-        ),
-        createTreeItem(
-          "Bayesian Networks",
-          {
-            icon: (
-              <EuiToken
-                iconType="editorBold"
-                shape="square"
-              />
-            ),
-            callback: () => {
-              void navigate("bayesian-networks");
-            },
-          },
-          1,
-        ),
-        createTreeItem(
-          "Markov Chains",
-          {
-            icon: (
-              <EuiToken
-                iconType="tokenShape"
-                shape="square"
-              />
-            ),
-            callback: () => {
-              void navigate("markov-chains");
-            },
-          },
-          1,
-        ),
-      ],
-    }),
-  ];
-
-  const HR = [
-    createTreeItem("Human Reliability Analysis", {
-      callback: () => {
-        void navigate("human-reliability-analysis");
-      },
-      isExpanded: true,
-      children: [
-        createTreeItem(
-          "Human Reliability Analysis",
-          {
-            icon: <EuiToken iconType="tokenRepo" />,
-            callback: () => {
-              void navigate("human-reliability-analysis");
-            },
-          },
-          1,
-        ),
-      ],
-    }),
-  ];
-
-  const DA = [
-    createTreeItem("Data Analysis", {
-      isExpanded: true,
-      callback: () => {
-        void navigate("data-analysis");
-      },
-      children: [
-        createTreeItem(
-          "Data Analysis",
-          {
-            icon: (
-              <EuiToken
-                iconType="aggregate"
-                shape="square"
-              />
-            ),
-            callback: () => {
-              void navigate("data-analysis");
-            },
-          },
-          1,
-        ),
-        createTreeItem(
-          "Bayesian Estimation",
-          {
-            icon: <EuiToken iconType="tokenRepo" />,
-            callback: () => {
-              void navigate("bayesian-estimation");
-            },
-          },
-          1,
-        ),
-        createTreeItem(
-          "Weibull Analysis",
-          {
-            icon: (
-              <EuiToken
-                iconType="bolt"
-                shape="square"
-              />
-            ),
-            callback: () => {
-              void navigate("weibull-analysis");
-            },
-          },
-          1,
-        ),
-      ],
-    }),
-  ];
-
-  const FL = [
-    createTreeItem("Internal Flood PRA", {
-      callback: () => {
-        void navigate("internal-flood-pra");
-      },
-    }),
-  ];
-
-  const F = [
-    createTreeItem("Internal Fire PRA", {
-      callback: () => {
-        void navigate("internal-fire-pra");
-      },
-    }),
-  ];
-
-  const S = [
-    createTreeItem("Seismic PRA", {
-      callback: () => {
-        void navigate("seismic-pra");
-      },
-    }),
-  ];
-
-  const HS = [
-    createTreeItem("Hazards Screening Analysis", {
-      callback: () => {
-        void navigate("hazards-screening-analysis");
-      },
-    }),
-  ];
-
-  const W = [
-    createTreeItem("High Winds PRA", {
-      callback: () => {
-        void navigate("high-winds-pra");
-      },
-    }),
-  ];
-
-  const XF = [
-    createTreeItem("External Flooding PRA", {
-      callback: () => {
-        void navigate("external-flooding-pra");
-      },
-    }),
-  ];
-
-  const O = [
-    createTreeItem("Other Hazards PRA", {
-      callback: () => {
-        void navigate("other-hazards-pra");
-      },
-    }),
-  ];
-
-  const ESQ = [
-    createTreeItem("Event Sequence Quantification", {
-      callback: () => {
-        void navigate("event-sequence-quantification");
-      },
-      isExpanded: true,
-      children: [
-        createTreeItem(
-          "Event Sequence Quantification Diagrams",
-          {
-            icon: <EuiToken iconType="tokenRepo" />,
-            callback: () => {
-              void navigate("event-sequence-quantification-diagrams");
-            },
-          },
-          1,
-        ),
-      ],
-    }),
-  ];
-
-  const MS = [
-    createTreeItem("Mechanistic Source Term Analysis", {
-      callback: () => {
-        void navigate("mechanistic-source-term-analysis");
-      },
-      isExpanded: true,
-      children: [
-        createTreeItem(
-          "Mechanistic Source Terms",
-          {
-            icon: <EuiToken iconType="tokenRepo" />,
-            callback: () => {
-              void navigate("mechanistic-source-terms");
-            },
-          },
-          1,
-        ),
-      ],
-    }),
-  ];
-
-  const RC = [
-    createTreeItem("Radiological Consequence Analysis", {
-      callback: () => {
-        void navigate("radiological-consequence-analysis");
-      },
-      isExpanded: true,
-      children: [
-        createTreeItem(
-          "Radiological Consequence Analysis",
-          {
-            icon: <EuiToken iconType="tokenRepo" />,
-            callback: () => {
-              void navigate("radiological-consequence-analysis");
-            },
-          },
-          1,
-        ),
-      ],
-    }),
-  ];
-
-  const RI = [
-    createTreeItem("Risk Integration", {
-      callback: () => {
-        void navigate("risk-integration");
-      },
-      isExpanded: true,
-      children: [
-        createTreeItem(
-          "Risk Integration",
-          {
-            icon: <EuiToken iconType="tokenRepo" />,
-            callback: () => {
-              void navigate("risk-integration");
-            },
-          },
-          1,
-        ),
-      ],
-    }),
-  ];
-
-  const settings = [
-    createTreeItem(
-      "Settings",
-      {
-        icon: <EuiIcon type="gear" />,
-        callback: () => {
-          void navigate("settings");
-        },
-      },
-      0,
-    ),
-  ];
+  const nodeToTreeItem = (node: NavNode, depth = 0): TreeItem => {
+    const data: Partial<TreeItem> & { id: string } = {
+      id: node.id,
+      // Default: collapsed for legacy tree as well
+      isExpanded: depth === 0 ? false : undefined,
+      iconType: depth === 0 ? node.iconType : undefined,
+      icon: depth > 0 && node.iconType ? <EuiToken iconType={node.iconType} /> : undefined,
+      callback: node.path
+        ? () => {
+            void navigate(node.path!);
+          }
+        : undefined,
+      children: node.items?.map((c) => nodeToTreeItem(c, depth + 1)),
+    };
+    return createTreeItem(node.name, data, depth);
+  };
 
   const padding = useEuiPaddingSize("s");
+
+  type SideNavItem = {
+    id: string;
+    name: string | React.ReactNode;
+    href?: string;
+    items?: SideNavItem[];
+    isSelected?: boolean;
+    isOpen?: boolean;
+    onClick?: (e: React.MouseEvent) => void;
+    iconType?: string;
+  };
 
   const createTreeView = (items: TreeItem[], i: number, forceTreeView = false): JSX.Element => {
     if (forceTreeView) {
@@ -514,7 +114,7 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
       return (
         <div style={style}>
           <EuiTreeView
-            items={items as unknown as Node[]}
+            items={items as unknown as EuiTreeViewProps["items"]}
             key={i}
             aria-label="Model Sidebar"
             expandByDefault={false}
@@ -566,22 +166,122 @@ function ScopedNav(props: ScopedNavProps): JSX.Element {
     );
   };
 
-  let treeItems = [POS];
+  const scope = (type as ScopedNavScope) in NAV_BY_SCOPE ? (type as ScopedNavScope) : "InternalEvents";
+  const treeItems = (NAV_BY_SCOPE[scope] ?? []).map((n) => [nodeToTreeItem(n)]);
 
-  if (type === "InternalEvents") {
-    treeItems = [POS, IE, ES, SC, SY, HR, DA, ESQ, MS, RC, RI];
-  }
-  if (type === "InternalHazards") {
-    treeItems = [POS, IE, ES, SC, SY, HR, DA, FL, F, HS, O, ESQ, MS, RC, RI];
-  }
-  if (type === "ExternalHazards") {
-    treeItems = [POS, IE, ES, SC, SY, HR, DA, S, HS, W, XF, O, ESQ, MS, RC, RI];
-  }
-  if (type === "FullScope") {
-    treeItems = [POS, IE, ES, SC, SY, HR, DA, FL, F, S, HS, W, XF, O, ESQ, MS, RC, RI];
-  }
+  if (variant === "sidenav") {
+    // Persist expanded state per scope in localStorage
+    const storageKey = useMemo(() => `web-editor:scopedNav:open:${scope}`, [scope]);
+    const [openIds, setOpenIds] = useState<Set<string>>(() => {
+      try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return new Set<string>();
+        const arr = JSON.parse(raw) as string[];
+        return new Set<string>(Array.isArray(arr) ? arr : []);
+      } catch {
+        return new Set<string>();
+      }
+    });
+    const hadStorage = useMemo(() => {
+      try {
+        return localStorage.getItem(storageKey) !== null;
+      } catch {
+        return false;
+      }
+    }, [storageKey]);
 
-  treeItems.push(settings);
+    // Update storage when openIds change
+    useEffect(() => {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(Array.from(openIds)));
+      } catch {
+        // ignore storage failures
+      }
+    }, [openIds, storageKey]);
+
+    const toggleOpen = (id: string) => {
+      setOpenIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        return next;
+      });
+    };
+
+    // Ensure ancestors of selected route are open and persisted
+    useEffect(() => {
+      const collectOpenAncestors = (nodes: NavNode[], pathname: string, includeDefaults: boolean): Set<string> => {
+        const ids = new Set<string>();
+        const visit = (node: NavNode): boolean => {
+          const href = node.path ? node.path : undefined;
+          const selfSelected = href ? pathname.includes(`/${href}`) : false;
+          let childSelected = false;
+          if (Array.isArray(node.items)) {
+            for (const c of node.items) {
+              if (visit(c)) {
+                childSelected = true;
+              }
+            }
+          }
+          if ((includeDefaults && !!node.expanded) || childSelected || selfSelected) {
+            ids.add(node.id);
+          }
+          return selfSelected || childSelected;
+        };
+        for (const n of nodes) visit(n);
+        return ids;
+      };
+      // Start fully collapsed by default; only open selected ancestors
+      const includeDefaults = false;
+      setOpenIds(
+        (prev) =>
+          new Set<string>([
+            ...prev,
+            ...collectOpenAncestors(NAV_BY_SCOPE[scope] ?? [], location.pathname, includeDefaults),
+          ]),
+      );
+    }, [location.pathname, scope, hadStorage]);
+
+    // Map to EuiSideNav items using a local SideNavItem type
+    const toSideNavItems = (nodes: NavNode[], pathname: string): SideNavItem[] =>
+      nodes.map((n): SideNavItem => {
+        const childItems = n.items ? toSideNavItems(n.items, pathname) : undefined;
+        // Mark selected if current path starts with node path or any child is selected
+        const href = n.path ? n.path : undefined;
+        const childSelected = Array.isArray(childItems) && childItems.some((c) => c.isSelected);
+        const isSelected = href ? pathname.includes(`/${href}`) || childSelected : childSelected;
+        const isGroup = Array.isArray(childItems) && childItems.length > 0;
+        // Default collapsed: don’t use config-expanded for default; open only if user toggled or selection dictates
+        const isOpen = openIds.has(n.id) || isSelected || !!childSelected;
+        return {
+          id: n.id,
+          name: n.name,
+          items: childItems,
+          isSelected,
+          isOpen,
+          onClick: isGroup
+            ? (e) => {
+                e.preventDefault();
+                toggleOpen(n.id);
+              }
+            : href
+            ? (e) => {
+                e.preventDefault();
+                void navigate(href);
+              }
+            : undefined,
+        };
+      });
+
+    const sideNavItems: SideNavItem[] = toSideNavItems(NAV_BY_SCOPE[scope] ?? [], location.pathname);
+    return (
+      <EuiSideNav
+        items={sideNavItems as unknown as EuiSideNavProps["items"]}
+        mobileTitle="Navigation"
+        toggleOpenOnMobile={() => {}}
+      />
+    );
+  }
   const createTreeViews = (items = treeItems): JSX.Element[] => {
     const viewItems: JSX.Element[] = [];
     items.forEach((item, i) => {

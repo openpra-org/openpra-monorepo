@@ -231,8 +231,8 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]): {
       deleteNodeFocusRef.current = false;
       await GraphApiManager.storeFaultTree(
         FaultTreeState({
-          nodes: nodes,
-          edges: edges,
+          nodes: newNodes,
+          edges: newEdges,
           faultTreeId: faultTreeId ?? "", // Use empty string as default value,
         }),
       ).then((_r: FaultTreeGraph): void => {

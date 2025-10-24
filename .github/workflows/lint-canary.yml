@@ -24,7 +24,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20.17.0"
-          cache: pnpm
 
       - name: Enable Corepack (pnpm 10.19.0)
         run: |

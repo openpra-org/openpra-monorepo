@@ -25,29 +25,18 @@ jobs:
         with:
           node-version: "20.17.0"
 
-      - name: Enable Corepack (pnpm 10.19.0)
-        continue-on-error: true
-        run: |
-          corepack enable
-          corepack prepare pnpm@10.19.0 --activate
-
       - name: Ensure pnpm available
-        run: |
-          if ! command -v pnpm >/dev/null 2>&1; then
-            echo "pnpm not found on PATH; installing via npm fallback"
-            npm install -g pnpm@10.19.0
-          fi
-          pnpm --version
+        run: npx -y pnpm@10.19.0 --version
 
       - name: Install dependencies (skip scripts)
-        run: pnpm install --ignore-scripts --no-frozen-lockfile
+        run: npx -y pnpm@10.19.0 install --ignore-scripts --no-frozen-lockfile
 
       - name: Run canary lint (non-blocking)
         shell: bash
         continue-on-error: true
         run: |
           set -o pipefail
-          pnpm -w run lint:canary:all | tee lint-canary.txt
+          npx -y pnpm@10.19.0 -w run lint:canary:all | tee lint-canary.txt
 
       - name: Upload canary lint artifact
         if: always()

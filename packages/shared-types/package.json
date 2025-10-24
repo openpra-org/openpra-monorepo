@@ -20,6 +20,6 @@
     "eslint-plugin-tsdoc": "0.2.17"
   },
   "scripts": {
-    "lint:canary": "eslint --config ./eslint.config.mjs \"src/**/*.{ts,tsx}\""
+    "lint:canary": "eslint --config ./eslint.config.mjs ."
   }
 }

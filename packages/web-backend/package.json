@@ -49,6 +49,6 @@
     "shared-types": "workspace:^"
   },
   "scripts": {
-    "lint:canary": "eslint --config ./eslint.config.mjs \"src/**/*.ts\" \"tests/**/*.ts\""
+    "lint:canary": "eslint --config ./eslint.config.mjs ."
   }
 }

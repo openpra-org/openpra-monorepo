@@ -18,6 +18,17 @@ export function createTsCanaryConfig({ tseslint, tsdoc, tsconfigRootDir, project
   // Ensure file globs are scoped to the package directory even when ESLint CWD is the workspace root
   const relDir = path.relative(process.cwd(), tsconfigRootDir) || '.';
   return [
+    // Register plugins globally so subsequent config items can reference their rules
+    {
+      linterOptions: {
+        reportUnusedDisableDirectives: 'warn'
+      },
+      plugins: {
+        '@typescript-eslint': tseslint.plugin,
+        tsdoc,
+        ...extraPlugins
+      }
+    },
     {
       ignores: ['**/dist/**', '**/coverage/**', '**/.nx/**', '**/node_modules/**', '**/*.d.ts']
     },
@@ -34,14 +45,6 @@ export function createTsCanaryConfig({ tseslint, tsdoc, tsconfigRootDir, project
           allowDefaultProject: true
         }
       },
-      linterOptions: {
-        reportUnusedDisableDirectives: 'warn'
-      },
-      plugins: {
-        '@typescript-eslint': tseslint.plugin,
-        tsdoc,
-        ...extraPlugins
-      },
       rules: {
         // Start lenient; we’ll promote over time during rollout
         'tsdoc/syntax': 'off',
@@ -54,8 +57,8 @@ export function createTsCanaryConfig({ tseslint, tsdoc, tsconfigRootDir, project
         '@typescript-eslint/no-base-to-string': 'warn',
         '@typescript-eslint/no-unsafe-enum-comparison': 'warn',
 
-  '@typescript-eslint/no-unsafe-assignment': 'warn',
-  '@typescript-eslint/no-unsafe-member-access': 'warn',
+    '@typescript-eslint/no-unsafe-assignment': 'warn',
+    '@typescript-eslint/no-unsafe-member-access': 'warn',
         '@typescript-eslint/no-unsafe-argument': 'warn',
         '@typescript-eslint/no-unsafe-return': 'warn',
         '@typescript-eslint/no-unsafe-call': 'warn',

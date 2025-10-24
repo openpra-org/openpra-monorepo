@@ -10,7 +10,7 @@
   "typings": "./src/index.d.ts",
   "private": true,
   "scripts": {
-    "lint:canary": "eslint --config ./eslint.config.mjs \"src/**/*.{ts,tsx}\""
+    "lint:canary": "eslint --config ./eslint.config.mjs ."
   },
   "devDependencies": {
     "eslint": "9.14.0",

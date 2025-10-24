@@ -27,6 +27,7 @@ jobs:
           node-version: 20
 
       - name: Enable Corepack (pnpm 10.19.0)
+        continue-on-error: true
         run: |
           corepack enable
           corepack prepare pnpm@10.19.0 --activate

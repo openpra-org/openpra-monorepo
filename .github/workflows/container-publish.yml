@@ -30,11 +30,10 @@ jobs:
           node-version: "20.17.0"
           cache: pnpm
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.19.0
-          run_install: false
+      - name: Enable Corepack (pnpm 10.19.0)
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.19.0 --activate
 
       - name: Show pnpm version
         run: pnpm --version

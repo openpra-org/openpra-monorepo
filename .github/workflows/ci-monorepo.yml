@@ -38,6 +38,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20.17.0"
+          cache: pnpm
 
       - name: Install system dependencies
         run: |
@@ -66,8 +67,14 @@ jobs:
             libtcmalloc-minimal4 \
             libjemalloc2
 
-      - name: Install pnpm
-        run: npm install -g pnpm@10.18.2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+          run_install: false
+
+      - name: Show pnpm version
+        run: pnpm --version
 
       - name: Install dependencies
         run: pnpm install --ignore-scripts --no-frozen-lockfile

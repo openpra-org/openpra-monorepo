@@ -3,7 +3,7 @@ name: "CI: Lint (baseline)"
 on:
   pull_request:
     branches:
-      - '**'
+      - "**"
   push:
     branches:
       - main
@@ -21,8 +21,7 @@ jobs:
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20.17.0'
-          cache: 'pnpm'
+          node-version: "20.17.0"
 
       - name: Install pnpm
         run: npm install -g pnpm@10.18.2

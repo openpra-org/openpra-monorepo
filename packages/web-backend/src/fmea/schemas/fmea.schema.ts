@@ -8,7 +8,6 @@ import { Document } from "mongoose";
   toJSON: {
     transform: function (doc, ret) {
       delete ret._id;
-      delete ret.password;
     },
   },
 })

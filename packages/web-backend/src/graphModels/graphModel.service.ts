@@ -237,10 +237,13 @@ export class GraphModelService {
    * @returns Graph document, after saving it in the database
    */
   private async saveGraph(graph: BaseGraphDocument, body: Partial<BaseGraph>, modelType: GraphTypes): Promise<boolean> {
-    if (graph !== null) {
-      graph.nodes = body.nodes;
-      graph.edges = body.edges;
-      await graph.save();
+    type AnyGraphDocument = EventSequenceDiagramGraphDocument | FaultTreeGraphDocument | EventTreeGraphDocument;
+    const doc = graph as AnyGraphDocument | null;
+    if (doc !== null) {
+      // assign nodes/edges if provided; preserve existing when undefined
+      if (body.nodes !== undefined) (doc as any).nodes = body.nodes as any;
+      if (body.edges !== undefined) (doc as any).edges = body.edges as any;
+      await (doc as any).save();
     } else {
       const newGraph = this.getModel(modelType, body);
       // Seed defaults for Fault Trees when creating a new graph with empty payload
@@ -250,12 +253,12 @@ export class GraphModelService {
         (body.edges === undefined || body.edges.length === 0)
       ) {
         const defaults = this.getDefaultFaultTreeGraph();
-        newGraph.nodes = defaults.nodes as unknown as typeof newGraph.nodes;
-        newGraph.edges = defaults.edges as unknown as typeof newGraph.edges;
+        (newGraph as any).nodes = defaults.nodes as any;
+        (newGraph as any).edges = defaults.edges as any;
       }
-      newGraph.id = new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
-      newGraph._id = new mongoose.Types.ObjectId();
-      await newGraph.save();
+      (newGraph as any).id = new Date().getTime().toString(36) + Math.random().toString(36).slice(2);
+      (newGraph as any)._id = new mongoose.Types.ObjectId();
+      await (newGraph as any).save();
     }
     return true;
   }
@@ -267,7 +270,10 @@ export class GraphModelService {
    * @returns A hydrated document of the graph document
    * @throws Error If model type is incorrect
    */
-  private getModel(modelType: GraphTypes, body: Partial<BaseGraph>): HydratedDocument<BaseGraphDocument> {
+  private getModel(
+    modelType: GraphTypes,
+    body: Partial<BaseGraph>,
+  ): HydratedDocument<EventSequenceDiagramGraphDocument | FaultTreeGraphDocument | EventTreeGraphDocument> {
     switch (modelType) {
       case GraphTypes.EventSequence:
         return new this.eventSequenceDiagramGraphModel(body);

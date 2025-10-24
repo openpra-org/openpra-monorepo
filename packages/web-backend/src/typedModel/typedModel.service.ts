@@ -306,7 +306,9 @@ export class TypedModelService {
     if (result.users.length === 1) {
       return await this.internalEventsModel.findOneAndDelete(query);
     } else {
-      return await this.internalEventsModel.findOneAndUpdate(query, updateData, { new: true }).lean();
+      return await this.internalEventsModel
+        .findOneAndUpdate(query, updateData, { new: true })
+        .lean<InternalEventsModel>();
     }
   }
 
@@ -334,7 +336,9 @@ export class TypedModelService {
       });
     } else {
       result.users = result.users.filter((user) => user !== userId);
-      return await this.internalHazardsModel.findOneAndUpdate(query, updateData, { new: true }).lean();
+      return await this.internalHazardsModel
+        .findOneAndUpdate(query, updateData, { new: true })
+        .lean<InternalHazardsModel>();
     }
   }
 
@@ -360,7 +364,9 @@ export class TypedModelService {
       return await this.externalHazardsModel.findOneAndDelete(query);
     } else {
       result.users = result.users.filter((user) => user !== userId);
-      return await this.externalHazardsModel.findOneAndUpdate(query, updateData, { new: true }).lean();
+      return await this.externalHazardsModel
+        .findOneAndUpdate(query, updateData, { new: true })
+        .lean<ExternalHazardsModel>();
     }
   }
 

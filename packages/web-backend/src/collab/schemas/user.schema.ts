@@ -118,7 +118,7 @@ const PreferencesSchema = SchemaFactory.createForClass(Preferences);
     updatedAt: "last_login",
   },
   toJSON: {
-    transform: function (doc, ret) {
+    transform: function (doc, ret: any) {
       delete ret._id;
       delete ret.password;
     },

@@ -17,6 +17,8 @@ import path from 'node:path';
 export function createTsCanaryConfig({ tseslint, tsdoc, tsconfigRootDir, projectTsconfigs, extraPlugins = {} }) {
   // Ensure file globs are scoped to the package directory even when ESLint CWD is the workspace root
   const relDir = path.relative(process.cwd(), tsconfigRootDir) || '.';
+  // Avoid leading "./" in glob patterns, which can prevent matches in ESLint flat config
+  const dirPattern = relDir === '.' ? '' : `${relDir}/`;
   return [
     // Register plugins globally so subsequent config items can reference their rules
     {
@@ -33,7 +35,7 @@ export function createTsCanaryConfig({ tseslint, tsdoc, tsconfigRootDir, project
       ignores: ['**/dist/**', '**/coverage/**', '**/.nx/**', '**/node_modules/**', '**/*.d.ts']
     },
     {
-      files: [`${relDir}/**/*.{ts,tsx}`],
+      files: [`${dirPattern}**/*.{ts,tsx}`],
       languageOptions: {
         parser: tseslint.parser,
         parserOptions: {
@@ -85,11 +87,11 @@ export function createTsCanaryConfig({ tseslint, tsdoc, tsconfigRootDir, project
     // Treat common tooling config files as untyped to avoid TS project resolution errors
     {
       files: [
-        `${relDir}/*.{config,conf}.{ts,js}`,
-        `${relDir}/**/jest.config.ts`,
-        `${relDir}/**/cypress.config.ts`,
-        `${relDir}/**/playwright.config.ts`,
-        `${relDir}/**/webpack.config.{ts,js}`
+        `${dirPattern}*.{config,conf}.{ts,js}`,
+        `${dirPattern}**/jest.config.ts`,
+        `${dirPattern}**/cypress.config.ts`,
+        `${dirPattern}**/playwright.config.ts`,
+        `${dirPattern}**/webpack.config.{ts,js}`
       ],
       languageOptions: {
         parser: tseslint.parser,
@@ -121,10 +123,10 @@ export function createTsCanaryConfig({ tseslint, tsdoc, tsconfigRootDir, project
     // Test/e2e overrides: relax rules that are typically noisy in tests
     {
       files: [
-        `${relDir}/**/*.spec.ts`,
-        `${relDir}/**/*.spec.tsx`,
-        `${relDir}/**/*.e2e.ts`,
-        `${relDir}/**/*.e2e.tsx`
+        `${dirPattern}**/*.spec.ts`,
+        `${dirPattern}**/*.spec.tsx`,
+        `${dirPattern}**/*.e2e.ts`,
+        `${dirPattern}**/*.e2e.tsx`
       ],
       rules: {
         '@typescript-eslint/unbound-method': 'off',

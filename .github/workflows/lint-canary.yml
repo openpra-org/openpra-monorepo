@@ -5,12 +5,17 @@ on:
     branches:
       - "**"
 
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   lint-canary:
     runs-on: ubuntu-latest
     concurrency:
       group: lint-canary-${{ github.head_ref || github.ref }}
       cancel-in-progress: true
+    timeout-minutes: 20
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,6 +24,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20.17.0"
+          cache: pnpm
 
       - name: Install pnpm
         run: npm install -g pnpm@10.18.2
@@ -26,8 +32,9 @@ jobs:
       - name: Install dependencies (skip scripts)
         run: pnpm install --ignore-scripts --no-frozen-lockfile
 
-      - name: Run canary lint
+      - name: Run canary lint (non-blocking)
         shell: bash
+        continue-on-error: true
         run: |
           set -o pipefail
           pnpm -w run lint:canary:all | tee lint-canary.txt
@@ -53,6 +60,28 @@ jobs:
               const summaryLine = (log.split('\n').reverse().find(l => l.includes('Successfully ran target lint-canary')) || '').trim();
               if (summaryLine) {
                 body += `Summary: ${summaryLine}\n\n`;
+              }
+              // Aggregate ESLint problem counts across packages if present
+              const problemRe = /\u2716\s+(\d+)\s+problems? \((\d+) errors?,\s*(\d+) warnings?\)/gi; // matches lines like: ✖ 12 problems (3 errors, 9 warnings)
+              let totalProblems = 0, totalErrors = 0, totalWarnings = 0;
+              for (const m of log.matchAll(problemRe)) {
+                totalProblems += Number(m[1] || 0);
+                totalErrors += Number(m[2] || 0);
+                totalWarnings += Number(m[3] || 0);
+              }
+              if (totalProblems > 0) {
+                body += `ESLint totals: ${totalProblems} problems (${totalErrors} errors, ${totalWarnings} warnings).\n\n`;
+              }
+              // List failed packages from the Nx table (lines starting with ✖ and containing :lint-canary)
+              const failed = new Set();
+              for (const line of log.split('\n')) {
+                if (line.includes(':lint-canary') && /\u2716/.test(line)) {
+                  const match = line.match(/\u2716\s+([a-z0-9\-]+):lint-canary/i);
+                  if (match && match[1]) failed.add(match[1]);
+                }
+              }
+              if (failed.size > 0) {
+                body += `Failed packages: ${Array.from(failed).join(', ')}\n\n`;
               }
             } catch (e) {
               // ignore

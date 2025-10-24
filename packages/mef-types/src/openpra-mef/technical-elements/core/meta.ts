@@ -47,7 +47,7 @@ export interface Named {
  * ```
  * @hidden
  */
-export const UniqueTagSchema = typia.json.application<[Unique], "3.0">();
+export const UniqueTagSchema = typia.json.schemas<[Unique]>();
 
 /**
  * @internal
@@ -59,15 +59,11 @@ export const UniqueTagSchema = typia.json.application<[Unique], "3.0">();
  * ```
  * @hidden
  */
-export const NamedTagSchema = typia.json.application<[Named], "3.0">();
-
+export const NamedTagSchema = typia.json.schemas<[Named]>();
 
 export interface Versioned {
   version: string;
   lastUpdated: string;
 }
 
-export const VersionedTagSchema = typia.json.application<[Versioned], "3.0">();
-
-
-
+export const VersionedTagSchema = typia.json.schemas<[Versioned]>();

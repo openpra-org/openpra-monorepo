@@ -1,6 +1,7 @@
 # Demonstrating Regulatory Compliance in the Initiating Event Analysis Schema
 
 ## Table of Contents
+
 - [1. Introduction](#1-introduction)
 - [2. Schema Structure Supporting Documentation Requirements](#2-schema-structure-supporting-documentation-requirements)
 - [3. Mapping of Schema Components to IE-D Requirements](#3-mapping-of-schema-components-to-ie-d-requirements)
@@ -43,7 +44,7 @@ The schema uses standardized patterns for cross-referencing other technical elem
 
 ```typescript
 // Standardized reference patterns
-type SuccessCriteriaId = string & tags.Pattern<typeof IdPatterns.SUCCESS_CRITERIA_ID>;  // Imported from shared-patterns
+type SuccessCriteriaId = string & tags.Pattern<typeof IdPatterns.SUCCESS_CRITERIA_ID>; // Imported from shared-patterns
 type PlantOperatingStateId = string & tags.Pattern<typeof IdPatterns.STATE>;
 type SystemId = string & tags.Pattern<typeof IdPatterns.SYSTEM_ID>;
 ```
@@ -52,24 +53,24 @@ These interfaces are integrated into the main `InitiatingEventsAnalysis` interfa
 
 ```typescript
 export interface InitiatingEventsAnalysis extends TechnicalElement<TechnicalElementTypes.INITIATING_EVENT_ANALYSIS> {
-    // Other properties...
-    
-    /**
-     * Documentation of the Initiating Event Analysis process.
-     */
-    documentation?: InitiatingEventDocumentation;
-    
-    /**
-     * Pre-operational assumptions and limitations
-     * @remarks **IE-D3**: For PRAs performed during the pre-operational stage, DOCUMENT assumptions and limitations...
-     */
-    pre_operational_assumptions?: PreOperationalAssumptions[];
-    
-    /**
-     * Peer review documentation
-     * @remarks **HLR-IE-D**
-     */
-    peer_review?: PeerReviewDocumentation;
+  // Other properties...
+
+  /**
+   * Documentation of the Initiating Event Analysis process.
+   */
+  documentation?: InitiatingEventDocumentation;
+
+  /**
+   * Pre-operational assumptions and limitations
+   * @remarks **IE-D3**: For PRAs performed during the pre-operational stage, DOCUMENT assumptions and limitations...
+   */
+  pre_operational_assumptions?: PreOperationalAssumptions[];
+
+  /**
+   * Peer review documentation
+   * @remarks **HLR-IE-D**
+   */
+  peer_review?: PeerReviewDocumentation;
 }
 ```
 
@@ -81,11 +82,11 @@ The schema provides comprehensive support for IE-D1 requirements through the `In
 
 ```typescript
 export interface InitiatingEventDocumentation {
-    processDescription: string;
-    inputSources: string[];
-    appliedMethods: string[];
-    resultsSummary: string;
-    // IE-D1 specific fields...
+  processDescription: string;
+  inputSources: string[];
+  appliedMethods: string[];
+  resultsSummary: string;
+  // IE-D1 specific fields...
 }
 ```
 
@@ -101,13 +102,13 @@ The categorization is further supported by the `InitiatingEventCategory` enum:
 
 ```typescript
 export enum InitiatingEventCategory {
-    TRANSIENT = "TRANSIENT",
-    RCB_BREACH = "RCB_BREACH",
-    INTERFACING_SYSTEMS_RCB_BREACH = "INTERFACING_SYSTEMS_RCB_BREACH",
-    SPECIAL = "SPECIAL",
-    INTERNAL_HAZARD = "INTERNAL_HAZARD",
-    EXTERNAL_HAZARD = "EXTERNAL_HAZARD",
-    HUMAN_FAILURE = "HUMAN_FAILURE"
+  TRANSIENT = "TRANSIENT",
+  RCB_BREACH = "RCB_BREACH",
+  INTERFACING_SYSTEMS_RCB_BREACH = "INTERFACING_SYSTEMS_RCB_BREACH",
+  SPECIAL = "SPECIAL",
+  INTERNAL_HAZARD = "INTERNAL_HAZARD",
+  EXTERNAL_HAZARD = "EXTERNAL_HAZARD",
+  HUMAN_FAILURE = "HUMAN_FAILURE",
 }
 ```
 
@@ -115,8 +116,8 @@ Each initiator is mapped to a category in the `ExtendedInitiatingEvent` interfac
 
 ```typescript
 export interface ExtendedInitiatingEvent extends InitiatingEvent {
-    category: InitiatingEventCategory | string;
-    // Other fields...
+  category: InitiatingEventCategory | string;
+  // Other fields...
 }
 ```
 
@@ -132,14 +133,17 @@ This is complemented by identification methods that systematically evaluate syst
 
 ```typescript
 export interface MasterLogicDiagram extends IdentificationMethodBase {
-    systems_components: Record<string, SystemComponent>;
-    failure_modes: Record<string, {
-        id: string;
-        name: string;
-        description: string;
-        component_id: string;
-    }>;
-    // Other fields...
+  systems_components: Record<string, SystemComponent>;
+  failure_modes: Record<
+    string,
+    {
+      id: string;
+      name: string;
+      description: string;
+      component_id: string;
+    }
+  >;
+  // Other fields...
 }
 ```
 
@@ -155,8 +159,8 @@ Each initiator is linked to applicable plant operating states:
 
 ```typescript
 export interface InitiatorDefinition extends ExtendedInitiatingEvent {
-    operating_states: OperatingState[];
-    // Other fields...
+  operating_states: OperatingState[];
+  // Other fields...
 }
 ```
 
@@ -164,8 +168,8 @@ The schema also provides cross-referencing to plant operating states:
 
 ```typescript
 export interface InitiatingEventsAnalysis {
-    applicable_plant_operating_states: PlantOperatingStateReference[];
-    // Other fields...
+  applicable_plant_operating_states: PlantOperatingStateReference[];
+  // Other fields...
 }
 ```
 
@@ -181,13 +185,16 @@ RCB failures are categorized and associated with specific impact mechanisms:
 
 ```typescript
 export interface InitiatorDefinition {
-    barrier_impacts: Record<string, {
-        barrier: string;
-        state: BarrierStatus;
-        timing: string;
-        mechanism: string;
-    }>;
-    // Other fields...
+  barrier_impacts: Record<
+    string,
+    {
+      barrier: string;
+      state: BarrierStatus;
+      timing: string;
+      mechanism: string;
+    }
+  >;
+  // Other fields...
 }
 ```
 
@@ -203,22 +210,22 @@ Completeness is further enforced through validation functions:
 
 ```typescript
 validateCompleteness: (analysis: InitiatingEventsAnalysis): string[] => {
-    const errors: string[] = [];
-    // Check if all categories from IE-A5 are represented
-    const categories = new Set(Object.values(analysis.initiators).map(ie => ie.category));
-    const requiredCategories = [
-        InitiatingEventCategory.TRANSIENT,
-        InitiatingEventCategory.RCB_BREACH,
-        InitiatingEventCategory.INTERFACING_SYSTEMS_RCB_BREACH
-    ];
-    
-    for (const requiredCategory of requiredCategories) {
-        if (!categories.has(requiredCategory)) {
-            errors.push(`Required initiating event category ${requiredCategory} is not represented`);
-        }
+  const errors: string[] = [];
+  // Check if all categories from IE-A5 are represented
+  const categories = new Set(Object.values(analysis.initiators).map((ie) => ie.category));
+  const requiredCategories = [
+    InitiatingEventCategory.TRANSIENT,
+    InitiatingEventCategory.RCB_BREACH,
+    InitiatingEventCategory.INTERFACING_SYSTEMS_RCB_BREACH,
+  ];
+
+  for (const requiredCategory of requiredCategories) {
+    if (!categories.has(requiredCategory)) {
+      errors.push(`Required initiating event category ${requiredCategory} is not represented`);
     }
-    return errors;
-}
+  }
+  return errors;
+};
 ```
 
 #### 3.1.6 IE-D1.f
@@ -233,14 +240,14 @@ Screening criteria are captured in a dedicated interface:
 
 ```typescript
 export interface ScreeningCriteria {
-    frequency_criterion: number;
-    damage_frequency_criterion: number;
-    basis: string;
-    screened_out_events: {
-        event_id: string;
-        reason: string;
-        justification: string;
-    }[];
+  frequency_criterion: number;
+  damage_frequency_criterion: number;
+  basis: string;
+  screened_out_events: {
+    event_id: string;
+    reason: string;
+    justification: string;
+  }[];
 }
 ```
 
@@ -248,9 +255,9 @@ Individual initiating events also contain screening information:
 
 ```typescript
 export interface ExtendedInitiatingEvent {
-    screeningStatus?: ScreeningStatus;
-    screeningBasis?: string;
-    // Other fields...
+  screeningStatus?: ScreeningStatus;
+  screeningBasis?: string;
+  // Other fields...
 }
 ```
 
@@ -266,15 +273,15 @@ The grouping logic is captured in the `InitiatingEventGroup` interface:
 
 ```typescript
 export interface InitiatingEventGroup extends Unique, Named {
-    description: string;
-    member_ids: string[];
-    grouping_basis: string;
-    bounding_initiator_id: string;
-    shared_mitigation_requirements: string[];
-    challenged_safety_functions: SafetyFunctionReference[];
-    applicable_operating_states: PlantOperatingStateReference[];
-    quantification?: FrequencyQuantification;
-    risk_importance?: ImportanceLevel;
+  description: string;
+  member_ids: string[];
+  grouping_basis: string;
+  bounding_initiator_id: string;
+  shared_mitigation_requirements: string[];
+  challenged_safety_functions: SafetyFunctionReference[];
+  applicable_operating_states: PlantOperatingStateReference[];
+  quantification?: FrequencyQuantification;
+  risk_importance?: ImportanceLevel;
 }
 ```
 
@@ -282,9 +289,9 @@ Events reference their group through:
 
 ```typescript
 export interface ExtendedInitiatingEvent {
-    group?: string;
-    groupId?: string;
-    // Other fields...
+  group?: string;
+  groupId?: string;
+  // Other fields...
 }
 ```
 
@@ -300,8 +307,8 @@ Plant-specific experience is tracked in each initiating event:
 
 ```typescript
 export interface ExtendedInitiatingEvent {
-    plantExperience?: string[];
-    // Other fields...
+  plantExperience?: string[];
+  // Other fields...
 }
 ```
 
@@ -317,16 +324,16 @@ Frequency data and calculations are captured in specialized interfaces:
 
 ```typescript
 export interface InitiatingEventQuantification {
-    event_id: string;
-    quantification: FrequencyQuantification;
-    data_exclusion_justification?: string;
-    other_reactor_data_justification?: string;
-    fault_tree_details?: {
-        model_id: string;
-        top_event: string;
-        modifications: string[];
-    };
-    sensitivityStudies?: SensitivityStudy[];
+  event_id: string;
+  quantification: FrequencyQuantification;
+  data_exclusion_justification?: string;
+  other_reactor_data_justification?: string;
+  fault_tree_details?: {
+    model_id: string;
+    top_event: string;
+    modifications: string[];
+  };
+  sensitivityStudies?: SensitivityStudy[];
 }
 ```
 
@@ -342,12 +349,12 @@ The approach includes consideration of operating states and supporting analyses:
 
 ```typescript
 export interface InitiatorDefinition {
-    supportingAnalyses?: {
-        analysisType: string;
-        analysisId: string;
-        description?: string;
-    }[];
-    // Other fields...
+  supportingAnalyses?: {
+    analysisType: string;
+    analysisId: string;
+    description?: string;
+  }[];
+  // Other fields...
 }
 ```
 
@@ -363,8 +370,8 @@ This is complemented by specific justification in the quantification details:
 
 ```typescript
 export interface InitiatingEventQuantification {
-    data_exclusion_justification?: string;
-    // Other fields...
+  data_exclusion_justification?: string;
+  // Other fields...
 }
 ```
 
@@ -380,14 +387,12 @@ This is complemented by specific justification in the quantification details:
 
 ```typescript
 export interface InitiatingEventQuantification {
-    other_reactor_data_justification?: string;
-    // Other fields...
+  other_reactor_data_justification?: string;
+  // Other fields...
 }
 ```
 
 ### 3.2 IE-D2 Compliance
-
-
 
 ```typescript
 // Within InitiatingEventsAnalysis
@@ -414,10 +419,10 @@ The schema explicitly addresses pre-operational documentation through a dedicate
 
 ```typescript
 export interface PreOperationalAssumptions {
-    statement: string;           // The assumption statement
-    impact: string;              // Impact on the analysis
-    treatmentApproach: string;   // How assumption is addressed
-    validationPlan?: string;     // Plans for validation once built
+  statement: string; // The assumption statement
+  impact: string; // Impact on the analysis
+  treatmentApproach: string; // How assumption is addressed
+  validationPlan?: string; // Plans for validation once built
 }
 ```
 
@@ -456,25 +461,25 @@ const analysis: InitiatingEventsAnalysis = {
   "technical-element-type": TechnicalElementTypes.INITIATING_EVENT_ANALYSIS,
   "technical-element-code": "IE",
   // Core elements...
-  
+
   // IE-D1 Documentation
   documentation: {
     processDescription: "Systematic process following RA-S-1.4-2021",
     inputSources: ["System designs", "FSAR", "Industry OE"],
     // Additional IE-D1 fields...
   },
-  
+
   // IE-D3 Documentation
   pre_operational_assumptions: [
     {
       statement: "Assumed 4 RCPs based on current design",
       impact: "Affects LOCA frequency calculations",
       treatmentApproach: "Used parametric study to assess sensitivity",
-      validationPlan: "Validate when final RCP design is confirmed"
-    }
+      validationPlan: "Validate when final RCP design is confirmed",
+    },
     // Additional pre-operational assumptions...
   ],
-  
+
   // Peer Review Documentation
   peer_review: {
     reviewDate: "2024-03-15",
@@ -486,13 +491,13 @@ const analysis: InitiatingEventsAnalysis = {
         significance: "MEDIUM",
         associatedRequirements: ["IE-D1.f"],
         status: "OPEN",
-        resolutionPlan: "Update screening criteria documentation"
-      }
+        resolutionPlan: "Update screening criteria documentation",
+      },
     ],
     scope: "Full review of initiating event analysis",
     methodology: "Independent technical review",
-    reportReference: "PR-2024-001"
-  }
+    reportReference: "PR-2024-001",
+  },
 };
 ```
 
@@ -502,43 +507,44 @@ The schema includes validation functions to ensure documentation completeness:
 
 ```typescript
 export const validateInitiatingEventsAnalysis = {
-    // Other validation functions...
-    
-    validateScreening: (analysis: InitiatingEventsAnalysis): string[] => {
-        const errors: string[] = [];
-        // Check if all screened out events have proper documentation
-        for (const screenedEvent of analysis.screening_criteria.screened_out_events) {
-            if (!screenedEvent.justification) {
-                errors.push(`Screened out event ${screenedEvent.event_id} has no justification`);
-            }
-            // Additional validation...
-        }
-        return errors;
-    },
-    
-    validateCompleteness: (analysis: InitiatingEventsAnalysis): string[] => {
-        // Validation ensuring all required categories are documented
-        // ...
-    },
-    
-    validatePeerReview: (analysis: InitiatingEventsAnalysis): string[] => {
-        const errors: string[] = [];
-        if (analysis.peer_review) {
-            // Validate peer review documentation completeness
-            if (!analysis.peer_review.findings.length) {
-                errors.push("Peer review must include at least one finding");
-            }
-            // Additional validation...
-        }
-        return errors;
+  // Other validation functions...
+
+  validateScreening: (analysis: InitiatingEventsAnalysis): string[] => {
+    const errors: string[] = [];
+    // Check if all screened out events have proper documentation
+    for (const screenedEvent of analysis.screening_criteria.screened_out_events) {
+      if (!screenedEvent.justification) {
+        errors.push(`Screened out event ${screenedEvent.event_id} has no justification`);
+      }
+      // Additional validation...
     }
+    return errors;
+  },
+
+  validateCompleteness: (analysis: InitiatingEventsAnalysis): string[] => {
+    // Validation ensuring all required categories are documented
+    // ...
+  },
+
+  validatePeerReview: (analysis: InitiatingEventsAnalysis): string[] => {
+    const errors: string[] = [];
+    if (analysis.peer_review) {
+      // Validate peer review documentation completeness
+      if (!analysis.peer_review.findings.length) {
+        errors.push("Peer review must include at least one finding");
+      }
+      // Additional validation...
+    }
+    return errors;
+  },
 };
 ```
 
 Additionally, the Typia validation ensures type compliance:
 
 ```typescript
-export const InitiatingEventsAnalysisSchema = typia.json.application<[InitiatingEventsAnalysis], "3.0">();
+import typia from "typia";
+export const InitiatingEventsAnalysisSchema = typia.json.schemas<[InitiatingEventsAnalysis]>();
 ```
 
 ## 6. Conclusion

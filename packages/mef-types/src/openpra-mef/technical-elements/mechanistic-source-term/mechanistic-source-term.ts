@@ -1,34 +1,37 @@
 /**
  * @module mechanistic_source_term_analysis
  * @description Comprehensive types and interfaces for Mechanistic Source Term Analysis (MS)
- * 
+ *
  * The objectives of Mechanistic Source Term Analysis ensure that HLR-MS-A to HLR-MS-E are met.
- * 
- * Per RG 1.247, the objective of the mechanistic source term analysis PRA element is to 
+ *
+ * Per RG 1.247, the objective of the mechanistic source term analysis PRA element is to
  * characterize the radiological releases to the environment (or source terms) that could result
  * from the event sequences modeled in the PRA.
- * 
+ *
  * @preferred
  * @category Technical Elements
  */
 
-import typia, { tags } from "typia";    
+import typia, { tags } from "typia";
 import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
 import { Named, Unique } from "../core/meta";
 import { IdPatterns, ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../core/shared-patterns";
-import { 
-    BaseDesignInformation, 
-    BaseProcessDocumentation, 
-    BaseModelUncertaintyDocumentation, 
-    BasePreOperationalAssumptionsDocumentation,
-    BasePeerReviewDocumentation,
-    BaseTraceabilityDocumentation,
-    BaseAssumption,
-    PreOperationalAssumption
+import {
+  BaseDesignInformation,
+  BaseProcessDocumentation,
+  BaseModelUncertaintyDocumentation,
+  BasePreOperationalAssumptionsDocumentation,
+  BasePeerReviewDocumentation,
+  BaseTraceabilityDocumentation,
+  BaseAssumption,
+  PreOperationalAssumption,
 } from "../core/documentation";
-import { BaseEvent, BasicEvent, TopEvent} from "../core/events";
+import { BaseEvent, BasicEvent, TopEvent } from "../core/events";
 import { DistributionType } from "../data-analysis/data-analysis";
-import { EventSequenceQuantification, BarrierStatus } from "../event-sequence-quantification/event-sequence-quantification";
+import {
+  EventSequenceQuantification,
+  BarrierStatus,
+} from "../event-sequence-quantification/event-sequence-quantification";
 import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 //==============================================================================
@@ -65,15 +68,15 @@ export type EventSequenceReference = string;
 export enum ReleaseForm {
   /** Elemental gaseous form */
   ELEMENTAL = "ELEMENTAL",
-  
+
   /** Aerosol particles suspended in air */
   AEROSOL = "AEROSOL",
-  
+
   /** Dust particles */
   DUST = "DUST",
-  
+
   /** Other forms not covered by the standard categories */
-  OTHER = "OTHER"
+  OTHER = "OTHER",
 }
 
 /**
@@ -90,16 +93,16 @@ export type Radionuclide = string;
 export interface ReleasePhase extends Unique {
   /** Name of the release phase */
   name: string;
-  
+
   /** Description of the release phase */
   description?: string;
-  
+
   /** Start time of the phase (e.g., in seconds after the initiating event) */
   startTime: number;
-  
+
   /** End time of the phase */
   endTime: number;
-  
+
   /** Unit of time measurement */
   timeUnit?: string;
 }
@@ -111,13 +114,13 @@ export interface ReleasePhase extends Unique {
 export interface RadionuclideReleaseQuantity {
   /** Radionuclide isotope */
   radionuclide: Radionuclide;
-  
+
   /** Quantity released (can be a value or a fraction of inventory) */
   quantity: number;
-  
+
   /** Unit of quantity (e.g., "Bq", "Ci", or "fraction") */
   unit: string;
-  
+
   /** Uncertainty in the release quantity, if known */
   uncertainty?: RadionuclideReleaseUncertainty;
 }
@@ -129,10 +132,10 @@ export interface RadionuclideReleaseQuantity {
 export interface RadionuclideReleaseUncertainty {
   /** Type of distribution (e.g., lognormal, uniform) */
   distributionType: DistributionType;
-  
+
   /** Parameters of the distribution */
   parameters: Record<string, number>;
-  
+
   /** Description of the uncertainty */
   description?: string;
 }
@@ -145,48 +148,48 @@ export interface RadionuclideReleaseUncertainty {
 export enum TransportPhenomenonType {
   /** Barrier degradation or failure */
   BARRIER_FAILURE = "BARRIER_FAILURE",
-  
+
   /** Radionuclide transport through intact barriers */
   BARRIER_LEAKAGE = "BARRIER_LEAKAGE",
-  
+
   /** Physical deposition of radioactive material */
   DEPOSITION = "DEPOSITION",
-  
+
   /** Resuspension of deposited material */
   RESUSPENSION = "RESUSPENSION",
-  
+
   /** Chemical interactions affecting transport and form */
   CHEMICAL_INTERACTION = "CHEMICAL_INTERACTION",
-  
+
   /** General thermal processes affecting transport */
   THERMAL_PROCESS = "THERMAL_PROCESS",
-  
+
   /** General mechanical processes affecting transport (e.g., pressure-driven flow) */
   MECHANICAL_PROCESS = "MECHANICAL_PROCESS",
-  
+
   /** Heat generation from various sources (reactivity additions, decay heat, exothermic reactions, recriticality) */
   HEAT_GENERATION = "HEAT_GENERATION",
-  
+
   /** Heat removal mechanisms (forced convection, natural convection, conduction, thermal radiation, endothermic reactions) */
   HEAT_REMOVAL = "HEAT_REMOVAL",
-  
+
   /** Transport of material in gaseous form (pressure differences, blowdown, expansion, contraction, buoyancy, chemical reaction products) */
   GASEOUS_TRANSPORT = "GASEOUS_TRANSPORT",
-  
+
   /** Transport of material in solid form (diffusion, gravity, steam/water, other liquids, liftoff based on volatility) */
   SOLID_TRANSPORT = "SOLID_TRANSPORT",
-  
+
   /** Physical movement of core or source materials */
   INVENTORY_RELOCATION = "INVENTORY_RELOCATION",
-  
+
   /** Effects of explosions on transport and barriers */
   EXPLOSION_EFFECTS = "EXPLOSION_EFFECTS",
-  
+
   /** Transformation of radionuclides through decay and buildup */
   RADIONUCLIDE_TRANSFORMATION = "RADIONUCLIDE_TRANSFORMATION",
-  
+
   /** Other phenomena not covered by the standard categories */
-  OTHER = "OTHER"
+  OTHER = "OTHER",
 }
 
 //==============================================================================
@@ -215,52 +218,52 @@ export enum TransportPhenomenonType {
 export interface ReleaseCategory extends Unique, Named {
   /** Detailed description of the release category */
   description: string;
-  
+
   /** Event sequence families assigned to this release category */
   eventSequenceFamilies: EventSequenceReference[];
-  
+
   /** Justification for the grouping of sequences into this release category */
   groupingJustification?: string;
-  
+
   /** Timing classification of this release (e.g., early, late) */
   timingClassification?: string;
-  
+
   /** Magnitude classification of this release (e.g., large, small) */
   magnitudeClassification?: string;
-  
+
   /** Bounding sequence representing this release category (MS-A5) */
   boundingSequenceReference?: EventSequenceReference;
-  
+
   /** Justification for the selection of the bounding sequence */
   boundingSequenceJustification?: string;
-  
+
   /** Termination time for radiological releases consideration (MS-A4) */
   releaseTerminationTime?: {
     value: number;
     unit: string;
     justification: string;
   };
-  
+
   /** Consistency with Radiological Consequence Analysis requirements (MS-A2) */
   radiologicalConsequenceConsistency?: {
     description: string;
     justification: string;
   };
-  
-  /** 
+
+  /**
    * Pre-operational assumptions that influence release category definition and characterization
    * @implements MS-A3
    */
   preOperationalAssumptions?: {
     /** Description of the assumption */
     description: string;
-    
+
     /** How this assumption influences the release category definition or characterization */
     influence: string;
-    
+
     /** Basis or rationale for making this assumption */
     basis?: string;
-    
+
     /** Information needed to validate or refine this assumption during later stages */
     validationNeeded?: string;
   }[];
@@ -277,7 +280,7 @@ export interface ReleaseCategory extends Unique, Named {
  *   name: "Reactor Core",
  *   description: "The primary source of fission products.",
  *   radionuclides: ["I-131", "Cs-137", "Xe-133"],
- *   totalInventory: { 
+ *   totalInventory: {
  *     "I-131": { quantity: 1.0e17, unit: "Bq" },
  *     "Cs-137": { quantity: 5.0e16, unit: "Bq" },
  *     "Xe-133": { quantity: 8.0e17, unit: "Bq" }
@@ -288,19 +291,19 @@ export interface ReleaseCategory extends Unique, Named {
 export interface RadioactiveSource extends Unique, Named {
   /** Detailed description of the radioactive material source */
   description: string;
-  
+
   /** List of significant radionuclides in this source */
   radionuclides: Radionuclide[];
-  
+
   /** Total inventory of radionuclides in this source */
   totalInventory: Record<Radionuclide, { quantity: number; unit: string }>;
-  
+
   /** Source of the inventory data */
   inventoryDataSource?: string;
-  
+
   /** Basis for the selection of included radionuclides */
   radionuclideSelectionBasis?: string;
-  
+
   /** Uncertainty in the inventory values */
   inventoryUncertainty?: {
     description: string;
@@ -319,55 +322,55 @@ export interface RadioactiveSource extends Unique, Named {
 export interface EventSequenceToReleaseCategoryMapping extends Unique {
   /** Reference to the event sequence */
   eventSequenceReference: EventSequenceReference;
-  
+
   /** Reference to the release category */
   releaseCategoryReference: ReleaseCategoryReference;
-  
+
   /** Justification for assigning this event sequence to this release category */
   assignmentJustification: string;
-  
+
   /** Technical basis for the assignment */
   technicalBasis?: string;
-  
-  /** 
+
+  /**
    * Frequency information for this mapping, if available at this stage.
    * This may be populated during event sequence quantification and used by risk integration.
    */
   frequencyInformation?: {
     /** Mean frequency value */
     mean?: number;
-    
+
     /** Frequency unit */
     unit?: string;
-    
+
     /** Uncertainty in the frequency */
     uncertainty?: {
       /** Distribution type */
       distributionType?: DistributionType;
-      
+
       /** Distribution parameters */
       parameters?: Record<string, number>;
     };
   };
-  
+
   /**
    * Flag indicating whether this mapping has been processed by risk integration.
    * Used for traceability between technical elements.
    */
   processedByRiskIntegration?: boolean;
-  
+
   /**
    * Reference to the corresponding mapping in the risk integration module, if available.
    * This provides traceability between the mechanistic source term and risk integration modules.
    */
   riskIntegrationMappingId?: string;
-  
+
   /**
    * Risk significance level determined by risk integration, if available.
    * This may be populated based on feedback from risk integration.
    */
   riskSignificance?: ImportanceLevel;
-  
+
   /**
    * Insights from risk integration, if available.
    * This may be populated based on feedback from risk integration.
@@ -383,13 +386,13 @@ export interface EventSequenceToReleaseCategoryMapping extends Unique {
 export interface ReleaseCategoryBasis extends Unique {
   /** Reference to the release category */
   releaseCategoryReference: ReleaseCategoryReference;
-  
+
   /** Technical basis for the definition of the release category */
   technicalBasis: string;
-  
+
   /** References to supporting analyses or documents */
   supportingReferences?: string[];
-  
+
   /** Description of how this release category aligns with regulatory expectations */
   regulatoryAlignment?: string;
 }
@@ -414,32 +417,32 @@ export interface ReleaseCategoryBasis extends Unique {
 export interface RadionuclideTransportBarrier extends Unique, Named {
   /** Description of the barrier */
   description: string;
-  
+
   /** Type of barrier (e.g., physical, chemical) */
   barrierType: string;
-  
+
   /** Effectiveness of the barrier in retaining radionuclides */
   effectiveness?: string;
-  
+
   /** Conditions under which the barrier may fail or degrade */
   failureConditions?: string[];
-  
+
   /** Radionuclides primarily affected by this barrier */
   affectedRadionuclides?: Radionuclide[];
-  
-  /** 
+
+  /**
    * Reference to a barrier defined in Event Sequence Quantification.
    * This UUID links to a barrier in the Event Sequence Quantification module,
    * allowing reuse of operational status information while maintaining separation of concerns.
    */
   barrierReference?: string;
-  
-  /** 
+
+  /**
    * Current status of the barrier in this analysis context.
    * Status information comes from Event Sequence Quantification.
    */
   status?: BarrierStatus;
-  
+
   /**
    * Physical and chemical conditions within the barrier that affect radionuclide transport.
    * @implements MS-B4
@@ -447,20 +450,20 @@ export interface RadionuclideTransportBarrier extends Unique, Named {
   physicalChemicalConditions?: {
     /** Temperature conditions (e.g., range, gradients) */
     temperature?: string;
-    
+
     /** Pressure conditions (e.g., range, gradients) */
     pressure?: string;
-    
+
     /** Flow rate or fluid dynamics information */
     flowRate?: string;
-    
+
     /** Chemical environment (e.g., pH, oxidation state) */
     chemicalEnvironment?: string;
-    
+
     /** Impact assessment of these conditions on radionuclide transport */
     impactOnTransport: string;
   };
-  
+
   /**
    * Transport mechanisms specific to this barrier.
    * @implements MS-B4
@@ -468,10 +471,10 @@ export interface RadionuclideTransportBarrier extends Unique, Named {
   transportMechanisms?: {
     /** Type of transport mechanism */
     mechanismType: TransportPhenomenonType;
-    
+
     /** Description of the mechanism */
     description: string;
-    
+
     /** Significance of this mechanism for this barrier */
     significance: ImportanceLevel;
   }[];
@@ -485,13 +488,13 @@ export interface RadionuclideTransportBarrier extends Unique, Named {
 export interface TransportMechanism extends Unique, Named {
   /** Description of the transport mechanism */
   description: string;
-  
+
   /** Type of transport mechanism */
   mechanismType: string;
-  
+
   /** Conditions that activate or enhance this transport mechanism */
   activatingConditions?: string[];
-  
+
   /** Radionuclides primarily transported by this mechanism */
   affectedRadionuclides?: Radionuclide[];
 }
@@ -514,23 +517,23 @@ export interface TransportMechanism extends Unique, Named {
 export interface TransportPhenomena extends Unique {
   /** Reference to the release category */
   releaseCategoryReference: ReleaseCategoryReference;
-  
+
   /** Description of the relevant transport phenomena */
   phenomena: string[];
-  
+
   /** Type classification of each phenomenon */
   phenomenaTypes?: TransportPhenomenonType[];
-  
+
   /** Models and computer programs used to analyze these phenomena */
   modelsUsed: string[];
-  
+
   /** Barriers that affect these transport phenomena */
   relatedBarriers?: string[];
-  
+
   /** Transport mechanisms involved in these phenomena */
   relatedMechanisms?: string[];
-  
-  /** 
+
+  /**
    * Assessment of specific MS-B5 phenomena for inclusion
    * @implements MS-B5
    */
@@ -541,11 +544,11 @@ export interface TransportPhenomena extends Unique {
       included: boolean;
       justification?: string;
     }[];
-    
+
     /** Justification for the overall assessment approach */
     assessmentJustification?: string;
   };
-  
+
   /**
    * Justification that the treatment of phenomena is sufficient to support Consequence Quantification
    * @implements MS-C4
@@ -553,7 +556,7 @@ export interface TransportPhenomena extends Unique {
   consequenceQuantificationSupport?: {
     /** Description of how the phenomena treatment supports consequence quantification */
     description: string;
-    
+
     /** Justification for the adequacy of the treatment */
     adequacyJustification: string;
   };
@@ -586,34 +589,34 @@ export interface TransportPhenomena extends Unique {
 export interface SourceTermDefinition extends Unique {
   /** Reference to the release category */
   releaseCategoryReference: ReleaseCategoryReference;
-  
+
   /** Number of reactors or sources involved in this release scenario */
   involvedReactors?: number;
-  
+
   /** Quantity of radionuclides released by species in each time phase */
   radionuclideReleases: {
     phase: ReleasePhase;
     quantities: RadionuclideReleaseQuantity[];
   }[];
-  
+
   /** Physical and chemical form of the release for each species */
   releaseForm: Record<Radionuclide, ReleaseForm | string>;
-  
+
   /** Source term release timing including multiphase releases */
   releaseTiming: ReleasePhase[];
-  
+
   /** Warning time available for evacuation */
   warningTimeForEvacuation?: string;
-  
+
   /** Energy content of the release */
   releaseEnergy?: { quantity: number; unit: string };
-  
+
   /** Elevation of the release point */
   releaseElevation?: { quantity: number; unit: string };
-  
+
   /** Reference to the source term model used for calculation */
   sourceTermModelReference?: string;
-  
+
   /** Aerosol and particle size distribution, if applicable */
   particleSizeDistribution?: {
     description: string;
@@ -639,22 +642,22 @@ export interface SourceTermDefinition extends Unique {
 export interface SourceTermModel extends Unique, Named {
   /** Version of the model or program */
   version: string;
-  
+
   /** Technical basis and documentation for the model */
   technicalBasis: string;
-  
+
   /** Status of verification and validation */
   validationStatus: string;
-  
+
   /** Key assumptions in the model */
   keyAssumptions?: string[];
-  
+
   /** Known limitations of the model */
   knownLimitations?: string[];
-  
+
   /** References to documentation or benchmarks */
   references?: string[];
-  
+
   /** Areas where the model is applicable */
   applicableAreas?: string[];
 }
@@ -676,7 +679,7 @@ export interface MechanisticSourceTermUncertaintyAnalysis extends BaseUncertaint
   /** Reference to the source term or release category being analyzed */
   sourceTermReference?: SourceTermDefinitionReference;
   releaseCategoryReference?: ReleaseCategoryReference;
-  
+
   /** Uncertainties specific to transport phenomena */
   transportPhenomenaUncertainties?: {
     phenomenon: string;
@@ -685,7 +688,7 @@ export interface MechanisticSourceTermUncertaintyAnalysis extends BaseUncertaint
     distributionType?: DistributionType;
     parameters?: Record<string, number>;
   }[];
-  
+
   /** Uncertainties in release fractions or quantities */
   releaseFractionUncertainties?: {
     radionuclide: Radionuclide;
@@ -693,14 +696,14 @@ export interface MechanisticSourceTermUncertaintyAnalysis extends BaseUncertaint
     distributionType: DistributionType;
     parameters: Record<string, number>;
   }[];
-  
+
   /** Results of uncertainty propagation */
   uncertaintyPropagationResults?: {
     description: string;
     resultSummary: string;
     confidenceIntervals?: { level: number; lowerBound: number; upperBound: number }[];
   };
-  
+
   /**
    * Method used to quantify uncertainty in the estimated source term
    * @implements MS-D2
@@ -708,11 +711,11 @@ export interface MechanisticSourceTermUncertaintyAnalysis extends BaseUncertaint
   quantificationMethod?: {
     /** Description of the method used */
     methodDescription: string;
-    
+
     /** Justification for selecting this method */
     methodJustification?: string;
   };
-  
+
   /**
    * Documentation of uncertainty and sensitivity analysis results
    * @implements MS-D4
@@ -730,19 +733,19 @@ export interface MechanisticSourceTermSensitivityStudy extends SensitivityStudy 
   /** Reference to the source term or release category being analyzed */
   sourceTermReference?: SourceTermDefinitionReference;
   releaseCategoryReference?: ReleaseCategoryReference;
-  
+
   /** Parameter changed in the sensitivity study */
   parameterChanged: string;
-  
+
   /** Impact on the source term */
   impactOnSourceTerm: string;
-  
+
   /** Whether this parameter is considered a key driver of uncertainty */
   isKeyDriver: boolean;
-  
+
   /** Recommendations based on the sensitivity study */
   recommendations?: string;
-  
+
   /**
    * Evaluation of the impact of key sources of uncertainty on the estimated source term
    * @implements MS-D3
@@ -750,11 +753,11 @@ export interface MechanisticSourceTermSensitivityStudy extends SensitivityStudy 
   keyUncertaintyImpactEvaluation?: {
     /** Description of the impact evaluation */
     description: string;
-    
+
     /** Significance of the impact */
     significance: ImportanceLevel;
   };
-  
+
   /**
    * Documentation of sensitivity analysis results
    * @implements MS-D4
@@ -776,7 +779,7 @@ export interface MechanisticSourceTermModelUncertaintyDocumentation extends Base
     impact: string;
     treatmentApproach: string;
   }[];
-  
+
   /** Sources of uncertainty in source term characterization */
   sourceTermCharacterizationUncertainties?: {
     aspect: string;
@@ -784,7 +787,7 @@ export interface MechanisticSourceTermModelUncertaintyDocumentation extends Base
     impact: string;
     treatmentApproach: string;
   }[];
-  
+
   /** Reasonable alternatives for transport phenomena modeling */
   transportPhenomenaAlternatives?: {
     phenomenon: string;
@@ -792,7 +795,7 @@ export interface MechanisticSourceTermModelUncertaintyDocumentation extends Base
     alternativeApproach: string;
     reasonNotSelected: string;
   }[];
-  
+
   /** Reasonable alternatives for source term definition */
   sourceTermDefinitionAlternatives?: {
     aspect: string;
@@ -800,7 +803,7 @@ export interface MechanisticSourceTermModelUncertaintyDocumentation extends Base
     alternativeApproach: string;
     reasonNotSelected: string;
   }[];
-  
+
   /** Pre-operational assumptions specific to source terms */
   preOperationalAssumptions?: {
     assumption: string;
@@ -808,15 +811,15 @@ export interface MechanisticSourceTermModelUncertaintyDocumentation extends Base
     impact: string;
     resolutionApproach: string;
   }[];
-  
-  /** 
+
+  /**
    * Explicit link to HLR-MS-D uncertainty requirements
    * @implements MS-B6
    */
   uncertaintyRequirementsLink?: {
     /** Reference to specific HLR-MS-D requirements addressed */
     hlrMsDRequirements: string[];
-    
+
     /** Description of how the uncertainty analysis supports these requirements */
     supportDescription: string;
   };
@@ -837,52 +840,73 @@ export interface MechanisticSourceTermModelUncertaintyDocumentation extends Base
  */
 export interface MechanisticSourceTermProcessDocumentation extends BaseProcessDocumentation {
   /** Documentation of radioactive source characterization */
-  radioactiveSourceCharacterizations?: Record<string, {
-    source: RadioactiveSource["uuid"];
-    description: string;
-    inventoryBasis: string;
-  }>;
-  
+  radioactiveSourceCharacterizations?: Record<
+    string,
+    {
+      source: RadioactiveSource["uuid"];
+      description: string;
+      inventoryBasis: string;
+    }
+  >;
+
   /** Technical basis for the adequacy of release category definitions */
   releaseCategoryBasis?: Record<ReleaseCategoryReference, string>;
-  
+
   /** Assignment of event sequences to release categories */
-  eventSequenceToReleaseCategoryMapping?: Record<EventSequenceReference, {
-    releaseCategoryReference: ReleaseCategoryReference;
-    justification: string;
-  }>;
-  
+  eventSequenceToReleaseCategoryMapping?: Record<
+    EventSequenceReference,
+    {
+      releaseCategoryReference: ReleaseCategoryReference;
+      justification: string;
+    }
+  >;
+
   /** Relevant radionuclide transport phenomena for each release category */
-  transportPhenomenaDocumentation?: Record<ReleaseCategoryReference, {
-    phenomena: string[];
-    description: string;
-  }>;
-  
+  transportPhenomenaDocumentation?: Record<
+    ReleaseCategoryReference,
+    {
+      phenomena: string[];
+      description: string;
+    }
+  >;
+
   /** Models and computer programs used to develop source terms */
-  sourceTermModelsDocumentation?: Record<string, {
-    modelName: string;
-    purpose: string;
-    keyFeatures: string[];
-  }>;
-  
+  sourceTermModelsDocumentation?: Record<
+    string,
+    {
+      modelName: string;
+      purpose: string;
+      keyFeatures: string[];
+    }
+  >;
+
   /** Uncertainty and sensitivity analyses for each source term */
-  uncertaintyAndSensitivityAnalysesDocumentation?: Record<SourceTermDefinitionReference, {
-    analysisDescription: string;
-    keyFindings: string[];
-  }>;
-  
+  uncertaintyAndSensitivityAnalysesDocumentation?: Record<
+    SourceTermDefinitionReference,
+    {
+      analysisDescription: string;
+      keyFindings: string[];
+    }
+  >;
+
   /** Surrogate risk metrics associated with intermediate states */
-  surrogateRiskMetricsDocumentation?: Record<string, {
-    metricDefinition: string;
-    relationshipToReleaseCategories: string;
-  }>;
-  
+  surrogateRiskMetricsDocumentation?: Record<
+    string,
+    {
+      metricDefinition: string;
+      relationshipToReleaseCategories: string;
+    }
+  >;
+
   /** Quantitative source term parameter values and uncertainties */
-  sourceTermParametersDocumentation?: Record<SourceTermDefinitionReference, {
-    parameterValues: string;
-    uncertaintyAssessment: string;
-  }>;
-  
+  sourceTermParametersDocumentation?: Record<
+    SourceTermDefinitionReference,
+    {
+      parameterValues: string;
+      uncertaintyAssessment: string;
+    }
+  >;
+
   /**
    * Documentation of the integration with risk integration.
    * Describes how this analysis supports risk integration and how feedback is incorporated.
@@ -890,22 +914,22 @@ export interface MechanisticSourceTermProcessDocumentation extends BaseProcessDo
   riskIntegrationDocumentation?: {
     /** Description of how this analysis supports risk integration */
     supportDescription: string;
-    
+
     /** How release categories are used in risk integration */
     releaseCategoryUsage: string;
-    
+
     /** How source term definitions are used in risk integration */
     sourceTermUsage: string;
-    
+
     /** How uncertainties are propagated to risk integration */
     uncertaintyPropagation?: string;
-    
+
     /** Challenges in integrating with risk integration */
     integrationChallenges?: string[];
-    
+
     /** How feedback from risk integration is incorporated */
     feedbackIncorporation?: string;
-    
+
     /** Key insights from risk integration that impact source term analysis */
     keyInsights?: string[];
   };
@@ -916,7 +940,8 @@ export interface MechanisticSourceTermProcessDocumentation extends BaseProcessDo
  * @description Documentation for pre-operational assumptions in mechanistic source term analysis.
  * @implements MS-E4
  */
-export interface MechanisticSourceTermPreOperationalAssumptionsDocumentation extends BasePreOperationalAssumptionsDocumentation {
+export interface MechanisticSourceTermPreOperationalAssumptionsDocumentation
+  extends BasePreOperationalAssumptionsDocumentation {
   /** Assumptions specific to radionuclide transport barriers */
   transportBarrierAssumptions?: {
     barrier: string;
@@ -924,7 +949,7 @@ export interface MechanisticSourceTermPreOperationalAssumptionsDocumentation ext
     impact: string;
     designInformationNeeded: string;
   }[];
-  
+
   /** Assumptions specific to release timing */
   releaseTimingAssumptions?: {
     releaseCategory: ReleaseCategoryReference;
@@ -932,7 +957,7 @@ export interface MechanisticSourceTermPreOperationalAssumptionsDocumentation ext
     impact: string;
     operationalInformationNeeded: string;
   }[];
-  
+
   /** Limitations on transport phenomena modeling */
   transportPhenomenaLimitations?: {
     phenomenon: string;
@@ -951,52 +976,53 @@ export interface MechanisticSourceTermPreOperationalAssumptionsDocumentation ext
  * @remarks quantifying source terms, and addressing uncertainties as required by RG 1.247
  * @remarks This analysis depends on Event Sequence Quantification for sequence and barrier information.
  */
-export interface MechanisticSourceTermAnalysis extends TechnicalElement<TechnicalElementTypes.MECHANISTIC_SOURCE_TERM_ANALYSIS> {
+export interface MechanisticSourceTermAnalysis
+  extends TechnicalElement<TechnicalElementTypes.MECHANISTIC_SOURCE_TERM_ANALYSIS> {
   /**
    * Additional metadata specific to Mechanistic Source Term Analysis.
    */
   additionalMetadata?: {
     /** Mechanistic source term specific limitations */
     limitations?: string[];
-    
+
     /** Mechanistic source term specific assumptions */
     assumptions?: string[];
-    
+
     /** Traceability information */
     traceability?: string;
-    
-    /** 
+
+    /**
      * References to event sequence quantification results that provide input to this analysis.
      * This provides traceability between technical elements.
      */
     eventSequenceQuantificationReferences?: {
       /** ID of the event sequence quantification analysis */
       analysisId: string;
-      
+
       /** Version or revision of the analysis */
       version?: string;
-      
+
       /** Date the analysis was performed */
       date?: string;
-      
+
       /** Description of how this analysis uses event sequence quantification results */
       usageDescription: string;
     }[];
-    
-    /** 
+
+    /**
      * References to risk integration results that use this analysis.
      * This provides traceability between technical elements.
      */
     riskIntegrationReferences?: {
       /** ID of the risk integration analysis */
       analysisId: string;
-      
+
       /** Version or revision of the analysis */
       version?: string;
-      
+
       /** Date the analysis was performed */
       date?: string;
-      
+
       /** Description of how this analysis was used in risk integration */
       usageDescription: string;
     }[];
@@ -1096,7 +1122,7 @@ export interface MechanisticSourceTermAnalysis extends TechnicalElement<Technica
    * @implements MS-E4
    */
   preOperationalAssumptionsDocumentation?: MechanisticSourceTermPreOperationalAssumptionsDocumentation;
-  
+
   /**
    * Risk integration feedback received for this analysis.
    * This field contains feedback from risk integration that should be considered
@@ -1105,59 +1131,65 @@ export interface MechanisticSourceTermAnalysis extends TechnicalElement<Technica
   riskIntegrationFeedback?: {
     /** ID of the risk integration analysis that provided the feedback */
     analysisId: string;
-    
+
     /** Date the feedback was received */
     feedbackDate?: string;
-    
+
     /** Feedback on release categories */
-    releaseCategoryFeedback?: Record<ReleaseCategoryReference, {
-      /** Risk significance level determined by risk integration */
-      riskSignificance?: ImportanceLevel;
-      
-      /** Insights from risk integration */
-      insights?: string[];
-      
-      /** Recommendations for improving the release category definition */
-      recommendations?: string[];
-      
-      /** Status of addressing the feedback */
-      status?: "PENDING" | "IN_PROGRESS" | "ADDRESSED" | "DEFERRED";
-    }>;
-    
+    releaseCategoryFeedback?: Record<
+      ReleaseCategoryReference,
+      {
+        /** Risk significance level determined by risk integration */
+        riskSignificance?: ImportanceLevel;
+
+        /** Insights from risk integration */
+        insights?: string[];
+
+        /** Recommendations for improving the release category definition */
+        recommendations?: string[];
+
+        /** Status of addressing the feedback */
+        status?: "PENDING" | "IN_PROGRESS" | "ADDRESSED" | "DEFERRED";
+      }
+    >;
+
     /** Feedback on source term definitions */
-    sourceTermDefinitionFeedback?: Record<SourceTermDefinitionReference, {
-      /** Risk significance level determined by risk integration */
-      riskSignificance?: ImportanceLevel;
-      
-      /** Insights from risk integration */
-      insights?: string[];
-      
-      /** Recommendations for improving the source term definition */
-      recommendations?: string[];
-      
-      /** Key uncertainties identified during risk integration */
-      keyUncertainties?: string[];
-      
-      /** Status of addressing the feedback */
-      status?: "PENDING" | "IN_PROGRESS" | "ADDRESSED" | "DEFERRED";
-    }>;
-    
+    sourceTermDefinitionFeedback?: Record<
+      SourceTermDefinitionReference,
+      {
+        /** Risk significance level determined by risk integration */
+        riskSignificance?: ImportanceLevel;
+
+        /** Insights from risk integration */
+        insights?: string[];
+
+        /** Recommendations for improving the source term definition */
+        recommendations?: string[];
+
+        /** Key uncertainties identified during risk integration */
+        keyUncertainties?: string[];
+
+        /** Status of addressing the feedback */
+        status?: "PENDING" | "IN_PROGRESS" | "ADDRESSED" | "DEFERRED";
+      }
+    >;
+
     /** General feedback on the mechanistic source term analysis */
     generalFeedback?: string;
-    
+
     /** Response to the feedback */
     response?: {
       /** Description of how the feedback was or will be addressed */
       description: string;
-      
+
       /** Changes made or planned in response to the feedback */
       changes?: string[];
-      
+
       /** Status of the response */
       status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
     };
   };
-  
+
   /**
    * Documentation of the integration with risk integration.
    * Describes how this analysis is used in risk integration and how feedback is incorporated.
@@ -1165,19 +1197,19 @@ export interface MechanisticSourceTermAnalysis extends TechnicalElement<Technica
   riskIntegrationDescription?: {
     /** Description of how this analysis supports risk integration */
     supportDescription: string;
-    
+
     /** How release categories are used in risk integration */
     releaseCategoryUsage: string;
-    
+
     /** How source term definitions are used in risk integration */
     sourceTermUsage: string;
-    
+
     /** How uncertainties are propagated to risk integration */
     uncertaintyPropagation?: string;
-    
+
     /** Challenges in integrating with risk integration */
     integrationChallenges?: string[];
-    
+
     /** How feedback from risk integration is incorporated */
     feedbackIncorporation?: string;
   };
@@ -1197,14 +1229,14 @@ export interface MechanisticSourceTermAnalysis extends TechnicalElement<Technica
  *   created: new Date().toISOString(),
  *   modified: new Date().toISOString(),
  *   status: "Draft",
- *   
+ *
  *   // Mechanistic Source Term specific properties
  *   releaseCategories: {
- *     "RC-LER": { 
- *       uuid: "rc-001", 
- *       name: "Large Early Release", 
- *       description: "...", 
- *       eventSequenceFamilies: ["ES-001"] 
+ *     "RC-LER": {
+ *       uuid: "rc-001",
+ *       name: "Large Early Release",
+ *       description: "...",
+ *       eventSequenceFamilies: ["ES-001"]
  *     }
  *   },
  *   releaseCategoryBases: {
@@ -1223,11 +1255,11 @@ export interface MechanisticSourceTermAnalysis extends TechnicalElement<Technica
  *     }
  *   ],
  *   radioactiveSources: {
- *     "rs-001": { 
- *       uuid: "rs-001", 
- *       name: "Core", 
- *       description: "...", 
- *       radionuclides: ["I-131", "Cs-137"], 
+ *     "rs-001": {
+ *       uuid: "rs-001",
+ *       name: "Core",
+ *       description: "...",
+ *       radionuclides: ["I-131", "Cs-137"],
  *       totalInventory: {
  *         "I-131": { quantity: 1.0e17, unit: "Bq" },
  *         "Cs-137": { quantity: 5.0e16, unit: "Bq" }
@@ -1447,7 +1479,4 @@ export interface MechanisticSourceTermAnalysis extends TechnicalElement<Technica
  * }
  * ```
  */
-export const MechanisticSourceTermAnalysisSchema = typia.json.application<
-  [MechanisticSourceTermAnalysis],
-  "3.0"
->();
+export const MechanisticSourceTermAnalysisSchema = typia.json.schemas<[MechanisticSourceTermAnalysis]>();

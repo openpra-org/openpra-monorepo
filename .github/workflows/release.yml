@@ -31,6 +31,13 @@ jobs:
         run: |
           corepack enable
           corepack prepare pnpm@10.19.0 --activate
+      - name: Ensure pnpm available
+        run: |
+          if ! command -v pnpm >/dev/null 2>&1; then
+            echo "pnpm not found on PATH; installing via npm fallback"
+            npm install -g pnpm@10.19.0
+          fi
+          pnpm --version
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

@@ -33,7 +33,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check environment for Docker
+        id: envcheck
+        run: |
+          if command -v docker >/dev/null 2>&1; then
+            echo "docker_ok=true" >> $GITHUB_OUTPUT
+            docker version || true
+            docker compose version || true
+          else
+            echo "docker_ok=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment: preview skipped (Docker not available)
+        if: steps.envcheck.outputs.docker_ok != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const body = [
+              '**Preview deploy skipped**: Docker CLI not available on the self-hosted runner.',
+              'Please run this workflow on a self-hosted runner with Docker installed, or label a runner (e.g. "docker") and update runs-on accordingly.',
+            ].join('\n');
+            await github.rest.issues.createComment({ owner, repo, issue_number, body });
+
       - name: Log in to GHCR
+        if: steps.envcheck.outputs.docker_ok == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -61,6 +86,7 @@ jobs:
           echo "JOB_BROKER_IMAGE_FALLBACK2=ghcr.io/${OWNER_LOWER}/openpra-job-broker:preview" >> $GITHUB_ENV
 
       - name: Pull images
+        if: steps.envcheck.outputs.docker_ok == 'true'
         run: |
           set -e
           pull_with_fallback() { primary=$1; fb1=$2; fb2=$3; name=$4; \
@@ -78,6 +104,7 @@ jobs:
           echo "JOB_BROKER_IMAGE=$JOB_BROKER_IMAGE" >> $GITHUB_ENV
 
       - name: Write .env file for compose
+        if: steps.envcheck.outputs.docker_ok == 'true'
         run: |
           # Compute dynamic ports to reduce collisions
           PR_NUM=${PR_NUMBER}
@@ -105,10 +132,12 @@ jobs:
           EOF
 
       - name: Start preview stack
+        if: steps.envcheck.outputs.docker_ok == 'true'
         run: |
           docker compose -f docker/docker-compose.preview.yml --env-file .env -p "${COMPOSE_PROJECT_NAME}" up -d
 
       - name: Wait for services to be healthy
+        if: steps.envcheck.outputs.docker_ok == 'true'
         run: |
           set -e
           # simple retries for backend and frontend
@@ -118,6 +147,7 @@ jobs:
             if curl -fsS "http://localhost:${FRONTEND_PORT}/" >/dev/null 2>&1; then echo "Frontend up"; break; fi; sleep 2; done
 
       - name: Collect compose logs (snapshot)
+        if: steps.envcheck.outputs.docker_ok == 'true'
         run: |
           set -e
           # Capture a concise snapshot of compose logs for debugging
@@ -126,7 +156,7 @@ jobs:
           tail -n 2000 compose-logs.full.txt > compose-logs.txt || true
 
       - name: Upload preview logs artifact
-        if: always()
+        if: always() && steps.envcheck.outputs.docker_ok == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: preview-logs
@@ -134,6 +164,7 @@ jobs:
             compose-logs.txt
 
       - name: Comment preview URLs on PR (sticky)
+        if: steps.envcheck.outputs.docker_ok == 'true'
         uses: actions/github-script@v7
         with:
           script: |

@@ -28,13 +28,6 @@ jobs:
 
       - name: Ensure pnpm available
         run: npx -y pnpm@10.19.0 --version
-      - name: Ensure pnpm available
-        run: |
-          if ! command -v pnpm >/dev/null 2>&1; then
-            echo "pnpm not found on PATH; installing via npm fallback"
-            npm install -g pnpm@10.19.0
-          fi
-          pnpm --version
 
       - name: Install dependencies
         run: npx -y pnpm@10.19.0 install --frozen-lockfile

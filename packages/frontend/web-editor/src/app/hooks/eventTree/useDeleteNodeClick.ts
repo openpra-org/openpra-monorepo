@@ -1,18 +1,22 @@
-import { NodeProps, useReactFlow } from "reactflow";
-import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph";
+import { Edge, Node, NodeProps, useReactFlow } from "reactflow";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
 import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";
 
-function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
+interface EventTreeNodeData {
+  depth?: number;
+  isSequenceId?: boolean;
+}
+
+function useDeleteNodeClick(clickedNodeId: NodeProps["id"]): () => void {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
   const { addToast } = UseToastContext();
 
-  const deleteNode = () => {
-    const nodes = getNodes();
-    const edges = getEdges();
+  const deleteNode: () => void = () => {
+    const nodes = getNodes() as Node<EventTreeNodeData>[];
+    const edges = getEdges() as Edge[];
 
     // Get the node to be deleted
     const nodeToDelete = nodes.find((node) => node.id === clickedNodeId);
@@ -32,15 +36,16 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
     // Helper function to check if a node is a sequence ID node
     const isSequenceIdNode = (nodeId: string): boolean => {
       const node = nodes.find((n) => n.id === nodeId);
-      return node?.type === "outputNode" && node.data?.isSequenceId === true;
+      if (!node) return false;
+      return node.type === "outputNode" && node.data.isSequenceId === true;
     };
 
     // Count sequence ID nodes
     const sequenceIdNodes = nodes.filter((node) => node.type === "outputNode" && node.data.isSequenceId === true);
 
     // Check if the node we're trying to delete has sequence ID nodes connected to it
-    const connectedOutputNodes = getConnectedOutputNodes(clickedNodeId);
-    const connectedSequenceIdNodes = connectedOutputNodes.filter((nodeId) => isSequenceIdNode(nodeId));
+    const connectedOutputNodes: string[] = getConnectedOutputNodes(clickedNodeId);
+    const connectedSequenceIdNodes: string[] = connectedOutputNodes.filter((nodeId) => isSequenceIdNode(nodeId));
 
     // If deleting would leave fewer than 2 sequence ID nodes, prevent deletion
     if (sequenceIdNodes.length - connectedSequenceIdNodes.length < 2) {
@@ -59,7 +64,8 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]) {
       const stack = [nodeId];
 
       while (stack.length > 0) {
-        const currentId = stack.pop()!;
+        const currentId = stack.pop();
+        if (currentId === undefined) continue;
         const connectedNodes = edges
           .filter((edge) => edge.source === currentId && isOutputOrInvisibleNode(edge.target))
           .map((edge) => edge.target);

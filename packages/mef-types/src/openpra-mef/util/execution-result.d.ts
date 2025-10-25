@@ -11,4 +11,4 @@ export interface ExecutionResult {
   stderr: string;
   stdout: string;
 }
-export const ExecutionResultSchema = typia.json.application<[ExecutionResult], "3.0">();
+export const ExecutionResultSchema = typia.json.schemas<[ExecutionResult]>();

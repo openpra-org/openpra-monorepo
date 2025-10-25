@@ -23,11 +23,6 @@ const MindMapEdge: React.FC<EdgeProps> = (props: EdgeProps) => {
 
   const edgeParams = GetEdgeParams(sourceNode, targetNode);
 
-  // Check if edgeParams is not null before accessing properties
-  if (!edgeParams) {
-    return null;
-  }
-
   const { sx, sy, tx, ty } = edgeParams;
 
   // // Check if sourcePos and targetPos are not null

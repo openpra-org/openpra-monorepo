@@ -1,10 +1,11 @@
-import { Handle, NodeProps, Position, useReactFlow, useUpdateNodeInternals } from "reactflow";
-import React, { memo, useEffect, useState } from "react";
-import { EuiText, EuiTextArea } from "@elastic/eui";
+import { Handle, Node, NodeProps, Position, useReactFlow } from "reactflow";
+import React, { memo, useState } from "react";
+import { EuiTextArea } from "@elastic/eui";
 import useCreateColClick from "../../../hooks/eventTree/useCreateColClick";
 import useDeleteColClick from "../../../hooks/eventTree/useDeleteColClick";
 import { setFirstColumnLabel } from "./outputNode";
 import styles from "./styles/nodeTypes.module.css";
+const css = styles as Record<string, string>;
 
 // Helper function to get initials
 const getInitials = (str: string): string => {
@@ -15,15 +16,25 @@ const getInitials = (str: string): string => {
     .toUpperCase();
 };
 
-function ColumnNode({ id, data }: NodeProps) {
+interface ColumnNodeData {
+  label: string;
+  width: number;
+  depth: number;
+  output?: boolean;
+  allowAdd?: boolean;
+  allowDelete?: boolean;
+  hideText?: boolean;
+  isSequenceId?: boolean;
+}
+
+function ColumnNode({ id, data }: NodeProps<ColumnNodeData>): JSX.Element {
   const onClickAddColumn = useCreateColClick(id);
   const onClickDeleteColumn = useDeleteColClick(id);
-  const { label, allowAdd } = data;
+  const { allowAdd } = data;
   const [textareaValue, setTextareaValue] = useState<string>(data.label);
-  const updateNodeInternals = useUpdateNodeInternals();
-  const { setNodes } = useReactFlow();
+  const { setNodes } = useReactFlow<ColumnNodeData, unknown>();
 
-  const handleTextareaChange = (event: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleTextareaChange = (event: React.ChangeEvent<HTMLTextAreaElement>): void => {
     const newValue = event.target.value;
     setTextareaValue(newValue);
 
@@ -33,16 +44,17 @@ function ColumnNode({ id, data }: NodeProps) {
       setFirstColumnLabel(newValue);
 
       // Update all sequence IDs with new initials
-      setNodes((nodes) =>
+      setNodes((nodes: Node<ColumnNodeData>[]) =>
         nodes.map((node) => {
           if (node.type === "outputNode" && node.data.isSequenceId) {
-            // Extract the number from the existing sequence ID
-            const currentNum = parseInt(node.data.label.split("-")[1]) || 1;
+            // Extract the trailing number from the existing sequence ID
+            const match = node.data.label.match(/-(\d+)$/);
+            const currentNum = match ? Number.parseInt(match[1], 10) : 1;
             return {
               ...node,
               data: {
                 ...node.data,
-                label: `${newInitials}-${currentNum}`,
+                label: `${newInitials}-${String(currentNum)}`,
               },
             };
           }
@@ -51,19 +63,18 @@ function ColumnNode({ id, data }: NodeProps) {
       );
     }
 
-    setNodes((nodes) =>
-      nodes.map((node) => {
-        if (node.id === id) {
-          return {
-            ...node,
-            data: {
-              ...node.data,
-              label: newValue,
-            },
-          };
-        }
-        return node;
-      }),
+    setNodes((nodes: Node<ColumnNodeData>[]) =>
+      nodes.map((node) =>
+        node.id === id
+          ? {
+              ...node,
+              data: {
+                ...node.data,
+                label: newValue,
+              },
+            }
+          : node,
+      ),
     );
   };
 
@@ -73,7 +84,7 @@ function ColumnNode({ id, data }: NodeProps) {
 
   const canShowDeleteButton = (): boolean => {
     // Updated condition: Allow deletion for functional events (including the first one)
-    return !data.output && data.depth !== 1 && data.allowDelete;
+    return !data.output && data.depth !== 1 && Boolean(data.allowDelete);
   };
 
   const hasButtons = allowAdd || canShowDeleteButton();
@@ -138,12 +149,7 @@ function ColumnNode({ id, data }: NodeProps) {
                 outline: "none",
                 textAlign: "center",
                 position: "relative",
-                left:
-                  allowAdd && canShowDeleteButton()
-                    ? "37%" // Both + and - buttons
-                    : allowAdd
-                    ? "45%" // Only + button
-                    : "50%", // No buttons
+                left: allowAdd && canShowDeleteButton() ? "37%" : allowAdd ? "45%" : "50%",
                 transform: "translateX(-50%)",
               }}
               compressed={true}
@@ -155,7 +161,7 @@ function ColumnNode({ id, data }: NodeProps) {
 
           {hasButtons && (
             <div
-              className={styles.columnButtons}
+              className={css.columnButtons}
               style={{
                 position: "absolute",
                 right: "2px", // Adjusted right position
@@ -169,7 +175,7 @@ function ColumnNode({ id, data }: NodeProps) {
               {allowAdd && (
                 <span
                   onClick={onClickAddColumn}
-                  className={styles.addNodeButtonText}
+                  className={css.addNodeButtonText}
                   role="button"
                   style={{
                     padding: "0 2px",
@@ -182,7 +188,7 @@ function ColumnNode({ id, data }: NodeProps) {
               {canShowDeleteButton() && (
                 <span
                   onClick={onClickDeleteColumn}
-                  className={styles.deleteNodeButtonText}
+                  className={css.deleteNodeButtonText}
                   role="button"
                   style={{
                     padding: "0 2px",

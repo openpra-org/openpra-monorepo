@@ -40,10 +40,8 @@ function WorkFlowEdge({
         d={edgePath}
         markerEnd={markerEnd}
       />
-      {data?.isGrayed ? (
-        ""
-      ) : (
-        <g transform={`translate(${edgeCenterX}, ${edgeCenterY})`}>
+      {data?.isGrayed ? null : (
+        <g transform={`translate(${String(edgeCenterX)}, ${String(edgeCenterY)})`}>
           <rect
             onClick={onClick}
             x={-5}

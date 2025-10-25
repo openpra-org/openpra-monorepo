@@ -137,8 +137,8 @@ export class QuantificationAdapter {
     try {
       // Build the basic structure of the quantification input
       const quantificationInput: QuantificationInput = {
-        name: safeGet(systemsAnalysis, 'id', '') || safeGet(eventSequenceAnalysis, 'id', ''),
-        label: safeGet(systemsAnalysis, 'name', '') || safeGet(eventSequenceAnalysis, 'name', ''),
+  name: safeGet(systemsAnalysis, 'id', '') || safeGet(eventSequenceAnalysis, 'id', ''),
+  label: safeGet(systemsAnalysis, 'name', '') || safeGet(eventSequenceAnalysis, 'name', ''),
         
         // Add global model data (basic events, house events, parameters)
         modelData: {
@@ -270,7 +270,7 @@ export class QuantificationAdapter {
         // Add reference to Data Analysis basic event if available
         const dataAnalysisRef = safeGet(basicEvent, 'dataAnalysisBasicEventRef', null);
         if (dataAnalysisRef) {
-          convertedEvent.attributes = convertedEvent.attributes || [];
+          convertedEvent.attributes = convertedEvent.attributes ?? [];
           convertedEvent.attributes.push({
             name: 'data_analysis_ref',
             value: dataAnalysisRef
@@ -280,7 +280,7 @@ export class QuantificationAdapter {
         // Add attributes if available
         const attributes = safeGet(basicEvent, 'attributes', []);
         if (attributes.length > 0) {
-          convertedEvent.attributes = convertedEvent.attributes || [];
+          convertedEvent.attributes = convertedEvent.attributes ?? [];
           attributes.forEach(attr => {
             convertedEvent.attributes.push({
               name: safeGet(attr, 'name', 'unknown'),
@@ -468,7 +468,7 @@ export class QuantificationAdapter {
       // Add failure data if available
       const failureData = safeGet(component, 'failureData', null);
       if (failureData) {
-        convertedComponent.attributes = convertedComponent.attributes || [];
+  convertedComponent.attributes = convertedComponent.attributes ?? [];
         
         // Add failure rate
         if (safeGet(failureData, 'failureRate', null) !== null) {
@@ -506,7 +506,7 @@ export class QuantificationAdapter {
       // Add quantification attributes if available
       const quantAttributes = safeGet(component, 'quantificationAttributes', []);
       if (quantAttributes.length > 0) {
-        convertedComponent.attributes = convertedComponent.attributes || [];
+  convertedComponent.attributes = convertedComponent.attributes ?? [];
         quantAttributes.forEach(attr => {
           convertedComponent.attributes.push({
             name: safeGet(attr, 'name', ''),
@@ -677,7 +677,7 @@ export class QuantificationAdapter {
       
       Object.values(ccfGroupsRecord).forEach(ccfGroup => {
         // First, check if the CCF group uses modelType or model
-        const ccfModelType = safeGet(ccfGroup, 'modelType', null) || safeGet(ccfGroup, 'model', '');
+  const ccfModelType = safeGet(ccfGroup, 'modelType', null) ?? safeGet(ccfGroup, 'model', '');
         
         // Map the CCF group to the quantification input format
         const convertedGroup: any = {
@@ -737,7 +737,7 @@ export class QuantificationAdapter {
         // Add reference to Data Analysis CCF parameter if available
         const dataAnalysisRef = safeGet(ccfGroup, 'dataAnalysisCCFParameterRef', null);
         if (dataAnalysisRef) {
-          convertedGroup.attributes = convertedGroup.attributes || [];
+          convertedGroup.attributes = convertedGroup.attributes ?? [];
           convertedGroup.attributes.push({
             name: 'data_analysis_ref',
             value: dataAnalysisRef

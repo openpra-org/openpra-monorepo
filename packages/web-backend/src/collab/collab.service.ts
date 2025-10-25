@@ -3,7 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import * as argon2 from "argon2";
 import * as dot from "dot-object";
-import { UpdateOneModel } from "mongodb";
+// Note: updateOne returns UpdateResult, but callers don't use the return value
 import { MemberResult } from "shared-sdk";
 import { CreateNewUserSchemaDto } from "./dtos/createNewUser-schema";
 import { PaginationDto } from "./dtos/pagination.dto";
@@ -21,17 +21,19 @@ export class CollabService {
   ) {}
 
   /**
-   * Assists the Local Strategy method to ensure whether a user exists in the database or not.
-   * @param {string} username - Username of the user
-   * @returns A mongoose document of the user | undefined
+   * Assists the Local Strategy method to determine whether a user exists in the database or not.
+   *
+   * @param username - Username of the user
+   * @returns A mongoose document of the user or undefined
    */
   async loginUser(username: string): Promise<User | undefined> {
     return this.userModel.findOne({ username }).lean();
   }
 
   /**
-   * After each login, the last login time of the user is updated.
-   * @param {number} user_id - Current user's ID
+   * After each login, update the last login time for the user.
+   *
+   * @param user_id - Current user's ID
    * @returns void
    */
   async updateLastLogin(user_id: number): Promise<void> {
@@ -39,9 +41,10 @@ export class CollabService {
   }
 
   /**
-   * Generates an ID for the newly created user in an incremental order of 1. Initially if no user exists, the serial ID starts from 1.
-   * @param {string} name - Name of the counter
-   * @returns {number} ID number
+   * Generate an ID for a newly created user in incremental order. If no user exists yet, IDs start at 1.
+   *
+   * @param name - Name of the counter
+   * @returns ID number
    */
   async getNextUserValue(name: string): Promise<number> {
     const record = await this.userCounterModel.findByIdAndUpdate(
@@ -56,38 +59,45 @@ export class CollabService {
    * The pagination() method follows a very simple mechanism:
    *   1. It determines the number of pages its going to take to show all the queried results.
    *   2. It determines on which page the user is currently on.
-   * These 2 parameters are calculated using 3 information: limit, offset and total number of results (count).
-   * By default the limit = 10 and offset = 0. But if the user provides different values for these parameters, then the provided values replace the default ones.
+   * These 2 parameters are calculated using 3 pieces of information: limit, offset and total number of results (count).
+   * By default the limit = 10 and offset = 0. If the user provides different values, they replace the defaults.
    * Let's look at an example: let's say there are 35 users in the database. The current user is trying to see the list of users. The user set the
    * limit to 5 and offset to 10.
-   * So, the number of pages its going to take to show all the users = (number of users / users per page) = (35 / 5) = 7 pages
-   * And the page on which the user will be on = (skipped users / users per page) + 1 = (10 / 5) + 1 = 3
-   * After determining these 2 data, the method will 4 situations:
+   * So, the number of pages required = (number of users / users per page) = (35 / 5) = 7 pages.
+   * The current page = (skipped users / users per page) + 1 = (10 / 5) + 1 = 3.
+   * After determining these values, the method will handle 4 situations:
    *   1. There's only 1 page in total where all the results fit; in that case there will be no previous or next page link.
    *   2. There's more than 1 page in total but the user is on the first result page; in that case - link for the next page will be available only.
    *   3. There's more than 1 page in total but the user is on the last result page; in that case - link for the previous page will be available only.
    *   4. There's more than 1 page in total and the user is somewhere between the first and last page; in that case links for both previous and next page will be available.
-   * The 4th condition suits the above example. The user is in the 3rd page which is between the first page and the last (7 number) page. The pagination() method
-   * will provide the links to the 2nd (previous) and 4th (next) pages to the user.
-   * @param {number} count - Total number of results
-   * @param {string} url - Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+   * The 4th condition suits the above example. The user is on the 3rd page. The pagination() method
+   * will provide links to the 2nd (previous) and 4th (next) pages.
+   * @param count - Total number of results
+   * @param url - Original request URL. See {@link https://expressjs.com/en/api.html#req.originalUrl}
    * @param limit - How many results can be seen at once
    * @param offset - How many initial results will be skipped
-   * @returns 1. The links to previous and next result pages, 2. limit and offset values
+   * @returns The previous/next links and the active limit/offset values
    */
-  pagination(count: number, url: string, limit?: any, offset?: any) {
-    let previous = null;
-    let next = null;
+  pagination(
+    count: number,
+    url: string,
+    limit?: unknown,
+    offset?: unknown,
+  ): { previous: string | null; next: string | null; default_limit: number; default_offset: number } {
+    let previous: string | null = null;
+    let next: string | null = null;
     const regex = /limit=[A-Za-z0-9]+&offset=[A-Za-z0-9]+/i;
 
-    let default_limit = 10;
-    let default_offset = 0;
-    if (limit && offset) {
-      if (!isNaN(limit)) {
-        default_limit = Number(limit);
+    let default_limit: number = 10;
+    let default_offset: number = 0;
+    if (limit != null && offset != null) {
+      const limitNum = typeof limit === "number" ? limit : Number(limit);
+      const offsetNum = typeof offset === "number" ? offset : Number(offset);
+      if (!Number.isNaN(limitNum)) {
+        default_limit = limitNum;
       }
-      if (!isNaN(offset)) {
-        default_offset = Number(offset);
+      if (!Number.isNaN(offsetNum)) {
+        default_offset = offsetNum;
       }
     }
 
@@ -117,10 +127,12 @@ export class CollabService {
       next = url.replace(regex, `limit=${default_limit}&offset=${default_offset - -default_limit}`);
       return { previous, next, default_limit, default_offset };
     }
+    // Fallback - shouldn't hit here but satisfies exhaustive return
+    return { previous, next, default_limit, default_offset };
   }
 
   /**
-   * No parameter is needed to retrieve the User list. The retrieved data is presented in a 'paginated' format:
+   * Retrieve the User list in a paginated format.
    *   1. Count: the number of users found.
    *   2. Next: if there are additional users that couldn't be shown in the current page, then the link to the next page is shown.
    *               For example: if there are 20 users in total, and the current page is showing only 10 users, then the 'next' property is going to give the
@@ -130,15 +142,15 @@ export class CollabService {
    *                   an ID of 6 to 10 and skip the first 5 users. The 'previous' property in this case will provide the link for the 1st page that can show
    *                   the first 5 users.
    *   4. Result: provides the users list. The 'result' property follows the limit and offset values to decide which users are going to be showed.
-   * @param {string} url - Original request URL {@link https://expressjs.com/en/api.html#req.originalUrl}
+   * @param url - Original request URL. See {@link https://expressjs.com/en/api.html#req.originalUrl}
    * @param limit - How many results can be seen at once
    * @param offset - How many initial results will be skipped
    * @param role - The role of the user
    * @returns List of all users
    */
   async getUsersList(url: string, limit?: number, offset?: number, role?: string): Promise<PaginationDto> {
-    let paths = undefined;
-    let result = undefined;
+    let paths: { previous: string | null; next: string | null; default_limit: number; default_offset: number };
+    let result: unknown[];
     const filters: Record<string, unknown> = {}; // Initialize filters as empty object
 
     if (role) {
@@ -147,13 +159,13 @@ export class CollabService {
     const count = await this.userModel.countDocuments({ ...filters });
     if (limit && offset) {
       paths = this.pagination(count, url, limit, offset);
-      result = await this.userModel
+      result = (await this.userModel
         .find({ ...filters })
         .skip(paths.default_offset)
-        .limit(paths.default_limit);
+        .limit(paths.default_limit)) as unknown[];
     } else {
       paths = this.pagination(count, url);
-      result = await this.userModel.find({ ...filters }).limit(paths.default_limit);
+      result = (await this.userModel.find({ ...filters }).limit(paths.default_limit)) as unknown[];
     }
     return {
       count: count,
@@ -164,16 +176,16 @@ export class CollabService {
   }
 
   /**
+   * Return a user with a particular id.
    *
-   * This function returns a user with a particular id
-   * @param user_id - Id of the user you want to find
+   * @param user_id - Id of the user to find
    */
   async getUserById(user_id: string): Promise<User> {
     return this.userModel.findOne({ id: Number(user_id) });
   }
 
   /**
-   * There are some hard-coded data provided alongside the request body for creating a 'user' document:
+   * Create a new user with additional defaulted properties:
    *   1. The password is encrypted using the 'argon2id' method.
    *   2. The UserID is generated in an incremental order using getNextUserValue() function.
    *   3. The name of the user is saved by simply joining the first and last names of the user.
@@ -228,8 +240,9 @@ export class CollabService {
   }
 
   /**
-   * This function will return true if email exists in the database
-   * @param email - email of the user
+   * Return true if email exists in the database.
+   *
+   * @param email - Email of the user
    */
   async isEmailValid(email: string): Promise<boolean> {
     const response = await this.userModel.findOne({
@@ -239,8 +252,9 @@ export class CollabService {
   }
 
   /**
-   * This function will return true if username exists in the database
-   * @param username - email of the user
+   * Return true if username exists in the database.
+   *
+   * @param username - Username of the user
    */
   async isUsernameValid(username: string): Promise<boolean> {
     const response = await this.userModel.findOne({
@@ -250,10 +264,9 @@ export class CollabService {
   }
 
   /**
-   * @param {string} user_id Current user's ID
-   * @description
-   * UserID is provided as the Query filter. To show only the preferences, inside the projection option the 'preferences' is set to 1
-   * (1 for true, 0 for false).
+   * Get preferences for the current user.
+   *
+   * @param user_id - Current user's ID
    * @returns Preferences of the current user
    */
   async getUserPreferences(user_id: string) {
@@ -265,28 +278,36 @@ export class CollabService {
    * 2. Since the 'preferences' is a nested object, 2 things are needed to be done to ensure that its properties are updated properly:
    *    a. Use the objectID (_id) of the User document instead of using normal UserID(id) inside the findByIdAndUpdate() query method.
    *    b. Use 'dot-object' library to break-down the nested object properties. For example dot-object is going to transform:
-   *    {
-   *      "preferences":
-   *        {
-   *          "theme": "Light",
-   *          "outlineVisible": false,
-   *        }
-   *    }
-   *    into: { 'preferences.theme': light, 'preferences.outlineVisible': false }.
+   *
+   * ```json
+   * {
+   *   "preferences": {
+   *     "theme": "Light",
+   *     "outlineVisible": false
+   *   }
+   * }
+   * ```
+   *
+   *    into:
+   *
+   * ```ts
+   * { 'preferences.theme': 'Light', 'preferences.outlineVisible': false }
+   * ```
+   *
    *    Without using dot-object all the 6 preference settings are going to be replaced by these 2 properties only, deleting the rest of the 4 settings.
    * 3. '$set' operator replaces a field's value with the provided value.
    * 4. 'new' is set to true to ensure that the document that is returned after saving the preferences is always the updated one.
    * 5. 'upsert' is a combined action of 'Update and insert'. If a user is not found while updating the preferences with the given UserID,
    *    the upsert operation will create a new user document with the given preferences which is not desired. So the upsert is set to false.
-   * @param {string} user_id - Current user's ID
+   * @param user_id - Current user's ID
    * @param body - Request body
    * @returns Updated preferences of the user
    */
   async updateUserPreferences(user_id: string, body: UserPreferencesDto) {
-    const user = await this.userModel.findOne({ id: Number(user_id) }).lean();
+    const user = (await this.userModel.findOne({ id: Number(user_id) }).lean()) as { _id: unknown };
     return this.userModel.findByIdAndUpdate(
       user._id,
-      { $set: dot.dot(body) },
+      { $set: dot.dot(body) as unknown as Record<string, unknown> },
       { projection: { preferences: 1 }, new: true, upsert: false },
     );
   }
@@ -295,32 +316,24 @@ export class CollabService {
    * This is a general update user function. It will allow the following updates: preferences, permissions, lastname, email, firstname, and username
    * @param member - This is the user schema object
    */
-  async updateUser(member: MemberResult): Promise<UpdateOneModel> {
-    const user = new User();
+  async updateUser(member: MemberResult): Promise<void> {
+    const user: Partial<User> = {};
     user.id = member.id;
     user.email = member.email;
     user.firstName = member.firstName;
     user.lastName = member.lastName;
     user.username = member.username;
-    user.preferences = member.preferences;
-    user.roles = member.roles;
+    if (member.preferences && typeof member.preferences === "object") {
+      user.preferences = member.preferences as unknown as User["preferences"];
+    }
+    if (Array.isArray(member.roles)) {
+      user.roles = member.roles as unknown as User["roles"];
+    }
     if (member.password !== undefined) {
       user.password = await argon2.hash(member.password);
     }
-    return this.userModel
-      .updateOne({ id: user.id }, user, {
-        projection: {
-          preferences: 1,
-          roles: 1,
-          lastName: 1,
-          email: 1,
-          firstName: 1,
-          username: 1,
-          password: 1,
-        },
-        new: true,
-        upsert: false,
-      })
-      .lean();
+    await this.userModel.updateOne({ id: user.id }, user, {
+      upsert: false,
+    });
   }
 }

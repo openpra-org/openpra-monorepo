@@ -19,6 +19,8 @@ interface TreeItem {
   label: JSX.Element;
   children?: TreeItem[];
   icon?: JSX.Element;
+  // Optional explicit iconType to avoid unsafe access on JSX.Element internals
+  iconType?: string;
   callback?: () => NonNullable<unknown>;
 }
 function DataSidenav(): JSX.Element {
@@ -67,7 +69,7 @@ function DataSidenav(): JSX.Element {
     createTreeItem("Parameter Estimates", {
       isExpanded: true,
       callback: () => {
-        navigate("data-analysis");
+        void navigate("data-analysis");
       },
       icon: <EuiIcon type="tableDensityNormal" />,
       children: [
@@ -83,7 +85,7 @@ function DataSidenav(): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("special-events");
+              void navigate("special-events");
             },
           },
           1,
@@ -100,7 +102,7 @@ function DataSidenav(): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("component-reliability");
+              void navigate("component-reliability");
             },
           },
           1,
@@ -117,7 +119,7 @@ function DataSidenav(): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("initiating-events");
+              void navigate("initiating-events");
             },
           },
           1,
@@ -134,7 +136,7 @@ function DataSidenav(): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("train-ua");
+              void navigate("train-ua");
             },
           },
           1,
@@ -151,7 +153,7 @@ function DataSidenav(): JSX.Element {
               />
             ),
             callback: () => {
-              navigate("ccf");
+              void navigate("ccf");
             },
           },
           1,
@@ -161,9 +163,18 @@ function DataSidenav(): JSX.Element {
   ];
 
   const backgroundColor = useEuiBackgroundColor("plain");
-  const padding = useEuiPaddingSize("s") ?? "0px";
+  const padding = useEuiPaddingSize("s");
 
   const createTreeView = (items: TreeItem[], i: number, forceTreeView = false): JSX.Element => {
+    const getIconType = (icon?: JSX.Element): string | undefined => {
+      if (!icon) return undefined;
+      const props = (icon as React.ReactElement).props as { type?: unknown; iconType?: unknown };
+      const t = props.type;
+      if (typeof t === "string") return t;
+      const it = props.iconType;
+      if (typeof it === "string") return it;
+      return undefined;
+    };
     //TODO
     if (forceTreeView) {
       const style = {
@@ -192,7 +203,7 @@ function DataSidenav(): JSX.Element {
       return (
         <EuiCollapsibleNavGroup
           title={items[0].label}
-          iconType={items[0].icon?.props.type}
+          iconType={items[0].iconType ?? getIconType(items[0].icon)}
           iconSize="m"
           titleSize="xs"
           isCollapsible={true}
@@ -206,7 +217,7 @@ function DataSidenav(): JSX.Element {
     return (
       <EuiCollapsibleNavGroup
         title={items[0].label}
-        iconType={items[0].icon?.props.type}
+        iconType={items[0].iconType ?? getIconType(items[0].icon)}
         iconSize="m"
         titleSize="xs"
         isCollapsible={true}

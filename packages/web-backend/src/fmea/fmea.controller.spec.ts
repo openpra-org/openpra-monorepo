@@ -7,12 +7,12 @@ import { FmeaService } from "./fmea.service";
 import { Fmea, FmeaSchema } from "./schemas/fmea.schema";
 
 describe("FmeaController", () => {
-  let fmeaService: FmeaService;
+  let _fmeaService: FmeaService;
   let fmeaController: FmeaController;
   let connection: Connection;
 
   beforeAll(async () => {
-  const mongoUri = process.env.MONGO_URI;
+    const mongoUri = process.env.MONGO_URI;
     const module: TestingModule = await Test.createTestingModule({
       imports: [
         MongooseModule.forRoot(mongoUri),
@@ -25,7 +25,7 @@ describe("FmeaController", () => {
       providers: [FmeaService],
     }).compile();
     connection = await module.get(getConnectionToken());
-    fmeaService = module.get<FmeaService>(FmeaService);
+    _fmeaService = module.get<FmeaService>(FmeaService);
     fmeaController = module.get<FmeaController>(FmeaController);
   });
   /**
@@ -41,7 +41,7 @@ describe("FmeaController", () => {
    * Stop mongoDB server
    */
   afterAll(async () => {
-  await mongoose.disconnect();
+    await mongoose.disconnect();
   });
 
   describe("createFmea", () => {
@@ -72,7 +72,7 @@ describe("FmeaController", () => {
     it("should add string column", async () => {
       const body = { title: "test fmea1", description: "for test" };
       const createdFmea = await fmeaController.createFmea(body);
-      const addColumnObject = { name: "test", type: "string" };
+      const addColumnObject = { name: "test", type: "string" as const };
       const fmea = await fmeaController.addColumn(createdFmea.id, addColumnObject);
       expect(fmea).toBeDefined();
     });
@@ -81,7 +81,7 @@ describe("FmeaController", () => {
       const createdFmea = await fmeaController.createFmea(body);
       const addColumnObject = {
         name: "test",
-        type: "dropdown",
+        type: "dropdown" as const,
         dropdownOptions: [
           {
             number: 1,
@@ -109,7 +109,7 @@ describe("FmeaController", () => {
     it("should return a FMEA object", async () => {
       const body = { title: "test fmea1", description: "for test" };
       const createdFmea = await fmeaController.createFmea(body);
-      const addColumnObject = { name: "test", type: "string" };
+      const addColumnObject = { name: "test", type: "string" as const };
       await fmeaController.addColumn(createdFmea.id, addColumnObject);
       const fmea = await fmeaController.addRow(createdFmea.id);
       expect(fmea).toBeDefined();
@@ -124,13 +124,13 @@ describe("FmeaController", () => {
     it("should update the cell value", async () => {
       const body = { title: "test fmea1", description: "for test" };
       const createdFmea = await fmeaController.createFmea(body);
-      const addColumnObject = { name: "test", type: "string" };
+      const addColumnObject = { name: "test", type: "string" as const };
       await fmeaController.addColumn(createdFmea.id, addColumnObject);
       const returned_fmea = await fmeaController.addRow(createdFmea.id);
       expect(returned_fmea.rows[0].row_data.test).toEqual("");
       const updateCellObject = { rowId: returned_fmea.rows[0].id, column: "test", value: "test" };
-  const updateResult = await fmeaController.updateCell(createdFmea.id, updateCellObject);
-  expect(updateResult).toEqual(true);
+      const updateResult = await fmeaController.updateCell(createdFmea.id, updateCellObject);
+      expect(updateResult).toEqual(true);
     });
   });
 
@@ -143,7 +143,7 @@ describe("FmeaController", () => {
       const createdFmea = await fmeaController.createFmea(body);
       const addColumnObject = {
         name: "test",
-        type: "dropdown",
+        type: "dropdown" as const,
         dropdownOptions: [
           {
             number: 1,
@@ -155,10 +155,10 @@ describe("FmeaController", () => {
           },
         ],
       };
-      const addColumnObject2 = { name: "test2", type: "string" };
+      const addColumnObject2 = { name: "test2", type: "string" as const };
       const addColumnObject3 = {
         name: "test3",
-        type: "dropdown",
+        type: "dropdown" as const,
         dropdownOptions: [
           { number: 10, description: "test10" },
           { number: 20, description: "test20" },
@@ -213,7 +213,7 @@ describe("FmeaController", () => {
       const createdFmea = await fmeaController.createFmea(body);
       const addColumnObject = {
         name: "test",
-        type: "dropdown",
+        type: "dropdown" as const,
         dropdownOptions: [
           {
             number: 1,
@@ -238,7 +238,7 @@ describe("FmeaController", () => {
     it("should delete the row", async () => {
       const body = { title: "test fmea1", description: "for test" };
       const createdFmea = await fmeaController.createFmea(body);
-      const addColumnObject = { name: "test", type: "string" };
+      const addColumnObject = { name: "test", type: "string" as const };
       await fmeaController.addColumn(createdFmea.id, addColumnObject);
       const returned_fmea = await fmeaController.addRow(createdFmea.id);
       const result = await fmeaController.deleteRow(createdFmea.id, returned_fmea.rows[0].id);

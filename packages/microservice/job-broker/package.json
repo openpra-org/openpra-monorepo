@@ -9,23 +9,22 @@
     ]
   },
   "dependencies": {
-    "@nestia/core": "3.12.0",
-    "@nestia/fetcher": "3.12.0",
-    "@nestia/sdk": "3.12.0",
-    "@nestjs/common": "10.4.1",
-    "@nestjs/config": "3.2.3",
-    "@nestjs/core": "10.4.1",
-    "@nestjs/mongoose": "10.0.10",
-    "@nestjs/swagger": "7.4.0",
+    "@nestia/fetcher": "8.1.0",
+    "@nestia/sdk": "8.1.0",
+    "@nestjs/common": "11.1.7",
+    "@nestjs/config": "4.0.2",
+    "@nestjs/core": "11.1.7",
+    "@nestjs/mongoose": "11.0.3",
+    "@nestjs/swagger": "11.2.1",
     "@types/express": "4.17.21",
     "@types/tmp": "0.2.6",
-    "amqplib": "0.10.8",
-    "express": "4.19.2",
-    "mongoose": "8.5.1",
+    "amqplib": "0.10.9",
+    "express": "4.20.0",
+    "mongoose": "8.19.2",
     "scram-node": "workspace:^",
     "shared-types": "workspace:^",
-    "tmp": "0.2.3",
-    "typia": "6.9.0",
+    "tmp": "0.2.5",
+    "typia": "9.7.2",
     "webpack": "5.94.0"
   },
   "devDependencies": {
@@ -33,9 +32,15 @@
     "@types/amqplib": "0.10.7",
     "@types/swagger-ui-express": "4.1.6",
     "copy-webpack-plugin": "12.0.2",
-    "mongodb-memory-server": "9.1.1",
-    "node-loader": "2.0.0",
+    "mongodb-memory-server": "10.2.3",
+    "node-loader": "2.1.0",
     "swagger-ui-dist": "5.17.14",
-    "swagger-ui-express": "5.0.1"
+    "swagger-ui-express": "5.0.1",
+    "eslint": "9.14.0",
+    "eslint-plugin-tsdoc": "0.2.17",
+    "typescript-eslint": "8.14.0"
+  },
+  "scripts": {
+    "lint:canary": "eslint --config ./eslint.config.mjs \"src/**/*.{ts,tsx}\""
   }
 }

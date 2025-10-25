@@ -51,7 +51,11 @@ export const GetNestedModelName = (): NestedModelNames => {
   return "initiatingEvents";
 };
 
-export const AddToParentModel = (state: StoreStateType, nestedModelId: string, parentIds: string[]) => {
+export const AddToParentModel = (
+  state: StoreStateType,
+  nestedModelId: string,
+  parentIds: string[],
+): typedModelType[] => {
   const typedModelName: keyof StoreStateType = GetTypedModelName();
   const nestedModelName: keyof typedModelType = GetNestedModelName();
 
@@ -64,7 +68,11 @@ export const AddToParentModel = (state: StoreStateType, nestedModelId: string, p
   );
 };
 
-export const RemoveFromParentModel = (state: StoreStateType, nestedModelId: string, parentIds: string[]) => {
+export const RemoveFromParentModel = (
+  state: StoreStateType,
+  nestedModelId: string,
+  parentIds: string[],
+): typedModelType[] => {
   const typedModelName: keyof StoreStateType = GetTypedModelName();
   const nestedModelName: keyof typedModelType = GetNestedModelName();
 

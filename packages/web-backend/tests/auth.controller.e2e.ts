@@ -9,10 +9,10 @@ import { User, UserSchema } from "../src/collab/schemas/user.schema";
 import { UserCounter, UserCounterSchema } from "../src/collab/schemas/user-counter.schema";
 
 describe("AuthController", () => {
-  let authService: AuthService;
+  let _authService: AuthService;
   let authController: AuthController;
   let connection: Connection;
-  let collabService: CollabService;
+  let _collabService: CollabService;
   const DB_URI = "mongodb://localhost/27017";
 
   beforeEach(async () => {
@@ -27,9 +27,9 @@ describe("AuthController", () => {
       providers: [AuthService, CollabService, JwtService],
       controllers: [AuthController],
     }).compile();
-    authService = module.get<AuthService>(AuthService);
+  _authService = module.get<AuthService>(AuthService);
     authController = module.get<AuthController>(AuthController);
-    collabService = module.get<CollabService>(CollabService);
+  _collabService = module.get<CollabService>(CollabService);
     connection = await module.get(getConnectionToken());
     await connection.collection("users").findOneAndDelete({ username: "testUser" }); //delete test user before each test
   });

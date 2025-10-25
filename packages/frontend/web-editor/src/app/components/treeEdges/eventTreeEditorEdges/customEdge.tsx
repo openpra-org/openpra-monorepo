@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { BaseEdge, EdgeProps, getSmoothStepPath, getStraightPath } from "reactflow";
+import { BaseEdge, EdgeProps, getSmoothStepPath } from "reactflow";
 import { memo } from "react";
 
 interface CustomEdgeData {

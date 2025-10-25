@@ -50,7 +50,7 @@ const nodeCountSelector = (state: ReactFlowState): number => state.nodeInternals
  * It also includes animation logic to smoothly transition nodes to their new positions.
  * The hook ensures horizontal layout of the nodes
  */
-function UseLayout(): void {
+function UseLayout(enabled: boolean = true): void {
   // this ref is used to fit the nodes in the first run
   // after first run, this is set to false
   const initial = useRef(true);
@@ -59,10 +59,11 @@ function UseLayout(): void {
   // whenever the nodes length changes, we calculate the new layout
   const nodeCount = useStore(nodeCountSelector);
 
-  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } = useReactFlow();
+  const { getNodes, getNode, setNodes, getEdges, fitView } = useReactFlow();
   const { focusNodeId, resetFocusNodeId } = useFaultTreeStore();
 
   useEffect(() => {
+    if (!enabled) return;
     // get the current nodes and edges
     const nodes = getNodes();
     const edges = getEdges();
@@ -132,10 +133,10 @@ function UseLayout(): void {
       }
     });
 
-    return () => {
+    return (): void => {
       t.stop();
     };
-  }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges, focusNodeId, resetFocusNodeId]);
+  }, [enabled, nodeCount, focusNodeId, resetFocusNodeId]);
 }
 
 export { UseLayout };

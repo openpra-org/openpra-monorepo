@@ -13,6 +13,7 @@ export * from "./types/Label";
 export * from "./types/ObjectTypes";
 export * from "./types/fmea/Column";
 export * from "./types/fmea/Row";
+export * from "./types/fmea/Fmea";
 export * from "./types/reactflowGraph/Graph";
 export * from "./types/reactflowGraph/GraphNode";
 export * from "./types/reactflowGraph/GraphEdge";
@@ -25,5 +26,6 @@ export * from "./types/modelTypes/largeModels/typedModel";
 export * from "./types/modelTypes/innerModels/nestedModel";
 export * from "./types/userInvites/InvitedUser";
 export * from "./types/roles/RoleSchemaDto";
+export * from "./types/AuthToken";
 // Note: openpra-mef types have moved to the separate mef-types package
 

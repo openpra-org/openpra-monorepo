@@ -1,8 +1,4 @@
-import {
-  DeleteDataAnalysis,
-  GetDataAnalysis,
-  PatchDataAnalysisLabel,
-} from "shared-sdk/lib/api/NestedModelApiManager";
+import { DeleteDataAnalysis, GetDataAnalysis, PatchDataAnalysisLabel } from "shared-sdk/lib/api/NestedModelApiManager";
 import { NestedModelList } from "./templateList/nestedModelList";
 
 function DataAnalysisList(): JSX.Element {

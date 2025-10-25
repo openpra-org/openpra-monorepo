@@ -14,7 +14,7 @@ import {
   EuiSpacer,
   useIsWithinBreakpoints,
 } from "@elastic/eui";
-import { useState } from "react";
+import { useState, ChangeEvent } from "react";
 import { SettingsAccordian } from "./SettingsAccordian";
 
 const buttonContent = (
@@ -60,7 +60,7 @@ function AdvancedSettings(): JSX.Element {
   ];
 
   //part of changing the value in the dropdown menu
-  const onChange = (e: any): void => {
+  const onChange = (e: ChangeEvent<HTMLSelectElement>): void => {
     setOverviewValue(e.target.value);
   };
 

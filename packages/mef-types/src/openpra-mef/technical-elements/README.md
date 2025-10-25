@@ -5,6 +5,7 @@ OpenPRA technical schema is based on the latest standards for Advanced Non-Light
 To download the JSON Schema for technical elements, visit `/schema-download.html` when running the documentation server. The schema can be used to validate your PRA data structures and ensure compliance with the OpenPRA technical elements specification.
 
 ## Table of Contents
+
 - [Understanding TypeScript Types and Interfaces](#understanding-typescript-types-and-interfaces)
   - [Namespace](#namespace)
   - [Interface](#interface)
@@ -42,65 +43,81 @@ To download the JSON Schema for technical elements, visit `/schema-download.html
 The documentation uses several TypeScript concepts to define and organize the PRA technical elements:
 
 ### Namespace
+
 A way to logically group related code elements. These namespaces reflect the PRA Elements in the standard.
+
 ```typescript
 namespace EventSequenceAnalysis {
-    // Contains all event sequence related types
+  // Contains all event sequence related types
 }
 ```
 
 ### Interface
+
 A contract that defines the structure of an object, specifying what properties and methods it must have.
+
 ```typescript
 interface EventSequence {
-    sequenceId: string;
-    description: string;
-    initiatingEventId: string;
-    // ... other properties
+  sequenceId: string;
+  description: string;
+  initiatingEventId: string;
+  // ... other properties
 }
 ```
 
 ### Properties
+
 Individual fields within an interface or type that define what data can be stored.
+
 ```typescript
 interface DesignInformation {
-    sourceId: string;  // A property of type string
+  sourceId: string; // A property of type string
 }
 ```
 
 ### Variable
+
 A named storage location for data that can hold values of specific types.
+
 ```typescript
-const EventSequenceAnalysisSchema = typia.json.application<[EventSequenceAnalysis]>();
+import typia from "typia";
+const EventSequenceAnalysisSchema = typia.json.schemas<[EventSequenceAnalysis]>();
 // Stores the JSON validation schema for event sequences
 ```
 
 ### Type Alias
+
 A name given to a specific type or combination of types, making complex types more readable and reusable.
+
 ```typescript
 interface EndState {
-    name: "Controlled Release";
-    category: string;
-    releaseType: string;
-    classification: string;
+  name: "Controlled Release";
+  category: string;
+  releaseType: string;
+  classification: string;
 }
 ```
 
 ### Enumeration
+
 A set of named constants that represent distinct values.
+
 ```typescript
 enum PreventionMitigationLevel {
-    FULL = "FULL",
-    PARTIAL = "PARTIAL",
-    NONE = "NONE"
+  FULL = "FULL",
+  PARTIAL = "PARTIAL",
+  NONE = "NONE",
 }
 ```
+
 ### Function
+
 A reusable block of code that performs a specific task, can accept parameters and return values.
+
 ```typescript
 function validateTemporalPhase(phase: TemporalPhase): boolean {
-    // Validates the timing and sequence of component states
-    return true;
+  // Validates the timing and sequence of component states
+  return true;
 }
 ```
 
@@ -109,10 +126,12 @@ Each of these concepts is used throughout the documentation to create a type-saf
 ## Running the Documentation
 
 ### Prerequisites
+
 - Node.js (v14 or higher)
 - npm (v6 or higher)
 
 ### Installation
+
 ```bash
 # Install dependencies
 npm install
@@ -122,6 +141,7 @@ npm install typedoc --save-dev
 ```
 
 ### Serving Documentation
+
 ```bash
 # Generate and serve documentation
 npm run docs   # Generates documentation
@@ -143,6 +163,7 @@ npm run generate-schema:element -- <element-name>
 ```
 
 For example:
+
 ```bash
 npm run generate-schema:element -- event-sequence-analysis
 ```
@@ -166,15 +187,17 @@ This will generate JSON Schema definitions for the specified element, which can 
 2. **TypeDoc Warnings**: Some warnings about undefined types are expected and won't affect the documentation generation.
 
 3. **Port Conflict Resolution**: If you encounter a port conflict while serving documentation, you can specify a different port using the `--port` option with `npm run serve`. For example, to serve on port 8081 instead of the default 8080:
+
 ```bash
 npm run serve -- --port 8081
 ```
 
-
 ### Reset Environment
+
 If you encounter any issues with the documentation generation or serving:
 
 1. Clean the environment:
+
 ```bash
 # Remove generated documentation
 rm -rf docs
@@ -188,15 +211,16 @@ npm install
 ```
 
 2. Regenerate documentation:
+
 ```bash
 npm run docs
 npm run serve
 ```
 
-
 ## Contributing
 
 ### Reporting Issues
+
 1. Visit our [GitHub Issues](https://github.com/OpenPRA/OpenPRA/issues)
 2. Create a new issue with:
    - Clear description of the problem
@@ -205,6 +229,7 @@ npm run serve
    - TypeScript/TypeDoc version information
 
 ### Making Changes
+
 1. Fork the repository
 2. Create a new branch:
    ```bash
@@ -231,11 +256,12 @@ npm run serve
    - Include before/after documentation examples if applicable
 
 ### Ensuring New Files are Documented
+
 1. **File Visibility**
    - Ensure your TypeScript file has proper export statements
    - Add an `index.ts` in the directory if not present:
      ```typescript
-     export * from './risk-integration/risk-integration';
+     export * from "./risk-integration/risk-integration";
      ```
    - Check that the file is included in `tsconfig.json`'s `include` paths
 
@@ -244,7 +270,7 @@ npm run serve
    - Include a brief description for each interface, type, and function
    - Example:
      ```typescript
-     /** 
+     /**
       * Represents the risk integration configuration
       * @interface RiskIntegration
       */
@@ -262,6 +288,7 @@ npm run serve
    - If missing, verify the export paths and TSDoc comments
 
 ### Schema Update Guidelines
+
 1. Follow TypeScript best practices
 2. Maintain backward compatibility when possible
 3. Document all interfaces and types thoroughly
@@ -273,11 +300,13 @@ npm run serve
 The OpenPRA Technical Elements package follows semantic versioning (MAJOR.MINOR.PATCH) to ensure clear communication of changes and maintain compatibility.
 
 #### Version Numbers
+
 - **MAJOR** version (X.0.0): Breaking schema changes
 - **MINOR** version (0.X.0): New features or non-breaking schema extensions
 - **PATCH** version (0.0.X): Documentation updates and bug fixes
 
 #### Version Management
+
 The package provides several npm scripts for version management:
 
 ```bash
@@ -295,20 +324,26 @@ npm run version:check
 ```
 
 #### Breaking Changes
+
 A breaking change is defined as any change that:
+
 1. Removes or renames existing fields
 2. Changes the type of existing fields
 3. Modifies validation rules in a way that invalidates previously valid data
 
 #### Non-Breaking Changes
+
 Non-breaking changes include:
+
 1. Adding new optional fields
 2. Adding new validation rules that don't invalidate existing data
 3. Documentation improvements
 4. Bug fixes that don't change the schema
 
 #### Version Update Process
+
 When making changes that require a version update:
+
 1. Update the version using the appropriate npm script
 2. Add a new section in CHANGELOG.md
 3. Update documentation if needed
@@ -322,6 +357,7 @@ For detailed version history and guidelines, see [CHANGELOG.md](./CHANGELOG.md).
 The technical elements package uses a three-level versioning hierarchy to manage changes at different scopes:
 
 ### 1. Package Version (package.json)
+
 - Current version: 0.1.0
 - Represents the version of the entire technical elements package
 - Changes when:
@@ -333,6 +369,7 @@ The technical elements package uses a three-level versioning hierarchy to manage
 - Tracked in CHANGELOG.md
 
 ### 2. Schema Version (core/version.ts)
+
 - Current version: 0.1.0 (matches package version)
 - Defined in `SCHEMA_VERSION` constant
 - Represents the version of the type system/schema
@@ -344,6 +381,7 @@ The technical elements package uses a three-level versioning hierarchy to manage
   - Breaking changes to shared types
 
 ### 3. Technical Element Version (versionInfo.version)
+
 - Each technical element maintains its own version
 - Independent of package and schema versions
 - Tracked in the element's metadata
@@ -366,6 +404,7 @@ The technical elements package uses a three-level versioning hierarchy to manage
   - Element-specific validation rules update
 
 ### Version Relationships
+
 - Technical elements can evolve independently (different versions)
 - All elements must be compatible with the current schema version
 - Package version changes trigger schema version updates
@@ -375,6 +414,7 @@ The technical elements package uses a three-level versioning hierarchy to manage
   - Version history is properly tracked
 
 ### Example Version States
+
 ```typescript
 // Package version (package.json)
 "version": "0.1.0"

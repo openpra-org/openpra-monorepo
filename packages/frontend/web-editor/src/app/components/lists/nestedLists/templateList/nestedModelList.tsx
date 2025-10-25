@@ -31,7 +31,7 @@ async function fetchModelList(
       : [];
     return modelList;
     // return await getNestedEndpointString(modelId);
-  } catch (error) {
+  } catch {
     return [];
   }
 }
@@ -52,9 +52,15 @@ const getFixtures = async (
       : getNestedEndpointString
       ? await fetchModelList(undefined, getNestedEndpointString)
       : [];
-    const nestedModelList: NestedModel[] = modelList.map(
-      (item: any) => new NestedModel(item.label.name, item.label.description, item.id, item.parentIds),
-    );
+    const nestedModelList: NestedModel[] = modelList.map((item: unknown) => {
+      const typed = item as {
+        label: { name: string; description: string };
+        id: number | string;
+        parentIds?: (number | string)[];
+      };
+      const parentIds: number[] = (typed.parentIds ?? []).map((p) => Number(p));
+      return new NestedModel(typed.label.name, typed.label.description, Number(typed.id), parentIds);
+    });
 
     //now we map these events to what they should be and display them
     return nestedModelList.map((modelItem: NestedModel) => (
@@ -66,13 +72,13 @@ const getFixtures = async (
           name: modelItem.getLabel().getName(),
           description: modelItem.getLabel().getDescription(),
         }}
-        path={`${modelItem.getId()}`}
+        path={String(modelItem.getId())}
         endpoint={name} // Adjust this based on your model's structure
         deleteNestedEndpoint={deleteNestedEndpoint}
         patchNestedEndpoint={patchNestedEndpoint}
       />
     ));
-  } catch (error) {
+  } catch {
     return []; // Return an empty array or handle the error as needed
   }
 };
@@ -103,13 +109,13 @@ function NestedModelList(props: NestedModelListProps): JSX.Element {
       }
     };
     void fetchGenericListItems();
-  }, [deleteNestedEndpoint, getNestedEndpoint, name, patchNestedEndpoint]);
+  }, [deleteNestedEndpoint, getNestedEndpoint, getNestedEndpointString, name, patchNestedEndpoint]);
 
   const SetInitiatingEvents = UseGlobalStore.use.SetInitiatingEvents();
 
   useEffect(() => {
-    void SetInitiatingEvents(GetCurrentModelIdString()).then(() => {});
-  }, []);
+    void SetInitiatingEvents(GetCurrentModelIdString());
+  }, [SetInitiatingEvents]);
 
   return (
     <EuiPageTemplate

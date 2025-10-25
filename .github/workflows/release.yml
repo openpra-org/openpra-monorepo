@@ -1,0 +1,65 @@
+name: Nx Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: "Run release in dry-run mode"
+        required: false
+        default: "true"
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Ensure pnpm available
+        run: npx -y pnpm@10.19.0 --version
+
+      - name: Install dependencies
+        run: npx -y pnpm@10.19.0 install --frozen-lockfile
+
+      - name: Build
+        run: npx -y pnpm@10.19.0 nx run-many -t build
+
+      - name: Test
+        env:
+          CI: 'true'
+          # MONGO_URI should be provided by repo/env secrets or self-hosted action
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+        run: npx -y pnpm@10.19.0 nx run-many -t test -- --test-timeout=60000
+
+      - name: Nx Release Version (Conventional Commits)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dryRun == 'true' }}
+        run: npx -y pnpm@10.19.0 nx release version --dry-run
+
+      - name: Nx Release Version (apply)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dryRun != 'true' }}
+        run: npx -y pnpm@10.19.0 nx release version
+
+      - name: Nx Release Changelog
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dryRun != 'true' }}
+        run: npx -y pnpm@10.19.0 nx release changelog
+
+      - name: Nx Release Publish (npm)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dryRun != 'true' }}
+        env:
+          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx -y pnpm@10.19.0 nx release publish
+
+      - name: Create GitHub Release
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dryRun != 'true' }}
+        run: npx -y pnpm@10.19.0 nx release github

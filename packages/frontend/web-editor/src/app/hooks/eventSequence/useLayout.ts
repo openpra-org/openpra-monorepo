@@ -150,7 +150,7 @@ function UseLayout(): void {
         fitView(fitViewOptions);
       }
     });
-  }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);
+  }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges, focusNodeId, reset]);
 }
 
 export { UseLayout };

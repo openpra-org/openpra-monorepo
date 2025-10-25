@@ -3,12 +3,12 @@ import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import typia, { TypeGuardError } from "typia";
-import { ExecutionTask } from "mef-types/openpra-mef/util/execution-task";
-import { ExecutionResult } from "mef-types/openpra-mef/util/execution-result";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
+import type { ExecutionTask } from "mef-types/openpra-mef/util/execution-task";
+import type { ExecutionResult } from "mef-types/openpra-mef/util/execution-result";
+import { InjectModel as _InjectModel } from "@nestjs/mongoose";
+import { Model as _Model } from "mongoose";
 import { ConfigService } from "@nestjs/config";
-import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
+import { ExecutableJobReport as _ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 
 /**

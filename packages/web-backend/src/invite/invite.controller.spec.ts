@@ -6,7 +6,7 @@ import { InviteService } from "./invite.service";
 import { InviteController } from "./invite.controller";
 
 describe("CollabController", () => {
-  let inviteService: InviteService;
+  let _inviteService: InviteService;
   let inviteController: InviteController;
   let connection: Connection;
 
@@ -26,7 +26,7 @@ describe("CollabController", () => {
       controllers: [InviteController],
     }).compile();
     connection = await module.get(getConnectionToken());
-    inviteService = module.get<InviteService>(InviteService);
+  _inviteService = module.get<InviteService>(InviteService);
     inviteController = module.get<InviteController>(InviteController);
   });
 

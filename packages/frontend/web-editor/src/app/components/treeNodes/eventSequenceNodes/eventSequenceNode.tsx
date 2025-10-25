@@ -1,5 +1,5 @@
 import { Handle, Node, NodeProps, Position, useReactFlow } from "reactflow";
-import { memo, MemoExoticComponent, useCallback, useState } from "react";
+import { memo, MemoExoticComponent, useCallback, useEffect, useMemo, useState } from "react";
 import cx from "classnames";
 import { EuiTextArea, useEuiFontSize } from "@elastic/eui";
 import { debounce } from "lodash";
@@ -25,28 +25,35 @@ function GetNodeElements(id: NodeProps["id"], type: string, data: EventSequenceN
   const [nodeLabel, setNodeLabel] = useState(data.label ?? "");
   const { addToast } = UseToastContext();
   const fontSize = useEuiFontSize("xs").fontSize;
-  const updateHandler = useCallback(
-    debounce((newLabel: string): void => {
-      setNodes(
-        getNodes().map((n: Node<EventSequenceNodeProps>) => {
-          if (n.id === id) {
-            n.data.label = newLabel;
-          }
-          return n;
-        }),
-      );
-      GraphApiManager.updateESLabel(id, newLabel, "node")
-        .then((r) => {
-          if (!r) {
+  const updateHandler = useMemo(
+    () =>
+      debounce((newLabel: string): void => {
+        setNodes(
+          getNodes().map((n: Node<EventSequenceNodeProps>) => {
+            if (n.id === id) {
+              n.data.label = newLabel;
+            }
+            return n;
+          }),
+        );
+        GraphApiManager.updateESLabel(id, newLabel, "node")
+          .then((r) => {
+            if (!r) {
+              addToast(GetESToast("danger", "Something went wrong"));
+            }
+          })
+          .catch(() => {
             addToast(GetESToast("danger", "Something went wrong"));
-          }
-        })
-        .catch(() => {
-          addToast(GetESToast("danger", "Something went wrong"));
-        });
-    }, 500),
-    [getNodes, id, setNodes],
+          });
+      }, 500),
+    [getNodes, id, setNodes, addToast],
   );
+
+  useEffect((): (() => void) => {
+    return () => {
+      updateHandler.cancel();
+    };
+  }, [updateHandler]);
   const onNodeLabelChange = useCallback(
     (e: React.ChangeEvent<HTMLTextAreaElement>): void => {
       const newLabel = e.target.value;

@@ -2,10 +2,19 @@
   "name": "mef-types",
   "version": "0.0.1",
   "dependencies": {
-    "tslib": "^2.3.0"
+    "tslib": "2.5.2",
+    "typia": "9.7.2"
   },
   "type": "commonjs",
   "main": "./src/index.js",
   "typings": "./src/index.d.ts",
-  "private": true
+  "private": true,
+  "devDependencies": {
+    "eslint": "9.14.0",
+    "eslint-plugin-tsdoc": "0.2.17",
+    "typescript-eslint": "8.14.0"
+  },
+  "scripts": {
+    "lint:canary": "eslint --config ./eslint.config.mjs ."
+  }
 }

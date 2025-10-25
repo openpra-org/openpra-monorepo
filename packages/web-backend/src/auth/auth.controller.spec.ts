@@ -1,4 +1,4 @@
-import mongoose, { Connection } from "mongoose";
+import { Connection } from "mongoose";
 import { MongooseModule, getConnectionToken } from "@nestjs/mongoose";
 import { JwtService } from "@nestjs/jwt";
 import { Test, TestingModule } from "@nestjs/testing";

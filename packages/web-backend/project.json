@@ -13,26 +13,20 @@
         "target": "node",
         "compiler": "tsc",
         "outputPath": "dist/packages/web-backend",
-        "generatePackageJson": true,
+        "generatePackageJson": false,
+        "generateLockfile": false,
         "main": "packages/web-backend/src/main.ts",
         "tsConfig": "packages/web-backend/tsconfig.app.json",
         "assets": ["packages/web-backend/src/assets"],
-        "isolatedConfig": true,
-        "webpackConfig": "packages/web-backend/webpack.config.js",
-        "transformers": [
-          "typia/lib/transform",
-          {
-            "name": "@nestia/core/lib/transform",
-            "options": {
-              "validate": "assert",
-              "stringify": "assert"
-            }
-          }
-        ]
+        "webpackConfig": "packages/web-backend/webpack.config.js"
       },
       "configurations": {
-        "development": {},
-        "production": {}
+        "development": {
+          "generateLockfile": false
+        },
+        "production": {
+          "generateLockfile": false
+        }
       }
     },
     "serve": {
@@ -71,9 +65,15 @@
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
-        "lintFilePatterns": [
-          "{projectRoot}/**/*.ts"
-        ]
+        "eslintConfig": "packages/web-backend/eslint.config.mjs",
+        "lintFilePatterns": ["{projectRoot}/**/*.ts"]
+      }
+    },
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter web-backend run lint:canary",
+        "cwd": "{workspaceRoot}"
       }
     },
     "test": {
@@ -83,11 +83,25 @@
         "jestConfig": "packages/web-backend/jest.config.ts"
       }
     },
+    "test-local": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "MONGO_URI=\"mongodb://127.0.0.1:27017/test\" pnpm nx run web-backend:test --skip-nx-cache -- --test-timeout=60000",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "e2e": {
       "executor": "@nx/jest:jest",
       "options": {
         "jestConfig": "packages/web-backend/tests/jest-e2e.json",
         "passWithNoTests": false
+      }
+    },
+    "e2e-local": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "MONGO_URI=\"mongodb://127.0.0.1:27017/test\" pnpm nx run web-backend:e2e --skip-nx-cache -- --test-timeout=60000",
+        "cwd": "{workspaceRoot}"
       }
     }
   }

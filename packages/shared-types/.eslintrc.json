@@ -1,16 +1,41 @@
 {
   "extends": ["../../.eslintrc.json"],
-  "ignorePatterns": ["!**/*"],
+  "ignorePatterns": ["!**/*", "**/*.d.ts"],
   "overrides": [
     {
-      "files": ["*.ts", "*.tsx"],
+      "files": ["**/*.d.ts"],
+      "extends": ["plugin:@typescript-eslint/disable-type-checked"],
+      "rules": {}
+    },
+    {
+      "files": ["**/*.ts", "**/*.tsx"],
+      "excludedFiles": ["**/*.d.ts"],
       "parserOptions": {
         "project": [
-          "packages/shared-types/tsconfig.lib.json",
-          "packages/shared-types/tsconfig.spec.json"
+          "packages/shared-types/tsconfig.eslint.json"
         ]
       },
-      "rules": {}
+      "rules": {
+        "@typescript-eslint/ban-types": [
+          "warn",
+          {
+            "extendDefaults": true
+          }
+        ],
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error",
+        "@typescript-eslint/no-floating-promises": "error"
+      }
     },
     {
       "files": ["*.json"],

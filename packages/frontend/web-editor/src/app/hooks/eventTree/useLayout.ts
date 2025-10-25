@@ -1,10 +1,19 @@
 import { useEffect, useRef } from "react";
 import { useReactFlow, useStore, Node, Edge, ReactFlowState } from "reactflow";
-import { cluster, partition, stratify, tree } from "d3-hierarchy";
+import { cluster, stratify } from "d3-hierarchy";
 import { timer } from "d3-timer";
 
+// Minimal typing for event tree node data used in this hook
+interface EventTreeNodeData {
+  width: number;
+  depth: number;
+  label: string;
+  isSequenceId?: boolean;
+  isFrequencyNode?: boolean;
+}
+
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
-const layout = cluster<Node>()
+const layout = cluster<Node<EventTreeNodeData>>()
   // the node size configures the spacing between the nodes ([width, height])
   .nodeSize([140, 40]) // this is needed for creating equal space between all nodes
 
@@ -14,18 +23,22 @@ const options = { duration: 300 };
 
 // the layouting function
 // accepts current nodes and edges and returns the layouted nodes with their updated positions
-function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
+function layoutNodes(
+  nodes: Node<EventTreeNodeData>[],
+  cols: Node<EventTreeNodeData>[],
+  edges: Edge[],
+): Node<EventTreeNodeData>[] {
   // if there are no nodes we can't calculate a layout
   if (nodes.length === 0) {
     return [];
   }
 
   // convert nodes and edges into a hierarchical object for using it with the layout function
-  const hierarchy = stratify<Node>()
+  const hierarchy = stratify<Node<EventTreeNodeData>>()
     .id((d) => d.id)
     // get the id of each node by searching through the edges
     // this only works if every node has one connection
-    .parentId((d: Node) => edges.find((e: Edge) => e.target === d.id)?.source)(nodes);
+    .parentId((d: Node<EventTreeNodeData>) => edges.find((e: Edge) => e.target === d.id)?.source)(nodes);
 
   // run the layout algorithm with the hierarchy data structure
   const root = layout(hierarchy);
@@ -61,10 +74,7 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
   });
 
   // Handle output nodes for end states (Sequence ID, Frequency, Release Category)
-  const totalCols = cols.length;
   const regularCols = cols.filter((col) => col.type === "columnNode");
-  const lastRegularColIndex = regularCols.length - 1;
-  const lastRegularCol = regularCols[lastRegularColIndex];
 
   // First, align all output nodes to their correct columns
   nodes.forEach((node) => {
@@ -96,9 +106,9 @@ function layoutNodes(nodes: Node[], cols: Node[], edges: Edge[]): Node[] {
 }
 
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change
-const nodeCountSelector = (state: ReactFlowState) => state.nodeInternals.size;
+const nodeCountSelector = (state: ReactFlowState): number => state.nodeInternals.size;
 
-function useLayout(depth: number) {
+function useLayout(_depth: number): void {
   // this ref is used to fit the nodes in the first run
   // after first run, this is set to false
   const initial = useRef(true);
@@ -107,7 +117,7 @@ function useLayout(depth: number) {
   // whenever the nodes length changes, we calculate the new layout
   const nodeCount = useStore(nodeCountSelector);
 
-  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } = useReactFlow();
+  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } = useReactFlow<EventTreeNodeData, unknown>();
 
   useEffect(() => {
     // get the current nodes and edges
@@ -115,10 +125,9 @@ function useLayout(depth: number) {
     const edges = getEdges();
 
     // splitting the nodeData into nodes and columns
-    const nodes: Node[] = [];
-    const cols: Node[] = [];
+    const nodes: Node<EventTreeNodeData>[] = [];
+    const cols: Node<EventTreeNodeData>[] = [];
 
-    console.log(nodeData, edges);
     nodeData.forEach((node) => {
       if (node.type === "columnNode") {
         cols.push(node);
@@ -137,7 +146,7 @@ function useLayout(depth: number) {
     const transitions = targetNodes.map((node) => ({
       id: node.id,
       // this is where the node currently is placed
-      from: getNode(node.id)?.position || node.position,
+      from: getNode(node.id)?.position ?? node.position,
       // this is where we want the node to be placed
       to: node.position,
       node,
@@ -186,7 +195,7 @@ function useLayout(depth: number) {
         initial.current = false;
       }
     });
-    return () => {
+    return (): void => {
       t.stop();
     };
   }, [nodeCount, getEdges, getNodes, getNode, setNodes, fitView, setEdges]);

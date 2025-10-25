@@ -63,6 +63,40 @@ To lint the package, run:
 nx lint frontend-web-editor
 ```
 
+## End-to-end tests (Playwright)
+
+This package includes Playwright E2E tests configured via `@nx/playwright`.
+
+- Run the E2E suite:
+
+  ```shell
+  nx run frontend-web-editor:e2e-cli
+  ```
+
+  Optional reporter (example):
+
+  ```shell
+  nx run frontend-web-editor:e2e-cli -- --reporter=list
+  ```
+
+  Note the `--` to pass flags to Playwright rather than Nx.
+
+- Auth setup and storage state:
+
+  - Tests are split into a `setup` project (creates a user and saves auth state) and dependent projects (e.g., "Admin Tests").
+  - The setup test writes storage to `packages/frontend/web-editor/e2e/.auth/user.json` and dependent tests use it automatically.
+
+- System dependencies (in containers):
+
+  - Our Playwright config runs `playwright install-deps` automatically before starting dev servers.
+  - If you run Playwright directly outside Nx, install OS deps once inside the container:
+
+    ```shell
+    pnpm exec playwright install-deps
+    ```
+
+If the browsers fail to launch headless, ensure the dependency step above has been run in your environment.
+
 ## Configuration
 
 The package uses several configuration files for its operations:

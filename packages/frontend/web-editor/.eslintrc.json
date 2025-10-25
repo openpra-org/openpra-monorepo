@@ -4,9 +4,555 @@
     "plugin:@nx/react",
     "../../../.eslintrc.json"
   ],
-  "parserOptions": {
-    "project": [
-      "packages/frontend/web-editor/tsconfig.*?.json"
-    ]
-  }
+  "ignorePatterns": ["!**/*", "src/tests/**", "webpack.config.js"],
+  "overrides": [
+    {
+      "files": ["**/*.ts", "**/*.tsx"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "no-empty": "warn",
+        "@typescript-eslint/restrict-template-expressions": "warn",
+        "@typescript-eslint/no-unsafe-assignment": "warn",
+        "@typescript-eslint/no-unsafe-member-access": "warn",
+        "@typescript-eslint/no-unsafe-argument": "warn",
+        "@typescript-eslint/no-unsafe-return": "warn",
+        "@typescript-eslint/no-unsafe-call": "warn",
+        "@typescript-eslint/restrict-plus-operands": "warn",
+        "@typescript-eslint/prefer-nullish-coalescing": "warn",
+        "@typescript-eslint/no-unnecessary-condition": "warn",
+        "@typescript-eslint/prefer-optional-chain": "warn",
+        "@typescript-eslint/prefer-for-of": "warn",
+        "@typescript-eslint/no-floating-promises": "warn",
+        "@typescript-eslint/require-await": "warn",
+        "@typescript-eslint/no-misused-promises": "warn",
+        "@typescript-eslint/no-non-null-asserted-optional-chain": "warn",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "warn",
+        "@typescript-eslint/no-empty-function": "warn",
+        "@typescript-eslint/no-var-requires": "warn",
+        "react-hooks/rules-of-hooks": "warn"
+      }
+    },
+    {
+      "files": ["src/app/**/*.{ts,tsx}"],
+      "excludedFiles": [
+        "src/tests/**",
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "tests/**",
+        "e2e/**",
+        "webpack.config.js"
+      ],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": [
+        "src/app/components/OperatingStateStyles/**/*.{ts,tsx}",
+        "src/app/components/listchanging/**/*.{ts,tsx}",
+        "src/app/components/tables/**/*.{ts,tsx}"
+      ],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": [
+        "src/app/components/settings/**/*.{ts,tsx}",
+        "src/app/components/minimap/**/*.{ts,tsx}",
+        "src/app/components/login/**/*.{ts,tsx}"
+      ],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": [
+        "src/app/components/cards/**/*.{ts,tsx}",
+        "src/app/components/context_menu/**/*.{ts,tsx}",
+        "src/app/components/tooltips/**/*.{ts,tsx}"
+      ],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": [
+        "src/app/components/pageContainers/**/*.{ts,tsx}",
+        "src/app/components/settingsdropdowns/**/*.{ts,tsx}"
+      ],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": [
+        "src/app/components/menus/**/*.{ts,tsx}",
+        "src/app/components/headers/**/*.{ts,tsx}",
+        "src/app/components/sidenavs/**/*.{ts,tsx}"
+      ],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/app/components/buttons/**/*.{ts,tsx}", "src/app/components/lists/**/*.{ts,tsx}", "src/app/components/modals/**/*.{ts,tsx}"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/app/components/forms/**/*.{ts,tsx}"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": [
+        "src/app/pages/routingPages/**/*.{ts,tsx}",
+        "src/app/pages/dataPages/**/*.{ts,tsx}",
+        "src/app/pages/invitePage.tsx",
+        "src/app/pages/rootContainer.tsx"
+      ],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/app/components/treeNodes/eventSequenceNodes/**/*.{ts,tsx}"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/app/components/treeEdges/eventSequenceEdges/**/*.{ts,tsx}"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/app/hooks/eventSequence/**/*.{ts,tsx}"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/app/pages/fullScopePages/operatingStateAnalysis.tsx"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/app/components/tables/initiatingEventModelViewTable.tsx"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/app/components/treeNodes/eventTreeEditorNode/**/*.{ts,tsx}"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/app/components/treeEdges/bayesianNetworkEdges/**/*.{ts,tsx}"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/app/hooks/faultTree/**/*.{ts,tsx}"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/app/hooks/eventTree/**/*.{ts,tsx}"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/utils/**/*.ts", "src/utils/**/*.tsx"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["src/app/hooks/eventTree/**/*.{ts,tsx}"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/no-non-null-assertion": "error",
+        "@typescript-eslint/no-non-null-asserted-optional-chain": "error"
+      }
+    },
+    {
+      "files": ["src/app/hooks/faultTree/**/*.{ts,tsx}", "src/app/hooks/eventSequence/**/*.{ts,tsx}"],
+      "parserOptions": {
+        "project": [
+          "packages/frontend/web-editor/tsconfig.eslint.json"
+        ]
+      },
+      "rules": {
+        "@typescript-eslint/no-non-null-assertion": "error",
+        "@typescript-eslint/no-non-null-asserted-optional-chain": "error"
+      }
+    },
+    {
+      "files": [
+        "**/*.spec.ts",
+        "**/*.spec.tsx",
+        "tests/**/*.ts",
+        "tests/**/*.tsx",
+        "e2e/**/*.ts",
+        "e2e/**/*.tsx"
+      ],
+      "rules": {
+        "playwright/missing-playwright-await": "warn",
+        "@typescript-eslint/no-unsafe-call": "warn",
+        "@typescript-eslint/no-unsafe-argument": "warn",
+        "@typescript-eslint/restrict-plus-operands": "warn",
+        "@typescript-eslint/no-confusing-void-expression": "warn"
+      }
+    },
+    {
+      "files": ["**/*.js", "**/*.jsx"],
+      "parser": "espree",
+      "extends": ["plugin:@typescript-eslint/disable-type-checked"],
+      "rules": {
+        "@typescript-eslint/dot-notation": "off"
+      }
+    }
+  ]
 }

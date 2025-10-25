@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   EuiHeaderSectionItemButton,
   EuiPopover,
@@ -12,14 +12,15 @@ import { useEffect, useRef, useState } from "react";
 import { SelectableWorkspaceOptions } from "../../workspaces/SelectableWorkspaceOptions";
 
 function WorkspaceSelectorMenu(): JSX.Element {
-  const isMountedRef = useRef(false);
+  const didMountRef = useRef(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const popoverID = useGeneratedHtmlId({
     prefix: "WorkspaceSelectorMenu",
   });
 
   const [spaces, setSpaces] = useState<EuiSelectableOption[]>(SelectableWorkspaceOptions);
-  const [selectedSpace, setSelectedSpace] = useState(spaces.filter((option) => option.checked)[0]);
+  const [selectedSpace, setSelectedSpace] = useState(() => spaces.filter((option) => option.checked)[0]);
   const [isOpen, setIsOpen] = useState(false);
 
   const onMenuButtonClick = (): void => {
@@ -30,17 +31,26 @@ function WorkspaceSelectorMenu(): JSX.Element {
   };
   const onChange: EuiSelectableProps["onChange"] = (options) => {
     setSpaces(options);
-    setSelectedSpace(() => options.filter((option) => option.checked)[0]);
-  };
-  useEffect(() => {
-    if (isMountedRef.current) {
-      navigate("/" + selectedSpace.key);
+    const next = options.filter((option) => option.checked)[0];
+    setSelectedSpace(next);
+    // Navigate immediately on explicit user selection
+    if (next && typeof next.key === "string") {
+      void navigate(`/${next.key}`);
     }
+  };
 
-    return (): void => {
-      isMountedRef.current = true;
-    };
-  }, [navigate, selectedSpace]);
+  // On mount, sync selected workspace with current URL, but do NOT navigate.
+  useEffect(() => {
+    if (!didMountRef.current) {
+      const seg = location.pathname.split("/")[1] || "internal-events";
+      const existing = spaces.find((o) => o.key === seg);
+      if (existing && existing !== selectedSpace) {
+        setSelectedSpace(existing);
+        setSpaces((prev) => prev.map((o) => ({ ...o, checked: o.key === seg ? "on" : undefined })));
+      }
+      didMountRef.current = true;
+    }
+  }, [location.pathname, spaces, selectedSpace]);
 
   const button = (
     <EuiHeaderSectionItemButton

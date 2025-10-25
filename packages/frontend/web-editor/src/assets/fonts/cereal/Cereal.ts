@@ -10,7 +10,7 @@ export const CerealLight = {
   fontStyle: "normal",
   fontDisplay: "swap",
   fontWeight: 300,
-  src: `url(${CerealLightWoff2}) format('woff2')`,
+  src: `url(${String(CerealLightWoff2)}) format('woff2')`,
 };
 
 export const CerealBook = {
@@ -18,7 +18,7 @@ export const CerealBook = {
   fontStyle: "normal",
   fontDisplay: "swap",
   fontWeight: 400,
-  src: `url(${CerealBookWoff2}) format('woff2')`,
+  src: `url(${String(CerealBookWoff2)}) format('woff2')`,
 };
 
 export const CerealMedium = {
@@ -26,7 +26,7 @@ export const CerealMedium = {
   fontStyle: "normal",
   fontDisplay: "swap",
   fontWeight: 500,
-  src: `url(${CerealMediumWoff2}) format('woff2')`,
+  src: `url(${String(CerealMediumWoff2)}) format('woff2')`,
 };
 
 export const CerealBold = {
@@ -34,7 +34,7 @@ export const CerealBold = {
   fontStyle: "normal",
   fontDisplay: "swap",
   fontWeight: 600,
-  src: `url(${CerealBoldWoff2}) format('woff2')`,
+  src: `url(${String(CerealBoldWoff2)}) format('woff2')`,
 };
 
 export const CerealExtraBold = {
@@ -42,7 +42,7 @@ export const CerealExtraBold = {
   fontStyle: "normal",
   fontDisplay: "swap",
   fontWeight: 700,
-  src: `url(${CerealExtraBoldWoff2}) format('woff2')`,
+  src: `url(${String(CerealExtraBoldWoff2)}) format('woff2')`,
 };
 
 export const CerealBlack = {
@@ -50,7 +50,7 @@ export const CerealBlack = {
   fontStyle: "normal",
   fontDisplay: "swap",
   fontWeight: 800,
-  src: `url(${CerealBlackWoff2}) format('woff2')`,
+  src: `url(${String(CerealBlackWoff2)}) format('woff2')`,
 };
 
 export const CerealAll = [CerealLight, CerealBook, CerealMedium, CerealBold, CerealExtraBold, CerealBlack];

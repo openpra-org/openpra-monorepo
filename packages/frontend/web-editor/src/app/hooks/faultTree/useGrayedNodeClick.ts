@@ -18,12 +18,16 @@ import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/fa
  * const { handleGrayedNodeClick } = UseGrayedNodeClick(id);
  * ```
  */
-const UseGrayedNodeClick = (id: NodeProps["id"]) => {
+const UseGrayedNodeClick = (
+  _id: NodeProps["id"],
+): {
+  handleGrayedNodeClick: (branchId: string | undefined) => Promise<void>;
+} => {
   const { nodes, edges, setNodes, setEdges } = useStore();
   const { faultTreeId } = useParams();
   //Solidifies the branch of the clicked node, takes in the branchId of the clicked node as a parameter
   const handleGrayedNodeClick = useCallback(
-    async (branchId: string | undefined) => {
+    async (branchId: string | undefined): Promise<void> => {
       //loop through all nodes to find the parent (the node to be deleted)
       const parentNode = nodes.filter((node) => node.data?.branchId === undefined && node.data?.isGrayed === true);
 
@@ -45,7 +49,7 @@ const UseGrayedNodeClick = (id: NodeProps["id"]) => {
       //filter out the parentNode (deleting the node which we wanted)
       const finalNodes: Node<FaultTreeNodeProps>[] = solidifiedNodes
         .filter((node) => node.id !== parentNode[0].id)
-        .map(({ data, ...node }) => ({
+        .map(({ data: _data, ...node }) => ({
           ...node,
           data: { isGrayed: undefined, branchId: undefined },
         }));
@@ -53,7 +57,7 @@ const UseGrayedNodeClick = (id: NodeProps["id"]) => {
         .filter((edge) => {
           return edge.source !== notGateNode.id && edge.source !== parentNode[0].id;
         })
-        .map(({ data, animated, ...edge }) => ({
+        .map(({ data: _data, animated: _animated, ...edge }) => ({
           ...edge,
           animated: false,
           data: { isGrayed: undefined, branchId: undefined },

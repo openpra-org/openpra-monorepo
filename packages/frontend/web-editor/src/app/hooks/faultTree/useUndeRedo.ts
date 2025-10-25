@@ -79,7 +79,7 @@ const useUndoRedo: UseUndoRedo = ({
 
     document.addEventListener("keydown", keyDownHandler);
 
-    return () => {
+    return (): void => {
       document.removeEventListener("keydown", keyDownHandler);
     };
   }, [undo, redo, enableShortcuts]);

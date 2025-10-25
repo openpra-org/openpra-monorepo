@@ -12,27 +12,21 @@
       "options": {
         "target": "node",
         "compiler": "tsc",
-        "transformers": [
-          "typia/lib/transform",
-          {
-            "name": "@nestia/core/lib/transform",
-            "options": {
-              "validate": "assert",
-              "stringify": "assert"
-            }
-          }
-        ],
+        "generateLockfile": false,
         "outputPath": "dist/packages/microservice/job-broker",
-  "generatePackageJson": true,
+        "generatePackageJson": false,
         "main": "packages/microservice/job-broker/src/main.ts",
         "tsConfig": "packages/microservice/job-broker/tsconfig.app.json",
         "assets": ["packages/microservice/job-broker/src/assets"],
-        "isolatedConfig": true,
         "webpackConfig": "packages/microservice/job-broker/webpack.config.js"
       },
       "configurations": {
-        "development": {},
-        "production": {}
+        "development": {
+          "generateLockfile": false
+        },
+        "production": {
+          "generateLockfile": false
+        }
       }
     },
     "serve": {
@@ -74,26 +68,21 @@
       "options": {
         "target": "node",
         "compiler": "tsc",
-        "transformers": [
-          "typia/lib/transform",
-          {
-            "name": "@nestia/core/lib/transform",
-            "options": {
-              "validate": "assert",
-              "stringify": "assert"
-            }
-          }
-        ],
+        "generateLockfile": false,
         "outputPath": "dist/packages/microservice/job-broker-consumer",
+        "generatePackageJson": false,
         "main": "packages/microservice/job-broker/src/main-consumer.ts",
         "tsConfig": "packages/microservice/job-broker/tsconfig.app.json",
         "assets": ["packages/microservice/job-broker/src/assets"],
-        "isolatedConfig": true,
         "webpackConfig": "packages/microservice/job-broker/webpack.config.js"
       },
       "configurations": {
-        "development": {},
-        "production": {}
+        "development": {
+          "generateLockfile": false
+        },
+        "production": {
+          "generateLockfile": false
+        }
       }
     },
     "serve-consumer": {
@@ -132,13 +121,19 @@
         }
       }
     },
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter microservice-job-broker run lint:canary",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "lint": {
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
-        "lintFilePatterns": [
-          "{projectRoot}/**/*.ts"
-        ]
+        "eslintConfig": "packages/microservice/job-broker/eslint.config.mjs",
+        "lintFilePatterns": ["{projectRoot}/**/*.ts"]
       }
     },
     "test": {

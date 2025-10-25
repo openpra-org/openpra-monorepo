@@ -5,13 +5,18 @@ import { EventTreeState } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 
-function useDeleteColClick(clickedColumnId: string) {
+function useDeleteColClick(clickedColumnId: string): () => void {
   const { setNodes, setEdges, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
   const { addToast } = UseToastContext();
 
-  const deleteColumn = () => {
-    const nodes = getNodes();
+  interface EventTreeNodeData {
+    depth: number;
+    inputDepth?: number;
+  }
+
+  const deleteColumn = (): void => {
+    const nodes = getNodes() as Node<EventTreeNodeData>[];
     const edges = getEdges();
     const clickedColumn = nodes.find((node) => node.id === clickedColumnId);
 
@@ -32,8 +37,8 @@ function useDeleteColClick(clickedColumnId: string) {
       return;
     }
 
-    let currentNodes = [...nodes];
-    let currentEdges = [...edges];
+    let currentNodes: Node<EventTreeNodeData>[] = [...nodes];
+    let currentEdges: Edge[] = [...edges];
 
     // 2. Iteratively remove invisible nodes and maintain connections
     const invisibleNodes = nodesInColumn.filter((node) => node.type === "invisibleNode");
@@ -93,7 +98,7 @@ function useDeleteColClick(clickedColumnId: string) {
 
     // 7. Update root node counter
     const rootNode = currentNodes.find((node) => node.data.depth === 1);
-    if (rootNode) {
+    if (rootNode && typeof rootNode.data.inputDepth === "number") {
       rootNode.data.inputDepth -= 1;
     }
 

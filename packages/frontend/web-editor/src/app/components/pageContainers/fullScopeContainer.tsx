@@ -15,7 +15,10 @@ const FullScopeContainer = (): JSX.Element => (
       minWidth={320}
       responsive={[]}
     >
-      <ScopedNav type="FullScope" />
+      <ScopedNav
+        type="FullScope"
+        variant="sidenav"
+      />
     </EuiPageTemplate.Sidebar>
     <Outlet />
   </EuiPageTemplate>

@@ -16,7 +16,19 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint"
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "eslintConfig": "packages/mef-types/eslint.config.mjs",
+        "lintFilePatterns": ["{projectRoot}/**/*.ts", "!{projectRoot}/**/*.d.ts"]
+      }
+    },
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter mef-types run lint:canary",
+        "cwd": "{workspaceRoot}"
+      }
     },
     "test": {
       "executor": "@nx/jest:jest",

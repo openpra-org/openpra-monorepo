@@ -1,5 +1,6 @@
 import { jwtDecode } from "jwt-decode";
-import { AuthToken, EMPTY_TOKEN } from "shared-types/src/lib/types/AuthToken";
+import { AuthToken, EMPTY_TOKEN } from "shared-types";
+import { emitAuthEvent } from "./AuthEvents";
 import { MemberRole } from "../data/predefiniedRoles";
 
 class AuthService {
@@ -17,7 +18,7 @@ class AuthService {
         return true;
       }
       return Date.now() / 1000 > payload.exp;
-    } catch (err) {
+    } catch (_err) {
       return true;
     }
   }
@@ -37,7 +38,7 @@ class AuthService {
         return -1;
       }
       return payload.exp - Date.now() / 1000;
-    } catch (err) {
+    } catch (_err) {
       return -1;
     }
   }
@@ -45,6 +46,13 @@ class AuthService {
   static setEncodedToken(idToken: string | null): void {
     if (idToken) {
       localStorage.setItem("id_token", idToken);
+      // Notify subscribers that a login occurred
+      try {
+        const decoded = jwtDecode<AuthToken>(idToken);
+        emitAuthEvent({ type: "login", user: decoded });
+      } catch (_e) {
+        emitAuthEvent({ type: "login" });
+      }
     }
   }
 
@@ -55,6 +63,7 @@ class AuthService {
 
   static logout(): boolean {
     localStorage.removeItem("id_token");
+    emitAuthEvent({ type: "logout", user: null });
     return AuthService.getEncodedToken() === null;
   }
 
@@ -65,7 +74,7 @@ class AuthService {
         return EMPTY_TOKEN;
       }
       return jwtDecode<AuthToken>(encodedToken);
-    } catch (e) {
+    } catch (_e) {
       return EMPTY_TOKEN;
     }
   }
@@ -84,7 +93,7 @@ class AuthService {
         return [MemberRole];
       }
       return decodedToken.roles ?? [MemberRole];
-    } catch (e) {
+    } catch (_e) {
       // Something bad happened
       throw new Error("The user is not logged in or token expired");
     }

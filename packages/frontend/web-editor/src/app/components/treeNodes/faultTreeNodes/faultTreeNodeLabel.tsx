@@ -7,7 +7,7 @@ interface FaultTreeNodeLabelProps {
 
 const stylesMap = styles as Record<string, string>;
 
-const FaultTreeNodeLabel = ({ label }: FaultTreeNodeLabelProps) => {
+const FaultTreeNodeLabel = ({ label }: FaultTreeNodeLabelProps): JSX.Element => {
   const [isEditable, setIsEditable] = useState(false);
   const handleClick = (): void => {
     setIsEditable(true);

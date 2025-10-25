@@ -49,7 +49,8 @@ test.describe("Settings E2E", () => {
   test("can see the correct profile details", async ({ page }) => {
     await goToUserEditPage(page);
     await expect(page.getByTestId("edit-user-first-name")).toHaveValue("Playwright");
-    await expect(page.getByTestId("edit-user-last-name")).toHaveValue("press");
+    // Last name should match the user created in login-setup.spec
+    await expect(page.getByTestId("edit-user-last-name")).toHaveValue("Test");
   });
 
   test("can edit user's details", async ({ page }) => {

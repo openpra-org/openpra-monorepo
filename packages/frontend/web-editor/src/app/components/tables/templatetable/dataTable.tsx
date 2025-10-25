@@ -2,9 +2,19 @@ import { EuiDataGrid, EuiFlexGroup, EuiFlexItem } from "@elastic/eui";
 import { SetStateAction, useCallback, useState } from "react";
 import { EuiDataGridColumnSortingConfig } from "@elastic/eui/src/components/datagrid/data_grid_types";
 
-interface DataTableProps {
-  rows: any[];
-  columns: any[];
+// Minimal column shape used by this table (id is required by EuiDataGrid; displayAsText optional)
+type BasicColumn = {
+  id: string;
+  displayAsText?: string;
+} & Record<string, unknown>; // allow passthrough properties consumed by EUI
+
+// Generic row shape: indexable by column ids returning primitive or React-displayable values
+type BasicCell = string | number | boolean | null | undefined | JSX.Element;
+export type BasicRow = Record<string, BasicCell>; // dynamic keys referencing cell data
+
+interface DataTableProps<R extends BasicRow = BasicRow> {
+  rows: R[];
+  columns: BasicColumn[];
 }
 
 interface CellValueProps {
@@ -20,7 +30,7 @@ interface CellValueProps {
  * @param rows - The data rows that will populate the grid.
  * @returns The `EuiDataGrid` component populated with the provided data.
  */
-function DataTable({ rows, columns }: DataTableProps): JSX.Element {
+function DataTable<R extends BasicRow>({ rows, columns }: DataTableProps<R>): JSX.Element {
   /**
    * State to manage the visibility of columns in the data grid.
    */
@@ -34,7 +44,7 @@ function DataTable({ rows, columns }: DataTableProps): JSX.Element {
    * @param colIndex - The index of the column for the cell.
    * @returns The value for the cell at the specified row and column index.
    */
-  const cellValue = ({ rowIndex, colIndex }: CellValueProps): any => {
+  const cellValue = ({ rowIndex, colIndex }: CellValueProps): BasicCell => {
     const visibleColumnId = visibleColumns[colIndex];
     const row = rows[rowIndex];
     return row[visibleColumnId];

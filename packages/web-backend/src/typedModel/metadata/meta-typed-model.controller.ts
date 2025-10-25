@@ -1,4 +1,5 @@
 import { Controller, Get, Request, UseFilters, UseGuards } from "@nestjs/common";
+import type { Request as ExpressRequest } from "express";
 import { AuthGuard } from "@nestjs/passport";
 import { InternalEventsMetadata } from "../schemas/internal-events.schema";
 import { InvalidTokenFilter } from "../../filters/invalid-token.filter";
@@ -13,12 +14,13 @@ export class MetaTypedModelController {
 
   /**
    *
-   * @param id the id of the user whose models you want to retrieve
+   * @param id - the id of the user whose models you want to retrieve
    * @returns a list of the internal hazards moodels the user is on
    */
   @Get("/metadata/internal-events/")
-  async getInternalEvents(@Request() req): Promise<InternalEventsMetadata[]> {
-    console.log("here");
-    return this.metaTypedModelService.getInternalEventsMetaData(req.user.user_id);
+  async getInternalEvents(@Request() req: ExpressRequest): Promise<InternalEventsMetadata[]> {
+    const userId: unknown = (req as unknown as { user?: { user_id?: unknown } })?.user?.user_id;
+    const idNum = typeof userId === "number" ? userId : typeof userId === "string" ? Number(userId) : undefined;
+    return this.metaTypedModelService.getInternalEventsMetaData(idNum as number);
   }
 }

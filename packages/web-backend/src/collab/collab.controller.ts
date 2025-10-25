@@ -4,7 +4,7 @@ import {
   Get,
   Post,
   Put,
-  Request,
+  Request as NestRequest,
   Param,
   Query,
   Body,
@@ -12,6 +12,7 @@ import {
   UseGuards,
   HttpException,
 } from "@nestjs/common";
+import type { Request } from "express";
 import { MemberResult, EmailValidationForm, UsernameValidationForm } from "shared-sdk";
 import { JwtAuthGuard } from "../guards/jwt-auth.guard";
 import { Public } from "../guards/public.guard";
@@ -29,15 +30,19 @@ export class CollabController {
   constructor(private readonly collabService: CollabService) {}
 
   /**
-   * @param req Express request object @see {@link https://expressjs.com/en/api.html#req}
-   * @param query Query string parameters
-   * @returns List of all users
-   * @example GET request -> https://staging.app.openpra.org/api/collab/user/
-   * @example GET request -> https://staging.app.openpra.org/api/collab/user/?limit=10&offset=0
+  * Retrieve a paginated list of users.
+  *
+  * @param req - Express request object. See {@link https://expressjs.com/en/api.html#req}.
+  * @param query - Query string parameters.
+  * @returns List of all users
+  * @example
+  * GET request: https://staging.app.openpra.org/api/collab/user/
+  * @example
+  * GET request with pagination: https://staging.app.openpra.org/api/collab/user/?limit=10&offset=0
    */
   @Get("/user/")
   async getUsersList(
-    @Request() req,
+    @NestRequest() req: Request,
     @Query()
     query: {
       limit?: number;
@@ -45,24 +50,29 @@ export class CollabController {
       role?: string;
     },
   ): Promise<PaginationDto> {
+    const originalUrl: string = typeof req.originalUrl === "string" ? req.originalUrl : String(req.originalUrl ?? "");
     if (query.limit && query.offset) {
-      return this.collabService.getUsersList(req.originalUrl, query.limit, query.offset, query.role);
+      return this.collabService.getUsersList(originalUrl, query.limit, query.offset, query.role);
     }
-    return this.collabService.getUsersList(req.originalUrl, undefined, undefined, query.role);
+    return this.collabService.getUsersList(originalUrl, undefined, undefined, query.role);
   }
 
   /**
-   * @param body Request body
-   * @example Request body sample:
-   * {
-   *   "first_name":"Edward",
-   *   "last_name":"Elric",
-   *   "email":"fullmetal_alchemist@gmail.com",
-   *   "username":"Ed",
-   *   "password":"WinryRockbell"
-   * }
+   * Create a new user in the system.
+   *
+   * @param body - Request body containing new user fields.
+   * @example
+  * Request body sample:
+  * \{
+  *   "first_name": "Edward",
+  *   "last_name": "Elric",
+  *   "email": "fullmetal_alchemist\@gmail.com",
+   *   "username": "Ed",
+   *   "password": "WinryRockbell"
+   * \}
    * @returns A mongoose document of the new user
-   * @example POST request -> https://staging.app.openpra.org/api/collab/user/
+   * @example
+   * POST request: https://staging.app.openpra.org/api/collab/user/
    */
   @Public()
   @Post("/user/")
@@ -84,12 +94,11 @@ export class CollabController {
   }
 
   /**
-   * This endpoint will query the database and return true if user's email is unqiue
-   * @param body - The request body
-   * @example Request Body Example
-   * {
-   *   email : "xyz@gmail.com"
-   * }
+   * Check whether an email address is unique.
+   *
+   * @param body - The request body containing the email to validate.
+   * @example
+  * Request body example: \{ "email": "xyz\@gmail.com" \}
    */
   @Public()
   @Post("/validateEmail/")
@@ -98,12 +107,11 @@ export class CollabController {
   }
 
   /**
-   * This endpoint will query the database and return true if user's username is unqiue
-   * @param body - The request body
-   * @example Request Body Example
-   * {
-   *   username : "sampleUsername123"
-   * }
+   * Check whether a username is unique.
+   *
+   * @param body - The request body containing the username to validate.
+   * @example
+  * Request body example: \{ "username": "sampleUsername123" \}
    */
   @Public()
   @Post("/validateUsername/")
@@ -112,9 +120,12 @@ export class CollabController {
   }
 
   /**
-   * @param {string} user_id ID of the user
-   * @returns {Type} Preferences of the user
-   * @example GET request -> https://staging.app.openpra.org/api/collab/user/1/preferences/
+   * Get preferences for a user.
+   *
+   * @param user_id - ID of the user
+   * @returns Preferences of the user
+   * @example
+   * GET request: https://staging.app.openpra.org/api/collab/user/1/preferences/
    */
   @Get("/user/:user_id/preferences/")
   async getUserPreferences(@Param("user_id") user_id: string) {
@@ -122,22 +133,28 @@ export class CollabController {
   }
 
   /**
-   * @param {string} user_id ID of the user
-   * @param body Request body
-   * @example Request body sample:
-   * {
-   *   "preferences":
-   *     {
-   *       "theme": "Light",
-   *       "nodeIdsVisible": false,
-   *       "outlineVisible": false,
-   *       "node_value_visible": true,
-   *       "nodeDescriptionEnabled": true,
-   *       "pageBreaksVisible": false
-   *     }
-   * }
+   * Update preferences for a user.
+   *
+   * @param user_id - ID of the user
+   * @param body - Request body containing the updated preferences.
+  * @example
+  * Request body sample:
+  *
+  * ```json
+  * {
+  *   "preferences": {
+  *     "theme": "Light",
+  *     "nodeIdsVisible": false,
+  *     "outlineVisible": false,
+  *     "node_value_visible": true,
+  *     "nodeDescriptionEnabled": true,
+  *     "pageBreaksVisible": false
+  *   }
+  * }
+  * ```
    * @returns Updated preferences of the user
-   * @example PUT Request -> https://staging.app.openpra.org/api/collab/user/1/preferences/
+   * @example
+   * PUT request: https://staging.app.openpra.org/api/collab/user/1/preferences/
    */
   @Put("/user/:user_id/preferences/")
   async updateUserPreferences(@Param("user_id") user_id: string, @Body() body: UserPreferencesDto) {
@@ -145,8 +162,9 @@ export class CollabController {
   }
 
   /**
-   * This endpoint fetches a particular user by ID
-   * @param user_id - user ID of the member which you want to find
+   * Fetch a particular user by ID.
+   *
+   * @param user_id - User ID of the member to find
    */
   @Get("/user/:user_id/")
   async getUserById(@Param("user_id") user_id: string): Promise<User> {
@@ -154,7 +172,8 @@ export class CollabController {
   }
 
   /**
-   * This endpoint will update a user
+   * Update a user with the provided details.
+   *
    * @param body - The UpdateUserDto object which contains the id of the user to be updated and the updated details
    */
   @Put("/user/:user_id/")

@@ -81,7 +81,7 @@ function UseNodeDoubleClick(id: NodeProps["id"]): {
         edges: newEdges,
         faultTreeId: faultTreeId ?? "",
       }),
-    ).then((r: FaultTreeGraph) => {
+    ).then((_r: FaultTreeGraph) => {
       // console.log(r);
     });
   }, [getNode, id, takeSnapshot, nodes, edges, setNodes, setEdges, setFocusNodeId, faultTreeId]);

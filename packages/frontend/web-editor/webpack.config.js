@@ -1,4 +1,3 @@
-/* eslint-disable */
 const { composePlugins, withNx } = require("@nx/webpack");
 const { withReact } = require("@nx/react");
 

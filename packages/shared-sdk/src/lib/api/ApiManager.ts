@@ -1,4 +1,4 @@
-import { AuthToken } from "shared-types/src/lib/types/AuthToken";
+import { AuthToken } from "shared-types";
 import { AuthService } from "./AuthService";
 import { SignUpCredentials, SignUpCredentialsWithRole, SignUpPropsWithRole } from "./AuthTypes";
 import { MemberResult, Members } from "./Members";
@@ -43,9 +43,10 @@ export class ApiManager {
       },
       body: JSON.stringify(creds),
     })
-      .then((res) => res.json())
-      .then((data: { [key: string]: any }) => {
-        AuthService.setEncodedToken(data["token"] ?? null);
+      .then((res: Response) => res.json())
+      .then((data: Record<string, unknown>) => {
+        const token = typeof data["token"] === "string" ? (data["token"] as string) : null;
+        AuthService.setEncodedToken(token);
       });
   }
 
@@ -83,13 +84,13 @@ export class ApiManager {
       });
   }
 
-  signInWithUsernameAndPassword(username: any, password: any) {
+  signInWithUsernameAndPassword(username: string, password: string): Promise<void> {
     return ApiManager.signInWithUsernameAndPassword(username, password);
   }
 
   static signup(data: SignUpCredentialsWithRole) {
     return ApiManager.post(`${userPreferencesEndpoint}/`, JSON.stringify(data))
-      .then((response) => {
+      .then((response: Response) => {
         if (response.ok) {
           return ApiManager.signInWithUsernameAndPassword(data.username, data.password);
         }
@@ -105,7 +106,7 @@ export class ApiManager {
 
   static async signupWithoutSignIn(data: SignUpCredentials): Promise<void> {
     return ApiManager.post(`${userPreferencesEndpoint}/`, JSON.stringify(data))
-      .then((response) => {
+      .then((response: Response) => {
         if (response.ok) {
           return;
         }
@@ -131,7 +132,7 @@ export class ApiManager {
     return ApiManager.signup(data);
   }
 
-  static checkStatus(response: any) {
+  static checkStatus(response: Pick<Response, "status" | "statusText">): Pick<Response, "status" | "statusText"> {
     // raises an error in case response status is not a success
     if (response.status >= 200 && response.status < 300) {
       // Success status lies between 200 to 300
@@ -276,7 +277,7 @@ export class ApiManager {
       .then((isValidUsername: boolean) => {
         return isValidUsername;
       })
-      .catch((error: unknown) => {
+      .catch((_error: unknown) => {
         return false;
       });
   };
@@ -301,7 +302,7 @@ export class ApiManager {
           .then((isValid) => {
             onValidationComplete(isValid);
           })
-          .catch((error: unknown) => {
+          .catch((_error: unknown) => {
             onValidationComplete(false);
           });
       }, 400);
@@ -337,8 +338,8 @@ export class ApiManager {
       .then((isValidEmail: boolean) => {
         return isValidEmail;
       })
-      .catch((error: unknown) => {
-        console.error("Error validating email:", error);
+      .catch((_error: unknown) => {
+        console.error("Error validating email:", _error);
         return false;
       });
   };
@@ -368,8 +369,8 @@ export class ApiManager {
           .then((isValid) => {
             onValidationComplete(isValid);
           })
-          .catch((error: unknown) => {
-            console.error("Error in email validation:", error);
+          .catch((_error: unknown) => {
+            console.error("Error in email validation:", _error);
             onValidationComplete(false);
           });
       }, 700);

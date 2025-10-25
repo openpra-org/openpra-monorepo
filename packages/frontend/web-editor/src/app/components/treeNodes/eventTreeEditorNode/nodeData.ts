@@ -1,7 +1,6 @@
 import { Node, Position } from "reactflow";
 
 const xDistance = 140;
-const yDistance = 60;
 const pos = { x: 0, y: 0 };
 
 export const nodeData: Node[] = [

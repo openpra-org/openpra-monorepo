@@ -15,7 +15,10 @@ const InternalEventsContainer = (): JSX.Element => (
       minWidth={320}
       responsive={[]}
     >
-      <ScopedNav type="InternalEvents" />
+      <ScopedNav
+        type="InternalEvents"
+        variant="sidenav"
+      />
     </EuiPageTemplate.Sidebar>
     <Outlet />
   </EuiPageTemplate>

@@ -182,7 +182,7 @@ export class EventTreeSerializer {
     };
     
     // Create indentation string
-    const tab = " ".repeat(indent || 2);
+  const tab = " ".repeat(indent ?? 2);
     
     // Start with XML declaration
     let xml = `<?xml version="${xmlVersion}" encoding="UTF-8"?>\n`;
@@ -435,9 +435,9 @@ export function eventTreeToOpenPSAXML(
  */
 export function mapToEventTreeOptions(options: OpenPSASerializationOptions): EventTreeSerializationOptions {
   return {
-    format: options.eventTreeFormat || "verbose",
+    format: options.eventTreeFormat ?? "verbose",
     includeAttributes: true,
     indent: options.prettyPrint ? 2 : 0,
-    xmlVersion: options.xmlVersion || "1.0"
+    xmlVersion: options.xmlVersion ?? "1.0"
   };
 }

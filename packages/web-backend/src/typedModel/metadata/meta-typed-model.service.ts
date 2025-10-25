@@ -13,7 +13,7 @@ export class MetaTypedModelService {
   //GET functions
   /**
    * function to return all the metadata of the desired model type of a given user
-   * @param userId the user who's models are to be loaded
+   * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
   async getInternalEventsMetaData(userId: number): Promise<InternalEventsMetadata[]> {

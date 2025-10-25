@@ -1,5 +1,6 @@
+import fs from "fs";
+import path from "path";
 import { test, expect } from "@playwright/test";
-import { screen } from "@testing-library/react";
 
 test.describe("SignUp Form Tests", () => {
   test.beforeEach(async ({ page }) => {
@@ -31,16 +32,16 @@ test.describe("SignUp Form Tests", () => {
   test("checks email debouncing", async ({ page }) => {
     const email = "test@example.com";
     await page.getByPlaceholder("Email").fill(email);
-    // Wait for debounce
-    await page.waitForTimeout(1000);
+    // Wait for debounce validation to settle (aria-busy false OR no invalid attribute)
+    await expect(page.getByPlaceholder("Email")).not.toHaveAttribute("aria-busy", "true");
     await expect(page.getByPlaceholder("Email")).not.toHaveAttribute("aria-invalid", "true");
   });
 
   test("checks username debouncing", async ({ page }) => {
     const username = "testuser";
     await page.getByPlaceholder("Username").fill(username);
-    // Wait for debounce
-    await page.waitForTimeout(1000);
+    // Wait for debounce validation to settle (aria-busy false OR no invalid attribute)
+    await expect(page.getByPlaceholder("Username")).not.toHaveAttribute("aria-busy", "true");
     await expect(page.getByPlaceholder("Username")).not.toHaveAttribute("aria-invalid", "true");
   });
 
@@ -52,7 +53,7 @@ test.describe("SignUp Form Tests", () => {
   });
 
   test("successful signup with valid data", async ({ page }) => {
-    const username = "playwright" + Math.floor(Math.random() * 1000);
+    const username = `playwright${String(Math.floor(Math.random() * 1000))}`;
     const email = username + "@gmail.com";
 
     await page.getByPlaceholder("First name").fill("Playwright");
@@ -62,17 +63,24 @@ test.describe("SignUp Form Tests", () => {
     await page.getByPlaceholder("Password", { exact: true }).fill("Playwright12");
     await page.getByPlaceholder("Confirm Password").fill("Playwright12");
 
-    // Wait for debounce validations
-    await page.waitForTimeout(1000);
+    // Wait for both email and username validations to settle
+    await expect(page.getByPlaceholder("Email")).not.toHaveAttribute("aria-busy", "true");
+    await expect(page.getByPlaceholder("Username")).not.toHaveAttribute("aria-busy", "true");
 
     await page.getByRole("button", { name: "Sign Up" }).click();
     await expect(page.getByTestId("user-menu")).toBeVisible();
+
+    // Persist authenticated storage state for dependent projects (e.g., Admin Tests)
+    const storageDir = path.join("packages", "frontend", "web-editor", "e2e", ".auth");
+    const storageFile = path.join(storageDir, "user.json");
+    await fs.promises.mkdir(storageDir, { recursive: true });
+    await page.context().storageState({ path: storageFile });
   });
 
   test("prevents duplicate registration after logout", async ({ page }) => {
     // First registration
-    const username = "playwright" + Math.floor(Math.random() * 1000);
-    const email = username + "@gmail.com";
+    const username = `playwright${String(Math.floor(Math.random() * 1000))}`;
+    const email = `${username}@gmail.com`;
 
     // const username = testUser.username;
     // const email = testUser.email;
@@ -84,8 +92,9 @@ test.describe("SignUp Form Tests", () => {
     await page.getByPlaceholder("Password", { exact: true }).fill("Playwright12");
     await page.getByPlaceholder("Confirm Password").fill("Playwright12");
 
-    // Wait for debounce validations
-    await page.waitForTimeout(1000);
+    // Wait for both email and username validations to settle
+    await expect(page.getByPlaceholder("Email")).not.toHaveAttribute("aria-busy", "true");
+    await expect(page.getByPlaceholder("Username")).not.toHaveAttribute("aria-busy", "true");
 
     await page.getByRole("button", { name: "Sign Up" }).click();
     await expect(page.getByTestId("user-menu")).toBeVisible();
@@ -103,11 +112,11 @@ test.describe("SignUp Form Tests", () => {
     await page.getByPlaceholder("Password", { exact: true }).fill(testUser.password);
     await page.getByPlaceholder("Confirm Password").fill(testUser.password);
 
-    await page.waitForTimeout(5000);
-
-    // Check for error messages
+    // Wait for server-side validation messages to appear
     await expect(page.getByText(/email.*exists/i)).toBeVisible();
     await expect(page.getByText(/username.*exists/i)).toBeVisible();
+
+    // Done: fields show duplication errors
   });
 
   test("validates form field updates", async ({ page }) => {

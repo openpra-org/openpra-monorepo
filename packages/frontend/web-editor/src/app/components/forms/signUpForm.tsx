@@ -59,7 +59,7 @@ const SignUpForm = ({
                 }
               }
             })
-            .catch((_) => {
+            .catch((_: unknown) => {
               addToast({
                 id: GenerateUUID(),
                 color: "danger",
@@ -68,7 +68,7 @@ const SignUpForm = ({
             });
         }
       })
-      .catch((_) => {
+      .catch((_: unknown) => {
         addToast({
           id: GenerateUUID(),
           color: "danger",
@@ -96,7 +96,7 @@ const SignUpForm = ({
 
   useEffect(() => {
     debouncedCheckUserName(signup);
-  }, [signup.username, debouncedCheckUserName]);
+  }, [signup.username, signup, debouncedCheckUserName]);
 
   useEffect(() => {
     if (signup.email.length === 0 && !signupButtonClicked) {
@@ -104,7 +104,7 @@ const SignUpForm = ({
       return;
     }
     debouncedCheckEmail(signup);
-  }, [signup.email, debouncedCheckEmail]);
+  }, [signup.email, signupButtonClicked, signup, debouncedCheckEmail]);
 
   return (
     <EuiForm

@@ -305,4 +305,4 @@ const useTreeData = (
   return { nodes, edges };
 };
 
-export default useTreeData;
+export { useTreeData };

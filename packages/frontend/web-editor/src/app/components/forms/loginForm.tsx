@@ -34,10 +34,10 @@ function LoginForm(): JSX.Element {
       await ApiManager.signInWithUsernameAndPassword(username, password).then(() => {
         if (ApiManager.isLoggedIn()) {
           UpdateAbility(ability, AuthService.getRole())
-            .then((res) => {
+            .then((_res) => {
               setRedirectToHomepage(true);
             })
-            .catch((error) => {
+            .catch((_error: unknown) => {
               addToast(GetESToast("danger", "Something went wrong while getting abilities"));
               setInvalid(true);
             });
@@ -45,7 +45,9 @@ function LoginForm(): JSX.Element {
           setInvalid(true);
         }
       });
-    } catch (error) {}
+    } catch (_error: unknown) {
+      // Intentionally ignoring error here; invalid state is handled via setInvalid
+    }
   }
 
   //Corrects the isInvalid when a user types something in a blank input field
@@ -84,16 +86,16 @@ function LoginForm(): JSX.Element {
         .then(() => {
           // Handle successful login
           if (redirectToHomepage) {
-            // Redirect to the homepage
+            // Redirect to the homepage (root) to show recent models
             return (
               <Navigate
-                to="internal-events"
+                to="/"
                 replace={true}
               />
             );
           }
         })
-        .catch((error) => {
+        .catch((_error: unknown) => {
           // Handle login error
           // Optionally, you can also set an error state to display to the user
         });
@@ -103,7 +105,7 @@ function LoginForm(): JSX.Element {
   if (redirectToHomepage) {
     return (
       <Navigate
-        to="internal-events"
+        to="/"
         replace={true}
       />
     );

@@ -28,26 +28,28 @@ function SignUp(): JSX.Element {
   const [signup, setSignup] = useState<SignUpPropsWithRole>(DefaultSignupProps);
   const { addToast } = UseToastContext();
   const ability = useContext(AbilityContext);
-  const [redirectToHomepage, setRedirectToHomepage] = useState(ApiManager.isLoggedIn());
+  // Do not auto-redirect when already logged in; allow "/" to act as a welcome page.
+  const [redirectToHomepage, setRedirectToHomepage] = useState(false);
 
   /**
    * The function to call when user clicks on signup
    */
   function handleSignup(): void {
-    const { passConfirm, ...signupData } = signup;
+    const { passConfirm: _passConfirm, ...signupData } = signup;
     ApiManager.signup(signupData)
       .then(() => {
         if (ApiManager.isLoggedIn()) {
-          UpdateAbility(ability, AuthService.getRole());
+          void UpdateAbility(ability, AuthService.getRole());
           setRedirectToHomepage(true);
         }
       })
-      .catch((signInError: { message: string }) => {
+      .catch((signInError: unknown) => {
+        const message = (signInError as { message?: string }).message ?? "unknown error";
         // Send a toast message saying there was an error while logging in
         addToast({
           id: GenerateUUID(),
           color: "danger",
-          text: `Error while signing in: ${signInError.message}`,
+          text: `Error while signing in: ${message}`,
         });
       });
   }
@@ -55,7 +57,7 @@ function SignUp(): JSX.Element {
   if (redirectToHomepage) {
     return (
       <Navigate
-        to="/internal-events"
+        to="/"
         replace={true}
       />
     );

@@ -23,7 +23,7 @@ interface NodeData {
  * Extends the basic Node type to include custom data and an optional list of parent node IDs,
  * which are useful for maintaining complex relationships within the graph.
  */
-type NodeWithData = Node & { data: NodeData; parentNodes?: string[] };
+type NodeWithData = Node<NodeData> & { parentNodes?: string[] };
 
 /**
  * Extends the basic Edge type to include custom identifiers and positional attributes,
@@ -204,7 +204,7 @@ const UseStore = create<RFState>((set, get) => ({
     const parentIds = get().getParents(nodeId);
     return parentIds.map((parentId) => {
       const parentNode = get().nodes.find((n) => n.id === parentId);
-      return (parentNode?.data.label as string) || "Unknown";
+      return parentNode?.data.label ?? "Unknown";
     });
   },
 
@@ -213,7 +213,7 @@ const UseStore = create<RFState>((set, get) => ({
       .edges.filter((e) => e.source === nodeId)
       .map((e) => {
         const childNode = get().nodes.find((n) => n.id === e.target);
-        return (childNode?.data.label as string) || "Unknown"; // Type assertion or null check
+        return childNode?.data.label ?? "Unknown";
       }),
   addEdge: (newEdge: EdgeWithData): void => {
     set({

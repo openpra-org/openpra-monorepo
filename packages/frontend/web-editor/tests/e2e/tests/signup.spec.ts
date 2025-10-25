@@ -4,7 +4,7 @@ export async function SignUp({ page, username }: { page: Page; username: string 
   await page.goto("/");
   await page.getByPlaceholder("First name").fill("Playwright");
   await page.getByPlaceholder("Last name").fill("press");
-  await page.getByPlaceholder("Email").fill("playwright" + Math.floor(Math.random() * 10000000) + "@gmail.com");
+  await page.getByPlaceholder("Email").fill(`playwright${String(Math.floor(Math.random() * 10000000))}@gmail.com`);
   await page.getByPlaceholder("Username").fill(username);
   await page.getByPlaceholder("Password", { exact: true }).fill("Playwright12");
   await page.getByPlaceholder("Confirm Password").fill("Playwright12");
@@ -20,14 +20,14 @@ test.describe("Signup", () => {
   // if we want to access alias in test, we need to change arrow function => to function ()
   test("can register a new account", async ({ page }) => {
     // added delay as sometimes it can make tests flaky if typing too fast (default is 10)
-    const username = "playwright" + Math.floor(Math.random() * 1000);
+    const username = `playwright${String(Math.floor(Math.random() * 1000))}`;
     await SignUp({ page, username });
     await expect(page.getByTestId("user-menu")).toBeVisible();
   });
 
   test("Account already created", async ({ page }) => {
     // added delay as sometimes it can make tests flaky if typing too fast (default is 10)
-    const username = "playwright" + Math.floor(Math.random() * 1000);
+    const username = `playwright${String(Math.floor(Math.random() * 1000))}`;
     await SignUp({ page, username });
     await LogOut({ page });
     await SignUp({ page, username });

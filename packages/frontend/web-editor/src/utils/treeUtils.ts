@@ -155,7 +155,7 @@ export const getBasicEventNode = (): Node => ({
  * Generates a new workflow edge.
  * @returns a new workflow edge.
  */
-export const getWorkflowEdge = (parentNodeId: string, childNodeId: string, label = ""): Edge<FaultTreeNodeProps> => ({
+export const getWorkflowEdge = (parentNodeId: string, childNodeId: string, _label = ""): Edge<FaultTreeNodeProps> => ({
   id: `${parentNodeId}=>${childNodeId}`,
   source: parentNodeId,
   target: childNodeId,
@@ -169,7 +169,7 @@ export const getWorkflowEdge = (parentNodeId: string, childNodeId: string, label
  * Utility function for `grayOutSubgraph` function
  * @param currentData - Node or Edge array containing duplicates
  */
-export const filterDuplicateData = (currentData: GrayedNodeData[]) => {
+export const filterDuplicateData = (currentData: GrayedNodeData[]): GrayedNodeData[] => {
   return currentData.reduce((acc: GrayedNodeData[], curr: GrayedNodeData) => {
     const existingItem: GrayedNodeData | undefined = acc.find((item: GrayedNodeData): boolean => item.id === curr.id);
     if (existingItem) {
@@ -216,7 +216,7 @@ export const grayOutSubgraph = (
     if (outgoers.includes(node)) {
       node.data = {
         isGrayed: true,
-        branchId: `branch-${index}`,
+        branchId: `branch-${String(index)}`,
       };
       branchRootNodes.push(node);
     }
@@ -239,7 +239,7 @@ export const grayOutSubgraph = (
   });
   grayedEdges.push(...grayedChildEdges);
 
-  branchRootNodes.map((branchRootNode: Node<FaultTreeNodeProps>) => {
+  branchRootNodes.forEach((branchRootNode: Node<FaultTreeNodeProps>) => {
     const { grayedNodes: grayedBranchNodes, grayedEdges: grayedBranchEdges } = grayOutBranch(
       branchRootNode,
       branchRootNode.data?.branchId,
@@ -299,7 +299,7 @@ export const grayOutBranch = (
  * @param nodes - Current nodes
  * @param edges - Current edges
  */
-export const isSubgraphGrayed = (nodes: Node[], edges: Edge[]) => {
+export const isSubgraphGrayed = (nodes: Node[], edges: Edge[]): boolean => {
   return !(
     nodes.findIndex((n: Node<FaultTreeNodeProps>) => n.data?.isGrayed === true) === -1 &&
     edges.findIndex((e: Edge<FaultTreeNodeProps>) => e.data?.isGrayed === true) === -1
@@ -312,13 +312,13 @@ export const isSubgraphGrayed = (nodes: Node[], edges: Edge[]) => {
  * @param edges - Current edges
  */
 export const exitGrayedState = (nodes: Node[], edges: Edge[]): { newNodes: Node[]; newEdges: Edge[] } => {
-  const newNodes: Node[] = nodes.map(({ data, ...node }) => ({
+  const newNodes: Node[] = nodes.map(({ data: _data, ...node }) => ({
     ...node,
     data: {
       isGrayed: false,
     },
   }));
-  const newEdges: Edge[] = edges.map(({ data, ...edge }) => ({
+  const newEdges: Edge[] = edges.map(({ data: _data, ...edge }) => ({
     ...edge,
     animated: false,
     data: {
@@ -571,7 +571,7 @@ function GenerateTentativeState(
       data: {
         ...edge.data,
         tentative: true,
-        branchId: `branch-${edge.target}-${index}`,
+        branchId: `branch-${edge.target}-${String(index)}`,
       },
       animated: true,
     })),
@@ -584,7 +584,7 @@ function GenerateTentativeState(
       data: {
         ...innerNode.data,
         tentative: true,
-        branchId: `branch-${child.id}-${i}`,
+        branchId: `branch-${child.id}-${String(i)}`,
       },
     }));
     const childEdges = edges.map((innerEdge: Edge<EventSequenceEdgeProps>) => ({
@@ -593,7 +593,7 @@ function GenerateTentativeState(
       data: {
         ...innerEdge.data,
         tentative: true,
-        branchId: `branch-${child.id}-${i}`,
+        branchId: `branch-${child.id}-${String(i)}`,
       },
     }));
     newNodes.push(...childNodes);

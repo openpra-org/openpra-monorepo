@@ -5,8 +5,15 @@ import React from "react";
 import useCreateNodeClick from "../../../hooks/eventTree/useCreateNodeClick";
 
 import styles from "./styles/nodeTypes.module.css";
+const css = styles as Record<string, string>;
 
-function InvisibleNode({ id, data }: NodeProps) {
+interface InvisibleNodeData {
+  width: number;
+  depth: number;
+  addNodeButtonText?: string;
+}
+
+function InvisibleNode({ id, data }: NodeProps<InvisibleNodeData>): JSX.Element {
   const onClick = useCreateNodeClick(id);
 
   return (
@@ -40,10 +47,10 @@ function InvisibleNode({ id, data }: NodeProps) {
 
         {/*<EuiText style={{ fontSize: "0.7rem", height: "1.2rem" }}>Yes</EuiText>*/}
 
-        {data.depth != 1 && (
+        {data.depth !== 1 && (
           <p
             onClick={onClick}
-            className={styles.addNodeButtonText}
+            className={css.addNodeButtonText}
           >
             +
           </p>
@@ -65,4 +72,4 @@ function InvisibleNode({ id, data }: NodeProps) {
   );
 }
 
-export default InvisibleNode;
+export { InvisibleNode };

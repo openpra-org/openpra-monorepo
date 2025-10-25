@@ -1,4 +1,4 @@
-import path = require("path");
+import path from "node:path";
 import { defineConfig } from "@playwright/test";
 import { nxE2EPreset } from "@nx/playwright/preset";
 import { workspaceRoot } from "@nx/devkit";
@@ -9,9 +9,8 @@ const baseURL = process.env.BASE_URL ?? "http://localhost:4200";
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
-export const StorageState = path.join(__dirname, "packages/frontend/web-editor/e2e/.auth/user.json");
+const storageState = path.join(workspaceRoot, "packages/frontend/web-editor/e2e/.auth/user.json");
 
-// eslint-disable-next-line import/no-default-export
 export default defineConfig({
   ...nxE2EPreset(__filename, { testDir: "./tests" }),
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -21,6 +20,8 @@ export default defineConfig({
     trace: "on-first-retry",
     headless: true,
   },
+  // Reduce flakiness across environments
+  retries: 1,
   // Run your local dev server before starting the tests
   webServer: {
     command: "pnpm exec playwright install-deps && nx run-many -t serve -p frontend-web-editor web-backend",
@@ -32,14 +33,15 @@ export default defineConfig({
   projects: [
     {
       name: "setup",
-      testMatch: /.*setup.spec\.ts/,
+      // The setup spec is a TSX file in this repo
+      testMatch: /.*setup\.spec\.(ts|tsx)$/,
     },
     {
       name: "Admin Tests",
       testMatch: "**/adminPage.spec.ts",
       dependencies: ["setup"],
       use: {
-        storageState: "packages/frontend/web-editor/e2e/.auth/user.json",
+        storageState,
       },
     },
   ],

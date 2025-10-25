@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { Edge, getConnectedEdges, getIncomers, getOutgoers, Node, NodeProps, useReactFlow } from "reactflow";
 import { useParams } from "react-router-dom";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
@@ -40,19 +40,22 @@ import { useUndoRedo } from "./useUndeRedo";
  * const { handleContextMenuClick } = useFaultTreeContextMenuClick('uniqueNodeId');
  * ```
  */
-function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
+function UseFaultTreeContextMenuClick(id: NodeProps["id"]): {
+  handleContextMenuClick: (updateNodeType: string) => Promise<void>;
+  validateFaultTreeContextMenuClick: (id: string, type: string) => string | undefined;
+} {
   // const { setEdges, setNodes, getNodes, getEdges, getNode } = useReactFlow();
   const { fitView, getNode } = useReactFlow();
   const { nodes, edges, setFocusNodeId, setNodes, setEdges } = useStore();
   const { takeSnapshot } = useUndoRedo();
   const { faultTreeId } = useParams();
-  let deleteNodeFocus = false;
+  const deleteNodeFocusRef = useRef(false);
 
   // we need the parent node object for positioning the new child node
   const clickedNode: Node<FaultTreeNodeProps> | undefined = getNode(id);
 
   const validateFaultTreeContextMenuClick = useCallback(
-    (id: string, type: string) => {
+    (id: string, type: string): string | undefined => {
       if (!clickedNode) {
         return;
       }
@@ -82,7 +85,7 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
   );
 
   const handleContextMenuClick = useCallback(
-    async (updateNodeType: string) => {
+    async (updateNodeType: string): Promise<void> => {
       let updateClickedNodeTo = "";
 
       if (!clickedNode) {
@@ -162,7 +165,7 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
           //if deleted node is an intermediate is an intermediate node set focus accordingly
           if (getOutgoers(clickedNode, nodes, edges).length === 0) {
             setFocusNodeId(GetParentNode(clickedNode, nodes, edges).id);
-            deleteNodeFocus = true;
+            deleteNodeFocusRef.current = true;
           }
 
           //if parent of intermediate node is NOT gate, handle separately
@@ -217,24 +220,26 @@ function UseFaultTreeContextMenuClick(id: NodeProps["id"]) {
       setEdges(newEdges);
 
       //set view
-      if (!deleteNodeFocus) {
+      if (!deleteNodeFocusRef.current) {
         fitView({
           nodes: [{ id: clickedNode.id }],
           duration: 500,
           maxZoom: 1.6,
         });
       }
+      // reset ref after using it
+      deleteNodeFocusRef.current = false;
       await GraphApiManager.storeFaultTree(
         FaultTreeState({
-          nodes: nodes,
-          edges: edges,
+          nodes: newNodes,
+          edges: newEdges,
           faultTreeId: faultTreeId ?? "", // Use empty string as default value,
         }),
-      ).then((r: FaultTreeGraph): void => {
+      ).then((_r: FaultTreeGraph): void => {
         //console.log(r);
       });
     },
-    [clickedNode, takeSnapshot, nodes, setNodes, edges, setEdges, faultTreeId, id],
+    [clickedNode, takeSnapshot, nodes, setNodes, edges, setEdges, faultTreeId, id, fitView, setFocusNodeId],
   );
 
   return { handleContextMenuClick, validateFaultTreeContextMenuClick };

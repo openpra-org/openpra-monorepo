@@ -11,32 +11,49 @@ import {
 } from "@elastic/eui";
 import React, { useState } from "react";
 
+// Basic operating state data shape (extend as needed)
+interface OperatingStateData {
+  definition: string;
+  characteristics: string;
+  processCriteriaIdentification?: string;
+  // TODO: Add further domain fields when they become required in UI
+}
+
+type OperatingStateFormState = OperatingStateData;
+
 // Define the props interface with nested properties
 interface NestedDataModalProps {
   isVisible: boolean;
   onClose: () => void;
-  rowData: any; // Use a specific type for your data schema
-  onSave: (data: any) => void; // Define the structure for your onSave data
+  rowData?: Partial<OperatingStateData> | null;
+  onSave: (data: OperatingStateData) => void;
 }
 
 const NestedDataModal: React.FC<NestedDataModalProps> = ({ isVisible, onClose, rowData, onSave }) => {
-  // Local state for the form, initialize with rowData or defaults
-  const [formState, setFormState] = useState({
-    definition: rowData?.definition || "",
-    characteristics: rowData?.characteristics || "",
-    processCriteriaIdentification: rowData?.processCriteriaIdentification || "",
-    // Add other fields from your schema as needed
-    // ...
-  });
+  const initial: OperatingStateFormState = {
+    definition: rowData?.definition ?? "",
+    characteristics: rowData?.characteristics ?? "",
+    processCriteriaIdentification: rowData?.processCriteriaIdentification ?? "",
+  };
+  const [formState, setFormState] = useState<OperatingStateFormState>(initial);
 
   // Handle form state changes
-  const handleFormChange = (field: string, value: any) => {
+  const handleFormChange = <K extends keyof OperatingStateFormState>(
+    field: K,
+    value: OperatingStateFormState[K],
+  ): void => {
     setFormState((prev) => ({ ...prev, [field]: value }));
   };
 
   // Handle form submission
-  const handleSave = () => {
-    onSave(formState);
+  const handleSave = (): void => {
+    // Minimal trim normalization (optional future enhancement)
+    const cleaned: OperatingStateData = {
+      definition: formState.definition.trim(),
+      characteristics: formState.characteristics.trim(),
+      processCriteriaIdentification: formState.processCriteriaIdentification?.trim() || undefined,
+    };
+    onSave(cleaned);
     onClose();
   };
 
@@ -87,4 +104,4 @@ const NestedDataModal: React.FC<NestedDataModalProps> = ({ isVisible, onClose, r
   );
 };
 
-export default NestedDataModal;
+export { NestedDataModal };

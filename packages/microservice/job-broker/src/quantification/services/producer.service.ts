@@ -2,7 +2,7 @@ import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import amqp from "amqplib";
 import typia, { TypeGuardError } from "typia";
-import { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
+import type { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 
 @Injectable()

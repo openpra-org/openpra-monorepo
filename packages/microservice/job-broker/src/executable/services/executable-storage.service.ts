@@ -65,9 +65,9 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
 
     const execStorageDeadLetterQ = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_QUEUE);
     const execStorageDeadLetterX = this.configSvc.getOrThrow<string>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_EXCHANGE);
-    const execStorageDeadLetterDurable = Boolean(this.configSvc.getOrThrow<boolean>(
-      EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_QUEUE_DURABLE,
-    ));
+    const execStorageDeadLetterDurable = Boolean(
+      this.configSvc.getOrThrow<boolean>(EnvVarKeys.EXEC_STORAGE_DEAD_LETTER_QUEUE_DURABLE),
+    );
     // Assert the existence of a dead letter exchange (DLX) for routing failed messages.
     await channel.assertExchange(execStorageDeadLetterX, "direct", { durable: execStorageDeadLetterDurable });
     // Assert the existence of a dead letter queue (DLQ) to hold messages that fail processing.
@@ -92,7 +92,6 @@ export class ExecutableStorageService implements OnApplicationBootstrap {
     // Start consuming task results from the executed task result queue.
     await channel.consume(
       storageQ,
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
         // Check if the consumed message is null, indicating an error in message retrieval.
         if (msg === null) {

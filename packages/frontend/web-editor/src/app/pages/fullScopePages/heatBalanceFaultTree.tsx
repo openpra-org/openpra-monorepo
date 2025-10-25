@@ -4,10 +4,9 @@ import { HeatBalanceFaultTreeList } from "../../components/lists/nestedLists/hea
 import { FaultTreeEditor } from "./faultTrees";
 
 /**
- * Function to mimic fault tree behaviour for heat balance fault tree
- * @constructor
+ * Function to mimic fault tree behaviour for heat balance fault tree.
  */
-function HeatBalanceFaultTrees() {
+function HeatBalanceFaultTrees(): JSX.Element {
   return (
     <Routes>
       <Route

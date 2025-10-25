@@ -1,11 +1,25 @@
-/* eslint-disable */
 export default {
   displayName: "frontend-web-editor",
   preset: "../../../jest.preset.js",
   testEnvironment: "jest-environment-jsdom",
   transform: {
     "^(?!.*\\.(js|jsx|ts|tsx|css|json)$)": "@nx/react/plugins/jest",
-    "^.+\\.[tj]sx?$": ["babel-jest", { presets: ["@nx/react/babel"] }],
+    "^.+\\.[tj]sx?$": [
+      "@swc/jest",
+      {
+        jsc: {
+          parser: { syntax: "typescript", tsx: true, decorators: true },
+          target: "es2020",
+          transform: {
+            react: { runtime: "automatic" },
+            legacyDecorator: true,
+            decoratorMetadata: false,
+          },
+        },
+        module: { type: "commonjs" },
+        sourceMaps: "inline",
+      },
+    ],
   },
   moduleFileExtensions: ["ts", "tsx", "js", "jsx"],
   moduleNameMapper: {

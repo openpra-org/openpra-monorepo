@@ -7,7 +7,9 @@
   ],
   "plugins": ["@darraghor/nestjs-typed"],
   "parserOptions": {
-    "project": ["packages/web-backend/tsconfig.*?.json"]
+    "project": [
+      "packages/web-backend/tsconfig.eslint.json"
+    ]
   },
   "overrides": [
     {
@@ -19,7 +21,45 @@
             "src": ["packages/web-backend/src/**/*.ts"],
             "filterFromPaths": ["node_modules", ".*\\.test\\.ts", ".*\\.e2e-spec\\.ts", ".*\\?spec\\.ts"]
           }
-        ]
+        ],
+        "@typescript-eslint/no-unsafe-assignment": "warn",
+        "@typescript-eslint/no-unsafe-member-access": "warn",
+        "@typescript-eslint/no-unsafe-argument": "warn",
+        "@typescript-eslint/no-unsafe-return": "warn",
+        "@typescript-eslint/restrict-template-expressions": "warn",
+        "@typescript-eslint/require-await": "warn",
+        "@typescript-eslint/no-unnecessary-condition": "warn",
+        "@typescript-eslint/no-floating-promises": "warn",
+        "@typescript-eslint/non-nullable-type-assertion-style": "warn",
+        "@typescript-eslint/no-unnecessary-type-assertion": "warn",
+        "@typescript-eslint/prefer-for-of": "warn",
+        "@typescript-eslint/no-dynamic-delete": "warn"
+      }
+    },
+    {
+      "files": ["src/**/*.ts"],
+      "rules": {
+        "@typescript-eslint/prefer-nullish-coalescing": [
+          "error",
+          {
+            "ignoreConditionalTests": true,
+            "ignoreMixedLogicalExpressions": true,
+            "ignorePrimitives": { "string": true, "number": true, "boolean": true }
+          }
+        ],
+        "@typescript-eslint/prefer-optional-chain": "error",
+        "@typescript-eslint/use-unknown-in-catch-callback-variable": "error",
+        "@typescript-eslint/no-floating-promises": "error",
+        "@typescript-eslint/no-empty-function": "error",
+        "no-empty": "error"
+      }
+    },
+    {
+      "files": ["**/*.spec.ts", "**/*.e2e.ts"],
+      "rules": {
+        "jest/no-conditional-expect": "off",
+        "@typescript-eslint/unbound-method": "off",
+        "@typescript-eslint/no-unsafe-call": "warn"
       }
     }
   ]

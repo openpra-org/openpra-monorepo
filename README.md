@@ -25,7 +25,6 @@ instance, the `mef-schema` package centralizes the
 [OpenPRA-MEF (Model Exchange Format) JSON definitions](https://docs.openpra.org/en/model-exchange-formats), generated
 from the TypeScript definitions specified in the `shared-types` package.
 
-
 # Quick Start Guide
 
 Follow these steps to set up and run the project.
@@ -102,17 +101,24 @@ Once prerequisites are installed, initialize the project with these commands:
 ```shell
 pnpm setup
 pnpm install
-pnpm install --global nx@19.6.2
+```
+
+We recommend using the local Nx CLI via pnpm in this workspace (no global install required). You can verify Nx with:
+
+```bash
+pnpm nx --version
 ```
 
 ## Running the Project
 
 ### Start All Services Concurrently
 
-To serve all packages at once, run:
+To serve all packages at once, run one of the following:
 
 ```bash
-nx run-many -t serve --all
+pnpm run dev:all
+# or
+pnpm nx run-many -t serve --all
 ```
 
 ### Start Individual Services
@@ -122,13 +128,13 @@ To serve a specific package, run:
 - **Web Editor**:
 
   ```bash
-  nx serve frontend-web-editor
+  pnpm nx serve frontend-web-editor
   ```
 
 - **Web Backend**:
 
   ```bash
-  nx serve web-backend
+  pnpm nx serve web-backend
   ```
 
 ## Testing and Linting
@@ -138,7 +144,7 @@ To serve a specific package, run:
 Execute Jest unit tests:
 
 ```bash
-nx run-many -t test
+pnpm nx run-many -t test
 ```
 
 ### Run Linting
@@ -146,8 +152,140 @@ nx run-many -t test
 Check code quality with ESLint:
 
 ```bash
-nx run-many -t lint
+pnpm nx run-many -t lint
 ```
+
+### Nx Cloud caching (optional)
+
+If you see local warnings about Nx Cloud not being connected (401), you can either connect the workspace to Nx Cloud
+for distributed caching or use local caching only. For most local development, using the local Nx CLI via `pnpm nx`
+is sufficient without connecting Nx Cloud.
+
+## Jest + SWC (fast TypeScript tests)
+
+We use `@swc/jest` for TypeScript transforms in most packages for faster tests. Key notes:
+
+- NestJS projects (decorators required)
+
+  - Enable decorators and metadata in the Jest transform options
+  - Use CommonJS modules for Jest
+
+  Example transform block in `jest.config.ts`:
+
+  ```ts
+  transform: {
+    "^.+\\.[tj]s$": [
+      "@swc/jest",
+      {
+        jsc: {
+          parser: { syntax: "typescript", decorators: true },
+          target: "es2020",
+          transform: { decoratorMetadata: true },
+        },
+        module: { type: "commonjs" },
+        sourceMaps: "inline",
+      },
+    ],
+  }
+  ```
+
+- Path mapping for workspace packages
+
+  - When tests import from sources, add `moduleNameMapper` so Jest resolves to TS files:
+
+  ```ts
+  moduleNameMapper: {
+    // shared-types (pure types library)
+    "^shared-types/src/(.*)$": "<rootDir>/../shared-types/src/$1",
+    "^shared-types/(.*)$": "<rootDir>/../shared-types/src/$1",
+    "^shared-types$": "<rootDir>/../shared-types/src/index.ts",
+
+    // mef-types (types only)
+    "^mef-types/(.*)$": "<rootDir>/../mef-types/src/$1",
+    "^mef-types$": "<rootDir>/../mef-types/src/index.ts",
+  }
+  ```
+
+  Tip: for types-only packages (like `mef-types`), prefer `import type { ... } from 'mef-types/...'` to avoid runtime resolution of `.d.ts` files under SWC.
+
+- Debian 12 MongoDB tip
+  - On Debian 12/bookworm, `mongodb-memory-server` may fail due to OpenSSL 1.1. Our Jest setups auto-detect and fall back to `MONGO_URI` when possible. See
+    [Troubleshooting (Debian 12 / OpenSSL 3)](#troubleshooting-debian-12--openssl-3) for details.
+
+### Troubleshooting (Debian 12 / OpenSSL 3)
+
+If you run backend tests on Debian 12 (bookworm) or a container based on it, you might hit OpenSSL 1.1 binary issues with `mongodb-memory-server`. Our Jest setup in the backend auto-detects this environment and will use a locally running MongoDB if available. You can opt-in explicitly by setting `MONGO_URI`:
+
+```bash
+# Example: run tests against a local MongoDB instance
+export MONGO_URI="mongodb://127.0.0.1:27017/test"
+pnpm nx test web-backend -- --test-timeout=60000
+```
+
+For more details, see `packages/web-backend/README.md`.
+
+## Versioning & Releases (Nx Release)
+
+We use Nx Release with Conventional Commits to version the monorepo, generate changelogs, publish to npm, and create GitHub releases.
+
+- Local dry-run (no files changed):
+
+```bash
+pnpm nx release version --dry-run
+```
+
+- Full local release (apply changes):
+
+```bash
+# 1) Bump versions from conventional commits
+pnpm nx release version
+
+# 2) Generate/update changelog(s)
+pnpm nx release changelog
+
+# 3) Publish to npm (requires NPM_TOKEN)
+pnpm nx release publish
+
+# 4) Create a GitHub Release from the new tag(s)
+pnpm nx release github
+```
+
+- CI workflow: `.github/workflows/release.yml`
+  - Manual dispatch supports a dry-run toggle.
+  - On pushes to `main`, the workflow builds and tests. Use manual dispatch to apply version/changelog/publish steps.
+  - Required GitHub secrets:
+    - `NPM_TOKEN` for publishing to npm.
+    - `MONGO_URI` for backend tests in CI.
+
+Notes:
+
+- We default to a single global version across the workspace (configured in `nx.json`).
+- Backend tests in certain local containers (Debian 12) require `MONGO_URI` to point to an external MongoDB.
+
+## Conventional Commits, Commitlint & Husky
+
+Commit messages must follow Conventional Commits. A Husky `commit-msg` hook runs Commitlint to enforce this.
+
+- Format: `type(scope): short description`
+- Common types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `build`, `ci`.
+
+Examples:
+
+```text
+feat(web-editor): add searchable initiator list
+fix(web-backend): handle invalid ObjectId in GET /items/:id
+chore(release): add commitlint + husky hook
+```
+
+Getting blocked by the hook?
+
+```bash
+# Amend your last commit message to conform
+git commit --amend
+git push --force-with-lease
+```
+
+Husky installs automatically via the `prepare` script on `pnpm install`. If hooks are missing, re-run `pnpm install`.
 
 ## Additional Documentation
 
@@ -156,7 +294,20 @@ section.
 
 ---
 
+## Deploy and lockfile
+
+Deployments run Nx targets inside a single repository image that is installed from the root `pnpm-lock.yaml`. We do not
+generate pruned lockfiles or `dist/package.json` files during webpack builds for server apps (e.g., `web-backend`,
+`microservice-job-broker`). Instead, production images rely on the root-installed workspace dependencies.
+
+- Why: avoids pnpm v9 pruned-lockfile edge cases and keeps builds simpler and faster.
+- Where configured: per app `project.json` with `generateLockfile: false` and `generatePackageJson: false` under the
+  webpack build target.
+- If your deploy flow expects a `dist/package.json`, you can re-enable `generatePackageJson` in that app and ensure your
+  environment supports pruned lockfile generation.
+
 ## Citation
+
 ```bibtex
 @software{openpra_initiative_2024_10891408,
   author       = {OpenPRA ORG Inc.},
@@ -169,6 +320,7 @@ section.
   url          = {https://doi.org/10.5281/zenodo.10891408}
 }
 ```
+
 ## License
 
 MIT

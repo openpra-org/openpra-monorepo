@@ -31,7 +31,7 @@ export function UserProfilePage({ id }: { id: number }): JSX.Element {
         setCurrentMember(result);
         setIsLoading(false);
       })
-      .catch((reason) => {
+      .catch((_reason: unknown) => {
         setIsLoading(false);
       });
   }, [id]);
@@ -62,14 +62,14 @@ export function UserProfilePage({ id }: { id: number }): JSX.Element {
           restrictWidth={true}
         >
           <EuiPageHeader
-            pageTitle={currentMember?.firstName + " " + currentMember?.lastName}
+            pageTitle={`${String(currentMember?.firstName ?? "")} ${String(currentMember?.lastName ?? "")}`}
             paddingSize="xl"
             data-testid="profile-name"
           ></EuiPageHeader>
           <EuiPageTemplate.Section grow={true}>
             <EuiAvatar
               size="xl"
-              name={currentMember?.firstName + " " + currentMember?.lastName}
+              name={`${String(currentMember?.firstName ?? "")} ${String(currentMember?.lastName ?? "")}`}
               type="space"
             />
             <EuiSpacer />
@@ -97,7 +97,7 @@ export function UserProfilePage({ id }: { id: number }): JSX.Element {
                     grow={false}
                     style={{ cursor: "pointer" }}
                     onClick={(): void => {
-                      navigate("/settings/" + currentMember?.id);
+                      void navigate(`/settings/${String(currentMember?.id ?? "")}`);
                     }}
                     data-testid="profile-details-pencil"
                   >

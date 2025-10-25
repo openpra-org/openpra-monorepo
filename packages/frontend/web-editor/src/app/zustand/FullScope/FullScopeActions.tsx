@@ -15,7 +15,9 @@ export const SetFullScope = async (): Promise<void> => {
     UseGlobalStore.setState({
       FullScope: fullScopeList,
     });
-  } catch (error) {}
+  } catch (_error: unknown) {
+    // Intentionally ignore: state remains unchanged on failure
+  }
 };
 
 export const AddFullScope = async (data: Partial<TypedModelJSON>): Promise<void> => {
@@ -24,7 +26,9 @@ export const AddFullScope = async (data: Partial<TypedModelJSON>): Promise<void>
     UseGlobalStore.setState((state) => ({
       FullScope: [...state.FullScope, fsr],
     }));
-  } catch (error) {}
+  } catch (_error: unknown) {
+    // Intentionally ignore: state remains unchanged on failure
+  }
 };
 
 export const EditFullScope = async (modelId: number, userId: number, data: Partial<TypedModelJSON>): Promise<void> => {
@@ -39,7 +43,9 @@ export const EditFullScope = async (modelId: number, userId: number, data: Parti
         }
       }),
     }));
-  } catch (error) {}
+  } catch (_error: unknown) {
+    // Intentionally ignore: state remains unchanged on failure
+  }
 };
 
 export const DeleteFullScope = async (id: number): Promise<void> => {
@@ -49,5 +55,7 @@ export const DeleteFullScope = async (id: number): Promise<void> => {
     UseGlobalStore.setState((state) => ({
       FullScope: state.FullScope.filter((fs: FullScopeModelType) => fs.id !== id),
     }));
-  } catch (error) {}
+  } catch (_error: unknown) {
+    // Intentionally ignore: state remains unchanged on failure
+  }
 };

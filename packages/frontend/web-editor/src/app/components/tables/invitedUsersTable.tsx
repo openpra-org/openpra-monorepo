@@ -37,7 +37,7 @@ const InvitedUsersTable = ({
         type: "icon",
         enabled: () => true,
         onClick: ({ id }): void => {
-          copyToClipboard(window.location.origin + "/invite/" + id);
+          copyToClipboard(String(window.location.origin) + "/invite/" + String(id ?? ""));
         },
         target: "_self",
         "data-test-subj": "action-copy",
@@ -67,19 +67,19 @@ const InvitedUsersTable = ({
                     setInvitedUsers(backup);
                   }
                 })
-                .catch((err) => {
+                .catch((err: unknown) => {
                   addToast({
                     id: GenerateUUID(),
-                    title: `Error: ${err}`,
+                    title: `Error: ${String(err)}`,
                     color: "danger",
                   });
                   setInvitedUsers(backup);
                 });
             })
-            .catch((err) => {
+            .catch((err: unknown) => {
               addToast({
                 id: GenerateUUID(),
-                title: `Error: ${err}`,
+                title: `Error: ${String(err)}`,
                 color: "danger",
               });
               setInvitedUsers(backup);
@@ -90,7 +90,7 @@ const InvitedUsersTable = ({
       },
     ];
     return actions;
-  }, [invitedUsers, setInvitedUsers]);
+  }, [addToast, invitedUsers, setInvitedUsers]);
 
   const onTableChange = ({ page }: Criteria<InvitedUserDetailsDto>): void => {
     if (page) {
@@ -136,9 +136,9 @@ const InvitedUsersTable = ({
     ) : (
       <>
         <strong>
-          {pageSize * pageIndex + 1}-{pageSize * pageIndex + pageSize}
+          {String(pageSize * pageIndex + 1)}-{String(pageSize * pageIndex + pageSize)}
         </strong>{" "}
-        of {totalItemCount}
+        of {String(totalItemCount)}
       </>
     );
 
@@ -203,7 +203,7 @@ const InvitedUsersTable = ({
   } => {
     const { id } = user;
     return {
-      "data-test-subj": `row-${id}`,
+      "data-test-subj": `row-${String(id ?? "")}`,
       className: "customRowClass",
     };
   };
@@ -219,7 +219,7 @@ const InvitedUsersTable = ({
     const { field } = column;
     return {
       className: "customCellClass",
-      "data-test-subj": `cell-${id}-${String(field)}`,
+      "data-test-subj": `cell-${String(id ?? "")}-${String(field)}`,
       textOnly: true,
     };
   };

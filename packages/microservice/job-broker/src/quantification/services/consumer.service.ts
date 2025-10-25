@@ -1,14 +1,14 @@
-import { readFileSync, writeFileSync, unlinkSync } from "node:fs";
+import { readFileSync, writeFileSync, unlinkSync, createWriteStream } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import tmp from "tmp";
 import typia, { TypeGuardError } from "typia";
-import { RunScramCli } from "scram-node";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
+import type { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
 
 import { EnvVarKeys } from "../../../config/env_vars.config";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
@@ -103,7 +103,6 @@ export class ConsumerService implements OnApplicationBootstrap {
     // Consume the jobs from the initial queue
     await channel.consume(
       quantJobQ,
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async (msg: ConsumeMessage | null) => {
         if (msg === null) {
           this.logger.error("Unable to parse message from initial quantification queue");
@@ -158,19 +157,33 @@ export class ConsumerService implements OnApplicationBootstrap {
     modelsWithConfigs.output = outputFilePath;
 
     try {
-      // Invoke the SCRAM CLI with the updated request, which now includes file paths
-      // to the input model and output files.
-      console.log(`${JSON.stringify(modelsWithConfigs)} is running`);
-      RunScramCli(modelsWithConfigs);
-      console.log(`${JSON.stringify(modelsWithConfigs)} has been quantified`);
+      // Build CLI flags from provided options (exclude models/output keys)
+      const flagArgs: string[] = [];
+      for (const [key, value] of Object.entries(modelsWithConfigs)) {
+        if (key === "models" || key === "output" || value === undefined || value === null) continue;
+        if (typeof value === "boolean") {
+          if (value) flagArgs.push(`--${key}`);
+        } else if (typeof value === "number" || typeof value === "string") {
+          flagArgs.push(`--${key}`, String(value));
+        }
+      }
 
-      // Read the quantification results from the output file.
-      const outputContent = readFileSync(outputFilePath, "utf8");
+      // Prepare and execute the scram-cli command synchronously, piping stdout to the output file
+      const args = [...flagArgs, ...modelFilePaths];
+      const outStream = createWriteStream(outputFilePath, { encoding: "utf8" });
+      const result = spawnSync("scram-cli", args, { shell: true, encoding: "utf8" });
+      // Write stdout to the output file (mimic previous behavior)
+      if (result.stdout) outStream.write(result.stdout);
+      outStream.end();
 
-      // Construct and return the quantification report along with the configurations.
-      return [outputContent]; // The quantification results.
+      if (result.status === 0) {
+        const outputContent = readFileSync(outputFilePath, "utf8");
+        return [outputContent];
+      }
+
+      this.logger.error(result.stderr || "scram-cli failed without stderr output");
+      return ["Error during scram-cli operation"];
     } catch (error) {
-      // In case of an error during quantification, return a report indicating the failure.
       this.logger.error(error);
       return ["Error during scram-cli operation"];
     } finally {

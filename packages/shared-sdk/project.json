@@ -5,6 +5,13 @@
   "projectType": "library",
   "tags": [],
   "targets": {
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter shared-sdk run lint:canary",
+        "cwd": "{workspaceRoot}"
+      }
+    },
     "build": {
       "executor": "@nx/js:tsc",
       "outputs": ["{options.outputPath}"],
@@ -16,7 +23,12 @@
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint"
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "eslintConfig": "packages/shared-sdk/eslint.config.mjs",
+        "lintFilePatterns": ["{projectRoot}/**/*.ts"]
+      }
     },
     "test": {
       "executor": "@nx/jest:jest",

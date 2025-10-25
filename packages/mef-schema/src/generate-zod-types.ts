@@ -49,7 +49,7 @@ export async function GenerateZodType(jsonFiles: string[], rootDir: string): Pro
       const formattedTs = await format(code, { parser: "typescript" });
       // Write .d.ts file asynchronously
       await fs.writeFile(dtsFile, formattedTs);
-    } catch (error) {
+    } catch (_error) {
       /* empty */
     }
   }
@@ -66,7 +66,7 @@ export async function GenerateZod(inputDirectory: string, outputDirectory: strin
     const jsonFiles = await FindJSONFiles(inputDirectory);
     // Generate TypeScript declaration files from the found JSON files
     await GenerateZodType(jsonFiles, outputDirectory);
-  } catch (error) {
+  } catch (_error) {
     /*empty*/
   }
 }

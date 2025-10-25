@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import amqp from "amqplib";
 import typia, { TypeGuardError } from "typia";
-import { ExecutionTask } from "mef-types/openpra-mef/util/execution-task";
+import type { ExecutionTask } from "mef-types/openpra-mef/util/execution-task";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ConfigService } from "@nestjs/config";

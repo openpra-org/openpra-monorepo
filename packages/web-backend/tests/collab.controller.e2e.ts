@@ -67,8 +67,8 @@ describe("CollabController", () => {
         username: "testUser",
         password: "12345678",
       };
-      const response = await collabService.createNewUser(user_object);
-      const userId = String(response.id);
+  const response = await collabService.createNewUser(user_object);
+  const userId = typeof response === "string" ? response : String(response.id);
       const result = await collabController.getUserPreferences(userId);
       expect(result).toBeDefined(); //expect preferences to be defined for user
     });
@@ -84,8 +84,8 @@ describe("CollabController", () => {
         password: "12345678",
       };
       const userPreferenceObject = { preferences: { theme: "Dark" } };
-      const response = await collabService.createNewUser(user_object);
-      const userId = String(response.id);
+  const response = await collabService.createNewUser(user_object);
+  const userId = typeof response === "string" ? response : String(response.id);
       const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
       expect(result.preferences.theme).toMatch("Dark");
     });
@@ -99,8 +99,8 @@ describe("CollabController", () => {
         password: "12345678",
       };
       const userPreferenceObject = { preferences: { nodeIdsVisible: false } };
-      const response = await collabService.createNewUser(user_object);
-      const userId = String(response.id);
+  const response = await collabService.createNewUser(user_object);
+  const userId = typeof response === "string" ? response : String(response.id);
       const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
       expect(result.preferences.nodeIdsVisible).toBeFalsy();
     });
@@ -114,8 +114,8 @@ describe("CollabController", () => {
         password: "12345678",
       };
       const userPreferenceObject = { preferences: { outlineVisible: false } };
-      const response = await collabService.createNewUser(user_object);
-      const userId = String(response.id);
+  const response = await collabService.createNewUser(user_object);
+  const userId = typeof response === "string" ? response : String(response.id);
       const result = await collabController.updateUserPreferences(userId, userPreferenceObject);
       expect(result.preferences.outlineVisible).toBeFalsy();
     });

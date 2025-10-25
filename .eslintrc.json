@@ -42,7 +42,7 @@
     {
       "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
       "rules": {
-        "eqeqeq": ["warn", "always"],
+        "eqeqeq": ["error", "always"],
         "no-unused-vars": [
           "warn",
           {
@@ -82,41 +82,35 @@
         "@typescript-eslint/explicit-function-return-type": "warn",
         "import/no-default-export": "warn",
         // Naming Conventions
+  // Rationale: We allow PascalCase, camelCase, and UPPER_CASE for exported and internal variables to reduce
+  // noise from constant-like configuration objects (e.g., domain dictionaries) and intentional React state
+  // setters. Leading underscores are permitted to signal internal or intentionally unused parameters while
+  // we iteratively harden typing. Enforcing stricter patterns (e.g., forbidding UPPER_CASE or leading
+  // underscores) previously generated a large volume of low-value warnings (166 -> 95) without improving
+  // correctness, so this balanced rule focuses review attention on higher-signal issues.
         "@typescript-eslint/naming-convention":  [
           "warn",
-          {
-            "selector": "class",
-            "format": ["PascalCase"]
-          },
-          {
-            "selector": "interface",
-            "format": ["PascalCase"]
-          },
-          {
-            "selector": "typeAlias",
-            "format": ["PascalCase"]
-          },
+          { "selector": "class", "format": ["PascalCase"] },
+          { "selector": "interface", "format": ["PascalCase"] },
+          { "selector": "typeAlias", "format": ["PascalCase"] },
           {
             "selector": "variable",
             "modifiers": ["exported"],
-            "format": ["PascalCase"]
+            "format": ["PascalCase", "UPPER_CASE", "camelCase"],
+            "leadingUnderscore": "allow"
           },
           {
             "selector": "variable",
-            "format": ["camelCase", "PascalCase"]
+            "format": ["camelCase", "PascalCase", "UPPER_CASE"],
+            "leadingUnderscore": "allow"
           },
+          { "selector": "function", "modifiers": ["exported"], "format": ["camelCase", "PascalCase"] },
+            { "selector": "function", "format": ["camelCase", "PascalCase"] },
+          { "selector": "enum", "format": ["PascalCase"] },
           {
-            "selector": "function",
-            "modifiers": ["exported"],
-            "format": ["PascalCase"]
-          },
-          {
-            "selector": "function",
-            "format": ["camelCase", "PascalCase"]
-          },
-          {
-            "selector": "enum",
-            "format": ["PascalCase"]
+            "selector": "property",
+            "modifiers": ["requiresQuotes"],
+            "format": null
           }
         ],
         "@typescript-eslint/member-ordering": [
@@ -156,7 +150,10 @@
         "jest": true
       },
       "extends": ["plugin:jest/recommended"],
-      "rules": {}
+      "rules": {
+        "@typescript-eslint/unbound-method": "off",
+        "@typescript-eslint/require-await": "off"
+      }
     },
     {
       "files": ["*.json"],

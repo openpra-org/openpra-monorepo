@@ -21,20 +21,20 @@ export const DEFAULT_TYPED_MODEL_JSON: TypedModelJSON = {
   users: [],
 };
 
-export default class TypedModel extends BasicModel /** implements Parsable<TypedModelJSONMap, TypedModelJSON> */ {
+export default class TypedModel extends BasicModel /* implements Parsable<TypedModelJSONMap, TypedModelJSON> */ {
   users: number[];
 
   /**
-   * @param {TypedModelJSON} obj - dictionary object to parse
+   * @param obj - Dictionary object to parse.
    */
   static build(obj: TypedModelJSON): TypedModel {
     return new TypedModel(obj.id, obj.label.name, obj.label.description, obj.users);
   }
 
   /**
-   * @param {string} name
-   * @param {string} description
-   * @param {number []} users a list of users represented by their id numbers
+   * @param name - Model name.
+   * @param description - Model description.
+   * @param users - A list of user IDs.
    */
   constructor(id = -1, name = "", description = "", users: number[] = []) {
     super(new Label(name, description), id);
@@ -47,7 +47,7 @@ export default class TypedModel extends BasicModel /** implements Parsable<Typed
   }
 
   /**
-   * @param {number []} users sets the users
+   * @param users - Sets the users.
    */
   setUsers(users: number[]): void {
     this.users = users;

@@ -6,7 +6,7 @@ interface TooltipProps {
   children: React.ReactNode; // The element that the tooltip is attached to
 }
 
-const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
+export const Tooltip: React.FC<TooltipProps> = ({ content, children }) => {
   return (
     <div className="custom-tooltip">
       {children}

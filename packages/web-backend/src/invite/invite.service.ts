@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import { InvitedUserDetailsDto, InvitedUserDto } from "packages/shared-types/src/lib/types/userInvites/InvitedUser";
+import { InvitedUserDetailsDto, InvitedUserDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
 
 import { InvitedUser, InvitedUserDocument } from "./schemas/invite.schema";
 
@@ -73,8 +73,8 @@ export class InviteService {
    * This function will return all invited users
    */
   async getAllInvitedUsers(): Promise<InvitedUserDetailsDto[]> {
-    const invitedUsers = await this.invitedUserModel.find();
-    const mappedUsers: InvitedUserDetailsDto[] = invitedUsers.map((x) => ({
+    const invitedUsers: InvitedUser[] = (await this.invitedUserModel.find()) as unknown as InvitedUser[];
+    const mappedUsers: InvitedUserDetailsDto[] = invitedUsers.map((x: InvitedUser) => ({
       id: x.id,
       username: x.username,
       email: x.email,

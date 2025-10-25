@@ -1,5 +1,4 @@
 import { Edge } from "reactflow";
-
 export const edgeData: Edge[] = [
   {
     id: "horizontal-1-2a",

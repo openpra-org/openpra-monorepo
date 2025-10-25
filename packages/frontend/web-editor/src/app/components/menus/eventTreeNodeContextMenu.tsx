@@ -1,9 +1,8 @@
 import React from "react";
-import { Position } from "reactflow";
 
 import { useEventTreeContextMenuClick } from "../../hooks/eventTree/useEventTreeContextMenuClick";
 
-export interface treeNodeContextMenuProps {
+export interface TreeNodeContextMenuProps {
   id: string;
   top: number | false | undefined;
   left: number | false | undefined;
@@ -12,7 +11,14 @@ export interface treeNodeContextMenuProps {
   onClick?: () => void;
 }
 
-export default function EventTreeNodeContextMenu({ id, top, left, right, bottom, ...props }: treeNodeContextMenuProps) {
+export default function EventTreeNodeContextMenu({
+  id,
+  top: _top,
+  left: _left,
+  right: _right,
+  bottom: _bottom,
+  ..._props
+}: TreeNodeContextMenuProps): JSX.Element {
   const { handleContextMenuClick } = useEventTreeContextMenuClick(id);
   return <div onClick={handleContextMenuClick}>awdawdwd </div>;
 }

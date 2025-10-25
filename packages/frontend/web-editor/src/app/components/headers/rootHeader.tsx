@@ -19,7 +19,6 @@ import {
   EuiText,
   useGeneratedHtmlId,
 } from "@elastic/eui";
-import { AuthService } from "shared-sdk/lib/api/AuthService";
 import { ApiManager } from "shared-sdk/lib/api/ApiManager";
 import { EuiBreadcrumb } from "@elastic/eui/src/components/breadcrumbs";
 import { Link, useLocation, useNavigate } from "react-router-dom";
@@ -56,7 +55,7 @@ const RootHeader = (): JSX.Element => {
         style: { fontWeight: 500 },
         onClick: (e): void => {
           e.preventDefault();
-          navigate(tokens.slice(0, i + 1).join("/"));
+          void navigate(tokens.slice(0, i + 1).join("/"));
         },
       };
     });
@@ -68,7 +67,7 @@ const RootHeader = (): JSX.Element => {
   //redirects to the auth page if the user is not logged in
   useEffect(() => {
     if (!ApiManager.isLoggedIn() && location.pathname !== "/") {
-      navigate("/");
+      void navigate("/");
     }
   }, [location.pathname, navigate]);
 
@@ -165,11 +164,11 @@ const HeaderUserMenu = (): JSX.Element => {
   const logoutFunction = (): void => {
     ApiManager.logout();
     ResetAllSlices();
-    navigate("");
+    void navigate("");
   };
 
   const adminFunction = (): void => {
-    navigate("settings");
+    void navigate("settings");
   };
 
   const button = (

@@ -110,7 +110,7 @@ function UseEdgeClick(id: EdgeProps["id"]): () => void {
         nodes: newNodes,
         edges: newEdges,
       }),
-    ).then((r: FaultTreeGraph) => {
+    ).then((_r: FaultTreeGraph) => {
       // console.log(r);
     });
   };

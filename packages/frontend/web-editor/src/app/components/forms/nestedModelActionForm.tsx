@@ -29,7 +29,8 @@ export interface NestedItemFormProps {
   patchNestedEndpoint?: (modelId: string, data: Partial<NestedModelJSON>) => Promise<void>;
   onSuccess?: () => NonNullable<unknown>;
   onFail?: () => NonNullable<unknown>;
-  onCancel?: (func: any) => void;
+  // onCancel receives a boolean to control visibility (previously any)
+  onCancel?: (visible: boolean) => void;
   action: "create" | "edit"; // TODO: Use this in the title with .ToTitleCase() to prettify
   initialFormValues?: NestedModelJSON;
   compressed?: boolean;
@@ -194,7 +195,9 @@ function NestedModelActionForm({
               <EuiFormRow display={compressed ? "rowCompressed" : undefined}>
                 <EuiButton
                   size={compressed ? "s" : "m"}
-                  onClick={onCancel}
+                  onClick={(): void => {
+                    onCancel(false);
+                  }}
                   color="primary"
                 >
                   Cancel

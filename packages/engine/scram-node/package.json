@@ -12,7 +12,8 @@
     "configure": "cmake-js -C --parallel 32 configure",
     "clean": "cmake-js clean",
     "test": "jest",
-    "ctest": "cmake-js -C --parallel 32 compile && cd build && make test"
+    "ctest": "cmake-js -C --parallel 32 compile && cd build && make test",
+    "lint:canary": "eslint --config ./eslint.config.mjs \"tests/**/*.{ts,tsx}\""
   },
   "nx": {
     "namedInputs": {
@@ -55,11 +56,14 @@
     "glob": "11.0.0",
     "node-addon-api": "8.1.0",
     "shared-types": "workspace:^",
-    "tmp": "0.2.3"
+    "tmp": "0.2.5"
   },
   "devDependencies": {
     "jest": "29.7.0",
-    "@types/glob": "8.1.0"
+    "@types/glob": "8.1.0",
+    "eslint": "9.14.0",
+    "eslint-plugin-tsdoc": "0.2.17",
+    "typescript-eslint": "8.14.0"
   },
   "binary": {
     "napi_versions": [

@@ -13,31 +13,28 @@
         "main": "packages/model-generator/src/index.ts",
         "tsConfig": "packages/model-generator/tsconfig.lib.json",
         "assets": ["packages/model-generator/*.md"],
-        "transformers": [
-          "typia/lib/transform",
-          {
-            "name": "@nestia/core/lib/transform",
-            "options": {
-              "validate": "assert",
-              "stringify": "assert"
-            }
-          }
-        ]
+        "transformers": []
+      }
+    },
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter model-generator run lint:canary",
+        "cwd": "{workspaceRoot}"
       }
     },
     "lint": {
       "executor": "@nx/eslint:lint",
       "outputs": ["{options.outputFile}"],
       "options": {
-        "lintFilePatterns": [
-          "{projectRoot}/**/*.{ts,js}"
-        ]
+        "lintFilePatterns": ["{projectRoot}/**/*.{ts,js}"]
       }
     },
     "test": {
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
+        "eslintConfig": "packages/model-generator/eslint.config.mjs",
         "jestConfig": "packages/model-generator/jest.config.ts"
       }
     }

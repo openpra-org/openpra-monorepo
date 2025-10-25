@@ -14,7 +14,12 @@ import { isSubgraphGrayed } from "../../../utils/treeUtils";
  * const { handleMouseEnter, handleMouseLeave } = UseGrayedNodeHover(id);
  * ```
  */
-const UseGrayedNodeHover = (id: NodeProps["id"]) => {
+const UseGrayedNodeHover = (
+  _id: NodeProps["id"],
+): {
+  handleMouseEnter: (branchId: string | undefined) => void;
+  handleMouseLeave: (branchId: string | undefined) => void;
+} => {
   const { nodes, edges, setNodes, setEdges } = useStore();
 
   if (isSubgraphGrayed(nodes, edges)) {
@@ -40,17 +45,17 @@ const UseGrayedNodeHover = (id: NodeProps["id"]) => {
       }
     };
 
-    const handleMouseLeave = (branchId: string | undefined): void => {
-      if (branchId !== undefined) {
+    const handleMouseLeave = (_branchId: string | undefined): void => {
+      if (_branchId !== undefined) {
         const grayedNodes: Node<FaultTreeNodeProps>[] = nodes.map((node) => {
-          if (node.data?.isGrayed !== undefined && !node.data.isGrayed && node.data.branchId === branchId) {
+          if (node.data?.isGrayed !== undefined && !node.data.isGrayed && node.data.branchId === _branchId) {
             node.data.isGrayed = true;
           }
           return node;
         });
 
         const grayedEdges: Edge<FaultTreeNodeProps>[] = edges.map((edge) => {
-          if (edge.data !== undefined && edge.data.isGrayed === false && edge.data.branchId === branchId) {
+          if (edge.data !== undefined && edge.data.isGrayed === false && edge.data.branchId === _branchId) {
             edge.data.isGrayed = true;
             edge.animated = true;
           }

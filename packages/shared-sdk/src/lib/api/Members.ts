@@ -40,4 +40,5 @@ interface QuantificationConfigurations {
   currentlySelected: string;
 }
 
-interface Configurations {}
+// Allow a free-form configuration object; use Record to avoid empty interface
+type Configurations = Record<string, unknown>;

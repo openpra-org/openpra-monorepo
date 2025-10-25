@@ -164,19 +164,7 @@ function UseNodeClick(id: NodeProps["id"], data: EventSequenceNodeProps): () => 
 
       setFocus(node.id);
     }
-  }, [
-    addToast,
-    data.branchId,
-    data.tentative,
-    eventSequenceId,
-    getEdges,
-    getNode,
-    getNodes,
-    id,
-    setEdges,
-    setFocus,
-    setNodes,
-  ]);
+  }, [addToast, data, eventSequenceId, getEdges, getNode, getNodes, id, setEdges, setFocus, setNodes]);
 }
 
 export { UseNodeClick };

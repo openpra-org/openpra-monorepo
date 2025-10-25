@@ -1,3 +1,4 @@
+//
 import { Edge, NodeProps, Node, useReactFlow } from "reactflow";
 import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
 import { useParams } from "react-router-dom";
@@ -5,34 +6,34 @@ import { EventTreeGraph } from "shared-types/src/lib/types/reactflowGraph/Graph"
 import { EventTreeState, GenerateUUID } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";
 
-function useCreateColClick(clickedNodeId: NodeProps["id"]) {
+// Minimal data shape used by Event Tree nodes in this hook
+interface EventTreeNodeData {
+  label: string;
+  depth: number;
+  width: number;
+  output?: boolean;
+  allowAdd?: boolean;
+  allowDelete?: boolean;
+  inputDepth?: number;
+  outputDepth?: number;
+}
+
+function useCreateColClick(clickedNodeId: NodeProps["id"]): () => void {
   const { setNodes, setEdges, getNodes, getEdges, getNode } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
   const { addToast } = UseToastContext();
 
-  const addCol = () => {
+  const addCol: () => void = () => {
     // Get current nodes and edges
-    const nodeData = getNodes();
+    const nodeData = getNodes() as Node<EventTreeNodeData>[];
     let edges = getEdges();
-    const clickedNode = getNode(clickedNodeId);
+    const clickedNode = getNode(clickedNodeId) as Node<EventTreeNodeData> | undefined;
     if (!clickedNode) return;
 
     const currentDepth = clickedNode.data.depth;
 
-    // Check if there are any visible nodes in the clicked column
-    const hasVisibleNodesInCurrentColumn = nodeData.some(
-      (node) => node.type !== "columnNode" && node.type !== "invisibleNode" && node.data.depth === currentDepth,
-    );
-
-    // if (!hasVisibleNodesInCurrentColumn) {
-    //   addToast({
-    //     id: GenerateUUID(),
-    //     title: "Warning",
-    //     color: "warning",
-    //     text: "At least one branch should exist in the current functional event to create a new one",
-    //   });
-    //   return;
-    // }
+    // Note: We previously checked for a visible node in the current column.
+    // That result wasn't used; removing it avoids unused variable warnings without changing behavior.
 
     // Get nodes in the next column
     const nextColumnNodes = nodeData.filter(
@@ -54,8 +55,8 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
     }
 
     // splitting the nodeData into nodes and columns
-    const nodes: Node[] = [];
-    const cols: Node[] = [];
+    const nodes: Node<EventTreeNodeData>[] = [];
+    const cols: Node<EventTreeNodeData>[] = [];
 
     nodeData.forEach((node) => {
       if (node.type === "columnNode") {
@@ -65,7 +66,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
       }
     });
 
-    const newNodes: Node[] = [];
+    const newNodes: Node<EventTreeNodeData>[] = [];
     const newEdges: Edge[] = [];
 
     let lastIndexOfPrevDepth = -1;
@@ -84,11 +85,10 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
     });
 
     // Create new nodes for each node at the clicked depth
-    nodes.forEach((node, index) => {
+    nodes.forEach((node) => {
       if (node.data.depth === clickedDepth) {
         const newNodeId = GenerateUUID();
-        const nodeEdge = edges.find((edge) => edge.source === node.id)!;
-        const newInvisibleNode: Node = {
+        const newInvisibleNode: Node<EventTreeNodeData> = {
           id: newNodeId,
           type: clickedNode.data.output ? "outputNode" : "invisibleNode",
           data: {
@@ -133,7 +133,7 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
     // Create a new "columnNode" and determine its insertion point
     const newColNodeId = GenerateUUID();
 
-    const newColNode: Node = {
+    const newColNode: Node<EventTreeNodeData> = {
       id: newColNodeId,
       type: "columnNode",
       data: {
@@ -146,8 +146,8 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
         allowDelete: !clickedNode.data.output && clickedDepth + 1 !== 1,
       },
       position: {
-        x: clickedNode ? clickedNode.position.x : 0,
-        y: clickedNode ? clickedNode.position.y : 0,
+        x: clickedNode.position.x,
+        y: clickedNode.position.y,
       },
     };
 
@@ -190,11 +190,14 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
     cols.splice(indexOfPrevCol + 1, 0, newColNode);
 
     // Find the root node
-    const rootNode = nodes.find((node) => node.data.depth === 1)!;
-    if (clickedNode.data.output) {
-      rootNode.data.outputDepth += 1;
+    const rootNode = nodes.find((node) => node.data.depth === 1);
+    if (!rootNode) {
+      return;
+    }
+    if (clickedNode.data.output === true) {
+      rootNode.data.outputDepth = (rootNode.data.outputDepth ?? 0) + 1;
     } else {
-      rootNode.data.inputDepth += 1;
+      rootNode.data.inputDepth = (rootNode.data.inputDepth ?? 0) + 1;
     }
     const updatedNodes = [...nodes, ...cols];
     // Update edges with new connection
@@ -207,7 +210,9 @@ function useCreateColClick(clickedNodeId: NodeProps["id"]) {
       edges: edges,
     });
 
-    void GraphApiManager.storeEventTree(eventTreeCurrentState).then((r: EventTreeGraph) => {});
+    void GraphApiManager.storeEventTree(eventTreeCurrentState).then(() => {
+      // no-op: state persisted
+    });
   };
   return addCol;
 }

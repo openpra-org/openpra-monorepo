@@ -29,7 +29,6 @@ init({
    * there is no subdomain.
    * - `app\.openpra\.org` matches the literal string "app.openpra.org".
    */
-  // eslint-disable-next-line security/detect-unsafe-regex
   tracePropagationTargets: [/^https:\/\/(?:.*\.)?app\.openpra\.org/],
 
   release: BRANCH_SLUG ?? "localhost",

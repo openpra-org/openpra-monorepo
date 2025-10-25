@@ -34,7 +34,7 @@ export enum DistributionType {
   UNIFORM = "uniform",
   BETA = "beta",
   GAMMA = "gamma",
-  POINT_ESTIMATE = "point_estimate"
+  POINT_ESTIMATE = "point_estimate",
 }
 
 /**
@@ -46,19 +46,19 @@ export enum DistributionType {
 export interface FrequencyWithDistribution {
   /** Mean or point estimate value of the frequency */
   value: Frequency;
-  
+
   /** Units of measurement for the frequency */
   units: FrequencyUnit;
-  
+
   /** Distribution information for uncertainty analysis */
   distribution?: {
     /** Type of probability distribution */
     type: DistributionType;
-    
+
     /** Parameters of the distribution */
     parameters: number[];
   };
-  
+
   /** Source of the frequency data */
   source?: string;
 }
@@ -81,7 +81,7 @@ export enum FrequencyUnit {
   /** Frequency per demand - used for events that occur upon system demand */
   PER_DEMAND = "per-demand",
   /** Frequency per plant year - used for plant-wide events */
-  PER_PLANT_YEAR = "per-plant-year"
+  PER_PLANT_YEAR = "per-plant-year",
 }
 
 /**
@@ -148,7 +148,7 @@ export interface TopEvent extends FunctionalEvent {
  */
 export interface InitiatingEvent extends BaseEvent {
   eventType: "INITIATING";
-  
+
   /**
    * Frequency of the initiating event
    * @description Can be either a simple numeric frequency or a complex object with distribution information
@@ -168,9 +168,9 @@ export interface InitiatingEvent extends BaseEvent {
  * @group Events
  */
 export const EventSchemas = {
-  base: typia.json.application<[BaseEvent], "3.0">(),
-  basic: typia.json.application<[BasicEvent], "3.0">(),
-  functional: typia.json.application<[FunctionalEvent], "3.0">(),
-  top: typia.json.application<[TopEvent], "3.0">(),
-  initiating: typia.json.application<[InitiatingEvent], "3.0">()
+  base: typia.json.schemas<[BaseEvent]>(),
+  basic: typia.json.schemas<[BasicEvent]>(),
+  functional: typia.json.schemas<[FunctionalEvent]>(),
+  top: typia.json.schemas<[TopEvent]>(),
+  initiating: typia.json.schemas<[InitiatingEvent]>(),
 } as const;

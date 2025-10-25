@@ -46,8 +46,8 @@ function GenericListItem(props: GenericListItemProps): JSX.Element {
   // TODO
   //setting theming constants to be used later
   const border = useEuiTheme().euiTheme.border;
-  const borderLine = logicalStyle("border-bottom", `${border.width.thin} solid ${border.color}`);
-  const paddingLine = logicalStyle("padding-vertical", `${useEuiPaddingSize("s")}`);
+  const borderLine = logicalStyle("border-bottom", `${String(border.width.thin)} solid ${String(border.color)}`);
+  const paddingLine = logicalStyle("padding-vertical", String(useEuiPaddingSize("s")));
   const customStyles = { ...borderLine, ...paddingLine };
   return (
     <EuiListGroupItem

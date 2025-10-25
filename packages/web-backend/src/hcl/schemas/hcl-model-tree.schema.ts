@@ -24,7 +24,7 @@ const ModelSchema = SchemaFactory.createForClass(Model);
     updatedAt: "date_modified",
   },
   toJSON: {
-    transform: function (doc, ret) {
+    transform: function (doc, ret: any) {
       delete ret._id;
       delete ret.__v;
       delete ret.tree_name;

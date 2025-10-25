@@ -51,10 +51,10 @@ export class NestedModelController {
   //post methods
 
   /**
-   * posts the nested model defined in the method name
-   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
-   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
-   * @returns a promise with the newly created model, with the general nested model fields
+   * Create a Bayesian Estimation nested model.
+   *
+   * @param data - Partial nested model with label (name string, optional description string) and parentId
+   * @returns Newly created nested model with common fields
    */
   @Post("/bayesian-estimations/")
   async createBayesianEstimation(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
@@ -62,26 +62,27 @@ export class NestedModelController {
   }
 
   /**
-   * posts the nested model defined in the method name
-   * @param body is the entire body of the post request
-   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
-   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
-   * @param typedModel is the typed model to be updated
-   * @returns a promise with the newly created model, with the general nested model fields
+   * Create a Bayesian Network nested model.
+   *
+   * @param body - Either the full body or an object like `{ data, typedModel }`
+   * @param data - Partial nested model with label (name string, optional description string) and parentId
+   * @param typedModel - The typed model to be updated
+   * @returns Newly created nested model with common fields
    */
   @Post("/bayesian-networks/")
   async createBayesianNetwork(
     @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
-    if ((body as any).typedModel) {
-      const b = body as { data: Partial<NestedModel>; typedModel: TypedModelType };
-      return this.bayesianNetworkService.createBayesianNetwork(b.data, b.typedModel);
+    const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
+      typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
+    if (hasTypedModel(body)) {
+      return this.bayesianNetworkService.createBayesianNetwork(body.data, body.typedModel);
     }
     return this.nestedModelService.createBayesianNetwork(body as Partial<NestedModel>);
   }
 
   // Back-compat: some specs call a misspelled method name; delegate to the correct one
-  // eslint-disable-next-line @typescript-eslint/naming-convention
+
   async createBayesianNetwowrk(
     body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
@@ -89,67 +90,72 @@ export class NestedModelController {
   }
 
   /**
-   * posts the nested model defined in the method name
-   * @param body is the entire body of the post request
-   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
-   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
-   * @param typedModel is the typed model to be updated
-   * @returns a promise with the newly created model, with the general nested model fields
+   * Create an Event Sequence Diagram nested model.
+   *
+   * @param body - Either the full body or an object like `{ data, typedModel }`
+   * @param data - Partial nested model with label (name string, optional description string) and parentId
+   * @param typedModel - The typed model to be updated
+   * @returns Newly created nested model with common fields
    */
   @Post("/event-sequence-diagrams/")
   async createEventSequenceDiagram(
     @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
-    if ((body as any).typedModel) {
-      const b = body as { data: Partial<NestedModel>; typedModel: TypedModelType };
-      return this.eventSequenceDiagramService.createEventSequenceDiagram(b.data, b.typedModel);
+    const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
+      typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
+    if (hasTypedModel(body)) {
+      return this.eventSequenceDiagramService.createEventSequenceDiagram(body.data, body.typedModel);
     }
     return this.nestedModelService.createEventSequenceDiagram(body as Partial<NestedModel>);
   }
 
   /**
-   * posts the nested model defined in the method name
-   * @param body is the entire body of the post request
-   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
-   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
-   * @param typedModel is the typed model to be updated
-   * @returns a promise with the newly created model, with the general nested model fields
+   * Create an Event Tree nested model.
+   *
+   * @param body - Either the full body or an object like `{ data, typedModel }`
+   * @param data - Partial nested model with label (name string, optional description string) and parentId
+   * @param typedModel - The typed model to be updated
+   * @returns Newly created nested model with common fields
    */
   @Post("/event-trees/")
   async createEventTree(
     @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
-    if ((body as any).typedModel) {
-      const b = body as { data: Partial<NestedModel>; typedModel: TypedModelType };
-      return this.eventTreeService.createEventTree(b.data, b.typedModel);
+    const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
+      typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
+    if (hasTypedModel(body)) {
+      return this.eventTreeService.createEventTree(body.data, body.typedModel);
     }
     return this.nestedModelService.createEventTree(body as Partial<NestedModel>);
   }
 
   /**
-   * posts the nested model defined in the method name
-   * @param body is the entire body of the post request
-   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
-   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
-   * @param typedModel is the typed model to be updated
-   * @returns a promise with the newly created model, with the general nested model fields
+   * Create a Fault Tree nested model.
+   *
+   * Accepts either of the following payloads:
+   * - `{"data": Partial<NestedModel>; "typedModel": TypedModelType}` to target a specific typed model
+   * - `Partial<NestedModel>` to create without specifying a typed model
+   *
+   * @param body - Request payload; when `typedModel` is provided, creation occurs within that typed model.
+   * @returns Newly created nested model with common fields
    */
   @Post("/fault-trees/")
   async createFaultTree(
     @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
-    if ((body as any).typedModel) {
-      const b = body as { data: Partial<NestedModel>; typedModel: TypedModelType };
-      return this.faultTreesService.createFaultTree(b.data, b.typedModel);
+    const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
+      typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
+    if (hasTypedModel(body)) {
+      return this.faultTreesService.createFaultTree(body.data, body.typedModel);
     }
     return this.nestedModelService.createFaultTree(body as Partial<NestedModel>);
   }
 
   /**
-   * posts the nested model defined in the method name
-   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
-   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
-   * @returns a promise with the newly created model, with the general nested model fields
+   * Create a Heat Balance Fault Tree nested model.
+   *
+   * @param data - Partial nested model with label (name string, optional description string) and parentId
+   * @returns Newly created nested model with common fields
    */
   @Post("/heat-balance-fault-trees/")
   async createHeatBalanceFaultTree(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
@@ -157,10 +163,10 @@ export class NestedModelController {
   }
 
   /**
-   * posts the nested model defined in the method name
-   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
-   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
-   * @returns a promise with the newly created model, with the general nested model fields
+   * Create a Functional Event nested model.
+   *
+   * @param data - Partial nested model with label (name string, optional description string) and parentId
+   * @returns Newly created nested model with common fields
    */
   @Post("/functional-events/")
   async createFunctionalEvent(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
@@ -168,29 +174,30 @@ export class NestedModelController {
   }
 
   /**
-   * posts the nested model defined in the method name
-   * @param body - is the entire body of the post request
-   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
-   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
-   * @param typedModel is the typed model to be updated
-   * @returns a promise with the newly created model, with the general nested model fields
+   * Create an Initiating Event nested model.
+   *
+   * @param body - Either the full body or an object like `{ data, typedModel }`
+   * @param data - Partial nested model with label (name string, optional description string) and parentId
+   * @param typedModel - The typed model to be updated
+   * @returns Newly created nested model with common fields
    */
   @Post("/initiating-events/")
   async createInitiatingEvent(
     @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
-    if ((body as any).typedModel) {
-      const b = body as { data: Partial<NestedModel>; typedModel: TypedModelType };
-      return this.initiatingEventsService.createInitiatingEvent(b.data, b.typedModel);
+    const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
+      typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
+    if (hasTypedModel(body)) {
+      return this.initiatingEventsService.createInitiatingEvent(body.data, body.typedModel);
     }
     return this.nestedModelService.createInitiatingEvent(body as Partial<NestedModel>);
   }
 
   /**
-   * posts the nested model defined in the method name
-   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
-   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
-   * @returns a promise with the newly created model, with the general nested model fields
+   * Create a Markov Chain nested model.
+   *
+   * @param data - Partial nested model with label (name string, optional description string) and parentId
+   * @returns Newly created nested model with common fields
    */
   @Post("/markov-chains/")
   async createMarkovChain(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
@@ -198,10 +205,10 @@ export class NestedModelController {
   }
 
   /**
-   * posts the nested model defined in the method name
-   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
-   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
-   * @returns a promise with the newly created model, with the general nested model fields
+   * Create a Weibull Analysis nested model.
+   *
+   * @param data - Partial nested model with label (name string, optional description string) and parentId
+   * @returns Newly created nested model with common fields
    */
   @Post("/weibull-analysis/")
   async createWeibullAnalysis(@Body() data: Partial<NestedModel>): Promise<NestedModel> {
@@ -257,21 +264,24 @@ export class NestedModelController {
   }
 
   /**
-   * posts the nested model defined in the method name
-   * @param body - is the entire body of the post request
-   * @param data takes in a partial of a nested model with a label, which has a name string and optional description string
-   * as well as the parentId which is a number. It should take these fields at a minimum, the id is overridden
-   * @param typedModel is the typed model to be updated
-   * @returns a promise with the newly created model, with the general nested model fields
+   * Create an Event Sequence Analysis nested model.
+   *
+   * Accepts either of the following payloads:
+   * - `{"data": Partial<NestedModel>; "typedModel": TypedModelType}` to target a specific typed model
+   * - `Partial<NestedModel>` to create without specifying a typed model
+   *
+   * @param body - Request payload; when `typedModel` is provided, creation occurs within that typed model.
+   * @returns Newly created nested model with common fields
    */
   // For Event Sequence Analysis
   @Post("/event-sequence-analysis/")
   async createEventSequenceAnalysis(
     @Body() body: { data: Partial<NestedModel>; typedModel: TypedModelType } | Partial<NestedModel>,
   ): Promise<NestedModel> {
-    if ((body as any).typedModel) {
-      const b = body as { data: Partial<NestedModel>; typedModel: TypedModelType };
-      return this.eventSequenceAnalysisService.createEventSequenceAnalysis(b.data, b.typedModel);
+    const hasTypedModel = (v: unknown): v is { data: Partial<NestedModel>; typedModel: TypedModelType } =>
+      typeof v === "object" && v !== null && "typedModel" in (v as Record<string, unknown>);
+    if (hasTypedModel(body)) {
+      return this.eventSequenceAnalysisService.createEventSequenceAnalysis(body.data, body.typedModel);
     }
     return this.nestedModelService.createEventSequenceAnalysis(body as Partial<NestedModel>);
   }
@@ -287,9 +297,9 @@ export class NestedModelController {
   //get collection methods
 
   /**
-   * grabs the collection of the type of nested model defined by the function call name (Bayesian estimations)
-   * @param id the id of the parent model
-   * @returns a promise with a list of the model typed defined
+   * Retrieve the collection of Bayesian Estimations.
+   * @param id - The id of the parent model
+   * @returns A promise with the list of models of the requested type
    */
   @Get("/bayesian-estimations/")
   async getBayesianEstimations(@Query("id") id: number): Promise<BayesianEstimation[]> {
@@ -297,9 +307,9 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the collection of the type of nested model defined by the function call name (Event Sequence Diagrams)
-   * @param id - the id of the parent model
-   * @returns a promise with a list of the model typed defined
+   * Retrieve the collection of Bayesian Networks.
+   * @param id - The id of the parent model
+   * @returns A promise with the list of models of the requested type
    */
   @Get("/bayesian-networks/")
   async getBayesianNetworks(@Query("id") id: number | string): Promise<EventSequenceDiagram[]> {
@@ -357,9 +367,9 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the collection of the type of nested model defined by the function call name (Fault Trees)
-   * @param id the id of the parent model
-   * @returns a promise with a list of the model typed defined
+   * Retrieve the collection of Heat Balance Fault Trees.
+   * @param id - The id of the parent model
+   * @returns A promise with the list of models of the requested type
    */
   @Get("/heat-balance-fault-trees/")
   async getHeatBalanceFaultTrees(@Query("id") id: number): Promise<HeatBalanceFaultTree[]> {
@@ -367,9 +377,9 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the collection of the type of nested model defined by the function call name (Functional events)
-   * @param id the id of the parent model
-   * @returns a promise with a list of the model typed defined
+   * Retrieve the collection of Functional Events.
+   * @param id - The id of the parent model
+   * @returns A promise with the list of models of the requested type
    */
   @Get("/functional-events/")
   async getFunctionalEvents(@Query("id") id: number): Promise<FunctionalEvent[]> {
@@ -377,9 +387,9 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the collection of the type of nested model defined by the function call name (Initiating Events)
-   * @param id - the id of the parent model
-   * @returns a promise with a list of the model typed defined
+   * Retrieve the collection of Initiating Events.
+   * @param id - The id of the parent model
+   * @returns A promise with the list of models of the requested type
    */
   @Get("/initiating-events/")
   async getInitiatingEvents(@Query("id") id: number | string): Promise<InitiatingEvent[]> {
@@ -391,9 +401,9 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the collection of the type of nested model defined by the function call name (Markov Chains)
-   * @param id the id of the parent model
-   * @returns a promise with a list of the model typed defined
+   * Retrieve the collection of Markov Chains.
+   * @param id - The id of the parent model
+   * @returns A promise with the list of models of the requested type
    */
   @Get("/markov-chains/")
   async getMarkovChains(@Query("id") id: number): Promise<MarkovChain[]> {
@@ -401,9 +411,9 @@ export class NestedModelController {
   }
 
   /**
-   * grabs the collection of the type of nested model defined by the function call name (Weibull Analysis)
-   * @param id the id of the parent model
-   * @returns a promise with a list of the model typed defined
+   * Retrieve the collection of Weibull Analysis models.
+   * @param id - The id of the parent model
+   * @returns A promise with the list of models of the requested type
    */
   @Get("/weibull-analysis/")
   async getWeibullAnalysis(@Query("id") id: number): Promise<WeibullAnalysis[]> {
@@ -482,9 +492,9 @@ export class NestedModelController {
   //singular get endpoints
 
   /**
-   * returns a single model from the given collection
-   * @param modelId the id of the model to be retrieved
-   * @returns a promise with the model with the given id
+   * Return a single model from the collection.
+   * @param modelId - The id of the model to be retrieved
+   * @returns A promise with the model with the given id
    */
   @Get("/bayesian-estimations/:id")
   async getSingleBayesianEstimation(@Param("id") modelId: number): Promise<BayesianEstimation> {
@@ -492,9 +502,9 @@ export class NestedModelController {
   }
 
   /**
-   * returns a single model from the given collection
-   * @param modelId - the id of the model to be retrieved
-   * @returns a promise with the model with the given id
+   * Return a single model from the collection.
+   * @param modelId - The id of the model to be retrieved
+   * @returns A promise with the model with the given id
    */
   @Get("/bayesian-networks/:id")
   async getSingleBayesianNetwork(@Param("id") modelId: number | string): Promise<EventSequenceDiagram> {
@@ -507,9 +517,9 @@ export class NestedModelController {
   }
 
   /**
-   * returns a single model from the given collection
-   * @param modelId - the id of the model to be retrieved
-   * @returns a promise with the model with the given id
+   * Return a single model from the collection.
+   * @param modelId - The id of the model to be retrieved
+   * @returns A promise with the model with the given id
    */
   @Get("/event-sequence-diagrams/:id")
   async getSingleEventSequenceDiagram(@Param("id") modelId: number | string): Promise<EventSequenceDiagram> {
@@ -522,9 +532,9 @@ export class NestedModelController {
   }
 
   /**
-   * returns a single model from the given collection
-   * @param modelId the id of the model to be retrieved
-   * @returns a promise with the model with the given id
+   * Return a single model from the collection.
+   * @param modelId - The id of the model to be retrieved
+   * @returns A promise with the model with the given id
    */
   @Get("/event-trees/:id")
   async getSingleEventTree(@Param("id") modelId: number | string): Promise<EventTree> {
@@ -537,9 +547,9 @@ export class NestedModelController {
   }
 
   /**
-   * returns a single model from the given collection
-   * @param modelId the id of the model to be retrieved
-   * @returns a promise with the model with the given id
+   * Return a single model from the collection.
+   * @param modelId - The id of the model to be retrieved
+   * @returns A promise with the model with the given id
    */
   @Get("/fault-trees/:id")
   async getSingleFaultTree(@Param("id") modelId: number | string): Promise<EventTree> {
@@ -552,9 +562,9 @@ export class NestedModelController {
   }
 
   /**
-   * returns a single model from the given collection
-   * @param modelId the id of the model to be retrieved
-   * @returns a promise with the model with the given id
+   * Return a single model from the collection.
+   * @param modelId - The id of the model to be retrieved
+   * @returns A promise with the model with the given id
    */
   @Get("/heat-balance-fault-trees/:id")
   async getSingleHeatBalanceFaultTree(@Param("id") modelId: number): Promise<HeatBalanceFaultTree> {
@@ -562,9 +572,9 @@ export class NestedModelController {
   }
 
   /**
-   * returns a single model from the given collection
-   * @param modelId the id of the model to be retrieved
-   * @returns a promise with the model with the given id
+   * Return a single model from the collection.
+   * @param modelId - The id of the model to be retrieved
+   * @returns A promise with the model with the given id
    */
   @Get("/functional-events/:id")
   async getSingleFunctionalEvent(@Param("id") modelId: number): Promise<FunctionalEvent> {
@@ -572,9 +582,9 @@ export class NestedModelController {
   }
 
   /**
-   * returns a single model from the given collection
-   * @param modelId the id of the model to be retrieved
-   * @returns a promise with the model with the given id
+   * Return a single model from the collection.
+   * @param modelId - The id of the model to be retrieved
+   * @returns A promise with the model with the given id
    */
   @Get("/initiating-events/:id")
   async getSingleInitiatingEvent(@Param("id") modelId: number | string): Promise<InitiatingEvent> {
@@ -587,9 +597,9 @@ export class NestedModelController {
   }
 
   /**
-   * returns a single model from the given collection
-   * @param modelId the id of the model to be retrieved
-   * @returns a promise with the model with the given id
+   * Return a single model from the collection.
+   * @param modelId - The id of the model to be retrieved
+   * @returns A promise with the model with the given id
    */
   @Get("/markov-chains/:id")
   async getSingleMarkovChain(@Param("id") modelId: number): Promise<MarkovChain> {
@@ -597,9 +607,9 @@ export class NestedModelController {
   }
 
   /**
-   * returns a single model from the given collection
-   * @param modelId - the id of the model to be retrieved
-   * @returns a promise with the model with the given id
+   * Return a single model from the collection.
+   * @param modelId - The id of the model to be retrieved
+   * @returns A promise with the model with the given id
    */
   @Get("/weibull-analysis/:id")
   async getSingleWeibullAnalysis(@Param("id") modelId: number): Promise<WeibullAnalysis> {
@@ -683,9 +693,9 @@ export class NestedModelController {
   //delete endpoints
 
   /**
-   * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @returns a promise with the deleted model
+   * Delete a single nested model by id.
+   * @param id - The id of the model to be deleted
+   * @returns A promise with the deleted model
    */
   @Delete("/bayesian-estimations/")
   async deleteBayesianEstimation(@Query("id") id: number): Promise<BayesianEstimation> {
@@ -693,10 +703,10 @@ export class NestedModelController {
   }
 
   /**
-   * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @param typedModel is the typed model that this nested model belongs to
-   * @returns a promise with the deleted model
+   * Delete a single nested model by id.
+   * @param id - The id of the model to be deleted
+   * @param typedModel - The typed model that this nested model belongs to
+   * @returns A promise with the deleted model
    */
   @Delete("/bayesian-networks/")
   async deleteBayesianNetwork(
@@ -710,10 +720,10 @@ export class NestedModelController {
   }
 
   /**
-   * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @param typedModel is the typed model that this nested model belongs to
-   * @returns a promise with the deleted model
+   * Delete a single nested model by id.
+   * @param id - The id of the model to be deleted
+   * @param typedModel - The typed model that this nested model belongs to
+   * @returns A promise with the deleted model
    */
   @Delete("/event-sequence-diagrams/")
   async deleteEventSequenceDiagram(
@@ -727,16 +737,13 @@ export class NestedModelController {
   }
 
   /**
-   * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @param typedModel is the typed model that this nested model belongs to
-   * @returns a promise with the deleted model
+   * Delete a single nested model by id.
+   * @param id - The id of the model to be deleted
+   * @param typedModel - The typed model that this nested model belongs to
+   * @returns A promise with the deleted model
    */
   @Delete("/event-trees/")
-  async deleteEventTree(
-    @Query("id") id: string | number,
-    @Query("type") typedModel?: TypedModelType,
-  ): Promise<any> {
+  async deleteEventTree(@Query("id") id: string | number, @Query("type") typedModel?: TypedModelType): Promise<any> {
     if (typeof id === "number") {
       return this.nestedModelService.deleteEventTree(id);
     }
@@ -744,16 +751,13 @@ export class NestedModelController {
   }
 
   /**
-   * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @param typedModel is the typed model that this nested model belongs to
-   * @returns a promise with the deleted model
+   * Delete a single nested model by id.
+   * @param id - The id of the model to be deleted
+   * @param typedModel - The typed model that this nested model belongs to
+   * @returns A promise with the deleted model
    */
   @Delete("/fault-trees/")
-  async deleteFaultTree(
-    @Query("id") id: string | number,
-    @Query("type") typedModel?: TypedModelType,
-  ): Promise<any> {
+  async deleteFaultTree(@Query("id") id: string | number, @Query("type") typedModel?: TypedModelType): Promise<any> {
     if (typeof id === "number") {
       return this.nestedModelService.deleteFaultTree(id);
     }
@@ -761,9 +765,9 @@ export class NestedModelController {
   }
 
   /**
-   * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @returns a promise with the deleted model
+   * Delete a single nested model by id.
+   * @param id - The id of the model to be deleted
+   * @returns A promise with the deleted model
    */
   @Delete("/heat-balance-fault-trees/")
   async deleteHeatBalanceFaultTree(@Query("id") id: number): Promise<HeatBalanceFaultTree> {
@@ -771,9 +775,9 @@ export class NestedModelController {
   }
 
   /**
-   * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @returns a promise with the deleted model
+   * Delete a single nested model by id.
+   * @param id - The id of the model to be deleted
+   * @returns A promise with the deleted model
    */
   @Delete("/functional-events/")
   async deleteFunctionalEvent(@Query("id") id: number): Promise<FunctionalEvent> {
@@ -781,10 +785,10 @@ export class NestedModelController {
   }
 
   /**
-   * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @param typedModel is the typed model that this nested model belongs to
-   * @returns a promise with the deleted model
+   * Delete a single nested model by id.
+   * @param id - The id of the model to be deleted
+   * @param typedModel - The typed model that this nested model belongs to
+   * @returns A promise with the deleted model
    */
   @Delete("/initiating-events/")
   async deleteInitiatingEvent(
@@ -798,9 +802,9 @@ export class NestedModelController {
   }
 
   /**
-   * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @returns a promise with the deleted model
+   * Delete a single nested model by id.
+   * @param id - The id of the model to be deleted
+   * @returns A promise with the deleted model
    */
   @Delete("/markov-chains/")
   async deleteMarkovChain(@Query("id") id: number): Promise<MarkovChain> {
@@ -808,9 +812,9 @@ export class NestedModelController {
   }
 
   /**
-   * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @returns a promise with the deleted model
+   * Delete a single nested model by id.
+   * @param id - The id of the model to be deleted
+   * @returns A promise with the deleted model
    */
   @Delete("/weibull-analysis/")
   async deleteWeibullAnalysis(@Query("id") id: number): Promise<WeibullAnalysis> {
@@ -866,10 +870,10 @@ export class NestedModelController {
   }
 
   /**
-   * deletes a single nested model from the collection of that typed based on an id
-   * @param id the id of the model to be deleted
-   * @param typedModel is the typed model that this nested model belongs to
-   * @returns a promise with the deleted model
+   * Delete a single nested model by id.
+   * @param id - The id of the model to be deleted
+   * @param typedModel - The typed model that this nested model belongs to
+   * @returns A promise with the deleted model
    */
   // For Event Sequence Analysis
   @Delete("/event-sequence-analysis/")
@@ -890,10 +894,10 @@ export class NestedModelController {
   }
 
   /**
-   * updates a label for the nested model type
-   * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and description string
-   * @returns the updated model
+   * Update a label for the nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
    */
   @Patch("/bayesian-estimations/:id")
   async updateBayesianEstimationLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
@@ -901,10 +905,10 @@ export class NestedModelController {
   }
 
   /**
-   * updates a label for the nested model type
-   * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and description string
-   * @returns the updated model
+   * Update a label for the nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
    */
   @Patch("/bayesian-networks/:id")
   async updateBayesianNetworkLabel(@Param("id") id: string | number, @Body() data: Label): Promise<NestedModel> {
@@ -913,10 +917,10 @@ export class NestedModelController {
   }
 
   /**
-   * updates a label for the nested model type
-   * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and description string
-   * @returns the updated model
+   * Update a label for the nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
    */
   @Patch("/event-sequence-diagrams/:id")
   async updateEventSequenceDiagramLabel(@Param("id") id: string | number, @Body() data: Label): Promise<NestedModel> {
@@ -925,10 +929,10 @@ export class NestedModelController {
   }
 
   /**
-   * updates a label for the nested model type
-   * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and description string
-   * @returns the updated model
+   * Update a label for the nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
    */
   @Patch("/event-trees/:id")
   async updateEventTreeLabel(@Param("id") id: string | number, @Body() data: Label): Promise<NestedModel> {
@@ -937,10 +941,10 @@ export class NestedModelController {
   }
 
   /**
-   * updates a label for the nested model type
-   * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and description string
-   * @returns the updated model
+   * Update a label for the nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
    */
   @Patch("/fault-trees/:id")
   async updateFaultTreeLabel(@Param("id") id: string | number, @Body() data: Label): Promise<NestedModel> {
@@ -949,10 +953,10 @@ export class NestedModelController {
   }
 
   /**
-   * updates a label for the nested model type
-   * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and description string
-   * @returns the updated model
+   * Update a label for the nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
    */
   @Patch("/heat-balance-fault-trees/:id")
   async updateHeatBalanceFaultTreeLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
@@ -960,10 +964,10 @@ export class NestedModelController {
   }
 
   /**
-   * updates a label for the nested model type
-   * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and description string
-   * @returns the updated model
+   * Update a label for the nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
    */
   @Patch("/functional-events/:id")
   async updateFunctionalEventLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
@@ -971,10 +975,10 @@ export class NestedModelController {
   }
 
   /**
-   * updates a label for the nested model type
-   * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and description string
-   * @returns the updated model
+   * Update a label for the nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
    */
   @Patch("/initiating-events/:id")
   async updateInitiatingEventLabel(@Param("id") id: string | number, @Body() data: Label): Promise<NestedModel> {
@@ -983,10 +987,10 @@ export class NestedModelController {
   }
 
   /**
-   * updates a label for the nested model type
-   * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and description string
-   * @returns the updated model
+   * Update a label for the nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
    */
   @Patch("/markov-chains/:id")
   async updateMarkovChainLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
@@ -994,10 +998,10 @@ export class NestedModelController {
   }
 
   /**
-   * updates a label for the nested model type
-   * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and description string
-   * @returns the updated model
+   * Update a label for the nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
    */
   @Patch("/weibull-analysis/:id")
   async updateWeibullAnalysisLabel(@Param("id") id: number, @Body() data: Label): Promise<NestedModel> {
@@ -1062,17 +1066,14 @@ export class NestedModelController {
   }
 
   /**
-   * updates a label for the nested model type
-   * @param id the id of the nested model to be updated
-   * @param data the new label, with a name and description string
-   * @returns the updated model
+   * Update a label for the nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
    */
   // For Event Sequence Analysis
   @Patch("/event-sequence-analysis/:id")
-  async updateEventSequenceAnalysisLabel(
-    @Param("id") id: string | number,
-    @Body() data: Label,
-  ): Promise<NestedModel> {
+  async updateEventSequenceAnalysisLabel(@Param("id") id: string | number, @Body() data: Label): Promise<NestedModel> {
     if (typeof id === "number") return this.nestedModelService.updateEventSequenceAnalysisLabelNumber(id, data);
     return this.eventSequenceAnalysisService.updateEventSequenceAnalysisLabel(id, data);
   }
@@ -1089,9 +1090,9 @@ export class NestedModelController {
   // removes parent ids
 
   /**
-   * removes parentId from all nested models. If the model has no parentIds it is removed
-   * @param id the parent id to be removed
-   * @returns a promise with the number of totally deleted nested models
+   * Remove parentId from all nested models. If the model has no parentIds it is removed.
+   * @param id - The parent id to be removed
+   * @returns A promise with the number of totally deleted nested models
    */
   @Delete()
   async removeParentIds(@Query("id") modelId: number | string): Promise<number> {

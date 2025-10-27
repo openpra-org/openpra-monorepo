@@ -32,8 +32,8 @@ jobs:
       - run: corepack enable
       - run: pnpm -v
 
-      - name: Install root dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install root dependencies (skip lifecycle scripts)
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Install Doxygen
         run: |

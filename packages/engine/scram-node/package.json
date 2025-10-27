@@ -25,6 +25,16 @@
       ]
     },
     "targets": {
+      "docs": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "doxygen Doxyfile",
+          "cwd": "{projectRoot}"
+        },
+        "outputs": [
+          "{projectRoot}/docs/cpp"
+        ]
+      },
       "install": {
         "dependsOn": [
           "build"

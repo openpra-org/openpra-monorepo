@@ -1,0 +1,14 @@
+{
+  "name": "docs",
+  "root": "tools/docs",
+  "targets": {
+    "build-site": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash scripts/build-docs.sh"
+      }
+    }
+  },
+  "tags": [],
+  "implicitDependencies": ["shared-types", "shared-sdk", "mef-types", "engine-scram-node"]
+}

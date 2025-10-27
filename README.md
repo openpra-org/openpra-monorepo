@@ -166,7 +166,6 @@ is sufficient without connecting Nx Cloud.
 We use `@swc/jest` for TypeScript transforms in most packages for faster tests. Key notes:
 
 - NestJS projects (decorators required)
-
   - Enable decorators and metadata in the Jest transform options
   - Use CommonJS modules for Jest
 
@@ -190,7 +189,6 @@ We use `@swc/jest` for TypeScript transforms in most packages for faster tests. 
   ```
 
 - Path mapping for workspace packages
-
   - When tests import from sources, add `moduleNameMapper` so Jest resolves to TS files:
 
   ```ts
@@ -286,6 +284,27 @@ git push --force-with-lease
 ```
 
 Husky installs automatically via the `prepare` script on `pnpm install`. If hooks are missing, re-run `pnpm install`.
+
+## Docs
+
+Generate the aggregated documentation site with a single command:
+
+```bash
+pnpm nx run docs:build-site
+```
+
+Outputs:
+
+- Aggregated site: `dist/docs` (published by the GitHub Pages workflow at `.github/workflows/docs.yml`).
+- Per-package HTML docs remain under each package, for example:
+  - `packages/shared-types/docs`
+  - `packages/shared-sdk/docs`
+  - C++ Doxygen HTML for SCRAM: `packages/engine/scram-node/docs/cpp/html`
+- Optional Markdown docs (local only):
+  - `packages/shared-types/docs-md`
+  - `packages/shared-sdk/docs-md`
+
+The Pages workflow is named "Docs: Unified TypeScript + C++" and runs on pushes to `main` or manual dispatch.
 
 ## Additional Documentation
 

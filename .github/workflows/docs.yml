@@ -2,7 +2,9 @@ name: "Docs: Unified TypeScript + C++"
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - docs/unified-pages-tsdoc-doxygen
   workflow_dispatch: {}
 
 permissions:

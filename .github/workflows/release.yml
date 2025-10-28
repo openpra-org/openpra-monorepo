@@ -81,9 +81,6 @@ jobs:
           CI: "true"
           # MONGO_URI should be provided by repo/env secrets or self-hosted action
           MONGO_URI: ${{ secrets.MONGO_URI }}
-          # Ensure native libs on PATH/LD_LIBRARY_PATH if installed to ~/.local
-          LD_LIBRARY_PATH: ${{ env.LD_LIBRARY_PATH }}
-          PATH: ${{ env.PATH }}
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           export LD_LIBRARY_PATH="$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"

@@ -29,11 +29,8 @@ jobs:
         with:
           node-version: "20"
           cache: "pnpm"
-      - name: Setup pnpm via Corepack
-        run: |
-          corepack enable
-          corepack prepare pnpm@10.19.0 --activate
-          pnpm -v
+      - name: Ensure pnpm available
+        run: npx -y pnpm@10.19.0 --version
 
       - name: Install root dependencies (skip lifecycle scripts)
         run: npx -y pnpm@10.19.0 install --no-frozen-lockfile --ignore-scripts

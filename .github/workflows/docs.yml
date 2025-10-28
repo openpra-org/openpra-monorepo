@@ -28,7 +28,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "pnpm"
+          # Removed pnpm cache here because it requires pnpm to be on PATH during this step
       - name: Ensure pnpm available
         run: npx -y pnpm@10.19.0 --version
 

@@ -24,6 +24,11 @@ import { ExternalHazards } from "./schemas/external-hazards.schema";
 import { FullScope } from "./schemas/full-scope.schema";
 import { TypedModel, TypedModelJSON } from "./schemas/templateSchema/typed-model.schema";
 
+/**
+ * Controller for typed model CRUD and metadata endpoints.
+ * Manages Internal/External Hazards, Full Scope, and Internal Events models.
+ * @public
+ */
 @Controller()
 @UseGuards(AuthGuard("jwt"))
 @UseFilters(InvalidTokenFilter)
@@ -34,7 +39,11 @@ export class TypedModelController {
 
   private getUserId(req: unknown): number | undefined {
     const u = (req as { user?: { user_id?: unknown } })?.user?.user_id;
-    return typeof u === "number" ? u : typeof u === "string" ? Number(u) : undefined;
+    return (
+      typeof u === "number" ? u
+      : typeof u === "string" ? Number(u)
+      : undefined
+    );
   }
 
   /**
@@ -81,8 +90,9 @@ export class TypedModelController {
 
   /**
    * gets a single internal event
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
+   * @param model - partial model payload to patch
    * @returns the internal event the user has with the modelId
    */
   @Patch("/internal-events/:id/")
@@ -96,8 +106,9 @@ export class TypedModelController {
 
   /**
    * gets a single internal hazard
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
+   * @param model - partial model payload to patch
    * @returns the internal hazard the user has with the modelId
    */
   @Patch("/internal-hazards/:id/")
@@ -111,8 +122,9 @@ export class TypedModelController {
 
   /**
    * updates and replaces a single
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
+   * @param model - partial model payload to patch
    * @returns the external hazard the user has with the modelId
    */
   @Patch("/external-hazards/:id/")
@@ -126,8 +138,9 @@ export class TypedModelController {
 
   /**
    * gets a single full scope
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
+   * @param model - partial model payload to patch
    * @returns the full scope the user has with the modelId
    */
   @Patch("/full-scope/:id/")
@@ -143,7 +156,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param id - the id of the user whose models you want to retrieve
+   * @param req - the request providing the user id
    * @returns a list of the internal hazards moodels the user is on
    */
   @Get("/internal-events/")
@@ -153,7 +166,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param id - the id of the user whose models you want to retrieve
+   * @param req - the request providing the user id
    * @returns a list of the internal hazards moodels the user is on
    */
   @Get("/internal-hazards/")
@@ -163,7 +176,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param id - the id of the user whose models you want to retrieve
+   * @param req - the request providing the user id
    * @returns a list of the internal hazards moodels the user is on
    */
   @Get("/external-hazards/")
@@ -173,7 +186,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param id - the id of the user whose models you want to retrieve
+   * @param req - the request providing the user id
    * @returns a list of the full scope models the user is on
    */
   @Get("/full-scope/")
@@ -185,8 +198,8 @@ export class TypedModelController {
 
   /**
    * gets a single internal event
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
    * @returns the internal event the user has with the modelId
    */
   @Get("/internal-events/:id/")
@@ -196,8 +209,8 @@ export class TypedModelController {
 
   /**
    * gets a single internal hazard
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
    * @returns the internal hazard the user has with the modelId
    */
   @Get("/internal-hazards/:id/")
@@ -207,8 +220,8 @@ export class TypedModelController {
 
   /**
    * gets a single external hazard
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
    * @returns the external hazard the user has with the modelId
    */
   @Get("/external-hazards/:id/")
@@ -218,8 +231,8 @@ export class TypedModelController {
 
   /**
    * gets a single full scope
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
    * @returns the full scope the user has with the modelId
    */
   @Get("/full-scope/:id/")

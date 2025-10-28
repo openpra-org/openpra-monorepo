@@ -16,7 +16,8 @@ FILE_PATTERNS          = *.h *.hh *.hpp *.c *.cc *.cpp *.cxx
 INLINE_SOURCES         = NO
 SOURCE_BROWSER         = NO
 GENERATE_TREEVIEW      = YES
-WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_UNDOCUMENTED   = YES
+WARN_NO_PARAMDOC       = YES
 QUIET                  = YES
 # Try to ignore third-party vendored headers if any
 EXCLUDE_PATTERNS       = */build/* */dist/* */node_modules/*

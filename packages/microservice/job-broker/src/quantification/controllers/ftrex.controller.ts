@@ -4,6 +4,12 @@ import { ProducerService } from "../services/producer.service";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 import { StorageService } from "../services/storage.service";
 
+/**
+ * HTTP controller for FTREX quantification jobs.
+ *
+ * Accepts quantification requests for the FTREX solver and exposes a listing
+ * of quantified job reports.
+ */
 @Controller()
 export class FtrexController {
   constructor(
@@ -16,7 +22,7 @@ export class FtrexController {
    *
    * @param quantRequest - The quantification request object containing necessary model data.
    * @returns A promise that resolves to void.
-   * @throws {@link InternalServerErrorException} When there is a problem queueing the quantification job.
+   * @throws `InternalServerErrorException` When there is a problem queueing the quantification job.
    */
   @Post("/ftrex")
   public createAndQueueQuant(@Body() quantRequest: QuantifyRequest): void {
@@ -31,7 +37,7 @@ export class FtrexController {
    * Controller method to handle GET requests for quantified reports at the "/ftrex" endpoint.
    *
    * @returns A promise that resolves to an array of QuantifiedReport objects.
-   * @throws {@link NotFoundException} Throws an exception if the server is unable to find the requested list of quantified reports.
+   * @throws `NotFoundException` Throws an exception if the server is unable to find the requested list of quantified reports.
    */
   @Get("/ftrex")
   public async getQuantifiedReports(): Promise<QuantificationJobReport[]> {

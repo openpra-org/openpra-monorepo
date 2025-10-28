@@ -11,6 +11,10 @@ interface JwtPayload {
   email?: unknown;
 }
 
+/**
+ * Reads the JWT secret from a key file if configured, else from an unsafe env var.
+ * Prefer JWT_SECRET_KEY_FILE for security in non-dev environments.
+ */
 export const ParseJwtSecret = (configService: ConfigService): string => {
   // if the env-var for the secret key file has been set, read from it.
   if (process.env.JWT_SECRET_KEY_FILE) {
@@ -45,7 +49,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
   }
 
   validate(payload: JwtPayload) {
-    const user_id = typeof payload.user_id === "number" ? payload.user_id : (typeof payload.user_id === "string" ? Number(payload.user_id) : undefined);
+    const user_id =
+      typeof payload.user_id === "number" ? payload.user_id
+      : typeof payload.user_id === "string" ? Number(payload.user_id)
+      : undefined;
     const username = typeof payload.username === "string" ? payload.username : undefined;
     const email = typeof payload.email === "string" ? payload.email : undefined;
     return { user_id, username, email };

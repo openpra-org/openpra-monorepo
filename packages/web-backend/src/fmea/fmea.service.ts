@@ -4,6 +4,11 @@ import { InjectModel } from "@nestjs/mongoose";
 import mongoose from "mongoose";
 import { ModelCounter, ModelCounterDocument } from "../schemas/model-counter.schema";
 import { Fmea, FmeaDocument } from "./schemas/fmea.schema";
+/**
+ * Service layer for FMEA business logic and persistence.
+ * Supports CRUD operations on FMEA columns, rows, and cells.
+ * @public
+ */
 @Injectable()
 export class FmeaService {
   /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */

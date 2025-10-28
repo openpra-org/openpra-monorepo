@@ -24,4 +24,7 @@ import { JwtStrategy, ParseJwtSecret } from "./strategies/jwt.strategy";
   controllers: [AuthController],
   providers: [AuthService, LocalStrategy, JwtStrategy],
 })
+/**
+ * Authentication module wiring JWT/local strategies and controller endpoints.
+ */
 export class AuthModule {}

@@ -1,10 +1,10 @@
 {
   "$schema": "https://typedoc.org/schema.json",
-  "entryPoints": ["src/index.ts"],
+  "entryPoints": ["src"],
   "out": "docs",
   "tsconfig": "tsconfig.lib.json",
   "name": "shared-types API",
-  "entryPointStrategy": "resolve",
+  "entryPointStrategy": "expand",
   "excludePrivate": true,
   "excludeProtected": true,
   "excludeInternal": true,

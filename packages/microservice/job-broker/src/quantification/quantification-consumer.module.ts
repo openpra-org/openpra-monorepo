@@ -25,4 +25,7 @@ import { ConsumerService } from "./services/consumer.service";
   ],
   providers: [ConsumerService],
 })
+/**
+ * Standalone module for running the quantification consumer worker process.
+ */
 export class QuantificationConsumerModule {}

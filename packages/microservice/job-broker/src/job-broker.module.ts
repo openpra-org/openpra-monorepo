@@ -66,4 +66,7 @@ import { ExecutableJobReport, ExecutableJobSchema } from "./middleware/schemas/e
     },
   ],
 })
+/**
+ * Root module wiring quantification and executable submodules under the `/q` API path.
+ */
 export class JobBrokerModule {}

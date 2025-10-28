@@ -10,4 +10,7 @@ import { InviteService } from "./invite.service";
   providers: [InviteService],
   exports: [InviteService],
 })
+/**
+ * Module bundling invite controller and persistence for user invites.
+ */
 export class InviteModule {}

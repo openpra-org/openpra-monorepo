@@ -8,6 +8,10 @@ import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
 import { GraphModelService } from "../../graphModels/graphModel.service";
 
+/**
+ * Service for Event Sequence Diagram nested models.
+ * Supports list, single-item retrieval, creation and label updates.
+ */
 @Injectable()
 export class EventSequenceDiagramService {
   constructor(

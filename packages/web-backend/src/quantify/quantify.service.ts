@@ -9,6 +9,11 @@ import type { CommandLineOptions } from "mef-types/openpra-mef/util/quantify-req
 import type { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
 import type { BinaryQuantifyReport } from "mef-types/openpra-mef/util/quantify-report";
 
+/**
+ * Service for executing external solver quantification flows (e.g., SCRAM).
+ * Writes input files, runs the solver, and collects output reports.
+ * @public
+ */
 @Injectable()
 export class QuantifyService {
   // call shell commands from here.

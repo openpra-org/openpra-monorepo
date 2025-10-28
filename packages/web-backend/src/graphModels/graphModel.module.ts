@@ -26,4 +26,7 @@ import { GraphModelService } from "./graphModel.service";
   providers: [GraphModelService],
   exports: [GraphModelService],
 })
+/**
+ * Module for graph model storage and retrieval endpoints.
+ */
 export class GraphModelModule {}

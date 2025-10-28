@@ -7,6 +7,12 @@ import type { ExecutionTask } from "mef-types/openpra-mef/util/execution-task";
 import { QuantificationJobReport } from "./schemas/quantification-job.schema";
 import { ExecutableJobReport } from "./schemas/executable-job.schema";
 
+/**
+ * Middleware that creates placeholder MongoDB documents and injects IDs into incoming requests.
+ *
+ * - For quantification jobs, creates a QuantificationJobReport and adds `_id` to the request body.
+ * - For executable tasks, creates an ExecutableJobReport and adds `_id` to the request body.
+ */
 @Injectable()
 export class JobBrokerMiddleware implements NestMiddleware {
   constructor(

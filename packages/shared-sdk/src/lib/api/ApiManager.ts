@@ -15,6 +15,11 @@ const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, onl
 // Regex for basic email validation
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Z|a-z]{2,}$/;
 
+/**
+ * High-level helper for calling backend auth, collab, and user preference APIs.
+ * Wraps fetch calls with JWT handling via AuthService.
+ * @public
+ */
 export class ApiManager {
   static API_ENDPOINT = API_ENDPOINT;
 

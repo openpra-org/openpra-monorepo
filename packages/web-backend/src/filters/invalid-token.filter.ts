@@ -1,6 +1,9 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from "@nestjs/common";
 import { Response } from "express";
 
+/**
+ * Formats 401/invalid token errors into a consistent JSON response shape.
+ */
 @Catch(HttpException)
 export class InvalidTokenFilter implements ExceptionFilter {
   catch(exception: HttpException, host: ArgumentsHost) {

@@ -6,4 +6,7 @@ import { QuantifyService } from "./quantify.service";
   controllers: [QuantifyController],
   providers: [QuantifyService],
 })
+/**
+ * Quantification feature module exposing controller and service.
+ */
 export class QuantifyModule {}

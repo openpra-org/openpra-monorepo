@@ -1,7 +1,7 @@
 import Label from "../../Label";
 import { BasicModel } from "../basicModel";
 
-//interface that will maybe be used to pass partials to the database
+/** JSON input shape for creating/updating a nested model. */
 export interface NestedModelJSON {
   label: {
     name: string;
@@ -13,7 +13,7 @@ export interface NestedModelJSON {
 //maps the json
 //export type TypedModelJSONMap = Record<string, NestedModelJSON>;
 
-//creates the default JSON object
+/** Default empty JSON for a nested model. */
 export const DefaultNestedModelJSON: NestedModelJSON = {
   label: {
     name: "",
@@ -22,8 +22,10 @@ export const DefaultNestedModelJSON: NestedModelJSON = {
   parentIds: [],
 };
 
-// exports a class called nested model, this extends basic model and has additional functionality to track the model which this is assigned to,
-// works similarly to how the other models work, but instead of a user its a model its attached to and will be loaded from
+/**
+ * Base nested model with label, id, and parent relationships to typed models.
+ * Extends BasicModel with parentIds to track parent typed models.
+ */
 export class NestedModel extends BasicModel {
   //id number of the parent model
   private readonly parentIds: number[];
@@ -39,9 +41,7 @@ export class NestedModel extends BasicModel {
     this.parentIds = parentIds;
   }
 
-  /**
-   * @param obj - dictionary object to parse
-   */
+  /** Build a NestedModel from its JSON form. */
   static build(obj: NestedModelJSON): NestedModel {
     return new NestedModel(obj.label.name, obj.label.description);
   }
@@ -55,6 +55,9 @@ export class NestedModel extends BasicModel {
   }
 }
 
+/**
+ * Mongoose-like document representation for persisted nested models.
+ */
 export interface NestedModelType {
   _id: string;
   label: {

@@ -5,6 +5,11 @@ import { SignUpProps } from "../AuthTypes";
 const ApiEndpoint = "/api";
 const InviteEndpoint = `${ApiEndpoint}/invite-user`;
 
+/**
+ * Client for invitation-related endpoints (create, verify, list, delete).
+ * Uses ApiManager under the hood for transport.
+ * @public
+ */
 export class UserInviteApi {
   /**
    * This function calls the backend api to invite a user

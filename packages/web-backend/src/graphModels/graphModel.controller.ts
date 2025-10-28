@@ -5,6 +5,11 @@ import { EventTreeGraph } from "../schemas/graphs/event-tree-graph.schema";
 import { BaseGraph } from "../schemas/graphs/base-graph.schema";
 import { GraphModelService } from "./graphModel.service";
 
+/**
+ * Controller for graph model operations and updates.
+ * Stores and retrieves graph states for event sequence, fault tree, and event tree diagrams.
+ * @public
+ */
 @Controller()
 export class GraphModelController {
   constructor(private readonly graphModelService: GraphModelService) {}

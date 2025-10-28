@@ -11,5 +11,7 @@ const createNewColumnSchema = z.object({
     }),
   ),
 });
-
+/**
+ * DTO for adding an FMEA column with type and optional dropdown options.
+ */
 export class CreateNewColumnDto extends createZodDto(createNewColumnSchema) {}

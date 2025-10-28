@@ -5,6 +5,12 @@ import typia, { TypeGuardError } from "typia";
 import type { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 
+/**
+ * Publishes quantification jobs to RabbitMQ.
+ *
+ * Initializes durable queues/exchanges and enqueues validated `QuantifyRequest` payloads
+ * for downstream consumers to process.
+ */
 @Injectable()
 export class ProducerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ProducerService.name);

@@ -3,6 +3,10 @@ import type { QuantifyReport } from "mef-types/openpra-mef/util/quantify-report"
 import { QuantifyService } from "./quantify.service";
 import type { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
 
+/**
+ * Controller for quantification endpoints.
+ * Provides routes to execute quantification using external solvers.
+ */
 @Controller()
 export class QuantifyController {
   constructor(private readonly quantifyService: QuantifyService) {}

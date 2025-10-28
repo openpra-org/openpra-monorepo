@@ -7,6 +7,10 @@ import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
 import { BayesianNetwork, BayesianNetworkDocument } from "../schemas/bayesian-network.schema";
 
+/**
+ * Service for Bayesian Network nested models.
+ * Supports listing, single retrieval, creation and label updates.
+ */
 @Injectable()
 export class BayesianNetworksService {
   constructor(

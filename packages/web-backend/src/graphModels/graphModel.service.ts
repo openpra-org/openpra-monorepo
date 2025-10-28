@@ -21,6 +21,11 @@ enum GraphTypes {
   EventTree = "event-tree",
 }
 
+/**
+ * Service for graph model persistence and retrieval.
+ * Handles create/update/get operations for supported graph types.
+ * @public
+ */
 @Injectable()
 export class GraphModelService {
   private readonly logger = new Logger(GraphModelService.name);

@@ -36,6 +36,9 @@ const InstancesSchema = SchemaFactory.createForClass(Instances);
   },
   versionKey: false,
 })
+/**
+ * HCL model metadata and relationships to nested analyses and actions.
+ */
 export class HclModel {
   @Prop({ required: false })
   id: number;
@@ -78,4 +81,5 @@ export class HclModel {
 }
 
 export type HclModelDocument = HclModel & Document;
+/** Mongoose schema for HclModel. */
 export const HclModelSchema = SchemaFactory.createForClass(HclModel);

@@ -16,4 +16,7 @@ import { User, UserSchema } from "./schemas/user.schema";
   providers: [CollabService],
   exports: [CollabService],
 })
+/**
+ * Collaboration (users) module exposing user CRUD APIs and persistence.
+ */
 export class CollabModule {}

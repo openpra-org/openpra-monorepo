@@ -12,6 +12,11 @@ import { ExternalHazards, ExternalHazardsDocument } from "./schemas/external-haz
 import { FullScope, FullScopeDocument } from "./schemas/full-scope.schema";
 import { TypedModel, TypedModelJSON } from "./schemas/templateSchema/typed-model.schema";
 
+/**
+ * Service for typed model lifecycle and persistence.
+ * Handles counters and CRUD for model variants (Internal/External Hazards, Full Scope, Internal Events).
+ * @public
+ */
 @Injectable()
 export class TypedModelService {
   constructor(

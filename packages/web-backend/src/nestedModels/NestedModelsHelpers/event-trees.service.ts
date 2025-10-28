@@ -7,6 +7,10 @@ import { EventTree, EventTreeDocument } from "../schemas/event-tree.schema";
 import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
 
+/**
+ * Service for Event Tree nested model operations.
+ * Provides collection and single-item retrieval, updates and label helpers.
+ */
 @Injectable()
 export class EventTreesService {
   constructor(

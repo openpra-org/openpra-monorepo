@@ -5,6 +5,11 @@ import { RolesService } from "./roles.service";
 import { Roles } from "./schemas/roles.schema";
 import { Role } from "./schemas/predefined-roles";
 
+/**
+ * Controller for role and permission management.
+ * Secured with JWT; exposes CRUD endpoints for roles.
+ * @public
+ */
 @Controller()
 @UseGuards(JwtAuthGuard)
 @UseFilters(InvalidTokenFilter)

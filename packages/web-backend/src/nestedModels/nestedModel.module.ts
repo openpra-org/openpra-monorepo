@@ -120,4 +120,7 @@ import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
     FaultTreesService,
   ],
 })
+/**
+ * Nested models module composing controllers, services and schemas for technical elements.
+ */
 export class NestedModelModule {}

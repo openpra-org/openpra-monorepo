@@ -4,6 +4,11 @@ import { Model } from "mongoose";
 import { Roles, RolesDocument } from "./schemas/roles.schema";
 import { PredefinedRoles, Role } from "./schemas/predefined-roles";
 
+/**
+ * Service for roles persistence and predefined role initialization.
+ * Provides CRUD operations and bootstrap seeding.
+ * @public
+ */
 @Injectable()
 export class RolesService implements OnApplicationBootstrap {
   constructor(

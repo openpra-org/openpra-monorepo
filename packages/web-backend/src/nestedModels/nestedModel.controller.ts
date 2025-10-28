@@ -29,6 +29,11 @@ import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
 import { BayesianNetworksService } from "./NestedModelsHelpers/bayesian-networks.service";
 import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
 
+/**
+ * Controller for nested model operations.
+ * Routes for creating and manipulating nested technical elements.
+ * @public
+ */
 @Controller()
 export class NestedModelController {
   constructor(
@@ -65,8 +70,6 @@ export class NestedModelController {
    * Create a Bayesian Network nested model.
    *
    * @param body - Either the full body or an object like `{ data, typedModel }`
-   * @param data - Partial nested model with label (name string, optional description string) and parentId
-   * @param typedModel - The typed model to be updated
    * @returns Newly created nested model with common fields
    */
   @Post("/bayesian-networks/")
@@ -93,8 +96,6 @@ export class NestedModelController {
    * Create an Event Sequence Diagram nested model.
    *
    * @param body - Either the full body or an object like `{ data, typedModel }`
-   * @param data - Partial nested model with label (name string, optional description string) and parentId
-   * @param typedModel - The typed model to be updated
    * @returns Newly created nested model with common fields
    */
   @Post("/event-sequence-diagrams/")
@@ -113,8 +114,6 @@ export class NestedModelController {
    * Create an Event Tree nested model.
    *
    * @param body - Either the full body or an object like `{ data, typedModel }`
-   * @param data - Partial nested model with label (name string, optional description string) and parentId
-   * @param typedModel - The typed model to be updated
    * @returns Newly created nested model with common fields
    */
   @Post("/event-trees/")
@@ -177,8 +176,6 @@ export class NestedModelController {
    * Create an Initiating Event nested model.
    *
    * @param body - Either the full body or an object like `{ data, typedModel }`
-   * @param data - Partial nested model with label (name string, optional description string) and parentId
-   * @param typedModel - The typed model to be updated
    * @returns Newly created nested model with common fields
    */
   @Post("/initiating-events/")
@@ -1091,7 +1088,7 @@ export class NestedModelController {
 
   /**
    * Remove parentId from all nested models. If the model has no parentIds it is removed.
-   * @param id - The parent id to be removed
+   * @param modelId - The parent id to be removed
    * @returns A promise with the number of totally deleted nested models
    */
   @Delete()

@@ -11,6 +11,11 @@ import { UserPreferencesDto } from "./dtos/user-preferences.dto";
 import { UserCounter, UserCounterDocument } from "./schemas/user-counter.schema";
 import { User, UserDocument } from "./schemas/user.schema";
 
+/**
+ * Service for collaboration and user management.
+ * Provides user CRUD, validation, and pagination helpers.
+ * @public
+ */
 @Injectable()
 export class CollabService {
   constructor(

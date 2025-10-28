@@ -580,4 +580,5 @@ export class OverviewTree {
 }
 
 export type OverviewTreeDocument = OverviewTree & Document;
+/** Mongoose schema for the HCL overview tree. */
 export const OverviewTreeSchema = SchemaFactory.createForClass(OverviewTree);

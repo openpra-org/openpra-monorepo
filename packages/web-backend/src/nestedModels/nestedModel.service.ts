@@ -34,6 +34,11 @@ import {
   HumanReliabilityAnalysisDocument,
 } from "./schemas/human-reliability-analysis.schema";
 
+/**
+ * Service for nested model creation and persistence across technical elements.
+ * Provides methods to create and manage Bayesian networks, event trees, sequences, and more.
+ * @public
+ */
 @Injectable()
 export class NestedModelService {
   //creating out object links to the database

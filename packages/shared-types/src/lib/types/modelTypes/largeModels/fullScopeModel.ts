@@ -5,4 +5,5 @@ import TypedModel, { typedModelType } from "./typedModel";
  */
 export class FullScopeModel extends TypedModel {}
 
+/** Persisted document shape for a Full Scope model. */
 export type FullScopeModelType = typedModelType;

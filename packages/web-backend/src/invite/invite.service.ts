@@ -5,6 +5,11 @@ import { InvitedUserDetailsDto, InvitedUserDto } from "shared-types/src/lib/type
 
 import { InvitedUser, InvitedUserDocument } from "./schemas/invite.schema";
 
+/**
+ * Service for managing user invitations.
+ * Persists invites, verifies validity, and supports CRUD.
+ * @public
+ */
 @Injectable()
 export class InviteService {
   constructor(

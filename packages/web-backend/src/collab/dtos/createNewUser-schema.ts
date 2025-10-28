@@ -16,6 +16,10 @@ const CreateNewUserSchema = z
   })
   .describe("A new user in the backend");
 
+/**
+ * DTO for creating a new user.
+ * Fields are derived from the Zod schema above.
+ */
 class CreateNewUserSchemaDto extends createZodDto(CreateNewUserSchema) {}
 
 export { CreateNewUserSchemaDto };

@@ -9,6 +9,11 @@ import { ConfigService } from "@nestjs/config";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 
+/**
+ * Produces executable task messages to RabbitMQ and updates task status.
+ *
+ * Sets up queues/exchanges and sends validated `ExecutionTask` payloads for workers to execute.
+ */
 @Injectable()
 export class ExecutableService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableService.name);

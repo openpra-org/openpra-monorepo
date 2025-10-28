@@ -15,6 +15,10 @@ import {
 import { AuthGuard } from "@nestjs/passport";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";
 
+/**
+ * Controller for HCL (High-level model) operations.
+ * Secured with JWT; endpoints are currently scaffolded and documented inline.
+ */
 @Controller()
 @UseGuards(AuthGuard("jwt"))
 @UseFilters(InvalidTokenFilter)

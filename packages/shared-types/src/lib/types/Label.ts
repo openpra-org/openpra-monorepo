@@ -1,13 +1,16 @@
 import { Parsable } from "./Parsable";
 import { Defaults } from "./ObjectTypes";
 
+/** JSON shape for a label (name + description). */
 export interface LabelJSON {
   name: string;
   description: string;
 }
 
+/** Map of label identifiers to their JSON representation. */
 export type LabelJSONMap = Record<string, LabelJSON>;
 
+/** Default, empty label JSON. */
 export const DEFAULT_LABEL_JSON: LabelJSON = {
   name: "",
   description: "",

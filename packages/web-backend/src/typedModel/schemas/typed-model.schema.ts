@@ -7,6 +7,10 @@ export interface TypedModelJSON {
   users: number[];
 }
 
+/**
+ * Base typed model document definition shared across model collections.
+ * Contains a unique id, user access list, and a label.
+ */
 @Schema({ versionKey: false })
 export class TypedModel {
   @Prop({ required: true, unique: true })
@@ -19,5 +23,11 @@ export class TypedModel {
   users: number[];
 }
 
+/**
+ * Mongoose document type for the TypedModel class.
+ */
 export type TypedModelDocument = TypedModel & Document;
+/**
+ * Mongoose schema for the TypedModel class.
+ */
 export const TypedModelSchema = SchemaFactory.createForClass(TypedModel);

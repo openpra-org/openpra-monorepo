@@ -2,6 +2,9 @@ import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from "@nestjs/co
 import { Request, Response } from "express";
 
 // Use the @Catch decorator to bind this filter to HttpException.
+/**
+ * Global HTTP exception filter that formats error responses consistently.
+ */
 @Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
   /**

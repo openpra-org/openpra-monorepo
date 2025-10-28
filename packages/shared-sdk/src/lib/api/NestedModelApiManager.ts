@@ -15,13 +15,21 @@ import {
 import { AuthService } from "./AuthService";
 
 // used constants
+/** Base API prefix for all endpoints. */
 export const API_ENDPOINT = "/api";
+/** Base path for nested model APIs. */
 export const NESTED_ENDPOINT = `${API_ENDPOINT}/nested-models`;
+/** Endpoint for initiating events nested models. */
 export const INITIATING_EVENTS_ENDPOINT = `${NESTED_ENDPOINT}/initiating-events`;
+/** Endpoint for event sequence diagrams nested models. */
 export const EVENT_SEQUENCE_DIAGRAMS_ENDPOINT = `${NESTED_ENDPOINT}/event-sequence-diagrams`;
+/** Endpoint for event sequence analysis nested models. */
 export const EVENT_SEQUENCE_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/event-sequence-analysis`;
+/** Endpoint for event trees nested models. */
 export const EVENT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/event-trees`;
+/** Endpoint for Bayesian networks nested models. */
 export const BAYESIAN_NETWORKS_ENDPOINT = `${NESTED_ENDPOINT}/bayesian-networks`;
+/** Endpoint for fault trees nested models. */
 export const FAULT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/fault-trees`;
 
 const HEAT_BALANCE_FAULT_TREES_ENDPOINT = `${NESTED_ENDPOINT}/heat-balance-fault-trees`;
@@ -41,9 +49,13 @@ const OPERATING_STATE_ANALYSIS_ENDPOINT = `${NESTED_ENDPOINT}/operating-state-an
 const NESTED_MODEL_TYPE_LOCATION = 3;
 //const NESTED_MODEL_ID_LOCATION = 4;
 
+/**
+ * Infer the current nested model type from the browser URL pathname.
+ * Example: `/models/\{typedModelType\}/\{id\}/\{nestedModelType\}` → returns the nestedModelType segment.
+ * @returns Current nested model type segment from the path.
+ */
 export function GetCurrentNestedModelType(): string {
-  //setting up data so get current nested model doesn't need any parameters, as it will probably be called frequently
-  const splitPath = window.location.pathname.split("/"); // Gets the path part of the URL (/initiating-events/2) // Splits the path into segments using the '/' character // The 4 part is "initiating-events"
+  const splitPath = window.location.pathname.split("/");
   return splitPath[NESTED_MODEL_TYPE_LOCATION];
 }
 
@@ -133,8 +145,10 @@ export {
 
 //Don't use '' keyword, dynamically passing functions hates it on the frontend
 
-//method to Get past counter value
-
+/**
+ * Retrieve the previous counter value used for nested model identifiers.
+ * @returns Numeric counter value from the backend.
+ */
 export async function GetPreviousCounterValue(): Promise<number> {
   return await Get(NESTED_ENDPOINT).then((response) => response.json() as Promise<number>);
 }
@@ -326,6 +340,11 @@ export async function Post(url: string, data: NestedModelJSON, typedModel = ""):
 }
 
 //Get methods
+/**
+ * Get Heat Balance Fault Trees for a given parent typed model id.
+ * @param id - Parent typed model identifier (defaults to -1 to fetch empty/none).
+ * @returns Promise resolving to a list of nested models.
+ */
 export function GetHeatBalanceFaultTrees(id = -1): Promise<NestedModel[]> {
   return Get(`${HEAT_BALANCE_FAULT_TREES_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>) // Parse the response as JSON
@@ -386,7 +405,11 @@ export function GetWeibullAnalysis(id = -1): Promise<NestedModel[]> {
     });
 }
 
-// Risk Integration
+/**
+ * Get Risk Integration analyses for a given parent typed model id.
+ * @param id - Parent typed model identifier.
+ * @returns Promise resolving to a list of nested models.
+ */
 export function GetRiskIntegration(id = -1): Promise<NestedModel[]> {
   return Get(`${RISK_INTEGRATION_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
@@ -395,7 +418,11 @@ export function GetRiskIntegration(id = -1): Promise<NestedModel[]> {
     });
 }
 
-// Radiological Consequence Analysis
+/**
+ * Get Radiological Consequence Analysis models for a given parent typed model id.
+ * @param id - Parent typed model identifier.
+ * @returns Promise resolving to a list of nested models.
+ */
 export function GetRadiologicalConsequenceAnalysis(id = -1): Promise<NestedModel[]> {
   return Get(`${RADIOLOGICAL_CONSEQUENCE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
@@ -404,7 +431,11 @@ export function GetRadiologicalConsequenceAnalysis(id = -1): Promise<NestedModel
     });
 }
 
-// Mechanistic Source Term
+/**
+ * Get Mechanistic Source Term analyses for a given parent typed model id.
+ * @param id - Parent typed model identifier.
+ * @returns Promise resolving to a list of nested models.
+ */
 export function GetMechanisticSourceTerm(id = -1): Promise<NestedModel[]> {
   return Get(`${MECHANISTIC_SOURCE_TERM_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
@@ -413,7 +444,11 @@ export function GetMechanisticSourceTerm(id = -1): Promise<NestedModel[]> {
     });
 }
 
-// Event Sequence Quantification Diagram
+/**
+ * Get Event Sequence Quantification Diagrams for a given parent typed model id.
+ * @param id - Parent typed model identifier.
+ * @returns Promise resolving to a list of nested models.
+ */
 export function GetEventSequenceQuantificationDiagram(id = -1): Promise<NestedModel[]> {
   return Get(`${EVENT_SEQUENCE_QUANTIFICATION_DIAGRAM_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
@@ -422,7 +457,11 @@ export function GetEventSequenceQuantificationDiagram(id = -1): Promise<NestedMo
     });
 }
 
-// Data Analysis
+/**
+ * Get Data Analysis models for a given parent typed model id.
+ * @param id - Parent typed model identifier.
+ * @returns Promise resolving to a list of nested models.
+ */
 export function GetDataAnalysis(id = -1): Promise<NestedModel[]> {
   return Get(`${DATA_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
@@ -431,7 +470,11 @@ export function GetDataAnalysis(id = -1): Promise<NestedModel[]> {
     });
 }
 
-// Human Reliability Analysis
+/**
+ * Get Human Reliability Analysis models for a given parent typed model id.
+ * @param id - Parent typed model identifier.
+ * @returns Promise resolving to a list of nested models.
+ */
 export function GetHumanReliabilityAnalysis(id = -1): Promise<NestedModel[]> {
   return Get(`${HUMAN_RELIABILITY_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
@@ -440,7 +483,11 @@ export function GetHumanReliabilityAnalysis(id = -1): Promise<NestedModel[]> {
     });
 }
 
-// Systems Analysis
+/**
+ * Get Systems Analysis models for a given parent typed model id.
+ * @param id - Parent typed model identifier.
+ * @returns Promise resolving to a list of nested models.
+ */
 export function GetSystemsAnalysis(id = -1): Promise<NestedModel[]> {
   return Get(`${SYSTEMS_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
@@ -449,7 +496,11 @@ export function GetSystemsAnalysis(id = -1): Promise<NestedModel[]> {
     });
 }
 
-// Success Criteria
+/**
+ * Get Success Criteria models for a given parent typed model id.
+ * @param id - Parent typed model identifier.
+ * @returns Promise resolving to a list of nested models.
+ */
 export function GetSuccessCriteria(id = -1): Promise<NestedModel[]> {
   return Get(`${SUCCESS_CRITERIA_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)
@@ -458,7 +509,11 @@ export function GetSuccessCriteria(id = -1): Promise<NestedModel[]> {
     });
 }
 
-// Operating State Analysis
+/**
+ * Get Operating State Analysis models for a given parent typed model id.
+ * @param id - Parent typed model identifier.
+ * @returns Promise resolving to a list of nested models.
+ */
 export function GetOperatingStateAnalysis(id = -1): Promise<NestedModel[]> {
   return Get(`${OPERATING_STATE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`)
     .then((response) => response.json() as Promise<NestedModel[]>)

@@ -16,4 +16,7 @@ import { Fmea, FmeaSchema } from "./schemas/fmea.schema";
   providers: [FmeaService],
   exports: [FmeaService],
 })
+/**
+ * FMEA feature module exposing controller and service with Mongoose bindings.
+ */
 export class FmeaModule {}

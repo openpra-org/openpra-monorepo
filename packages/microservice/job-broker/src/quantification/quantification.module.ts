@@ -18,6 +18,9 @@ import { StorageService } from "./services/storage.service";
   controllers: [ScramController, FtrexController],
   providers: [ProducerService, StorageService],
 })
+/**
+ * Nest module that exposes quantification endpoints and wiring for producer/storage services.
+ */
 export class QuantificationModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(JobBrokerMiddleware).forRoutes(ScramController);

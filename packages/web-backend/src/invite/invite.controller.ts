@@ -17,6 +17,11 @@ import { Public } from "../guards/public.guard";
 import { InvalidTokenFilter } from "../filters/invalid-token.filter";
 import { InviteService } from "./invite.service";
 
+/**
+ * Controller for user invitation management.
+ * Exposes endpoints to create, verify, update, fetch and delete invites.
+ * @public
+ */
 @Controller()
 @UseGuards(JwtAuthGuard)
 @UseFilters(InvalidTokenFilter)

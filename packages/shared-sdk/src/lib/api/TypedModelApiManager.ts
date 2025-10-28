@@ -3,8 +3,14 @@ import {
   InternalEventsMetadata,
   InternalEventsModel,
 } from "shared-types/src/lib/types/modelTypes/largeModels/internalEventsModel";
-import { InternalHazardsModel, InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
-import { ExternalHazardsModel, ExternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
+import {
+  InternalHazardsModel,
+  InternalHazardsModelType,
+} from "shared-types/src/lib/types/modelTypes/largeModels/internalHazardsModel";
+import {
+  ExternalHazardsModel,
+  ExternalHazardsModelType,
+} from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
 import { FullScopeModel, FullScopeModelType } from "shared-types/src/lib/types/modelTypes/largeModels/fullScopeModel";
 import TypedModel, { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { AuthService } from "./AuthService";
@@ -110,21 +116,30 @@ export function GetCurrentTypedModel(): Promise<TypedModel> {
     });
 }
 
+/**
+ * Read the current typed model id from the URL as a string.
+ * @returns Model id segment from the path without parsing.
+ */
 export function GetCurrentModelIdString(): string {
-  //setting up data so get current model doesn't need any parameters, as it will probably be called frequently
-  const splitPath = window.location.pathname.split("/"); // Gets the path part of the URL (/internal-events/2) // Splits the path into segments using the '/' character // The second part is "internal-events"
+  const splitPath = window.location.pathname.split("/");
   return splitPath[TYPED_MODEL_ID_LOCATION];
 }
 
+/**
+ * Read the current typed model id from the URL as a number.
+ * @returns Parsed numeric model id from the path.
+ */
 export function GetCurrentModelId(): number {
-  //setting up data so get current model doesn't need any parameters, as it will probably be called frequently
-  const splitPath = window.location.pathname.split("/"); // Gets the path part of the URL (/internal-events/2) // Splits the path into segments using the '/' character // The second part is "internal-events"
+  const splitPath = window.location.pathname.split("/");
   return parseInt(splitPath[TYPED_MODEL_ID_LOCATION]);
 }
 
+/**
+ * Read the current typed model type from the URL.
+ * @returns Model type segment from the path (e.g., "internal-events").
+ */
 export function GetCurrentModelType(): string {
-  //setting up data so get current model doesn't need any parameters, as it will probably be called frequently
-  const splitPath = window.location.pathname.split("/"); // Gets the path part of the URL (/internal-events/2) // Splits the path into segments using the '/' character // The second part is "internal-events"
+  const splitPath = window.location.pathname.split("/");
   return splitPath[TYPED_MODEL_TYPE_LOCATION];
 }
 

@@ -3,7 +3,12 @@ import { AuthToken, EMPTY_TOKEN } from "shared-types";
 import { emitAuthEvent } from "./AuthEvents";
 import { MemberRole } from "../data/predefiniedRoles";
 
-class AuthService {
+/**
+ * Stateless helpers for working with JWT-based authentication in the browser.
+ * Handles token storage, expiration checks, user profile parsing, and auth events.
+ * @public
+ */
+export class AuthService {
   static hasTokenExpired(token: string | null): boolean {
     // if token is null, it has certainly expired
     if (!token || token === "undefined") {
@@ -99,5 +104,3 @@ class AuthService {
     }
   }
 }
-
-export { AuthService };

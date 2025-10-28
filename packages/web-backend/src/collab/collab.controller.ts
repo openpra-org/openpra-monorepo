@@ -23,6 +23,10 @@ import { PaginationDto } from "./dtos/pagination.dto";
 import { UserPreferencesDto } from "./dtos/user-preferences.dto";
 import { User } from "./schemas/user.schema";
 
+/**
+ * Controller for collaboration (users) endpoints.
+ * Handles user listing, creation, validation and preferences.
+ */
 @Controller()
 @UseGuards(JwtAuthGuard)
 @UseFilters(InvalidTokenFilter)
@@ -30,15 +34,15 @@ export class CollabController {
   constructor(private readonly collabService: CollabService) {}
 
   /**
-  * Retrieve a paginated list of users.
-  *
-  * @param req - Express request object. See {@link https://expressjs.com/en/api.html#req}.
-  * @param query - Query string parameters.
-  * @returns List of all users
-  * @example
-  * GET request: https://staging.app.openpra.org/api/collab/user/
-  * @example
-  * GET request with pagination: https://staging.app.openpra.org/api/collab/user/?limit=10&offset=0
+   * Retrieve a paginated list of users.
+   *
+   * @param req - Express request object. See {@link https://expressjs.com/en/api.html#req}.
+   * @param query - Query string parameters.
+   * @returns List of all users
+   * @example
+   * GET request: https://staging.app.openpra.org/api/collab/user/
+   * @example
+   * GET request with pagination: https://staging.app.openpra.org/api/collab/user/?limit=10&offset=0
    */
   @Get("/user/")
   async getUsersList(
@@ -62,11 +66,11 @@ export class CollabController {
    *
    * @param body - Request body containing new user fields.
    * @example
-  * Request body sample:
-  * \{
-  *   "first_name": "Edward",
-  *   "last_name": "Elric",
-  *   "email": "fullmetal_alchemist\@gmail.com",
+   * Request body sample:
+   * \{
+   *   "first_name": "Edward",
+   *   "last_name": "Elric",
+   *   "email": "fullmetal_alchemist\@gmail.com",
    *   "username": "Ed",
    *   "password": "WinryRockbell"
    * \}
@@ -98,7 +102,7 @@ export class CollabController {
    *
    * @param body - The request body containing the email to validate.
    * @example
-  * Request body example: \{ "email": "xyz\@gmail.com" \}
+   * Request body example: \{ "email": "xyz\@gmail.com" \}
    */
   @Public()
   @Post("/validateEmail/")
@@ -111,7 +115,7 @@ export class CollabController {
    *
    * @param body - The request body containing the username to validate.
    * @example
-  * Request body example: \{ "username": "sampleUsername123" \}
+   * Request body example: \{ "username": "sampleUsername123" \}
    */
   @Public()
   @Post("/validateUsername/")
@@ -137,21 +141,21 @@ export class CollabController {
    *
    * @param user_id - ID of the user
    * @param body - Request body containing the updated preferences.
-  * @example
-  * Request body sample:
-  *
-  * ```json
-  * {
-  *   "preferences": {
-  *     "theme": "Light",
-  *     "nodeIdsVisible": false,
-  *     "outlineVisible": false,
-  *     "node_value_visible": true,
-  *     "nodeDescriptionEnabled": true,
-  *     "pageBreaksVisible": false
-  *   }
-  * }
-  * ```
+   * @example
+   * Request body sample:
+   *
+   * ```json
+   * {
+   *   "preferences": {
+   *     "theme": "Light",
+   *     "nodeIdsVisible": false,
+   *     "outlineVisible": false,
+   *     "node_value_visible": true,
+   *     "nodeDescriptionEnabled": true,
+   *     "pageBreaksVisible": false
+   *   }
+   * }
+   * ```
    * @returns Updated preferences of the user
    * @example
    * PUT request: https://staging.app.openpra.org/api/collab/user/1/preferences/

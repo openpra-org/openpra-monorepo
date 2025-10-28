@@ -2,10 +2,15 @@ import { Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document } from "mongoose";
 import { NestedModel } from "./templateSchema/nested-model.schema";
 
+/**
+ * Nested model representing a Bayesian Network technical element.
+ */
 @Schema({ versionKey: false })
 export class BayesianNetwork extends NestedModel {}
 
+/** Mongoose document type for BayesianNetwork. */
 export type BayesianNetworkDocument = BayesianNetwork & Document;
+/** Mongoose schema for BayesianNetwork. */
 export const BayesianNetworkSchema = SchemaFactory.createForClass(BayesianNetwork);
 
 // @Schema({ _id: false, versionKey: false })

@@ -549,6 +549,12 @@ importers:
       swagger-ui-express:
         specifier: 5.0.1
         version: 5.0.1(express@4.20.0)
+      typedoc:
+        specifier: ^0.28.1
+        version: 0.28.14(typescript@5.9.3)
+      typedoc-plugin-markdown:
+        specifier: ^4.6.0
+        version: 4.9.0(typedoc@0.28.14(typescript@5.9.3))
       typescript-eslint:
         specifier: 8.14.0
         version: 8.14.0(eslint@9.14.0(jiti@2.6.1))(typescript@5.9.3)
@@ -568,6 +574,12 @@ importers:
       eslint-plugin-tsdoc:
         specifier: 0.2.17
         version: 0.2.17
+      typedoc:
+        specifier: ^0.28.1
+        version: 0.28.14(typescript@5.9.3)
+      typedoc-plugin-markdown:
+        specifier: ^4.6.0
+        version: 4.9.0(typedoc@0.28.14(typescript@5.9.3))
       typescript-eslint:
         specifier: 8.14.0
         version: 8.14.0(eslint@9.14.0(jiti@2.6.1))(typescript@5.9.3)
@@ -727,6 +739,12 @@ importers:
       supertest:
         specifier: 6.3.4
         version: 6.3.4
+      typedoc:
+        specifier: ^0.28.1
+        version: 0.28.14(typescript@5.9.3)
+      typedoc-plugin-markdown:
+        specifier: ^4.6.0
+        version: 4.9.0(typedoc@0.28.14(typescript@5.9.3))
       typescript-eslint:
         specifier: 8.14.0
         version: 8.14.0(eslint@9.14.0(jiti@2.6.1))(typescript@5.9.3)

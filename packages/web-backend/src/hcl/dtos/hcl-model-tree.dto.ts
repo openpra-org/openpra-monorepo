@@ -7,5 +7,7 @@ const hclModelTreeSchema = z.object({
   tree_type: z.string(),
   tree_data: z.object({}).default({}).optional(),
 });
-
+/**
+ * DTO for creating or returning a single HCL model tree entry.
+ */
 export class HclModelTreeDto extends createZodDto(hclModelTreeSchema) {}

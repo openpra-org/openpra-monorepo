@@ -3,11 +3,18 @@ import { JobBrokerService } from "./job-broker.service";
 import { QuantificationJobReport } from "./middleware/schemas/quantification-job.schema";
 import { ExecutableJobReport } from "./middleware/schemas/executable-job.schema";
 
+/** Minimal response shape returned by job broker endpoints. */
 export interface JobResponse {
   message: string;
 }
 
 @Controller()
+/**
+ * HTTP controller for job broker endpoints.
+ *
+ * Provides routes to list job types and to query jobs by lifecycle status
+ * (pending, queued, completed) across quantification and executable tasks.
+ */
 export class JobBrokerController {
   /**
    * Constructs the JobBrokerController with the necessary service.
@@ -19,7 +26,7 @@ export class JobBrokerController {
    * Retrieves a list of job types.
    *
    * @returns An object containing a message with the list of job types.
-   * @throws {@link NotFoundException} When the list of job types cannot be found.
+   * @throws `NotFoundException` When the list of job types cannot be found.
    */
   @Get("/job-types")
   public getJobTypes(): JobResponse {
@@ -34,7 +41,7 @@ export class JobBrokerController {
    * Retrieves a list of jobs based on the status.
    *
    * @returns An object containing a message with the list of pending jobs.
-   * @throws {@link NotFoundException} When the list of pending jobs cannot be found.
+   * @throws `NotFoundException` When the list of pending jobs cannot be found.
    */
   @Get("/jobs")
   public async getJobs(
@@ -51,7 +58,7 @@ export class JobBrokerController {
    * Retrieves a list of pending jobs.
    *
    * @returns An object containing a message with the list of pending jobs.
-   * @throws {@link NotFoundException} When the list of pending jobs cannot be found.
+   * @throws `NotFoundException` When the list of pending jobs cannot be found.
    */
   @Get("/pending-jobs")
   public async getPendingJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
@@ -84,7 +91,7 @@ export class JobBrokerController {
    * Creates a new job.
    *
    * @returns An object containing a message confirming the job creation.
-   * @throws {@link InternalServerErrorException} When there is a problem creating the job.
+   * @throws `InternalServerErrorException` When there is a problem creating the job.
    */
   @Post("/create-job")
   public createJob(): JobResponse {

@@ -3,6 +3,10 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { InternalEvents, InternalEventsDocument, InternalEventsMetadata } from "../schemas/internal-events.schema";
 
+/**
+ * Service exposing metadata queries for typed models.
+ * @public
+ */
 @Injectable()
 export class MetaTypedModelService {
   constructor(

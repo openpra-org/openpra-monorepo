@@ -18,6 +18,9 @@ import { ExecutableStorageService } from "./services/executable-storage.service"
   controllers: [ExecutableController],
   providers: [ExecutableService, ExecutableWorkerService, ExecutableStorageService],
 })
+/**
+ * Nest module that exposes executable task endpoints and workers.
+ */
 export class ExecutableModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(JobBrokerMiddleware).forRoutes(ExecutableController);

@@ -10,4 +10,7 @@ import { Roles, RolesSchema } from "./schemas/roles.schema";
   providers: [RolesService],
   exports: [RolesService],
 })
+/**
+ * Module providing role management APIs and database bindings.
+ */
 export class RolesModule {}

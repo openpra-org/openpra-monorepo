@@ -6,8 +6,14 @@ import { InternalHazards, InternalHazardsDocument } from "../typedModel/schemas/
 import { ExternalHazards, ExternalHazardsDocument } from "../typedModel/schemas/external-hazards.schema";
 import { FullScope, FullScopeDocument } from "../typedModel/schemas/full-scope.schema";
 
+/**
+ * Union of supported typed model collection names.
+ */
 export type TypedModelType = "InternalEvents" | "InternalHazards" | "ExternalHazards" | "FullScope";
 
+/**
+ * Union of supported nested model property keys used in typed models.
+ */
 export type NestedModelType =
   | "initiatingEvents"
   | "eventSequenceDiagrams"
@@ -20,6 +26,10 @@ export type NestedModelType =
   | "bayesianEstimations"
   | "weibullAnalysis";
 
+/**
+ * Helper service to link nested models to typed models and perform common updates.
+ * Used by feature-specific nested model services.
+ */
 @Injectable()
 export class NestedModelHelperService {
   constructor(

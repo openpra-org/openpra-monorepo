@@ -71,3 +71,7 @@ lerna-debug.log*
 # Ignore generated documentation and coverage outputs
 **/docs/**/*
 **/coverage/**/*
+
+# Keep Nx docs project tracked
+!/tools/docs/
+!/tools/docs/**

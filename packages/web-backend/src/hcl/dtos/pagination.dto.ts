@@ -7,5 +7,7 @@ const paginationSchema = z.object({
   previous: z.string().or(z.null()),
   results: z.array(z.any()),
 });
-
+/**
+ * Pagination envelope for HCL list responses.
+ */
 export class PaginationDto extends createZodDto(paginationSchema) {}

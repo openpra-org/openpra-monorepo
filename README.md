@@ -306,6 +306,16 @@ Outputs:
 
 The Pages workflow is named "Docs: Unified TypeScript + C++" and runs on pushes to `main` or manual dispatch.
 
+### Docs coverage
+
+Run a quick TSDoc coverage report across key packages:
+
+```bash
+pnpm nx run docs:coverage
+```
+
+This prints, per package, how many exported declarations have TSDoc blocks and highlights low-coverage areas to target first. It’s local-only and safe to run anytime.
+
 ## Additional Documentation
 
 Additional documentation can be found in the [Extended README](README/README.md)

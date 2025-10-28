@@ -7,6 +7,10 @@ import { InitiatingEvent, InitiatingEventDocument } from "../schemas/initiating-
 import { NestedModelService } from "../nestedModel.service";
 import { Label } from "../../schemas/label.schema";
 
+/**
+ * Service for Initiating Event nested models.
+ * Supports listing, single retrieval, creation and label updates.
+ */
 @Injectable()
 export class InitiatingEventsService {
   constructor(

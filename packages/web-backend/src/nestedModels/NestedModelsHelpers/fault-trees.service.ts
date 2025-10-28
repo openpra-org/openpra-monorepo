@@ -7,6 +7,10 @@ import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
 import { FaultTree, FaultTreeDocument } from "../schemas/fault-tree.schema";
 
+/**
+ * Service for Fault Tree nested model operations.
+ * Provides collection and single-item retrieval, updates and label helpers.
+ */
 @Injectable()
 export class FaultTreesService {
   constructor(

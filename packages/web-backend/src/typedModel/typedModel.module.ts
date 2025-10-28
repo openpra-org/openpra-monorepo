@@ -24,4 +24,7 @@ import { MetaTypedModelService } from "./metadata/meta-typed-model.service";
   providers: [TypedModelService, MetaTypedModelService],
   exports: [TypedModelService, MetaTypedModelService],
 })
+/**
+ * Typed model module exposing CRUD endpoints and metadata listings for model types.
+ */
 export class TypedModelModule {}

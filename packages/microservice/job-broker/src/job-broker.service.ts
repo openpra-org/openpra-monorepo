@@ -5,6 +5,9 @@ import { JobResponse } from "./job-broker.controller";
 import { QuantificationJobReport } from "./middleware/schemas/quantification-job.schema";
 import { ExecutableJobReport } from "./middleware/schemas/executable-job.schema";
 
+/**
+ * Aggregates and exposes job/task listings from MongoDB collections.
+ */
 @Injectable()
 export class JobBrokerService {
   constructor(

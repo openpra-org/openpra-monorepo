@@ -1,3 +1,6 @@
+/**
+ * Test stub array of nested model references associated with a typed model.
+ */
 export const nestedObjects = [
   {
     nestedId: 9,

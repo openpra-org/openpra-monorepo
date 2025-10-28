@@ -1,17 +1,16 @@
 import { Controller, Post, Get, Put, Body, Param, Delete } from "@nestjs/common";
 import { FmeaService } from "./fmea.service";
 import { Fmea } from "./schemas/fmea.schema";
+import { UpdateCellBody } from "./dtos/update-cell-body.dto";
+import { UpdateDropdownBody } from "./dtos/update-dropdown-body.dto";
+import { AddColumnBody } from "./dtos/add-column-body.dto";
+import { UpdateColumnNameBody } from "./dtos/update-column-name-body.dto";
 
-type UpdateCellBody = { rowId: string; column: string; value: string };
-type UpdateDropdownBody = { column: string; dropdownOptions: { number: number; description: string }[] };
-// For creating a new column, the service expects name/type and optional dropdownOptions
-type AddColumnBody = {
-  name: string;
-  type: "string" | "dropdown";
-  dropdownOptions?: { number: number; description: string }[];
-};
-type UpdateColumnNameBody = { column: string; newColumnName: string };
-
+/**
+ * Controller for FMEA operations.
+ * Provides endpoints to create, update, and manage FMEA tables.
+ * @public
+ */
 @Controller()
 export class FmeaController {
   constructor(private readonly fmeaService: FmeaService) {}
@@ -106,7 +105,7 @@ export class FmeaController {
   /**
    * Delete an FMEA.
    *
-   * @param id - FMEA ID
+   * @param fmeaId - FMEA ID
    * @returns Whether the FMEA was deleted
    */
   @Put(":id/delete")
@@ -141,7 +140,8 @@ export class FmeaController {
   /**
    * Update column details.
    *
-   * @param column - The current column name
+   * @param fmeaId - The FMEA id
+   * @param prev_column_name - The current column name
    * @param body - New column name, type, and dropdown options
    * @returns Updated FMEA
    */

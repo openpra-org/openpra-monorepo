@@ -7,6 +7,10 @@ import { NestedModelHelperService, TypedModelType } from "../nested-model-helper
 import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
 
+/**
+ * Service for Event Sequence Analysis nested models.
+ * Supports listing and single-item retrieval.
+ */
 @Injectable()
 export class EventSequenceAnalysisService {
   constructor(

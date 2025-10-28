@@ -29,6 +29,9 @@ class RawRule {
   },
   versionKey: false,
 })
+/**
+ * Role entity persisted in MongoDB with a set of permission rules.
+ */
 export class Roles {
   @Prop({ required: false, unique: true })
   id: string;
@@ -41,4 +44,5 @@ export class Roles {
 }
 
 export type RolesDocument = Roles & Document;
+/** Mongoose schema for Roles. */
 export const RolesSchema = SchemaFactory.createForClass(Roles);

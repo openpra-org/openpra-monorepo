@@ -32,6 +32,33 @@ if [ -f packages/shared-sdk/typedoc.json ]; then
   cp -R packages/shared-sdk/docs/* "$DIST_DIR/shared-sdk/" || true
 fi
 
+# model-generator
+if [ -f packages/model-generator/typedoc.json ]; then
+  echo "[docs] Building model-generator"
+  pnpm nx run model-generator:docs
+  rm -rf "$DIST_DIR/model-generator"
+  mkdir -p "$DIST_DIR/model-generator"
+  cp -R packages/model-generator/docs/* "$DIST_DIR/model-generator/" || true
+fi
+
+# microservice-job-broker
+if [ -f packages/microservice/job-broker/typedoc.json ]; then
+  echo "[docs] Building microservice-job-broker"
+  pnpm nx run microservice-job-broker:docs
+  rm -rf "$DIST_DIR/microservice-job-broker"
+  mkdir -p "$DIST_DIR/microservice-job-broker"
+  cp -R packages/microservice/job-broker/docs/* "$DIST_DIR/microservice-job-broker/" || true
+fi
+
+# web-backend
+if [ -f packages/web-backend/typedoc.json ]; then
+  echo "[docs] Building web-backend"
+  pnpm nx run web-backend:docs
+  rm -rf "$DIST_DIR/web-backend"
+  mkdir -p "$DIST_DIR/web-backend"
+  cp -R packages/web-backend/docs/* "$DIST_DIR/web-backend/" || true
+fi
+
 # mef-technical-elements (standalone npm project)
 MEF_TE_DIR="packages/mef-types/src/openpra-mef/technical-elements"
 if [ -f "$MEF_TE_DIR/typedoc.json" ]; then
@@ -77,6 +104,9 @@ cat > "$DIST_DIR/index.html" <<'HTML'
   <ul>
     <li><a href="./shared-types/">shared-types API</a></li>
     <li><a href="./shared-sdk/">shared-sdk API</a></li>
+    <li><a href="./model-generator/">model-generator API</a></li>
+    <li><a href="./microservice-job-broker/">job-broker API</a></li>
+    <li><a href="./web-backend/">web-backend API</a></li>
     <li><a href="./mef-technical-elements/">MEF Technical Elements</a></li>
     <li><a href="./scram-node/">C++ Engine (scram-node)</a></li>
   </ul>

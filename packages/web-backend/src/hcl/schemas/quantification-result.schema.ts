@@ -102,6 +102,9 @@ const ResultDataSchema = SchemaFactory.createForClass(ResultData);
   },
   versionKey: false,
 })
+/**
+ * Stored quantification result snapshot including configuration and outputs.
+ */
 export class QuantificationResult {
   @Prop({ required: false })
   id: number;
@@ -123,4 +126,5 @@ export class QuantificationResult {
 }
 
 export type QuantificationResultDocument = QuantificationResult & Document;
+/** Mongoose schema for QuantificationResult. */
 export const QuantificationResultSchema = SchemaFactory.createForClass(QuantificationResult);

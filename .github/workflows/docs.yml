@@ -36,7 +36,7 @@ jobs:
           pnpm -v
 
       - name: Install root dependencies (skip lifecycle scripts)
-        run: pnpm install --frozen-lockfile --ignore-scripts
+        run: npx -y pnpm@10.19.0 install --frozen-lockfile --ignore-scripts
 
       - name: Install Doxygen
         run: |
@@ -44,7 +44,7 @@ jobs:
           sudo apt-get install -y doxygen graphviz
 
       - name: Build aggregated docs
-        run: pnpm nx run docs:build-site
+        run: npx -y pnpm@10.19.0 nx run docs:build-site
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

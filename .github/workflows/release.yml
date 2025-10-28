@@ -33,6 +33,46 @@ jobs:
       - name: Install dependencies (skip lifecycle scripts)
         run: npx -y pnpm@10.19.0 install --frozen-lockfile --ignore-scripts
 
+      - name: Install system dependencies for native build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            make \
+            cmake \
+            g++ \
+            git \
+            python3 \
+            curl \
+            ca-certificates \
+            libxml2-dev \
+            libomp-dev \
+            libgoogle-perftools-dev \
+            libboost-program-options-dev \
+            libboost-math-dev \
+            libboost-random-dev \
+            libboost-filesystem-dev \
+            libboost-test-dev \
+            libboost-date-time-dev \
+            libjemalloc-dev \
+            libxml2 \
+            libboost-filesystem1.74.0 \
+            libboost-program-options1.74.0 \
+            libtcmalloc-minimal4 \
+            libjemalloc2
+
+      - name: Build scram-node native addon
+        run: |
+          cd packages/engine/scram-node
+          npx -y pnpm@10.19.0 run install
+
+      - name: Install scram CLI (optional)
+        run: |
+          if [ -f packages/engine/scram-node/build/cmake_install.cmake ]; then
+            cmake --install packages/engine/scram-node/build
+          else
+            echo "No CMake install script found; skipping scram-cli install"
+          fi
+
       - name: Build
         run: npx -y pnpm@10.19.0 nx run-many -t build
 
@@ -41,7 +81,13 @@ jobs:
           CI: "true"
           # MONGO_URI should be provided by repo/env secrets or self-hosted action
           MONGO_URI: ${{ secrets.MONGO_URI }}
-        run: npx -y pnpm@10.19.0 nx run-many -t test -- --test-timeout=60000
+          # Ensure native libs on PATH/LD_LIBRARY_PATH if installed to ~/.local
+          LD_LIBRARY_PATH: ${{ env.LD_LIBRARY_PATH }}
+          PATH: ${{ env.PATH }}
+        run: |
+          export PATH="$HOME/.local/bin:$PATH"
+          export LD_LIBRARY_PATH="$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
+          npx -y pnpm@10.19.0 nx run-many -t test -- --test-timeout=60000
 
       - name: Nx Release Version (Conventional Commits)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dryRun == 'true' }}

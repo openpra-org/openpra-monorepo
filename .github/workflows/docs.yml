@@ -46,7 +46,7 @@ jobs:
         #   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
         #   NX_BRANCH: ${{ github.ref_name }}
         #   NX_RUN_GROUP: docs-${{ github.run_id }}
-        run: npx -y pnpm@10.19.0 nx run docs:build-site
+        run: npx -y pnpm@10.19.0 nx run docs:build-site --no-cloud
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

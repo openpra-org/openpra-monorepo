@@ -77,7 +77,7 @@ jobs:
         #   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}  # (disabled)
         #   NX_BRANCH: ${{ github.ref_name }}                             # (disabled)
         #   NX_RUN_GROUP: release-${{ github.run_id }}                    # (disabled)
-        run: npx -y pnpm@10.19.0 nx run-many -t build
+        run: npx -y pnpm@10.19.0 nx run-many -t build --no-cloud
 
       - name: Test
         env:
@@ -90,7 +90,7 @@ jobs:
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           export LD_LIBRARY_PATH="$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
-          npx -y pnpm@10.19.0 nx run-many -t test -- --test-timeout=60000
+          npx -y pnpm@10.19.0 nx run-many -t test --no-cloud -- --test-timeout=60000
 
       - name: Nx Release Version (Conventional Commits)
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.dryRun == 'true' }}

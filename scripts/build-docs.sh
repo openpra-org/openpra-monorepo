@@ -53,6 +53,15 @@ if [ -f packages/microservice/job-broker/typedoc.json ]; then
   cp -R packages/microservice/job-broker/docs/* "$DIST_DIR/microservice-job-broker/" || true
 fi
 
+# frontend-web-editor (document only utilities and hooks)
+if [ -f packages/frontend/web-editor/typedoc.json ]; then
+  echo "[docs] Building frontend-web-editor (utils & hooks)"
+  pnpm nx run frontend-web-editor:docs --no-cloud
+  rm -rf "$DIST_DIR/frontend-web-editor"
+  mkdir -p "$DIST_DIR/frontend-web-editor"
+  cp -R packages/frontend/web-editor/docs/* "$DIST_DIR/frontend-web-editor/" || true
+fi
+
 # web-backend
 if [ -f packages/web-backend/typedoc.json ]; then
   echo "[docs] Building web-backend"
@@ -118,6 +127,7 @@ cat > "$DIST_DIR/index.html" <<'HTML'
     <li><a href="./shared-sdk/">shared-sdk API</a></li>
     <li><a href="./model-generator/">model-generator API</a></li>
     <li><a href="./microservice-job-broker/">job-broker API</a></li>
+  <li><a href="./frontend-web-editor/">frontend-web-editor (utils & hooks)</a></li>
     <li><a href="./web-backend/">web-backend API</a></li>
     <li><a href="./mef-technical-elements/">MEF Technical Elements</a></li>
     <li><a href="./scram-node/">C++ Engine (scram-node)</a></li>

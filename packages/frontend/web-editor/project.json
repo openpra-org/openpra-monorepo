@@ -5,6 +5,14 @@
   "sourceRoot": "packages/frontend/web-editor/src",
   "projectType": "application",
   "targets": {
+    "docs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "typedoc --options typedoc.json",
+        "cwd": "{projectRoot}"
+      },
+      "outputs": ["{projectRoot}/docs"]
+    },
     "build": {
       "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],

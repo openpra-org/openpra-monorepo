@@ -8,18 +8,29 @@ const fs = require("fs");
 const path = require("path");
 
 const PACKAGES = [
-  { name: "shared-types", root: "packages/shared-types/src" },
-  { name: "shared-sdk", root: "packages/shared-sdk/src" },
-  { name: "model-generator", root: "packages/model-generator/src" },
-  { name: "microservice-job-broker", root: "packages/microservice/job-broker/src" },
-  { name: "web-backend", root: "packages/web-backend/src" },
+  { name: "shared-types", roots: ["packages/shared-types/src"] },
+  { name: "shared-sdk", roots: ["packages/shared-sdk/src"] },
+  { name: "model-generator", roots: ["packages/model-generator/src"] },
+  { name: "microservice-job-broker", roots: ["packages/microservice/job-broker/src"] },
+  { name: "web-backend", roots: ["packages/web-backend/src"] },
   // Optional: mef technical elements (large) – include limited path to avoid noise
-  { name: "mef-technical-elements", root: "packages/mef-types/src/openpra-mef/technical-elements" },
+  { name: "mef-technical-elements", roots: ["packages/mef-types/src/openpra-mef/technical-elements"] },
+  // Frontend: focus coverage on utils and hooks to avoid UI-heavy areas
+  {
+    name: "frontend-web-editor",
+    roots: ["packages/frontend/web-editor/src/utils", "packages/frontend/web-editor/src/app/hooks"],
+  },
+  // scram-node N-API declarations are in .d.ts; include them explicitly
+  {
+    name: "scram-node-napi",
+    roots: ["packages/engine/scram-node/targets/scram-node/lib"],
+    includeDts: true,
+  },
 ];
 
-const excludePatterns = [/\.spec\.ts$/i, /\.e2e-spec\.ts$/i, /\.d\.ts$/i, /node_modules\//];
+const excludePatterns = [/\.spec\.(ts|tsx)$/i, /\.e2e-spec\.(ts|tsx)$/i, /node_modules\//];
 
-function walk(dir) {
+function walk(dir, opts = { includeDts: false }) {
   const out = [];
   if (!fs.existsSync(dir)) return out;
   for (const entry of fs.readdirSync(dir)) {
@@ -27,9 +38,10 @@ function walk(dir) {
     const st = fs.statSync(full);
     if (st.isDirectory()) {
       if (entry === "node_modules" || entry === "dist" || entry === "build") continue;
-      out.push(...walk(full));
-    } else if (st.isFile() && full.endsWith(".ts")) {
+      out.push(...walk(full, opts));
+    } else if (st.isFile() && (full.endsWith(".ts") || full.endsWith(".tsx"))) {
       if (excludePatterns.some((re) => re.test(full))) continue;
+      if (/\.d\.ts$/i.test(full) && !opts.includeDts) continue;
       out.push(full);
     }
   }
@@ -85,7 +97,11 @@ function pct(n, d) {
 
 const results = [];
 for (const pkg of PACKAGES) {
-  const files = walk(pkg.root);
+  const roots = Array.isArray(pkg.roots) ? pkg.roots : [pkg.root];
+  let files = [];
+  for (const r of roots) {
+    files.push(...walk(r, { includeDts: !!pkg.includeDts }));
+  }
   let total = 0,
     documented = 0;
   for (const f of files) {

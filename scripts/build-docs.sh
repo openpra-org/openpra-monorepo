@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Ensure all nested Nx invocations skip Nx Cloud unless explicitly overridden
+export NX_NO_CLOUD=true
+
 # Aggregate docs builder for OpenPRA monorepo
 # Outputs site to dist/docs
 
@@ -17,7 +20,7 @@ pushd "$ROOT_DIR" >/dev/null
 # shared-types
 if [ -f packages/shared-types/typedoc.json ]; then
   echo "[docs] Building shared-types"
-  pnpm nx run shared-types:docs
+  pnpm nx run shared-types:docs --no-cloud
   rm -rf "$DIST_DIR/shared-types"
   mkdir -p "$DIST_DIR/shared-types"
   cp -R packages/shared-types/docs/* "$DIST_DIR/shared-types/" || true
@@ -26,7 +29,7 @@ fi
 # shared-sdk
 if [ -f packages/shared-sdk/typedoc.json ]; then
   echo "[docs] Building shared-sdk"
-  pnpm nx run shared-sdk:docs
+  pnpm nx run shared-sdk:docs --no-cloud
   rm -rf "$DIST_DIR/shared-sdk"
   mkdir -p "$DIST_DIR/shared-sdk"
   cp -R packages/shared-sdk/docs/* "$DIST_DIR/shared-sdk/" || true
@@ -35,7 +38,7 @@ fi
 # model-generator
 if [ -f packages/model-generator/typedoc.json ]; then
   echo "[docs] Building model-generator"
-  pnpm nx run model-generator:docs
+  pnpm nx run model-generator:docs --no-cloud
   rm -rf "$DIST_DIR/model-generator"
   mkdir -p "$DIST_DIR/model-generator"
   cp -R packages/model-generator/docs/* "$DIST_DIR/model-generator/" || true
@@ -44,7 +47,7 @@ fi
 # microservice-job-broker
 if [ -f packages/microservice/job-broker/typedoc.json ]; then
   echo "[docs] Building microservice-job-broker"
-  pnpm nx run microservice-job-broker:docs
+  pnpm nx run microservice-job-broker:docs --no-cloud
   rm -rf "$DIST_DIR/microservice-job-broker"
   mkdir -p "$DIST_DIR/microservice-job-broker"
   cp -R packages/microservice/job-broker/docs/* "$DIST_DIR/microservice-job-broker/" || true
@@ -53,7 +56,7 @@ fi
 # web-backend
 if [ -f packages/web-backend/typedoc.json ]; then
   echo "[docs] Building web-backend"
-  pnpm nx run web-backend:docs
+  pnpm nx run web-backend:docs --no-cloud
   rm -rf "$DIST_DIR/web-backend"
   mkdir -p "$DIST_DIR/web-backend"
   cp -R packages/web-backend/docs/* "$DIST_DIR/web-backend/" || true

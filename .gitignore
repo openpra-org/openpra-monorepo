@@ -62,13 +62,12 @@ lerna-debug.log*
 .nx/workspace-data
 
 
-#don't add coverage folder from web backend
-**/coverage/**/*
 /packages/frontend/web-editor/e2e/.auth/
-#/fixtures/
+
+
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 
-# Ignore generated documentation outputs
-packages/**/docs/
-packages/engine/scram-node/docs/
+# Ignore generated documentation and coverage outputs
+**/docs/**/*
+**/coverage/**/*

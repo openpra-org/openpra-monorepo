@@ -3,11 +3,19 @@ import { Fmea } from "shared-types";
 const API_ENDPOINT = "/api";
 const FMEA_ENDPOINT = `${API_ENDPOINT}/fmea`;
 
-type SnackbarStatus = 'success' | 'error';
+type SnackbarStatus = "success" | "error";
 type CallbackOverride = { showSuccess?: boolean; showFailure?: boolean } | null;
 type SuccessCallback = (res: string | Response, override: CallbackOverride) => unknown;
 type FailCallback = (res: unknown, override: CallbackOverride) => unknown;
 
+/**
+ * Client for FMEA-related API endpoints.
+ * Provides helpers to create, fetch, update, and delete FMEA resources
+ * and emits optional UI callbacks for success/failure handling.
+ *
+ * This is exported as the default class from the SDK.
+ * @public
+ */
 export default class FmeaApiManager {
   static callSnackbar(_status: SnackbarStatus, _res: unknown, _override: CallbackOverride) {
     //TODO::
@@ -63,7 +71,7 @@ export default class FmeaApiManager {
         return "";
       })
       .then((responseText: string) =>
-        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea),
       )
       .catch((err: unknown) => {
         onFailCallback(err, override);
@@ -79,7 +87,7 @@ export default class FmeaApiManager {
   ): Promise<Fmea> {
     return this.get(`${FMEA_ENDPOINT}/${fmeaId}`, override, onSuccessCallback, onFailCallback)
       .then((responseText: string) =>
-        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea),
       )
       .catch((error) => {
         console.error("Error fetching fault tree diagram:", error);
@@ -112,7 +120,7 @@ export default class FmeaApiManager {
         return "";
       })
       .then((responseText: string) =>
-        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea),
       )
       .catch((err: unknown) => {
         onFailCallback(err, override);
@@ -143,7 +151,7 @@ export default class FmeaApiManager {
         return "";
       })
       .then((responseText: string) =>
-        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea),
       )
       .catch((err: unknown) => {
         onFailCallback(err, override);
@@ -176,7 +184,7 @@ export default class FmeaApiManager {
         return "";
       })
       .then((responseText: string) =>
-        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea),
       )
       .catch((err: unknown) => {
         onFailCallback(err, override);
@@ -209,7 +217,7 @@ export default class FmeaApiManager {
         return "";
       })
       .then((responseText: string) =>
-        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea),
       )
       .catch((err: unknown) => {
         onFailCallback(err, override);
@@ -251,7 +259,7 @@ export default class FmeaApiManager {
         return "";
       })
       .then((responseText: string) =>
-        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea),
       )
       .catch((err: unknown) => {
         onFailCallback(err, override);
@@ -294,11 +302,10 @@ export default class FmeaApiManager {
     onFailCallback: FailCallback = this.defaultFailCallback,
   ): Promise<Fmea> {
     const prevValue =
-      typeof body === 'object' && body !== null && 'prev_column_name' in body
-        ? (body as { prev_column_name?: unknown }).prev_column_name
-        : undefined;
-    const prev =
-      typeof prevValue === 'string' || typeof prevValue === 'number' ? String(prevValue) : '';
+      typeof body === "object" && body !== null && "prev_column_name" in body ?
+        (body as { prev_column_name?: unknown }).prev_column_name
+      : undefined;
+    const prev = typeof prevValue === "string" || typeof prevValue === "number" ? String(prevValue) : "";
     return await fetch(`${FMEA_ENDPOINT}/${fmeaId}/${prev}/update`, {
       method: "PUT",
       cache: "no-cache",
@@ -317,7 +324,7 @@ export default class FmeaApiManager {
         return "";
       })
       .then((responseText: string) =>
-        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea),
       )
       .catch((err: unknown) => {
         onFailCallback(err, override);
@@ -376,7 +383,7 @@ export default class FmeaApiManager {
         return "";
       })
       .then((responseText: string) =>
-        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea)
+        responseText && responseText.trim() ? (JSON.parse(responseText) as Fmea) : ({} as Fmea),
       )
       .catch((err: unknown) => {
         onFailCallback(err, override);

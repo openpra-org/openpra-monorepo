@@ -10,6 +10,7 @@ on:
   push:
     branches:
       - main
+      - docs/unified-pages-tsdoc-doxygen
 
 jobs:
   release:
@@ -29,15 +30,15 @@ jobs:
       - name: Ensure pnpm available
         run: npx -y pnpm@10.19.0 --version
 
-      - name: Install dependencies
-        run: npx -y pnpm@10.19.0 install --frozen-lockfile
+      - name: Install dependencies (skip lifecycle scripts)
+        run: npx -y pnpm@10.19.0 install --frozen-lockfile --ignore-scripts
 
       - name: Build
         run: npx -y pnpm@10.19.0 nx run-many -t build
 
       - name: Test
         env:
-          CI: 'true'
+          CI: "true"
           # MONGO_URI should be provided by repo/env secrets or self-hosted action
           MONGO_URI: ${{ secrets.MONGO_URI }}
         run: npx -y pnpm@10.19.0 nx run-many -t test -- --test-timeout=60000

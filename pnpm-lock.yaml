@@ -590,6 +590,9 @@ importers:
       typedoc:
         specifier: ^0.28.1
         version: 0.28.14(typescript@5.9.3)
+      typedoc-plugin-markdown:
+        specifier: ^4.6.0
+        version: 4.9.0(typedoc@0.28.14(typescript@5.9.3))
       typescript-eslint:
         specifier: 8.14.0
         version: 8.14.0(eslint@9.14.0(jiti@2.6.1))(typescript@5.9.3)
@@ -609,6 +612,9 @@ importers:
       typedoc:
         specifier: ^0.28.1
         version: 0.28.14(typescript@5.9.3)
+      typedoc-plugin-markdown:
+        specifier: ^4.6.0
+        version: 4.9.0(typedoc@0.28.14(typescript@5.9.3))
       typescript-eslint:
         specifier: 8.14.0
         version: 8.14.0(eslint@9.14.0(jiti@2.6.1))(typescript@5.9.3)
@@ -11013,6 +11019,12 @@ packages:
 
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
+
+  typedoc-plugin-markdown@4.9.0:
+    resolution: {integrity: sha512-9Uu4WR9L7ZBgAl60N/h+jqmPxxvnC9nQAlnnO/OujtG2ubjnKTVUFY1XDhcMY+pCqlX3N2HsQM2QTYZIU9tJuw==}
+    engines: {node: '>= 18'}
+    peerDependencies:
+      typedoc: 0.28.x
 
   typedoc@0.28.14:
     resolution: {integrity: sha512-ftJYPvpVfQvFzpkoSfHLkJybdA/geDJ8BGQt/ZnkkhnBYoYW6lBgPQXu6vqLxO4X75dA55hX8Af847H5KXlEFA==}
@@ -24525,6 +24537,10 @@ snapshots:
   typed-assert@1.0.9: {}
 
   typedarray@0.0.6: {}
+
+  typedoc-plugin-markdown@4.9.0(typedoc@0.28.14(typescript@5.9.3)):
+    dependencies:
+      typedoc: 0.28.14(typescript@5.9.3)
 
   typedoc@0.28.14(typescript@5.9.3):
     dependencies:

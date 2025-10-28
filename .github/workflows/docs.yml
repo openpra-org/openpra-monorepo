@@ -29,7 +29,11 @@ jobs:
         with:
           node-version: "20"
           cache: "pnpm"
-      - run: corepack enable
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.19.0
+          run_install: false
       - run: pnpm -v
 
       - name: Install root dependencies (skip lifecycle scripts)

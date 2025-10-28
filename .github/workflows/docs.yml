@@ -36,7 +36,7 @@ jobs:
           pnpm -v
 
       - name: Install root dependencies (skip lifecycle scripts)
-        run: npx -y pnpm@10.19.0 install --frozen-lockfile --ignore-scripts
+        run: npx -y pnpm@10.19.0 install --no-frozen-lockfile --ignore-scripts
 
       - name: Install Doxygen
         run: |

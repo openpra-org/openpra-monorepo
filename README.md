@@ -293,6 +293,18 @@ Generate the aggregated documentation site with a single command:
 pnpm nx run docs:build-site
 ```
 
+### Preview the docs locally
+
+Serve the generated static site from `dist/docs` with a simple local web server (Python 3):
+
+```bash
+python3 -m http.server 5050 -d dist/docs
+```
+
+Then open http://localhost:5050 in your browser.
+
+Tip: In a dev container or remote environment, your editor may auto-forward the port and provide an external URL.
+
 Outputs:
 
 - Aggregated site: `dist/docs` (published by the GitHub Pages workflow at `.github/workflows/docs.yml`).

@@ -87,6 +87,15 @@ if [ -f packages/engine/scram-node/Doxyfile ]; then
   cp -R packages/engine/scram-node/docs/cpp/html/* "$DIST_DIR/scram-node/" || true
 fi
 
+# 2b) Build N-API TypeScript docs for scram-node (TypeDoc)
+if [ -f packages/engine/scram-node/typedoc.json ]; then
+  echo "[docs] Building scram-node N-API (TypeScript)"
+  pnpm nx run engine-scram-node:docs-ts --no-cloud
+  rm -rf "$DIST_DIR/scram-node-napi"
+  mkdir -p "$DIST_DIR/scram-node-napi"
+  cp -R packages/engine/scram-node/docs/ts/* "$DIST_DIR/scram-node-napi/" || true
+fi
+
 # 3) Landing page
 cat > "$DIST_DIR/index.html" <<'HTML'
 <!DOCTYPE html>
@@ -112,6 +121,7 @@ cat > "$DIST_DIR/index.html" <<'HTML'
     <li><a href="./web-backend/">web-backend API</a></li>
     <li><a href="./mef-technical-elements/">MEF Technical Elements</a></li>
     <li><a href="./scram-node/">C++ Engine (scram-node)</a></li>
+    <li><a href="./scram-node-napi/">scram-node N-API (TypeScript)</a></li>
   </ul>
   <p class="note">This site aggregates per-package docs. Some sections may be absent if a package did not build or has no docs.</p>
 </body>

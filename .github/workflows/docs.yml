@@ -40,14 +40,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y doxygen graphviz
 
-      - name: Build aggregated docs
+      - name: Build unified Markdown docs (VitePress)
         # Nx Cloud temporarily disabled — retain config here for quick re-enable
         env:
           NX_NO_CLOUD: "true"
           # NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
           # NX_BRANCH: ${{ github.ref_name }}
           # NX_RUN_GROUP: docs-${{ github.run_id }}
-        run: npx -y pnpm@10.19.0 nx run docs:build-site --no-cloud
+        run: npx -y pnpm@10.19.0 nx run docs-md:site:build --no-cloud
+
+      - name: Link check
+        run: npx -y pnpm@10.19.0 nx run docs-md:site:link-check --no-cloud
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -55,7 +58,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist/docs
+          path: packages/docs-md/.vitepress/dist
 
       - name: Deploy to GitHub Pages
         id: deployment

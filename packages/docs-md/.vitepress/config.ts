@@ -8,13 +8,27 @@ export default defineConfig({
   ignoreDeadLinks: true,
   themeConfig: {
     nav: [
-      { text: "TS API", link: "/api/ts/README.html" },
+      {
+        text: "TS API",
+        items: [
+          { text: "Web Editor Utils", link: "/api/ts/web-editor/README.html" },
+          { text: "Shared SDK", link: "/api/ts/shared-sdk/README.html" },
+          { text: "Shared Types", link: "/api/ts/shared-types/README.html" },
+        ],
+      },
       { text: "C++ API (Doxybook2)", link: "/api/cpp-doxybook2/index_files.html" },
-      { text: "C++ API (Moxygen)", link: "/api/cpp-moxygen/README.html" },
       { text: "Converter Report", link: "/report.html" },
     ],
     sidebar: {
-      "/api/ts/": [{ text: "TypeScript API", items: [{ text: "Index", link: "/api/ts/README.html" }] }],
+      "/api/ts/web-editor/": [
+        { text: "Web Editor Utils", items: [{ text: "Index", link: "/api/ts/web-editor/README.html" }] },
+      ],
+      "/api/ts/shared-sdk/": [
+        { text: "Shared SDK", items: [{ text: "Index", link: "/api/ts/shared-sdk/README.html" }] },
+      ],
+      "/api/ts/shared-types/": [
+        { text: "Shared Types", items: [{ text: "Index", link: "/api/ts/shared-types/README.html" }] },
+      ],
       "/api/cpp-doxybook2/": [
         {
           text: "C++ (Doxybook2)",
@@ -24,9 +38,6 @@ export default defineConfig({
             { text: "Namespaces", link: "/api/cpp-doxybook2/index_namespaces.html" },
           ],
         },
-      ],
-      "/api/cpp-moxygen/": [
-        { text: "C++ (Moxygen)", items: [{ text: "Index", link: "/api/cpp-moxygen/README.html" }] },
       ],
     },
   },

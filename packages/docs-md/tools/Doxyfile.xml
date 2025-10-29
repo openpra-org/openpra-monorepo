@@ -1,4 +1,4 @@
-PROJECT_NAME           = "scram-node-md-spike"
+PROJECT_NAME           = "scram-node"
 OUTPUT_DIRECTORY       = packages/docs-md/.tmp/doxygen
 GENERATE_HTML          = NO
 GENERATE_XML           = YES
@@ -7,12 +7,9 @@ QUIET                  = YES
 WARN_IF_UNDOCUMENTED   = NO
 JAVADOC_AUTOBRIEF      = YES
 EXTRACT_ALL            = YES
-RECURSIVE              = NO
+RECURSIVE              = YES
 INPUT                  = \
-  packages/engine/scram-node/targets/scram-node/src/ScramWorker.h \
-  packages/engine/scram-node/targets/scram-node/src/RunScramCli.h \
-  packages/engine/scram-node/targets/scram-node/src/AsyncScramWorker.h \
-  packages/engine/scram-node/targets/scram-node/src/AsyncRunScramCli.h
+  packages/engine/scram-node/targets/scram-node/src
 FILE_PATTERNS          = *.h *.hpp
 EXCLUDE_PATTERNS       = */build/*
 ALIASES                =

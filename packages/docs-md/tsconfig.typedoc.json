@@ -9,6 +9,10 @@
     "skipLibCheck": true,
     "types": []
   },
-  "include": ["../../packages/frontend/web-editor/src/utils/**/*.ts"],
+  "include": [
+    "../../packages/frontend/web-editor/src/utils/**/*.ts",
+    "../../packages/shared-sdk/src/**/*.ts",
+    "../../packages/shared-types/src/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

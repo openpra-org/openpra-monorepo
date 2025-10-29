@@ -7,7 +7,19 @@
     "ts:markdown": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.typedoc.json --skipErrorChecking --entryPointStrategy expand ../../packages/frontend/web-editor/src/utils/constants.ts ../../packages/frontend/web-editor/src/utils/scientificNotation.ts ../../packages/frontend/web-editor/src/utils/StringUtils.ts ../../packages/frontend/web-editor/src/utils/recalculateFrequencies.ts ../../packages/frontend/web-editor/src/utils/bayesianNodeIntersectionCalculator.ts ../../packages/frontend/web-editor/src/utils/faultTreeData.ts"
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/web-editor --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.typedoc.json --skipErrorChecking --entryPointStrategy expand ../../packages/frontend/web-editor/src/utils/constants.ts ../../packages/frontend/web-editor/src/utils/scientificNotation.ts ../../packages/frontend/web-editor/src/utils/StringUtils.ts ../../packages/frontend/web-editor/src/utils/recalculateFrequencies.ts ../../packages/frontend/web-editor/src/utils/bayesianNodeIntersectionCalculator.ts ../../packages/frontend/web-editor/src/utils/faultTreeData.ts"
+      }
+    },
+    "ts:markdown:shared-sdk": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/shared-sdk --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.typedoc.json --skipErrorChecking --entryPointStrategy expand ../../packages/shared-sdk/src"
+      }
+    },
+    "ts:markdown:shared-types": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/shared-types --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.typedoc.json --skipErrorChecking --entryPointStrategy expand ../../packages/shared-types/src"
       }
     },
     "cpp:doxygen-xml": {
@@ -15,13 +27,6 @@
       "options": {
         "command": "mkdir -p packages/docs-md/.tmp/doxygen && doxygen packages/docs-md/tools/Doxyfile.xml && echo 'Doxygen XML generated'"
       }
-    },
-    "cpp:moxygen": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'mkdir -p api/cpp-moxygen && moxygen -o api/cpp-moxygen/README.md .tmp/doxygen/doxygen-xml'"
-      },
-      "dependsOn": ["cpp:doxygen-xml"]
     },
     "cpp:doxybook2": {
       "executor": "nx:run-commands",
@@ -35,14 +40,14 @@
       "options": {
         "command": "pnpm --filter docs-md dev"
       },
-      "dependsOn": ["ts:markdown", "cpp:moxygen", "cpp:doxybook2"]
+      "dependsOn": ["ts:markdown", "ts:markdown:shared-sdk", "ts:markdown:shared-types", "cpp:doxybook2"]
     },
     "site:build": {
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm --filter docs-md build"
       },
-      "dependsOn": ["ts:markdown", "cpp:moxygen", "cpp:doxybook2"]
+      "dependsOn": ["ts:markdown", "ts:markdown:shared-sdk", "ts:markdown:shared-types", "cpp:doxybook2"]
     },
     "site:link-check": {
       "executor": "nx:run-commands",

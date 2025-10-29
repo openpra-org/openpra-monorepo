@@ -22,6 +22,36 @@
         "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-types && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-types --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/index.ts'"
       }
     },
+    "ts:markdown:mef-types": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/mef-types --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig ../../packages/mef-types/tsconfig.json --skipErrorChecking ../../packages/mef-types/src/index.ts"
+      }
+    },
+    "ts:markdown:mef-schema": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/mef-schema --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig ../../packages/mef-schema/tsconfig.lib.json --skipErrorChecking ../../packages/mef-schema/src/index.ts"
+      }
+    },
+    "ts:markdown:model-generator": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/model-generator && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/model-generator --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/index.ts'"
+      }
+    },
+    "ts:markdown:web-backend": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/web-backend && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/web-backend --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/main.ts'"
+      }
+    },
+    "ts:markdown:job-broker": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/microservice/job-broker && typedoc --plugin typedoc-plugin-markdown --out ../../docs-md/api/ts/job-broker --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/main.ts'"
+      }
+    },
     "cpp:doxygen-xml": {
       "executor": "nx:run-commands",
       "options": {
@@ -47,14 +77,34 @@
       "options": {
         "command": "pnpm --filter docs-md build"
       },
-      "dependsOn": ["ts:markdown", "ts:markdown:shared-sdk", "ts:markdown:shared-types", "cpp:doxybook2"]
+      "dependsOn": [
+        "ts:markdown",
+        "ts:markdown:shared-sdk",
+        "ts:markdown:shared-types",
+        "ts:markdown:mef-types",
+        "ts:markdown:mef-schema",
+        "ts:markdown:model-generator",
+        "ts:markdown:web-backend",
+        "ts:markdown:job-broker",
+        "cpp:doxybook2"
+      ]
     },
     "prepare": {
       "executor": "nx:run-commands",
       "options": {
         "command": "echo prepared"
       },
-      "dependsOn": ["ts:markdown", "ts:markdown:shared-sdk", "ts:markdown:shared-types", "cpp:doxybook2"]
+      "dependsOn": [
+        "ts:markdown",
+        "ts:markdown:shared-sdk",
+        "ts:markdown:shared-types",
+        "ts:markdown:mef-types",
+        "ts:markdown:mef-schema",
+        "ts:markdown:model-generator",
+        "ts:markdown:web-backend",
+        "ts:markdown:job-broker",
+        "cpp:doxybook2"
+      ]
     },
     "site:link-check": {
       "executor": "nx:run-commands",

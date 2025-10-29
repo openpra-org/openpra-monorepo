@@ -23,6 +23,11 @@ export default defineConfig({
           { text: "Web Editor Utils", link: "/api/ts/web-editor/README.html" },
           { text: "Shared SDK", link: "/api/ts/shared-sdk/README.html" },
           { text: "Shared Types", link: "/api/ts/shared-types/README.html" },
+          { text: "MEF Types", link: "/api/ts/mef-types/README.html" },
+          { text: "MEF Schema", link: "/api/ts/mef-schema/README.html" },
+          { text: "Model Generator", link: "/api/ts/model-generator/README.html" },
+          { text: "Web Backend (NestJS)", link: "/api/ts/web-backend/README.html" },
+          { text: "Job Broker (microservice)", link: "/api/ts/job-broker/README.html" },
         ],
       },
       { text: "C++ API (Doxybook2)", link: "/api/cpp-doxybook2/index_files.html" },
@@ -36,6 +41,19 @@ export default defineConfig({
       ],
       "/api/ts/shared-types/": [
         { text: "Shared Types", items: [{ text: "Index", link: "/api/ts/shared-types/README.html" }] },
+      ],
+      "/api/ts/mef-types/": [{ text: "MEF Types", items: [{ text: "Index", link: "/api/ts/mef-types/README.html" }] }],
+      "/api/ts/mef-schema/": [
+        { text: "MEF Schema", items: [{ text: "Index", link: "/api/ts/mef-schema/README.html" }] },
+      ],
+      "/api/ts/model-generator/": [
+        { text: "Model Generator", items: [{ text: "Index", link: "/api/ts/model-generator/README.html" }] },
+      ],
+      "/api/ts/web-backend/": [
+        { text: "Web Backend (NestJS)", items: [{ text: "Index", link: "/api/ts/web-backend/README.html" }] },
+      ],
+      "/api/ts/job-broker/": [
+        { text: "Job Broker", items: [{ text: "Index", link: "/api/ts/job-broker/README.html" }] },
       ],
       "/api/cpp-doxybook2/": [
         {

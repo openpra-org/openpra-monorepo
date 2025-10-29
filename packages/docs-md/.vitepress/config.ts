@@ -26,7 +26,6 @@ export default defineConfig({
         ],
       },
       { text: "C++ API (Doxybook2)", link: "/api/cpp-doxybook2/index_files.html" },
-      { text: "Converter Report", link: "/report.html" },
     ],
     sidebar: {
       "/api/ts/web-editor/": [

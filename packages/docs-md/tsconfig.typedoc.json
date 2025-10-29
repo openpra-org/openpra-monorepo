@@ -11,8 +11,8 @@
   },
   "include": [
     "../../packages/frontend/web-editor/src/utils/**/*.ts",
-    "../../packages/shared-sdk/src/**/*.ts",
-    "../../packages/shared-types/src/**/*.ts"
+    "../../packages/shared-sdk/src/**/*.{ts,d.ts}",
+    "../../packages/shared-types/src/**/*.{ts,d.ts}"
   ],
   "exclude": ["node_modules"]
 }

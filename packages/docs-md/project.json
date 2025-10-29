@@ -13,13 +13,13 @@
     "ts:markdown:shared-sdk": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/shared-sdk --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.typedoc.json --skipErrorChecking --entryPointStrategy expand ../../packages/shared-sdk/src"
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-sdk && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-sdk --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/index.ts'"
       }
     },
     "ts:markdown:shared-types": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/shared-types --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.typedoc.json --skipErrorChecking --entryPointStrategy expand ../../packages/shared-types/src"
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-types && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-types --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/index.ts'"
       }
     },
     "cpp:doxygen-xml": {
@@ -40,12 +40,19 @@
       "options": {
         "command": "pnpm --filter docs-md dev"
       },
-      "dependsOn": ["ts:markdown", "ts:markdown:shared-sdk", "ts:markdown:shared-types", "cpp:doxybook2"]
+      "dependsOn": []
     },
     "site:build": {
       "executor": "nx:run-commands",
       "options": {
         "command": "pnpm --filter docs-md build"
+      },
+      "dependsOn": ["ts:markdown", "ts:markdown:shared-sdk", "ts:markdown:shared-types", "cpp:doxybook2"]
+    },
+    "prepare": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "echo prepared"
       },
       "dependsOn": ["ts:markdown", "ts:markdown:shared-sdk", "ts:markdown:shared-types", "cpp:doxybook2"]
     },

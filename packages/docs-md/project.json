@@ -26,7 +26,7 @@
     "cpp:doxybook2": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "(command -v doxybook2 >/dev/null 2>&1 && (cd packages/docs-md && mkdir -p api/cpp-doxybook2 && doxybook2 --input .tmp/doxygen/doxygen-xml --output api/cpp-doxybook2 --config tools/doxybook2.json)) || (echo 'doxybook2 not found; skipping conversion and writing placeholder' && mkdir -p packages/docs-md/api/cpp-doxybook2 && echo '# Doxybook2 not installed' > packages/docs-md/api/cpp-doxybook2/README.md)"
+        "command": "bash -c 'set -e; BIN=\"$(packages/docs-md/tools/install-doxybook2.sh)\" && cd packages/docs-md && mkdir -p api/cpp-doxybook2 && \"$BIN\" --input .tmp/doxygen/doxygen-xml --output api/cpp-doxybook2 --config tools/doxybook2.json'"
       },
       "dependsOn": ["cpp:doxygen-xml"]
     },

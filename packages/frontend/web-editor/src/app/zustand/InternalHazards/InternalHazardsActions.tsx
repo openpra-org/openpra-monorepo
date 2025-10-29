@@ -9,6 +9,9 @@ import { InternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { UseGlobalStore } from "../Store";
 
+/**
+ * Load and set Internal Hazards for the current user.
+ */
 export const SetInternalHazards = async (): Promise<void> => {
   try {
     const internalHazardsList: InternalHazardsModelType[] = await GetInternalHazards(
@@ -22,6 +25,11 @@ export const SetInternalHazards = async (): Promise<void> => {
   }
 };
 
+/**
+ * Create a new Internal Hazard and append it to the store.
+ *
+ * @param data - Partial typed model payload for creation.
+ */
 export const AddInternalHazard = async (data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const ihr: InternalHazardsModelType = await PostInternalHazard(data);
@@ -33,6 +41,13 @@ export const AddInternalHazard = async (data: Partial<TypedModelJSON>): Promise<
   }
 };
 
+/**
+ * Update an existing Internal Hazard and replace it in the store.
+ *
+ * @param modelId - Internal hazard id to update.
+ * @param userId - Acting user id (audit/ownership).
+ * @param data - Patch payload.
+ */
 export const EditInternalHazard = async (
   modelId: number,
   userId: number,
@@ -54,6 +69,11 @@ export const EditInternalHazard = async (
   }
 };
 
+/**
+ * Delete an Internal Hazard and remove it from the store.
+ *
+ * @param id - Internal hazard id to delete.
+ */
 export const DeleteInternalHazard = async (id: number): Promise<void> => {
   try {
     await DeleteInternalHazardAPI(id);

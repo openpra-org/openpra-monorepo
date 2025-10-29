@@ -9,6 +9,10 @@ import { produce } from "immer";
 import { StoreStateType, UseGlobalStore } from "../../Store";
 import { AddToParentModel, GetTypedModelName, RemoveFromParentModel } from "../Helper";
 
+/**
+ * Fetches all Bayesian Networks for a given parent and updates store state.
+ * @param parentId - The parent model identifier
+ */
 export const SetBayesianNetworks = async (parentId: string): Promise<void> => {
   try {
     const BayesianNetworks = await GetBayesianNetworks(parentId);
@@ -23,6 +27,10 @@ export const SetBayesianNetworks = async (parentId: string): Promise<void> => {
   }
 };
 
+/**
+ * Creates a new Bayesian Network and links it to its parent models in state.
+ * @param data - New model payload
+ */
 export const AddBayesianNetwork = async (data: NestedModelJSON): Promise<void> => {
   try {
     const typedModelName: keyof StoreStateType = GetTypedModelName();
@@ -40,6 +48,11 @@ export const AddBayesianNetwork = async (data: NestedModelJSON): Promise<void> =
   }
 };
 
+/**
+ * Updates the label of a Bayesian Network.
+ * @param modelId - Target model id
+ * @param data - Partial payload containing the new label
+ */
 export const EditBayesianNetwork = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
   if (!data.label) {
     return;
@@ -59,6 +72,10 @@ export const EditBayesianNetwork = async (modelId: string, data: Partial<NestedM
   }
 };
 
+/**
+ * Deletes a Bayesian Network and removes cross-references from parent models.
+ * @param id - Target model id
+ */
 export const DeleteBayesianNetwork = async (id: string): Promise<void> => {
   try {
     const typedModelName: keyof StoreStateType = GetTypedModelName();

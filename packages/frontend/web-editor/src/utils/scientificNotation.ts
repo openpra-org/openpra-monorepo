@@ -1,3 +1,6 @@
+/**
+ * Utilities for formatting and parsing numbers in scientific notation.
+ */
 export class ScientificNotation {
   /**
    * Converts a number to scientific notation with proper rounding.

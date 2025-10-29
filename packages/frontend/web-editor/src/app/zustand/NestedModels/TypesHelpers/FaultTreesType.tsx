@@ -1,5 +1,8 @@
 import { NestedModelJSON } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
 
+/**
+ * Actions for Fault Tree nested models.
+ */
 export interface FaultTreesType {
   SetFaultTrees: (parentId: string) => Promise<void>;
   AddFaultTree: (data: NestedModelJSON) => Promise<void>;

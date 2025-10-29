@@ -9,6 +9,9 @@ import { InternalEventsModelType } from "shared-types/src/lib/types/modelTypes/l
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { UseGlobalStore } from "../Store";
 
+/**
+ * Load and set Internal Events for the current user.
+ */
 export const SetInternalEvents = async (): Promise<void> => {
   try {
     const internalEventsList: InternalEventsModelType[] = await GetInternalEvents(ApiManager.getCurrentUser().user_id);
@@ -20,6 +23,11 @@ export const SetInternalEvents = async (): Promise<void> => {
   }
 };
 
+/**
+ * Create a new Internal Event and append it to the store.
+ *
+ * @param data - Partial typed model payload for creation.
+ */
 export const AddInternalEvent = async (data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const ier: InternalEventsModelType = await PostInternalEvent(data);
@@ -31,6 +39,13 @@ export const AddInternalEvent = async (data: Partial<TypedModelJSON>): Promise<v
   }
 };
 
+/**
+ * Update an Internal Event and replace it in the store.
+ *
+ * @param modelId - Internal event id to update.
+ * @param userId - Acting user id (audit/ownership).
+ * @param data - Patch payload.
+ */
 export const EditInternalEvent = async (
   modelId: number,
   userId: number,
@@ -52,6 +67,11 @@ export const EditInternalEvent = async (
   }
 };
 
+/**
+ * Delete an Internal Event and remove it from the store.
+ *
+ * @param id - Internal event id to delete.
+ */
 export const DeleteInternalEvent = async (id: number): Promise<void> => {
   try {
     await DeleteInternalEventAPI(id);

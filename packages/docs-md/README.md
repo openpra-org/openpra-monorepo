@@ -46,6 +46,8 @@ Doxygen and Doxybook2
 
 `.github/workflows/docs.yml` builds `docs-md:site:build` and deploys `.vitepress/dist` to GitHub Pages on the default branch. The VitePress base path is configured via `VITEPRESS_BASE="/$\{\{ github.event.repository.name \}\}/"`.
 
+For incremental rollout and contribution steps, see `CONTRIBUTING-DOCS.md` in this folder.
+
 ## Notes
 
 - We removed Moxygen in favor of Doxybook2 (better structure and navigation).

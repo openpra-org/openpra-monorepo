@@ -5,6 +5,18 @@ on:
     branches:
       - main
       - docs/unified-pages-tsdoc-doxygen
+    paths:
+      - "packages/docs-md/**"
+      - "packages/shared-types/**"
+      - "packages/shared-sdk/**"
+      - "packages/frontend/web-editor/src/utils/**"
+      - "packages/engine/scram-node/**"
+      - ".github/workflows/docs.yml"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
+      - "nx.json"
+      - "tsconfig.base.json"
+      - "package.json"
   workflow_dispatch: {}
 
 permissions:
@@ -14,6 +26,9 @@ permissions:
 
 jobs:
   build-and-deploy:
+    concurrency:
+      group: docs-${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     environment:
       name: github-pages

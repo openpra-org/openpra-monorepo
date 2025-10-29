@@ -42,6 +42,30 @@ Doxygen and Doxybook2
   - `sudo apt-get update && sudo apt-get install -y doxygen graphviz`
 - Doxybook2 is installed on demand by `tools/install-doxybook2.sh` (Linux x86_64 v1.5.0).
 
+## Current coverage
+
+TypeScript
+
+- frontend web-editor (selected utilities and related types):
+  - `src/utils/constants.ts`
+  - `src/utils/scientificNotation.ts`
+  - `src/utils/StringUtils.ts`
+  - `src/utils/recalculateFrequencies.ts`
+  - `src/utils/bayesianNodeIntersectionCalculator.ts`
+  - `src/utils/faultTreeData.ts`
+  - `src/utils/treeUtils.ts`
+  - `src/app/components/treeNodes/faultTreeNodes/faultTreeNodeType.ts`
+  - `src/app/components/treeNodes/eventSequenceNodes/eventSequenceNodeType.ts`
+  - `src/app/components/treeEdges/eventSequenceEdges/eventSequenceEdgeType.ts`
+- shared-sdk: `src/index.ts` (aggregated)
+- shared-types: `src/index.ts` (aggregated)
+
+C++
+
+- Engine wrappers in `packages/engine/scram-node` (headers) via Doxygen → Doxybook2.
+
+Add more TS files incrementally by appending their paths to the `--entryPointStrategy expand` list in `packages/docs-md/project.json` under the `ts:markdown` command, then rebuild.
+
 ## CI publishing
 
 `.github/workflows/docs.yml` builds `docs-md:site:build` and deploys `.vitepress/dist` to GitHub Pages on the default branch. The VitePress base path is configured via `VITEPRESS_BASE="/$\{\{ github.event.repository.name \}\}/"`.
@@ -53,3 +77,11 @@ For incremental rollout and contribution steps, see `CONTRIBUTING-DOCS.md` in th
 - We removed Moxygen in favor of Doxybook2 (better structure and navigation).
 - TypeDoc currently runs with `--skipErrorChecking` to keep generation fast; consider enabling error checking for docs builds later.
 - Generated artifacts and caches are ignored via root `.gitignore`.
+
+## Troubleshooting
+
+- TypeDoc warnings
+  - “referenced by X but not included”: include the referenced file as another entry point, or export it via an aggregated index.
+  - “@param … was not used”: adjust the JSDoc to match the function signature or remove stale tags.
+- SSR and braces in Markdown
+  - Avoid raw double braces in content (for example, GitHub Actions expressions). Use inline code or HTML entities like `&lbrace;` and `&rbrace;` when showing literals.

@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "strict": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["../../packages/frontend/web-editor/src/utils/**/*.ts"],
+  "exclude": ["node_modules"]
+}

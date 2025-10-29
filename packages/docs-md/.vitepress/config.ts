@@ -15,6 +15,12 @@ export default defineConfig({
   srcDir: ".",
   outDir: ".vitepress/dist",
   ignoreDeadLinks: true,
+  markdown: {
+    // Disable raw HTML in Markdown to avoid Vue compile errors from generated docs
+    config: (md) => {
+      md.set({ html: false });
+    },
+  },
   themeConfig: {
     nav: [
       {
@@ -34,26 +40,76 @@ export default defineConfig({
     ],
     sidebar: {
       "/api/ts/web-editor/": [
-        { text: "Web Editor Utils", items: [{ text: "Index", link: "/api/ts/web-editor/README.html" }] },
+        {
+          text: "Web Editor Utils",
+          items: [
+            { text: "Index", link: "/api/ts/web-editor/README.html" },
+            { text: "Modules", link: "/api/ts/modules.html" },
+          ],
+        },
       ],
       "/api/ts/shared-sdk/": [
-        { text: "Shared SDK", items: [{ text: "Index", link: "/api/ts/shared-sdk/README.html" }] },
+        {
+          text: "Shared SDK",
+          items: [
+            { text: "Index", link: "/api/ts/shared-sdk/README.html" },
+            { text: "Globals", link: "/api/ts/shared-sdk/globals.html" },
+          ],
+        },
       ],
       "/api/ts/shared-types/": [
-        { text: "Shared Types", items: [{ text: "Index", link: "/api/ts/shared-types/README.html" }] },
+        {
+          text: "Shared Types",
+          items: [
+            { text: "Index", link: "/api/ts/shared-types/README.html" },
+            { text: "Globals", link: "/api/ts/shared-types/globals.html" },
+          ],
+        },
       ],
-      "/api/ts/mef-types/": [{ text: "MEF Types", items: [{ text: "Index", link: "/api/ts/mef-types/README.html" }] }],
+      "/api/ts/mef-types/": [
+        {
+          text: "MEF Types",
+          items: [
+            { text: "Index", link: "/api/ts/mef-types/README.html" },
+            { text: "Globals", link: "/api/ts/mef-types/globals.html" },
+          ],
+        },
+      ],
       "/api/ts/mef-schema/": [
-        { text: "MEF Schema", items: [{ text: "Index", link: "/api/ts/mef-schema/README.html" }] },
+        {
+          text: "MEF Schema",
+          items: [
+            { text: "Index", link: "/api/ts/mef-schema/README.html" },
+            { text: "Globals", link: "/api/ts/mef-schema/globals.html" },
+          ],
+        },
       ],
       "/api/ts/model-generator/": [
-        { text: "Model Generator", items: [{ text: "Index", link: "/api/ts/model-generator/README.html" }] },
+        {
+          text: "Model Generator",
+          items: [
+            { text: "Index", link: "/api/ts/model-generator/README.html" },
+            { text: "Globals", link: "/api/ts/model-generator/globals.html" },
+          ],
+        },
       ],
       "/api/ts/web-backend/": [
-        { text: "Web Backend (NestJS)", items: [{ text: "Index", link: "/api/ts/web-backend/README.html" }] },
+        {
+          text: "Web Backend (NestJS)",
+          items: [
+            { text: "Index", link: "/api/ts/web-backend/README.html" },
+            { text: "Globals", link: "/api/ts/web-backend/globals.html" },
+          ],
+        },
       ],
       "/api/ts/job-broker/": [
-        { text: "Job Broker", items: [{ text: "Index", link: "/api/ts/job-broker/README.html" }] },
+        {
+          text: "Job Broker",
+          items: [
+            { text: "Index", link: "/api/ts/job-broker/README.html" },
+            { text: "Globals", link: "/api/ts/job-broker/globals.html" },
+          ],
+        },
       ],
       "/api/cpp-doxybook2/": [
         {

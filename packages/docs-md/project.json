@@ -65,6 +65,13 @@
       },
       "dependsOn": ["cpp:doxygen-xml"]
     },
+    "cpp:sanitize": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/docs-md/tools/sanitize-doxybook2-frontmatter.mjs"
+      },
+      "dependsOn": ["cpp:doxybook2"]
+    },
     "site:dev": {
       "executor": "nx:run-commands",
       "options": {
@@ -86,7 +93,7 @@
         "ts:markdown:model-generator",
         "ts:markdown:web-backend",
         "ts:markdown:job-broker",
-        "cpp:doxybook2"
+        "cpp:sanitize"
       ]
     },
     "prepare": {
@@ -103,7 +110,7 @@
         "ts:markdown:model-generator",
         "ts:markdown:web-backend",
         "ts:markdown:job-broker",
-        "cpp:doxybook2"
+        "cpp:sanitize"
       ]
     },
     "site:link-check": {

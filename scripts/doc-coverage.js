@@ -15,10 +15,15 @@ const PACKAGES = [
   { name: "web-backend", roots: ["packages/web-backend/src"] },
   // Optional: mef technical elements (large) – include limited path to avoid noise
   { name: "mef-technical-elements", roots: ["packages/mef-types/src/openpra-mef/technical-elements"] },
-  // Frontend: focus coverage on utils and hooks to avoid UI-heavy areas
+  // Frontend: focus coverage on utils/hooks/state to avoid UI-heavy areas
   {
     name: "frontend-web-editor",
-    roots: ["packages/frontend/web-editor/src/utils", "packages/frontend/web-editor/src/app/hooks"],
+    roots: [
+      "packages/frontend/web-editor/src/utils",
+      "packages/frontend/web-editor/src/app/hooks",
+      "packages/frontend/web-editor/src/app/zustand",
+      "packages/frontend/web-editor/src/app/store",
+    ],
   },
   // scram-node N-API declarations are in .d.ts; include them explicitly
   {

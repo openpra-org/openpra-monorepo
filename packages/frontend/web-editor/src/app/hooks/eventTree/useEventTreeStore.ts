@@ -20,7 +20,13 @@ interface EventTreeState {
   updateNode: (id: string, newData: Partial<Node<EventTreeNodeData>["data"]>) => void;
 }
 
-// Create Zustand store
+/**
+ * Global event tree store for the Event Tree editor.
+ *
+ * @remarks
+ * Provides node/edge state, column label management and helpers to update
+ * sequence labels consistently. Backed by Zustand.
+ */
 export const useEventTreeStore = create<EventTreeState>((set) => ({
   nodes: [],
   edges: [],

@@ -1,6 +1,6 @@
 {
   "$schema": "https://typedoc.org/schema.json",
-  "entryPoints": ["src/utils", "src/app/hooks"],
+  "entryPoints": ["src/utils", "src/app/hooks", "src/app/zustand", "src/app/store"],
   "out": "docs",
   "tsconfig": "tsconfig.app.json",
   "name": "frontend-web-editor (utils & hooks)",
@@ -11,7 +11,7 @@
     "src/app/providers/**/*",
     "src/app/workspaces/**/*",
     "src/app/theme/**/*",
-    "src/app/zustand/**/*",
+
     "src/assets/**/*",
     "src/environments/**/*",
     "**/*.spec.ts",

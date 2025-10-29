@@ -1,56 +1,39 @@
-## title: "C++ Doc Converters: Doxybook2 vs Moxygen (Spike)"
+## title: "C++ Doc Converter Decision: Doxybook2"
 
-# C++ Doc Converters: Doxybook2 vs Moxygen (Spike)
+# C++ Doc Converter Decision: Doxybook2
 
-This short report summarizes a quick spike comparing two Doxygen→Markdown converters for our unified docs pipeline.
+This document records the decision to use Doxybook2 for generating C++ Markdown from Doxygen XML in our unified documentation site. We previously evaluated Moxygen; the sections below summarize the rationale and the resulting implementation.
 
-Scope: Convert a subset of scram-node headers via Doxygen XML and render in VitePress alongside TypeScript API docs.
+## Decision
 
-## Summary
+Adopt Doxybook2 as the C++ Doxygen→Markdown converter for the OpenPRA docs site. Remove Moxygen from the toolchain.
 
-- Moxygen works out of the box via npm (0.8.0). It produces a single consolidated README.md. Easy to wire, minimal structure.
-- Doxybook2 typically generates a structured Markdown tree that mirrors code entities, better for browsing. It’s a native binary; not installed in this spike, so we left a placeholder. Installing it will allow a true content comparison.
+## Rationale (Doxybook2 vs. Moxygen)
 
-## Comparison
+- Output structure
+  - Moxygen: Produces a single, large README.md. Simple to wire, but it does not scale well and offers limited navigation for larger codebases.
+  - Doxybook2: Generates a hierarchical Markdown tree (files, classes, namespaces), enabling rich cross-linking and intuitive navigation in static sites.
+- Customization and control
+  - Moxygen: Minimal configuration and limited templating.
+  - Doxybook2: Configuration-driven with templates and knobs for naming, layout, and index pages; better fit for long-term documentation needs.
+- Site integration
+  - Doxybook2’s output maps cleanly to VitePress sidebars and nav items (Files, Classes, Namespaces), improving discoverability.
 
-- Output structure:
-  - Moxygen: One large README.md (flat). Simple, low navigation depth, but can become unwieldy for large codebases.
-  - Doxybook2: Hierarchical Markdown files (namespaces, classes, files). Better cross-links and sidebars in static sites.
-- Linking/anchors:
-  - Moxygen: Generates headings with anchors; fewer pages means fewer relative-link pitfalls, but long pages can be slow to scan.
-  - Doxybook2: Rich cross-linking across pages; integrates well with SSG navs. Requires ensuring generated paths match site routing.
-- Customization/templating:
-  - Moxygen: Limited customization; focused on a readable README output.
-  - Doxybook2: Configuration-driven output with templates; more knobs to tune structure and naming.
-- Performance:
-  - Both are fast for our current subset. In our runs, VitePress build was ~5.5s total with both TS and C++ content.
-- Maintenance:
-  - Moxygen: Minimal moving parts—good for a quick win or small C++ surface.
-  - Doxybook2: Better long-term ergonomics if we want per-symbol pages and richer navigation.
+## Implementation summary
 
-## Current Spike Artifacts
+- Doxygen configuration: `packages/docs-md/tools/Doxyfile.xml` (recursive over scram-node headers), emitting XML under `packages/docs-md/.tmp/doxygen/doxygen-xml`.
+- Converter: Doxybook2, installed on demand via `packages/docs-md/tools/install-doxybook2.sh` (Linux x86_64 v1.5.0).
+- Output: `packages/docs-md/api/cpp-doxybook2/` with indices `index_files.html`, `index_classes.html`, and `index_namespaces.html`.
+- Site wiring: VitePress nav and sidebar entries point to the Doxybook2 indices.
+- CI: Included in the docs build; the site is published to GitHub Pages with a dynamic base path.
 
-- Doxygen XML: `packages/docs-md/.tmp/doxygen/doxygen-xml`
-- Moxygen Markdown: `packages/docs-md/api/cpp-moxygen/README.md`
-- Doxybook2: Placeholder at `packages/docs-md/api/cpp-doxybook2/README.md`
-- TS Markdown (subset): `packages/docs-md/api/ts/README.md` plus module pages
-- Site build output: `packages/docs-md/.vitepress/dist`
+## Current status
 
-## Metrics (local, Node 20, Debian bookworm)
+- Moxygen has been removed from the docs package.
+- Doxybook2 is fully wired; local and CI builds generate the structured C++ docs alongside TypeScript API docs.
+- Link checks pass; the site renders with grouped TS sections and a C++ section backed by Doxybook2.
 
-- VitePress build: ~5.5s
-- Link check (linkinator): 12 links scanned, 0 broken
-- TypeDoc run: 0 errors, 1 warning (external README path)
+## Maintenance notes
 
-## Recommendation
-
-- Keep both converters wired during the spike. Install doxybook2 locally to generate its real output for an apples-to-apples structure review.
-- If we prefer a quick path: Moxygen is acceptable for small C++ docs, but it scales poorly.
-- For long-term unified docs: Doxybook2 is likely the better fit due to structured output and navigation.
-
-## Next Steps
-
-1. Install `doxybook2` locally (or via CI image) and generate under `api/cpp-doxybook2`.
-2. Expand Doxygen input to broader scram-node headers; reassess build time and navigation.
-3. Tune VitePress sidebar generation for Doxybook2 output.
-4. Decide on converter and promote the spike into a proper docs pipeline.
+- Doxygen must be available on the PATH locally; CI installs it via apt. Doxybook2 is fetched by the installer script during builds.
+- As the C++ surface grows, adjust Doxygen INPUT paths and, if needed, Doxybook2 configuration (`packages/docs-md/tools/doxybook2.json`).

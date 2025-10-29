@@ -1,8 +1,17 @@
 import { defineConfig } from "vitepress";
 
+// Allow setting a custom base path for GitHub Pages deployments
+// Example: VITEPRESS_BASE="/openpra-monorepo/"
+const base = (() => {
+  const b = process.env.VITEPRESS_BASE || "/";
+  if (!b.startsWith("/")) return `/${b}`;
+  return b.endsWith("/") ? b : `${b}/`;
+})();
+
 export default defineConfig({
-  title: "OpenPRA Docs (MD Spike)",
-  description: "Unified Markdown docs spike using VitePress",
+  base,
+  title: "OpenPRA Documentation",
+  description: "Unified docs for OpenPRA (TypeScript + C++)",
   srcDir: ".",
   outDir: ".vitepress/dist",
   ignoreDeadLinks: true,

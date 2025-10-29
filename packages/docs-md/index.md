@@ -1,10 +1,8 @@
----
-title: OpenPRA Docs (Markdown Spike)
----
+## title: OpenPRA Documentation
 
-# OpenPRA Docs (Markdown Spike)
+# OpenPRA Documentation
 
-This is a unified Markdown documentation spike rendered with VitePress.
+Unified documentation for the OpenPRA monorepo, rendered with VitePress.
 
 - TypeScript API
   - Web Editor Utils: /api/ts/web-editor/README.html

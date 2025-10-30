@@ -77,8 +77,8 @@ function main() {
     const wantSymbols = typeof rule.symbolDocPct === 'number' ? rule.symbolDocPct : global.symbolDocPct;
     const gotSymbols = pct(r.symbolsPercent);
     if (typeof wantSymbols === 'number' && gotSymbols < wantSymbols) {
-      // GitHub Actions warning annotation
-      console.log(`::warning title=Docs coverage::${r.package} symbol docs ${gotSymbols}% < target ${wantSymbols}%`);
+      // GitHub Actions notice annotation (non-blocking signal)
+      console.log(`::notice title=Docs coverage::${r.package} symbol docs ${gotSymbols}% < target ${wantSymbols}%`);
     }
   }
 

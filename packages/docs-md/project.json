@@ -7,49 +7,49 @@
     "ts:markdown": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/web-editor --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.typedoc.json --skipErrorChecking --entryPointStrategy expand ../../packages/frontend/web-editor/src/utils/constants.ts ../../packages/frontend/web-editor/src/utils/scientificNotation.ts ../../packages/frontend/web-editor/src/utils/StringUtils.ts ../../packages/frontend/web-editor/src/utils/recalculateFrequencies.ts ../../packages/frontend/web-editor/src/utils/bayesianNodeIntersectionCalculator.ts ../../packages/frontend/web-editor/src/utils/faultTreeData.ts ../../packages/frontend/web-editor/src/utils/treeUtils.ts ../../packages/frontend/web-editor/src/app/components/treeNodes/faultTreeNodes/faultTreeNodeType.ts ../../packages/frontend/web-editor/src/app/components/treeNodes/eventSequenceNodes/eventSequenceNodeType.ts ../../packages/frontend/web-editor/src/app/components/treeEdges/eventSequenceEdges/eventSequenceEdgeType.ts ../../packages/frontend/web-editor/src/app/components/treeEdges/faultTreeEdges/faultTreeEdgeType.ts ../../packages/frontend/web-editor/src/app/components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType.ts ../../packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreeNodeType.ts ../../packages/frontend/web-editor/src/utils.ts ../../packages/frontend/web-editor/src/app/hooks/eventTree ../../packages/frontend/web-editor/src/app/hooks/eventSequence ../../packages/frontend/web-editor/src/app/hooks/faultTree ../../packages/frontend/web-editor/src/app/hooks/bayesianNetwork ../../packages/frontend/web-editor/src/app/casl ../../packages/frontend/web-editor/src/app/store ../../packages/frontend/web-editor/src/app/theme"
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/web-editor --json api/ts/web-editor/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.typedoc.json --skipErrorChecking --entryPointStrategy expand ../../packages/frontend/web-editor/src/utils/constants.ts ../../packages/frontend/web-editor/src/utils/scientificNotation.ts ../../packages/frontend/web-editor/src/utils/StringUtils.ts ../../packages/frontend/web-editor/src/utils/recalculateFrequencies.ts ../../packages/frontend/web-editor/src/utils/bayesianNodeIntersectionCalculator.ts ../../packages/frontend/web-editor/src/utils/faultTreeData.ts ../../packages/frontend/web-editor/src/utils/treeUtils.ts ../../packages/frontend/web-editor/src/app/components/treeNodes/faultTreeNodes/faultTreeNodeType.ts ../../packages/frontend/web-editor/src/app/components/treeNodes/eventSequenceNodes/eventSequenceNodeType.ts ../../packages/frontend/web-editor/src/app/components/treeEdges/eventSequenceEdges/eventSequenceEdgeType.ts ../../packages/frontend/web-editor/src/app/components/treeEdges/faultTreeEdges/faultTreeEdgeType.ts ../../packages/frontend/web-editor/src/app/components/treeEdges/eventTreeEditorEdges/eventTreeEdgeType.ts ../../packages/frontend/web-editor/src/app/components/treeNodes/eventTreeEditorNode/eventTreeNodeType.ts ../../packages/frontend/web-editor/src/utils.ts ../../packages/frontend/web-editor/src/app/hooks/eventTree ../../packages/frontend/web-editor/src/app/hooks/eventSequence ../../packages/frontend/web-editor/src/app/hooks/faultTree ../../packages/frontend/web-editor/src/app/hooks/bayesianNetwork ../../packages/frontend/web-editor/src/app/casl ../../packages/frontend/web-editor/src/app/store ../../packages/frontend/web-editor/src/app/theme"
       }
     },
     "ts:markdown:shared-sdk": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-sdk && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-sdk --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/index.ts'"
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-sdk && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-sdk --json ../docs-md/api/ts/shared-sdk/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/index.ts'"
       }
     },
     "ts:markdown:shared-types": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-types && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-types --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/index.ts'"
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-types && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-types --json ../docs-md/api/ts/shared-types/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/index.ts'"
       }
     },
     "ts:markdown:mef-types": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/mef-types --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig ../../packages/mef-types/tsconfig.json --skipErrorChecking ../../packages/mef-types/src/index.ts"
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/mef-types --json api/ts/mef-types/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig ../../packages/mef-types/tsconfig.json --skipErrorChecking ../../packages/mef-types/src/index.ts"
       }
     },
     "ts:markdown:mef-schema": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/mef-schema --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig ../../packages/mef-schema/tsconfig.lib.json --skipErrorChecking ../../packages/mef-schema/src/index.ts"
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/mef-schema --json api/ts/mef-schema/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig ../../packages/mef-schema/tsconfig.lib.json --skipErrorChecking ../../packages/mef-schema/src/index.ts"
       }
     },
     "ts:markdown:model-generator": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/model-generator && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/model-generator --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/index.ts'"
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/model-generator && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/model-generator --json ../docs-md/api/ts/model-generator/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/index.ts'"
       }
     },
     "ts:markdown:web-backend": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/web-backend && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/web-backend --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/main.ts'"
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/web-backend && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/web-backend --json ../docs-md/api/ts/web-backend/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/main.ts'"
       }
     },
     "ts:markdown:job-broker": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/microservice/job-broker && typedoc --plugin typedoc-plugin-markdown --out ../../docs-md/api/ts/job-broker --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/main.ts'"
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/microservice/job-broker && typedoc --plugin typedoc-plugin-markdown --out ../../docs-md/api/ts/job-broker --json ../../docs-md/api/ts/job-broker/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.json --skipErrorChecking src/main.ts'"
       }
     },
     "cpp:doxygen-xml": {

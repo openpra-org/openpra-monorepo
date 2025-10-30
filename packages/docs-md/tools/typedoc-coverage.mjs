@@ -76,28 +76,157 @@ function summarizeTsCoverage() {
     console.log('[coverage] No TypeScript docs found under api/ts');
     return { rows: [] };
   }
-  console.log('[coverage] TypeScript docs coverage (heuristic)');
-  console.log('package, files, contentful, ratio');
+  console.log('[coverage] TypeScript docs coverage (symbol-level)');
+  console.log('package, symbols, documented, doc%, params%, returns%');
 
   const rows = [];
   for (const pkg of pkgDirs) {
-    const files = listFilesRecursive(pkg.path, isMarkdown);
-    let contentful = 0;
-    for (const f of files) {
-      let txt = '';
-      try { txt = readFileSync(f, 'utf8'); } catch { /* ignore */ }
-      if (txt && contentfulScore(txt) > 0) contentful++;
+    const jsonPath = join(pkg.path, 'typedoc.json');
+    let model = null;
+    try { model = JSON.parse(readFileSync(jsonPath, 'utf8')); } catch {}
+
+    if (!model) {
+      // Fallback to heuristic based on Markdown headings
+      const files = listFilesRecursive(pkg.path, isMarkdown);
+      let contentful = 0;
+      for (const f of files) {
+        let txt = '';
+        try { txt = readFileSync(f, 'utf8'); } catch { /* ignore */ }
+        if (txt && contentfulScore(txt) > 0) contentful++;
+      }
+      const filesCount = files.length;
+      const ratio = filesCount > 0 ? (contentful / filesCount) : 0;
+      const ratioPct = Math.round(ratio * 100);
+      console.log(`${pkg.name}, ${filesCount}, ${contentful}, ${ratioPct}%`);
+      rows.push({ package: pkg.name, fallback: true, files: filesCount, contentful, ratio, ratioPercent: ratioPct, path: relative(TS_DOCS_DIR, pkg.path) });
+      continue;
     }
-    const filesCount = files.length;
-    const ratio = filesCount > 0 ? (contentful / filesCount) : 0;
-    const ratioPct = Math.round(ratio * 100);
-    console.log(`${pkg.name}, ${filesCount}, ${contentful}, ${ratioPct}%`);
+    // Compute symbol-level metrics from TypeDoc JSON
+    let symbolsTotal = 0, symbolsDoc = 0;
+    let paramsTotal = 0, paramsDoc = 0;
+    let returnsTotal = 0, returnsDoc = 0;
+
+    function hasText(contentArr) {
+      if (!Array.isArray(contentArr)) return false;
+      return contentArr.some((c) => typeof c.text === 'string' && c.text.trim().length > 0);
+    }
+
+    function hasComment(r) {
+      const c = r && r.comment;
+      if (!c) return false;
+      if (hasText(c.summary)) return true;
+      // Older JSON format may use blockTags
+      if (Array.isArray(c.blockTags) && c.blockTags.length > 0) return true;
+      return false;
+    }
+
+    function collectSignatureMetrics(node) {
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node.signatures)) {
+        for (const sig of node.signatures) {
+          // Returns: count one per signature, consider documented if signature has any comment
+          returnsTotal += 1;
+          if (hasComment(sig)) returnsDoc += 1;
+          // Params: count parameters present; documented if parameter has any comment
+          if (Array.isArray(sig.parameters)) {
+            for (const p of sig.parameters) {
+              paramsTotal += 1;
+              if (hasComment(p)) paramsDoc += 1;
+            }
+          }
+        }
+      }
+      if (Array.isArray(node.children)) {
+        for (const ch of node.children) collectSignatureMetrics(ch);
+      }
+      if (Array.isArray(node.getters)) {
+        for (const g of node.getters) collectSignatureMetrics(g);
+      }
+      if (Array.isArray(node.setters)) {
+        for (const s of node.setters) collectSignatureMetrics(s);
+      }
+    }
+
+    // TypeDoc v2 JSON: count top-level exported declarations as symbols
+    if (model && Array.isArray(model.children)) {
+      for (const child of model.children) {
+        // Count every exported top-level child as one symbol
+        symbolsTotal += 1;
+        if (hasComment(child)) {
+          symbolsDoc += 1;
+        } else if (Array.isArray(child.signatures)) {
+          // Some functions keep docs on the signature, not the declaration
+          const anySigHasComment = child.signatures.some((s) => hasComment(s));
+          if (anySigHasComment) symbolsDoc += 1;
+        }
+        // Collect metrics from nested members and signatures
+        collectSignatureMetrics(child);
+      }
+    } else {
+      // Older JSON (pre v2): walk tree and use kindString when available
+      const kindsTop = new Set(['Class', 'Interface', 'Enum', 'Function', 'Type alias', 'Variable']);
+
+      function incParamsAndReturns(signature) {
+        if (!signature) return;
+        const params = Array.isArray(signature.parameters) ? signature.parameters.length : 0;
+        paramsTotal += params;
+        const c = signature.comment;
+        if (c && Array.isArray(c.blockTags)) {
+          const paramTags = c.blockTags.filter((t) => t.tag === '@param');
+          paramsDoc += Math.min(paramTags.length, params);
+          const returnsTags = c.blockTags.filter((t) => t.tag === '@returns' || t.tag === '@return');
+          returnsTotal += 1;
+          if (returnsTags.length > 0) returnsDoc += 1;
+        } else {
+          // No tags
+          returnsTotal += 1;
+        }
+      }
+
+      function walk(r) {
+        if (!r || typeof r !== 'object') return;
+        const kind = r.kindString || '';
+        if (kindsTop.has(kind)) {
+          symbolsTotal += 1;
+          if (hasComment(r)) symbolsDoc += 1;
+        }
+        if (Array.isArray(r.signatures)) {
+          for (const sig of r.signatures) {
+            if (hasComment(sig) && !hasComment(r)) {
+              if (kindsTop.has(kind)) symbolsDoc += 1;
+            }
+            incParamsAndReturns(sig);
+          }
+        }
+        if (Array.isArray(r.children)) {
+          for (const ch of r.children) walk(ch);
+        }
+        if (Array.isArray(r.getters)) {
+          for (const g of r.getters) walk(g);
+        }
+        if (Array.isArray(r.setters)) {
+          for (const s of r.setters) walk(s);
+        }
+      }
+
+      walk(model);
+    }
+
+    const docPct = symbolsTotal ? Math.round((symbolsDoc / symbolsTotal) * 100) : 0;
+    const paramPct = paramsTotal ? Math.round((paramsDoc / paramsTotal) * 100) : 0;
+    const returnsPct = returnsTotal ? Math.round((returnsDoc / returnsTotal) * 100) : 0;
+    console.log(`${pkg.name}, ${symbolsDoc}/${symbolsTotal}, ${docPct}%, ${paramPct}%, ${returnsPct}%`);
     rows.push({
       package: pkg.name,
-      files: filesCount,
-      contentful,
-      ratio,
-      ratioPercent: ratioPct,
+      symbols: symbolsTotal,
+      symbolsDocumented: symbolsDoc,
+      symbolsPercent: docPct,
+      paramsTotal,
+      paramsDocumented: paramsDoc,
+      paramsPercent: paramPct,
+      returnsTotal,
+      returnsDocumented: returnsDoc,
+      returnsPercent: returnsPct,
       path: relative(TS_DOCS_DIR, pkg.path),
     });
   }
@@ -161,19 +290,20 @@ function main() {
     const mdLines = [
       '# Documentation coverage',
       '',
-      'Heuristic snapshot of documentation density across the codebase.',
+      'Symbol-level snapshot of documentation density across the codebase.',
       '',
       '## TypeScript (TypeDoc)',
       '',
-      '“Contentful” counts files with at least one secondary heading (##/###).',
-      '',
-      '| package | files | contentful | ratio |',
-      '|---|---:|---:|---:|',
-      ...(ts.rows ?? []).map(r => `| ${r.package} | ${r.files} | ${r.contentful} | ${r.ratioPercent}% |`),
+      '| package | documented symbols | total symbols | doc% | params% | returns% |',
+      '|---|---:|---:|---:|---:|---:|',
+      ...(ts.rows ?? []).map(r => r.fallback
+        ? `| ${r.package} | n/a | n/a | ${r.ratioPercent}% (heuristic) | n/a | n/a |`
+        : `| ${r.package} | ${r.symbolsDocumented} | ${r.symbols} | ${r.symbolsPercent}% | ${r.paramsPercent}% | ${r.returnsPercent}% |`
+      ),
       '',
       '## C++ (Doxybook2)',
       '',
-      'Grouped by top-level category folders produced by Doxybook2.',
+      'Grouped by top-level category folders produced by Doxybook2. “Contentful” approximates presence of headings beyond titles.',
       '',
       '| category | files | contentful | ratio |',
       '|---|---:|---:|---:|',

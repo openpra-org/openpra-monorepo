@@ -41,6 +41,11 @@ Full build and checks:
 - Link check:
   - `nx run docs-md:site:link-check --no-cloud`
 
+Coverage pages (once the site is built):
+
+- TypeScript coverage: `/api/ts/coverage.html`
+- C++ coverage (Doxybook2 heuristic): `/api/cpp-doxybook2/coverage.html`
+
 Doxygen and Doxybook2
 
 - Doxygen must be available on PATH (CI installs via apt). On Debian/Ubuntu:

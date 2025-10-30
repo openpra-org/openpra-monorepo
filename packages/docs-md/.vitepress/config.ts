@@ -23,7 +23,15 @@ export default defineConfig({
   },
   themeConfig: {
     nav: [
-      { text: "Backend Overview", link: "/backend-overview.html" },
+      {
+        text: "Stack Overview",
+        items: [
+          { text: "Overview", link: "/stack-overview/index.html" },
+          { text: "Frontend", link: "/stack-overview/frontend-overview.html" },
+          { text: "Backend", link: "/stack-overview/backend-overview.html" },
+          { text: "Engine", link: "/stack-overview/engine-overview.html" },
+        ],
+      },
       {
         text: "Guides",
         items: [
@@ -47,9 +55,27 @@ export default defineConfig({
           { text: "Coverage", link: "/api/ts/coverage.html" },
         ],
       },
-      { text: "C++ API", link: "/api/cpp-doxybook2/index_classes.html" },
+      {
+        text: "C++ API",
+        items: [
+          { text: "Classes", link: "/api/cpp-doxybook2/index_classes.html" },
+          { text: "Namespaces", link: "/api/cpp-doxybook2/index_namespaces.html" },
+          { text: "Coverage", link: "/api/cpp-doxybook2/coverage.html" },
+        ],
+      },
     ],
     sidebar: {
+      "/stack-overview/": [
+        {
+          text: "Stack Overview",
+          items: [
+            { text: "Overview", link: "/stack-overview/index.html" },
+            { text: "Frontend", link: "/stack-overview/frontend-overview.html" },
+            { text: "Backend", link: "/stack-overview/backend-overview.html" },
+            { text: "Engine", link: "/stack-overview/engine-overview.html" },
+          ],
+        },
+      ],
       "/guides/": [
         {
           text: "Guides",
@@ -139,6 +165,7 @@ export default defineConfig({
           items: [
             { text: "Classes", link: "/api/cpp-doxybook2/index_classes.html" },
             { text: "Namespaces", link: "/api/cpp-doxybook2/index_namespaces.html" },
+            { text: "Coverage", link: "/api/cpp-doxybook2/coverage.html" },
           ],
         },
       ],

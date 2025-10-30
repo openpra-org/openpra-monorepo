@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Emit CI-friendly annotations for TypeScript docs coverage.
- * - Reads packages/docs-md/api/ts/coverage.json (from typedoc-coverage.mjs)
+ * Emit CI-friendly annotations for docs coverage.
+ * - Reads packages/docs-md/api/ts/coverage.json (from typedoc-coverage.mjs) which includes both TS and C++ summaries
  * - Optionally reads tools/coverage-thresholds.json to determine which packages to flag
  * - Writes a Markdown summary to $GITHUB_STEP_SUMMARY when available
- * - Prints ::warning:: annotations for packages under the symbol coverage threshold
+ * - Prints ::notice:: annotations for TS packages under the symbol coverage threshold
  * - Always exits 0 (non-blocking)
  */
 import { readFileSync, appendFileSync } from 'fs';
@@ -39,30 +39,44 @@ function main() {
   const global = thr.global || { symbolDocPct: 60 };
   const perTs = thr.ts || {};
 
-  const rows = (cov?.ts?.rows ?? []).filter((r) => !r.fallback);
-  if (rows.length === 0) {
-    console.log('[coverage:ci] No TypeScript coverage rows — skip');
+  const tsRows = (cov?.ts?.rows ?? []).filter((r) => !r.fallback);
+  const cppCats = cov?.cpp?.categories ?? [];
+  const hasAny = (tsRows.length > 0) || (cppCats.length > 0);
+  if (!hasAny) {
+    console.log('[coverage:ci] No docs coverage content — skip');
     return process.exit(0);
   }
 
   // Build Markdown summary table
-  const mdLines = [
-    '## TypeScript docs coverage (symbol-level)',
-    '',
-    '| package | doc% | params% | returns% | symbols | documented |',
-    '|---|---:|---:|---:|---:|---:|',
-    ...rows.map((r) => `| ${r.package} | ${pct(r.symbolsPercent)}% | ${pct(r.paramsPercent)}% | ${pct(r.returnsPercent)}% | ${r.symbols ?? 0} | ${r.symbolsDocumented ?? 0} |`),
-    '',
-    '_This signal is non-blocking. Thresholds may be enforced later._',
-    '',
-  ];
+  const mdLines = [];
+  if (tsRows.length > 0) {
+    mdLines.push(
+      '## TypeScript docs coverage (symbol-level)',
+      '',
+      '| package | doc% | params% | returns% | symbols | documented |',
+      '|---|---:|---:|---:|---:|---:|',
+      ...tsRows.map((r) => `| ${r.package} | ${pct(r.symbolsPercent)}% | ${pct(r.paramsPercent)}% | ${pct(r.returnsPercent)}% | ${r.symbols ?? 0} | ${r.symbolsDocumented ?? 0} |`),
+      '',
+    );
+  }
+  if (cppCats.length > 0) {
+    mdLines.push(
+      '## C++ docs coverage (heuristic, Doxybook2)',
+      '',
+      '| category | files | contentful | ratio |',
+      '|---|---:|---:|---:|',
+      ...cppCats.map((c) => `| ${c.category} | ${c.files ?? 0} | ${c.contentful ?? 0} | ${pct(c.ratioPercent)}% |`),
+      '',
+    );
+  }
+  mdLines.push('_This signal is non-blocking. Thresholds may be enforced later._', '');
 
   try {
     const summaryPath = process.env.GITHUB_STEP_SUMMARY;
     if (summaryPath) {
       // Append to the job summary
       appendFileSync(summaryPath, mdLines.join('\n'));
-      console.log('[coverage:ci] Wrote TS coverage summary to $GITHUB_STEP_SUMMARY');
+      console.log('[coverage:ci] Wrote docs coverage summary to $GITHUB_STEP_SUMMARY');
     } else {
       console.log(mdLines.join('\n'));
     }
@@ -71,7 +85,7 @@ function main() {
   }
 
   // Emit warnings for packages under threshold (symbol coverage)
-  for (const r of rows) {
+  for (const r of tsRows) {
     const rule = perTs[r.package] || {};
     if (rule.exclude) continue;
     const wantSymbols = typeof rule.symbolDocPct === 'number' ? rule.symbolDocPct : global.symbolDocPct;

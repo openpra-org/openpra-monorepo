@@ -5,9 +5,9 @@ This guide provides a quick orientation to the backend services and how their do
 ## Projects
 
 - Web Backend (NestJS): REST API for the web app
-  - Docs: [API (TypeDoc)](api/ts/web-backend/README.html)
+  - Docs: [API (TypeDoc)](../api/ts/web-backend/README.html)
 - Job Broker (microservice): background jobs and orchestration
-  - Docs: [API (TypeDoc)](api/ts/job-broker/README.html)
+  - Docs: [API (TypeDoc)](../api/ts/job-broker/README.html)
 
 ## Tech stack
 
@@ -31,7 +31,7 @@ This guide provides a quick orientation to the backend services and how their do
 
 Links
 
-- Web Backend API: [api/ts/web-backend/README.html](api/ts/web-backend/README.html)
-- Job Broker API: [api/ts/job-broker/README.html](api/ts/job-broker/README.html)
-- Shared SDK: [api/ts/shared-sdk/README.html](api/ts/shared-sdk/README.html)
-- Shared Types: [api/ts/shared-types/README.html](api/ts/shared-types/README.html)
+- Web Backend API: ../api/ts/web-backend/README.html
+- Job Broker API: ../api/ts/job-broker/README.html
+- Shared SDK: ../api/ts/shared-sdk/README.html
+- Shared Types: ../api/ts/shared-types/README.html

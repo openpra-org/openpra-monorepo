@@ -277,9 +277,10 @@ function main() {
 
   console.log('\n[coverage] This is informational only. Thresholds can be enforced later.');
 
-  // Write machine-readable JSON and Markdown report
+  // Write machine-readable JSON and separate Markdown reports (TS and C++)
   try {
     mkdirSync(TS_DOCS_DIR, { recursive: true });
+    mkdirSync(CPP_DOCS_DIR, { recursive: true });
 
     const jsonPath = join(TS_DOCS_DIR, 'coverage.json');
     writeFileSync(
@@ -287,19 +288,17 @@ function main() {
       JSON.stringify({ generatedAt: new Date().toISOString(), ts, cpp }, null, 2)
     );
 
-    const mdLines = [
+    // TS-only Markdown report
+    const mdTsLines = [
       '# Documentation coverage',
       '',
-      'Symbol-level snapshot of documentation density across the codebase.',
+      'Symbol-level snapshot of documentation density for TypeScript packages.',
       '',
       '> Metrics definitions',
       '> - symbols: top-level exported declarations in each TS package (from TypeDoc JSON v2).',
       '> - documented: a symbol is counted as documented if it has a declaration comment summary or any signature has a comment.',
       '> - params%: across all function/method signatures, percent of parameters with any comment summary.',
       '> - returns%: percent of signatures with any comment (proxy for returns doc under TypeDoc v2 JSON).',
-      '> - C++ metrics are heuristic: we count non-empty Doxybook2 markdown pages per category.',
-      '',
-      '## TypeScript (TypeDoc)',
       '',
       '| package | documented symbols | total symbols | doc% | params% | returns% |',
       '|---|---:|---:|---:|---:|---:|',
@@ -308,7 +307,17 @@ function main() {
         : `| ${r.package} | ${r.symbolsDocumented} | ${r.symbols} | ${r.symbolsPercent}% | ${r.paramsPercent}% | ${r.returnsPercent}% |`
       ),
       '',
-      '## C++ (Doxybook2)',
+      '> This report is informational only. Thresholds can be enforced later in CI.',
+      '',
+    ];
+    const mdTsPath = join(TS_DOCS_DIR, 'coverage.md');
+    writeFileSync(mdTsPath, mdTsLines.join('\n'));
+
+    // C++-only Markdown report
+    const mdCppLines = [
+      '# Documentation coverage',
+      '',
+      'Heuristic snapshot of documentation density for C++ (Doxybook2 output).',
       '',
       'Grouped by top-level category folders produced by Doxybook2. “Contentful” approximates presence of headings beyond titles.',
       '',
@@ -319,8 +328,15 @@ function main() {
       '> This report is informational only. Thresholds can be enforced later in CI.',
       '',
     ];
-    const mdPath = join(TS_DOCS_DIR, 'coverage.md');
-    writeFileSync(mdPath, mdLines.join('\n'));
+    const mdCppPath = join(CPP_DOCS_DIR, 'coverage.md');
+    writeFileSync(mdCppPath, mdCppLines.join('\n'));
+
+    // Optional: C++-only JSON for convenience
+    const jsonCppPath = join(CPP_DOCS_DIR, 'coverage.json');
+    writeFileSync(
+      jsonCppPath,
+      JSON.stringify({ generatedAt: new Date().toISOString(), cpp }, null, 2)
+    );
   } catch (e) {
     console.warn('[coverage] Failed to write coverage artifacts:', e?.message || e);
   }

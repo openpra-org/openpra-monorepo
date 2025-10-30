@@ -126,6 +126,13 @@
         "ts:markdown:job-broker"
       ]
     },
+    "site:coverage:ci": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/docs-md/tools/coverage-ci-annotate.mjs"
+      },
+      "dependsOn": ["site:coverage"]
+    },
     "site:coverage:check": {
       "executor": "nx:run-commands",
       "options": {

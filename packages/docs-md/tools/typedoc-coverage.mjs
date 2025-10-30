@@ -10,6 +10,20 @@ import { join, extname, relative } from 'path';
 
 const ROOT = process.cwd();
 const TS_DOCS_DIR = join(ROOT, 'packages/docs-md/api/ts');
+const CPP_DOCS_DIR = join(ROOT, 'packages/docs-md/api/cpp-doxybook2');
+
+// Only include actual Nx TS packages we generate docs for.
+// Keep this list in sync with docs nav and ts:markdown targets in project.json
+const TS_ALLOWED_FOLDERS = new Set([
+  'web-editor',
+  'shared-sdk',
+  'shared-types',
+  'mef-types',
+  'mef-schema',
+  'model-generator',
+  'web-backend',
+  'job-broker',
+]);
 
 function listDirs(dir) {
   try {
@@ -56,11 +70,11 @@ function contentfulScore(mdText) {
   return score;
 }
 
-function main() {
-  const pkgDirs = listDirs(TS_DOCS_DIR);
+function summarizeTsCoverage() {
+  const pkgDirs = listDirs(TS_DOCS_DIR).filter((d) => TS_ALLOWED_FOLDERS.has(d.name));
   if (pkgDirs.length === 0) {
     console.log('[coverage] No TypeScript docs found under api/ts');
-    process.exit(0);
+    return { rows: [] };
   }
   console.log('[coverage] TypeScript docs coverage (heuristic)');
   console.log('package, files, contentful, ratio');
@@ -76,32 +90,94 @@ function main() {
     }
     const filesCount = files.length;
     const ratio = filesCount > 0 ? (contentful / filesCount) : 0;
-    console.log(`${pkg.name}, ${filesCount}, ${contentful}, ${ratio.toFixed(2)}`);
+    const ratioPct = Math.round(ratio * 100);
+    console.log(`${pkg.name}, ${filesCount}, ${contentful}, ${ratioPct}%`);
     rows.push({
       package: pkg.name,
       files: filesCount,
       contentful,
-      ratio: Number(ratio.toFixed(2)),
+      ratio,
+      ratioPercent: ratioPct,
       path: relative(TS_DOCS_DIR, pkg.path),
     });
   }
+  return { rows };
+}
+
+function summarizeCppCoverage() {
+  // Group by top-level categories for Doxybook2 output (e.g., Classes, Files, Namespaces, Pages, etc.)
+  let cats = [];
+  try {
+    cats = listDirs(CPP_DOCS_DIR);
+  } catch {
+    // ignore
+  }
+  if (!cats || cats.length === 0) return { categories: [] };
+
+  console.log('\n[coverage] C++ docs coverage (heuristic, Doxybook2)');
+  console.log('category, files, contentful, ratio');
+
+  const categories = [];
+  for (const cat of cats) {
+    const files = listFilesRecursive(cat.path, isMarkdown);
+    let contentful = 0;
+    for (const f of files) {
+      let txt = '';
+      try { txt = readFileSync(f, 'utf8'); } catch { /* ignore */ }
+      if (txt && contentfulScore(txt) > 0) contentful++;
+    }
+    const filesCount = files.length;
+    const ratio = filesCount > 0 ? (contentful / filesCount) : 0;
+    const ratioPct = Math.round(ratio * 100);
+    console.log(`${cat.name}, ${filesCount}, ${contentful}, ${ratioPct}%`);
+    categories.push({
+      category: cat.name,
+      files: filesCount,
+      contentful,
+      ratio,
+      ratioPercent: ratioPct,
+      path: relative(CPP_DOCS_DIR, cat.path),
+    });
+  }
+  return { categories };
+}
+
+function main() {
+  const ts = summarizeTsCoverage();
+  const cpp = summarizeCppCoverage();
 
   console.log('\n[coverage] This is informational only. Thresholds can be enforced later.');
 
-  // Write a machine-readable JSON and a simple Markdown table for the site
+  // Write machine-readable JSON and Markdown report
   try {
     mkdirSync(TS_DOCS_DIR, { recursive: true });
+
     const jsonPath = join(TS_DOCS_DIR, 'coverage.json');
-    writeFileSync(jsonPath, JSON.stringify({ generatedAt: new Date().toISOString(), rows }, null, 2));
+    writeFileSync(
+      jsonPath,
+      JSON.stringify({ generatedAt: new Date().toISOString(), ts, cpp }, null, 2)
+    );
 
     const mdLines = [
-      '# TypeScript docs coverage',
+      '# Documentation coverage',
       '',
-      'Heuristic snapshot of TypeDoc output density. “Contentful” counts files with at least one secondary heading (##/###).',
+      'Heuristic snapshot of documentation density across the codebase.',
+      '',
+      '## TypeScript (TypeDoc)',
+      '',
+      '“Contentful” counts files with at least one secondary heading (##/###).',
       '',
       '| package | files | contentful | ratio |',
       '|---|---:|---:|---:|',
-      ...rows.map(r => `| ${r.package} | ${r.files} | ${r.contentful} | ${r.ratio.toFixed(2)} |`),
+      ...(ts.rows ?? []).map(r => `| ${r.package} | ${r.files} | ${r.contentful} | ${r.ratioPercent}% |`),
+      '',
+      '## C++ (Doxybook2)',
+      '',
+      'Grouped by top-level category folders produced by Doxybook2.',
+      '',
+      '| category | files | contentful | ratio |',
+      '|---|---:|---:|---:|',
+      ...(cpp.categories ?? []).map(c => `| ${c.category} | ${c.files} | ${c.contentful} | ${c.ratioPercent}% |`),
       '',
       '> This report is informational only. Thresholds can be enforced later in CI.',
       '',

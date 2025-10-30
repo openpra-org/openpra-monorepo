@@ -2,6 +2,9 @@
 
 Unified documentation for the OpenPRA monorepo, rendered with VitePress.
 
+- Docs Coverage
+  - Snapshot of TypeScript and C++ docs density: /api/ts/coverage.html
+
 - TypeScript API
   - Web Editor Utils: /api/ts/web-editor/README.html
   - Shared SDK: /api/ts/shared-sdk/README.html

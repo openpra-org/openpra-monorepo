@@ -57,8 +57,11 @@ jobs:
 
       - name: Install Doxybook2
         run: |
-          curl -sSL -o doxybook2.tar.gz https://github.com/matusnovak/doxybook2/releases/download/v1.5.0/doxybook2-linux-amd64-v1.5.0.tar.gz
-          sudo tar -xzf doxybook2.tar.gz -C /usr/local/bin doxybook2
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          curl -sSL -o doxybook2.zip https://github.com/matusnovak/doxybook2/releases/download/v1.5.0/doxybook2-linux-amd64-v1.5.0.zip
+          sudo unzip -o doxybook2.zip -d /usr/local/bin
+          sudo chmod +x /usr/local/bin/doxybook2 || true
           doxybook2 --version
 
       - name: Build unified Markdown docs (VitePress)

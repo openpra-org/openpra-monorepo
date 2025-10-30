@@ -9,8 +9,14 @@ JAVADOC_AUTOBRIEF      = YES
 EXTRACT_ALL            = YES
 RECURSIVE              = YES
 INPUT                  = \
-  packages/engine/scram-node/targets/scram-node/src \
-  packages/engine/scram-node/src
+  packages/engine/scram-node
 FILE_PATTERNS          = *.h *.hpp *.cc *.cpp
-EXCLUDE_PATTERNS       = */build/*
+EXCLUDE_PATTERNS       = \
+  */build/* \
+  */node_modules/* \
+  */docs/* \
+  */Testing/* \
+  */dist/* \
+  */.idea/* \
+  */tests/*
 ALIASES                =

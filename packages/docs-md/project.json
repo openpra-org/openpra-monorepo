@@ -116,7 +116,7 @@
     "site:link-check": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec linkinator .vitepress/dist/index.html --recurse --silent --skip '.*#.*'"
+        "command": "pnpm --filter docs-md exec bash -c 'set -Eeuo pipefail; BASE=\"${VITEPRESS_BASE:-}\"; CREATED=0; NAME=\"\"; cleanup() { if [ \"$CREATED\" = 1 ] && [ -n \"$NAME\" ] && [ -L .vitepress/dist/\"$NAME\" ]; then rm -f .vitepress/dist/\"$NAME\"; fi }; trap cleanup EXIT; if [ -n \"$BASE\" ]; then NAME=\"${BASE#/}\"; NAME=\"${NAME%/}\"; if [ -n \"$NAME\" ] && [ ! -e .vitepress/dist/\"$NAME\" ]; then ln -sfn . .vitepress/dist/\"$NAME\"; CREATED=1; fi; fi; linkinator .vitepress/dist/index.html --recurse --silent --skip \".*#.*|^/.*\"'"
       },
       "dependsOn": ["site:build"]
     }

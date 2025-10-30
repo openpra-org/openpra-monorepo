@@ -12,6 +12,11 @@ This package builds the unified Markdown documentation for the monorepo:
   - `api/ts/web-editor` — frontend utils subset
   - `api/ts/shared-sdk` — runtime SDK
   - `api/ts/shared-types` — domain types and DTOs
+  - `api/ts/mef-types` — MEF technical element types
+  - `api/ts/mef-schema` — generated MEF JSON schema typings
+  - `api/ts/model-generator` — model generator utilities
+  - `api/ts/web-backend` — NestJS backend (entry/main)
+  - `api/ts/job-broker` — job-broker microservice (entry/main)
 - C++ docs:
   - `api/cpp-doxybook2` — structured pages (files/classes/namespaces)
 - Site output: `.vitepress/dist`
@@ -59,6 +64,11 @@ TypeScript
   - `src/app/components/treeEdges/eventSequenceEdges/eventSequenceEdgeType.ts`
 - shared-sdk: `src/index.ts` (aggregated)
 - shared-types: `src/index.ts` (aggregated)
+- mef-types: `src/index.ts` (aggregated)
+- mef-schema: `src/index.ts` (aggregated)
+- model-generator: `src/index.ts` (aggregated)
+- web-backend: `src/main.ts` (entrypoint)
+- job-broker: `src/main.ts` (entrypoint)
 
 C++
 
@@ -77,6 +87,9 @@ For incremental rollout and contribution steps, see `CONTRIBUTING-DOCS.md` in th
 - We removed Moxygen in favor of Doxybook2 (better structure and navigation).
 - TypeDoc currently runs with `--skipErrorChecking` to keep generation fast; consider enabling error checking for docs builds later.
 - Generated artifacts and caches are ignored via root `.gitignore`.
+- Base-path handling and link checks:
+  - We rely on VitePress `base` via `VITEPRESS_BASE`; no custom prefixing in links.
+  - Local link checks create an ephemeral symlink in `.vitepress/dist/<base>` to emulate Pages base; it is automatically cleaned up after the crawl to avoid dev server ELOOP issues.
 
 ## Troubleshooting
 

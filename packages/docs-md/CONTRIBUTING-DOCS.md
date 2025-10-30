@@ -14,6 +14,11 @@ Goals:
   - Frontend utils: `packages/frontend/web-editor/src/utils` → `api/ts/web-editor`
   - Runtime SDK: `packages/shared-sdk` → `api/ts/shared-sdk`
   - Domain types: `packages/shared-types` → `api/ts/shared-types`
+  - MEF technical types: `packages/mef-types` → `api/ts/mef-types`
+  - MEF schema types: `packages/mef-schema` → `api/ts/mef-schema`
+  - Model generator: `packages/model-generator` → `api/ts/model-generator`
+  - Backend (NestJS): `packages/web-backend` → `api/ts/web-backend`
+  - Job broker (microservice): `packages/microservice/job-broker` → `api/ts/job-broker`
 - C++ API (Doxygen → XML → Doxybook2 → Markdown)
   - `packages/engine/scram-node/include` → `api/cpp-doxybook2`
 
@@ -82,6 +87,7 @@ Notes:
 - The GitHub Pages workflow (`.github/workflows/docs.yml`) runs only when relevant docs paths change
 - The VitePress base path is set dynamically for Pages via `VITEPRESS_BASE="/$\{\{ github.event.repository.name \}\}/"`
 - Concurrency is enabled to cancel in-progress runs on the same branch
+- Local link-checks emulate the repo base by creating an ephemeral symlink under `.vitepress/dist/<base>`; it is cleaned automatically after the crawl to avoid leaving artifacts that could cause VitePress dev ELOOP errors.
 
 ## When to pause and refactor
 

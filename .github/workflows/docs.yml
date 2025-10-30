@@ -76,6 +76,8 @@ jobs:
         run: npx -y pnpm@10.19.0 nx run docs-md:site:build --no-cloud
 
       - name: Link check
+        env:
+          VITEPRESS_BASE: "/${{ github.event.repository.name }}/"
         run: npx -y pnpm@10.19.0 nx run docs-md:site:link-check --no-cloud
 
       - name: Setup Pages

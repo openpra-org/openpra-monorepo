@@ -125,6 +125,13 @@
         "ts:markdown:web-backend",
         "ts:markdown:job-broker"
       ]
+    },
+    "site:coverage:check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/docs-md/tools/check-coverage.mjs"
+      },
+      "dependsOn": ["site:coverage"]
     }
   },
   "tags": []

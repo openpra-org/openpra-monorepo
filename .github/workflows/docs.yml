@@ -79,6 +79,9 @@ jobs:
         run: npx -y pnpm@10.19.0 nx run docs-md:site:coverage --no-cloud
         continue-on-error: true
 
+      - name: Check docs coverage thresholds
+        run: npx -y pnpm@10.19.0 nx run docs-md:site:coverage:check --no-cloud
+
       - name: Link check
         env:
           VITEPRESS_BASE: "/${{ github.event.repository.name }}/"

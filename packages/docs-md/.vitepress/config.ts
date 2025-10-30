@@ -25,6 +25,15 @@ export default defineConfig({
     nav: [
       { text: "Backend Overview", link: "/backend-overview.html" },
       {
+        text: "Guides",
+        items: [
+          { text: "Dev Container", link: "/guides/dev-container.html" },
+          { text: "Building", link: "/guides/building.html" },
+          { text: "Testing", link: "/guides/testing.html" },
+          { text: "Contributing", link: "/guides/contributing.html" },
+        ],
+      },
+      {
         text: "TS API",
         items: [
           { text: "Web Editor Utils", link: "/api/ts/web-editor/README.html" },
@@ -41,6 +50,17 @@ export default defineConfig({
       { text: "C++ API (Doxybook2)", link: "/api/cpp-doxybook2/index_files.html" },
     ],
     sidebar: {
+      "/guides/": [
+        {
+          text: "Guides",
+          items: [
+            { text: "Dev Container", link: "/guides/dev-container.html" },
+            { text: "Building", link: "/guides/building.html" },
+            { text: "Testing", link: "/guides/testing.html" },
+            { text: "Contributing", link: "/guides/contributing.html" },
+          ],
+        },
+      ],
       "/api/ts/web-editor/": [
         {
           text: "Web Editor Utils",

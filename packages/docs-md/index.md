@@ -11,5 +11,5 @@ Unified documentation for the OpenPRA monorepo, rendered with VitePress.
   - Model Generator: /api/ts/model-generator/README.html
   - Web Backend (NestJS): /api/ts/web-backend/README.html
   - Job Broker (microservice): /api/ts/job-broker/README.html
-- C++ API (scram-node)
-  - Doxybook2 (Files): /api/cpp-doxybook2/index_files.html
+- C++ API
+  - Engine scram-node: /api/cpp-doxybook2/index_files.html

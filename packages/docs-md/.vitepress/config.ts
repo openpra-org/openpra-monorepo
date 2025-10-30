@@ -34,6 +34,7 @@ export default defineConfig({
           { text: "Model Generator", link: "/api/ts/model-generator/README.html" },
           { text: "Web Backend (NestJS)", link: "/api/ts/web-backend/README.html" },
           { text: "Job Broker (microservice)", link: "/api/ts/job-broker/README.html" },
+          { text: "Coverage", link: "/api/ts/coverage.html" },
         ],
       },
       { text: "C++ API (Doxybook2)", link: "/api/cpp-doxybook2/index_files.html" },

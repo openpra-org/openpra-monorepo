@@ -11,6 +11,17 @@
   },
   "include": [
     "../../packages/frontend/web-editor/src/utils/**/*.ts",
+    "../../packages/frontend/web-editor/src/utils.ts",
+    "../../packages/frontend/web-editor/src/app/hooks/eventTree/**/*.ts",
+    "../../packages/frontend/web-editor/src/app/hooks/eventSequence/**/*.ts",
+    "../../packages/frontend/web-editor/src/app/hooks/faultTree/**/*.ts",
+    "../../packages/frontend/web-editor/src/app/hooks/bayesianNetwork/**/*.ts",
+    "../../packages/frontend/web-editor/src/app/casl/**/*.ts",
+    "../../packages/frontend/web-editor/src/app/store/**/*.ts",
+    "../../packages/frontend/web-editor/src/app/theme/**/*.ts",
+    "../../packages/frontend/web-editor/src/app/components/treeNodes/**/*.ts",
+    "../../packages/frontend/web-editor/src/app/components/treeEdges/**/*.ts",
+    "../../packages/frontend/web-editor/src/types/**/*.ts",
     "../../packages/shared-sdk/src/**/*.{ts,d.ts}",
     "../../packages/shared-types/src/**/*.{ts,d.ts}"
   ],

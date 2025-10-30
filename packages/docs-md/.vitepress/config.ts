@@ -47,7 +47,7 @@ export default defineConfig({
           { text: "Coverage", link: "/api/ts/coverage.html" },
         ],
       },
-      { text: "C++ API (Doxybook2)", link: "/api/cpp-doxybook2/index_files.html" },
+      { text: "C++ API", link: "/api/cpp-doxybook2/index_classes.html" },
     ],
     sidebar: {
       "/guides/": [
@@ -135,9 +135,8 @@ export default defineConfig({
       ],
       "/api/cpp-doxybook2/": [
         {
-          text: "C++ (Doxybook2)",
+          text: "C++ API",
           items: [
-            { text: "Files", link: "/api/cpp-doxybook2/index_files.html" },
             { text: "Classes", link: "/api/cpp-doxybook2/index_classes.html" },
             { text: "Namespaces", link: "/api/cpp-doxybook2/index_namespaces.html" },
           ],

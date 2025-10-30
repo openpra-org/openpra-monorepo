@@ -60,7 +60,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y unzip
           curl -sSL -o doxybook2.zip https://github.com/matusnovak/doxybook2/releases/download/v1.5.0/doxybook2-linux-amd64-v1.5.0.zip
-          sudo unzip -o doxybook2.zip -d /usr/local/bin
+          # Unpack into /usr/local so the binary lands in /usr/local/bin
+          sudo unzip -o doxybook2.zip -d /usr/local
           sudo chmod +x /usr/local/bin/doxybook2 || true
           doxybook2 --version
 

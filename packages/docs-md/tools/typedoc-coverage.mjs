@@ -121,6 +121,25 @@ function summarizeTsCoverage() {
       return false;
     }
 
+    function anyDescendantHasComment(node) {
+      if (!node || typeof node !== 'object') return false;
+      if (hasComment(node)) return true;
+      const stacks = [];
+      if (Array.isArray(node.children)) stacks.push(...node.children);
+      if (Array.isArray(node.signatures)) stacks.push(...node.signatures);
+      if (Array.isArray(node.getters)) stacks.push(...node.getters);
+      if (Array.isArray(node.setters)) stacks.push(...node.setters);
+      while (stacks.length > 0) {
+        const n = stacks.pop();
+        if (hasComment(n)) return true;
+        if (Array.isArray(n?.children)) stacks.push(...n.children);
+        if (Array.isArray(n?.signatures)) stacks.push(...n.signatures);
+        if (Array.isArray(n?.getters)) stacks.push(...n.getters);
+        if (Array.isArray(n?.setters)) stacks.push(...n.setters);
+      }
+      return false;
+    }
+
     function collectSignatureMetrics(node) {
       if (!node || typeof node !== 'object') return;
       if (Array.isArray(node.signatures)) {
@@ -153,13 +172,8 @@ function summarizeTsCoverage() {
       for (const child of model.children) {
         // Count every exported top-level child as one symbol
         symbolsTotal += 1;
-        if (hasComment(child)) {
-          symbolsDoc += 1;
-        } else if (Array.isArray(child.signatures)) {
-          // Some functions keep docs on the signature, not the declaration
-          const anySigHasComment = child.signatures.some((s) => hasComment(s));
-          if (anySigHasComment) symbolsDoc += 1;
-        }
+        // Treat a symbol as documented if it or any of its descendants has a comment.
+        if (anyDescendantHasComment(child)) symbolsDoc += 1;
         // Collect metrics from nested members and signatures
         collectSignatureMetrics(child);
       }

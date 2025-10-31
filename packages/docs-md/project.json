@@ -13,13 +13,13 @@
     "ts:markdown:shared-sdk": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-sdk && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-sdk --json ../docs-md/api/ts/shared-sdk/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --tsconfig tsconfig.json --options ../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-sdk && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-sdk --json ../docs-md/api/ts/shared-sdk/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig tsconfig.lib.json --options ../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
       }
     },
     "ts:markdown:shared-types": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-types && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-types --json ../docs-md/api/ts/shared-types/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --tsconfig tsconfig.json --options ../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-types && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-types --json ../docs-md/api/ts/shared-types/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig tsconfig.lib.json --options ../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
       }
     },
     "ts:markdown:mef-types": {

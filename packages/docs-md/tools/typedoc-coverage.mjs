@@ -18,12 +18,12 @@ const TS_ALLOWED_FOLDERS = new Set([
   'web-editor',
   'shared-sdk',
   'shared-types',
-  'mef-technical-elements',
   'mef-types',
   'mef-schema',
   'model-generator',
   'web-backend',
   'job-broker',
+  'scram-node',
 ]);
 
 function listDirs(dir) {

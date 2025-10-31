@@ -1,8 +1,8 @@
 # MEF Technical Elements
 
-An overview of the Model Exchange Format (MEF) technical elements used across OpenPRA, with links into the generated API docs.
+An overview of the Model Exchange Format (MEF) technical elements used across OpenPRA, with links into the generated schema docs.
 
-MEF technical elements provide a typed vocabulary for PRA models: components, events, success criteria, analyses, and integration surfaces. They live in the `mef-types` package under the `openpra-mef/technical-elements` submodule and are exported via TypeScript namespaces.
+MEF technical elements provide a typed vocabulary for PRA models: components, events, success criteria, analyses, and integration surfaces. The source of truth is the JSON Schemas in `mef-schema/src/openpra-mef`.
 
 ## Namespaces
 
@@ -21,16 +21,16 @@ These namespaces organize the domain:
 - technical_elements.radiological_consequence_analysis — Radiological Consequence Analysis
 - technical_elements.integration — Integration interfaces for external tools and formats
 
-## API Docs
+## Schema Docs
 
-- Package index: ../api/ts/mef-technical-elements/README.html
+- Technical elements index: ../api/mef/openpra-mef/index.html
 
 If you need the broader type library used by services and UI, see:
 
-- MEF Types (aggregated): ../api/ts/mef-types/README.html
-- MEF Schema typings: ../api/ts/mef-schema/README.html
+- MEF Types (aggregated TypeDoc): ../api/ts/mef-types/README.html
+- MEF Schema typings (TypeDoc): ../api/ts/mef-schema/README.html
 
 ## Notes
 
-- These APIs are types-only; no runtime is shipped. JSON schemas derived from these types are generated in the `mef-schema` package.
+- These schemas are the canonical definitions. TypeScript typings are derived from them in the `mef-schema` package and surfaced via `shared-types`.
 - Links above are relative to support the GitHub Pages base path.

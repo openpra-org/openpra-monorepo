@@ -10,20 +10,24 @@
     "types": []
   },
   "include": [
-    "../../packages/frontend/web-editor/src/utils/**/*.ts",
-    "../../packages/frontend/web-editor/src/utils.ts",
-    "../../packages/frontend/web-editor/src/app/hooks/eventTree/**/*.ts",
-    "../../packages/frontend/web-editor/src/app/hooks/eventSequence/**/*.ts",
-    "../../packages/frontend/web-editor/src/app/hooks/faultTree/**/*.ts",
-    "../../packages/frontend/web-editor/src/app/hooks/bayesianNetwork/**/*.ts",
-    "../../packages/frontend/web-editor/src/app/casl/**/*.ts",
-    "../../packages/frontend/web-editor/src/app/store/**/*.ts",
-    "../../packages/frontend/web-editor/src/app/theme/**/*.ts",
-    "../../packages/frontend/web-editor/src/app/components/treeNodes/**/*.ts",
-    "../../packages/frontend/web-editor/src/app/components/treeEdges/**/*.ts",
-    "../../packages/frontend/web-editor/src/types/**/*.ts",
-    "../../packages/shared-sdk/src/**/*.{ts,d.ts}",
-    "../../packages/shared-types/src/**/*.{ts,d.ts}"
+    "../../packages/engine/scram-node/targets/scram-node/lib/**/*.ts",
+    "../../packages/engine/scram-node/targets/scram-node/lib/**/*.d.ts",
+    "../../packages/frontend/web-editor/src/**/*.ts",
+    "../../packages/frontend/web-editor/src/**/*.d.ts",
+    "../../packages/mef-schema/src/**/*.ts",
+    "../../packages/mef-schema/src/**/*.d.ts",
+    "../../packages/mef-types/src/**/*.ts",
+    "../../packages/mef-types/src/**/*.d.ts",
+    "../../packages/microservice/job-broker/src/**/*.ts",
+    "../../packages/microservice/job-broker/src/**/*.d.ts",
+    "../../packages/model-generator/src/**/*.ts",
+    "../../packages/model-generator/src/**/*.d.ts",
+    "../../packages/shared-sdk/src/**/*.ts",
+    "../../packages/shared-sdk/src/**/*.d.ts",
+    "../../packages/shared-types/src/**/*.ts",
+    "../../packages/shared-types/src/**/*.d.ts",
+    "../../packages/web-backend/src/**/*.ts",
+    "../../packages/web-backend/src/**/*.d.ts"
   ],
   "exclude": ["node_modules"]
 }

@@ -47,15 +47,16 @@ export default defineConfig({
           { text: "Web Editor Utils", link: "/api/ts/web-editor/README.html" },
           { text: "Shared SDK", link: "/api/ts/shared-sdk/README.html" },
           { text: "Shared Types", link: "/api/ts/shared-types/README.html" },
-          { text: "MEF Technical Elements", link: "/api/ts/mef-technical-elements/README.html" },
           { text: "MEF Types", link: "/api/ts/mef-types/README.html" },
           { text: "MEF Schema", link: "/api/ts/mef-schema/README.html" },
           { text: "Model Generator", link: "/api/ts/model-generator/README.html" },
+          { text: "Engine scram-node (TS)", link: "/api/ts/scram-node/README.html" },
           { text: "Web Backend (NestJS)", link: "/api/ts/web-backend/README.html" },
           { text: "Job Broker (microservice)", link: "/api/ts/job-broker/README.html" },
           { text: "Coverage", link: "/api/ts/coverage.html" },
         ],
       },
+      { text: "MEF (Schemas)", link: "/api/mef/openpra-mef/index.html" },
       {
         text: "C++ API",
         items: [
@@ -125,10 +126,10 @@ export default defineConfig({
           ],
         },
       ],
-      "/api/ts/mef-technical-elements/": [
+      "/api/mef/openpra-mef/": [
         {
-          text: "MEF Technical Elements",
-          items: [{ text: "Index", link: "/api/ts/mef-technical-elements/README.html" }],
+          text: "MEF Technical Elements (Schemas)",
+          items: [{ text: "Index", link: "/api/mef/openpra-mef/index.html" }],
         },
       ],
       "/api/ts/mef-schema/": [
@@ -146,6 +147,15 @@ export default defineConfig({
           items: [
             { text: "Index", link: "/api/ts/model-generator/README.html" },
             { text: "Globals", link: "/api/ts/model-generator/globals.html" },
+          ],
+        },
+      ],
+      "/api/ts/scram-node/": [
+        {
+          text: "Engine scram-node (TS)",
+          items: [
+            { text: "Index", link: "/api/ts/scram-node/README.html" },
+            { text: "Globals", link: "/api/ts/scram-node/globals.html" },
           ],
         },
       ],

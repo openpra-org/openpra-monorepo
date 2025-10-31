@@ -18,6 +18,17 @@ interface EventTreeNodeData {
   outputDepth?: number;
 }
 
+/**
+ * Create a branch of nodes starting from a clicked node in the Event Tree.
+ *
+ * Adds a chain of nodes and connecting edges to the right of the clicked node,
+ * optionally generating end-state nodes (Sequence ID, Frequency, Release Category)
+ * when the chain reaches or exceeds the input depth. The function updates the
+ * React Flow state, recalculates frequencies, and persists the updated graph.
+ *
+ * @param clickedNodeId - The id of the node where the new branch should be inserted.
+ * @returns A function that performs the mutation when invoked.
+ */
 function useCreateNodeClick(clickedNodeId: NodeProps["id"]): () => void {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
@@ -82,7 +93,9 @@ function useCreateNodeClick(clickedNodeId: NodeProps["id"]): () => void {
 
       // Decide the node type based on its level
       const nodeType =
-        level === 0 ? "visibleNode" : level <= inputLevels - clickedNodeDepth ? "invisibleNode" : "outputNode";
+        level === 0 ? "visibleNode"
+        : level <= inputLevels - clickedNodeDepth ? "invisibleNode"
+        : "outputNode";
 
       // Create the new node based on the level and type
       const newNode: Node<EventTreeNodeData> = {

@@ -5,9 +5,11 @@ import { recalculateFrequencies } from "../../../utils/recalculateFrequencies";
 import { useEventTreeStore } from "./useEventTreeStore";
 
 /**
- * Helper function to get initials
+ * Get uppercase initials from a phrase.
+ *
+ * @param str - The phrase to extract initials from.
+ * @returns The concatenated uppercase initials (e.g., "Initiating Event" -> "IE").
  */
-
 export const getInitials = (str: string): string => {
   return str
     .split(" ")
@@ -16,7 +18,17 @@ export const getInitials = (str: string): string => {
     .toUpperCase();
 };
 /**
- * Utility function to create end states for a leaf node
+ * Create default end-state nodes for a given leaf.
+ *
+ * Generates a Sequence ID node, a Frequency node, and a Release Category node,
+ * connecting them in order and returning the new nodes and edges. Frequency is
+ * initialized to 0.5 for default nodes and 0.0 otherwise.
+ *
+ * @param leafNode - The leaf node to attach the end-state chain to.
+ * @param nodeWidth - The width to assign to generated nodes.
+ * @param pos - The base position used for initial placement of generated nodes.
+ * @param isDefaultNode - Whether to seed frequency with a default (0.5) value.
+ * @returns An object containing the created nodes and edges.
  */
 export const createEndStates = (
   leafNode: Node,
@@ -92,7 +104,16 @@ export const createEndStates = (
 };
 
 /**
- *Main function for generating tree data
+ * Generate the initial Event Tree graph (nodes and edges).
+ *
+ * Builds a balanced binary tree of input levels with labelled edges and then
+ * appends end-state chains for each leaf (Sequence ID, Frequency, Release Category).
+ * Also generates the supporting column-nodes and hidden column edges.
+ *
+ * @param inputLevels - Number of functional-event levels to generate.
+ * @param outputLevels - Number of end-state levels to generate.
+ * @param nodeWidth - Node width used for layout and column positioning.
+ * @returns The complete initial node and edge set for the Event Tree.
  */
 const useTreeData = (
   inputLevels: number,

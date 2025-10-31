@@ -108,6 +108,15 @@ function layoutNodes(
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change
 const nodeCountSelector = (state: ReactFlowState): number => state.nodeInternals.size;
 
+/**
+ * Apply and animate a clustered layout for Event Tree nodes.
+ *
+ * Uses D3 cluster + stratify to compute positions for the current nodes and
+ * column-nodes, then interpolates positions to animate into place. The `_depth`
+ * parameter is currently unused and reserved for future behavior tuning.
+ *
+ * @param _depth - Unused; reserved for future layout variants.
+ */
 function useLayout(_depth: number): void {
   // this ref is used to fit the nodes in the first run
   // after first run, this is set to false

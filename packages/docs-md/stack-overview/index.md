@@ -6,6 +6,7 @@ A high-level view of the OpenPRA stack with quick links to subsystem overviews a
   - Frontend Overview: frontend-overview.html
   - Backend Overview: backend-overview.html
   - Engine Overview: engine-overview.html
+  - MEF Technical Elements: mef-technical-elements.html
 
 - API Docs
   - TypeScript API coverage: ../api/ts/coverage.html

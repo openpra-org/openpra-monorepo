@@ -47,6 +47,7 @@ export default defineConfig({
           { text: "Web Editor Utils", link: "/api/ts/web-editor/README.html" },
           { text: "Shared SDK", link: "/api/ts/shared-sdk/README.html" },
           { text: "Shared Types", link: "/api/ts/shared-types/README.html" },
+          { text: "MEF Technical Elements", link: "/api/ts/mef-technical-elements/README.html" },
           { text: "MEF Types", link: "/api/ts/mef-types/README.html" },
           { text: "MEF Schema", link: "/api/ts/mef-schema/README.html" },
           { text: "Model Generator", link: "/api/ts/model-generator/README.html" },
@@ -70,6 +71,7 @@ export default defineConfig({
           text: "Stack Overview",
           items: [
             { text: "Overview", link: "/stack-overview/index.html" },
+            { text: "MEF Technical Elements", link: "/stack-overview/mef-technical-elements.html" },
             { text: "Frontend", link: "/stack-overview/frontend-overview.html" },
             { text: "Backend", link: "/stack-overview/backend-overview.html" },
             { text: "Engine", link: "/stack-overview/engine-overview.html" },
@@ -121,6 +123,12 @@ export default defineConfig({
             { text: "Index", link: "/api/ts/mef-types/README.html" },
             { text: "Globals", link: "/api/ts/mef-types/globals.html" },
           ],
+        },
+      ],
+      "/api/ts/mef-technical-elements/": [
+        {
+          text: "MEF Technical Elements",
+          items: [{ text: "Index", link: "/api/ts/mef-technical-elements/README.html" }],
         },
       ],
       "/api/ts/mef-schema/": [

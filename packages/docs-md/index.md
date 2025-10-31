@@ -6,6 +6,7 @@ Unified documentation for the OpenPRA monorepo, rendered with VitePress.
   - Frontend Overview: frontend-overview.html
   - Backend Overview: backend-overview.html
   - Engine Overview: engine-overview.html
+  - MEF Technical Elements: stack-overview/mef-technical-elements.html
   - Stack Overview: stack-overview/index.html
 
 - Docs Coverage

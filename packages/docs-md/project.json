@@ -28,6 +28,12 @@
         "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/mef-types --json api/ts/mef-types/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig ../../packages/mef-types/tsconfig.json --skipErrorChecking ../../packages/mef-types/src/index.ts"
       }
     },
+    "ts:markdown:mef-technical-elements": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/mef-technical-elements --json api/ts/mef-technical-elements/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig ../../packages/mef-types/src/openpra-mef/technical-elements/tsconfig.json --skipErrorChecking ../../packages/mef-types/src/openpra-mef/technical-elements/index.ts"
+      }
+    },
     "ts:markdown:mef-schema": {
       "executor": "nx:run-commands",
       "options": {
@@ -96,6 +102,7 @@
         "ts:markdown:shared-sdk",
         "ts:markdown:shared-types",
         "ts:markdown:mef-types",
+        "ts:markdown:mef-technical-elements",
         "ts:markdown:mef-schema",
         "ts:markdown:model-generator",
         "ts:markdown:web-backend",
@@ -120,6 +127,7 @@
         "ts:markdown:shared-sdk",
         "ts:markdown:shared-types",
         "ts:markdown:mef-types",
+        "ts:markdown:mef-technical-elements",
         "ts:markdown:mef-schema",
         "ts:markdown:model-generator",
         "ts:markdown:web-backend",

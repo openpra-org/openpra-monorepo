@@ -19,7 +19,7 @@ import { FaultTreeNodeProps } from "../../components/treeNodes/faultTreeNodes/fa
  * ```
  */
 const UseGrayedNodeClick = (
-  _id: NodeProps["id"],
+  id: NodeProps["id"],
 ): {
   handleGrayedNodeClick: (branchId: string | undefined) => Promise<void>;
 } => {

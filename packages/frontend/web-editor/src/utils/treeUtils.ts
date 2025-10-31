@@ -69,10 +69,10 @@ export interface OnGrayedState {
 export type GrayedNodeData = Node<FaultTreeNodeProps> | Edge<FaultTreeNodeProps>;
 
 /**
- * Generate the event sequence state with the provided list of nodes and edges, for a particular event sequence id
- * @param eventSequenceId - event sequence id
- * @param nodes - list of nodes
- * @param edges - list of edges
+ * Generate the event sequence state with the provided list of nodes and edges, for a particular event sequence id.
+ *
+ * @param state - Object containing eventSequenceId, nodes, and edges.
+ * @returns A normalized EventSequenceGraph snapshot.
  */
 export const EventSequenceState = ({ eventSequenceId, nodes, edges }: EventSequenceStateType): EventSequenceGraph => ({
   eventSequenceId: eventSequenceId,
@@ -81,10 +81,10 @@ export const EventSequenceState = ({ eventSequenceId, nodes, edges }: EventSeque
 });
 
 /**
- * Generate the fault tree state with the provided list of nodes and edges, for a particular fault tree id
- * @param faultTreeId - fault tree id
- * @param nodes - list of nodes
- * @param edges - list of edges
+ * Generate the fault tree state with the provided list of nodes and edges, for a particular fault tree id.
+ *
+ * @param state - Object containing faultTreeId, nodes, and edges.
+ * @returns A normalized FaultTreeGraph snapshot.
  */
 export const FaultTreeState = ({ faultTreeId, nodes, edges }: FaultTreeStateType): FaultTreeGraph => ({
   faultTreeId: faultTreeId,
@@ -93,10 +93,10 @@ export const FaultTreeState = ({ faultTreeId, nodes, edges }: FaultTreeStateType
 });
 
 /**
- * Generate the fault tree state with the provided list of nodes and edges, for a particular fault tree id
- * @param faultTreeId - fault tree id
- * @param nodes - list of nodes
- * @param edges - list of edges
+ * Generate the event tree state with the provided list of nodes and edges, for a particular event tree id.
+ *
+ * @param state - Object containing eventTreeId, nodes, and edges.
+ * @returns A normalized EventTreeGraph snapshot.
  */
 export const EventTreeState = ({ eventTreeId, nodes, edges }: EventTreeStateType): EventTreeGraph => ({
   eventTreeId: eventTreeId,

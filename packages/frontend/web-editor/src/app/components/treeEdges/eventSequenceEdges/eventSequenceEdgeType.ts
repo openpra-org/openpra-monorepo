@@ -9,6 +9,9 @@ const ESEdgeTypes: EdgeTypes = {
   functional: EventSequenceEdge("functional"),
 };
 
+/**
+ * Optional editing flags and metadata for Event Sequence edges.
+ */
 export interface EventSequenceEdgeProps {
   tentative?: boolean;
   label?: string;

@@ -453,6 +453,17 @@ export function BuildAnEdge(
   };
 }
 
+/**
+ * Persist event-sequence mutations by sending updated and deleted subgraphs.
+ *
+ * Wraps the provided subgraphs into normalized `EventSequenceGraph` payloads and
+ * calls the Graph API to apply the delta. Returns true on success.
+ *
+ * @param eventSequenceId - The current Event Sequence id.
+ * @param updatedSubgraph - Nodes/edges to add or update.
+ * @param deletedSubgraph - Nodes/edges to remove.
+ * @returns Promise resolving to a boolean indicating API success.
+ */
 export function UpdateEventSequenceDiagram(
   eventSequenceId: string,
   updatedSubgraph: BaseGraphState,
@@ -610,6 +621,17 @@ function GenerateTentativeState(
   } as OnUpdateOrDeleteGraphState;
 }
 
+/**
+ * Clear all "tentative" markers on nodes/edges and reset related flags.
+ *
+ * Used to exit the intermediate state created during functional node update/delete
+ * workflows. Returns an updated state with tentative flags removed; no API sync
+ * is performed by this function.
+ *
+ * @param currentNodes - Current nodes (may include tentative flags).
+ * @param currentEdges - Current edges (may include tentative flags).
+ * @returns Updated state with all tentative flags cleared.
+ */
 export function RevertTentativeState(
   currentNodes: Node<EventSequenceNodeProps>[],
   currentEdges: Edge<EventSequenceEdgeProps>[],
@@ -869,6 +891,12 @@ export function GetESToast(type: EuiToastProps["color"], message: string): Toast
   } as Toast;
 }
 
+/**
+ * Get the default number of children allowed for a given node type.
+ *
+ * @param type - Event Sequence node type.
+ * @returns The expected child count for that type.
+ */
 export function GetChildCount(type: EventSequenceNodeTypes): number {
   switch (type) {
     case "functional":

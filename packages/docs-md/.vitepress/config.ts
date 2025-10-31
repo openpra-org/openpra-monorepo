@@ -8,6 +8,13 @@ const base = (() => {
   return b.endsWith("/") ? b : `${b}/`;
 })();
 
+// Default-on explorer: allow disabling with DOCS_ENABLE_SRC_EXPLORER=0 or false
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore Node-style env at build time
+const explorerEnabled = !(
+  process.env.DOCS_ENABLE_SRC_EXPLORER === "0" || process.env.DOCS_ENABLE_SRC_EXPLORER === "false"
+);
+
 export default defineConfig({
   base,
   title: "OpenPRA Documentation",
@@ -22,6 +29,13 @@ export default defineConfig({
     },
   },
   themeConfig: {
+    // Feature flags (build-time)
+    // Enable an additional "Explore source" section per TS package
+    // to navigate by top-level src/ folders.
+    // Set DOCS_ENABLE_SRC_EXPLORER=true to activate.
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore Node-style env at build time
+    exploreEnabled: explorerEnabled,
     nav: [
       {
         text: "Stack Overview",
@@ -95,6 +109,10 @@ export default defineConfig({
           items: [
             { text: "Index", link: "/api/ts/web-editor/README.html" },
             { text: "Modules", link: "/api/ts/web-editor/modules.html" },
+            // @ts-ignore injected at runtime via env
+            ...(explorerEnabled ?
+              [{ text: "Explore src/ (by folder)", link: "/api/ts/web-editor/_explore/index.html" }]
+            : []),
           ],
         },
       ],
@@ -104,6 +122,9 @@ export default defineConfig({
           items: [
             { text: "Index", link: "/api/ts/shared-sdk/README.html" },
             { text: "Modules", link: "/api/ts/shared-sdk/modules.html" },
+            ...(explorerEnabled ?
+              [{ text: "Explore src/ (by folder)", link: "/api/ts/shared-sdk/_explore/index.html" }]
+            : []),
           ],
         },
       ],
@@ -113,6 +134,9 @@ export default defineConfig({
           items: [
             { text: "Index", link: "/api/ts/shared-types/README.html" },
             { text: "Modules", link: "/api/ts/shared-types/modules.html" },
+            ...(explorerEnabled ?
+              [{ text: "Explore src/ (by folder)", link: "/api/ts/shared-types/_explore/index.html" }]
+            : []),
           ],
         },
       ],
@@ -122,6 +146,9 @@ export default defineConfig({
           items: [
             { text: "Index", link: "/api/ts/mef-types/README.html" },
             { text: "Modules", link: "/api/ts/mef-types/modules.html" },
+            ...(explorerEnabled ?
+              [{ text: "Explore src/ (by folder)", link: "/api/ts/mef-types/_explore/index.html" }]
+            : []),
           ],
         },
       ],
@@ -137,6 +164,9 @@ export default defineConfig({
           items: [
             { text: "Index", link: "/api/ts/mef-schema/README.html" },
             { text: "Modules", link: "/api/ts/mef-schema/modules.html" },
+            ...(explorerEnabled ?
+              [{ text: "Explore src/ (by folder)", link: "/api/ts/mef-schema/_explore/index.html" }]
+            : []),
           ],
         },
       ],
@@ -146,6 +176,9 @@ export default defineConfig({
           items: [
             { text: "Index", link: "/api/ts/model-generator/README.html" },
             { text: "Modules", link: "/api/ts/model-generator/modules.html" },
+            ...(explorerEnabled ?
+              [{ text: "Explore src/ (by folder)", link: "/api/ts/model-generator/_explore/index.html" }]
+            : []),
           ],
         },
       ],
@@ -164,6 +197,9 @@ export default defineConfig({
           items: [
             { text: "Index", link: "/api/ts/web-backend/README.html" },
             { text: "Modules", link: "/api/ts/web-backend/modules.html" },
+            ...(explorerEnabled ?
+              [{ text: "Explore src/ (by folder)", link: "/api/ts/web-backend/_explore/index.html" }]
+            : []),
           ],
         },
       ],
@@ -173,6 +209,9 @@ export default defineConfig({
           items: [
             { text: "Index", link: "/api/ts/job-broker/README.html" },
             { text: "Modules", link: "/api/ts/job-broker/modules.html" },
+            ...(explorerEnabled ?
+              [{ text: "Explore src/ (by folder)", link: "/api/ts/job-broker/_explore/index.html" }]
+            : []),
           ],
         },
       ],

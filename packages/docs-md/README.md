@@ -21,6 +21,10 @@ This package builds the unified Markdown documentation for the monorepo:
   - `api/cpp-doxybook2` — structured pages (files/classes/namespaces)
 - Site output: `.vitepress/dist`
 
+### Explore src/ (by folder)
+
+The site includes an "Explore src/ (by folder)" view for each TypeScript package. It groups TypeDoc modules by their top-level `src/` folders to mirror the source tree and ease discovery. This is enabled by default and can be turned off by setting `DOCS_ENABLE_SRC_EXPLORER=0` or `DOCS_ENABLE_SRC_EXPLORER=false` at build time.
+
 ## Local usage
 
 Recommended (faster dev loop):
@@ -40,6 +44,10 @@ Full build and checks:
   - `nx run docs-md:site:build --no-cloud`
 - Link check:
   - `nx run docs-md:site:link-check --no-cloud`
+
+To temporarily disable the folder explorer for a build:
+
+- `DOCS_ENABLE_SRC_EXPLORER=0 nx run docs-md:site:build --no-cloud`
 
 Coverage pages (once the site is built):
 

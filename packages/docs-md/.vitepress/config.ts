@@ -56,7 +56,6 @@ export default defineConfig({
           { text: "Coverage", link: "/api/ts/coverage.html" },
         ],
       },
-      { text: "MEF (Schemas)", link: "/api/mef/openpra-mef/index.html" },
       {
         text: "C++ API",
         items: [
@@ -95,7 +94,7 @@ export default defineConfig({
           text: "Web Editor Utils",
           items: [
             { text: "Index", link: "/api/ts/web-editor/README.html" },
-            { text: "Modules", link: "/api/ts/modules.html" },
+            { text: "Modules", link: "/api/ts/web-editor/modules.html" },
           ],
         },
       ],
@@ -104,7 +103,7 @@ export default defineConfig({
           text: "Shared SDK",
           items: [
             { text: "Index", link: "/api/ts/shared-sdk/README.html" },
-            { text: "Globals", link: "/api/ts/shared-sdk/globals.html" },
+            { text: "Modules", link: "/api/ts/shared-sdk/modules.html" },
           ],
         },
       ],
@@ -113,7 +112,7 @@ export default defineConfig({
           text: "Shared Types",
           items: [
             { text: "Index", link: "/api/ts/shared-types/README.html" },
-            { text: "Globals", link: "/api/ts/shared-types/globals.html" },
+            { text: "Modules", link: "/api/ts/shared-types/modules.html" },
           ],
         },
       ],
@@ -122,7 +121,7 @@ export default defineConfig({
           text: "MEF Types",
           items: [
             { text: "Index", link: "/api/ts/mef-types/README.html" },
-            { text: "Globals", link: "/api/ts/mef-types/globals.html" },
+            { text: "Modules", link: "/api/ts/mef-types/modules.html" },
           ],
         },
       ],
@@ -137,7 +136,7 @@ export default defineConfig({
           text: "MEF Schema",
           items: [
             { text: "Index", link: "/api/ts/mef-schema/README.html" },
-            { text: "Globals", link: "/api/ts/mef-schema/globals.html" },
+            { text: "Modules", link: "/api/ts/mef-schema/modules.html" },
           ],
         },
       ],
@@ -146,7 +145,7 @@ export default defineConfig({
           text: "Model Generator",
           items: [
             { text: "Index", link: "/api/ts/model-generator/README.html" },
-            { text: "Globals", link: "/api/ts/model-generator/globals.html" },
+            { text: "Modules", link: "/api/ts/model-generator/modules.html" },
           ],
         },
       ],
@@ -164,7 +163,7 @@ export default defineConfig({
           text: "Web Backend (NestJS)",
           items: [
             { text: "Index", link: "/api/ts/web-backend/README.html" },
-            { text: "Globals", link: "/api/ts/web-backend/globals.html" },
+            { text: "Modules", link: "/api/ts/web-backend/modules.html" },
           ],
         },
       ],
@@ -173,7 +172,7 @@ export default defineConfig({
           text: "Job Broker",
           items: [
             { text: "Index", link: "/api/ts/job-broker/README.html" },
-            { text: "Globals", link: "/api/ts/job-broker/globals.html" },
+            { text: "Modules", link: "/api/ts/job-broker/modules.html" },
           ],
         },
       ],

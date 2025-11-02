@@ -272,7 +272,6 @@ export class TypedModelController {
     return this.typedModelService.deleteInternalHazard(Number(modelId), this.getUserId(req) as number);
   }
 
-  @Delete("/full-scope/")
   /**
    * Delete a Full Scope model by id.
    *
@@ -280,6 +279,7 @@ export class TypedModelController {
    * @param modelId - id of the model to delete
    * @returns the deleted model
    */
+  @Delete("/full-scope/")
   async deleteFullScope(@Request() req, @Query("modelId") modelId: string): Promise<FullScopeModel> {
     return this.typedModelService.deleteFullScope(Number(modelId), this.getUserId(req) as number);
   }
@@ -336,7 +336,6 @@ export class TypedModelController {
 
   //for deleting nested model ids
 
-  @Patch("/internal-events/:id/delete-nested")
   /**
    * Remove a nested model relation from an Internal Events model.
    *
@@ -344,6 +343,7 @@ export class TypedModelController {
    * @param body - Object containing nestedId and nestedType to remove
    * @returns Updated model JSON
    */
+  @Patch("/internal-events/:id/delete-nested")
   async deleteNestedFromInternalEvent(
     @Param("id") id: string,
     @Body() body: { nestedId: number | string; nestedType: string },
@@ -351,7 +351,6 @@ export class TypedModelController {
     return this.typedModelService.deleteNestedFromInternalEvent(id, body.nestedId, body.nestedType);
   }
 
-  @Patch("/internal-hazards/:id/delete-nested")
   /**
    * Remove a nested model relation from an Internal Hazards model.
    *
@@ -359,6 +358,7 @@ export class TypedModelController {
    * @param body - Object containing nestedId and nestedType to remove
    * @returns Updated model JSON
    */
+  @Patch("/internal-hazards/:id/delete-nested")
   async deleteNestedFromInternalHazard(
     @Param("id") id: string,
     @Body() body: { nestedId: number; nestedType: string },
@@ -366,7 +366,6 @@ export class TypedModelController {
     return this.typedModelService.deleteNestedFromInternalHazard(id, body.nestedId, body.nestedType);
   }
 
-  @Patch("/external-hazards/:id/delete-nested")
   /**
    * Remove a nested model relation from an External Hazards model.
    *
@@ -374,6 +373,7 @@ export class TypedModelController {
    * @param body - Object containing nestedId and nestedType to remove
    * @returns Updated model JSON
    */
+  @Patch("/external-hazards/:id/delete-nested")
   async deleteNestedFromExternalHazard(
     @Param("id") id: string,
     @Body() body: { nestedId: number; nestedType: string },
@@ -381,7 +381,6 @@ export class TypedModelController {
     return this.typedModelService.deleteNestedFromExternalHazard(id, body.nestedId, body.nestedType);
   }
 
-  @Patch("/full-scope/:id/delete-nested")
   /**
    * Remove a nested model relation from a Full Scope model.
    *
@@ -389,6 +388,7 @@ export class TypedModelController {
    * @param body - Object containing nestedId and nestedType to remove
    * @returns Updated model JSON
    */
+  @Patch("/full-scope/:id/delete-nested")
   async deleteNestedFromFullScope(
     @Param("id") id: string,
     @Body() body: { nestedId: number; nestedType: string },

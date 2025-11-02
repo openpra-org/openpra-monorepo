@@ -1016,13 +1016,23 @@ export class NestedModelController {
     return this.nestedModelService.updateWeibullAnalysisLabel(id, data);
   }
 
-  // For Risk Integration
+  /**
+   * Update a label for the Risk Integration nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
+   */
   @Patch("/risk-integration/:id")
   async updateRiskIntegrationLabel(@Param("id") id: number, @Body() data: Label): Promise<RiskIntegration> {
     return this.nestedModelService.updateRiskIntegrationLabel(id, data);
   }
 
-  // For Radiological Consequence Analysis
+  /**
+   * Update a label for the Radiological Consequence Analysis nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
+   */
   @Patch("/radiological-consequence-analysis/:id")
   async updateRadiologicalConsequenceAnalysisLabel(
     @Param("id") id: number,
@@ -1031,13 +1041,23 @@ export class NestedModelController {
     return this.nestedModelService.updateRadiologicalConsequenceAnalysisLabel(id, data);
   }
 
-  // For Mechanistic Source Term
+  /**
+   * Update a label for the Mechanistic Source Term nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
+   */
   @Patch("/mechanistic-source-term/:id")
   async updateMechanisticSourceTermLabel(@Param("id") id: number, @Body() data: Label): Promise<MechanisticSourceTerm> {
     return this.nestedModelService.updateMechanisticSourceTermLabel(id, data);
   }
 
-  // For Event Sequence Quantification Diagram
+  /**
+   * Update a label for the Event Sequence Quantification Diagram nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
+   */
   @Patch("/event-sequence-quantification-diagram/:id")
   async updateEventSequenceQuantificationDiagramLabel(
     @Param("id") id: number,
@@ -1046,13 +1066,23 @@ export class NestedModelController {
     return this.nestedModelService.updateEventSequenceQuantificationDiagramLabel(id, data);
   }
 
-  // For Data Analysis
+  /**
+   * Update a label for the Data Analysis nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
+   */
   @Patch("/data-analysis/:id")
   async updateDataAnalysisLabel(@Param("id") id: number, @Body() data: Label): Promise<DataAnalysis> {
     return this.nestedModelService.updateDataAnalysisLabel(id, data);
   }
 
-  // For Human Reliability Analysis
+  /**
+   * Update a label for the Human Reliability Analysis nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
+   */
   @Patch("/human-reliability-analysis/:id")
   async updateHumanReliabilityAnalysisLabel(
     @Param("id") id: number,
@@ -1061,13 +1091,23 @@ export class NestedModelController {
     return this.nestedModelService.updateHumanReliabilityAnalysisLabel(id, data);
   }
 
-  // For Systems Analysis
+  /**
+   * Update a label for the Systems Analysis nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
+   */
   @Patch("/systems-analysis/:id")
   async updateSystemsAnalysisLabel(@Param("id") id: number, @Body() data: Label): Promise<SystemsAnalysis> {
     return this.nestedModelService.updateSystemsAnalysisLabel(id, data);
   }
 
-  // For Success Criteria
+  /**
+   * Update a label for the Success Criteria nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
+   */
   @Patch("/success-criteria/:id")
   async updateSuccessCriteriaLabel(@Param("id") id: number, @Body() data: Label): Promise<SuccessCriteria> {
     return this.nestedModelService.updateSuccessCriteriaLabel(id, data);
@@ -1086,7 +1126,12 @@ export class NestedModelController {
     return this.eventSequenceAnalysisService.updateEventSequenceAnalysisLabel(id, data);
   }
 
-  // For Operating State Analysis
+  /**
+   * Update a label for the Operating State Analysis nested model type.
+   * @param id - The id of the nested model to be updated
+   * @param data - The new label, with a name and description string
+   * @returns The updated model
+   */
   @Patch("/operating-state-analysis/:id")
   async updateOperatingStateAnalysisLabel(
     @Param("id") id: number,

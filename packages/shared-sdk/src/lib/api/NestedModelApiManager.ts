@@ -220,6 +220,12 @@ export async function PostWeibullAnalysis(data: NestedModelJSON): Promise<Nested
 }
 
 // Risk Integration
+/**
+ * Create a Risk Integration nested model and link it to the current typed model.
+ *
+ * @param data - Nested model payload containing label and parent id
+ * @returns Promise resolving to the created nested model
+ */
 export async function PostRiskIntegration(data: NestedModelJSON): Promise<NestedModel> {
   const returnResponse = await Post(`${RISK_INTEGRATION_ENDPOINT}/`, data).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -229,6 +235,12 @@ export async function PostRiskIntegration(data: NestedModelJSON): Promise<Nested
 }
 
 // Radiological Consequence Analysis
+/**
+ * Create a Radiological Consequence Analysis nested model and link it to the current typed model.
+ *
+ * @param data - Nested model payload containing label and parent id
+ * @returns Promise resolving to the created nested model
+ */
 export async function PostRadiologicalConsequenceAnalysis(data: NestedModelJSON): Promise<NestedModel> {
   const returnResponse = await Post(`${RADIOLOGICAL_CONSEQUENCE_ANALYSIS_ENDPOINT}/`, data).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -238,6 +250,12 @@ export async function PostRadiologicalConsequenceAnalysis(data: NestedModelJSON)
 }
 
 // Mechanistic Source Term
+/**
+ * Create a Mechanistic Source Term nested model and link it to the current typed model.
+ *
+ * @param data - Nested model payload containing label and parent id
+ * @returns Promise resolving to the created nested model
+ */
 export async function PostMechanisticSourceTerm(data: NestedModelJSON): Promise<NestedModel> {
   const returnResponse = await Post(`${MECHANISTIC_SOURCE_TERM_ENDPOINT}/`, data).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -247,6 +265,12 @@ export async function PostMechanisticSourceTerm(data: NestedModelJSON): Promise<
 }
 
 // Event Sequence Quantification Diagram
+/**
+ * Create an Event Sequence Quantification Diagram nested model and link it to the current typed model.
+ *
+ * @param data - Nested model payload containing label and parent id
+ * @returns Promise resolving to the created nested model
+ */
 export async function PostEventSequenceQuantificationDiagram(data: NestedModelJSON): Promise<NestedModel> {
   const returnResponse = await Post(`${EVENT_SEQUENCE_QUANTIFICATION_DIAGRAM_ENDPOINT}/`, data).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -256,6 +280,12 @@ export async function PostEventSequenceQuantificationDiagram(data: NestedModelJS
 }
 
 // Data Analysis
+/**
+ * Create a Data Analysis nested model and link it to the current typed model.
+ *
+ * @param data - Nested model payload containing label and parent id
+ * @returns Promise resolving to the created nested model
+ */
 export async function PostDataAnalysis(data: NestedModelJSON): Promise<NestedModel> {
   const returnResponse = await Post(`${DATA_ANALYSIS_ENDPOINT}/`, data).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -265,6 +295,12 @@ export async function PostDataAnalysis(data: NestedModelJSON): Promise<NestedMod
 }
 
 // Human Reliability Analysis
+/**
+ * Create a Human Reliability Analysis nested model and link it to the current typed model.
+ *
+ * @param data - Nested model payload containing label and parent id
+ * @returns Promise resolving to the created nested model
+ */
 export async function PostHumanReliabilityAnalysis(data: NestedModelJSON): Promise<NestedModel> {
   const returnResponse = await Post(`${HUMAN_RELIABILITY_ANALYSIS_ENDPOINT}/`, data).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -274,6 +310,12 @@ export async function PostHumanReliabilityAnalysis(data: NestedModelJSON): Promi
 }
 
 // Systems Analysis
+/**
+ * Create a Systems Analysis nested model and link it to the current typed model.
+ *
+ * @param data - Nested model payload containing label and parent id
+ * @returns Promise resolving to the created nested model
+ */
 export async function PostSystemsAnalysis(data: NestedModelJSON): Promise<NestedModel> {
   const returnResponse = await Post(`${SYSTEMS_ANALYSIS_ENDPOINT}/`, data).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -283,6 +325,12 @@ export async function PostSystemsAnalysis(data: NestedModelJSON): Promise<Nested
 }
 
 // Success Criteria
+/**
+ * Create a Success Criteria nested model and link it to the current typed model.
+ *
+ * @param data - Nested model payload containing label and parent id
+ * @returns Promise resolving to the created nested model
+ */
 export async function PostSuccessCriteria(data: NestedModelJSON): Promise<NestedModel> {
   const returnResponse = await Post(`${SUCCESS_CRITERIA_ENDPOINT}/`, data).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -292,6 +340,12 @@ export async function PostSuccessCriteria(data: NestedModelJSON): Promise<Nested
 }
 
 // Operating State Analysis
+/**
+ * Create an Operating State Analysis nested model and link it to the current typed model.
+ *
+ * @param data - Nested model payload containing label and parent id
+ * @returns Promise resolving to the created nested model
+ */
 export async function PostOperatingStateAnalysis(data: NestedModelJSON): Promise<NestedModel> {
   const returnResponse = await Post(`${OPERATING_STATE_ANALYSIS_ENDPOINT}/`, data).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -617,6 +671,13 @@ export function PatchWeibullAnalysisLabel(id: number, data: LabelJSON): Promise<
   );
 }
 
+/**
+ * Update the label for a Risk Integration nested model.
+ *
+ * @param id - The id of the Risk Integration model to update
+ * @param data - Label payload with name and optional description
+ * @returns A promise resolving to the updated nested model
+ */
 // Risk Integration
 export function PatchRiskIntegrationLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${RISK_INTEGRATION_ENDPOINT}/${id}`, JSON.stringify(data)).then(
@@ -624,6 +685,13 @@ export function PatchRiskIntegrationLabel(id: number, data: LabelJSON): Promise<
   );
 }
 
+/**
+ * Update the label for a Radiological Consequence Analysis nested model.
+ *
+ * @param id - The id of the model to update
+ * @param data - Label payload with name and optional description
+ * @returns A promise resolving to the updated nested model
+ */
 // Radiological Consequence Analysis
 export function PatchRadiologicalConsequenceLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${RADIOLOGICAL_CONSEQUENCE_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
@@ -631,6 +699,13 @@ export function PatchRadiologicalConsequenceLabel(id: number, data: LabelJSON): 
   );
 }
 
+/**
+ * Update the label for a Mechanistic Source Term nested model.
+ *
+ * @param id - The id of the model to update
+ * @param data - Label payload with name and optional description
+ * @returns A promise resolving to the updated nested model
+ */
 // Mechanistic Source Term
 export function PatchMechanisticSourceTermLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${MECHANISTIC_SOURCE_TERM_ENDPOINT}/${id}`, JSON.stringify(data)).then(
@@ -638,6 +713,13 @@ export function PatchMechanisticSourceTermLabel(id: number, data: LabelJSON): Pr
   );
 }
 
+/**
+ * Update the label for an Event Sequence Quantification Diagram nested model.
+ *
+ * @param id - The id of the model to update
+ * @param data - Label payload with name and optional description
+ * @returns A promise resolving to the updated nested model
+ */
 // Event Sequence Quantification Diagram
 export function PatchEventSequenceQuantificationDiagramLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${EVENT_SEQUENCE_QUANTIFICATION_DIAGRAM_ENDPOINT}/${id}`, JSON.stringify(data)).then(
@@ -645,6 +727,13 @@ export function PatchEventSequenceQuantificationDiagramLabel(id: number, data: L
   );
 }
 
+/**
+ * Update the label for a Data Analysis nested model.
+ *
+ * @param id - The id of the model to update
+ * @param data - Label payload with name and optional description
+ * @returns A promise resolving to the updated nested model
+ */
 // Data Analysis
 export function PatchDataAnalysisLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${DATA_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
@@ -652,6 +741,13 @@ export function PatchDataAnalysisLabel(id: number, data: LabelJSON): Promise<Nes
   );
 }
 
+/**
+ * Update the label for a Human Reliability Analysis nested model.
+ *
+ * @param id - The id of the model to update
+ * @param data - Label payload with name and optional description
+ * @returns A promise resolving to the updated nested model
+ */
 // Human Reliability Analysis
 export function PatchHumanReliabilityLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${HUMAN_RELIABILITY_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
@@ -659,6 +755,13 @@ export function PatchHumanReliabilityLabel(id: number, data: LabelJSON): Promise
   );
 }
 
+/**
+ * Update the label for a Systems Analysis nested model.
+ *
+ * @param id - The id of the model to update
+ * @param data - Label payload with name and optional description
+ * @returns A promise resolving to the updated nested model
+ */
 // Systems Analysis
 export function PatchSystemsAnalysisLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${SYSTEMS_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
@@ -666,6 +769,13 @@ export function PatchSystemsAnalysisLabel(id: number, data: LabelJSON): Promise<
   );
 }
 
+/**
+ * Update the label for a Success Criteria nested model.
+ *
+ * @param id - The id of the model to update
+ * @param data - Label payload with name and optional description
+ * @returns A promise resolving to the updated nested model
+ */
 // Success Criteria
 export function PatchSuccessCriteriaLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${SUCCESS_CRITERIA_ENDPOINT}/${id}`, JSON.stringify(data)).then(
@@ -673,6 +783,13 @@ export function PatchSuccessCriteriaLabel(id: number, data: LabelJSON): Promise<
   );
 }
 
+/**
+ * Update the label for an Operating State Analysis nested model.
+ *
+ * @param id - The id of the model to update
+ * @param data - Label payload with name and optional description
+ * @returns A promise resolving to the updated nested model
+ */
 // Operating State Analysis
 export function PatchOperatingStateLabel(id: number, data: LabelJSON): Promise<NestedModel> {
   return Patch(`${OPERATING_STATE_ANALYSIS_ENDPOINT}/${id}`, JSON.stringify(data)).then(
@@ -766,6 +883,12 @@ export async function DeleteWeibullAnalysis(id = -1): Promise<NestedModel> {
 }
 
 // Risk Integration
+/**
+ * Delete a Risk Integration nested model by id and unlink it from its parent typed model.
+ *
+ * @param id - Nested model identifier to delete
+ * @returns Promise resolving to the deleted nested model
+ */
 export async function DeleteRiskIntegration(id = -1): Promise<NestedModel> {
   const response = await Delete(`${RISK_INTEGRATION_ENDPOINT}/?id=${Number(id)}`).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -775,6 +898,12 @@ export async function DeleteRiskIntegration(id = -1): Promise<NestedModel> {
 }
 
 // Radiological Consequence Analysis
+/**
+ * Delete a Radiological Consequence Analysis nested model by id and unlink it from its parent typed model.
+ *
+ * @param id - Nested model identifier to delete
+ * @returns Promise resolving to the deleted nested model
+ */
 export async function DeleteRadiologicalConsequenceAnalysis(id = -1): Promise<NestedModel> {
   const response = await Delete(`${RADIOLOGICAL_CONSEQUENCE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -784,6 +913,12 @@ export async function DeleteRadiologicalConsequenceAnalysis(id = -1): Promise<Ne
 }
 
 // Mechanistic Source Term
+/**
+ * Delete a Mechanistic Source Term nested model by id and unlink it from its parent typed model.
+ *
+ * @param id - Nested model identifier to delete
+ * @returns Promise resolving to the deleted nested model
+ */
 export async function DeleteMechanisticSourceTerm(id = -1): Promise<NestedModel> {
   const response = await Delete(`${MECHANISTIC_SOURCE_TERM_ENDPOINT}/?id=${Number(id)}`).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -793,6 +928,12 @@ export async function DeleteMechanisticSourceTerm(id = -1): Promise<NestedModel>
 }
 
 // Event Sequence Quantification Diagram
+/**
+ * Delete an Event Sequence Quantification Diagram nested model by id and unlink it from its parent typed model.
+ *
+ * @param id - Nested model identifier to delete
+ * @returns Promise resolving to the deleted nested model
+ */
 export async function DeleteEventSequenceQuantificationDiagram(id = -1): Promise<NestedModel> {
   const response = await Delete(`${EVENT_SEQUENCE_QUANTIFICATION_DIAGRAM_ENDPOINT}/?id=${Number(id)}`).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -802,6 +943,12 @@ export async function DeleteEventSequenceQuantificationDiagram(id = -1): Promise
 }
 
 // Data Analysis
+/**
+ * Delete a Data Analysis nested model by id and unlink it from its parent typed model.
+ *
+ * @param id - Nested model identifier to delete
+ * @returns Promise resolving to the deleted nested model
+ */
 export async function DeleteDataAnalysis(id = -1): Promise<NestedModel> {
   const response = await Delete(`${DATA_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -811,6 +958,12 @@ export async function DeleteDataAnalysis(id = -1): Promise<NestedModel> {
 }
 
 // Human Reliability Analysis
+/**
+ * Delete a Human Reliability Analysis nested model by id and unlink it from its parent typed model.
+ *
+ * @param id - Nested model identifier to delete
+ * @returns Promise resolving to the deleted nested model
+ */
 export async function DeleteHumanReliabilityAnalysis(id = -1): Promise<NestedModel> {
   const response = await Delete(`${HUMAN_RELIABILITY_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -820,6 +973,12 @@ export async function DeleteHumanReliabilityAnalysis(id = -1): Promise<NestedMod
 }
 
 // Systems Analysis
+/**
+ * Delete a Systems Analysis nested model by id and unlink it from its parent typed model.
+ *
+ * @param id - Nested model identifier to delete
+ * @returns Promise resolving to the deleted nested model
+ */
 export async function DeleteSystemsAnalysis(id = -1): Promise<NestedModel> {
   const response = await Delete(`${SYSTEMS_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -829,6 +988,12 @@ export async function DeleteSystemsAnalysis(id = -1): Promise<NestedModel> {
 }
 
 // Success Criteria
+/**
+ * Delete a Success Criteria nested model by id and unlink it from its parent typed model.
+ *
+ * @param id - Nested model identifier to delete
+ * @returns Promise resolving to the deleted nested model
+ */
 export async function DeleteSuccessCriteria(id = -1): Promise<NestedModel> {
   const response = await Delete(`${SUCCESS_CRITERIA_ENDPOINT}/?id=${Number(id)}`).then(
     (response) => response.json() as Promise<NestedModel>,
@@ -838,6 +1003,12 @@ export async function DeleteSuccessCriteria(id = -1): Promise<NestedModel> {
 }
 
 // Operating State Analysis
+/**
+ * Delete an Operating State Analysis nested model by id and unlink it from its parent typed model.
+ *
+ * @param id - Nested model identifier to delete
+ * @returns Promise resolving to the deleted nested model
+ */
 export async function DeleteOperatingStateAnalysis(id = -1): Promise<NestedModel> {
   const response = await Delete(`${OPERATING_STATE_ANALYSIS_ENDPOINT}/?id=${Number(id)}`).then(
     (response) => response.json() as Promise<NestedModel>,

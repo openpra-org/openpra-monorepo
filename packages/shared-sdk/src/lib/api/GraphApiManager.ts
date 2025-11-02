@@ -98,6 +98,14 @@ export class GraphApiManager {
       });
   }
 
+  /**
+   * Update a subgraph of an event sequence diagram by sending the updated and deleted portions.
+   *
+   * @param eventSequenceId - Identifier of the event sequence whose subgraph is being updated
+   * @param updatedSubgraph - Nodes and edges that should be upserted
+   * @param deletedSubgraph - Nodes and edges that should be removed
+   * @returns Promise resolving to true if the update succeeded, false otherwise
+   */
   static async updateESSubgraph(
     eventSequenceId: string,
     updatedSubgraph: EventSequenceGraph,
@@ -167,8 +175,8 @@ export class GraphApiManager {
    */
   private static async getEventSequenceResponse(res: Response, eventSequenceId: string): Promise<EventSequenceGraph> {
     const response = await res.text();
-    return response === ""
-      ? ({
+    return response === "" ?
+        ({
           eventSequenceId: eventSequenceId,
           nodes: [],
           edges: [],
@@ -194,8 +202,8 @@ export class GraphApiManager {
    */
   private static async getFaultTreeResponse(res: Response, faultTreeId: string): Promise<FaultTreeGraph> {
     const response = await res.text();
-    return response === ""
-      ? ({
+    return response === "" ?
+        ({
           faultTreeId: faultTreeId,
           nodes: [],
           edges: [],
@@ -211,8 +219,8 @@ export class GraphApiManager {
    */
   private static async getEventTreeResponse(res: Response, eventTreeId: string): Promise<EventTreeGraph> {
     const response = await res.text();
-    return response === ""
-      ? ({
+    return response === "" ?
+        ({
           eventTreeId: eventTreeId,
           nodes: [],
           edges: [],

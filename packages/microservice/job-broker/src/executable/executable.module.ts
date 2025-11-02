@@ -8,6 +8,9 @@ import { ExecutableService } from "./services/executable.service";
 import { ExecutableWorkerService } from "./services/executable-worker.service";
 import { ExecutableStorageService } from "./services/executable-storage.service";
 
+/**
+ * Nest module that exposes executable task endpoints and workers.
+ */
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -18,10 +21,11 @@ import { ExecutableStorageService } from "./services/executable-storage.service"
   controllers: [ExecutableController],
   providers: [ExecutableService, ExecutableWorkerService, ExecutableStorageService],
 })
-/**
- * Nest module that exposes executable task endpoints and workers.
- */
 export class ExecutableModule implements NestModule {
+  /**
+   * Configure middleware for executable task routes.
+   * @param consumer - Nest middleware consumer to bind middleware to routes
+   */
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(JobBrokerMiddleware).forRoutes(ExecutableController);
   }

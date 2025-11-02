@@ -13,6 +13,9 @@ import { AuthService } from "./auth.service";
 @UseGuards(AuthGuard("local"))
 @UseFilters(LoginErrorFilter)
 export class AuthController {
+  /**
+   * @param authService Service handling user auth and JWT issuance.
+   */
   constructor(private readonly authService: AuthService) {}
 
   /**
@@ -38,6 +41,7 @@ export class AuthController {
    * Verifies if the provided password matches the database for the given user.
    *
    * @param body - The request should contain two keys: username and password.
+   * @returns Whether the provided password matches for the given username.
    * @example
    * Request body example:
    * \{

@@ -12,6 +12,10 @@ import { Fmea, FmeaDocument } from "./schemas/fmea.schema";
 @Injectable()
 export class FmeaService {
   /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+  /**
+   * @param fmeaModel Mongoose model for FMEA documents.
+   * @param ModelCounterModel Mongoose model for sequence counters.
+   */
   constructor(
     @InjectModel(Fmea.name)
     private readonly fmeaModel: mongoose.Model<FmeaDocument>,

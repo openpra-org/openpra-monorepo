@@ -12,6 +12,11 @@ import { StorageService } from "../services/storage.service";
  */
 @Controller()
 export class FtrexController {
+  /**
+   * Construct the controller with producer and storage services.
+   * @param producerService - Service for publishing quantification jobs to RabbitMQ
+   * @param storageService - Service for reading quantified job reports from MongoDB
+   */
   constructor(
     private readonly producerService: ProducerService,
     private readonly storageService: StorageService,

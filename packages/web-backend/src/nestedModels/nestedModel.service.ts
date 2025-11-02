@@ -42,6 +42,32 @@ import {
 @Injectable()
 export class NestedModelService {
   //creating out object links to the database
+  /**
+   * Construct the service with injected Mongoose models for all supported nested elements.
+   * Each parameter is the collection model used to create, query, and update the respective element type.
+   *
+   * @param bayesianEstimationModel - Mongoose model for Bayesian Estimation documents
+   * @param eventSequenceDiagramModel - Mongoose model for Event Sequence Diagram documents
+   * @param bayesianNetworkModel - Mongoose model for Bayesian Network documents
+   * @param eventTreeModel - Mongoose model for Event Tree documents
+   * @param faultTreeModel - Mongoose model for Fault Tree documents
+   * @param heatBalanceFaultTreeModel - Mongoose model for Heat Balance Fault Tree documents
+   * @param functionalEventsModel - Mongoose model for Functional Event documents
+   * @param initiatingEventModel - Mongoose model for Initiating Event documents
+   * @param markovChainModel - Mongoose model for Markov Chain documents
+   * @param weibullAnalysisModel - Mongoose model for Weibull Analysis documents
+   * @param nestedCounterModel - Counter collection used to allocate incremental IDs for nested elements
+   * @param riskIntegrationModel - Mongoose model for Risk Integration documents
+   * @param radiologicalConsequenceAnalysisModel - Mongoose model for Radiological Consequence Analysis documents
+   * @param mechanisticSourceTermModel - Mongoose model for Mechanistic Source Term documents
+   * @param eventSequenceQuantificationDiagramModel - Mongoose model for Event Sequence Quantification Diagram documents
+   * @param dataAnalysisModel - Mongoose model for Data Analysis documents
+   * @param humanReliabilityAnalysisModel - Mongoose model for Human Reliability Analysis documents
+   * @param systemsAnalysisModel - Mongoose model for Systems Analysis documents
+   * @param successCriteriaModel - Mongoose model for Success Criteria documents
+   * @param eventSequenceAnalysisModel - Mongoose model for Event Sequence Analysis documents
+   * @param operatingStateAnalysisModel - Mongoose model for Operating State Analysis documents
+   */
   constructor(
     @InjectModel(BayesianEstimation.name)
     private readonly bayesianEstimationModel: Model<BayesianEstimationDocument>,
@@ -873,26 +899,62 @@ export class NestedModelService {
     return this.weibullAnalysisModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
+  /**
+   * Update a Bayesian Network label by numeric id.
+   * @param id - The numeric id of the model to update
+   * @param body - Label payload with name and (optional) description
+   * @returns The updated model
+   */
   async updateBayesianNetworkLabelNumber(id: number, body: Label): Promise<NestedModel> {
     return this.bayesianNetworkModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
+  /**
+   * Update an Event Sequence Diagram label by numeric id.
+   * @param id - The numeric id of the model to update
+   * @param body - Label payload with name and (optional) description
+   * @returns The updated model
+   */
   async updateEventSequenceDiagramLabelNumber(id: number, body: Label): Promise<NestedModel> {
     return this.eventSequenceDiagramModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
+  /**
+   * Update an Event Tree label by numeric id.
+   * @param id - The numeric id of the model to update
+   * @param body - Label payload with name and (optional) description
+   * @returns The updated model
+   */
   async updateEventTreeLabelNumber(id: number, body: Label): Promise<NestedModel> {
     return this.eventTreeModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
+  /**
+   * Update a Fault Tree label by numeric id.
+   * @param id - The numeric id of the model to update
+   * @param body - Label payload with name and (optional) description
+   * @returns The updated model
+   */
   async updateFaultTreeLabelNumber(id: number, body: Label): Promise<NestedModel> {
     return this.faultTreeModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
+  /**
+   * Update an Initiating Event label by numeric id.
+   * @param id - The numeric id of the model to update
+   * @param body - Label payload with name and (optional) description
+   * @returns The updated model
+   */
   async updateInitiatingEventLabelNumber(id: number, body: Label): Promise<NestedModel> {
     return this.initiatingEventModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }
 
+  /**
+   * Update an Event Sequence Analysis label by numeric id.
+   * @param id - The numeric id of the model to update
+   * @param body - Label payload with name and (optional) description
+   * @returns The updated model
+   */
   async updateEventSequenceAnalysisLabelNumber(id: number, body: Label): Promise<NestedModel> {
     return this.eventSequenceAnalysisModel.findOneAndUpdate({ id: Number(id) }, { label: body }, { new: true });
   }

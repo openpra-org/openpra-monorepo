@@ -8,6 +8,10 @@ import { QuantificationJobReport } from "../../middleware/schemas/quantification
  */
 @Injectable()
 export class StorageService {
+  /**
+   * Construct the service with the quantification job model.
+   * @param quantificationJobModel - Mongoose model for reading quantified job reports
+   */
   constructor(
     @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
   ) {}

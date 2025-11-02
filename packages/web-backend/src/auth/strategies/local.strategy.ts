@@ -14,7 +14,13 @@ export class LocalStrategy extends PassportStrategy(Strategy, "local") {
   constructor(private readonly authService: AuthService) {
     super();
   }
-
+  /**
+   * Validate credentials coming from the local strategy.
+   *
+   * @param username Username provided via request body.
+   * @param password Password provided via request body.
+   * @returns Authenticated User or throws UnauthorizedException.
+   */
   async validate(username: string, password: string): Promise<User | UnauthorizedException> {
     const user = await this.authService.loginUser(username, password);
     if (!user) {

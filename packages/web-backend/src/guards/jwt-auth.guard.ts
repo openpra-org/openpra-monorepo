@@ -8,6 +8,9 @@ import { Observable } from "rxjs";
  */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard("jwt") implements CanActivate {
+  /**
+   * @param reflector NestJS metadata reflector used to check `@Public()`.
+   */
   constructor(private readonly reflector: Reflector) {
     super();
   }

@@ -36,6 +36,17 @@ import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
  */
 @Controller()
 export class NestedModelController {
+  /**
+   * Construct the controller with feature services for nested models.
+   *
+   * @param nestedModelService - Core nested model service for generic creates and counters
+   * @param initiatingEventsService - Service handling Initiating Events operations
+   * @param eventSequenceDiagramService - Service handling Event Sequence Diagram operations
+   * @param eventSequenceAnalysisService - Service handling Event Sequence Analysis operations
+   * @param eventTreeService - Service handling Event Tree operations
+   * @param bayesianNetworkService - Service handling Bayesian Network operations
+   * @param faultTreesService - Service handling Fault Tree operations
+   */
   constructor(
     private readonly nestedModelService: NestedModelService,
     private readonly initiatingEventsService: InitiatingEventsService,

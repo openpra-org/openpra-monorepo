@@ -8,6 +8,9 @@ import { AuthService } from "./auth.service";
 import { LocalStrategy } from "./strategies/local.strategy";
 import { JwtStrategy, ParseJwtSecret } from "./strategies/jwt.strategy";
 
+/**
+ * Authentication module wiring JWT/local strategies and controller endpoints.
+ */
 @Module({
   imports: [
     CollabModule,
@@ -24,7 +27,4 @@ import { JwtStrategy, ParseJwtSecret } from "./strategies/jwt.strategy";
   controllers: [AuthController],
   providers: [AuthService, LocalStrategy, JwtStrategy],
 })
-/**
- * Authentication module wiring JWT/local strategies and controller endpoints.
- */
 export class AuthModule {}

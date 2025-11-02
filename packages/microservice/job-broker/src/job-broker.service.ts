@@ -10,6 +10,11 @@ import { ExecutableJobReport } from "./middleware/schemas/executable-job.schema"
  */
 @Injectable()
 export class JobBrokerService {
+  /**
+   * Construct the service with MongoDB models for job/task listings.
+   * @param quantificationJobModel - Mongoose model for quantification job documents
+   * @param executableJobModel - Mongoose model for executable task documents
+   */
   constructor(
     @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
     @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,

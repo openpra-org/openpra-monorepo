@@ -6,6 +6,9 @@ import { MongooseModule } from "@nestjs/mongoose";
 import { QuantificationJobReport, QuantificationJobSchema } from "../middleware/schemas/quantification-job.schema";
 import { ConsumerService } from "./services/consumer.service";
 
+/**
+ * Standalone module for running the quantification consumer worker process.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -25,7 +28,4 @@ import { ConsumerService } from "./services/consumer.service";
   ],
   providers: [ConsumerService],
 })
-/**
- * Standalone module for running the quantification consumer worker process.
- */
 export class QuantificationConsumerModule {}

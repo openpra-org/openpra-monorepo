@@ -32,6 +32,14 @@ export type NestedModelType =
  */
 @Injectable()
 export class NestedModelHelperService {
+  /**
+   * Construct the helper with injected typed model collections.
+   *
+   * @param internalEventsModel - Mongoose model for Internal Events typed models
+   * @param internalHazardsModel - Mongoose model for Internal Hazards typed models
+   * @param externalHazardsModel - Mongoose model for External Hazards typed models
+   * @param fullScopeModel - Mongoose model for Full Scope typed models
+   */
   constructor(
     @InjectModel(InternalEvents.name)
     private readonly internalEventsModel: Model<InternalEventsDocument>,
@@ -43,6 +51,14 @@ export class NestedModelHelperService {
     private readonly fullScopeModel: Model<FullScopeDocument>,
   ) {}
 
+  /**
+   * Link a nested model document into a typed model document by pushing its id into the appropriate array field.
+   *
+   * @param typedModel - Target typed model collection name
+   * @param nestedModel - Nested model property key to update on the typed model
+   * @param typedModelId - ID of the typed model document
+   * @param nestedModelId - ID of the nested model to link
+   */
   async AddNestedModelToTypedModel(
     typedModel: TypedModelType,
     nestedModel: NestedModelType,
@@ -81,6 +97,14 @@ export class NestedModelHelperService {
     }
   }
 
+  /**
+   * Unlink a nested model document from a typed model document by pulling its id from the appropriate array field.
+   *
+   * @param typedModel - Target typed model collection name
+   * @param nestedModel - Nested model property key to update on the typed model
+   * @param typedModelId - ID of the typed model document
+   * @param nestedModelId - ID of the nested model to unlink
+   */
   async RemoveNestedModelToTypedModel(
     typedModel: TypedModelType,
     nestedModel: NestedModelType,

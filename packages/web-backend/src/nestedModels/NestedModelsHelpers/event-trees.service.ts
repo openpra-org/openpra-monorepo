@@ -13,6 +13,12 @@ import { Label } from "../../schemas/label.schema";
  */
 @Injectable()
 export class EventTreesService {
+  /**
+   * Construct the service with persistence and helper dependencies.
+   * @param eventTreeModel - Mongoose model for EventTree collection
+   * @param nestedModelService - Service to allocate IDs and shared nested model ops
+   * @param nestedModelHelperService - Helper to link/unlink nested models to typed models
+   */
   constructor(
     @InjectModel(EventTree.name)
     private readonly eventTreeModel: Model<EventTreeDocument>,

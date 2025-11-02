@@ -21,7 +21,7 @@ const docsRoot = path.join(repoRoot, 'packages', 'docs-md');
 
 // Packages to process and human names for headings
 const PACKAGES = [
-  { id: 'web-editor', title: 'Web Editor Utils' },
+  { id: 'web-editor', title: 'Web Editor' },
   { id: 'shared-sdk', title: 'Shared SDK' },
   { id: 'shared-types', title: 'Shared Types' },
   { id: 'mef-types', title: 'MEF Types' },

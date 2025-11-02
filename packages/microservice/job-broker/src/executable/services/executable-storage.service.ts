@@ -17,6 +17,11 @@ import { EnvVarKeys } from "../../../config/env_vars.config";
 @Injectable()
 export class ExecutableStorageService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableStorageService.name);
+  /**
+   * Construct the service with persistence and configuration dependencies.
+   * @param executableJobModel - Mongoose model used to persist executed task results
+   * @param configSvc - Nest ConfigService for RabbitMQ URLs and queue settings
+   */
   constructor(
     @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
     private readonly configSvc: ConfigService,

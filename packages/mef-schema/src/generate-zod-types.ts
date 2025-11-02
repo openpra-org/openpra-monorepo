@@ -58,6 +58,8 @@ export async function GenerateZodType(jsonFiles: string[], rootDir: string): Pro
 /**
  * Orchestrates the generation of zod schema files (.ts) files from JSON schema files found in a specified directory.
  *
+ * @param inputDirectory Directory to scan recursively for JSON Schema files.
+ * @param outputDirectory Root directory to write generated Zod .ts files, preserving relative structure.
  * @returns A promise that resolves when all zod .ts files have been generated or rejects if an error occurs.
  */
 export async function GenerateZod(inputDirectory: string, outputDirectory: string): Promise<void> {

@@ -19,6 +19,15 @@ import { TypedModel, TypedModelJSON } from "./schemas/templateSchema/typed-model
  */
 @Injectable()
 export class TypedModelService {
+  /**
+   * Construct the service with injected models for typed model variants and counters.
+   *
+   * @param modelCounterModel - Counter collection used to allocate incremental IDs for typed models
+   * @param internalEventsModel - Mongoose model for Internal Events typed models
+   * @param internalHazardsModel - Mongoose model for Internal Hazards typed models
+   * @param externalHazardsModel - Mongoose model for External Hazards typed models
+   * @param fullScopeModel - Mongoose model for Full Scope typed models
+   */
   constructor(
     @InjectModel(ModelCounter.name)
     private readonly modelCounterModel: Model<ModelCounterDocument>,

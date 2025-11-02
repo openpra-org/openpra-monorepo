@@ -26,11 +26,15 @@ import { InviteService } from "./invite.service";
 @UseGuards(JwtAuthGuard)
 @UseFilters(InvalidTokenFilter)
 export class InviteController {
+  /**
+   * @param inviteService Service that manages invite persistence and validation.
+   */
   constructor(private readonly inviteService: InviteService) {}
 
   /**
    * This endpoint will generate an invitation id for a user
    * @param body - The InvitedUserDto object
+   * @returns An object containing the generated invite id.
    * @example - Sample request body
    * ```json
    * {
@@ -50,6 +54,7 @@ export class InviteController {
   /**
    * This endpoint will update an invite
    * @param body - InvitedUserDetailsDto object
+   * @returns The updated invite payload.
    */
   @Put("/invite/")
   async updateInvite(@Body() body: InvitedUserDetailsDto): Promise<InvitedUserDto> {
@@ -58,7 +63,7 @@ export class InviteController {
 
   /**
    * This public endpoint will check if an invite id is correct and not expired.
-   * @returns - InvitedUserDto object or null
+   * @returns - InvitedUserDto object or throws when invalid/expired.
    * @param body - InviteIDDto object
    * @example - Sample request
    * ```json
@@ -84,6 +89,7 @@ export class InviteController {
 
   /**
    * This endpoint will return all the invites that were generated
+   * @returns An array of invite details.
    */
   @Get("/invites/")
   async getAllInvites(): Promise<InvitedUserDetailsDto[]> {
@@ -92,6 +98,8 @@ export class InviteController {
 
   /**
    * This endpoint will delete invitedUser by id
+   * @param id - The invite id to delete.
+   * @returns true when deleted successfully; false otherwise.
    */
   @Delete("/invite/:id")
   async deleteInvite(@Param("id") id: string): Promise<boolean> {
@@ -100,6 +108,8 @@ export class InviteController {
 
   /**
    * This endpoint will get invitedUser by id
+   * @param id - The invite id to fetch.
+   * @returns The invited user details when found.
    */
   @Get("/invite/:id")
   async getInvite(@Param("id") id: string): Promise<InvitedUserDetailsDto> {

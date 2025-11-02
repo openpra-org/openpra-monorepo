@@ -40,6 +40,7 @@ export class JobBrokerController {
   /**
    * Retrieves a list of jobs based on the status.
    *
+   * @param status - Lifecycle status to filter jobs by (e.g., "pending", "queued", "completed")
    * @returns An object containing a message with the list of pending jobs.
    * @throws `NotFoundException` When the list of pending jobs cannot be found.
    */

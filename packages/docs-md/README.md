@@ -30,11 +30,21 @@ The site includes an "Explore src/ (by folder)" view for each TypeScript package
 Recommended (faster dev loop):
 
 1. Generate docs content once
-   - `nx run docs-md:prepare --no-cloud`
-   - If you don't have Doxygen installed, you can generate TS only:
-     - `nx run docs-md:ts:markdown --no-cloud`
-     - `nx run docs-md:ts:markdown:shared-sdk --no-cloud`
-     - `nx run docs-md:ts:markdown:shared-types --no-cloud`
+   - Everything (TS + C++ processed and sanitized) in one go:
+     - `nx run docs-md:prepare --no-cloud`
+   - TS-only (no Doxygen required):
+     - Quick: `nx run docs-md:site:coverage --no-cloud`
+       - This runs all TypeDoc targets and writes coverage reports without building the VitePress site.
+     - Or run individual packages if you’re iterating on a specific area:
+       - `nx run docs-md:ts:markdown --no-cloud` (web-editor)
+       - `nx run docs-md:ts:markdown:shared-sdk --no-cloud`
+       - `nx run docs-md:ts:markdown:shared-types --no-cloud`
+       - `nx run docs-md:ts:markdown:mef-types --no-cloud`
+       - `nx run docs-md:ts:markdown:mef-schema --no-cloud`
+       - `nx run docs-md:ts:markdown:model-generator --no-cloud`
+       - `nx run docs-md:ts:markdown:web-backend --no-cloud`
+       - `nx run docs-md:ts:markdown:job-broker --no-cloud`
+       - `nx run docs-md:ts:markdown:scram-node --no-cloud`
 2. Start the dev server
    - `nx run docs-md:site:dev --no-cloud`
 
@@ -44,6 +54,14 @@ Full build and checks:
   - `nx run docs-md:site:build --no-cloud`
 - Link check:
   - `nx run docs-md:site:link-check --no-cloud`
+
+Coverage-only (CI-style, no site build):
+
+- Generate coverage snapshots after TypeDoc runs:
+  - `nx run docs-md:site:coverage --no-cloud`
+- Optional CI outputs:
+  - `nx run docs-md:site:coverage:ci --no-cloud`
+  - `nx run docs-md:site:coverage:check --no-cloud`
 
 To temporarily disable the folder explorer for a build:
 
@@ -88,6 +106,15 @@ C++
 - Engine wrappers in `packages/engine/scram-node` (headers) via Doxygen → Doxybook2.
 
 Add more TS files incrementally by appending their paths to the `--entryPointStrategy expand` list in `packages/docs-md/project.json` under the `ts:markdown` command, then rebuild.
+
+### Adding a new TS package to the docs
+
+To include another TypeScript package in the docs:
+
+1. Add a new `ts:markdown:<your-pkg>` target in `packages/docs-md/project.json` that invokes TypeDoc with `--entryPointStrategy expand` against that package’s `src`.
+2. Add the new target to the `dependsOn` list of `ts:explore:folders`, `prepare`, and `site:coverage` so it participates in the aggregate workflows.
+3. Append the package folder name to `TS_ALLOWED_FOLDERS` in `tools/typedoc-coverage.mjs` so it’s counted in coverage.
+4. Optionally add a sidebar entry to the VitePress nav for visibility.
 
 ## CI publishing
 

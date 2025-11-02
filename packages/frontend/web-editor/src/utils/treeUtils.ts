@@ -155,6 +155,14 @@ export const getBasicEventNode = (): Node => ({
  * Generates a new workflow edge.
  * @returns a new workflow edge.
  */
+/**
+ * Create a workflow edge connecting a parent and child node.
+ *
+ * @param parentNodeId - ID of the source (parent) node
+ * @param childNodeId - ID of the target (child) node
+ * @param _label - Optional label for the edge (unused placeholder)
+ * @returns A React Flow Edge configured as a workflow edge
+ */
 export const getWorkflowEdge = (parentNodeId: string, childNodeId: string, _label = ""): Edge<FaultTreeNodeProps> => ({
   id: `${parentNodeId}=>${childNodeId}`,
   source: parentNodeId,

@@ -15,6 +15,12 @@ import { ExecutableJobReport } from "./schemas/executable-job.schema";
  */
 @Injectable()
 export class JobBrokerMiddleware implements NestMiddleware {
+  /**
+   * Construct the middleware with MongoDB models for placeholder job records.
+   *
+   * @param quantificationJobModel - Mongoose model for quantification jobs; used to create a placeholder document per request
+   * @param executableJobModel - Mongoose model for executable tasks; used to create a placeholder document per request
+   */
   constructor(
     @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
     @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
@@ -42,6 +48,15 @@ export class JobBrokerMiddleware implements NestMiddleware {
     return typeof b.executable === "string" && executables.includes(b.executable);
   }
 
+  /**
+   * Express middleware entrypoint that inspects the request body and creates a
+   * placeholder MongoDB document for either a quantification job or an executable task.
+   * The created document's id is injected into the request body as `_id`.
+   *
+   * @param req - Incoming HTTP request
+   * @param res - HTTP response
+   * @param next - Next function in the middleware chain
+   */
   async use(req: Request, res: Response, next: NextFunction): Promise<void> {
     console.log("Checking whether it is a quantification or executable request");
     const body = req.body as unknown;

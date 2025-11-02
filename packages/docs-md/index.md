@@ -14,7 +14,7 @@ Unified documentation for the OpenPRA monorepo, rendered with VitePress.
   - C++ snapshot: api/cpp-doxybook2/coverage.html
 
 - TypeScript API
-  - Web Editor Utils: api/ts/web-editor/README.html
+  - Web Editor: api/ts/web-editor/README.html
   - Shared SDK: api/ts/shared-sdk/README.html
   - Shared Types: api/ts/shared-types/README.html
   - MEF Types: api/ts/mef-types/README.html

@@ -25,7 +25,12 @@ export class ApiManager {
 
   static LOGIN_URL = `${authEndpoint}/token-obtain/`;
 
-  /* base GET request */
+  /**
+   * Perform an authenticated GET request with the current JWT.
+   *
+   * @param url Absolute or relative URL to request.
+   * @returns The raw fetch Response; callers can inspect ok/status or parse JSON.
+   */
   static async getWithOptions(url: string): Promise<Response> {
     return fetch(url, {
       method: "GET", // *GET, POST, PUT, DELETE, etc.
@@ -39,6 +44,12 @@ export class ApiManager {
     return AuthService.logout();
   }
 
+  /**
+   * Exchange credentials for a JWT and persist it via AuthService.
+   *
+   * @param creds Arbitrary credential payload to POST to the token endpoint.
+   * @returns Promise that resolves after token is parsed and stored.
+   */
   static login(creds: any) {
     return fetch(ApiManager.LOGIN_URL, {
       method: "POST",
@@ -89,10 +100,25 @@ export class ApiManager {
       });
   }
 
+  /**
+   * Instance wrapper for {@link ApiManager.signInWithUsernameAndPassword}.
+   *
+   * @param username - Username for the account to authenticate
+   * @param password - Password for the account to authenticate
+   * @returns A promise that resolves when the JWT is obtained and stored
+   * @throws Error if the server returns an error status
+   */
   signInWithUsernameAndPassword(username: string, password: string): Promise<void> {
     return ApiManager.signInWithUsernameAndPassword(username, password);
   }
 
+  /**
+   * Create a new user account and, on success, automatically sign in the user.
+   *
+   * @param data - Signup credentials including username, password, profile fields, and roles
+   * @returns A promise that resolves once the signup request completes and sign-in is attempted
+   * @throws Error if the server returns an error status
+   */
   static signup(data: SignUpCredentialsWithRole) {
     return ApiManager.post(`${userPreferencesEndpoint}/`, JSON.stringify(data))
       .then((response: Response) => {
@@ -109,6 +135,13 @@ export class ApiManager {
       });
   }
 
+  /**
+   * Create a new user account without automatically signing in.
+   *
+   * @param data - Signup credentials including username, password, and profile fields
+   * @returns A promise that resolves when the account has been created
+   * @throws Error if the server returns an error status
+   */
   static async signupWithoutSignIn(data: SignUpCredentials): Promise<void> {
     return ApiManager.post(`${userPreferencesEndpoint}/`, JSON.stringify(data))
       .then((response: Response) => {
@@ -125,6 +158,17 @@ export class ApiManager {
       });
   }
 
+  /**
+   * Convenience wrapper to construct signup payload and delegate to static {@link ApiManager.signup}.
+   *
+   * @param username - Desired unique username
+   * @param email - Email address of the user
+   * @param firstName - User's first name
+   * @param lastName - User's last name
+   * @param password - Password for the account
+   * @param roles - One or more roles to assign to the user
+   * @returns A promise that resolves once the signup request completes and sign-in is attempted
+   */
   signup(username: string, email: string, firstName: string, lastName: string, password: string, roles: string[]) {
     const data: SignUpCredentialsWithRole = {
       username,
@@ -137,6 +181,13 @@ export class ApiManager {
     return ApiManager.signup(data);
   }
 
+  /**
+   * Validate an HTTP response status, throwing on non-2xx.
+   *
+   * @param response - A minimal Response-like object providing status and statusText
+   * @returns The same response when status is within the 2xx range
+   * @throws Error when the status is outside 200-299
+   */
   static checkStatus(response: Pick<Response, "status" | "statusText">): Pick<Response, "status" | "statusText"> {
     // raises an error in case response status is not a success
     if (response.status >= 200 && response.status < 300) {
@@ -183,6 +234,13 @@ export class ApiManager {
     );
   }
 
+  /**
+   * Authenticated POST request helper.
+   *
+   * @param url Endpoint to POST to.
+   * @param data Request body; should match the declared Content-Type.
+   * @returns Raw Response from fetch.
+   */
   static post(url: string, data: BodyInit): Promise<Response> {
     return fetch(url, {
       method: "POST",
@@ -195,6 +253,13 @@ export class ApiManager {
     });
   }
 
+  /**
+   * Authenticated PUT request helper.
+   *
+   * @param url Endpoint to PUT to.
+   * @param data Request body; will be JSON-serialized.
+   * @returns Raw Response from fetch.
+   */
   static put<DataType>(url: string, data: DataType): Promise<Response> {
     return fetch(url, {
       method: "PUT",
@@ -207,6 +272,12 @@ export class ApiManager {
     });
   }
 
+  /**
+   * Authenticated DELETE request helper.
+   *
+   * @param url Endpoint to DELETE.
+   * @returns Raw Response from fetch.
+   */
   static delete(url: RequestInfo | URL | string): Promise<Response> {
     return fetch(url, {
       method: "DELETE",

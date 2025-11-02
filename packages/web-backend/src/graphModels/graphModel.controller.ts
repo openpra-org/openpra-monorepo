@@ -86,6 +86,14 @@ export class GraphModelController {
     }
   }
 
+  /**
+   * Update parts of an event sequence diagram graph.
+   *
+   * @param eventSequenceId - The diagram identifier whose graph should be updated.
+   * @param updatedSubgraph - Nodes/edges to upsert into the graph.
+   * @param deletedSubgraph - Nodes/edges to remove from the graph.
+   * @returns true when the update succeeds; otherwise throws.
+   */
   @Patch("/event-sequence-diagram-graph")
   async updateESSubgraph(
     @Body("eventSequenceId") eventSequenceId: string,

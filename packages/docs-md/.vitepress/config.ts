@@ -58,7 +58,7 @@ export default defineConfig({
       {
         text: "TS API",
         items: [
-          { text: "Web Editor Utils", link: "/api/ts/web-editor/README.html" },
+          { text: "Web Editor", link: "/api/ts/web-editor/README.html" },
           { text: "Shared SDK", link: "/api/ts/shared-sdk/README.html" },
           { text: "Shared Types", link: "/api/ts/shared-types/README.html" },
           { text: "MEF Types", link: "/api/ts/mef-types/README.html" },
@@ -67,6 +67,7 @@ export default defineConfig({
           { text: "Engine scram-node (TS)", link: "/api/ts/scram-node/README.html" },
           { text: "Web Backend (NestJS)", link: "/api/ts/web-backend/README.html" },
           { text: "Job Broker (microservice)", link: "/api/ts/job-broker/README.html" },
+          { text: "Param Gaps", link: "/api/ts/gaps-params.html" },
           { text: "Coverage", link: "/api/ts/coverage.html" },
         ],
       },
@@ -105,7 +106,7 @@ export default defineConfig({
       ],
       "/api/ts/web-editor/": [
         {
-          text: "Web Editor Utils",
+          text: "Web Editor",
           items: [
             { text: "Index", link: "/api/ts/web-editor/README.html" },
             { text: "Modules", link: "/api/ts/web-editor/modules.html" },

@@ -12,7 +12,7 @@ A high-level view of the OpenPRA stack with quick links to subsystem overviews a
   - TypeScript API coverage: ../api/ts/coverage.html
   - C++ API coverage: ../api/cpp-doxybook2/coverage.html
   - TS packages:
-    - Web Editor Utils: ../api/ts/web-editor/README.html
+    - Web Editor: ../api/ts/web-editor/README.html
     - Shared SDK: ../api/ts/shared-sdk/README.html
     - Shared Types: ../api/ts/shared-types/README.html
     - MEF Types: ../api/ts/mef-types/README.html

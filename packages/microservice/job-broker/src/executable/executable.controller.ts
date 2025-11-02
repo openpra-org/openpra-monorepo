@@ -11,6 +11,11 @@ import { ExecutableStorageService } from "./services/executable-storage.service"
  */
 @Controller()
 export class ExecutableController {
+  /**
+   * Construct the controller with services for queueing and listing executable tasks.
+   * @param executableService - Service to validate and enqueue executable tasks
+   * @param executableStorageService - Service to retrieve executed task results from storage
+   */
   constructor(
     private readonly executableService: ExecutableService,
     private readonly executableStorageService: ExecutableStorageService,

@@ -79,6 +79,8 @@ export async function GenerateTypescript(jsonFiles: string[], rootDir: string): 
 /**
  * Orchestrates the generation of TypeScript declaration (.d.ts) files from JSON schema files found in a specified directory.
  *
+ * @param inputDirectory Directory to scan recursively for JSON Schema files.
+ * @param outputDirectory Root directory to write generated .d.ts files, preserving relative structure.
  * @returns A promise that resolves when all .d.ts files have been generated or rejects if an error occurs.
  */
 export async function Generate(inputDirectory: string, outputDirectory: string): Promise<void> {

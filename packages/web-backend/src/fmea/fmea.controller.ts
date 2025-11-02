@@ -97,6 +97,13 @@ export class FmeaController {
     return this.fmeaService.deleteColumn(fmeaId, column);
   }
 
+  /**
+   * Delete a row from an FMEA.
+   *
+   * @param fmeaId - FMEA ID
+   * @param rowId - The row identifier to delete
+   * @returns Updated FMEA after deletion, or null if not found
+   */
   @Delete(":fmeaid/:rowid/delete")
   async deleteRow(@Param("fmeaid") fmeaId: number, @Param("rowid") rowId: string): Promise<Fmea | null> {
     return this.fmeaService.deleteRow(fmeaId, rowId);

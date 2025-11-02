@@ -14,6 +14,14 @@ import { GraphModelService } from "../../graphModels/graphModel.service";
  */
 @Injectable()
 export class EventSequenceDiagramService {
+  /**
+   * Construct the service with injected Event Sequence Diagram model and helpers.
+   *
+   * @param eventSequenceDiagramModel - Mongoose model for Event Sequence Diagram documents
+   * @param nestedModelService - Core nested model service for counters and common creates
+   * @param nestedModelHelperService - Helper service to link nested models to typed models
+   * @param graphModelService - Service to create/update/read graph models for event sequences
+   */
   constructor(
     @InjectModel(EventSequenceDiagram.name)
     private readonly eventSequenceDiagramModel: Model<EventSequenceDiagramDocument>,

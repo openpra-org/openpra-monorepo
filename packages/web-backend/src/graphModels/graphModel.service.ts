@@ -29,6 +29,12 @@ enum GraphTypes {
 @Injectable()
 export class GraphModelService {
   private readonly logger = new Logger(GraphModelService.name);
+  /**
+   * Construct the service with Mongoose models for each supported graph type.
+   * @param eventSequenceDiagramGraphModel - Mongoose model for event sequence diagram graphs
+   * @param faultTreeGraphModel - Mongoose model for fault tree graphs
+   * @param eventTreeGraphModel - Mongoose model for event tree graphs
+   */
   constructor(
     @InjectModel(EventSequenceDiagramGraph.name)
     private readonly eventSequenceDiagramGraphModel: Model<EventSequenceDiagramGraphDocument>,
@@ -207,6 +213,15 @@ export class GraphModelService {
     }
   }
 
+  /**
+   * Apply partial updates to an Event Sequence Diagram graph.
+   * Removes nodes/edges present in the deleted set, then upserts those in the updated set.
+   *
+   * @param eventSequenceId - Event sequence diagram identifier
+   * @param updatedSubgraph - Nodes/edges to add or replace
+   * @param deletedSubgraph - Nodes/edges to remove
+   * @returns True if an existing graph was updated; false if no graph exists for the id
+   */
   async updateESSubgraph(
     eventSequenceId: string,
     updatedSubgraph: Partial<EventSequenceDiagramGraph>,

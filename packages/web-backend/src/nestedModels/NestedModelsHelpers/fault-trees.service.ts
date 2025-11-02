@@ -13,6 +13,12 @@ import { FaultTree, FaultTreeDocument } from "../schemas/fault-tree.schema";
  */
 @Injectable()
 export class FaultTreesService {
+  /**
+   * Construct the service with persistence and helper dependencies.
+   * @param FaultTreeModel - Mongoose model for FaultTree collection
+   * @param nestedModelService - Service to allocate IDs and shared nested model ops
+   * @param nestedModelHelperService - Helper to link/unlink nested models to typed models
+   */
   constructor(
     @InjectModel(FaultTree.name)
     private readonly FaultTreeModel: Model<FaultTreeDocument>,

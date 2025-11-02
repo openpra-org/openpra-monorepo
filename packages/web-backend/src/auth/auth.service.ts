@@ -11,6 +11,10 @@ import { User } from "../collab/schemas/user.schema";
  */
 @Injectable()
 export class AuthService {
+  /**
+   * @param collabService Service for user persistence and last-login updates.
+   * @param jwtService NestJS JWT service for signing and verifying tokens.
+   */
   constructor(
     private readonly collabService: CollabService,
     private readonly jwtService: JwtService,

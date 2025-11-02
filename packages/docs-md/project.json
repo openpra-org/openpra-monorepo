@@ -120,7 +120,7 @@
       "options": {
         "command": "pnpm --filter docs-md build"
       },
-      "dependsOn": ["site:coverage", "cpp:sanitize", "mef:openpra:markdown", "ts:explore:folders"]
+      "dependsOn": ["site:coverage", "site:gaps:params", "cpp:sanitize", "mef:openpra:markdown", "ts:explore:folders"]
     },
     "prepare": {
       "executor": "nx:run-commands",
@@ -153,6 +153,23 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "node packages/docs-md/tools/typedoc-coverage.mjs"
+      },
+      "dependsOn": [
+        "ts:markdown",
+        "ts:markdown:shared-sdk",
+        "ts:markdown:shared-types",
+        "ts:markdown:mef-types",
+        "ts:markdown:mef-schema",
+        "ts:markdown:model-generator",
+        "ts:markdown:web-backend",
+        "ts:markdown:job-broker",
+        "ts:markdown:scram-node"
+      ]
+    },
+    "site:gaps:params": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/docs-md/tools/typedoc-param-gaps.mjs"
       },
       "dependsOn": [
         "ts:markdown",

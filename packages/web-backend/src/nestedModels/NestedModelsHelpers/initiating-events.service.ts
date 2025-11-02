@@ -13,6 +13,12 @@ import { Label } from "../../schemas/label.schema";
  */
 @Injectable()
 export class InitiatingEventsService {
+  /**
+   * Construct the service with persistence and helper dependencies.
+   * @param initiatingEventModel - Mongoose model for InitiatingEvent collection
+   * @param nestedModelService - Service to allocate IDs and shared nested model ops
+   * @param nestedModelHelperService - Helper to link/unlink nested models to typed models
+   */
   constructor(
     @InjectModel(InitiatingEvent.name)
     private readonly initiatingEventModel: Model<InitiatingEventDocument>,

@@ -18,6 +18,11 @@ export class ConsumerService implements OnApplicationBootstrap {
   // Importing ConfigService for accessing environment variables.
   private readonly logger = new Logger(ConsumerService.name);
 
+  /**
+   * Construct the service with persistence and configuration dependencies.
+   * @param quantificationJobModel - Mongoose model to update quantification job records
+   * @param configSvc - Nest ConfigService for RabbitMQ connectivity and queue settings
+   */
   constructor(
     @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
     private readonly configSvc: ConfigService,

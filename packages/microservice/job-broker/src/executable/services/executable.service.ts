@@ -20,6 +20,11 @@ export class ExecutableService implements OnApplicationBootstrap {
   private channelModel: amqp.ChannelModel | null = null;
   private channel: amqp.Channel | null = null;
 
+  /**
+   * Construct the service with persistence and configuration dependencies.
+   * @param executableJobModel - Mongoose model to update task status records
+   * @param configSvc - Nest ConfigService for RabbitMQ connectivity and queue names
+   */
   constructor(
     @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
     private readonly configSvc: ConfigService,

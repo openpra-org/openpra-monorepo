@@ -101,6 +101,7 @@ export class CollabController {
    * Check whether an email address is unique.
    *
    * @param body - The request body containing the email to validate.
+   * @returns True if the email is available; false otherwise.
    * @example
    * Request body example: \{ "email": "xyz\@gmail.com" \}
    */
@@ -114,6 +115,7 @@ export class CollabController {
    * Check whether a username is unique.
    *
    * @param body - The request body containing the username to validate.
+   * @returns True if the username is available; false otherwise.
    * @example
    * Request body example: \{ "username": "sampleUsername123" \}
    */
@@ -169,6 +171,7 @@ export class CollabController {
    * Fetch a particular user by ID.
    *
    * @param user_id - User ID of the member to find
+   * @returns The user document when found.
    */
   @Get("/user/:user_id/")
   async getUserById(@Param("user_id") user_id: string): Promise<User> {
@@ -179,6 +182,7 @@ export class CollabController {
    * Update a user with the provided details.
    *
    * @param body - The UpdateUserDto object which contains the id of the user to be updated and the updated details
+   * @returns Resolves when the update completes.
    */
   @Put("/user/:user_id/")
   async updateUserById(@Body() body: MemberResult): Promise<void> {

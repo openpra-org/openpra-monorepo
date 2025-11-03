@@ -77,8 +77,48 @@ function sanitizeIndexClasses() {
 function sanitizeIndexFiles() {
   if (!exists(INDEX_FILES)) return { changed: false };
   const original = fs.readFileSync(INDEX_FILES, 'utf8');
-  // Replace HTML <br> tags with Markdown line breaks for file entries
-  const cleaned = original.replace(/<br\s*\/?>(\s*)/gi, '  \\n$1  ');
+  // Normalize HTML line breaks
+  let text = original.replace(/<br\s*\/?>(\s*)/gi, '  \n$1  ');
+
+  // Add missing short descriptions for selected targets folder entries
+  // Keyed by the markdown filename referenced in the link
+  const descriptions = new Map([
+    ['AsyncRunScramCli_8h.md', 'N-API wrapper to run the SCRAM CLI asynchronously from Node.js.'],
+    ['AsyncScramWorker_8cpp.md', 'Asynchronous worker implementation that executes the SCRAM engine.'],
+    ['AsyncScramWorker_8h.md', 'Declaration of the asynchronous SCRAM engine worker.'],
+    ['InitModule_8cpp.md', 'N-API module initialization for the scram-node addon.'],
+    ['RunScramCli_8h.md', 'Helper to invoke the SCRAM CLI from Node.js code.'],
+    ['ScramWorker_8cpp.md', 'Synchronous worker implementation for executing SCRAM tasks.'],
+    ['ScramWorker_8h.md', 'Declaration of the synchronous SCRAM engine worker.'],
+    ['targets_2scram-cli_2main_8cpp.md', 'Entry point for the scram-cli executable target.'],
+    // scram-cli utils
+    ['RunScram_8h.md', 'Helper to run the SCRAM engine from the CLI utilities.'],
+    ['ConstructOptions_8h.md', 'CLI construct options.'],
+    ['ConstructSettings_8h.md', 'CLI construct settings.'],
+    ['ParseArguments_8h.md', 'CLI argument parsing helpers.'],
+    ['XmlLogger_8h.md', 'XML logger utilities for CLI.'],
+    ['stub__scram-cli-utils_8cpp.md', 'Stub implementations for scram-cli utilities.'],
+  ]);
+
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  for (const line of lines) {
+    // Match file bullet lines without an existing description (no Markdown break on same line)
+    const m = line.match(/^(\s*\*\s+\*\*file\s+\[[^\]]+\]\(Files\/(.+?)#file-[^\)]+\)\*\*)(\s*)$/);
+    if (m) {
+      const before = m[1];
+      const filename = m[2];
+      const desc = descriptions.get(filename);
+      if (desc) {
+        out.push(`${before}  `);
+        out.push(`  ${desc}`);
+        continue;
+      }
+    }
+    out.push(line);
+  }
+
+  const cleaned = out.join('\n');
   if (cleaned !== original) {
     fs.writeFileSync(INDEX_FILES, cleaned, 'utf8');
     return { changed: true };

@@ -104,7 +104,7 @@
     "cpp:sanitize": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "node packages/docs-md/tools/sanitize-doxybook2-frontmatter.mjs"
+        "command": "node packages/docs-md/tools/sanitize-doxybook2-frontmatter.mjs && node packages/docs-md/tools/sanitize-doxybook2-namespaces.mjs"
       },
       "dependsOn": ["cpp:doxybook2"]
     },

@@ -224,6 +224,7 @@ export default defineConfig({
           text: "C++ API",
           items: [
             { text: "Classes", link: "/api/cpp-doxybook2/index_classes.html" },
+            { text: "Files", link: "/api/cpp-doxybook2/index_files.html" },
             { text: "Namespaces", link: "/api/cpp-doxybook2/index_namespaces.html" },
             // Coverage page is no longer surfaced
           ],

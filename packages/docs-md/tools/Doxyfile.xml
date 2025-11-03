@@ -12,6 +12,7 @@ EXTRACT_ALL            = NO
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = NO
 EXTRACT_LOCAL_CLASSES  = NO
+EXTRACT_ANON_NSPACES   = NO
 INTERNAL_DOCS          = NO
 HIDE_UNDOC_MEMBERS     = YES
 HIDE_UNDOC_CLASSES     = YES
@@ -32,7 +33,11 @@ EXCLUDE_PATTERNS       = \
 # Exclude internal/third-party namespaces and details from API docs
 EXCLUDE_SYMBOLS        = \
   Napi::* \
-  boost::*
+  boost::* \
+  Napi \
+  boost \
+  ext \
+  ScramCLI
 
 # Avoid generating TODO/BUG/DEPRECATED lists into XML (and thus pages)
 GENERATE_TODOLIST      = NO

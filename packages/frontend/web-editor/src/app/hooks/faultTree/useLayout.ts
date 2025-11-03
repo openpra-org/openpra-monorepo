@@ -49,6 +49,8 @@ const nodeCountSelector = (state: ReactFlowState): number => state.nodeInternals
  * This hook is designed to work with D3's tree layout and is used for hierarchical tree-like structures.
  * It also includes animation logic to smoothly transition nodes to their new positions.
  * The hook ensures horizontal layout of the nodes
+ *
+ * @param enabled - When false, disables layout computation and animation; defaults to true.
  */
 function UseLayout(enabled: boolean = true): void {
   // this ref is used to fit the nodes in the first run

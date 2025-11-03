@@ -16,6 +16,11 @@ export class ProducerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ProducerService.name);
   private channelModel: amqp.ChannelModel | null = null;
   private channel: amqp.Channel | null = null;
+  /**
+   * Construct the producer with configuration service for RabbitMQ connectivity and queue settings.
+   *
+   * @param configSvc - Nest ConfigService used to resolve RabbitMQ URL, queue names, TTLs, and related options.
+   */
   constructor(private readonly configSvc: ConfigService) {}
 
   private async connectWithRetry(url: string, retryCount: number): Promise<amqp.ChannelModel> {
@@ -40,6 +45,9 @@ export class ProducerService implements OnApplicationBootstrap {
     );
   }
 
+  /**
+   * Initialize the RabbitMQ channel and declare queues/exchanges on app startup.
+   */
   async onApplicationBootstrap(): Promise<void> {
     try {
       console.log("Producer is connecting to the broker");
@@ -84,6 +92,11 @@ export class ProducerService implements OnApplicationBootstrap {
     });
   }
 
+  /**
+   * Validate and enqueue a quantification job to the configured RabbitMQ queue.
+   *
+   * @param quantRequest - The quantification request payload describing models and parameters to quantify.
+   */
   public createAndQueueQuant(quantRequest: QuantifyRequest): void {
     try {
       // check for channel

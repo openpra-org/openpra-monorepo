@@ -35,6 +35,11 @@ export class InitiatingEventsService {
     return this.initiatingEventModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves Initiating Events by parent id (string form).
+   * @param parentId - Parent identifier as a string (ObjectId)
+   * @returns Array of Initiating Event documents for the given parent
+   */
   async getInitiatingEventsString(parentId: string): Promise<InitiatingEvent[]> {
     return this.initiatingEventModel.find({ parentIds: parentId });
   }
@@ -48,6 +53,11 @@ export class InitiatingEventsService {
     return this.initiatingEventModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a single Initiating Event by string id.
+   * @param modelId - Document _id as a string (ObjectId)
+   * @returns The matching Initiating Event document
+   */
   async getSingleInitiatingEventString(modelId: string): Promise<InitiatingEvent> {
     return this.initiatingEventModel.findOne({ _id: modelId });
   }

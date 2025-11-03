@@ -16,6 +16,11 @@ export class StorageService {
     @InjectModel(QuantificationJobReport.name) private readonly quantificationJobModel: Model<QuantificationJobReport>,
   ) {}
 
+  /**
+   * Fetch quantified job reports from MongoDB.
+   *
+   * @returns A promise resolving to an array of quantified job report documents.
+   */
   public async getQuantifiedReports(): Promise<QuantificationJobReport[]> {
     return this.quantificationJobModel.find();
   }

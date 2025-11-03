@@ -14,7 +14,8 @@ import { AuthService } from "./auth.service";
 @UseFilters(LoginErrorFilter)
 export class AuthController {
   /**
-   * @param authService Service handling user auth and JWT issuance.
+   * Construct the controller with the authentication service.
+   * @param authService - Service handling user auth and JWT issuance.
    */
   constructor(private readonly authService: AuthService) {}
 

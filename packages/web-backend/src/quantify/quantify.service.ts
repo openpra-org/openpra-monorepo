@@ -87,6 +87,11 @@ export class QuantifyService {
     };
   }
 
+  /**
+   * Writes base64-encoded XML models to temporary files and returns their paths.
+   * @param models - Array of base64-encoded XML model strings
+   * @returns Paths to the created temporary model files
+   */
   public async writeModelFilesBase64(models: string[]): Promise<string[]> {
     // Create a unique temporary directory for our model files
     const tempDir = await promise_fs.mkdtemp(path.join(tmpdir(), "models-"));
@@ -174,12 +179,11 @@ export class QuantifyService {
     });
   }
 
-  /*
+  /**
    * Reads the content of a report file.
-   *
-   * @param filePath - The path to the report file.
-   * @returns A promise that resolves with the content of the report file as a string.
-   * @throws {Error} If the file cannot be read.
+   * @param filePath - Path to the generated report file
+   * @returns Report file contents as a string
+   * @throws Error when the file cannot be read
    */
   public async readReportFile(filePath: string): Promise<string> {
     try {

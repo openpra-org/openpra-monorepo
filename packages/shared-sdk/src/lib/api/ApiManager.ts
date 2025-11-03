@@ -28,7 +28,7 @@ export class ApiManager {
   /**
    * Perform an authenticated GET request with the current JWT.
    *
-   * @param url Absolute or relative URL to request.
+   * @param url - Absolute or relative URL to request.
    * @returns The raw fetch Response; callers can inspect ok/status or parse JSON.
    */
   static async getWithOptions(url: string): Promise<Response> {
@@ -47,7 +47,7 @@ export class ApiManager {
   /**
    * Exchange credentials for a JWT and persist it via AuthService.
    *
-   * @param creds Arbitrary credential payload to POST to the token endpoint.
+   * @param creds - Arbitrary credential payload to POST to the token endpoint.
    * @returns Promise that resolves after token is parsed and stored.
    */
   static login(creds: any) {
@@ -237,8 +237,8 @@ export class ApiManager {
   /**
    * Authenticated POST request helper.
    *
-   * @param url Endpoint to POST to.
-   * @param data Request body; should match the declared Content-Type.
+   * @param url - Endpoint to POST to.
+   * @param data - Request body; should match the declared Content-Type.
    * @returns Raw Response from fetch.
    */
   static post(url: string, data: BodyInit): Promise<Response> {
@@ -256,8 +256,8 @@ export class ApiManager {
   /**
    * Authenticated PUT request helper.
    *
-   * @param url Endpoint to PUT to.
-   * @param data Request body; will be JSON-serialized.
+   * @param url - Endpoint to PUT to.
+   * @param data - Request body; will be JSON-serialized.
    * @returns Raw Response from fetch.
    */
   static put<DataType>(url: string, data: DataType): Promise<Response> {
@@ -275,7 +275,7 @@ export class ApiManager {
   /**
    * Authenticated DELETE request helper.
    *
-   * @param url Endpoint to DELETE.
+   * @param url - Endpoint to DELETE.
    * @returns Raw Response from fetch.
    */
   static delete(url: RequestInfo | URL | string): Promise<Response> {

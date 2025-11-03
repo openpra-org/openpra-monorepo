@@ -12,7 +12,7 @@ export class AuthService {
   /**
    * Determine whether a JWT is expired or unusable.
    *
-   * @param token Encoded JWT string or null.
+   * @param token - Encoded JWT string or null.
    * @returns true if missing/invalid/expired; false otherwise.
    */
   static hasTokenExpired(token: string | null): boolean {
@@ -37,7 +37,7 @@ export class AuthService {
   /**
    * Get remaining lifetime of a JWT (in seconds) for re-auth scheduling.
    *
-   * @param token Encoded JWT string or null.
+   * @param token - Encoded JWT string or null.
    * @returns Seconds until expiration, or -1 if invalid or missing.
    */
   static getTokenTimer(token: string | null): number {
@@ -62,7 +62,7 @@ export class AuthService {
   /**
    * Persist an encoded JWT and emit a login auth event.
    *
-   * @param idToken Encoded JWT string to store; ignored if null/empty.
+   * @param idToken - Encoded JWT string to store; ignored if null/empty.
    */
   static setEncodedToken(idToken: string | null): void {
     if (idToken) {

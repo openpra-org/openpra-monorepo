@@ -10,6 +10,8 @@ import { QuantificationConsumerModule } from "./quantification/quantification-co
  * @remarks
  * Creates the Nest application, configures an RMQ microservice transport using
  * `ENV_RABBITMQ_URL`, and starts listening for messages.
+ *
+ * @returns Resolves when the microservice has started listening for messages.
  */
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(QuantificationConsumerModule);

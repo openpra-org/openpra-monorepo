@@ -259,6 +259,7 @@ export class TypedModelService {
   /**
    * note for all: the id thing is to exclude the _id mongoose stuff from being in the output
    * function to return all of the desired model type of a given user
+   * @param modelId - the model id to fetch
    * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
@@ -270,6 +271,7 @@ export class TypedModelService {
 
   /**
    * function to return all of the desired model type of a given user
+   * @param modelId - the model id to fetch
    * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
@@ -279,6 +281,7 @@ export class TypedModelService {
 
   /**
    * function to return all of the desired model type of a given user
+   * @param modelId - the model id to fetch
    * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
@@ -288,6 +291,7 @@ export class TypedModelService {
 
   /**
    * function to return all of the desired model type of a given user
+   * @param modelId - the model id to fetch
    * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */

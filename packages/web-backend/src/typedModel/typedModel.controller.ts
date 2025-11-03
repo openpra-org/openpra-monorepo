@@ -33,6 +33,11 @@ import { TypedModel, TypedModelJSON } from "./schemas/templateSchema/typed-model
 @UseGuards(AuthGuard("jwt"))
 @UseFilters(InvalidTokenFilter)
 export class TypedModelController {
+  /**
+   * Construct controller with typed model service dependency.
+   *
+   * @param typedModelService - Service handling typed model CRUD and queries
+   */
   constructor(private readonly typedModelService: TypedModelService) {}
 
   //all the post methods go here
@@ -244,6 +249,7 @@ export class TypedModelController {
 
   /**
    *
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be deleted
    * @returns the deleted model in a promise
    */
@@ -254,6 +260,7 @@ export class TypedModelController {
 
   /**
    *
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be deleted
    * @returns the deleted model in a promise
    */
@@ -264,6 +271,7 @@ export class TypedModelController {
 
   /**
    *
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be deleted
    * @returns the deleted model in a promise
    */

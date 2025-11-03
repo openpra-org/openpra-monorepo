@@ -6,6 +6,10 @@ import { Injectable } from "@nestjs/common";
  */
 @Injectable()
 export class ApiService {
+  /**
+   * Return a simple greeting for health checks.
+   * @returns "Hello World!" greeting string.
+   */
   getHello(): string {
     return "Hello World!";
   }

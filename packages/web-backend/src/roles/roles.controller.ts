@@ -14,6 +14,9 @@ import { Role } from "./schemas/predefined-roles";
 @UseGuards(JwtAuthGuard)
 @UseFilters(InvalidTokenFilter)
 export class RolesController {
+  /**
+   * @param rolesService - Service for roles persistence and queries
+   */
   constructor(private readonly rolesService: RolesService) {}
 
   /**

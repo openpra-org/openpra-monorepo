@@ -6,6 +6,9 @@ import { HttpException, HttpStatus } from "@nestjs/common";
  * This exception maps to HTTP 400 Bad Request.
  */
 export class DuplicateUserException extends HttpException {
+  /**
+   * Create a DuplicateUserException with HTTP 400 status.
+   */
   constructor() {
     super("Duplicate Username", HttpStatus.BAD_REQUEST);
   }

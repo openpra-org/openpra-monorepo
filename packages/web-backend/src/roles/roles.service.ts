@@ -11,6 +11,10 @@ import { PredefinedRoles, Role } from "./schemas/predefined-roles";
  */
 @Injectable()
 export class RolesService implements OnApplicationBootstrap {
+  /**
+   * Construct the roles service with the injected Mongoose model.
+   * @param roleModel - Mongoose model for the Roles collection
+   */
   constructor(
     @InjectModel(Roles.name)
     private readonly roleModel: Model<RolesDocument>,
@@ -32,7 +36,8 @@ export class RolesService implements OnApplicationBootstrap {
   }
 
   /**
-   * This function returns all the roles from the database
+   * This function returns all the roles from the database.
+   * @param roleId - Optional list of role IDs to filter the results
    */
   async getAllRoles(roleId?: string[] | null): Promise<Roles[]> {
     let roles: Roles[];
@@ -84,6 +89,10 @@ export class RolesService implements OnApplicationBootstrap {
     await this.roleModel.findOneAndUpdate({ id: role.id }, role).exec();
   }
 
+  /**
+   * Delete a role by its id or throw if it doesn't exist.
+   * @param id - The unique id of the role to delete
+   */
   async deleteRole(id: string): Promise<void> {
     const checkRole = await this.roleModel.findOne({ id: id }).exec();
     if (checkRole === null) {

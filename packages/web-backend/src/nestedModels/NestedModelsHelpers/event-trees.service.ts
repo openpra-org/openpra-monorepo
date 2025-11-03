@@ -35,6 +35,11 @@ export class EventTreesService {
     return this.eventTreeModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves Event Trees by parent id (string form).
+   * @param parentId - Parent identifier as a string (ObjectId)
+   * @returns Array of Event Tree documents for the given parent
+   */
   async getEventTreesString(parentId: string): Promise<EventTree[]> {
     return this.eventTreeModel.find({ parentIds: parentId });
   }
@@ -48,6 +53,11 @@ export class EventTreesService {
     return this.eventTreeModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a single Event Tree by string id.
+   * @param modelId - Document _id as a string (ObjectId)
+   * @returns The matching Event Tree document
+   */
   async getSingleEventTreeString(modelId: string): Promise<EventTree> {
     return this.eventTreeModel.findOne({ _id: modelId });
   }

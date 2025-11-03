@@ -3,6 +3,11 @@ import { Node, Position } from "reactflow";
 const xDistance = 140;
 const pos = { x: 0, y: 0 };
 
+/**
+ * Example node definitions used by the Event Tree editor demo.
+ *
+ * These nodes are rendered to showcase custom node/edge components and layout.
+ */
 export const nodeData: Node[] = [
   {
     id: "horizontal-1",

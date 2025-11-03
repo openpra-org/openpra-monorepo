@@ -13,8 +13,8 @@ import { Fmea, FmeaDocument } from "./schemas/fmea.schema";
 export class FmeaService {
   /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
   /**
-   * @param fmeaModel Mongoose model for FMEA documents.
-   * @param ModelCounterModel Mongoose model for sequence counters.
+   * @param fmeaModel - Mongoose model for FMEA documents.
+   * @param ModelCounterModel - Mongoose model for sequence counters.
    */
   constructor(
     @InjectModel(Fmea.name)
@@ -360,6 +360,7 @@ export class FmeaService {
   /**
    * Update column details (name, type, options).
    *
+   * @param fmeaId - The FMEA id whose column should be updated
    * @param prev_name - Name of the column previously stored
    * @param column_body - Updated details of the column
    * @returns Updated FMEA object

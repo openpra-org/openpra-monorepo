@@ -5,6 +5,9 @@ import CerealBoldWoff2 from "./Cereal-Bold.woff2";
 import CerealExtraBoldWoff2 from "./Cereal-Extra-Bold.woff2";
 import CerealBlackWoff2 from "./Cereal-Black.woff2";
 
+/**
+ * CSS font-face descriptors for all Cereal font weights used by the app.
+ */
 export const CerealLight = {
   fontFamily: "Cereal, sans-serif",
   fontStyle: "normal",

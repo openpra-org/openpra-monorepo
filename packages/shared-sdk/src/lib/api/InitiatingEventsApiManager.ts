@@ -53,6 +53,7 @@ export default class FmeaApiManager {
    * Default success callback used by API helpers.
    * Shows a success snackbar when the override enables it.
    *
+   * @param this - Explicitly declares no this binding (set to void) for the static method.
    * @param res - The raw body string or Response returned from fetch.
    * @param override - Optional UI overrides controlling snackbar visibility.
    * @returns Echoes the input response for further chaining.
@@ -74,6 +75,7 @@ export default class FmeaApiManager {
    * Default failure callback used by API helpers.
    * Shows an error snackbar when the override enables it.
    *
+   * @param this - Explicitly declares no this binding (set to void) for the static method.
    * @param res - The error or Response returned from fetch.
    * @param override - Optional UI overrides controlling snackbar visibility.
    * @returns Echoes the input error/response for further chaining.

@@ -35,6 +35,11 @@ export class BayesianNetworksService {
     return this.bayesianNetworkModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves Bayesian Networks by parent id (string form).
+   * @param parentId - Parent identifier as a string (ObjectId)
+   * @returns Array of Bayesian Network documents for the given parent
+   */
   async getBayesianNetworkString(parentId: string): Promise<BayesianNetwork[]> {
     return this.bayesianNetworkModel.find({ parentIds: parentId });
   }
@@ -48,6 +53,11 @@ export class BayesianNetworksService {
     return this.bayesianNetworkModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a single Bayesian Network by string id.
+   * @param modelId - Document _id as a string (ObjectId)
+   * @returns The matching Bayesian Network document
+   */
   async getSingleBayesianNetworkString(modelId: string): Promise<BayesianNetwork> {
     return this.bayesianNetworkModel.findOne({ _id: modelId });
   }

@@ -18,7 +18,7 @@ interface JwtPayload {
 /**
  * Resolve the JWT signing secret using Nest ConfigService.
  *
- * @param configService Nest configuration provider used to read env vars.
+ * @param configService - Nest configuration provider used to read env vars.
  * @returns PEM/string secret for JWT verification.
  */
 export const ParseJwtSecret = (configService: ConfigService): string => {
@@ -47,7 +47,8 @@ export const ParseJwtSecret = (configService: ConfigService): string => {
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
   /**
-   * @param configService Nest configuration provider used to read JWT secret sources.
+   * Configure the JWT Passport strategy from configuration.
+   * @param configService - Nest configuration provider used to read JWT secret sources.
    */
   constructor(private readonly configService: ConfigService) {
     super({
@@ -60,7 +61,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
   /**
    * Validate decoded JWT payload and coerce types.
    *
-   * @param payload Decoded JWT claims.
+   * @param payload - Decoded JWT claims.
    * @returns Minimal user object with id, username, and email.
    */
   validate(payload: JwtPayload) {

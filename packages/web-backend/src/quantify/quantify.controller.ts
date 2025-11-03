@@ -9,6 +9,9 @@ import type { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-reques
  */
 @Controller()
 export class QuantifyController {
+  /**
+   * @param quantifyService - Service that performs quantification via external solver
+   */
   constructor(private readonly quantifyService: QuantifyService) {}
 
   /**

@@ -39,6 +39,11 @@ export class EventSequenceDiagramService {
     return this.eventSequenceDiagramModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves Event Sequence Diagrams by parent id (string form).
+   * @param parentId - Parent identifier as a string (ObjectId)
+   * @returns Array of Event Sequence Diagram documents for the given parent
+   */
   async getEventSequenceDiagramsString(parentId: string): Promise<EventSequenceDiagram[]> {
     return this.eventSequenceDiagramModel.find({ parentIds: parentId });
   }
@@ -52,6 +57,11 @@ export class EventSequenceDiagramService {
     return this.eventSequenceDiagramModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a single Event Sequence Diagram by string id.
+   * @param modelId - Document _id as a string (ObjectId)
+   * @returns The matching Event Sequence Diagram document
+   */
   async getSingleEventSequenceDiagramString(modelId: string): Promise<EventSequenceDiagram> {
     return this.eventSequenceDiagramModel.findOne({ _id: modelId });
   }

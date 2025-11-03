@@ -13,6 +13,11 @@ import { UpdateColumnNameBody } from "./dtos/update-column-name-body.dto";
  */
 @Controller()
 export class FmeaController {
+  /**
+   * Instantiate the FMEA controller.
+   *
+   * @param fmeaService - Service providing FMEA domain operations.
+   */
   constructor(private readonly fmeaService: FmeaService) {}
 
   /**

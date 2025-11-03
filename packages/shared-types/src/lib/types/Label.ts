@@ -47,6 +47,7 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
   }
 
   /**
+   * Update the label name.
    * @param name - New label name
    */
   setName(name: string): void {
@@ -61,6 +62,7 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
   }
 
   /**
+   * Update the label description.
    * @param description - New label description
    */
   setDescription(description: string): void {
@@ -77,20 +79,36 @@ export default class Label implements Parsable<LabelJSONMap, LabelJSON> {
     };
   }
 
+  /**
+   * Get the default JSON representation for a label.
+   * @returns Default Label JSON values.
+   */
   getDefaultJSON(): LabelJSON {
     return DEFAULT_LABEL_JSON;
   }
 
+  /**
+   * Create a deep copy of this label.
+   * @returns A cloned Label instance.
+   */
   clone(): Label {
     return Label.build(this.toJSON());
   }
 
+  /**
+   * Default mapped JSON shape keyed by a canonical label id.
+   * @returns Defaults for the label JSON map.
+   */
   getDefaultMappedJSON(): Defaults<LabelJSONMap> {
     return {
       label: DEFAULT_LABEL_JSON,
     };
   }
 
+  /**
+   * Partial mapped JSON for this label keyed by a canonical label id.
+   * @returns A mapping with the current label JSON.
+   */
   toPartialMappedJSON(): Partial<LabelJSONMap> {
     return {
       label: {

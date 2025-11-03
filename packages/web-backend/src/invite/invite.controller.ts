@@ -27,7 +27,8 @@ import { InviteService } from "./invite.service";
 @UseFilters(InvalidTokenFilter)
 export class InviteController {
   /**
-   * @param inviteService Service that manages invite persistence and validation.
+   * Construct the controller with the invite service dependency.
+   * @param inviteService - Service that manages invite persistence and validation.
    */
   constructor(private readonly inviteService: InviteService) {}
 

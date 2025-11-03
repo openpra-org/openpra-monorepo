@@ -75,19 +75,6 @@ jobs:
           # NX_RUN_GROUP: docs-${{ github.run_id }}
         run: npx -y pnpm@10.19.0 nx run docs-md:site:build --no-cloud
 
-      - name: Docs coverage (informational)
-        run: npx -y pnpm@10.19.0 nx run docs-md:site:coverage --no-cloud
-        continue-on-error: true
-
-      - name: Docs coverage summary (CI annotations)
-        run: npx -y pnpm@10.19.0 nx run docs-md:site:coverage:ci --no-cloud
-        continue-on-error: true
-
-      # Non-blocking for now; enable enforcement later by removing continue-on-error or re-enabling this step as blocking.
-      - name: Check docs coverage thresholds (non-blocking)
-        run: npx -y pnpm@10.19.0 nx run docs-md:site:coverage:check --no-cloud
-        continue-on-error: true
-
       - name: Link check
         env:
           VITEPRESS_BASE: "/${{ github.event.repository.name }}/"

@@ -52,6 +52,9 @@ export class ExecutableService implements OnApplicationBootstrap {
     );
   }
 
+  /**
+   * Initialize the RabbitMQ channel and declare queues/exchanges on app startup.
+   */
   async onApplicationBootstrap(): Promise<void> {
     try {
       const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
@@ -94,6 +97,11 @@ export class ExecutableService implements OnApplicationBootstrap {
     });
   }
 
+  /**
+   * Validate and enqueue an executable task to the configured RabbitMQ queue.
+   *
+   * @param task - The executable task payload including executable, arguments, env and identifier.
+   */
   public async createAndQueueTask(task: ExecutionTask): Promise<void> {
     try {
       if (!this.channel) {

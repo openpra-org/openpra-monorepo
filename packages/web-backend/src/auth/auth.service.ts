@@ -12,8 +12,9 @@ import { User } from "../collab/schemas/user.schema";
 @Injectable()
 export class AuthService {
   /**
-   * @param collabService Service for user persistence and last-login updates.
-   * @param jwtService NestJS JWT service for signing and verifying tokens.
+   * Construct the authentication service with collaborators.
+   * @param collabService - Service for user persistence and last-login updates.
+   * @param jwtService - NestJS JWT service for signing and verifying tokens.
    */
   constructor(
     private readonly collabService: CollabService,
@@ -67,6 +68,13 @@ export class AuthService {
     };
   }
 
+  /**
+   * Refresh an access token using a valid refresh token.
+   *
+   * @param refreshToken - A previously issued refresh token used to mint a new access token.
+   * @returns Object containing a new `token` when the refresh token is valid.
+   * @throws Error when the token is invalid or verification fails.
+   */
   async updateJwtToken(refreshToken: string) {
     try {
       // Verify the refresh token

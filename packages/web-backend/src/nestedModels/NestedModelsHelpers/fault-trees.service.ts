@@ -35,6 +35,11 @@ export class FaultTreesService {
     return this.FaultTreeModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves Fault Trees by parent id (string form).
+   * @param parentId - Parent identifier as a string (ObjectId)
+   * @returns Array of Fault Tree documents for the given parent
+   */
   async getFaultTreeString(parentId: string): Promise<FaultTree[]> {
     return this.FaultTreeModel.find({ parentIds: parentId });
   }
@@ -48,6 +53,11 @@ export class FaultTreesService {
     return this.FaultTreeModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a single Fault Tree by string id.
+   * @param modelId - Document _id as a string (ObjectId)
+   * @returns The matching Fault Tree document
+   */
   async getSingleFaultTreeString(modelId: string): Promise<FaultTree> {
     return this.FaultTreeModel.findOne({ _id: modelId });
   }

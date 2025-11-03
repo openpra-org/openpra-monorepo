@@ -7,7 +7,8 @@ import { ApiService } from "./api.service";
 @Controller()
 export class ApiController {
   /**
-   * @param apiService Service providing simple API responses (health/greeting).
+   * Construct the controller with the API service dependency.
+   * @param apiService - Service providing simple API responses (health/greeting).
    */
   constructor(private readonly apiService: ApiService) {}
 

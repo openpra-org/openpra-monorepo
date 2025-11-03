@@ -9,6 +9,11 @@ import { InternalEvents, InternalEventsDocument, InternalEventsMetadata } from "
  */
 @Injectable()
 export class MetaTypedModelService {
+  /**
+   * Create the metadata service with the injected Internal Events model.
+   *
+   * @param internalEventsModel - Mongoose model used to query Internal Events metadata
+   */
   constructor(
     @InjectModel(InternalEvents.name)
     private readonly internalEventsModel: Model<InternalEventsDocument>,

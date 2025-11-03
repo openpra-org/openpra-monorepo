@@ -1,3 +1,6 @@
+/**
+ * Role constraint describing subject/action access rules.
+ */
 export interface Role {
   action: string | string[];
   subject: string | string[];

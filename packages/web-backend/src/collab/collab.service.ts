@@ -19,8 +19,9 @@ import { User, UserDocument } from "./schemas/user.schema";
 @Injectable()
 export class CollabService {
   /**
-   * @param userCounterModel Mongoose model for tracking incremental user IDs.
-   * @param userModel Mongoose model for user documents.
+   * Construct the collaboration service with persistence models.
+   * @param userCounterModel - Mongoose model for tracking incremental user IDs.
+   * @param userModel - Mongoose model for user documents.
    */
   constructor(
     //private hclService: HclService,

@@ -11,14 +11,19 @@ import { User } from "../../collab/schemas/user.schema";
  */
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy, "local") {
+  /**
+   * Instantiate the Local strategy.
+   *
+   * @param authService - Service used to validate user credentials.
+   */
   constructor(private readonly authService: AuthService) {
     super();
   }
   /**
    * Validate credentials coming from the local strategy.
    *
-   * @param username Username provided via request body.
-   * @param password Password provided via request body.
+   * @param username - Username provided via request body.
+   * @param password - Password provided via request body.
    * @returns Authenticated User or throws UnauthorizedException.
    */
   async validate(username: string, password: string): Promise<User | UnauthorizedException> {

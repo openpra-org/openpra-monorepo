@@ -14,6 +14,9 @@ import { MetaTypedModelService } from "./meta-typed-model.service";
 @UseGuards(AuthGuard("jwt"))
 @UseFilters(InvalidTokenFilter)
 export class MetaTypedModelController {
+  /**
+   * @param metaTypedModelService - Service providing metadata access for typed models
+   */
   constructor(private readonly metaTypedModelService: MetaTypedModelService) {}
   //get methods for collections
 

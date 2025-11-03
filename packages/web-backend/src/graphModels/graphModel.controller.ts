@@ -12,6 +12,11 @@ import { GraphModelService } from "./graphModel.service";
  */
 @Controller()
 export class GraphModelController {
+  /**
+   * Instantiate the Graph Model controller.
+   *
+   * @param graphModelService - Service for persisting and querying diagram graphs.
+   */
   constructor(private readonly graphModelService: GraphModelService) {}
 
   /**

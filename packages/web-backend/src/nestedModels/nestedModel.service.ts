@@ -205,7 +205,9 @@ export class NestedModelService {
   }
 
   /**
-   * Proxy create for Bayesian Network to support existing tests without typed model context
+   * Proxy create for Bayesian Network to support existing tests without typed model context.
+   * @param body - Nested model payload including parentIds and label
+   * @returns The created Bayesian Network document
    */
   async createBayesianNetwork(body: Partial<NestedModel>): Promise<NestedModel> {
     const newBayesianNetwork = new this.bayesianNetworkModel(body);
@@ -214,7 +216,9 @@ export class NestedModelService {
   }
 
   /**
-   * Proxy create for Event Sequence Diagram to support existing tests without typed model context
+   * Proxy create for Event Sequence Diagram to support existing tests without typed model context.
+   * @param body - Nested model payload including parentIds and label
+   * @returns The created Event Sequence Diagram document
    */
   async createEventSequenceDiagram(body: Partial<NestedModel>): Promise<NestedModel> {
     const newEventSequenceDiagram = new this.eventSequenceDiagramModel(body);
@@ -223,7 +227,9 @@ export class NestedModelService {
   }
 
   /**
-   * Proxy create for Event Tree to support existing tests without typed model context
+   * Proxy create for Event Tree to support existing tests without typed model context.
+   * @param body - Nested model payload including parentIds and label
+   * @returns The created Event Tree document
    */
   async createEventTree(body: Partial<NestedModel>): Promise<NestedModel> {
     const newEventTree = new this.eventTreeModel(body);
@@ -232,7 +238,9 @@ export class NestedModelService {
   }
 
   /**
-   * Proxy create for Fault Tree to support existing tests without typed model context
+   * Proxy create for Fault Tree to support existing tests without typed model context.
+   * @param body - Nested model payload including parentIds and label
+   * @returns The created Fault Tree document
    */
   async createFaultTree(body: Partial<NestedModel>): Promise<NestedModel> {
     const newFaultTree = new this.faultTreeModel(body);
@@ -241,7 +249,9 @@ export class NestedModelService {
   }
 
   /**
-   * Proxy create for Initiating Event to support existing tests without typed model context
+   * Proxy create for Initiating Event to support existing tests without typed model context.
+   * @param body - Nested model payload including parentIds and label
+   * @returns The created Initiating Event document
    */
   async createInitiatingEvent(body: Partial<NestedModel>): Promise<NestedModel> {
     const newInitiatingEvent = new this.initiatingEventModel(body);
@@ -250,7 +260,9 @@ export class NestedModelService {
   }
 
   /**
-   * Proxy create for Event Sequence Analysis to support existing tests without typed model context
+   * Proxy create for Event Sequence Analysis to support existing tests without typed model context.
+   * @param body - Nested model payload including parentIds and label
+   * @returns The created Event Sequence Analysis document
    */
   async createEventSequenceAnalysis(body: Partial<NestedModel>): Promise<NestedModel> {
     const newEventSequenceAnalysis = new this.eventSequenceAnalysisModel(body);
@@ -401,6 +413,11 @@ export class NestedModelService {
     return this.functionalEventsModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a collection of Markov Chain models based on the parent ID.
+   * @param parentId - The ID of the parent model for the nested model.
+   * @returns A promise with an array of Markov Chain models for the specified parent.
+   */
   async getMarkovChains(parentId: number): Promise<MarkovChain[]> {
     //typecast to a number because for some reason, it isn't a number????
 
@@ -418,26 +435,56 @@ export class NestedModelService {
     return this.weibullAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a collection of Bayesian Network models based on the parent ID.
+   * @param parentId - The ID of the parent model for the nested model.
+   * @returns A promise with an array of Bayesian Network models for the specified parent.
+   */
   async getBayesianNetworks(parentId: number): Promise<BayesianNetwork[]> {
     return this.bayesianNetworkModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a collection of Event Sequence Diagram models based on the parent ID.
+   * @param parentId - The ID of the parent model for the nested model.
+   * @returns A promise with an array of Event Sequence Diagram models for the specified parent.
+   */
   async getEventSequenceDiagrams(parentId: number): Promise<EventSequenceDiagram[]> {
     return this.eventSequenceDiagramModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a collection of Event Tree models based on the parent ID.
+   * @param parentId - The ID of the parent model for the nested model.
+   * @returns A promise with an array of Event Tree models for the specified parent.
+   */
   async getEventTrees(parentId: number): Promise<EventTree[]> {
     return this.eventTreeModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a collection of Fault Tree models based on the parent ID.
+   * @param parentId - The ID of the parent model for the nested model.
+   * @returns A promise with an array of Fault Tree models for the specified parent.
+   */
   async getFaultTrees(parentId: number): Promise<FaultTree[]> {
     return this.faultTreeModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a collection of Initiating Event models based on the parent ID.
+   * @param parentId - The ID of the parent model for the nested model.
+   * @returns A promise with an array of Initiating Event models for the specified parent.
+   */
   async getInitiatingEvents(parentId: number): Promise<InitiatingEvent[]> {
     return this.initiatingEventModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a collection of Event Sequence Analysis models based on the parent ID.
+   * @param parentId - The ID of the parent model for the nested model.
+   * @returns A promise with an array of Event Sequence Analysis models for the specified parent.
+   */
   async getEventSequenceAnalysis(parentId: number): Promise<EventSequenceAnalysis[]> {
     return this.eventSequenceAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
@@ -588,26 +635,56 @@ export class NestedModelService {
     return this.weibullAnalysisModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Gets a single Bayesian Network by its numeric id.
+   * @param modelId - The id of the model to retrieve
+   * @returns The model which has the associated id
+   */
   async getSingleBayesianNetwork(modelId: number): Promise<BayesianNetwork> {
     return this.bayesianNetworkModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Gets a single Event Sequence Diagram by its numeric id.
+   * @param modelId - The id of the model to retrieve
+   * @returns The model which has the associated id
+   */
   async getSingleEventSequenceDiagram(modelId: number): Promise<EventSequenceDiagram> {
     return this.eventSequenceDiagramModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Gets a single Event Tree by its numeric id.
+   * @param modelId - The id of the model to retrieve
+   * @returns The model which has the associated id
+   */
   async getSingleEventTree(modelId: number): Promise<EventTree> {
     return this.eventTreeModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Gets a single Fault Tree by its numeric id.
+   * @param modelId - The id of the model to retrieve
+   * @returns The model which has the associated id
+   */
   async getSingleFaultTree(modelId: number): Promise<FaultTree> {
     return this.faultTreeModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Gets a single Initiating Event by its numeric id.
+   * @param modelId - The id of the model to retrieve
+   * @returns The model which has the associated id
+   */
   async getSingleInitiatingEvent(modelId: number): Promise<InitiatingEvent> {
     return this.initiatingEventModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Gets a single Event Sequence Analysis by its numeric id.
+   * @param modelId - The id of the model to retrieve
+   * @returns The model which has the associated id
+   */
   async getSingleEventSequenceAnalysis(modelId: number): Promise<EventSequenceAnalysis> {
     return this.eventSequenceAnalysisModel.findOne({ id: modelId }, { _id: 0 });
   }
@@ -740,26 +817,56 @@ export class NestedModelService {
     return this.weibullAnalysisModel.findOneAndDelete({ id: modelId });
   }
 
+  /**
+   * Finds and deletes a Bayesian Network by id.
+   * @param modelId - The id of the model to delete
+   * @returns A promise with the deleted model
+   */
   async deleteBayesianNetwork(modelId: number): Promise<BayesianNetwork> {
     return this.bayesianNetworkModel.findOneAndDelete({ id: modelId });
   }
 
+  /**
+   * Finds and deletes an Event Sequence Diagram by id.
+   * @param modelId - The id of the model to delete
+   * @returns A promise with the deleted model
+   */
   async deleteEventSequenceDiagram(modelId: number): Promise<EventSequenceDiagram> {
     return this.eventSequenceDiagramModel.findOneAndDelete({ id: modelId });
   }
 
+  /**
+   * Finds and deletes an Event Tree by id.
+   * @param modelId - The id of the model to delete
+   * @returns A promise with the deleted model
+   */
   async deleteEventTree(modelId: number): Promise<EventTree> {
     return this.eventTreeModel.findOneAndDelete({ id: modelId });
   }
 
+  /**
+   * Finds and deletes a Fault Tree by id.
+   * @param modelId - The id of the model to delete
+   * @returns A promise with the deleted model
+   */
   async deleteFaultTree(modelId: number): Promise<FaultTree> {
     return this.faultTreeModel.findOneAndDelete({ id: modelId });
   }
 
+  /**
+   * Finds and deletes an Initiating Event by id.
+   * @param modelId - The id of the model to delete
+   * @returns A promise with the deleted model
+   */
   async deleteInitiatingEvent(modelId: number): Promise<InitiatingEvent> {
     return this.initiatingEventModel.findOneAndDelete({ id: modelId });
   }
 
+  /**
+   * Finds and deletes an Event Sequence Analysis by id.
+   * @param modelId - The id of the model to delete
+   * @returns A promise with the deleted model
+   */
   async deleteEventSequenceAnalysis(modelId: number): Promise<EventSequenceAnalysis> {
     return this.eventSequenceAnalysisModel.findOneAndDelete({ id: modelId });
   }

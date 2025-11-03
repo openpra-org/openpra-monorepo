@@ -57,6 +57,10 @@ export default class TypedModel extends BasicModel /* implements Parsable<TypedM
   }
 
   // Implement the getter and setter methods for ids
+  /**
+   * Get the list of collaborating user ids.
+   * @returns An array of user identifiers.
+   */
   getUsers(): number[] {
     return this.users;
   }

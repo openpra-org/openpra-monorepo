@@ -70,6 +70,11 @@ export class JobBrokerController {
     }
   }
 
+  /**
+   * Retrieves jobs and tasks that are in the queued state.
+   *
+   * @returns Quantification jobs and executable tasks currently queued for processing.
+   */
   @Get("/queued-jobs")
   public async getQueuedJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
     try {
@@ -79,6 +84,11 @@ export class JobBrokerController {
     }
   }
 
+  /**
+   * Retrieves jobs and tasks that have completed processing.
+   *
+   * @returns Quantification jobs and executable tasks with completed status.
+   */
   @Get("/completed-jobs")
   public async getCompletedJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
     try {

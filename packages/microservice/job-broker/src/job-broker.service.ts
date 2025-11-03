@@ -29,9 +29,10 @@ export class JobBrokerService {
   }
 
   /**
-   * Retrieves the list of pending jobs.
+   * Retrieves jobs and tasks filtered by status.
    *
-   * @returns An object containing a message describing the pending jobs.
+   * @param status - The status to filter by (e.g., "pending", "queued", "completed").
+   * @returns A list of quantification jobs and executable tasks matching the given status.
    */
   public async getJobs(status: string): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
     const quantifyJobs = await this.quantificationJobModel.find({ status: status }).lean();
@@ -58,6 +59,11 @@ export class JobBrokerService {
     };
   }
 
+  /**
+   * Retrieves the list of queued jobs.
+   *
+   * @returns Quantification jobs and executable tasks queued for execution.
+   */
   public async getQueuedJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
     const queuedQuantifyJobs = await this.quantificationJobModel.find({ status: "queued" }).lean();
     const queuedExecuteTasks = await this.executableJobModel.find({ status: "queued" }).lean();
@@ -68,6 +74,11 @@ export class JobBrokerService {
     };
   }
 
+  /**
+   * Retrieves the list of completed jobs.
+   *
+   * @returns Quantification jobs and executable tasks that have completed.
+   */
   public async getCompletedJobs(): Promise<{ jobs: QuantificationJobReport[]; tasks: ExecutableJobReport[] }> {
     const completedQuantifyJobs = await this.quantificationJobModel.find({ status: "completed" }).lean();
     const completedExecuteTasks = await this.executableJobModel.find({ status: "completed" }).lean();

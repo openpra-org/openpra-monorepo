@@ -31,6 +31,11 @@ import { User } from "./schemas/user.schema";
 @UseGuards(JwtAuthGuard)
 @UseFilters(InvalidTokenFilter)
 export class CollabController {
+  /**
+   * Instantiate the collaboration controller.
+   *
+   * @param collabService - Service providing collaboration (user) operations.
+   */
   constructor(private readonly collabService: CollabService) {}
 
   /**

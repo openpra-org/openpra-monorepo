@@ -12,6 +12,11 @@ import { InvitedUser, InvitedUserDocument } from "./schemas/invite.schema";
  */
 @Injectable()
 export class InviteService {
+  /**
+   * Instantiate the invite service.
+   *
+   * @param invitedUserModel - Mongoose model for `InvitedUser` documents.
+   */
   constructor(
     @InjectModel(InvitedUser.name)
     private readonly invitedUserModel: Model<InvitedUserDocument>,

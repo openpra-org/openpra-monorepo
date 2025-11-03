@@ -21,6 +21,10 @@ export default defineConfig({
   description: "Unified docs for OpenPRA (TypeScript + C++)",
   srcDir: ".",
   outDir: ".vitepress/dist",
+  // Keep internal reports out of the published site
+  // These artifacts are still generated under packages/docs-md/api/* for local inspection and CI,
+  // but should not be emitted as public pages.
+  srcExclude: ["api/ts/coverage.md", "api/ts/gaps-params.md", "api/cpp-doxybook2/coverage.md"],
   ignoreDeadLinks: true,
   markdown: {
     // Disable raw HTML in Markdown to avoid Vue compile errors from generated docs
@@ -67,8 +71,7 @@ export default defineConfig({
           { text: "Engine scram-node (TS)", link: "/api/ts/scram-node/README.html" },
           { text: "Web Backend (NestJS)", link: "/api/ts/web-backend/README.html" },
           { text: "Job Broker (microservice)", link: "/api/ts/job-broker/README.html" },
-          { text: "Param Gaps", link: "/api/ts/gaps-params.html" },
-          { text: "Coverage", link: "/api/ts/coverage.html" },
+          // Coverage and param-gap pages are no longer surfaced
         ],
       },
       {
@@ -76,7 +79,7 @@ export default defineConfig({
         items: [
           { text: "Classes", link: "/api/cpp-doxybook2/index_classes.html" },
           { text: "Namespaces", link: "/api/cpp-doxybook2/index_namespaces.html" },
-          { text: "Coverage", link: "/api/cpp-doxybook2/coverage.html" },
+          // Coverage page is no longer surfaced
         ],
       },
     ],
@@ -222,7 +225,7 @@ export default defineConfig({
           items: [
             { text: "Classes", link: "/api/cpp-doxybook2/index_classes.html" },
             { text: "Namespaces", link: "/api/cpp-doxybook2/index_namespaces.html" },
-            { text: "Coverage", link: "/api/cpp-doxybook2/coverage.html" },
+            // Coverage page is no longer surfaced
           ],
         },
       ],

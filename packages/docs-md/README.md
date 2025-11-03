@@ -33,8 +33,8 @@ Recommended (faster dev loop):
    - Everything (TS + C++ processed and sanitized) in one go:
      - `nx run docs-md:prepare --no-cloud`
    - TS-only (no Doxygen required):
-     - Quick: `nx run docs-md:site:coverage --no-cloud`
-       - This runs all TypeDoc targets and writes coverage reports without building the VitePress site.
+     - Quick: `nx run docs-md:ts:explore:folders --no-cloud`
+       - This runs all TypeDoc targets and generates the folder explorer without building the VitePress site.
      - Or run individual packages if you’re iterating on a specific area:
        - `nx run docs-md:ts:markdown --no-cloud` (web-editor)
        - `nx run docs-md:ts:markdown:shared-sdk --no-cloud`
@@ -52,25 +52,17 @@ Full build and checks:
 
 - Build once (no Nx Cloud):
   - `nx run docs-md:site:build --no-cloud`
-- Link check:
+- Link check (file-based):
   - `nx run docs-md:site:link-check --no-cloud`
-
-Coverage-only (CI-style, no site build):
-
-- Generate coverage snapshots after TypeDoc runs:
-  - `nx run docs-md:site:coverage --no-cloud`
-- Optional CI outputs:
-  - `nx run docs-md:site:coverage:ci --no-cloud`
-  - `nx run docs-md:site:coverage:check --no-cloud`
+  - Optionally seed more starting pages (relative to `.vitepress/dist/`):
+    - `DOCS_LINKCHECK_ENTRIES="api/ts/web-editor/_explore/index.html api/cpp-doxybook2/index_files.html" nx run docs-md:site:link-check --no-cloud`
+- Link check (serve-based, validates site-absolute links):
+  - `DOCS_LINKCHECK_SERVE=1 nx run docs-md:site:link-check --no-cloud`
+  - Port can be overridden: `DOCS_LINKCHECK_PORT=5173 DOCS_LINKCHECK_SERVE=1 nx run docs-md:site:link-check --no-cloud`
 
 To temporarily disable the folder explorer for a build:
 
 - `DOCS_ENABLE_SRC_EXPLORER=0 nx run docs-md:site:build --no-cloud`
-
-Coverage pages (once the site is built):
-
-- TypeScript coverage: `/api/ts/coverage.html`
-- C++ coverage (Doxybook2 heuristic): `/api/cpp-doxybook2/coverage.html`
 
 Doxygen and Doxybook2
 
@@ -78,7 +70,7 @@ Doxygen and Doxybook2
   - `sudo apt-get update && sudo apt-get install -y doxygen graphviz`
 - Doxybook2 is installed on demand by `tools/install-doxybook2.sh` (Linux x86_64 v1.5.0).
 
-## Current coverage
+## Current scope
 
 TypeScript
 
@@ -112,9 +104,8 @@ Add more TS files incrementally by appending their paths to the `--entryPointStr
 To include another TypeScript package in the docs:
 
 1. Add a new `ts:markdown:<your-pkg>` target in `packages/docs-md/project.json` that invokes TypeDoc with `--entryPointStrategy expand` against that package’s `src`.
-2. Add the new target to the `dependsOn` list of `ts:explore:folders`, `prepare`, and `site:coverage` so it participates in the aggregate workflows.
-3. Append the package folder name to `TS_ALLOWED_FOLDERS` in `tools/typedoc-coverage.mjs` so it’s counted in coverage.
-4. Optionally add a sidebar entry to the VitePress nav for visibility.
+2. Add the new target to the `dependsOn` list of `ts:explore:folders` and `prepare` so it participates in the aggregate workflows.
+3. Optionally add a sidebar entry to the VitePress nav for visibility.
 
 ## CI publishing
 
@@ -129,7 +120,7 @@ For incremental rollout and contribution steps, see `CONTRIBUTING-DOCS.md` in th
 - Generated artifacts and caches are ignored via root `.gitignore`.
 - Base-path handling and link checks:
   - We rely on VitePress `base` via `VITEPRESS_BASE`; no custom prefixing in links.
-  - Local link checks create an ephemeral symlink in `.vitepress/dist/<base>` to emulate Pages base; it is automatically cleaned up after the crawl to avoid dev server ELOOP issues.
+  - Local link checks create an ephemeral symlink in `.vitepress/dist/<base>` to emulate Pages base (both file- and serve-based modes); it is automatically cleaned up after the crawl to avoid dev server ELOOP issues.
 
 ## Troubleshooting
 

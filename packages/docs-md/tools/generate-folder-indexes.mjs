@@ -54,7 +54,8 @@ function firstSourceFile(reflection) {
 }
 
 function topLevelFolderFromPath(filePath) {
-  if (!filePath) return null;
+  // If TypeDoc didn't record a source file, treat as coming from src root
+  if (!filePath) return 'root';
   // Normalize to POSIX-style
   const p = filePath.replace(/\\/g, '/');
   // Try to anchor on '/src/' if present

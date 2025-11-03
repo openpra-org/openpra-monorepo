@@ -1,17 +1,17 @@
 {
   "global": {
-    "symbolDocPct": 60,
-    "paramsPct": 50,
-    "returnsPct": 40
+    "symbolDocPct": 90,
+    "paramsPct": 90,
+    "returnsPct": 90
   },
   "ts": {
-    "shared-types": { "symbolDocPct": 90, "paramsPct": 80, "returnsPct": 40 },
-    "shared-sdk": { "symbolDocPct": 90, "paramsPct": 50, "returnsPct": 40 },
-    "mef-schema": { "symbolDocPct": 75 },
-    "model-generator": { "symbolDocPct": 60, "paramsPct": 0 },
-    "mef-types": { "exclude": true },
-    "web-editor": { "exclude": true },
-    "web-backend": { "exclude": true },
-    "job-broker": { "exclude": true }
+    "shared-types": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
+    "shared-sdk": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
+    "mef-schema": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
+    "model-generator": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
+    "mef-types": { "symbolDocPct": 78, "paramsPct": 90, "returnsPct": 89 },
+    "web-editor": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
+    "web-backend": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 84 },
+    "job-broker": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 80 }
   }
 }

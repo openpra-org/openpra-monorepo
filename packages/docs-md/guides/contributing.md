@@ -32,17 +32,12 @@ Thanks for your interest in contributing to OpenPRA! This page summarizes the co
 - Tests: add/adjust minimal unit/integration tests for behavioral changes.
 - Docs: update the unified docs site when public behavior changes.
 
-## Docs and coverage (informational)
+## Docs
 
 - Build docs locally:
   ```bash
   pnpm nx run docs-md:site:build --no-cloud
   ```
-- Coverage report (TypeScript symbol/param/return):
-  ```bash
-  pnpm nx run docs-md:site:coverage --no-cloud
-  ```
-  The CI publishes a non-blocking summary and annotations; thresholds can be enforced later.
 
 ## Dev Container
 

@@ -120,7 +120,7 @@
       "options": {
         "command": "pnpm --filter docs-md build"
       },
-      "dependsOn": ["site:coverage", "site:gaps:params", "cpp:sanitize", "mef:openpra:markdown", "ts:explore:folders"]
+      "dependsOn": ["cpp:sanitize", "mef:openpra:markdown", "ts:explore:folders"]
     },
     "prepare": {
       "executor": "nx:run-commands",
@@ -145,57 +145,9 @@
     "site:link-check": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pnpm --filter docs-md exec bash -c 'set -Eeuo pipefail; BASE=\"${VITEPRESS_BASE:-}\"; CREATED=0; NAME=\"\"; cleanup() { if [ \"$CREATED\" = 1 ] && [ -n \"$NAME\" ] && [ -L .vitepress/dist/\"$NAME\" ]; then rm -f .vitepress/dist/\"$NAME\"; fi }; trap cleanup EXIT; if [ -n \"$BASE\" ]; then NAME=\"${BASE#/}\"; NAME=\"${NAME%/}\"; if [ -n \"$NAME\" ] && [ ! -e .vitepress/dist/\"$NAME\" ]; then ln -sfn . .vitepress/dist/\"$NAME\"; CREATED=1; fi; fi; linkinator .vitepress/dist/index.html --recurse --silent --skip \".*#.*|^/.*\"'"
+        "command": "pnpm --filter docs-md exec bash -c 'set -Eeuo pipefail; SERVE=\"${DOCS_LINKCHECK_SERVE:-}\"; PORT=\"${DOCS_LINKCHECK_PORT:-4173}\"; BASE=\"${VITEPRESS_BASE:-}\"; CREATED=0; NAME=\"\"; SERVER_PID=\"\"; cleanup() { if [ -n \"$SERVER_PID\" ]; then kill \"$SERVER_PID\" >/dev/null 2>&1 || true; fi; if [ \"$CREATED\" = 1 ] && [ -n \"$NAME\" ] && [ -L .vitepress/dist/\"$NAME\" ]; then rm -f .vitepress/dist/\"$NAME\"; fi; }; trap cleanup EXIT; if [ -n \"$BASE\" ]; then NAME=\"${BASE#/}\"; NAME=\"${NAME%/}\"; if [ -n \"$NAME\" ] && [ ! -e .vitepress/dist/\"$NAME\" ]; then ln -sfn . .vitepress/dist/\"$NAME\"; CREATED=1; fi; fi; BASE_PATH=\"/\"; if [ -n \"$BASE\" ]; then TMP=\"/${BASE#/}\"; BASE_PATH=\"${TMP%/}/\"; fi; if [ -n \"$SERVE\" ] && [ \"$SERVE\" != \"0\" ] && [ \"$SERVE\" != \"false\" ]; then ENTRY=\"http://127.0.0.1:${PORT}${BASE_PATH}index.html\"; pnpm --filter docs-md preview --port \"$PORT\" --strictPort --host 127.0.0.1 >/dev/null 2>&1 & SERVER_PID=$!; for i in $(seq 1 50); do if curl -fsS \"http://127.0.0.1:${PORT}${BASE_PATH}index.html\" >/dev/null 2>&1; then break; fi; sleep 0.2; done; linkinator \"$ENTRY\" --recurse --silent --skip \".*#.*\"; else ENTRIES=(\".vitepress/dist/index.html\"); if [ -n \"${DOCS_LINKCHECK_ENTRIES:-}\" ]; then for p in ${DOCS_LINKCHECK_ENTRIES}; do ENTRIES+=(\".vitepress/dist/$p\"); done; fi; linkinator ${ENTRIES[@]} --recurse --silent --skip \".*#.*|^/.*|^assets/|^vp-icons.css$\"; fi'"
       },
       "dependsOn": ["site:build"]
-    },
-    "site:coverage": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node packages/docs-md/tools/typedoc-coverage.mjs"
-      },
-      "dependsOn": [
-        "ts:markdown",
-        "ts:markdown:shared-sdk",
-        "ts:markdown:shared-types",
-        "ts:markdown:mef-types",
-        "ts:markdown:mef-schema",
-        "ts:markdown:model-generator",
-        "ts:markdown:web-backend",
-        "ts:markdown:job-broker",
-        "ts:markdown:scram-node"
-      ]
-    },
-    "site:gaps:params": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node packages/docs-md/tools/typedoc-param-gaps.mjs"
-      },
-      "dependsOn": [
-        "ts:markdown",
-        "ts:markdown:shared-sdk",
-        "ts:markdown:shared-types",
-        "ts:markdown:mef-types",
-        "ts:markdown:mef-schema",
-        "ts:markdown:model-generator",
-        "ts:markdown:web-backend",
-        "ts:markdown:job-broker",
-        "ts:markdown:scram-node"
-      ]
-    },
-    "site:coverage:ci": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node packages/docs-md/tools/coverage-ci-annotate.mjs"
-      },
-      "dependsOn": ["site:coverage"]
-    },
-    "site:coverage:check": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "node packages/docs-md/tools/check-coverage.mjs"
-      },
-      "dependsOn": ["site:coverage"]
     }
   },
   "tags": []

@@ -1,4 +1,7 @@
 import { defineConfig } from "vitepress";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Allow setting a custom base path for GitHub Pages deployments
 // Example: VITEPRESS_BASE="/openpra-monorepo/"
@@ -24,14 +27,25 @@ export default defineConfig({
   // Keep internal reports out of the published site
   // These artifacts are still generated under packages/docs-md/api/* for local inspection and CI,
   // but should not be emitted as public pages.
-  srcExclude: ["api/ts/coverage.md", "api/ts/gaps-params.md", "api/cpp-doxybook2/coverage.md"],
+  srcExclude: [
+    "api/ts/coverage.md",
+    "api/ts/gaps-params.md",
+    "api/cpp-doxybook2/coverage.md",
+    // Exclude legacy path now replaced by /stack/
+    "stack-overview/**",
+  ],
   ignoreDeadLinks: true,
+  // Disable raw HTML in Markdown globally to prevent Vue from parsing
+  // generated C++ docs that may contain angle-bracket syntax that looks
+  // like HTML. Authored pages can still use Vue-in-Markdown (<script setup>)
+  // because that support is handled at the SFC compile stage, not via
+  // markdown-it raw HTML.
   markdown: {
-    // Disable raw HTML in Markdown to avoid Vue compile errors from generated docs
     config: (md) => {
       md.set({ html: false });
     },
   },
+  // Enable Vue-in-Markdown features (e.g., <script setup>) for authored pages
   themeConfig: {
     // Feature flags (build-time)
     // Enable an additional "Explore source" section per TS package
@@ -42,12 +56,12 @@ export default defineConfig({
     exploreEnabled: explorerEnabled,
     nav: [
       {
-        text: "Stack Overview",
+        text: "Stack",
         items: [
-          { text: "Overview", link: "/stack-overview/index.html" },
-          { text: "Frontend", link: "/stack-overview/frontend-overview.html" },
-          { text: "Backend", link: "/stack-overview/backend-overview.html" },
-          { text: "Engine", link: "/stack-overview/engine-overview.html" },
+          { text: "Overview", link: "/stack/index.html" },
+          { text: "Frontend", link: "/stack/frontend-overview.html" },
+          { text: "Backend", link: "/stack/backend-overview.html" },
+          { text: "Engine", link: "/stack/engine-overview.html" },
         ],
       },
       {
@@ -85,15 +99,15 @@ export default defineConfig({
       },
     ],
     sidebar: {
-      "/stack-overview/": [
+      "/stack/": [
         {
-          text: "Stack Overview",
+          text: "Stack",
           items: [
-            { text: "Overview", link: "/stack-overview/index.html" },
-            { text: "MEF Technical Elements", link: "/stack-overview/mef-technical-elements.html" },
-            { text: "Frontend", link: "/stack-overview/frontend-overview.html" },
-            { text: "Backend", link: "/stack-overview/backend-overview.html" },
-            { text: "Engine", link: "/stack-overview/engine-overview.html" },
+            { text: "Overview", link: "/stack/index.html" },
+            { text: "MEF Technical Elements", link: "/stack/mef-technical-elements.html" },
+            { text: "Frontend", link: "/stack/frontend-overview.html" },
+            { text: "Backend", link: "/stack/backend-overview.html" },
+            { text: "Engine", link: "/stack/engine-overview.html" },
           ],
         },
       ],
@@ -235,5 +249,67 @@ export default defineConfig({
   },
   vite: {
     server: { host: true },
+    plugins: [
+      // Pre-render version tokens on Stack pages so we can keep markdown.html=false safely
+      {
+        name: "inject-stack-versions",
+        enforce: "pre",
+        transform(code, id) {
+          if (!id.endsWith(".md")) return null;
+          const idPosix = id.replace(/\\/g, "/");
+          if (!/\/stack\/(frontend-overview|backend-overview|engine-overview)\.md$/.test(idPosix)) {
+            return null;
+          }
+
+          // Resolve repo root relative to this config file
+          const __dirname = path.dirname(fileURLToPath(import.meta.url));
+          const repoRoot = path.resolve(__dirname, "../../..");
+          const readJson = (p: string) => JSON.parse(fs.readFileSync(p, "utf-8"));
+
+          // Common: root package
+          const rootPkgPath = path.resolve(repoRoot, "package.json");
+          const rootPkg = fs.existsSync(rootPkgPath) ? readJson(rootPkgPath) : {};
+
+          // Prepare replacements per page
+          const replacements: Record<string, string> = {};
+          if (idPosix.endsWith("/stack/frontend-overview.md")) {
+            const fePkgPath = path.resolve(repoRoot, "packages/frontend/web-editor/package.json");
+            const fePkg = fs.existsSync(fePkgPath) ? readJson(fePkgPath) : {};
+            replacements["react"] = fePkg?.dependencies?.react ?? "N/A";
+            replacements["typescript"] =
+              rootPkg?.devDependencies?.typescript ?? fePkg?.devDependencies?.typescript ?? "N/A";
+            replacements["eui"] = fePkg?.dependencies?.["@elastic/eui"] ?? "N/A";
+            replacements["reactRouter"] = fePkg?.dependencies?.["react-router-dom"] ?? "N/A";
+            replacements["swr"] = fePkg?.dependencies?.swr ?? "N/A";
+            replacements["nxVersion"] = rootPkg?.devDependencies?.nx ?? "N/A";
+          } else if (idPosix.endsWith("/stack/backend-overview.md")) {
+            const bePkgPath = path.resolve(repoRoot, "packages/web-backend/package.json");
+            const bePkg = fs.existsSync(bePkgPath) ? readJson(bePkgPath) : {};
+            replacements["nest"] =
+              bePkg?.dependencies?.["@nestjs/core"] ?? bePkg?.dependencies?.["@nestjs/common"] ?? "N/A";
+            replacements["mongoose"] = bePkg?.dependencies?.mongoose ?? "N/A";
+            replacements["typescript"] = rootPkg?.devDependencies?.typescript ?? "N/A";
+            replacements["nxVersion"] = rootPkg?.devDependencies?.nx ?? "N/A";
+          } else if (idPosix.endsWith("/stack/engine-overview.md")) {
+            const enPkgPath = path.resolve(repoRoot, "packages/engine/scram-node/package.json");
+            const enPkg = fs.existsSync(enPkgPath) ? readJson(enPkgPath) : {};
+            replacements["cmakeJs"] = enPkg?.dependencies?.["cmake-js"] ?? "N/A";
+            replacements["nodeAddonApi"] = enPkg?.dependencies?.["node-addon-api"] ?? "N/A";
+            replacements["nxVersion"] = rootPkg?.devDependencies?.nx ?? "N/A";
+          }
+
+          // Remove any <script setup> blocks (they're not allowed when markdown.html=false)
+          let next = code.replace(/<script\s+setup>[^]*?<\/script>\s*/g, "");
+
+          // Replace Vue moustache tokens with static values
+          for (const [key, val] of Object.entries(replacements)) {
+            const re = new RegExp(String.raw`\{\{\s*${key}\s*\}\}`, "g");
+            next = next.replace(re, String(val));
+          }
+
+          return { code: next, map: null };
+        },
+      },
+    ],
   },
 });

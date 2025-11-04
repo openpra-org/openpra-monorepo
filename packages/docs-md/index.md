@@ -1,26 +1,31 @@
 # OpenPRA Documentation
 
-Unified documentation for the OpenPRA monorepo, rendered with VitePress.
+Unified documentation for the OpenPRA monorepo.
 
 - Overviews
-  - Frontend Overview: frontend-overview.html
-  - Backend Overview: backend-overview.html
-  - Engine Overview: engine-overview.html
-  - MEF Technical Elements (Schemas): api/mef/openpra-mef/index.html
-  - Stack Overview: stack-overview/index.html
+  - [Stack](/stack/index.html)
+  - [Frontend Overview](/stack/frontend-overview.html)
+  - [Backend Overview](/stack/backend-overview.html)
+  - [Engine Overview](/stack/engine-overview.html)
+  - [MEF Technical Elements (Schemas)](/stack/mef-technical-elements.html)
 
-- Docs Coverage
-  - TypeScript snapshot: api/ts/coverage.html
-  - C++ snapshot: api/cpp-doxybook2/coverage.html
+- Guides
+  - [Dev Container](/guides/dev-container.html)
+  - [Building](/guides/building.html)
+  - [Testing](/guides/testing.html)
+  - [Contributing](/guides/contributing.html)
 
 - TypeScript API
-  - Web Editor: api/ts/web-editor/README.html
-  - Shared SDK: api/ts/shared-sdk/README.html
-  - Shared Types: api/ts/shared-types/README.html
-  - MEF Types: api/ts/mef-types/README.html
-  - MEF Schema: api/ts/mef-schema/README.html
-  - Model Generator: api/ts/model-generator/README.html
-  - Web Backend (NestJS): api/ts/web-backend/README.html
-  - Job Broker (microservice): api/ts/job-broker/README.html
+  - [Web Editor](/api/ts/web-editor/README.html)
+  - [Shared SDK](/api/ts/shared-sdk/README.html)
+  - [Shared Types](/api/ts/shared-types/README.html)
+  - [MEF Types](/api/ts/mef-types/README.html)
+  - [MEF Schema](/api/ts/mef-schema/README.html)
+  - [Model Generator](/api/ts/model-generator/README.html)
+  - [Web Backend (NestJS)](/api/ts/web-backend/README.html)
+  - [Job Broker (microservice)](/api/ts/job-broker/README.html)
+
 - C++ API
-  - Engine scram-node (Classes): api/cpp-doxybook2/index_classes.html
+  - [Files](/api/cpp-doxybook2/index_files.html)
+  - [Classes](/api/cpp-doxybook2/index_classes.html)
+  - [Namespaces](/api/cpp-doxybook2/index_namespaces.html)

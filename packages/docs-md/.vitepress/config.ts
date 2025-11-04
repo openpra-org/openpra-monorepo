@@ -54,6 +54,10 @@ export default defineConfig({
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore Node-style env at build time
     exploreEnabled: explorerEnabled,
+    // Built-in local search (no external services required)
+    search: {
+      provider: "local",
+    },
     nav: [
       {
         text: "Stack",

@@ -24,7 +24,7 @@ export default defineConfig({
   description: "Unified docs for OpenPRA (TypeScript + C++)",
   srcDir: ".",
   outDir: ".vitepress/dist",
-  head: [["link", { rel: "icon", type: "image/png", href: "openpra-logo.png" }]],
+  head: [["link", { rel: "icon", type: "image/png", href: "/openpra-logo.png" }]],
   // Keep internal reports out of the published site
   // These artifacts are still generated under packages/docs-md/api/* for local inspection and CI,
   // but should not be emitted as public pages.
@@ -54,6 +54,12 @@ export default defineConfig({
     logo: { src: "/openpra-logo.png", alt: "OpenPRA" },
     // Social links (GitHub repo)
     socialLinks: [{ icon: "github", link: "https://github.com/openpra-org/openpra-monorepo" }],
+    // Footer
+    footer: {
+      message:
+        'Released under the <a href="https://github.com/openpra-org/openpra-monorepo/blob/main/LICENSE">MIT License</a>.',
+      copyright: 'Copyright © 2019-present <a href="https://openpra.org">OpenPRA ORG Inc.</a>',
+    },
     // Feature flags (build-time)
     // Enable an additional "Explore source" section per TS package
     // to navigate by top-level src/ folders.

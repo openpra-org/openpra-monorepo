@@ -22,6 +22,6 @@ the monorepo and is not published.
 
 Notes
 
-- The `openpra-mef/technical-elements` subtree includes spec-heavy types and
-  doc generation scripts. It is excluded from strict lint rules to cut noise.
+- The `src/lib/` subtree contains the MEF technical elements (spec-heavy types)
+  and is excluded from strict TSDoc lint rules to reduce noise.
 - This package is private and intended for internal consumption only.

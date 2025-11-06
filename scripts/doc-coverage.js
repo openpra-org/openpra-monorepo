@@ -14,7 +14,7 @@ const PACKAGES = [
   { name: "microservice-job-broker", roots: ["packages/microservice/job-broker/src"] },
   { name: "web-backend", roots: ["packages/web-backend/src"] },
   // Optional: mef technical elements (large) – include limited path to avoid noise
-  { name: "mef-technical-elements", roots: ["packages/mef-types/src/openpra-mef/technical-elements"] },
+  { name: "mef-technical-elements", roots: ["packages/mef-types/src/lib"] },
   // Frontend: focus coverage on utils/hooks/state to avoid UI-heavy areas
   {
     name: "frontend-web-editor",

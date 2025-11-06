@@ -44,7 +44,11 @@ function copyAndSanitize(src, dest) {
   // Skip legacy identifier module paths that we no longer document
   const rel = path.relative(srcDir, src);
   const relParts = rel.split(path.sep);
+  // Skip legacy subtrees we no longer document
   if (relParts.length >= 2 && relParts[0] === 'openpra-mef' && relParts[1] === 'identifier') {
+    return;
+  }
+  if (relParts.length >= 2 && relParts[0] === 'openpra-mef' && relParts[1] === 'technical-elements') {
     return;
   }
   if (stat.isDirectory()) {

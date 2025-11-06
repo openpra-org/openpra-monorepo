@@ -71,18 +71,9 @@ if [ -f packages/web-backend/typedoc.json ]; then
   cp -R packages/web-backend/docs/* "$DIST_DIR/web-backend/" || true
 fi
 
-# mef-technical-elements (standalone npm project)
-MEF_TE_DIR="packages/mef-types/src/openpra-mef/technical-elements"
-if [ -f "$MEF_TE_DIR/typedoc.json" ]; then
-  echo "[docs] Building mef-technical-elements"
-  pushd "$MEF_TE_DIR" >/dev/null
-  npm install --legacy-peer-deps
-  npm run docs
-  popd >/dev/null
-  rm -rf "$DIST_DIR/mef-technical-elements"
-  mkdir -p "$DIST_DIR/mef-technical-elements"
-  cp -R "$MEF_TE_DIR/docs"/* "$DIST_DIR/mef-technical-elements/" || true
-fi
+# mef-technical-elements
+# Legacy standalone subtree has been retired. Technical elements now live under
+# packages/mef-types/src/lib and are documented via the unified docs pipeline.
 
 # 2) Build C++ docs via Doxygen
 if [ -f packages/engine/scram-node/Doxyfile ]; then
@@ -129,7 +120,6 @@ cat > "$DIST_DIR/index.html" <<'HTML'
     <li><a href="./microservice-job-broker/">job-broker API</a></li>
   <li><a href="./frontend-web-editor/">frontend-web-editor (utils & hooks)</a></li>
     <li><a href="./web-backend/">web-backend API</a></li>
-    <li><a href="./mef-technical-elements/">MEF Technical Elements</a></li>
     <li><a href="./scram-node/">C++ Engine (scram-node)</a></li>
     <li><a href="./scram-node-napi/">scram-node N-API (TypeScript)</a></li>
   </ul>

@@ -33,6 +33,8 @@ export default defineConfig({
     "api/cpp-doxybook2/coverage.md",
     // Exclude legacy path now replaced by /stack/
     "stack-overview/**",
+    // Exclude deprecated MEF technical elements landing page
+    "stack/mef-technical-elements.md",
   ],
   ignoreDeadLinks: true,
   // Disable raw HTML in Markdown globally to prevent Vue from parsing
@@ -115,7 +117,7 @@ export default defineConfig({
           text: "Stack",
           items: [
             { text: "Overview", link: "/stack/index.html" },
-            { text: "MEF Technical Elements", link: "/stack/mef-technical-elements.html" },
+            { text: "MEF Element Docs", link: "/stack/mef-elements/index.html" },
             { text: "Frontend", link: "/stack/frontend-overview.html" },
             { text: "Backend", link: "/stack/backend-overview.html" },
             { text: "Engine", link: "/stack/engine-overview.html" },

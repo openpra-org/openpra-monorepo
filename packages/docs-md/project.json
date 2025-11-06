@@ -35,6 +35,12 @@
         "command": "node packages/docs-md/tools/generate-mef-openpra-md.mjs"
       }
     },
+    "mef:elements:copy-docs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/docs-md/tools/copy-mef-element-docs.mjs"
+      }
+    },
     "ts:explore:folders": {
       "executor": "nx:run-commands",
       "options": {
@@ -113,7 +119,7 @@
       "options": {
         "command": "pnpm --filter docs-md build"
       },
-      "dependsOn": ["cpp:sanitize", "mef:openpra:markdown", "ts:explore:folders"]
+      "dependsOn": ["cpp:sanitize", "mef:openpra:markdown", "mef:elements:copy-docs", "ts:explore:folders"]
     },
     "prepare": {
       "executor": "nx:run-commands",
@@ -126,6 +132,7 @@
         "ts:markdown:shared-types",
         "ts:markdown:mef-types",
         "mef:openpra:markdown",
+        "mef:elements:copy-docs",
         "ts:explore:folders",
         "ts:markdown:model-generator",
         "ts:markdown:web-backend",

@@ -7,7 +7,6 @@ Unified documentation for the OpenPRA monorepo.
   - [Frontend Overview](/stack/frontend-overview.html)
   - [Backend Overview](/stack/backend-overview.html)
   - [Engine Overview](/stack/engine-overview.html)
-  - [MEF Technical Elements (Schemas)](/stack/mef-technical-elements.html)
 
 - Guides
   - [Dev Container](/guides/dev-container.html)

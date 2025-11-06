@@ -112,7 +112,7 @@
       "options": {
         "command": "pnpm --filter docs-md dev"
       },
-      "dependsOn": []
+      "dependsOn": ["mef:elements:copy-docs"]
     },
     "site:build": {
       "executor": "nx:run-commands",

@@ -12,7 +12,7 @@ import path from 'node:path';
 
 const ROOT = process.cwd();
 const SRC_ROOT = path.join(ROOT, 'packages/mef-types/src/lib');
-const OUT_ROOT = path.join(ROOT, 'packages/docs-md/stack/mef-elements');
+const OUT_ROOT = path.join(ROOT, 'packages/docs-md/mef-elements');
 
 /** Return true if p is a directory. */
 function isDir(p) {
@@ -81,6 +81,20 @@ function main() {
       collected.push({ name: file, outRel: `./${encodeHref(`${entry}/${file}`)}` });
     }
 
+    // Create a canonical index.md per element for stable URLs (/mef-elements/<slug>/index.html)
+    // Heuristic to pick a primary file: README.md > *Documentation*.md > first .md
+    const lc = (s) => s.toLowerCase();
+    const primary =
+      collected.find((f) => lc(f.name) === "readme.md")?.name ||
+      collected.find((f) => /documentation/i.test(f.name))?.name ||
+      (collected[0] && collected[0].name);
+    if (primary) {
+      const primarySrc = path.join(outDir, primary);
+      const primaryContent = fs.readFileSync(primarySrc, "utf-8");
+      // Write content verbatim to index.md so sidebar can target a canonical page
+      fs.writeFileSync(path.join(outDir, "index.md"), primaryContent);
+    }
+
     catalog.push({ element: entry, title: toTitleCase(entry), files: collected });
   }
 
@@ -88,20 +102,40 @@ function main() {
   const lines = [
     '# MEF Technical Element Docs',
     '',
-    'Authored documentation for each technical element copied from `mef-types/src/lib/*`.',
-    '',
-    '> Links are relative so deployments under a base path work without changes.',
+    'Authored documentation for each technical element',
     '',
   ];
 
-  // Stable sort by element name
-  catalog.sort((a, b) => a.element.localeCompare(b.element));
-  for (const entry of catalog) {
+  // Custom preferred ordering for technical elements (remaining will follow alphabetically):
+  const preferredOrder = [
+    'plant-operating-states-analysis',
+    'initiating-event-analysis',
+    'event-sequence-analysis',
+    'success-criteria',
+    'systems-analysis',
+    'data-analysis',
+    'event-sequence-quantification',
+    'mechanistic-source-term',
+    'radiological-consequence-analysis',
+    'risk-integration',
+  ];
+
+  const catalogMap = new Map(catalog.map(c => [c.element, c]));
+  const ordered = [];
+  for (const key of preferredOrder) {
+    const found = catalogMap.get(key);
+    if (found) ordered.push(found);
+  }
+  // Append any remaining elements not explicitly ordered
+  const remaining = catalog.filter(c => !preferredOrder.includes(c.element));
+  remaining.sort((a, b) => a.element.localeCompare(b.element));
+  ordered.push(...remaining);
+
+  for (const entry of ordered) {
     lines.push(`## ${entry.title}`);
     lines.push('');
-    for (const f of entry.files) {
-      lines.push(`- [${f.name}](${f.outRel.replace(/\.md$/i, '.html')})`);
-    }
+    // Link to the canonical element page (index.html) using a relative path so base paths work
+    lines.push(`- [Open ${entry.title}](${encodeHref(`./${entry.element}/index.html`)})`);
     lines.push('');
   }
 

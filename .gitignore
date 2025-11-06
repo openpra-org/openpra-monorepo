@@ -85,7 +85,7 @@ lerna-debug.log*
 /packages/docs-md/packages/**/api/
 
 # Ignore generated MEF element copies (built from mef-types during docs prepare)
-/packages/docs-md/stack/mef-elements/
+/packages/docs-md/mef-elements/
 
 # Editor/cache artifacts
 .eslintcache

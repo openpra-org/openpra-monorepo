@@ -2,11 +2,11 @@
 
 Unified documentation for the OpenPRA monorepo.
 
-- Overviews
+- Stack
   - [Stack](/stack/index.html)
-  - [Frontend Overview](/stack/frontend-overview.html)
-  - [Backend Overview](/stack/backend-overview.html)
-  - [Engine Overview](/stack/engine-overview.html)
+  - [Frontend](/stack/frontend-overview.html)
+  - [Backend](/stack/backend-overview.html)
+  - [Engine](/stack/engine-overview.html)
 
 - Guides
   - [Dev Container](/guides/dev-container.html)

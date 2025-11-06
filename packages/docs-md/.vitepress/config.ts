@@ -62,6 +62,10 @@ export default defineConfig({
     },
     nav: [
       {
+        text: "MEF Technical Elements",
+        link: "/mef-elements/index.html",
+      },
+      {
         text: "Stack",
         items: [
           { text: "Overview", link: "/stack/index.html" },
@@ -117,11 +121,47 @@ export default defineConfig({
           text: "Stack",
           items: [
             { text: "Overview", link: "/stack/index.html" },
-            { text: "MEF Element Docs", link: "/stack/mef-elements/index.html" },
             { text: "Frontend", link: "/stack/frontend-overview.html" },
             { text: "Backend", link: "/stack/backend-overview.html" },
             { text: "Engine", link: "/stack/engine-overview.html" },
           ],
+        },
+      ],
+      "/mef-elements/": [
+        {
+          text: "MEF Technical Elements",
+          items: (() => {
+            // Build sidebar items in the requested order by scanning generated docs
+            const __dirname = path.dirname(fileURLToPath(import.meta.url));
+            const repoRoot = path.resolve(__dirname, "../../..");
+            const mefRoot = path.resolve(repoRoot, "packages/docs-md/mef-elements");
+            const order: Array<{ slug: string; text: string }> = [
+              { slug: "plant-operating-states-analysis", text: "Plant Operating States Analysis" },
+              { slug: "initiating-event-analysis", text: "Initiating Event Analysis" },
+              { slug: "event-sequence-analysis", text: "Event Sequence Analysis" },
+              { slug: "success-criteria", text: "Success Criteria" },
+              { slug: "systems-analysis", text: "Systems Analysis" },
+              { slug: "data-analysis", text: "Data Analysis" },
+              { slug: "event-sequence-quantification", text: "Event Sequence Quantification" },
+              { slug: "mechanistic-source-term", text: "Mechanistic Source Term Analysis" },
+              { slug: "radiological-consequence-analysis", text: "Radiological Consequence Analysis" },
+              { slug: "risk-integration", text: "Risk Integration" },
+            ];
+            const encodeSeg = (s: string) => encodeURIComponent(s);
+            const items: Array<{ text: string; link: string }> = [];
+            for (const { slug, text } of order) {
+              const dir = path.resolve(mefRoot, slug);
+              if (!fs.existsSync(dir)) continue;
+              // Always link to the canonical per-element index.html we generate
+              const link = `/mef-elements/${encodeSeg(slug)}/index.html`;
+              items.push({ text, link });
+            }
+            // Fallback: link to index if nothing found
+            if (items.length === 0) {
+              items.push({ text: "Index", link: "/mef-elements/index.html" });
+            }
+            return items;
+          })(),
         },
       ],
       "/guides/": [

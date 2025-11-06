@@ -24,6 +24,7 @@ export default defineConfig({
   description: "Unified docs for OpenPRA (TypeScript + C++)",
   srcDir: ".",
   outDir: ".vitepress/dist",
+  head: [["link", { rel: "icon", type: "image/png", href: "/openpra-logo.png" }]],
   // Keep internal reports out of the published site
   // These artifacts are still generated under packages/docs-md/api/* for local inspection and CI,
   // but should not be emitted as public pages.
@@ -49,6 +50,8 @@ export default defineConfig({
   },
   // Enable Vue-in-Markdown features (e.g., <script setup>) for authored pages
   themeConfig: {
+    // Navbar logo
+    logo: { src: "/openpra-logo.png", alt: "OpenPRA" },
     // Feature flags (build-time)
     // Enable an additional "Explore source" section per TS package
     // to navigate by top-level src/ folders.

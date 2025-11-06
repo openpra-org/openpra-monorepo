@@ -135,7 +135,7 @@ function main() {
     lines.push(`## ${entry.title}`);
     lines.push('');
     // Link to the canonical element page (index.html) using a relative path so base paths work
-    lines.push(`- [Open ${entry.title}](${encodeHref(`./${entry.element}/index.html`)})`);
+    lines.push(`- [See ${entry.title}](${encodeHref(`./${entry.element}/index.html`)})`);
     lines.push('');
   }
 

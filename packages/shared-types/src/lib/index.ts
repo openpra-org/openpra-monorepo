@@ -32,3 +32,9 @@ export * from "./types/userInvites/InvitedUser";
 export * from "./types/roles/RoleSchemaDto";
 export * from "./types/AuthToken";
 // Note: openpra-mef types have moved to the separate mef-types package
+
+// OpenPRA quantification and execution DTOs (moved from mef-types)
+export type { CommandLineOptions, QuantifyRequest, QuantifyRequest1, QuantifyRequest2 } from "./utils/quantify-request";
+export type { QuantifyReport, BinaryQuantifyReport } from "./utils/quantify-report";
+export type { ExecutionTask } from "./utils/execution-task";
+export type { ExecutionResult } from "./utils/execution-result";

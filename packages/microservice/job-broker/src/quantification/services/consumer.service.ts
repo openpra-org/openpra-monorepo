@@ -8,7 +8,7 @@ import tmp from "tmp";
 import typia, { TypeGuardError } from "typia";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
-import type { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
+import type { QuantifyRequest } from "shared-types";
 
 import { EnvVarKeys } from "../../../config/env_vars.config";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";

@@ -1,5 +1,5 @@
 import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Post } from "@nestjs/common";
-import type { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
+import type { QuantifyRequest } from "shared-types";
 import { ProducerService } from "../services/producer.service";
 import { QuantificationJobReport } from "../../middleware/schemas/quantification-job.schema";
 import { StorageService } from "../services/storage.service";

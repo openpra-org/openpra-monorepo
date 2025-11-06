@@ -1,5 +1,5 @@
 import { AbilityBuilder, createMongoAbility, MongoAbility, RawRuleOf } from "@casl/ability";
-import { Role } from "mef-types/openpra-mef/role/role-type";
+import type { PermissionDto as Role } from "shared-types";
 import { GetAllRoles } from "shared-sdk/lib/api/roles/rolesApi";
 
 type Actions = "create" | "read" | "update" | "delete" | "manage";

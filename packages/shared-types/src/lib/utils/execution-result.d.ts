@@ -1,5 +1,3 @@
-import typia from "typia";
-
 export interface ExecutionResult {
   _id?: string;
   /**
@@ -11,4 +9,3 @@ export interface ExecutionResult {
   stderr: string;
   stdout: string;
 }
-export const ExecutionResultSchema = typia.json.schemas<[ExecutionResult]>();

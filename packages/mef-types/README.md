@@ -1,11 +1,27 @@
 # mef-types
 
-This library was generated with [Nx](https://nx.dev).
+Type-only MEF contracts and light utilities extracted from `shared-types`.
 
-## Building
+This package provides the MEF technical element type definitions and a few
+runtime-light helpers. It is primarily consumed via TypeScript path aliases in
+the monorepo and is not published.
 
-Run `nx build mef-types` to build the library.
+## Usage
 
-## Running unit tests
+- Prefer type-only imports to avoid runtime resolution of declaration files:
 
-Run `nx test mef-types` to execute the unit tests via [Jest](https://jestjs.io).
+  import type { Role, QuantifyRequest, ExecutionTask } from "mef-types";
+
+- Deep imports remain supported for advanced areas (e.g., technical elements),
+  but use the top-level barrel when possible for common contracts.
+
+## Build and lint
+
+- Build: nx build mef-types
+- Lint: nx lint mef-types or pnpm --filter mef-types run lint:canary
+
+Notes
+
+- The `openpra-mef/technical-elements` subtree includes spec-heavy types and
+  doc generation scripts. It is excluded from strict lint rules to cut noise.
+- This package is private and intended for internal consumption only.

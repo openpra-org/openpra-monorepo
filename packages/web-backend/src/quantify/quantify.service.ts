@@ -5,9 +5,9 @@ import { tmpdir } from "os";
 import { spawn } from "child_process";
 
 import { Injectable } from "@nestjs/common";
-import type { CommandLineOptions } from "mef-types/openpra-mef/util/quantify-request";
-import type { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
-import type { BinaryQuantifyReport } from "mef-types/openpra-mef/util/quantify-report";
+import type { CommandLineOptions } from "shared-types";
+import type { QuantifyRequest } from "shared-types";
+import type { BinaryQuantifyReport } from "shared-types";
 
 /**
  * Service for executing external solver quantification flows (e.g., SCRAM).

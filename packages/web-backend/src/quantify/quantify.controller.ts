@@ -1,7 +1,7 @@
 import { Controller, Post, Body } from "@nestjs/common";
-import type { QuantifyReport } from "mef-types/openpra-mef/util/quantify-report";
+import type { QuantifyReport } from "shared-types";
 import { QuantifyService } from "./quantify.service";
-import type { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
+import type { QuantifyRequest } from "shared-types";
 
 /**
  * Controller for quantification endpoints.

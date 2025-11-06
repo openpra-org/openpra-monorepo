@@ -1,4 +1,4 @@
-import { QuantifyRequest } from "./quantify-request";
+import type { QuantifyRequest } from "./quantify-request";
 
 /**
  * Schema for the quantification report

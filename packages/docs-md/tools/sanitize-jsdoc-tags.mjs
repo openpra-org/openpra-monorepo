@@ -41,6 +41,12 @@ function transformJsdoc(content) {
 
 function copyAndSanitize(src, dest) {
   const stat = fs.statSync(src);
+  // Skip legacy identifier module paths that we no longer document
+  const rel = path.relative(srcDir, src);
+  const relParts = rel.split(path.sep);
+  if (relParts.length >= 2 && relParts[0] === 'openpra-mef' && relParts[1] === 'identifier') {
+    return;
+  }
   if (stat.isDirectory()) {
     // Skip any nested node_modules directories inside source tree
     if (path.basename(src) === 'node_modules') {
@@ -65,6 +71,10 @@ function copyAndSanitize(src, dest) {
 }
 
 function main() {
+  // Clean output directory to avoid stale files when sources are removed
+  if (fs.existsSync(outDir)) {
+    fs.rmSync(outDir, { recursive: true, force: true });
+  }
   ensureDirSync(outDir);
   copyAndSanitize(srcDir, outDir);
   console.log(`[sanitize-jsdoc] Sanitized mef-types into ${outDir}`);

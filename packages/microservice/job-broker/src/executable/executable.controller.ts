@@ -1,5 +1,5 @@
 import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Post } from "@nestjs/common";
-import type { ExecutionTask } from "mef-types/openpra-mef/util/execution-task";
+import type { ExecutionTask } from "shared-types";
 import { ExecutableJobReport } from "../middleware/schemas/executable-job.schema";
 import { ExecutableService } from "./services/executable.service";
 import { ExecutableStorageService } from "./services/executable-storage.service";

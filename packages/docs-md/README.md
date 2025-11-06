@@ -13,7 +13,6 @@ This package builds the unified Markdown documentation for the monorepo:
   - `api/ts/shared-sdk` — runtime SDK
   - `api/ts/shared-types` — domain types and DTOs
   - `api/ts/mef-types` — MEF technical element types
-  - `api/ts/mef-schema` — generated MEF JSON schema typings
   - `api/ts/model-generator` — model generator utilities
   - `api/ts/web-backend` — NestJS backend (entry/main)
   - `api/ts/job-broker` — job-broker microservice (entry/main)
@@ -40,7 +39,6 @@ Recommended (faster dev loop):
        - `nx run docs-md:ts:markdown:shared-sdk --no-cloud`
        - `nx run docs-md:ts:markdown:shared-types --no-cloud`
        - `nx run docs-md:ts:markdown:mef-types --no-cloud`
-       - `nx run docs-md:ts:markdown:mef-schema --no-cloud`
        - `nx run docs-md:ts:markdown:model-generator --no-cloud`
        - `nx run docs-md:ts:markdown:web-backend --no-cloud`
        - `nx run docs-md:ts:markdown:job-broker --no-cloud`
@@ -88,7 +86,6 @@ TypeScript
 - shared-sdk: `src/index.ts` (aggregated)
 - shared-types: `src/index.ts` (aggregated)
 - mef-types: `src/index.ts` (aggregated)
-- mef-schema: `src/index.ts` (aggregated)
 - model-generator: `src/index.ts` (aggregated)
 - web-backend: `src/main.ts` (entrypoint)
 - job-broker: `src/main.ts` (entrypoint)

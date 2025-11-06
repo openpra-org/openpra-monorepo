@@ -16,7 +16,6 @@ const TS_ALLOWED_FOLDERS = new Set([
   'shared-sdk',
   'shared-types',
   'mef-types',
-  'mef-schema',
   'model-generator',
   'web-backend',
   'job-broker',

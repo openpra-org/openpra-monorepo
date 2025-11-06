@@ -469,35 +469,7 @@ job("Monorepo CI") {
         }
       }
 
-      host("mef-schema:build") {
-        shellScript {
-          interpreter = "/bin/bash"
-          content = """
-                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
-                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run mef-schema:build
-                        """
-        }
-      }
-
-      host("mef-schema:test") {
-        shellScript {
-          interpreter = "/bin/bash"
-          content = """
-                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
-                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run mef-schema:test
-                        """
-        }
-      }
-
-      host("mef-schema:lint") {
-        shellScript {
-          interpreter = "/bin/bash"
-          content = """
-                      docker pull "$remote:ci-{{ run:number }}-{{ branchSlug }}"
-                      docker run --rm "$remote:ci-{{ run:number }}-{{ branchSlug }}" nx run mef-schema:lint
-                        """
-        }
-      }
+      
 
       host("microservice-job-broker:build") {
         shellScript {

@@ -26,7 +26,7 @@ These namespaces organize the domain:
 
 - [Technical elements index](../api/mef/openpra-mef/index.html)
 - [MEF Types (TypeDoc)](../api/ts/mef-types/README.html)
-- [MEF Schema typings (TypeDoc)](../api/ts/mef-schema/README.html)
+<!-- The MEF Schema typings docs may be optional or removed. Omit direct link to avoid dead links. -->
 
 ## Notes
 

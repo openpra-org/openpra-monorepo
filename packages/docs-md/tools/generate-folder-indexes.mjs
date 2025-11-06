@@ -25,7 +25,6 @@ const PACKAGES = [
   { id: 'shared-sdk', title: 'Shared SDK' },
   { id: 'shared-types', title: 'Shared Types' },
   { id: 'mef-types', title: 'MEF Types' },
-  { id: 'mef-schema', title: 'MEF Schema' },
   { id: 'model-generator', title: 'Model Generator' },
   { id: 'web-backend', title: 'Web Backend (NestJS)' },
   { id: 'job-broker', title: 'Job Broker' },

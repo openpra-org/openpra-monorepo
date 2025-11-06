@@ -84,7 +84,14 @@ export default defineConfig({
           { text: "Shared SDK", link: "/api/ts/shared-sdk/README.html" },
           { text: "Shared Types", link: "/api/ts/shared-types/README.html" },
           { text: "MEF Types", link: "/api/ts/mef-types/README.html" },
-          { text: "MEF Schema", link: "/api/ts/mef-schema/README.html" },
+          // Conditionally include MEF Schema nav entry if docs exist
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore Node env
+          ...((
+            fs.existsSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../api/ts/mef-schema/README.md"))
+          ) ?
+            [{ text: "MEF Schema", link: "/api/ts/mef-schema/README.html" }]
+          : []),
           { text: "Model Generator", link: "/api/ts/model-generator/README.html" },
           { text: "Engine scram-node (TS)", link: "/api/ts/scram-node/README.html" },
           { text: "Web Backend (NestJS)", link: "/api/ts/web-backend/README.html" },
@@ -181,18 +188,23 @@ export default defineConfig({
           items: [{ text: "Index", link: "/api/mef/openpra-mef/index.html" }],
         },
       ],
-      "/api/ts/mef-schema/": [
+      // Only add MEF Schema sidebar if its docs are present
+      ...(fs.existsSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../api/ts/mef-schema/README.md")) ?
         {
-          text: "MEF Schema",
-          items: [
-            { text: "Index", link: "/api/ts/mef-schema/README.html" },
-            { text: "Modules", link: "/api/ts/mef-schema/modules.html" },
-            ...(explorerEnabled ?
-              [{ text: "Explore src/ (by folder)", link: "/api/ts/mef-schema/_explore/index.html" }]
-            : []),
+          "/api/ts/mef-schema/": [
+            {
+              text: "MEF Schema",
+              items: [
+                { text: "Index", link: "/api/ts/mef-schema/README.html" },
+                { text: "Modules", link: "/api/ts/mef-schema/modules.html" },
+                ...(explorerEnabled ?
+                  [{ text: "Explore src/ (by folder)", link: "/api/ts/mef-schema/_explore/index.html" }]
+                : []),
+              ],
+            },
           ],
-        },
-      ],
+        }
+      : {}),
       "/api/ts/model-generator/": [
         {
           text: "Model Generator",

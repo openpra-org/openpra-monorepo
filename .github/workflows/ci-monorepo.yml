@@ -27,7 +27,6 @@ jobs:
           - shared-sdk
           - model-generator
           - engine-scram-node
-          - mef-schema
           - mef-types
           - microservice-job-broker
     steps:

@@ -5,7 +5,7 @@
  * - Keeps content minimal and base-path agnostic (relative links in content)
  * - Idempotent: safe to run multiple times.
  */
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 
 const ROOT = process.cwd();
@@ -14,6 +14,7 @@ const OUT_FILE = join(OUT_DIR, 'index.md');
 
 function main() {
   mkdirSync(OUT_DIR, { recursive: true });
+  const hasSchemaTypings = existsSync(join(ROOT, 'packages/docs-md/api/ts/mef-schema/README.md'));
   const md = [
     '# MEF Technical Elements',
     '',
@@ -21,7 +22,7 @@ function main() {
     '',
     'Resources',
     '',
-    '- TypeScript MEF schema typings: ../../ts/mef-schema/README.html',
+    ...(hasSchemaTypings ? ['- TypeScript MEF schema typings: ../../ts/mef-schema/README.html'] : []),
     '- TypeScript MEF technical element types: ../../ts/mef-types/README.html',
     '',
     'Notes',

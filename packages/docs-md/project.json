@@ -45,7 +45,6 @@
         "ts:markdown:shared-sdk",
         "ts:markdown:shared-types",
         "ts:markdown:mef-types",
-        "ts:markdown:mef-schema",
         "ts:markdown:model-generator",
         "ts:markdown:web-backend",
         "ts:markdown:job-broker",
@@ -56,12 +55,6 @@
       "executor": "nx:run-commands",
       "options": {
         "command": "node packages/docs-md/tools/sanitize-jsdoc-tags.mjs"
-      }
-    },
-    "ts:markdown:mef-schema": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/mef-schema --json api/ts/mef-schema/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --tsconfig ../../packages/mef-schema/tsconfig.lib.json --options typedoc.base.json --skipErrorChecking --entryPointStrategy expand ../../packages/mef-schema/src"
       }
     },
     "ts:markdown:model-generator": {
@@ -134,7 +127,6 @@
         "ts:markdown:mef-types",
         "mef:openpra:markdown",
         "ts:explore:folders",
-        "ts:markdown:mef-schema",
         "ts:markdown:model-generator",
         "ts:markdown:web-backend",
         "ts:markdown:job-broker",

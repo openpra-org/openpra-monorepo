@@ -26,6 +26,8 @@ export default defineConfig({
   outDir: ".vitepress/dist",
   // Show "Last Updated" timestamps pulled from git commit times
   lastUpdated: true,
+  // Force automatic appearance (follow system preference, disable manual toggle)
+  appearance: "force-auto",
   // Use base-aware path so favicon works under non-root deployments too
   head: [["link", { rel: "icon", type: "image/png", href: `${base}openpra-logo.png` }]],
   // Keep internal reports out of the published site

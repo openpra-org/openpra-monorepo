@@ -22,7 +22,7 @@ hero:
 features:
   - title: MEF Technical Elements
     details: Explore structured PRA documentation for MEF elements with canonical URLs and ordered navigation.
-  - title: TypeScript Stack
+  - title: TypeScript-based Stack
     details: Microservices, Backend, Web Editor, Shared SDK, Shared Types.
   - title: C++ SCRAM Engine
     details: Main system that performs risk analyses through Boolean evaluations.

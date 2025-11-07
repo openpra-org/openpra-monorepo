@@ -24,6 +24,7 @@ export default defineConfig({
   description: "Unified docs for OpenPRA (TypeScript + C++)",
   srcDir: ".",
   outDir: ".vitepress/dist",
+  // Use base-aware path so favicon works under non-root deployments too
   head: [["link", { rel: "icon", type: "image/png", href: `${base}openpra-logo.png` }]],
   // Keep internal reports out of the published site
   // These artifacts are still generated under packages/docs-md/api/* for local inspection and CI,

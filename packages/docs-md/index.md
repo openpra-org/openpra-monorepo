@@ -1,29 +1,35 @@
-# OpenPRA Documentation
+---
+layout: home
+title: OpenPRA Documentation
+hero:
+  name: OpenPRA
+  text: Open Way for PRA
+  tagline: Model Exchange Format (MEF) Technical Elements
+  image:
+    src: /openpra-logo-large.png
+    alt: OpenPRA
+  actions:
+    - theme: brand
+      text: What is OpenPRA?
+      link: /stack/index.html
+    - theme: alt
+      text: MEF Technical Elements
+      link: /mef-elements/index.html
+    - theme: alt
+      text: Quickstart
+      link: /guides/dev-container.html
 
-Unified documentation for the OpenPRA monorepo.
-
-- Stack
-  - [Stack](/stack/index.html)
-  - [Frontend](/stack/frontend-overview.html)
-  - [Backend](/stack/backend-overview.html)
-  - [Engine](/stack/engine-overview.html)
-
-- Guides
-  - [Dev Container](/guides/dev-container.html)
-  - [Building](/guides/building.html)
-  - [Testing](/guides/testing.html)
-  - [Contributing](/guides/contributing.html)
-
-- TypeScript API
-  - [Web Editor](/api/ts/web-editor/README.html)
-  - [Shared SDK](/api/ts/shared-sdk/README.html)
-  - [Shared Types](/api/ts/shared-types/README.html)
-  - [MEF Types](/api/ts/mef-types/README.html)
-  - [Model Generator](/api/ts/model-generator/README.html)
-  - [Web Backend (NestJS)](/api/ts/web-backend/README.html)
-  - [Job Broker (microservice)](/api/ts/job-broker/README.html)
-
-- C++ API
-  - [Files](/api/cpp-doxybook2/index_files.html)
-  - [Classes](/api/cpp-doxybook2/index_classes.html)
-  - [Namespaces](/api/cpp-doxybook2/index_namespaces.html)
+features:
+  - title: MEF Technical Elements
+    details: Explore structured PRA documentation for MEF elements with canonical URLs and ordered navigation.
+  - title: TypeScript Stack
+    details: Microservices, Backend, Web Editor, Shared SDK, Shared Types.
+  - title: C++ SCRAM Engine
+    details: Main system that performs risk analyses through Boolean evaluations.
+  - title: Unified, Nx-driven
+    details: Nx orchestrates builds, sanitization, and link checks.
+  - title: Verified-by-default
+    details: Schema-based generated documentation for each technical element.
+  - title: Dev-friendly
+    details: Local search, dev container, and explore-by-folder indexes.
+---

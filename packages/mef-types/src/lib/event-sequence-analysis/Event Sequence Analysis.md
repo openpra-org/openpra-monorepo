@@ -1,4 +1,4 @@
-# Event Sequence Analysis Documentation:
+# Demonstrating Regulatory Compliance in the Event Sequence Analysis Schema
 
 ## Table of Contents
 

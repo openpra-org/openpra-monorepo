@@ -1,4 +1,4 @@
-# Risk Integration Documentation Traceability Analysis
+# Documentation Demonstrating Regulatory Compliance in the Risk Integration Schema
 
 ## Table of Contents
 

@@ -1,4 +1,4 @@
-# Event Sequence Quantification Schema Documentation
+# Demonstrating Regulatory Compliance in the Event Sequence Quantification Schema
 
 ## Table of Contents
 

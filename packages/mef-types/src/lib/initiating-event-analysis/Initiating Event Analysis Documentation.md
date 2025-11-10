@@ -1,4 +1,4 @@
-# Demonstrating Regulatory Compliance in the Initiating Event Analysis Schema
+# Documentation Demonstrating Regulatory Compliance in the Initiating Event Analysis Schema
 
 ## Table of Contents
 

@@ -1,4 +1,4 @@
-# Radiological Consequence Analysis Schema Documentation
+# Documentation Demonstrating Regulatory Compliance in the Radiological Consequence Analysis Schema
 
 ## Table of Contents
 

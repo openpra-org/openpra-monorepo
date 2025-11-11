@@ -98,7 +98,7 @@ See inline examples in `risk-integration.ts` for criteria, evaluations, and inte
 ## Additional Resources
 
 - Source: [risk-integration.ts](./risk-integration.ts)
-- Regulatory documentation: [Risk Integration Documentation](./Risk%20Integration%20Documentation.md)
+- Regulatory documentation: [Risk Integration Documentation](./risk-integration-documentation.md)
 - Integration patterns: [integration-readme.md](./integration-readme.md)
 
 ## Glossary (Selected)

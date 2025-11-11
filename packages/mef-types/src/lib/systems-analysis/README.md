@@ -121,7 +121,7 @@ See the schema source: [`systems-analysis.ts`](./systems-analysis.ts).
 
 ## Additional Resources
 
-- Detailed documentation: [Systems Analysis Documentation](./Systems%20Analysis%20Documentation.md)
+- Detailed documentation: [Systems Analysis Documentation](./systems-analysis-documentation.md)
 - Schema source: [systems-analysis.ts](./systems-analysis.ts)
 - Related READMEs: POS, Initiating Event, Event Sequence, Success Criteria
 

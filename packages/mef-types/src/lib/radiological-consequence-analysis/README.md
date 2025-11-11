@@ -117,7 +117,7 @@ See the inline examples in `radiological-consequence-analysis.ts` for meteorolog
 ## Additional Resources
 
 - Source: [radiological-consequence-analysis.ts](./radiological-consequence-analysis.ts)
-- Regulatory documentation: [Radiological Consequence Analysis Documentation](./Radiological%20Consequence%20Analysis%20Documentation.md)
+- Regulatory documentation: [Radiological Consequence Analysis Documentation](./radiological-consequence-analysis-documentation.md)
 - Related: [Mechanistic Source Term](../mechanistic-source-term/README.md), [Event Sequence Quantification](../event-sequence-quantification/README.md)
 
 ## Glossary (Selected)

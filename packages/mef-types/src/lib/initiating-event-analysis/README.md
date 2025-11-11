@@ -133,10 +133,10 @@ The Initiating Event (IE) Analysis technical element defines, classifies, groups
 
 ## Additional Resources
 
-- [Initiating Event Analysis Detailed Documentation](./Initiating%20Event%20Analysis%20Documentation.md)
+- [Initiating Event Analysis Detailed Documentation](./initiating-event-analysis-documentation.md)
 - Schema Types: `initiating-event-analysis.ts`
-- Plant Operating State Linkage: `../plant-operating-states-analysis/Plant Operating States Analysis Documentation.md`
-- Data Foundations: `../data-analysis/Data Analysis Documentation.md`
+- Plant Operating State Linkage: [Plant Operating States Analysis Documentation](../plant-operating-states-analysis/plant-operating-states-analysis-documentation.md)
+- Data Foundations: [Data Analysis Documentation](../data-analysis/data-analysis-documentation.md)
 
 ## Future Enhancements
 

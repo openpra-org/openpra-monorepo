@@ -77,7 +77,7 @@ The Data Analysis technical element serves as a fundamental building block in th
 - **Initiating Event Analysis**: Provides frequency parameters for initiating events
 - **Event Sequence Quantification**: Supplies probability parameters and uncertainty information
 
-For a visual representation of these relationships, see the [Technical Elements Dependencies section](./Data%20Analysis%20Documentation.md#technical-elements-dependencies) in the detailed documentation.
+For a visual representation of these relationships, see the [Technical Elements Dependencies section](./data-analysis-documentation.md#technical-elements-dependencies) in the detailed documentation.
 
 ## Best Practices
 
@@ -133,7 +133,7 @@ When working with the Data Analysis technical element, consider the following be
 
 This technical element is designed to comply with regulatory requirements for data analysis documentation. The implementation ensures complete traceability of the data analysis process, as mandated by regulatory standards.
 
-For a detailed mapping of regulatory requirements to schema implementation, see the [Requirements Coverage Matrix](./Data%20Analysis%20Documentation.md#requirements-coverage-matrix) in the detailed documentation.
+For a detailed mapping of regulatory requirements to schema implementation, see the [Requirements Coverage Matrix](./data-analysis-documentation.md#requirements-coverage-matrix) in the detailed documentation.
 
 ## Usage
 
@@ -147,5 +147,5 @@ The Data Analysis technical element is used to:
 
 ## Additional Resources
 
-- Detailed documentation: [Data Analysis Documentation](./Data%20Analysis%20Documentation.md)
+- Detailed documentation: [Data Analysis Documentation](./data-analysis-documentation.md)
 - Source: [data-analysis.ts](./data-analysis.ts)

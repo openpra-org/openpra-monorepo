@@ -126,7 +126,7 @@ See the schema source for full definitions: [`success-criteria-development.ts`](
 
 ## Additional Resources
 
-- Detailed documentation: [Success Criteria Development Documentation](./Success%20Criteria%20Development.md)
+- Detailed documentation: [Success Criteria Development Documentation](./success-criteria-development-documentation.md)
 - Schema source: [success-criteria-development.ts](./success-criteria-development.ts)
 - Related: Event Sequence [README](../event-sequence-analysis/README.md), POS [README](../plant-operating-states-analysis/README.md)
 

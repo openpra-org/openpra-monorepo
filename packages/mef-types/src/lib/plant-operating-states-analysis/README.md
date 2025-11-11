@@ -145,9 +145,9 @@ Typical workflow:
 
 ## Additional Resources
 
-- [Plant Operating States Analysis Documentation](./Plant Operating States Analysis Documentation.md)
+- [Plant Operating States Analysis Documentation](./plant-operating-states-analysis-documentation.md)
 - [plant-operating-states-analysis.ts](./plant-operating-states-analysis.ts)
-- Data Analysis linkage: See [Data Analysis Documentation](../data-analysis/Data%20Analysis%20Documentation.md) for operating state data justification references.
+- Data Analysis linkage: See [Data Analysis Documentation](../data-analysis/data-analysis-documentation.md) for operating state data justification references.
 
 ## Future Enhancements (Optional)
 

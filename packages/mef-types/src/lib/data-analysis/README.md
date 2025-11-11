@@ -147,5 +147,5 @@ The Data Analysis technical element is used to:
 
 ## Additional Resources
 
-- [Data Analysis Documentation](./Data%20Analysis%20Documentation.md): Comprehensive documentation of schema support for regulatory requirements
-- [data-analysis.ts](./data-analysis.ts): TypeScript schema implementation with interfaces and types
+- Detailed documentation: [Data Analysis Documentation](./Data%20Analysis%20Documentation.md)
+- Source: [data-analysis.ts](./data-analysis.ts)

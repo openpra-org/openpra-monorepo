@@ -114,9 +114,9 @@ See `example` content within `MechanisticSourceTermAnalysisSchema` usage in `mec
 
 ## Additional Resources
 
-- Source: `./mechanistic-source-term.ts`
-- Regulatory documentation: `./Mechanistic Source Term Documentation.md`
-- Related: `../event-sequence-quantification/README.md`, `../event-sequence-analysis/README.md`
+- Source: [mechanistic-source-term.ts](./mechanistic-source-term.ts)
+- Regulatory documentation: [Mechanistic Source Term Documentation](./Mechanistic%20Source%20Term%20Documentation.md)
+- Related: [Event Sequence Quantification](../event-sequence-quantification/README.md), [Event Sequence Analysis](../event-sequence-analysis/README.md)
 
 ## Glossary (Selected)
 

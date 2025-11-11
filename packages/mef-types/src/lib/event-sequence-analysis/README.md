@@ -152,6 +152,7 @@ It bridges Initiating Event Analysis, Success Criteria, Systems, Human Reliabili
 
 - [Event Sequence Analysis Source](./event-sequence-analysis.ts)
 - Example: [Event Tree Example](./event-tree-example.ts)
+- Detailed documentation: [Event Sequence Analysis Documentation](./Event%20Sequence%20Analysis.md)
 - POS Interaction: See `../plant-operating-states-analysis/README.md`
 - Initiating Events: See `../initiating-event-analysis/README.md`
 - Success Criteria Integration: (future module reference)

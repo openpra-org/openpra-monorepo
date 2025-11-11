@@ -131,10 +131,10 @@ See `example-event-sequence-quantification.ts` for a complete, EBR‑II‑styled
 
 ## Additional Resources
 
-- Source: `./event-sequence-quantification.ts`
-- Regulatory documentation: `./Event Sequence Quantification.md`
-- References/types for downstream consumers: `./references.ts`
-- Related: `../event-sequence-analysis/README.md`, `../systems-analysis/README.md`, `../shared-types` where applicable
+- Source: [event-sequence-quantification.ts](./event-sequence-quantification.ts)
+- Regulatory documentation: [Event Sequence Quantification Documentation](./Event%20Sequence%20Quantification.md)
+- References/types for downstream consumers: [references.ts](./references.ts)
+- Related: [Event Sequence Analysis](../event-sequence-analysis/README.md), [Systems Analysis](../systems-analysis/README.md), `../shared-types` where applicable
 
 ## Glossary (Selected)
 

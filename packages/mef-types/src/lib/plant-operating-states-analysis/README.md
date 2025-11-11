@@ -1,5 +1,7 @@
 # Plant Operating States Analysis Technical Element Module
 
+<!-- docs-trigger: workflow validation commit -->
+
 ## Overview
 
 The Plant Operating States Analysis (POS) technical element defines, documents, and validates the discrete operating states and transitions of a non-light-water reactor (NLWR) consistent with Regulatory Guide (RG) 1.247 expectations. It provides the structural basis for mapping initiating events, safety functions, success criteria, and risk-significant contributors across the full plant operating cycle. POS delineation is foundational: all other PRA technical elements (initiating events, success criteria, systems, data, event sequence analysis, source term, consequence analysis, and risk integration) depend on accurate, mutually exclusive, and collectively exhaustive plant operating states.

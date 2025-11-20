@@ -1,6 +1,6 @@
 import { BasicEventSchema } from "shared-types/src/openpra-mef/basic-event";
-import { PointEstimate } from "shared-types/src/openpra-mef/data/point-estimate"; // Equivalent to Probability import
 import { Event } from "./Event";
+import { PointEstimate } from "./PointEstimate";
 
 export class BasicEvent extends Event implements BasicEventSchema {
   private __probability: PointEstimate; // Private attribute like Python's __probability
@@ -24,6 +24,7 @@ export class BasicEvent extends Event implements BasicEventSchema {
   }
 
   toAralia(printer: (line: string) => void): void {
-    throw new Error("Not implemented"); // Equivalent to Python's NotImplementedError
+    printer(`${this.name} `);
+    this.__probability.toAralia(printer);
   }
 }

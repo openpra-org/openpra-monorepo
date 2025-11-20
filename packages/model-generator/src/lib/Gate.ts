@@ -28,20 +28,14 @@ export class Gate extends Event implements GateSchema {
     typecode?: TypeCodeSchema,
     uuid?: UUIDSchema,
     kNum?: number,
-    gArguments?: Gate[],
-    bArguments?: BasicEvent[],
-    hArguments?: HouseEvent[],
-    uArguments?: Event[],
   ) {
     super(name);
-    this.typecode = typecode;
-    this.uuid = uuid;
     this.operator = operator;
     this.kNum = kNum;
-    this._gArguments = new Set<Gate>(gArguments);
-    this._bArguments = new Set<BasicEvent>(bArguments);
-    this._hArguments = new Set<HouseEvent>(hArguments);
-    this._uArguments = new Set<Event>(uArguments);
+    this._gArguments = new Set<Gate>();
+    this._bArguments = new Set<BasicEvent>();
+    this._hArguments = new Set<HouseEvent>();
+    this._uArguments = new Set<Event>();
   }
 
   get bArguments(): BasicEvent[] {
@@ -92,10 +86,14 @@ export class Gate extends Event implements GateSchema {
    *
    * @param argument - Gate, HouseEvent, BasicEvent, or Event argument.
    */
-  addArgument(argument: Gate | Event): void {
+  addArgument(argument: Gate | BasicEvent | HouseEvent | Event): void {
     argument.addParent(this);
     if (argument instanceof Gate) {
       this._gArguments.add(argument);
+    } else if (argument instanceof BasicEvent) {
+      this._bArguments.add(argument);
+    } else if (argument instanceof HouseEvent) {
+      this._hArguments.add(argument);
     } else {
       this._uArguments.add(argument);
     }
@@ -124,47 +122,49 @@ export class Gate extends Event implements GateSchema {
   }
 
 
-  toXml(printer: (line:string) => void, nest: boolean = false): void {
-    const argToXml = (typeStr: string, arg: Event): string => {
-      return `<${typeStr} ref="${arg.name}"/>\n`;
-    };
+  toXml(printer: (line: string) => void, nest: boolean = false): void {
+  const argToXml = (typeStr: string, arg: Event): string => {
+    return `<${typeStr} name="${arg.name}"/>`;  // Changed from "ref" to "name"
+  };
 
-    const argsToXml = (typeStr: string, args: Event[]): string => {
-      return args.map((arg) => argToXml(typeStr, arg)).join('');
-    };
+  const argsToXml = (typeStr: string, args: Event[]): string => {
+    return args.map((arg) => argToXml(typeStr, arg)).join("");  // Remove \n
+  };
 
-    const convertFormula = (gate: Gate, nest: boolean = false): string => {
-      let mefXml = '';
-      mefXml += '<' + gate.operator;
-      if (gate.operator === 'atleast') {
-        mefXml += ` min="${gate.kNum}"`;
+  const convertFormula = (gate: Gate, nest: boolean = false): string => {
+    let mefXml = '';
+    mefXml += '<' + gate.operator;
+    if (gate.operator === 'atleast') {
+      mefXml += ` min="${gate.kNum}"`;
+    }
+    mefXml += '>';
+    
+    mefXml += argsToXml('house-event', gate.hArguments);
+    mefXml += argsToXml('basic-event', gate.bArguments);
+    mefXml += argsToXml('event', gate.uArguments);
+
+    const converter = (argGate: Gate): string => {
+      if (gate.operator !== 'not' && argGate.operator === 'not') {
+        return convertFormula(argGate);
       }
-      mefXml += '>\n';
-      mefXml += argsToXml('house-event', gate.hArguments);
-      mefXml += argsToXml('basic-event', gate.bArguments);
-      mefXml += argsToXml('event', gate.uArguments);
-
-      const converter = (argGate: Gate): string => {
-        if (gate.operator !== 'not' && argGate.operator === 'not') {
-          return convertFormula(argGate);
-        }
-        return argToXml('gate', argGate);
-      };
-
-      if (nest) {
-        mefXml += gate.gArguments.map(converter).join('');
-      } else {
-        mefXml += argsToXml('gate', gate.gArguments);
-      }
-
-      mefXml += '</' + gate.operator + '>';
-
-      return mefXml;
+      return argToXml('gate', argGate);
     };
-    printer(`<define-gate name="${this.name}">`);
-    printer(convertFormula(this, nest));
-    printer(`</define-gate>`);
-  }
+
+    if (nest) {
+      mefXml += gate.gArguments.map(converter).join('');
+    } else {
+      mefXml += argsToXml('gate', gate.gArguments);
+    }
+
+    mefXml += '</' + gate.operator + '>';
+    
+    return mefXml;
+  };
+
+  printer(`<define-gate name="${this.name}">`);
+  printer(convertFormula(this, nest));
+  printer(`</define-gate>`);
+}
 
   /**
    * Produces the Aralia definition of the gate.
@@ -184,8 +184,8 @@ export class Gate extends Event implements GateSchema {
       const formats: { [key: string]: [string, string, string] } = {
         'and': ['(', ' & ', ')'],
         'or': ['(', ' | ', ')'],
-        'not': ['~', '', ''],
-        'xor': ['xor(', ', ', ')'],
+        'not': ['~(', '', ')'],
+        'xor': ['(', ' ^ ', ')'],
         'nor': ['nor(', ', ', ')'],
         'xnor': ['xnor(', ', ', ')'],
         'nand': ['nand(', ', ', ')'],

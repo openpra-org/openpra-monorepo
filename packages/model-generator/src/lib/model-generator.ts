@@ -3,7 +3,9 @@ import { BasicEvent } from "./BasicEvent";
 import { Gate } from "./Gate";  
 import { HouseEvent } from "./HouseEvent";
 import { Factors } from "./Factors";
-import { PointEstimate } from "packages/shared-types/src/openpra-mef/data/point-estimate";
+import { PointEstimate } from "./PointEstimate";
+import { LogNormal } from "./LogNormal";
+import { Probability } from "./Probability";
 
 export class CcfGroup {
   name: string;
@@ -246,3 +248,115 @@ function shuffleArray(array: any[]): void {
     [array[i], array[j]] = [array[j], array[i]];
   }
 }
+
+function correctForExhaustion(gatesQueue: Gate[], commonGate: Gate[], faultTree: GeneratorFaultTree): void {
+  if (gatesQueue.length) return;
+  if (faultTree.basicEvents.size < faultTree.factors.numBasic!) {
+    let randomGate: Gate | undefined;
+    do {
+      randomGate = Array.from(faultTree.gates)[Math.floor(Math.random() * faultTree.gates.size)];
+    } while (!randomGate || randomGate.operator === 'not' || randomGate.operator === 'xor' || commonGate.includes(randomGate));
+    const newGate = faultTree.constructGate();
+    randomGate.addArgument(newGate);
+    gatesQueue.push(newGate);
+  }
+}
+
+function chooseBasicEvent(sCommon: number, commonBasic: BasicEvent[], faultTree: GeneratorFaultTree): BasicEvent {
+  if (sCommon >= faultTree.factors.commonB! || !commonBasic.length) {
+    return faultTree.constructBasicEvent();
+  }
+  const orphans = commonBasic.filter(b => !b.parents.length);
+  if (orphans.length) {
+    return orphans[Math.floor(Math.random() * orphans.length)];
+  }
+  const singleparent = commonBasic.filter(b => b.parents.length === 1);
+  if (singleparent.length) {
+    return singleparent[Math.floor(Math.random() * singleparent.length)];
+  }
+  return commonBasic[Math.floor(Math.random() * commonBasic.length)];
+}
+
+function initGates(gatesQueue: Gate[], commonBasic: BasicEvent[], commonGate: Gate[], faultTree: GeneratorFaultTree): void {
+  const gate = gatesQueue.shift()!;
+  const numArguments = faultTree.factors.getNumArgs(gate);
+  let ancestors: Set<Gate> | null = null;
+  const maxTries = commonGate.length;
+  let numTries = 0;
+  while (gate.numArguments() < numArguments) {
+    const sPercent = Math.random();
+    let sCommon = Math.random();
+    if (faultTree.basicEvents.size === faultTree.factors.numBasic) sCommon = 0;
+    if (sPercent < faultTree.factors.getPercentGate()) {
+      if (sCommon < faultTree.factors.commonG! && numTries < maxTries) {
+        if (!ancestors) {
+        // Cast and filter the ancestor set to only Gate instances before assigning to the ancestors variable.
+          const anc = gate.getAncestors();
+          ancestors = new Set(Array.from(anc).filter((x): x is Gate => x instanceof Gate));
+        }
+        for (const randomGate of candidateGates(commonGate)) {
+          numTries++;
+          if (numTries >= maxTries) break;
+          if (gate.gArguments.includes(randomGate) || randomGate === gate) continue;
+          if (!randomGate.gArguments.length || !ancestors.has(randomGate)) {
+            if (!randomGate.parents.length) gatesQueue.push(randomGate);
+            gate.addArgument(randomGate);
+            break;
+          }
+        }
+      } else {
+        const newGate = faultTree.constructGate();
+        gate.addArgument(newGate);
+        gatesQueue.push(newGate);
+      }
+    } else {
+      gate.addArgument(chooseBasicEvent(sCommon, commonBasic, faultTree));
+    }
+  }
+  correctForExhaustion(gatesQueue, commonGate, faultTree);
+}
+
+function distributionHouseEvents(faultTree: GeneratorFaultTree): void {
+  while (faultTree.houseEvents.size < faultTree.factors.numHouse!) {
+    let targetGate: Gate | null = null;
+    do {
+      targetGate = Array.from(faultTree.gates)[Math.floor(Math.random() * faultTree.gates.size)];
+    } while (targetGate === faultTree.topGate || targetGate.operator === 'not' || targetGate.operator === 'xor');
+    targetGate.addArgument(faultTree.constructHouseEvent());
+  }
+}
+
+function generateCcfGroups(faultTree: GeneratorFaultTree): void {
+  if (faultTree.factors.numCcf) {
+    const members = Array.from(faultTree.basicEvents);
+    shuffleArray(members);
+    let firstMem = 0;
+    while (faultTree.ccfGroups.size < faultTree.factors.numCcf!) {
+      const maxArgs = Math.floor(2 * faultTree.factors.numArgs! - 2);
+      const groupSize = Math.floor(Math.random() * (maxArgs -2 + 1)) + 2;
+      const lastMem = firstMem + groupSize;
+      if (lastMem > members.length) break;
+      faultTree.constructCcfGroup(members.slice(firstMem, lastMem));
+      firstMem = lastMem;
+    }
+    faultTree.nonCcfEvents = new Set(members.slice(firstMem));
+  }
+}
+
+export function generateFaultTree(ftName: string, rootName: string, factors: Factors): GeneratorFaultTree {
+  const faultTree = new GeneratorFaultTree(ftName, factors);
+  faultTree.constructTopGate(rootName);
+  const numGate = factors.getNumGate();
+  const NumCommonBasic = factors.getNumCommonBasic(numGate);
+  const NumCommonGate = factors.getNumCommonGate(numGate);
+  const commonBasic = Array.from({ length: NumCommonBasic }, () => faultTree.constructBasicEvent());
+  const commonGate = Array.from({ length: NumCommonGate }, () => faultTree.constructGate());
+  const gatesQueue: Gate[] = [faultTree.topGate!];
+  while (gatesQueue.length) {
+    initGates(gatesQueue, commonBasic, commonGate, faultTree);
+  }
+  distributionHouseEvents(faultTree);
+  generateCcfGroups(faultTree);
+  return faultTree;
+}
+

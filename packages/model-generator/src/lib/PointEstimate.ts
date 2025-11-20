@@ -1,19 +1,21 @@
 // PointEstimate.ts
-import { PointEstimate as SharedPointEstimate } from "shared-types/src/openpra-mef/data/point-estimate";
 import { Probability } from "./Probability";
 import { FactorError } from "./FactorError";
 
 /**
  * @public PointEstimate
- * @remarks Extended PointEstimate that implements Probability interface with validation.
+ * @remarks PointEstimate class that implements Probability interface with validation.
+ * Compatible with the shared PointEstimate type definition.
  */
-export class PointEstimate extends SharedPointEstimate implements Probability {
+export class PointEstimate implements Probability {
+  value: number;
+
   constructor(value: number) {
-    // Validate before calling super
+    // Validate the value
     if (value <= 0 || value >= 1) {
       throw new FactorError("PointEstimate value must be in (0, 1) range.");
     }
-    super(value);
+    this.value = value;
   }
 
   getValue(): number {

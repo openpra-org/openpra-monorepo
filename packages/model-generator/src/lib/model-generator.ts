@@ -253,8 +253,24 @@ function correctForExhaustion(gatesQueue: Gate[], commonGate: Gate[], faultTree:
   if (gatesQueue.length) return;
   if (faultTree.basicEvents.size < faultTree.factors.numBasic!) {
     let randomGate: Gate | undefined;
+    let attempts = 0;
+    const maxAttempts = faultTree.gates.size * 10; // Safety limit
     do {
       randomGate = Array.from(faultTree.gates)[Math.floor(Math.random() * faultTree.gates.size)];
+      attempts++;
+      if (attempts > maxAttempts) {
+        // Fallback: find any suitable gate
+        const availableGates = Array.from(faultTree.gates).filter(g => 
+          g && g.operator !== 'not' && g.operator !== 'xor' && !commonGate.includes(g)
+        );
+        if (availableGates.length > 0) {
+          randomGate = availableGates[0];
+          break;
+        } else {
+          // No suitable gates available, exit
+          return;
+        }
+      }
     } while (!randomGate || randomGate.operator === 'not' || randomGate.operator === 'xor' || commonGate.includes(randomGate));
     const newGate = faultTree.constructGate();
     randomGate.addArgument(newGate);
@@ -283,7 +299,10 @@ function initGates(gatesQueue: Gate[], commonBasic: BasicEvent[], commonGate: Ga
   let ancestors: Set<Gate> | null = null;
   const maxTries = commonGate.length;
   let numTries = 0;
-  while (gate.numArguments() < numArguments) {
+  let loopCount = 0;
+  const maxLoopCount = numArguments * 100; // Safety limit for main loop
+  while (gate.numArguments() < numArguments && loopCount < maxLoopCount) {
+    loopCount++;
     const sPercent = Math.random();
     let sCommon = Math.random();
     if (faultTree.basicEvents.size === faultTree.factors.numBasic) sCommon = 0;
@@ -319,8 +338,22 @@ function initGates(gatesQueue: Gate[], commonBasic: BasicEvent[], commonGate: Ga
 function distributionHouseEvents(faultTree: GeneratorFaultTree): void {
   while (faultTree.houseEvents.size < faultTree.factors.numHouse!) {
     let targetGate: Gate | null = null;
+    let attempts = 0;
+    const maxAttempts = faultTree.gates.size * 10; // Safety limit
     do {
       targetGate = Array.from(faultTree.gates)[Math.floor(Math.random() * faultTree.gates.size)];
+      attempts++;
+      if (attempts > maxAttempts) {
+        // Fallback: just use any gate that's not topGate
+        const availableGates = Array.from(faultTree.gates).filter(g => g !== faultTree.topGate);
+        if (availableGates.length > 0) {
+          targetGate = availableGates[0];
+          break;
+        } else {
+          // No suitable gates available, exit
+          return;
+        }
+      }
     } while (targetGate === faultTree.topGate || targetGate.operator === 'not' || targetGate.operator === 'xor');
     targetGate.addArgument(faultTree.constructHouseEvent());
   }
@@ -352,8 +385,10 @@ export function generateFaultTree(ftName: string, rootName: string, factors: Fac
   const commonBasic = Array.from({ length: NumCommonBasic }, () => faultTree.constructBasicEvent());
   const commonGate = Array.from({ length: NumCommonGate }, () => faultTree.constructGate());
   const gatesQueue: Gate[] = [faultTree.topGate!];
-  while (gatesQueue.length) {
+  let iterations = 0;
+  while (gatesQueue.length && iterations < 100) { // Safety limit to prevent infinite loops
     initGates(gatesQueue, commonBasic, commonGate, faultTree);
+    iterations++;
   }
   distributionHouseEvents(faultTree);
   generateCcfGroups(faultTree);

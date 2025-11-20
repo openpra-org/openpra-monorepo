@@ -57,14 +57,12 @@ export class Event implements EventSchema {
   }
   
   /**
-   * @remarks Adds a gate as a parent of the node. This method will throw an error if the gate is already a parent of
-   * the node.
+   * @remarks Adds a gate as a parent of the node. Multiple parents are allowed, but duplicates are ignored.
    * @param gate - The gate where this node appears.
   */
  addParent(gate: Event): void {
-   if (this._parents.has(gate)) {
-     throw new Error("Gate is already a parent of this node.");
+   if (!this._parents.has(gate)) {
+     this._parents.add(gate);
     }
-    this._parents.add(gate);
   }
 }

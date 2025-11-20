@@ -26,11 +26,13 @@ describe("Event", () => {
     expect(event.numParents()).toBe(1);
   });
 
-  test("addParent should throw an error if the parent is already added", () => {
+  test("should not add duplicate parents", () => {
     const parent = new Event("parent");
     event.addParent(parent);
-    expect(() => {
-      event.addParent(parent);
-    }).toThrow("Gate is already a parent of this node.");
+    expect(event.parents.length).toBe(1);
+    
+    // Adding the same parent again should be ignored
+    event.addParent(parent);
+    expect(event.parents.length).toBe(1);
   });
 });

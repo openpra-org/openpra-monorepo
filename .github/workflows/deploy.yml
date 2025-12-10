@@ -1,0 +1,310 @@
+name: "Deploy: CD Pipeline"
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.17.0"
+
+      - name: Ensure pnpm available
+        run: npx -y pnpm@10.19.0 --version
+
+      - name: Install dependencies
+        run: npx -y pnpm@10.19.0 install --ignore-scripts --no-frozen-lockfile
+
+      - name: Build server apps
+        run: |
+          npx -y pnpm@10.19.0 nx build web-backend --no-cloud
+          npx -y pnpm@10.19.0 nx build microservice-job-broker --no-cloud
+          npx -y pnpm@10.19.0 nx run frontend-web-editor:build:production --no-cloud
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare tags
+        id: prep
+        run: |
+          REPO_LOWER=$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')
+          echo "repo_lower=$REPO_LOWER" >> $GITHUB_OUTPUT
+          SHORT_SHA=${GITHUB_SHA::7}
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "image_tag=latest" >> $GITHUB_OUTPUT
+
+      - name: Prepare web-backend build context
+        run: |
+          mkdir -p docker-context/web-backend
+          cp -r dist/packages/web-backend/* docker-context/web-backend/
+          cp packages/web-backend/package.json docker-context/web-backend/package.json
+          node -e '
+            const fs=require("fs"); const pth="docker-context/web-backend/package.json";
+            const pkg=JSON.parse(fs.readFileSync(pth,"utf8"));
+            if(pkg.dependencies){ for(const [k,v] of Object.entries({...pkg.dependencies})) if(typeof v==="string" && v.startsWith("workspace:")) delete pkg.dependencies[k]; }
+            if(pkg.devDependencies){ for(const [k,v] of Object.entries({...pkg.devDependencies})) if(typeof v==="string" && v.startsWith("workspace:")) delete pkg.devDependencies[k]; }
+            fs.writeFileSync(pth, JSON.stringify(pkg,null,2));
+          '
+          cat > docker-context/web-backend/Dockerfile <<'EOF'
+          FROM node:20-slim
+          WORKDIR /app
+          RUN corepack enable && corepack prepare pnpm@10.19.0 --activate
+          ENV PNPM_ENABLE_PREPOSTINSTALL_SCRIPTS=true
+          COPY package.json ./
+          RUN pnpm install --prod --no-frozen-lockfile
+          COPY . ./
+          ENV NODE_ENV=production
+          EXPOSE 8000
+          CMD ["node","main.js"]
+          EOF
+
+      - name: Prepare job-broker build context
+        run: |
+          mkdir -p docker-context/job-broker
+          cp -r dist/packages/microservice/job-broker/* docker-context/job-broker/
+          cp packages/microservice/job-broker/package.json docker-context/job-broker/package.json
+          node -e '
+            const fs=require("fs"); const pth="docker-context/job-broker/package.json";
+            const pkg=JSON.parse(fs.readFileSync(pth,"utf8"));
+            if(pkg.dependencies){ for(const [k,v] of Object.entries({...pkg.dependencies})) if(typeof v==="string" && v.startsWith("workspace:")) delete pkg.dependencies[k]; }
+            if(pkg.devDependencies){ for(const [k,v] of Object.entries({...pkg.devDependencies})) if(typeof v==="string" && v.startsWith("workspace:")) delete pkg.devDependencies[k]; }
+            fs.writeFileSync(pth, JSON.stringify(pkg,null,2));
+          '
+          cat > docker-context/job-broker/Dockerfile <<'EOF'
+          FROM node:20-slim
+          WORKDIR /app
+          RUN corepack enable && corepack prepare pnpm@10.19.0 --activate
+          ENV PNPM_ENABLE_PREPOSTINSTALL_SCRIPTS=true
+          COPY package.json ./
+          RUN pnpm install --prod --no-frozen-lockfile
+          COPY . ./
+          ENV NODE_ENV=production
+          EXPOSE 3000
+          CMD ["node","main.js"]
+          EOF
+
+      - name: Prepare frontend build context
+        run: |
+          mkdir -p docker-context/frontend
+          cp -r dist/packages/frontend/web-editor/* docker-context/frontend/
+          cat > docker-context/frontend/nginx-frontend.conf <<'EOF'
+          server {
+            listen 80;
+            server_name _;
+            root /usr/share/nginx/html;
+            index index.html;
+            location / {
+              try_files $uri $uri/ /index.html;
+            }
+            location = /404.html {
+              internal;
+            }
+          }
+          EOF
+          cat > docker-context/frontend/Dockerfile <<'EOF'
+          FROM nginx:1.25-alpine
+          COPY nginx-frontend.conf /etc/nginx/conf.d/default.conf
+          COPY . /usr/share/nginx/html/
+          EXPOSE 80
+          EOF
+
+      - name: Build and push web-backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context/web-backend
+          file: docker-context/web-backend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-web-backend:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-web-backend:${{ steps.prep.outputs.image_tag }}
+
+      - name: Build and push job-broker image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context/job-broker
+          file: docker-context/job-broker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-job-broker:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-job-broker:${{ steps.prep.outputs.image_tag }}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context/frontend
+          file: docker-context/frontend/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.image_tag }}
+
+    outputs:
+      repo_lower: ${{ steps.prep.outputs.repo_lower }}
+      short_sha: ${{ steps.prep.outputs.short_sha }}
+      image_tag: ${{ steps.prep.outputs.image_tag }}
+
+  build-docs:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 20 + pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Ensure pnpm available
+        run: npx -y pnpm@10.19.0 --version
+
+      - name: Install root dependencies
+        run: npx -y pnpm@10.19.0 install --no-frozen-lockfile --ignore-scripts
+
+      - name: Install Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+
+      - name: Install Doxybook2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          curl -sSL -o doxybook2.zip https://github.com/matusnovak/doxybook2/releases/download/v1.5.0/doxybook2-linux-amd64-v1.5.0.zip
+          sudo unzip -o doxybook2.zip -d /usr/local
+          sudo chmod +x /usr/local/bin/doxybook2 || true
+          doxybook2 --version
+
+      - name: Build unified Markdown docs
+        env:
+          NX_NO_CLOUD: "true"
+        run: npx -y pnpm@10.19.0 nx run docs-md:site:build --no-cloud
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-build
+          path: packages/docs-md/.vitepress/dist
+          retention-days: 1
+
+  deploy:
+    needs: [build-and-push, build-docs]
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download docs artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-build
+          path: docs-dist
+
+      - name: Deploy docs to shared volume
+        run: |
+          # Create docs directory if it doesn't exist
+          sudo mkdir -p /data/openpra/shared/docs
+          # Copy docs to shared volume
+          sudo rm -rf /data/openpra/shared/docs/*
+          sudo cp -r docs-dist/* /data/openpra/shared/docs/
+          # Set proper permissions
+          sudo chmod -R 755 /data/openpra/shared/docs
+
+      - name: Create configuration files
+        env:
+          STACK_ENV: ${{ secrets.STACK_ENV }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+        run: |
+          # Validate secrets
+          if [ -z "$STACK_ENV" ]; then
+            echo "::error::STACK_ENV secret is not set"
+            exit 1
+          fi
+          if [ -z "$JWT_SECRET" ]; then
+            echo "::error::JWT_SECRET secret is not set"
+            exit 1
+          fi
+          if [ -z "$CLOUDFLARE_TUNNEL_TOKEN" ]; then
+            echo "::error::CLOUDFLARE_TUNNEL_TOKEN secret is not set"
+            exit 1
+          fi
+
+          # Create .stack.env from secret
+          printf "%s" "$STACK_ENV" > docker/configs/cd.stack.env
+          
+          # Create secrets directory and files
+          mkdir -p docker/secrets
+          printf "%s" "$JWT_SECRET" > docker/secrets/JWT_SECRET
+          printf "%s" "$CLOUDFLARE_TUNNEL_TOKEN" > docker/secrets/CLOUDFLARE_TUNNEL_TOKEN
+
+      - name: Deploy to Swarm
+        env:
+          IMAGE_BACKEND: ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.repo_lower }}/openpra-web-backend:${{ needs.build-and-push.outputs.image_tag }}
+          IMAGE_JOB_BROKER: ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.repo_lower }}/openpra-job-broker:${{ needs.build-and-push.outputs.image_tag }}
+          IMAGE_FRONTEND: ${{ env.REGISTRY }}/${{ needs.build-and-push.outputs.repo_lower }}/openpra-frontend:${{ needs.build-and-push.outputs.image_tag }}
+          HOST_URL: ${{ secrets.HOST_URL }}
+          APP_NAME: openpra
+          CI_BUILD_TYPE: production
+          CI_DEBUG: false
+          NUM_FRONTENDS: 1
+          NUM_BACKENDS: 1
+          NUM_BROKERS: 1
+          NUM_WORKERS: 4
+          DEPLOYMENT_FRONTEND_POOL: node.labels.high_performance == true
+          DEPLOYMENT_BACKEND_POOL: node.labels.high_performance == true
+          DEPLOYMENT_BROKER_POOL: node.labels.high_performance == true
+          DEPLOYMENT_WORKER_POOL: node.labels.high_performance == true
+          ENV_SHARED_VOLUME_PATH: /data/openpra/shared
+        run: |
+          # Deploy Application with Cloudflare Tunnel
+          docker stack deploy --with-registry-auth -c docker/cd-stack.yml openpra
+          
+          # Wait for services to stabilize
+          sleep 10
+          
+          # Verify tunnel is running
+          docker service logs openpra_cloudflared --tail 50 || echo "Cloudflare tunnel logs not available yet"
+          
+          # List all services
+          docker service ls
+          
+          # Cleanup old images
+          docker image prune -f
+
+      - name: Verify deployment
+        run: |
+          echo "Deployment completed successfully"
+          echo "Services status:"
+          docker service ls --filter "label=com.docker.stack.namespace=openpra"

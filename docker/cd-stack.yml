@@ -1,0 +1,248 @@
+networks:
+  db_net:
+    driver: overlay
+    attachable: true
+  svc_net:
+    driver: overlay
+    attachable: true
+  rmq_net:
+    driver: overlay
+    attachable: true
+
+configs:
+  rabbitmq_plugins:
+    file: configs/rabbitmq/enabled_plugins
+  rabbitmq_conf:
+    file: configs/rabbitmq/rabbitmq.conf
+  nestjs_env_vars:
+    file: configs/cd.stack.env
+  nginx_docs_conf:
+    file: configs/nginx-docs.conf
+
+x-base-shared-vols: &volumes-timezone
+  volumes:
+    - "/etc/localtime:/etc/localtime:ro"
+    - "/etc/timezone:/etc/timezone:ro"
+
+x-base-shared-confs: &shared-nestjs_conf
+    configs:
+      - source: nestjs_env_vars
+        target: /data/project/.env
+    <<: *volumes-timezone
+
+x-base-replicated: &shared-replicated
+  mode: replicated
+  update_config:
+    parallelism: 16
+    delay: 1s
+    failure_action: rollback
+    order: stop-first
+    monitor: 120s
+  rollback_config:
+    parallelism: 16
+    delay: 1s
+    failure_action: continue
+    order: stop-first
+    monitor: 120s
+
+x-base-healthcheck: &healthcheck-fragments
+  interval: 10s
+  timeout: 2s
+  retries: 5
+  start_period: 300s
+  start_interval: 2s
+
+secrets:
+  CI_JWT_SECRET:
+    file: secrets/JWT_SECRET
+  CLOUDFLARE_TUNNEL_TOKEN:
+    file: secrets/CLOUDFLARE_TUNNEL_TOKEN
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token-file
+      - /run/secrets/CLOUDFLARE_TUNNEL_TOKEN
+    secrets:
+      - CLOUDFLARE_TUNNEL_TOKEN
+    networks:
+      - svc_net
+      - rmq_net
+      - db_net
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.high_performance == true
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        delay: 5s
+        max_attempts: 3
+
+  frontend:
+    image: ${IMAGE_FRONTEND}
+    <<: *volumes-timezone
+    networks:
+      - svc_net
+    deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_FRONTENDS}
+      placement:
+        max_replicas_per_node: 1
+        constraints:
+          - "${DEPLOYMENT_FRONTEND_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+
+  docs:
+    image: nginx:1.25-alpine
+    configs:
+      - source: nginx_docs_conf
+        target: /etc/nginx/conf.d/default.conf
+    volumes:
+      - "$ENV_SHARED_VOLUME_PATH/docs:/usr/share/nginx/html:ro"
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    networks:
+      - svc_net
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.high_performance == true
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+
+  job-broker:
+    image: ${IMAGE_JOB_BROKER}
+    <<: *shared-nestjs_conf
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
+      <<: *healthcheck-fragments
+    environment:
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    networks:
+      - svc_net
+      - rmq_net
+      - db_net
+    deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_BROKERS}
+      placement:
+        max_replicas_per_node: 1
+        constraints:
+          - "${DEPLOYMENT_BROKER_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+
+  job-worker:
+    image: ${IMAGE_JOB_BROKER}
+    <<: *shared-nestjs_conf
+    environment:
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
+      NODE_OPTIONS: "--max-old-space-size=8192"
+      WORKER_MODE: "true"
+    networks:
+      - rmq_net
+      - db_net
+    deploy:
+      mode: replicated
+      replicas: ${NUM_WORKERS}
+      <<: *shared-replicated
+      placement:
+        max_replicas_per_node: 128
+        constraints:
+          - "${DEPLOYMENT_WORKER_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+
+  backend:
+    image: ${IMAGE_BACKEND}
+    <<: *shared-nestjs_conf
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
+      <<: *healthcheck-fragments
+    networks:
+      - svc_net
+      - db_net
+    secrets:
+      - CI_JWT_SECRET
+    environment:
+      JWT_SECRET_KEY_FILE: /run/secrets/CI_JWT_SECRET
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_BACKENDS}
+      placement:
+        max_replicas_per_node: 1
+        constraints:
+          - "${DEPLOYMENT_BACKEND_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    volumes:
+      - "$ENV_SHARED_VOLUME_PATH/rabbitmq:/var/lib/rabbitmq"
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    networks:
+      - svc_net
+      - rmq_net
+    configs:
+      - source: rabbitmq_plugins
+        target: /etc/rabbitmq/enabled_plugins
+      - source: rabbitmq_conf
+        target: /etc/rabbitmq/rabbitmq.conf
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.high_performance == true
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+
+  mongodb:
+    image: mongo:latest
+    networks:
+      - db_net
+    volumes:
+      - "$ENV_SHARED_VOLUME_PATH/mongodb:/data/db"
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.high_performance == true
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3

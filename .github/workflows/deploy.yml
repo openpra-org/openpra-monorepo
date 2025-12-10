@@ -163,90 +163,8 @@ jobs:
       short_sha: ${{ steps.prep.outputs.short_sha }}
       image_tag: ${{ steps.prep.outputs.image_tag }}
 
-  build-docs:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js 20 + pnpm
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Ensure pnpm available
-        run: npx -y pnpm@10.19.0 --version
-
-      - name: Install root dependencies
-        run: npx -y pnpm@10.19.0 install --no-frozen-lockfile --ignore-scripts
-
-      - name: Install Doxygen
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y doxygen graphviz
-
-      - name: Install Doxybook2
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip
-          curl -sSL -o doxybook2.zip https://github.com/matusnovak/doxybook2/releases/download/v1.5.0/doxybook2-linux-amd64-v1.5.0.zip
-          sudo unzip -o doxybook2.zip -d /usr/local
-          sudo chmod +x /usr/local/bin/doxybook2 || true
-          doxybook2 --version
-
-      - name: Build unified Markdown docs
-        env:
-          NX_NO_CLOUD: "true"
-          VITEPRESS_BASE: "/"
-        run: npx -y pnpm@10.19.0 nx run docs-md:site:build --no-cloud
-
-      - name: Verify build output
-        run: |
-          echo "Checking if build output exists..."
-          ls -la packages/docs-md/.vitepress/ || echo "No .vitepress directory"
-          ls -la packages/docs-md/.vitepress/dist || echo "No dist directory"
-          find packages/docs-md -name "dist" -type d || echo "No dist directories found"
-
-      - name: Clean up invalid artifact paths
-        run: |
-          # Check if dist directory exists before cleanup
-          if [ ! -d "packages/docs-md/.vitepress/dist" ]; then
-            echo "::error::Build output directory does not exist"
-            exit 1
-          fi
-          # Remove or rename files with invalid characters for GitHub artifacts
-          cd packages/docs-md/.vitepress/dist
-          # Remove the specific problematic directory with asterisk in name
-          find . -type d -name '*\*' -exec rm -rf {} + 2>/dev/null || true
-          find . -type f -name '*\*' -delete 2>/dev/null || true
-          # Remove files with other invalid characters
-          find . -type f -name '*:*' -delete 2>/dev/null || true
-          find . -type f -name '*|*' -delete 2>/dev/null || true
-          find . -type f -name '*<*' -delete 2>/dev/null || true
-          find . -type f -name '*>*' -delete 2>/dev/null || true
-          find . -type f -name '*?*' -delete 2>/dev/null || true
-          find . -type f -name '*"*' -delete 2>/dev/null || true
-          echo "Cleaned up files with invalid characters"
-          # Verify no problematic files remain
-          if find . -type f -name '*\*' -o -name '*:*' -o -name '*|*' -o -name '*<*' -o -name '*>*' -o -name '*?*' | grep -q .; then
-            echo "Warning: Some files with invalid characters may still exist"
-            find . -type f -name '*\*' -o -name '*:*' -o -name '*|*' -o -name '*<*' -o -name '*>*' -o -name '*?*' || true
-          fi
-
-      - name: Upload docs artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docs-build
-          path: packages/docs-md/.vitepress/dist
-          retention-days: 1
-
   deploy:
-    needs: [build-and-push, build-docs]
+    needs: [build-and-push]
     runs-on: [self-hosted, monorepo]
     steps:
       - name: Checkout repository
@@ -269,22 +187,6 @@ jobs:
       - name: Log in to GHCR
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | ${{ env.DOCKER_CMD }} login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
-
-      - name: Download docs artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: docs-build
-          path: docs-dist
-
-      - name: Deploy docs to shared volume
-        run: |
-          # Create docs directory if it doesn't exist
-          sudo mkdir -p /data/openpra/shared/docs
-          # Copy docs to shared volume
-          sudo rm -rf /data/openpra/shared/docs/*
-          sudo cp -r docs-dist/* /data/openpra/shared/docs/
-          # Set proper permissions
-          sudo chmod -R 755 /data/openpra/shared/docs
 
       - name: Create configuration files
         env:

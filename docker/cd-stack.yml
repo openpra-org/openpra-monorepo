@@ -196,7 +196,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.labels.high_performance == true
+          - node.labels.high_performance == high
       restart_policy:
         condition: any
         delay: 5s
@@ -215,7 +215,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.labels.high_performance == true
+          - node.labels.high_performance == high
       restart_policy:
         condition: any
         delay: 5s

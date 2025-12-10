@@ -180,7 +180,6 @@ services:
   rabbitmq:
     image: rabbitmq:management-alpine
     volumes:
-      - "$ENV_SHARED_VOLUME_PATH/rabbitmq:/var/lib/rabbitmq"
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
     networks:
@@ -196,7 +195,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.labels.high_performance == high
+          - node.labels.high_performance == true
       restart_policy:
         condition: any
         delay: 5s
@@ -207,7 +206,6 @@ services:
     networks:
       - db_net
     volumes:
-      - "$ENV_SHARED_VOLUME_PATH/mongodb:/data/db"
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
     deploy:
@@ -215,7 +213,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.labels.high_performance == high
+          - node.labels.high_performance == true
       restart_policy:
         condition: any
         delay: 5s

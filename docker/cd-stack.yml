@@ -105,7 +105,7 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
       <<: *healthcheck-fragments
-    command: "nx run --verbose microservice-job-broker:deploy:${CI_BUILD_TYPE}"
+    command: ["nx", "run", "--verbose", "microservice-job-broker:deploy:${CI_BUILD_TYPE}"]
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
@@ -129,7 +129,7 @@ services:
   job-worker:
     image: ${IMAGE_JOB_BROKER}
     <<: *shared-nestjs_conf
-    command: "nx run --verbose microservice-job-broker:deploy-consumer:${CI_BUILD_TYPE}"
+    command: ["nx", "run", "--verbose", "microservice-job-broker:deploy-consumer:${CI_BUILD_TYPE}"]
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
@@ -157,7 +157,7 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
       <<: *healthcheck-fragments
-    command: "nx run --verbose web-backend:deploy:${CI_BUILD_TYPE}"
+    command: ["nx", "run", "--verbose", "web-backend:deploy:${CI_BUILD_TYPE}"]
     networks:
       - svc_net
       - db_net

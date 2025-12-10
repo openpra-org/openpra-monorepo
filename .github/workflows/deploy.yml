@@ -208,16 +208,22 @@ jobs:
         run: |
           # Remove or rename files with invalid characters for GitHub artifacts
           cd packages/docs-md/.vitepress/dist
-          # Find and remove files/directories with asterisks in their names (literal asterisk character)
-          find . -name '*\**' -delete 2>/dev/null || true
-          # Also try targeting the specific problematic path
-          rm -rf ./api/ts/web-editor/assets/fonts/fonts/*.woff 2>/dev/null || true
-          # Remove any other invalid characters
-          find . -name '*:*' -delete 2>/dev/null || true
-          find . -name '*|*' -delete 2>/dev/null || true
-          find . -name '*<*' -delete 2>/dev/null || true
-          find . -name '*>*' -delete 2>/dev/null || true
-          find . -name '*?*' -delete 2>/dev/null || true
+          # Remove the specific problematic directory with asterisk in name
+          find . -type d -name '*\*' -exec rm -rf {} + 2>/dev/null || true
+          find . -type f -name '*\*' -delete 2>/dev/null || true
+          # Remove files with other invalid characters
+          find . -type f -name '*:*' -delete 2>/dev/null || true
+          find . -type f -name '*|*' -delete 2>/dev/null || true
+          find . -type f -name '*<*' -delete 2>/dev/null || true
+          find . -type f -name '*>*' -delete 2>/dev/null || true
+          find . -type f -name '*?*' -delete 2>/dev/null || true
+          find . -type f -name '*"*' -delete 2>/dev/null || true
+          echo "Cleaned up files with invalid characters"
+          # Verify no problematic files remain
+          if find . -type f -name '*\*' -o -name '*:*' -o -name '*|*' -o -name '*<*' -o -name '*>*' -o -name '*?*' | grep -q .; then
+            echo "Warning: Some files with invalid characters may still exist"
+            find . -type f -name '*\*' -o -name '*:*' -o -name '*|*' -o -name '*<*' -o -name '*>*' -o -name '*?*' || true
+          fi
 
       - name: Upload docs artifact
         uses: actions/upload-artifact@v4
@@ -233,12 +239,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Verify Docker availability
+        run: |
+          which docker || echo "Docker not in PATH"
+          docker --version || echo "Docker command failed"
+
       - name: Log in to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
       - name: Download docs artifact
         uses: actions/download-artifact@v4

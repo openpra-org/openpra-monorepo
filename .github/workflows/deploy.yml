@@ -204,8 +204,20 @@ jobs:
           NX_NO_CLOUD: "true"
         run: npx -y pnpm@10.19.0 nx run docs-md:site:build --no-cloud
 
+      - name: Verify build output
+        run: |
+          echo "Checking if build output exists..."
+          ls -la packages/docs-md/.vitepress/ || echo "No .vitepress directory"
+          ls -la packages/docs-md/.vitepress/dist || echo "No dist directory"
+          find packages/docs-md -name "dist" -type d || echo "No dist directories found"
+
       - name: Clean up invalid artifact paths
         run: |
+          # Check if dist directory exists before cleanup
+          if [ ! -d "packages/docs-md/.vitepress/dist" ]; then
+            echo "::error::Build output directory does not exist"
+            exit 1
+          fi
           # Remove or rename files with invalid characters for GitHub artifacts
           cd packages/docs-md/.vitepress/dist
           # Remove the specific problematic directory with asterisk in name

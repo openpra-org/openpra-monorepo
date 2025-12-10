@@ -1,0 +1,174 @@
+networks:
+  svc_net:
+    driver: overlay
+    attachable: true
+  rmq_net:
+    driver: overlay
+    attachable: true
+
+configs:
+  rabbitmq_plugins:
+    file: configs/rabbitmq/enabled_plugins
+  rabbitmq_conf:
+    file: configs/rabbitmq/rabbitmq.conf
+  nestjs_env_vars:
+    file: configs/cd.stack.env
+
+x-base-shared-vols: &volumes-timezone
+  volumes:
+    - "/etc/localtime:/etc/localtime:ro"
+    - "/etc/timezone:/etc/timezone:ro"
+
+x-base-shared-confs: &shared-nestjs_conf
+    configs:
+      - source: nestjs_env_vars
+        target: /data/project/.env
+    <<: *volumes-timezone
+
+x-base-replicated: &shared-replicated
+  mode: replicated
+  update_config:
+    parallelism: 16
+    delay: 1s
+    failure_action: rollback
+    order: stop-first
+    monitor: 120s
+  rollback_config:
+    parallelism: 16
+    delay: 1s
+    failure_action: continue
+    order: stop-first
+    monitor: 120s
+
+x-base-healthcheck: &healthcheck-fragments
+  interval: 10s
+  timeout: 2s
+  retries: 5
+  start_period: 300s
+  start_interval: 2s
+
+secrets:
+  CI_JWT_SECRET:
+    file: secrets/DSF_JWT_SECRET
+  CLOUDFLARE_TUNNEL_TOKEN:
+    file: secrets/CLOUDFLARE_TUNNEL_TOKEN
+
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token-file
+      - /run/secrets/CLOUDFLARE_TUNNEL_TOKEN
+    secrets:
+      - CLOUDFLARE_TUNNEL_TOKEN
+    networks:
+      - svc_net
+      - rmq_net
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.high_performance == true
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+
+  raptor-manager:
+    image: ${IMAGE_BACKEND}
+    <<: *shared-nestjs_conf
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
+      <<: *healthcheck-fragments
+    command: "npm run start:prod:manager"
+    environment:
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    networks:
+      - svc_net
+      - rmq_net
+    deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_BROKERS}
+      placement:
+        max_replicas_per_node: 1
+        constraints:
+          - "${DEPLOYMENT_BROKER_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+  raptor-engine:
+    image: ${IMAGE_BACKEND}
+    <<: *shared-nestjs_conf
+    command: "npm run start:prod:engine"
+    environment:
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    networks:
+      - rmq_net
+    deploy:
+      mode: replicated
+      replicas: ${NUM_WORKERS}
+      <<: *shared-replicated
+      placement:
+        max_replicas_per_node: 128
+        constraints:
+          - "${DEPLOYMENT_WORKER_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+
+  rabbitmq:
+    image: rabbitmq:management-alpine
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    networks:
+      - svc_net
+      - rmq_net
+    configs:
+      - source: rabbitmq_plugins
+        target: /etc/rabbitmq/enabled_plugins
+      - source: rabbitmq_conf
+        target: /etc/rabbitmq/rabbitmq.conf
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.high_performance == true
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    volumes:
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    networks:
+      - svc_net
+      - rmq_net
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints:
+          - node.labels.high_performance == true
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3

@@ -204,6 +204,14 @@ jobs:
           NX_NO_CLOUD: "true"
         run: npx -y pnpm@10.19.0 nx run docs-md:site:build --no-cloud
 
+      - name: Clean up invalid artifact paths
+        run: |
+          # Remove or rename files with invalid characters for GitHub artifacts
+          cd packages/docs-md/.vitepress/dist
+          # Find and remove files/directories with asterisks in their names
+          find . -name '*\**' -type f -delete || true
+          find . -name '*\**' -type d -exec rm -rf {} + || true
+
       - name: Upload docs artifact
         uses: actions/upload-artifact@v4
         with:

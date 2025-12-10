@@ -81,8 +81,6 @@ services:
         condition: any
         delay: 5s
         max_attempts: 3
-        delay: 5s
-        max_attempts: 3
 
   frontend:
     image: ${IMAGE_FRONTEND}

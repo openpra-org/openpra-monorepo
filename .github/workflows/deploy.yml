@@ -202,6 +202,7 @@ jobs:
       - name: Build unified Markdown docs
         env:
           NX_NO_CLOUD: "true"
+          VITEPRESS_BASE: "/"
         run: npx -y pnpm@10.19.0 nx run docs-md:site:build --no-cloud
 
       - name: Verify build output
@@ -253,12 +254,21 @@ jobs:
 
       - name: Verify Docker availability
         run: |
-          which docker || echo "Docker not in PATH"
-          docker --version || echo "Docker command failed"
+          # Check common Docker locations
+          if [ -x "/usr/bin/docker" ]; then
+            echo "DOCKER_CMD=/usr/bin/docker" >> $GITHUB_ENV
+            /usr/bin/docker --version
+          elif [ -x "/usr/local/bin/docker" ]; then
+            echo "DOCKER_CMD=/usr/local/bin/docker" >> $GITHUB_ENV
+            /usr/local/bin/docker --version
+          else
+            echo "::error::Docker not found"
+            exit 1
+          fi
 
       - name: Log in to GHCR
         run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+          echo "${{ secrets.GITHUB_TOKEN }}" | ${{ env.DOCKER_CMD }} login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
 
       - name: Download docs artifact
         uses: actions/download-artifact@v4
@@ -323,23 +333,27 @@ jobs:
           DEPLOYMENT_WORKER_POOL: node.labels.high_performance == true
           ENV_SHARED_VOLUME_PATH: /data/openpra/shared
         run: |
+          # Use absolute Docker path
+          DOCKER="${{ env.DOCKER_CMD }}"
+          
           # Deploy Application with Cloudflare Tunnel
-          docker stack deploy --with-registry-auth -c docker/cd-stack.yml openpra
+          $DOCKER stack deploy --with-registry-auth -c docker/cd-stack.yml openpra
           
           # Wait for services to stabilize
           sleep 10
           
           # Verify tunnel is running
-          docker service logs openpra_cloudflared --tail 50 || echo "Cloudflare tunnel logs not available yet"
+          $DOCKER service logs openpra_cloudflared --tail 50 || echo "Cloudflare tunnel logs not available yet"
           
           # List all services
-          docker service ls
+          $DOCKER service ls
           
           # Cleanup old images
-          docker image prune -f
+          $DOCKER image prune -f
 
       - name: Verify deployment
         run: |
+          DOCKER="${{ env.DOCKER_CMD }}"
           echo "Deployment completed successfully"
           echo "Services status:"
-          docker service ls --filter "label=com.docker.stack.namespace=openpra"
+          $DOCKER service ls --filter "label=com.docker.stack.namespace=openpra"

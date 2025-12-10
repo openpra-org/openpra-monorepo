@@ -247,7 +247,7 @@ jobs:
 
   deploy:
     needs: [build-and-push, build-docs]
-    runs-on: self-hosted
+    runs-on: [self-hosted, monorepo]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

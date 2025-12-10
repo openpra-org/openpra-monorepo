@@ -208,9 +208,16 @@ jobs:
         run: |
           # Remove or rename files with invalid characters for GitHub artifacts
           cd packages/docs-md/.vitepress/dist
-          # Find and remove files/directories with asterisks in their names
-          find . -name '*\**' -type f -delete || true
-          find . -name '*\**' -type d -exec rm -rf {} + || true
+          # Find and remove files/directories with asterisks in their names (literal asterisk character)
+          find . -name '*\**' -delete 2>/dev/null || true
+          # Also try targeting the specific problematic path
+          rm -rf ./api/ts/web-editor/assets/fonts/fonts/*.woff 2>/dev/null || true
+          # Remove any other invalid characters
+          find . -name '*:*' -delete 2>/dev/null || true
+          find . -name '*|*' -delete 2>/dev/null || true
+          find . -name '*<*' -delete 2>/dev/null || true
+          find . -name '*>*' -delete 2>/dev/null || true
+          find . -name '*?*' -delete 2>/dev/null || true
 
       - name: Upload docs artifact
         uses: actions/upload-artifact@v4

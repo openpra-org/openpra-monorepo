@@ -24,12 +24,19 @@ jobs:
       # Note: To strictly enforce "only CODEOWNERS", you would need to check github.actor against a list.
       # Since CODEOWNERS file uses roles, we rely on GitHub's permission system for Release creation.
 
+      - name: Verify GHCR deploy credentials
+        run: |
+          if [ -z "${{ secrets.GHCR_DEPLOY_USERNAME }}" ] || [ -z "${{ secrets.GHCR_DEPLOY_TOKEN }}" ]; then
+            echo "GHCR_DEPLOY_USERNAME and GHCR_DEPLOY_TOKEN secrets are required for pulling private images" >&2
+            exit 1
+          fi
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.GHCR_DEPLOY_USERNAME }}
+          password: ${{ secrets.GHCR_DEPLOY_TOKEN }}
 
       - name: Resolve image tags
         run: |

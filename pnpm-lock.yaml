@@ -458,7 +458,7 @@ importers:
         version: 2.5.2
       typia:
         specifier: 9.7.2
-        version: 9.7.2(@types/node@20.19.22)(typescript@5.9.3)
+        version: 9.7.2(@types/node@20.9.0)(typescript@5.9.3)
     devDependencies:
       eslint:
         specifier: 9.14.0
@@ -477,7 +477,7 @@ importers:
         version: 8.1.0
       '@nestia/sdk':
         specifier: 8.1.0
-        version: 8.1.0(@nestia/core@8.1.0(@nestia/fetcher@8.1.0)(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.7)(@samchon/openapi@4.7.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typia@9.7.2(@types/node@20.19.22)(typescript@5.9.3)))(@swc/core@1.13.21(@swc/helpers@0.5.17))(@types/node@20.19.22)(typescript@5.9.3)
+        version: 8.1.0(@nestia/core@8.1.0(@nestia/fetcher@8.1.0)(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.7)(@samchon/openapi@4.7.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typia@9.7.2(@types/node@20.9.0)(typescript@5.9.3)))(@swc/core@1.13.21(@swc/helpers@0.5.17))(@types/node@20.9.0)(typescript@5.9.3)
       '@nestjs/common':
         specifier: 11.1.7
         version: 11.1.7(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -519,7 +519,7 @@ importers:
         version: 0.2.5
       typia:
         specifier: 9.7.2
-        version: 9.7.2(@types/node@20.19.22)(typescript@5.9.3)
+        version: 9.7.2(@types/node@20.9.0)(typescript@5.9.3)
       webpack:
         specifier: 5.94.0
         version: 5.94.0(@swc/core@1.13.21(@swc/helpers@0.5.17))
@@ -668,6 +668,9 @@ importers:
       dot-object:
         specifier: 2.1.5
         version: 2.1.5
+      jwt-decode:
+        specifier: 4.0.0
+        version: 4.0.0
       mongodb:
         specifier: 6.20.0
         version: 6.20.0(socks@2.8.3)
@@ -8606,6 +8609,7 @@ packages:
   keygrip@1.1.0:
     resolution: {integrity: sha512-iYSchDJ+liQ8iwbSI2QqsQOvqv58eJCEanyJPJi+Khyu8smkcKSFUCbPwzFcL7YVtZ6eONjqRX/38caJ7QjRAQ==}
     engines: {node: '>= 0.6'}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
@@ -14288,13 +14292,6 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.9.0
 
-  '@inquirer/external-editor@1.0.2(@types/node@20.19.22)':
-    dependencies:
-      chardet: 2.1.0
-      iconv-lite: 0.7.0
-    optionalDependencies:
-      '@types/node': 20.19.22
-
   '@inquirer/external-editor@1.0.2(@types/node@20.9.0)':
     dependencies:
       chardet: 2.1.0
@@ -15267,26 +15264,6 @@ snapshots:
       - bufferutil
       - utf-8-validate
 
-  '@nestia/core@8.1.0(@nestia/fetcher@8.1.0)(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.7)(@samchon/openapi@4.7.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typia@9.7.2(@types/node@20.19.22)(typescript@5.9.3))':
-    dependencies:
-      '@nestia/fetcher': 8.1.0
-      '@nestjs/common': 11.1.7(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@nestjs/core': 11.1.7(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/microservices@11.1.7)(@nestjs/platform-express@11.1.7)(reflect-metadata@0.2.2)(rxjs@7.8.2)
-      '@samchon/openapi': 4.7.2
-      detect-ts-node: 1.0.5
-      get-function-location: 2.0.0
-      glob: 11.0.3
-      path-parser: 6.1.0
-      raw-body: 2.5.2
-      reflect-metadata: 0.2.2
-      rxjs: 7.8.2
-      tgrid: 1.2.0
-      typia: 9.7.2(@types/node@20.19.22)(typescript@5.9.3)
-      ws: 7.5.10
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-
   '@nestia/core@8.1.0(@nestia/fetcher@8.1.0)(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.7)(@samchon/openapi@4.7.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typia@9.7.2(@types/node@20.9.0)(typescript@5.9.3))':
     dependencies:
       '@nestia/fetcher': 8.1.0
@@ -15312,27 +15289,6 @@ snapshots:
   '@nestia/fetcher@8.1.0':
     dependencies:
       '@samchon/openapi': 4.7.2
-
-  '@nestia/sdk@8.1.0(@nestia/core@8.1.0(@nestia/fetcher@8.1.0)(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.7)(@samchon/openapi@4.7.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typia@9.7.2(@types/node@20.19.22)(typescript@5.9.3)))(@swc/core@1.13.21(@swc/helpers@0.5.17))(@types/node@20.19.22)(typescript@5.9.3)':
-    dependencies:
-      '@nestia/core': 8.1.0(@nestia/fetcher@8.1.0)(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.7)(@samchon/openapi@4.7.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typia@9.7.2(@types/node@20.19.22)(typescript@5.9.3))
-      '@nestia/fetcher': 8.1.0
-      '@samchon/openapi': 4.7.2
-      cli: 1.0.1
-      get-function-location: 2.0.0
-      glob: 11.0.3
-      path-to-regexp: 6.3.0
-      prettier: 3.6.2
-      ts-node: 10.9.2(@swc/core@1.13.21(@swc/helpers@0.5.17))(@types/node@20.19.22)(typescript@5.9.3)
-      tsconfck: 2.1.2(typescript@5.9.3)
-      tsconfig-paths: 4.2.0
-      tstl: 3.0.0
-      typia: 9.7.2(@types/node@20.19.22)(typescript@5.9.3)
-    transitivePeerDependencies:
-      - '@swc/core'
-      - '@swc/wasm'
-      - '@types/node'
-      - typescript
 
   '@nestia/sdk@8.1.0(@nestia/core@8.1.0(@nestia/fetcher@8.1.0)(@nestjs/common@11.1.7(class-transformer@0.5.1)(class-validator@0.14.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.7)(@samchon/openapi@4.7.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)(typia@9.7.2(@types/node@20.9.0)(typescript@5.9.3)))(@swc/core@1.13.21(@swc/helpers@0.5.17))(@types/node@20.9.0)(typescript@5.9.3)':
     dependencies:
@@ -21461,26 +21417,6 @@ snapshots:
 
   inline-style-parser@0.1.1: {}
 
-  inquirer@8.2.7(@types/node@20.19.22):
-    dependencies:
-      '@inquirer/external-editor': 1.0.2(@types/node@20.19.22)
-      ansi-escapes: 4.3.2
-      chalk: 4.1.2
-      cli-cursor: 3.1.0
-      cli-width: 3.0.0
-      figures: 3.2.0
-      lodash: 4.17.21
-      mute-stream: 0.0.8
-      ora: 5.4.1
-      run-async: 2.4.1
-      rxjs: 7.8.2
-      string-width: 4.2.3
-      strip-ansi: 6.0.1
-      through: 2.3.8
-      wrap-ansi: 6.2.0
-    transitivePeerDependencies:
-      - '@types/node'
-
   inquirer@8.2.7(@types/node@20.9.0):
     dependencies:
       '@inquirer/external-editor': 1.0.2(@types/node@20.9.0)
@@ -25912,6 +25848,7 @@ snapshots:
       yn: 3.1.1
     optionalDependencies:
       '@swc/core': 1.13.21(@swc/helpers@0.5.17)
+    optional: true
 
   ts-node@10.9.2(@swc/core@1.13.21(@swc/helpers@0.5.17))(@types/node@20.9.0)(typescript@5.9.3):
     dependencies:
@@ -26082,19 +26019,6 @@ snapshots:
   typescript@5.8.3: {}
 
   typescript@5.9.3: {}
-
-  typia@9.7.2(@types/node@20.19.22)(typescript@5.9.3):
-    dependencies:
-      '@samchon/openapi': 4.7.2
-      '@standard-schema/spec': 1.0.0
-      commander: 10.0.1
-      comment-json: 4.4.1
-      inquirer: 8.2.7(@types/node@20.19.22)
-      package-manager-detector: 0.2.11
-      randexp: 0.5.3
-      typescript: 5.9.3
-    transitivePeerDependencies:
-      - '@types/node'
 
   typia@9.7.2(@types/node@20.9.0)(typescript@5.9.3):
     dependencies:

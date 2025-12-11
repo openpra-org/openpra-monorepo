@@ -46,8 +46,8 @@ x-base-replicated: &shared-replicated
 secrets:
   CLOUDFLARE_TUNNEL_TOKEN:
     file: secrets/CLOUDFLARE_TUNNEL_TOKEN
-  CI_JWT_SECRET:
-    file: secrets/CI_JWT_SECRET
+  JWT_SECRET:
+    file: secrets/JWT_SECRET
 
 services:
   cloudflared:
@@ -99,9 +99,9 @@ services:
       - svc_net
       - db_net
     secrets:
-      - CI_JWT_SECRET
+      - JWT_SECRET
     environment:
-      JWT_SECRET_KEY_FILE: /run/secrets/CI_JWT_SECRET
+      JWT_SECRET_KEY_FILE: /run/secrets/JWT_SECRET
       NODE_ENV: production
       DEBUG: "false"
     deploy:

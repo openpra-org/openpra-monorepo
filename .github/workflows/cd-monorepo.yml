@@ -87,14 +87,14 @@ jobs:
           fi
           printf '%s' "${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}" > secrets/CLOUDFLARE_TUNNEL_TOKEN
 
-      - name: Create CI JWT secret
+      - name: Create JWT secret
         working-directory: docker
         run: |
-          if [ -z "${{ secrets.CI_JWT_SECRET }}" ]; then
-            echo "CI_JWT_SECRET secret is not set" >&2
+          if [ -z "${{ secrets.JWT_SECRET }}" ]; then
+            echo "JWT_SECRET secret is not set" >&2
             exit 1
           fi
-          printf '%s' "${{ secrets.CI_JWT_SECRET }}" > secrets/CI_JWT_SECRET
+          printf '%s' "${{ secrets.JWT_SECRET }}" > secrets/JWT_SECRET
 
       - name: Deploy Stack
         working-directory: docker

@@ -11,6 +11,8 @@ env:
   # Defaults
   NUM_FRONTENDS: 1
   DEPLOYMENT_FRONTEND_POOL: "node.labels.high_performance == true"
+  NUM_BACKENDS: 1
+  DEPLOYMENT_BACKEND_POOL: "node.labels.high_performance == true"
 
 jobs:
   deploy:
@@ -29,12 +31,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Resolve frontend image tag
+      - name: Resolve image tags
         run: |
           set -euo pipefail
 
           REPO_LOWER=$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')
-          IMAGE_BASE="${REGISTRY}/${REPO_LOWER}/openpra-frontend"
+          IMAGE_FRONTEND_BASE="${REGISTRY}/${REPO_LOWER}/openpra-frontend"
+          IMAGE_BACKEND_BASE="${REGISTRY}/${REPO_LOWER}/openpra-web-backend"
 
           TARGET_COMMITISH="${{ github.event.release.target_commitish }}"
           if [[ -z "${TARGET_COMMITISH}" ]]; then
@@ -49,13 +52,27 @@ jobs:
             exit 1
           fi
 
-          if ! docker manifest inspect "${IMAGE_BASE}:${BRANCH_SLUG}" > /dev/null 2>&1; then
-            echo "No image found for ${IMAGE_BASE}:${BRANCH_SLUG}" >&2
+          if ! docker manifest inspect "${IMAGE_FRONTEND_BASE}:${BRANCH_SLUG}" > /dev/null 2>&1; then
+            echo "No image found for ${IMAGE_FRONTEND_BASE}:${BRANCH_SLUG}" >&2
             exit 1
           fi
 
-          echo "IMAGE_FRONTEND=${IMAGE_BASE}:${BRANCH_SLUG}" >> "$GITHUB_ENV"
-          echo "Resolved frontend image: ${IMAGE_BASE}:${BRANCH_SLUG}"
+          if ! docker manifest inspect "${IMAGE_BACKEND_BASE}:${BRANCH_SLUG}" > /dev/null 2>&1; then
+            echo "No image found for ${IMAGE_BACKEND_BASE}:${BRANCH_SLUG}" >&2
+            exit 1
+          fi
+
+          echo "IMAGE_FRONTEND=${IMAGE_FRONTEND_BASE}:${BRANCH_SLUG}" >> "$GITHUB_ENV"
+          echo "IMAGE_BACKEND=${IMAGE_BACKEND_BASE}:${BRANCH_SLUG}" >> "$GITHUB_ENV"
+          echo "Resolved frontend image: ${IMAGE_FRONTEND_BASE}:${BRANCH_SLUG}"
+          echo "Resolved backend image: ${IMAGE_BACKEND_BASE}:${BRANCH_SLUG}"
+          if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
+            {
+              echo "Resolved images:"
+              echo "- Frontend: ${IMAGE_FRONTEND_BASE}:${BRANCH_SLUG}"
+              echo "- Backend: ${IMAGE_BACKEND_BASE}:${BRANCH_SLUG}"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Create secrets directory
         working-directory: docker
@@ -63,7 +80,21 @@ jobs:
 
       - name: Create Cloudflare Tunnel Token secret
         working-directory: docker
-        run: echo "${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}" > secrets/CLOUDFLARE_TUNNEL_TOKEN
+        run: |
+          if [ -z "${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}" ]; then
+            echo "CLOUDFLARE_TUNNEL_TOKEN secret is not set" >&2
+            exit 1
+          fi
+          printf '%s' "${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}" > secrets/CLOUDFLARE_TUNNEL_TOKEN
+
+      - name: Create CI JWT secret
+        working-directory: docker
+        run: |
+          if [ -z "${{ secrets.CI_JWT_SECRET }}" ]; then
+            echo "CI_JWT_SECRET secret is not set" >&2
+            exit 1
+          fi
+          printf '%s' "${{ secrets.CI_JWT_SECRET }}" > secrets/CI_JWT_SECRET
 
       - name: Deploy Stack
         working-directory: docker

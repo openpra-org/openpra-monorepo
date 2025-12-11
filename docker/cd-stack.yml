@@ -14,11 +14,19 @@ configs:
     file: configs/rabbitmq/enabled_plugins
   rabbitmq_conf:
     file: configs/rabbitmq/rabbitmq.conf
+  nestjs_env_vars:
+    file: configs/cd.stack.env
 
 x-base-shared-vols: &volumes-timezone
   volumes:
     - "/etc/localtime:/etc/localtime:ro"
     - "/etc/timezone:/etc/timezone:ro"
+
+x-base-app-config: &shared-app-config
+  <<: *volumes-timezone
+  configs:
+    - source: nestjs_env_vars
+      target: /data/project/.env
 
 x-base-replicated: &shared-replicated
   mode: replicated
@@ -38,6 +46,8 @@ x-base-replicated: &shared-replicated
 secrets:
   CLOUDFLARE_TUNNEL_TOKEN:
     file: secrets/CLOUDFLARE_TUNNEL_TOKEN
+  CI_JWT_SECRET:
+    file: secrets/CI_JWT_SECRET
 
 services:
   cloudflared:
@@ -77,6 +87,30 @@ services:
         max_replicas_per_node: 1
         constraints:
           - "${DEPLOYMENT_FRONTEND_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+
+  backend:
+    image: ${IMAGE_BACKEND}
+    <<: *shared-app-config
+    networks:
+      - svc_net
+      - db_net
+    secrets:
+      - CI_JWT_SECRET
+    environment:
+      JWT_SECRET_KEY_FILE: /run/secrets/CI_JWT_SECRET
+      NODE_ENV: production
+      DEBUG: "false"
+    deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_BACKENDS}
+      placement:
+        max_replicas_per_node: 1
+        constraints:
+          - "${DEPLOYMENT_BACKEND_POOL}"
       restart_policy:
         condition: any
         delay: 10s

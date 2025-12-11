@@ -29,15 +29,33 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Prepare environment variables
+      - name: Resolve frontend image tag
         run: |
+          set -euo pipefail
+
           REPO_LOWER=$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          IMAGE_BASE="${REGISTRY}/${REPO_LOWER}/openpra-frontend"
 
-          # Use the short SHA to identify the image built by the CI pipeline
-          echo "IMAGE_FRONTEND=${REGISTRY}/${REPO_LOWER}/openpra-frontend:${SHORT_SHA}" >> $GITHUB_ENV
+          TARGET_COMMITISH="${{ github.event.release.target_commitish }}"
+          if [[ -z "${TARGET_COMMITISH}" ]]; then
+            TARGET_COMMITISH="${GITHUB_REF_NAME}"
+          fi
 
-          echo "Deploying image: ${REGISTRY}/${REPO_LOWER}/openpra-frontend:${SHORT_SHA}"
+          BRANCH_SLUG=$(echo "${TARGET_COMMITISH}" | tr '[:upper:]' '[:lower:]')
+          BRANCH_SLUG=${BRANCH_SLUG//\//-}
+
+          if [[ -z "${BRANCH_SLUG}" ]]; then
+            echo "Unable to derive branch slug from '${TARGET_COMMITISH}'" >&2
+            exit 1
+          fi
+
+          if ! docker manifest inspect "${IMAGE_BASE}:${BRANCH_SLUG}" > /dev/null 2>&1; then
+            echo "No image found for ${IMAGE_BASE}:${BRANCH_SLUG}" >&2
+            exit 1
+          fi
+
+          echo "IMAGE_FRONTEND=${IMAGE_BASE}:${BRANCH_SLUG}" >> "$GITHUB_ENV"
+          echo "Resolved frontend image: ${IMAGE_BASE}:${BRANCH_SLUG}"
 
       - name: Create secrets directory
         working-directory: docker

@@ -14,19 +14,11 @@ configs:
     file: configs/rabbitmq/enabled_plugins
   rabbitmq_conf:
     file: configs/rabbitmq/rabbitmq.conf
-  nestjs_env_vars:
-    file: configs/cd.stack.env
 
 x-base-shared-vols: &volumes-timezone
   volumes:
     - "/etc/localtime:/etc/localtime:ro"
     - "/etc/timezone:/etc/timezone:ro"
-
-x-base-shared-confs: &shared-nestjs_conf
-  configs:
-    - source: nestjs_env_vars
-      target: /data/project/.env
-  <<: *volumes-timezone
 
 x-base-replicated: &shared-replicated
   mode: replicated
@@ -43,16 +35,7 @@ x-base-replicated: &shared-replicated
     order: stop-first
     monitor: 120s
 
-x-base-healthcheck: &healthcheck-fragments
-  interval: 10s
-  timeout: 2s
-  retries: 5
-  start_period: 300s
-  start_interval: 2s
-
 secrets:
-  CI_JWT_SECRET:
-    file: secrets/JWT_SECRET
   CLOUDFLARE_TUNNEL_TOKEN:
     file: secrets/CLOUDFLARE_TUNNEL_TOKEN
 
@@ -94,87 +77,6 @@ services:
         max_replicas_per_node: 1
         constraints:
           - "${DEPLOYMENT_FRONTEND_POOL}"
-      restart_policy:
-        condition: any
-        delay: 10s
-        max_attempts: 5
-
-  job-broker:
-    image: ${IMAGE_JOB_BROKER}
-    <<: *shared-nestjs_conf
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
-      <<: *healthcheck-fragments
-    command: ["node", "main.js"]
-    environment:
-      NODE_ENV: ${CI_BUILD_TYPE}
-      DEBUG: ${CI_DEBUG}
-      NODE_OPTIONS: "--max-old-space-size=8192"
-    networks:
-      - svc_net
-      - rmq_net
-      - db_net
-    deploy:
-      <<: *shared-replicated
-      replicas: ${NUM_BROKERS}
-      placement:
-        max_replicas_per_node: 1
-        constraints:
-          - "${DEPLOYMENT_BROKER_POOL}"
-      restart_policy:
-        condition: any
-        delay: 10s
-        max_attempts: 5
-
-  job-worker:
-    image: ${IMAGE_JOB_BROKER}
-    <<: *shared-nestjs_conf
-    command: ["node", "main.js"]
-    environment:
-      NODE_ENV: ${CI_BUILD_TYPE}
-      DEBUG: ${CI_DEBUG}
-      NODE_OPTIONS: "--max-old-space-size=8192"
-      WORKER_MODE: "true"
-    networks:
-      - rmq_net
-      - db_net
-    deploy:
-      mode: replicated
-      replicas: ${NUM_WORKERS}
-      <<: *shared-replicated
-      placement:
-        max_replicas_per_node: 128
-        constraints:
-          - "${DEPLOYMENT_WORKER_POOL}"
-      restart_policy:
-        condition: any
-        delay: 10s
-        max_attempts: 5
-
-  backend:
-    image: ${IMAGE_BACKEND}
-    <<: *shared-nestjs_conf
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
-      <<: *healthcheck-fragments
-    command: ["node", "main.js"]
-    networks:
-      - svc_net
-      - db_net
-    secrets:
-      - CI_JWT_SECRET
-    environment:
-      JWT_SECRET_KEY_FILE: /run/secrets/CI_JWT_SECRET
-      NODE_ENV: ${CI_BUILD_TYPE}
-      DEBUG: ${CI_DEBUG}
-      NODE_OPTIONS: "--max-old-space-size=8192"
-    deploy:
-      <<: *shared-replicated
-      replicas: ${NUM_BACKENDS}
-      placement:
-        max_replicas_per_node: 1
-        constraints:
-          - "${DEPLOYMENT_BACKEND_POOL}"
       restart_policy:
         condition: any
         delay: 10s

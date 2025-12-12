@@ -8,6 +8,8 @@ networks:
   rmq_net:
     driver: overlay
     attachable: true
+  traefik-public:
+    external: true
 
 configs:
   rabbitmq_plugins:
@@ -44,42 +46,16 @@ x-base-replicated: &shared-replicated
     monitor: 120s
 
 secrets:
-  CLOUDFLARE_TUNNEL_TOKEN:
-    file: secrets/CLOUDFLARE_TUNNEL_TOKEN
   JWT_SECRET:
     file: secrets/JWT_SECRET
 
 services:
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    command:
-      - tunnel
-      - --no-autoupdate
-      - run
-      - --token-file
-      - /run/secrets/CLOUDFLARE_TUNNEL_TOKEN
-    secrets:
-      - CLOUDFLARE_TUNNEL_TOKEN
-    networks:
-      - svc_net
-      - rmq_net
-      - db_net
-    deploy:
-      mode: replicated
-      replicas: 1
-      placement:
-        constraints:
-          - node.labels.high_performance == true
-      restart_policy:
-        condition: any
-        delay: 5s
-        max_attempts: 3
-
   frontend:
     image: ${IMAGE_FRONTEND}
     <<: *volumes-timezone
     networks:
       - svc_net
+      - traefik-public
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_FRONTENDS}
@@ -91,6 +67,20 @@ services:
         condition: any
         delay: 10s
         max_attempts: 5
+      labels:
+        - traefik.enable=true
+        - traefik.constraint-label=traefik-public
+        - traefik.docker.network=traefik-public
+        - traefik.http.routers.frontend-http.rule=Host(`${FRONTEND_HOST}`)
+        - traefik.http.routers.frontend-http.entrypoints=http
+        - traefik.http.routers.frontend-http.middlewares=https-redirect
+        - traefik.http.routers.frontend-https.rule=Host(`${FRONTEND_HOST}`)
+        - traefik.http.routers.frontend-https.entrypoints=https
+        - traefik.http.routers.frontend-https.tls=true
+        - traefik.http.routers.frontend-https.tls.certresolver=cloudflare
+        - traefik.http.services.frontend.loadbalancer.server.port=80
+        - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
+        - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
 
   backend:
     image: ${IMAGE_BACKEND}
@@ -98,12 +88,14 @@ services:
     networks:
       - svc_net
       - db_net
+      - traefik-public
     secrets:
       - JWT_SECRET
     environment:
       JWT_SECRET_KEY_FILE: /run/secrets/JWT_SECRET
       NODE_ENV: production
       DEBUG: "false"
+    command: ["node", "main.js"]
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_BACKENDS}
@@ -115,6 +107,18 @@ services:
         condition: any
         delay: 10s
         max_attempts: 5
+      labels:
+        - traefik.enable=true
+        - traefik.constraint-label=traefik-public
+        - traefik.docker.network=traefik-public
+        - traefik.http.routers.backend-http.rule=Host(`${BACKEND_HOST}`)
+        - traefik.http.routers.backend-http.entrypoints=http
+        - traefik.http.routers.backend-http.middlewares=https-redirect
+        - traefik.http.routers.backend-https.rule=Host(`${BACKEND_HOST}`)
+        - traefik.http.routers.backend-https.entrypoints=https
+        - traefik.http.routers.backend-https.tls=true
+        - traefik.http.routers.backend-https.tls.certresolver=cloudflare
+        - traefik.http.services.backend.loadbalancer.server.port=8000
 
   job-broker:
     image: ${IMAGE_JOB_BROKER}

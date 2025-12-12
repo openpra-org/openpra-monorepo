@@ -170,3 +170,42 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.short_sha }}
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.branch_slug }}
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.channel_tag }}
+
+      - name: Deploy to Docker Swarm
+        if: github.event_name == 'push'
+        env:
+          BRANCH_SLUG: ${{ steps.prep.outputs.branch_slug }}
+          REPO_LOWER: ${{ steps.prep.outputs.repo_lower }}
+        run: |
+          # Install Docker context for remote deployment
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SWARM_SSH_KEY }}" > ~/.ssh/swarm_key
+          chmod 600 ~/.ssh/swarm_key
+
+          # Create Docker context for Swarm manager
+          docker context create swarm-deploy --docker "host=ssh://${{ secrets.SWARM_USER }}@${{ secrets.SWARM_HOST }}"
+          docker context use swarm-deploy
+
+          # Set deployment variables
+          export FRONTEND_HOST="${BRANCH_SLUG}.openpra.org"
+          export BACKEND_HOST="${BRANCH_SLUG}.openpra.org"
+          export IMAGE_FRONTEND="${{ env.REGISTRY }}/${REPO_LOWER}/openpra-frontend:${BRANCH_SLUG}"
+          export IMAGE_BACKEND="${{ env.REGISTRY }}/${REPO_LOWER}/openpra-web-backend:${BRANCH_SLUG}"
+          export IMAGE_JOB_BROKER="${{ env.REGISTRY }}/${REPO_LOWER}/openpra-job-broker:${BRANCH_SLUG}"
+          export CI_BUILD_TYPE="production"
+          export NUM_FRONTENDS=1
+          export NUM_BACKENDS=1
+          export NUM_BROKERS=1
+          export NUM_WORKERS=2
+          export DEPLOYMENT_FRONTEND_POOL="node.role==worker"
+          export DEPLOYMENT_BACKEND_POOL="node.role==worker"
+          export DEPLOYMENT_BROKER_POOL="node.role==worker"
+          export DEPLOYMENT_WORKER_POOL="node.role==worker"
+
+          # Deploy stack
+          docker stack deploy -c docker/cd-stack.yml openpra-${BRANCH_SLUG}
+
+          # Show deployment info
+          echo "🚀 Deployed to:"
+          echo "   Frontend: https://${FRONTEND_HOST}"
+          echo "   Backend:  https://${BACKEND_HOST}/api"

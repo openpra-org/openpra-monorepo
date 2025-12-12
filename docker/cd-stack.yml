@@ -47,7 +47,8 @@ x-base-replicated: &shared-replicated
 
 secrets:
   JWT_SECRET:
-    file: secrets/JWT_SECRET
+    external: true
+    name: jwt_secret
 
 services:
   frontend:

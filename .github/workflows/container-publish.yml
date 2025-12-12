@@ -20,6 +20,9 @@ env:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    outputs:
+      branch_slug: ${{ steps.prep.outputs.branch_slug }}
+      repo_lower: ${{ steps.prep.outputs.repo_lower }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -171,21 +174,19 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.branch_slug }}
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.channel_tag }}
 
+  deploy:
+    needs: build-and-push
+    runs-on: [self-hosted, mmonorepo]
+    if: github.event_name == 'push'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Deploy to Docker Swarm
-        if: github.event_name == 'push'
         env:
-          BRANCH_SLUG: ${{ steps.prep.outputs.branch_slug }}
-          REPO_LOWER: ${{ steps.prep.outputs.repo_lower }}
+          BRANCH_SLUG: ${{ needs.build-and-push.outputs.branch_slug }}
+          REPO_LOWER: ${{ needs.build-and-push.outputs.repo_lower }}
         run: |
-          # Install Docker context for remote deployment
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SWARM_SSH_KEY }}" > ~/.ssh/swarm_key
-          chmod 600 ~/.ssh/swarm_key
-
-          # Create Docker context for Swarm manager
-          docker context create swarm-deploy --docker "host=ssh://${{ secrets.SWARM_USER }}@${{ secrets.SWARM_HOST }}"
-          docker context use swarm-deploy
-
           # Set deployment variables
           export FRONTEND_HOST="${BRANCH_SLUG}.openpra.org"
           export BACKEND_HOST="${BRANCH_SLUG}.openpra.org"
@@ -202,7 +203,7 @@ jobs:
           export DEPLOYMENT_BROKER_POOL="node.role==worker"
           export DEPLOYMENT_WORKER_POOL="node.role==worker"
 
-          # Deploy stack
+          # Deploy stack (runner is already on Swarm, no SSH needed)
           docker stack deploy -c docker/cd-stack.yml openpra-${BRANCH_SLUG}
 
           # Show deployment info

@@ -208,10 +208,8 @@ jobs:
           export DEPLOYMENT_BROKER_POOL="node.labels.high_performance==true"
           export DEPLOYMENT_WORKER_POOL="node.labels.high_performance==true"
 
-          # Deploy stack (runner is already on Swarm, no SSH needed)
-          docker stack deploy -c docker/cd-stack.yml openpra-${BRANCH_SLUG}
-
-          # Show deployment info
+          # Deploy stack with registry auth so worker nodes can pull images
+          docker stack deploy --with-registry-auth -c docker/cd-stack.yml openpra-${BRANCH_SLUG}          # Show deployment info
           echo "🚀 Deployed to:"
           echo "   Frontend:  https://${FRONTEND_HOST}"
           echo "   Backend:   https://${BACKEND_HOST}/api"

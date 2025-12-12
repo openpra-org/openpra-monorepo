@@ -1,11 +1,5 @@
 networks:
-  db_net:
-    driver: overlay
-    attachable: true
-  svc_net:
-    driver: overlay
-    attachable: true
-  rmq_net:
+  app_net:
     driver: overlay
     attachable: true
   traefik-public:
@@ -55,7 +49,7 @@ services:
     image: ${IMAGE_FRONTEND}
     <<: *volumes-timezone
     networks:
-      - svc_net
+      - app_net
       - traefik-public
     deploy:
       <<: *shared-replicated
@@ -87,8 +81,7 @@ services:
     image: ${IMAGE_BACKEND}
     <<: *shared-app-config
     networks:
-      - svc_net
-      - db_net
+      - app_net
       - traefik-public
     secrets:
       - JWT_SECRET
@@ -130,9 +123,7 @@ services:
       DEBUG: ${CI_DEBUG}
       NODE_OPTIONS: "--max-old-space-size=8192"
     networks:
-      - svc_net
-      - rmq_net
-      - db_net
+      - app_net
       - traefik-public
     deploy:
       <<: *shared-replicated
@@ -168,8 +159,7 @@ services:
       NODE_OPTIONS: "--max-old-space-size=8192"
       WORKER_MODE: "true"
     networks:
-      - rmq_net
-      - db_net
+      - app_net
     deploy:
       mode: replicated
       replicas: ${NUM_WORKERS}
@@ -189,8 +179,7 @@ services:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
     networks:
-      - svc_net
-      - rmq_net
+      - app_net
       - traefik-public
     configs:
       - source: rabbitmq_plugins
@@ -225,7 +214,7 @@ services:
   mongodb:
     image: mongo:latest
     networks:
-      - db_net
+      - app_net
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"

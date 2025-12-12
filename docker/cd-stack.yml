@@ -116,6 +116,55 @@ services:
         delay: 10s
         max_attempts: 5
 
+  job-broker:
+    image: ${IMAGE_JOB_BROKER}
+    <<: *shared-app-config
+    command: ["node", "main.js"]
+    environment:
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    networks:
+      - svc_net
+      - rmq_net
+      - db_net
+    deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_BROKERS}
+      placement:
+        max_replicas_per_node: 1
+        constraints:
+          - "${DEPLOYMENT_BROKER_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+
+  job-worker:
+    image: ${IMAGE_JOB_BROKER}
+    <<: *shared-app-config
+    command: ["node", "main.js"]
+    environment:
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
+      NODE_OPTIONS: "--max-old-space-size=8192"
+      WORKER_MODE: "true"
+    networks:
+      - rmq_net
+      - db_net
+    deploy:
+      mode: replicated
+      replicas: ${NUM_WORKERS}
+      <<: *shared-replicated
+      placement:
+        max_replicas_per_node: 128
+        constraints:
+          - "${DEPLOYMENT_WORKER_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+
   rabbitmq:
     image: rabbitmq:management-alpine
     volumes:

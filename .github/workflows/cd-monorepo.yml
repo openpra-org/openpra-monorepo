@@ -13,6 +13,12 @@ env:
   DEPLOYMENT_FRONTEND_POOL: "node.labels.high_performance == true"
   NUM_BACKENDS: 1
   DEPLOYMENT_BACKEND_POOL: "node.labels.high_performance == true"
+  NUM_BROKERS: 1
+  NUM_WORKERS: 4
+  DEPLOYMENT_BROKER_POOL: "node.labels.high_performance == true"
+  DEPLOYMENT_WORKER_POOL: "node.labels.high_performance == true"
+  CI_BUILD_TYPE: production
+  CI_DEBUG: false
 
 jobs:
   deploy:
@@ -45,6 +51,7 @@ jobs:
           REPO_LOWER=$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')
           IMAGE_FRONTEND_BASE="${REGISTRY}/${REPO_LOWER}/openpra-frontend"
           IMAGE_BACKEND_BASE="${REGISTRY}/${REPO_LOWER}/openpra-web-backend"
+          IMAGE_JOB_BROKER_BASE="${REGISTRY}/${REPO_LOWER}/openpra-job-broker"
 
           TARGET_COMMITISH="${{ github.event.release.target_commitish }}"
           if [[ -z "${TARGET_COMMITISH}" ]]; then
@@ -69,15 +76,23 @@ jobs:
             exit 1
           fi
 
+          if ! docker manifest inspect "${IMAGE_JOB_BROKER_BASE}:${BRANCH_SLUG}" > /dev/null 2>&1; then
+            echo "No image found for ${IMAGE_JOB_BROKER_BASE}:${BRANCH_SLUG}" >&2
+            exit 1
+          fi
+
           echo "IMAGE_FRONTEND=${IMAGE_FRONTEND_BASE}:${BRANCH_SLUG}" >> "$GITHUB_ENV"
           echo "IMAGE_BACKEND=${IMAGE_BACKEND_BASE}:${BRANCH_SLUG}" >> "$GITHUB_ENV"
+          echo "IMAGE_JOB_BROKER=${IMAGE_JOB_BROKER_BASE}:${BRANCH_SLUG}" >> "$GITHUB_ENV"
           echo "Resolved frontend image: ${IMAGE_FRONTEND_BASE}:${BRANCH_SLUG}"
           echo "Resolved backend image: ${IMAGE_BACKEND_BASE}:${BRANCH_SLUG}"
+          echo "Resolved job-broker image: ${IMAGE_JOB_BROKER_BASE}:${BRANCH_SLUG}"
           if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
             {
               echo "Resolved images:"
               echo "- Frontend: ${IMAGE_FRONTEND_BASE}:${BRANCH_SLUG}"
               echo "- Backend: ${IMAGE_BACKEND_BASE}:${BRANCH_SLUG}"
+              echo "- Job Broker/Worker: ${IMAGE_JOB_BROKER_BASE}:${BRANCH_SLUG}"
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 

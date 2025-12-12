@@ -174,20 +174,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.branch_slug }}
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-frontend:${{ steps.prep.outputs.channel_tag }}
 
-      - name: Make GHCR packages public
-        run: |
-          # Make packages public so worker nodes can pull without authentication
-          for package in openpra-frontend openpra-web-backend openpra-job-broker; do
-            echo "Making $package public..."
-            curl -L \
-              -X PATCH \
-              -H "Accept: application/vnd.github+json" \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/orgs/${{ env.OWNER }}/packages/container/$package" \
-              -d '{"visibility":"public"}' || echo "Failed or already public: $package"
-          done
-
   deploy:
     needs: build-and-push
     runs-on: [self-hosted, monorepo]
@@ -201,7 +187,9 @@ jobs:
           BRANCH_SLUG: ${{ needs.build-and-push.outputs.branch_slug }}
           REPO_LOWER: ${{ needs.build-and-push.outputs.repo_lower }}
         run: |
-          # Images are public, no authentication needed for pulls
+          # Login to GHCR - credentials will be propagated to worker nodes via --with-registry-auth
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
           # Set deployment variables
           export FRONTEND_HOST="${BRANCH_SLUG}.openpra.org"
           export BACKEND_HOST="${BRANCH_SLUG}.openpra.org"
@@ -221,8 +209,8 @@ jobs:
           export DEPLOYMENT_BROKER_POOL="node.labels.high_performance==true"
           export DEPLOYMENT_WORKER_POOL="node.labels.high_performance==true"
 
-          # Deploy stack (images are public, no auth needed)
-          docker stack deploy -c docker/cd-stack.yml openpra-${BRANCH_SLUG}
+          # Deploy stack WITH registry auth to propagate credentials to worker nodes
+          docker stack deploy --with-registry-auth -c docker/cd-stack.yml openpra-${BRANCH_SLUG}
 
           # Show deployment info
           echo "🚀 Deployed to:"

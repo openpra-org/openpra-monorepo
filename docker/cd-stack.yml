@@ -122,7 +122,7 @@ services:
     command: ["node", "main.js"]
     depends_on:
       - rabbitmq
-      - backend
+      - mongodb
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
@@ -159,7 +159,7 @@ services:
     command: ["node", "main.js"]
     depends_on:
       - rabbitmq
-      - backend
+      - mongodb
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}

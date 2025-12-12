@@ -59,7 +59,6 @@ services:
       <<: *shared-replicated
       replicas: ${NUM_FRONTENDS}
       placement:
-        max_replicas_per_node: 1
         constraints:
           - "${DEPLOYMENT_FRONTEND_POOL}"
       restart_policy:
@@ -98,7 +97,6 @@ services:
       <<: *shared-replicated
       replicas: ${NUM_BACKENDS}
       placement:
-        max_replicas_per_node: 1
         constraints:
           - "${DEPLOYMENT_BACKEND_POOL}"
       restart_policy:
@@ -133,7 +131,6 @@ services:
       <<: *shared-replicated
       replicas: ${NUM_BROKERS}
       placement:
-        max_replicas_per_node: 1
         constraints:
           - "${DEPLOYMENT_BROKER_POOL}"
       restart_policy:
@@ -169,7 +166,6 @@ services:
       replicas: ${NUM_WORKERS}
       <<: *shared-replicated
       placement:
-        max_replicas_per_node: 128
         constraints:
           - "${DEPLOYMENT_WORKER_POOL}"
       restart_policy:

@@ -73,7 +73,7 @@ services:
   #       - traefik.http.routers.${BRANCH_SLUG}-frontend-https.rule=Host(`${FRONTEND_HOST}`)
   #       - traefik.http.routers.${BRANCH_SLUG}-frontend-https.entrypoints=https
   #       - traefik.http.routers.${BRANCH_SLUG}-frontend-https.tls=true
-  #       - traefik.http.routers.${BRANCH_SLUG}-frontend-https.tls.certresolver=cloudflare
+  #       - traefik.http.routers.${BRANCH_SLUG}-frontend-https.tls.certresolver=le
   #       - traefik.http.services.${BRANCH_SLUG}-frontend.loadbalancer.server.port=80
   #       - traefik.http.middlewares.${BRANCH_SLUG}-https-redirect.redirectscheme.scheme=https
   #       - traefik.http.middlewares.${BRANCH_SLUG}-https-redirect.redirectscheme.permanent=true
@@ -113,7 +113,7 @@ services:
   #       - traefik.http.routers.${BRANCH_SLUG}-backend-https.rule=Host(`${BACKEND_HOST}`)
   #       - traefik.http.routers.${BRANCH_SLUG}-backend-https.entrypoints=https
   #       - traefik.http.routers.${BRANCH_SLUG}-backend-https.tls=true
-  #       - traefik.http.routers.${BRANCH_SLUG}-backend-https.tls.certresolver=cloudflare
+  #       - traefik.http.routers.${BRANCH_SLUG}-backend-https.tls.certresolver=le
   #       - traefik.http.services.${BRANCH_SLUG}-backend.loadbalancer.server.port=8000
 
   # job-broker:
@@ -150,7 +150,7 @@ services:
   #       - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/q`)
   #       - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.entrypoints=https
   #       - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.tls=true
-  #       - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.tls.certresolver=cloudflare
+  #       - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.tls.certresolver=le
   #       - traefik.http.services.${BRANCH_SLUG}-job-broker.loadbalancer.server.port=3000
 
   # job-worker:
@@ -204,7 +204,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.labels.high_performance == true
+          - "${DEPLOYMENT_RABBITMQ_POOL}"
       restart_policy:
         condition: any
         delay: 5s
@@ -219,7 +219,7 @@ services:
         - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.rule=Host(`${RABBITMQ_HOST}`)
         - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.entrypoints=https
         - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.tls=true
-        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.tls.certresolver=cloudflare
+        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.tls.certresolver=le
         - traefik.http.services.${BRANCH_SLUG}-rabbitmq.loadbalancer.server.port=15672
 
   mongodb:
@@ -234,7 +234,7 @@ services:
       replicas: 1
       placement:
         constraints:
-          - node.labels.high_performance == true
+          - "${DEPLOYMENT_MONGODB_POOL}"
       restart_policy:
         condition: any
         delay: 5s

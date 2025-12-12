@@ -133,6 +133,7 @@ services:
       - svc_net
       - rmq_net
       - db_net
+      - traefik-public
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_BROKERS}
@@ -144,6 +145,18 @@ services:
         condition: any
         delay: 10s
         max_attempts: 5
+      labels:
+        - traefik.enable=true
+        - traefik.constraint-label=traefik-public
+        - traefik.docker.network=traefik-public
+        - traefik.http.routers.job-broker-http.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/q`)
+        - traefik.http.routers.job-broker-http.entrypoints=http
+        - traefik.http.routers.job-broker-http.middlewares=https-redirect
+        - traefik.http.routers.job-broker-https.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/q`)
+        - traefik.http.routers.job-broker-https.entrypoints=https
+        - traefik.http.routers.job-broker-https.tls=true
+        - traefik.http.routers.job-broker-https.tls.certresolver=cloudflare
+        - traefik.http.services.job-broker.loadbalancer.server.port=3000
 
   job-worker:
     image: ${IMAGE_JOB_BROKER}
@@ -178,6 +191,7 @@ services:
     networks:
       - svc_net
       - rmq_net
+      - traefik-public
     configs:
       - source: rabbitmq_plugins
         target: /etc/rabbitmq/enabled_plugins
@@ -193,6 +207,20 @@ services:
         condition: any
         delay: 5s
         max_attempts: 3
+      labels:
+        - traefik.enable=true
+        - traefik.constraint-label=traefik-public
+        - traefik.docker.network=traefik-public
+        - traefik.http.routers.rabbitmq-http.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/rabbitmq`)
+        - traefik.http.routers.rabbitmq-http.entrypoints=http
+        - traefik.http.routers.rabbitmq-http.middlewares=https-redirect
+        - traefik.http.routers.rabbitmq-https.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/rabbitmq`)
+        - traefik.http.routers.rabbitmq-https.entrypoints=https
+        - traefik.http.routers.rabbitmq-https.tls=true
+        - traefik.http.routers.rabbitmq-https.tls.certresolver=cloudflare
+        - traefik.http.middlewares.rabbitmq-stripprefix.stripprefix.prefixes=/rabbitmq
+        - traefik.http.routers.rabbitmq-https.middlewares=rabbitmq-stripprefix
+        - traefik.http.services.rabbitmq.loadbalancer.server.port=15672
 
   mongodb:
     image: mongo:latest

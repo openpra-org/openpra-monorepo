@@ -187,9 +187,14 @@ jobs:
           BRANCH_SLUG: ${{ needs.build-and-push.outputs.branch_slug }}
           REPO_LOWER: ${{ needs.build-and-push.outputs.repo_lower }}
         run: |
+          # Login to GHCR so Swarm can pull images
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
           # Set deployment variables
           export FRONTEND_HOST="${BRANCH_SLUG}.openpra.org"
           export BACKEND_HOST="${BRANCH_SLUG}.openpra.org"
+          export JOB_BROKER_HOST="${BRANCH_SLUG}.openpra.org"
+          export RABBITMQ_HOST="${BRANCH_SLUG}.openpra.org"
           export IMAGE_FRONTEND="${{ env.REGISTRY }}/${REPO_LOWER}/openpra-frontend:${BRANCH_SLUG}"
           export IMAGE_BACKEND="${{ env.REGISTRY }}/${REPO_LOWER}/openpra-web-backend:${BRANCH_SLUG}"
           export IMAGE_JOB_BROKER="${{ env.REGISTRY }}/${REPO_LOWER}/openpra-job-broker:${BRANCH_SLUG}"
@@ -198,15 +203,17 @@ jobs:
           export NUM_BACKENDS=1
           export NUM_BROKERS=1
           export NUM_WORKERS=2
-          export DEPLOYMENT_FRONTEND_POOL="node.role==worker"
-          export DEPLOYMENT_BACKEND_POOL="node.role==worker"
-          export DEPLOYMENT_BROKER_POOL="node.role==worker"
-          export DEPLOYMENT_WORKER_POOL="node.role==worker"
+          export DEPLOYMENT_FRONTEND_POOL="node.labels.high_performance==true"
+          export DEPLOYMENT_BACKEND_POOL="node.labels.high_performance==true"
+          export DEPLOYMENT_BROKER_POOL="node.labels.high_performance==true"
+          export DEPLOYMENT_WORKER_POOL="node.labels.high_performance==true"
 
           # Deploy stack (runner is already on Swarm, no SSH needed)
           docker stack deploy -c docker/cd-stack.yml openpra-${BRANCH_SLUG}
 
           # Show deployment info
           echo "🚀 Deployed to:"
-          echo "   Frontend: https://${FRONTEND_HOST}"
-          echo "   Backend:  https://${BACKEND_HOST}/api"
+          echo "   Frontend:  https://${FRONTEND_HOST}"
+          echo "   Backend:   https://${BACKEND_HOST}/api"
+          echo "   Job Broker: https://${JOB_BROKER_HOST}/q"
+          echo "   RabbitMQ:  https://${RABBITMQ_HOST}/rabbitmq"

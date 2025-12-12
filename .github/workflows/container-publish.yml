@@ -204,9 +204,9 @@ jobs:
           export NUM_BACKENDS=1
           export NUM_BROKERS=1
           export NUM_WORKERS=2
-          export DEPLOYMENT_FRONTEND_POOL="node.role==manager"
-          export DEPLOYMENT_BACKEND_POOL="node.role==manager"
-          export DEPLOYMENT_BROKER_POOL="node.role==manager"
+          export DEPLOYMENT_FRONTEND_POOL="node.role==worker"
+          export DEPLOYMENT_BACKEND_POOL="node.role==worker"
+          export DEPLOYMENT_BROKER_POOL="node.role==worker"
           export DEPLOYMENT_WORKER_POOL="node.role==worker"
 
           # Deploy stack WITH registry auth to propagate credentials to worker nodes

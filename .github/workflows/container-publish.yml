@@ -204,10 +204,10 @@ jobs:
           export NUM_BACKENDS=1
           export NUM_BROKERS=1
           export NUM_WORKERS=2
-          export DEPLOYMENT_FRONTEND_POOL="node.labels.high_performance==true"
-          export DEPLOYMENT_BACKEND_POOL="node.labels.high_performance==true"
-          export DEPLOYMENT_BROKER_POOL="node.labels.high_performance==true"
-          export DEPLOYMENT_WORKER_POOL="node.labels.high_performance==true"
+          export DEPLOYMENT_FRONTEND_POOL="node.role==manager"
+          export DEPLOYMENT_BACKEND_POOL="node.role==manager"
+          export DEPLOYMENT_BROKER_POOL="node.role==manager"
+          export DEPLOYMENT_WORKER_POOL="node.role==worker"
 
           # Deploy stack WITH registry auth to propagate credentials to worker nodes
           docker stack deploy --with-registry-auth -c docker/cd-stack.yml openpra-${BRANCH_SLUG}

@@ -174,8 +174,6 @@ services:
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
-    environment:
-      RABBITMQ_MANAGEMENT_PATH_PREFIX: /rabbitmq
     networks:
       - app_net
       - traefik-public
@@ -198,10 +196,10 @@ services:
         - traefik.enable=true
         - traefik.constraint-label=traefik-public
         - traefik.docker.network=traefik-public
-        - traefik.http.routers.rabbitmq-http.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/rabbitmq`)
+        - traefik.http.routers.rabbitmq-http.rule=Host(`${RABBITMQ_HOST}`)
         - traefik.http.routers.rabbitmq-http.entrypoints=http
         - traefik.http.routers.rabbitmq-http.middlewares=https-redirect
-        - traefik.http.routers.rabbitmq-https.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/rabbitmq`)
+        - traefik.http.routers.rabbitmq-https.rule=Host(`${RABBITMQ_HOST}`)
         - traefik.http.routers.rabbitmq-https.entrypoints=https
         - traefik.http.routers.rabbitmq-https.tls=true
         - traefik.http.routers.rabbitmq-https.tls.certresolver=cloudflare

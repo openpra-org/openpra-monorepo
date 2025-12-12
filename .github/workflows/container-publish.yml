@@ -176,7 +176,7 @@ jobs:
 
   deploy:
     needs: build-and-push
-    runs-on: [self-hosted, mmonorepo]
+    runs-on: [self-hosted, monorepo]
     if: github.event_name == 'push'
     steps:
       - name: Checkout repository

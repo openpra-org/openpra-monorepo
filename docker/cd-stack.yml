@@ -65,16 +65,16 @@ services:
         - traefik.enable=true
         - traefik.constraint-label=traefik-public
         - traefik.docker.network=traefik-public
-        - traefik.http.routers.frontend-http.rule=Host(`${FRONTEND_HOST}`)
-        - traefik.http.routers.frontend-http.entrypoints=http
-        - traefik.http.routers.frontend-http.middlewares=https-redirect
-        - traefik.http.routers.frontend-https.rule=Host(`${FRONTEND_HOST}`)
-        - traefik.http.routers.frontend-https.entrypoints=https
-        - traefik.http.routers.frontend-https.tls=true
-        - traefik.http.routers.frontend-https.tls.certresolver=cloudflare
-        - traefik.http.services.frontend.loadbalancer.server.port=80
-        - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
-        - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
+        - traefik.http.routers.${BRANCH_SLUG}-frontend-http.rule=Host(`${FRONTEND_HOST}`)
+        - traefik.http.routers.${BRANCH_SLUG}-frontend-http.entrypoints=http
+        - traefik.http.routers.${BRANCH_SLUG}-frontend-http.middlewares=${BRANCH_SLUG}-https-redirect
+        - traefik.http.routers.${BRANCH_SLUG}-frontend-https.rule=Host(`${FRONTEND_HOST}`)
+        - traefik.http.routers.${BRANCH_SLUG}-frontend-https.entrypoints=https
+        - traefik.http.routers.${BRANCH_SLUG}-frontend-https.tls=true
+        - traefik.http.routers.${BRANCH_SLUG}-frontend-https.tls.certresolver=cloudflare
+        - traefik.http.services.${BRANCH_SLUG}-frontend.loadbalancer.server.port=80
+        - traefik.http.middlewares.${BRANCH_SLUG}-https-redirect.redirectscheme.scheme=https
+        - traefik.http.middlewares.${BRANCH_SLUG}-https-redirect.redirectscheme.permanent=true
 
   backend:
     image: ${IMAGE_BACKEND}
@@ -103,14 +103,14 @@ services:
         - traefik.enable=true
         - traefik.constraint-label=traefik-public
         - traefik.docker.network=traefik-public
-        - traefik.http.routers.backend-http.rule=Host(`${BACKEND_HOST}`)
-        - traefik.http.routers.backend-http.entrypoints=http
-        - traefik.http.routers.backend-http.middlewares=https-redirect
-        - traefik.http.routers.backend-https.rule=Host(`${BACKEND_HOST}`)
-        - traefik.http.routers.backend-https.entrypoints=https
-        - traefik.http.routers.backend-https.tls=true
-        - traefik.http.routers.backend-https.tls.certresolver=cloudflare
-        - traefik.http.services.backend.loadbalancer.server.port=8000
+        - traefik.http.routers.${BRANCH_SLUG}-backend-http.rule=Host(`${BACKEND_HOST}`)
+        - traefik.http.routers.${BRANCH_SLUG}-backend-http.entrypoints=http
+        - traefik.http.routers.${BRANCH_SLUG}-backend-http.middlewares=${BRANCH_SLUG}-https-redirect
+        - traefik.http.routers.${BRANCH_SLUG}-backend-https.rule=Host(`${BACKEND_HOST}`)
+        - traefik.http.routers.${BRANCH_SLUG}-backend-https.entrypoints=https
+        - traefik.http.routers.${BRANCH_SLUG}-backend-https.tls=true
+        - traefik.http.routers.${BRANCH_SLUG}-backend-https.tls.certresolver=cloudflare
+        - traefik.http.services.${BRANCH_SLUG}-backend.loadbalancer.server.port=8000
 
   job-broker:
     image: ${IMAGE_JOB_BROKER}
@@ -137,14 +137,14 @@ services:
         - traefik.enable=true
         - traefik.constraint-label=traefik-public
         - traefik.docker.network=traefik-public
-        - traefik.http.routers.job-broker-http.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/q`)
-        - traefik.http.routers.job-broker-http.entrypoints=http
-        - traefik.http.routers.job-broker-http.middlewares=https-redirect
-        - traefik.http.routers.job-broker-https.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/q`)
-        - traefik.http.routers.job-broker-https.entrypoints=https
-        - traefik.http.routers.job-broker-https.tls=true
-        - traefik.http.routers.job-broker-https.tls.certresolver=cloudflare
-        - traefik.http.services.job-broker.loadbalancer.server.port=3000
+        - traefik.http.routers.${BRANCH_SLUG}-job-broker-http.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/q`)
+        - traefik.http.routers.${BRANCH_SLUG}-job-broker-http.entrypoints=http
+        - traefik.http.routers.${BRANCH_SLUG}-job-broker-http.middlewares=${BRANCH_SLUG}-https-redirect
+        - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/q`)
+        - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.entrypoints=https
+        - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.tls=true
+        - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.tls.certresolver=cloudflare
+        - traefik.http.services.${BRANCH_SLUG}-job-broker.loadbalancer.server.port=3000
 
   job-worker:
     image: ${IMAGE_JOB_BROKER}
@@ -196,14 +196,14 @@ services:
         - traefik.enable=true
         - traefik.constraint-label=traefik-public
         - traefik.docker.network=traefik-public
-        - traefik.http.routers.rabbitmq-http.rule=Host(`${RABBITMQ_HOST}`)
-        - traefik.http.routers.rabbitmq-http.entrypoints=http
-        - traefik.http.routers.rabbitmq-http.middlewares=https-redirect
-        - traefik.http.routers.rabbitmq-https.rule=Host(`${RABBITMQ_HOST}`)
-        - traefik.http.routers.rabbitmq-https.entrypoints=https
-        - traefik.http.routers.rabbitmq-https.tls=true
-        - traefik.http.routers.rabbitmq-https.tls.certresolver=cloudflare
-        - traefik.http.services.rabbitmq.loadbalancer.server.port=15672
+        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.rule=Host(`${RABBITMQ_HOST}`)
+        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.entrypoints=http
+        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.middlewares=${BRANCH_SLUG}-https-redirect
+        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.rule=Host(`${RABBITMQ_HOST}`)
+        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.entrypoints=https
+        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.tls=true
+        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.tls.certresolver=cloudflare
+        - traefik.http.services.${BRANCH_SLUG}-rabbitmq.loadbalancer.server.port=15672
 
   mongodb:
     image: mongo:latest

@@ -187,8 +187,14 @@ jobs:
           BRANCH_SLUG: ${{ needs.build-and-push.outputs.branch_slug }}
           REPO_LOWER: ${{ needs.build-and-push.outputs.repo_lower }}
         run: |
-          # Login to GHCR so Swarm can pull images
+          # Login to GHCR on manager node
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+          # Login on all worker nodes to ensure they can pull images
+          for node in $(docker node ls --filter "role=worker" --format "{{.Hostname}}"); do
+            echo "Logging in to GHCR on worker node: $node"
+            ssh -o StrictHostKeyChecking=no $node "echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u ${{ github.actor }} --password-stdin" || true
+          done
 
           # Set deployment variables
           export FRONTEND_HOST="${BRANCH_SLUG}.openpra.org"
@@ -208,8 +214,10 @@ jobs:
           export DEPLOYMENT_BROKER_POOL="node.labels.high_performance==true"
           export DEPLOYMENT_WORKER_POOL="node.labels.high_performance==true"
 
-          # Deploy stack with registry auth so worker nodes can pull images
-          docker stack deploy --with-registry-auth -c docker/cd-stack.yml openpra-${BRANCH_SLUG}          # Show deployment info
+          # Deploy stack with registry auth
+          docker stack deploy --with-registry-auth -c docker/cd-stack.yml openpra-${BRANCH_SLUG}
+
+          # Show deployment info
           echo "🚀 Deployed to:"
           echo "   Frontend:  https://${FRONTEND_HOST}"
           echo "   Backend:   https://${BACKEND_HOST}/api"

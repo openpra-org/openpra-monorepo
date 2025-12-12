@@ -21,6 +21,7 @@
     "amqplib": "0.10.9",
     "express": "4.20.0",
     "mongoose": "8.19.2",
+    "mongodb": "6.20.0",
     "scram-node": "workspace:^",
     "shared-types": "workspace:^",
     "tmp": "0.2.5",

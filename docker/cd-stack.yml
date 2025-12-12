@@ -2,8 +2,12 @@ networks:
   app_net:
     driver: overlay
     attachable: true
-  traefik-public:
-    external: true
+  traefik-cd:
+    driver: overlay
+    attachable: true
+    ipam:
+      config:
+        - subnet: 10.10.0.0/16
 
 configs:
   rabbitmq_plugins:
@@ -50,7 +54,7 @@ services:
     <<: *volumes-timezone
     networks:
       - app_net
-      - traefik-public
+      - traefik-cd
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_FRONTENDS}
@@ -65,7 +69,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.constraint-label=traefik-public
-        - traefik.docker.network=traefik-public
+        - traefik.docker.network=traefik-cd
         - traefik.http.routers.frontend-http.rule=Host(`${FRONTEND_HOST}`)
         - traefik.http.routers.frontend-http.entrypoints=http
         - traefik.http.routers.frontend-http.middlewares=https-redirect
@@ -82,7 +86,7 @@ services:
     <<: *shared-app-config
     networks:
       - app_net
-      - traefik-public
+      - traefik-cd
     secrets:
       - JWT_SECRET
     environment:
@@ -104,7 +108,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.constraint-label=traefik-public
-        - traefik.docker.network=traefik-public
+        - traefik.docker.network=traefik-cd
         - traefik.http.routers.backend-http.rule=Host(`${BACKEND_HOST}`)
         - traefik.http.routers.backend-http.entrypoints=http
         - traefik.http.routers.backend-http.middlewares=https-redirect
@@ -124,7 +128,7 @@ services:
       NODE_OPTIONS: "--max-old-space-size=8192"
     networks:
       - app_net
-      - traefik-public
+      - traefik-cd
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_BROKERS}
@@ -139,7 +143,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.constraint-label=traefik-public
-        - traefik.docker.network=traefik-public
+        - traefik.docker.network=traefik-cd
         - traefik.http.routers.job-broker-http.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/q`)
         - traefik.http.routers.job-broker-http.entrypoints=http
         - traefik.http.routers.job-broker-http.middlewares=https-redirect
@@ -180,7 +184,7 @@ services:
       - "/etc/timezone:/etc/timezone:ro"
     networks:
       - app_net
-      - traefik-public
+      - traefik-cd
     configs:
       - source: rabbitmq_plugins
         target: /etc/rabbitmq/enabled_plugins
@@ -199,7 +203,7 @@ services:
       labels:
         - traefik.enable=true
         - traefik.constraint-label=traefik-public
-        - traefik.docker.network=traefik-public
+        - traefik.docker.network=traefik-cd
         - traefik.http.routers.rabbitmq-http.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/rabbitmq`)
         - traefik.http.routers.rabbitmq-http.entrypoints=http
         - traefik.http.routers.rabbitmq-http.middlewares=https-redirect

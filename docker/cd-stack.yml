@@ -45,146 +45,88 @@ secrets:
     name: jwt_secret
 
 services:
-  # frontend:
-  #   image: ${IMAGE_FRONTEND}
-  #   <<: *volumes-timezone
-  #   networks:
-  #     - app_net
-  #     - traefik-public
-  #   depends_on:
-  #     - backend
-  #   deploy:
-  #     <<: *shared-replicated
-  #     replicas: ${NUM_FRONTENDS}
-  #     placement:
-  #       constraints:
-  #         - "${DEPLOYMENT_FRONTEND_POOL}"
-  #     restart_policy:
-  #       condition: any
-  #       delay: 10s
-  #       max_attempts: 5
-  #     labels:
-  #       - traefik.enable=true
-  #       - traefik.constraint-label=traefik-public
-  #       - traefik.docker.network=traefik-public
-  #       - traefik.http.routers.${BRANCH_SLUG}-frontend-http.rule=Host(`${FRONTEND_HOST}`)
-  #       - traefik.http.routers.${BRANCH_SLUG}-frontend-http.entrypoints=http
-  #       - traefik.http.routers.${BRANCH_SLUG}-frontend-http.middlewares=${BRANCH_SLUG}-https-redirect
-  #       - traefik.http.routers.${BRANCH_SLUG}-frontend-https.rule=Host(`${FRONTEND_HOST}`)
-  #       - traefik.http.routers.${BRANCH_SLUG}-frontend-https.entrypoints=https
-  #       - traefik.http.routers.${BRANCH_SLUG}-frontend-https.tls=true
-  #       - traefik.http.routers.${BRANCH_SLUG}-frontend-https.tls.certresolver=le
-  #       - traefik.http.services.${BRANCH_SLUG}-frontend.loadbalancer.server.port=80
-  #       - traefik.http.middlewares.${BRANCH_SLUG}-https-redirect.redirectscheme.scheme=https
-  #       - traefik.http.middlewares.${BRANCH_SLUG}-https-redirect.redirectscheme.permanent=true
+  frontend:
+    image: ${IMAGE_FRONTEND}
+    <<: *volumes-timezone
+    networks:
+      - app_net
+    deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_FRONTENDS}
+      placement:
+        constraints:
+          - "${DEPLOYMENT_FRONTEND_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
 
-  # backend:
-  #   image: ${IMAGE_BACKEND}
-  #   <<: *shared-app-config
-  #   networks:
-  #     - app_net
-  #     - traefik-public
-  #   depends_on:
-  #     - mongodb
-  #   secrets:
-  #     - JWT_SECRET
-  #   environment:
-  #     JWT_SECRET_KEY_FILE: /run/secrets/JWT_SECRET
-  #     NODE_ENV: production
-  #     DEBUG: "false"
-  #   command: ["node", "main.js"]
-  #   deploy:
-  #     <<: *shared-replicated
-  #     replicas: ${NUM_BACKENDS}
-  #     placement:
-  #       constraints:
-  #         - "${DEPLOYMENT_BACKEND_POOL}"
-  #     restart_policy:
-  #       condition: any
-  #       delay: 10s
-  #       max_attempts: 5
-  #     labels:
-  #       - traefik.enable=true
-  #       - traefik.constraint-label=traefik-public
-  #       - traefik.docker.network=traefik-public
-  #       - traefik.http.routers.${BRANCH_SLUG}-backend-http.rule=Host(`${BACKEND_HOST}`)
-  #       - traefik.http.routers.${BRANCH_SLUG}-backend-http.entrypoints=http
-  #       - traefik.http.routers.${BRANCH_SLUG}-backend-http.middlewares=${BRANCH_SLUG}-https-redirect
-  #       - traefik.http.routers.${BRANCH_SLUG}-backend-https.rule=Host(`${BACKEND_HOST}`)
-  #       - traefik.http.routers.${BRANCH_SLUG}-backend-https.entrypoints=https
-  #       - traefik.http.routers.${BRANCH_SLUG}-backend-https.tls=true
-  #       - traefik.http.routers.${BRANCH_SLUG}-backend-https.tls.certresolver=le
-  #       - traefik.http.services.${BRANCH_SLUG}-backend.loadbalancer.server.port=8000
+  backend:
+    image: ${IMAGE_BACKEND}
+    <<: *shared-app-config
+    networks:
+      - app_net
+    secrets:
+      - JWT_SECRET
+    environment:
+      JWT_SECRET_KEY_FILE: /run/secrets/JWT_SECRET
+      NODE_ENV: production
+      DEBUG: "false"
+    command: ["node", "main.js"]
+    deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_BACKENDS}
+      placement:
+        constraints:
+          - "${DEPLOYMENT_BACKEND_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
 
-  # job-broker:
-  #   image: ${IMAGE_JOB_BROKER}
-  #   <<: *shared-app-config
-  #   command: ["node", "main.js"]
-  #   depends_on:
-  #     - rabbitmq
-  #     - mongodb
-  #   environment:
-  #     NODE_ENV: ${CI_BUILD_TYPE}
-  #     DEBUG: ${CI_DEBUG}
-  #     NODE_OPTIONS: "--max-old-space-size=8192"
-  #   networks:
-  #     - app_net
-  #     - traefik-public
-  #   deploy:
-  #     <<: *shared-replicated
-  #     replicas: ${NUM_BROKERS}
-  #     placement:
-  #       constraints:
-  #         - "${DEPLOYMENT_BROKER_POOL}"
-  #     restart_policy:
-  #       condition: any
-  #       delay: 10s
-  #       max_attempts: 5
-  #     labels:
-  #       - traefik.enable=true
-  #       - traefik.constraint-label=traefik-public
-  #       - traefik.docker.network=traefik-public
-  #       - traefik.http.routers.${BRANCH_SLUG}-job-broker-http.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/q`)
-  #       - traefik.http.routers.${BRANCH_SLUG}-job-broker-http.entrypoints=http
-  #       - traefik.http.routers.${BRANCH_SLUG}-job-broker-http.middlewares=${BRANCH_SLUG}-https-redirect
-  #       - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.rule=Host(`${BACKEND_HOST}`) && PathPrefix(`/q`)
-  #       - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.entrypoints=https
-  #       - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.tls=true
-  #       - traefik.http.routers.${BRANCH_SLUG}-job-broker-https.tls.certresolver=le
-  #       - traefik.http.services.${BRANCH_SLUG}-job-broker.loadbalancer.server.port=3000
+  job-broker:
+    image: ${IMAGE_JOB_BROKER}
+    <<: *shared-app-config
+    command: ["node", "main.js"]
+    environment:
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
+      NODE_OPTIONS: "--max-old-space-size=8192"
+    networks:
+      - app_net
+    deploy:
+      <<: *shared-replicated
+      replicas: ${NUM_BROKERS}
+      placement:
+        constraints:
+          - "${DEPLOYMENT_BROKER_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
 
-  # job-worker:
-  #   image: ${IMAGE_JOB_BROKER}
-  #   <<: *shared-app-config
-  #   command:
-  #     - /bin/sh
-  #     - -c
-  #     - |
-  #       echo "Waiting for RabbitMQ to be ready..."
-  #       until nc -z rabbitmq 5672; do
-  #         echo "RabbitMQ not ready, waiting..."
-  #         sleep 2
-  #       done
-  #       echo "RabbitMQ is ready, starting job-worker..."
-  #       node main.js
-  #   environment:
-  #     NODE_ENV: ${CI_BUILD_TYPE}
-  #     DEBUG: ${CI_DEBUG}
-  #     NODE_OPTIONS: "--max-old-space-size=8192"
-  #     WORKER_MODE: "true"
-  #   networks:
-  #     - app_net
-  #   deploy:
-  #     mode: replicated
-  #     replicas: ${NUM_WORKERS}
-  #     <<: *shared-replicated
-  #     placement:
-  #       constraints:
-  #         - "${DEPLOYMENT_WORKER_POOL}"
-  #     restart_policy:
-  #       condition: any
-  #       delay: 10s
-  #       max_attempts: 5
+  job-worker:
+    image: ${IMAGE_JOB_BROKER}
+    <<: *shared-app-config
+    command: ["node", "main.js"]
+    environment:
+      NODE_ENV: ${CI_BUILD_TYPE}
+      DEBUG: ${CI_DEBUG}
+      NODE_OPTIONS: "--max-old-space-size=8192"
+      WORKER_MODE: "true"
+    networks:
+      - app_net
+    deploy:
+      mode: replicated
+      replicas: ${NUM_WORKERS}
+      <<: *shared-replicated
+      placement:
+        constraints:
+          - "${DEPLOYMENT_WORKER_POOL}"
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
 
   rabbitmq:
     image: rabbitmq:management-alpine
@@ -193,7 +135,6 @@ services:
       - "/etc/timezone:/etc/timezone:ro"
     networks:
       - app_net
-      - traefik-public
     configs:
       - source: rabbitmq_plugins
         target: /etc/rabbitmq/enabled_plugins
@@ -209,18 +150,6 @@ services:
         condition: any
         delay: 5s
         max_attempts: 3
-      labels:
-        - traefik.enable=true
-        - traefik.constraint-label=traefik-public
-        - traefik.docker.network=traefik-public
-        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.rule=Host(`${RABBITMQ_HOST}`)
-        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.entrypoints=http
-        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.middlewares=${BRANCH_SLUG}-https-redirect
-        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.rule=Host(`${RABBITMQ_HOST}`)
-        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.entrypoints=https
-        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.tls=true
-        - traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.tls.certresolver=le
-        - traefik.http.services.${BRANCH_SLUG}-rabbitmq.loadbalancer.server.port=15672
 
   mongodb:
     image: mongo:latest

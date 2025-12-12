@@ -51,6 +51,8 @@ services:
     networks:
       - app_net
       - traefik-public
+    depends_on:
+      - backend
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_FRONTENDS}
@@ -82,6 +84,8 @@ services:
     networks:
       - app_net
       - traefik-public
+    depends_on:
+      - mongodb
     secrets:
       - JWT_SECRET
     environment:
@@ -116,6 +120,9 @@ services:
     image: ${IMAGE_JOB_BROKER}
     <<: *shared-app-config
     command: ["node", "main.js"]
+    depends_on:
+      - rabbitmq
+      - backend
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
@@ -150,6 +157,9 @@ services:
     image: ${IMAGE_JOB_BROKER}
     <<: *shared-app-config
     command: ["node", "main.js"]
+    depends_on:
+      - rabbitmq
+      - backend
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}

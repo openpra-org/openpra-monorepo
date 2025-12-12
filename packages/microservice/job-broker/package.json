@@ -25,7 +25,9 @@
     "shared-types": "workspace:^",
     "tmp": "0.2.5",
     "typia": "9.7.2",
-    "webpack": "5.94.0"
+    "webpack": "5.94.0",
+    "reflect-metadata": "0.2.2",
+    "tslib": "2.8.1"
   },
   "devDependencies": {
     "@darraghor/eslint-plugin-nestjs-typed": "5.0.18",

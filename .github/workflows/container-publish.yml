@@ -153,14 +153,13 @@ jobs:
 
       - name: Prepare frontend build context
         run: |
-          mkdir -p docker-context/frontend
-          cp -r dist/packages/frontend/web-editor/* docker-context/frontend/
+          mkdir -p docker-context/frontend/html
+          cp -r dist/packages/frontend/web-editor/* docker-context/frontend/html/
           cp docker/nginx-frontend.production.conf docker-context/frontend/nginx-frontend.conf
           cat > docker-context/frontend/Dockerfile <<'EOF'
           FROM nginx:1.25-alpine
           COPY nginx-frontend.conf /etc/nginx/conf.d/default.conf
-          COPY *.js *.css *.html *.ico *.json /usr/share/nginx/html/
-          COPY assets /usr/share/nginx/html/assets
+          COPY html/ /usr/share/nginx/html/
           EXPOSE 80
           EOF
 

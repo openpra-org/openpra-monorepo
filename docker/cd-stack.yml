@@ -3,9 +3,7 @@ networks:
     driver: overlay
     attachable: true
   traefik-public:
-    driver: overlay
-    attachable: true
-    name: traefik-public
+    external: true
 
 configs:
   rabbitmq_plugins:
@@ -81,7 +79,6 @@ services:
     image: ${IMAGE_BACKEND}
     <<: *shared-app-config
     networks:
-      - app_net
       - traefik-public
     secrets:
       - JWT_SECRET
@@ -118,7 +115,6 @@ services:
       DEBUG: ${CI_DEBUG}
       NODE_OPTIONS: "--max-old-space-size=8192"
     networks:
-      - app_net
       - traefik-public
     deploy:
       <<: *shared-replicated
@@ -149,14 +145,10 @@ services:
       NODE_OPTIONS: "--max-old-space-size=8192"
       WORKER_MODE: "true"
     networks:
-      - app_net
+      - traefik-public
     deploy:
       mode: replicated
       replicas: ${NUM_WORKERS}
-      <<: *shared-replicated
-      placement:
-        constraints:
-          - "${DEPLOYMENT_WORKER_POOL}"
       restart_policy:
         condition: any
         delay: 10s
@@ -196,16 +188,13 @@ services:
   mongodb:
     image: mongo:latest
     networks:
-      - app_net
+      - traefik-public
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
     deploy:
       mode: replicated
       replicas: 1
-      placement:
-        constraints:
-          - "${DEPLOYMENT_MONGODB_POOL}"
       restart_policy:
         condition: any
         delay: 5s

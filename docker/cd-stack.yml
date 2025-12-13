@@ -50,6 +50,11 @@ services:
     <<: *volumes-timezone
     networks:
       - app_net
+    ports:
+      - target: 80
+        published: 8080
+        protocol: tcp
+        mode: ingress
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_FRONTENDS}
@@ -60,12 +65,27 @@ services:
         condition: any
         delay: 10s
         max_attempts: 5
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.entrypoints=web"
+        - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.middlewares=${BRANCH_SLUG}-https-redirect"
+        - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.rule=Host(`${BRANCH_SLUG}.openpra.org`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.entrypoints=websecure"
+        - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.tls.certresolver=le"
+        - "traefik.http.middlewares.${BRANCH_SLUG}-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.services.${BRANCH_SLUG}-frontend.loadbalancer.server.port=8080"
 
   backend:
     image: ${IMAGE_BACKEND}
     <<: *shared-app-config
     networks:
       - app_net
+    ports:
+      - target: 8000
+        published: 8000
+        protocol: tcp
+        mode: ingress
     secrets:
       - JWT_SECRET
     environment:
@@ -83,11 +103,25 @@ services:
         condition: any
         delay: 10s
         max_attempts: 5
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.${BRANCH_SLUG}-backend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-backend-http.entrypoints=web"
+        - "traefik.http.routers.${BRANCH_SLUG}-backend-http.middlewares=${BRANCH_SLUG}-https-redirect"
+        - "traefik.http.routers.${BRANCH_SLUG}-backend-https.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/api`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-backend-https.entrypoints=websecure"
+        - "traefik.http.routers.${BRANCH_SLUG}-backend-https.tls.certresolver=le"
+        - "traefik.http.services.${BRANCH_SLUG}-backend.loadbalancer.server.port=8000"
 
   job-broker:
     image: ${IMAGE_JOB_BROKER}
     <<: *shared-app-config
     command: ["node", "main.js"]
+    ports:
+      - target: 3000
+        published: 3000
+        protocol: tcp
+        mode: ingress
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
@@ -104,6 +138,15 @@ services:
         condition: any
         delay: 10s
         max_attempts: 5
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.${BRANCH_SLUG}-broker-http.rule=Host(`broker-${BRANCH_SLUG}.openpra.org`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-broker-http.entrypoints=web"
+        - "traefik.http.routers.${BRANCH_SLUG}-broker-http.middlewares=${BRANCH_SLUG}-https-redirect"
+        - "traefik.http.routers.${BRANCH_SLUG}-broker-https.rule=Host(`broker-${BRANCH_SLUG}.openpra.org`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-broker-https.entrypoints=websecure"
+        - "traefik.http.routers.${BRANCH_SLUG}-broker-https.tls.certresolver=le"
+        - "traefik.http.services.${BRANCH_SLUG}-broker.loadbalancer.server.port=3000"
 
   job-worker:
     image: ${IMAGE_JOB_BROKER}
@@ -135,6 +178,11 @@ services:
       - "/etc/timezone:/etc/timezone:ro"
     networks:
       - app_net
+    ports:
+      - target: 15672
+        published: 15672
+        protocol: tcp
+        mode: ingress
     configs:
       - source: rabbitmq_plugins
         target: /etc/rabbitmq/enabled_plugins
@@ -150,6 +198,15 @@ services:
         condition: any
         delay: 5s
         max_attempts: 3
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.rule=Host(`rabbitmq-${BRANCH_SLUG}.openpra.org`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.entrypoints=web"
+        - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.middlewares=${BRANCH_SLUG}-https-redirect"
+        - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.rule=Host(`rabbitmq-${BRANCH_SLUG}.openpra.org`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.entrypoints=websecure"
+        - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.tls.certresolver=le"
+        - "traefik.http.services.${BRANCH_SLUG}-rabbitmq.loadbalancer.server.port=15672"
 
   mongodb:
     image: mongo:latest

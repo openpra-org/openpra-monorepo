@@ -3,7 +3,9 @@ networks:
     driver: overlay
     attachable: true
   traefik-public:
-    external: true
+    driver: overlay
+    attachable: true
+    name: traefik-public
 
 configs:
   rabbitmq_plugins:
@@ -49,7 +51,6 @@ services:
     image: ${IMAGE_FRONTEND}
     <<: *volumes-timezone
     networks:
-      - app_net
       - traefik-public
     ports:
       - target: 80
@@ -167,7 +168,6 @@ services:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
     networks:
-      - app_net
       - traefik-public
     configs:
       - source: rabbitmq_plugins

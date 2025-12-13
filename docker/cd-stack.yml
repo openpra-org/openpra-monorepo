@@ -84,12 +84,6 @@ services:
     <<: *shared-app-config
     networks:
       - app_net
-      - traefik-public
-    ports:
-      - target: 8000
-        published: 8000
-        protocol: tcp
-        mode: ingress
     secrets:
       - JWT_SECRET
     environment:
@@ -109,7 +103,7 @@ services:
         max_attempts: 5
       labels:
         - "traefik.enable=true"
-        - "traefik.docker.network=traefik-public"
+        - "traefik.docker.network=app_net"
         - "traefik.constraint-label=traefik-public"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/api`)"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.entrypoints=web"
@@ -123,18 +117,12 @@ services:
     image: ${IMAGE_JOB_BROKER}
     <<: *shared-app-config
     command: ["node", "main.js"]
-    ports:
-      - target: 3000
-        published: 3000
-        protocol: tcp
-        mode: ingress
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
       NODE_OPTIONS: "--max-old-space-size=8192"
     networks:
       - app_net
-      - traefik-public
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_BROKERS}
@@ -147,7 +135,7 @@ services:
         max_attempts: 5
       labels:
         - "traefik.enable=true"
-        - "traefik.docker.network=traefik-public"
+        - "traefik.docker.network=app_net"
         - "traefik.constraint-label=traefik-public"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.rule=Host(`broker-${BRANCH_SLUG}.openpra.org`)"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.entrypoints=web"
@@ -187,12 +175,6 @@ services:
       - "/etc/timezone:/etc/timezone:ro"
     networks:
       - app_net
-      - traefik-public
-    ports:
-      - target: 15672
-        published: 15672
-        protocol: tcp
-        mode: ingress
     configs:
       - source: rabbitmq_plugins
         target: /etc/rabbitmq/enabled_plugins
@@ -210,7 +192,7 @@ services:
         max_attempts: 3
       labels:
         - "traefik.enable=true"
-        - "traefik.docker.network=traefik-public"
+        - "traefik.docker.network=app_net"
         - "traefik.constraint-label=traefik-public"
         - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.rule=Host(`rabbitmq-${BRANCH_SLUG}.openpra.org`)"
         - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.entrypoints=web"

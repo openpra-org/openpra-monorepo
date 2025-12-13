@@ -50,6 +50,7 @@ services:
     <<: *volumes-timezone
     networks:
       - app_net
+      - traefik-public
     ports:
       - target: 80
         published: 8080
@@ -67,6 +68,8 @@ services:
         max_attempts: 5
       labels:
         - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.constraint-label=traefik-public"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`)"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.middlewares=${BRANCH_SLUG}-https-redirect"
@@ -74,13 +77,14 @@ services:
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.entrypoints=websecure"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.tls.certresolver=le"
         - "traefik.http.middlewares.${BRANCH_SLUG}-https-redirect.redirectscheme.scheme=https"
-        - "traefik.http.services.${BRANCH_SLUG}-frontend.loadbalancer.server.port=8080"
+        - "traefik.http.services.${BRANCH_SLUG}-frontend.loadbalancer.server.port=80"
 
   backend:
     image: ${IMAGE_BACKEND}
     <<: *shared-app-config
     networks:
       - app_net
+      - traefik-public
     ports:
       - target: 8000
         published: 8000
@@ -105,6 +109,8 @@ services:
         max_attempts: 5
       labels:
         - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.constraint-label=traefik-public"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/api`)"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.middlewares=${BRANCH_SLUG}-https-redirect"
@@ -128,6 +134,7 @@ services:
       NODE_OPTIONS: "--max-old-space-size=8192"
     networks:
       - app_net
+      - traefik-public
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_BROKERS}
@@ -140,6 +147,8 @@ services:
         max_attempts: 5
       labels:
         - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.constraint-label=traefik-public"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.rule=Host(`broker-${BRANCH_SLUG}.openpra.org`)"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.middlewares=${BRANCH_SLUG}-https-redirect"
@@ -178,6 +187,7 @@ services:
       - "/etc/timezone:/etc/timezone:ro"
     networks:
       - app_net
+      - traefik-public
     ports:
       - target: 15672
         published: 15672
@@ -200,6 +210,8 @@ services:
         max_attempts: 3
       labels:
         - "traefik.enable=true"
+        - "traefik.docker.network=traefik-public"
+        - "traefik.constraint-label=traefik-public"
         - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.rule=Host(`rabbitmq-${BRANCH_SLUG}.openpra.org`)"
         - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.middlewares=${BRANCH_SLUG}-https-redirect"

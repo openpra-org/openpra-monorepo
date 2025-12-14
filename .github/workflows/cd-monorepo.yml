@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  OWNER: ${{ github.repository_owner }}
+  OWNER: ${{ secrets.DOCKERHUB_USERNAME }}
   STACK_NAME: openpra
   # Defaults
   NUM_FRONTENDS: 1
@@ -41,8 +41,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_DEPLOY_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_DEPLOY_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Resolve image tags
         run: |

@@ -14,7 +14,7 @@ permissions:
 
 env:
   REGISTRY: docker.io
-  OWNER: ${{ github.repository_owner }}
+  OWNER: ${{ secrets.DOCKERHUB_USERNAME }}
 
 jobs:
   build-and-push:

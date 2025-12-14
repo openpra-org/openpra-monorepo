@@ -49,6 +49,7 @@ services:
     image: ${IMAGE_FRONTEND}
     <<: *volumes-timezone
     networks:
+      - app_net
       - traefik-public
     ports:
       - target: 80
@@ -58,6 +59,9 @@ services:
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_FRONTENDS}
+      placement:
+        constraints:
+          - "node.labels.min_host_performance == low"
       restart_policy:
         condition: any
         delay: 10s
@@ -68,17 +72,20 @@ services:
         - "traefik.constraint-label=traefik-public"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`)"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.entrypoints=web"
-        - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.middlewares=${BRANCH_SLUG}-https-redirect"
+        - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.middlewares=${BRANCH_SLUG}-https-redirect,gzip"
+        - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.service=${BRANCH_SLUG}-frontend"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.rule=Host(`${BRANCH_SLUG}.openpra.org`)"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.entrypoints=websecure"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.tls.certresolver=le"
-        - "traefik.http.middlewares.${BRANCH_SLUG}-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.middlewares=gzip"
+        - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.service=${BRANCH_SLUG}-frontend"
         - "traefik.http.services.${BRANCH_SLUG}-frontend.loadbalancer.server.port=80"
 
   backend:
     image: ${IMAGE_BACKEND}
     <<: *shared-app-config
     networks:
+      - app_net
       - traefik-public
     secrets:
       - JWT_SECRET
@@ -90,6 +97,9 @@ services:
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_BACKENDS}
+      placement:
+        constraints:
+          - "node.labels.min_host_performance == low"
       restart_policy:
         condition: any
         delay: 10s
@@ -100,10 +110,13 @@ services:
         - "traefik.constraint-label=traefik-public"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/api`)"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.entrypoints=web"
-        - "traefik.http.routers.${BRANCH_SLUG}-backend-http.middlewares=${BRANCH_SLUG}-https-redirect"
+        - "traefik.http.routers.${BRANCH_SLUG}-backend-http.middlewares=${BRANCH_SLUG}-https-redirect,gzip"
+        - "traefik.http.routers.${BRANCH_SLUG}-backend-http.service=${BRANCH_SLUG}-backend"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-https.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/api`)"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-https.entrypoints=websecure"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-https.tls.certresolver=le"
+        - "traefik.http.routers.${BRANCH_SLUG}-backend-https.middlewares=gzip"
+        - "traefik.http.routers.${BRANCH_SLUG}-backend-https.service=${BRANCH_SLUG}-backend"
         - "traefik.http.services.${BRANCH_SLUG}-backend.loadbalancer.server.port=8000"
 
   job-broker:
@@ -119,6 +132,9 @@ services:
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_BROKERS}
+      placement:
+        constraints:
+          - "node.labels.max_host_performance != low"
       restart_policy:
         condition: any
         delay: 10s
@@ -127,10 +143,10 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
         - "traefik.constraint-label=traefik-public"
-        - "traefik.http.routers.${BRANCH_SLUG}-broker-http.rule=Host(`broker-${BRANCH_SLUG}.openpra.org`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-broker-http.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/q`)"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.middlewares=${BRANCH_SLUG}-https-redirect"
-        - "traefik.http.routers.${BRANCH_SLUG}-broker-https.rule=Host(`broker-${BRANCH_SLUG}.openpra.org`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-broker-https.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/q`)"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-https.entrypoints=websecure"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-https.tls.certresolver=le"
         - "traefik.http.services.${BRANCH_SLUG}-broker.loadbalancer.server.port=3000"
@@ -149,6 +165,9 @@ services:
     deploy:
       mode: replicated
       replicas: ${NUM_WORKERS}
+      placement:
+        constraints:
+          - "node.labels.min_host_performance == low"
       restart_policy:
         condition: any
         delay: 10s
@@ -160,7 +179,13 @@ services:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
     networks:
+      - app_net
       - traefik-public
+    ports:
+      - target: 15672
+        published: 15672
+        protocol: tcp
+        mode: ingress
     configs:
       - source: rabbitmq_plugins
         target: /etc/rabbitmq/enabled_plugins
@@ -169,6 +194,9 @@ services:
     deploy:
       mode: replicated
       replicas: 1
+      placement:
+        constraints:
+          - "node.labels.max_host_performance != low"
       restart_policy:
         condition: any
         delay: 5s
@@ -177,24 +205,30 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
         - "traefik.constraint-label=traefik-public"
-        - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.rule=Host(`rabbitmq-${BRANCH_SLUG}.openpra.org`)"
-        - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.entrypoints=web"
-        - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-http.middlewares=${BRANCH_SLUG}-https-redirect"
-        - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.rule=Host(`rabbitmq-${BRANCH_SLUG}.openpra.org`)"
-        - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.entrypoints=websecure"
-        - "traefik.http.routers.${BRANCH_SLUG}-rabbitmq-https.tls.certresolver=le"
-        - "traefik.http.services.${BRANCH_SLUG}-rabbitmq.loadbalancer.server.port=15672"
+        - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.rule=Host(`rmq-${BRANCH_SLUG}.openpra.org`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.entrypoints=web"
+        - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.middlewares=${BRANCH_SLUG}-https-redirect,gzip"
+        - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.service=${BRANCH_SLUG}-rmq"
+        - "traefik.http.routers.${BRANCH_SLUG}-rmq-https.rule=Host(`rmq-${BRANCH_SLUG}.openpra.org`)"
+        - "traefik.http.routers.${BRANCH_SLUG}-rmq-https.entrypoints=websecure"
+        - "traefik.http.routers.${BRANCH_SLUG}-rmq-https.tls.certresolver=le"
+        - "traefik.http.routers.${BRANCH_SLUG}-rmq-https.middlewares=gzip,traefik-forward-auth"
+        - "traefik.http.routers.${BRANCH_SLUG}-rmq-https.service=${BRANCH_SLUG}-rmq"
+        - "traefik.http.services.${BRANCH_SLUG}-rmq.loadbalancer.server.port=15672"
 
   mongodb:
     image: mongo:latest
     networks:
-      - traefik-public
+      - app_net
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
     deploy:
       mode: replicated
       replicas: 1
+      placement:
+        constraints:
+          - "node.labels.max_host_performance != low"
       restart_policy:
         condition: any
         delay: 5s

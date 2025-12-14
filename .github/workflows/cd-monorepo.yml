@@ -5,7 +5,7 @@ on:
     types: [published]
 
 env:
-  REGISTRY: ghcr.io
+  REGISTRY: docker.io
   OWNER: ${{ github.repository_owner }}
   STACK_NAME: openpra
   # Defaults
@@ -30,19 +30,19 @@ jobs:
       # Note: To strictly enforce "only CODEOWNERS", you would need to check github.actor against a list.
       # Since CODEOWNERS file uses roles, we rely on GitHub's permission system for Release creation.
 
-      - name: Verify GHCR deploy credentials
+      - name: Verify Docker Hub deploy credentials
         run: |
-          if [ -z "${{ secrets.GHCR_DEPLOY_USERNAME }}" ] || [ -z "${{ secrets.GHCR_DEPLOY_TOKEN }}" ]; then
-            echo "GHCR_DEPLOY_USERNAME and GHCR_DEPLOY_TOKEN secrets are required for pulling private images" >&2
+          if [ -z "${{ secrets.DOCKERHUB_DEPLOY_USERNAME }}" ] || [ -z "${{ secrets.DOCKERHUB_DEPLOY_TOKEN }}" ]; then
+            echo "DOCKERHUB_DEPLOY_USERNAME and DOCKERHUB_DEPLOY_TOKEN secrets are required for pulling private images" >&2
             exit 1
           fi
 
-      - name: Log in to GHCR
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.GHCR_DEPLOY_USERNAME }}
-          password: ${{ secrets.GHCR_DEPLOY_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_DEPLOY_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_DEPLOY_TOKEN }}
 
       - name: Resolve image tags
         run: |

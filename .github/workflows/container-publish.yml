@@ -30,6 +30,7 @@ jobs:
   # -----------------------------------------------------------------------------
   build-and-push:
     runs-on: ubuntu-latest
+    # Define outputs so they can be read by the Deploy job
     outputs:
       branch_slug: ${{ steps.prep.outputs.branch_slug }}
       repo_lower: ${{ steps.prep.outputs.repo_lower }}
@@ -65,19 +66,33 @@ jobs:
 
       - name: Prepare tags
         id: prep
+        # explicitly pass the secret here to ensure the shell sees it
+        env:
+          DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          REPO_LOWER=$(echo "${OWNER}" | tr '[:upper:]' '[:lower:]')
+          # 1. Handle Repository Owner (Username)
+          if [ -z "$DOCKER_USER" ]; then
+            echo "❌ Error: DOCKERHUB_USERNAME secret is missing!"
+            exit 1
+          fi
+          # Force to lowercase
+          REPO_LOWER=$(echo "${DOCKER_USER}" | tr '[:upper:]' '[:lower:]')
           echo "repo_lower=$REPO_LOWER" >> $GITHUB_OUTPUT
+          echo "✅ Debug: Repo Owner is '$REPO_LOWER'"
 
-          # Calculate Branch Slug
-          BRANCH_SLUG="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
-          BRANCH_SLUG=${BRANCH_SLUG//\//-}
-          BRANCH_SLUG=$(echo "${BRANCH_SLUG}" | tr '[:upper:]' '[:lower:]')
+          # 2. Handle Branch Slug
+          # Uses GITHUB_HEAD_REF for PRs, or GITHUB_REF_NAME for pushes
+          RAW_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          # Replace slashes with dashes and lowercase it
+          BRANCH_SLUG=$(echo "${RAW_BRANCH}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
           echo "branch_slug=$BRANCH_SLUG" >> $GITHUB_OUTPUT
+          echo "✅ Debug: Branch Slug is '$BRANCH_SLUG'"
 
+          # 3. Handle Commit SHA
           SHORT_SHA=${GITHUB_SHA::7}
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
 
+          # 4. Handle Channel Tag (latest vs preview)
           if [ "${GITHUB_REF}" = "refs/heads/main" ]; then
             echo "channel_tag=latest" >> $GITHUB_OUTPUT
           else

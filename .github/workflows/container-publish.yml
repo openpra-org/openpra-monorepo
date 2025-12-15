@@ -208,29 +208,35 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Configure and Debug Environment
+      - name: Configure Environment (Independent Calculation)
+        env:
+          DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          # 1. Retrieve outputs from build job (using Contexts to be safe)
-          REPO_LOWER="${{ needs.build-and-push.outputs.repo_lower }}"
-          BRANCH_SLUG="${{ needs.build-and-push.outputs.branch_slug }}"
-          REGISTRY_URL="${{ env.REGISTRY }}"
+          # 1. Get Repo Owner from Secret directly (Safer than passing it)
+          if [ -z "$DOCKER_USER" ]; then
+            echo "❌ CRITICAL: Secret DOCKERHUB_USERNAME is missing! Check Repo Settings."
+            exit 1
+          fi
+          REPO_LOWER=$(echo "${DOCKER_USER}" | tr '[:upper:]' '[:lower:]')
 
-          # 2. Check for empty values
-          if [ -z "$REPO_LOWER" ]; then echo "❌ Error: REPO_LOWER is empty!"; exit 1; fi
-          if [ -z "$BRANCH_SLUG" ]; then echo "❌ Error: BRANCH_SLUG is empty!"; exit 1; fi
+          # 2. Calculate Branch Slug (Locally)
+          # Use HEAD_REF for PRs, REF_NAME for pushes
+          RAW_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          BRANCH_SLUG=$(echo "${RAW_BRANCH}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
 
           # 3. Construct Image URLs
+          REGISTRY_URL="${{ env.REGISTRY }}"
           IMG_FRONTEND="${REGISTRY_URL}/${REPO_LOWER}/openpra-frontend:${BRANCH_SLUG}"
           IMG_BACKEND="${REGISTRY_URL}/${REPO_LOWER}/openpra-web-backend:${BRANCH_SLUG}"
           IMG_BROKER="${REGISTRY_URL}/${REPO_LOWER}/openpra-job-broker:${BRANCH_SLUG}"
 
-          # 4. Print them to the logs
-          echo "🔍 DEBUG: Generated Image References:"
-          echo "Frontend: $IMG_FRONTEND"
-          echo "Backend:  $IMG_BACKEND"
-          echo "Broker:   $IMG_BROKER"
+          # 4. Debug Output
+          echo "✅ Configuration Loaded:"
+          echo "   User:   $REPO_LOWER"
+          echo "   Branch: $BRANCH_SLUG"
+          echo "   Stack:  ${{ env.STACK_NAME }}"
 
-          # 5. Export to GITHUB_ENV
+          # 5. Export to Env for next steps
           echo "IMAGE_FRONTEND=$IMG_FRONTEND" >> "$GITHUB_ENV"
           echo "IMAGE_BACKEND=$IMG_BACKEND" >> "$GITHUB_ENV"
           echo "IMAGE_JOB_BROKER=$IMG_BROKER" >> "$GITHUB_ENV"
@@ -252,7 +258,6 @@ jobs:
 
       - name: Deploy Stack
         working-directory: docker
-        # Pass env vars explicitly to the shell for this command
         env:
           IMAGE_FRONTEND: ${{ env.IMAGE_FRONTEND }}
           IMAGE_BACKEND: ${{ env.IMAGE_BACKEND }}

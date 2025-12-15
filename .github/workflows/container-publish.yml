@@ -208,19 +208,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Configure Environment (Independent Calculation)
+      - name: Configure Environment
         env:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          # 1. Get Repo Owner from Secret directly (Safer than passing it)
-          if [ -z "$DOCKER_USER" ]; then
-            echo "❌ CRITICAL: Secret DOCKERHUB_USERNAME is missing! Check Repo Settings."
-            exit 1
-          fi
+          # 1. Get Repo Owner
           REPO_LOWER=$(echo "${DOCKER_USER}" | tr '[:upper:]' '[:lower:]')
 
-          # 2. Calculate Branch Slug (Locally)
-          # Use HEAD_REF for PRs, REF_NAME for pushes
+          # 2. Calculate Branch Slug
           RAW_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           BRANCH_SLUG=$(echo "${RAW_BRANCH}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
 
@@ -230,13 +225,7 @@ jobs:
           IMG_BACKEND="${REGISTRY_URL}/${REPO_LOWER}/openpra-web-backend:${BRANCH_SLUG}"
           IMG_BROKER="${REGISTRY_URL}/${REPO_LOWER}/openpra-job-broker:${BRANCH_SLUG}"
 
-          # 4. Debug Output
-          echo "✅ Configuration Loaded:"
-          echo "   User:   $REPO_LOWER"
-          echo "   Branch: $BRANCH_SLUG"
-          echo "   Stack:  ${{ env.STACK_NAME }}"
-
-          # 5. Export to Env for next steps
+          # 4. Export to Env
           echo "IMAGE_FRONTEND=$IMG_FRONTEND" >> "$GITHUB_ENV"
           echo "IMAGE_BACKEND=$IMG_BACKEND" >> "$GITHUB_ENV"
           echo "IMAGE_JOB_BROKER=$IMG_BROKER" >> "$GITHUB_ENV"
@@ -269,6 +258,16 @@ jobs:
       - name: 🚀 Deployment Summary
         if: success()
         run: |
+          # 1. Print to Console Logs (So you see it here)
+          echo "---------------------------------------------------"
+          echo "✅ DEPLOYMENT SUCCESSFUL"
+          echo "---------------------------------------------------"
+          echo "Frontend: https://${{ env.BRANCH_SLUG }}.openpra.org"
+          echo "Backend:  https://${{ env.BRANCH_SLUG }}.openpra.org/api"
+          echo "Broker:   https://rmq-${{ env.BRANCH_SLUG }}.openpra.org"
+          echo "---------------------------------------------------"
+
+          # 2. Add to GitHub Action Summary Page (UI View)
           echo "### ✅ Deployment Successful!" >> $GITHUB_STEP_SUMMARY
           echo "Deployed to **${{ env.BRANCH_SLUG }}** environment." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -276,3 +275,4 @@ jobs:
           echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
           echo "| 🖥️ Frontend | https://${{ env.BRANCH_SLUG }}.openpra.org |" >> $GITHUB_STEP_SUMMARY
           echo "| ⚙️ Backend | https://${{ env.BRANCH_SLUG }}.openpra.org/api |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🐰 RabbitMQ | https://rmq-${{ env.BRANCH_SLUG }}.openpra.org |" >> $GITHUB_STEP_SUMMARY

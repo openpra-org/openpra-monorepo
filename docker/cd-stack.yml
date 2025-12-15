@@ -1,3 +1,5 @@
+version: "3.8"
+
 networks:
   app_net:
     driver: overlay
@@ -67,6 +69,7 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
         - "traefik.constraint-label=traefik-public"
+        # Dynamic Routers using BRANCH_SLUG
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`)"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.middlewares=${BRANCH_SLUG}-https-redirect,gzip"
@@ -77,6 +80,9 @@ services:
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.middlewares=gzip"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-https.service=${BRANCH_SLUG}-frontend"
         - "traefik.http.services.${BRANCH_SLUG}-frontend.loadbalancer.server.port=80"
+        # Middleware for redirect (Needs unique name too)
+        - "traefik.http.middlewares.${BRANCH_SLUG}-https-redirect.redirectscheme.scheme=https"
+        - "traefik.http.middlewares.gzip.compress=true"
 
   backend:
     image: ${IMAGE_BACKEND}
@@ -102,6 +108,7 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
         - "traefik.constraint-label=traefik-public"
+        # Dynamic Routers
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/api`)"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.middlewares=${BRANCH_SLUG}-https-redirect,gzip"
@@ -134,6 +141,7 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
         - "traefik.constraint-label=traefik-public"
+        # Dynamic Routers
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/q`)"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.middlewares=${BRANCH_SLUG}-https-redirect"
@@ -190,6 +198,7 @@ services:
         - "traefik.enable=true"
         - "traefik.docker.network=traefik-public"
         - "traefik.constraint-label=traefik-public"
+        # Dynamic Routers
         - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.rule=Host(`rmq-${BRANCH_SLUG}.openpra.org`)"
         - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.middlewares=${BRANCH_SLUG}-https-redirect,gzip"

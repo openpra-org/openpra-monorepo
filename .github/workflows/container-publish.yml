@@ -11,8 +11,7 @@ permissions:
 
 env:
   REGISTRY: docker.io
-  # Stack Configuration Defaults
-  STACK_NAME: openpra
+  # Default settings (STACK_NAME is now dynamic below)
   NUM_FRONTENDS: 1
   NUM_BACKENDS: 1
   NUM_BROKERS: 1
@@ -62,25 +61,19 @@ jobs:
       - name: Prepare tags
         id: prep
         env:
-          # Explicitly map the secret to an env var so shell can see it
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          # 1. Validation
           if [ -z "$DOCKER_USER" ]; then
-            echo "❌ CRITICAL ERROR: Secret 'DOCKERHUB_USERNAME' is missing or empty."
+            echo "❌ CRITICAL ERROR: Secret 'DOCKERHUB_USERNAME' is missing."
             exit 1
           fi
-
-          # 2. Process Owner (Username)
           REPO_LOWER=$(echo "${DOCKER_USER}" | tr '[:upper:]' '[:lower:]')
           echo "repo_lower=$REPO_LOWER" >> $GITHUB_OUTPUT
 
-          # 3. Process Branch Slug
           RAW_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           BRANCH_SLUG=$(echo "${RAW_BRANCH}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
           echo "branch_slug=$BRANCH_SLUG" >> $GITHUB_OUTPUT
 
-          # 4. Process SHA & Channel
           SHORT_SHA=${GITHUB_SHA::7}
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
 
@@ -90,9 +83,7 @@ jobs:
             echo "channel_tag=preview" >> $GITHUB_OUTPUT
           fi
 
-          echo "✅ Debug Info:"
-          echo "   User: $REPO_LOWER"
-          echo "   Branch: $BRANCH_SLUG"
+          echo "✅ Debug: User=$REPO_LOWER, Branch=$BRANCH_SLUG"
 
       # --- CONTEXT PREP & DOCKER BUILD STEPS ---
 
@@ -212,24 +203,42 @@ jobs:
         env:
           DOCKER_USER: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
-          # 1. Get Repo Owner
+          # 1. Get Repo Owner from Secret directly (Safer than passing it)
+          if [ -z "$DOCKER_USER" ]; then
+            echo "❌ CRITICAL ERROR: Secret 'DOCKERHUB_USERNAME' is missing or empty."
+            exit 1
+          fi
           REPO_LOWER=$(echo "${DOCKER_USER}" | tr '[:upper:]' '[:lower:]')
 
-          # 2. Calculate Branch Slug
+          # 2. Calculate Branch Slug (Locally)
           RAW_BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           BRANCH_SLUG=$(echo "${RAW_BRANCH}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
 
-          # 3. Construct Image URLs
+          # 3. Dynamic Stack Naming Logic
+          if [ "$BRANCH_SLUG" = "main" ]; then
+            # Production: Stack name is just "openpra"
+            CURRENT_STACK_NAME="openpra"
+          else
+            # Preview: Stack name includes branch, e.g., "openpra-devops"
+            CURRENT_STACK_NAME="openpra-${BRANCH_SLUG}"
+          fi
+
+          # 4. Construct Image URLs
           REGISTRY_URL="${{ env.REGISTRY }}"
           IMG_FRONTEND="${REGISTRY_URL}/${REPO_LOWER}/openpra-frontend:${BRANCH_SLUG}"
           IMG_BACKEND="${REGISTRY_URL}/${REPO_LOWER}/openpra-web-backend:${BRANCH_SLUG}"
           IMG_BROKER="${REGISTRY_URL}/${REPO_LOWER}/openpra-job-broker:${BRANCH_SLUG}"
 
-          # 4. Export to Env
+          # 5. Export Variables to GITHUB_ENV
+          echo "STACK_NAME=$CURRENT_STACK_NAME" >> "$GITHUB_ENV"
+          echo "BRANCH_SLUG=$BRANCH_SLUG" >> "$GITHUB_ENV"
           echo "IMAGE_FRONTEND=$IMG_FRONTEND" >> "$GITHUB_ENV"
           echo "IMAGE_BACKEND=$IMG_BACKEND" >> "$GITHUB_ENV"
           echo "IMAGE_JOB_BROKER=$IMG_BROKER" >> "$GITHUB_ENV"
-          echo "BRANCH_SLUG=$BRANCH_SLUG" >> "$GITHUB_ENV"
+
+          # Debug
+          echo "✅ Configured for Stack: $CURRENT_STACK_NAME"
+          echo "   URL: https://${BRANCH_SLUG}.openpra.org"
 
       - name: Create secrets directory
         working-directory: docker
@@ -248,17 +257,20 @@ jobs:
       - name: Deploy Stack
         working-directory: docker
         env:
+          # Pass calculated env vars explicitly to the shell for docker stack deploy
           IMAGE_FRONTEND: ${{ env.IMAGE_FRONTEND }}
           IMAGE_BACKEND: ${{ env.IMAGE_BACKEND }}
           IMAGE_JOB_BROKER: ${{ env.IMAGE_JOB_BROKER }}
           BRANCH_SLUG: ${{ env.BRANCH_SLUG }}
+          STACK_NAME: ${{ env.STACK_NAME }}
         run: |
+          echo "🚀 Deploying stack '${{ env.STACK_NAME }}'..."
           docker stack deploy -c cd-stack.yml ${{ env.STACK_NAME }} --with-registry-auth
 
       - name: 🚀 Deployment Summary
         if: success()
         run: |
-          # 1. Print to Console Logs (So you see it here)
+          # 1. Print to Console Logs (So you see it here immediately)
           echo "---------------------------------------------------"
           echo "✅ DEPLOYMENT SUCCESSFUL"
           echo "---------------------------------------------------"
@@ -269,7 +281,7 @@ jobs:
 
           # 2. Add to GitHub Action Summary Page (UI View)
           echo "### ✅ Deployment Successful!" >> $GITHUB_STEP_SUMMARY
-          echo "Deployed to **${{ env.BRANCH_SLUG }}** environment." >> $GITHUB_STEP_SUMMARY
+          echo "Deployed to **${{ env.STACK_NAME }}** stack." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Service | URL |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY

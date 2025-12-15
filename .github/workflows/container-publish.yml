@@ -20,7 +20,7 @@ env:
   NUM_FRONTENDS: 1
   NUM_BACKENDS: 1
   NUM_BROKERS: 1
-  NUM_WORKERS: 4
+  NUM_WORKERS: 1
   CI_BUILD_TYPE: production
   CI_DEBUG: false
 

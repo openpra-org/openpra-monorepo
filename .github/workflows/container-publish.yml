@@ -191,24 +191,44 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Log in to Docker Hub (for deployment pull)
+      - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Configure Environment
+      - name: Configure and Debug Environment
         run: |
-          # Retrieve outputs from build job
+          # 1. Retrieve outputs from build job (using Contexts to be safe)
           REPO_LOWER="${{ needs.build-and-push.outputs.repo_lower }}"
           BRANCH_SLUG="${{ needs.build-and-push.outputs.branch_slug }}"
+          REGISTRY_URL="${{ env.REGISTRY }}"
 
-          # Set Image Variables for Stack
-          echo "IMAGE_FRONTEND=${REGISTRY}/${REPO_LOWER}/openpra-frontend:${BRANCH_SLUG}" >> "$GITHUB_ENV"
-          echo "IMAGE_BACKEND=${REGISTRY}/${REPO_LOWER}/openpra-web-backend:${BRANCH_SLUG}" >> "$GITHUB_ENV"
-          echo "IMAGE_JOB_BROKER=${REGISTRY}/${REPO_LOWER}/openpra-job-broker:${BRANCH_SLUG}" >> "$GITHUB_ENV"
-          echo "BRANCH_SLUG=${BRANCH_SLUG}" >> "$GITHUB_ENV"
+          # 2. Check for empty values (This is likely where it fails)
+          if [ -z "$REPO_LOWER" ]; then echo "❌ Error: REPO_LOWER is empty!"; exit 1; fi
+          if [ -z "$BRANCH_SLUG" ]; then echo "❌ Error: BRANCH_SLUG is empty!"; exit 1; fi
+
+          # 3. Construct Image URLs
+          # We construct them here to ensure no variables are missing
+          IMG_FRONTEND="${REGISTRY_URL}/${REPO_LOWER}/openpra-frontend:${BRANCH_SLUG}"
+          IMG_BACKEND="${REGISTRY_URL}/${REPO_LOWER}/openpra-web-backend:${BRANCH_SLUG}"
+          IMG_BROKER="${REGISTRY_URL}/${REPO_LOWER}/openpra-job-broker:${BRANCH_SLUG}"
+
+          # 4. Print them to the logs for inspection
+          echo "----------------------------------------"
+          echo "🔍 DEBUG: Generated Image References:"
+          echo "Frontend: $IMG_FRONTEND"
+          echo "Backend:  $IMG_BACKEND"
+          echo "Broker:   $IMG_BROKER"
+          echo "Stack:    ${{ env.STACK_NAME }}"
+          echo "----------------------------------------"
+
+          # 5. Export to GITHUB_ENV for the next step
+          echo "IMAGE_FRONTEND=$IMG_FRONTEND" >> "$GITHUB_ENV"
+          echo "IMAGE_BACKEND=$IMG_BACKEND" >> "$GITHUB_ENV"
+          echo "IMAGE_JOB_BROKER=$IMG_BROKER" >> "$GITHUB_ENV"
+          echo "BRANCH_SLUG=$BRANCH_SLUG" >> "$GITHUB_ENV"
 
       - name: Create secrets directory
         working-directory: docker
@@ -226,19 +246,24 @@ jobs:
 
       - name: Deploy Stack
         working-directory: docker
+        # Explicitly passing environment variables to the command line to prevent shell missing them
+        env:
+          IMAGE_FRONTEND: ${{ env.IMAGE_FRONTEND }}
+          IMAGE_BACKEND: ${{ env.IMAGE_BACKEND }}
+          IMAGE_JOB_BROKER: ${{ env.IMAGE_JOB_BROKER }}
+          BRANCH_SLUG: ${{ env.BRANCH_SLUG }}
         run: |
+          # The -c flag needs the full path or relative path. 
+          # Since we are in 'docker' directory, 'cd-stack.yml' should be there.
           docker stack deploy -c cd-stack.yml ${{ env.STACK_NAME }} --with-registry-auth
 
       - name: 🚀 Deployment Summary
         if: success()
         run: |
           echo "### ✅ Deployment Successful!" >> $GITHUB_STEP_SUMMARY
-          echo "Your stack has been deployed to the **${{ env.BRANCH_SLUG }}** environment." >> $GITHUB_STEP_SUMMARY
+          echo "Deployed to **${{ env.BRANCH_SLUG }}** environment." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Service | URL |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :--- |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🖥️ **Frontend** | https://${{ env.BRANCH_SLUG }}.openpra.org |" >> $GITHUB_STEP_SUMMARY
-          echo "| ⚙️ **Backend API** | https://${{ env.BRANCH_SLUG }}.openpra.org/api |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🐰 **RabbitMQ** | https://rmq-${{ env.BRANCH_SLUG }}.openpra.org |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "> _Note: If this is a new branch, DNS propagation might take a moment if not using a wildcard._" >> $GITHUB_STEP_SUMMARY
+          echo "| 🖥️ Frontend | https://${{ env.BRANCH_SLUG }}.openpra.org |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⚙️ Backend | https://${{ env.BRANCH_SLUG }}.openpra.org/api |" >> $GITHUB_STEP_SUMMARY

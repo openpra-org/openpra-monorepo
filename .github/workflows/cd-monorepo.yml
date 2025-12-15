@@ -14,7 +14,7 @@ env:
   NUM_BACKENDS: 1
   DEPLOYMENT_BACKEND_POOL: "node.labels.high_performance == true"
   NUM_BROKERS: 1
-  NUM_WORKERS: 4
+  NUM_WORKERS: 1
   DEPLOYMENT_BROKER_POOL: "node.labels.high_performance == true"
   DEPLOYMENT_WORKER_POOL: "node.labels.high_performance == true"
   CI_BUILD_TYPE: production

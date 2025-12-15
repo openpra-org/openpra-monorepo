@@ -2,7 +2,7 @@ networks:
   app_net:
     driver: overlay
     attachable: true
-  traefik-public:
+  traefik_public:
     external: true
 
 configs:
@@ -50,7 +50,7 @@ services:
     <<: *volumes-timezone
     networks:
       - app_net
-      - traefik-public
+      - traefik_public
     ports:
       - target: 80
         published: 8080
@@ -59,17 +59,14 @@ services:
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_FRONTENDS}
-      placement:
-        constraints:
-          - "node.labels.min_host_performance == low"
       restart_policy:
         condition: any
         delay: 10s
         max_attempts: 5
       labels:
         - "traefik.enable=true"
-        - "traefik.docker.network=traefik-public"
-        - "traefik.constraint-label=traefik-public"
+        - "traefik.docker.network=traefik_public"
+        - "traefik.constraint-label=traefik_public"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`)"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-frontend-http.middlewares=${BRANCH_SLUG}-https-redirect,gzip"
@@ -86,7 +83,7 @@ services:
     <<: *shared-app-config
     networks:
       - app_net
-      - traefik-public
+      - traefik_public
     secrets:
       - JWT_SECRET
     environment:
@@ -97,17 +94,14 @@ services:
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_BACKENDS}
-      placement:
-        constraints:
-          - "node.labels.min_host_performance == low"
       restart_policy:
         condition: any
         delay: 10s
         max_attempts: 5
       labels:
         - "traefik.enable=true"
-        - "traefik.docker.network=traefik-public"
-        - "traefik.constraint-label=traefik-public"
+        - "traefik.docker.network=traefik_public"
+        - "traefik.constraint-label=traefik_public"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/api`)"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-backend-http.middlewares=${BRANCH_SLUG}-https-redirect,gzip"
@@ -128,21 +122,18 @@ services:
       DEBUG: ${CI_DEBUG}
       NODE_OPTIONS: "--max-old-space-size=8192"
     networks:
-      - traefik-public
+      - traefik_public
     deploy:
       <<: *shared-replicated
       replicas: ${NUM_BROKERS}
-      placement:
-        constraints:
-          - "node.labels.max_host_performance != low"
       restart_policy:
         condition: any
         delay: 10s
         max_attempts: 5
       labels:
         - "traefik.enable=true"
-        - "traefik.docker.network=traefik-public"
-        - "traefik.constraint-label=traefik-public"
+        - "traefik.docker.network=traefik_public"
+        - "traefik.constraint-label=traefik_public"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.rule=Host(`${BRANCH_SLUG}.openpra.org`) && PathPrefix(`/q`)"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-broker-http.middlewares=${BRANCH_SLUG}-https-redirect"
@@ -161,13 +152,10 @@ services:
       NODE_OPTIONS: "--max-old-space-size=8192"
       WORKER_MODE: "true"
     networks:
-      - traefik-public
+      - traefik_public
     deploy:
       mode: replicated
       replicas: ${NUM_WORKERS}
-      placement:
-        constraints:
-          - "node.labels.min_host_performance == low"
       restart_policy:
         condition: any
         delay: 10s
@@ -180,7 +168,7 @@ services:
       - "/etc/timezone:/etc/timezone:ro"
     networks:
       - app_net
-      - traefik-public
+      - traefik_public
     ports:
       - target: 15672
         published: 15672
@@ -194,17 +182,14 @@ services:
     deploy:
       mode: replicated
       replicas: 1
-      placement:
-        constraints:
-          - "node.labels.max_host_performance != low"
       restart_policy:
         condition: any
         delay: 5s
         max_attempts: 3
       labels:
         - "traefik.enable=true"
-        - "traefik.docker.network=traefik-public"
-        - "traefik.constraint-label=traefik-public"
+        - "traefik.docker.network=traefik_public"
+        - "traefik.constraint-label=traefik_public"
         - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.rule=Host(`rmq-${BRANCH_SLUG}.openpra.org`)"
         - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.entrypoints=web"
         - "traefik.http.routers.${BRANCH_SLUG}-rmq-http.middlewares=${BRANCH_SLUG}-https-redirect,gzip"
@@ -220,15 +205,13 @@ services:
     image: mongo:latest
     networks:
       - app_net
+      - traefik_public
     volumes:
       - "/etc/localtime:/etc/localtime:ro"
       - "/etc/timezone:/etc/timezone:ro"
     deploy:
       mode: replicated
       replicas: 1
-      placement:
-        constraints:
-          - "node.labels.max_host_performance != low"
       restart_policy:
         condition: any
         delay: 5s

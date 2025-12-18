@@ -10,7 +10,7 @@ assessment (PRA) engines, shared JSON schema definitions, and utility packages f
 
 Included within this monorepo are the following packages:
 
-- `engine-scram-node`: Node.js wrappers for the `SCRAM` C/C++ engine.
+- `engine-scram`: Node.js wrappers for the `SCRAM` C/C++ engine.
 - `frontend-web-editor`: A React v18 and TypeScript-based frontend UI.
 - `mef-schema`: OpenPRA MEF JSON Schema definitions, generated using the `shared-types` package.
 - `microservice-job-broker`: RabbitMQ based distributed queues for scaling quantification requests.
@@ -166,7 +166,6 @@ is sufficient without connecting Nx Cloud.
 We use `@swc/jest` for TypeScript transforms in most packages for faster tests. Key notes:
 
 - NestJS projects (decorators required)
-
   - Enable decorators and metadata in the Jest transform options
   - Use CommonJS modules for Jest
 
@@ -190,7 +189,6 @@ We use `@swc/jest` for TypeScript transforms in most packages for faster tests. 
   ```
 
 - Path mapping for workspace packages
-
   - When tests import from sources, add `moduleNameMapper` so Jest resolves to TS files:
 
   ```ts

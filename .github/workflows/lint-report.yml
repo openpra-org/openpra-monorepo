@@ -3,7 +3,7 @@ name: "CI: Lint Report (non-blocking)"
 on:
   pull_request:
     branches:
-      - '**'
+      - "**"
 
 jobs:
   lint-report:
@@ -16,7 +16,7 @@ jobs:
           - shared-types
           - shared-sdk
           - model-generator
-          - engine-scram-node
+          - engine-scram
           - mef-schema
           - mef-types
           - microservice-job-broker
@@ -27,7 +27,7 @@ jobs:
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '20.17.0'
+          node-version: "20.17.0"
 
       - name: Ensure pnpm available
         run: npx -y pnpm@10.19.0 --version

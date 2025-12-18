@@ -52,7 +52,10 @@ set(SCRAM_CORE_SRC
 ### End SCRAM core source list ### }}}
 # Build scram as shared library explicitly (dependencies are static)
 add_library(scram SHARED ${SCRAM_CORE_SRC})
-target_link_libraries(scram ${LIBS})
+target_link_libraries(scram PRIVATE ${LIBS})
+if(NOT WIN32)
+  target_link_options(scram PRIVATE -Wl,--no-undefined)
+endif()
 target_compile_definitions(scram PRIVATE SCRAM_BUILDING_DLL)
 target_compile_options(scram PRIVATE $<$<CONFIG:DEBUG>:${SCRAM_CXX_FLAGS_DEBUG}>)
 

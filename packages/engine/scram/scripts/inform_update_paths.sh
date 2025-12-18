@@ -11,7 +11,7 @@ NC='\033[0m' # No Color
 display_unix_instructions() {
     shell_profile="$1"
     echo "${GREEN}Add the following lines to your $shell_profile. After modifying your profile file, please log out and \n${GREEN}log back in for the changes to take effect, or source the file directly using:${NC}"
-    echo "${YELLOW}echo 'export LD_LIBRARY_PATH=\"\$HOME/.local/lib/scram:\$LD_LIBRARY_PATH\"' >> \$HOME/$shell_profile${NC}"
+    echo "${YELLOW}echo 'export LD_LIBRARY_PATH=\"\$HOME/.local/lib:\$HOME/.local/lib/scram:\$LD_LIBRARY_PATH\"' >> \$HOME/$shell_profile${NC}"
     echo "${YELLOW}echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> \$HOME/$shell_profile${NC}"
     echo "${YELLOW}source ~/$shell_profile${NC}"
 }
@@ -20,14 +20,14 @@ display_unix_instructions() {
 display_cmd_instructions() {
     echo "${GREEN}Run the following commands in Command Prompt:${NC}"
     echo "${RED}setx PATH \"%PATH%;%USERPROFILE%\\.local\\bin\"${NC}"
-    echo "${RED}setx LD_LIBRARY_PATH \"%USERPROFILE%\\.local\\lib\\scram\"${NC}"
+    echo "${RED}setx LD_LIBRARY_PATH \"%USERPROFILE%\\.local\\lib;%USERPROFILE%\\.local\\lib\\scram\"${NC}"
 }
 
 # Function to display instructions for PowerShell
 display_powershell_instructions() {
     echo "${GREEN}Run the following commands in PowerShell:${NC}"
     echo "${RED}\$env:PATH += \";\$env:USERPROFILE\\.local\\bin\"${NC}"
-    echo "${RED}\$env:LD_LIBRARY_PATH += \";\$env:USERPROFILE\\.local\\lib\\scram\"${NC}"
+    echo "${RED}\$env:LD_LIBRARY_PATH += \";\$env:USERPROFILE\\.local\\lib;\$env:USERPROFILE\\.local\\lib\\scram\"${NC}"
     echo "${GREEN}To make these changes permanent, add them to your PowerShell profile.${NC}"
 }
 

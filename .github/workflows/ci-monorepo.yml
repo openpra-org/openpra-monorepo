@@ -73,14 +73,16 @@ jobs:
         run: npx -y pnpm@10.19.0 install --ignore-scripts --no-frozen-lockfile
 
       - name: Build scram
+        if: matrix.package == 'engine-scram'
         run: cd packages/engine/scram && npx -y pnpm@10.19.0 run install
 
       - name: Install scram-cli (CI)
+        if: matrix.package == 'engine-scram'
         run: |
           # Ensure scram-cli and libs are installed even when postinstall is skipped in CI
           # Prefer cmake --install which works across generators; guard if install scripts are absent
           if [ -f packages/engine/scram/build/cmake_install.cmake ]; then
-            cmake --install packages/engine/scram/build
+            cmake --install packages/engine/scram/build --prefix "$HOME/.local"
           else
             echo "No CMake install script found; skipping scram-cli install"
           fi

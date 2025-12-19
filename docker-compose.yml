@@ -21,8 +21,8 @@ secrets:
 
 x-base-image: &base-image
   build:
-     context: .
-     dockerfile: docker/Dockerfile
+    context: .
+    dockerfile: docker/Dockerfile
   restart: unless-stopped
   env_file:
     - docker/configs/.docker-compose.env
@@ -41,19 +41,19 @@ services:
   frontend:
     <<: *base-image
     ports:
-      - "4200:4200"
+      - '4200:4200'
     networks:
       - svc_net
-    command: "nx run --verbose frontend-web-editor:serve:development"
+    command: 'nx run --verbose frontend-web-editor:serve:development'
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4200/"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:4200/']
       <<: *healthcheck-fragments
 
-  job-broker:
+  raptor-manager:
     <<: *base-image
     ports:
-      - "3000:3000"
-    command: "nx run --verbose microservice-job-broker:serve:development"
+      - '3000:3000'
+    command: 'nx run --verbose raptor:serve:development'
     networks:
       - db_net
       - rmq_net
@@ -61,12 +61,12 @@ services:
       - mongodb
       - rabbitmq
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/q/job-types']
       <<: *healthcheck-fragments
 
-  job-worker:
+  raptor-engine:
     <<: *base-image
-    command: "nx run --verbose microservice-job-broker:serve-consumer:development"
+    command: 'nx run --verbose raptor:serve-engine:development'
     networks:
       - db_net
       - rmq_net
@@ -79,8 +79,8 @@ services:
   backend:
     <<: *base-image
     ports:
-      - "8000:8000"
-    command: "nx run --verbose web-backend:serve:development"
+      - '8000:8000'
+    command: 'nx run --verbose web-backend:serve:development'
     depends_on:
       - mongodb
     networks:
@@ -91,7 +91,7 @@ services:
     environment:
       JWT_SECRET_KEY_FILE: /run/secrets/JWT_SECRET
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/api']
       <<: *healthcheck-fragments
 
   rabbitmq:
@@ -102,8 +102,8 @@ services:
     networks:
       - rmq_net
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - '5672:5672'
+      - '15672:15672'
     configs:
       - source: rabbitmq_plugins
         target: /etc/rabbitmq/enabled_plugins
@@ -114,7 +114,7 @@ services:
     image: mongo:latest
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - '27017:27017'
     networks:
       - db_net
     volumes:

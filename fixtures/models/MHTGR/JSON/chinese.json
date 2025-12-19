@@ -1,0 +1,265 @@
+{
+  "settings": { "bdd": true, "probability": true },
+  "model": {
+    "faultTrees": [
+      {
+        "name": "chinese",
+        "top": {
+          "op": "and",
+          "args": [
+            {
+              "op": "or",
+              "args": [
+                { "event": "e1" },
+                { "event": "e2" },
+                { "event": "e3" },
+                {
+                  "op": "and",
+                  "args": [
+                    {
+                      "op": "or",
+                      "args": [{ "event": "e12" }, { "event": "e13" }]
+                    },
+                    {
+                      "op": "or",
+                      "args": [
+                        { "event": "e10" },
+                        { "event": "e9" },
+                        { "event": "e11" },
+                        {
+                          "op": "and",
+                          "args": [
+                            {
+                              "op": "or",
+                              "args": [
+                                { "event": "e20" },
+                                { "event": "e19" },
+                                { "event": "e21" }
+                              ]
+                            },
+                            {
+                              "op": "or",
+                              "args": [{ "event": "e18" }, { "event": "e17" }]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "op": "and",
+              "args": [
+                {
+                  "op": "or",
+                  "args": [
+                    { "event": "e8" },
+                    {
+                      "op": "and",
+                      "args": [
+                        {
+                          "op": "or",
+                          "args": [
+                            { "event": "e1" },
+                            { "event": "e2" },
+                            { "event": "e3" },
+                            {
+                              "op": "and",
+                              "args": [
+                                {
+                                  "op": "or",
+                                  "args": [
+                                    { "event": "e14" },
+                                    { "event": "e15" },
+                                    { "event": "e16" },
+                                    {
+                                      "op": "and",
+                                      "args": [
+                                        {
+                                          "op": "or",
+                                          "args": [
+                                            { "event": "e18" },
+                                            { "event": "e17" },
+                                            { "event": "e21" }
+                                          ]
+                                        },
+                                        {
+                                          "op": "or",
+                                          "args": [
+                                            { "event": "e20" },
+                                            { "event": "e19" }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "and",
+                                  "args": [
+                                    {
+                                      "op": "or",
+                                      "args": [
+                                        { "event": "e22" },
+                                        { "event": "e23" }
+                                      ]
+                                    },
+                                    {
+                                      "op": "or",
+                                      "args": [
+                                        { "event": "e24" },
+                                        { "event": "e25" }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "op": "or",
+                          "args": [
+                            { "event": "e5" },
+                            { "event": "e7" },
+                            { "event": "e4" },
+                            { "event": "e6" },
+                            {
+                              "op": "and",
+                              "args": [
+                                {
+                                  "op": "or",
+                                  "args": [
+                                    { "event": "e10" },
+                                    { "event": "e9" },
+                                    { "event": "e11" },
+                                    {
+                                      "op": "and",
+                                      "args": [
+                                        {
+                                          "op": "or",
+                                          "args": [
+                                            { "event": "e20" },
+                                            { "event": "e19" },
+                                            { "event": "e21" }
+                                          ]
+                                        },
+                                        {
+                                          "op": "or",
+                                          "args": [
+                                            { "event": "e18" },
+                                            { "event": "e17" }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "op": "or",
+                                  "args": [
+                                    { "event": "e12" },
+                                    { "event": "e13" }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "op": "or",
+                  "args": [
+                    { "event": "e5" },
+                    { "event": "e7" },
+                    { "event": "e4" },
+                    { "event": "e6" },
+                    {
+                      "op": "and",
+                      "args": [
+                        {
+                          "op": "or",
+                          "args": [
+                            { "event": "e14" },
+                            { "event": "e15" },
+                            { "event": "e16" },
+                            {
+                              "op": "and",
+                              "args": [
+                                {
+                                  "op": "or",
+                                  "args": [
+                                    { "event": "e18" },
+                                    { "event": "e17" },
+                                    { "event": "e21" }
+                                  ]
+                                },
+                                {
+                                  "op": "or",
+                                  "args": [
+                                    { "event": "e20" },
+                                    { "event": "e19" }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "op": "and",
+                          "args": [
+                            {
+                              "op": "or",
+                              "args": [{ "event": "e22" }, { "event": "e23" }]
+                            },
+                            {
+                              "op": "or",
+                              "args": [{ "event": "e24" }, { "event": "e25" }]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "basicEvents": [
+          { "name": "e1", "p": 0.01 },
+          { "name": "e10", "p": 0.01 },
+          { "name": "e11", "p": 0.01 },
+          { "name": "e12", "p": 0.01 },
+          { "name": "e13", "p": 0.01 },
+          { "name": "e14", "p": 0.01 },
+          { "name": "e15", "p": 0.01 },
+          { "name": "e16", "p": 0.01 },
+          { "name": "e17", "p": 0.01 },
+          { "name": "e18", "p": 0.01 },
+          { "name": "e19", "p": 0.01 },
+          { "name": "e2", "p": 0.01 },
+          { "name": "e20", "p": 0.01 },
+          { "name": "e21", "p": 0.01 },
+          { "name": "e22", "p": 0.01 },
+          { "name": "e23", "p": 0.01 },
+          { "name": "e24", "p": 0.01 },
+          { "name": "e25", "p": 0.01 },
+          { "name": "e3", "p": 0.01 },
+          { "name": "e4", "p": 0.01 },
+          { "name": "e5", "p": 0.01 },
+          { "name": "e6", "p": 0.01 },
+          { "name": "e7", "p": 0.01 },
+          { "name": "e8", "p": 0.01 },
+          { "name": "e9", "p": 0.01 }
+        ]
+      }
+    ],
+    "name": "model-d27c3fce"
+  }
+}

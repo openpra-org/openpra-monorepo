@@ -1,4 +1,4 @@
-// TODO: migrate tests from `microservice-job-broker`
-test("stub", () => {
+// TODO: migrate tests from `raptor`
+test('stub', () => {
   expect(true).toBeTruthy();
 });

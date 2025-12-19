@@ -1,6 +1,6 @@
 volumes:
-  mongo_data:
   rabbitmq_data:
+  minio_data:
 
 configs:
   rabbitmq_plugins:
@@ -12,11 +12,12 @@ services:
       context: ..
       dockerfile: .devcontainer/Dockerfile
     volumes:
-      - ..:/workspaces/openpra-monorepo
+      - ..:/workspaces/microservices
     ports:
-      - "5672:5672"
-      - "15672:15672"
-      - "27017:27017"
+      - '5672:5672'
+      - '15672:15672'
+      - '9000:9000'
+      - '9001:9001'
 
   rabbitmq:
     image: rabbitmq:management-alpine
@@ -26,12 +27,15 @@ services:
     configs:
       - source: rabbitmq_plugins
         target: /etc/rabbitmq/enabled_plugins
-    network_mode: "service:devcontainer"
+    network_mode: 'service:devcontainer'
 
-  mongodb:
-    image: mongo:latest
+  minio:
+    image: quay.io/minio/minio
     restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
     volumes:
-      - mongo_data:/data/db
-    network_mode: "service:devcontainer"
-      
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    network_mode: 'service:devcontainer'

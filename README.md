@@ -13,7 +13,7 @@ Included within this monorepo are the following packages:
 - `engine-scram`: Node.js wrappers for the `SCRAM` C/C++ engine.
 - `frontend-web-editor`: A React v18 and TypeScript-based frontend UI.
 - `mef-schema`: OpenPRA MEF JSON Schema definitions, generated using the `shared-types` package.
-- `microservice-job-broker`: RabbitMQ based distributed queues for scaling quantification requests.
+- `raptor`: RabbitMQ based distributed queues for scaling quantification requests.
 - `model-generator`: A tool for creating synthetic PRA models.
 - `shared-types`: Pure TypeScript type definitions (no runtime/framework deps); the single source of truth for domain data types and DTOs used across apps/services.
 - `shared-sdk`: Runtime SDK with `AuthService`, `ApiManager`, roles and invites APIs, and predefined roles (imports types from `shared-types`).
@@ -296,7 +296,7 @@ section.
 
 Deployments run Nx targets inside a single repository image that is installed from the root `pnpm-lock.yaml`. We do not
 generate pruned lockfiles or `dist/package.json` files during webpack builds for server apps (e.g., `web-backend`,
-`microservice-job-broker`). Instead, production images rely on the root-installed workspace dependencies.
+`raptor`). Instead, production images rely on the root-installed workspace dependencies.
 
 - Why: avoids pnpm v9 pruned-lockfile edge cases and keeps builds simpler and faster.
 - Where configured: per app `project.json` with `generateLockfile: false` and `generatePackageJson: false` under the

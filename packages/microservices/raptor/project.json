@@ -1,0 +1,154 @@
+{
+  "name": "raptor",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "tags": ["scope:server"],
+  "sourceRoot": "packages/microservices/raptor/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "generateLockfile": false,
+        "outputPath": "dist/packages/microservices/raptor-manager",
+        "generatePackageJson": false,
+        "main": "packages/microservices/raptor/src/main.ts",
+        "tsConfig": "packages/microservices/raptor/tsconfig.app.json",
+        "assets": [
+          "packages/microservices/raptor/src/assets",
+          "packages/microservices/raptor/src/quantification/workers/quantify.worker.js"
+        ],
+        "webpackConfig": "packages/microservices/raptor/webpack.config.js"
+      },
+      "configurations": {
+        "development": {
+          "generateLockfile": false
+        },
+        "production": {
+          "generateLockfile": false
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "raptor:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "raptor:build:development"
+        },
+        "production": {
+          "buildTarget": "raptor:build:production"
+        }
+      }
+    },
+    "deploy": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "raptor:build",
+        "watch": false,
+        "inspect": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "raptor:build:development"
+        },
+        "production": {
+          "buildTarget": "raptor:build:production"
+        }
+      }
+    },
+    "build-engine": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "generateLockfile": false,
+        "outputPath": "dist/packages/microservices/raptor-engine",
+        "generatePackageJson": false,
+        "main": "packages/microservices/raptor/src/main-engine.ts",
+        "tsConfig": "packages/microservices/raptor/tsconfig.app.json",
+        "assets": [
+          "packages/microservices/raptor/src/assets",
+          "packages/microservices/raptor/src/quantification/workers/quantify.worker.js"
+        ],
+        "webpackConfig": "packages/microservices/raptor/webpack.config.js"
+      },
+      "configurations": {
+        "development": {
+          "generateLockfile": false
+        },
+        "production": {
+          "generateLockfile": false
+        }
+      }
+    },
+    "serve-engine": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "raptor:build-engine"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "raptor:build-engine:development",
+          "watch": true,
+          "inspect": true
+        },
+        "production": {
+          "buildTarget": "raptor:build-engine:production",
+          "watch": false,
+          "inspect": false
+        }
+      }
+    },
+    "deploy-engine": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "raptor:build-engine",
+        "watch": false,
+        "inspect": false
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "raptor:build-engine:development"
+        },
+        "production": {
+          "buildTarget": "raptor:build-engine:production"
+        }
+      }
+    },
+    "lint-canary": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter raptor run lint:canary",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "eslintConfig": "packages/microservices/raptor/eslint.config.mjs",
+        "lintFilePatterns": ["{projectRoot}/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "command": "pnpm --filter raptor exec vitest run --config vitest.config.ts",
+        "cwd": "{projectRoot}"
+      }
+    }
+  }
+}

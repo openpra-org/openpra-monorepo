@@ -1,12 +1,12 @@
-name: "Containers: Build & Publish (GHCR)"
+name: 'Containers: Build & Publish (GHCR)'
 
 on:
   push:
     branches:
-      - "**"
+      - '**'
   pull_request:
     branches:
-      - "**"
+      - '**'
   workflow_dispatch:
 
 permissions:
@@ -27,7 +27,7 @@ jobs:
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: "20.17.0"
+          node-version: '20.17.0'
 
       - name: Ensure pnpm available
         run: npx -y pnpm@10.19.0 --version
@@ -38,7 +38,8 @@ jobs:
       - name: Build server apps
         run: |
           npx -y pnpm@10.19.0 nx build web-backend
-          npx -y pnpm@10.19.0 nx build microservice-job-broker
+          npx -y pnpm@10.19.0 nx build raptor
+          npx -y pnpm@10.19.0 nx run raptor:build-engine
           npx -y pnpm@10.19.0 nx run frontend-web-editor:build:production
 
       - name: Log in to GHCR
@@ -95,21 +96,21 @@ jobs:
           CMD ["node","main.js"]
           EOF
 
-      - name: Prepare job-broker build context
+      - name: Prepare raptor-manager build context
         run: |
-          mkdir -p docker-context/job-broker
-          cp -r dist/packages/microservice/job-broker/* docker-context/job-broker/
+          mkdir -p docker-context/raptor-manager
+          cp -r dist/packages/microservices/raptor-manager/* docker-context/raptor-manager/
           # Copy source package.json into the docker context so we can prune workspace deps
-          cp packages/microservice/job-broker/package.json docker-context/job-broker/package.json
+          cp packages/microservices/raptor/package.json docker-context/raptor-manager/package.json
           # Ensure package.json has no workspace: protocol deps for container installs
           node -e '
-            const fs=require("fs"); const pth="docker-context/job-broker/package.json";
+            const fs=require("fs"); const pth="docker-context/raptor-manager/package.json";
             const pkg=JSON.parse(fs.readFileSync(pth,"utf8"));
             if(pkg.dependencies){ for(const [k,v] of Object.entries({...pkg.dependencies})) if(typeof v==="string" && v.startsWith("workspace:")) delete pkg.dependencies[k]; }
             if(pkg.devDependencies){ for(const [k,v] of Object.entries({...pkg.devDependencies})) if(typeof v==="string" && v.startsWith("workspace:")) delete pkg.devDependencies[k]; }
             fs.writeFileSync(pth, JSON.stringify(pkg,null,2));
           '
-          cat > docker-context/job-broker/Dockerfile <<'EOF'
+          cat > docker-context/raptor-manager/Dockerfile <<'EOF'
           FROM node:20-slim
           WORKDIR /app
           RUN corepack enable && corepack prepare pnpm@10.19.0 --activate
@@ -119,6 +120,32 @@ jobs:
           COPY . ./
           ENV NODE_ENV=production
           EXPOSE 3000
+          CMD ["node","main.js"]
+          EOF
+
+      - name: Prepare raptor-engine build context
+        run: |
+          mkdir -p docker-context/raptor-engine
+          cp -r dist/packages/microservices/raptor-engine/* docker-context/raptor-engine/
+          # Copy source package.json into the docker context so we can prune workspace deps
+          cp packages/microservices/raptor/package.json docker-context/raptor-engine/package.json
+          # Ensure package.json has no workspace: protocol deps for container installs
+          node -e '
+            const fs=require("fs"); const pth="docker-context/raptor-engine/package.json";
+            const pkg=JSON.parse(fs.readFileSync(pth,"utf8"));
+            if(pkg.dependencies){ for(const [k,v] of Object.entries({...pkg.dependencies})) if(typeof v==="string" && v.startsWith("workspace:")) delete pkg.dependencies[k]; }
+            if(pkg.devDependencies){ for(const [k,v] of Object.entries({...pkg.devDependencies})) if(typeof v==="string" && v.startsWith("workspace:")) delete pkg.devDependencies[k]; }
+            fs.writeFileSync(pth, JSON.stringify(pkg,null,2));
+          '
+          cat > docker-context/raptor-engine/Dockerfile <<'EOF'
+          FROM node:20-slim
+          WORKDIR /app
+          RUN corepack enable && corepack prepare pnpm@10.19.0 --activate
+          ENV PNPM_ENABLE_PREPOSTINSTALL_SCRIPTS=true
+          COPY package.json ./
+          RUN pnpm install --prod --no-frozen-lockfile
+          COPY . ./
+          ENV NODE_ENV=production
           CMD ["node","main.js"]
           EOF
 
@@ -133,16 +160,27 @@ jobs:
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-web-backend:${{ steps.prep.outputs.branch_slug }}
             ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-web-backend:${{ steps.prep.outputs.channel_tag }}
 
-      - name: Build and push job-broker image
+      - name: Build and push raptor-manager image
         uses: docker/build-push-action@v6
         with:
-          context: docker-context/job-broker
-          file: docker-context/job-broker/Dockerfile
+          context: docker-context/raptor-manager
+          file: docker-context/raptor-manager/Dockerfile
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-job-broker:${{ steps.prep.outputs.short_sha }}
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-job-broker:${{ steps.prep.outputs.branch_slug }}
-            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-job-broker:${{ steps.prep.outputs.channel_tag }}
+            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-raptor-manager:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-raptor-manager:${{ steps.prep.outputs.branch_slug }}
+            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-raptor-manager:${{ steps.prep.outputs.channel_tag }}
+
+      - name: Build and push raptor-engine image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context/raptor-engine
+          file: docker-context/raptor-engine/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-raptor-engine:${{ steps.prep.outputs.short_sha }}
+            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-raptor-engine:${{ steps.prep.outputs.branch_slug }}
+            ${{ env.REGISTRY }}/${{ steps.prep.outputs.repo_lower }}/openpra-raptor-engine:${{ steps.prep.outputs.channel_tag }}
 
       - name: Prepare frontend build context
         run: |

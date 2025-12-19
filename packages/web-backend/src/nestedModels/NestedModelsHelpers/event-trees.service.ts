@@ -7,8 +7,18 @@ import { EventTree, EventTreeDocument } from "../schemas/event-tree.schema";
 import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
 
+/**
+ * Service for Event Tree nested model operations.
+ * Provides collection and single-item retrieval, updates and label helpers.
+ */
 @Injectable()
 export class EventTreesService {
+  /**
+   * Construct the service with persistence and helper dependencies.
+   * @param eventTreeModel - Mongoose model for EventTree collection
+   * @param nestedModelService - Service to allocate IDs and shared nested model ops
+   * @param nestedModelHelperService - Helper to link/unlink nested models to typed models
+   */
   constructor(
     @InjectModel(EventTree.name)
     private readonly eventTreeModel: Model<EventTreeDocument>,
@@ -25,6 +35,11 @@ export class EventTreesService {
     return this.eventTreeModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves Event Trees by parent id (string form).
+   * @param parentId - Parent identifier as a string (ObjectId)
+   * @returns Array of Event Tree documents for the given parent
+   */
   async getEventTreesString(parentId: string): Promise<EventTree[]> {
     return this.eventTreeModel.find({ parentIds: parentId });
   }
@@ -38,6 +53,11 @@ export class EventTreesService {
     return this.eventTreeModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a single Event Tree by string id.
+   * @param modelId - Document _id as a string (ObjectId)
+   * @returns The matching Event Tree document
+   */
   async getSingleEventTreeString(modelId: string): Promise<EventTree> {
     return this.eventTreeModel.findOne({ _id: modelId });
   }

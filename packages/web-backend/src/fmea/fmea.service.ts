@@ -4,9 +4,18 @@ import { InjectModel } from "@nestjs/mongoose";
 import mongoose from "mongoose";
 import { ModelCounter, ModelCounterDocument } from "../schemas/model-counter.schema";
 import { Fmea, FmeaDocument } from "./schemas/fmea.schema";
+/**
+ * Service layer for FMEA business logic and persistence.
+ * Supports CRUD operations on FMEA columns, rows, and cells.
+ * @public
+ */
 @Injectable()
 export class FmeaService {
   /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+  /**
+   * @param fmeaModel - Mongoose model for FMEA documents.
+   * @param ModelCounterModel - Mongoose model for sequence counters.
+   */
   constructor(
     @InjectModel(Fmea.name)
     private readonly fmeaModel: mongoose.Model<FmeaDocument>,
@@ -351,6 +360,7 @@ export class FmeaService {
   /**
    * Update column details (name, type, options).
    *
+   * @param fmeaId - The FMEA id whose column should be updated
    * @param prev_name - Name of the column previously stored
    * @param column_body - Updated details of the column
    * @returns Updated FMEA object

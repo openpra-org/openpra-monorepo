@@ -5,8 +5,18 @@ import { EventTreeGraph } from "../schemas/graphs/event-tree-graph.schema";
 import { BaseGraph } from "../schemas/graphs/base-graph.schema";
 import { GraphModelService } from "./graphModel.service";
 
+/**
+ * Controller for graph model operations and updates.
+ * Stores and retrieves graph states for event sequence, fault tree, and event tree diagrams.
+ * @public
+ */
 @Controller()
 export class GraphModelController {
+  /**
+   * Instantiate the Graph Model controller.
+   *
+   * @param graphModelService - Service for persisting and querying diagram graphs.
+   */
   constructor(private readonly graphModelService: GraphModelService) {}
 
   /**
@@ -81,6 +91,14 @@ export class GraphModelController {
     }
   }
 
+  /**
+   * Update parts of an event sequence diagram graph.
+   *
+   * @param eventSequenceId - The diagram identifier whose graph should be updated.
+   * @param updatedSubgraph - Nodes/edges to upsert into the graph.
+   * @param deletedSubgraph - Nodes/edges to remove from the graph.
+   * @returns true when the update succeeds; otherwise throws.
+   */
   @Patch("/event-sequence-diagram-graph")
   async updateESSubgraph(
     @Body("eventSequenceId") eventSequenceId: string,

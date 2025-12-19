@@ -1,5 +1,12 @@
 import type { NavNode, ScopedNavScope } from "./types";
 
+/**
+ * Navigation configuration grouped by scoped model context.
+ *
+ * Provides the left-hand navigation tree for each OpenPRA analysis scope
+ * (InternalEvents, InternalHazards, ExternalHazards, FullScope).
+ */
+
 // Define individual sections with stable ids and relative paths
 const POS: NavNode = {
   id: "plant-operating-state",
@@ -179,6 +186,9 @@ const SETTINGS: NavNode = {
   iconType: "gear",
 };
 
+/**
+ * Map of model scope to the ordered list of navigation sections displayed in the UI.
+ */
 export const NAV_BY_SCOPE: Record<ScopedNavScope, NavNode[]> = {
   InternalEvents: [POS, IE, ES, SC, SY, HR, DA, ESQ, MS, RC, RI, SETTINGS],
   InternalHazards: [POS, IE, ES, SC, SY, HR, DA, FL, F, HS, O, ESQ, MS, RC, RI, SETTINGS],
@@ -186,4 +196,5 @@ export const NAV_BY_SCOPE: Record<ScopedNavScope, NavNode[]> = {
   FullScope: [POS, IE, ES, SC, SY, HR, DA, FL, F, S, HS, W, XF, O, ESQ, MS, RC, RI, SETTINGS],
 };
 
+/** Re-export of the NavNode shape used by the navigation builder. */
 export type { NavNode };

@@ -24,7 +24,6 @@ declare module "scram-node" {
      */
     execute(): void;
 
-
     /**
      * @remarks - Callback method called upon successful execution.
      *
@@ -60,7 +59,7 @@ declare module "scram-node" {
    * @remarks Main Node.js wrapper function to run the SCRAM CLI asynchronously.
    *
    * @param info - The callback info from Node.js, containing the input arguments and callback function.
-   * @param callback -
+   * @param callback - Node.js-style completion callback invoked with the result or error from the asynchronous run.
    * @returns Returns undefined on successful queuing of the task, or throws a JavaScript exception on error.
    */
   export function AsyncRunScramCli(info: QuantifyRequest, callback: Callback): void;

@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import amqp from "amqplib";
 import typia, { TypeGuardError } from "typia";
-import type { ExecutionTask } from "mef-types/openpra-mef/util/execution-task";
+import type { ExecutionTask } from "shared-types";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model } from "mongoose";
 import { ConfigService } from "@nestjs/config";
@@ -9,12 +9,22 @@ import { ConfigService } from "@nestjs/config";
 import { EnvVarKeys } from "../../../config/env_vars.config";
 import { ExecutableJobReport } from "../../middleware/schemas/executable-job.schema";
 
+/**
+ * Produces executable task messages to RabbitMQ and updates task status.
+ *
+ * Sets up queues/exchanges and sends validated `ExecutionTask` payloads for workers to execute.
+ */
 @Injectable()
 export class ExecutableService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableService.name);
   private channelModel: amqp.ChannelModel | null = null;
   private channel: amqp.Channel | null = null;
 
+  /**
+   * Construct the service with persistence and configuration dependencies.
+   * @param executableJobModel - Mongoose model to update task status records
+   * @param configSvc - Nest ConfigService for RabbitMQ connectivity and queue names
+   */
   constructor(
     @InjectModel(ExecutableJobReport.name) private readonly executableJobModel: Model<ExecutableJobReport>,
     private readonly configSvc: ConfigService,
@@ -42,6 +52,9 @@ export class ExecutableService implements OnApplicationBootstrap {
     );
   }
 
+  /**
+   * Initialize the RabbitMQ channel and declare queues/exchanges on app startup.
+   */
   async onApplicationBootstrap(): Promise<void> {
     try {
       const url = this.configSvc.getOrThrow<string>(EnvVarKeys.ENV_RABBITMQ_URL);
@@ -84,6 +97,11 @@ export class ExecutableService implements OnApplicationBootstrap {
     });
   }
 
+  /**
+   * Validate and enqueue an executable task to the configured RabbitMQ queue.
+   *
+   * @param task - The executable task payload including executable, arguments, env and identifier.
+   */
   public async createAndQueueTask(task: ExecutionTask): Promise<void> {
     try {
       if (!this.channel) {

@@ -1,0 +1,153 @@
+{
+  "name": "docs-md",
+  "root": "packages/docs-md",
+  "sourceRoot": "packages/docs-md",
+  "projectType": "library",
+  "targets": {
+    "ts:markdown": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/web-editor --json api/ts/web-editor/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --tsconfig tsconfig.typedoc.json --options typedoc.base.json --skipErrorChecking --entryPointStrategy expand ../../packages/frontend/web-editor/src"
+      }
+    },
+    "ts:markdown:shared-sdk": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-sdk && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-sdk --json ../docs-md/api/ts/shared-sdk/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig tsconfig.lib.json --options ../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+      }
+    },
+    "ts:markdown:shared-types": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/shared-types && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/shared-types --json ../docs-md/api/ts/shared-types/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/*.d.ts --tsconfig tsconfig.lib.json --options ../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+      }
+    },
+    "ts:markdown:mef-types": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec typedoc --plugin typedoc-plugin-markdown --out api/ts/mef-types --json api/ts/mef-types/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --exclude **/node_modules/** --tsconfig tsconfig.typedoc.sanitized.json --options typedoc.base.json --logLevel Warn --skipErrorChecking --entryPointStrategy expand .tmp/typedoc-sanitized/mef-types"
+      },
+      "dependsOn": ["ts:sanitize:mef-types"]
+    },
+    "mef:openpra:markdown": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/docs-md/tools/generate-mef-openpra-md.mjs"
+      }
+    },
+    "mef:elements:copy-docs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/docs-md/tools/copy-mef-element-docs.mjs"
+      }
+    },
+    "ts:explore:folders": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/docs-md/tools/generate-folder-indexes.mjs"
+      },
+      "dependsOn": [
+        "ts:markdown",
+        "ts:markdown:shared-sdk",
+        "ts:markdown:shared-types",
+        "ts:markdown:mef-types",
+        "ts:markdown:model-generator",
+        "ts:markdown:web-backend",
+        "ts:markdown:job-broker",
+        "ts:markdown:scram-node"
+      ]
+    },
+    "ts:sanitize:mef-types": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/docs-md/tools/sanitize-jsdoc-tags.mjs"
+      }
+    },
+    "ts:markdown:model-generator": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/model-generator && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/model-generator --json ../docs-md/api/ts/model-generator/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --tsconfig tsconfig.lib.json --options ../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+      }
+    },
+    "ts:markdown:web-backend": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/web-backend && typedoc --plugin typedoc-plugin-markdown --out ../docs-md/api/ts/web-backend --json ../docs-md/api/ts/web-backend/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --tsconfig tsconfig.app.json --options ../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+      }
+    },
+    "ts:markdown:job-broker": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/microservice/job-broker && typedoc --plugin typedoc-plugin-markdown --out ../../docs-md/api/ts/job-broker --json ../../docs-md/api/ts/job-broker/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --exclude **/*.tsx --tsconfig tsconfig.app.json --options ../../docs-md/typedoc.base.json --skipErrorChecking --entryPointStrategy expand src'"
+      }
+    },
+    "ts:markdown:scram-node": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec sh -c 'cd ../../packages/engine/scram-node && typedoc --plugin typedoc-plugin-markdown --out ../../docs-md/api/ts/scram-node --json ../../docs-md/api/ts/scram-node/typedoc.json --hideBreadcrumbs --excludeExternals --excludePrivate --excludeInternal --exclude **/*.spec.ts --tsconfig tsconfig.lib.json --options ../../docs-md/typedoc.base.json --skipErrorChecking targets/scram-node/lib/index.d.ts'"
+      }
+    },
+    "cpp:doxygen-xml": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "mkdir -p packages/docs-md/.tmp/doxygen && doxygen packages/docs-md/tools/Doxyfile.xml && echo 'Doxygen XML generated'"
+      }
+    },
+    "cpp:doxybook2": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash -c 'set -e; BIN=\"$(packages/docs-md/tools/install-doxybook2.sh)\" && cd packages/docs-md && mkdir -p api/cpp-doxybook2 && \"$BIN\" --input .tmp/doxygen/doxygen-xml --output api/cpp-doxybook2 --config tools/doxybook2.json'"
+      },
+      "dependsOn": ["cpp:doxygen-xml"]
+    },
+    "cpp:sanitize": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node packages/docs-md/tools/sanitize-doxybook2-frontmatter.mjs && node packages/docs-md/tools/sanitize-doxybook2-namespaces.mjs && node packages/docs-md/tools/sanitize-doxybook2-html.mjs"
+      },
+      "dependsOn": ["cpp:doxybook2"]
+    },
+    "site:dev": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md dev"
+      },
+      "dependsOn": ["mef:elements:copy-docs"]
+    },
+    "site:build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md build"
+      },
+      "dependsOn": ["cpp:sanitize", "mef:openpra:markdown", "mef:elements:copy-docs", "ts:explore:folders"]
+    },
+    "prepare": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "echo prepared"
+      },
+      "dependsOn": [
+        "ts:markdown",
+        "ts:markdown:shared-sdk",
+        "ts:markdown:shared-types",
+        "ts:markdown:mef-types",
+        "mef:openpra:markdown",
+        "mef:elements:copy-docs",
+        "ts:explore:folders",
+        "ts:markdown:model-generator",
+        "ts:markdown:web-backend",
+        "ts:markdown:job-broker",
+        "ts:markdown:scram-node",
+        "cpp:sanitize"
+      ]
+    },
+    "site:link-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter docs-md exec bash -c 'set -Eeuo pipefail; SERVE=\"${DOCS_LINKCHECK_SERVE:-}\"; PORT=\"${DOCS_LINKCHECK_PORT:-4173}\"; BASE=\"${VITEPRESS_BASE:-}\"; CREATED=0; NAME=\"\"; SERVER_PID=\"\"; cleanup() { if [ -n \"$SERVER_PID\" ]; then kill \"$SERVER_PID\" >/dev/null 2>&1 || true; fi; if [ \"$CREATED\" = 1 ] && [ -n \"$NAME\" ] && [ -L .vitepress/dist/\"$NAME\" ]; then rm -f .vitepress/dist/\"$NAME\"; fi; }; trap cleanup EXIT; if [ -n \"$BASE\" ]; then NAME=\"${BASE#/}\"; NAME=\"${NAME%/}\"; if [ -n \"$NAME\" ] && [ ! -e .vitepress/dist/\"$NAME\" ]; then ln -sfn . .vitepress/dist/\"$NAME\"; CREATED=1; fi; fi; BASE_PATH=\"/\"; if [ -n \"$BASE\" ]; then TMP=\"/${BASE#/}\"; BASE_PATH=\"${TMP%/}/\"; fi; if [ -n \"$SERVE\" ] && [ \"$SERVE\" != \"0\" ] && [ \"$SERVE\" != \"false\" ]; then ENTRY=\"http://127.0.0.1:${PORT}${BASE_PATH}index.html\"; pnpm --filter docs-md preview --port \"$PORT\" --strictPort --host 127.0.0.1 >/dev/null 2>&1 & SERVER_PID=$!; for i in $(seq 1 50); do if curl -fsS \"http://127.0.0.1:${PORT}${BASE_PATH}index.html\" >/dev/null 2>&1; then break; fi; sleep 0.2; done; linkinator \"$ENTRY\" --recurse --silent --skip \".*#.*\"; else ENTRIES=(\".vitepress/dist/index.html\"); if [ -n \"${DOCS_LINKCHECK_ENTRIES:-}\" ]; then for p in ${DOCS_LINKCHECK_ENTRIES}; do ENTRIES+=(\".vitepress/dist/$p\"); done; fi; linkinator ${ENTRIES[@]} --recurse --silent --skip \".*#.*|^/.*|^assets/|^vp-icons.css$\"; fi'"
+      },
+      "dependsOn": ["site:build"]
+    }
+  },
+  "tags": []
+}

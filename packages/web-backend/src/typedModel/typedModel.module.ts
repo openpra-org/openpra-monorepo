@@ -10,6 +10,9 @@ import { FullScope, FullScopeSchema } from "./schemas/full-scope.schema";
 import { MetaTypedModelController } from "./metadata/meta-typed-model.controller";
 import { MetaTypedModelService } from "./metadata/meta-typed-model.service";
 
+/**
+ * Typed model module exposing CRUD endpoints and metadata listings for model types.
+ */
 @Module({
   imports: [
     MongooseModule.forFeature([

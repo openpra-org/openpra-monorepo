@@ -9,6 +9,17 @@ interface EventTreeNodeData {
   isSequenceId?: boolean;
 }
 
+/**
+ * Delete a visible node from the Event Tree while enforcing structural rules.
+ *
+ * - Prevents deletion if it would reduce the number of Sequence ID nodes below two.
+ * - Prevents deletion when non-output/non-invisible child nodes exist.
+ * - Converts a leaf to an invisible node when it has no siblings, otherwise removes it and rewires.
+ * Persists the updated graph after mutations.
+ *
+ * @param clickedNodeId - The id of the node to delete.
+ * @returns A function that performs the deletion when invoked.
+ */
 function useDeleteNodeClick(clickedNodeId: NodeProps["id"]): () => void {
   const { setEdges, setNodes, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
@@ -93,8 +104,9 @@ function useDeleteNodeClick(clickedNodeId: NodeProps["id"]): () => void {
     // Find siblings (if any)
     const parentEdge = edges.find((edge) => edge.target === clickedNodeId);
     const parentId = parentEdge?.source;
-    const siblingEdges = parentId
-      ? edges.filter(
+    const siblingEdges =
+      parentId ?
+        edges.filter(
           (edge) => edge.source === parentId && edge.target !== clickedNodeId && !isOutputOrInvisibleNode(edge.target),
         )
       : [];

@@ -19,6 +19,18 @@ function isOutputNode(n?: Node): n is Node<OutputData> {
   return Boolean(n && n.type === "outputNode");
 }
 
+/**
+ * Recalculate sequence frequencies by multiplying visible node probabilities along each path.
+ *
+ * @remarks
+ * The root node probability is used as a base. For intermediate visible nodes, a default
+ * probability is inferred when not provided: depth 1 -> 1.0; depth 2 labeled Success/Failure -> 0.5;
+ * otherwise 0.0. The resulting frequency is written to frequency nodes connected to sequence IDs.
+ *
+ * @param nodes - Current graph nodes.
+ * @param edges - Current graph edges.
+ * @returns A new nodes array with frequency nodes updated; input nodes are not mutated.
+ */
 export function recalculateFrequencies(nodes: Node[], edges: Edge[]): Node[] {
   // Find the root node (Initiating Event)
   const rootNode = nodes.find(

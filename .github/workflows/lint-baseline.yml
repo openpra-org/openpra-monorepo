@@ -30,4 +30,8 @@ jobs:
         run: npx -y pnpm@10.19.0 install --ignore-scripts --no-frozen-lockfile
 
       - name: Run baseline lint (Nx)
-        run: npx -y pnpm@10.19.0 -w nx run-many -t lint --all
+        # env:
+        #   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}  # (disabled)
+        #   NX_BRANCH: ${{ github.ref_name }}                             # (disabled)
+        #   NX_RUN_GROUP: lint-${{ github.run_id }}                       # (disabled)
+        run: npx -y pnpm@10.19.0 -w nx run-many -t lint --all --no-cloud

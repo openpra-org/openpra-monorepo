@@ -7,8 +7,18 @@ import { InitiatingEvent, InitiatingEventDocument } from "../schemas/initiating-
 import { NestedModelService } from "../nestedModel.service";
 import { Label } from "../../schemas/label.schema";
 
+/**
+ * Service for Initiating Event nested models.
+ * Supports listing, single retrieval, creation and label updates.
+ */
 @Injectable()
 export class InitiatingEventsService {
+  /**
+   * Construct the service with persistence and helper dependencies.
+   * @param initiatingEventModel - Mongoose model for InitiatingEvent collection
+   * @param nestedModelService - Service to allocate IDs and shared nested model ops
+   * @param nestedModelHelperService - Helper to link/unlink nested models to typed models
+   */
   constructor(
     @InjectModel(InitiatingEvent.name)
     private readonly initiatingEventModel: Model<InitiatingEventDocument>,
@@ -25,6 +35,11 @@ export class InitiatingEventsService {
     return this.initiatingEventModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves Initiating Events by parent id (string form).
+   * @param parentId - Parent identifier as a string (ObjectId)
+   * @returns Array of Initiating Event documents for the given parent
+   */
   async getInitiatingEventsString(parentId: string): Promise<InitiatingEvent[]> {
     return this.initiatingEventModel.find({ parentIds: parentId });
   }
@@ -38,6 +53,11 @@ export class InitiatingEventsService {
     return this.initiatingEventModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a single Initiating Event by string id.
+   * @param modelId - Document _id as a string (ObjectId)
+   * @returns The matching Initiating Event document
+   */
   async getSingleInitiatingEventString(modelId: string): Promise<InitiatingEvent> {
     return this.initiatingEventModel.findOne({ _id: modelId });
   }

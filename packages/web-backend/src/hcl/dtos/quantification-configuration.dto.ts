@@ -35,3 +35,6 @@ const hclModelQuantificationConfigurationSchema = z.object({
 });
 
 export class HclModelQuantificationConfigurationDto extends createZodDto(hclModelQuantificationConfigurationSchema) {}
+/**
+ * DTO for configuring HCL model quantification (constructor, engine and quantify settings).
+ */

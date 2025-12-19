@@ -69,10 +69,10 @@ export interface OnGrayedState {
 export type GrayedNodeData = Node<FaultTreeNodeProps> | Edge<FaultTreeNodeProps>;
 
 /**
- * Generate the event sequence state with the provided list of nodes and edges, for a particular event sequence id
- * @param eventSequenceId - event sequence id
- * @param nodes - list of nodes
- * @param edges - list of edges
+ * Generate the event sequence state with the provided list of nodes and edges, for a particular event sequence id.
+ *
+ * @param state - Object containing eventSequenceId, nodes, and edges.
+ * @returns A normalized EventSequenceGraph snapshot.
  */
 export const EventSequenceState = ({ eventSequenceId, nodes, edges }: EventSequenceStateType): EventSequenceGraph => ({
   eventSequenceId: eventSequenceId,
@@ -81,10 +81,10 @@ export const EventSequenceState = ({ eventSequenceId, nodes, edges }: EventSeque
 });
 
 /**
- * Generate the fault tree state with the provided list of nodes and edges, for a particular fault tree id
- * @param faultTreeId - fault tree id
- * @param nodes - list of nodes
- * @param edges - list of edges
+ * Generate the fault tree state with the provided list of nodes and edges, for a particular fault tree id.
+ *
+ * @param state - Object containing faultTreeId, nodes, and edges.
+ * @returns A normalized FaultTreeGraph snapshot.
  */
 export const FaultTreeState = ({ faultTreeId, nodes, edges }: FaultTreeStateType): FaultTreeGraph => ({
   faultTreeId: faultTreeId,
@@ -93,10 +93,10 @@ export const FaultTreeState = ({ faultTreeId, nodes, edges }: FaultTreeStateType
 });
 
 /**
- * Generate the fault tree state with the provided list of nodes and edges, for a particular fault tree id
- * @param faultTreeId - fault tree id
- * @param nodes - list of nodes
- * @param edges - list of edges
+ * Generate the event tree state with the provided list of nodes and edges, for a particular event tree id.
+ *
+ * @param state - Object containing eventTreeId, nodes, and edges.
+ * @returns A normalized EventTreeGraph snapshot.
  */
 export const EventTreeState = ({ eventTreeId, nodes, edges }: EventTreeStateType): EventTreeGraph => ({
   eventTreeId: eventTreeId,
@@ -154,6 +154,14 @@ export const getBasicEventNode = (): Node => ({
 /**
  * Generates a new workflow edge.
  * @returns a new workflow edge.
+ */
+/**
+ * Create a workflow edge connecting a parent and child node.
+ *
+ * @param parentNodeId - ID of the source (parent) node
+ * @param childNodeId - ID of the target (child) node
+ * @param _label - Optional label for the edge (unused placeholder)
+ * @returns A React Flow Edge configured as a workflow edge
  */
 export const getWorkflowEdge = (parentNodeId: string, childNodeId: string, _label = ""): Edge<FaultTreeNodeProps> => ({
   id: `${parentNodeId}=>${childNodeId}`,
@@ -453,6 +461,17 @@ export function BuildAnEdge(
   };
 }
 
+/**
+ * Persist event-sequence mutations by sending updated and deleted subgraphs.
+ *
+ * Wraps the provided subgraphs into normalized `EventSequenceGraph` payloads and
+ * calls the Graph API to apply the delta. Returns true on success.
+ *
+ * @param eventSequenceId - The current Event Sequence id.
+ * @param updatedSubgraph - Nodes/edges to add or update.
+ * @param deletedSubgraph - Nodes/edges to remove.
+ * @returns Promise resolving to a boolean indicating API success.
+ */
 export function UpdateEventSequenceDiagram(
   eventSequenceId: string,
   updatedSubgraph: BaseGraphState,
@@ -610,6 +629,17 @@ function GenerateTentativeState(
   } as OnUpdateOrDeleteGraphState;
 }
 
+/**
+ * Clear all "tentative" markers on nodes/edges and reset related flags.
+ *
+ * Used to exit the intermediate state created during functional node update/delete
+ * workflows. Returns an updated state with tentative flags removed; no API sync
+ * is performed by this function.
+ *
+ * @param currentNodes - Current nodes (may include tentative flags).
+ * @param currentEdges - Current edges (may include tentative flags).
+ * @returns Updated state with all tentative flags cleared.
+ */
 export function RevertTentativeState(
   currentNodes: Node<EventSequenceNodeProps>[],
   currentEdges: Edge<EventSequenceEdgeProps>[],
@@ -869,6 +899,12 @@ export function GetESToast(type: EuiToastProps["color"], message: string): Toast
   } as Toast;
 }
 
+/**
+ * Get the default number of children allowed for a given node type.
+ *
+ * @param type - Event Sequence node type.
+ * @returns The expected child count for that type.
+ */
 export function GetChildCount(type: EventSequenceNodeTypes): number {
   switch (type) {
     case "functional":

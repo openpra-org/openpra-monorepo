@@ -1,4 +1,8 @@
-// Barrel file for shared types (curated)
+/**
+ * Barrel exports for shared type-only definitions consumed across frontend and backend.
+ *
+ * Note: This package must remain runtime-free; only types/interfaces should be exported.
+ */
 // TODO: Consider moving runtime API managers to a separate SDK package
 // export * from "./api/ApiManager";
 // export * from "./api/GraphApiManager";
@@ -29,3 +33,8 @@ export * from "./types/roles/RoleSchemaDto";
 export * from "./types/AuthToken";
 // Note: openpra-mef types have moved to the separate mef-types package
 
+// OpenPRA quantification and execution DTOs (moved from mef-types)
+export type { CommandLineOptions, QuantifyRequest, QuantifyRequest1, QuantifyRequest2 } from "./utils/quantify-request";
+export type { QuantifyReport, BinaryQuantifyReport } from "./utils/quantify-report";
+export type { ExecutionTask } from "./utils/execution-task";
+export type { ExecutionResult } from "./utils/execution-result";

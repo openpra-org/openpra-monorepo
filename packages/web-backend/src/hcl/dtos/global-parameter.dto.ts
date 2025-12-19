@@ -6,5 +6,7 @@ const globalParameterSchema = z.object({
   double_value: z.string().or(z.number()).optional(),
   string_value: z.string().optional(),
 });
-
+/**
+ * DTO for HCL global parameter updates or creation.
+ */
 export class GlobalParameterDto extends createZodDto(globalParameterSchema) {}

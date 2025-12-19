@@ -6,6 +6,9 @@ import { EventTreesType } from "./TypesHelpers/EventTreesType";
 import { BayesianNetworksType } from "./TypesHelpers/BayesianNetworksType";
 import { FaultTreesType } from "./TypesHelpers/FaultTreesType";
 
+/**
+ * Root state shape for nested model collections across PRA analysis areas.
+ */
 export interface NestedModelsStateType {
   parentId: string;
   // TODO:: Table of values
@@ -58,10 +61,16 @@ export interface NestedModelsStateType {
   };
 }
 
+/**
+ * Slice wrapper for NestedModels state.
+ */
 export interface NestedModelsType {
   NestedModels: NestedModelsStateType;
 }
 
+/**
+ * Combined action contract for all nested model types supported by the store.
+ */
 export type NestedModelActionsType = BayesianNetworksType &
   InitiatingEventsType &
   EventSequenceDiagramsType &

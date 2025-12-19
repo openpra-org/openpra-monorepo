@@ -5,10 +5,15 @@ import { tmpdir } from "os";
 import { spawn } from "child_process";
 
 import { Injectable } from "@nestjs/common";
-import type { CommandLineOptions } from "mef-types/openpra-mef/util/quantify-request";
-import type { QuantifyRequest } from "mef-types/openpra-mef/util/quantify-request";
-import type { BinaryQuantifyReport } from "mef-types/openpra-mef/util/quantify-report";
+import type { CommandLineOptions } from "shared-types";
+import type { QuantifyRequest } from "shared-types";
+import type { BinaryQuantifyReport } from "shared-types";
 
+/**
+ * Service for executing external solver quantification flows (e.g., SCRAM).
+ * Writes input files, runs the solver, and collects output reports.
+ * @public
+ */
 @Injectable()
 export class QuantifyService {
   // call shell commands from here.
@@ -82,6 +87,11 @@ export class QuantifyService {
     };
   }
 
+  /**
+   * Writes base64-encoded XML models to temporary files and returns their paths.
+   * @param models - Array of base64-encoded XML model strings
+   * @returns Paths to the created temporary model files
+   */
   public async writeModelFilesBase64(models: string[]): Promise<string[]> {
     // Create a unique temporary directory for our model files
     const tempDir = await promise_fs.mkdtemp(path.join(tmpdir(), "models-"));
@@ -169,12 +179,11 @@ export class QuantifyService {
     });
   }
 
-  /*
+  /**
    * Reads the content of a report file.
-   *
-   * @param filePath - The path to the report file.
-   * @returns A promise that resolves with the content of the report file as a string.
-   * @throws {Error} If the file cannot be read.
+   * @param filePath - Path to the generated report file
+   * @returns Report file contents as a string
+   * @throws Error when the file cannot be read
    */
   public async readReportFile(filePath: string): Promise<string> {
     try {

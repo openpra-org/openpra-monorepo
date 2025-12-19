@@ -72,6 +72,15 @@ export interface RFState {
  * @param get - A function to access the current state.
  * @returns A set of reactive state properties and functions that manage the nodes and edges of the React Flow graph.
  */
+/**
+ * Global Zustand store for the Mindmap (Bayesian Network) editor.
+ *
+ * Exposes nodes/edges and a set of imperative helpers to add/remove nodes,
+ * reattach children on deletion, and query relationships (parents/children/labels).
+ * It also wires React Flow change handlers to keep state in sync.
+ *
+ * @returns A store with graph state and actions tailored for the mindmap editor.
+ */
 const UseStore = create<RFState>((set, get) => ({
   nodes: [
     {
@@ -116,12 +125,12 @@ const UseStore = create<RFState>((set, get) => ({
     };
 
     const updatedNodes = get().nodes.map((node) =>
-      node.id === childNode.id
-        ? {
-            ...node,
-            parentNodes: node.parentNodes ? [...node.parentNodes, newParentNode.id] : [newParentNode.id],
-          }
-        : node,
+      node.id === childNode.id ?
+        {
+          ...node,
+          parentNodes: node.parentNodes ? [...node.parentNodes, newParentNode.id] : [newParentNode.id],
+        }
+      : node,
     );
 
     const newEdge = {

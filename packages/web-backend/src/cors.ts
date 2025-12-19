@@ -1,3 +1,7 @@
+/**
+ * Default CORS configuration for the backend HTTP server.
+ * Allows common methods/headers and any origin; tune in production as needed.
+ */
 export const CorsConfig = {
   origin: "*",
   methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS", "HEAD"],

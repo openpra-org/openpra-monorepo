@@ -3,8 +3,8 @@ import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common";
 import amqp from "amqplib";
 import { ConsumeMessage } from "amqplib/properties";
 import typia, { TypeGuardError } from "typia";
-import type { ExecutionTask } from "mef-types/openpra-mef/util/execution-task";
-import type { ExecutionResult } from "mef-types/openpra-mef/util/execution-result";
+import type { ExecutionTask } from "shared-types";
+import type { ExecutionResult } from "shared-types";
 import { InjectModel as _InjectModel } from "@nestjs/mongoose";
 import { Model as _Model } from "mongoose";
 import { ConfigService } from "@nestjs/config";
@@ -19,6 +19,11 @@ import { EnvVarKeys } from "../../../config/env_vars.config";
 @Injectable()
 export class ExecutableWorkerService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ExecutableWorkerService.name);
+  /**
+   * Construct the worker with configuration service for RabbitMQ connectivity and queue settings.
+   *
+   * @param configSvc - Nest ConfigService used to resolve RabbitMQ URL, queue names, TTLs, and related options.
+   */
   constructor(private readonly configSvc: ConfigService) {}
 
   /**
@@ -174,8 +179,9 @@ export class ExecutableWorkerService implements OnApplicationBootstrap {
       const command = `${task.executable} ${task.arguments?.join(" ") ?? ""}`;
       const options: ExecSyncOptionsWithStringEncoding = {
         // Set the environment variables for the command execution.
-        env: task.env_vars
-          ? (Object.fromEntries(task.env_vars.map((envVar) => envVar.split("="))) as NodeJS.ProcessEnv)
+        env:
+          task.env_vars ?
+            (Object.fromEntries(task.env_vars.map((envVar) => envVar.split("="))) as NodeJS.ProcessEnv)
           : process.env,
         stdio: "pipe",
         shell: task.tty ? "/bin/bash" : undefined,

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["targets/scram-node/lib/index.d.ts"],
+  "out": "docs/ts",
+  "tsconfig": "tsconfig.lib.json",
+  "name": "scram-node N-API (TypeScript)",
+  "entryPointStrategy": "expand",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "hideGenerator": true,
+  "categorizeByGroup": true,
+  "sort": ["alphabetical"],
+  "disableSources": true,
+  "skipErrorChecking": true,
+  "validation": {
+    "invalidLink": true,
+    "notDocumented": false
+  }
+}

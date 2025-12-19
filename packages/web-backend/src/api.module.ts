@@ -16,6 +16,9 @@ import { QuantifyModule } from "./quantify/quantify.module";
 import { TypedModelModule } from "./typedModel/typedModel.module";
 import { RolesModule } from "./roles/roles.module";
 
+/**
+ * Root application module composing all feature modules and global providers.
+ */
 @Module({
   imports: [
     AuthModule,

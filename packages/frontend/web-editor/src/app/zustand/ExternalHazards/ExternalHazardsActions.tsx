@@ -9,6 +9,9 @@ import { ExternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/
 import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
 import { UseGlobalStore } from "../Store";
 
+/**
+ * Load and set External Hazards for the current user.
+ */
 export const SetExternalHazards = async (): Promise<void> => {
   try {
     const externalHazardsList: ExternalHazardsModelType[] = await GetExternalHazards(
@@ -22,6 +25,11 @@ export const SetExternalHazards = async (): Promise<void> => {
   }
 };
 
+/**
+ * Create a new External Hazard and append it to the store.
+ *
+ * @param data - Partial typed model payload for creation.
+ */
 export const AddExternalHazard = async (data: Partial<TypedModelJSON>): Promise<void> => {
   try {
     const ehr: ExternalHazardsModelType = await PostExternalHazard(data);
@@ -33,6 +41,13 @@ export const AddExternalHazard = async (data: Partial<TypedModelJSON>): Promise<
   }
 };
 
+/**
+ * Update an existing External Hazard and replace it in the store.
+ *
+ * @param modelId - External hazard id to update.
+ * @param userId - Acting user id (audit/ownership).
+ * @param data - Patch payload.
+ */
 export const EditExternalHazard = async (
   modelId: number,
   userId: number,
@@ -54,6 +69,11 @@ export const EditExternalHazard = async (
   }
 };
 
+/**
+ * Delete an External Hazard and remove it from the store.
+ *
+ * @param id - External hazard id to delete.
+ */
 export const DeleteExternalHazard = async (id: number): Promise<void> => {
   try {
     await DeleteExternalHazardAPI(id);

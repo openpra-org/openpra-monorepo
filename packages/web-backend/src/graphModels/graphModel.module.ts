@@ -11,6 +11,9 @@ import { EventTreeGraph, EventTreeGraphSchema } from "../schemas/graphs/event-tr
 import { GraphModelController } from "./graphModel.controller";
 import { GraphModelService } from "./graphModel.service";
 
+/**
+ * Module for graph model storage and retrieval endpoints.
+ */
 @Module({
   imports: [
     MongooseModule.forFeature([

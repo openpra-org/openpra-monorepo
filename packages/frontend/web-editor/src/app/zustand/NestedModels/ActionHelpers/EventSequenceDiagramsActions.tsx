@@ -9,6 +9,10 @@ import { produce } from "immer";
 import { StoreStateType, UseGlobalStore } from "../../Store";
 import { AddToParentModel, GetTypedModelName, RemoveFromParentModel } from "../Helper";
 
+/**
+ * Fetches Event Sequence Diagrams for a given parent and updates store state.
+ * @param parentId - The parent model identifier
+ */
 export const SetEventSequenceDiagrams = async (parentId: string): Promise<void> => {
   try {
     const EventSequenceDiagrams = await GetEventSequenceDiagrams(parentId);
@@ -23,6 +27,10 @@ export const SetEventSequenceDiagrams = async (parentId: string): Promise<void> 
   }
 };
 
+/**
+ * Creates a new Event Sequence Diagram and links it to its parent models in state.
+ * @param data - New model payload
+ */
 export const AddEventSequenceDiagram = async (data: NestedModelJSON): Promise<void> => {
   try {
     const typedModelName: keyof StoreStateType = GetTypedModelName();
@@ -40,6 +48,11 @@ export const AddEventSequenceDiagram = async (data: NestedModelJSON): Promise<vo
   }
 };
 
+/**
+ * Updates the label of an Event Sequence Diagram.
+ * @param modelId - Target model id
+ * @param data - Partial payload containing the new label
+ */
 export const EditEventSequenceDiagram = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
   if (!data.label) {
     return;
@@ -60,6 +73,10 @@ export const EditEventSequenceDiagram = async (modelId: string, data: Partial<Ne
   }
 };
 
+/**
+ * Deletes an Event Sequence Diagram and removes cross-references from parent models.
+ * @param id - Target model id
+ */
 export const DeleteEventSequenceDiagram = async (id: string): Promise<void> => {
   try {
     const typedModelName: keyof StoreStateType = GetTypedModelName();

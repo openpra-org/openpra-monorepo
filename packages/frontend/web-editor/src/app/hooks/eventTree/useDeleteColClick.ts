@@ -5,6 +5,16 @@ import { EventTreeState } from "../../../utils/treeUtils";
 import { UseToastContext } from "../../providers/toastProvider";
 import { GenerateUUID } from "../../../utils/treeUtils";
 
+/**
+ * Delete an empty functional-event column and rewire connections in the Event Tree.
+ *
+ * Validates the column is empty (only invisible nodes), connects adjacent
+ * columns with a hidden edge, removes the target column and its invisible
+ * nodes, updates the root counters, and persists the result.
+ *
+ * @param clickedColumnId - The id of the column-node to delete.
+ * @returns A function that performs the deletion when invoked.
+ */
 function useDeleteColClick(clickedColumnId: string): () => void {
   const { setNodes, setEdges, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };

@@ -8,6 +8,9 @@ import { FtrexController } from "./controllers/ftrex.controller";
 import { ProducerService } from "./services/producer.service";
 import { StorageService } from "./services/storage.service";
 
+/**
+ * Nest module that exposes quantification endpoints and wiring for producer/storage services.
+ */
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -19,6 +22,10 @@ import { StorageService } from "./services/storage.service";
   providers: [ProducerService, StorageService],
 })
 export class QuantificationModule implements NestModule {
+  /**
+   * Configure middleware for quantification routes.
+   * @param consumer - Nest middleware consumer to bind middleware to routes
+   */
   configure(consumer: MiddlewareConsumer): void {
     consumer.apply(JobBrokerMiddleware).forRoutes(ScramController);
     consumer.apply(JobBrokerMiddleware).forRoutes(FtrexController);

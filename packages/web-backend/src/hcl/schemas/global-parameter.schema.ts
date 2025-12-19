@@ -10,6 +10,10 @@ import { Document } from "mongoose";
   },
   versionKey: false,
 })
+/**
+ * Global parameter key-value entry scoped to a model.
+ * Supports string and numeric parameter value types.
+ */
 export class GlobalParameter {
   @Prop({ unique: false })
   model_id: number;
@@ -31,4 +35,5 @@ export class GlobalParameter {
 }
 
 export type GlobalParameterDocument = GlobalParameter & Document;
+/** Mongoose schema for GlobalParameter. */
 export const GlobalParameterSchema = SchemaFactory.createForClass(GlobalParameter);

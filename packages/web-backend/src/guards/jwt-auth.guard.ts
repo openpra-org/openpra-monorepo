@@ -3,8 +3,14 @@ import { CanActivate, ExecutionContext, Injectable } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { Observable } from "rxjs";
 
+/**
+ * JWT guard that honors the `@Public()` metadata to bypass authentication.
+ */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard("jwt") implements CanActivate {
+  /**
+   * @param reflector - NestJS metadata reflector used to check `@Public()`.
+   */
   constructor(private readonly reflector: Reflector) {
     super();
   }

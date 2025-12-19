@@ -24,17 +24,31 @@ import { ExternalHazards } from "./schemas/external-hazards.schema";
 import { FullScope } from "./schemas/full-scope.schema";
 import { TypedModel, TypedModelJSON } from "./schemas/templateSchema/typed-model.schema";
 
+/**
+ * Controller for typed model CRUD and metadata endpoints.
+ * Manages Internal/External Hazards, Full Scope, and Internal Events models.
+ * @public
+ */
 @Controller()
 @UseGuards(AuthGuard("jwt"))
 @UseFilters(InvalidTokenFilter)
 export class TypedModelController {
+  /**
+   * Construct controller with typed model service dependency.
+   *
+   * @param typedModelService - Service handling typed model CRUD and queries
+   */
   constructor(private readonly typedModelService: TypedModelService) {}
 
   //all the post methods go here
 
   private getUserId(req: unknown): number | undefined {
     const u = (req as { user?: { user_id?: unknown } })?.user?.user_id;
-    return typeof u === "number" ? u : typeof u === "string" ? Number(u) : undefined;
+    return (
+      typeof u === "number" ? u
+      : typeof u === "string" ? Number(u)
+      : undefined
+    );
   }
 
   /**
@@ -81,8 +95,9 @@ export class TypedModelController {
 
   /**
    * gets a single internal event
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
+   * @param model - partial model payload to patch
    * @returns the internal event the user has with the modelId
    */
   @Patch("/internal-events/:id/")
@@ -96,8 +111,9 @@ export class TypedModelController {
 
   /**
    * gets a single internal hazard
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
+   * @param model - partial model payload to patch
    * @returns the internal hazard the user has with the modelId
    */
   @Patch("/internal-hazards/:id/")
@@ -111,8 +127,9 @@ export class TypedModelController {
 
   /**
    * updates and replaces a single
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
+   * @param model - partial model payload to patch
    * @returns the external hazard the user has with the modelId
    */
   @Patch("/external-hazards/:id/")
@@ -126,8 +143,9 @@ export class TypedModelController {
 
   /**
    * gets a single full scope
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
+   * @param model - partial model payload to patch
    * @returns the full scope the user has with the modelId
    */
   @Patch("/full-scope/:id/")
@@ -143,7 +161,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param id - the id of the user whose models you want to retrieve
+   * @param req - the request providing the user id
    * @returns a list of the internal hazards moodels the user is on
    */
   @Get("/internal-events/")
@@ -153,7 +171,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param id - the id of the user whose models you want to retrieve
+   * @param req - the request providing the user id
    * @returns a list of the internal hazards moodels the user is on
    */
   @Get("/internal-hazards/")
@@ -163,7 +181,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param id - the id of the user whose models you want to retrieve
+   * @param req - the request providing the user id
    * @returns a list of the internal hazards moodels the user is on
    */
   @Get("/external-hazards/")
@@ -173,7 +191,7 @@ export class TypedModelController {
 
   /**
    *
-   * @param id - the id of the user whose models you want to retrieve
+   * @param req - the request providing the user id
    * @returns a list of the full scope models the user is on
    */
   @Get("/full-scope/")
@@ -185,8 +203,8 @@ export class TypedModelController {
 
   /**
    * gets a single internal event
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
    * @returns the internal event the user has with the modelId
    */
   @Get("/internal-events/:id/")
@@ -196,8 +214,8 @@ export class TypedModelController {
 
   /**
    * gets a single internal hazard
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
    * @returns the internal hazard the user has with the modelId
    */
   @Get("/internal-hazards/:id/")
@@ -207,8 +225,8 @@ export class TypedModelController {
 
   /**
    * gets a single external hazard
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
    * @returns the external hazard the user has with the modelId
    */
   @Get("/external-hazards/:id/")
@@ -218,8 +236,8 @@ export class TypedModelController {
 
   /**
    * gets a single full scope
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be returned
-   * @param userId - id of the user getting the model
    * @returns the full scope the user has with the modelId
    */
   @Get("/full-scope/:id/")
@@ -231,6 +249,7 @@ export class TypedModelController {
 
   /**
    *
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be deleted
    * @returns the deleted model in a promise
    */
@@ -241,6 +260,7 @@ export class TypedModelController {
 
   /**
    *
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be deleted
    * @returns the deleted model in a promise
    */
@@ -251,6 +271,7 @@ export class TypedModelController {
 
   /**
    *
+   * @param req - Express request (user context)
    * @param modelId - id of the model to be deleted
    * @returns the deleted model in a promise
    */
@@ -259,6 +280,13 @@ export class TypedModelController {
     return this.typedModelService.deleteInternalHazard(Number(modelId), this.getUserId(req) as number);
   }
 
+  /**
+   * Delete a Full Scope model by id.
+   *
+   * @param req - Express request (provides user id)
+   * @param modelId - id of the model to delete
+   * @returns the deleted model
+   */
   @Delete("/full-scope/")
   async deleteFullScope(@Request() req, @Query("modelId") modelId: string): Promise<FullScopeModel> {
     return this.typedModelService.deleteFullScope(Number(modelId), this.getUserId(req) as number);
@@ -316,6 +344,13 @@ export class TypedModelController {
 
   //for deleting nested model ids
 
+  /**
+   * Remove a nested model relation from an Internal Events model.
+   *
+   * @param id - Internal Events model identifier
+   * @param body - Object containing nestedId and nestedType to remove
+   * @returns Updated model JSON
+   */
   @Patch("/internal-events/:id/delete-nested")
   async deleteNestedFromInternalEvent(
     @Param("id") id: string,
@@ -324,6 +359,13 @@ export class TypedModelController {
     return this.typedModelService.deleteNestedFromInternalEvent(id, body.nestedId, body.nestedType);
   }
 
+  /**
+   * Remove a nested model relation from an Internal Hazards model.
+   *
+   * @param id - Internal Hazards model identifier
+   * @param body - Object containing nestedId and nestedType to remove
+   * @returns Updated model JSON
+   */
   @Patch("/internal-hazards/:id/delete-nested")
   async deleteNestedFromInternalHazard(
     @Param("id") id: string,
@@ -332,6 +374,13 @@ export class TypedModelController {
     return this.typedModelService.deleteNestedFromInternalHazard(id, body.nestedId, body.nestedType);
   }
 
+  /**
+   * Remove a nested model relation from an External Hazards model.
+   *
+   * @param id - External Hazards model identifier
+   * @param body - Object containing nestedId and nestedType to remove
+   * @returns Updated model JSON
+   */
   @Patch("/external-hazards/:id/delete-nested")
   async deleteNestedFromExternalHazard(
     @Param("id") id: string,
@@ -340,6 +389,13 @@ export class TypedModelController {
     return this.typedModelService.deleteNestedFromExternalHazard(id, body.nestedId, body.nestedType);
   }
 
+  /**
+   * Remove a nested model relation from a Full Scope model.
+   *
+   * @param id - Full Scope model identifier
+   * @param body - Object containing nestedId and nestedType to remove
+   * @returns Updated model JSON
+   */
   @Patch("/full-scope/:id/delete-nested")
   async deleteNestedFromFullScope(
     @Param("id") id: string,

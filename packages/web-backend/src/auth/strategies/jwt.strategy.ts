@@ -11,6 +11,16 @@ interface JwtPayload {
   email?: unknown;
 }
 
+/**
+ * Reads the JWT secret from a key file if configured, else from an unsafe env var.
+ * Prefer JWT_SECRET_KEY_FILE for security in non-dev environments.
+ */
+/**
+ * Resolve the JWT signing secret using Nest ConfigService.
+ *
+ * @param configService - Nest configuration provider used to read env vars.
+ * @returns PEM/string secret for JWT verification.
+ */
 export const ParseJwtSecret = (configService: ConfigService): string => {
   // if the env-var for the secret key file has been set, read from it.
   if (process.env.JWT_SECRET_KEY_FILE) {
@@ -36,6 +46,10 @@ export const ParseJwtSecret = (configService: ConfigService): string => {
  */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
+  /**
+   * Configure the JWT Passport strategy from configuration.
+   * @param configService - Nest configuration provider used to read JWT secret sources.
+   */
   constructor(private readonly configService: ConfigService) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderWithScheme("JWT"),
@@ -44,8 +58,17 @@ export class JwtStrategy extends PassportStrategy(Strategy, "jwt") {
     });
   }
 
+  /**
+   * Validate decoded JWT payload and coerce types.
+   *
+   * @param payload - Decoded JWT claims.
+   * @returns Minimal user object with id, username, and email.
+   */
   validate(payload: JwtPayload) {
-    const user_id = typeof payload.user_id === "number" ? payload.user_id : (typeof payload.user_id === "string" ? Number(payload.user_id) : undefined);
+    const user_id =
+      typeof payload.user_id === "number" ? payload.user_id
+      : typeof payload.user_id === "string" ? Number(payload.user_id)
+      : undefined;
     const username = typeof payload.username === "string" ? payload.username : undefined;
     const email = typeof payload.email === "string" ? payload.email : undefined;
     return { user_id, username, email };

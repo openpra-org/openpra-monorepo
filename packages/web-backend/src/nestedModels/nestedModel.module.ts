@@ -49,6 +49,9 @@ import { EventTreesService } from "./NestedModelsHelpers/event-trees.service";
 import { BayesianNetworksService } from "./NestedModelsHelpers/bayesian-networks.service";
 import { FaultTreesService } from "./NestedModelsHelpers/fault-trees.service";
 
+/**
+ * Nested models module composing controllers, services and schemas for technical elements.
+ */
 @Module({
   imports: [
     MongooseModule.forFeature([

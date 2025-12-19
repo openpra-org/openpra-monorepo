@@ -104,4 +104,5 @@ export class QuantificationJobReport {
   results?: string[];
 }
 
+/** Mongoose schema for QuantificationJobReport. */
 export const QuantificationJobSchema = SchemaFactory.createForClass(QuantificationJobReport);

@@ -5,6 +5,14 @@
   "projectType": "library",
   "tags": [],
   "targets": {
+    "docs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm --filter shared-sdk run docs",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{projectRoot}/docs"]
+    },
     "lint-canary": {
       "executor": "nx:run-commands",
       "options": {

@@ -2,10 +2,15 @@ import { Schema, SchemaFactory } from "@nestjs/mongoose";
 import { Document } from "mongoose";
 import { NestedModel } from "./templateSchema/nested-model.schema";
 
+/**
+ * Nested model representing an Event Sequence Diagram technical element.
+ */
 @Schema({ versionKey: false })
 export class EventSequenceDiagram extends NestedModel {}
 
+/** Mongoose document type for EventSequenceDiagram. */
 export type EventSequenceDiagramDocument = EventSequenceDiagram & Document;
+/** Mongoose schema for EventSequenceDiagram. */
 export const EventSequenceDiagramSchema = SchemaFactory.createForClass(EventSequenceDiagram);
 
 // @Schema({ _id: false, versionKey: false })

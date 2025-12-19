@@ -12,6 +12,9 @@ import { ExecutableModule } from "./executable/executable.module";
 import { QuantificationJobReport, QuantificationJobSchema } from "./middleware/schemas/quantification-job.schema";
 import { ExecutableJobReport, ExecutableJobSchema } from "./middleware/schemas/executable-job.schema";
 
+/**
+ * Root module wiring quantification and executable submodules under the `/q` API path.
+ */
 @Module({
   // Define the modules to import, including configuration, database connection, and submodules.
   imports: [

@@ -61,5 +61,5 @@ export class ExecutableJobReport {
   stdout?: string;
 }
 
-// Create a Mongoose schema for the ExecutedResult class.
+/** Mongoose schema for ExecutableJobReport. */
 export const ExecutableJobSchema = SchemaFactory.createForClass(ExecutableJobReport);

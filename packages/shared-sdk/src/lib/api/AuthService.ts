@@ -3,7 +3,18 @@ import { AuthToken, EMPTY_TOKEN } from "shared-types";
 import { emitAuthEvent } from "./AuthEvents";
 import { MemberRole } from "../data/predefiniedRoles";
 
-class AuthService {
+/**
+ * Stateless helpers for working with JWT-based authentication in the browser.
+ * Handles token storage, expiration checks, user profile parsing, and auth events.
+ * @public
+ */
+export class AuthService {
+  /**
+   * Determine whether a JWT is expired or unusable.
+   *
+   * @param token - Encoded JWT string or null.
+   * @returns true if missing/invalid/expired; false otherwise.
+   */
   static hasTokenExpired(token: string | null): boolean {
     // if token is null, it has certainly expired
     if (!token || token === "undefined") {
@@ -23,7 +34,12 @@ class AuthService {
     }
   }
 
-  //gets the actual timer of the token for reauth purposes
+  /**
+   * Get remaining lifetime of a JWT (in seconds) for re-auth scheduling.
+   *
+   * @param token - Encoded JWT string or null.
+   * @returns Seconds until expiration, or -1 if invalid or missing.
+   */
   static getTokenTimer(token: string | null): number {
     // if token is null, it has certainly expired
     if (!token || token === "undefined") {
@@ -43,6 +59,11 @@ class AuthService {
     }
   }
 
+  /**
+   * Persist an encoded JWT and emit a login auth event.
+   *
+   * @param idToken - Encoded JWT string to store; ignored if null/empty.
+   */
   static setEncodedToken(idToken: string | null): void {
     if (idToken) {
       localStorage.setItem("id_token", idToken);
@@ -99,5 +120,3 @@ class AuthService {
     }
   }
 }
-
-export { AuthService };

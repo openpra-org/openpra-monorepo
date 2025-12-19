@@ -1,11 +1,21 @@
 import { Body, Controller, Get, InternalServerErrorException, NotFoundException, Post } from "@nestjs/common";
-import type { ExecutionTask } from "mef-types/openpra-mef/util/execution-task";
+import type { ExecutionTask } from "shared-types";
 import { ExecutableJobReport } from "../middleware/schemas/executable-job.schema";
 import { ExecutableService } from "./services/executable.service";
 import { ExecutableStorageService } from "./services/executable-storage.service";
 
+/**
+ * HTTP controller for executable task operations.
+ *
+ * Exposes endpoints to queue execution tasks and list executed task results.
+ */
 @Controller()
 export class ExecutableController {
+  /**
+   * Construct the controller with services for queueing and listing executable tasks.
+   * @param executableService - Service to validate and enqueue executable tasks
+   * @param executableStorageService - Service to retrieve executed task results from storage
+   */
   constructor(
     private readonly executableService: ExecutableService,
     private readonly executableStorageService: ExecutableStorageService,
@@ -29,8 +39,8 @@ export class ExecutableController {
   /**
    * Endpoint to retrieve a list of executed tasks and their results.
    *
-   * @returns A promise that resolves to an array of {@link ExecutableJobReport}, each representing an executed task.
-   * @throws {@link NotFoundException} When the executed tasks cannot be found or retrieved.
+   * @returns A promise that resolves to an array of `ExecutableJobReport`, each representing an executed task.
+   * @throws `NotFoundException` When the executed tasks cannot be found or retrieved.
    */
   @Get("/tasks")
   public async getExecutedTasks(): Promise<ExecutableJobReport[]> {

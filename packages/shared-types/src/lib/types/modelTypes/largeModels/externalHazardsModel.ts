@@ -5,4 +5,5 @@ import TypedModel, { typedModelType } from "./typedModel";
  */
 export class ExternalHazardsModel extends TypedModel {}
 
+/** Persisted document shape for an External Hazards model. */
 export type ExternalHazardsModelType = typedModelType;

@@ -12,4 +12,7 @@ const userPreferencesSchema = z.object({
   }),
 });
 
+/**
+ * DTO for updating or returning user preferences.
+ */
 export class UserPreferencesDto extends createZodDto(userPreferencesSchema) {}

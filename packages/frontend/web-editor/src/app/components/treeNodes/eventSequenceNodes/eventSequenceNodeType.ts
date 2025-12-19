@@ -1,6 +1,9 @@
 import { NodeTypes } from "reactflow";
 import { EventSequenceNode } from "./eventSequenceNode";
 
+/**
+ * Enumerates supported Event Sequence node categories.
+ */
 export type EventSequenceNodeTypes =
   | "initiating"
   | "functional"
@@ -23,6 +26,9 @@ const ESNodeTypes: NodeTypes = {
   end: EventSequenceNode("end"),
 };
 
+/**
+ * Optional editing flags and labels for Event Sequence nodes.
+ */
 export interface EventSequenceNodeProps {
   tentative?: boolean;
   isUpdated?: boolean;

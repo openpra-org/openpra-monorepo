@@ -13,7 +13,9 @@ import {
   WORKFLOW,
 } from "./constants";
 
-// initial setup: connect the OR gate node to the basic event nodes with a workflow edge
+/**
+ * Initial set of nodes used to bootstrap a minimal Fault Tree graph in the editor.
+ */
 export const initialNodes: Node[] = [
   {
     id: FAULT_TREE_ROOT_NODE_ID,
@@ -35,6 +37,9 @@ export const initialNodes: Node[] = [
   },
 ];
 
+/**
+ * Initial set of edges connecting the bootstrap nodes.
+ */
 export const initialEdges: Edge[] = [
   {
     id: "1=>2",
@@ -50,6 +55,9 @@ export const initialEdges: Edge[] = [
   },
 ];
 
+/**
+ * UI toast messages for common Fault Tree editor constraints.
+ */
 export const allToasts = [
   {
     type: DELETE_ROOT_NODE,

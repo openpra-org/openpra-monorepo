@@ -7,8 +7,18 @@ import { NestedModelHelperService, TypedModelType } from "../nested-model-helper
 import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
 
+/**
+ * Service for Event Sequence Analysis nested models.
+ * Supports listing and single-item retrieval.
+ */
 @Injectable()
 export class EventSequenceAnalysisService {
+  /**
+   * Construct the service with persistence and helper dependencies.
+   * @param eventSequenceAnalysisModel - Mongoose model for EventSequenceAnalysis collection
+   * @param nestedModelService - Service to allocate IDs and shared nested model ops
+   * @param nestedModelHelperService - Helper to link/unlink nested models to typed models
+   */
   constructor(
     @InjectModel(EventSequenceAnalysis.name)
     private readonly eventSequenceAnalysisModel: Model<EventSequenceAnalysisDocument>,
@@ -25,6 +35,11 @@ export class EventSequenceAnalysisService {
     return this.eventSequenceAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves Event Sequence Analysis items by parent id (string form).
+   * @param parentId - Parent identifier as a string (ObjectId)
+   * @returns Array of Event Sequence Analysis documents for the given parent
+   */
   async getEventSequenceAnalysisString(parentId: string): Promise<EventSequenceAnalysis[]> {
     return this.eventSequenceAnalysisModel.find({ parentIds: parentId });
   }
@@ -38,6 +53,11 @@ export class EventSequenceAnalysisService {
     return this.eventSequenceAnalysisModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a single Event Sequence Analysis by string id.
+   * @param modelId - Document _id as a string (ObjectId)
+   * @returns The matching Event Sequence Analysis document
+   */
   async getSingleEventSequenceAnalysisString(modelId: string): Promise<EventSequenceAnalysis> {
     return this.eventSequenceAnalysisModel.findOne({ _id: modelId });
   }

@@ -18,6 +18,16 @@ interface EventTreeNodeData {
   outputDepth?: number;
 }
 
+/**
+ * Insert a new column after the clicked column in the Event Tree.
+ *
+ * Splits edges at the clicked depth, inserts a new intermediate column and
+ * invisible/output nodes for each node at that depth, updates column metadata,
+ * and persists the updated graph.
+ *
+ * @param clickedNodeId - The id of a node in the column to split/extend.
+ * @returns A function that performs the insertion when invoked.
+ */
 function useCreateColClick(clickedNodeId: NodeProps["id"]): () => void {
   const { setNodes, setEdges, getNodes, getEdges, getNode } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };

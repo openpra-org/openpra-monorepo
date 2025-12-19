@@ -7,8 +7,18 @@ import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
 import { BayesianNetwork, BayesianNetworkDocument } from "../schemas/bayesian-network.schema";
 
+/**
+ * Service for Bayesian Network nested models.
+ * Supports listing, single retrieval, creation and label updates.
+ */
 @Injectable()
 export class BayesianNetworksService {
+  /**
+   * Construct the service with persistence and helper dependencies.
+   * @param bayesianNetworkModel - Mongoose model for BayesianNetwork collection
+   * @param nestedModelService - Service to allocate IDs and shared nested model ops
+   * @param nestedModelHelperService - Helper to link/unlink nested models to typed models
+   */
   constructor(
     @InjectModel(BayesianNetwork.name)
     private readonly bayesianNetworkModel: Model<BayesianNetworkDocument>,
@@ -25,6 +35,11 @@ export class BayesianNetworksService {
     return this.bayesianNetworkModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves Bayesian Networks by parent id (string form).
+   * @param parentId - Parent identifier as a string (ObjectId)
+   * @returns Array of Bayesian Network documents for the given parent
+   */
   async getBayesianNetworkString(parentId: string): Promise<BayesianNetwork[]> {
     return this.bayesianNetworkModel.find({ parentIds: parentId });
   }
@@ -38,6 +53,11 @@ export class BayesianNetworksService {
     return this.bayesianNetworkModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a single Bayesian Network by string id.
+   * @param modelId - Document _id as a string (ObjectId)
+   * @returns The matching Bayesian Network document
+   */
   async getSingleBayesianNetworkString(modelId: string): Promise<BayesianNetwork> {
     return this.bayesianNetworkModel.findOne({ _id: modelId });
   }

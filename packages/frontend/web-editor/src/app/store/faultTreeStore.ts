@@ -13,6 +13,9 @@ import {
 import { initialEdges, initialNodes } from "../../utils/faultTreeData";
 import { FaultTreeNodeProps } from "../components/treeNodes/faultTreeNodes/faultTreeNodeType";
 
+/**
+ * React Flow editor state for the Fault Tree editor.
+ */
 export interface RFState {
   nodes: Node<FaultTreeNodeProps>[];
   edges: Edge<FaultTreeNodeProps>[];
@@ -29,6 +32,9 @@ export interface RFState {
   setFuture: (future: HistoryItem[]) => void;
 }
 
+/**
+ * A single undo/redo snapshot of the graph.
+ */
 export type HistoryItem =
   | {
       nodes: Node[];
@@ -37,8 +43,9 @@ export type HistoryItem =
   | undefined;
 
 /**
- * This is our useStore hook that we can use in our components to get parts of the store and call actions
- * @returns - The state and store functions
+ * Zustand store for the Fault Tree editor.
+ *
+ * @returns The state and store functions for the editor.
  */
 
 const useStore = create<RFState>((set, get) => ({

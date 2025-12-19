@@ -5,8 +5,12 @@ import TypedModel, { typedModelType } from "./typedModel";
  */
 export class InternalEventsModel extends TypedModel {}
 
+/** Persisted document shape for an Internal Events model. */
 export type InternalEventsModelType = typedModelType;
 
+/**
+ * Additional metadata stored alongside an internal events model.
+ */
 export interface InternalEventsMetadata {
   _id: string;
   label: {

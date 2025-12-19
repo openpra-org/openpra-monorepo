@@ -1,0 +1,94 @@
+name: "Docs: Unified TypeScript + C++"
+
+on:
+  push:
+    branches:
+      - main
+      - docs/unified-pages-tsdoc-doxygen
+    paths:
+      - "packages/docs-md/**"
+      - "packages/mef-types/**"
+      - "packages/shared-types/**"
+      - "packages/shared-sdk/**"
+      - "packages/frontend/web-editor/src/utils/**"
+      - "packages/engine/scram-node/**"
+      - ".github/workflows/docs.yml"
+      - "pnpm-workspace.yaml"
+      - "pnpm-lock.yaml"
+      - "nx.json"
+      - "tsconfig.base.json"
+      - "package.json"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    concurrency:
+      group: docs-${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 20 + pnpm
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          # Removed pnpm cache here because it requires pnpm to be on PATH during this step
+      - name: Ensure pnpm available
+        run: npx -y pnpm@10.19.0 --version
+
+      - name: Install root dependencies (skip lifecycle scripts)
+        run: npx -y pnpm@10.19.0 install --no-frozen-lockfile --ignore-scripts
+
+      - name: Install Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+
+      - name: Install Doxybook2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          curl -sSL -o doxybook2.zip https://github.com/matusnovak/doxybook2/releases/download/v1.5.0/doxybook2-linux-amd64-v1.5.0.zip
+          # Unpack into /usr/local so the binary lands in /usr/local/bin
+          sudo unzip -o doxybook2.zip -d /usr/local
+          sudo chmod +x /usr/local/bin/doxybook2 || true
+          doxybook2 --version
+
+      - name: Build unified Markdown docs (VitePress)
+        # Nx Cloud temporarily disabled — retain config here for quick re-enable
+        env:
+          NX_NO_CLOUD: "true"
+          VITEPRESS_BASE: "/${{ github.event.repository.name }}/"
+          # NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
+          # NX_BRANCH: ${{ github.ref_name }}
+          # NX_RUN_GROUP: docs-${{ github.run_id }}
+        run: npx -y pnpm@10.19.0 nx run docs-md:site:build --no-cloud
+
+      - name: Link check
+        env:
+          VITEPRESS_BASE: "/${{ github.event.repository.name }}/"
+        run: npx -y pnpm@10.19.0 nx run docs-md:site:link-check --no-cloud
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: packages/docs-md/.vitepress/dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

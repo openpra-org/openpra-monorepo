@@ -8,8 +8,20 @@ import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 import { Label } from "../../schemas/label.schema";
 import { GraphModelService } from "../../graphModels/graphModel.service";
 
+/**
+ * Service for Event Sequence Diagram nested models.
+ * Supports list, single-item retrieval, creation and label updates.
+ */
 @Injectable()
 export class EventSequenceDiagramService {
+  /**
+   * Construct the service with injected Event Sequence Diagram model and helpers.
+   *
+   * @param eventSequenceDiagramModel - Mongoose model for Event Sequence Diagram documents
+   * @param nestedModelService - Core nested model service for counters and common creates
+   * @param nestedModelHelperService - Helper service to link nested models to typed models
+   * @param graphModelService - Service to create/update/read graph models for event sequences
+   */
   constructor(
     @InjectModel(EventSequenceDiagram.name)
     private readonly eventSequenceDiagramModel: Model<EventSequenceDiagramDocument>,
@@ -27,6 +39,11 @@ export class EventSequenceDiagramService {
     return this.eventSequenceDiagramModel.find({ parentIds: Number(parentId) }, { _id: 0 });
   }
 
+  /**
+   * Retrieves Event Sequence Diagrams by parent id (string form).
+   * @param parentId - Parent identifier as a string (ObjectId)
+   * @returns Array of Event Sequence Diagram documents for the given parent
+   */
   async getEventSequenceDiagramsString(parentId: string): Promise<EventSequenceDiagram[]> {
     return this.eventSequenceDiagramModel.find({ parentIds: parentId });
   }
@@ -40,6 +57,11 @@ export class EventSequenceDiagramService {
     return this.eventSequenceDiagramModel.findOne({ id: modelId }, { _id: 0 });
   }
 
+  /**
+   * Retrieves a single Event Sequence Diagram by string id.
+   * @param modelId - Document _id as a string (ObjectId)
+   * @returns The matching Event Sequence Diagram document
+   */
   async getSingleEventSequenceDiagramString(modelId: string): Promise<EventSequenceDiagram> {
     return this.eventSequenceDiagramModel.findOne({ _id: modelId });
   }

@@ -21,6 +21,10 @@ export abstract class BasicModel {
     this.id = id || -1;
   }
 
+  /**
+   * Get the label metadata for this model.
+   * @returns The immutable Label instance.
+   */
   getLabel(): Label {
     return this.label;
   }
@@ -33,7 +37,8 @@ export abstract class BasicModel {
   }
 
   /**
-   * @param id - sets the id number
+   * Set the numeric identifier for this model.
+   * @param id - The id number to assign.
    */
   setId(id: number): void {
     this.id = id;

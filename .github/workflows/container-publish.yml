@@ -42,8 +42,8 @@ jobs:
         #   NX_RUN_GROUP: containers-${{ github.run_id }}                 # (disabled)
         run: |
           npx -y pnpm@10.19.0 nx build web-backend
-          npx -y pnpm@10.19.0 nx build raptor
-          npx -y pnpm@10.19.0 nx run raptor:build-engine
+          npx -y pnpm@10.19.0 nx build microservices-raptor
+          npx -y pnpm@10.19.0 nx run microservices-raptor:build-engine
           npx -y pnpm@10.19.0 nx run frontend-web-editor:build:production
 
       - name: Log in to GHCR

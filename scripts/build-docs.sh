@@ -47,7 +47,7 @@ fi
 # raptor
 if [ -f packages/microservices/raptor/typedoc.json ]; then
   echo "[docs] Building raptor"
-  pnpm nx run raptor:docs --no-cloud
+  pnpm nx run microservices-raptor:docs --no-cloud
   rm -rf "$DIST_DIR/raptor"
   mkdir -p "$DIST_DIR/raptor"
   cp -R packages/microservices/raptor/docs/* "$DIST_DIR/raptor/" || true

@@ -28,7 +28,7 @@ jobs:
           - model-generator
           - engine-scram
           - mef-types
-          - raptor
+          - microservices-raptor
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -94,12 +94,12 @@ jobs:
         run: npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:build --verbose
 
       - name: Build raptor engine
-        if: matrix.package == 'raptor'
+        if: matrix.package == 'microservices-raptor'
         env:
           NX_CLOUD_ACCESS_TOKEN: '${{ secrets.NX_CLOUD_ACCESS_TOKEN }}'
           NX_BRANCH: '${{ github.ref_name }}'
           NX_RUN_GROUP: 'ci-${{ github.run_id }}'
-        run: npx -y pnpm@10.19.0 nx run raptor:build-engine --verbose
+        run: npx -y pnpm@10.19.0 nx run microservices-raptor:build-engine --verbose
 
       - name: Wait for MongoDB service
         run: |

@@ -19,7 +19,7 @@ jobs:
           - engine-scram
           - mef-schema
           - mef-types
-          - raptor
+          - microservices-raptor
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

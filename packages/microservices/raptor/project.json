@@ -1,5 +1,5 @@
 {
-  "name": "raptor",
+  "name": "microservices-raptor",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "tags": ["scope:server"],
   "sourceRoot": "packages/microservices/raptor/src",

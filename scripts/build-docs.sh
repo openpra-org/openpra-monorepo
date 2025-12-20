@@ -44,13 +44,13 @@ if [ -f packages/model-generator/typedoc.json ]; then
   cp -R packages/model-generator/docs/* "$DIST_DIR/model-generator/" || true
 fi
 
-# microservice-job-broker
-if [ -f packages/microservice/job-broker/typedoc.json ]; then
-  echo "[docs] Building microservice-job-broker"
-  pnpm nx run microservice-job-broker:docs --no-cloud
-  rm -rf "$DIST_DIR/microservice-job-broker"
-  mkdir -p "$DIST_DIR/microservice-job-broker"
-  cp -R packages/microservice/job-broker/docs/* "$DIST_DIR/microservice-job-broker/" || true
+# raptor
+if [ -f packages/microservices/raptor/typedoc.json ]; then
+  echo "[docs] Building raptor"
+  pnpm nx run raptor:docs --no-cloud
+  rm -rf "$DIST_DIR/raptor"
+  mkdir -p "$DIST_DIR/raptor"
+  cp -R packages/microservices/raptor/docs/* "$DIST_DIR/raptor/" || true
 fi
 
 # frontend-web-editor (document only utilities and hooks)
@@ -76,24 +76,24 @@ fi
 # packages/mef-types/src/lib and are documented via the unified docs pipeline.
 
 # 2) Build C++ docs via Doxygen
-if [ -f packages/engine/scram-node/Doxyfile ]; then
+if [ -f packages/engine/scram/Doxyfile ]; then
   echo "[docs] Building scram-node C++"
-  pushd packages/engine/scram-node >/dev/null
+  pushd packages/engine/scram >/dev/null
   mkdir -p docs/cpp
   doxygen Doxyfile
   popd >/dev/null
   rm -rf "$DIST_DIR/scram-node"
   mkdir -p "$DIST_DIR/scram-node"
-  cp -R packages/engine/scram-node/docs/cpp/html/* "$DIST_DIR/scram-node/" || true
+  cp -R packages/engine/scram/docs/cpp/html/* "$DIST_DIR/scram-node/" || true
 fi
 
 # 2b) Build N-API TypeScript docs for scram-node (TypeDoc)
-if [ -f packages/engine/scram-node/typedoc.json ]; then
+if [ -f packages/engine/scram/typedoc.json ]; then
   echo "[docs] Building scram-node N-API (TypeScript)"
-  pnpm nx run engine-scram-node:docs-ts --no-cloud
+  pnpm --filter scram-node exec typedoc --options packages/engine/scram/typedoc.json
   rm -rf "$DIST_DIR/scram-node-napi"
   mkdir -p "$DIST_DIR/scram-node-napi"
-  cp -R packages/engine/scram-node/docs/ts/* "$DIST_DIR/scram-node-napi/" || true
+  cp -R packages/engine/scram/docs/ts/* "$DIST_DIR/scram-node-napi/" || true
 fi
 
 # 3) Landing page
@@ -117,7 +117,7 @@ cat > "$DIST_DIR/index.html" <<'HTML'
     <li><a href="./shared-types/">shared-types API</a></li>
     <li><a href="./shared-sdk/">shared-sdk API</a></li>
     <li><a href="./model-generator/">model-generator API</a></li>
-    <li><a href="./microservice-job-broker/">job-broker API</a></li>
+    <li><a href="./raptor/">raptor API</a></li>
   <li><a href="./frontend-web-editor/">frontend-web-editor (utils & hooks)</a></li>
     <li><a href="./web-backend/">web-backend API</a></li>
     <li><a href="./scram-node/">C++ Engine (scram-node)</a></li>

@@ -12,8 +12,8 @@ const PACKAGES = [
   { name: 'shared-sdk', roots: ['packages/shared-sdk/src'] },
   { name: 'model-generator', roots: ['packages/model-generator/src'] },
   {
-    name: 'microservice-job-broker',
-    roots: ['packages/microservice/job-broker/src'],
+    name: 'raptor',
+    roots: ['packages/microservices/raptor/src'],
   },
   { name: 'web-backend', roots: ['packages/web-backend/src'] },
   // Optional: mef technical elements (large) – include limited path to avoid noise
@@ -31,7 +31,7 @@ const PACKAGES = [
   // scram-node N-API declarations are in .d.ts; include them explicitly
   {
     name: 'scram-node-napi',
-    roots: ['packages/engine/scram-node/targets/scram-node/lib'],
+    roots: ['packages/engine/scram/targets/scram-node/lib'],
     includeDts: true,
   },
 ];

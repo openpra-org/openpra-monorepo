@@ -1,0 +1,20 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "out": "docs",
+  "tsconfig": "tsconfig.lib.json",
+  "name": "model-generator API",
+  "entryPointStrategy": "resolve",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "hideGenerator": true,
+  "categorizeByGroup": true,
+  "sort": ["alphabetical"],
+  "disableSources": true,
+  "validation": {
+    "invalidLink": true,
+    "notDocumented": false
+  }
+}

@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document, SchemaTypes } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, SchemaTypes } from 'mongoose';
 
 @Schema({ minimize: false, _id: false, versionKey: false })
 class RawRule {
@@ -25,10 +25,13 @@ class RawRule {
 @Schema({
   minimize: false,
   timestamps: {
-    createdAt: "created_at",
+    createdAt: 'created_at',
   },
   versionKey: false,
 })
+/**
+ * Role entity persisted in MongoDB with a set of permission rules.
+ */
 export class Roles {
   @Prop({ required: false, unique: true })
   id: string;
@@ -41,4 +44,5 @@ export class Roles {
 }
 
 export type RolesDocument = Roles & Document;
+/** Mongoose schema for Roles. */
 export const RolesSchema = SchemaFactory.createForClass(Roles);

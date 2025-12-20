@@ -1,38 +1,41 @@
+/**
+ * Test stub array of nested model references associated with a typed model.
+ */
 export const nestedObjects = [
   {
     nestedId: 9,
-    nestedType: "initiatingEvents",
+    nestedType: 'initiatingEvents',
   },
   {
     nestedId: 10,
-    nestedType: "eventSequenceDiagrams",
+    nestedType: 'eventSequenceDiagrams',
   },
   {
     nestedId: 11,
-    nestedType: "functionalEvents",
+    nestedType: 'functionalEvents',
   },
   {
     nestedId: 12,
-    nestedType: "faultTrees",
+    nestedType: 'faultTrees',
   },
   {
     nestedId: 13,
-    nestedType: "eventTrees",
+    nestedType: 'eventTrees',
   },
   {
     nestedId: 14,
-    nestedType: "bayesianNetworks",
+    nestedType: 'bayesianNetworks',
   },
   {
     nestedId: 15,
-    nestedType: "markovChains",
+    nestedType: 'markovChains',
   },
   {
     nestedId: 16,
-    nestedType: "bayesianEstimations",
+    nestedType: 'bayesianEstimations',
   },
   {
     nestedId: 17,
-    nestedType: "weibullAnalysis",
+    nestedType: 'weibullAnalysis',
   },
 ];

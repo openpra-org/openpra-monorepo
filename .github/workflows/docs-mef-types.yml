@@ -1,4 +1,4 @@
-name: "Docs: MEF Types — TypeDoc"
+name: 'Docs: MEF Types — TypeDoc (legacy)'
 
 on:
   workflow_dispatch:
@@ -80,7 +80,7 @@ jobs:
             # Fallback to the repository pages URL pattern
             PAGES_URL="https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/"
           fi
-          
+
           # Check if schema-download.html exists
           if [ -f "schema-download.html" ]; then
             # Update the documentation link in schema-download.html to point to the GitHub Pages URL

@@ -1,0 +1,22 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src"],
+  "entryPointStrategy": "expand",
+  "out": "docs",
+  "tsconfig": "tsconfig.app.json",
+  "name": "web-backend API",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "hideGenerator": true,
+  "categorizeByGroup": true,
+  "sort": ["alphabetical"],
+  "disableSources": true,
+  "skipErrorChecking": true,
+  "exclude": ["**/*.spec.ts", "**/*.e2e-spec.ts", "src/**/schemas/**/*.ts"],
+  "validation": {
+    "invalidLink": true,
+    "notDocumented": false
+  }
+}

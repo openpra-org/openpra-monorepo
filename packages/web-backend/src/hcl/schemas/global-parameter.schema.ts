@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
 
 @Schema({
   toJSON: {
@@ -10,6 +10,10 @@ import { Document } from "mongoose";
   },
   versionKey: false,
 })
+/**
+ * Global parameter key-value entry scoped to a model.
+ * Supports string and numeric parameter value types.
+ */
 export class GlobalParameter {
   @Prop({ unique: false })
   model_id: number;
@@ -31,4 +35,6 @@ export class GlobalParameter {
 }
 
 export type GlobalParameterDocument = GlobalParameter & Document;
-export const GlobalParameterSchema = SchemaFactory.createForClass(GlobalParameter);
+/** Mongoose schema for GlobalParameter. */
+export const GlobalParameterSchema =
+  SchemaFactory.createForClass(GlobalParameter);

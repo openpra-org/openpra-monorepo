@@ -1,0 +1,8 @@
+{
+  "config": {
+    "indexInFolders": true,
+    "linkSuffix": ".md",
+    "collapseSingleMembers": true
+  },
+  "templates": {}
+}

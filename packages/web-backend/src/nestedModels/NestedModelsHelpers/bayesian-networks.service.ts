@@ -1,14 +1,30 @@
-import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { NestedModelService } from "../nestedModel.service";
-import { NestedModelHelperService, TypedModelType } from "../nested-model-helper.service";
-import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
-import { Label } from "../../schemas/label.schema";
-import { BayesianNetwork, BayesianNetworkDocument } from "../schemas/bayesian-network.schema";
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { NestedModelService } from '../nestedModel.service';
+import {
+  NestedModelHelperService,
+  TypedModelType,
+} from '../nested-model-helper.service';
+import { NestedModel } from '../schemas/templateSchema/nested-model.schema';
+import { Label } from '../../schemas/label.schema';
+import {
+  BayesianNetwork,
+  BayesianNetworkDocument,
+} from '../schemas/bayesian-network.schema';
 
+/**
+ * Service for Bayesian Network nested models.
+ * Supports listing, single retrieval, creation and label updates.
+ */
 @Injectable()
 export class BayesianNetworksService {
+  /**
+   * Construct the service with persistence and helper dependencies.
+   * @param bayesianNetworkModel - Mongoose model for BayesianNetwork collection
+   * @param nestedModelService - Service to allocate IDs and shared nested model ops
+   * @param nestedModelHelperService - Helper to link/unlink nested models to typed models
+   */
   constructor(
     @InjectModel(BayesianNetwork.name)
     private readonly bayesianNetworkModel: Model<BayesianNetworkDocument>,
@@ -22,9 +38,17 @@ export class BayesianNetworksService {
    * @returns a promise with an array of the nested model of the type in the function name
    */
   async getBayesianNetwork(parentId: number): Promise<BayesianNetwork[]> {
-    return this.bayesianNetworkModel.find({ parentIds: Number(parentId) }, { _id: 0 });
+    return this.bayesianNetworkModel.find(
+      { parentIds: Number(parentId) },
+      { _id: 0 },
+    );
   }
 
+  /**
+   * Retrieves Bayesian Networks by parent id (string form).
+   * @param parentId - Parent identifier as a string (ObjectId)
+   * @returns Array of Bayesian Network documents for the given parent
+   */
   async getBayesianNetworkString(parentId: string): Promise<BayesianNetwork[]> {
     return this.bayesianNetworkModel.find({ parentIds: parentId });
   }
@@ -38,7 +62,14 @@ export class BayesianNetworksService {
     return this.bayesianNetworkModel.findOne({ id: modelId }, { _id: 0 });
   }
 
-  async getSingleBayesianNetworkString(modelId: string): Promise<BayesianNetwork> {
+  /**
+   * Retrieves a single Bayesian Network by string id.
+   * @param modelId - Document _id as a string (ObjectId)
+   * @returns The matching Bayesian Network document
+   */
+  async getSingleBayesianNetworkString(
+    modelId: string,
+  ): Promise<BayesianNetwork> {
     return this.bayesianNetworkModel.findOne({ _id: modelId });
   }
 
@@ -49,15 +80,19 @@ export class BayesianNetworksService {
    * @param typedModel - is the typed model to be updated
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createBayesianNetwork(body: Partial<NestedModel>, typedModel: TypedModelType): Promise<NestedModel> {
+  async createBayesianNetwork(
+    body: Partial<NestedModel>,
+    typedModel: TypedModelType,
+  ): Promise<NestedModel> {
     const newBayesianNetwork = new this.bayesianNetworkModel(body);
-    newBayesianNetwork.id = await this.nestedModelService.getNextValue("nestedCounter");
+    newBayesianNetwork.id =
+      await this.nestedModelService.getNextValue('nestedCounter');
     await newBayesianNetwork.save();
 
     for (const pId of newBayesianNetwork.parentIds) {
       await this.nestedModelHelperService.AddNestedModelToTypedModel(
         typedModel,
-        "bayesianNetworks",
+        'bayesianNetworks',
         pId.toString(),
         newBayesianNetwork._id as string,
       );
@@ -71,8 +106,15 @@ export class BayesianNetworksService {
    * @param body - a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
-  async updateBayesianNetworkLabel(id: string, body: Label): Promise<NestedModel> {
-    return this.bayesianNetworkModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
+  async updateBayesianNetworkLabel(
+    id: string,
+    body: Label,
+  ): Promise<NestedModel> {
+    return this.bayesianNetworkModel.findOneAndUpdate(
+      { _id: id },
+      { label: body },
+      { new: true },
+    );
   }
 
   /**
@@ -81,7 +123,10 @@ export class BayesianNetworksService {
    * @param typedModel - is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
    */
-  async deleteBayesianNetwork(modelId: string, typedModel: TypedModelType): Promise<void> {
+  async deleteBayesianNetwork(
+    modelId: string,
+    typedModel: TypedModelType,
+  ): Promise<void> {
     const bayesianNetwork = await this.bayesianNetworkModel.findOne({
       _id: modelId,
     });
@@ -90,7 +135,7 @@ export class BayesianNetworksService {
     for (const pId of bayesianNetwork.parentIds) {
       await this.nestedModelHelperService.RemoveNestedModelToTypedModel(
         typedModel,
-        "bayesianNetworks",
+        'bayesianNetworks',
         pId.toString(),
         bayesianNetwork._id as string,
       );

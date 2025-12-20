@@ -1,12 +1,16 @@
-import { useCallback, useEffect } from "react";
-import { cloneDeep } from "lodash";
-import { HistoryItem, useStore } from "../../store/faultTreeStore";
+import { useCallback, useEffect } from 'react';
+import { cloneDeep } from 'lodash';
+import { HistoryItem, useStore } from '../../store/faultTreeStore';
 
+/** Options to configure the undo/redo history behavior. */
 interface UseUndoRedoOptions {
   maxHistorySize: number;
   enableShortcuts: boolean;
 }
 
+/**
+ * Hook signature returning imperative undo/redo controls and state.
+ */
 type UseUndoRedo = (options?: UseUndoRedoOptions) => {
   undo: () => void;
   redo: () => void;
@@ -20,12 +24,24 @@ const defaultOptions: UseUndoRedoOptions = {
   enableShortcuts: true,
 };
 
-// https://redux.js.org/usage/implementing-undo-history
+/**
+ * Undo/redo state manager for the Fault Tree editor.
+ *
+ * @remarks
+ * Persists snapshots of the current graph with a bounded history, exposes
+ * imperative undo/redo handlers, and optionally binds common keyboard
+ * shortcuts (Ctrl/Cmd+Z and Shift+Ctrl/Cmd+Z).
+ * See https://redux.js.org/usage/implementing-undo-history for a general pattern.
+ *
+ * @param options - Optional configuration for history size and keyboard bindings.
+ * @returns Handlers to undo/redo, take snapshots, and booleans for whether actions are possible.
+ */
 const useUndoRedo: UseUndoRedo = ({
   maxHistorySize = defaultOptions.maxHistorySize,
   enableShortcuts = defaultOptions.enableShortcuts,
 } = defaultOptions) => {
-  const { nodes, edges, past, future, setNodes, setEdges, setPast, setFuture } = useStore();
+  const { nodes, edges, past, future, setNodes, setEdges, setPast, setFuture } =
+    useStore();
   const takeSnapshot = useCallback(() => {
     // push the current graph to the past state
     const pastItems: HistoryItem[] = [
@@ -70,17 +86,21 @@ const useUndoRedo: UseUndoRedo = ({
     }
 
     const keyDownHandler = (event: KeyboardEvent): void => {
-      if (event.key === "z" && (event.ctrlKey || event.metaKey) && event.shiftKey) {
+      if (
+        event.key === 'z' &&
+        (event.ctrlKey || event.metaKey) &&
+        event.shiftKey
+      ) {
         redo();
-      } else if (event.key === "z" && (event.ctrlKey || event.metaKey)) {
+      } else if (event.key === 'z' && (event.ctrlKey || event.metaKey)) {
         undo();
       }
     };
 
-    document.addEventListener("keydown", keyDownHandler);
+    document.addEventListener('keydown', keyDownHandler);
 
     return (): void => {
-      document.removeEventListener("keydown", keyDownHandler);
+      document.removeEventListener('keydown', keyDownHandler);
     };
   }, [undo, redo, enableShortcuts]);
 

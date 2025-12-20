@@ -45,7 +45,8 @@
     "eslint-plugin-playwright": "0.15.3",
     "eslint-plugin-security": "1.7.1",
     "typescript-eslint": "8.14.0",
-    "uuid": "9.0.1"
+    "uuid": "9.0.1",
+    "typedoc": "^0.28.1"
   },
   "scripts": {
     "lint:canary": "eslint --config ./eslint.config.mjs \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\""

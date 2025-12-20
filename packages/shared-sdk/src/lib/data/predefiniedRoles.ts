@@ -1,6 +1,9 @@
-const AdminRole = "admin-role";
-const MemberRole = "member-role";
-const CollabRole = "collab-role";
+/** Identifier for the built-in Admin role. */
+export const AdminRole = 'admin-role';
+/** Identifier for the built-in Member role. */
+export const MemberRole = 'member-role';
+/** Identifier for the built-in Collaborator role. */
+export const CollabRole = 'collab-role';
 
 interface Role {
   id: string;
@@ -17,45 +20,48 @@ interface Permission {
   reason?: string;
 }
 
-const PredefinedRoles: Role[] = [
+/**
+ * Built-in role catalog exposed by the SDK.
+ * Consumers may use these to seed role UIs or enforce access checks client-side.
+ * @public
+ */
+export const PredefinedRoles: Role[] = [
   {
     id: AdminRole,
-    name: "Admin",
+    name: 'Admin',
     permissions: [
       {
-        action: "manage",
-        subject: "all",
+        action: 'manage',
+        subject: 'all',
       },
     ],
   },
   {
     id: MemberRole,
-    name: "Member",
+    name: 'Member',
     permissions: [
       {
-        action: "read",
-        subject: "users",
+        action: 'read',
+        subject: 'users',
       },
       {
-        action: "read",
-        subject: "roles",
+        action: 'read',
+        subject: 'roles',
       },
       {
-        action: "read",
-        subject: "invitation",
+        action: 'read',
+        subject: 'invitation',
       },
     ],
   },
   {
     id: CollabRole,
-    name: "Collaborator",
+    name: 'Collaborator',
     permissions: [
       {
-        action: "read",
-        subject: "all",
+        action: 'read',
+        subject: 'all',
       },
     ],
   },
 ];
-
-export { PredefinedRoles, AdminRole, CollabRole, MemberRole };

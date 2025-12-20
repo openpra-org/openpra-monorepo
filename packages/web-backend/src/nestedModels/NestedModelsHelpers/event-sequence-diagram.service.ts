@@ -1,15 +1,33 @@
-import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { EventSequenceDiagram, EventSequenceDiagramDocument } from "../schemas/event-sequence-diagram.schema";
-import { NestedModelHelperService, TypedModelType } from "../nested-model-helper.service";
-import { NestedModelService } from "../nestedModel.service";
-import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
-import { Label } from "../../schemas/label.schema";
-import { GraphModelService } from "../../graphModels/graphModel.service";
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import {
+  EventSequenceDiagram,
+  EventSequenceDiagramDocument,
+} from '../schemas/event-sequence-diagram.schema';
+import {
+  NestedModelHelperService,
+  TypedModelType,
+} from '../nested-model-helper.service';
+import { NestedModelService } from '../nestedModel.service';
+import { NestedModel } from '../schemas/templateSchema/nested-model.schema';
+import { Label } from '../../schemas/label.schema';
+import { GraphModelService } from '../../graphModels/graphModel.service';
 
+/**
+ * Service for Event Sequence Diagram nested models.
+ * Supports list, single-item retrieval, creation and label updates.
+ */
 @Injectable()
 export class EventSequenceDiagramService {
+  /**
+   * Construct the service with injected Event Sequence Diagram model and helpers.
+   *
+   * @param eventSequenceDiagramModel - Mongoose model for Event Sequence Diagram documents
+   * @param nestedModelService - Core nested model service for counters and common creates
+   * @param nestedModelHelperService - Helper service to link nested models to typed models
+   * @param graphModelService - Service to create/update/read graph models for event sequences
+   */
   constructor(
     @InjectModel(EventSequenceDiagram.name)
     private readonly eventSequenceDiagramModel: Model<EventSequenceDiagramDocument>,
@@ -23,11 +41,23 @@ export class EventSequenceDiagramService {
    * @param parentId - id of the parent model the nested model is number
    * @returns a promise with an array of the nested model of the type in the function name
    */
-  async getEventSequenceDiagrams(parentId: number): Promise<EventSequenceDiagram[]> {
-    return this.eventSequenceDiagramModel.find({ parentIds: Number(parentId) }, { _id: 0 });
+  async getEventSequenceDiagrams(
+    parentId: number,
+  ): Promise<EventSequenceDiagram[]> {
+    return this.eventSequenceDiagramModel.find(
+      { parentIds: Number(parentId) },
+      { _id: 0 },
+    );
   }
 
-  async getEventSequenceDiagramsString(parentId: string): Promise<EventSequenceDiagram[]> {
+  /**
+   * Retrieves Event Sequence Diagrams by parent id (string form).
+   * @param parentId - Parent identifier as a string (ObjectId)
+   * @returns Array of Event Sequence Diagram documents for the given parent
+   */
+  async getEventSequenceDiagramsString(
+    parentId: string,
+  ): Promise<EventSequenceDiagram[]> {
     return this.eventSequenceDiagramModel.find({ parentIds: parentId });
   }
 
@@ -36,11 +66,20 @@ export class EventSequenceDiagramService {
    * @param modelId - the id of the model to be retrieved
    * @returns the model which has the associated id
    */
-  async getSingleEventSequenceDiagram(modelId: number): Promise<EventSequenceDiagram> {
+  async getSingleEventSequenceDiagram(
+    modelId: number,
+  ): Promise<EventSequenceDiagram> {
     return this.eventSequenceDiagramModel.findOne({ id: modelId }, { _id: 0 });
   }
 
-  async getSingleEventSequenceDiagramString(modelId: string): Promise<EventSequenceDiagram> {
+  /**
+   * Retrieves a single Event Sequence Diagram by string id.
+   * @param modelId - Document _id as a string (ObjectId)
+   * @returns The matching Event Sequence Diagram document
+   */
+  async getSingleEventSequenceDiagramString(
+    modelId: string,
+  ): Promise<EventSequenceDiagram> {
     return this.eventSequenceDiagramModel.findOne({ _id: modelId });
   }
 
@@ -51,9 +90,13 @@ export class EventSequenceDiagramService {
    * @param typedModel - is the typed model to be updated
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createEventSequenceDiagram(body: Partial<NestedModel>, typedModel: TypedModelType): Promise<NestedModel> {
+  async createEventSequenceDiagram(
+    body: Partial<NestedModel>,
+    typedModel: TypedModelType,
+  ): Promise<NestedModel> {
     const newEventSequenceDiagram = new this.eventSequenceDiagramModel(body);
-    newEventSequenceDiagram.id = await this.nestedModelService.getNextValue("nestedCounter");
+    newEventSequenceDiagram.id =
+      await this.nestedModelService.getNextValue('nestedCounter');
     await newEventSequenceDiagram.save();
 
     await this.graphModelService.saveEventSequenceDiagramGraph({
@@ -63,7 +106,7 @@ export class EventSequenceDiagramService {
     for (const pId of newEventSequenceDiagram.parentIds) {
       await this.nestedModelHelperService.AddNestedModelToTypedModel(
         typedModel,
-        "eventSequenceDiagrams",
+        'eventSequenceDiagrams',
         pId.toString(),
         newEventSequenceDiagram._id as string,
       );
@@ -77,8 +120,15 @@ export class EventSequenceDiagramService {
    * @param body - a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
-  async updateEventSequenceDiagramLabel(id: string, body: Label): Promise<NestedModel> {
-    return this.eventSequenceDiagramModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
+  async updateEventSequenceDiagramLabel(
+    id: string,
+    body: Label,
+  ): Promise<NestedModel> {
+    return this.eventSequenceDiagramModel.findOneAndUpdate(
+      { _id: id },
+      { label: body },
+      { new: true },
+    );
   }
 
   /**
@@ -87,7 +137,10 @@ export class EventSequenceDiagramService {
    * @param typedModel - is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
    */
-  async deleteEventSequenceDiagram(modelId: string, typedModel: TypedModelType): Promise<void> {
+  async deleteEventSequenceDiagram(
+    modelId: string,
+    typedModel: TypedModelType,
+  ): Promise<void> {
     const eventSequenceDiagram = await this.eventSequenceDiagramModel.findOne({
       _id: modelId,
     });
@@ -96,7 +149,7 @@ export class EventSequenceDiagramService {
     for (const pId of eventSequenceDiagram.parentIds) {
       await this.nestedModelHelperService.RemoveNestedModelToTypedModel(
         typedModel,
-        "eventSequenceDiagrams",
+        'eventSequenceDiagrams',
         pId.toString(),
         eventSequenceDiagram._id as string,
       );

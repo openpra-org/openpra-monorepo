@@ -1,11 +1,16 @@
-import { Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
-import { NestedModel } from "./templateSchema/nested-model.schema";
+import { Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
+import { NestedModel } from './templateSchema/nested-model.schema';
 
+/**
+ * Nested model representing a Fault Tree technical element.
+ */
 @Schema({ versionKey: false })
 export class FaultTree extends NestedModel {}
 
+/** Mongoose document type for FaultTree. */
 export type FaultTreeDocument = FaultTree & Document;
+/** Mongoose schema for FaultTree. */
 export const FaultTreeSchema = SchemaFactory.createForClass(FaultTree);
 
 // @Schema({ _id: false, versionKey: false })

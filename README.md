@@ -285,6 +285,49 @@ git push --force-with-lease
 
 Husky installs automatically via the `prepare` script on `pnpm install`. If hooks are missing, re-run `pnpm install`.
 
+## Docs
+
+Generate the aggregated documentation site with a single command:
+
+```bash
+pnpm nx run docs:build-site
+```
+
+### Preview the docs locally
+
+Serve the generated static site from `dist/docs` with a simple local web server (Python 3):
+
+```bash
+python3 -m http.server 5050 -d dist/docs
+```
+
+Then open http://localhost:5050 in your browser.
+
+Tip: In a dev container or remote environment, your editor may auto-forward the port and provide an external URL.
+
+Outputs:
+
+- Aggregated site: `dist/docs` (published by the GitHub Pages workflow at `.github/workflows/docs.yml`).
+- Per-package HTML docs remain under each package, for example:
+  - `packages/shared-types/docs`
+  - `packages/shared-sdk/docs`
+  - C++ Doxygen HTML for SCRAM: `packages/engine/scram-node/docs/cpp/html`
+- Optional Markdown docs (local only):
+  - `packages/shared-types/docs-md`
+  - `packages/shared-sdk/docs-md`
+
+The Pages workflow is named "Docs: Unified TypeScript + C++" and runs on pushes to `main` or manual dispatch.
+
+### Docs coverage
+
+Run a quick TSDoc coverage report across key packages:
+
+```bash
+pnpm nx run docs:coverage
+```
+
+This prints, per package, how many exported declarations have TSDoc blocks and highlights low-coverage areas to target first. It’s local-only and safe to run anytime.
+
 ## Additional Documentation
 
 Additional documentation can be found in the [Extended README](README/README.md)

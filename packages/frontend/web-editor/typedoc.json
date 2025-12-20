@@ -1,0 +1,38 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "src/utils",
+    "src/app/hooks",
+    "src/app/zustand",
+    "src/app/store"
+  ],
+  "out": "docs",
+  "tsconfig": "tsconfig.app.json",
+  "name": "frontend-web-editor (utils & hooks)",
+  "entryPointStrategy": "expand",
+  "exclude": [
+    "src/app/components/**/*",
+    "src/app/pages/**/*",
+    "src/app/providers/**/*",
+    "src/app/workspaces/**/*",
+    "src/app/theme/**/*",
+
+    "src/assets/**/*",
+    "src/environments/**/*",
+    "**/*.spec.ts",
+    "**/*.test.ts"
+  ],
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "hideGenerator": true,
+  "categorizeByGroup": true,
+  "sort": ["alphabetical"],
+  "disableSources": true,
+  "skipErrorChecking": true,
+  "validation": {
+    "invalidLink": true,
+    "notDocumented": false
+  }
+}

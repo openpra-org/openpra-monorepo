@@ -1,0 +1,22 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "out": "docs-md",
+  "tsconfig": "tsconfig.lib.json",
+  "name": "model-generator API (Markdown)",
+  "entryPointStrategy": "resolve",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "hideGenerator": true,
+  "categorizeByGroup": true,
+  "sort": ["alphabetical"],
+  "disableSources": true,
+  "plugin": ["typedoc-plugin-markdown"],
+  "theme": "markdown",
+  "validation": {
+    "invalidLink": true,
+    "notDocumented": false
+  }
+}

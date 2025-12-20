@@ -1,4 +1,4 @@
-// Minimal JWT payload shape to avoid depending on external libraries in types-only package
+/** Minimal JWT payload shape (standard claims only). */
 interface BaseJwtPayload {
   iss?: string;
   sub?: string;
@@ -9,6 +9,7 @@ interface BaseJwtPayload {
   jti?: string;
 }
 
+/** Additional claims supported by OpenPRA tokens. */
 export interface AuthTokenAdditionals {
   user_id?: number;
   username?: string;
@@ -17,9 +18,13 @@ export interface AuthTokenAdditionals {
   roles?: string[];
 }
 
+/**
+ * OpenPRA authentication token claims (standard + OpenPRA additions).
+ * This is the decoded JWT payload used by clients and services.
+ */
 type AuthToken = BaseJwtPayload & AuthTokenAdditionals;
 
-// Default token with a basic role. Keep generic to avoid runtime dependencies.
-export const EMPTY_TOKEN: AuthToken = { roles: ["member"] };
+/** Default token with a basic role. Keep generic to avoid runtime dependencies. */
+export const EMPTY_TOKEN: AuthToken = { roles: ['member'] };
 
 export { AuthToken };

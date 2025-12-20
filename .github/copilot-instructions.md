@@ -19,7 +19,6 @@ This document defines repository-wide guidance for AI-assisted edits and code ge
   - `packages/shared-types`: Pure types-only library; central domain types and DTOs (no runtime). MEF schemas are generated from these types.
   - `packages/shared-sdk`: Runtime SDK (AuthService, ApiManager, invites, roles, predefined roles); imports types from `shared-types`.
   - `packages/mef-types`: MEF technical element types extracted from shared-types.
-  - `packages/mef-schema`: Generated MEF JSON schemas from shared-types.
   - `packages/engine/scram-node`: Node wrappers for SCRAM engine.
   - `packages/model-generator`, `packages/microservices/raptor`: utilities/services.
 
@@ -62,7 +61,7 @@ This document defines repository-wide guidance for AI-assisted edits and code ge
 - Source of truth for interfaces/types used across frontend/backend.
 - Pure: no runtime code or framework dependencies. Keep NestJS/React runtime in other packages.
 - Update exports in `packages/shared-types/src/lib/index.ts` when adding new types.
-- When schema JSON is needed, generate via `mef-schema` package (follow existing pattern).
+  // When schema JSON is needed, coordinate with maintainers; the generation pipeline has been decoupled from the deprecated `mef-schema` package.
 
 ### Shared SDK (runtime)
 

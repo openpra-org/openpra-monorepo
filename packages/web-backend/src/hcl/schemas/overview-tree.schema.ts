@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import mongoose, { Document } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import mongoose, { Document } from 'mongoose';
 
 @Schema({ _id: false, versionKey: false })
 class Model {
@@ -423,7 +423,8 @@ class Initial_State_Vertex {
   label: Label;
 }
 
-const InitialStateVertexSchema = SchemaFactory.createForClass(Initial_State_Vertex);
+const InitialStateVertexSchema =
+  SchemaFactory.createForClass(Initial_State_Vertex);
 
 @Schema({ strict: false, _id: false, versionKey: false })
 class Branches {
@@ -458,7 +459,9 @@ class BayesianStateProbability {
   states: Outcome[];
 }
 
-const BayesianStateProbabilitySchema = SchemaFactory.createForClass(BayesianStateProbability);
+const BayesianStateProbabilitySchema = SchemaFactory.createForClass(
+  BayesianStateProbability,
+);
 
 @Schema({ _id: false, versionKey: false })
 class BayesianNodeState {
@@ -580,4 +583,5 @@ export class OverviewTree {
 }
 
 export type OverviewTreeDocument = OverviewTree & Document;
+/** Mongoose schema for the HCL overview tree. */
 export const OverviewTreeSchema = SchemaFactory.createForClass(OverviewTree);

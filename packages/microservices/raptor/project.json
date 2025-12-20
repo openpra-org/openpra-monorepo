@@ -5,6 +5,14 @@
   "sourceRoot": "packages/microservices/raptor/src",
   "projectType": "application",
   "targets": {
+    "docs": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npx -y typedoc@0.28.1 --options packages/microservice/job-broker/typedoc.json",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{projectRoot}/docs"]
+    },
     "build": {
       "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],

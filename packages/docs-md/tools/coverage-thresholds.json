@@ -1,0 +1,20 @@
+{
+  "global": {
+    "symbolDocPct": 90,
+    "paramsPct": 90,
+    "returnsPct": 90
+  },
+  "ts": {
+    "shared-types": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
+    "shared-sdk": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
+    "model-generator": {
+      "symbolDocPct": 90,
+      "paramsPct": 90,
+      "returnsPct": 90
+    },
+    "mef-types": { "symbolDocPct": 78, "paramsPct": 90, "returnsPct": 89 },
+    "web-editor": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 90 },
+    "web-backend": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 84 },
+    "job-broker": { "symbolDocPct": 90, "paramsPct": 90, "returnsPct": 80 }
+  }
+}

@@ -43,7 +43,7 @@ export default tseslint.config(
   },
   // MEF spec-heavy areas use JSDoc-style tags and inline braces; disable TSDoc syntax there to cut noise
   {
-    files: [`${relDir}/src/openpra-mef/technical-elements/**/*.{ts,tsx}`],
+    files: [`${relDir}/src/lib/**/*.{ts,tsx}`],
     rules: {
       'tsdoc/syntax': 'off',
       // Reduce canary noise in spec-heavy area; we will ratchet per-subtree later
@@ -65,7 +65,7 @@ export default tseslint.config(
   // Targeted ratchet: treat unused-vars as error for src/* except technical-elements subtree
   {
     files: [`${relDir}/src/**/*.{ts,tsx}`],
-    ignores: [`${relDir}/src/openpra-mef/technical-elements/**/*`],
+    ignores: [`${relDir}/src/lib/**/*`],
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'error',

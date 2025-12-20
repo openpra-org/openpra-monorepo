@@ -1,10 +1,13 @@
-import { Module } from "@nestjs/common";
-import { MongooseModule } from "@nestjs/mongoose";
-import { CollabController } from "./collab.controller";
-import { CollabService } from "./collab.service";
-import { UserCounter, UserCounterSchema } from "./schemas/user-counter.schema";
-import { User, UserSchema } from "./schemas/user.schema";
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
+import { CollabController } from './collab.controller';
+import { CollabService } from './collab.service';
+import { UserCounter, UserCounterSchema } from './schemas/user-counter.schema';
+import { User, UserSchema } from './schemas/user.schema';
 
+/**
+ * Collaboration (users) module exposing user CRUD APIs and persistence.
+ */
 @Module({
   imports: [
     MongooseModule.forFeature([

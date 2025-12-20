@@ -1,0 +1,33 @@
+{
+  "name": "docs",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "root": "tools/docs",
+  "sourceRoot": "tools/docs",
+  "projectType": "library",
+  "tags": [],
+  "implicitDependencies": [
+    "shared-types",
+    "shared-sdk",
+    "model-generator",
+    "microservice-job-broker",
+    "web-backend",
+    "engine-scram-node"
+  ],
+  "targets": {
+    "build-site": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash scripts/build-docs.sh",
+        "cwd": "{workspaceRoot}"
+      },
+      "outputs": ["{workspaceRoot}/dist/docs"]
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/doc-coverage.js",
+        "cwd": "{workspaceRoot}"
+      }
+    }
+  }
+}

@@ -1,10 +1,10 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
 
 @Schema({
   minimize: false,
   timestamps: {
-    createdAt: "created_at",
+    createdAt: 'created_at',
   },
   versionKey: false,
 })
@@ -31,5 +31,11 @@ export class InvitedUser {
   numberOfInvites: number;
 }
 
+/**
+ * Mongoose document type for the InvitedUser schema.
+ */
 export type InvitedUserDocument = InvitedUser & Document;
+/**
+ * Mongoose schema for user invitations.
+ */
 export const InvitedUserSchema = SchemaFactory.createForClass(InvitedUser);

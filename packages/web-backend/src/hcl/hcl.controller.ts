@@ -11,12 +11,16 @@ import {
   HttpStatus as _HttpStatus,
   UseFilters,
   UseGuards,
-} from "@nestjs/common";
-import { AuthGuard } from "@nestjs/passport";
-import { InvalidTokenFilter } from "../filters/invalid-token.filter";
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { InvalidTokenFilter } from '../filters/invalid-token.filter';
 
+/**
+ * Controller for HCL (High-level model) operations.
+ * Secured with JWT; endpoints are currently scaffolded and documented inline.
+ */
 @Controller()
-@UseGuards(AuthGuard("jwt"))
+@UseGuards(AuthGuard('jwt'))
 @UseFilters(InvalidTokenFilter)
 export class HclController {
   //constructor(private hclService: HclService) {}

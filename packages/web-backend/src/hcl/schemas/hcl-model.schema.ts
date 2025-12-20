@@ -1,6 +1,6 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
-import { Action, ActionSchema } from "./action.schema";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
+import { Action, ActionSchema } from './action.schema';
 
 @Schema({ _id: false, versionKey: false })
 class Model_Data {
@@ -26,8 +26,8 @@ const InstancesSchema = SchemaFactory.createForClass(Instances);
 
 @Schema({
   timestamps: {
-    createdAt: "date_created",
-    updatedAt: "date_modified",
+    createdAt: 'date_created',
+    updatedAt: 'date_modified',
   },
   toJSON: {
     transform: function (doc, ret) {
@@ -36,6 +36,9 @@ const InstancesSchema = SchemaFactory.createForClass(Instances);
   },
   versionKey: false,
 })
+/**
+ * HCL model metadata and relationships to nested analyses and actions.
+ */
 export class HclModel {
   @Prop({ required: false })
   id: number;
@@ -55,13 +58,13 @@ export class HclModel {
   @Prop({ required: false })
   overview_tree: number;
 
-  @Prop({ default: "CO", required: false })
+  @Prop({ default: 'CO', required: false })
   tag: string;
 
   @Prop({ required: false })
   path: string;
 
-  @Prop({ default: "hcl", required: false })
+  @Prop({ default: 'hcl', required: false })
   type: string;
 
   @Prop({ type: ModelDataSchema, required: false })
@@ -78,4 +81,5 @@ export class HclModel {
 }
 
 export type HclModelDocument = HclModel & Document;
+/** Mongoose schema for HclModel. */
 export const HclModelSchema = SchemaFactory.createForClass(HclModel);

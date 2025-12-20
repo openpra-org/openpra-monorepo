@@ -1,0 +1,47 @@
+PROJECT_NAME           = "scram-node"
+OUTPUT_DIRECTORY       = packages/docs-md/.tmp/doxygen
+GENERATE_HTML          = NO
+GENERATE_XML           = YES
+XML_OUTPUT             = doxygen-xml
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = NO
+JAVADOC_AUTOBRIEF      = YES
+
+# Scope and extraction: prefer public, documented API to reduce noise
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+EXTRACT_LOCAL_CLASSES  = NO
+EXTRACT_ANON_NSPACES   = NO
+INTERNAL_DOCS          = NO
+HIDE_UNDOC_MEMBERS     = YES
+HIDE_UNDOC_CLASSES     = YES
+
+RECURSIVE              = YES
+INPUT                  = \
+  packages/engine/scram-node
+FILE_PATTERNS          = *.h *.hpp *.cc *.cpp
+EXCLUDE_PATTERNS       = \
+  */build/* \
+  */node_modules/* \
+  */docs/* \
+  */Testing/* \
+  */dist/* \
+  */.idea/* \
+  */tests/*
+
+# Exclude internal/third-party namespaces and details from API docs
+EXCLUDE_SYMBOLS        = \
+  Napi::* \
+  boost::* \
+  Napi \
+  boost \
+  ext \
+  ScramCLI
+
+# Avoid generating TODO/BUG/DEPRECATED lists into XML (and thus pages)
+GENERATE_TODOLIST      = NO
+GENERATE_BUGLIST       = NO
+GENERATE_DEPRECATEDLIST= NO
+
+ALIASES                =

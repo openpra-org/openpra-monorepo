@@ -1,5 +1,10 @@
-import { EuiThemeModifications } from "@elastic/eui";
+import { EuiThemeModifications } from '@elastic/eui';
 
+/**
+ * Local theme overrides applied to the Elastic UI theme.
+ *
+ * Currently configures the Cereal font family and weights used by the app.
+ */
 export const ThemeMods: EuiThemeModifications = {
   font: {
     family:

@@ -1,6 +1,9 @@
-import { NodeTypes } from "reactflow";
-import { FaultTreeNode } from "./faultTreeNode";
+import { NodeTypes } from 'reactflow';
+import { FaultTreeNode } from './faultTreeNode';
 
+/**
+ * Optional UI flags stored on Fault Tree nodes during editing.
+ */
 export type FaultTreeNodeProps =
   | {
       isGrayed?: boolean | undefined;
@@ -8,15 +11,17 @@ export type FaultTreeNodeProps =
     }
   | undefined;
 
-// two different node types are needed for our example: workflow and placeholder nodes
+/**
+ * Registered React Flow node types used by the Fault Tree editor.
+ */
 const FaultTreeNodeTypes: NodeTypes = {
-  orGate: FaultTreeNode("orGate"),
-  andGate: FaultTreeNode("andGate"),
-  notGate: FaultTreeNode("notGate"),
-  atLeastGate: FaultTreeNode("atLeastGate"),
-  basicEvent: FaultTreeNode("basicEvent"),
-  houseEvent: FaultTreeNode("houseEvent"),
-  transferGate: FaultTreeNode("transferGate"),
+  orGate: FaultTreeNode('orGate'),
+  andGate: FaultTreeNode('andGate'),
+  notGate: FaultTreeNode('notGate'),
+  atLeastGate: FaultTreeNode('atLeastGate'),
+  basicEvent: FaultTreeNode('basicEvent'),
+  houseEvent: FaultTreeNode('houseEvent'),
+  transferGate: FaultTreeNode('transferGate'),
 };
 
 export { FaultTreeNodeTypes };

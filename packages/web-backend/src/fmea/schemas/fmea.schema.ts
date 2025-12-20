@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
 
 @Schema({
   minimize: false,
@@ -11,6 +11,10 @@ import { Document } from "mongoose";
     },
   },
 })
+/**
+ * Failure Modes and Effects Analysis (FMEA) document.
+ * Stores columns configuration and row data for an FMEA table.
+ */
 export class Fmea {
   @Prop({ required: false })
   id: number;
@@ -39,6 +43,11 @@ export class Fmea {
     row_data: Record<string, string>;
   }[];
 }
-
+/**
+ * Mongoose schema for Fmea.
+ */
 export const FmeaSchema = SchemaFactory.createForClass(Fmea);
+/**
+ * Mongoose document type for Fmea.
+ */
 export type FmeaDocument = Fmea & Document;

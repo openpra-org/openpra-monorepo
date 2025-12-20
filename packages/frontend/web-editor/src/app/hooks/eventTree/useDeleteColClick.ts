@@ -1,10 +1,20 @@
-import { useReactFlow, Node, Edge } from "reactflow";
-import { useParams } from "react-router-dom";
-import { GraphApiManager } from "shared-sdk/lib/api/GraphApiManager";
-import { EventTreeState } from "../../../utils/treeUtils";
-import { UseToastContext } from "../../providers/toastProvider";
-import { GenerateUUID } from "../../../utils/treeUtils";
+import { useReactFlow, Node, Edge } from 'reactflow';
+import { useParams } from 'react-router-dom';
+import { GraphApiManager } from 'shared-sdk/lib/api/GraphApiManager';
+import { EventTreeState } from '../../../utils/treeUtils';
+import { UseToastContext } from '../../providers/toastProvider';
+import { GenerateUUID } from '../../../utils/treeUtils';
 
+/**
+ * Delete an empty functional-event column and rewire connections in the Event Tree.
+ *
+ * Validates the column is empty (only invisible nodes), connects adjacent
+ * columns with a hidden edge, removes the target column and its invisible
+ * nodes, updates the root counters, and persists the result.
+ *
+ * @param clickedColumnId - The id of the column-node to delete.
+ * @returns A function that performs the deletion when invoked.
+ */
 function useDeleteColClick(clickedColumnId: string): () => void {
   const { setNodes, setEdges, getNodes, getEdges } = useReactFlow();
   const { eventTreeId } = useParams() as { eventTreeId: string };
@@ -24,15 +34,19 @@ function useDeleteColClick(clickedColumnId: string): () => void {
     const columnDepth = clickedColumn.data.depth;
 
     // 1. Validation
-    const nodesInColumn = nodes.filter((node) => node.data.depth === columnDepth);
-    const hasVisibleNodes = nodesInColumn.some((node) => node.type === "visibleNode");
+    const nodesInColumn = nodes.filter(
+      (node) => node.data.depth === columnDepth,
+    );
+    const hasVisibleNodes = nodesInColumn.some(
+      (node) => node.type === 'visibleNode',
+    );
 
     if (hasVisibleNodes) {
       addToast({
         id: GenerateUUID(),
-        title: "Warning",
-        color: "warning",
-        text: "Cannot delete a non-empty functional event",
+        title: 'Warning',
+        color: 'warning',
+        text: 'Cannot delete a non-empty functional event',
       });
       return;
     }
@@ -41,14 +55,20 @@ function useDeleteColClick(clickedColumnId: string): () => void {
     let currentEdges: Edge[] = [...edges];
 
     // 2. Iteratively remove invisible nodes and maintain connections
-    const invisibleNodes = nodesInColumn.filter((node) => node.type === "invisibleNode");
+    const invisibleNodes = nodesInColumn.filter(
+      (node) => node.type === 'invisibleNode',
+    );
 
     invisibleNodes.forEach((invisibleNode) => {
       // Find incoming edges to this invisible node
-      const incomingEdges = currentEdges.filter((edge) => edge.target === invisibleNode.id);
+      const incomingEdges = currentEdges.filter(
+        (edge) => edge.target === invisibleNode.id,
+      );
 
       // Find outgoing edges from this invisible node
-      const outgoingEdges = currentEdges.filter((edge) => edge.source === invisibleNode.id);
+      const outgoingEdges = currentEdges.filter(
+        (edge) => edge.source === invisibleNode.id,
+      );
 
       // Create direct connections between nodes before and after the invisible node
       incomingEdges.forEach((inEdge) => {
@@ -57,7 +77,7 @@ function useDeleteColClick(clickedColumnId: string): () => void {
             id: `${inEdge.source}-${outEdge.target}`,
             source: inEdge.source,
             target: outEdge.target,
-            type: "custom",
+            type: 'custom',
             animated: false,
           });
         });
@@ -65,20 +85,26 @@ function useDeleteColClick(clickedColumnId: string): () => void {
 
       // Remove edges connected to this invisible node
       currentEdges = currentEdges.filter(
-        (edge) => edge.source !== invisibleNode.id && edge.target !== invisibleNode.id,
+        (edge) =>
+          edge.source !== invisibleNode.id && edge.target !== invisibleNode.id,
       );
     });
 
     // 3. Remove invisible nodes
-    currentNodes = currentNodes.filter((node) => node.type !== "invisibleNode" || node.data.depth !== columnDepth);
+    currentNodes = currentNodes.filter(
+      (node) =>
+        node.type !== 'invisibleNode' || node.data.depth !== columnDepth,
+    );
 
     // 4. Handle column nodes
     const prevColumnNode = currentNodes.find(
-      (node) => node.type === "columnNode" && node.data.depth === columnDepth - 1,
+      (node) =>
+        node.type === 'columnNode' && node.data.depth === columnDepth - 1,
     );
 
     const nextColumnNode = currentNodes.find(
-      (node) => node.type === "columnNode" && node.data.depth === columnDepth + 1,
+      (node) =>
+        node.type === 'columnNode' && node.data.depth === columnDepth + 1,
     );
 
     // 5. Connect adjacent columns with hidden edge
@@ -87,18 +113,20 @@ function useDeleteColClick(clickedColumnId: string): () => void {
         id: `${prevColumnNode.id}-${nextColumnNode.id}`,
         source: prevColumnNode.id,
         target: nextColumnNode.id,
-        type: "custom",
+        type: 'custom',
         animated: false,
         hidden: true,
       });
     }
 
     // 6. Remove column node
-    currentNodes = currentNodes.filter((node) => node.data.depth !== columnDepth);
+    currentNodes = currentNodes.filter(
+      (node) => node.data.depth !== columnDepth,
+    );
 
     // 7. Update root node counter
     const rootNode = currentNodes.find((node) => node.data.depth === 1);
-    if (rootNode && typeof rootNode.data.inputDepth === "number") {
+    if (rootNode && typeof rootNode.data.inputDepth === 'number') {
       rootNode.data.inputDepth -= 1;
     }
 

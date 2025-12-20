@@ -1,6 +1,9 @@
-import Label from "../../Label";
-import { BasicModel } from "../basicModel";
+import Label from '../../Label';
+import { BasicModel } from '../basicModel';
 
+/**
+ * JSON representation of a typed model.
+ */
 export interface TypedModelJSON {
   id: number;
   label: {
@@ -10,44 +13,66 @@ export interface TypedModelJSON {
   users: number[];
 }
 
+/**
+ * Mapping from a typed model key to its JSON representation.
+ */
 export type TypedModelJSONMap = Record<string, TypedModelJSON>;
 
+/**
+ * Default placeholder JSON for a typed model.
+ */
 export const DEFAULT_TYPED_MODEL_JSON: TypedModelJSON = {
   id: -1,
   label: {
-    name: "",
-    description: "",
+    name: '',
+    description: '',
   },
   users: [],
 };
 
+/**
+ * Base model for all typed models that include a label, id, and collaborators (users).
+ */
 export default class TypedModel extends BasicModel /* implements Parsable<TypedModelJSONMap, TypedModelJSON> */ {
   users: number[];
 
   /**
+   * Build a TypedModel instance from JSON.
    * @param obj - Dictionary object to parse.
    */
   static build(obj: TypedModelJSON): TypedModel {
-    return new TypedModel(obj.id, obj.label.name, obj.label.description, obj.users);
+    return new TypedModel(
+      obj.id,
+      obj.label.name,
+      obj.label.description,
+      obj.users,
+    );
   }
 
   /**
+   * Construct a typed model.
+   * @param id - Model id (defaults to -1)
    * @param name - Model name.
    * @param description - Model description.
    * @param users - A list of user IDs.
    */
-  constructor(id = -1, name = "", description = "", users: number[] = []) {
+  constructor(id = -1, name = '', description = '', users: number[] = []) {
     super(new Label(name, description), id);
     this.users = users;
   }
 
   // Implement the getter and setter methods for ids
+  /**
+   * Get the list of collaborating user ids.
+   * @returns An array of user identifiers.
+   */
   getUsers(): number[] {
     return this.users;
   }
 
   /**
-   * @param users - Sets the users.
+   * Set the list of collaborating users.
+   * @param users - User id array.
    */
   setUsers(users: number[]): void {
     this.users = users;
@@ -98,6 +123,9 @@ export default class TypedModel extends BasicModel /* implements Parsable<TypedM
   // }
 }
 
+/**
+ * Mongoose-like document type for a typed model persisted in storage.
+ */
 export interface typedModelType {
   _id: string;
   label: {

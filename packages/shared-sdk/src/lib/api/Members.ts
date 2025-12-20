@@ -1,3 +1,4 @@
+/** Paginated list response for member directory queries. */
 export interface Members {
   count: number;
   next: any;
@@ -5,6 +6,7 @@ export interface Members {
   results: MemberResult[];
 }
 
+/** Shape of a single member record returned by the backend. */
 export interface MemberResult {
   firstName: string;
   lastName: string;

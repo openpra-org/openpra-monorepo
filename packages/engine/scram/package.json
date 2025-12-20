@@ -25,6 +25,26 @@
       ]
     },
     "targets": {
+      "docs": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "doxygen Doxyfile",
+          "cwd": "{projectRoot}"
+        },
+        "outputs": [
+          "{projectRoot}/docs/cpp"
+        ]
+      },
+      "docs-ts": {
+        "executor": "nx:run-commands",
+        "options": {
+          "command": "typedoc --options typedoc.json",
+          "cwd": "{projectRoot}"
+        },
+        "outputs": [
+          "{projectRoot}/docs/ts"
+        ]
+      },
       "install": {
         "dependsOn": [
           "build"
@@ -59,6 +79,7 @@
     "tmp": "0.2.5"
   },
   "devDependencies": {
+    "typedoc": "^0.28.1",
     "jest": "29.7.0",
     "@types/glob": "8.1.0",
     "eslint": "9.14.0",

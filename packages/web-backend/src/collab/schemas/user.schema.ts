@@ -1,6 +1,6 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import mongoose, { Document } from "mongoose";
-import { Action, ActionSchema } from "../../hcl/schemas/action.schema";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import mongoose, { Document } from 'mongoose';
+import { Action, ActionSchema } from '../../hcl/schemas/action.schema';
 
 @Schema({ minimize: false, _id: false, versionKey: false })
 class Instances {}
@@ -83,7 +83,9 @@ class QuantificationConfigurations {
   currentlySelected: string;
 }
 
-const QuantificationConfigurationsSchema = SchemaFactory.createForClass(QuantificationConfigurations);
+const QuantificationConfigurationsSchema = SchemaFactory.createForClass(
+  QuantificationConfigurations,
+);
 
 @Schema({ minimize: false, _id: false, versionKey: false })
 class Preferences {
@@ -114,8 +116,8 @@ const PreferencesSchema = SchemaFactory.createForClass(Preferences);
 @Schema({
   minimize: false,
   timestamps: {
-    createdAt: "account_created",
-    updatedAt: "last_login",
+    createdAt: 'account_created',
+    updatedAt: 'last_login',
   },
   toJSON: {
     transform: function (doc, ret: any) {
@@ -125,6 +127,10 @@ const PreferencesSchema = SchemaFactory.createForClass(Preferences);
   },
   versionKey: false,
 })
+/**
+ * Collaboration user profile persisted in MongoDB.
+ * Includes preferences, recently accessed resources and role assignments.
+ */
 export class User {
   @Prop({ required: false })
   id: number;
@@ -156,6 +162,11 @@ export class User {
   @Prop({ type: Date, default: Date.now() })
   last_login: Date;
 }
-
+/**
+ * Mongoose document type for User.
+ */
 export type UserDocument = User & Document;
+/**
+ * Mongoose schema for User.
+ */
 export const UserSchema = SchemaFactory.createForClass(User);

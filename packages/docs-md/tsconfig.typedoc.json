@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "strict": false,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": [
+    "../../packages/engine/scram-node/targets/scram-node/lib/**/*.ts",
+    "../../packages/engine/scram-node/targets/scram-node/lib/**/*.d.ts",
+    "../../packages/frontend/web-editor/src/**/*.ts",
+    "../../packages/frontend/web-editor/src/**/*.d.ts",
+    "../../packages/mef-types/src/**/*.ts",
+    "../../packages/mef-types/src/**/*.d.ts",
+    "../../packages/microservice/job-broker/src/**/*.ts",
+    "../../packages/microservice/job-broker/src/**/*.d.ts",
+    "../../packages/model-generator/src/**/*.ts",
+    "../../packages/model-generator/src/**/*.d.ts",
+    "../../packages/shared-sdk/src/**/*.ts",
+    "../../packages/shared-sdk/src/**/*.d.ts",
+    "../../packages/shared-types/src/**/*.ts",
+    "../../packages/shared-types/src/**/*.d.ts",
+    "../../packages/web-backend/src/**/*.ts",
+    "../../packages/web-backend/src/**/*.d.ts"
+  ],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,75 @@
+# See http://help.github.com/ignore-files/ for more about ignoring files.
+
+*.tsbuildinfo
+
+.cache
+migrations.json
+
+logs.txt
+# compiled output
+dist
+tmp
+/out-tsc
+
+# dependencies
+node_modules
+.pnpm-store
+
+# IDEs and   editors
+#/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# System Files
+.DS_Store
+Thumbs.db
+
+
+.vcs
+
+# Logs
+logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+.nx/installation
+.nx/cache
+.nx/workspace-data
+.nx
+
+
+#don't add coverage folder from web backend
+**/coverage/**/*
+/packages/frontend/web-editor/e2e/.auth/
+#/fixtures/
+
+# Don't addd test input and output folders
+packages/engine/scram-node/tests/input
+packages/engine/scram-node/tests/output
+benchmarks/results
+tools/

@@ -9,9 +9,9 @@
     "shared-types",
     "shared-sdk",
     "model-generator",
-    "microservice-job-broker",
+    "microservices-raptor",
     "web-backend",
-    "engine-scram-node"
+    "engine-scram"
   ],
   "targets": {
     "build-site": {

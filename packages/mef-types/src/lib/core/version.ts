@@ -7,7 +7,7 @@
  * @remarks
  * This version should match the package version in package.json
  */
-export const SCHEMA_VERSION = "0.1.0";
+export const SCHEMA_VERSION = '0.1.0';
 
 /**
  * Version information for a technical element
@@ -34,7 +34,7 @@ export const VERSION_RULES = {
   /** Date format for lastUpdated field */
   DATE_FORMAT: /^\d{4}-\d{2}-\d{2}$/,
   /** Minimum schema version required */
-  MIN_SCHEMA_VERSION: "0.1.0",
+  MIN_SCHEMA_VERSION: '0.1.0',
 } as const;
 
 /**
@@ -42,11 +42,23 @@ export const VERSION_RULES = {
  */
 export const VERSION_GUIDELINES = {
   /** Breaking changes require major version bump */
-  BREAKING_CHANGES: ["Removing or renaming fields", "Changing field types", "Modifying validation rules"],
+  BREAKING_CHANGES: [
+    'Removing or renaming fields',
+    'Changing field types',
+    'Modifying validation rules',
+  ],
   /** Non-breaking changes require minor version bump */
-  NON_BREAKING_CHANGES: ["Adding optional fields", "Adding new validation rules", "Documentation improvements"],
+  NON_BREAKING_CHANGES: [
+    'Adding optional fields',
+    'Adding new validation rules',
+    'Documentation improvements',
+  ],
   /** Patch updates for bug fixes */
-  PATCH_UPDATES: ["Fixing validation bugs", "Correcting documentation", "Minor improvements"],
+  PATCH_UPDATES: [
+    'Fixing validation bugs',
+    'Correcting documentation',
+    'Minor improvements',
+  ],
 } as const;
 
 /**
@@ -55,10 +67,13 @@ export const VERSION_GUIDELINES = {
  * @param schemaVersion The schema version
  * @returns A new VersionInfo object
  */
-export function createVersionInfo(version: string, schemaVersion: string): VersionInfo {
+export function createVersionInfo(
+  version: string,
+  schemaVersion: string,
+): VersionInfo {
   const versionInfo: VersionInfo = {
     version,
-    lastUpdated: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
+    lastUpdated: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
     schemaVersion,
     deprecatedFields: [],
     deprecatedInterfaces: [],
@@ -66,11 +81,15 @@ export function createVersionInfo(version: string, schemaVersion: string): Versi
 
   // Validate the version info
   if (!VERSION_RULES.SEMVER_REGEX.test(version)) {
-    throw new Error(`Invalid version format: ${version}. Must follow semantic versioning (X.Y.Z)`);
+    throw new Error(
+      `Invalid version format: ${version}. Must follow semantic versioning (X.Y.Z)`,
+    );
   }
 
   if (!VERSION_RULES.SEMVER_REGEX.test(schemaVersion)) {
-    throw new Error(`Invalid schema version format: ${schemaVersion}. Must follow semantic versioning (X.Y.Z)`);
+    throw new Error(
+      `Invalid schema version format: ${schemaVersion}. Must follow semantic versioning (X.Y.Z)`,
+    );
   }
 
   if (schemaVersion < VERSION_RULES.MIN_SCHEMA_VERSION) {

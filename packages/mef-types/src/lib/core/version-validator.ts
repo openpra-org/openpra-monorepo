@@ -1,4 +1,4 @@
-import { VersionInfo, VERSION_RULES } from "./version";
+import { VersionInfo, VERSION_RULES } from './version';
 
 /**
  * Validates version information for a technical element
@@ -8,12 +8,16 @@ import { VersionInfo, VERSION_RULES } from "./version";
 export function validateVersionInfo(versionInfo: VersionInfo): boolean {
   // Check semantic version format
   if (!VERSION_RULES.SEMVER_REGEX.test(versionInfo.version)) {
-    throw new Error(`Invalid version format: ${versionInfo.version}. Must follow semantic versioning (X.Y.Z)`);
+    throw new Error(
+      `Invalid version format: ${versionInfo.version}. Must follow semantic versioning (X.Y.Z)`,
+    );
   }
 
   // Check date format
   if (!VERSION_RULES.DATE_FORMAT.test(versionInfo.lastUpdated)) {
-    throw new Error(`Invalid date format: ${versionInfo.lastUpdated}. Must be YYYY-MM-DD`);
+    throw new Error(
+      `Invalid date format: ${versionInfo.lastUpdated}. Must be YYYY-MM-DD`,
+    );
   }
 
   // Check schema version
@@ -33,8 +37,8 @@ export function validateVersionInfo(versionInfo: VersionInfo): boolean {
   // Validate deprecated fields if present
   if (versionInfo.deprecatedFields) {
     versionInfo.deprecatedFields.forEach((field) => {
-      if (typeof field !== "string") {
-        throw new Error("Deprecated fields must be strings");
+      if (typeof field !== 'string') {
+        throw new Error('Deprecated fields must be strings');
       }
     });
   }
@@ -42,8 +46,8 @@ export function validateVersionInfo(versionInfo: VersionInfo): boolean {
   // Validate deprecated interfaces if present
   if (versionInfo.deprecatedInterfaces) {
     versionInfo.deprecatedInterfaces.forEach((interfaceName) => {
-      if (typeof interfaceName !== "string") {
-        throw new Error("Deprecated interfaces must be strings");
+      if (typeof interfaceName !== 'string') {
+        throw new Error('Deprecated interfaces must be strings');
       }
     });
   }
@@ -57,10 +61,13 @@ export function validateVersionInfo(versionInfo: VersionInfo): boolean {
  * @param schemaVersion The schema version
  * @returns A new VersionInfo object
  */
-export function createVersionInfo(version: string, schemaVersion: string): VersionInfo {
+export function createVersionInfo(
+  version: string,
+  schemaVersion: string,
+): VersionInfo {
   const versionInfo: VersionInfo = {
     version,
-    lastUpdated: new Date().toISOString().split("T")[0], // Format as YYYY-MM-DD
+    lastUpdated: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
     schemaVersion,
     deprecatedFields: [],
     deprecatedInterfaces: [],

@@ -1,15 +1,21 @@
-import { Module } from "@nestjs/common";
-import { MongooseModule } from "@nestjs/mongoose";
+import { Module } from '@nestjs/common';
+import { MongooseModule } from '@nestjs/mongoose';
 import {
   EventSequenceDiagramGraph,
   EventSequenceDiagramGraphSchema,
-} from "../schemas/graphs/event-sequence-diagram-graph.schema";
-import { FaultTreeGraph, FaultTreeGraphSchema } from "../schemas/graphs/fault-tree-graph.schema";
+} from '../schemas/graphs/event-sequence-diagram-graph.schema';
+import {
+  FaultTreeGraph,
+  FaultTreeGraphSchema,
+} from '../schemas/graphs/fault-tree-graph.schema';
 
-import { EventTreeGraph, EventTreeGraphSchema } from "../schemas/graphs/event-tree-graph.schema";
+import {
+  EventTreeGraph,
+  EventTreeGraphSchema,
+} from '../schemas/graphs/event-tree-graph.schema';
 
-import { GraphModelController } from "./graphModel.controller";
-import { GraphModelService } from "./graphModel.service";
+import { GraphModelController } from './graphModel.controller';
+import { GraphModelService } from './graphModel.service';
 
 /**
  * Module for graph model storage and retrieval endpoints.

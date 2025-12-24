@@ -8,10 +8,13 @@
  */
 
 // Import original types as references, but don't extend them directly
-import { SystemsAnalysis as CoreSystemsAnalysis } from "../../systems-analysis/systems-analysis";
-import { EventSequenceAnalysis as CoreEventSequenceAnalysis } from "../../event-sequence-analysis/event-sequence-analysis";
-import { InitiatingEventsAnalysis as CoreInitiatingEventsAnalysis } from "../../initiating-event-analysis/initiating-event-analysis";
-import { DistributionType, ProbabilityModel } from "../../data-analysis/data-analysis";
+import { SystemsAnalysis as CoreSystemsAnalysis } from '../../systems-analysis/systems-analysis';
+import { EventSequenceAnalysis as CoreEventSequenceAnalysis } from '../../event-sequence-analysis/event-sequence-analysis';
+import { InitiatingEventsAnalysis as CoreInitiatingEventsAnalysis } from '../../initiating-event-analysis/initiating-event-analysis';
+import {
+  DistributionType,
+  ProbabilityModel,
+} from '../../data-analysis/data-analysis';
 
 /**
  * Generic Record type with string keys and any values
@@ -47,7 +50,7 @@ export interface SystemBasicEvent {
     value?: number;
     parameter?: string;
     formula?: string;
-    type?: "constant" | "parameter" | "formula";
+    type?: 'constant' | 'parameter' | 'formula';
   };
 
   /**
@@ -63,7 +66,7 @@ export interface SystemBasicEvent {
   /**
    * Role of this basic event in quantification
    */
-  role?: "public" | "private" | "interface";
+  role?: 'public' | 'private' | 'interface';
 }
 
 /**
@@ -304,7 +307,12 @@ export interface InitiatingEventsAnalysis {
  * @group SCRAM Adapter
  */
 export function isSystemsAnalysis(obj: any): obj is SystemsAnalysis {
-  return obj && typeof obj === "object" && typeof obj.id === "string" && typeof obj.name === "string";
+  return (
+    obj &&
+    typeof obj === 'object' &&
+    typeof obj.id === 'string' &&
+    typeof obj.name === 'string'
+  );
 }
 
 /**
@@ -313,13 +321,15 @@ export function isSystemsAnalysis(obj: any): obj is SystemsAnalysis {
  * @returns Whether the object is compatible with the adapter's EventSequenceAnalysis
  * @group SCRAM Adapter
  */
-export function isEventSequenceAnalysis(obj: any): obj is EventSequenceAnalysis {
+export function isEventSequenceAnalysis(
+  obj: any,
+): obj is EventSequenceAnalysis {
   return (
     obj &&
-    typeof obj === "object" &&
-    typeof obj.id === "string" &&
-    typeof obj.name === "string" &&
-    typeof obj.eventTrees === "object"
+    typeof obj === 'object' &&
+    typeof obj.id === 'string' &&
+    typeof obj.name === 'string' &&
+    typeof obj.eventTrees === 'object'
   );
 }
 
@@ -339,7 +349,9 @@ export function asSystemsAnalysis(obj: CoreSystemsAnalysis): SystemsAnalysis {
  * @returns The object cast to the adapter's EventSequenceAnalysis interface
  * @group SCRAM Adapter
  */
-export function asEventSequenceAnalysis(obj: CoreEventSequenceAnalysis): EventSequenceAnalysis {
+export function asEventSequenceAnalysis(
+  obj: CoreEventSequenceAnalysis,
+): EventSequenceAnalysis {
   return obj as unknown as EventSequenceAnalysis;
 }
 
@@ -349,7 +361,9 @@ export function asEventSequenceAnalysis(obj: CoreEventSequenceAnalysis): EventSe
  * @returns The object cast to the adapter's InitiatingEventsAnalysis interface
  * @group SCRAM Adapter
  */
-export function asInitiatingEventsAnalysis(obj: CoreInitiatingEventsAnalysis): InitiatingEventsAnalysis {
+export function asInitiatingEventsAnalysis(
+  obj: CoreInitiatingEventsAnalysis,
+): InitiatingEventsAnalysis {
   return obj as unknown as InitiatingEventsAnalysis;
 }
 
@@ -362,7 +376,7 @@ export function asInitiatingEventsAnalysis(obj: CoreInitiatingEventsAnalysis): I
  * @group SCRAM Adapter
  */
 export function safeGet<T>(obj: any, key: string, defaultValue: T): T {
-  if (obj && typeof obj === "object" && key in obj) {
+  if (obj && typeof obj === 'object' && key in obj) {
     return obj[key] as T;
   }
   return defaultValue;
@@ -375,7 +389,7 @@ export function safeGet<T>(obj: any, key: string, defaultValue: T): T {
  * @group SCRAM Adapter
  */
 export function asRecord<T = any>(obj: any): Record<string, T> {
-  if (obj && typeof obj === "object") {
+  if (obj && typeof obj === 'object') {
     return obj as Record<string, T>;
   }
   return {};

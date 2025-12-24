@@ -20,7 +20,7 @@ This document defines repository-wide guidance for AI-assisted edits and code ge
   - `packages/shared-sdk`: Runtime SDK (AuthService, ApiManager, invites, roles, predefined roles); imports types from `shared-types`.
   - `packages/mef-types`: MEF technical element types extracted from shared-types.
   - `packages/engine/scram-node`: Node wrappers for SCRAM engine.
-  - `packages/model-generator`, `packages/microservice/job-broker`: utilities/services.
+  - `packages/model-generator`, `packages/microservices/raptor`: utilities/services.
 
 ## Nx Commands
 

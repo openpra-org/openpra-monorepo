@@ -1,12 +1,12 @@
-name: "CI: Monorepo — Build & Test"
+name: 'CI: Monorepo — Build & Test'
 
 on:
   push:
     branches:
-      - "**"
+      - '**'
   pull_request:
     branches:
-      - "**"
+      - '**'
 
 jobs:
   build-and-test:
@@ -26,9 +26,9 @@ jobs:
           - shared-types
           - shared-sdk
           - model-generator
-          - engine-scram-node
+          - engine-scram
           - mef-types
-          - microservice-job-broker
+          - microservices-raptor
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: "20.17.0"
+          node-version: '20.17.0'
 
       - name: Install system dependencies
         run: |
@@ -71,26 +71,35 @@ jobs:
       - name: Install dependencies
         run: npx -y pnpm@10.19.0 install --ignore-scripts --no-frozen-lockfile
 
-      - name: Build scram-node
-        run: cd packages/engine/scram-node && npx -y pnpm@10.19.0 run install
+      - name: Build scram
+        if: matrix.package == 'engine-scram'
+        run: cd packages/engine/scram && npx -y pnpm@10.19.0 run install
 
       - name: Install scram-cli (CI)
+        if: matrix.package == 'engine-scram'
         run: |
           # Ensure scram-cli and libs are installed even when postinstall is skipped in CI
           # Prefer cmake --install which works across generators; guard if install scripts are absent
-          if [ -f packages/engine/scram-node/build/cmake_install.cmake ]; then
-            cmake --install packages/engine/scram-node/build
+          if [ -f packages/engine/scram/build/cmake_install.cmake ]; then
+            cmake --install packages/engine/scram/build --prefix "$HOME/.local"
           else
             echo "No CMake install script found; skipping scram-cli install"
           fi
 
       - name: Build
-        # Nx Cloud temporarily disabled — retain config here for quick re-enable
-        # env:
-        #   NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
-        #   NX_BRANCH: ${{ github.ref_name }}
-        #   NX_RUN_GROUP: ci-${{ github.run_id }}
-        run: npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:build --verbose --no-cloud
+        env:
+          NX_CLOUD_ACCESS_TOKEN: '${{ secrets.NX_CLOUD_ACCESS_TOKEN }}'
+          NX_BRANCH: '${{ github.ref_name }}'
+          NX_RUN_GROUP: 'ci-${{ github.run_id }}'
+        run: npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:build --verbose
+
+      - name: Build raptor engine
+        if: matrix.package == 'microservices-raptor'
+        env:
+          NX_CLOUD_ACCESS_TOKEN: '${{ secrets.NX_CLOUD_ACCESS_TOKEN }}'
+          NX_BRANCH: '${{ github.ref_name }}'
+          NX_RUN_GROUP: 'ci-${{ github.run_id }}'
+        run: npx -y pnpm@10.19.0 nx run microservices-raptor:build-engine --verbose
 
       - name: Wait for MongoDB service
         run: |
@@ -105,26 +114,25 @@ jobs:
       - name: Test
         env:
           MONGO_URI: mongodb://localhost:27017/test
-          # NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}  # (disabled)
-          # NX_BRANCH: ${{ github.ref_name }}                             # (disabled)
-          # NX_RUN_GROUP: ci-${{ github.run_id }}                         # (disabled)
+          NX_CLOUD_ACCESS_TOKEN: '${{ secrets.NX_CLOUD_ACCESS_TOKEN }}'
+          NX_BRANCH: '${{ github.ref_name }}'
+          NX_RUN_GROUP: 'ci-${{ github.run_id }}'
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          export LD_LIBRARY_PATH="$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
-          npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:test --no-cloud -- --test-timeout=60000 --verbose
+          export LD_LIBRARY_PATH="$HOME/.local/lib:$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
+          npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:test -- --test-timeout=60000 --verbose
 
       - name: E2E Tests
         if: |
           matrix.package == 'frontend-web-editor' ||
-          matrix.package == 'web-backend' ||
-          matrix.package == 'microservice-job-broker'
+          matrix.package == 'web-backend'
         continue-on-error: true
         env:
           MONGO_URI: mongodb://localhost:27017/test
-          # NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}  # (disabled)
-          # NX_BRANCH: ${{ github.ref_name }}                             # (disabled)
-          # NX_RUN_GROUP: ci-${{ github.run_id }}                         # (disabled)
+          NX_CLOUD_ACCESS_TOKEN: '${{ secrets.NX_CLOUD_ACCESS_TOKEN }}'
+          NX_BRANCH: '${{ github.ref_name }}'
+          NX_RUN_GROUP: 'ci-${{ github.run_id }}'
         run: |
           export PATH="$HOME/.local/bin:$PATH"
-          export LD_LIBRARY_PATH="$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
-          npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:e2e --no-cloud
+          export LD_LIBRARY_PATH="$HOME/.local/lib:$HOME/.local/lib/scram:${LD_LIBRARY_PATH:-}"
+          npx -y pnpm@10.19.0 nx run ${{ matrix.package }}:e2e

@@ -1,9 +1,9 @@
 /** Identifier for the Administrator role. */
-export const AdminRole = "admin-role";
+export const AdminRole = 'admin-role';
 /** Identifier for the Member role. */
-export const MemberRole = "member-role";
+export const MemberRole = 'member-role';
 /** Identifier for the Collaborator role. */
-export const CollabRole = "collab-role";
+export const CollabRole = 'collab-role';
 
 /**
  * A role definition with an ID, display name, and permissions.
@@ -32,39 +32,39 @@ export interface Permission {
 export const PredefinedRoles: Role[] = [
   {
     id: AdminRole,
-    name: "Admin",
+    name: 'Admin',
     permissions: [
       {
-        action: "manage",
-        subject: "all",
+        action: 'manage',
+        subject: 'all',
       },
     ],
   },
   {
     id: MemberRole,
-    name: "Member",
+    name: 'Member',
     permissions: [
       {
-        action: "read",
-        subject: "users",
+        action: 'read',
+        subject: 'users',
       },
       {
-        action: "read",
-        subject: "roles",
+        action: 'read',
+        subject: 'roles',
       },
       {
-        action: "read",
-        subject: "invitation",
+        action: 'read',
+        subject: 'invitation',
       },
     ],
   },
   {
     id: CollabRole,
-    name: "Collaborator",
+    name: 'Collaborator',
     permissions: [
       {
-        action: "read",
-        subject: "all",
+        action: 'read',
+        subject: 'all',
       },
     ],
   },

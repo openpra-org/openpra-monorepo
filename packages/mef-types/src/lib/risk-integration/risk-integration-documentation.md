@@ -75,7 +75,7 @@ processDescription: string;
 Example implementation:
 
 ```typescript
-processDescription: "The risk integration process for this NLWR PRA incorporates event sequence families from Event Sequence Quantification and release categories from Mechanistic Source Term Analysis. A Monte Carlo simulation approach with 10,000 trials was used to propagate uncertainties in both frequency and consequence measures. Results are presented as point estimates, mean values, and complementary cumulative distribution functions (CCDFs).";
+processDescription: 'The risk integration process for this NLWR PRA incorporates event sequence families from Event Sequence Quantification and release categories from Mechanistic Source Term Analysis. A Monte Carlo simulation approach with 10,000 trials was used to propagate uncertainties in both frequency and consequence measures. Results are presented as point estimates, mean values, and complementary cumulative distribution functions (CCDFs).';
 ```
 
 #### RI-D1(b)
@@ -191,7 +191,7 @@ limitationsDescription: string;
 Example implementation:
 
 ```typescript
-limitationsDescription: "This analysis is limited by the availability of operational data since the facility is not yet built. The PRA relied on design information and engineering judgment to establish failure rates and human error probabilities. These limitations will be addressed during the operational phase through data collection and model updates.";
+limitationsDescription: 'This analysis is limited by the availability of operational data since the facility is not yet built. The PRA relied on design information and engineering judgment to establish failure rates and human error probabilities. These limitations will be addressed during the operational phase through data collection and model updates.';
 ```
 
 #### RI-D1(g)
@@ -208,9 +208,9 @@ Example implementation:
 
 ```typescript
 riskInsights: [
-  "Passive cooling systems demonstrate high reliability but are sensitive to specific common cause failure mechanisms",
-  "Loss of heat sink scenarios dominate the risk profile due to the extended mission time requirements",
-  "Human errors during maintenance activities represent significant contributors to overall plant risk",
+  'Passive cooling systems demonstrate high reliability but are sensitive to specific common cause failure mechanisms',
+  'Loss of heat sink scenarios dominate the risk profile due to the extended mission time requirements',
+  'Human errors during maintenance activities represent significant contributors to overall plant risk',
 ];
 ```
 
@@ -286,7 +286,7 @@ export interface RiskMetric extends Unique, Named {
   acceptanceCriteria?: {
     limit: number;
     basis: string;
-    complianceStatus: "COMPLIANT" | "NON_COMPLIANT" | "INDETERMINATE";
+    complianceStatus: 'COMPLIANT' | 'NON_COMPLIANT' | 'INDETERMINATE';
   };
 }
 ```
@@ -354,16 +354,16 @@ The schema includes several reference types for maintaining traceability:
 
 ```typescript
 /** Reference to a Risk Significance Criteria */
-export type RiskSignificanceCriteriaReference = string & tags.Pattern<"^RSC-[A-Za-z0-9_-]+$">;
+export type RiskSignificanceCriteriaReference = string & tags.Pattern<'^RSC-[A-Za-z0-9_-]+$'>;
 
 /** Reference to an Integrated Risk Result */
-export type IntegratedRiskResultReference = string & tags.Pattern<"^IRR-[A-Za-z0-9_-]+$">;
+export type IntegratedRiskResultReference = string & tags.Pattern<'^IRR-[A-Za-z0-9_-]+$'>;
 
 /** Reference to a significant risk contributor analysis */
-export type SignificantContributorReference = string & tags.Pattern<"^SRC-[A-Za-z0-9_-]+$">;
+export type SignificantContributorReference = string & tags.Pattern<'^SRC-[A-Za-z0-9_-]+$'>;
 
 /** Reference to a risk integration method */
-export type RiskIntegrationMethodReference = string & tags.Pattern<"^RIM-[A-Za-z0-9_-]+$">;
+export type RiskIntegrationMethodReference = string & tags.Pattern<'^RIM-[A-Za-z0-9_-]+$'>;
 ```
 
 These reference types ensure:
@@ -561,29 +561,29 @@ Consider a simplified risk integration documentation for a sodium-cooled fast re
 ```typescript
 // Example documentation for a sodium-cooled fast reactor
 const riskIntegrationDoc: RiskIntegrationDocumentation = {
-  uuid: "ri-doc-1",
+  uuid: 'ri-doc-1',
   processDescription:
     "This risk integration analysis focuses on the sodium-cooled fast reactor design, incorporating passive safety features similar to those demonstrated in EBR-II's 1986 loss-of-flow tests. The analysis integrates event sequences from internal events, seismic events, and internal flooding with mechanistic source term evaluations.",
 
   riskSignificanceCriteriaDescription:
-    "Risk significance criteria include both absolute thresholds based on regulatory limits and relative thresholds identifying components that contribute more than 5% to overall risk metrics.",
+    'Risk significance criteria include both absolute thresholds based on regulatory limits and relative thresholds identifying components that contribute more than 5% to overall risk metrics.',
 
   calculationMethodsDescription:
-    "Risk metrics were calculated using both point estimates and mean values from Monte Carlo simulations. Frequency-consequence plots were developed to visualize the risk profile across the spectrum of potential consequences.",
+    'Risk metrics were calculated using both point estimates and mean values from Monte Carlo simulations. Frequency-consequence plots were developed to visualize the risk profile across the spectrum of potential consequences.',
 
   uncertaintyAnalysisDescription:
-    "Uncertainties were characterized through parameter distributions for component failure rates and propagated using 10,000 Monte Carlo trials. Model uncertainties, particularly in sodium fire progression and aerosol behavior, were addressed through sensitivity studies.",
+    'Uncertainties were characterized through parameter distributions for component failure rates and propagated using 10,000 Monte Carlo trials. Model uncertainties, particularly in sodium fire progression and aerosol behavior, were addressed through sensitivity studies.',
 
   keyAssumptionsDescription:
-    "Key assumptions include passive reactor shutdown capability under loss-of-flow conditions, similar to that demonstrated in EBR-II tests, and assumptions regarding sodium fire progression rates derived from experimental data.",
+    'Key assumptions include passive reactor shutdown capability under loss-of-flow conditions, similar to that demonstrated in EBR-II tests, and assumptions regarding sodium fire progression rates derived from experimental data.',
 
   limitationsDescription:
-    "This analysis is limited by the availability of sodium-cooled reactor operational experience in commercial settings. While EBR-II and other experimental reactors provide valuable insights, scaling effects introduce uncertainties when applied to commercial-scale designs.",
+    'This analysis is limited by the availability of sodium-cooled reactor operational experience in commercial settings. While EBR-II and other experimental reactors provide valuable insights, scaling effects introduce uncertainties when applied to commercial-scale designs.',
 
   riskInsights: [
-    "Passive safety features provide significant risk reduction for loss-of-flow scenarios",
-    "Sodium leaks and fires represent the dominant contributor to offsite release risk",
-    "Secondary heat removal system reliability is a key factor in long-term cooling capability",
+    'Passive safety features provide significant risk reduction for loss-of-flow scenarios',
+    'Sodium leaks and fires represent the dominant contributor to offsite release risk',
+    'Secondary heat removal system reliability is a key factor in long-term cooling capability',
   ],
 };
 ```

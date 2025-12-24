@@ -25,6 +25,6 @@ export interface AuthTokenAdditionals {
 type AuthToken = BaseJwtPayload & AuthTokenAdditionals;
 
 /** Default token with a basic role. Keep generic to avoid runtime dependencies. */
-export const EMPTY_TOKEN: AuthToken = { roles: ["member"] };
+export const EMPTY_TOKEN: AuthToken = { roles: ['member'] };
 
 export { AuthToken };

@@ -57,6 +57,9 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# ESLint cache
+.eslintcache
+
 .nx/installation
 .nx/cache
 .nx/workspace-data

@@ -1,11 +1,11 @@
-import { NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+import { NestedModelType } from 'shared-types/src/lib/types/modelTypes/innerModels/nestedModel';
 
 /**
  * Initial Zustand slice state for all Nested Models, organized by PRA analysis area.
  */
 export const NestedModelsState = {
   NestedModels: {
-    parentId: "",
+    parentId: '',
     OpStateAnalysis: [] as string[],
     InitiatingEventsAnalysis: {
       InitiatingEvents: [] as NestedModelType[],

@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
 
 @Schema({
   toJSON: {
@@ -36,4 +36,5 @@ export class GlobalParameter {
 
 export type GlobalParameterDocument = GlobalParameter & Document;
 /** Mongoose schema for GlobalParameter. */
-export const GlobalParameterSchema = SchemaFactory.createForClass(GlobalParameter);
+export const GlobalParameterSchema =
+  SchemaFactory.createForClass(GlobalParameter);

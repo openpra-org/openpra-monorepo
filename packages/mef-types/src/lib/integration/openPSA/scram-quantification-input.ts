@@ -50,7 +50,16 @@ type NonEmptyString = string; // Length > 1. Texts without LF and other special 
  * const failureRateUnit: Unit = "years-1";
  * ```
  */
-type Unit = "bool" | "int" | "float" | "hours" | "hours-1" | "years" | "years-1" | "fit" | "demands";
+type Unit =
+  | 'bool'
+  | 'int'
+  | 'float'
+  | 'hours'
+  | 'hours-1'
+  | 'years'
+  | 'years-1'
+  | 'fit'
+  | 'demands';
 
 /**
  * Type representing Common Cause Failure model types.
@@ -63,7 +72,7 @@ type Unit = "bool" | "int" | "float" | "hours" | "hours-1" | "years" | "years-1"
  * const ccfModel: CCFModelType = "beta-factor";
  * ```
  */
-type CCFModelType = "beta-factor" | "MGL" | "alpha-factor" | "phi-factor";
+type CCFModelType = 'beta-factor' | 'MGL' | 'alpha-factor' | 'phi-factor';
 
 /**
  * Type representing substitution operation types.
@@ -76,7 +85,7 @@ type CCFModelType = "beta-factor" | "MGL" | "alpha-factor" | "phi-factor";
  * const substituteType: SubstitutionType = "exchange-event";
  * ```
  */
-type SubstitutionType = "delete-terms" | "recovery-rule" | "exchange-event";
+type SubstitutionType = 'delete-terms' | 'recovery-rule' | 'exchange-event';
 
 /**
  * Type representing the visibility role of an element.
@@ -89,7 +98,7 @@ type SubstitutionType = "delete-terms" | "recovery-rule" | "exchange-event";
  * const eventRole: Role = "public";
  * ```
  */
-type Role = "private" | "public";
+type Role = 'private' | 'public';
 
 /**
  * Type representing the type of an event in a fault tree.
@@ -102,14 +111,14 @@ type Role = "private" | "public";
  * const type: EventType = "basic-event";
  * ```
  */
-type EventType = "gate" | "basic-event" | "house-event";
+type EventType = 'gate' | 'basic-event' | 'house-event';
 
 /**
  * Type representing the direction of operations.
  * @memberof Quantification
  * @type {string}
  */
-type Direction = "forward";
+type Direction = 'forward';
 
 /**
  * Interface representing an attribute with name, value, and optional data type.
@@ -819,7 +828,12 @@ interface ExternFunction {
  * };
  * ```
  */
-type BuiltInFunction = ExponentialFunction | GLMFunction | WeibullFunction | PeriodicTestFunction | ExternFunction;
+type BuiltInFunction =
+  | ExponentialFunction
+  | GLMFunction
+  | WeibullFunction
+  | PeriodicTestFunction
+  | ExternFunction;
 
 /**
  * Interface representing a uniform distribution for random deviates.
@@ -1026,7 +1040,13 @@ interface HistogramDeviate {
  * };
  * ```
  */
-type RandomDeviate = UniformDeviate | NormalDeviate | LognormalDeviate | GammaDeviate | BetaDeviate | HistogramDeviate;
+type RandomDeviate =
+  | UniformDeviate
+  | NormalDeviate
+  | LognormalDeviate
+  | GammaDeviate
+  | BetaDeviate
+  | HistogramDeviate;
 
 /**
  * Interface representing a test initiating event.
@@ -1790,7 +1810,14 @@ interface Link {
  * };
  * ```
  */
-type Instruction = SetHouseEvent | CollectFormula | CollectExpression | IfThenElse | Block | Rule | Link;
+type Instruction =
+  | SetHouseEvent
+  | CollectFormula
+  | CollectExpression
+  | IfThenElse
+  | Block
+  | Rule
+  | Link;
 
 /**
  * Interface representing a phase definition in an alignment.
@@ -1990,7 +2017,7 @@ interface ExternLibraryDefinition extends BaseElement {
  * const paramType: ExternFunctionParameterType = "double";
  * ```
  */
-type ExternFunctionParameterType = "int" | "double";
+type ExternFunctionParameterType = 'int' | 'double';
 
 /**
  * Interface representing an external function definition.
@@ -2178,7 +2205,9 @@ interface Path {
  * };
  * ```
  */
-type EndState = { sequence: { name: Identifier } } | { branch: { name: Identifier } };
+type EndState =
+  | { sequence: { name: Identifier } }
+  | { branch: { name: Identifier } };
 
 /**
  * Interface representing a functional event definition in an event tree.

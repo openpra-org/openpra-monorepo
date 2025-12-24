@@ -4,10 +4,10 @@
  * @description Core patterns, enums, and types shared across technical elements
  */
 
-import { Unique } from "./meta";
-import typia, { tags } from "typia";
+import { Unique } from './meta';
+import typia, { tags } from 'typia';
 // Import DistributionType from data-analysis
-import { DistributionType } from "../data-analysis/data-analysis";
+import { DistributionType } from '../data-analysis/data-analysis';
 
 /**
  * Common ID patterns used throughout the technical elements
@@ -16,27 +16,27 @@ import { DistributionType } from "../data-analysis/data-analysis";
  */
 export const IdPatterns = {
   /** Pattern for Plant Operating State IDs */
-  STATE: "^POS-[A-Z0-9-]+$",
+  STATE: '^POS-[A-Z0-9-]+$',
   /** Pattern for Sequence IDs */
-  SEQUENCE: "^SEQ-[A-Z0-9-]{4,}",
+  SEQUENCE: '^SEQ-[A-Z0-9-]{4,}',
   /** Pattern for Component IDs */
-  COMPONENT: "^CMP-[A-Z0-9-]+$",
+  COMPONENT: '^CMP-[A-Z0-9-]+$',
   /** Pattern for Failure Mode IDs */
-  FAILURE_MODE: "^FM-[A-Z0-9-]+$",
+  FAILURE_MODE: '^FM-[A-Z0-9-]+$',
   /** Pattern for Success Criteria IDs */
-  SUCCESS_CRITERIA_ID: "^SC-[A-Z0-9-]+$",
+  SUCCESS_CRITERIA_ID: '^SC-[A-Z0-9-]+$',
   /** Pattern for System IDs */
-  SYSTEM_ID: "^SYS-[A-Z0-9-]+$",
+  SYSTEM_ID: '^SYS-[A-Z0-9-]+$',
   /** Pattern for Human Action IDs */
-  HUMAN_ACTION_ID: "^HRA-[0-9]+$",
+  HUMAN_ACTION_ID: '^HRA-[0-9]+$',
   /** Pattern for Source Term IDs */
-  SOURCE_TERM_ID: "^ST-[0-9]+$",
+  SOURCE_TERM_ID: '^ST-[0-9]+$',
   /** Pattern for Release Category IDs */
-  RELEASE_CATEGORY_ID: "^RC-[0-9]+$",
+  RELEASE_CATEGORY_ID: '^RC-[0-9]+$',
   /** Pattern for Event Sequence IDs */
-  EVENT_SEQUENCE_ID: "^ES-[0-9]+$",
+  EVENT_SEQUENCE_ID: '^ES-[0-9]+$',
   /** Pattern for Event Sequence Family IDs */
-  EVENT_SEQUENCE_FAMILY_ID: "^ESF-[0-9]+$",
+  EVENT_SEQUENCE_FAMILY_ID: '^ESF-[0-9]+$',
 } as const;
 
 /**
@@ -45,7 +45,8 @@ export const IdPatterns = {
  * Example: SC-RCIC-001
  * @group Shared Patterns
  */
-export type SuccessCriteriaId = string & tags.Pattern<typeof IdPatterns.SUCCESS_CRITERIA_ID>;
+export type SuccessCriteriaId = string &
+  tags.Pattern<typeof IdPatterns.SUCCESS_CRITERIA_ID>;
 
 /**
  * Standardized levels for expressing importance, impact, or significance in probabilistic risk assessment
@@ -57,13 +58,13 @@ export type SuccessCriteriaId = string & tags.Pattern<typeof IdPatterns.SUCCESS_
  */
 export enum ImportanceLevel {
   /** High importance - used for significant risk contributors or major impacts */
-  HIGH = "HIGH",
+  HIGH = 'HIGH',
 
   /** Medium importance - used for moderate risk contributors or notable impacts */
-  MEDIUM = "MEDIUM",
+  MEDIUM = 'MEDIUM',
 
   /** Low importance - used for minor risk contributors or minimal impacts */
-  LOW = "LOW",
+  LOW = 'LOW',
 }
 
 /**
@@ -127,7 +128,7 @@ export interface BaseUncertaintyAnalysis extends Unique {
    * Defines the method used to propagate uncertainty, which is a general concept
    * applicable across different types of uncertainty analysis within a PRA.
    */
-  propagationMethod: "MONTE_CARLO" | "LATIN_HYPERCUBE" | "ANALYTICAL" | "OTHER";
+  propagationMethod: 'MONTE_CARLO' | 'LATIN_HYPERCUBE' | 'ANALYTICAL' | 'OTHER';
 
   /**
    * Number of samples if using simulation
@@ -185,19 +186,19 @@ export interface BaseUncertaintyAnalysis extends Unique {
  */
 export enum ScreeningStatus {
   /** Element retained for detailed analysis */
-  RETAINED = "RETAINED",
+  RETAINED = 'RETAINED',
 
   /** Element excluded from analysis based on screening criteria */
-  SCREENED_OUT = "SCREENED_OUT",
+  SCREENED_OUT = 'SCREENED_OUT',
 
   /** Element merged into another group */
-  MERGED = "MERGED",
+  MERGED = 'MERGED',
 
   /** Element requires full quantitative analysis */
-  FULL_ANALYSIS = "FULL_ANALYSIS",
+  FULL_ANALYSIS = 'FULL_ANALYSIS',
 
   /** Element requires only qualitative analysis */
-  QUALITATIVE_ANALYSIS = "QUALITATIVE_ANALYSIS",
+  QUALITATIVE_ANALYSIS = 'QUALITATIVE_ANALYSIS',
 }
 
 /**
@@ -267,22 +268,22 @@ export interface ScreeningCriteria {
  */
 export enum RiskMetricType {
   /** Individual early fatality risk */
-  INDIVIDUAL_EARLY_FATALITY_RISK = "INDIVIDUAL_EARLY_FATALITY_RISK",
+  INDIVIDUAL_EARLY_FATALITY_RISK = 'INDIVIDUAL_EARLY_FATALITY_RISK',
 
   /** Individual latent cancer fatality risk */
-  INDIVIDUAL_LATENT_CANCER_FATALITY_RISK = "INDIVIDUAL_LATENT_CANCER_FATALITY_RISK",
+  INDIVIDUAL_LATENT_CANCER_FATALITY_RISK = 'INDIVIDUAL_LATENT_CANCER_FATALITY_RISK',
 
   /** Population dose */
-  POPULATION_DOSE = "POPULATION_DOSE",
+  POPULATION_DOSE = 'POPULATION_DOSE',
 
   /** Land contamination area */
-  LAND_CONTAMINATION_AREA = "LAND_CONTAMINATION_AREA",
+  LAND_CONTAMINATION_AREA = 'LAND_CONTAMINATION_AREA',
 
   /** Economic cost */
-  ECONOMIC_COST = "ECONOMIC_COST",
+  ECONOMIC_COST = 'ECONOMIC_COST',
 
   /** Custom metric defined by the user */
-  CUSTOM = "CUSTOM",
+  CUSTOM = 'CUSTOM',
 }
 
 /**
@@ -292,14 +293,14 @@ export enum RiskMetricType {
  */
 export enum RiskSignificanceCriteriaType {
   /** Quantitative Health Objectives */
-  QHO = "QHO",
+  QHO = 'QHO',
 
   /** Safety Goals */
-  SAFETY_GOAL = "SAFETY_GOAL",
+  SAFETY_GOAL = 'SAFETY_GOAL',
 
   /** Design Objectives */
-  DESIGN_OBJECTIVE = "DESIGN_OBJECTIVE",
+  DESIGN_OBJECTIVE = 'DESIGN_OBJECTIVE',
 
   /** Other criteria */
-  OTHER = "OTHER",
+  OTHER = 'OTHER',
 }

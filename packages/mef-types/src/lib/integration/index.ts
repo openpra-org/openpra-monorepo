@@ -8,15 +8,15 @@
  */
 
 // Export OpenPSA serialization interfaces
-export * from "./openPSA/openPSA-xml-serialization";
+export * from './openPSA/openPSA-xml-serialization';
 
 // Export SAPHIRE integration interfaces
-export * from "./SAPHIRE/saphire-annotations";
+export * from './SAPHIRE/saphire-annotations';
 
 // Export quantification adapter and types for third-party quantification tools
-export * from "./openPSA/quantification-adapter";
-export * from "./openPSA/quantification-adapter-types";
-export * from "./openPSA/scram-quantification-input";
+export * from './openPSA/quantification-adapter';
+export * from './openPSA/quantification-adapter-types';
+export * from './openPSA/scram-quantification-input';
 
 // Re-export specific SAPHIRE types for convenience within the integration namespace
 // These will be documented within the integration namespace in TypeDoc
@@ -45,4 +45,4 @@ export {
   endStateSaphireMappings,
   SaphireHistogram,
   histogramSaphireMappings,
-} from "./SAPHIRE/saphire-annotations";
+} from './SAPHIRE/saphire-annotations';

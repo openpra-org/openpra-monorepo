@@ -5,10 +5,10 @@
  */
 
 // Direct exports from the main module
-export * from "./event-sequence-quantification";
+export * from './event-sequence-quantification';
 
 // Export additional reference interfaces from references module
-export { RiskSignificantEventSequence } from "./references";
+export { RiskSignificantEventSequence } from './references';
 
 // Export examples directly
-export * from "./example-event-sequence-quantification";
+export * from './example-event-sequence-quantification';

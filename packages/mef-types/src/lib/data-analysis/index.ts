@@ -5,7 +5,7 @@
  */
 
 // Export all from the main data-analysis module
-export * from "./data-analysis";
+export * from './data-analysis';
 
 // Export examples directly
-export * from "./example-data-analysis";
+export * from './example-data-analysis';

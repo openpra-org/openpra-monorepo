@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
 
 @Schema({ versionKey: false })
 /**
@@ -15,4 +15,6 @@ export class GlobalParameterCounter {
 
 export type GlobalParameterCounterDocument = GlobalParameterCounter & Document;
 /** Mongoose schema for GlobalParameterCounter. */
-export const GlobalParameterCounterSchema = SchemaFactory.createForClass(GlobalParameterCounter);
+export const GlobalParameterCounterSchema = SchemaFactory.createForClass(
+  GlobalParameterCounter,
+);

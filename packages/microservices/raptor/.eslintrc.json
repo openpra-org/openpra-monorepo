@@ -1,0 +1,169 @@
+{
+  "root": true,
+  "ignorePatterns": ["!**/*"],
+  "plugins": [
+    "@nx",
+    "import",
+    "@typescript-eslint/eslint-plugin",
+    "eslint-plugin-tsdoc",
+    "jest",
+    "security"
+  ],
+  "extends": [
+    // https://github.com/typescript-eslint/typescript-eslint/blob/main/packages/eslint-plugin/src/configs/strict-type-checked.ts
+    "plugin:@typescript-eslint/strict-type-checked",
+    // https://github.com/typescript-eslint/typescript-eslint/blob/main/packages/eslint-plugin/src/configs/stylistic-type-checked.ts
+    "plugin:@typescript-eslint/stylistic-type-checked",
+    // https://www.npmjs.com/package/eslint-plugin-security
+    "plugin:security/recommended",
+    // https://www.npmjs.com/package/eslint-plugin-jsonc
+    // https://ota-meshi.github.io/eslint-plugin-jsonc/rules/
+    "plugin:jsonc/recommended-with-jsonc",
+    "plugin:json-schema-validator/recommended",
+    "plugin:prettier/recommended"
+  ],
+  "overrides": [
+    {
+      "files": ["*.json"],
+      "rules": {
+        "prettier/prettier": [
+          "warn",
+          {
+            "bracketSpacing": true,
+            "endOfLine": "lf",
+            "experimentalTernaries": true,
+            "printWidth": 120,
+            "singleAttributePerLine": true,
+            "singleQuote": false
+          }
+        ]
+      }
+    },
+    {
+      "files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+      "rules": {
+        "eqeqeq": ["warn", "always"],
+        "no-unused-vars": [
+          "warn",
+          {
+            "vars": "all",
+            "args": "after-used",
+            "ignoreRestSiblings": false
+          }
+        ],
+        "no-var": "warn",
+        "prefer-const": [
+          "warn",
+          {
+            "destructuring": "any",
+            "ignoreReadBeforeAssign": false
+          }
+        ],
+        "prettier/prettier": [
+          "warn",
+          {
+            "bracketSpacing": true,
+            "endOfLine": "lf",
+            "experimentalTernaries": true,
+            "printWidth": 120,
+            "singleAttributePerLine": true,
+            "singleQuote": false
+          }
+        ],
+        "arrow-body-style": "off",
+        "prefer-arrow-callback": "off",
+        "no-console": "warn"
+      }
+    },
+    {
+      "files": ["*.ts", "*.tsx"],
+      "extends": ["plugin:@nx/typescript"],
+      "rules": {
+        "@typescript-eslint/explicit-function-return-type": "warn",
+        "import/no-default-export": "warn",
+        // Naming Conventions
+        "@typescript-eslint/naming-convention": [
+          "warn",
+          {
+            "selector": "class",
+            "format": ["PascalCase"]
+          },
+          {
+            "selector": "interface",
+            "format": ["PascalCase"]
+          },
+          {
+            "selector": "typeAlias",
+            "format": ["PascalCase"]
+          },
+          {
+            "selector": "variable",
+            "modifiers": ["exported"],
+            "format": ["PascalCase"]
+          },
+          {
+            "selector": "variable",
+            "format": ["camelCase", "PascalCase"]
+          },
+          {
+            "selector": "function",
+            "modifiers": ["exported"],
+            "format": ["PascalCase"]
+          },
+          {
+            "selector": "function",
+            "format": ["camelCase", "PascalCase"]
+          },
+          {
+            "selector": "enum",
+            "format": ["PascalCase"]
+          }
+        ],
+        "@typescript-eslint/member-ordering": [
+          "warn",
+          {
+            "default": {
+              "memberTypes": ["set"],
+              "order": "alphabetically"
+            }
+          }
+        ],
+        "@typescript-eslint/type-annotation-spacing": "warn",
+        "@typescript-eslint/prefer-readonly": "warn",
+        "@typescript-eslint/no-extraneous-class": "off",
+        "@typescript-eslint/consistent-type-definitions": ["warn", "interface"],
+        // Formatting Conventions
+        "import/order": "warn",
+        "tsdoc/syntax": "warn",
+        // Override false positives
+        "security/detect-object-injection": "off",
+        "security/detect-non-literal-fs-filename": "off",
+        "@typescript-eslint/no-extra-semi": "error",
+        "no-extra-semi": "off"
+      }
+    },
+    {
+      "files": ["*.js", "*.jsx"],
+      "extends": ["plugin:@nx/javascript"],
+      "rules": {
+        "@typescript-eslint/no-extra-semi": "error",
+        "no-extra-semi": "off"
+      }
+    },
+    {
+      "files": ["*.spec.ts", "*.spec.tsx", "*.spec.js", "*.spec.jsx"],
+      "env": {
+        "jest": true
+      },
+      "extends": ["plugin:jest/recommended"],
+      "rules": {}
+    },
+    {
+      "files": ["*.json"],
+      "parser": "jsonc-eslint-parser",
+      "rules": {
+        "@nx/dependency-checks": "error"
+      }
+    }
+  ]
+}

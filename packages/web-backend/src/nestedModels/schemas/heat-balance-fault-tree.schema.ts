@@ -1,6 +1,6 @@
-import { Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
-import { NestedModel } from "./templateSchema/nested-model.schema";
+import { Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
+import { NestedModel } from './templateSchema/nested-model.schema';
 
 /**
  * Nested model representing a Heat Balance Fault Tree technical element.
@@ -11,7 +11,8 @@ export class HeatBalanceFaultTree extends NestedModel {}
 /** Mongoose document type for HeatBalanceFaultTree. */
 export type HeatBalanceFaultTreeDocument = HeatBalanceFaultTree & Document;
 /** Mongoose schema for HeatBalanceFaultTree. */
-export const HeatBalanceFaultTreeSchema = SchemaFactory.createForClass(HeatBalanceFaultTree);
+export const HeatBalanceFaultTreeSchema =
+  SchemaFactory.createForClass(HeatBalanceFaultTree);
 
 // @Schema({ _id: false, versionKey: false })
 // class Outcome {

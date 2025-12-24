@@ -12,10 +12,19 @@
  * @category Technical Elements
  */
 
-import typia, { tags } from "typia";
-import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
-import { Named, Unique } from "../core/meta";
-import { IdPatterns, ImportanceLevel, SensitivityStudy, BaseUncertaintyAnalysis } from "../core/shared-patterns";
+import typia, { tags } from 'typia';
+import {
+  TechnicalElement,
+  TechnicalElementTypes,
+  TechnicalElementMetadata,
+} from '../technical-element';
+import { Named, Unique } from '../core/meta';
+import {
+  IdPatterns,
+  ImportanceLevel,
+  SensitivityStudy,
+  BaseUncertaintyAnalysis,
+} from '../core/shared-patterns';
 import {
   BaseDesignInformation,
   BaseProcessDocumentation,
@@ -25,14 +34,18 @@ import {
   BaseTraceabilityDocumentation,
   BaseAssumption,
   PreOperationalAssumption,
-} from "../core/documentation";
-import { BaseEvent, BasicEvent, TopEvent } from "../core/events";
-import { DistributionType } from "../data-analysis/data-analysis";
+} from '../core/documentation';
+import { BaseEvent, BasicEvent, TopEvent } from '../core/events';
+import { DistributionType } from '../data-analysis/data-analysis';
 import {
   EventSequenceQuantification,
   BarrierStatus,
-} from "../event-sequence-quantification/event-sequence-quantification";
-import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
+} from '../event-sequence-quantification/event-sequence-quantification';
+import {
+  VersionInfo,
+  SCHEMA_VERSION,
+  createVersionInfo,
+} from '../core/version';
 
 //==============================================================================
 /**
@@ -46,14 +59,16 @@ import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version"
  * Format: RC-[NAME] (e.g., RC-LER)
  * @group Core Definitions & Enums
  */
-export type ReleaseCategoryReference = string & tags.Pattern<"^RC-[A-Za-z0-9_-]+$">;
+export type ReleaseCategoryReference = string &
+  tags.Pattern<'^RC-[A-Za-z0-9_-]+$'>;
 
 /**
  * Type for source term IDs.
  * Format: ST-[NUMBER] (e.g., ST-001)
  * @group Core Definitions & Enums
  */
-export type SourceTermDefinitionReference = string & tags.Pattern<"^ST-[0-9]+$">;
+export type SourceTermDefinitionReference = string &
+  tags.Pattern<'^ST-[0-9]+$'>;
 
 /**
  * Type for event sequence references from event sequence quantification
@@ -67,16 +82,16 @@ export type EventSequenceReference = string;
  */
 export enum ReleaseForm {
   /** Elemental gaseous form */
-  ELEMENTAL = "ELEMENTAL",
+  ELEMENTAL = 'ELEMENTAL',
 
   /** Aerosol particles suspended in air */
-  AEROSOL = "AEROSOL",
+  AEROSOL = 'AEROSOL',
 
   /** Dust particles */
-  DUST = "DUST",
+  DUST = 'DUST',
 
   /** Other forms not covered by the standard categories */
-  OTHER = "OTHER",
+  OTHER = 'OTHER',
 }
 
 /**
@@ -147,49 +162,49 @@ export interface RadionuclideReleaseUncertainty {
  */
 export enum TransportPhenomenonType {
   /** Barrier degradation or failure */
-  BARRIER_FAILURE = "BARRIER_FAILURE",
+  BARRIER_FAILURE = 'BARRIER_FAILURE',
 
   /** Radionuclide transport through intact barriers */
-  BARRIER_LEAKAGE = "BARRIER_LEAKAGE",
+  BARRIER_LEAKAGE = 'BARRIER_LEAKAGE',
 
   /** Physical deposition of radioactive material */
-  DEPOSITION = "DEPOSITION",
+  DEPOSITION = 'DEPOSITION',
 
   /** Resuspension of deposited material */
-  RESUSPENSION = "RESUSPENSION",
+  RESUSPENSION = 'RESUSPENSION',
 
   /** Chemical interactions affecting transport and form */
-  CHEMICAL_INTERACTION = "CHEMICAL_INTERACTION",
+  CHEMICAL_INTERACTION = 'CHEMICAL_INTERACTION',
 
   /** General thermal processes affecting transport */
-  THERMAL_PROCESS = "THERMAL_PROCESS",
+  THERMAL_PROCESS = 'THERMAL_PROCESS',
 
   /** General mechanical processes affecting transport (e.g., pressure-driven flow) */
-  MECHANICAL_PROCESS = "MECHANICAL_PROCESS",
+  MECHANICAL_PROCESS = 'MECHANICAL_PROCESS',
 
   /** Heat generation from various sources (reactivity additions, decay heat, exothermic reactions, recriticality) */
-  HEAT_GENERATION = "HEAT_GENERATION",
+  HEAT_GENERATION = 'HEAT_GENERATION',
 
   /** Heat removal mechanisms (forced convection, natural convection, conduction, thermal radiation, endothermic reactions) */
-  HEAT_REMOVAL = "HEAT_REMOVAL",
+  HEAT_REMOVAL = 'HEAT_REMOVAL',
 
   /** Transport of material in gaseous form (pressure differences, blowdown, expansion, contraction, buoyancy, chemical reaction products) */
-  GASEOUS_TRANSPORT = "GASEOUS_TRANSPORT",
+  GASEOUS_TRANSPORT = 'GASEOUS_TRANSPORT',
 
   /** Transport of material in solid form (diffusion, gravity, steam/water, other liquids, liftoff based on volatility) */
-  SOLID_TRANSPORT = "SOLID_TRANSPORT",
+  SOLID_TRANSPORT = 'SOLID_TRANSPORT',
 
   /** Physical movement of core or source materials */
-  INVENTORY_RELOCATION = "INVENTORY_RELOCATION",
+  INVENTORY_RELOCATION = 'INVENTORY_RELOCATION',
 
   /** Effects of explosions on transport and barriers */
-  EXPLOSION_EFFECTS = "EXPLOSION_EFFECTS",
+  EXPLOSION_EFFECTS = 'EXPLOSION_EFFECTS',
 
   /** Transformation of radionuclides through decay and buildup */
-  RADIONUCLIDE_TRANSFORMATION = "RADIONUCLIDE_TRANSFORMATION",
+  RADIONUCLIDE_TRANSFORMATION = 'RADIONUCLIDE_TRANSFORMATION',
 
   /** Other phenomena not covered by the standard categories */
-  OTHER = "OTHER",
+  OTHER = 'OTHER',
 }
 
 //==============================================================================
@@ -675,7 +690,8 @@ export interface SourceTermModel extends Unique, Named {
  * @description Extends the base uncertainty analysis with mechanistic source term specific aspects.
  * @implements MS-D1
  */
-export interface MechanisticSourceTermUncertaintyAnalysis extends BaseUncertaintyAnalysis {
+export interface MechanisticSourceTermUncertaintyAnalysis
+  extends BaseUncertaintyAnalysis {
   /** Reference to the source term or release category being analyzed */
   sourceTermReference?: SourceTermDefinitionReference;
   releaseCategoryReference?: ReleaseCategoryReference;
@@ -701,7 +717,11 @@ export interface MechanisticSourceTermUncertaintyAnalysis extends BaseUncertaint
   uncertaintyPropagationResults?: {
     description: string;
     resultSummary: string;
-    confidenceIntervals?: { level: number; lowerBound: number; upperBound: number }[];
+    confidenceIntervals?: {
+      level: number;
+      lowerBound: number;
+      upperBound: number;
+    }[];
   };
 
   /**
@@ -729,7 +749,8 @@ export interface MechanisticSourceTermUncertaintyAnalysis extends BaseUncertaint
  * @implements MS-D2
  * @implements MS-E1(f)
  */
-export interface MechanisticSourceTermSensitivityStudy extends SensitivityStudy {
+export interface MechanisticSourceTermSensitivityStudy
+  extends SensitivityStudy {
   /** Reference to the source term or release category being analyzed */
   sourceTermReference?: SourceTermDefinitionReference;
   releaseCategoryReference?: ReleaseCategoryReference;
@@ -771,7 +792,8 @@ export interface MechanisticSourceTermSensitivityStudy extends SensitivityStudy 
  * @implements MS-C6
  * @implements MS-E3
  */
-export interface MechanisticSourceTermModelUncertaintyDocumentation extends BaseModelUncertaintyDocumentation {
+export interface MechanisticSourceTermModelUncertaintyDocumentation
+  extends BaseModelUncertaintyDocumentation {
   /** Sources of uncertainty specific to transport phenomena modeling */
   transportPhenomenaUncertainties?: {
     phenomenon: string;
@@ -838,12 +860,13 @@ export interface MechanisticSourceTermModelUncertaintyDocumentation extends Base
  * @description Process documentation for the mechanistic source term analysis.
  * @implements MS-E1
  */
-export interface MechanisticSourceTermProcessDocumentation extends BaseProcessDocumentation {
+export interface MechanisticSourceTermProcessDocumentation
+  extends BaseProcessDocumentation {
   /** Documentation of radioactive source characterization */
   radioactiveSourceCharacterizations?: Record<
     string,
     {
-      source: RadioactiveSource["uuid"];
+      source: RadioactiveSource['uuid'];
       description: string;
       inventoryBasis: string;
     }
@@ -1078,7 +1101,10 @@ export interface MechanisticSourceTermAnalysis
    * Definition of the source term for each modeled release category, including release characteristics and timing.
    * @implements MS-E2
    */
-  sourceTermDefinitions: Record<SourceTermDefinitionReference, SourceTermDefinition>;
+  sourceTermDefinitions: Record<
+    SourceTermDefinitionReference,
+    SourceTermDefinition
+  >;
 
   /**
    * Models and computer programs used in the development of source terms.
@@ -1149,7 +1175,7 @@ export interface MechanisticSourceTermAnalysis
         recommendations?: string[];
 
         /** Status of addressing the feedback */
-        status?: "PENDING" | "IN_PROGRESS" | "ADDRESSED" | "DEFERRED";
+        status?: 'PENDING' | 'IN_PROGRESS' | 'ADDRESSED' | 'DEFERRED';
       }
     >;
 
@@ -1170,7 +1196,7 @@ export interface MechanisticSourceTermAnalysis
         keyUncertainties?: string[];
 
         /** Status of addressing the feedback */
-        status?: "PENDING" | "IN_PROGRESS" | "ADDRESSED" | "DEFERRED";
+        status?: 'PENDING' | 'IN_PROGRESS' | 'ADDRESSED' | 'DEFERRED';
       }
     >;
 
@@ -1186,7 +1212,7 @@ export interface MechanisticSourceTermAnalysis
       changes?: string[];
 
       /** Status of the response */
-      status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+      status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
     };
   };
 
@@ -1479,4 +1505,5 @@ export interface MechanisticSourceTermAnalysis
  * }
  * ```
  */
-export const MechanisticSourceTermAnalysisSchema = typia.json.schemas<[MechanisticSourceTermAnalysis]>();
+export const MechanisticSourceTermAnalysisSchema =
+  typia.json.schemas<[MechanisticSourceTermAnalysis]>();

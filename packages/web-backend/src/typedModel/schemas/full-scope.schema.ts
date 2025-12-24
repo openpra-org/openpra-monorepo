@@ -1,6 +1,6 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document } from "mongoose";
-import { TypedModel } from "./templateSchema/typed-model.schema";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document } from 'mongoose';
+import { TypedModel } from './templateSchema/typed-model.schema';
 
 /**
  * Typed model representing Full Scope projects.

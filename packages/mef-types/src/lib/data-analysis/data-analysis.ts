@@ -29,26 +29,38 @@
  * - Expanded support for failure event data extraction criteria (DA-C5 to DA-C7)
  */
 
-import typia, { tags } from "typia";
-import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
-import { Named, Unique } from "../core/meta";
-import { BasicEvent, FrequencyUnit } from "../core/events";
-import { SystemDefinition, SystemBasicEvent } from "../systems-analysis/systems-analysis";
-import { SuccessCriteriaId } from "../core/shared-patterns";
-import { SensitivityStudy } from "../core/shared-patterns";
+import typia, { tags } from 'typia';
+import {
+  TechnicalElement,
+  TechnicalElementTypes,
+  TechnicalElementMetadata,
+} from '../technical-element';
+import { Named, Unique } from '../core/meta';
+import { BasicEvent, FrequencyUnit } from '../core/events';
+import {
+  SystemDefinition,
+  SystemBasicEvent,
+} from '../systems-analysis/systems-analysis';
+import { SuccessCriteriaId } from '../core/shared-patterns';
+import { SensitivityStudy } from '../core/shared-patterns';
 import {
   BaseAssumption,
   PreOperationalAssumption,
   BasePreOperationalAssumptionsDocumentation,
-} from "../core/documentation";
-import { ComponentReference } from "../core/component";
-import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
+} from '../core/documentation';
+import { ComponentReference } from '../core/component';
+import {
+  VersionInfo,
+  SCHEMA_VERSION,
+  createVersionInfo,
+} from '../core/version';
 
 /**
  * Type representing a reference to a plant operating state
  * @group Core Definition and Enums
  */
-export type PlantOperatingStateReference = string & tags.Pattern<"^POS-[A-Z0-9_-]+$">;
+export type PlantOperatingStateReference = string &
+  tags.Pattern<'^POS-[A-Z0-9_-]+$'>;
 
 //==============================================================================
 /**
@@ -65,18 +77,18 @@ export type PlantOperatingStateReference = string & tags.Pattern<"^POS-[A-Z0-9_-
  * @group Core Definition and Enums
  */
 export type ParameterType =
-  | "FREQUENCY"
-  | "PROBABILITY"
-  | "UNAVAILABILITY"
-  | "CCF_PARAMETER"
-  | "HUMAN_ERROR_PROBABILITY"
-  | "OTHER";
+  | 'FREQUENCY'
+  | 'PROBABILITY'
+  | 'UNAVAILABILITY'
+  | 'CCF_PARAMETER'
+  | 'HUMAN_ERROR_PROBABILITY'
+  | 'OTHER';
 
 /**
  * Type representing the level of detectability for a failure mode
  * @group Core Definition and Enums
  */
-export type DetectabilityLevel = "High" | "Medium" | "Low" | "None";
+export type DetectabilityLevel = 'High' | 'Medium' | 'Low' | 'None';
 
 /**
  * Enum representing the types of probability models used in data analysis.
@@ -85,16 +97,16 @@ export type DetectabilityLevel = "High" | "Medium" | "Low" | "None";
  * @group Core Definition and Enums
  */
 export enum DistributionType {
-  EXPONENTIAL = "exponential",
-  BINOMIAL = "binomial",
-  NORMAL = "normal",
-  LOGNORMAL = "lognormal",
-  WEIBULL = "weibull",
-  POISSON = "poisson",
-  UNIFORM = "uniform",
-  BETA = "beta",
-  GAMMA = "gamma",
-  POINT_ESTIMATE = "point_estimate",
+  EXPONENTIAL = 'exponential',
+  BINOMIAL = 'binomial',
+  NORMAL = 'normal',
+  LOGNORMAL = 'lognormal',
+  WEIBULL = 'weibull',
+  POISSON = 'poisson',
+  UNIFORM = 'uniform',
+  BETA = 'beta',
+  GAMMA = 'gamma',
+  POINT_ESTIMATE = 'point_estimate',
 }
 
 /**
@@ -109,7 +121,7 @@ export interface ProbabilityModel {
   parameters: Record<string, number>;
 
   /** Source of the probability model */
-  source?: "estimated" | "manual" | "default";
+  source?: 'estimated' | 'manual' | 'default';
 
   /** Details about how the probability model was estimated */
   estimationDetails?: {
@@ -248,7 +260,7 @@ export interface OperationalDataPoint {
   timestamp: string;
 
   /** Type of event recorded */
-  eventType: "failure" | "repair" | "inspection" | "maintenance";
+  eventType: 'failure' | 'repair' | 'inspection' | 'maintenance';
 
   /** Number of hours the component was in operation at the time of the event */
   operatingHours: number;
@@ -355,22 +367,32 @@ export class FailureRateEstimator {
     failureModeRef: string,
     componentTypeRef: string,
     dataRegistry: OperationalDataRegistry,
-    method: "maxLikelihood" | "bayesian" = "maxLikelihood",
+    method: 'maxLikelihood' | 'bayesian' = 'maxLikelihood',
   ): FailureRateEstimationResult {
     // Get relevant data points
     const dataPointIds = dataRegistry.dataByFailureMode?.[failureModeRef] ?? [];
     const dataPoints = dataPointIds
       .map((id) => dataRegistry.dataPoints.find((dp) => dp.id === id))
-      .filter((dp) => dp && dp.componentTypeReference === componentTypeRef) as OperationalDataPoint[];
+      .filter(
+        (dp) => dp && dp.componentTypeReference === componentTypeRef,
+      ) as OperationalDataPoint[];
 
     if (dataPoints.length === 0) {
-      throw new Error("Insufficient data for estimation");
+      throw new Error('Insufficient data for estimation');
     }
 
     // Perform estimation based on method
-    return method === "maxLikelihood" ?
-        this.performMaxLikelihoodEstimation(dataPoints, failureModeRef, componentTypeRef)
-      : this.performBayesianEstimation(dataPoints, failureModeRef, componentTypeRef);
+    return method === 'maxLikelihood'
+      ? this.performMaxLikelihoodEstimation(
+          dataPoints,
+          failureModeRef,
+          componentTypeRef,
+        )
+      : this.performBayesianEstimation(
+          dataPoints,
+          failureModeRef,
+          componentTypeRef,
+        );
   }
 
   /**
@@ -390,7 +412,8 @@ export class FailureRateEstimator {
 
     // Example simplified implementation (placeholder)
     const operatingHours = dataPoints.map((dp) => dp.operatingHours);
-    const meanTime = operatingHours.reduce((sum, h) => sum + h, 0) / operatingHours.length;
+    const meanTime =
+      operatingHours.reduce((sum, h) => sum + h, 0) / operatingHours.length;
 
     return {
       failureModeReference: failureModeRef,
@@ -402,7 +425,7 @@ export class FailureRateEstimator {
       },
       sampleSize: dataPoints.length,
       goodnessOfFit: {
-        method: "Anderson-Darling",
+        method: 'Anderson-Darling',
         value: 0.95, // Placeholder
       },
     };
@@ -532,7 +555,7 @@ export interface DataSource {
   /**
    * Type of source (Generic industry, Plant-specific, Expert judgment)
    */
-  sourceType?: "GENERIC_INDUSTRY" | "PLANT_SPECIFIC" | "EXPERT_JUDGMENT";
+  sourceType?: 'GENERIC_INDUSTRY' | 'PLANT_SPECIFIC' | 'EXPERT_JUDGMENT';
 
   /**
    * Time period covered by the data
@@ -777,7 +800,11 @@ export interface BasicEventBoundary extends Unique, Named {
  */
 export interface ExternalDataSource extends Unique, Named {
   /** Type of data source */
-  sourceType: "INDUSTRY_DATABASE" | "PLANT_RECORDS" | "EXPERT_JUDGMENT" | "OTHER";
+  sourceType:
+    | 'INDUSTRY_DATABASE'
+    | 'PLANT_RECORDS'
+    | 'EXPERT_JUDGMENT'
+    | 'OTHER';
 
   /** Source location or identifier */
   sourceLocation: string;
@@ -823,7 +850,7 @@ export interface DataConsistencyCheck extends Unique {
   verificationMethod: string;
 
   /** Consistency assessment */
-  consistencyAssessment: "CONSISTENT" | "INCONSISTENT" | "PARTIALLY_CONSISTENT";
+  consistencyAssessment: 'CONSISTENT' | 'INCONSISTENT' | 'PARTIALLY_CONSISTENT';
 
   /** Discrepancies found */
   discrepancies?: string[];
@@ -878,7 +905,7 @@ export interface OutlierComponent extends Unique {
   referenceDocuments?: string[];
 
   /** Status of the outlier determination */
-  status: "CONFIRMED" | "TENTATIVE" | "UNDER_REVIEW";
+  status: 'CONFIRMED' | 'TENTATIVE' | 'UNDER_REVIEW';
 
   /** Date when the outlier determination was made */
   determinationDate?: string;
@@ -990,7 +1017,7 @@ export interface Uncertainty {
     /**
      * Qualitative assessment of uncertainty significance ("high" | "medium" | "low").
      */
-    significanceLevel: "high" | "medium" | "low";
+    significanceLevel: 'high' | 'medium' | 'low';
 
     /**
      * Notes on how this uncertainty propagates through the risk model.
@@ -1011,7 +1038,7 @@ export interface Uncertainty {
     /**
      * Type of correlation ("common_cause" | "environmental" | "operational" | "other").
      */
-    correlationType: "common_cause" | "environmental" | "operational" | "other";
+    correlationType: 'common_cause' | 'environmental' | 'operational' | 'other';
 
     /**
      * Correlation coefficient or factor.
@@ -1502,7 +1529,8 @@ export interface ModelUncertaintyDocumentation extends Unique, Named {
  * @group Documentation & Traceability
  * @implements DA-E3
  */
-export interface PreOperationalAssumptionsDocumentation extends BasePreOperationalAssumptionsDocumentation {
+export interface PreOperationalAssumptionsDocumentation
+  extends BasePreOperationalAssumptionsDocumentation {
   /**
    * Reference to DA-A6
    * @implements DA-E3: See DA-A6
@@ -1534,11 +1562,11 @@ export interface PeerReviewDocumentation extends Unique, Named {
     /** Finding description */
     description: string;
     /** Significance level */
-    significance: "HIGH" | "MEDIUM" | "LOW";
+    significance: 'HIGH' | 'MEDIUM' | 'LOW';
     /** Associated requirement(s) */
     associatedRequirements: string[];
     /** Status */
-    status: "OPEN" | "CLOSED" | "IN_PROGRESS";
+    status: 'OPEN' | 'CLOSED' | 'IN_PROGRESS';
     /** Resolution plan */
     resolutionPlan?: string;
     /** Resolution date */
@@ -1580,7 +1608,7 @@ export interface PeerReviewDocumentation extends Unique, Named {
       recommendation: string;
 
       /** Status */
-      status: "ACCEPTED" | "REJECTED" | "UNDER_REVIEW";
+      status: 'ACCEPTED' | 'REJECTED' | 'UNDER_REVIEW';
     }[];
 
     /** Overall assessment of outlier handling */
@@ -1678,7 +1706,7 @@ export interface DataAnalysisExportImport {
   /**
    * Export format specification
    */
-  exportFormat: "JSON" | "CSV" | "XML";
+  exportFormat: 'JSON' | 'CSV' | 'XML';
 
   /**
    * Export configuration
@@ -1701,7 +1729,7 @@ export interface DataAnalysisExportImport {
     /** Validation checks */
     validationChecks: string[];
     /** Error handling approach */
-    errorHandling: "STRICT" | "LENIENT";
+    errorHandling: 'STRICT' | 'LENIENT';
   };
 
   /**
@@ -1723,7 +1751,8 @@ export interface DataAnalysisExportImport {
  * @group API
  * @extends {TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS>}
  */
-export interface DataAnalysis extends TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS> {
+export interface DataAnalysis
+  extends TechnicalElement<TechnicalElementTypes.DATA_ANALYSIS> {
   /**
    * Additional metadata specific to Data Analysis
    */
@@ -1822,10 +1851,11 @@ export const DataAnalysisSchema = typia.json.schemas<[DataAnalysis]>();
  */
 export class DataAnalysisService {
   /** Map of component basic events indexed by UUID */
-  private basicEvents: Map<tags.Format<"uuid">, ComponentBasicEvent> = new Map();
+  private basicEvents: Map<tags.Format<'uuid'>, ComponentBasicEvent> =
+    new Map();
 
   /** Map of failure modes indexed by UUID */
-  private failureModes: Map<tags.Format<"uuid">, FailureModeType> = new Map();
+  private failureModes: Map<tags.Format<'uuid'>, FailureModeType> = new Map();
 
   /** Registry containing operational data points */
   private dataRegistry: OperationalDataRegistry | null = null;
@@ -1839,7 +1869,7 @@ export class DataAnalysisService {
    * @returns The requested component basic event
    * @throws Error if the basic event is not found
    */
-  getComponentBasicEvent(id: tags.Format<"uuid">): ComponentBasicEvent {
+  getComponentBasicEvent(id: tags.Format<'uuid'>): ComponentBasicEvent {
     const event = this.basicEvents.get(id);
     if (!event) throw new Error(`Basic event ${id} not found`);
     return event;
@@ -1850,7 +1880,7 @@ export class DataAnalysisService {
    * @param event - The component basic event to create
    * @returns The UUID of the created event
    */
-  createComponentBasicEvent(event: ComponentBasicEvent): tags.Format<"uuid"> {
+  createComponentBasicEvent(event: ComponentBasicEvent): tags.Format<'uuid'> {
     this.basicEvents.set(event.uuid, event);
     return event.uuid;
   }
@@ -1861,7 +1891,7 @@ export class DataAnalysisService {
    * @returns The requested failure mode
    * @throws Error if the failure mode is not found
    */
-  getFailureMode(id: tags.Format<"uuid">): FailureModeType {
+  getFailureMode(id: tags.Format<'uuid'>): FailureModeType {
     const mode = this.failureModes.get(id);
     if (!mode) throw new Error(`Failure mode ${id} not found`);
     return mode;
@@ -1872,7 +1902,7 @@ export class DataAnalysisService {
    * @param mode - The failure mode to create
    * @returns The UUID of the created failure mode
    */
-  createFailureMode(mode: FailureModeType): tags.Format<"uuid"> {
+  createFailureMode(mode: FailureModeType): tags.Format<'uuid'> {
     this.failureModes.set(mode.uuid, mode);
     return mode.uuid;
   }
@@ -1891,7 +1921,7 @@ export class DataAnalysisService {
    * @throws Error if no data registry is available
    */
   getOperationalDataRegistry(): OperationalDataRegistry {
-    if (!this.dataRegistry) throw new Error("No data registry available");
+    if (!this.dataRegistry) throw new Error('No data registry available');
     return this.dataRegistry;
   }
 
@@ -1906,11 +1936,16 @@ export class DataAnalysisService {
   estimateFailureRate(
     failureModeRef: string,
     componentTypeRef: string,
-    method: "maxLikelihood" | "bayesian" = "maxLikelihood",
+    method: 'maxLikelihood' | 'bayesian' = 'maxLikelihood',
   ): FailureRateEstimationResult {
-    if (!this.dataRegistry) throw new Error("No data registry available");
+    if (!this.dataRegistry) throw new Error('No data registry available');
 
-    return this.estimator.estimateFailureRate(failureModeRef, componentTypeRef, this.dataRegistry, method);
+    return this.estimator.estimateFailureRate(
+      failureModeRef,
+      componentTypeRef,
+      this.dataRegistry,
+      method,
+    );
   }
 
   /**
@@ -1920,7 +1955,7 @@ export class DataAnalysisService {
    * @throws Error if the basic event is not found
    */
   updateBasicEventWithEstimation(
-    basicEventId: tags.Format<"uuid">,
+    basicEventId: tags.Format<'uuid'>,
     estimationResult: FailureRateEstimationResult,
   ): void {
     const event = this.getComponentBasicEvent(basicEventId);
@@ -1929,10 +1964,10 @@ export class DataAnalysisService {
     event.probabilityModel = {
       distribution: estimationResult.estimatedDistribution,
       parameters: estimationResult.parameters,
-      source: "estimated",
+      source: 'estimated',
       estimationDetails: {
         dataPointReferences: [], // Would be populated with actual data point IDs
-        estimationMethod: "maxLikelihood", // Default to MLE
+        estimationMethod: 'maxLikelihood', // Default to MLE
         estimationDate: new Date().toISOString(),
         confidence: estimationResult.goodnessOfFit?.value || 0.9,
       },

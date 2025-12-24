@@ -9,6 +9,6 @@
  * @packageDocumentation
  */
 // Expose the curated barrel for external consumers
-export * from "./lib/index";
+export * from './lib/index';
 // Keep local utility export if needed by internal callers
-export * from "./lib/shared-types";
+export * from './lib/shared-types';

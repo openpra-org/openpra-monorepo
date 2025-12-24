@@ -56,20 +56,23 @@ docker stack deploy -c stack.yml openpra
 This repo includes a GitHub Actions workflow `.github/workflows/preview-deploy.yml` that, on pull requests, launches a preview stack on a self-hosted runner using `docker/docker-compose.preview.yml`.
 
 What it does:
-- Pulls images from GHCR for frontend, backend, and job-broker (short SHA with fallbacks)
+
+- Pulls images from GHCR for frontend, backend, raptor-manager, and raptor-engine (short SHA with fallbacks)
 - Starts MongoDB and RabbitMQ containers
 - Runs the stack under a per-PR compose project name (to isolate resources)
 - Posts preview URLs back to the PR as a sticky comment
 - Tears the stack down when the PR is closed
 
 Requirements:
+
 - A self-hosted runner with Docker and Docker Compose installed and permission to bind to ports (default ranges ~4300/8300, configurable via env)
 - Network access to GHCR (it uses the repo GITHUB_TOKEN to pull)
 
 Configurable variables (repository or org-level Variables):
+
 - PREVIEW_BASE_URL: Base URL of the runner, e.g. http://your-runner-hostname
 - PREVIEW_PORT_BASE: Optional integer to offset dynamic port allocation
-- PREVIEW_FRONTEND_PORT, PREVIEW_BACKEND_PORT, PREVIEW_JOB_BROKER_PORT, PREVIEW_MONGO_EXPRESS_PORT, PREVIEW_RABBITMQ_MGMT_PORT: Optional explicit ports
+- FRONTEND_IMAGE, BACKEND_IMAGE, RAPTOR_MANAGER_IMAGE, RAPTOR_ENGINE_IMAGE: Images to deploy
+- FRONTEND_PORT, BACKEND_PORT, RAPTOR_MANAGER_PORT, MONGO_EXPRESS_PORT, RABBITMQ_MGMT_PORT: Optional explicit ports
 
 Compose services are defined in `docker/docker-compose.preview.yml`. The frontend is served by Nginx and proxies `/api/` to `backend:8000` within the compose network.
-

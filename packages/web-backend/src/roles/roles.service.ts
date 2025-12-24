@@ -1,8 +1,13 @@
-import { BadRequestException, Injectable, NotFoundException, OnApplicationBootstrap } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { Roles, RolesDocument } from "./schemas/roles.schema";
-import { PredefinedRoles, Role } from "./schemas/predefined-roles";
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  OnApplicationBootstrap,
+} from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Roles, RolesDocument } from './schemas/roles.schema';
+import { PredefinedRoles, Role } from './schemas/predefined-roles';
 
 /**
  * Service for roles persistence and predefined role initialization.

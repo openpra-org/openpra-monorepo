@@ -1,4 +1,4 @@
-import Label from "../Label";
+import Label from '../Label';
 
 /**
  * basic model class to be implemented by all other models in the future, any functionality we want within all models

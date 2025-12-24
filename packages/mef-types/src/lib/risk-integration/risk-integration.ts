@@ -36,8 +36,8 @@
  */
 
 // Core imports
-import typia, { tags } from "typia";
-import { Named, Unique } from "../core/meta";
+import typia, { tags } from 'typia';
+import { Named, Unique } from '../core/meta';
 import {
   ImportanceLevel,
   SensitivityStudy,
@@ -45,19 +45,28 @@ import {
   ScreeningCriteria,
   RiskMetricType,
   RiskSignificanceCriteriaType,
-} from "../core/shared-patterns";
-import { Frequency, FrequencyUnit } from "../core/events";
-import { Uncertainty, DataSource, Assumption, DistributionType } from "../data-analysis/data-analysis";
+} from '../core/shared-patterns';
+import { Frequency, FrequencyUnit } from '../core/events';
+import {
+  Uncertainty,
+  DataSource,
+  Assumption,
+  DistributionType,
+} from '../data-analysis/data-analysis';
 
 // Technical element imports
-import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
+import {
+  TechnicalElement,
+  TechnicalElementTypes,
+  TechnicalElementMetadata,
+} from '../technical-element';
 
 // Import proxied/re-exported types from Event Sequence Quantification
 import {
   EventSequenceReference,
   EventSequenceFamilyReference,
   RiskSignificantEventSequence,
-} from "../event-sequence-quantification";
+} from '../event-sequence-quantification';
 
 // Import proxied/re-exported types from Radiological Consequence Analysis
 import {
@@ -67,8 +76,12 @@ import {
   ReleaseCategory,
   SourceTermDefinition,
   RiskSignificantConsequence,
-} from "../radiological-consequence-analysis";
-import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
+} from '../radiological-consequence-analysis';
+import {
+  VersionInfo,
+  SCHEMA_VERSION,
+  createVersionInfo,
+} from '../core/version';
 
 //==============================================================================
 /**
@@ -83,25 +96,29 @@ import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version"
  * @example "RSC-CDF-01"
  * @group Core Definitions & Enums
  */
-export type RiskSignificanceCriteriaReference = string & tags.Pattern<"^RSC-[A-Za-z0-9_-]+$">;
+export type RiskSignificanceCriteriaReference = string &
+  tags.Pattern<'^RSC-[A-Za-z0-9_-]+$'>;
 
 /**
  * Reference to an Integrated Risk Result by its unique identifier.
  * @group Core Definitions & Enums
  */
-export type IntegratedRiskResultReference = string & tags.Pattern<"^IRR-[A-Za-z0-9_-]+$">;
+export type IntegratedRiskResultReference = string &
+  tags.Pattern<'^IRR-[A-Za-z0-9_-]+$'>;
 
 /**
  * Reference to a significant risk contributor analysis by its unique identifier.
  * @group Core Definitions & Enums
  */
-export type SignificantContributorReference = string & tags.Pattern<"^SRC-[A-Za-z0-9_-]+$">;
+export type SignificantContributorReference = string &
+  tags.Pattern<'^SRC-[A-Za-z0-9_-]+$'>;
 
 /**
  * Reference to a risk integration method by its unique identifier.
  * @group Core Definitions & Enums
  */
-export type RiskIntegrationMethodReference = string & tags.Pattern<"^RIM-[A-Za-z0-9_-]+$">;
+export type RiskIntegrationMethodReference = string &
+  tags.Pattern<'^RIM-[A-Za-z0-9_-]+$'>;
 
 /**
  * Interface for a risk metric with value and uncertainty.
@@ -127,7 +144,7 @@ export interface RiskMetric extends Unique, Named {
   acceptanceCriteria?: {
     limit: number;
     basis: string;
-    complianceStatus: "COMPLIANT" | "NON_COMPLIANT" | "INDETERMINATE";
+    complianceStatus: 'COMPLIANT' | 'NON_COMPLIANT' | 'INDETERMINATE';
   };
 }
 
@@ -554,7 +571,7 @@ export interface IntegratedRiskResults extends Unique, Named {
   complianceStatus?: {
     criterion: string;
     limit: number;
-    status: "COMPLIANT" | "NON_COMPLIANT" | "INDETERMINATE";
+    status: 'COMPLIANT' | 'NON_COMPLIANT' | 'INDETERMINATE';
     margin?: number;
     basis?: string;
   }[];
@@ -932,7 +949,7 @@ export interface RiskIntegrationAssumption extends Unique {
   alternatives?: string[];
 
   /** Status of the assumption validation */
-  validationStatus?: "VALIDATED" | "PENDING" | "INVALIDATED";
+  validationStatus?: 'VALIDATED' | 'PENDING' | 'INVALIDATED';
 
   /** For pre-operational PRAs, plan for validation once the plant is operational */
   validationPlan?: string;
@@ -1021,7 +1038,7 @@ export interface RiskIntegrationDocumentation extends Unique {
     description: string;
     significance: ImportanceLevel;
     resolution: string;
-    status: "OPEN" | "CLOSED" | "IN_PROGRESS";
+    status: 'OPEN' | 'CLOSED' | 'IN_PROGRESS';
   }[];
 
   /**
@@ -1179,7 +1196,8 @@ export interface EventSequenceToReleaseCategory extends Unique {
  * @remarks **HLR-RI**
  * @group API
  */
-export interface RiskIntegration extends TechnicalElement<TechnicalElementTypes.RISK_INTEGRATION> {
+export interface RiskIntegration
+  extends TechnicalElement<TechnicalElementTypes.RISK_INTEGRATION> {
   /**
    * Additional metadata specific to Risk Integration.
    */

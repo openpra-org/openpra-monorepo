@@ -1,5 +1,5 @@
-import Label from "../../Label";
-import { BasicModel } from "../basicModel";
+import Label from '../../Label';
+import { BasicModel } from '../basicModel';
 
 /**
  * JSON representation of a typed model.
@@ -24,8 +24,8 @@ export type TypedModelJSONMap = Record<string, TypedModelJSON>;
 export const DEFAULT_TYPED_MODEL_JSON: TypedModelJSON = {
   id: -1,
   label: {
-    name: "",
-    description: "",
+    name: '',
+    description: '',
   },
   users: [],
 };
@@ -41,7 +41,12 @@ export default class TypedModel extends BasicModel /* implements Parsable<TypedM
    * @param obj - Dictionary object to parse.
    */
   static build(obj: TypedModelJSON): TypedModel {
-    return new TypedModel(obj.id, obj.label.name, obj.label.description, obj.users);
+    return new TypedModel(
+      obj.id,
+      obj.label.name,
+      obj.label.description,
+      obj.users,
+    );
   }
 
   /**
@@ -51,7 +56,7 @@ export default class TypedModel extends BasicModel /* implements Parsable<TypedM
    * @param description - Model description.
    * @param users - A list of user IDs.
    */
-  constructor(id = -1, name = "", description = "", users: number[] = []) {
+  constructor(id = -1, name = '', description = '', users: number[] = []) {
     super(new Label(name, description), id);
     this.users = users;
   }

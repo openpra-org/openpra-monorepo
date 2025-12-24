@@ -29,7 +29,11 @@
       "outputs": ["{options.outputFile}"],
       "options": {
         "eslintConfig": "packages/shared-types/eslint.config.mjs",
-        "lintFilePatterns": ["{projectRoot}/**/*.ts", "{projectRoot}/**/*.js", "!{projectRoot}/**/*.d.ts"]
+        "lintFilePatterns": [
+          "{projectRoot}/**/*.ts",
+          "{projectRoot}/**/*.js",
+          "!{projectRoot}/**/*.d.ts"
+        ]
       }
     },
     "lint-canary": {

@@ -17,7 +17,7 @@ export interface CommandLineOptions {
   /**
    * Calculate prime implicants
    */
-  "prime-implicants"?: boolean;
+  'prime-implicants'?: boolean;
   /**
    * Perform probability analysis
    */
@@ -41,7 +41,7 @@ export interface CommandLineOptions {
   /**
    * Use the rare event approximation
    */
-  "rare-event"?: boolean;
+  'rare-event'?: boolean;
   /**
    * Use the MCUB approximation
    */
@@ -49,31 +49,31 @@ export interface CommandLineOptions {
   /**
    * Upper limit for the product order
    */
-  "limit-order"?: number;
+  'limit-order'?: number;
   /**
    * Cut-off probability for products
    */
-  "cut-off"?: number;
+  'cut-off'?: number;
   /**
    * System mission time in hours
    */
-  "mission-time"?: number;
+  'mission-time'?: number;
   /**
    * Time step in hours for probability analysis
    */
-  "time-step"?: number;
+  'time-step'?: number;
   /**
    * Number of trials for Monte Carlo simulations
    */
-  "num-trials"?: number;
+  'num-trials'?: number;
   /**
    * Number of quantiles for distributions
    */
-  "num-quantiles"?: number;
+  'num-quantiles'?: number;
   /**
    * Number of bins for histograms
    */
-  "num-bins"?: number;
+  'num-bins'?: number;
   /**
    * Seed for the pseudo-random number generator
    */
@@ -81,7 +81,7 @@ export interface CommandLineOptions {
   /**
    * Omit indentation whitespace in output XML
    */
-  "no-indent"?: boolean;
+  'no-indent'?: boolean;
   /**
    * Set log verbosity
    */
@@ -89,7 +89,7 @@ export interface CommandLineOptions {
   /**
    * Don't generate analysis report
    */
-  "no-report"?: boolean;
+  'no-report'?: boolean;
   /**
    * Path for the output/report file
    */

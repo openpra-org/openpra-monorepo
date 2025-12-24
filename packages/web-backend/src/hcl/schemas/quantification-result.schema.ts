@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import mongoose, { Document } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import mongoose, { Document } from 'mongoose';
 
 @Schema({ _id: false, versionKey: false })
 class Constructor {
@@ -92,7 +92,7 @@ const ResultDataSchema = SchemaFactory.createForClass(ResultData);
 @Schema({
   strict: false,
   timestamps: {
-    createdAt: "date_created",
+    createdAt: 'date_created',
     updatedAt: false,
   },
   toJSON: {
@@ -127,4 +127,5 @@ export class QuantificationResult {
 
 export type QuantificationResultDocument = QuantificationResult & Document;
 /** Mongoose schema for QuantificationResult. */
-export const QuantificationResultSchema = SchemaFactory.createForClass(QuantificationResult);
+export const QuantificationResultSchema =
+  SchemaFactory.createForClass(QuantificationResult);

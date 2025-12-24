@@ -1,19 +1,18 @@
 {
-  "name": "openpra-monorepo-dev",
-  "dockerComposeFile": [
-    "docker-compose.yml"
-  ],
+  "name": "microservices-dev",
+  "dockerComposeFile": ["docker-compose.yml"],
   "service": "devcontainer",
   // "build": {
   //  "dockerfile": "standalone.Dockerfile"
   // },
-  "forwardPorts": [5672, 15672, 27017],
-  "workspaceFolder": "/workspaces/openpra-monorepo",
+  "forwardPorts": [5672, 15672, 9000, 9001],
+  "workspaceFolder": "/workspaces/microservices",
   "hostRequirements": {
     "memory": "8gb",
     "cpus": 4,
     "storage": "32gb"
   },
+  "postCreateCommand": "pnpm install && cd scram-node && pnpm install",
   // "postStartCommand": "/standalone_entrypoint.sh",
   "shutdownAction": "none"
 }

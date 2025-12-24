@@ -1,4 +1,4 @@
-import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
+import { NestedModel } from '../schemas/templateSchema/nested-model.schema';
 
 /**
  * Test stub payload for creating a Human Reliability Analysis nested model.
@@ -6,7 +6,7 @@ import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
  */
 export const createHumanReliabilityAnalysisObject: Partial<NestedModel> = {
   label: {
-    name: "Human Reliability Analysis Model",
-    description: "Description for Human Reliability Analysis Model",
+    name: 'Human Reliability Analysis Model',
+    description: 'Description for Human Reliability Analysis Model',
   },
 };

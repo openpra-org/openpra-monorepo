@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus } from "@nestjs/common";
+import { HttpException, HttpStatus } from '@nestjs/common';
 
 /**
  * Thrown when a user registration or update would create a duplicate username.
@@ -10,6 +10,6 @@ export class DuplicateUserException extends HttpException {
    * Create a DuplicateUserException with HTTP 400 status.
    */
   constructor() {
-    super("Duplicate Username", HttpStatus.BAD_REQUEST);
+    super('Duplicate Username', HttpStatus.BAD_REQUEST);
   }
 }

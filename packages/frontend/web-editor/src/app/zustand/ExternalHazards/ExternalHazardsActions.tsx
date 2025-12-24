@@ -3,20 +3,19 @@ import {
   GetExternalHazards,
   PatchExternalHazard,
   PostExternalHazard,
-} from "shared-sdk/lib/api/TypedModelApiManager";
-import { ApiManager } from "shared-sdk/lib/api/ApiManager";
-import { ExternalHazardsModelType } from "shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel";
-import { TypedModelJSON } from "shared-types/src/lib/types/modelTypes/largeModels/typedModel";
-import { UseGlobalStore } from "../Store";
+} from 'shared-sdk/lib/api/TypedModelApiManager';
+import { ApiManager } from 'shared-sdk/lib/api/ApiManager';
+import { ExternalHazardsModelType } from 'shared-types/src/lib/types/modelTypes/largeModels/externalHazardsModel';
+import { TypedModelJSON } from 'shared-types/src/lib/types/modelTypes/largeModels/typedModel';
+import { UseGlobalStore } from '../Store';
 
 /**
  * Load and set External Hazards for the current user.
  */
 export const SetExternalHazards = async (): Promise<void> => {
   try {
-    const externalHazardsList: ExternalHazardsModelType[] = await GetExternalHazards(
-      ApiManager.getCurrentUser().user_id,
-    );
+    const externalHazardsList: ExternalHazardsModelType[] =
+      await GetExternalHazards(ApiManager.getCurrentUser().user_id);
     UseGlobalStore.setState({
       ExternalHazards: externalHazardsList,
     });
@@ -30,7 +29,9 @@ export const SetExternalHazards = async (): Promise<void> => {
  *
  * @param data - Partial typed model payload for creation.
  */
-export const AddExternalHazard = async (data: Partial<TypedModelJSON>): Promise<void> => {
+export const AddExternalHazard = async (
+  data: Partial<TypedModelJSON>,
+): Promise<void> => {
   try {
     const ehr: ExternalHazardsModelType = await PostExternalHazard(data);
     UseGlobalStore.setState((state) => ({
@@ -54,15 +55,21 @@ export const EditExternalHazard = async (
   data: Partial<TypedModelJSON>,
 ): Promise<void> => {
   try {
-    const ehr: ExternalHazardsModelType = await PatchExternalHazard(modelId, userId, data);
+    const ehr: ExternalHazardsModelType = await PatchExternalHazard(
+      modelId,
+      userId,
+      data,
+    );
     UseGlobalStore.setState((state) => ({
-      ExternalHazards: state.ExternalHazards.map((eh: ExternalHazardsModelType) => {
-        if (eh.id === modelId) {
-          return ehr;
-        } else {
-          return eh;
-        }
-      }),
+      ExternalHazards: state.ExternalHazards.map(
+        (eh: ExternalHazardsModelType) => {
+          if (eh.id === modelId) {
+            return ehr;
+          } else {
+            return eh;
+          }
+        },
+      ),
     }));
   } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure
@@ -79,7 +86,9 @@ export const DeleteExternalHazard = async (id: number): Promise<void> => {
     await DeleteExternalHazardAPI(id);
 
     UseGlobalStore.setState((state) => ({
-      ExternalHazards: state.ExternalHazards.filter((eh: ExternalHazardsModelType) => eh.id !== id),
+      ExternalHazards: state.ExternalHazards.filter(
+        (eh: ExternalHazardsModelType) => eh.id !== id,
+      ),
     }));
   } catch (_error: unknown) {
     // Intentionally ignore: state remains unchanged on failure

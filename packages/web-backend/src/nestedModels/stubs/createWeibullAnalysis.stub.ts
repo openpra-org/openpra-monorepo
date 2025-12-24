@@ -1,4 +1,4 @@
-import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
+import { NestedModel } from '../schemas/templateSchema/nested-model.schema';
 
 /**
  * Test stub payload for creating a Weibull Analysis nested model.
@@ -6,7 +6,7 @@ import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
  */
 export const createWeibullAnalysisObject: Partial<NestedModel> = {
   label: {
-    name: "Weibull Analysis Model",
-    description: "Description for Weibull Analysis Model",
+    name: 'Weibull Analysis Model',
+    description: 'Description for Weibull Analysis Model',
   },
 };

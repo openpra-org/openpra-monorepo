@@ -1,5 +1,5 @@
-import { Row } from "./Row";
-import { Column } from "./Column";
+import { Row } from './Row';
+import { Column } from './Column';
 
 /** FMEA table model containing columns and rows. */
 export interface Fmea {

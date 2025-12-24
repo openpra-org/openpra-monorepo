@@ -1,6 +1,6 @@
-import { create } from "zustand";
-import { Node, Edge } from "reactflow";
-import { getInitials } from "./useTreeData";
+import { create } from 'zustand';
+import { Node, Edge } from 'reactflow';
+import { getInitials } from './useTreeData';
 
 interface EventTreeNodeData {
   label: string;
@@ -17,7 +17,10 @@ interface EventTreeState {
   frequency: number;
   setNodes: (nodes: Node<EventTreeNodeData>[]) => void;
   setEdges: (edges: Edge[]) => void;
-  updateNode: (id: string, newData: Partial<Node<EventTreeNodeData>["data"]>) => void;
+  updateNode: (
+    id: string,
+    newData: Partial<Node<EventTreeNodeData>['data']>,
+  ) => void;
 }
 
 /**
@@ -30,7 +33,7 @@ interface EventTreeState {
 export const useEventTreeStore = create<EventTreeState>((set) => ({
   nodes: [],
   edges: [],
-  firstColumnLabel: "Initiating Event",
+  firstColumnLabel: 'Initiating Event',
   probability: 1.0,
   frequency: 0.0,
 
@@ -77,7 +80,10 @@ export const useEventTreeStore = create<EventTreeState>((set) => ({
     set({ edges });
   },
 
-  updateNode: (id: string, _newData: Partial<Node<EventTreeNodeData>["data"]>): void => {
+  updateNode: (
+    id: string,
+    _newData: Partial<Node<EventTreeNodeData>['data']>,
+  ): void => {
     set((state: EventTreeState): Partial<EventTreeState> => {
       const initials = getInitials(state.firstColumnLabel); // Always use the latest column name
 

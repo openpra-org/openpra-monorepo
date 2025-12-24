@@ -1,5 +1,5 @@
-import { Controller, Get } from "@nestjs/common";
-import { ApiService } from "./api.service";
+import { Controller, Get } from '@nestjs/common';
+import { ApiService } from './api.service';
 
 /**
  * Root API controller for basic service health and greetings.

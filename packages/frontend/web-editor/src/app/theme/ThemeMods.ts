@@ -1,4 +1,4 @@
-import { EuiThemeModifications } from "@elastic/eui";
+import { EuiThemeModifications } from '@elastic/eui';
 
 /**
  * Local theme overrides applied to the Elastic UI theme.

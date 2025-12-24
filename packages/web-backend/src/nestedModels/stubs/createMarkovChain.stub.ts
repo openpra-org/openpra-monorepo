@@ -1,4 +1,4 @@
-import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
+import { NestedModel } from '../schemas/templateSchema/nested-model.schema';
 
 /**
  * Test stub payload for creating a Markov Chain nested model.
@@ -6,7 +6,7 @@ import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
  */
 export const createMarkovChainObject: Partial<NestedModel> = {
   label: {
-    name: "Markov Chain Model",
-    description: "Description for Markov Chain Model",
+    name: 'Markov Chain Model',
+    description: 'Description for Markov Chain Model',
   },
 };

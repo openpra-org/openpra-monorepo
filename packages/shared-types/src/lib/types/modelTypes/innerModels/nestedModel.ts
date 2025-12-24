@@ -1,5 +1,5 @@
-import Label from "../../Label";
-import { BasicModel } from "../basicModel";
+import Label from '../../Label';
+import { BasicModel } from '../basicModel';
 
 /** JSON input shape for creating/updating a nested model. */
 export interface NestedModelJSON {
@@ -16,8 +16,8 @@ export interface NestedModelJSON {
 /** Default empty JSON for a nested model. */
 export const DefaultNestedModelJSON: NestedModelJSON = {
   label: {
-    name: "",
-    description: "",
+    name: '',
+    description: '',
   },
   parentIds: [],
 };
@@ -37,7 +37,7 @@ export class NestedModel extends BasicModel {
    * @param id - the id of the current model
    * @param parentIds - the id of the parent model this is attached to
    */
-  constructor(name = "", description = "", id = -1, parentIds: number[] = []) {
+  constructor(name = '', description = '', id = -1, parentIds: number[] = []) {
     super(new Label(name, description), id);
     this.parentIds = parentIds;
   }

@@ -7,4 +7,4 @@
  * Consumers should import from `shared-sdk` rather than deep-linking into files.
  * @packageDocumentation
  */
-export * from "./lib/shared-sdk";
+export * from './lib/shared-sdk';

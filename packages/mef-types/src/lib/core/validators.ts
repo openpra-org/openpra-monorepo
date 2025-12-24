@@ -4,7 +4,7 @@ import {
   BASIC_EVENT_REFERENCE_PATTERN,
   FAILURE_MODE_REFERENCE_PATTERN,
   parseModuleReference,
-} from "./reference-types";
+} from './reference-types';
 
 /**
  * Validates if a string matches the component type reference pattern

@@ -163,7 +163,7 @@ export interface SubsumedPOS {
   subsumedPOS: string;
   subsumingPOS: string;
   justification: string;
-  riskImpact?: "HIGH" | "MEDIUM" | "LOW";
+  riskImpact?: 'HIGH' | 'MEDIUM' | 'LOW';
   limitations?: string[];
   validationMethod?: string;
 }
@@ -497,7 +497,7 @@ export interface ModelUncertaintyInfo {
   description: string;
 
   /** Impact level of the uncertainty */
-  impact: "HIGH" | "MEDIUM" | "LOW";
+  impact: 'HIGH' | 'MEDIUM' | 'LOW';
 
   /** How the uncertainty is treated in the model */
   treatment: string;
@@ -517,31 +517,31 @@ const posAnalysis: PlantOperatingStatesAnalysis = {
 
   modelUncertainty: [
     {
-      source: "Decay Heat Calculation Method",
+      source: 'Decay Heat Calculation Method',
       description:
-        "The ANS 1979 decay heat model includes uncertainties that impact time-to-boil calculations in low-power states",
-      impact: "MEDIUM",
-      treatment: "Used ANS 1979 + 2σ uncertainty to ensure conservative time windows",
+        'The ANS 1979 decay heat model includes uncertainties that impact time-to-boil calculations in low-power states',
+      impact: 'MEDIUM',
+      treatment: 'Used ANS 1979 + 2σ uncertainty to ensure conservative time windows',
       reasonableAlternatives: [
-        "ANS 1994 decay heat model with plant-specific adjustments",
-        "Use of actual measured data from similar plants to refine the model",
+        'ANS 1994 decay heat model with plant-specific adjustments',
+        'Use of actual measured data from similar plants to refine the model',
       ],
     },
     {
-      source: "Plant Evolution Timeline",
-      description: "Limited operational experience causes uncertainty in duration of transitional states",
-      impact: "LOW",
-      treatment: "Used conservative estimates based on similar plant designs",
-      reasonableAlternatives: ["Use shorter durations to assess impact on overall risk profile"],
+      source: 'Plant Evolution Timeline',
+      description: 'Limited operational experience causes uncertainty in duration of transitional states',
+      impact: 'LOW',
+      treatment: 'Used conservative estimates based on similar plant designs',
+      reasonableAlternatives: ['Use shorter durations to assess impact on overall risk profile'],
     },
     {
-      source: "Success Criteria in Transitional States",
-      description: "Thermal-hydraulic analyses have higher uncertainty during rapidly changing conditions",
-      impact: "HIGH",
-      treatment: "Used bounding analysis at multiple snapshots within each transitional state",
+      source: 'Success Criteria in Transitional States',
+      description: 'Thermal-hydraulic analyses have higher uncertainty during rapidly changing conditions',
+      impact: 'HIGH',
+      treatment: 'Used bounding analysis at multiple snapshots within each transitional state',
       reasonableAlternatives: [
-        "Dynamic thermal-hydraulic modeling throughout the transition",
-        "More granular subdivision of transitional states",
+        'Dynamic thermal-hydraulic modeling throughout the transition',
+        'More granular subdivision of transitional states',
       ],
     },
   ],
@@ -591,7 +591,7 @@ export interface AssumptionsLackOfDetail {
   /**
    * Impact assessment of this assumption on risk
    */
-  riskImpact: "HIGH" | "MEDIUM" | "LOW";
+  riskImpact: 'HIGH' | 'MEDIUM' | 'LOW';
 
   /**
    * Justification for the assumption
@@ -630,52 +630,52 @@ const posAnalysis: PlantOperatingStatesAnalysis = {
 
   assumptionsLackOfDetail: [
     {
-      description: "RCS temperature distribution during mid-loop operations",
-      influence: "Affects success criteria for decay heat removal systems in POS-5A and POS-5B",
-      riskImpact: "HIGH",
-      justification: "No as-built instrument locations available to confirm thermal stratification",
+      description: 'RCS temperature distribution during mid-loop operations',
+      influence: 'Affects success criteria for decay heat removal systems in POS-5A and POS-5B',
+      riskImpact: 'HIGH',
+      justification: 'No as-built instrument locations available to confirm thermal stratification',
       plannedActions: [
-        "Confirm thermal-hydraulic assumptions with scale model testing",
-        "Add additional temperature sensors during commissioning",
+        'Confirm thermal-hydraulic assumptions with scale model testing',
+        'Add additional temperature sensors during commissioning',
       ],
-      affectedPOSIds: ["POS-5A", "POS-5B"],
+      affectedPOSIds: ['POS-5A', 'POS-5B'],
       potentialAlternatives: [
-        "Conservative uniform temperature assumption",
-        "Detailed CFD modeling with sensitivity studies",
+        'Conservative uniform temperature assumption',
+        'Detailed CFD modeling with sensitivity studies',
       ],
       sensitivityAnalysis:
-        "Sensitivity studies show mid-loop operation risk estimates may vary by a factor of 2-3 depending on temperature distribution assumptions",
+        'Sensitivity studies show mid-loop operation risk estimates may vary by a factor of 2-3 depending on temperature distribution assumptions',
     },
     {
-      description: "Operator response times for non-routine evolutions",
-      influence: "Affects time available for operator actions in transitional states",
-      riskImpact: "MEDIUM",
-      justification: "No operating crew performance data available pre-operation",
+      description: 'Operator response times for non-routine evolutions',
+      influence: 'Affects time available for operator actions in transitional states',
+      riskImpact: 'MEDIUM',
+      justification: 'No operating crew performance data available pre-operation',
       plannedActions: [
-        "Conduct timed simulator exercises during training",
-        "Refine estimates after initial plant operation",
+        'Conduct timed simulator exercises during training',
+        'Refine estimates after initial plant operation',
       ],
-      affectedPOSIds: ["POS-3", "POS-4", "POS-5A"],
+      affectedPOSIds: ['POS-3', 'POS-4', 'POS-5A'],
       sensitivityAnalysis:
-        "Sensitivity study assuming 1.5x longer response times shows acceptable safety margins maintained",
+        'Sensitivity study assuming 1.5x longer response times shows acceptable safety margins maintained',
     },
     {
-      description: "System alignment transition times during outage activities",
-      influence: "Affects vulnerability windows for specific initiating events",
-      riskImpact: "MEDIUM",
-      justification: "Limited information on maintenance procedures and crew coordination",
+      description: 'System alignment transition times during outage activities',
+      influence: 'Affects vulnerability windows for specific initiating events',
+      riskImpact: 'MEDIUM',
+      justification: 'Limited information on maintenance procedures and crew coordination',
       plannedActions: [
-        "Develop detailed maintenance procedures",
-        "Benchmark against similar plant outage data",
-        "Update PRA after first refueling outage",
+        'Develop detailed maintenance procedures',
+        'Benchmark against similar plant outage data',
+        'Update PRA after first refueling outage',
       ],
-      affectedPOSIds: ["POS-4", "POS-5A", "POS-6"],
+      affectedPOSIds: ['POS-4', 'POS-5A', 'POS-6'],
       potentialAlternatives: [
-        "Use of bounding estimates from industry experience",
-        "Application of uncertainty factors to account for variations",
+        'Use of bounding estimates from industry experience',
+        'Application of uncertainty factors to account for variations',
       ],
       sensitivityAnalysis:
-        "Sensitivity studies show that even with 2x longer alignment times, core damage frequency remains below threshold",
+        'Sensitivity studies show that even with 2x longer alignment times, core damage frequency remains below threshold',
     },
   ],
 };
@@ -739,7 +739,7 @@ export interface PeerReviewFinding {
   actions?: string[];
 
   /** Resolution status */
-  status: "OPEN" | "CLOSED" | "IN_PROGRESS";
+  status: 'OPEN' | 'CLOSED' | 'IN_PROGRESS';
 }
 ```
 

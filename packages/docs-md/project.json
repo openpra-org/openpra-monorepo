@@ -119,7 +119,12 @@
       "options": {
         "command": "pnpm --filter docs-md build"
       },
-      "dependsOn": ["cpp:sanitize", "mef:openpra:markdown", "mef:elements:copy-docs", "ts:explore:folders"]
+      "dependsOn": [
+        "cpp:sanitize",
+        "mef:openpra:markdown",
+        "mef:elements:copy-docs",
+        "ts:explore:folders"
+      ]
     },
     "prepare": {
       "executor": "nx:run-commands",

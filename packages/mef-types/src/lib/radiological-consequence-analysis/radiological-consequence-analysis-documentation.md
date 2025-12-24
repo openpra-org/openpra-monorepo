@@ -52,17 +52,17 @@ The schema enables structured documentation of:
 // Sample documentation for Release Category to Consequence Analysis
 const releaseToConsequenceDoc = {
   inputSources: [
-    "Source term data from Mechanistic Source Term Analysis for EBR-II",
-    "EBR-II site meteorological data from 2020-2024",
-    "Population distribution based on 2020 census data",
+    'Source term data from Mechanistic Source Term Analysis for EBR-II',
+    'EBR-II site meteorological data from 2020-2024',
+    'Population distribution based on 2020 census data',
   ],
   appliedMethods: [
-    "Sodium fire plume model for metallic fuel releases",
-    "Gaussian plume dispersion modeling adapted for EBR-II site",
-    "ICRP dosimetry methods with specific considerations for sodium activation products",
+    'Sodium fire plume model for metallic fuel releases',
+    'Gaussian plume dispersion modeling adapted for EBR-II site',
+    'ICRP dosimetry methods with specific considerations for sodium activation products',
   ],
   resultsSummary:
-    "Analysis indicates that all release categories for EBR-II meet the safety criteria with adequate margin.",
+    'Analysis indicates that all release categories for EBR-II meet the safety criteria with adequate margin.',
 };
 ```
 
@@ -89,23 +89,23 @@ const releaseToConsequenceDoc = {
 ```typescript
 // Sample documentation for Atmospheric Transport and Dispersion
 const atmosphericAnalysis: AtmosphericDispersionAnalysis = {
-  dispersionModel: "Modified Gaussian Plume Model with sodium fire considerations",
+  dispersionModel: 'Modified Gaussian Plume Model with sodium fire considerations',
   dispersionModelJustification:
-    "Appropriate for modeling both gaseous radioactive releases and sodium fire aerosols relevant to EBR-II",
+    'Appropriate for modeling both gaseous radioactive releases and sodium fire aerosols relevant to EBR-II',
   plumeRiseConsideration:
     "Enhanced plume rise modeling for high-temperature sodium fires using modified Briggs' equations",
   buildingWakeEffectsConsideration:
-    "Building wake effects modeled using the PRIME algorithm with adaptations for EBR-II facility geometry",
-  terrainEffectsConsideration: "Terrain effects addressed using digital elevation model with 10m resolution",
+    'Building wake effects modeled using the PRIME algorithm with adaptations for EBR-II facility geometry',
+  terrainEffectsConsideration: 'Terrain effects addressed using digital elevation model with 10m resolution',
   dispersionUncertainty: {
-    sources: ["Wind direction variability", "Atmospheric stability classification", "Sodium fire plume behavior"],
-    assumptions: ["Neutral stability conditions as baseline", "Complete combustion of sodium"],
-    alternatives: ["Lagrangian particle dispersion model for complex terrain conditions"],
+    sources: ['Wind direction variability', 'Atmospheric stability classification', 'Sodium fire plume behavior'],
+    assumptions: ['Neutral stability conditions as baseline', 'Complete combustion of sodium'],
+    alternatives: ['Lagrangian particle dispersion model for complex terrain conditions'],
   },
   depositionModeling:
-    "Dry and wet deposition modeled with special consideration for sodium aerosols and their hygroscopic properties",
+    'Dry and wet deposition modeled with special consideration for sodium aerosols and their hygroscopic properties',
   modelLimitations:
-    "The modified Gaussian model assumes steady-state conditions which may not fully represent rapid changes during sodium fire events",
+    'The modified Gaussian model assumes steady-state conditions which may not fully represent rapid changes during sodium fire events',
 };
 ```
 
@@ -129,25 +129,25 @@ const atmosphericAnalysis: AtmosphericDispersionAnalysis = {
 ```typescript
 // Sample documentation for Dosimetry Analysis
 const dosimetryAnalysis: DosimetryAnalysis = {
-  exposurePathways: ["Inhalation", "Ground Shine", "Cloud Submersion", "Sodium activation product exposure"],
-  dcfSource: "ICRP Publication 72 with specific considerations for sodium-22 and sodium-24",
+  exposurePathways: ['Inhalation', 'Ground Shine', 'Cloud Submersion', 'Sodium activation product exposure'],
+  dcfSource: 'ICRP Publication 72 with specific considerations for sodium-22 and sodium-24',
   shieldingConsiderations:
-    "Shielding factors account for EBR-II facility structures and typical residential buildings in the vicinity",
-  occupancyConsiderations: "Time-dependent occupancy factors used for facility staff and nearby population",
+    'Shielding factors account for EBR-II facility structures and typical residential buildings in the vicinity',
+  occupancyConsiderations: 'Time-dependent occupancy factors used for facility staff and nearby population',
   dcfUncertainty: {
     sources: [
-      "Age-dependent variability",
-      "Biokinetic model parameters",
-      "Uncertainty in sodium activation product dosimetry",
+      'Age-dependent variability',
+      'Biokinetic model parameters',
+      'Uncertainty in sodium activation product dosimetry',
     ],
     assumptions: [
-      "Adult dose coefficients used as baseline",
-      "Linear energy transfer effects for activated sodium isotopes",
+      'Adult dose coefficients used as baseline',
+      'Linear energy transfer effects for activated sodium isotopes',
     ],
-    alternatives: ["Age-specific dose coefficients", "Site-specific biokinetic models"],
+    alternatives: ['Age-specific dose coefficients', 'Site-specific biokinetic models'],
   },
   dcfParameterUncertaintyCharacterisation:
-    "Log-normal distributions applied for DCF parameter uncertainties with increased geometric standard deviation for sodium activation products",
+    'Log-normal distributions applied for DCF parameter uncertainties with increased geometric standard deviation for sodium activation products',
 };
 ```
 
@@ -173,44 +173,44 @@ const dosimetryAnalysis: DosimetryAnalysis = {
 ```typescript
 // Sample documentation for Consequence Quantification
 const consequenceQuantification: ConsequenceQuantificationAnalysis = {
-  selectedMetrics: ["Early Fatalities", "Latent Cancer Fatalities", "Thyroid Dose", "Sodium Exposure Effects"],
-  consequenceCodesUsed: ["MACCS2 (modified for sodium coolant)", "NAFIRE (for sodium fire progression)"],
+  selectedMetrics: ['Early Fatalities', 'Latent Cancer Fatalities', 'Thyroid Dose', 'Sodium Exposure Effects'],
+  consequenceCodesUsed: ['MACCS2 (modified for sodium coolant)', 'NAFIRE (for sodium fire progression)'],
   modelAndCodeLimitations: [
     {
-      code: "MACCS2",
-      feature: "Atmospheric dispersion",
-      limitation: "Standard implementation does not account for sodium fire thermal characteristics",
-      justification: "Modified with custom plume rise and energy release models for sodium fires",
+      code: 'MACCS2',
+      feature: 'Atmospheric dispersion',
+      limitation: 'Standard implementation does not account for sodium fire thermal characteristics',
+      justification: 'Modified with custom plume rise and energy release models for sodium fires',
     },
     {
-      feature: "Sodium aerosol deposition",
-      limitation: "Simplified representation of complex chemical interactions",
-      justification: "Conservative assumptions applied to bound potential consequences",
+      feature: 'Sodium aerosol deposition',
+      limitation: 'Simplified representation of complex chemical interactions',
+      justification: 'Conservative assumptions applied to bound potential consequences',
     },
   ],
   eventSequenceConsequences: [
     {
-      eventSequenceFamily: "ESF-001", // LOSA scenario with primary boundary failure
+      eventSequenceFamily: 'ESF-001', // LOSA scenario with primary boundary failure
       consequences: {
-        "Early Fatalities": 0.02,
-        "Latent Cancer Fatalities": 1.5,
-        "Thyroid Dose": 0.15, // Sv
-        "Sodium Exposure Effects": 0.01,
+        'Early Fatalities': 0.02,
+        'Latent Cancer Fatalities': 1.5,
+        'Thyroid Dose': 0.15, // Sv
+        'Sodium Exposure Effects': 0.01,
       },
       meanValue: 1.5e-7,
-      uncertainty: "Log-normal distribution with GSD = 3.0",
+      uncertainty: 'Log-normal distribution with GSD = 3.0',
     },
   ],
   uncertaintyCharacterization:
-    "Monte Carlo analysis with 10,000 samples used to propagate uncertainties in source term, meteorology, and dosimetry parameters",
+    'Monte Carlo analysis with 10,000 samples used to propagate uncertainties in source term, meteorology, and dosimetry parameters',
   supportingDocumentationReferences: [
-    "Section 5: EBR-II Consequence Analysis Report",
-    "Appendix B: Sodium Fire Model Validation",
+    'Section 5: EBR-II Consequence Analysis Report',
+    'Appendix B: Sodium Fire Model Validation',
   ],
   healthEffectsConsidered: {
-    earlyEffects: ["Acute radiation syndrome", "Chemical burns from sodium exposure"],
-    latentEffects: ["Cancer", "Hereditary effects"],
-    doseResponseApproach: "Linear no-threshold model with additional considerations for sodium chemical toxicity",
+    earlyEffects: ['Acute radiation syndrome', 'Chemical burns from sodium exposure'],
+    latentEffects: ['Cancer', 'Hereditary effects'],
+    doseResponseApproach: 'Linear no-threshold model with additional considerations for sodium chemical toxicity',
   },
 };
 ```
@@ -237,28 +237,28 @@ const consequenceQuantification: ConsequenceQuantificationAnalysis = {
 // Sample documentation for Protective Action Parameters
 const protectiveActionAnalysis: ProtectiveActionAnalysis = {
   protectiveActionParameters: {
-    evacuationDelay: "1.5 hours for general population",
-    evacuationSpeed: "15 mph under normal conditions, 8 mph during adverse weather",
-    shelteringEffectiveness: "60% reduction for gaseous releases, 80% for particulates",
-    naOHProtection: "Distribution of NaOH solution for sodium decontamination at assembly points",
+    evacuationDelay: '1.5 hours for general population',
+    evacuationSpeed: '15 mph under normal conditions, 8 mph during adverse weather',
+    shelteringEffectiveness: '60% reduction for gaseous releases, 80% for particulates',
+    naOHProtection: 'Distribution of NaOH solution for sodium decontamination at assembly points',
   },
   populationDistribution:
-    "Population data from 2020 census with seasonal adjustments for recreational areas near EBR-II",
+    'Population data from 2020 census with seasonal adjustments for recreational areas near EBR-II',
   landUseCharacteristics:
-    "Mixed use with agricultural (70%), residential (15%), and industrial (15%) within 10-mile radius",
+    'Mixed use with agricultural (70%), residential (15%), and industrial (15%) within 10-mile radius',
   emergencyResponseTimingBases:
-    "EBR-II emergency response plan with specific provisions for sodium fire events and specialized response teams",
+    'EBR-II emergency response plan with specific provisions for sodium fire events and specialized response teams',
   protectiveActionUncertainty: {
     sources: [
-      "Evacuation timing variability",
-      "Shelter-in-place effectiveness for sodium aerosols",
-      "Weather-dependent evacuation routes",
+      'Evacuation timing variability',
+      'Shelter-in-place effectiveness for sodium aerosols',
+      'Weather-dependent evacuation routes',
     ],
-    assumptions: ["90% compliance with evacuation orders", "Availability of specialized sodium response equipment"],
-    alternatives: ["Staged evacuation scenarios", "Enhanced sheltering with HEPA filtration"],
+    assumptions: ['90% compliance with evacuation orders', 'Availability of specialized sodium response equipment'],
+    alternatives: ['Staged evacuation scenarios', 'Enhanced sheltering with HEPA filtration'],
   },
   boundingWarningTimeAssumption:
-    "Minimum warning time of 25 minutes based on automated detection systems for sodium leaks and fires",
+    'Minimum warning time of 25 minutes based on automated detection systems for sodium leaks and fires',
 };
 ```
 
@@ -284,14 +284,14 @@ const protectiveActionAnalysis: ProtectiveActionAnalysis = {
 // Sample documentation for Meteorological Data
 const meteorologicalData: MeteorologicalDataAnalysis = {
   parameterUncertaintyCharacterisation:
-    "Wind direction uncertainty modeled with von Mises distribution; wind speed with Weibull distribution calibrated to site data",
+    'Wind direction uncertainty modeled with von Mises distribution; wind speed with Weibull distribution calibrated to site data',
   meteorologicalDataSetDescription:
-    "Five years (2020-2024) of hourly meteorological data from the on-site 60m tower at EBR-II. Data includes wind speed and direction at 10m and 60m heights, temperature at 2m and 60m, precipitation, and stability class. Quality assessment performed quarterly with 98.7% data recovery.",
+    'Five years (2020-2024) of hourly meteorological data from the on-site 60m tower at EBR-II. Data includes wind speed and direction at 10m and 60m heights, temperature at 2m and 60m, precipitation, and stability class. Quality assessment performed quarterly with 98.7% data recovery.',
   meteorologicalFrequencyDistributionTreatment:
-    "Stratified random sampling approach used to select 120 representative weather sequences based on seasonal and diurnal patterns",
+    'Stratified random sampling approach used to select 120 representative weather sequences based on seasonal and diurnal patterns',
   temporalChangesAccommodation:
-    "Hourly meteorological data used to capture diurnal variations in wind patterns and stability conditions relevant to EBR-II site",
-  timeResolution: "Hourly",
+    'Hourly meteorological data used to capture diurnal variations in wind patterns and stability conditions relevant to EBR-II site',
+  timeResolution: 'Hourly',
 };
 ```
 
@@ -302,22 +302,22 @@ Below is a simplified sample implementation for the EBR-II reactor, focusing on 
 ```typescript
 // Sample RadiologicalConsequenceAnalysis implementation for EBR-II
 const ebrIIConsequenceAnalysis: RadiologicalConsequenceAnalysis = {
-  "technical-element-type": TechnicalElementTypes.CONSEQUENCE_ANALYSIS,
-  "technical-element-code": "RC",
+  'technical-element-type': TechnicalElementTypes.CONSEQUENCE_ANALYSIS,
+  'technical-element-code': 'RC',
   metadata: {
-    version: "1.0",
-    analysis_date: "2025-03-15",
-    analyst: "Dr. Jane Smith",
+    version: '1.0',
+    analysis_date: '2025-03-15',
+    analyst: 'Dr. Jane Smith',
     scopeDefinition: {
       isSpecificSite: true,
-      siteReference: "SITE-EBR2",
-      consequenceMetrics: ["Individual Early Fatality Risk", "Population Latent Cancer Risk", "Sodium Exposure Risk"],
-      protectiveActionsModellingDegree: "Detailed modeling including specialized response for sodium fires",
-      meteorologyModellingDegree: "Site-specific meteorological data with enhanced turbulence measurements",
-      atmosphericDispersionModellingDegree: "Modified Gaussian plume model with sodium fire plume rise parameters",
-      dosimetryModellingDegree: "Detailed dose calculations including activated sodium isotopes",
-      healthEffectsModellingDegree: "Combined radiological and chemical effects modeling",
-      economicFactorsModellingDegree: "Assessment including sodium cleanup costs",
+      siteReference: 'SITE-EBR2',
+      consequenceMetrics: ['Individual Early Fatality Risk', 'Population Latent Cancer Risk', 'Sodium Exposure Risk'],
+      protectiveActionsModellingDegree: 'Detailed modeling including specialized response for sodium fires',
+      meteorologyModellingDegree: 'Site-specific meteorological data with enhanced turbulence measurements',
+      atmosphericDispersionModellingDegree: 'Modified Gaussian plume model with sodium fire plume rise parameters',
+      dosimetryModellingDegree: 'Detailed dose calculations including activated sodium isotopes',
+      healthEffectsModellingDegree: 'Combined radiological and chemical effects modeling',
+      economicFactorsModellingDegree: 'Assessment including sodium cleanup costs',
     },
   },
 
@@ -325,11 +325,11 @@ const ebrIIConsequenceAnalysis: RadiologicalConsequenceAnalysis = {
   releaseCategoryToConsequence: {
     siteInformation: {
       isBounding: false,
-      siteReference: "SITE-EBR2",
+      siteReference: 'SITE-EBR2',
     },
     releaseCategoryInputs: [
       {
-        releaseCategory: "RCAT-001", // Loss of Sodium Accident (LOSA)
+        releaseCategory: 'RCAT-001', // Loss of Sodium Accident (LOSA)
         releaseCharacteristics: {
           numberOfPlumes: 2, // Initial release and delayed sodium fire
           radionuclideGroupFractions: {
@@ -337,27 +337,27 @@ const ebrIIConsequenceAnalysis: RadiologicalConsequenceAnalysis = {
             Iodines: 0.4,
             ActivatedSodium: 0.85,
           },
-          importantRadionuclides: ["Na-22", "Na-24", "Cs-137", "I-131", "Kr-85"],
+          importantRadionuclides: ['Na-22', 'Na-24', 'Cs-137', 'I-131', 'Kr-85'],
           importantRadionuclidesJustification:
-            "Na-22 and Na-24 are significant due to sodium coolant activation; Cs-137 and I-131 from metallic fuel; Kr-85 from gap release",
-          releaseTiming: "0 hour initial, 2 hour sodium fire",
-          releaseDuration: "1 hour initial, 8 hours sodium fire",
+            'Na-22 and Na-24 are significant due to sodium coolant activation; Cs-137 and I-131 from metallic fuel; Kr-85 from gap release',
+          releaseTiming: '0 hour initial, 2 hour sodium fire',
+          releaseDuration: '1 hour initial, 8 hours sodium fire',
           warningTime: 0.4,
-          warningTimeDescription: "24 minutes based on leak detection system",
+          warningTimeDescription: '24 minutes based on leak detection system',
           releaseEnergy: 3.5e9, // Higher due to sodium fire
-          releaseEnergyDescription: "High - exothermic sodium fire",
+          releaseEnergyDescription: 'High - exothermic sodium fire',
           releaseHeight: 45, // Elevated due to buoyant plume
-          releaseHeightDescription: "Elevated due to sodium fire thermal buoyancy",
+          releaseHeightDescription: 'Elevated due to sodium fire thermal buoyancy',
         },
       },
     ],
     releaseCategoryAndSourceTermReviewed: true,
     selectedConsequenceMeasures: [
-      "Individual Early Fatality Risk",
-      "Population Latent Cancer Risk",
-      "Sodium Exposure Risk",
+      'Individual Early Fatality Risk',
+      'Population Latent Cancer Risk',
+      'Sodium Exposure Risk',
     ],
-    releaseCategoryLinkageDocumentation: "See Section 4.2 of EBR-II PRA for event sequence mapping",
+    releaseCategoryLinkageDocumentation: 'See Section 4.2 of EBR-II PRA for event sequence mapping',
   },
 
   // Other required elements would follow, each with EBR-II specific considerations
@@ -442,7 +442,7 @@ export interface ConsequenceQuantificationAnalysis {
     response?: {
       description: string;
       changes?: string[];
-      status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+      status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
     };
   };
 }
@@ -476,7 +476,7 @@ export interface RadiologicalConsequenceDocumentation extends BaseProcessDocumen
     feedbackIncorporation?: {
       feedbackReference: string;
       incorporationDescription: string;
-      status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
+      status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
       date?: string;
     }[];
     keyInsights?: string[];

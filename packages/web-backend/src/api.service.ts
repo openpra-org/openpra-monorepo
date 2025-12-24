@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable } from '@nestjs/common';
 
 /**
  * Trivial root API service used by the health/greeting controller.
@@ -11,6 +11,6 @@ export class ApiService {
    * @returns "Hello World!" greeting string.
    */
   getHello(): string {
-    return "Hello World!";
+    return 'Hello World!';
   }
 }

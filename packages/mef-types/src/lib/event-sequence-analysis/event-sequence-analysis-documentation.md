@@ -61,21 +61,21 @@ The relationship between event trees and event sequences is bidirectional:
 
 ```typescript
 const loopEventTree: EventTree = {
-  name: "LOOP-ET",
-  label: "Loss of Offsite Power Event Tree",
-  initiatingEventId: "IE-LOOP",
-  plantOperatingStateId: "POS-POWER-100",
+  name: 'LOOP-ET',
+  label: 'Loss of Offsite Power Event Tree',
+  initiatingEventId: 'IE-LOOP',
+  plantOperatingStateId: 'POS-POWER-100',
   functionalEvents: {
-    "FE-EDG": {
-      name: "FE-EDG",
-      label: "Emergency Diesel Generators",
-      systemReference: "SYS-EDG",
+    'FE-EDG': {
+      name: 'FE-EDG',
+      label: 'Emergency Diesel Generators',
+      systemReference: 'SYS-EDG',
       order: 1,
     },
-    "FE-HPCI": {
-      name: "FE-HPCI",
-      label: "High Pressure Cooling Injection",
-      systemReference: "SYS-HPCI",
+    'FE-HPCI': {
+      name: 'FE-HPCI',
+      label: 'High Pressure Cooling Injection',
+      systemReference: 'SYS-HPCI',
       order: 2,
     },
   },
@@ -83,18 +83,18 @@ const loopEventTree: EventTree = {
     // Branch definitions...
   },
   sequences: {
-    "SEQ-1": {
-      name: "SEQ-1",
-      endState: "SUCCESSFUL_MITIGATION",
-      eventSequenceId: "ES-LOOP-1",
+    'SEQ-1': {
+      name: 'SEQ-1',
+      endState: 'SUCCESSFUL_MITIGATION',
+      eventSequenceId: 'ES-LOOP-1',
       functionalEventStates: {
-        "FE-EDG": "SUCCESS",
-        "FE-HPCI": "SUCCESS",
+        'FE-EDG': 'SUCCESS',
+        'FE-HPCI': 'SUCCESS',
       },
     },
   },
   initialState: {
-    branchId: "BR-INIT",
+    branchId: 'BR-INIT',
   },
 };
 ```
@@ -155,21 +155,21 @@ const ebrIIProcessDocumentation: ProcessDocumentation = {
   // (a) Linkage example
   posInitiatorSequenceLinkage: [
     {
-      plantOperatingStateId: "POS-POWER-100",
-      initiatingEventId: "IE-LOHS-01",
-      eventSequenceIds: ["ES-001", "ES-002", "ES-003"],
-      description: "Loss of heat sink sequences during full power operation",
+      plantOperatingStateId: 'POS-POWER-100',
+      initiatingEventId: 'IE-LOHS-01',
+      eventSequenceIds: ['ES-001', 'ES-002', 'ES-003'],
+      description: 'Loss of heat sink sequences during full power operation',
     },
   ],
 
   // (b) Success criteria example
   successCriteriaBases: [
     {
-      initiatingEventId: "IE-LOHS-01",
-      successCriteriaId: "SC-SHR-001",
-      basis: "Thermal-hydraulic analysis TR-EBR-TH-001",
-      systemCapacitiesRequired: "One primary pump operating at 50% capacity",
-      requiredComponents: "Pump P-1A or P-1B with associated power supply",
+      initiatingEventId: 'IE-LOHS-01',
+      successCriteriaId: 'SC-SHR-001',
+      basis: 'Thermal-hydraulic analysis TR-EBR-TH-001',
+      systemCapacitiesRequired: 'One primary pump operating at 50% capacity',
+      requiredComponents: 'Pump P-1A or P-1B with associated power supply',
     },
   ],
 
@@ -202,24 +202,24 @@ The `BaseModelUncertaintyDocumentation` class would extend this with general unc
 const ebrIIModelUncertaintyDoc: ModelUncertaintyDocumentation = {
   sources: [
     {
-      id: "MU-001",
-      description: "Sodium void reactivity uncertainty",
-      impact: "Affects sequence timing and potential for fuel damage",
+      id: 'MU-001',
+      description: 'Sodium void reactivity uncertainty',
+      impact: 'Affects sequence timing and potential for fuel damage',
     },
   ],
   eventSequenceSpecificUncertainties: [
     {
-      eventSequenceId: "ES-001",
-      uncertainties: ["Sodium boiling onset timing", "Reactivity feedback coefficient uncertainty"],
-      sequenceImpact: "May affect timing for operator action window by ±5 minutes",
+      eventSequenceId: 'ES-001',
+      uncertainties: ['Sodium boiling onset timing', 'Reactivity feedback coefficient uncertainty'],
+      sequenceImpact: 'May affect timing for operator action window by ±5 minutes',
     },
   ],
   alternatives: [
     {
-      uncertaintyId: "MU-001",
-      alternativeModels: ["Conservative bounding approach", "Best-estimate with uncertainty analysis"],
-      selectedApproach: "Best-estimate with uncertainty analysis",
-      justification: "Provides more realistic timing estimates while accounting for uncertainty",
+      uncertaintyId: 'MU-001',
+      alternativeModels: ['Conservative bounding approach', 'Best-estimate with uncertainty analysis'],
+      selectedApproach: 'Best-estimate with uncertainty analysis',
+      justification: 'Provides more realistic timing estimates while accounting for uncertainty',
     },
   ],
 };
@@ -250,22 +250,22 @@ This interface captures sequence-specific assumptions with references to the und
 const ebrIIPreOpAssumptionsDoc: PreOperationalAssumptionsDocumentation = {
   assumptions: [
     {
-      id: "PA-001",
-      description: "Control procedure response times based on simulator data",
-      impact: "May affect timing of operator actions in sequences",
+      id: 'PA-001',
+      description: 'Control procedure response times based on simulator data',
+      impact: 'May affect timing of operator actions in sequences',
     },
   ],
   eventSequenceSpecificAssumptions: [
     {
-      eventSequenceId: "ES-002",
+      eventSequenceId: 'ES-002',
       assumptions: [
-        "Assumed valve alignment based on preliminary design",
-        "Assumed operator response time based on similar plant experience",
+        'Assumed valve alignment based on preliminary design',
+        'Assumed operator response time based on similar plant experience',
       ],
-      modelingImpact: "Conservative estimates used pending final procedure development",
+      modelingImpact: 'Conservative estimates used pending final procedure development',
     },
   ],
-  addressingPlan: "Assumptions will be validated during procedure validation exercises and updated accordingly",
+  addressingPlan: 'Assumptions will be validated during procedure validation exercises and updated accordingly',
 };
 ```
 
@@ -277,43 +277,43 @@ This section provides compact implementation examples showing how the schema can
 
 ```typescript
 const lossOfHeatSinkSequence: EventSequence = {
-  id: "ES-001",
-  name: "Loss of Heat Sink - Natural Circulation Success",
-  description: "Loss of heat sink with successful transition to natural circulation cooling",
-  initiatingEventId: "IE-LOHS-01",
-  plantOperatingStateId: "POS-POWER-100",
-  eventTreeId: "ET-LOHS-01", // Reference to the event tree modeling this sequence
-  eventTreeSequenceId: "LOHS-SEQ-1", // Reference to the specific path in the event tree
+  id: 'ES-001',
+  name: 'Loss of Heat Sink - Natural Circulation Success',
+  description: 'Loss of heat sink with successful transition to natural circulation cooling',
+  initiatingEventId: 'IE-LOHS-01',
+  plantOperatingStateId: 'POS-POWER-100',
+  eventTreeId: 'ET-LOHS-01', // Reference to the event tree modeling this sequence
+  eventTreeSequenceId: 'LOHS-SEQ-1', // Reference to the specific path in the event tree
   functionalEventStates: {
     // Mirroring functional event states from the event tree
-    "FE-RPS": "SUCCESS", // Reactor Protection System success
-    "FE-NC": "SUCCESS", // Natural Circulation success
+    'FE-RPS': 'SUCCESS', // Reactor Protection System success
+    'FE-NC': 'SUCCESS', // Natural Circulation success
   },
   systemResponses: {
-    "SYS-SHR": "SUCCESS",
-    "SYS-PPS": "SUCCESS",
-    "SYS-AUX": "FAILURE",
+    'SYS-SHR': 'SUCCESS',
+    'SYS-PPS': 'SUCCESS',
+    'SYS-AUX': 'FAILURE',
   },
-  operatorActions: ["HRA-001", "HRA-002"],
+  operatorActions: ['HRA-001', 'HRA-002'],
   timing: [
     {
-      id: "TM-001",
-      event: "Loss of Primary Pumps",
+      id: 'TM-001',
+      event: 'Loss of Primary Pumps',
       timeAfterInitiator: 0,
     },
     {
-      id: "TM-002",
-      event: "Reactor Trip",
+      id: 'TM-002',
+      event: 'Reactor Trip',
       timeAfterInitiator: 0.05,
       timeWindow: {
         startTime: 0,
         endTime: 0.1,
-        description: "Automatic trip via PPS",
+        description: 'Automatic trip via PPS',
       },
     },
   ],
   endState: EndState.SUCCESSFUL_MITIGATION,
-  successCriteriaIds: ["SC-SHR-001"],
+  successCriteriaIds: ['SC-SHR-001'],
 };
 ```
 
@@ -321,87 +321,87 @@ const lossOfHeatSinkSequence: EventSequence = {
 
 ```typescript
 const lossOfHeatSinkEventTree: EventTree = {
-  name: "ET-LOHS-01",
-  label: "Loss of Heat Sink Event Tree",
-  description: "Models possible sequences following a loss of heat sink initiating event",
-  initiatingEventId: "IE-LOHS-01",
-  plantOperatingStateId: "POS-POWER-100",
+  name: 'ET-LOHS-01',
+  label: 'Loss of Heat Sink Event Tree',
+  description: 'Models possible sequences following a loss of heat sink initiating event',
+  initiatingEventId: 'IE-LOHS-01',
+  plantOperatingStateId: 'POS-POWER-100',
 
   // Functional events (branch points in the tree)
   functionalEvents: {
-    "FE-RPS": {
-      name: "FE-RPS",
-      label: "Reactor Protection System",
-      description: "Automatic reactor trip",
-      systemReference: "SYS-PPS",
+    'FE-RPS': {
+      name: 'FE-RPS',
+      label: 'Reactor Protection System',
+      description: 'Automatic reactor trip',
+      systemReference: 'SYS-PPS',
       order: 1,
     },
-    "FE-NC": {
-      name: "FE-NC",
-      label: "Natural Circulation",
-      description: "Transition to natural circulation cooling",
-      systemReference: "SYS-SHR",
+    'FE-NC': {
+      name: 'FE-NC',
+      label: 'Natural Circulation',
+      description: 'Transition to natural circulation cooling',
+      systemReference: 'SYS-SHR',
       order: 2,
     },
   },
 
   // Sequences (paths through the tree)
   sequences: {
-    "LOHS-SEQ-1": {
-      name: "LOHS-SEQ-1",
-      label: "Successful Mitigation",
+    'LOHS-SEQ-1': {
+      name: 'LOHS-SEQ-1',
+      label: 'Successful Mitigation',
       endState: EndState.SUCCESSFUL_MITIGATION,
-      eventSequenceId: "ES-001", // Reference to the related event sequence
+      eventSequenceId: 'ES-001', // Reference to the related event sequence
       functionalEventStates: {
-        "FE-RPS": "SUCCESS",
-        "FE-NC": "SUCCESS",
+        'FE-RPS': 'SUCCESS',
+        'FE-NC': 'SUCCESS',
       },
     },
-    "LOHS-SEQ-2": {
-      name: "LOHS-SEQ-2",
-      label: "Release Sequence",
+    'LOHS-SEQ-2': {
+      name: 'LOHS-SEQ-2',
+      label: 'Release Sequence',
       endState: EndState.RADIONUCLIDE_RELEASE,
-      eventSequenceId: "ES-002",
+      eventSequenceId: 'ES-002',
       functionalEventStates: {
-        "FE-RPS": "SUCCESS",
-        "FE-NC": "FAILURE",
+        'FE-RPS': 'SUCCESS',
+        'FE-NC': 'FAILURE',
       },
     },
   },
 
   // Structure of the tree (branches and paths)
   branches: {
-    "BR-INIT": {
-      name: "BR-INIT",
-      label: "Initiating Event",
-      functionalEventId: "FE-RPS",
+    'BR-INIT': {
+      name: 'BR-INIT',
+      label: 'Initiating Event',
+      functionalEventId: 'FE-RPS',
       paths: [
         {
-          state: "SUCCESS",
-          target: "BR-NC",
-          targetType: "BRANCH",
+          state: 'SUCCESS',
+          target: 'BR-NC',
+          targetType: 'BRANCH',
         },
         {
-          state: "FAILURE",
-          target: "LOHS-SEQ-3",
-          targetType: "SEQUENCE",
+          state: 'FAILURE',
+          target: 'LOHS-SEQ-3',
+          targetType: 'SEQUENCE',
         },
       ],
     },
-    "BR-NC": {
-      name: "BR-NC",
-      label: "Natural Circulation",
-      functionalEventId: "FE-NC",
+    'BR-NC': {
+      name: 'BR-NC',
+      label: 'Natural Circulation',
+      functionalEventId: 'FE-NC',
       paths: [
         {
-          state: "SUCCESS",
-          target: "LOHS-SEQ-1",
-          targetType: "SEQUENCE",
+          state: 'SUCCESS',
+          target: 'LOHS-SEQ-1',
+          targetType: 'SEQUENCE',
         },
         {
-          state: "FAILURE",
-          target: "LOHS-SEQ-2",
-          targetType: "SEQUENCE",
+          state: 'FAILURE',
+          target: 'LOHS-SEQ-2',
+          targetType: 'SEQUENCE',
         },
       ],
     },
@@ -409,12 +409,12 @@ const lossOfHeatSinkEventTree: EventTree = {
 
   // Starting point of the tree
   initialState: {
-    branchId: "BR-INIT",
+    branchId: 'BR-INIT',
   },
 
   // Mission time for this analysis
   missionTime: 24,
-  missionTimeUnits: "hours",
+  missionTimeUnits: 'hours',
 };
 ```
 
@@ -422,12 +422,12 @@ const lossOfHeatSinkEventTree: EventTree = {
 
 ```typescript
 const naturalCircDependency: Dependency = {
-  id: "DEP-001",
-  dependentElement: "SYS-SHR",
-  dependedUponElement: "SYS-PPS",
+  id: 'DEP-001',
+  dependentElement: 'SYS-SHR',
+  dependedUponElement: 'SYS-PPS',
   dependencyType: DependencyType.FUNCTIONAL,
-  description: "Natural circulation cooling depends on successful reactor trip reducing power",
-  basis: "Thermal-hydraulic analysis TR-EBR-TH-001",
+  description: 'Natural circulation cooling depends on successful reactor trip reducing power',
+  basis: 'Thermal-hydraulic analysis TR-EBR-TH-001',
 };
 ```
 
@@ -435,14 +435,14 @@ const naturalCircDependency: Dependency = {
 
 ```typescript
 const lohsFamily: EventSequenceFamily = {
-  id: "ESF-001",
-  name: "Loss of Heat Sink Sequences",
-  description: "All sequences initiated by loss of heat sink events",
-  groupingCriteriaId: "GC-001",
-  representativeInitiatingEventId: "IE-LOHS-01",
-  representativePlantOperatingStateId: "POS-POWER-100",
-  representativePlantResponse: "Reactor trip followed by transition to natural circulation cooling",
-  memberSequenceIds: ["ES-001", "ES-002", "ES-003"],
+  id: 'ESF-001',
+  name: 'Loss of Heat Sink Sequences',
+  description: 'All sequences initiated by loss of heat sink events',
+  groupingCriteriaId: 'GC-001',
+  representativeInitiatingEventId: 'IE-LOHS-01',
+  representativePlantOperatingStateId: 'POS-POWER-100',
+  representativePlantResponse: 'Reactor trip followed by transition to natural circulation cooling',
+  memberSequenceIds: ['ES-001', 'ES-002', 'ES-003'],
   endState: EndState.SUCCESSFUL_MITIGATION,
 };
 ```

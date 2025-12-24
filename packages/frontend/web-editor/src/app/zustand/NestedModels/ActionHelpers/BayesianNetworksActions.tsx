@@ -3,11 +3,18 @@ import {
   PostBayesianNetwork,
   PatchBayesianNetworkLabel,
   DeleteBayesianNetwork as DeleteBayesianNetworkAPI,
-} from "shared-sdk/lib/api/NestedModelApiManager";
-import { NestedModelJSON, NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
-import { produce } from "immer";
-import { StoreStateType, UseGlobalStore } from "../../Store";
-import { AddToParentModel, GetTypedModelName, RemoveFromParentModel } from "../Helper";
+} from 'shared-sdk/lib/api/NestedModelApiManager';
+import {
+  NestedModelJSON,
+  NestedModelType,
+} from 'shared-types/src/lib/types/modelTypes/innerModels/nestedModel';
+import { produce } from 'immer';
+import { StoreStateType, UseGlobalStore } from '../../Store';
+import {
+  AddToParentModel,
+  GetTypedModelName,
+  RemoveFromParentModel,
+} from '../Helper';
 
 /**
  * Fetches all Bayesian Networks for a given parent and updates store state.
@@ -31,16 +38,27 @@ export const SetBayesianNetworks = async (parentId: string): Promise<void> => {
  * Creates a new Bayesian Network and links it to its parent models in state.
  * @param data - New model payload
  */
-export const AddBayesianNetwork = async (data: NestedModelJSON): Promise<void> => {
+export const AddBayesianNetwork = async (
+  data: NestedModelJSON,
+): Promise<void> => {
   try {
     const typedModelName: keyof StoreStateType = GetTypedModelName();
-    const BayesianNetwork: NestedModelType = await PostBayesianNetwork(data, typedModelName);
+    const BayesianNetwork: NestedModelType = await PostBayesianNetwork(
+      data,
+      typedModelName,
+    );
 
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
-        state.NestedModels.SystemAnalysis.BayesianNetworks.push(BayesianNetwork);
+        state.NestedModels.SystemAnalysis.BayesianNetworks.push(
+          BayesianNetwork,
+        );
 
-        state[typedModelName] = AddToParentModel(state, BayesianNetwork._id, BayesianNetwork.parentIds);
+        state[typedModelName] = AddToParentModel(
+          state,
+          BayesianNetwork._id,
+          BayesianNetwork.parentIds,
+        );
       }),
     );
   } catch (_error: unknown) {
@@ -53,18 +71,25 @@ export const AddBayesianNetwork = async (data: NestedModelJSON): Promise<void> =
  * @param modelId - Target model id
  * @param data - Partial payload containing the new label
  */
-export const EditBayesianNetwork = async (modelId: string, data: Partial<NestedModelJSON>): Promise<void> => {
+export const EditBayesianNetwork = async (
+  modelId: string,
+  data: Partial<NestedModelJSON>,
+): Promise<void> => {
   if (!data.label) {
     return;
   }
 
   try {
-    const bnr: NestedModelType = await PatchBayesianNetworkLabel(modelId, data.label);
+    const bnr: NestedModelType = await PatchBayesianNetworkLabel(
+      modelId,
+      data.label,
+    );
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
-        state.NestedModels.SystemAnalysis.BayesianNetworks = state.NestedModels.SystemAnalysis.BayesianNetworks.map(
-          (bn: NestedModelType) => (bn._id === modelId ? bnr : bn),
-        );
+        state.NestedModels.SystemAnalysis.BayesianNetworks =
+          state.NestedModels.SystemAnalysis.BayesianNetworks.map(
+            (bn: NestedModelType) => (bn._id === modelId ? bnr : bn),
+          );
       }),
     );
   } catch (_error: unknown) {
@@ -84,11 +109,14 @@ export const DeleteBayesianNetwork = async (id: string): Promise<void> => {
     UseGlobalStore.setState(
       produce((state: StoreStateType) => {
         const parentIds =
-          state.NestedModels.SystemAnalysis.BayesianNetworks.find((bn) => bn._id === id)?.parentIds ?? [];
+          state.NestedModels.SystemAnalysis.BayesianNetworks.find(
+            (bn) => bn._id === id,
+          )?.parentIds ?? [];
 
-        state.NestedModels.SystemAnalysis.BayesianNetworks = state.NestedModels.SystemAnalysis.BayesianNetworks.filter(
-          (bn: NestedModelType) => bn._id !== id,
-        );
+        state.NestedModels.SystemAnalysis.BayesianNetworks =
+          state.NestedModels.SystemAnalysis.BayesianNetworks.filter(
+            (bn: NestedModelType) => bn._id !== id,
+          );
 
         state[typedModelName] = RemoveFromParentModel(state, id, parentIds);
       }),

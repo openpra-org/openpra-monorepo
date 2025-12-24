@@ -5,5 +5,5 @@
  * @returns A sentinel string identifying the package.
  */
 export function SharedTypes(): string {
-  return "shared-types";
+  return 'shared-types';
 }

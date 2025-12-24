@@ -1,11 +1,17 @@
-import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { EventSequenceAnalysis, EventSequenceAnalysisDocument } from "../schemas/event-sequence-analysis.schema";
-import { NestedModelService } from "../nestedModel.service";
-import { NestedModelHelperService, TypedModelType } from "../nested-model-helper.service";
-import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
-import { Label } from "../../schemas/label.schema";
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import {
+  EventSequenceAnalysis,
+  EventSequenceAnalysisDocument,
+} from '../schemas/event-sequence-analysis.schema';
+import { NestedModelService } from '../nestedModel.service';
+import {
+  NestedModelHelperService,
+  TypedModelType,
+} from '../nested-model-helper.service';
+import { NestedModel } from '../schemas/templateSchema/nested-model.schema';
+import { Label } from '../../schemas/label.schema';
 
 /**
  * Service for Event Sequence Analysis nested models.
@@ -31,8 +37,13 @@ export class EventSequenceAnalysisService {
    * @param parentId - id of the parent model the nested model is number
    * @returns a promise with an array of the nested model of the type in the function name
    */
-  async getEventSequenceAnalysis(parentId: number): Promise<EventSequenceAnalysis[]> {
-    return this.eventSequenceAnalysisModel.find({ parentIds: Number(parentId) }, { _id: 0 });
+  async getEventSequenceAnalysis(
+    parentId: number,
+  ): Promise<EventSequenceAnalysis[]> {
+    return this.eventSequenceAnalysisModel.find(
+      { parentIds: Number(parentId) },
+      { _id: 0 },
+    );
   }
 
   /**
@@ -40,7 +51,9 @@ export class EventSequenceAnalysisService {
    * @param parentId - Parent identifier as a string (ObjectId)
    * @returns Array of Event Sequence Analysis documents for the given parent
    */
-  async getEventSequenceAnalysisString(parentId: string): Promise<EventSequenceAnalysis[]> {
+  async getEventSequenceAnalysisString(
+    parentId: string,
+  ): Promise<EventSequenceAnalysis[]> {
     return this.eventSequenceAnalysisModel.find({ parentIds: parentId });
   }
 
@@ -49,7 +62,9 @@ export class EventSequenceAnalysisService {
    * @param modelId - the id of the model to be retrieved
    * @returns the model which has the associated id
    */
-  async getSingleEventSequenceAnalysis(modelId: number): Promise<EventSequenceAnalysis> {
+  async getSingleEventSequenceAnalysis(
+    modelId: number,
+  ): Promise<EventSequenceAnalysis> {
     return this.eventSequenceAnalysisModel.findOne({ id: modelId }, { _id: 0 });
   }
 
@@ -58,7 +73,9 @@ export class EventSequenceAnalysisService {
    * @param modelId - Document _id as a string (ObjectId)
    * @returns The matching Event Sequence Analysis document
    */
-  async getSingleEventSequenceAnalysisString(modelId: string): Promise<EventSequenceAnalysis> {
+  async getSingleEventSequenceAnalysisString(
+    modelId: string,
+  ): Promise<EventSequenceAnalysis> {
     return this.eventSequenceAnalysisModel.findOne({ _id: modelId });
   }
 
@@ -69,15 +86,19 @@ export class EventSequenceAnalysisService {
    * @param typedModel - is the typed model to be updated
    * @returns a promise with a nested model in it, which contains the basic data all the nested models have
    */
-  async createEventSequenceAnalysis(body: Partial<NestedModel>, typedModel: TypedModelType): Promise<NestedModel> {
+  async createEventSequenceAnalysis(
+    body: Partial<NestedModel>,
+    typedModel: TypedModelType,
+  ): Promise<NestedModel> {
     const newEventSequenceAnalysis = new this.eventSequenceAnalysisModel(body);
-    newEventSequenceAnalysis.id = await this.nestedModelService.getNextValue("nestedCounter");
+    newEventSequenceAnalysis.id =
+      await this.nestedModelService.getNextValue('nestedCounter');
     await newEventSequenceAnalysis.save();
 
     for (const pId of newEventSequenceAnalysis.parentIds) {
       await this.nestedModelHelperService.AddNestedModelToTypedModel(
         typedModel,
-        "eventSequenceAnalysis",
+        'eventSequenceAnalysis',
         pId.toString(),
         newEventSequenceAnalysis._id as string,
       );
@@ -91,8 +112,15 @@ export class EventSequenceAnalysisService {
    * @param body - a label with a name and description
    * @returns a promise with the updated model with an updated label
    */
-  async updateEventSequenceAnalysisLabel(id: string, body: Label): Promise<NestedModel> {
-    return this.eventSequenceAnalysisModel.findOneAndUpdate({ _id: id }, { label: body }, { new: true });
+  async updateEventSequenceAnalysisLabel(
+    id: string,
+    body: Label,
+  ): Promise<NestedModel> {
+    return this.eventSequenceAnalysisModel.findOneAndUpdate(
+      { _id: id },
+      { label: body },
+      { new: true },
+    );
   }
 
   /**
@@ -101,16 +129,21 @@ export class EventSequenceAnalysisService {
    * @param typedModel - is the typed model that this nested model belongs to
    * @returns a promise with the deleted model
    */
-  async deleteEventSequenceAnalysis(modelId: string, typedModel: TypedModelType): Promise<void> {
-    const eventSequenceAnalysis = await this.eventSequenceAnalysisModel.findOne({
-      _id: modelId,
-    });
+  async deleteEventSequenceAnalysis(
+    modelId: string,
+    typedModel: TypedModelType,
+  ): Promise<void> {
+    const eventSequenceAnalysis = await this.eventSequenceAnalysisModel.findOne(
+      {
+        _id: modelId,
+      },
+    );
     await this.eventSequenceAnalysisModel.findOneAndDelete({ _id: modelId });
 
     for (const pId of eventSequenceAnalysis.parentIds) {
       await this.nestedModelHelperService.RemoveNestedModelToTypedModel(
         typedModel,
-        "eventSequenceAnalysis",
+        'eventSequenceAnalysis',
         pId.toString(),
         eventSequenceAnalysis._id as string,
       );

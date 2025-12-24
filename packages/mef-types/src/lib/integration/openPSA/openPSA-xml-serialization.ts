@@ -39,7 +39,7 @@ import {
   EventTreeBranch,
   EventTreeSequence,
   FunctionalEvent,
-} from "../../event-sequence-analysis/event-sequence-analysis";
+} from '../../event-sequence-analysis/event-sequence-analysis';
 
 /**
  * Interface for objects that can be serialized to OpenPSA XML format.
@@ -72,7 +72,7 @@ export interface OpenPSASerializable {
     /** Version of the OpenPSA format being used */
     formatVersion?: string;
     /** Type of model being serialized */
-    modelType?: "fault-tree" | "event-tree" | "reliability-block";
+    modelType?: 'fault-tree' | 'event-tree' | 'reliability-block';
     /** Name of the model */
     modelName?: string;
   };
@@ -116,18 +116,19 @@ export interface OpenPSASerializationOptions {
   /**
    * Format for event tree serialization.
    */
-  eventTreeFormat?: "compact" | "verbose";
+  eventTreeFormat?: 'compact' | 'verbose';
 }
 
 /**
  * Default serialization options
  * @group OpenPSA XML
  */
-export const DEFAULT_OPENPSA_SERIALIZATION_OPTIONS: OpenPSASerializationOptions = {
-  prettyPrint: true,
-  includeComments: true,
-  xmlVersion: "1.0",
-};
+export const DEFAULT_OPENPSA_SERIALIZATION_OPTIONS: OpenPSASerializationOptions =
+  {
+    prettyPrint: true,
+    includeComments: true,
+    xmlVersion: '1.0',
+  };
 
 //==============================================================================
 /**
@@ -142,7 +143,7 @@ export const DEFAULT_OPENPSA_SERIALIZATION_OPTIONS: OpenPSASerializationOptions 
  */
 export interface EventTreeSerializationOptions {
   /** Format for serialization (compact or verbose) */
-  format?: "compact" | "verbose";
+  format?: 'compact' | 'verbose';
 
   /** Whether to include attributes */
   includeAttributes?: boolean;
@@ -158,12 +159,13 @@ export interface EventTreeSerializationOptions {
  * Default options for event tree serialization
  * @group OpenPSA XML
  */
-export const DEFAULT_EVENT_TREE_SERIALIZATION_OPTIONS: EventTreeSerializationOptions = {
-  format: "verbose",
-  includeAttributes: true,
-  indent: 2,
-  xmlVersion: "1.0",
-};
+export const DEFAULT_EVENT_TREE_SERIALIZATION_OPTIONS: EventTreeSerializationOptions =
+  {
+    format: 'verbose',
+    includeAttributes: true,
+    indent: 2,
+    xmlVersion: '1.0',
+  };
 
 /**
  * Helper class for serializing event trees to OpenPSA XML format
@@ -186,7 +188,7 @@ export class EventTreeSerializer {
     };
 
     // Create indentation string
-    const tab = " ".repeat(indent ?? 2);
+    const tab = ' '.repeat(indent ?? 2);
 
     // Start with XML declaration
     let xml = `<?xml version="${xmlVersion}" encoding="UTF-8"?>\n`;
@@ -235,7 +237,11 @@ export class EventTreeSerializer {
 
     const initialBranch = eventTree.branches[eventTree.initialState.branchId];
     if (initialBranch) {
-      xml += this.serializeBranchContent(initialBranch, `${tab}${tab}`, eventTree);
+      xml += this.serializeBranchContent(
+        initialBranch,
+        `${tab}${tab}`,
+        eventTree,
+      );
     } else {
       xml += `${tab}${tab}<!-- Error: Initial branch not found -->\n`;
     }
@@ -254,14 +260,21 @@ export class EventTreeSerializer {
    * @param indent - Indentation string
    * @returns The XML string representation
    */
-  private static serializeFunctionalEvent(functionalEvent: FunctionalEvent, indent: string): string {
+  private static serializeFunctionalEvent(
+    functionalEvent: FunctionalEvent,
+    indent: string,
+  ): string {
     let xml = `${indent}<define-functional-event name="${functionalEvent.name}">\n`;
 
     if (functionalEvent.label) {
       xml += `${indent}${indent}<label>${functionalEvent.label}</label>\n`;
     }
 
-    if (functionalEvent.description || functionalEvent.systemReference || functionalEvent.humanActionReference) {
+    if (
+      functionalEvent.description ||
+      functionalEvent.systemReference ||
+      functionalEvent.humanActionReference
+    ) {
       xml += `${indent}${indent}<attributes>\n`;
 
       if (functionalEvent.description) {
@@ -294,7 +307,10 @@ export class EventTreeSerializer {
    * @param indent - Indentation string
    * @returns The XML string representation
    */
-  private static serializeSequence(sequence: EventTreeSequence, indent: string): string {
+  private static serializeSequence(
+    sequence: EventTreeSequence,
+    indent: string,
+  ): string {
     let xml = `${indent}<define-sequence name="${sequence.name}">\n`;
 
     if (sequence.label) {
@@ -307,7 +323,11 @@ export class EventTreeSerializer {
       });
     }
 
-    if (sequence.endState || sequence.eventSequenceId || sequence.functionalEventStates) {
+    if (
+      sequence.endState ||
+      sequence.eventSequenceId ||
+      sequence.functionalEventStates
+    ) {
       xml += `${indent}${indent}<attributes>\n`;
 
       if (sequence.endState) {
@@ -319,9 +339,11 @@ export class EventTreeSerializer {
       }
 
       if (sequence.functionalEventStates) {
-        Object.entries(sequence.functionalEventStates).forEach(([eventId, state]) => {
-          xml += `${indent}${indent}${indent}<attribute name="state-${eventId}">${state}</attribute>\n`;
-        });
+        Object.entries(sequence.functionalEventStates).forEach(
+          ([eventId, state]) => {
+            xml += `${indent}${indent}${indent}<attribute name="state-${eventId}">${state}</attribute>\n`;
+          },
+        );
       }
 
       xml += `${indent}${indent}</attributes>\n`;
@@ -339,7 +361,11 @@ export class EventTreeSerializer {
    * @param eventTree - The parent event tree (for references)
    * @returns The XML string representation
    */
-  private static serializeBranch(branch: EventTreeBranch, indent: string, eventTree: EventTree): string {
+  private static serializeBranch(
+    branch: EventTreeBranch,
+    indent: string,
+    eventTree: EventTree,
+  ): string {
     let xml = `${indent}<define-branch name="${branch.name}">\n`;
 
     if (branch.label) {
@@ -347,7 +373,11 @@ export class EventTreeSerializer {
     }
 
     xml += `${indent}${indent}<branch>\n`;
-    xml += this.serializeBranchContent(branch, `${indent}${indent}${indent}`, eventTree);
+    xml += this.serializeBranchContent(
+      branch,
+      `${indent}${indent}${indent}`,
+      eventTree,
+    );
     xml += `${indent}${indent}</branch>\n`;
 
     xml += `${indent}</define-branch>\n`;
@@ -362,8 +392,12 @@ export class EventTreeSerializer {
    * @param eventTree - The parent event tree (for references)
    * @returns The XML string representation
    */
-  private static serializeBranchContent(branch: EventTreeBranch, indent: string, eventTree: EventTree): string {
-    let xml = "";
+  private static serializeBranchContent(
+    branch: EventTreeBranch,
+    indent: string,
+    eventTree: EventTree,
+  ): string {
+    let xml = '';
 
     // Add functional event if defined
     if (branch.functionalEventId) {
@@ -376,13 +410,13 @@ export class EventTreeSerializer {
 
       // Add paths
       branch.paths.forEach((path) => {
-        let targetXml = "";
+        let targetXml = '';
 
-        if (path.targetType === "BRANCH") {
+        if (path.targetType === 'BRANCH') {
           targetXml = `<branch name="${path.target}"/>`;
-        } else if (path.targetType === "SEQUENCE") {
+        } else if (path.targetType === 'SEQUENCE') {
           targetXml = `<sequence name="${path.target}"/>`;
-        } else if (path.targetType === "END_STATE") {
+        } else if (path.targetType === 'END_STATE') {
           targetXml = `<end-state>${path.target}</end-state>`;
         }
 
@@ -393,13 +427,13 @@ export class EventTreeSerializer {
     } else {
       // If no functional event, just add direct paths (unusual case)
       branch.paths.forEach((path) => {
-        let targetXml = "";
+        let targetXml = '';
 
-        if (path.targetType === "BRANCH") {
+        if (path.targetType === 'BRANCH') {
           targetXml = `<branch name="${path.target}"/>`;
-        } else if (path.targetType === "SEQUENCE") {
+        } else if (path.targetType === 'SEQUENCE') {
           targetXml = `<sequence name="${path.target}"/>`;
-        } else if (path.targetType === "END_STATE") {
+        } else if (path.targetType === 'END_STATE') {
           targetXml = `${path.target}`;
         }
 
@@ -424,7 +458,10 @@ export const defaultEventTreeSerializer = new EventTreeSerializer();
  * @returns XML string representation of the event tree
  * @group OpenPSA XML
  */
-export function eventTreeToOpenPSAXML(eventTree: EventTree, options?: EventTreeSerializationOptions): string {
+export function eventTreeToOpenPSAXML(
+  eventTree: EventTree,
+  options?: EventTreeSerializationOptions,
+): string {
   return EventTreeSerializer.serializeEventTree(eventTree, options);
 }
 
@@ -434,11 +471,13 @@ export function eventTreeToOpenPSAXML(eventTree: EventTree, options?: EventTreeS
  * @returns Equivalent event tree serialization options
  * @group OpenPSA XML
  */
-export function mapToEventTreeOptions(options: OpenPSASerializationOptions): EventTreeSerializationOptions {
+export function mapToEventTreeOptions(
+  options: OpenPSASerializationOptions,
+): EventTreeSerializationOptions {
   return {
-    format: options.eventTreeFormat ?? "verbose",
+    format: options.eventTreeFormat ?? 'verbose',
     includeAttributes: true,
     indent: options.prettyPrint ? 2 : 0,
-    xmlVersion: options.xmlVersion ?? "1.0",
+    xmlVersion: options.xmlVersion ?? '1.0',
   };
 }

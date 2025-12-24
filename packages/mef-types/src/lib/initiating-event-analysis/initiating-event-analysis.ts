@@ -28,9 +28,14 @@
  */
 
 // Core imports (most upstream)
-import typia, { tags } from "typia";
-import { Named, Unique } from "../core/meta";
-import { Frequency, InitiatingEvent, BaseEvent, FrequencyUnit } from "../core/events";
+import typia, { tags } from 'typia';
+import { Named, Unique } from '../core/meta';
+import {
+  Frequency,
+  InitiatingEvent,
+  BaseEvent,
+  FrequencyUnit,
+} from '../core/events';
 import {
   IdPatterns,
   ImportanceLevel,
@@ -38,7 +43,7 @@ import {
   ScreeningStatus,
   ScreeningCriteria,
   SuccessCriteriaId,
-} from "../core/shared-patterns";
+} from '../core/shared-patterns';
 
 // Plant operating states imports (midstream)
 import {
@@ -48,7 +53,7 @@ import {
   SafetyFunction,
   RadionuclideBarrier,
   PlantOperatingState,
-} from "../plant-operating-states-analysis/plant-operating-states-analysis";
+} from '../plant-operating-states-analysis/plant-operating-states-analysis';
 
 // Data analysis imports
 import {
@@ -58,16 +63,27 @@ import {
   DistributionType,
   FrequencyQuantification,
   BayesianUpdate,
-} from "../data-analysis/data-analysis";
+} from '../data-analysis/data-analysis';
 
 // Success criteria imports
-import { BaseAssumption } from "../core/documentation";
-import { ComponentReference } from "../core/component";
+import { BaseAssumption } from '../core/documentation';
+import { ComponentReference } from '../core/component';
 
 // Other technical element imports
-import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
-import { SystemDefinition, FailureModeType } from "../systems-analysis/systems-analysis";
-import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
+import {
+  TechnicalElement,
+  TechnicalElementTypes,
+  TechnicalElementMetadata,
+} from '../technical-element';
+import {
+  SystemDefinition,
+  FailureModeType,
+} from '../systems-analysis/systems-analysis';
+import {
+  VersionInfo,
+  SCHEMA_VERSION,
+  createVersionInfo,
+} from '../core/version';
 
 //==============================================================================
 /**
@@ -105,25 +121,25 @@ export type SafetyFunctionReference = string;
  */
 export enum InitiatingEventCategory {
   /** Equipment or human-induced events that disrupt plant operation with intact RCB */
-  TRANSIENT = "TRANSIENT",
+  TRANSIENT = 'TRANSIENT',
 
   /** Equipment or human-induced events causing a breach in the RCS */
-  RCB_BREACH = "RCB_BREACH",
+  RCB_BREACH = 'RCB_BREACH',
 
   /** Events in systems interfacing with RCS that could result in loss of coolant */
-  INTERFACING_SYSTEMS_RCB_BREACH = "INTERFACING_SYSTEMS_RCB_BREACH",
+  INTERFACING_SYSTEMS_RCB_BREACH = 'INTERFACING_SYSTEMS_RCB_BREACH',
 
   /** Special initiators not falling into standard categories */
-  SPECIAL = "SPECIAL",
+  SPECIAL = 'SPECIAL',
 
   /** Events caused by internal plant hazards */
-  INTERNAL_HAZARD = "INTERNAL_HAZARD",
+  INTERNAL_HAZARD = 'INTERNAL_HAZARD',
 
   /** Events caused by external hazards */
-  EXTERNAL_HAZARD = "EXTERNAL_HAZARD",
+  EXTERNAL_HAZARD = 'EXTERNAL_HAZARD',
 
   /** Events caused by at-initiator human failure events */
-  HUMAN_FAILURE = "HUMAN_FAILURE",
+  HUMAN_FAILURE = 'HUMAN_FAILURE',
 }
 
 /**
@@ -269,7 +285,7 @@ export interface IdentificationMethodBase {
   review_date: string;
 
   /** Review status */
-  review_status: "DRAFT" | "REVIEWED" | "APPROVED";
+  review_status: 'DRAFT' | 'REVIEWED' | 'APPROVED';
 
   /** Supporting document references */
   supporting_documents: string[];
@@ -727,11 +743,11 @@ export interface PeerReviewDocumentation extends Unique, Named {
     /** Finding description */
     description: string;
     /** Significance level */
-    significance: "HIGH" | "MEDIUM" | "LOW";
+    significance: 'HIGH' | 'MEDIUM' | 'LOW';
     /** Associated requirement(s) */
     associatedRequirements: string[];
     /** Status */
-    status: "OPEN" | "CLOSED" | "IN_PROGRESS";
+    status: 'OPEN' | 'CLOSED' | 'IN_PROGRESS';
     /** Resolution plan */
     resolutionPlan?: string;
     /** Resolution date */
@@ -800,7 +816,8 @@ export interface PreOperationalAssumptions {
  * ```
  *  @group API
  */
-export interface InitiatingEventsAnalysis extends TechnicalElement<TechnicalElementTypes.INITIATING_EVENT_ANALYSIS> {
+export interface InitiatingEventsAnalysis
+  extends TechnicalElement<TechnicalElementTypes.INITIATING_EVENT_ANALYSIS> {
   /**
    * Additional metadata specific to Initiating Events Analysis
    */
@@ -896,7 +913,7 @@ export interface HazardAnalysis extends Unique, Named {
   description: string;
 
   /** Type of hazard (internal or external) */
-  hazard_type: "INTERNAL" | "EXTERNAL";
+  hazard_type: 'INTERNAL' | 'EXTERNAL';
 
   /** Hazard subcategory (e.g., "SEISMIC", "FLOOD", "FIRE") */
   subcategory: string;
@@ -938,10 +955,15 @@ export const validateInitiatingEventsAnalysis = {
     const errors: string[] = [];
 
     // Handle both Frequency (number) and FrequencyWithDistribution (object) types
-    const frequencyValue = typeof event.frequency === "number" ? event.frequency : event.frequency.value;
+    const frequencyValue =
+      typeof event.frequency === 'number'
+        ? event.frequency
+        : event.frequency.value;
 
     if (frequencyValue < 0) {
-      errors.push(`Initiating event frequency for ${event.name} (${event.id}) cannot be negative.`);
+      errors.push(
+        `Initiating event frequency for ${event.name} (${event.id}) cannot be negative.`,
+      );
     }
     return errors;
   },
@@ -949,20 +971,28 @@ export const validateInitiatingEventsAnalysis = {
   validateGroupConsistency: (analysis: InitiatingEventsAnalysis): string[] => {
     const errors: string[] = [];
     // Check if all initiators referenced in groups exist
-    Object.entries(analysis.initiating_event_groups).forEach(([groupId, group]) => {
-      for (const memberId of group.member_ids) {
-        if (!(memberId in analysis.initiators)) {
-          errors.push(`Group ${groupId} references non-existent initiator ${memberId}`);
+    Object.entries(analysis.initiating_event_groups).forEach(
+      ([groupId, group]) => {
+        for (const memberId of group.member_ids) {
+          if (!(memberId in analysis.initiators)) {
+            errors.push(
+              `Group ${groupId} references non-existent initiator ${memberId}`,
+            );
+          }
         }
-      }
 
-      // Check if bounding initiator exists and is a member of the group
-      if (!(group.bounding_initiator_id in analysis.initiators)) {
-        errors.push(`Group ${groupId} has non-existent bounding initiator ${group.bounding_initiator_id}`);
-      } else if (!group.member_ids.includes(group.bounding_initiator_id)) {
-        errors.push(`Bounding initiator ${group.bounding_initiator_id} is not a member of group ${groupId}`);
-      }
-    });
+        // Check if bounding initiator exists and is a member of the group
+        if (!(group.bounding_initiator_id in analysis.initiators)) {
+          errors.push(
+            `Group ${groupId} has non-existent bounding initiator ${group.bounding_initiator_id}`,
+          );
+        } else if (!group.member_ids.includes(group.bounding_initiator_id)) {
+          errors.push(
+            `Bounding initiator ${group.bounding_initiator_id} is not a member of group ${groupId}`,
+          );
+        }
+      },
+    );
     return errors;
   },
 
@@ -984,7 +1014,9 @@ export const validateInitiatingEventsAnalysis = {
       if (initiator.applicableStates) {
         for (const stateId of initiator.applicableStates) {
           if (!analysis.applicable_plant_operating_states.includes(stateId)) {
-            errors.push(`Initiator ${id} references non-applicable plant operating state ${stateId}`);
+            errors.push(
+              `Initiator ${id} references non-applicable plant operating state ${stateId}`,
+            );
           }
         }
       }
@@ -995,14 +1027,19 @@ export const validateInitiatingEventsAnalysis = {
   validateScreening: (analysis: InitiatingEventsAnalysis): string[] => {
     const errors: string[] = [];
     // Check if all screened out events have proper documentation
-    for (const screenedEvent of analysis.screening_criteria.screened_out_events) {
+    for (const screenedEvent of analysis.screening_criteria
+      .screened_out_events) {
       if (!screenedEvent.justification) {
-        errors.push(`Screened out event ${screenedEvent.event_id} has no justification`);
+        errors.push(
+          `Screened out event ${screenedEvent.event_id} has no justification`,
+        );
       }
 
       // Check if the screened out event exists
       if (!(screenedEvent.event_id in analysis.initiators)) {
-        errors.push(`Screened out event ${screenedEvent.event_id} is not defined in initiators`);
+        errors.push(
+          `Screened out event ${screenedEvent.event_id} is not defined in initiators`,
+        );
       }
     }
     return errors;
@@ -1011,7 +1048,9 @@ export const validateInitiatingEventsAnalysis = {
   validateCompleteness: (analysis: InitiatingEventsAnalysis): string[] => {
     const errors: string[] = [];
     // Check if all categories from IE-A5 are represented
-    const categories = new Set(Object.values(analysis.initiators).map((ie) => ie.category));
+    const categories = new Set(
+      Object.values(analysis.initiators).map((ie) => ie.category),
+    );
     const requiredCategories = [
       InitiatingEventCategory.TRANSIENT,
       InitiatingEventCategory.RCB_BREACH,
@@ -1020,7 +1059,9 @@ export const validateInitiatingEventsAnalysis = {
 
     for (const requiredCategory of requiredCategories) {
       if (!categories.has(requiredCategory)) {
-        errors.push(`Required initiating event category ${requiredCategory} is not represented`);
+        errors.push(
+          `Required initiating event category ${requiredCategory} is not represented`,
+        );
       }
     }
     return errors;
@@ -1058,7 +1099,8 @@ export const validateInitiatingEventsAnalysis = {
  * ```
  * @group API
  */
-export const InitiatingEventsAnalysisSchema = typia.json.schemas<[InitiatingEventsAnalysis]>();
+export const InitiatingEventsAnalysisSchema =
+  typia.json.schemas<[InitiatingEventsAnalysis]>();
 
 // List of interfaces that are dependent on the IE technical element file:
 /**

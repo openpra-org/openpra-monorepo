@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { BaseGraph } from "./base-graph.schema";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { BaseGraph } from './base-graph.schema';
 
 /**
  * Graph persistence model for Fault Tree diagrams.
@@ -17,4 +17,5 @@ export type FaultTreeGraphDocument = FaultTreeGraph & Document;
 /**
  * Mongoose schema for FaultTreeGraph.
  */
-export const FaultTreeGraphSchema = SchemaFactory.createForClass(FaultTreeGraph);
+export const FaultTreeGraphSchema =
+  SchemaFactory.createForClass(FaultTreeGraph);

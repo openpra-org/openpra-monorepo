@@ -1,7 +1,7 @@
-import typia, { type IValidation } from "typia";
-import { Named, Unique } from "./core/meta";
-import { BaseAssumption } from "./core/documentation";
-import { VersionInfo, SCHEMA_VERSION } from "./core/version";
+import typia, { type IValidation } from 'typia';
+import { Named, Unique } from './core/meta';
+import { BaseAssumption } from './core/documentation';
+import { VersionInfo, SCHEMA_VERSION } from './core/version';
 
 /**
  * Mapping of technical element codes to their full names
@@ -11,25 +11,25 @@ import { VersionInfo, SCHEMA_VERSION } from "./core/version";
  * full technical element names. The codes adhere to the latest ANS standards.
  */
 export const TECHNICAL_ELEMENT_CODES = {
-  POS: "PLANT_OPERATING_STATE_ANALYSIS",
-  IE: "INITIATING_EVENT_ANALYSIS",
-  ES: "EVENT_SEQUENCE_ANALYSIS",
-  SC: "SUCCESS_CRITERIA_DEVELOPMENT",
-  SY: "SYSTEMS_ANALYSIS",
-  HRA: "HUMAN_RELIABILITY_ANALYSIS",
-  DA: "DATA_ANALYSIS",
-  ESQ: "EVENT_SEQUENCE_QUANTIFICATION",
-  MS: "MECHANISTIC_SOURCE_TERM_ANALYSIS",
-  RC: "RADIOLOGICAL_CONSEQUENCE_ANALYSIS",
-  RI: "RISK_INTEGRATION",
-  FL: "INTERNAL_FLOOD_PRA",
-  F: "INTERNAL_FIRE_PRA",
-  S: "SIESMIC_PRA",
-  HS: "HAZARDS_SCREENING_ANALYSIS",
-  W: "HIGH WINDS PRA",
-  XF: "EXTERNAL_FLOODING_PRA",
-  O: "OTHER_HAZARDS_PRA",
-  UNK: "UNKNOWN",
+  POS: 'PLANT_OPERATING_STATE_ANALYSIS',
+  IE: 'INITIATING_EVENT_ANALYSIS',
+  ES: 'EVENT_SEQUENCE_ANALYSIS',
+  SC: 'SUCCESS_CRITERIA_DEVELOPMENT',
+  SY: 'SYSTEMS_ANALYSIS',
+  HRA: 'HUMAN_RELIABILITY_ANALYSIS',
+  DA: 'DATA_ANALYSIS',
+  ESQ: 'EVENT_SEQUENCE_QUANTIFICATION',
+  MS: 'MECHANISTIC_SOURCE_TERM_ANALYSIS',
+  RC: 'RADIOLOGICAL_CONSEQUENCE_ANALYSIS',
+  RI: 'RISK_INTEGRATION',
+  FL: 'INTERNAL_FLOOD_PRA',
+  F: 'INTERNAL_FIRE_PRA',
+  S: 'SIESMIC_PRA',
+  HS: 'HAZARDS_SCREENING_ANALYSIS',
+  W: 'HIGH WINDS PRA',
+  XF: 'EXTERNAL_FLOODING_PRA',
+  O: 'OTHER_HAZARDS_PRA',
+  UNK: 'UNKNOWN',
 } as const;
 
 /**
@@ -49,25 +49,25 @@ export type TechnicalElementCode = keyof typeof TECHNICAL_ELEMENT_CODES;
  * ```
  */
 export enum TechnicalElementTypes {
-  UNKNOWN = "unknown",
-  PLANT_OPERATING_STATES_ANALYSIS = "plant-operating-states-analysis",
-  INITIATING_EVENT_ANALYSIS = "initiating-event-analysis",
-  EVENT_SEQUENCE_ANALYSIS = "event-sequence-analysis",
-  SUCCESS_CRITERIA_DEVELOPMENT = "success-criteria-development",
-  SYSTEMS_ANALYSIS = "systems-analysis",
-  HUMAN_RELIABILITY_ANALYSIS = "human-reliability-analysis",
-  DATA_ANALYSIS = "data-analysis",
-  EVENT_SEQUENCE_QUANTIFICATION = "event-sequence-quantification",
-  MECHANISTIC_SOURCE_TERM_ANALYSIS = "mechanistic-source-term-analysis",
-  CONSEQUENCE_ANALYSIS = "consequence-analysis",
-  RISK_INTEGRATION = "risk-integration",
-  INTERNAL_FLOOD_PRA = "internal-flood-pra",
-  INTERNAL_FIRE_PRA = "internal-fire-pra",
-  SEISMIC_PRA = "seismic-pra",
-  HAZARDS_SCREENING_ANALYSIS = "hazards-screening-analysis",
-  HIGH_WINDS_PRA = "high-winds-pra",
-  EXTERNAL_FLOODING_PRA = "external-flooding-pra",
-  OTHER_HAZARDS_PRA = "other-hazards-pra",
+  UNKNOWN = 'unknown',
+  PLANT_OPERATING_STATES_ANALYSIS = 'plant-operating-states-analysis',
+  INITIATING_EVENT_ANALYSIS = 'initiating-event-analysis',
+  EVENT_SEQUENCE_ANALYSIS = 'event-sequence-analysis',
+  SUCCESS_CRITERIA_DEVELOPMENT = 'success-criteria-development',
+  SYSTEMS_ANALYSIS = 'systems-analysis',
+  HUMAN_RELIABILITY_ANALYSIS = 'human-reliability-analysis',
+  DATA_ANALYSIS = 'data-analysis',
+  EVENT_SEQUENCE_QUANTIFICATION = 'event-sequence-quantification',
+  MECHANISTIC_SOURCE_TERM_ANALYSIS = 'mechanistic-source-term-analysis',
+  CONSEQUENCE_ANALYSIS = 'consequence-analysis',
+  RISK_INTEGRATION = 'risk-integration',
+  INTERNAL_FLOOD_PRA = 'internal-flood-pra',
+  INTERNAL_FIRE_PRA = 'internal-fire-pra',
+  SEISMIC_PRA = 'seismic-pra',
+  HAZARDS_SCREENING_ANALYSIS = 'hazards-screening-analysis',
+  HIGH_WINDS_PRA = 'high-winds-pra',
+  EXTERNAL_FLOODING_PRA = 'external-flooding-pra',
+  OTHER_HAZARDS_PRA = 'other-hazards-pra',
 }
 
 /**
@@ -112,7 +112,7 @@ export interface TechnicalElementMetadata {
   reviewers: string[];
 
   /** Current approval status of the analysis */
-  approvalStatus: "DRAFT" | "IN_REVIEW" | "APPROVED" | "REJECTED";
+  approvalStatus: 'DRAFT' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED';
 
   /** Scope of the analysis */
   scope: string;
@@ -135,7 +135,9 @@ export interface TechnicalElementMetadata {
  *
  * @typeParam T - The type of technical element
  */
-export interface TechnicalElement<T extends TechnicalElementTypes> extends Unique, Named {
+export interface TechnicalElement<T extends TechnicalElementTypes>
+  extends Unique,
+    Named {
   /**
    * The type of technical element
    */
@@ -164,7 +166,7 @@ export interface TechnicalElement<T extends TechnicalElementTypes> extends Uniqu
   /**
    * The status of the technical element
    */
-  status?: "DRAFT" | "REVIEW" | "APPROVED" | "DEPRECATED";
+  status?: 'DRAFT' | 'REVIEW' | 'APPROVED' | 'DEPRECATED';
 
   /**
    * The description of the technical element
@@ -203,7 +205,8 @@ export interface TechnicalElement<T extends TechnicalElementTypes> extends Uniqu
  * const isValid = TechnicalElementTypesSchema.validate(someData);
  * ```
  */
-export const TechnicalElementTypesSchema = typia.json.schemas<[TechnicalElementTypes]>();
+export const TechnicalElementTypesSchema =
+  typia.json.schemas<[TechnicalElementTypes]>();
 
 /**
  * Runtime validation for technical elements
@@ -212,7 +215,9 @@ export const TechnicalElementTypesSchema = typia.json.schemas<[TechnicalElementT
  * Provides runtime type checking for technical elements including both
  * their type and code. This ensures data consistency throughout the application.
  */
-export const validateTechnicalElement: (input: unknown) => IValidation<TechnicalElement<TechnicalElementTypes>> =
+export const validateTechnicalElement: (
+  input: unknown,
+) => IValidation<TechnicalElement<TechnicalElementTypes>> =
   typia.createValidate<TechnicalElement<TechnicalElementTypes>>();
 
 /**
@@ -222,7 +227,8 @@ export const validateTechnicalElement: (input: unknown) => IValidation<Technical
  * A type guard function that checks if a given object is a valid technical element.
  * This is useful for runtime type checking and validation.
  */
-export const isTechnicalElement = typia.createIs<TechnicalElement<TechnicalElementTypes>>();
+export const isTechnicalElement =
+  typia.createIs<TechnicalElement<TechnicalElementTypes>>();
 
 /**
  * Runtime validation for technical element metadata
@@ -231,7 +237,9 @@ export const isTechnicalElement = typia.createIs<TechnicalElement<TechnicalEleme
  * Provides runtime type checking for technical element metadata.
  * This ensures data consistency throughout the application.
  */
-export const validateTechnicalElementMetadata: (input: unknown) => IValidation<TechnicalElementMetadata> =
+export const validateTechnicalElementMetadata: (
+  input: unknown,
+) => IValidation<TechnicalElementMetadata> =
   typia.createValidate<TechnicalElementMetadata>();
 
 /**
@@ -241,4 +249,5 @@ export const validateTechnicalElementMetadata: (input: unknown) => IValidation<T
  * A type guard function that checks if a given object is valid technical element metadata.
  * This is useful for runtime type checking and validation.
  */
-export const isTechnicalElementMetadata = typia.createIs<TechnicalElementMetadata>();
+export const isTechnicalElementMetadata =
+  typia.createIs<TechnicalElementMetadata>();

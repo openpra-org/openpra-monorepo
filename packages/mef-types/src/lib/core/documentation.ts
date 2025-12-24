@@ -4,9 +4,9 @@
  * @description Documentation types and interfaces for technical elements
  */
 
-import typia, { tags } from "typia";
-import { Unique, Named } from "./meta";
-import { ImportanceLevel } from "./shared-patterns";
+import typia, { tags } from 'typia';
+import { Unique, Named } from './meta';
+import { ImportanceLevel } from './shared-patterns';
 
 /**
  * @namespace technical_elements.core.documentation
@@ -163,7 +163,7 @@ export interface BaseAssumption extends Unique {
   addressingPlans?: string;
 
   /** Current status of the assumption */
-  status?: "OPEN" | "CLOSED" | "IN_PROGRESS";
+  status?: 'OPEN' | 'CLOSED' | 'IN_PROGRESS';
 
   /** Limitations imposed by this assumption */
   limitations?: string[];
@@ -186,7 +186,7 @@ export interface PreOperationalAssumption extends BaseAssumption {
   resolutionPlan?: string;
 
   /** Current status - required for pre-operational assumptions */
-  status: "OPEN" | "CLOSED" | "IN_PROGRESS";
+  status: 'OPEN' | 'CLOSED' | 'IN_PROGRESS';
 
   /** Limitations imposed by this assumption - required for pre-operational assumptions */
   limitations: string[];
@@ -198,7 +198,9 @@ export interface PreOperationalAssumption extends BaseAssumption {
  *
  * @group Documentation & Traceability
  */
-export interface BasePreOperationalAssumptionsDocumentation extends Unique, Named {
+export interface BasePreOperationalAssumptionsDocumentation
+  extends Unique,
+    Named {
   /** Assumptions due to lack of as-built, as-operated details */
   assumptions: PreOperationalAssumption[];
 
@@ -234,7 +236,7 @@ export interface BasePeerReviewDocumentation extends Unique, Named {
     significance: ImportanceLevel;
 
     /** Resolution status */
-    resolutionStatus: "OPEN" | "CLOSED" | "IN_PROGRESS";
+    resolutionStatus: 'OPEN' | 'CLOSED' | 'IN_PROGRESS';
 
     /** Resolution actions */
     resolutionActions?: string[];
@@ -311,7 +313,8 @@ export const DocumentationSchemas = {
   designInformation: typia.json.schemas<[BaseDesignInformation]>(),
   processDocumentation: typia.json.schemas<[BaseProcessDocumentation]>(),
   modelUncertainty: typia.json.schemas<[BaseModelUncertaintyDocumentation]>(),
-  preOperationalAssumptions: typia.json.schemas<[BasePreOperationalAssumptionsDocumentation]>(),
+  preOperationalAssumptions:
+    typia.json.schemas<[BasePreOperationalAssumptionsDocumentation]>(),
   peerReview: typia.json.schemas<[BasePeerReviewDocumentation]>(),
   traceability: typia.json.schemas<[BaseTraceabilityDocumentation]>(),
   baseAssumption: typia.json.schemas<[BaseAssumption]>(),

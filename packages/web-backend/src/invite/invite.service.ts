@@ -1,9 +1,12 @@
-import { Injectable } from "@nestjs/common";
-import { InjectModel } from "@nestjs/mongoose";
-import { Model } from "mongoose";
-import { InvitedUserDetailsDto, InvitedUserDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
+import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import {
+  InvitedUserDetailsDto,
+  InvitedUserDto,
+} from 'shared-types/src/lib/types/userInvites/InvitedUser';
 
-import { InvitedUser, InvitedUserDocument } from "./schemas/invite.schema";
+import { InvitedUser, InvitedUserDocument } from './schemas/invite.schema';
 
 /**
  * Service for managing user invitations.
@@ -76,23 +79,30 @@ export class InviteService {
       lastName: user.lastname,
       username: user.username,
     };
-    return this.invitedUserModel.findOneAndUpdate({ id: updatedUser.id }, updatedUser, { new: true });
+    return this.invitedUserModel.findOneAndUpdate(
+      { id: updatedUser.id },
+      updatedUser,
+      { new: true },
+    );
   }
 
   /**
    * This function will return all invited users
    */
   async getAllInvitedUsers(): Promise<InvitedUserDetailsDto[]> {
-    const invitedUsers: InvitedUser[] = (await this.invitedUserModel.find()) as unknown as InvitedUser[];
-    const mappedUsers: InvitedUserDetailsDto[] = invitedUsers.map((x: InvitedUser) => ({
-      id: x.id,
-      username: x.username,
-      email: x.email,
-      firstName: x.firstName,
-      lastname: x.lastName,
-      expiry: x.expiry,
-      numberOfInvites: x.numberOfInvites,
-    }));
+    const invitedUsers: InvitedUser[] =
+      (await this.invitedUserModel.find()) as unknown as InvitedUser[];
+    const mappedUsers: InvitedUserDetailsDto[] = invitedUsers.map(
+      (x: InvitedUser) => ({
+        id: x.id,
+        username: x.username,
+        email: x.email,
+        firstName: x.firstName,
+        lastname: x.lastName,
+        expiry: x.expiry,
+        numberOfInvites: x.numberOfInvites,
+      }),
+    );
     return mappedUsers;
   }
 

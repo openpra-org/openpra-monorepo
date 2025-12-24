@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Document, SchemaTypes } from "mongoose";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Document, SchemaTypes } from 'mongoose';
 
 @Schema({ minimize: false, _id: false, versionKey: false })
 class RawRule {
@@ -25,7 +25,7 @@ class RawRule {
 @Schema({
   minimize: false,
   timestamps: {
-    createdAt: "created_at",
+    createdAt: 'created_at',
   },
   versionKey: false,
 })

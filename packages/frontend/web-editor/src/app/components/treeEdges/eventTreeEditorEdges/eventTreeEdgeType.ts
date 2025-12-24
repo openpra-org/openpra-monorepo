@@ -1,5 +1,5 @@
-import { EdgeTypes } from "reactflow";
-import CustomEdge from "./customEdge";
+import { EdgeTypes } from 'reactflow';
+import CustomEdge from './customEdge';
 
 /**
  * Edge type mapping for the Event Tree editor.

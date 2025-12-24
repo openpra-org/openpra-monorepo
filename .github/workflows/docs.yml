@@ -1,4 +1,4 @@
-name: "Docs: Unified TypeScript + C++"
+name: 'Docs: Unified TypeScript + C++'
 
 on:
   push:
@@ -6,18 +6,18 @@ on:
       - main
       - docs/unified-pages-tsdoc-doxygen
     paths:
-      - "packages/docs-md/**"
-      - "packages/mef-types/**"
-      - "packages/shared-types/**"
-      - "packages/shared-sdk/**"
-      - "packages/frontend/web-editor/src/utils/**"
-      - "packages/engine/scram-node/**"
-      - ".github/workflows/docs.yml"
-      - "pnpm-workspace.yaml"
-      - "pnpm-lock.yaml"
-      - "nx.json"
-      - "tsconfig.base.json"
-      - "package.json"
+      - 'packages/docs-md/**'
+      - 'packages/mef-types/**'
+      - 'packages/shared-types/**'
+      - 'packages/shared-sdk/**'
+      - 'packages/frontend/web-editor/src/utils/**'
+      - 'packages/engine/scram-node/**'
+      - '.github/workflows/docs.yml'
+      - 'pnpm-workspace.yaml'
+      - 'pnpm-lock.yaml'
+      - 'nx.json'
+      - 'tsconfig.base.json'
+      - 'package.json'
   workflow_dispatch: {}
 
 permissions:
@@ -43,7 +43,7 @@ jobs:
       - name: Setup Node.js 20 + pnpm
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: '20'
           # Removed pnpm cache here because it requires pnpm to be on PATH during this step
       - name: Ensure pnpm available
         run: npx -y pnpm@10.19.0 --version
@@ -69,8 +69,8 @@ jobs:
       - name: Build unified Markdown docs (VitePress)
         # Nx Cloud temporarily disabled — retain config here for quick re-enable
         env:
-          NX_NO_CLOUD: "true"
-          VITEPRESS_BASE: "/${{ github.event.repository.name }}/"
+          NX_NO_CLOUD: 'true'
+          VITEPRESS_BASE: '/${{ github.event.repository.name }}/'
           # NX_CLOUD_ACCESS_TOKEN: ${{ secrets.NX_CLOUD_ACCESS_TOKEN }}
           # NX_BRANCH: ${{ github.ref_name }}
           # NX_RUN_GROUP: docs-${{ github.run_id }}
@@ -78,7 +78,7 @@ jobs:
 
       - name: Link check
         env:
-          VITEPRESS_BASE: "/${{ github.event.repository.name }}/"
+          VITEPRESS_BASE: '/${{ github.event.repository.name }}/'
         run: npx -y pnpm@10.19.0 nx run docs-md:site:link-check --no-cloud
 
       - name: Setup Pages

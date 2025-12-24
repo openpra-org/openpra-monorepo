@@ -1,9 +1,20 @@
-import { Controller, Get, Post, Param, Body, UseFilters, UseGuards, Put, Delete, Query } from "@nestjs/common";
-import { JwtAuthGuard } from "../guards/jwt-auth.guard";
-import { InvalidTokenFilter } from "../filters/invalid-token.filter";
-import { RolesService } from "./roles.service";
-import { Roles } from "./schemas/roles.schema";
-import { Role } from "./schemas/predefined-roles";
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  UseFilters,
+  UseGuards,
+  Put,
+  Delete,
+  Query,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { InvalidTokenFilter } from '../filters/invalid-token.filter';
+import { RolesService } from './roles.service';
+import { Roles } from './schemas/roles.schema';
+import { Role } from './schemas/predefined-roles';
 
 /**
  * Controller for role and permission management.
@@ -36,8 +47,8 @@ export class RolesController {
    * @param roleId - Role identifier.
    * @returns The role document when found.
    */
-  @Get("/:roleId")
-  async getRoleById(@Param("roleId") roleId: string): Promise<Roles> {
+  @Get('/:roleId')
+  async getRoleById(@Param('roleId') roleId: string): Promise<Roles> {
     return this.rolesService.getRole(roleId);
   }
 
@@ -69,8 +80,8 @@ export class RolesController {
    * @param roleId - Role identifier.
    * @returns A promise that resolves when the role is removed.
    */
-  @Delete("/:roleId")
-  async removeRole(@Param("roleId") roleId: string): Promise<void> {
+  @Delete('/:roleId')
+  async removeRole(@Param('roleId') roleId: string): Promise<void> {
     return this.rolesService.deleteRole(roleId);
   }
 }

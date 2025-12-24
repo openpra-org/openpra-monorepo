@@ -1,5 +1,10 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException } from "@nestjs/common";
-import { Response } from "express";
+import {
+  ArgumentsHost,
+  Catch,
+  ExceptionFilter,
+  HttpException,
+} from '@nestjs/common';
+import { Response } from 'express';
 
 /**
  * Formats login failures into a consistent JSON response shape.

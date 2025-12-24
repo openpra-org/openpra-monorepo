@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { Label, LabelSchema } from "../../../schemas/label.schema";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { Label, LabelSchema } from '../../../schemas/label.schema';
 
 /**
  * Common base for nested model documents embedded in technical elements.

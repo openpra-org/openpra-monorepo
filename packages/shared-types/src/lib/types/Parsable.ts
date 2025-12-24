@@ -1,4 +1,4 @@
-import { Defaults } from "./ObjectTypes";
+import { Defaults } from './ObjectTypes';
 
 /**
  * Contract for types that can serialize to JSON and provide default values.

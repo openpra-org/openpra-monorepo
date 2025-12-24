@@ -1,5 +1,5 @@
-import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
-import { BaseGraph } from "./base-graph.schema";
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { BaseGraph } from './base-graph.schema';
 
 /**
  * Graph persistence model for Event Sequence Diagram (ESD) diagrams.
@@ -13,8 +13,11 @@ export class EventSequenceDiagramGraph extends BaseGraph {
 /**
  * Mongoose document type for EventSequenceDiagramGraph.
  */
-export type EventSequenceDiagramGraphDocument = EventSequenceDiagramGraph & Document;
+export type EventSequenceDiagramGraphDocument = EventSequenceDiagramGraph &
+  Document;
 /**
  * Mongoose schema for EventSequenceDiagramGraph.
  */
-export const EventSequenceDiagramGraphSchema = SchemaFactory.createForClass(EventSequenceDiagramGraph);
+export const EventSequenceDiagramGraphSchema = SchemaFactory.createForClass(
+  EventSequenceDiagramGraph,
+);

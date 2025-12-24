@@ -1,7 +1,7 @@
-import { useCurrentEuiBreakpoint } from "@elastic/eui";
-import { _EuiThemeBreakpoint } from "@elastic/eui/src/global_styling/variables/breakpoint";
+import { useCurrentEuiBreakpoint } from '@elastic/eui';
+import { _EuiThemeBreakpoint } from '@elastic/eui/src/global_styling/variables/breakpoint';
 /** Default EUI breakpoint to fall back to when no breakpoint is resolved. */
-export const DEFAULT_BREAKPOINT: _EuiThemeBreakpoint = "xl";
+export const DEFAULT_BREAKPOINT: _EuiThemeBreakpoint = 'xl';
 /**
  * React hook wrapper that returns the current Elastic UI breakpoint.
  *

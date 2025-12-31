@@ -18,3 +18,50 @@ cmake-*
 
 .DS_Store
 #/fixtures/
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Lock files and logs
+pnpm-lock.yaml
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test and coverage
+coverage
+*.test.ts
+*.spec.ts
+__tests__
+
+# Documentation
+README.md
+README/
+packages/docs-md/
+*.md
+
+# CI/CD and config files not needed in container
+.github
+.husky
+.editorconfig
+.prettierrc
+.prettierignore
+codespaces.yml
+qodana.yaml
+commitlint.config.cjs
+
+# Build artifacts and generated files
+tmp-graph.html
+*.tsbuildinfo
+.turbo
+
+# IDE specific
+.idea
+idea.properties
+*.iml
+
+# Large fixture files (uncomment if not needed)
+fixtures/models/

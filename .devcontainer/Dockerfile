@@ -3,9 +3,7 @@ FROM node:20.17.0-slim AS base
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NX_VERSION=19.6.2
 ENV NX_SOCKET_DIR="/tmp/nx"
-ENV BUILD_PACKAGES="make cmake g++ git python3 curl ca-certificates libboost-all-dev wget lsb-release software-properties-common gnupg xauth"
-ENV CLANG_VERSION=18
-ENV LLVM_PACKAGES="libclang-18-dev clang-tools-18 libomp-18-dev llvm-18-dev lld-18"
+ENV BUILD_PACKAGES="make cmake g++ git python3 curl ca-certificates"
 
 ENV SCRAM_BUILD_PACKAGES="libxml2-dev libomp-dev \
     libxml2-dev libomp-dev \
@@ -27,10 +25,6 @@ RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
     apt update && \
     apt install -y --no-install-recommends $BUILD_PACKAGES $SCRAM_BUILD_PACKAGES $SCRAM_RUNTIME_PACKAGES && \
     update-ca-certificates && \
-    wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc && \
-    add-apt-repository -y "deb http://apt.llvm.org/bookworm/ llvm-toolchain-bookworm-$CLANG_VERSION main" && \
-    apt update && \
-    apt install -y --no-install-recommends $LLVM_PACKAGES && \
     npm install --global pnpm nx@$NX_VERSION && \
     SHELL=bash pnpm setup
 

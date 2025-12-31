@@ -29,8 +29,6 @@ RUN --mount=target=/var/lib/apt/lists,type=cache,sharing=locked \
     SHELL=bash pnpm setup
 
 COPY . .
-RUN source /root/.bashrc && \
-    git submodule update --init --recursive
 
 FROM base AS serve
 COPY .devcontainer/entrypoint.sh /

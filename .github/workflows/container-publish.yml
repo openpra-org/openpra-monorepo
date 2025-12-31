@@ -41,10 +41,10 @@ jobs:
         #   NX_BRANCH: ${{ github.ref_name }}                             # (disabled)
         #   NX_RUN_GROUP: containers-${{ github.run_id }}                 # (disabled)
         run: |
-          npx -y pnpm@10.19.0 nx build web-backend
+          npx -y pnpm@10.19.0 nx build web-backend --no-cloud
           npx -y pnpm@10.19.0 nx build microservices-raptor
           npx -y pnpm@10.19.0 nx run microservices-raptor:build-engine
-          npx -y pnpm@10.19.0 nx run frontend-web-editor:build:production
+          npx -y pnpm@10.19.0 nx run frontend-web-editor:build:production --no-cloud
 
       - name: Log in to GHCR
         uses: docker/login-action@v3

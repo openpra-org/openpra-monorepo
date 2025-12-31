@@ -11,7 +11,7 @@ on:
       - 'packages/shared-types/**'
       - 'packages/shared-sdk/**'
       - 'packages/frontend/web-editor/src/utils/**'
-      - 'packages/engine/scram-node/**'
+      - 'packages/engine/scram/**'
       - '.github/workflows/docs.yml'
       - 'pnpm-workspace.yaml'
       - 'pnpm-lock.yaml'

@@ -57,17 +57,17 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-# ESLint cache
-.eslintcache
-
+# Nx specific ignores
 .nx/installation
 .nx/cache
 .nx/workspace-data
 
 
+# Ignore e2e test auth files
 /packages/frontend/web-editor/e2e/.auth/
 
 
+# Ignore custom cursor rules and instruction files
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 

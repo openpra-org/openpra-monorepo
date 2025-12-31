@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 # Preview stack for PR environments on a single self-hosted machine
 # Images are expected to come from GHCR and be provided via environment variables.
@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
     ports:
       # Management UI
-      - '${RABBITMQ_MGMT_PORT}:15672'
+      - "${RABBITMQ_MGMT_PORT}:15672"
 
   backend:
     image: ${BACKEND_IMAGE}
@@ -40,7 +40,7 @@ services:
       RABBITMQ_URL: amqp://rabbitmq:5672
       ENV_RABBITMQ_URL: amqp://rabbitmq:5672
     ports:
-      - '${BACKEND_PORT}:8000'
+      - "${BACKEND_PORT}:8000"
 
   raptor-manager:
     image: ${RAPTOR_MANAGER_IMAGE}
@@ -56,7 +56,7 @@ services:
       ENV_RABBITMQ_URL: amqp://rabbitmq:5672
     ports:
       # Optional external exposure for broker HTTP (e.g. /q endpoints)
-      - '${RAPTOR_MANAGER_PORT:-0}:3000'
+      - "${RAPTOR_MANAGER_PORT:-0}:3000"
 
   raptor-engine:
     image: ${RAPTOR_ENGINE_IMAGE}
@@ -78,10 +78,10 @@ services:
     restart: unless-stopped
     environment:
       ME_CONFIG_MONGODB_SERVER: mongo
-      ME_CONFIG_MONGODB_ENABLE_ADMIN: 'true'
-      ME_CONFIG_BASICAUTH_ENABLED: 'false'
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_BASICAUTH_ENABLED: "false"
     ports:
-      - '${MONGO_EXPRESS_PORT}:8081'
+      - "${MONGO_EXPRESS_PORT}:8081"
 
   frontend:
     image: ${FRONTEND_IMAGE}
@@ -100,7 +100,7 @@ services:
       REACT_APP_API_BASE_URL: http://localhost:${BACKEND_PORT}/api
       VITE_API_BASE_URL: http://localhost:${BACKEND_PORT}/api
     ports:
-      - '${FRONTEND_PORT}:80'
+      - "${FRONTEND_PORT}:80"
 
 volumes:
   mongo-data:

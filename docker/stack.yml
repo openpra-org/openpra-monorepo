@@ -21,8 +21,8 @@ configs:
 
 x-base-shared-vols: &volumes-timezone
   volumes:
-    - '/etc/localtime:/etc/localtime:ro'
-    - '/etc/timezone:/etc/timezone:ro'
+    - "/etc/localtime:/etc/localtime:ro"
+    - "/etc/timezone:/etc/timezone:ro"
 
 x-base-shared-confs: &shared-nestjs_conf
   configs:
@@ -61,12 +61,12 @@ services:
     image: ${IMAGE_BACKEND}
     <<: *volumes-timezone
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:4200/']
+      test: ["CMD", "curl", "-f", "http://localhost:4200/"]
       <<: *healthcheck-fragments
     networks:
       - traefik-public
       - svc_net
-    command: 'nx run --verbose frontend-web-editor:serve-static:$CI_BUILD_TYPE'
+    command: "nx run --verbose frontend-web-editor:serve-static:$CI_BUILD_TYPE"
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
@@ -77,7 +77,7 @@ services:
       placement:
         max_replicas_per_node: 1
         constraints:
-          - '${DEPLOYMENT_FRONTEND_POOL}'
+          - "${DEPLOYMENT_FRONTEND_POOL}"
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public
@@ -98,9 +98,9 @@ services:
     image: ${IMAGE_BACKEND}
     <<: *shared-nestjs_conf
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/q/job-types']
+      test: ["CMD", "curl", "-f", "http://localhost:3000/q/job-types"]
       <<: *healthcheck-fragments
-    command: 'nx run --verbose raptor:deploy:$CI_BUILD_TYPE'
+    command: "nx run --verbose raptor:deploy:$CI_BUILD_TYPE"
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
@@ -114,7 +114,7 @@ services:
       placement:
         max_replicas_per_node: 1
         constraints:
-          - '${DEPLOYMENT_BROKER_POOL}'
+          - "${DEPLOYMENT_BROKER_POOL}"
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public
@@ -134,7 +134,7 @@ services:
   raptor-engine:
     image: ${IMAGE_BACKEND}
     <<: *shared-nestjs_conf
-    command: 'nx run --verbose raptor:deploy-engine:$CI_BUILD_TYPE'
+    command: "nx run --verbose raptor:deploy-engine:$CI_BUILD_TYPE"
     environment:
       NODE_ENV: ${CI_BUILD_TYPE}
       DEBUG: ${CI_DEBUG}
@@ -148,19 +148,19 @@ services:
       placement:
         max_replicas_per_node: 128
         constraints:
-          - '${DEPLOYMENT_WORKER_POOL}'
+          - "${DEPLOYMENT_WORKER_POOL}"
 
   backend:
     image: ${IMAGE_BACKEND}
     <<: *shared-nestjs_conf
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8000/api']
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api"]
       <<: *healthcheck-fragments
     networks:
       - traefik-public
       - db_net
       - svc_net
-    command: 'nx run --verbose web-backend:deploy:$CI_BUILD_TYPE'
+    command: "nx run --verbose web-backend:deploy:$CI_BUILD_TYPE"
     secrets:
       - CI_JWT_SECRET
     environment:
@@ -173,7 +173,7 @@ services:
       placement:
         max_replicas_per_node: 1
         constraints:
-          - '${DEPLOYMENT_BACKEND_POOL}'
+          - "${DEPLOYMENT_BACKEND_POOL}"
       labels:
         - traefik.enable=true
         - traefik.docker.network=traefik-public
@@ -198,8 +198,8 @@ services:
     <<: *volumes-timezone
     environment:
       ME_CONFIG_MONGODB_SERVER: mongodb
-      ME_CONFIG_MONGODB_ENABLE_ADMIN: 'true'
-      ME_CONFIG_BASICAUTH_ENABLED: 'false'
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+      ME_CONFIG_BASICAUTH_ENABLED: "false"
       ME_CONFIG_SITE_BASEURL: /mongo/
     deploy:
       labels:
@@ -221,9 +221,9 @@ services:
   rabbitmq:
     image: rabbitmq:management-alpine
     volumes:
-      - '$ENV_SHARED_VOLUME_PATH/rabbitmq:/var/lib/rabbitmq'
-      - '/etc/localtime:/etc/localtime:ro'
-      - '/etc/timezone:/etc/timezone:ro'
+      - "$ENV_SHARED_VOLUME_PATH/rabbitmq:/var/lib/rabbitmq"
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
     networks:
       - traefik-public
       - rmq_net
@@ -256,9 +256,9 @@ services:
     networks:
       - db_net
     volumes:
-      - '$ENV_SHARED_VOLUME_PATH/mongodb:/data/db'
-      - '/etc/localtime:/etc/localtime:ro'
-      - '/etc/timezone:/etc/timezone:ro'
+      - "$ENV_SHARED_VOLUME_PATH/mongodb:/data/db"
+      - "/etc/localtime:/etc/localtime:ro"
+      - "/etc/timezone:/etc/timezone:ro"
     deploy:
       placement:
         constraints:

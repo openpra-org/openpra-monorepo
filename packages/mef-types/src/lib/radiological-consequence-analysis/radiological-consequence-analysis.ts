@@ -1,32 +1,24 @@
-import typia, { tags } from 'typia';
-import {
-  TechnicalElement,
-  TechnicalElementTypes,
-  TechnicalElementMetadata,
-} from '../technical-element';
-import { Named, Unique } from '../core/meta';
+import typia, { tags } from "typia";
+import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
+import { Named, Unique } from "../core/meta";
 import {
   ImportanceLevel,
   SensitivityStudy,
   RiskMetricType,
   RiskSignificanceCriteriaType,
-} from '../core/shared-patterns';
+} from "../core/shared-patterns";
 import {
   BaseProcessDocumentation,
   BaseModelUncertaintyDocumentation,
   BasePeerReviewDocumentation,
   BaseAssumption,
-} from '../core/documentation';
-import { EventSequenceFamilyReference } from '../event-sequence-analysis/event-sequence-analysis';
+} from "../core/documentation";
+import { EventSequenceFamilyReference } from "../event-sequence-analysis/event-sequence-analysis";
 import {
   ReleaseCategoryReference as MstReleaseCategoryReference,
   SourceTermDefinitionReference,
-} from '../mechanistic-source-term/mechanistic-source-term';
-import {
-  VersionInfo,
-  SCHEMA_VERSION,
-  createVersionInfo,
-} from '../core/version';
+} from "../mechanistic-source-term/mechanistic-source-term";
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 //==============================================================================
 /**
  * @group Meteorological Data Analysis
@@ -284,7 +276,7 @@ export interface ConsequenceQuantificationAnalysis {
       changes?: string[];
 
       /** Status of the response */
-      status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+      status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
     };
   };
 }
@@ -336,8 +328,7 @@ export interface ConsequenceQuantificationAnalysis {
  * ```
  * @group Documentation & Traceability
  */
-export interface RadiologicalConsequenceDocumentation
-  extends BaseProcessDocumentation {
+export interface RadiologicalConsequenceDocumentation extends BaseProcessDocumentation {
   /**
    * Input sources used in the analysis.
    * @example ["Source term data from Mechanistic Source Term Analysis", "Site meteorological data"]
@@ -448,7 +439,7 @@ export interface RadiologicalConsequenceDocumentation
       incorporationDescription: string;
 
       /** Status of incorporation */
-      status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+      status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
 
       /** Date of incorporation */
       date?: string;
@@ -508,10 +499,9 @@ export interface RadiologicalConsequenceDocumentation
  * ```
  * @group API
  */
-export interface RadiologicalConsequenceAnalysis
-  extends TechnicalElement<TechnicalElementTypes.CONSEQUENCE_ANALYSIS> {
-  'technical-element-type': TechnicalElementTypes.CONSEQUENCE_ANALYSIS;
-  'technical-element-code': 'RC';
+export interface RadiologicalConsequenceAnalysis extends TechnicalElement<TechnicalElementTypes.CONSEQUENCE_ANALYSIS> {
+  "technical-element-type": TechnicalElementTypes.CONSEQUENCE_ANALYSIS;
+  "technical-element-code": "RC";
 
   /**
    * Metadata for the Radiological Consequence Analysis.
@@ -643,7 +633,7 @@ export interface RadiologicalConsequenceAnalysis
       consequenceMetrics: Record<string, number>;
 
       /** Risk significance level */
-      riskSignificance: 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
+      riskSignificance: "HIGH" | "MEDIUM" | "LOW" | "NONE";
 
       /** Risk insights derived from this consequence */
       riskInsights?: string[];
@@ -700,7 +690,7 @@ export interface RadiologicalConsequenceAnalysis
         changes?: string[];
 
         /** Status of the response */
-        status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+        status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
       };
     };
   };
@@ -721,14 +711,14 @@ export interface RadiologicalConsequenceAnalysis
  * @example "RCAT-001", "RCAT-42"
  * @group Release Category Analysis
  */
-export type ReleaseCategoryReference = string & tags.Pattern<'^RCAT-[1-9]+$'>;
+export type ReleaseCategoryReference = string & tags.Pattern<"^RCAT-[1-9]+$">;
 
 /**
  * Reference to a site.
  * @example "SITE-001", "SITE-42"
  * @group Release Category Analysis
  */
-export type SiteReference = string & tags.Pattern<'^SITE-[1-9]+$'>;
+export type SiteReference = string & tags.Pattern<"^SITE-[1-9]+$">;
 
 /**
  * Represents a bounding site with relevant characteristics for consequence analysis.
@@ -1353,7 +1343,7 @@ export interface ReleaseCategoryToConsequenceAnalysis {
       changes?: string[];
 
       /** Status of the response */
-      status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+      status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
     };
   };
 }
@@ -1701,7 +1691,7 @@ export interface ProtectiveActionAnalysis {
       changes?: string[];
 
       /** Status of the response */
-      status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED';
+      status: "PENDING" | "IN_PROGRESS" | "COMPLETED";
     };
   };
 }
@@ -1999,5 +1989,4 @@ export interface ProtectiveActionAnalysis {
  * ```
  * @group API
  */
-export const RadiologicalConsequenceAnalysisSchema =
-  typia.json.schemas<[RadiologicalConsequenceAnalysis]>();
+export const RadiologicalConsequenceAnalysisSchema = typia.json.schemas<[RadiologicalConsequenceAnalysis]>();

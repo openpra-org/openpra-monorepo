@@ -17,34 +17,21 @@
  * @category Technical Elements
  */
 
-import typia, { tags } from 'typia';
-import {
-  TechnicalElement,
-  TechnicalElementTypes,
-  TechnicalElementMetadata,
-} from '../technical-element';
-import { Named, Unique } from '../core/meta';
-import {
-  InitiatingEvent,
-  BaseEvent,
-  Frequency,
-  FrequencyWithDistribution,
-} from '../core/events';
+import typia, { tags } from "typia";
+import { TechnicalElement, TechnicalElementTypes, TechnicalElementMetadata } from "../technical-element";
+import { Named, Unique } from "../core/meta";
+import { InitiatingEvent, BaseEvent, Frequency, FrequencyWithDistribution } from "../core/events";
 import {
   IdPatterns,
   ImportanceLevel,
   SensitivityStudy,
   ScreeningStatus,
   SuccessCriteriaId,
-} from '../core/shared-patterns';
-import { DistributionType } from '../data-analysis/data-analysis';
-import { BaseAssumption } from '../core/documentation';
-import { ComponentReference } from '../core/component';
-import {
-  VersionInfo,
-  SCHEMA_VERSION,
-  createVersionInfo,
-} from '../core/version';
+} from "../core/shared-patterns";
+import { DistributionType } from "../data-analysis/data-analysis";
+import { BaseAssumption } from "../core/documentation";
+import { ComponentReference } from "../core/component";
+import { VersionInfo, SCHEMA_VERSION, createVersionInfo } from "../core/version";
 
 //==============================================================================
 /**
@@ -62,19 +49,19 @@ import {
  */
 export enum OperatingState {
   /** Normal power operation */
-  POWER = 'POWER',
+  POWER = "POWER",
 
   /** Reactor startup sequence */
-  STARTUP = 'STARTUP',
+  STARTUP = "STARTUP",
 
   /** Normal shutdown state */
-  SHUTDOWN = 'SHUTDOWN',
+  SHUTDOWN = "SHUTDOWN",
 
   /** Refueling operations */
-  REFUELING = 'REFUELING',
+  REFUELING = "REFUELING",
 
   /** Maintenance period */
-  MAINTENANCE = 'MAINTENANCE',
+  MAINTENANCE = "MAINTENANCE",
 }
 
 /**
@@ -86,27 +73,27 @@ export enum BarrierStatus {
   /**
    * Barrier is fully functional and providing its intended containment function
    */
-  INTACT = 'INTACT',
+  INTACT = "INTACT",
 
   /**
    * Barrier has been compromised and is no longer providing its intended containment function
    */
-  BREACHED = 'BREACHED',
+  BREACHED = "BREACHED",
 
   /**
    * Barrier is functioning below optimal levels but still providing some containment
    */
-  DEGRADED = 'DEGRADED',
+  DEGRADED = "DEGRADED",
 
   /**
    * Barrier has been intentionally bypassed (e.g., for maintenance)
    */
-  BYPASSED = 'BYPASSED',
+  BYPASSED = "BYPASSED",
 
   /**
    * Barrier is intentionally open (e.g., during refueling operations)
    */
-  OPEN = 'OPEN',
+  OPEN = "OPEN",
 }
 
 /**
@@ -118,26 +105,26 @@ export enum BarrierStatus {
  */
 export enum ModuleState {
   /** Module is directly impacted by the initiating event or hazard */
-  IMPACTED = 'IMPACTED',
+  IMPACTED = "IMPACTED",
 
   /** Module is not affected by the initiating event or hazard */
-  NOT_IMPACTED = 'NOT_IMPACTED',
+  NOT_IMPACTED = "NOT_IMPACTED",
 
   /** Module is indirectly or partially affected by the initiating event or hazard */
-  PARTIALLY_IMPACTED = 'PARTIALLY_IMPACTED',
+  PARTIALLY_IMPACTED = "PARTIALLY_IMPACTED",
 }
 
 /**
  * Interface representing the types of source locations.
  * @group Core Definitions & Enums
  */
-export type SourceLocationType = 'IN_CORE_SOURCE' | 'OUT_OF_CORE_SOURCE';
+export type SourceLocationType = "IN_CORE_SOURCE" | "OUT_OF_CORE_SOURCE";
 
 /**
  * Interface representing the system status.
  * @group Core Definitions & Enums
  */
-export type SystemStatus = 'YES' | 'NO';
+export type SystemStatus = "YES" | "NO";
 
 //==============================================================================
 /**
@@ -500,16 +487,10 @@ export interface ReactorCoolantSystemParameters {
   decayHeatLevel: [number & tags.Minimum<0>, number & tags.Maximum<1>];
 
   /** Reactor coolant temperature range at control volume 1 [min, max] */
-  reactorCoolantTemperatureAtControlVolume1: [
-    number & tags.Minimum<0>,
-    number & tags.Maximum<1>,
-  ];
+  reactorCoolantTemperatureAtControlVolume1: [number & tags.Minimum<0>, number & tags.Maximum<1>];
 
   /** Coolant pressure range at control volume 1 [min, max] */
-  coolantPressureAtControlVolume1: [
-    number & tags.Minimum<0>,
-    number & tags.Maximum<1>,
-  ];
+  coolantPressureAtControlVolume1: [number & tags.Minimum<0>, number & tags.Maximum<1>];
 
   /** Other parameter ranges [min, max] */
   others?: [number, number];
@@ -945,7 +926,7 @@ export interface SafetyFunction extends Unique, Named {
   description?: string;
 
   /** Current state of the safety function */
-  state: 'SUCCESS' | 'FAILURE';
+  state: "SUCCESS" | "FAILURE";
 
   /** Success and failure criteria */
   criteria?: {
@@ -1099,7 +1080,7 @@ export interface RadionuclideBarrier extends Unique, Named {
  */
 export interface RadioactiveSource extends Unique, Named {
   /** Location of the source - in-vessel or ex-vessel */
-  location: 'IN_VESSEL' | 'EX_VESSEL';
+  location: "IN_VESSEL" | "EX_VESSEL";
 
   /** Source location type for screening purposes */
   sourceLocation?: SourceLocationType;
@@ -1257,7 +1238,7 @@ export interface PeerReviewFinding {
   actions?: string[];
 
   /** Resolution status */
-  status: 'OPEN' | 'CLOSED' | 'IN_PROGRESS';
+  status: "OPEN" | "CLOSED" | "IN_PROGRESS";
 }
 
 /**
@@ -1523,5 +1504,4 @@ export interface PlantOperatingStatesAnalysis
  * ```
  * @group API
  */
-export const PlantOperatingStatesAnalysisSchema =
-  typia.json.schemas<[PlantOperatingStatesAnalysis]>();
+export const PlantOperatingStatesAnalysisSchema = typia.json.schemas<[PlantOperatingStatesAnalysis]>();

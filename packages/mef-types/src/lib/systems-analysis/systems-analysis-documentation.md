@@ -104,8 +104,8 @@ description?: string;
 // Example for EBR-II primary cooling system
 const processDoc: ProcessDocumentation = {
   systemFunctionDocumentation: {
-    'SYS-PCS':
-      'The primary cooling system circulates liquid sodium through the reactor core and intermediate heat exchanger to remove heat under normal and emergency operations. During normal operation, it transfers heat to the secondary system. During emergency conditions, it provides decay heat removal via natural circulation.',
+    "SYS-PCS":
+      "The primary cooling system circulates liquid sodium through the reactor core and intermediate heat exchanger to remove heat under normal and emergency operations. During normal operation, it transfers heat to the secondary system. During emergency conditions, it provides decay heat removal via natural circulation.",
   },
 };
 ```
@@ -126,14 +126,14 @@ boundaries: string[];
 
 ```typescript
 const systemDef: SystemDefinition = {
-  id: 'SYS-PCS-001',
-  name: 'Primary Cooling System',
+  id: "SYS-PCS-001",
+  name: "Primary Cooling System",
   boundaries: [
-    'From reactor vessel inlet plenum to outlet plenum',
-    'Primary sodium pumps',
-    'Intermediate heat exchangers',
-    'All associated piping within containment',
-    'Excluding secondary sodium system boundary',
+    "From reactor vessel inlet plenum to outlet plenum",
+    "Primary sodium pumps",
+    "Intermediate heat exchangers",
+    "All associated piping within containment",
+    "Excluding secondary sodium system boundary",
   ],
 };
 ```
@@ -161,9 +161,9 @@ schematic?: {
 ```typescript
 const processDoc: ProcessDocumentation = {
   systemSchematicReferences: {
-    'SYS-SCS': {
-      reference: 'Drawing EBR-II-SCS-P001',
-      description: 'Piping and Instrumentation Diagram for EBR-II Shutdown Cooling System',
+    "SYS-SCS": {
+      reference: "Drawing EBR-II-SCS-P001",
+      description: "Piping and Instrumentation Diagram for EBR-II Shutdown Cooling System",
     },
   },
 };
@@ -197,9 +197,9 @@ const systemDef: SystemDefinition = {
   // Other properties...
   operabilityConsiderations: [
     {
-      component: 'Primary Sodium Pump P-1',
-      calculationRef: 'CALC-EBR-PCS-007',
-      notes: 'Calculation confirms pump can operate at up to 550°C sodium temperature',
+      component: "Primary Sodium Pump P-1",
+      calculationRef: "CALC-EBR-PCS-007",
+      notes: "Calculation confirms pump can operate at up to 550°C sodium temperature",
     },
   ],
 };
@@ -222,10 +222,10 @@ operationalHistory?: string[];
 ```typescript
 const processDoc: ProcessDocumentation = {
   operationalHistoryDocumentation: {
-    'SYS-SCS': [
-      'Actuated during 1971 loss of power event; performed as designed',
-      'Three instances of minor NaK leakage identified in operational history',
-      'Natural circulation capability confirmed during test in 1969',
+    "SYS-SCS": [
+      "Actuated during 1971 loss of power event; performed as designed",
+      "Three instances of minor NaK leakage identified in operational history",
+      "Natural circulation capability confirmed during test in 1969",
     ],
   },
 };
@@ -261,22 +261,22 @@ export interface SupportSystemSuccessCriteria extends Unique {
 ```typescript
 const processDoc: ProcessDocumentation = {
   successCriteriaDocumentation: {
-    'SYS-SCS': {
+    "SYS-SCS": {
       criteria:
-        'At least one natural circulation path available with sufficient heat removal capacity to maintain primary sodium below 550°C',
+        "At least one natural circulation path available with sufficient heat removal capacity to maintain primary sodium below 550°C",
       relationshipToEventSequences:
-        'Required for all sequences involving loss of forced circulation in accident sequences AS-LOFC-001 through AS-LOFC-015',
+        "Required for all sequences involving loss of forced circulation in accident sequences AS-LOFC-001 through AS-LOFC-015",
     },
   },
 };
 
 // Example for support system success criteria
 const supportSystemCriteria: SupportSystemSuccessCriteria = {
-  id: 'SSSC-001',
-  systemReference: 'SYS-CCW',
-  successCriteria: 'At least one CCW pump and heat exchanger train providing minimum flow of 5000 gpm',
-  criteriaType: 'realistic',
-  supportedSystems: ['SYS-RHR', 'SYS-CSS'],
+  id: "SSSC-001",
+  systemReference: "SYS-CCW",
+  successCriteria: "At least one CCW pump and heat exchanger train providing minimum flow of 5000 gpm",
+  criteriaType: "realistic",
+  supportedSystems: ["SYS-RHR", "SYS-CSS"],
 };
 ```
 
@@ -305,9 +305,9 @@ const systemDef: SystemDefinition = {
   // Other properties...
   humanActionsForOperation: [
     {
-      actionRef: 'HRA-023',
+      actionRef: "HRA-023",
       description:
-        'Operator verifies damper alignment for passive air cooling within 2 hours of loss of forced circulation',
+        "Operator verifies damper alignment for passive air cooling within 2 hours of loss of forced circulation",
     },
   ],
 };
@@ -331,9 +331,9 @@ testAndMaintenance?: string[];
 ```typescript
 const processDoc: ProcessDocumentation = {
   testMaintenanceProceduresDocumentation: {
-    'SYS-SCS': [
-      'Procedure OP-SCS-04: Monthly verification of NaK expansion tank level',
-      'Procedure MT-SCS-09: Annual thermal performance testing of passive cooling capability',
+    "SYS-SCS": [
+      "Procedure OP-SCS-04: Monthly verification of NaK expansion tank level",
+      "Procedure MT-SCS-09: Annual thermal performance testing of passive cooling capability",
     ],
   },
 };
@@ -374,14 +374,14 @@ export interface DependencySearchMethodology extends Unique, Named {
 
 ```typescript
 const dependencySearch: DependencySearchMethodology = {
-  id: 'DSM-001',
-  name: 'EBR-II Systems Dependency Analysis',
-  description: 'Systematic approach to identify functional, spatial, and human dependencies',
-  reference: 'Report EBR-II-SDA-001',
+  id: "DSM-001",
+  name: "EBR-II Systems Dependency Analysis",
+  description: "Systematic approach to identify functional, spatial, and human dependencies",
+  reference: "Report EBR-II-SDA-001",
   dependencyTables: [
     {
-      tableId: 'DEP-PCS-001',
-      description: 'Primary Cooling System Dependencies Matrix',
+      tableId: "DEP-PCS-001",
+      description: "Primary Cooling System Dependencies Matrix",
     },
   ],
 };
@@ -415,9 +415,9 @@ const systemDef: SystemDefinition = {
   // Other properties...
   spatialInformation: [
     {
-      location: 'Reactor Building Room RB-104',
-      hazards: ['Sodium fire', 'High radiation'],
-      components: ['Primary Pump P-1', 'Primary Pump P-2'],
+      location: "Reactor Building Room RB-104",
+      hazards: ["Sodium fire", "High radiation"],
+      components: ["Primary Pump P-1", "Primary Pump P-2"],
     },
   ],
 };
@@ -440,10 +440,10 @@ modelAssumptions?: string[];
 ```typescript
 const processDoc: ProcessDocumentation = {
   modelingAssumptionsDocumentation: {
-    'SYS-SCS': [
-      'Natural circulation initiates automatically upon loss of forced flow',
-      'Heat removal capacity is sufficient for decay heat levels 1 hour after shutdown',
-      'Air dampers fail in the open position',
+    "SYS-SCS": [
+      "Natural circulation initiates automatically upon loss of forced flow",
+      "Heat removal capacity is sufficient for decay heat levels 1 hour after shutdown",
+      "Air dampers fail in the open position",
     ],
   },
 };
@@ -483,13 +483,13 @@ justificationForExclusionOfFailureModes?: string[];
 const systemDef: SystemDefinition = {
   // Other properties...
   modeledComponentsAndFailures: {
-    'NaK-HX-001': {
-      failureModes: ['FAILURE_TO_TRANSFER_HEAT', 'EXTERNAL_LEAKAGE'],
-      justificationForInclusion: 'Critical for passive heat removal capability',
-      componentGroup: 'HeatExchangers',
+    "NaK-HX-001": {
+      failureModes: ["FAILURE_TO_TRANSFER_HEAT", "EXTERNAL_LEAKAGE"],
+      justificationForInclusion: "Critical for passive heat removal capability",
+      componentGroup: "HeatExchangers",
     },
   },
-  justificationForExclusionOfComponents: ['Small instrument lines excluded due to minimal impact on system function'],
+  justificationForExclusionOfComponents: ["Small instrument lines excluded due to minimal impact on system function"],
 };
 ```
 
@@ -511,8 +511,8 @@ modularizationDocumentation?: {
 const processDoc: ProcessDocumentation = {
   modularizationDocumentation: {
     description:
-      'Super-component approach applied to group functionally similar components for quantification efficiency',
-    systems: ['SYS-PCS', 'SYS-SCS'],
+      "Super-component approach applied to group functionally similar components for quantification efficiency",
+    systems: ["SYS-PCS", "SYS-SCS"],
   },
 };
 ```
@@ -540,16 +540,16 @@ logicLoopResolutions?: {
 
 ```typescript
 const sysLogicModel: SystemLogicModel = {
-  id: 'SLM-PCS-001',
-  systemReference: 'SYS-PCS',
-  description: 'Primary Cooling System Fault Tree',
-  modelRepresentation: 'See attached fault tree file FT-PCS-001',
+  id: "SLM-PCS-001",
+  systemReference: "SYS-PCS",
+  description: "Primary Cooling System Fault Tree",
+  modelRepresentation: "See attached fault tree file FT-PCS-001",
   basicEvents: [],
   logicLoopResolutions: [
     {
-      loopId: 'LOOP-PCS-001',
+      loopId: "LOOP-PCS-001",
       resolution:
-        'Support system dependency loop between PCS and electrical systems resolved using phased mission approach',
+        "Support system dependency loop between PCS and electrical systems resolved using phased mission approach",
     },
   ],
 };
@@ -583,12 +583,12 @@ export interface SystemModelEvaluation extends Unique {
 
 ```typescript
 const sysEvaluation: SystemModelEvaluation = {
-  id: 'EVAL-SCS-001',
-  system: 'SYS-SCS',
+  id: "EVAL-SCS-001",
+  system: "SYS-SCS",
   topEventProbability: 2.3e-4,
   dominantContributors: [
     {
-      contributor: 'NaK-HX-001 Failure to Transfer Heat',
+      contributor: "NaK-HX-001 Failure to Transfer Heat",
       contribution: 0.65,
     },
   ],
@@ -619,12 +619,12 @@ export interface SystemSensitivityStudy extends SensitivityStudy {
 
 ```typescript
 const sensitivityStudy: SystemSensitivityStudy = {
-  id: 'SENS-SCS-001',
-  name: 'SCS Heat Removal Capacity Sensitivity',
-  system: 'SYS-SCS',
-  parameterChanged: 'NaK-to-Air Heat Transfer Coefficient',
-  impactOnSystem: 'Increasing heat transfer coefficient by 20% decreases peak temperature by 15°C',
-  insights: 'System performance is moderately sensitive to heat transfer coefficient, but maintains adequate margin',
+  id: "SENS-SCS-001",
+  name: "SCS Heat Removal Capacity Sensitivity",
+  system: "SYS-SCS",
+  parameterChanged: "NaK-to-Air Heat Transfer Coefficient",
+  impactOnSystem: "Increasing heat transfer coefficient by 20% decreases peak temperature by 15°C",
+  insights: "System performance is moderately sensitive to heat transfer coefficient, but maintains adequate margin",
 };
 ```
 
@@ -647,10 +647,10 @@ informationSourcesDocumentation?: {
 ```typescript
 const processDoc: ProcessDocumentation = {
   informationSourcesDocumentation: {
-    drawings: ['Drawing EBR-II-PCS-P001', 'Drawing EBR-II-SCS-P001'],
-    procedures: ['OP-SCS-04', 'MT-SCS-09'],
-    interviews: ['Interview with J. Smith, EBR-II Operations, 2023-06-15'],
-    otherSources: ['NUREG-CR-1234', 'ANL-EBR-II-67-01'],
+    drawings: ["Drawing EBR-II-PCS-P001", "Drawing EBR-II-SCS-P001"],
+    procedures: ["OP-SCS-04", "MT-SCS-09"],
+    interviews: ["Interview with J. Smith, EBR-II Operations, 2023-06-15"],
+    otherSources: ["NUREG-CR-1234", "ANL-EBR-II-67-01"],
   },
 };
 ```
@@ -682,11 +682,11 @@ export interface FaultTree extends Unique, Named {
 ```typescript
 const processDoc: ProcessDocumentation = {
   basicEventsDocumentation: {
-    'BE-SCS-HX-001': {
-      system: 'SYS-SCS',
-      description: 'NaK-to-Air Heat Exchanger HX-001 Fails to Transfer Heat',
-      moduleReference: 'MOD-HX-001',
-      cutsetReference: 'CUTSET-SCS-001',
+    "BE-SCS-HX-001": {
+      system: "SYS-SCS",
+      description: "NaK-to-Air Heat Exchanger HX-001 Fails to Transfer Heat",
+      moduleReference: "MOD-HX-001",
+      cutsetReference: "CUTSET-SCS-001",
     },
   },
 };
@@ -710,11 +710,11 @@ nomenclature?: Record<string, string>;
 const sysLogicModel: SystemLogicModel = {
   // Other properties...
   nomenclature: {
-    FT: 'Failure to',
-    SCS: 'Shutdown Cooling System',
-    HX: 'Heat Exchanger',
-    P: 'Pump',
-    V: 'Valve',
+    FT: "Failure to",
+    SCS: "Shutdown Cooling System",
+    HX: "Heat Exchanger",
+    P: "Pump",
+    V: "Valve",
   },
 };
 ```
@@ -746,12 +746,12 @@ export interface DigitalInstrumentationAndControl extends Unique, Named {
 
 ```typescript
 const digitalIC: DigitalInstrumentationAndControl = {
-  id: 'DIC-001',
-  name: 'EBR-II Temperature Monitoring System',
-  systemReference: 'SYS-TMS',
-  description: 'Digital system for monitoring and recording reactor and primary system temperatures',
-  methodology: 'Software-inclusive fault tree with common cause failure modeling',
-  failureModes: ['Software Error', 'Hardware Failure', 'Sensor Input Failure'],
+  id: "DIC-001",
+  name: "EBR-II Temperature Monitoring System",
+  systemReference: "SYS-TMS",
+  description: "Digital system for monitoring and recording reactor and primary system temperatures",
+  methodology: "Software-inclusive fault tree with common cause failure modeling",
+  failureModes: ["Software Error", "Hardware Failure", "Sensor Input Failure"],
 };
 ```
 
@@ -781,13 +781,13 @@ export interface PassiveSystemsTreatment extends Unique, Named {
 
 ```typescript
 const passiveSys: PassiveSystemsTreatment = {
-  id: 'PST-001',
-  name: 'EBR-II Natural Circulation Cooling',
-  systemReference: 'SYS-SCS',
-  description: 'Passive cooling capability via natural circulation following loss of forced circulation',
-  relevantPhysicalPhenomena: ['Thermal expansion', 'Buoyancy-driven flow', 'Natural convection heat transfer'],
-  uncertaintyAnalysis: 'Monte Carlo simulation of thermal-hydraulic parameters',
-  uncertaintyEvaluation: 'Key uncertainties include flow resistance factors and heat transfer coefficients',
+  id: "PST-001",
+  name: "EBR-II Natural Circulation Cooling",
+  systemReference: "SYS-SCS",
+  description: "Passive cooling capability via natural circulation following loss of forced circulation",
+  relevantPhysicalPhenomena: ["Thermal expansion", "Buoyancy-driven flow", "Natural convection heat transfer"],
+  uncertaintyAnalysis: "Monte Carlo simulation of thermal-hydraulic parameters",
+  uncertaintyEvaluation: "Key uncertainties include flow resistance factors and heat transfer coefficients",
 };
 ```
 
@@ -822,7 +822,7 @@ import {
   // ... other imports
   BasePreOperationalAssumptionsDocumentation,
   PreOperationalAssumption,
-} from '../core/documentation';
+} from "../core/documentation";
 ```
 
 ## Data Analysis Integration
@@ -900,13 +900,13 @@ This integration provides several benefits:
 ```typescript
 // Example of a System Basic Event referencing Data Analysis
 const systemBasicEvent: SystemBasicEvent = {
-  id: 'BE-PCS-PUMP-FTR',
-  name: 'Primary Cooling Pump Fails to Run',
-  componentReference: 'PCS-PUMP-001',
-  failureMode: 'FAILURE_TO_RUN',
+  id: "BE-PCS-PUMP-FTR",
+  name: "Primary Cooling Pump Fails to Run",
+  componentReference: "PCS-PUMP-001",
+  failureMode: "FAILURE_TO_RUN",
 
   // Reference to data analysis module for detailed probability information
-  dataAnalysisBasicEventRef: 'DA-BE-PCS-PUMP-FTR-001',
+  dataAnalysisBasicEventRef: "DA-BE-PCS-PUMP-FTR-001",
 
   // ProbabilityModel imported from Data Analysis
   probabilityModel: {
@@ -915,7 +915,7 @@ const systemBasicEvent: SystemBasicEvent = {
       mean: 1.0e-4,
       errorFactor: 3.0,
     },
-    source: 'estimated',
+    source: "estimated",
   },
 };
 ```
@@ -1028,18 +1028,18 @@ The schema enables documentation of EBR-II's passive safety features through the
 ```typescript
 // Example instantiation for EBR-II passive safety features
 const passiveSafetyFeatures: PassiveSystemsTreatment = {
-  id: 'PSF-EBR-II-001',
-  name: 'EBR-II Passive Reactivity Feedback',
-  systemReference: 'SYS-CORE',
-  description: 'Natural properties that enhance reactor safety through relatively benign responses to accidents',
+  id: "PSF-EBR-II-001",
+  name: "EBR-II Passive Reactivity Feedback",
+  systemReference: "SYS-CORE",
+  description: "Natural properties that enhance reactor safety through relatively benign responses to accidents",
   relevantPhysicalPhenomena: [
-    'Negative temperature coefficient of reactivity',
-    'Natural circulation cooling',
-    'Thermal expansion of structures',
+    "Negative temperature coefficient of reactivity",
+    "Natural circulation cooling",
+    "Thermal expansion of structures",
   ],
-  uncertaintyAnalysis: 'Monte Carlo simulation of reactivity feedback mechanisms',
+  uncertaintyAnalysis: "Monte Carlo simulation of reactivity feedback mechanisms",
   uncertaintyEvaluation:
-    'Comprehensive evaluation of uncertainties in thermal expansion coefficients and flow resistance',
+    "Comprehensive evaluation of uncertainties in thermal expansion coefficients and flow resistance",
 };
 ```
 
@@ -1050,11 +1050,11 @@ The schema's `ProcessDocumentation` interface would then enable documentation of
 const processDocumentation: ProcessDocumentation = {
   // Other documentation properties...
   passiveSystemsDocumentation: {
-    'SYS-CORE': {
+    "SYS-CORE": {
       description:
         "EBR-II's core incorporates passive safety features that rely on natural properties rather than active mitigation",
       uncertaintyEvaluation:
-        'Uncertainties in natural circulation and reactivity feedback were evaluated through thermal-hydraulic analysis and reactor physics calculations',
+        "Uncertainties in natural circulation and reactivity feedback were evaluated through thermal-hydraulic analysis and reactor physics calculations",
     },
   },
 };
@@ -1067,27 +1067,27 @@ The Shutdown Cooling System can be documented using the `SystemDefinition` inter
 ```typescript
 // Example instantiation for EBR-II Shutdown Cooling System
 const shutdownCoolingSystem: SystemDefinition = {
-  id: 'SYS-SCS-001',
-  name: 'EBR-II Shutdown Cooling System',
+  id: "SYS-SCS-001",
+  name: "EBR-II Shutdown Cooling System",
   description:
-    'Passive system designed to remove decay heat from the primary sodium when the secondary system is inoperable',
-  boundaries: ['Primary sodium boundary', 'NaK natural circulation loop', 'Air-cooled heat exchangers'],
-  successCriteria: 'Maintain primary sodium temperature below 500°C during shutdown conditions',
-  missionTime: '72 hours',
+    "Passive system designed to remove decay heat from the primary sodium when the secondary system is inoperable",
+  boundaries: ["Primary sodium boundary", "NaK natural circulation loop", "Air-cooled heat exchangers"],
+  successCriteria: "Maintain primary sodium temperature below 500°C during shutdown conditions",
+  missionTime: "72 hours",
   modeledComponentsAndFailures: {
-    'NaK-HX-001': {
-      failureModes: ['FAILURE_TO_TRANSFER_HEAT', 'EXTERNAL_LEAKAGE'],
-      justificationForInclusion: 'Critical for passive heat removal capability',
+    "NaK-HX-001": {
+      failureModes: ["FAILURE_TO_TRANSFER_HEAT", "EXTERNAL_LEAKAGE"],
+      justificationForInclusion: "Critical for passive heat removal capability",
     },
-    'AIR-DAMPER-001': {
-      failureModes: ['FAILURE_TO_OPEN', 'FAILURE_TO_REMAIN_OPEN'],
-      justificationForInclusion: 'Required for establishing natural draft air flow',
+    "AIR-DAMPER-001": {
+      failureModes: ["FAILURE_TO_OPEN", "FAILURE_TO_REMAIN_OPEN"],
+      justificationForInclusion: "Required for establishing natural draft air flow",
     },
   },
-  testAndMaintenance: ['Monthly verification of damper operability', 'Quarterly thermal performance test'],
+  testAndMaintenance: ["Monthly verification of damper operability", "Quarterly thermal performance test"],
   modelAssumptions: [
-    'Natural circulation is adequate to remove decay heat',
-    'No operator actions required for 24 hours',
+    "Natural circulation is adequate to remove decay heat",
+    "No operator actions required for 24 hours",
   ],
 };
 ```
@@ -1127,11 +1127,11 @@ Components can be in various states during operation:
 
 ```typescript
 export type ComponentState =
-  | 'operational' // Normal operation
-  | 'degraded' // Operating but with reduced capability
-  | 'failed' // Complete loss of function
-  | 'recovering' // Being restored to service
-  | 'maintenance'; // Under planned maintenance
+  | "operational" // Normal operation
+  | "degraded" // Operating but with reduced capability
+  | "failed" // Complete loss of function
+  | "recovering" // Being restored to service
+  | "maintenance"; // Under planned maintenance
 ```
 
 This enables modeling of:
@@ -1151,7 +1151,7 @@ The schema includes support for referencing plant operating states:
  * Reference to a plant operating state
  * Format: POS-[NAME] (e.g., POS-FULL-POWER)
  */
-export type PlantOperatingStateReference = string & tags.Pattern<'^POS-[A-Z0-9_-]+$'>;
+export type PlantOperatingStateReference = string & tags.Pattern<"^POS-[A-Z0-9_-]+$">;
 
 /**
  * Simple reference to plant operating states for a system
@@ -1179,19 +1179,19 @@ The schema defines various types of system dependencies:
 ```typescript
 export enum DependencyType {
   /** Functional dependency (e.g., power, control, cooling) */
-  FUNCTIONAL = 'FUNCTIONAL',
+  FUNCTIONAL = "FUNCTIONAL",
 
   /** Spatial dependency (e.g., shared location) */
-  SPATIAL = 'SPATIAL',
+  SPATIAL = "SPATIAL",
 
   /** Environmental dependency (e.g., temperature, radiation) */
-  ENVIRONMENTAL = 'ENVIRONMENTAL',
+  ENVIRONMENTAL = "ENVIRONMENTAL",
 
   /** Human dependency (e.g., shared operator actions) */
-  HUMAN = 'HUMAN',
+  HUMAN = "HUMAN",
 
   /** Other dependencies not covered by the above */
-  OTHER = 'OTHER',
+  OTHER = "OTHER",
 }
 ```
 
@@ -1219,7 +1219,7 @@ export interface CommonCauseFailureGroup extends Unique, Named {
   affectedSystems: SystemReference[];
 
   /** The common cause model used */
-  modelType: 'BETA_FACTOR' | 'MGL' | 'ALPHA_FACTOR' | 'PHI_FACTOR' | string;
+  modelType: "BETA_FACTOR" | "MGL" | "ALPHA_FACTOR" | "PHI_FACTOR" | string;
 
   /** Parameters of the CCF model */
   modelParameters?: Record<string, number>;
@@ -1274,13 +1274,13 @@ export interface CommonCauseFailureGroup extends Unique, Named {
   dataSources?: {
     reference: string;
     description: string;
-    dataType: 'plant-specific' | 'generic' | 'expert-judgment';
+    dataType: "plant-specific" | "generic" | "expert-judgment";
   }[];
 
   /** Mapping to guide how this CCF group should be quantified */
   quantificationMapping?: {
     openPsaMapping?: {
-      modelType: 'beta-factor' | 'MGL' | 'alpha-factor' | 'phi-factor';
+      modelType: "beta-factor" | "MGL" | "alpha-factor" | "phi-factor";
       factorMappings?: Record<string, string>;
     };
   };
@@ -1333,7 +1333,7 @@ The schema includes detailed support for modeling resource depletion:
 ```typescript
 export interface DepletionModel extends Unique {
   /** Type of resource being depleted */
-  resourceType: 'fuel' | 'coolant' | 'battery' | 'other';
+  resourceType: "fuel" | "coolant" | "battery" | "other";
 
   /** Description of the resource */
   description?: string;

@@ -2,8 +2,8 @@
  * @packageDocumentation
  * @module technical_elements.core
  */
-import typia, { tags } from 'typia';
-import { Named, Unique } from './meta';
+import typia, { tags } from "typia";
+import { Named, Unique } from "./meta";
 
 /**
  * @namespace technical_elements.core.events
@@ -25,16 +25,16 @@ export type Frequency = number & tags.Minimum<0>;
  * @group Events
  */
 export enum DistributionType {
-  EXPONENTIAL = 'exponential',
-  BINOMIAL = 'binomial',
-  NORMAL = 'normal',
-  LOGNORMAL = 'lognormal',
-  WEIBULL = 'weibull',
-  POISSON = 'poisson',
-  UNIFORM = 'uniform',
-  BETA = 'beta',
-  GAMMA = 'gamma',
-  POINT_ESTIMATE = 'point_estimate',
+  EXPONENTIAL = "exponential",
+  BINOMIAL = "binomial",
+  NORMAL = "normal",
+  LOGNORMAL = "lognormal",
+  WEIBULL = "weibull",
+  POISSON = "poisson",
+  UNIFORM = "uniform",
+  BETA = "beta",
+  GAMMA = "gamma",
+  POINT_ESTIMATE = "point_estimate",
 }
 
 /**
@@ -73,15 +73,15 @@ export interface FrequencyWithDistribution {
  */
 export enum FrequencyUnit {
   /** Frequency per reactor year - used for reactor-specific events */
-  PER_REACTOR_YEAR = 'per-reactor-year',
+  PER_REACTOR_YEAR = "per-reactor-year",
   /** Frequency per calendar year - used for site-wide events */
-  PER_CALENDAR_YEAR = 'per-calendar-year',
+  PER_CALENDAR_YEAR = "per-calendar-year",
   /** Frequency per critical year - used for events that can only occur during critical operation */
-  PER_CRITICAL_YEAR = 'per-critical-year',
+  PER_CRITICAL_YEAR = "per-critical-year",
   /** Frequency per demand - used for events that occur upon system demand */
-  PER_DEMAND = 'per-demand',
+  PER_DEMAND = "per-demand",
   /** Frequency per plant year - used for plant-wide events */
-  PER_PLANT_YEAR = 'per-plant-year',
+  PER_PLANT_YEAR = "per-plant-year",
 }
 
 /**
@@ -107,7 +107,7 @@ export interface BaseEvent extends Unique, Named {
  * @group Events
  */
 export interface BasicEvent extends BaseEvent {
-  eventType: 'BASIC';
+  eventType: "BASIC";
 }
 
 /**
@@ -122,7 +122,7 @@ export interface BasicEvent extends BaseEvent {
  * @group Events
  */
 export interface FunctionalEvent extends BaseEvent {
-  eventType: 'FUNCTIONAL';
+  eventType: "FUNCTIONAL";
 }
 
 /**
@@ -132,7 +132,7 @@ export interface FunctionalEvent extends BaseEvent {
  * @group Events
  */
 export interface TopEvent extends FunctionalEvent {
-  eventSubType: 'TOP';
+  eventSubType: "TOP";
 }
 
 /**
@@ -147,7 +147,7 @@ export interface TopEvent extends FunctionalEvent {
  * @group Events
  */
 export interface InitiatingEvent extends BaseEvent {
-  eventType: 'INITIATING';
+  eventType: "INITIATING";
 
   /**
    * Frequency of the initiating event

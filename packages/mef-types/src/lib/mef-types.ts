@@ -8,5 +8,5 @@
  * @returns The literal string "mef-types".
  */
 export function mefTypes(): string {
-  return 'mef-types';
+  return "mef-types";
 }

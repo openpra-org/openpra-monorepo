@@ -38,7 +38,7 @@ The schema uses `EndState` and `EventSequenceReference` types from the event seq
 The Success Criteria Development schema is implemented as a TypeScript interface that extends the `TechnicalElement` type. The schema provides structured documentation capabilities through the following key components:
 
 ```typescript
-import { EndState, EventSequenceReference } from '../event-sequence-analysis/event-sequence-analysis';
+import { EndState, EventSequenceReference } from "../event-sequence-analysis/event-sequence-analysis";
 
 export interface SuccessCriteriaDevelopment
   extends TechnicalElement<TechnicalElementTypes.SUCCESS_CRITERIA_DEVELOPMENT> {

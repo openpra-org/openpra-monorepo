@@ -5,4 +5,4 @@
  */
 
 // Direct exports from the main module
-export * from './success-criteria-development';
+export * from "./success-criteria-development";

@@ -5,4 +5,4 @@
  */
 
 // Direct exports from the main module
-export * from './mechanistic-source-term';
+export * from "./mechanistic-source-term";

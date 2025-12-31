@@ -451,22 +451,6 @@ importers:
         specifier: 9.0.1
         version: 9.0.1
 
-  packages/mef-schema:
-    dependencies:
-      tslib:
-        specifier: 2.5.2
-        version: 2.5.2
-    devDependencies:
-      eslint:
-        specifier: 9.14.0
-        version: 9.14.0(jiti@2.6.1)
-      eslint-plugin-tsdoc:
-        specifier: 0.2.17
-        version: 0.2.17
-      typescript-eslint:
-        specifier: 8.14.0
-        version: 8.14.0(eslint@9.14.0(jiti@2.6.1))(typescript@5.9.3)
-
   packages/mef-types:
     dependencies:
       tslib:
@@ -474,7 +458,7 @@ importers:
         version: 2.5.2
       typia:
         specifier: 9.7.2
-        version: 9.7.2(@types/node@20.9.0)(typescript@5.9.3)
+        version: 9.7.2(@types/node@20.19.22)(typescript@5.9.3)
     devDependencies:
       eslint:
         specifier: 9.14.0
@@ -14642,6 +14626,13 @@ snapshots:
     optionalDependencies:
       '@types/node': 20.9.0
 
+  '@inquirer/external-editor@1.0.2(@types/node@20.19.22)':
+    dependencies:
+      chardet: 2.1.0
+      iconv-lite: 0.7.0
+    optionalDependencies:
+      '@types/node': 20.19.22
+
   '@inquirer/external-editor@1.0.2(@types/node@20.9.0)':
     dependencies:
       chardet: 2.1.0
@@ -22073,6 +22064,26 @@ snapshots:
 
   inline-style-parser@0.1.1: {}
 
+  inquirer@8.2.7(@types/node@20.19.22):
+    dependencies:
+      '@inquirer/external-editor': 1.0.2(@types/node@20.19.22)
+      ansi-escapes: 4.3.2
+      chalk: 4.1.2
+      cli-cursor: 3.1.0
+      cli-width: 3.0.0
+      figures: 3.2.0
+      lodash: 4.17.21
+      mute-stream: 0.0.8
+      ora: 5.4.1
+      run-async: 2.4.1
+      rxjs: 7.8.2
+      string-width: 4.2.3
+      strip-ansi: 6.0.1
+      through: 2.3.8
+      wrap-ansi: 6.2.0
+    transitivePeerDependencies:
+      - '@types/node'
+
   inquirer@8.2.7(@types/node@20.9.0):
     dependencies:
       '@inquirer/external-editor': 1.0.2(@types/node@20.9.0)
@@ -26789,6 +26800,19 @@ snapshots:
   typescript@5.8.3: {}
 
   typescript@5.9.3: {}
+
+  typia@9.7.2(@types/node@20.19.22)(typescript@5.9.3):
+    dependencies:
+      '@samchon/openapi': 4.7.2
+      '@standard-schema/spec': 1.0.0
+      commander: 10.0.1
+      comment-json: 4.4.1
+      inquirer: 8.2.7(@types/node@20.19.22)
+      package-manager-detector: 0.2.11
+      randexp: 0.5.3
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - '@types/node'
 
   typia@9.7.2(@types/node@20.9.0)(typescript@5.9.3):
     dependencies:

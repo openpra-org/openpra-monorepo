@@ -1,7 +1,7 @@
-import { Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { TypedModel } from './templateSchema/typed-model.schema';
-import { MetaTypedModel } from './meta-typed-model.schema';
+import { Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
+import { TypedModel } from "./templateSchema/typed-model.schema";
+import { MetaTypedModel } from "./meta-typed-model.schema";
 
 /**
  * Typed model representing Internal Events projects.
@@ -29,8 +29,7 @@ export class InternalEvents extends TypedModel {
 }
 
 export type InternalEventsDocument = InternalEvents & Document;
-export const InternalEventsSchema =
-  SchemaFactory.createForClass(InternalEvents);
+export const InternalEventsSchema = SchemaFactory.createForClass(InternalEvents);
 
 /**
  * Typed model metadata projection for Internal Events.

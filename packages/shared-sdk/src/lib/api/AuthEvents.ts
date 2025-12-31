@@ -1,13 +1,9 @@
-import { AuthToken } from 'shared-types';
+import { AuthToken } from "shared-types";
 
 /**
  * Known authentication lifecycle events emitted by the SDK.
  */
-export type AuthEventType =
-  | 'login'
-  | 'logout'
-  | 'tokenRefreshed'
-  | 'userChanged';
+export type AuthEventType = "login" | "logout" | "tokenRefreshed" | "userChanged";
 
 /**
  * Payload delivered to auth event listeners.

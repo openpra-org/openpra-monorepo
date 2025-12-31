@@ -1,20 +1,16 @@
-import { AuthToken } from 'shared-types';
-import { AuthService } from './AuthService';
-import {
-  SignUpCredentials,
-  SignUpCredentialsWithRole,
-  SignUpPropsWithRole,
-} from './AuthTypes';
-import { MemberResult, Members } from './Members';
-import { EmailValidationForm, UsernameValidationForm } from './FormValidation';
+import { AuthToken } from "shared-types";
+import { AuthService } from "./AuthService";
+import { SignUpCredentials, SignUpCredentialsWithRole, SignUpPropsWithRole } from "./AuthTypes";
+import { MemberResult, Members } from "./Members";
+import { EmailValidationForm, UsernameValidationForm } from "./FormValidation";
 
-const API_ENDPOINT = '/api';
+const API_ENDPOINT = "/api";
 
 const collabEndpoint = `${API_ENDPOINT}/collab`;
 const authEndpoint = `${API_ENDPOINT}/auth`;
 const userPreferencesEndpoint = `${collabEndpoint}/user`;
 
-const OPTION_CACHE = 'no-cache'; // *default, no-cache, reload, force-cache, only-if-cached
+const OPTION_CACHE = "no-cache"; // *default, no-cache, reload, force-cache, only-if-cached
 
 // Regex for basic email validation
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[A-Z|a-z]{2,}$/;
@@ -37,7 +33,7 @@ export class ApiManager {
    */
   static async getWithOptions(url: string): Promise<Response> {
     return fetch(url, {
-      method: 'GET', // *GET, POST, PUT, DELETE, etc.
+      method: "GET", // *GET, POST, PUT, DELETE, etc.
       headers: {
         Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
@@ -56,17 +52,16 @@ export class ApiManager {
    */
   static login(creds: any) {
     return fetch(ApiManager.LOGIN_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify(creds),
     })
       .then((res: Response) => res.json())
       .then((data: Record<string, unknown>) => {
-        const token =
-          typeof data['token'] === 'string' ? (data['token'] as string) : null;
+        const token = typeof data["token"] === "string" ? (data["token"] as string) : null;
         AuthService.setEncodedToken(token);
       });
   }
@@ -79,15 +74,12 @@ export class ApiManager {
    * Returns a promise of a non-null User object (newly signed in)
    * @throws - A possible authentication error
    */
-  static async signInWithUsernameAndPassword(
-    username: string,
-    password: string,
-  ): Promise<void> {
+  static async signInWithUsernameAndPassword(username: string, password: string): Promise<void> {
     return fetch(ApiManager.LOGIN_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
       body: JSON.stringify({
         username,
@@ -102,8 +94,7 @@ export class ApiManager {
       })
       .then((res: Response) => res.json())
       .then((data: Record<string, unknown>) => {
-        const token =
-          typeof data['token'] === 'string' ? (data['token'] as string) : null;
+        const token = typeof data["token"] === "string" ? (data["token"] as string) : null;
         AuthService.setEncodedToken(token);
         return;
       });
@@ -117,10 +108,7 @@ export class ApiManager {
    * @returns A promise that resolves when the JWT is obtained and stored
    * @throws Error if the server returns an error status
    */
-  signInWithUsernameAndPassword(
-    username: string,
-    password: string,
-  ): Promise<void> {
+  signInWithUsernameAndPassword(username: string, password: string): Promise<void> {
     return ApiManager.signInWithUsernameAndPassword(username, password);
   }
 
@@ -135,10 +123,7 @@ export class ApiManager {
     return ApiManager.post(`${userPreferencesEndpoint}/`, JSON.stringify(data))
       .then((response: Response) => {
         if (response.ok) {
-          return ApiManager.signInWithUsernameAndPassword(
-            data.username,
-            data.password,
-          );
+          return ApiManager.signInWithUsernameAndPassword(data.username, data.password);
         }
         if (response.status >= 400) {
           throw new Error(response.statusText);
@@ -184,14 +169,7 @@ export class ApiManager {
    * @param roles - One or more roles to assign to the user
    * @returns A promise that resolves once the signup request completes and sign-in is attempted
    */
-  signup(
-    username: string,
-    email: string,
-    firstName: string,
-    lastName: string,
-    password: string,
-    roles: string[],
-  ) {
+  signup(username: string, email: string, firstName: string, lastName: string, password: string, roles: string[]) {
     const data: SignUpCredentialsWithRole = {
       username,
       email,
@@ -210,9 +188,7 @@ export class ApiManager {
    * @returns The same response when status is within the 2xx range
    * @throws Error when the status is outside 200-299
    */
-  static checkStatus(
-    response: Pick<Response, 'status' | 'statusText'>,
-  ): Pick<Response, 'status' | 'statusText'> {
+  static checkStatus(response: Pick<Response, "status" | "statusText">): Pick<Response, "status" | "statusText"> {
     // raises an error in case response status is not a success
     if (response.status >= 200 && response.status < 300) {
       // Success status lies between 200 to 300
@@ -253,9 +229,9 @@ export class ApiManager {
    * @param roleId - The roleId
    */
   static async getUsersWithRole(roleId: string): Promise<Members> {
-    return ApiManager.getWithOptions(
-      `${collabEndpoint}/user?role=${roleId}`,
-    ).then((response: Response) => response.json() as Promise<Members>);
+    return ApiManager.getWithOptions(`${collabEndpoint}/user?role=${roleId}`).then(
+      (response: Response) => response.json() as Promise<Members>,
+    );
   }
 
   /**
@@ -267,10 +243,10 @@ export class ApiManager {
    */
   static post(url: string, data: BodyInit): Promise<Response> {
     return fetch(url, {
-      method: 'POST',
+      method: "POST",
       cache: OPTION_CACHE,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
       body: data, // body data type must match "Content-Type" header
@@ -286,10 +262,10 @@ export class ApiManager {
    */
   static put<DataType>(url: string, data: DataType): Promise<Response> {
     return fetch(url, {
-      method: 'PUT',
+      method: "PUT",
       cache: OPTION_CACHE,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
       body: data as BodyInit, // body data type must match "Content-Type" header
@@ -304,10 +280,10 @@ export class ApiManager {
    */
   static delete(url: RequestInfo | URL | string): Promise<Response> {
     return fetch(url, {
-      method: 'DELETE',
+      method: "DELETE",
       cache: OPTION_CACHE,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `JWT ${AuthService.getEncodedToken()}`,
       },
     });
@@ -329,10 +305,7 @@ export class ApiManager {
    * @param id - Id of the user which is to be updated
    * @param data - The fields to be updated
    */
-  static updateUser<DataType>(
-    id: string | number,
-    data: DataType,
-  ): Promise<Response> {
+  static updateUser<DataType>(id: string | number, data: DataType): Promise<Response> {
     return ApiManager.put(`${collabEndpoint}/user/${id}/`, data);
   }
 
@@ -341,10 +314,7 @@ export class ApiManager {
    * @param email - Email of the user
    */
   static async isValidEmail(email: string): Promise<boolean> {
-    const result = await ApiManager.post(
-      `${collabEndpoint}/validateEmail`,
-      email,
-    );
+    const result = await ApiManager.post(`${collabEndpoint}/validateEmail`, email);
     return Boolean(await result.json());
   }
 
@@ -353,10 +323,7 @@ export class ApiManager {
    * @param username - Username of user
    */
   static async isValidUsername(username: string): Promise<boolean> {
-    const result = await ApiManager.post(
-      `${collabEndpoint}/validateUsername`,
-      username,
-    );
+    const result = await ApiManager.post(`${collabEndpoint}/validateUsername`, username);
     return Boolean(await result.json());
   }
 
@@ -370,10 +337,7 @@ export class ApiManager {
       username: username,
       password: password,
     };
-    return ApiManager.post(
-      `${authEndpoint}/verify-password`,
-      JSON.stringify(data),
-    );
+    return ApiManager.post(`${authEndpoint}/verify-password`, JSON.stringify(data));
   }
 
   /**
@@ -451,7 +415,7 @@ export class ApiManager {
         return isValidEmail;
       })
       .catch((_error: unknown) => {
-        console.error('Error validating email:', _error);
+        console.error("Error validating email:", _error);
         return false;
       });
   };
@@ -461,9 +425,7 @@ export class ApiManager {
    * @param onValidationComplete - Callback function to be called with the validation result
    * @returns A function that takes signup data and initiates a debounced email validation
    */
-  static checkEmail = (
-    onValidationComplete: (isValid: boolean) => void,
-  ): ((signup: SignUpPropsWithRole) => void) => {
+  static checkEmail = (onValidationComplete: (isValid: boolean) => void): ((signup: SignUpPropsWithRole) => void) => {
     let timer: NodeJS.Timeout | null = null;
 
     return function (signup: SignUpPropsWithRole): void {
@@ -484,7 +446,7 @@ export class ApiManager {
             onValidationComplete(isValid);
           })
           .catch((_error: unknown) => {
-            console.error('Error in email validation:', _error);
+            console.error("Error in email validation:", _error);
             onValidationComplete(false);
           });
       }, 700);

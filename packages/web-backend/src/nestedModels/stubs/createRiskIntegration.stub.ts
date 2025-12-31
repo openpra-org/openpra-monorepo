@@ -1,4 +1,4 @@
-import { NestedModel } from '../schemas/templateSchema/nested-model.schema';
+import { NestedModel } from "../schemas/templateSchema/nested-model.schema";
 
 /**
  * Test stub payload for creating a Risk Integration nested model.
@@ -6,7 +6,7 @@ import { NestedModel } from '../schemas/templateSchema/nested-model.schema';
  */
 export const createRiskIntegrationObject: Partial<NestedModel> = {
   label: {
-    name: 'Risk Integration Model',
-    description: 'Description for Risk Integration Model',
+    name: "Risk Integration Model",
+    description: "Description for Risk Integration Model",
   },
 };

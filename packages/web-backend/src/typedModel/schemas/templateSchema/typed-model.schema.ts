@@ -1,6 +1,6 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
-import { Label, LabelSchema } from '../../../schemas/label.schema';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
+import { Label, LabelSchema } from "../../../schemas/label.schema";
 
 /**
  * JSON shape for the embedded TypedModel payload returned by APIs.

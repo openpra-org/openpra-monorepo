@@ -1,5 +1,5 @@
-import { z } from 'nestjs-zod/z';
-import { createZodDto } from 'nestjs-zod';
+import { z } from "nestjs-zod/z";
+import { createZodDto } from "nestjs-zod";
 
 const hclModelTreeSchema = z.object({
   title: z.string(),

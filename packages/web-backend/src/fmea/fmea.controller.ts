@@ -1,18 +1,10 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Put,
-  Body,
-  Param,
-  Delete,
-} from '@nestjs/common';
-import { FmeaService } from './fmea.service';
-import { Fmea } from './schemas/fmea.schema';
-import { UpdateCellBody } from './dtos/update-cell-body.dto';
-import { UpdateDropdownBody } from './dtos/update-dropdown-body.dto';
-import { AddColumnBody } from './dtos/add-column-body.dto';
-import { UpdateColumnNameBody } from './dtos/update-column-name-body.dto';
+import { Controller, Post, Get, Put, Body, Param, Delete } from "@nestjs/common";
+import { FmeaService } from "./fmea.service";
+import { Fmea } from "./schemas/fmea.schema";
+import { UpdateCellBody } from "./dtos/update-cell-body.dto";
+import { UpdateDropdownBody } from "./dtos/update-dropdown-body.dto";
+import { AddColumnBody } from "./dtos/add-column-body.dto";
+import { UpdateColumnNameBody } from "./dtos/update-column-name-body.dto";
 
 /**
  * Controller for FMEA operations.
@@ -46,8 +38,8 @@ export class FmeaController {
    * @param id - FMEA ID
    * @returns The FMEA object, if found
    */
-  @Get(':id')
-  async getFmea(@Param('id') id: number): Promise<Fmea | null> {
+  @Get(":id")
+  async getFmea(@Param("id") id: number): Promise<Fmea | null> {
     return this.fmeaService.getFmeaById(id);
   }
 
@@ -58,11 +50,8 @@ export class FmeaController {
    * @param body - Contains column name, type, and optional dropdown options
    * @returns Updated FMEA
    */
-  @Put(':id/column')
-  async addColumn(
-    @Param('id') id: number,
-    @Body() body: AddColumnBody,
-  ): Promise<Fmea | null> {
+  @Put(":id/column")
+  async addColumn(@Param("id") id: number, @Body() body: AddColumnBody): Promise<Fmea | null> {
     return this.fmeaService.addColumn(id, body);
   }
 
@@ -72,8 +61,8 @@ export class FmeaController {
    * @param id - FMEA ID
    * @returns Updated FMEA
    */
-  @Put(':id/row')
-  async addRow(@Param('id') id: number): Promise<Fmea | null> {
+  @Put(":id/row")
+  async addRow(@Param("id") id: number): Promise<Fmea | null> {
     return this.fmeaService.addRow(id);
   }
 
@@ -84,11 +73,8 @@ export class FmeaController {
    * @param body - Contains row ID, column to be updated, and the new cell value
    * @returns Whether the cell was updated
    */
-  @Put(':id/cell')
-  async updateCell(
-    @Param('id') id: number,
-    @Body() body: UpdateCellBody,
-  ): Promise<boolean> {
+  @Put(":id/cell")
+  async updateCell(@Param("id") id: number, @Body() body: UpdateCellBody): Promise<boolean> {
     return this.fmeaService.updateCell(id, body.rowId, body.column, body.value);
   }
 
@@ -99,16 +85,9 @@ export class FmeaController {
    * @param body - Contains column name and dropdown options
    * @returns Updated FMEA object
    */
-  @Put(':id/dropdown')
-  async updateDropdownOptions(
-    @Param('id') id: number,
-    @Body() body: UpdateDropdownBody,
-  ): Promise<Fmea | null> {
-    return this.fmeaService.updateDropdownOptions(
-      id,
-      body.column,
-      body.dropdownOptions,
-    );
+  @Put(":id/dropdown")
+  async updateDropdownOptions(@Param("id") id: number, @Body() body: UpdateDropdownBody): Promise<Fmea | null> {
+    return this.fmeaService.updateDropdownOptions(id, body.column, body.dropdownOptions);
   }
 
   /**
@@ -118,11 +97,8 @@ export class FmeaController {
    * @param column - Column to be deleted
    * @returns Updated FMEA
    */
-  @Put(':fmeaid/:column/delete')
-  async deleteColumn(
-    @Param('fmeaid') fmeaId: number,
-    @Param('column') column: string,
-  ): Promise<Fmea | null> {
+  @Put(":fmeaid/:column/delete")
+  async deleteColumn(@Param("fmeaid") fmeaId: number, @Param("column") column: string): Promise<Fmea | null> {
     return this.fmeaService.deleteColumn(fmeaId, column);
   }
 
@@ -133,11 +109,8 @@ export class FmeaController {
    * @param rowId - The row identifier to delete
    * @returns Updated FMEA after deletion, or null if not found
    */
-  @Delete(':fmeaid/:rowid/delete')
-  async deleteRow(
-    @Param('fmeaid') fmeaId: number,
-    @Param('rowid') rowId: string,
-  ): Promise<Fmea | null> {
+  @Delete(":fmeaid/:rowid/delete")
+  async deleteRow(@Param("fmeaid") fmeaId: number, @Param("rowid") rowId: string): Promise<Fmea | null> {
     return this.fmeaService.deleteRow(fmeaId, rowId);
   }
 
@@ -147,8 +120,8 @@ export class FmeaController {
    * @param fmeaId - FMEA ID
    * @returns Whether the FMEA was deleted
    */
-  @Put(':id/delete')
-  async deleteFmea(@Param('id') fmeaId: number): Promise<boolean | null> {
+  @Put(":id/delete")
+  async deleteFmea(@Param("id") fmeaId: number): Promise<boolean | null> {
     return this.fmeaService.deleteFmea(fmeaId);
   }
 
@@ -159,16 +132,9 @@ export class FmeaController {
    * @param body - Contains current column name and the new column name
    * @returns Updated FMEA
    */
-  @Put(':id/column/updateName')
-  async updateColumnName(
-    @Param('id') id: number,
-    @Body() body: UpdateColumnNameBody,
-  ): Promise<Fmea | null> {
-    return this.fmeaService.updateColumnName(
-      id,
-      body.column,
-      body.newColumnName,
-    );
+  @Put(":id/column/updateName")
+  async updateColumnName(@Param("id") id: number, @Body() body: UpdateColumnNameBody): Promise<Fmea | null> {
+    return this.fmeaService.updateColumnName(id, body.column, body.newColumnName);
   }
 
   /**
@@ -178,11 +144,8 @@ export class FmeaController {
    * @param body - Contains old/new column info, dropdown options, and type
    * @returns Updated FMEA
    */
-  @Put(':id/column/updateType')
-  async updateColumnType(
-    @Param('id') id: number,
-    @Body() body,
-  ): Promise<Fmea | null> {
+  @Put(":id/column/updateType")
+  async updateColumnType(@Param("id") id: number, @Body() body): Promise<Fmea | null> {
     return this.fmeaService.updateColumnType(id, body);
   }
 
@@ -194,10 +157,10 @@ export class FmeaController {
    * @param body - New column name, type, and dropdown options
    * @returns Updated FMEA
    */
-  @Put(':id/:column/update')
+  @Put(":id/:column/update")
   async updateColumn(
-    @Param('id') fmeaId: number,
-    @Param('column') prev_column_name: string,
+    @Param("id") fmeaId: number,
+    @Param("column") prev_column_name: string,
     @Body() body: UpdateDropdownBody,
   ): Promise<Fmea | null> {
     return this.fmeaService.updateColumnDetails(fmeaId, prev_column_name, body);

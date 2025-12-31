@@ -1,4 +1,4 @@
-import TypedModel, { typedModelType } from './typedModel';
+import TypedModel, { typedModelType } from "./typedModel";
 
 /**
  * full scope models do what a typed model does and nothing else

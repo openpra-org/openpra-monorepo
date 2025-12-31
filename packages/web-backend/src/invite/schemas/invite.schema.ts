@@ -1,10 +1,10 @@
-import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from "@nestjs/mongoose";
+import { Document } from "mongoose";
 
 @Schema({
   minimize: false,
   timestamps: {
-    createdAt: 'created_at',
+    createdAt: "created_at",
   },
   versionKey: false,
 })

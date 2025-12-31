@@ -1,8 +1,8 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import * as argon2 from 'argon2';
-import { CollabService } from '../collab/collab.service';
-import { User } from '../collab/schemas/user.schema';
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import * as argon2 from "argon2";
+import { CollabService } from "../collab/collab.service";
+import { User } from "../collab/schemas/user.schema";
 
 /**
  * Service for user authentication and JWT token management.
@@ -39,10 +39,10 @@ export class AuthService {
       if (validUser) {
         return user;
       } else {
-        throw new UnauthorizedException('Password does not match');
+        throw new UnauthorizedException("Password does not match");
       }
     } else {
-      throw new UnauthorizedException('User does not exist');
+      throw new UnauthorizedException("User does not exist");
     }
   }
 
@@ -86,25 +86,17 @@ export class AuthService {
       const decodedToken = this.jwtService.verify<TokenPayload>(refreshToken);
       // Check if the token is valid and not expired
       const userId =
-        typeof decodedToken?.user_id === 'number'
-          ? decodedToken.user_id
-          : typeof decodedToken?.user_id === 'string'
-            ? Number(decodedToken.user_id)
-            : undefined;
-      if (typeof userId === 'number' && Number.isFinite(userId)) {
+        typeof decodedToken?.user_id === "number" ? decodedToken.user_id
+        : typeof decodedToken?.user_id === "string" ? Number(decodedToken.user_id)
+        : undefined;
+      if (typeof userId === "number" && Number.isFinite(userId)) {
         // Create a new access token with a new expiration time (e.g., 15 minutes)
         const payload = {
           user_id: userId,
-          username:
-            typeof decodedToken.username === 'string'
-              ? decodedToken.username
-              : undefined,
-          email:
-            typeof decodedToken.email === 'string'
-              ? decodedToken.email
-              : undefined,
+          username: typeof decodedToken.username === "string" ? decodedToken.username : undefined,
+          email: typeof decodedToken.email === "string" ? decodedToken.email : undefined,
         };
-        const accessToken = this.jwtService.sign(payload, { expiresIn: '24h' });
+        const accessToken = this.jwtService.sign(payload, { expiresIn: "24h" });
 
         // You can also update the last login here if needed
         await this.collabService.updateLastLogin(userId);
@@ -114,11 +106,11 @@ export class AuthService {
         };
       } else {
         // Token is not valid or expired, handle the error
-        throw new Error('Invalid or expired refresh token');
+        throw new Error("Invalid or expired refresh token");
       }
     } catch {
       // Handle verification or any other errors that may occur
-      throw new Error('Error verifying the refresh token');
+      throw new Error("Error verifying the refresh token");
     }
   }
 

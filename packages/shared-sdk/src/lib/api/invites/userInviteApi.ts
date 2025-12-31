@@ -1,11 +1,8 @@
-import { ApiManager } from '../ApiManager';
-import {
-  InvitedUserDetailsDto,
-  InvitedUserDto,
-} from 'shared-types/src/lib/types/userInvites/InvitedUser';
-import { SignUpProps } from '../AuthTypes';
+import { ApiManager } from "../ApiManager";
+import { InvitedUserDetailsDto, InvitedUserDto } from "shared-types/src/lib/types/userInvites/InvitedUser";
+import { SignUpProps } from "../AuthTypes";
 
-const ApiEndpoint = '/api';
+const ApiEndpoint = "/api";
 const InviteEndpoint = `${ApiEndpoint}/invite-user`;
 
 /**
@@ -20,11 +17,7 @@ export class UserInviteApi {
    * @param expiry - The number of milliseconds after which invite expires
    * @param numberOfInvites - The total number of invites
    */
-  static inviteUser(
-    userData: SignUpProps,
-    expiry: number,
-    numberOfInvites: number,
-  ): Promise<Response> {
+  static inviteUser(userData: SignUpProps, expiry: number, numberOfInvites: number): Promise<Response> {
     const invitedUserDto: InvitedUserDto = {
       firstname: userData.firstName,
       lastname: userData.lastName,
@@ -33,10 +26,7 @@ export class UserInviteApi {
       expiry: new Date(new Date().getTime() + expiry),
       numberOfInvites: numberOfInvites,
     };
-    return ApiManager.post(
-      `${InviteEndpoint}/invite`,
-      JSON.stringify(invitedUserDto),
-    );
+    return ApiManager.post(`${InviteEndpoint}/invite`, JSON.stringify(invitedUserDto));
   }
 
   /**
@@ -45,10 +35,7 @@ export class UserInviteApi {
    * @returns Response - The response object will contain the user object
    */
   static verifyInvite(inviteId: string): Promise<Response> {
-    return ApiManager.post(
-      `${InviteEndpoint}/verify-invite`,
-      JSON.stringify({ id: inviteId }),
-    );
+    return ApiManager.post(`${InviteEndpoint}/verify-invite`, JSON.stringify({ id: inviteId }));
   }
 
   /**
@@ -72,20 +59,14 @@ export class UserInviteApi {
    * @param id - Id of the user whose count to decrement
    */
   static async updateInvite(id: string): Promise<Response> {
-    const result = await ApiManager.getWithOptions(
-      `${InviteEndpoint}/invite/${id}`,
-    );
-    const userToUpdate: InvitedUserDetailsDto =
-      (await result.json()) as InvitedUserDetailsDto;
+    const result = await ApiManager.getWithOptions(`${InviteEndpoint}/invite/${id}`);
+    const userToUpdate: InvitedUserDetailsDto = (await result.json()) as InvitedUserDetailsDto;
     if (userToUpdate.numberOfInvites) {
       userToUpdate.numberOfInvites -= 1;
       if (userToUpdate.numberOfInvites === 0) {
         return this.deleteInviteById(id);
       }
     }
-    return ApiManager.put(
-      `${InviteEndpoint}/invite/`,
-      JSON.stringify(userToUpdate),
-    );
+    return ApiManager.put(`${InviteEndpoint}/invite/`, JSON.stringify(userToUpdate));
   }
 }

@@ -1,6 +1,6 @@
-import { NestFactory } from '@nestjs/core';
-import { CorsConfig } from './cors';
-import { ApiModule } from './api.module';
+import { NestFactory } from "@nestjs/core";
+import { CorsConfig } from "./cors";
+import { ApiModule } from "./api.module";
 
 /**
  * Bootstraps the NestJS HTTP application for the OpenPRA web-backend.

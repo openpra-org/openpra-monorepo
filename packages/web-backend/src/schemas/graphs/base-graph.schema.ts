@@ -1,8 +1,8 @@
-import { Prop } from '@nestjs/mongoose';
-import * as mongoose from 'mongoose';
-import { GraphNode } from 'shared-types/src/lib/types/reactflowGraph/GraphNode';
-import { GraphEdge } from 'shared-types/src/lib/types/reactflowGraph/GraphEdge';
-import { Document } from 'mongoose';
+import { Prop } from "@nestjs/mongoose";
+import * as mongoose from "mongoose";
+import { GraphNode } from "shared-types/src/lib/types/reactflowGraph/GraphNode";
+import { GraphEdge } from "shared-types/src/lib/types/reactflowGraph/GraphEdge";
+import { Document } from "mongoose";
 
 /**
  * Base shape for persisted graph documents.

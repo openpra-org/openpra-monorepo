@@ -1,11 +1,7 @@
-import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import {
-  InternalEvents,
-  InternalEventsDocument,
-  InternalEventsMetadata,
-} from '../schemas/internal-events.schema';
+import { Injectable } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model } from "mongoose";
+import { InternalEvents, InternalEventsDocument, InternalEventsMetadata } from "../schemas/internal-events.schema";
 
 /**
  * Service exposing metadata queries for typed models.
@@ -29,14 +25,10 @@ export class MetaTypedModelService {
    * @param userId - the user who's models are to be loaded
    * @returns the list of models for the type that the user has been assigned to
    */
-  async getInternalEventsMetaData(
-    userId: number,
-  ): Promise<InternalEventsMetadata[]> {
-    const valuesToSelect = ['label', 'users'];
+  async getInternalEventsMetaData(userId: number): Promise<InternalEventsMetadata[]> {
+    const valuesToSelect = ["label", "users"];
 
-    return this.internalEventsModel
-      .find({ users: userId })
-      .select(valuesToSelect);
+    return this.internalEventsModel.find({ users: userId }).select(valuesToSelect);
   }
 }
 

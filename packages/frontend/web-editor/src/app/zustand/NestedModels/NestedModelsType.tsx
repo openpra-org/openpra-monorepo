@@ -1,10 +1,10 @@
-import { NestedModelType } from 'shared-types/src/lib/types/modelTypes/innerModels/nestedModel';
-import { InitiatingEventsType } from './TypesHelpers/InitiatingEventsType';
-import { EventSequenceDiagramsType } from './TypesHelpers/EventSequenceDiagramsType';
-import { EventSequenceAnalysisType } from './TypesHelpers/EventSequenceAnalysisType';
-import { EventTreesType } from './TypesHelpers/EventTreesType';
-import { BayesianNetworksType } from './TypesHelpers/BayesianNetworksType';
-import { FaultTreesType } from './TypesHelpers/FaultTreesType';
+import { NestedModelType } from "shared-types/src/lib/types/modelTypes/innerModels/nestedModel";
+import { InitiatingEventsType } from "./TypesHelpers/InitiatingEventsType";
+import { EventSequenceDiagramsType } from "./TypesHelpers/EventSequenceDiagramsType";
+import { EventSequenceAnalysisType } from "./TypesHelpers/EventSequenceAnalysisType";
+import { EventTreesType } from "./TypesHelpers/EventTreesType";
+import { BayesianNetworksType } from "./TypesHelpers/BayesianNetworksType";
+import { FaultTreesType } from "./TypesHelpers/FaultTreesType";
 
 /**
  * Root state shape for nested model collections across PRA analysis areas.

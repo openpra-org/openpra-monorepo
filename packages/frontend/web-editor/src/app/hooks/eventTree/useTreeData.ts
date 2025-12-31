@@ -1,8 +1,8 @@
-import { Edge, Node } from 'reactflow';
-import { GenerateUUID } from '../../../utils/treeUtils';
-import { ScientificNotation } from '../../../utils/scientificNotation';
-import { recalculateFrequencies } from '../../../utils/recalculateFrequencies';
-import { useEventTreeStore } from './useEventTreeStore';
+import { Edge, Node } from "reactflow";
+import { GenerateUUID } from "../../../utils/treeUtils";
+import { ScientificNotation } from "../../../utils/scientificNotation";
+import { recalculateFrequencies } from "../../../utils/recalculateFrequencies";
+import { useEventTreeStore } from "./useEventTreeStore";
 
 /**
  * Get uppercase initials from a phrase.
@@ -12,9 +12,9 @@ import { useEventTreeStore } from './useEventTreeStore';
  */
 export const getInitials = (str: string): string => {
   return str
-    .split(' ')
+    .split(" ")
     .map((word) => word[0])
-    .join('')
+    .join("")
     .toUpperCase();
 };
 /**
@@ -43,7 +43,7 @@ export const createEndStates = (
   const sequenceIdNode = GenerateUUID();
   nodes.push({
     id: sequenceIdNode,
-    type: 'outputNode',
+    type: "outputNode",
     data: { label: sequenceIdNode, width: nodeWidth, isSequenceId: true },
     position: pos,
   });
@@ -51,7 +51,7 @@ export const createEndStates = (
     id: `${leafNode.id}-${sequenceIdNode}`,
     source: leafNode.id,
     target: sequenceIdNode,
-    type: 'custom',
+    type: "custom",
     animated: false,
   });
 
@@ -60,7 +60,7 @@ export const createEndStates = (
   const frequencyValue = isDefaultNode ? 0.5 : 0.0;
   nodes.push({
     id: frequencyNode,
-    type: 'outputNode',
+    type: "outputNode",
     data: {
       label: ScientificNotation.toScientific(frequencyValue),
       frequency: frequencyValue,
@@ -74,7 +74,7 @@ export const createEndStates = (
     id: `${sequenceIdNode}-${frequencyNode}`,
     source: sequenceIdNode,
     target: frequencyNode,
-    type: 'custom',
+    type: "custom",
     animated: false,
     data: {
       hidden: true,
@@ -85,7 +85,7 @@ export const createEndStates = (
   const releaseCategoryNode = GenerateUUID();
   nodes.push({
     id: releaseCategoryNode,
-    type: 'outputNode',
+    type: "outputNode",
     data: { label: `Category A`, width: nodeWidth },
     position: pos,
   });
@@ -93,7 +93,7 @@ export const createEndStates = (
     id: `${frequencyNode}-${releaseCategoryNode}`,
     source: frequencyNode,
     target: releaseCategoryNode,
-    type: 'custom',
+    type: "custom",
     animated: false,
     data: {
       hidden: true,
@@ -121,11 +121,10 @@ const useTreeData = (
   nodeWidth: number,
 ): { nodes: Node[]; edges: Edge[] } => {
   // Access Zustand store state
-  const { firstColumnLabel, setFirstColumnLabel } =
-    useEventTreeStore.getState();
+  const { firstColumnLabel, setFirstColumnLabel } = useEventTreeStore.getState();
 
   if (!firstColumnLabel) {
-    setFirstColumnLabel('Initiating Event'); // Default label if not set
+    setFirstColumnLabel("Initiating Event"); // Default label if not set
   }
 
   const pos = { x: 0, y: 0 };
@@ -140,7 +139,7 @@ const useTreeData = (
     const rootId = GenerateUUID();
     const rootNode: Node = {
       id: rootId,
-      type: 'visibleNode',
+      type: "visibleNode",
       data: {
         label: getInitials(firstColumnLabel),
         inputDepth: inputLevels,
@@ -164,7 +163,7 @@ const useTreeData = (
         const leftChildId = GenerateUUID();
         const leftChildNode: Node = {
           id: leftChildId,
-          type: 'visibleNode',
+          type: "visibleNode",
           data: {
             label: `Success`,
             probability: 0.5,
@@ -180,7 +179,7 @@ const useTreeData = (
         const rightChildId = GenerateUUID();
         const rightChildNode: Node = {
           id: rightChildId,
-          type: 'visibleNode',
+          type: "visibleNode",
           data: {
             label: `Failure`,
             probability: 0.5,
@@ -198,14 +197,14 @@ const useTreeData = (
           id: `${parent.id}-${leftChildId}`,
           source: parent.id,
           target: leftChildId,
-          type: 'custom',
+          type: "custom",
           animated: false,
         };
         const edgeRight: Edge = {
           id: `${parent.id}-${rightChildId}`,
           source: parent.id,
           target: rightChildId,
-          type: 'custom',
+          type: "custom",
           animated: false,
         };
         edges.push(edgeLeft);
@@ -240,13 +239,13 @@ const useTreeData = (
     const nodes: Node[] = [];
     const edges: Edge[] = [];
 
-    const firstColumnLabel = 'Initiating Event';
+    const firstColumnLabel = "Initiating Event";
     setFirstColumnLabel(firstColumnLabel);
 
     const rootColNode = GenerateUUID();
     const node: Node = {
       id: rootColNode,
-      type: 'columnNode',
+      type: "columnNode",
       data: {
         label: firstColumnLabel,
         probability: 1.0,
@@ -263,7 +262,7 @@ const useTreeData = (
     // Use a for loop to generate columns dynamically
     for (let column = 2; column <= verticalLevels; column++) {
       const nodeId = GenerateUUID();
-      let nodeLabel = '';
+      let nodeLabel = "";
 
       // Determine the label for each column
       if (column <= inputLevels) {
@@ -281,7 +280,7 @@ const useTreeData = (
       // Create the column node
       const colNode: Node = {
         id: nodeId,
-        type: 'columnNode',
+        type: "columnNode",
         data: {
           label: nodeLabel,
           width: nodeWidth,
@@ -300,7 +299,7 @@ const useTreeData = (
         id: `${prevNode}--${nodeId}`,
         source: prevNode,
         target: nodeId,
-        type: 'custom',
+        type: "custom",
         animated: false,
         data: {
           hidden: true,
@@ -316,12 +315,10 @@ const useTreeData = (
   };
 
   // Generate tree nodes and edges
-  const { nodes: generatedTreeNodes, edges: treeEdges } =
-    generateTreeNodesAndEdges();
+  const { nodes: generatedTreeNodes, edges: treeEdges } = generateTreeNodesAndEdges();
 
   // Generate column nodes and edges
-  const { nodes: generatedColNodes, edges: colEdges } =
-    generateColNodesAndEdges();
+  const { nodes: generatedColNodes, edges: colEdges } = generateColNodesAndEdges();
 
   const nodes = [...generatedTreeNodes, ...generatedColNodes];
   const edges = [...treeEdges, ...colEdges];

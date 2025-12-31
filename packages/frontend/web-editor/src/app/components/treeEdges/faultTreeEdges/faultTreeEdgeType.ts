@@ -1,4 +1,4 @@
-import { WorkFlowEdge } from './workFlowEdge';
+import { WorkFlowEdge } from "./workFlowEdge";
 
 /**
  * Edge type mapping for the Fault Tree editor.

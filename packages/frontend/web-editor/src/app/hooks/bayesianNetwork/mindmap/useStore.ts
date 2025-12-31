@@ -8,9 +8,9 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
   XYPosition,
-} from 'reactflow';
-import { create } from 'zustand';
-import { nanoid } from 'nanoid';
+} from "reactflow";
+import { create } from "zustand";
+import { nanoid } from "nanoid";
 
 /**
  * Type definition for additional data to be stored within each node.
@@ -84,9 +84,9 @@ export interface RFState {
 const UseStore = create<RFState>((set, get) => ({
   nodes: [
     {
-      id: 'root',
-      type: 'mindmap',
-      data: { label: 'New Node' },
+      id: "root",
+      type: "mindmap",
+      data: { label: "New Node" },
       position: { x: 100, y: 100 },
       parentNodes: [],
     },
@@ -97,8 +97,8 @@ const UseStore = create<RFState>((set, get) => ({
   addChildNode: (parentNode: NodeWithData, position: XYPosition): void => {
     const newNode: NodeWithData = {
       id: nanoid(),
-      type: 'mindmap',
-      data: { label: 'New Node' },
+      type: "mindmap",
+      data: { label: "New Node" },
       position,
       parentNodes: [parentNode.id],
     };
@@ -107,7 +107,7 @@ const UseStore = create<RFState>((set, get) => ({
       id: nanoid(),
       source: parentNode.id,
       target: newNode.id,
-      type: 'mindmap',
+      type: "mindmap",
     };
 
     set({
@@ -119,27 +119,25 @@ const UseStore = create<RFState>((set, get) => ({
   addParentNode: (childNode: NodeWithData, position: XYPosition): void => {
     const newParentNode: NodeWithData = {
       id: nanoid(),
-      type: 'mindmap',
-      data: { label: 'New Parent' },
+      type: "mindmap",
+      data: { label: "New Parent" },
       position,
     };
 
     const updatedNodes = get().nodes.map((node) =>
-      node.id === childNode.id
-        ? {
-            ...node,
-            parentNodes: node.parentNodes
-              ? [...node.parentNodes, newParentNode.id]
-              : [newParentNode.id],
-          }
-        : node,
+      node.id === childNode.id ?
+        {
+          ...node,
+          parentNodes: node.parentNodes ? [...node.parentNodes, newParentNode.id] : [newParentNode.id],
+        }
+      : node,
     );
 
     const newEdge = {
       id: nanoid(),
       source: newParentNode.id,
       target: childNode.id,
-      type: 'mindmap',
+      type: "mindmap",
     };
 
     set({
@@ -161,9 +159,7 @@ const UseStore = create<RFState>((set, get) => ({
     if (parentIds.length === 0) {
       set({
         nodes: currentNodes.filter((node) => node.id !== nodeId),
-        edges: currentEdges.filter(
-          (edge) => edge.source !== nodeId && edge.target !== nodeId,
-        ),
+        edges: currentEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
       });
       return;
     }
@@ -183,9 +179,7 @@ const UseStore = create<RFState>((set, get) => ({
     const updatedNodes = currentNodes.map((node) => {
       if (childEdges.some((edge) => edge.target === node.id)) {
         // For nodes that are children of the deleted node, update their parentNodes
-        const existingParents = node.parentNodes
-          ? node.parentNodes.filter((pid) => pid !== nodeId)
-          : []; // Remove the deleted node from their parentNodes
+        const existingParents = node.parentNodes ? node.parentNodes.filter((pid) => pid !== nodeId) : []; // Remove the deleted node from their parentNodes
         return {
           ...node,
           parentNodes: [...new Set([...existingParents, ...parentIds])], // Merge and deduplicate
@@ -198,9 +192,7 @@ const UseStore = create<RFState>((set, get) => ({
     set({
       nodes: updatedNodes.filter((n) => n.id !== nodeId), // remove the node
       edges: [
-        ...currentEdges.filter(
-          (e) => e.source !== nodeId && e.target !== nodeId,
-        ), // remove all edges of the node
+        ...currentEdges.filter((e) => e.source !== nodeId && e.target !== nodeId), // remove all edges of the node
         ...newEdges, // add new edges to reattach children
       ],
     });
@@ -221,7 +213,7 @@ const UseStore = create<RFState>((set, get) => ({
     const parentIds = get().getParents(nodeId);
     return parentIds.map((parentId) => {
       const parentNode = get().nodes.find((n) => n.id === parentId);
-      return parentNode?.data.label ?? 'Unknown';
+      return parentNode?.data.label ?? "Unknown";
     });
   },
 
@@ -230,7 +222,7 @@ const UseStore = create<RFState>((set, get) => ({
       .edges.filter((e) => e.source === nodeId)
       .map((e) => {
         const childNode = get().nodes.find((n) => n.id === e.target);
-        return childNode?.data.label ?? 'Unknown';
+        return childNode?.data.label ?? "Unknown";
       }),
   addEdge: (newEdge: EdgeWithData): void => {
     set({

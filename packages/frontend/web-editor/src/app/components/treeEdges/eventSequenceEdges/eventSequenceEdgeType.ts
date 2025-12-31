@@ -1,12 +1,12 @@
-import { EdgeTypes } from 'reactflow';
-import { EventSequenceEdge } from './eventSequenceEdge';
+import { EdgeTypes } from "reactflow";
+import { EventSequenceEdge } from "./eventSequenceEdge";
 
 /**
  * Represents the types of edges of event sequence diagram
  */
 const ESEdgeTypes: EdgeTypes = {
-  normal: EventSequenceEdge('normal'),
-  functional: EventSequenceEdge('functional'),
+  normal: EventSequenceEdge("normal"),
+  functional: EventSequenceEdge("functional"),
 };
 
 /**

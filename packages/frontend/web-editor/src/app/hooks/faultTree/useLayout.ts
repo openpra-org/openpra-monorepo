@@ -1,13 +1,9 @@
-import { useEffect, useRef } from 'react';
-import { useReactFlow, useStore, Node, Edge, ReactFlowState } from 'reactflow';
-import { stratify, tree } from 'd3-hierarchy';
-import { timer } from 'd3-timer';
-import {
-  FAULT_TREE_NODE_HEIGHT,
-  FAULT_TREE_NODE_SEPARATION,
-  FAULT_TREE_NODE_WIDTH,
-} from '../../../utils/constants';
-import { useStore as useFaultTreeStore } from '../../store/faultTreeStore';
+import { useEffect, useRef } from "react";
+import { useReactFlow, useStore, Node, Edge, ReactFlowState } from "reactflow";
+import { stratify, tree } from "d3-hierarchy";
+import { timer } from "d3-timer";
+import { FAULT_TREE_NODE_HEIGHT, FAULT_TREE_NODE_SEPARATION, FAULT_TREE_NODE_WIDTH } from "../../../utils/constants";
+import { useStore as useFaultTreeStore } from "../../store/faultTreeStore";
 
 // initialize the tree layout (see https://observablehq.com/@d3/tree for examples)
 const layout = tree<Node>()
@@ -30,23 +26,18 @@ function layoutNodes(nodes: Node[], edges: Edge[]): Node[] {
     .id((d) => d.id)
     // get the id of each node by searching through the edges
     // this only works if every node has one connection
-    .parentId((d: Node) => edges.find((e: Edge) => e.target === d.id)?.source)(
-    nodes,
-  );
+    .parentId((d: Node) => edges.find((e: Edge) => e.target === d.id)?.source)(nodes);
 
   // run the layout algorithm with the hierarchy data structure
   const root = layout(hierarchy);
 
   // convert the hierarchy back to react flow nodes (the original node is stored as d.data)
   // we only extract the position from the d3 function
-  return root
-    .descendants()
-    .map((d) => ({ ...d.data, position: { x: d.x, y: d.y } }));
+  return root.descendants().map((d) => ({ ...d.data, position: { x: d.x, y: d.y } }));
 }
 
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change
-const nodeCountSelector = (state: ReactFlowState): number =>
-  state.nodeInternals.size;
+const nodeCountSelector = (state: ReactFlowState): number => state.nodeInternals.size;
 
 /**
  * Hook for applying a hierarchical tree layout to nodes in a React Flow diagram.

@@ -1,4 +1,4 @@
-import { Node, Edge } from 'reactflow';
+import { Node, Edge } from "reactflow";
 
 interface VisibleData {
   label?: string;
@@ -12,11 +12,11 @@ interface OutputData {
 }
 
 function isVisibleNode(n?: Node): n is Node<VisibleData> {
-  return Boolean(n && n.type === 'visibleNode');
+  return Boolean(n && n.type === "visibleNode");
 }
 
 function isOutputNode(n?: Node): n is Node<OutputData> {
-  return Boolean(n && n.type === 'outputNode');
+  return Boolean(n && n.type === "outputNode");
 }
 
 /**
@@ -34,8 +34,7 @@ function isOutputNode(n?: Node): n is Node<OutputData> {
 export function recalculateFrequencies(nodes: Node[], edges: Edge[]): Node[] {
   // Find the root node (Initiating Event)
   const rootNode = nodes.find(
-    (node): node is Node<VisibleData> =>
-      isVisibleNode(node) && !edges.some((edge) => edge.target === node.id),
+    (node): node is Node<VisibleData> => isVisibleNode(node) && !edges.some((edge) => edge.target === node.id),
   );
 
   if (!rootNode) {
@@ -44,10 +43,7 @@ export function recalculateFrequencies(nodes: Node[], edges: Edge[]): Node[] {
   }
 
   // Ensure rootNode has a valid probability (default to 1 if undefined)
-  const rootProbability: number =
-    typeof rootNode.data.probability === 'number'
-      ? rootNode.data.probability
-      : 1;
+  const rootProbability: number = typeof rootNode.data.probability === "number" ? rootNode.data.probability : 1;
 
   // Map sequence IDs to their corresponding frequency nodes
   const sequenceToFrequencyNode = new Map<string, string>();
@@ -69,9 +65,7 @@ export function recalculateFrequencies(nodes: Node[], edges: Edge[]): Node[] {
   }
 
   // Find all sequence ID nodes
-  const sequenceIDNodes = nodes.filter(
-    (node) => isOutputNode(node) && node.data.isSequenceId === true,
-  );
+  const sequenceIDNodes = nodes.filter((node) => isOutputNode(node) && node.data.isSequenceId === true);
 
   // Build a node-to-children map for more efficient traversal
   const nodeToChildren = new Map<string, string[]>();
@@ -119,10 +113,8 @@ export function recalculateFrequencies(nodes: Node[], edges: Edge[]): Node[] {
     const depth = node.data.depth;
     const label = node.data.label;
     if (depth === 1) return 1.0;
-    if (depth === 2 && (label === 'Success' || label === 'Failure')) return 0.5;
-    return typeof node.data.probability === 'number'
-      ? node.data.probability
-      : 0.0;
+    if (depth === 2 && (label === "Success" || label === "Failure")) return 0.5;
+    return typeof node.data.probability === "number" ? node.data.probability : 0.0;
   };
 
   // This function will find all nodes that are part of the path to a sequence
@@ -164,9 +156,7 @@ export function recalculateFrequencies(nodes: Node[], edges: Edge[]): Node[] {
     for (const node of nodesInPath) {
       if (isVisibleNode(node)) {
         const nodeProb =
-          typeof node.data.probability === 'number'
-            ? node.data.probability
-            : getDefaultProbability(node);
+          typeof node.data.probability === "number" ? node.data.probability : getDefaultProbability(node);
 
         probability *= nodeProb;
 
@@ -184,9 +174,7 @@ export function recalculateFrequencies(nodes: Node[], edges: Edge[]): Node[] {
   return nodes.map((node) => {
     if (isOutputNode(node) && node.data.isFrequencyNode === true) {
       // Find the corresponding sequence ID
-      const sequenceIdEntry = Array.from(
-        sequenceToFrequencyNode.entries(),
-      ).find(([, freqId]) => freqId === node.id);
+      const sequenceIdEntry = Array.from(sequenceToFrequencyNode.entries()).find(([, freqId]) => freqId === node.id);
       const sequenceId = sequenceIdEntry ? sequenceIdEntry[0] : undefined;
 
       if (sequenceId) {

@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
-import { useReactFlow, useStore, Node, Edge, ReactFlowState } from 'reactflow';
-import { cluster, stratify } from 'd3-hierarchy';
-import { timer } from 'd3-timer';
+import { useEffect, useRef } from "react";
+import { useReactFlow, useStore, Node, Edge, ReactFlowState } from "reactflow";
+import { cluster, stratify } from "d3-hierarchy";
+import { timer } from "d3-timer";
 
 // Minimal typing for event tree node data used in this hook
 interface EventTreeNodeData {
@@ -38,10 +38,7 @@ function layoutNodes(
     .id((d) => d.id)
     // get the id of each node by searching through the edges
     // this only works if every node has one connection
-    .parentId(
-      (d: Node<EventTreeNodeData>) =>
-        edges.find((e: Edge) => e.target === d.id)?.source,
-    )(nodes);
+    .parentId((d: Node<EventTreeNodeData>) => edges.find((e: Edge) => e.target === d.id)?.source)(nodes);
 
   // run the layout algorithm with the hierarchy data structure
   const root = layout(hierarchy);
@@ -70,42 +67,34 @@ function layoutNodes(
 
   // Update the x position of the tree nodes with the same number as the column nodes
   nodes.forEach((node) => {
-    const correspondingColNode = cols.find(
-      (col) => col.data.depth === node.data.depth,
-    );
+    const correspondingColNode = cols.find((col) => col.data.depth === node.data.depth);
     if (correspondingColNode) {
       node.position.x = correspondingColNode.position.x;
     }
   });
 
   // Handle output nodes for end states (Sequence ID, Frequency, Release Category)
-  const regularCols = cols.filter((col) => col.type === 'columnNode');
+  const regularCols = cols.filter((col) => col.type === "columnNode");
 
   // First, align all output nodes to their correct columns
   nodes.forEach((node) => {
-    if (node.type === 'outputNode') {
+    if (node.type === "outputNode") {
       // Find which output node this is by checking properties
       if (node.data.isSequenceId) {
         // Sequence ID - should align with the sequence ID column
-        const seqIdCol = regularCols.find(
-          (col) => col.data.label === 'Sequence ID',
-        );
+        const seqIdCol = regularCols.find((col) => col.data.label === "Sequence ID");
         if (seqIdCol) {
           node.position.x = seqIdCol.position.x;
         }
       } else if (node.data.isFrequencyNode) {
         // Frequency node - should align with the Frequency column
-        const freqCol = regularCols.find(
-          (col) => col.data.label === 'Frequency',
-        );
+        const freqCol = regularCols.find((col) => col.data.label === "Frequency");
         if (freqCol) {
           node.position.x = freqCol.position.x;
         }
-      } else if (node.data.label.includes('Category')) {
+      } else if (node.data.label.includes("Category")) {
         // Release Category node - should align with the Release Category column
-        const catCol = regularCols.find(
-          (col) => col.data.label === 'Release Category',
-        );
+        const catCol = regularCols.find((col) => col.data.label === "Release Category");
         if (catCol) {
           node.position.x = catCol.position.x;
         }
@@ -117,8 +106,7 @@ function layoutNodes(
 }
 
 // this is the store selector that is used for triggering the layout, this returns the number of nodes once they change
-const nodeCountSelector = (state: ReactFlowState): number =>
-  state.nodeInternals.size;
+const nodeCountSelector = (state: ReactFlowState): number => state.nodeInternals.size;
 
 /**
  * Apply and animate a clustered layout for Event Tree nodes.
@@ -138,8 +126,7 @@ function useLayout(_depth: number): void {
   // whenever the nodes length changes, we calculate the new layout
   const nodeCount = useStore(nodeCountSelector);
 
-  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } =
-    useReactFlow<EventTreeNodeData, unknown>();
+  const { getNodes, getNode, setNodes, setEdges, getEdges, fitView } = useReactFlow<EventTreeNodeData, unknown>();
 
   useEffect(() => {
     // get the current nodes and edges
@@ -151,7 +138,7 @@ function useLayout(_depth: number): void {
     const cols: Node<EventTreeNodeData>[] = [];
 
     nodeData.forEach((node) => {
-      if (node.type === 'columnNode') {
+      if (node.type === "columnNode") {
         cols.push(node);
       } else {
         nodes.push(node);
